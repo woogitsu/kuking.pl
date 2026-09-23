@@ -46,7 +46,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 | Niebezpieczna porada zdrowotna/żywieniowa | "Soda oczyszcza z raka", niebezpieczne przetwory bez zasad bezpieczeństwa | Ukrycie treści; wyjaśnienie wpisujesz w pole „Wiadomość do użytkownika” przy decyzji — rzeczowo, bez oskarżania | Przy uporczywym powtarzaniu → blokada czasowa | Ukryć. Serwis nie umie dopiąć „kontekstu” do treści: pod treścią, która zostaje widoczna, moderator może najwyżej napisać zwykły komentarz, jak każdy inny użytkownik | Tak, rzeczowo, bez oceniania |
 | Nieletni na koncie | Wpis/profil sugerujący wiek poniżej 16 lat | Zawieszenie konta do wyjaśnienia — **profil zostaje widoczny** | Potwierdzone → trwałe zamknięcie konta (blokada), z informacją | Ukryć pojedyncze treści; profilu nie da się ukryć osobno | Tak, z wyjaśnieniem zasad wieku |
 | Reklama alkoholu | Post promujący markę alkoholu (nie: przepis zawierający alkohol jako składnik) | Usunięcie posta reklamowego | Powtórka → ostrzeżenie, potem blokada | Usunąć | Tak |
-| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. Poza tym nie kontaktuj się — patrz sekcja 6 |
+| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Wybierz podstawę **„Krzywdzenie dzieci — usuwamy natychmiast”** i zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. **Nie wybieraj „Treść niezgodna z prawem”**: przy tej podstawie formularz NIE PRZYJMIE pustej wiadomości (`required_if`), a to jest ostatnia chwila, w której chcesz walczyć z walidacją. Poza tym nie kontaktuj się — patrz sekcja 6 |
 | Groźby / zagrożenie życia | Wypowiedź wskazująca na realne zagrożenie życia (własnego lub cudzego) | **Zgłoszenie do organów — patrz sekcja 6** | — | Ukryć treść. Kopia robi się sama: ukrycie zmienia tylko status, wiersz zostaje w bazie i nic go nie kasuje | Ostrożnie, priorytet to bezpieczeństwo, nie moderacja. Powiadomienie do autora i tak wyjdzie automatycznie |
 
 ### Czego panel moderacji NIE potrafi — czytaj razem z tabelą wyżej
@@ -313,7 +313,7 @@ Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta oso
 - Konto założone <24h **i** publikujące link zewnętrzny w pierwszym poście → automatyczne oznaczenie do przeglądu (nie automatyczne usunięcie — unikać false positives dla nowych, prawdziwych użytkowników).
 - >3 identyczne lub niemal identyczne komentarze w ciągu 10 minut → automatyczne ograniczenie (throttle) konta + oznaczenie do przeglądu.
 - Nowe konto z linkiem w bio do domeny niezwiązanej z gotowaniem (sklep, kurs, "zarabianie") → wyższy priorytet. Uwaga: **kolejki triage dziś nie ma.** Statusy `triage` i `reviewing` istnieją w bazie, ale żaden kod ich nie nadaje — zgłoszenie idzie z `open` prosto do `resolved` albo `rejected`, a zakładka „W trakcie" w panelu jest z tego powodu zawsze pusta.
-- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. Kolumna `media.perceptual_hash` jest w schemacie od pierwszej migracji, ale **nic jej dziś nie wypełnia** — pipeline zdjęć jej nie liczy. To jest więc pełne zadanie do zrobienia, nie „włączenie" czegoś gotowego.
+- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. **W bazie nie ma dziś na to ani jednej kolumny.** `media.perceptual_hash` stała w schemacie od pierwszej migracji mediów, nikt jej nigdy nie wypełniał i została usunięta jako martwa (migracja `2026_09_12_100000_usun_martwa_kolumne_perceptual_hash`, `docs/DATABASE.md`). To jest więc pełne zadanie do zrobienia — liczenie skrótu w potoku zdjęć, kolumna i zapytanie — a nie „włączenie" czegoś gotowego.
 
 ### Rate limity — co jest ustawione, a co dopiero postulujemy
 
@@ -355,6 +355,29 @@ Pełna lista techniczna: `SECURITY_BASELINE.md`.
 | **Cudze zdjęcie podpisane jako własne** | Usunięcie + wiadomość do autora (szablon 4.1). Właściciela oryginału serwis powiadomi sam tylko wtedy, gdy zgłosił rzecz formularzem „Zgłoś treść niezgodną z prawem" i podał adres e-mail; po zwykłym „Zgłoś" pod zdjęciem nie dostanie nic i trzeba napisać do niego ręcznie. |
 | **CSAM (treści przedstawiające seksualne wykorzystywanie dzieci)** | **Procedura zero-tolerancji — patrz niżej, osobno.** |
 
+### 7.0 Podstawa decyzji — pole, którego ten dokument długo nie opisywał
+
+Od wdrożenia Art. 17 DSA **każda** decyzja moderacyjna wymaga wybrania
+**podstawy z zamkniętej listy**; panel nie przyjmie decyzji bez niej
+(`Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu`).
+Lista i odwzorowanie na punkty `resources/legal/zasady.md` stoją w jednym
+miejscu: `app/Domain/Moderation/PodstawaDecyzji.php`. Nie wpisuj własnych
+kodów — kod spoza listy nie dostanie numeru punktu i autor treści dowie się
+tylko ogólnika.
+
+Dwie podstawy zachowują się inaczej niż reszta i warto to wiedzieć ZANIM
+zaczniesz wypełniać formularz:
+
+| Podstawa | Kiedy | Co robi z formularzem |
+|---|---|---|
+| **Treść niezgodna z prawem** | gdy powołujesz się na przepis, nie na punkt zasad | **wymusza wiadomość do autora** — pusta nie przejdzie (`ModerationController::decide()`, `required_if`) |
+| **Krzywdzenie dzieci — usuwamy natychmiast** | ścieżka zero-tolerancji z §7.1 | wiadomość może zostać pusta; wychodzi neutralne zdanie domyślne |
+
+Pozostałe podstawy wskazują konkretny punkt zasad (1–9) i same wstawiają go
+do powiadomienia. Że każdy z tych punktów naprawdę istnieje w `zasady.md`
+i tak samo się nazywa, pilnuje
+`UzasadnienieDecyzjiTest::test_kazdy_punkt_z_listy_istnieje_w_zasadach`.
+
 ### 7.1 Procedura zero-tolerancji — CSAM i zagrożenie życia
 
 To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeżenie → blokada". Działamy natychmiast.
@@ -372,6 +395,116 @@ To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeż
 
 **To jedyna kategoria w tym dokumencie, gdzie "szybciej i ostrożniej" zawsze wygrywa z "poczekajmy i sprawdźmy dokładniej".**
 
+### 7.1a Projekt ścieżki z art. 18 DSA — DO POTWIERDZENIA PRZEZ PRAWNIKA, NIE ROZSTRZYGNIĘTE
+
+**Czym ta sekcja jest, a czym nie jest.** Punkt 3 wyżej zostawia
+`[do weryfikacji z prawnikiem]` od chwili, w której powstał. Ta sekcja tego
+**nie rozstrzyga** — zbiera materiał, żeby prawnik dostał trzy konkretne
+pytania zamiast pustej kartki, i żeby nikt nie musiał tego zbierać w dniu
+realnego incydentu. **Dopóki prawnik nie potwierdzi, obowiązuje punkt 3
+wyżej w dotychczasowym brzmieniu: zgłoś do Dyżurnet.pl, a przy trwającym
+zagrożeniu dzwoń na Policję.** Ta kolejność jest bezpieczna operacyjnie
+niezależnie od tego, jak wypadnie ocena prawna.
+
+**Każde twierdzenie niżej ma źródło i datę.** Stan prawny zmienia się poza
+tym repozytorium, a zdanie bez daty starzeje się po cichu.
+
+#### Co mówi sam przepis
+
+Art. 18 DSA nakłada na dostawcę usług hostingu obowiązek: gdy poweźmie
+informację dającą podstawę do podejrzenia, że popełniono, popełnia się
+lub może zostać popełnione **przestępstwo zagrażające życiu lub
+bezpieczeństwu osoby**, ma **niezwłocznie** poinformować **organy ścigania
+lub organy sądowe zainteresowanego państwa członkowskiego** i przekazać
+wszystkie dostępne informacje.
+[źródło: tekst skonsolidowany rozporządzenia (UE) 2022/2065 w EUR-Lex,
+odczytany 20.09.2026 — https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/?uri=CELEX:02022R2065-20221027]
+
+Trzy rzeczy, które z tego wynikają wprost i których nie trzeba potwierdzać:
+
+1. **Adresatem jest organ**, a nie organizacja pozarządowa ani punkt
+   kontaktowy branżowy. To jest sedno pytania nr 1 niżej.
+2. **Obowiązek nie zależy od wielkości dostawcy.** Art. 18 leży w Sekcji 2,
+   a zwolnienie dla mikro- i małych przedsiębiorstw dotyczy Sekcji 3
+   (`COMPLIANCE.md` §1.2).
+3. **Próg to podejrzenie, nie pewność.** Czekanie na pewność jest
+   naruszeniem, a nie ostrożnością.
+
+#### Co wiadomo o organach w Polsce
+
+- **Dyżurnet.pl** to zespół NASK, punkt przyjmowania zgłoszeń nielegalnych
+  treści, w tym CSAM; należy do sieci INHOPE.
+  [źródło: https://dyzurnet.pl oraz materiały NASK, odczytane 20.09.2026]
+  **Uwaga: to jest zespół instytutu badawczego, nie organ ścigania.**
+  Zgłoszenie tam jest sensowne operacyjnie (analiza i doprowadzenie do
+  usunięcia treści z sieci), ale **czy wyczerpuje obowiązek z art. 18 —
+  jest właśnie pytaniem do prawnika.**
+- **Policja i prokuratura** są organami ścigania w rozumieniu prawa
+  polskiego — to jest oczywiste i nie wymaga źródła. Przy **trwającym**
+  zagrożeniu życia numerem jest 112.
+- **Prezes UKE** został wskazany jako **koordynator do spraw usług
+  cyfrowych** w rozumieniu DSA.
+  [źródła odczytane 20.09.2026: https://uke.gov.pl/uslugi-cyfrowe/czym-jest-dsa/
+  oraz https://cyberpolicy.nask.pl/wdrozenie-dsa-w-polsce/]
+  **Koordynator to organ nadzoru nad stosowaniem DSA, a nie organ ścigania
+  — zgłoszenie z art. 18 najpewniej nie idzie do niego.** To jest
+  przypuszczenie autora tej sekcji, nie ustalenie.
+- **Data ustawy wdrażającej DSA w Polsce jest w naszych źródłach
+  sprzeczna.** Sekcja „Źródła" w `COMPLIANCE.md` odsyła do druku sejmowego
+  opisanego jako ustawa **z 18 grudnia 2025 r.**; wyszukiwanie z 20.09.2026
+  zwróciło natomiast opis ustawy **z 31 lipca 2026 r.** wyznaczającej
+  Prezesa UKE koordynatorem. Mogą to być dwa różne akty albo błąd jednego
+  ze źródeł. **Tej sprzeczności nie rozstrzygamy zgadywaniem** — wchodzi
+  do pytania nr 3.
+- Komisja Europejska prowadziła konsultacje dotyczące **stosowania
+  art. 18 DSA**, o czym informował UKE.
+  [źródło: https://uke.gov.pl/akt/konsultacje-ke-dot-stosowania-art-18-dsa,616.html —
+  odnośnik znaleziony 20.09.2026, treści i daty publikacji **nie
+  sprawdzono**; jeśli powstały wytyczne KE, są najświeższym materiałem
+  do tego punktu i trzeba zacząć od nich]
+- Istnieje odrębny od DSA obowiązek zawiadomienia o niektórych
+  przestępstwach, wynikający z art. 240 § 1 Kodeksu karnego. **To jest
+  wiedza modelu, nie odczyt źródła w tej sesji** — wymaga sprawdzenia
+  zakresu przedmiotowego i tego, czy sięga operatora platformy. Jeśli
+  sięga, jest to obowiązek **obwarowany sankcją karną**, a więc ważniejszy
+  operacyjnie niż sam art. 18.
+
+#### Trzy pytania do prawnika — do zadania dokładnie w tym brzmieniu
+
+1. **Czy zgłoszenie do Dyżurnet.pl wyczerpuje obowiązek z art. 18 DSA, czy
+   trzeba niezależnie zawiadomić Policję albo prokuraturę — i w jakiej
+   formie?** Chodzi o kolejność i o to, czy zgłoszenie do zespołu NASK
+   liczy się jako poinformowanie „organu ścigania lub organu sądowego".
+   Jeśli nie — prosimy o wskazanie **konkretnej jednostki i drogi
+   złożenia**, którą wpiszemy do punktu 3 procedury wyżej.
+
+2. **Co dokładnie mamy zachować, jak długo i w jakiej formie, zanim
+   usuniemy treść — i czy wolno nam ją zachować?** W procedurze wyżej
+   stoi zakaz kopiowania i przesyłania podejrzanej treści, bo samo to może
+   być czynem karalnym; jednocześnie art. 18 każe przekazać „wszystkie
+   dostępne informacje", a usunięcie treści przed zgłoszeniem zniszczyłoby
+   dowód. Dziś `Usuń treść` robi miękkie usunięcie (`deleted_at`) i zostawia
+   komplet danych w bazie — **prosimy o potwierdzenie, że to jest właściwe
+   zachowanie**, oraz o wskazanie, po jakim czasie i na czyje polecenie
+   wolno te dane skasować. Ma to skutek dla retencji: dziś sprawy
+   moderacyjne kasuje automat po 36 miesiącach
+   (`kuking:sprzataj-sprawy-moderacyjne`).
+
+3. **Jaki jest aktualny stan ustawy wdrażającej DSA w Polsce i czy nakłada
+   ona na dostawcę hostingu obowiązki zgłoszeniowe wykraczające poza
+   art. 18 — w tym wobec Prezesa UKE jako koordynatora?** Prosimy przy
+   okazji o rozstrzygnięcie sprzeczności dat opisanej wyżej oraz
+   o potwierdzenie, czy operatora platformy dotyczy art. 240 § 1 Kodeksu
+   karnego.
+
+#### Czego ta sekcja świadomie nie robi
+
+Nie zmienia ani jednego kroku procedury z §7.1, nie wskazuje organu
+i nie zdejmuje z punktu 3 oznaczenia `[do weryfikacji z prawnikiem]`.
+Zdjęcie go bez odpowiedzi prawnika byłoby dokładnie tym błędem, przed
+którym ostrzega reguła listy gotowości: punkt bez dowodu, który wygląda
+na sprawdzony.
+
 ---
 
 ## 8. Wypalenie moderatora — limity i rotacja
@@ -385,7 +518,7 @@ Przy 1–2 osobach moderacja treści wrażliwych (zwłaszcza zdjęć i opisów) 
   - filtrowanie oczywistego spamu (linki afiliacyjne wg listy domen) — automatyczne ukrycie do przeglądu, nie wymaga pełnej analizy człowieka za każdym razem,
   - proste rate-limity (sekcja 5) — działają bez udziału moderatora,
   - szablony odpowiedzi (sekcja 4) — nie pisać za każdym razem od nowa.
-  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (`media.perceptual_hash` nikt nie wypełnia), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
+  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (kolumnę `media.perceptual_hash` usunięto jako nigdy niewypełnianą — patrz sekcja wyżej), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
 - **Co NIE powinno nigdy trafiać do pełnej automatyzacji bez człowieka:** decyzje o blokadzie trwałej konta, każda sprawa P0 (CSAM/zagrożenie życia — wymaga świadomej decyzji człowieka o zgłoszeniu do organów), odwołania.
 - **Wsparcie:** jeśli moderator natrafi na szczególnie ciężką treść (CSAM, przemoc), **nie zostawiaj tego bez rozmowy** — nawet krótka wymiana z drugą osobą w zespole po fakcie pomaga. To nie jest slabość, to standard branżowy w trust & safety.
 

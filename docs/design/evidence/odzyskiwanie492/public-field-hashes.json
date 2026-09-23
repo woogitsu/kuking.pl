@@ -1,0 +1,494 @@
+[
+  {
+    "status": 419,
+    "retry_after": null,
+    "fields": [
+      {
+        "name": "title",
+        "before_length": 21,
+        "recovered_length": 21,
+        "before_sha256": "4c3c1c248062e880a33c76a8c1481b92d5b05efe3b53d2e89be0f8de58a150f5",
+        "recovered_sha256": "4c3c1c248062e880a33c76a8c1481b92d5b05efe3b53d2e89be0f8de58a150f5",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "summary",
+        "before_length": 49,
+        "recovered_length": 49,
+        "before_sha256": "094bf1541d5edcbfa952182de0a4043bdb1371382b0e0e9af13b5d9ddb7cf477",
+        "recovered_sha256": "094bf1541d5edcbfa952182de0a4043bdb1371382b0e0e9af13b5d9ddb7cf477",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "servings",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "prep_minutes",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "cook_minutes",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "visibility",
+        "before_length": 7,
+        "recovered_length": 7,
+        "before_sha256": "715dc8493c36579a5b116995100f635e3572fdf8703e708ef1a08d943b36774e",
+        "recovered_sha256": "715dc8493c36579a5b116995100f635e3572fdf8703e708ef1a08d943b36774e",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "source_type",
+        "before_length": 3,
+        "recovered_length": 3,
+        "before_sha256": "5b3975651c3cab92d044c096dc30a1c2d9525497457472de48c51ecb363d1f4a",
+        "recovered_sha256": "5b3975651c3cab92d044c096dc30a1c2d9525497457472de48c51ecb363d1f4a",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "source_person",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "source_note",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "family_since_year",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "source_url",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[0][text]",
+        "before_length": 11,
+        "recovered_length": 11,
+        "before_sha256": "31bf7ae5771e2078ea9dc29d83ad269625745a1b73065da615631f7dde1335d7",
+        "recovered_sha256": "31bf7ae5771e2078ea9dc29d83ad269625745a1b73065da615631f7dde1335d7",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "ingredients[0][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[1][text]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[1][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[2][text]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[2][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[0][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[0][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "bad3622dc703296a2427d93b20dd9053e1ba0278c092ded05a9b6c83f931e89b",
+        "recovered_sha256": "dd23e3085beb2ffa5d1b9c8a10aa9ad60cb1cb4ce34acad2a42b8e20139ae4cc",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[0][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "recovered_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[1][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[1][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "db56b4fc7a1f2410413f023ff5b19d05f9380226b7db23eae40c64e9b3f0383c",
+        "recovered_sha256": "a57d9fcc7c5c03e8e5d9de0c1c3255d7ea21609b9c5b8a5aea597a3d216fc220",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[1][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "recovered_sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[2][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[2][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "3c460c47989193863b5b008fe2cf0a5f8cc5ffae542aec11b092de413d3b43c5",
+        "recovered_sha256": "2c224fae89888c34cdc347f4293322557b62c2e18bbad2f8631a6042c20f82db",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[2][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+        "recovered_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      }
+    ],
+    "all_equal_after_trim": true,
+    "counts_at_rejection": {
+      "users": 2,
+      "recipes": 3,
+      "steps": 9
+    }
+  },
+  {
+    "status": 429,
+    "retry_after": "575",
+    "fields": [
+      {
+        "name": "title",
+        "before_length": 21,
+        "recovered_length": 21,
+        "before_sha256": "8d9dd37a3abede81ac6ada8c32bcd0411e3574a253bd0bc39717b26cf99f71fc",
+        "recovered_sha256": "8d9dd37a3abede81ac6ada8c32bcd0411e3574a253bd0bc39717b26cf99f71fc",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "summary",
+        "before_length": 49,
+        "recovered_length": 49,
+        "before_sha256": "094bf1541d5edcbfa952182de0a4043bdb1371382b0e0e9af13b5d9ddb7cf477",
+        "recovered_sha256": "094bf1541d5edcbfa952182de0a4043bdb1371382b0e0e9af13b5d9ddb7cf477",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "servings",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "prep_minutes",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "cook_minutes",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "visibility",
+        "before_length": 7,
+        "recovered_length": 7,
+        "before_sha256": "715dc8493c36579a5b116995100f635e3572fdf8703e708ef1a08d943b36774e",
+        "recovered_sha256": "715dc8493c36579a5b116995100f635e3572fdf8703e708ef1a08d943b36774e",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "source_type",
+        "before_length": 3,
+        "recovered_length": 3,
+        "before_sha256": "5b3975651c3cab92d044c096dc30a1c2d9525497457472de48c51ecb363d1f4a",
+        "recovered_sha256": "5b3975651c3cab92d044c096dc30a1c2d9525497457472de48c51ecb363d1f4a",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "source_person",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "source_note",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "family_since_year",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "source_url",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[0][text]",
+        "before_length": 11,
+        "recovered_length": 11,
+        "before_sha256": "31bf7ae5771e2078ea9dc29d83ad269625745a1b73065da615631f7dde1335d7",
+        "recovered_sha256": "31bf7ae5771e2078ea9dc29d83ad269625745a1b73065da615631f7dde1335d7",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "ingredients[0][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[1][text]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[1][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[2][text]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "ingredients[2][group_name]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[0][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[0][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "bad3622dc703296a2427d93b20dd9053e1ba0278c092ded05a9b6c83f931e89b",
+        "recovered_sha256": "dd23e3085beb2ffa5d1b9c8a10aa9ad60cb1cb4ce34acad2a42b8e20139ae4cc",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[0][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "recovered_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[1][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[1][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "db56b4fc7a1f2410413f023ff5b19d05f9380226b7db23eae40c64e9b3f0383c",
+        "recovered_sha256": "a57d9fcc7c5c03e8e5d9de0c1c3255d7ea21609b9c5b8a5aea597a3d216fc220",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[1][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "recovered_sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[2][id]",
+        "before_length": 0,
+        "recovered_length": 0,
+        "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "recovered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "equal_after_trim": true,
+        "empty_omitted": true
+      },
+      {
+        "name": "steps[2][instruction]",
+        "before_length": 396,
+        "recovered_length": 395,
+        "before_sha256": "3c460c47989193863b5b008fe2cf0a5f8cc5ffae542aec11b092de413d3b43c5",
+        "recovered_sha256": "2c224fae89888c34cdc347f4293322557b62c2e18bbad2f8631a6042c20f82db",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      },
+      {
+        "name": "steps[2][timer_minutes]",
+        "before_length": 1,
+        "recovered_length": 1,
+        "before_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+        "recovered_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+        "equal_after_trim": true,
+        "empty_omitted": false
+      }
+    ],
+    "all_equal_after_trim": true,
+    "counts_at_rejection": {
+      "users": 2,
+      "recipes": 2,
+      "steps": 6
+    }
+  }
+]

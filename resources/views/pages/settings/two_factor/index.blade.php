@@ -6,12 +6,21 @@
         samo hasło mu nie wystarczy, żeby się zalogować.
     </p>
 
-    @if(session('status'))
-        <p class="card mb-5" role="status">{{ session('status') }}</p>
-    @endif
+    {{-- KOMUNIKATU ZWROTNEGO TU NIE MA I NIE MA BYĆ.
+
+         Stało tu drugie wypisanie `session('status')`, a `x-layout` wypisuje
+         je już jako `<p class="flash">` w `<div class="komunikaty"
+         aria-live="polite">`. Po każdym `redirect()->with('status', …)`
+         z `TwoFactorSettingsController` (m.in. „Weryfikacja dwuetapowa jest
+         wyłączona.") ten sam tekst pokazywał się DWA RAZY, a czytnik ekranu
+         ogłaszał go dwukrotnie — raz z `aria-live` layoutu, raz z własnego
+         `role="status"`. Przy okazji rozdzielania ról powierzchni wyszło
+         przy tym drugie: komunikat zwrotny nie jest ani kartą, ani
+         wyjaśnieniem obok treści — ma własny wygląd (`.flash`) i własne
+         miejsce. Test: `WarstwyPowierzchniTest`. --}}
 
     @if($wlaczone)
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Włączona</h2>
             <p>Przy logowaniu, oprócz hasła, poprosimy Cię o kod z aplikacji uwierzytelniającej.</p>
 
@@ -29,7 +38,7 @@
                 z kodami zamyka konto do czasu wejścia na serwer, droga do
                 nowych kodów musi być łatwa, dopóki człowiek ma jeszcze dostęp.
             --}}
-            <details class="mt-5">
+            <details class="mt-5" @if($errors->getBag('regenerate')->any()) open @endif>
                 <summary class="btn btn-secondary inline-flex">Wygeneruj nowe kody zapasowe</summary>
                 <div class="mt-4">
                     <p>
@@ -37,9 +46,11 @@
                         o to właśnie chodzi, jeśli nie wiesz, gdzie jest kartka z poprzednimi.
                         Aplikacja w telefonie działa dalej bez zmian, nie musisz nic w niej przestawiać.
                     </p>
+                    @include('pages.settings.two_factor._password-help')
                     <form method="POST" action="{{ route('settings.two_factor.regenerate') }}">
                         @csrf
-                        <x-field name="password" label="Wpisz swoje hasło" type="password" required
+                        <x-error-summary error-bag="regenerate" :field-ids="['password' => 'f-password-regenerate']" />
+                        <x-field name="password" id="f-password-regenerate" error-bag="regenerate" label="Hasło do Kuking" type="password" required
                                  autocomplete="current-password"
                                  help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
                         <button class="btn btn-secondary mt-4" type="submit">Wygeneruj nowe kody</button>
@@ -47,13 +58,14 @@
                 </div>
             </details>
 
-            <details class="mt-5">
+            <details class="mt-5" @if($errors->getBag('disable')->any()) open @endif>
                 <summary class="btn btn-secondary inline-flex">Wyłącz weryfikację dwuetapową</summary>
                 <div class="mt-4">
-                    <x-error-summary />
+                    @include('pages.settings.two_factor._password-help')
                     <form method="POST" action="{{ route('settings.two_factor.disable') }}">
                         @csrf
-                        <x-field name="password" label="Wpisz swoje hasło" type="password" required
+                        <x-error-summary error-bag="disable" :field-ids="['password' => 'f-password-disable']" />
+                        <x-field name="password" id="f-password-disable" error-bag="disable" label="Hasło do Kuking" type="password" required
                                  autocomplete="current-password"
                                  help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
                         <button class="btn btn-danger mt-4" type="submit">Wyłącz</button>
@@ -62,9 +74,9 @@
             </details>
         </section>
     @else
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Wyłączona</h2>
-            <p>Włączenie zajmuje mniej niż dwie minuty i wymaga aplikacji uwierzytelniającej w telefonie
+            <p>Włączenie wymaga aplikacji uwierzytelniającej w telefonie
                 (na przykład Google Authenticator, Aegis albo 1Password).</p>
             <a class="btn btn-primary" href="{{ route('settings.two_factor.enable') }}">Włącz weryfikację dwuetapową</a>
         </section>

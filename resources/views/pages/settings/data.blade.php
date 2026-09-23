@@ -4,11 +4,34 @@
         Wszystko, co tu masz, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
-    <section class="card">
+    {{-- Sekcja strony, nie panel formularza: nie ma tu nic do wypełnienia,
+         a mocna obwódka zrównałaby pobieranie danych ze „Strefą zagrożenia"
+         niżej — akcja destrukcyjna ma zostać odsunięta (AGENTS.md §5). --}}
+    <section class="sekcja-strony">
         <h2 class="mt-0">Pobierz swoje dane</h2>
+        {{--
+            ZDANIE MÓWI TO SAMO, CO SAMA PACZKA (audyt zgodności #8, rozjazd R2).
+
+            Do 19 września 2026 stało tu „paczkę ze WSZYSTKIMI Twoimi (…)
+            zdjęciami". Paczka tak nie działa i nigdy tak nie działała:
+            `CollectUserExportData` liczy zdjęcia jeszcze w przygotowaniu,
+            odrzucone i skasowane, ale ich NIE ZAŁĄCZA — i mówi to wprost
+            w polu `czego_nie_zawiera`. Rozjazd polegał na tym, że paczka
+            była uczciwa, a ekran, na którym się ją zamawia, nie. A to zdanie
+            z ekranu człowiek czyta PIERWSZE i jedyne, zanim kliknie.
+
+            Nie wymieniamy tu wszystkich granic paczki — od tego jest plik
+            `czego_nie_zawiera` w środku. Wymieniamy tę jedną, która przeczy
+            słowu „wszystkie”.
+        --}}
         <p>
-            Przygotujemy paczkę ze wszystkimi Twoimi wpisami, przepisami, zdjęciami i komentarzami.
+            Przygotujemy paczkę z Twoimi wpisami, przepisami, zdjęciami i komentarzami.
             Dostaniesz plik ZIP, który otworzysz na komputerze — także wtedy, gdyby Kuking kiedyś przestał istnieć.
+        </p>
+        <p>
+            Nie ma w niej zdjęć, których nie udało się przygotować do pokazania w serwisie,
+            ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.
+            W środku znajdziesz plik, który wymienia wszystkie granice paczki.
         </p>
 
         <form method="POST" action="{{ route('settings.data.export') }}">
@@ -84,7 +107,13 @@
             zaznaczony. Każde z tych zdań musi być prawdziwe w kodzie —
             pilnuje tego `UsuwanieKontaZakresTest`.
         --}}
-        <div class="card mt-4">
+        {{-- SEKCJA, nie ramka pomocnicza. Te trzy listy są MATERIAŁEM do
+             wyboru zakresu usunięcia (D-022), a nie przypisem obok niego —
+             to jedyne miejsce, gdzie napisano, co dokładnie kasuje haczyk.
+             Na warstwie wgłębionej sąsiednie „Pobierz swoje dane" (akcja
+             zwykła, odwracalna) stało wizualnie WYŻEJ niż opis skutków,
+             których cofnąć się nie da. --}}
+        <div class="sekcja-strony mt-4">
             <h3 class="mt-0">Co zniknie, a co zostanie</h3>
 
             <p><strong>Znikną na stałe — zawsze:</strong></p>
@@ -107,13 +136,21 @@
                     w ogóle.</li>
             </ul>
 
-            <p>
-                Zostaje, bo to jest już także cudza historia: ktoś odpowiedział
-                Ci w komentarzu, ktoś ugotował z Twojego przepisu i ma go
-                w swoim zeszycie. Skasowanie tego zabrałoby coś ludziom, którzy
-                o nic nie prosili.
-            </p>
+            {{-- STAŁO TU KAZANIE, NIE INFORMACJA (audyt tekstów 11.09.2026).
 
+                 „Zostaje, bo to jest już także cudza historia: ktoś
+                 odpowiedział Ci w komentarzu, ktoś ugotował z Twojego przepisu
+                 i ma go w swoim zeszycie. Skasowanie tego zabrałoby coś
+                 ludziom, którzy o nic nie prosili."
+
+                 Ostatnie zdanie mówiło człowiekowi, co byłoby nie w porządku,
+                 gdyby wybrał drugą opcję — na ekranie, na którym ma wybrać.
+                 Uzasadnienie domyślnego zakresu usunięcia jest decyzją D-022
+                 i mieszka w `docs/DECISIONS.md`, nie przy haczyku.
+
+                 Zdania o FAKTACH nie zniknęły: co dokładnie zostaje, a co
+                 znika, mówią trzy listy w tej sekcji; że przepis może być
+                 w cudzym zeszycie, mówi lista niżej. --}}
             <p><strong>Znikną razem z resztą — jeśli zaznaczysz haczyk niżej:</strong></p>
             <ul>
                 <li>Wszystkie Twoje przepisy, wpisy, komentarze, wykonania
@@ -123,12 +160,15 @@
                     albo wpisem, znikną razem z nim.</li>
             </ul>
 
+            {{-- „Dlatego haczyk jest domyślnie pusty" mówiło, CZEMU tak
+                 zrobiliśmy. Że haczyk jest pusty, człowiek widzi niżej sam;
+                 powód stoi w D-022. Fakty zostają: tego nie da się odwrócić,
+                 i co zrobić, jeśli chce usunąć tylko część. --}}
             <p>
-                Tego nie da się odwrócić. Dlatego haczyk jest domyślnie pusty —
-                skasowanego tekstu nikt już nie przywróci. Jeśli chcesz usunąć
-                tylko wybrane przepisy albo wpisy, usuń je samodzielnie, zanim
-                skasujesz konto: później nie będzie już jak, bo do usuniętego
-                konta nie da się zalogować.
+                Tego nie da się odwrócić — skasowanego tekstu nikt już nie
+                przywróci. Jeśli chcesz usunąć tylko wybrane przepisy albo
+                wpisy, usuń je samodzielnie, zanim skasujesz konto: później nie
+                będzie już jak, bo do usuniętego konta nie da się zalogować.
             </p>
         </div>
         <p><strong>Zanim to zrobisz, warto najpierw pobrać swoje dane.</strong></p>
@@ -175,9 +215,14 @@
                 </p>
 
                 <label class="choice mt-4" for="f-confirm">
-                    <input id="f-confirm" type="checkbox" name="confirm" value="1">
+                    <input id="f-confirm" type="checkbox" name="confirm" value="1"
+                           @error('confirm') aria-invalid="true" aria-describedby="f-confirm-error" @enderror>
                     <span class="choice-label">Rozumiem, że po {{ $graceDays }} dniach moje dane i wszystkie moje zdjęcia zostaną usunięte na stałe i że tego nie da się cofnąć</span>
                 </label>
+                {{-- Bez tego błąd „Zaznacz, że rozumiesz, co się stanie" stał
+                     WYŁĄCZNIE w podsumowaniu na górze formularza — przy samym
+                     haczyku nie było go wcale. --}}
+                <x-blad-grupy name="confirm" />
 
                 <button class="btn btn-danger mt-5" type="submit">Usuń moje konto</button>
             </form>

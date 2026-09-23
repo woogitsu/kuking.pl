@@ -1,0 +1,34 @@
+ZOOM_TAB_OK /przepisy/minutnik-lokalny-571/gotuj 6/6
+ZOOM_TAB_OK /przepisy/minutnik-lokalny-571/gotuj 6/6
+ZOOM_TAB_OK /przepisy/minutnik-lokalny-571/gotuj 6/6
+ZOOM_TAB_OK /przepisy/minutnik-lokalny-571/gotuj 6/6
+[
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  }
+]

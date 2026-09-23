@@ -1,0 +1,38 @@
+/* D-212: zwykłe zdarzenia w kompozycji awatar / treść / akcja.
+   Pozostałe typy zachowują pełne karty i wieloakapitowe uzasadnienia. */
+/* Reguły bez warstwy nadpisują wyłącznie utility układu tych kart. */
+  .marka-powiadomienie-zwykle {
+    container-type: inline-size;
+  }
+
+  .marka-powiadomienie-zwykle .powiadomienie-tresc {
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .marka-powiadomienie-zwykle .powiadomienie-tresc > form {
+    max-width: 100%;
+  }
+
+  @container (min-width: 38rem) {
+    .marka-powiadomienie-zwykle .powiadomienie-wiersz {
+      align-items: center;
+    }
+
+    .marka-powiadomienie-zwykle .powiadomienie-tresc:has(> form) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: var(--spacing-5);
+      align-items: center;
+    }
+
+    .marka-powiadomienie-zwykle .powiadomienie-tresc > p {
+      grid-column: 1;
+    }
+
+    .marka-powiadomienie-zwykle .powiadomienie-tresc > form {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      margin: 0;
+    }
+  }

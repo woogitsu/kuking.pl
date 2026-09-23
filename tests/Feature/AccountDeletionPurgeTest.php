@@ -38,7 +38,7 @@ class AccountDeletionPurgeTest extends TestCase
     {
         $basia = $this->kontoPoTerminie();
         $emailPrzedUsunieciem = $basia->email;
-        $basia->forceFill(['ostatnio_widziany_at' => now()->subDay()])->save();
+        $basia->forceFill(['ostatnio_widziany_at' => now()->subDay(), 'pwa_prompt_state' => 'dismissed'])->save();
 
         $this->artisan('kuking:usun-wygasle-konta')->assertSuccessful();
 
@@ -55,6 +55,7 @@ class AccountDeletionPurgeTest extends TestCase
         // — bez tej linii `EraseAccountData` mógłby po cichu przestać
         // czyścić to pole, a zdanie w polityce zostałoby nieprawdziwe.
         $this->assertNull($basia->ostatnio_widziany_at);
+        $this->assertNull($basia->pwa_prompt_state);
 
         // STAN KOŃCOWY, NIE `pending_delete` (D-022).
         //

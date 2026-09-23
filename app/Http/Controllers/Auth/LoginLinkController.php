@@ -105,8 +105,16 @@ class LoginLinkController extends Controller
         return view('auth.login-link');
     }
 
-    public function send(Request $request, WyslijLinkDoLogowania $wyslij, DziennyBudzetListow $budzet): RedirectResponse
+    public function send(Request $request, WyslijLinkDoLogowania $wyslij): RedirectResponse
     {
+        // WYTWÓRNIA, NIE KONTENER (20 września 2026). Do tej pory budżet
+        // przychodził tu wstrzyknięciem, a konstruktor miał domyślne wartości
+        // z tej funkcji. Po dołożeniu WSPÓLNEGO licznika poczty kontener
+        // zbudowałby obiekt bez licznika nadrzędnego — sufit własny działałby
+        // dalej, a wspólnej puli ten list by nie zajął. Konstruktor jest od
+        // tamtej zmiany prywatny, żeby ta pomyłka nie była możliwa.
+        $budzet = DziennyBudzetListow::dlaLinkuLogowania();
+
         if (! self::wlaczone()) {
             return redirect()->route('login')->with('status',
                 'Logowanie linkiem jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa normalnie.',
@@ -218,7 +226,7 @@ class LoginLinkController extends Controller
             // D-056 zabrania zdradzać. Zostaje opis, który jest prawdziwy
             // w obu listach i nie zależy od koloru: JEDEN przycisk.
             'Jeśli na adres '.AdresEmail::maska($adres).' jest konto w Kuking, wysłaliśmy tam '
-            .'wiadomość z jednym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
+            .'wiadomość z jednym przyciskiem — możesz ją otworzyć także na innym telefonie albo komputerze. '
             .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
             .'załóż je: '.route('register'),
         );

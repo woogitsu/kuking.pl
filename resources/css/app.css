@@ -1,3 +1,4 @@
+@layer theme, base, components, marka, utilities;
 /*
  * Kuking.pl — arkusz główny
  * ---------------------------------------------------------------------------
@@ -11,9 +12,27 @@
  */
 
 @import "./tokens.css";
+@import "./linki-w-tresci.css";
+@import "./tagi-w-opisie.css";
 
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
+@import "./marka-rama.css";
+@import "./pasek-przewijany.css";
+@import "./szybki-wyglad.css";
+@import "./pwa-install.css";
+@import "./marka-ekrany.css";
+@import "./marka-wejscie.css";
+@import "./marka-wlasnosc.css";
+@import "./marka-przepis.css";
+@import "./marka-profil.css";
+@import "./marka-zeszyt.css";
+@import "./marka-onboarding.css";
+@import "./marka-powiadomienia.css";
+@import "./marka-szukaj.css";
+@import "./marka-tablica-publiczna.css";
+@import "./marka-panel.css";
+@import "./marka-tagi.css";
 
 /* Arkusze pojedynczych obszarów ekranów (UI kit v2, etap D). Osobne pliki,
    bo etap D wdrażało kilka równoległych zleceń — wspólny plik znaczyłby, że
@@ -21,12 +40,14 @@
    z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
    klasy z innego. */
 @import "./ekran-wyszukiwania.css";
+@import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
 @import "./ekran-odwolan.css";
+@import "./ekran-odkrywania.css";
 /* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
    Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
 @import "./wpis-nawigacja-sasiedzi.css";
@@ -69,7 +90,10 @@
       width: 100%;
       max-width: var(--container-strona);
       margin: 0 auto;
-      padding: 0 var(--spacing-6);
+      /* Margines boczny ramy — ta sama nazwa liczby, co w belce i w stopce
+         (`--container-margines`, tokens.css). Rama to `min(sufit, 100%)`,
+         więc to wcięcie jest drugą połową zapisu „100% − margines". */
+      padding: 0 var(--container-margines);
     }
 
     .app-main {
@@ -90,7 +114,13 @@
        Usterka jest niewidoczna dla zalogowanego (nawigacja wypełnia pierwszą
        kolumnę) i niewidoczna na telefonie (siatka włącza się dopiero od
        64rem). Widzi ją wyłącznie nowa osoba na komputerze, czyli dokładnie
-       ten, kto ogląda Kuking pierwszy raz. */
+       ten, kto ogląda Kuking pierwszy raz.
+
+       `-solo` ZNACZY „BEZ NAWIGACJI BOCZNEJ", NIE „JEDNA KOLUMNA NA ZAWSZE".
+       Od 80rem gość na ekranie z prawą szyną dostaje DRUGĄ kolumnę
+       (`.app-body-solo-z-szyna`, D-122). Tutaj, między 64 a 80rem, szyny
+       jeszcze nie ma nikt — ani zalogowany, ani gość — bo trzecia kolumna
+       zaczyna się dopiero przy 80rem. */
     .app-body-solo {
       grid-template-columns: minmax(0, 1fr);
       max-width: var(--container-strona-solo);
@@ -141,12 +171,144 @@
       max-width: var(--container-strona-z-szyna);
     }
 
-    /* Gość dalej bez kolumn na nawigację i szynę — nie ma ani jednej, ani
-       drugiej, więc rezerwowanie na nie miejsca zepchnęłoby jego treść
-       w lewo, zamiast ją wyśrodkować. */
+    /* SPROSTOWANIE, 11 września 2026 (D-122). STAŁO TU ZDANIE NIEPRAWDZIWE.
+
+       Do dziś w tym miejscu było napisane: „Gość dalej bez kolumn na
+       nawigację i szynę — NIE MA ANI JEDNEJ, ANI DRUGIEJ". Pierwsza połowa
+       jest prawdą do dziś (nawigacja boczna stoi w layoucie pod `@auth`).
+       Druga była prawdą dokładnie jeden dzień: zdanie powstało 6 września
+       2026 (18a089ec), a 7 września `/szukaj` dostało `<x-slot:rail>`
+       (e7dba42) i przestało być prawdą. 10 września doszły `/napisz-do-nas`
+       i `/@nazwa` (#231, 62814a0). Komentarz nikogo za tym nie poszedł
+       i przez kolejne dni tłumaczył regułę, której już nie uzasadniał.
+
+       KOSZT TEJ POMYŁKI ZGŁOSIŁ WŁAŚCICIEL: „niektóre podstrony jak napisz
+       do nas jest bardzo wąskie, gdzie po prawej i lewej można coś dodać na
+       kompie". Osoba, która pisze „nie mogę się zalogować" z komputera,
+       czytała blok „Nie możesz się zalogować" POD CAŁYM FORMULARZEM, na
+       stronie zwiniętej do 768 px przy monitorze 1920 px — bo szyna gościa
+       leciała pod treść na każdej szerokości.
+
+       DZIŚ JEST TAK: gość na ekranie Z SZYNĄ dostaje od 80rem dwie kolumny
+       (treść + szyna), a na ekranie BEZ SZYNY zostaje przy jednej,
+       wyśrodkowanej. Klasę wybiera layout — patrz `$maSzyne`
+       w `resources/views/components/layout.blade.php`.
+
+       DLACZEGO GOŚĆ BEZ SZYNY NIE DOSTAJE PUSTEJ TRZECIEJ KOLUMNY, SKORO
+       ZALOGOWANY DOSTAJE (reguła `.app-body` wyżej, issue #294)
+       Bo powód tamtej rezerwacji u gościa nie istnieje. Zalogowanemu kolumna
+       stoi pusta po to, żeby NAWIGACJA BOCZNA miała na każdym ekranie ten sam
+       x — ma się nie przesuwać przy przejściu z `/home` na `/powiadomienia`.
+       Gość nawigacji bocznej nie ma, więc rezerwacja nie utrzymywałaby
+       niczego w miejscu: dołożyłaby tylko 384 px pustki po prawej i zepchnęła
+       jego treść w lewo. To jest dokładnie ta usterka, którą właściciel
+       zgłosił przy panelu moderacji („treść wciśnięta w lewe ~55% ekranu,
+       po prawej duży pusty obszar"), a pusta szyna wygląda na usterkę układu,
+       nie na wybór. Cena: strony gościa mają dwie różne szerokości (768
+       i 1152 px). Przyjmujemy ją świadomie — u gościa nie ma czego licować
+       między podstronami, a wąska kolumna czytania na stronie bez szyny jest
+       zaletą, nie brakiem. */
     .app-body-solo {
       grid-template-columns: minmax(0, 1fr);
       max-width: var(--container-strona-solo);
+    }
+
+    /* Gość NA EKRANIE Z SZYNĄ: dwie kolumny, nie trzy (D-122).
+
+       Klasa dochodzi DO `.app-body-solo`, nie zastępuje jej — obie stoją
+       w atrybucie razem. To nie jest niedbałość: `.app-body-solo` znaczy
+       w tym arkuszu „układ gościa, bez nawigacji bocznej" i czytają to także
+       reguły spoza tego pliku (`ekran-profilu.css`:
+       `:not(.app-body-solo):not(.app-body-powitalny)`, które trzyma liczby
+       o osobie w karcie profilu, bo bloku w szynie gościowi nie wysyłamy).
+       Zastąpienie klasy zabrałoby gościowi liczby z karty i nie dało nic
+       w zamian — czyli poprawka układu byłaby dla niego regresją (D-091).
+
+       Kolejność w pliku, nie waga selektora: obie reguły mają tę samą
+       specyficzność (0,1,0), więc ta MUSI stać niżej. */
+    .app-body-solo-z-szyna {
+      grid-template-columns: minmax(0, 1fr) var(--container-rail);
+      max-width: var(--container-strona-solo-z-szyna);
+    }
+
+    /* --- EKRAN, KTÓRY UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365) ---------
+
+       Zgłoszenie właściciela ze zrzutu strony przepisu: „w prawej kolumnie
+       która jest pusta, można dać to np" — i wskazany blok „Ugotowałem /
+       Zapisuję / Gotuję / Podziel się / Skąd ten przepis".
+
+       Zmierzone 11 września, `/przepisy/…`, Chromium: zalogowany przy oknie
+       1920 px miał ramę 1424 px, kolumnę czytania 720 px i TRZECIĄ KOLUMNĘ
+       PUSTĄ; gość miał całą stronę zwiniętą do 768 px, bo bez szyny bierze
+       `--container-strona-solo`. Panel akcji stał w tym czasie wciśnięty
+       obok zdjęcia, w kolumnie czytania.
+
+       DLACZEGO NIE `<x-slot:rail>`, SKORO TO JEST DOKŁADNIE TA KOLUMNA
+       Bo szyna renderuje się w kodzie ZA `<main>`, a na tym ekranie ten blok
+       MUSI stać przed składnikami: na telefonie kolumn nie ma i to kolejność
+       w kodzie decyduje, co człowiek czyta najpierw. Do etapu C „Ugotowałem"
+       leżało pod krokami i widział je tylko ten, kto przewinął cały przepis;
+       pilnuje tego dziś `tests/Feature/EkranPrzepisuWedlugKituTest.php`
+       („główna akcja stoi przed składnikami"). Przeniesienie bloku do slotu
+       `rail` cofnęłoby tamtą poprawkę, a `order` z CSS-a zmieniłby tylko to,
+       co widać — nie to, co czyta czytnik ekranu i klawiatura.
+
+       Dlatego `<main>` na tym ekranie ZAJMUJE OBIE KOLUMNY — czytania
+       i szyny — a o tym, co gdzie stoi, decyduje siatka samego ekranu
+       (`.przepis-uklad` niżej). Kod zostaje w kolejności telefonu, układ
+       dostaje dwie kolumny, pustka po prawej znika.
+
+       Rama, belka i stopka nie zmieniają ani piksela: zalogowany ma te same
+       1424 px co wszędzie (trzecia kolumna wreszcie nie jest pusta), a gość
+       bierze `--container-strona-solo-z-szyna` (1152 px) — tę samą liczbę,
+       co ekran gościa z prawdziwą szyną (D-122), więc belka i stopka mają
+       skąd wziąć swoją (klasa `uklad-solo-z-szyna` na `<body>`). */
+    .app-body-tresc-z-szyna .app-main {
+      /* Kolumna czytania + kolumna szyny. Sufit zdejmujemy TUTAJ, a nie
+         w `.przepis-uklad`: to `.app-main` przycina do 45rem, a tekst
+         przycina teraz siatka ekranu — patrz `.przepis-uklad`. */
+      grid-column: 2 / span 2;
+      max-width: none;
+    }
+
+    /* Wszystko, co `<main>` niesie POZA siatką ekranu (komunikat zwrotny,
+       plakietka zawieszenia konta), zostaje kolumną czytania. Bez tego
+       jedno zdanie „Zostałeś wylogowany" rozciągałoby się na 1104 px.
+
+       WYJĄTKI WYPISANE Z NAZWY, BO KAŻDY Z NICH JEST SIATKĄ SAMEGO EKRANU
+       i sam dzieli te dwie kolumny między swoje bloki: `.przepis-uklad`
+       (strona przepisu, issue #365) i `.odkryj-uklad` („Świeżo z Kuking",
+       zgłoszenie „prawa kolumna pusta wszystko na środku"). Przycięcie ich
+       do 45rem zostawiłoby kolumnę szyny pustą — czyli dokładnie ten stan,
+       z którego obie te poprawki wyszły. Ekran, który dopisze się tu jako
+       trzeci, musi dopisać też swoją nazwę; wspólnej klasy świadomie nie
+       wprowadzamy, bo to jedyne miejsce, w którym ta lista jest potrzebna,
+       a klasa-znacznik w HTML-u niczego by nie tłumaczyła. */
+    .app-body-tresc-z-szyna .app-main > :not(.przepis-uklad):not(.odkryj-uklad) {
+      max-width: var(--container-content);
+    }
+
+    /* Gość: jedna kolumna, ale szeroka na treść RAZEM z szyną. */
+    .app-body-solo.app-body-tresc-z-szyna {
+      max-width: var(--container-strona-solo-z-szyna);
+    }
+
+    .app-body-solo.app-body-tresc-z-szyna .app-main {
+      grid-column: 1;
+    }
+
+    /* Treść trzyma się LEWEJ krawędzi swojej kolumny, bo z tą krawędzią
+       licuje logotyp w belce (pomiar „Wyrównanie belki do siatki treści").
+
+       DZIŚ TA REGUŁA NIE ZMIENIA ANI PIKSELA i mówimy to wprost, zamiast
+       udawać, że coś naprawia: pierwsza kolumna ma dokładnie 720 px, czyli
+       tyle co `--container-content`, więc `margin: 0 auto` z bloku 64rem
+       daje tu zero z obu stron. Zostaje jako zapis intencji na wypadek, gdy
+       kolumna urośnie — wtedy `auto` wyśrodkowałoby w niej treść i belka
+       rozjechałaby się z pierwszym słowem, a przyczyny szukałoby się w belce.
+       Zmierzone 11 września, okno 1920 px: treść 408–1128, belka 408–1512. */
+    .app-body-solo-z-szyna .app-main {
+      margin: 0;
     }
 
     .app-body-powitalny {
@@ -180,7 +342,53 @@
      */
     .app-body[data-tryb-panelu] {
       grid-template-columns: var(--container-sidenav) minmax(0, 1fr);
-      max-width: var(--container-strona);
+      max-width: var(--container-panel);
+    }
+  }
+
+  /* --- PANEL MODERACJI BIERZE CAŁĄ SZEROKOŚĆ (zgłoszenie właściciela) -----
+
+     „patrz szerokość strony dla użytkownika a tą dla admina i moderatora,
+     dla admina i moderatora jest wąskie, przez co informacje trzeba
+     przewijać, zrób dla admina i moderatora 100% szerokości".
+
+     Zrzut pokazywał `/admin/uzytkownicy` z WIDOCZNYM poziomym paskiem
+     przewijania i uciętą w połowie słowa kolumną „Stan konta" — czyli tą
+     jedną rzeczą, po którą moderator na tę listę wchodzi.
+
+     PRZYCZYNA MA DWIE WARSTWY I OBIE TRZEBA ZDJĄĆ:
+       1. rama panelu miała sufit `--container-strona` (1040 px), bo panel
+          dziedziczył ramę ekranu do czytania;
+       2. `.app-main` ma `max-width: var(--container-content)` (720 px), więc
+          nawet po podniesieniu sufitu tabela dostałaby dalej 720 px.
+
+     DLACZEGO WOLNO, SKORO 45rem NA KOLUMNĘ TEKSTU JEST REGUŁĄ TWARDĄ.
+     Bo ta reguła broni CZYTANIA: wiersz dłuższy niż 55–75 znaków gubi się
+     przy przejściu do następnego (docs/UX_50_PLUS.md). Tabela kont nie jest
+     wierszem tekstu — jest siedmioma kolumnami, które porównuje się w poziomie
+     — i na zwężeniu nie zyskuje nic, tylko traci kolumny za krawędź.
+
+     CO ZOSTAJE NIETKNIĘTE: `overflow-x` na `.tabela-kont-przewijanie`
+     (`ekran-uzytkownikow.css`). Przy 320 px tabela dalej ma prawo jeździć
+     w bok W SWOIM kontenerze — to jest poprawne i chroni stronę przed
+     przewijaniem w bok CAŁĄ (WCAG 2.2 AA 1.4.10). Zmieniamy to, że jeździła
+     także na ekranie 1600 px.
+
+     PRÓG 64rem, nie 80rem: rama panelu ma dwie kolumny od 64rem i od tego
+     samego progu ma brać całą szerokość. Niżej (telefon, tablet) nic się nie
+     zmienia — tam `.app-body` nie jest siatką i nie ma żadnego sufitu.
+     ---------------------------------------------------------------------- */
+
+  @media (min-width: 64rem) {
+    .app-body[data-tryb-panelu] {
+      max-width: var(--container-panel);
+    }
+
+    /* Druga warstwa: kolumna treści panelu przestaje być kolumną CZYTANIA.
+       Bez tego sufit ramy urośnie, a tabela zostanie przy 720 px i pustka
+       przeniesie się tylko o kawałek w prawo. */
+    .app-body[data-tryb-panelu] .app-main {
+      max-width: none;
     }
   }
 
@@ -266,7 +474,21 @@
    * 86% widoku. Zmierzony skutek: 91 kontrolek na czterech ekranach ląduje
    * po Tab w CAŁOŚCI pod tym paskiem.
    *
-   * DLACZEGO NIE `scroll-padding-top`. To normalny mechanizm na przypiętą
+   * DLACZEGO NIE `scroll-padding-top` — ALE TYLKO TUTAJ, CZYLI PRZY TEJ
+   * WIELKOŚCI TEKSTU. Od 12 września `scroll-padding-top` W SERWISIE JEST
+   * (`--rezerwa-nad-belka`, niżej w tym pliku, przy `scroll-padding-bottom`)
+   * i zbija zmierzone ostrzeżenia o fokusie z 27 na 6. Akapit niżej NIE jest
+   * z tym sprzeczny i nie wolno go czytać jako zakazu tego mechanizmu
+   * w ogóle: mówi o stanie, w którym pasek ma 263 px, a ten stan jest
+   * dokładnie tym, w którym pasek zostaje ODPIĘTY regułą poniżej — więc
+   * rezerwa jest tam wyzerowana na tych samych dwóch progach i nie ma jej
+   * kto płacić. Te dwa rozwiązania dzielą się rolami po wielkości tekstu:
+   * dopóki pasek jest przypięty, fokus omija go rezerwą; gdy urośnie tak, że
+   * rezerwa przestałaby się mieścić, pasek przestaje być przypięty. Zgodności
+   * obu progów pilnuje `tests/Feature/RezerwaNadPaskiemTest.php` — rozjazd
+   * między nimi jest cichy i dlatego ma własny test.
+   *
+   * To normalny mechanizm na przypiętą
    * belkę i tutaj NIE MA CZEGO NAPRAWIĆ TYM MECHANIZMEM. `scroll-padding`
    * przesuwa tylko fokus z pod belki; belka i tak zostaje na ekranie.
    * Żeby fokus wyjechał z pod OBU, suma obu wartości musiałaby pokryć
@@ -384,13 +606,21 @@
     .topbar-inner,
     .site-footer-inner {
       max-width: var(--container-strona);
-      padding-left: var(--spacing-6);
-      padding-right: var(--spacing-6);
+      padding-left: var(--container-margines);
+      padding-right: var(--container-margines);
     }
 
-    /* Gość nie ma nawigacji bocznej ani szyny — jego `.app-body-solo` to jedna
-       kolumna. Belka szersza niż ta kolumna kładłaby logotyp na lewo od treści,
-       czyli dokładnie ten sam rozjazd, tylko w drugą stronę. */
+    /* Gość nie ma nawigacji bocznej, a MIĘDZY 64 A 80rem nikt nie ma szyny
+       obok treści (trzecia kolumna zaczyna się dopiero przy 80rem) — więc tu
+       jego treść to jedna kolumna. Belka szersza niż ta kolumna kładłaby
+       logotyp na lewo od treści, czyli dokładnie ten sam rozjazd, tylko
+       w drugą stronę.
+
+       SPROSTOWANIE, 11 września 2026 (D-122): do dziś stało tu „gość nie ma
+       nawigacji bocznej ANI SZYNY". Druga połowa była nieprawdą od
+       7 września — trzy publiczne widoki podają `<x-slot:rail>`. Od 80rem
+       belka i stopka gościa z szyną biorą szerszy token, patrz
+       `.uklad-solo-z-szyna` w bloku 80rem niżej. */
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
@@ -497,10 +727,19 @@
        reguły stoją PRZY samym polu, kilkaset linijek niżej — patrz komentarz
        „DLACZEGO TO STOI PRZY POLU". Tutaj byłyby martwe. */
 
-    /* Gość nie ma ani nawigacji bocznej, ani szyny, ani pola „Szukaj" w belce
-       — jego treść to jedna kolumna. Trzykolumnowa belka zostawiłaby mu
-       logotyp w słupku szerokim na 240 px, a „Załóż konto" w powietrzu nad
-       pustym miejscem. Wraca wiersz `flex` z `space-between`. */
+    /* Gość nie ma ani nawigacji bocznej, ani pola „Szukaj" w belce —
+       trzykolumnowa siatka belki zostawiłaby mu logotyp w słupku szerokim
+       na 240 px, a „Załóż konto" w powietrzu nad pustym miejscem. Wraca
+       wiersz `flex` z `space-between`.
+
+       SPROSTOWANIE, 11 września 2026 (D-122): stało tu „ani szyny". Gość ma
+       szynę na trzech publicznych ekranach i od dziś stoi ona OBOK treści,
+       a mimo to belka zostaje `flex` — i to jest wybór, nie przeoczenie.
+       Siatka belki istnieje po to, żeby pole „Szukaj" licowało z kolumną
+       czytania (pomiar „Wyrównanie belki do siatki treści"
+       w `scripts/dostepnosc.mjs`). Gość tego pola nie ma, więc nie ma czego
+       licować w środku; liczą się tylko krawędzie zewnętrzne, a te daje
+       `max-width` niżej. */
     .uklad-solo .topbar-inner,
     .uklad-powitalny .topbar-inner {
       display: flex;
@@ -517,6 +756,18 @@
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
+    }
+
+    /* Belka i stopka gościa NA EKRANIE Z SZYNĄ (D-122) — ta sama liczba, co
+       `.app-body-solo-z-szyna` wyżej. Dwie szerokości w dwóch warstwach to
+       ta sama usterka, którą naprawiał komentarz „BELKA I STOPKA STOJĄ W TEJ
+       SAMEJ SIATCE CO TREŚĆ": logotyp stanąłby 192 px na prawo od pierwszego
+       słowa, a przyciski nad środkiem szyny. Klasa dochodzi do `.uklad-solo`
+       (obie stoją na `<body>` razem), więc ta reguła musi stać NIŻEJ —
+       specyficzność mają tę samą. */
+    .uklad-solo-z-szyna .topbar-inner,
+    .uklad-solo-z-szyna .site-footer-inner {
+      max-width: var(--container-strona-solo-z-szyna);
     }
 
     /* Strona powitalna wraca tu do `--container-strona`, bo pas ma tę samą
@@ -537,6 +788,18 @@
     .topbar-desktop-only { display: inline-flex; }
   }
 
+  /* Odwrotność powyższej: pozycja belki, która znika tam, gdzie POJAWIA SIĘ
+     nawigacja boczna — bo `.side-nav` niesie dokładnie ją, z tym samym
+     napisem i tym samym licznikiem (`side-nav-dol`). Próg 64rem jest ten sam
+     co przy `.side-nav`; gdyby się rozjechały, pozycja zniknęłaby z obu
+     miejsc naraz albo stała w obu. Pełne uzasadnienie — przy
+     „Powiadomieniach" w `components/layout.blade.php`. */
+  .topbar-mobile-only { display: inline-flex; }
+
+  @media (min-width: 64rem) {
+    .topbar-mobile-only { display: none; }
+  }
+
   .wordmark {
     display: inline-flex;
     align-items: center;
@@ -555,9 +818,27 @@
     text-decoration: none;
   }
 
-  /* „.pl" w kolorze marki — logotyp z UI kitu v2 (decyzja właściciela).
-     Wcześniej akcentowane było „KING" w „KUKING". */
-  .wordmark-tld { color: var(--color-brand); }
+  /* AKCENT TYLKO NA „King" — „Ku" i „.pl" zostają w kolorze tekstu.
+
+     Historia tej reguły w czterech krokach, bo inaczej wygląda jak wahanie:
+     najpierw akcentowane było „KING" w wersaliku „KUKING"; D-015 zmieniło
+     logotyp na „KuKing.pl" i przeniosło akcent na „.pl"; 11 września
+     właściciel poprosił, żeby kolor wrócił także na „King" — a po zobaczeniu
+     tego na ekranie, żeby „.pl" zgasło i było czarne jak „Ku". W znaku
+     zostaje jeden akcent, nie dwa. Wersalik w środku pozostaje częścią
+     znaku, nie zasadą ortograficzną — do wersalikowego „KUKING" NIE wracamy.
+
+     Kontrast policzony, nie przyjęty na oko: #B3401F na białym pasku daje
+     5,72:1, a w trybie ciemnym #F2986A na #2A241E daje 6,92:1. Oba
+     przechodzą WCAG 2.2 AA dla tekstu (próg 4,5:1), więc kolor niesie
+     wyróżnienie, a nie samą dekorację.
+
+     `.wordmark-tld` zostaje w znaczniku, choć nie ma już własnego koloru:
+     trzyma „.pl" w jednym kawałku i pozwala wrócić do akcentu jedną
+     linijką. Kolor dziedziczy po `.wordmark` (`--color-ink`), więc
+     przestawia się razem z trybem ciemnym — nie wpisujemy tu czerni
+     wprost, bo w trybie ciemnym byłaby czernią na czarnym. */
+  .wordmark-king { color: var(--color-brand); }
 
   /* Znak dziedziczy kolor po logotypie i przez to sam się przestawia
      w trybie ciemnym. `flex: none` — inaczej flexbox ściska go przy
@@ -568,9 +849,6 @@
     flex: none;
     color: var(--color-brand);
   }
-
-  /* Wersja dla <img>, używana jeszcze w pustych stanach. */
-  .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
 
   /*
    * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
@@ -710,8 +988,8 @@
    * trzy, u nas w obrazie deweloperskim wcale — zależnie od tego, co akurat
    * wpadło w ten pasek.
    *
-   * `--user-text-scale` mnoży wyłącznie tokeny `--text-*` (`tokens.css`),
-   * KORZENIA NIE RUSZA. Belka rośnie więc razem z tekstem, a `rem` stoi
+   * `--user-text-scale` powiększa tokeny tekstu; od 100% odstępy nie rosną.
+   * Korzenia nie zmieniamy. Poniżej 100% osobny współczynnik zagęszcza układ (#589). Belka rośnie więc razem z tekstem, a `rem` stoi
    * w miejscu — i luz zapada się dokładnie wtedy, gdy tekst jest największy,
    * czyli u osoby, dla której ten produkt jest robiony. Mnożnik w `calc()`
    * wiąże rezerwę z tą samą wielkością, która rozpycha belkę.
@@ -755,6 +1033,141 @@
      kosztuje tyle, ile jest wart. */
   :root {
     scroll-padding-bottom: var(--rezerwa-pod-belka);
+  }
+
+  /*
+   * REZERWA NAD PASKIEM GÓRNYM — DRUGA POŁOWA TEGO SAMEGO MECHANIZMU.
+   *
+   * CO BYŁO ZMIERZONE. `scripts/dostepnosc.mjs` meldował w linii podsumowania
+   * „focus częściowo zasłonięty: 27". Dwadzieścia jeden z tych dwudziestu
+   * siedmiu ostrzeżeń mówiło o `.topbar`, a przyczyna była jedna: przy dolnej
+   * belce stoi `scroll-padding-bottom` (wyżej), a przy górnym pasku nie stało
+   * NIC — `scroll-padding-top` miał wartość `auto` na każdej szerokości
+   * i w każdej skali. Przewinięcie fokusu w widok, które przeglądarka robi
+   * sama po Tab, liczy się wtedy do krawędzi okna, a na tej krawędzi siedzi
+   * przypięty pasek. Obwódka fokusu wjeżdżała pod niego i osoba chodząca po
+   * serwisie Tabem przestawała widzieć, gdzie jest.
+   *
+   * ZMIERZONE WYSOKOŚCI PASKA (Chromium 141, okno 740 px, zalogowany,
+   * `/home`, `/szukaj` i `/ustawienia/profil` — wszystkie trzy dawały tę samą
+   * liczbę):
+   *
+   *     szerokość   bez powiększania   tekst 140%   czcionka przeglądarki 200%
+   *     320 px      170,7 px           194,6 px     pasek ODPIĘTY
+   *     360 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     414 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     768 px       75,5 px            84,5 px     pasek ODPIĘTY
+   *    1280 px       75,5 px            84,5 px     146 px
+   *
+   * DLACZEGO `calc(A + B × skala)`, A NIE SAMO `B × skala` JAK PRZY DOLNEJ
+   * BELCE. Bo pasek górny prawie nie jest typografią. Przy 320 px urósł ze
+   * 170,7 px na 194,6 px, czyli o 14%, gdy tekst urósł o 40% — reszta jego
+   * wysokości to minima przycisków i wypełnienia zapisane w `rem`, które idą
+   * za KORZENIEM, nie za `--user-text-scale` (ta sama obserwacja, co przy
+   * `.bottom-nav-item` niżej: te liczby są fizyczne, nie typograficzne).
+   * Czysty mnożnik musiałby pokryć 170,7 px przy skali 1, czyli mieć co
+   * najmniej 10,67rem — a wtedy przy skali 1,4 dawałby ponad 239 px, czyli
+   * więcej, niż wolno (patrz sufit niżej). Rozbicie na część stałą i część
+   * skalowaną mieści się w obu warunkach naraz.
+   *
+   * WYBRANE 7rem + 5rem × skala, CZYLI 192 px PRZY SKALI 1 I 224 px PRZY 1,4.
+   * Zapas nad zmierzonym paskiem: 21,3 px i 29,4 px. Nachylenie rezerwy
+   * (5rem) jest WIĘKSZE od nachylenia paska (zmierzone ~3,7rem), więc zapas
+   * rośnie razem z tekstem, zamiast się zjadać.
+   *
+   * TA REZERWA MA SUFIT — I TO ON, A NIE PASEK, JEST TU TRUDNY. Gdy kontrolka
+   * nie mieści się w pasie między rezerwami, przeglądarka przestaje równać ją
+   * DOŁEM do dolnej krawędzi pasa i zaczyna równać GÓRĄ do górnej. Od tej
+   * chwili każdy piksel rezerwy nad paskiem spycha jej dół pod belkę dolną.
+   * Najwyższa kontrolka zmierzona przy 320 px i tekście 140% ma 390 px
+   * (odnośnik „Dodaj zdjęcie tego, co ugotowałeś" na tablicy), a dolna belka
+   * ma tam 105,5 px — więc rezerwa nad paskiem nie może przekroczyć
+   * 740 − 105,5 − 390 = 244,5 px. Nasze 224 px leży pod tym sufitem z zapasem
+   * 20,5 px. Zmierzone: rezerwa 14rem × skala (313,6 px przy 140%) zbijała
+   * ostrzeżenia z 27 na 7 i DOKŁADAŁA jedno nowe — ten sam odnośnik lądował
+   * wtedy pod belką dolną. Sufit jest realny, nie teoretyczny.
+   *
+   * GDZIE REZERWY NIE MA. Tam, gdzie pasek nie jest przypięty — bo wtedy
+   * wyjeżdża do góry razem z treścią i nie ma czego omijać. Oba progi są
+   * PRZEPISANE Z REGUŁ ODPINAJĄCYCH PASEK (`max-width: 15rem` przy `.topbar`
+   * wyżej oraz `max-width: 30rem` z `max-height: 25rem` przy `.topbar` niżej,
+   * D-107) i muszą z nimi zostać zgodne: rezerwa nad odpiętym paskiem to
+   * czysta strata ekranu, a przy czcionce przeglądarki 200% jeszcze gorzej —
+   * 12rem to tam 384 px, które razem z 480 px rezerwy dolnej nie zostawiłyby
+   * z okna 740 px żadnego pasa na kontrolkę. Zgodności progów pilnuje
+   * `tests/Feature/RezerwaNadPaskiemTest.php`.
+   *
+   * OD 64rem PASEK NIE ZAWIJA SIĘ NA KILKA WIERSZY i ma zmierzone 75,5 /
+   * 84,5 px, więc rezerwa schodzi do 4rem + 2rem × skala (96 / 108,8 px,
+   * zapas 20,5 / 24,3 px). Bez tego stopnia komputer płaciłby 224 px za pasek
+   * o wysokości 84,5 px. Reguła stoi PO progach odpięcia z tego samego
+   * powodu, co przy `--rezerwa-pod-belka` wyżej.
+   *
+   * CZEGO TA REZERWA NIE NAPRAWIA. Kontrolki WYŻSZEJ NIŻ OKNO nie wyprowadzi
+   * spod belki żadne przewijanie — nie ma takiego położenia strony, w którym
+   * mieściłaby się w całości. Przy czcionce przeglądarki 200% takie właśnie
+   * zostają na tablicy (zmierzone 2087 px, 1070 px i 783 px przy oknie
+   * 740 px) i jest to usterka UKŁADU KARTY WPISU, nie przewijania.
+   *
+   * DWIE GAŁĘZIE NAPRAWIŁY TO SAMO TEGO SAMEGO DNIA — TO JEST TA, KTÓRA
+   * ZOSTAŁA. 12 września 2026 dziurę 2.4.11 przy górnym pasku naprawiono
+   * niezależnie dwa razy, w tym samym pliku: tutaj oraz w #440
+   * (`--rezerwa-nad-trescia` — stałe 13rem na telefonie, 6rem od 48rem,
+   * 0rem przy odpiętym pasku). Przy scalaniu została JEDNA implementacja,
+   * ta; drugiej nie ma już w arkuszu i nie ma czego szukać.
+   *
+   * Powody są dwa i oba stoją wyżej w tym komentarzu. Pierwszy: ta wersja
+   * liczy się z NASZYM ustawieniem wielkości tekstu (`--user-text-scale`),
+   * nie tylko z czcionką przeglądarki — a to jest ustawienie, którego nasza
+   * grupa naprawdę używa, i przy nim pasek rośnie ze 170,7 px na 194,6 px.
+   * Stała w `rem` tego nie widzi. Drugi, ważniejszy: ta wersja ma ZMIERZONY
+   * SUFIT (244,5 px przy 320 px i tekście 140%). Powyżej niego przeglądarka
+   * przestaje równać kontrolkę dołem do dolnej krawędzi pasa i zaczyna
+   * równać górą, więc każdy następny piksel rezerwy U GÓRY wpycha jej dół
+   * POD DOLNĄ belkę. Rezerwa bez sufitu zaczyna wtedy szkodzić i wygląda
+   * przy tym dokładnie jak naprawa — 13rem przy czcionce przeglądarki 200%
+   * to 416 px, czyli grubo nad sufitem, gdyby ten wariant nie był tam
+   * zerowany.
+   *
+   * PRÓBKA Z #440 ZOSTAJE i to ona pilnuje tej reguły od strony pomiaru:
+   * profil `zofia_z_bieszczad` z nazwą na pełne 100 znaków (`DemoSeeder`
+   * i `scripts/dostepnosc.mjs`). Zmierzone na scalonym drzewie:
+   *
+   *     scroll-padding-top: auto   3 × „focus zasłonięty w 100%" — wszystkie
+   *     (stan sprzed obu poprawek) na menu „Więcej przy tym wpisie" pod
+   *                                `.topbar`, 320/360/414 px, tekst 140%
+   *     ta rezerwa                 0 × „focus zasłonięty w 100%"
+   *
+   * Czyli: formuła, która została, zdejmuje dokładnie te trzy naruszenia,
+   * które znalazła tamta próbka. Nie jest to wniosek z podobieństwa obu
+   * poprawek, tylko pomiar zrobiony po scaleniu.
+   */
+  :root {
+    --rezerwa-nad-belka: calc(7rem + 5rem * var(--user-text-scale, 1));
+  }
+
+  @media (max-width: 15rem) {
+    :root {
+      --rezerwa-nad-belka: 0rem;
+    }
+  }
+
+  @media (max-width: 30rem) and (max-height: 25rem) {
+    :root {
+      --rezerwa-nad-belka: 0rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --rezerwa-nad-belka: calc(4rem + 2rem * var(--user-text-scale, 1));
+    }
+  }
+
+  /* Ta sama zasada co przy `scroll-padding-bottom` wyżej: nic nie rysuje,
+     działa wyłącznie przy celowanym przewijaniu. */
+  :root {
+    scroll-padding-top: var(--rezerwa-nad-belka);
   }
 
   .bottom-nav {
@@ -1266,10 +1679,16 @@
     font-weight: 700;
   }
 
-  /* Wejście stoi POD spisem ekranów panelu, więc potrzebuje odstępu od niego.
+  /* Wejście stoi SAMO — poza panelem menu nie pokazuje już spisu ekranów
+     moderacji, tylko to jedno wejście (zgłoszenie właściciela: nagłówek grupy
+     i przycisk mówiły to samo dwa razy). Odstęp jest więc taki, jaki miała
+     wcześniej cała grupa `.side-nav-moderacja` — bo to ten sam odstęp od
+     „Profil" wyżej, tylko liczony teraz od przycisku, a nie od kreski nad
+     sekcją. Kreski nie ma i nie jest potrzebna: obwódka i tło przycisku
+     odcinają go od spisu ekranów serwisu wyraźniej niż linia.
      Wyjście stoi NAD grupą panelu i odstęp dostaje z drugiej strony. */
   .side-nav-wejscie {
-    margin-top: var(--spacing-2);
+    margin-top: var(--spacing-4);
   }
 
   .side-nav-powrot {
@@ -1387,6 +1806,23 @@
     border: 2px solid var(--color-success);
   }
 
+  /* Droga powrotu pod komunikatem — przycisk „Zapisz ponownie" po wyjęciu
+     wpisu z zeszytu (audyt L1, `components/layout.blade.php`).
+
+     Przycisk stoi POD plakietką, nie w niej: `.flash` jest `<p>` z jednym
+     zdaniem i kilka testów czyta go dokładnie w tym kształcie. Żeby mimo to
+     czytało się jako jedna całość, plakietka oddaje część swojego dolnego
+     odstępu, gdy przycisk za nią stoi. `:has` w przeglądarce bez obsługi po
+     prostu nic nie zmienia — zostaje zwykły, większy odstęp, czyli stan
+     sprzed tej zmiany. */
+  .flash:has(+ .flash-powrot) {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .flash-powrot {
+    margin-bottom: var(--spacing-5);
+  }
+
   .notice {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
@@ -1410,8 +1846,27 @@
 
      Podkreślenie zostaje, więc link nadal odróżnia się nie tylko kolorem.
      --------------------------------------------------------------------- */
-  .notice a {
+  /* Przyciski z własnym tłem zachowują własny kontrast; linki i quiet kolor ramki. */
+  .notice a:not(.btn-primary):not(.btn-secondary) {
     color: var(--color-accent-tint-ink);
+  }
+
+  /* #539: pierścień kontrastuje z tłem podpowiedzi po obu stronach.
+     Halo strony i niebieski fokus nie wystarczają na bursztynowym tle w dark. */
+  .notice .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-accent-tint),
+      0 0 0 5px var(--color-accent-tint-ink);
+  }
+
+  .notice a:not(.btn):focus-visible {
+    outline-color: var(--color-accent-tint-ink);
+  }
+
+  @media (forced-colors: active) {
+    .notice a:not(.btn):focus-visible {
+      outline-color: Highlight;
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -1447,17 +1902,130 @@
      W kicie ta reguła jest poprawna, bo tam cała karta JEST jednym
      odnośnikiem. U nas nie jest — i to jest świadome odejście, bo dwie akcje
      na jednym celu dotknięcia są dla tej grupy gorsze niż jedna wielka. */
+  /* Promienia tu nie ma celowo: od rozdzielenia ról (sekcja 2.1 w tokens.css)
+     `--warstwa-tresc-promien` jest `--radius-xl` dla KAŻDEJ karty treści, więc
+     to nadpisanie było już tylko powtórzeniem. `overflow: hidden` zostaje —
+     bez niego zdjęcie wpisu wychodzi poza zaokrąglony róg. */
   .post-card {
     padding: 0;
     overflow: hidden;
-    border-radius: var(--radius-xl);
   }
 
+  /*
+   * GŁÓWKA ZAWIJA SIĘ DO DWÓCH RZĘDÓW, ZAMIAST ZGNIATAĆ NAZWĘ AUTORA DO ZERA
+   *
+   * USTERKA. Przy czcionce przeglądarki 200% i wąskim oknie kolumna z nazwą
+   * autora i datą miała ZERO pikseli szerokości, a jej treść rozsypywała się
+   * na słup pojedynczych liter. Zmierzone (Chromium 1194,
+   * `scripts/glowka-karty-wpisu.mjs`, `/home`, trzy długości nazwy):
+   *
+   *     okno    czcionka   kolumna nazwy   wysokość główki
+   *     320 px    100%        122 px         134–330 px
+   *     320 px    200%          0 px       1570–5588 px   <-- usterka
+   *     360 px    200%         18 px       1521–5538 px   <-- usterka
+   *     390 px    200%         48 px        771–2891 px   <-- usterka
+   *     414 px    200%         72 px        566–2073 px   <-- usterka
+   *
+   * PRZYCZYNA NIE JEST W SZEROKOŚCI OKNA, TYLKO W TYM, CO ROŚNIE, A CO NIE.
+   * Przy podwojonej czcionce bazowej `rem` robi się dwa razy większy, więc
+   * wcięcie główki idzie z 20 na 40 px z każdej strony, odstęp z 12 na 24 px,
+   * a przycisk menu z 48 na 96 px (`--control-height-min`, 3rem). Awatar ma
+   * 52 px podane z widoku i zostaje przy 52 px. Na oknie 320 px daje to
+   * 52 + 24 + 24 + 96 = 196 px rzeczy nieściśliwych w rzędzie szerokim na
+   * 176 px — a jedynym elementem, który wolno ścisnąć, jest kolumna z nazwą.
+   * Ściskała się do zera i znikała.
+   *
+   * DLACZEGO ZAWINIĘCIE, A NIE ŚCIĘCIE PRZYCISKU. Najkrótsza droga byłoby
+   * przykręcić menu na sztywne 48 × 48 px także przy 200%. To odzyskuje
+   * 48 px i NIE WYSTARCZA (zostaje 148 px nieściśliwych na 176 px rzędu,
+   * czyli 28 px na nazwę), a przy okazji zabiera cel dotknięcia człowiekowi,
+   * który powiększył czcionkę właśnie dlatego, że gorzej widzi i mniej
+   * pewnie trafia. Cel dotknięcia zostaje więc bez zmian — patrz
+   * `.post-card-menu > summary` niżej w tym arkuszu.
+   *
+   * DWIE WARSTWY, KAŻDA O CZYM INNYM:
+   *
+   * 1. `flex-wrap: wrap` + `flex: 1 1 96px` na kolumnie z nazwą — SIATKA
+   *    BEZPIECZEŃSTWA, działa zawsze i wszędzie, bez progu. Rząd mieści
+   *    awatar, 96 px nazwy i przycisk albo nie mieści; jeśli nie mieści,
+   *    przycisk schodzi do drugiego rzędu, zamiast wypychać nazwę do zera.
+   *    Karta stoi na ośmiu ekranach i bywa w wąskiej kolumnie także przy
+   *    zwykłej czcionce — to jest ta reguła, która pilnuje tamtych miejsc.
+   *
+   * 2. Przy oknie węższym niż 16em (niżej) nazwa dostaje CAŁY rząd.
+   *
+   * KOLEJNOŚĆ W KODZIE ZOSTAJE. Nazwa i data stoją w dokumencie przed menu
+   * i tak je czyta czytnik ekranu; `order` dotyczy wyłącznie miejsca na
+   * ekranie w zawiniętym układzie i nie zmienia nazwy dostępnej przycisku
+   * („Więcej przy tym wpisie"), która sama mówi, czego dotyczy.
+   */
   .post-card-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
+  }
+
+  /* Kolumna z nazwą autora i datą — jedyny ściśliwy element główki.
+     `min-width: 0` (dawniej narzutka `.min-w-0` w widoku) pozwala jej zejść
+     poniżej szerokości własnej treści; bez tego długa nazwa rozpycha rząd.
+     `flex: 1 1 96px` mówi dwie rzeczy naraz: bierz całą wolną przestrzeń
+     (`grow: 1`) i licz się w rzędzie za 96 px (`basis`), nawet jeśli wolno
+     Cię ścisnąć. Ta druga część jest całą poprawką — przy `basis: 0` albo
+     `basis: auto` kolumna nie ma w rzędzie żadnej wagi i to ona przegrywa
+     z przyciskiem. Liczba jest w pikselach ŚWIADOMIE: to próg o UKŁADZIE
+     („czy jest sens trzymać to obok siebie"), a nie rozmiar pisma — gdyby
+     szedł w `rem`, rósłby razem z tym, przed czym ma bronić. */
+  .post-card-tozsamosc {
+    flex: 1 1 96px;
+    min-width: 0;
+  }
+
+  /*
+   * PRZY OKNIE WĘŻSZYM NIŻ 16em NAZWA I DATA BIORĄ CAŁY RZĄD
+   *
+   * `em` W ZAPYTANIU MEDIALNYM TO CZCIONKA BAZOWA PRZEGLĄDARKI, nie nasz
+   * `rem` i nie 16 px na sztywno. To jest dokładnie ta wielkość, której
+   * dotyczy usterka, więc próg mierzy właściwą rzecz: 16em to 256 px przy
+   * ustawieniu domyślnym i 512 px przy czcionce 200%. Zmierzone szerokości
+   * okien w tej mierze — 320–414 px to 20–25,9em przy 100% i 10–12,9em przy
+   * 200% — leżą po dwóch stronach tego progu i żadna nie jest go bliżej niż
+   * o 3em. Próg podany w pikselach nie zauważyłby czcionki w ogóle, a to ona
+   * psuje główkę: ten sam telefon jest raz w porządku, a raz nie.
+   *
+   * CO SIĘ WTEDY DZIEJE: przycisk menu zostaje w prawym górnym rogu karty,
+   * czyli TAM, GDZIE BYŁ przy zwykłej czcionce — nie wędruje pod wpis —
+   * a nazwa i data schodzą pod niego i dostają pełną szerokość karty.
+   * Zmierzone po zmianie: kolumna 174–268 px zamiast 0–72 px, główka
+   * 339–1108 px zamiast 566–5588 px.
+   */
+  @media (max-width: 16em) {
+    .post-card-tozsamosc {
+      order: 1;
+      flex-basis: 100%;
+    }
+  }
+
+  /* Kolumna awatara. `flex: none` na ELEMENCIE wiersza, nie tylko na `.avatar`
+     w środku — to `<a>` jest tu elementem `flex`, a `flex: none` na awatarze
+     niżej nic o nim nie mówi. Bez tego domyślne `flex-shrink` zgniata awatar
+     przy długiej nazwie autorki, plakietce „Tylko dla obserwujących"
+     i przycisku „Więcej" w jednym rzędzie: `<a>` się zwęża, `max-width: 100%`
+     z preflightu Tailwinda dociska do niego SZEROKOŚĆ `<img>`, a `height`
+     zostaje przy 52 px — twarz wychodzi ściśnięta w poziomie.
+
+     ZMIERZONE w Chromium na `/home`, konto ze zdjęciem, długą nazwą
+     i plakietką: przed poprawką 18,91 × 52 px przy szerokości okna 390 px
+     i 10,95 × 52 px przy 320 px; po poprawce 52 × 52 px przy obu. Na zwykłych
+     kontach demo było 26,4 × 52 px — czyli zgniatało KAŻDĄ kartę wpisu ze
+     zdjęciem profilowym, nie tylko tę z długą nazwą.
+
+     Ta sama choroba wyleczona tak samo przy `.kuking-board-avatar`
+     i `.post-card-menu-ikona` w tym arkuszu.
+     Strażnikiem jest `tests/Feature/AwatarWKarcieWpisuJestKwadratowyTest.php`. */
+  .post-card-awatar {
+    flex: none;
   }
 
   /* Treść wpisu — to, co człowiek naprawdę napisał — idzie po
@@ -1471,6 +2039,42 @@
     line-height: var(--leading-body);
     white-space: pre-line;
     overflow-wrap: anywhere;
+  }
+
+  /*
+   * „CZYTAJ DALEJ" POD SKRÓCONYM WPISEM (issue #354)
+   *
+   * Karta pokazuje początek długiego wpisu, a całość jest na stronie wpisu.
+   * O TYM, CZY TEN ODNOŚNIK W OGÓLE SIĘ POJAWI, decyduje szablon
+   * (`App\Support\ZapowiedzWpisu`), nie CSS — dlatego nie ma tu
+   * `-webkit-line-clamp`. Klamra przycięłaby tekst wizualnie, ale nie
+   * powiedziałaby szablonowi, czy przycięła, więc odnośnik stałby także pod
+   * wpisem dwuzdaniowym i po kliknięciu nie pokazywałby nic nowego. Martwy
+   * przycisk jest zakazany (D-053).
+   *
+   * WYSOKOŚĆ W PIKSELACH, NIE W `rem` — TO JEST CEL DLA PALCA.
+   * 48 px to minimum celu dotykowego z AGENTS.md §5. Palec nie rośnie, gdy
+   * ktoś powiększy czcionkę w przeglądarce albo podniesie „Rozmiar tekstu",
+   * a `rem` i `--control-height-touch` rosną razem z korzeniem — ta sama
+   * pomyłka zabrała kiedyś połowę telefonu dolnej belce (D-082/D-107).
+   * Pismo jest odwrotnie: `--text-body` to 18 px minimum produktowe i ROŚNIE
+   * z ustawieniem czytelnika, bo tekst jest typografią, nie celem dla palca.
+   *
+   * `inline-flex`, więc do trafienia jest cały prostokąt napisu razem
+   * z zapasem wysokości, a nie sama linijka liter.
+   */
+  .post-card-czytaj-dalej {
+    margin: 0;
+    padding: 0 var(--spacing-5) var(--spacing-4);
+  }
+
+  .post-card-czytaj-dalej a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    font-weight: 600;
   }
 
   /* Odnośnik do przepisu, z którego powstał wpis. Osobna klasa zamiast
@@ -1504,6 +2108,115 @@
     color: var(--color-ink-muted);
   }
 
+  /* =====================================================================
+     WCIĘCIE BOCZNE CHIPSÓW Z TAGAMI WPISU
+     =====================================================================
+
+     USTERKA POZIOMA, ZNALEZIONA PRZY NAPRAWIE PIONOWEJ (PR #405) i wtedy
+     świadomie pominięta jako inny problem: chipsy z tagami dochodziły do
+     samej krawędzi karty, kiedy każdy inny blok tej karty stoi 20 px od niej.
+
+     ZMIERZONE (Chromium 1194, `scripts/wciecia-boczne-karty-wpisu.mjs`,
+     `/home` i `/tag/{slug}` po zalogowaniu; odległość od krawędzi karty do
+     pierwszego piksela treści bloku):
+
+         blok                     z lewej   z prawej
+         post-card-head              20 px      20 px
+         post-card-body              20 px      20 px
+         post-card-recipe            20 px      20 px
+         post-card-tagi               0 px       0 px   <-- usterka
+         post-card-actions           20 px      20 px
+
+     Liczby były te same na 1512 px i na 390 px, więc to nie jest efekt
+     wąskiego ekranu — bloku po prostu nikt nigdy nie wciął.
+
+     SKĄD SIĘ TO WZIĘŁO. Widok bierze gotowe `.chipsy`/`.chip`
+     (`components/post-card.blade.php`, świadomie: „żadnego nowego CSS").
+     `.chipsy` powstało dla chipsów zakresu wyszukiwania, które stoją
+     BEZPOŚREDNIO w kolumnie strony — a ta kolumna ma własne wcięcie. W karcie
+     wpisu takiego wcięcia nie ma (`.post-card { padding: 0 }`, bo zdjęcie
+     idzie od krawędzi do krawędzi), więc wcięcie musi nieść sam blok, tak jak
+     niosą je wszystkie pozostałe bloki tej karty.
+
+     WCIĘCIE NA `.post-card-tagi`, NIE NA `.chipsy` — bo `.chipsy` stoi też na
+     ekranie wyszukiwania i na szynie profilu, gdzie 20 px z obu stron byłoby
+     dodane DO wcięcia kolumny i chipsy uciekłyby do środka.
+
+     TYLKO POZIOM (`padding-inline`), NIE SKRÓT `padding`. Rytm PIONOWY tego
+     bloku jest już zadeklarowany w `.chipsy` (`margin: var(--spacing-6) 0
+     var(--spacing-5)`) i został zmierzony przy PR #405 jako poprawny; skrót
+     `padding: 0 var(--spacing-5)` wyzerowałby wcięcie pionowe, którego ten
+     blok i tak nie ma, ale przede wszystkim wpuściłby dwie decyzje w jedną
+     deklarację. Odstęp należy do jednej strony pary (D-154) — tu chodzi
+     o wcięcie, nie o parę, więc deklarujemy wyłącznie to, o co chodzi.
+
+     TOKEN, NIE PIKSELE: `--spacing-5` to ta sama wartość, którą ma cała
+     reszta karty, i ma rosnąć razem z pismem przy czcionce przeglądarki
+     200 % (druga strona D-082/D-107).
+     ===================================================================== */
+  .post-card-tagi {
+    padding-inline: var(--spacing-5);
+  }
+
+  /* =====================================================================
+     ODSTĘP POD ZDJĘCIEM WPISU (zgłoszenie właściciela, 11 września:
+     „«z przepisu» i «bigos z cukinii» jest zbyt blisko zdjęcia")
+     =====================================================================
+
+     CO BYŁO ZMIERZONE (Chromium 1194, `/home` po zalogowaniu, karta wpisu
+     wskazującego przepis; przerwa liczona między TREŚCIĄ bloków, czyli od
+     ostatniego piksela, na którym coś stoi, do pierwszego, na którym znów coś
+     stoi — bo odstępy tej karty siedzą w `padding`, a padding leży wewnątrz
+     pudełka i różnica samych krawędzi wychodziłaby zero także tam, gdzie
+     przerwa jest; `scripts/odstepy-karty-wpisu.mjs`):
+
+         nagłówek → zdjęcie ...............................  16 px (1512 i 390)
+         zdjęcie → pasek „Z przepisu · …" .................   0 px (1512 i 390)
+         karuzela → „N osób zapisało to u siebie" .........   0 px (1512 i 390)
+         pasek „Z przepisu" → tagi wpisu ................  40 px
+         tagi wpisu → pasek akcji .......................  37 px
+
+     Cała karta trzyma odstęp 16 px i robi to DOLNYM WCIĘCIEM bloku wyżej
+     (`.post-card-head`, `.post-card-body`, `.post-card-recipe` i
+     `.post-card-zapisy` mają `padding-bottom: var(--spacing-4)`). Zdjęcie
+     tego wcięcia nie ma i mieć nie może: idzie od krawędzi do krawędzi karty,
+     dlatego blok zdjęć nie ma żadnego `padding`. Para „zdjęcie → blok tekstu"
+     była więc jedyną, w której nikt odstępu nie deklarował — i wyszła zero.
+
+     ODSTĘP NALEŻY DO JEDNEJ STRONY PARY I JEST `margin-top` (PR #400).
+     Ten sam wzorzec i to samo uzasadnienie co przy rytmie strony przepisu:
+     gdyby zdjęcie dostało `margin-bottom`, ten sam odstęp deklarowałyby dwie
+     strony pary — raz zlewając się do większego, raz sumując — a wartość
+     zależałaby od układu, w którym karta akurat stoi. Dolna strona pary
+     deklaruje go raz i ma jedną liczbę w obu szerokościach.
+
+     DLACZEGO SĄSIEDZTWO ZE ZDJĘCIEM, A NIE `margin-top` NA SAMEJ KLASIE.
+     Bo pasek „Z przepisu" NIE ZAWSZE stoi pod zdjęciem, a odstęp ma być
+     jeden. Wpis wskazujący przepis bez zdjęcia głównego pokazuje go zaraz pod
+     nagłówkiem, a wpis „ugotowane z przepisu" — pod swoją treścią; w obu tych
+     stanach przerwa JEST i wynosi zmierzone 16 px, bo daje ją dolne wcięcie
+     bloku wyżej. Bezwarunkowy `margin-top` zrobiłby tam 32 px, czyli
+     poprawiłby jeden stan ekranu i zepsuł dwa inne (D-099, D-106: ten sam
+     adres w dwóch stanach to dwa ekrany). Tak samo `.post-card-zapisy`:
+     pod paskiem przepisu ma już 16 px, pod tagami 37 px, a pod zdjęciem
+     miało zero.
+
+     `--spacing-4`, BO TYLE MA CAŁA RESZTA KARTY. Token, nie piksele: ten
+     odstęp oddziela BLOKI TEKSTU i ma rosnąć razem z pismem przy czcionce
+     przeglądarki 200 % (druga strona D-082/D-107).
+
+     PASKA AKCJI TU ŚWIADOMIE NIE MA. `.post-card-actions` też stoi czasem
+     zaraz pod zdjęciem, ale jego górna kreska pod zdjęciem to układ z paczki
+     właściciela (mockupy 01 i 05), a jego własne `padding-top` daje
+     zmierzone 17 px do pierwszego przycisku. Dopisanie go tutaj odsunęłoby
+     kreskę od zdjęcia na każdej karcie w serwisie — to jest zmiana wyglądu,
+     nie brakujący odstęp.
+     ===================================================================== */
+  .post-card > :is(.photo-grid, .karuzela, .kolaz)
+    + :is(.post-card-recipe, .post-card-zapisy) {
+    margin-top: var(--spacing-4);
+  }
+
   /*
    * Pasek akcji: kreska u góry, jak w mockupach 01 i 05.
    *
@@ -1523,26 +2236,63 @@
 
   .post-card-actions .btn { max-width: 100%; }
 
+  .wybor-zeszytu {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .wybor-zeszytu[open] { flex-basis: 100%; }
+  .wybor-zeszytu > summary { width: fit-content; max-width: 100%; }
+  .wybor-zeszytu-lista { min-width: 0; border: 0; padding: 0; }
+  .wybor-zeszytu-opcja { display: flex; align-items: flex-start; gap: .5rem; min-height: 48px; padding-block: .5rem; cursor: pointer; }
+  .wybor-zeszytu-opcja input { flex: 0 0 auto; margin-top: .35em; }
+  .wybor-zeszytu-opcja span { min-width: 0; overflow-wrap: anywhere; }
+  .wybor-zeszytu-opcja small { display: block; font-size: 1em; }
+  .wybor-zeszytu .panel-formularza { overflow-wrap: anywhere; }
+
   /* Odsunięcie zgłoszenia na koniec wiersza. Przy zawijaniu po prostu
      schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
   .post-card-report { margin-left: auto; }
+
+  /* Cytat treści na formularzu zgłoszenia (issue #794). */
+  .cel-zgloszenia-cytat {
+    font-size: var(--text-body);
+    font-style: italic;
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
 
   /* --- Zachęta do dodania wpisu („composer" z mockupów 01 i 05) ---
 
      To jest ODNOŚNIK do strony dodawania, nie pole tekstowe udające formularz.
      Pole, które po kliknięciu nic nie robi bez JavaScriptu, byłoby dokładnie
      tą pułapką, przed którą ostrzega AGENTS.md §5. */
+  /* Od rozdzielenia ról ta zachęta jest KAFLEM AKCJI (warstwa 6), więc tło,
+     obwódkę, promień, cień, zdjęte podkreślenie, kolor tekstu i tło na
+     hoverze daje już `.kafel-akcji`. Zostaje tu tylko to, czym composer
+     RÓŻNI SIĘ od zwykłego kafla: układ w wiersz (awatar, tekst, ikona),
+     odstęp pod spodem i węższe wcięcie pionowe — bo to jest jeden wiersz,
+     a nie kafel z nagłówkiem i akapitem. `padding` zostaje jawny właśnie
+     dlatego, że jest odstępstwem od warstwy. */
+  .start-powitanie {
+    margin-bottom: var(--spacing-6);
+    min-width: 0;
+    margin-top: var(--spacing-2);
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .start-nadtytul {
+    color: var(--color-brand);
+    font-size: var(--text-body);
+  }
+
   .composer {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
     margin-bottom: var(--spacing-6);
-    text-decoration: none;
-    color: var(--color-ink);
   }
-
-  .composer:hover { background-color: var(--color-surface-sunken); }
 
   .composer-copy { min-width: 0; flex: 1; }
 
@@ -1555,11 +2305,97 @@
 
   .composer-help {
     display: block;
-    font-size: var(--text-help);
+    font-size: var(--text-body);
     color: var(--color-ink-muted);
   }
 
   .composer .ikona { color: var(--color-brand); }
+
+  /*
+   * KAFEL DODAWANIA PRZY BARDZO DUŻYM TEKŚCIE — TEKST DOSTAJE WŁASNY WIERSZ
+   * I PRZESTAJE SIĘ ŁAMAĆ W ŚRODKU SŁOWA.
+   *
+   * CO BYŁO ZMIERZONE (`scripts/kafel-dodawania.mjs`, Chromium 141,
+   * okno 740 px, zalogowany, `/home`, czcionka przeglądarki 200%):
+   *
+   *     okno     wysokość kafla   kolumna tekstu   tytuł    podpis
+   *     320 px       2087,1 px            50 px   19 wierszy  17 wierszy
+   *     360 px       1070,3 px            90 px    9 wierszy   9 wierszy
+   *     390 px        896,8 px           120 px    7 wierszy   8 wierszy
+   *     414 px        735,6 px           144 px    6 wierszy   6 wierszy
+   *     768 px        289,2 px           498 px    2 wiersze   2 wiersze
+   *
+   * `scripts/dostepnosc.mjs` meldował z tego dwa ostrzeżenia „focus
+   * częściowo zasłonięty" — przy 320 i 360 px, czyli DOKŁADNIE tam, gdzie
+   * kafel jest wyższy niż okno. Kontrolki wyższej niż okno nie wyprowadzi
+   * spod belki żadne przewijanie: nie ma takiego położenia strony, w którym
+   * widać ją w całości, więc `--rezerwa-pod-belka` (wyżej w tym pliku) tego
+   * nie naprawia i nie ma prawa naprawiać.
+   *
+   * TO NIE JEST WYSOKOŚĆ TEKSTU, TYLKO SZEROKOŚĆ JEGO KOLUMNY. Przy 320 px
+   * i korzeniu 32 px cały kafel ma 256 px. Odchodzi od tego obwódka (2 px)
+   * i wcięcie boczne 2 × `--spacing-5` (2 × 40 px), zostaje 174 px na rząd.
+   * W rzędzie stoją awatar (48 px), ikona (28 px) i dwa odstępy
+   * 2 × `--spacing-3` (2 × 24 px) — razem 124 px. Na kolumnę z tytułem
+   * i podpisem zostaje 50 px, przy piśmie tytułu 40 px. Reguła bazowa
+   * `overflow-wrap: break-word` (`tokens.css`) łamie wtedy wyraz w środku,
+   * bo inaczej wyszedłby poza ekran, i tytuł rozkłada się na 19 wierszy.
+   * Komentarz przy tamtej regule mówi wprost, jak się takie miejsce
+   * naprawia: „szerokością TAMTEJ kolumny, nie zdejmowaniem tej reguły".
+   *
+   * CO ROBI TA REGUŁA
+   * 1. Tekst dostaje CAŁY WIERSZ (`flex-basis: 100%`) — ten sam zabieg
+   *    i z tego samego powodu co `.bottom-nav-item-glowna` wyżej: awatar
+   *    i ikona przestają odbierać kolumnie tekstu 124 z jej 174 px.
+   * 2. Wcięcie boczne przestaje się podwajać razem z czcionką przeglądarki.
+   *    20 px to DOKŁADNIE `--spacing-5` przy korzeniu 16 px, więc zwykły
+   *    telefon nie traci ani piksela — ta liczba nie zmniejsza wcięcia,
+   *    tylko nie pozwala mu urosnąć. To ta sama zasada, co przy
+   *    `min-height: 60px` w belce (D-107): szerokość ekranu nie rośnie od
+   *    powiększenia czcionki, więc wcięcie liczone od tej szerokości też
+   *    nie ma powodu rosnąć. Wcięcie PIONOWE zostaje w tokenie — ono
+   *    oddziela wiersze tekstu, więc jest typograficzne (D-160).
+   * 3. Ikona schodzi z układu. Nie dlatego, że przeszkadza wysokością —
+   *    w rzędzie z awatarem (48 px) jej 28 px nic nie kosztuje — tylko
+   *    dlatego, że elementy flexa układają się PO KOLEI: tekst z własnym
+   *    wierszem zepchnąłby ją do trzeciego wiersza, samą, za 28 px
+   *    wysokości plus odstęp. Jest to ikona ozdobna (`aria-hidden="true"`,
+   *    komponent `x-ikona` jest z założenia niemy dla czytnika ekranu),
+   *    więc jej zniknięcie nie zabiera nikomu ani jednego słowa; reguła
+   *    „ikona nigdy nie jest jedynym opisem ważnej akcji" (AGENTS.md §5)
+   *    nie ma tu czego bronić, bo opisem jest tytuł kafla.
+   *
+   * CZEGO TA POPRAWKA NIE ROBI — i to są zakazy z tego zadania:
+   * pismo tytułu zostaje przy `--text-body-lg` (40 px przy tym korzeniu),
+   * Historycznie podpis używał `--text-help`; issue #478 podnosi go do
+   * `--text-body`. Powyższe wymiary pochodzą ze starszego pomiaru. Żadne
+   * słowo nie znika, a cel
+   * dotknięcia zostaje całym kaflem (zmierzone 256 × … px, czyli grubo
+   * ponad 48 × 48 px z `docs/UX_50_PLUS.md`).
+   *
+   * PRÓG `max-width: 15rem` to ten sam próg, co przy `--rezerwa-pod-belka`
+   * i przy odpięciu `.topbar` — pełne wyprowadzenie stoi tam. Mówi on
+   * „tekst jest duży w stosunku do ekranu", a nie „ekran jest wąski":
+   * telefon 320 px przy korzeniu 16 px to 20rem i próg go nie łapie, ten
+   * sam telefon przy czcionce przeglądarki 200% to 10rem i łapie. Zwykły
+   * telefon i nasze `data-text-scale="140"` (korzenia nie ruszają) dostają
+   * kafel bez jednej zmiany — i to jest kontrola dodatnia tej poprawki
+   * wpisana w sam mechanizm, a nie dołożona obok.
+   */
+  @media (max-width: 15rem) {
+    .composer {
+      flex-wrap: wrap;
+      padding-inline: 20px;
+    }
+
+    .composer > .ikona {
+      display: none;
+    }
+
+    .composer-copy {
+      flex-basis: 100%;
+    }
+  }
 
   .post-photo {
     display: block;
@@ -1568,10 +2404,71 @@
     background-color: var(--color-surface-sunken);
   }
 
+  /* ---------------------------------------------------------------------
+     GALERIA „ZWYKLE" PRZY MIESZANYCH ORIENTACJACH (issue #431)
+
+     ZGŁOSZENIE. „Jedno zdjęcie pionowe, drugie poziome, przez to jest
+     rozjazd i bierze całą wysokość najwyższego zdjęcia nawet jak nie jest
+     wyświetlane."
+
+     CO SIĘ DZIAŁO. Dwie kolumny w jednym wierszu siatki mają wspólną
+     wysokość — wysokość NAJWYŻSZEGO zdjęcia. Zdjęcie poziome zajmowało
+     w tym wierszu mniej niż połowę tego, co pionowe, a reszta pola
+     zostawała pusta. ZMIERZONE (scripts/galeria-orientacje.mjs, zdjęcia
+     1200×1600 i 1600×900, motyw jasny):
+
+         szerokość   zdjęcie poziome   martwe pod nim
+            320 px        79,9 px          109,5 px
+            360 px        91,1 px          124,9 px
+            390 px        99,5 px          136,4 px
+            414 px       106,3 px          145,7 px
+
+     Martwego miejsca było WIĘCEJ niż samego zdjęcia. Przy czcionce
+     przeglądarki 200% wychodziło 97–133 px, czyli tak samo źle.
+
+     DLACZEGO JEDNA KOLUMNA, A NIE WYRÓWNANIE W WIERSZU. Bo przy 320 px
+     kolumna ma 142 px, a zdjęcie poziome mieści się w niej na 80 px
+     wysokości. Ośmiu centymetrów jedzenia nie da się obejrzeć — a
+     oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
+     To jest dokładnie ten sam argument i ten sam próg, na który właściciel
+     zgodził się już przy kolażu (patrz komentarz przy `.kolaz` niżej):
+     poniżej 30rem siatka schodzi do jednej kolumny, a każde zdjęcie dostaje
+     tyle wysokości, ile samo potrzebuje. Martwe pole znika wtedy nie
+     dlatego, że je czymś zasłoniliśmy, tylko dlatego, że przestaje istnieć.
+
+     `gap` rośnie z 2 px do odstępu tekstowego: dwa zdjęcia JEDNO POD DRUGIM
+     w odległości 2 px czytają się jak jedno rozcięte zdjęcie. W wierszu
+     obok siebie 2 px było w porządku i tam zostaje.
+
+     OD 30rem W GÓRĘ SIATKA ZOSTAJE DWUKOLUMNOWA I WIERSZ DALEJ MA WYSOKOŚĆ
+     NAJWYŻSZEGO ZDJĘCIA. To jest świadomie NIE naprawione: tam kolumna ma
+     już ponad 300 px, zdjęcie poziome jest widoczne, a zabranie drugiej
+     kolumny byłoby zmianą wyglądu całego serwisu na desktopie, o którą
+     nikt nie prosił. Zgłoszenie przyszło z telefonu.
+     --------------------------------------------------------------------- */
   .photo-grid {
     display: grid;
     gap: 2px;
     grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
+    /*
+     * POLE NIE ROZCIĄGA SIĘ DO WYSOKOŚCI WIERSZA.
+     *
+     * Samo zdjęcie nigdy się nie rozciągało — `<img>` ma proporcję własną,
+     * więc `align-items: normal` zachowuje się dla niego jak `start`
+     * (zmierzone zniekształcenie: 0,0–0,4%, czyli zaokrąglenia). Rozciągał
+     * się natomiast ODNOŚNIK `.photo-zoom`, który zdjęcie owija — i przez
+     * to obszar „powiększ zdjęcie" sięgał przez całe martwe pole pod
+     * zdjęciem poziomym. Kliknięcie w puste miejsce otwierało powiększenie
+     * zdjęcia, którego tam nie było widać.
+     */
+    align-items: start;
+  }
+
+  @media (max-width: 30rem) {
+    .photo-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -1613,6 +2510,110 @@
        w pionie, a bez tego zdjęcie chowa się pod belką. */
     scroll-margin-top: 5rem;
   }
+
+  /* ---------------------------------------------------------------------
+     WSZYSTKIE SLAJDY TEJ SAMEJ WYSOKOŚCI (issue #431)
+
+     TU SIEDZI DRUGA POŁOWA ZGŁOSZENIA, I TA DOSŁOWNIE: „bierze całą
+     wysokość najwyższego zdjęcia nawet jak nie jest wyświetlane".
+
+     Taśma jest jednym rzędem elastycznym, więc jej wysokość to wysokość
+     NAJWYŻSZEGO slajdu — także wtedy, gdy na ekranie stoi całkiem inny.
+     Przy zdjęciu pionowym i poziomym w jednym wpisie oglądanie tego
+     poziomego wyglądało tak: zdjęcie, pasek z licznikiem, a pod nimi pusta
+     karta do końca. ZMIERZONE (scripts/galeria-orientacje.mjs, 1200×1600
+     i 1600×900):
+
+         szerokość   wysokość taśmy   slajd poziomy potrzebował   martwe
+            320 px       554,2 px            333,7 px            220,5 px
+            360 px       607,5 px            356,2 px            251,3 px
+            390 px       656,6 px            382,2 px            274,4 px
+            414 px       697,7 px            404,8 px            292,9 px
+
+     Przy czcionce przeglądarki 200% było to 196–268 px.
+
+     CZEGO SIĘ NIE DA ZROBIĆ. Sprawić, żeby taśma miała wysokość AKTUALNIE
+     WIDOCZNEGO slajdu. Przewijany rząd ma jedną wysokość dla wszystkich
+     i żaden selektor nie wie, który slajd jest teraz na ekranie. Bez
+     JavaScriptu tego nie ma, a karuzela ma działać bez skryptu (AGENTS.md §5)
+     — więc „wysokość zależna od widocznego zdjęcia" nie jest opcją, którą
+     odrzuciliśmy. Jej po prostu nie ma.
+
+     CO SIĘ DA. Sprawić, żeby WSZYSTKIE slajdy były tej samej wysokości —
+     wtedy żaden nie pożycza wysokości od sąsiada i martwe pole znika.
+     Pole ma stałą proporcję, a zdjęcie mieści się w nim W CAŁOŚCI
+     (`object-fit: contain`, nie `cover`).
+
+     CENA JEST WIDOCZNA I ŚWIADOMA. Zdjęcie pionowe jest niższe niż było,
+     a obok niego zostają puste marginesy na tle `--color-surface-sunken`.
+     To jest dokładnie ten sam wybór i to samo uzasadnienie, na które
+     właściciel zgodził się przy kolażu: pusty margines da się zignorować,
+     uciętego jedzenia nie da się odzyskać. Kadrowanie do pola
+     (`object-fit: cover`) zabrałoby po kawałku każdego zdjęcia — i akurat
+     przy jedzeniu zabrałoby to, co człowiek chciał pokazać.
+
+     KWADRAT, BO TAKI JEST JUŻ KOLAŻ — i bo traktuje obie orientacje tak
+     samo. Zmierzone przy 320 px, na tej samej parze zdjęć:
+
+         wariant        wysokość taśmy   martwe pod poziomym   zdjęcie pionowe
+         przed              554,2 px           220,5 px         286 × 381,3 px
+         pole 1/1           458,9 px           125,1 px         214,8 × 286 px
+         pole 4/3           387,4 px            53,6 px         161,1 × 214,5 px
+
+     Pole 4/3 zostawia najmniej pustego miejsca i dlatego było tu pierwsze.
+     Przegrało na cenie: zabiera zdjęciu pionowemu 44% wysokości, a zdjęcie
+     pionowe to najczęstszy kształt tego, co ktoś robi telefonem nad
+     garnkiem. Kwadrat zabiera mu 25% i nie wyróżnia żadnej orientacji.
+
+     ZOSTAJĄCE 125 px TO CO INNEGO NIŻ 220 px SPRZED POPRAWKI — i to jest
+     sedno. Tamte 220 px stały POD zdjęciem, do końca karty, i brały się
+     z sąsiada, którego nie było widać: karta wyglądała, jakby się nie
+     skończyła. Te 125 px to dwa równe pasy NAD i POD zdjęciem, bo
+     `object-fit: contain` centruje obraz w polu — czyli rama, a nie dziura.
+     Żaden slajd nie pożycza już wysokości od żadnego innego.
+     --------------------------------------------------------------------- */
+  .karuzela-slajd .photo-zoom-media,
+  .karuzela-slajd > .post-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: var(--color-surface-sunken);
+    /*
+     * `min-height: 0` NIE JEST OZDOBĄ — bez niego ta proporcja działa
+     * TYLKO NA ZDJĘCIACH POZIOMYCH, a na pionowych jest ignorowana.
+     *
+     * Slajd jest kolumną elastyczną (niżej), więc pole ze zdjęciem jest
+     * elementem elastycznym, a taki ma `min-height: auto`, czyli minimum
+     * równe swojej treści. Treścią jest `<img>` o wysokości 100% liczonej
+     * od rodzica o wysokości jeszcze nieustalonej — czyli w praktyce
+     * o wysokości WŁASNEJ zdjęcia. Dla zdjęcia poziomego ta wysokość jest
+     * MNIEJSZA niż 3/4 szerokości i proporcja wygrywa; dla pionowego jest
+     * WIĘKSZA i to ona wypycha pole.
+     *
+     * ZMIERZONE przy 320 px, zanim ta linijka tu stanęła: pole zdjęcia
+     * poziomego 214,5 px (proporcja zadziałała), pole pionowego 381,3 px
+     * (proporcja zignorowana) — czyli slajdy dalej miały różną wysokość
+     * i taśma dalej brała wysokość najwyższego. Poprawka, która poprawia
+     * połowę przypadków, wygląda w pomiarze prawie jak poprawka.
+     */
+    min-height: 0;
+  }
+
+  .karuzela-slajd .post-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Pasek z licznikiem i przyciskami trzyma się DOŁU slajdu. Bez tego przy
+     slajdach różnej wysokości (gdyby proporcja kiedyś przestała być stała)
+     paski skakałyby w pionie przy każdym przewinięciu. */
+  .karuzela-slajd {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .karuzela-slajd .karuzela-pasek { margin-top: auto; }
 
   .karuzela-pasek {
     display: flex;
@@ -1682,7 +2683,7 @@
     display: flex;
   }
 
-  .kolaz-pole .photo-zoom,
+  .kolaz-pole .photo-zoom-media,
   .kolaz-pole .post-photo {
     width: 100%;
     height: 100%;
@@ -1690,6 +2691,38 @@
 
   .kolaz-pole .post-photo {
     object-fit: contain;
+  }
+
+  /* Kwadrat należy do zdjęcia, podpis linku ma własne miejsce pod nim. */
+  .kolaz-pole:has(.photo-zoom) {
+    aspect-ratio: auto;
+  }
+
+  .kolaz-pole .photo-zoom-media {
+    aspect-ratio: 1;
+    height: auto;
+  }
+
+  /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
+     ZMIERZONE 12.09.2026, kolaż z trzema zdjęciami bez wariantów: przy 600 px
+     blok zastępczy miał 282 px z 568 px karty (50%) i komunikat łamał się na
+     15 wierszy; przy 768 px — 342 px z 688 px i 12 wierszy. To jest dokładnie
+     to, co widać na zrzucie właściciela: „mniej niż połowa szerokości karty,
+     a po prawej pusty biały obszar".
+
+     Kwadratowe pół karty jest dobrą miarą dla ZDJĘCIA i złą dla ZDANIA.
+     `grid-column: 1 / -1` daje temu jednemu polu obie kolumny, a
+     `aspect-ratio: auto` zdejmuje z niego kwadrat — komunikat jest wysoki na
+     tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+     `:has()` NIE JEST TU RYZYKIEM. Przeglądarka, która go nie zna, pomija
+     całą regułę i dostaje układ sprzed tej zmiany — czyli gorszy, ale
+     działający. To jest ulepszenie stopniowe, nie warunek czytelności:
+     samą szerokość bloku w jego polu załatwia `width: 100%` na
+     `.photo-placeholder`, bez żadnego `:has()`. */
+  .kolaz-pole:has(.photo-placeholder) {
+    grid-column: 1 / -1;
+    aspect-ratio: auto;
   }
 
   /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
@@ -1708,9 +2741,13 @@
       background-color: transparent;
     }
 
-    .kolaz-pole .photo-zoom,
+    .kolaz-pole .photo-zoom-media,
     .kolaz-pole .post-photo {
       height: auto;
+    }
+
+    .kolaz-pole .photo-zoom-media {
+      aspect-ratio: auto;
     }
   }
 
@@ -1773,6 +2810,14 @@
   .lista-zdjec-akcje .btn { max-width: 100%; }
 
   .avatar {
+    /* Domyślne 48 px MUSZĄ tu stać, a nie tylko w komentarzu. Wariant ze
+       zdjęciem ratowały atrybuty `width`/`height` w HTML-u, ale wariant
+       z inicjałem (`<span>`, czyli każdy, kto nie ma jeszcze zdjęcia
+       profilowego) nie miał żadnego rozmiaru i zwijał się do wielkości
+       jednej litery. */
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
     border-radius: var(--radius-pill);
     background-color: var(--color-brand-tint);
     /* Inicjały na brand-tint — ta sama para co w nawigacji, ta sama usterka:
@@ -1934,6 +2979,23 @@
   /* Okruszki: „Start › Przepisy". W kicie są, ale u nas robią więcej niż
      ozdobę — na stronie przepisu ląduje się najczęściej prosto z Google,
      bez żadnego kontekstu, gdzie się jest. */
+  /*
+   * ROZMIAR PISMA I CEL DOTKNIĘCIA W OKRUSZKACH — 18 px i 48 px.
+   *
+   * ZMIERZONE PRZED POPRAWKĄ na `/przepisy/{slug}` (Chromium, 320–1440 px,
+   * oba motywy): „Start" 35 × 20 px, „Świeżo z Kuking" 125 × 20 px, pismo
+   * 16 px. Komentarz nad tą regułą mówi wprost, że okruszki „robią więcej
+   * niż ozdobę" — są jedyną drogą powrotną dla kogoś, kto wszedł na przepis
+   * prosto z wyszukiwarki. Element, po którym się nawiguje, nie jest pomocą
+   * kontekstową w rozumieniu `docs/design/DESIGN_SYSTEM.md`: nie ma obok
+   * niego tekstu ≥ 18 px, od którego byłby dopiskiem.
+   *
+   * Rozmiar zdejmujemy z listy (dziedziczy 18 px z `body`), a minimum celu
+   * dokładamy odnośnikom — `li` bez odnośnika (bieżąca strona) zostaje
+   * zwykłym tekstem, więc nie ma po co go rozpychać. `inline-flex`, bo
+   * okruszki stoją w wierszu; pionowy padding na elemencie `inline` nie
+   * powiększyłby realnego celu.
+   */
   .okruchy {
     display: flex;
     flex-wrap: wrap;
@@ -1942,8 +3004,13 @@
     list-style: none;
     padding: 0;
     margin: 0 0 var(--spacing-2);
-    font-size: var(--text-help);
     color: var(--color-ink-muted);
+  }
+
+  .okruchy a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height-min);
   }
 
   .okruchy li + li::before {
@@ -1961,12 +3028,81 @@
     gap: var(--spacing-3);
   }
 
-  /* --- Hero: zdjęcie obok panelu (desktop), jedno pod drugim (telefon) ---
+  /* --- EKRAN PRZEPISU: KOLUMNA CZYTANIA I KOLUMNA SZYNY (issue #365) -----
+
+     Zgłoszenie właściciela ze zrzutu: „w prawej kolumnie która jest pusta,
+     można dać to np" — z ręką na panelu „Ugotowałem / Zapisuję / Gotuję /
+     Podziel się / Skąd ten przepis".
+
+     Panel stał dotąd w kolumnie czytania, obok zdjęcia, i dzielił z nim
+     720 px; kolumna szyny stała przez ten czas pusta (zmierzone przy 1920 px:
+     352 px pustki plus marginesy). Teraz `<main>` zajmuje obie kolumny
+     (`.app-body-tresc-z-szyna` wyżej), a ta siatka rozkłada je tak:
+
+         [ nagłówek, zdjęcie, składniki, kroki, komentarze ]  [ PANEL ]
+                        45rem — bez zmian                      22rem
+
+     KOD ZOSTAJE W KOLEJNOŚCI TELEFONU. Panel jest w drzewie tam, gdzie był:
+     po zdjęciu, PRZED składnikami. Siatka tylko przenosi go w bok, więc
+     czytnik ekranu i klawiatura chodzą tak samo jak przedtem, a „Ugotowałem"
+     dalej stoi przed „Składnikami" (`EkranPrzepisuWedlugKituTest`). To jest
+     powód, dla którego ten ekran NIE używa `<x-slot:rail>`: slot renderuje
+     się w kodzie za całym `<main>`, czyli za krokami i komentarzami.
+
+     KOLUMNA TEKSTU NIE ROŚNIE. `minmax(0, var(--container-content))` —
+     ta sama liczba, którą `.app-main` daje każdemu innemu ekranowi. Rośnie
+     rama i to, co OBOK; wiersz na 1400 px jest nieczytelny niezależnie od
+     wieku czytelnika (docs/UX_50_PLUS.md).
+
+     `grid-row: 1 / span 999`, A NIE `1 / -1`. `-1` wskazuje ostatnią linię
+     siatki JAWNEJ, a jawnych wierszy tu nie ma — panel zostałby w wierszu
+     pierwszym i rozepchnąłby go do swojej wysokości, zostawiając kilkaset
+     pikseli dziury pod nagłówkiem. Liczba jest umyślnie większa niż liczba
+     bloków, jaką może mieć przepis; wiersze bez treści mają zerową wysokość,
+     a `row-gap` jest zerem (rytm pionowy robi `.stack`), więc nadmiar nic
+     nie kosztuje.
+
+     TYLKO OD 80rem — czyli tam, gdzie kolumna szyny w ogóle istnieje.
+     Niżej (telefon, tablet) i przy czcionce przeglądarki podkręconej do 200%
+     (wtedy 80rem to 2560 px i próg się nie załapuje) zostaje jeden ciąg
+     w kolejności z kodu: nagłówek, zdjęcie, panel z „Ugotowałem", składniki.
+     ---------------------------------------------------------------------- */
+
+  @media (min-width: 80rem) {
+    .przepis-uklad {
+      display: grid;
+      grid-template-columns: minmax(0, var(--container-content)) var(--container-rail);
+      column-gap: var(--spacing-8);
+      row-gap: 0;
+      align-items: start;
+    }
+
+    .przepis-uklad > * {
+      grid-column: 1;
+    }
+
+    .przepis-uklad > .przepis-panel {
+      grid-column: 2;
+      grid-row: 1 / span 999;
+      align-self: start;
+      /* `.stack` daje każdemu kolejnemu dziecku margines od góry. Panel stoi
+         w drugiej kolumnie przy samej górze, więc ten margines zepchnąłby go
+         od nagłówka, z którym ma licować. */
+      margin-top: 0;
+    }
+  }
+
+  /* --- Hero: zdjęcie przepisu --------------------------------------------
 
      Kolejność w KODZIE jest kolejnością na telefonie i jest to kolejność
-     z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis". Desktop tylko
-     przesuwa panel obok zdjęcia. Dzięki temu czytnik ekranu i klawiatura
-     chodzą tak samo w obu układach. */
+     z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
+
+     SIATKA ZOSTAJE JEDNOKOLUMNOWA TAKŻE NA DESKTOPIE (issue #365). Do dziś
+     dzieliła 720 px między zdjęcie i panel — dlatego zdjęcie dania, czyli
+     rzecz, po którą człowiek tu przyszedł, miało ~390 px na monitorze
+     1920 px. Panel wyprowadził się do kolumny szyny (patrz `.przepis-uklad`
+     wyżej), więc zdjęcie bierze teraz całą kolumnę czytania.
+     `--container-content` pilnuje, żeby nie urosło ponad 720 px. */
 
   .przepis-hero {
     display: grid;
@@ -1982,21 +3118,18 @@
     align-items: start;
   }
 
-  @media (min-width: 60rem) {
-    .przepis-hero-ze-zdjeciem {
-      grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
-    }
-  }
-
   .przepis-hero-zdjecie img {
     border-radius: var(--radius-xl);
   }
 
+  /* Bez `border-radius`: nadpisanie istniało po to, żeby wyrwać panel
+     z dawnych 16 px `.card`, a dziś `--warstwa-tresc-promien` to już
+     `--radius-xl`. Zostawione byłoby dokładnie tym rodzajem martwego
+     nadpisania, przez które `.card` zebrała 126 ról. */
   .przepis-panel {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-5);
-    border-radius: var(--radius-xl);
   }
 
   /* --- Kafle liczb: czas, porcje, poziom ---
@@ -2005,8 +3138,33 @@
      wszystkich trzech: bez czasu i bez poziomu zostaje sama liczba porcji
      i ma wtedy zająć całą szerokość, a nie jedną trzecią z dwiema dziurami.
 
-     `minmax(7rem, 1fr)` trzyma kafel czytelnym przy skali tekstu 150%,
-     przy której „4 porcje" nie mieści się w jednym wierszu. */
+     UWAGA (20.09.2026, D-223): `display` I `grid-template-columns` Z TEJ
+     REGUŁY NIE DOCHODZĄ DO PRZEGLĄDARKI. Jedyny nosiciel `.przepis-liczby`
+     w repozytorium (`pages/recipes/show.blade.php`) stoi wewnątrz
+     `.marka-przepis-tekst`, a `marka-przepis.css` ustawia mu
+     `display: flex; flex-wrap: wrap`. Ten arkusz NIE JEST OWINIĘTY W ŻADNĄ
+     WARSTWĘ, a kod spoza warstw bije KAŻDĄ warstwę nazwaną — także
+     `utilities`. Na kontenerze flex `grid-template-columns` nie znaczy nic.
+
+     Dlatego poprzednia wersja tego komentarza uzasadniała `7rem`
+     czytelnością „przy skali tekstu 150%" i była nieprawdziwa na trzy
+     sposoby naraz: (1) te `7rem` i tak są przykryte przez `10rem`
+     z `marka-ekrany.css`, (2) OBIE wartości są martwe, bo nosiciel jest
+     flexem, (3) skali 150% w tym produkcie NIE MA — `tokens.css` daje
+     70/80/90/112/125/140, a nasze `data-text-scale` skaluje tokeny tekstu,
+     nie korzeń dokumentu, więc `rem` w tej regule i tak by nie urosło.
+
+     ZMIERZONE, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+     wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel
+     IDENTYCZNĄ z obecną w 30 konfiguracjach na 30 (dwa przepisy × 320/360/
+     1280 px × pięć wariantów pisma). Zero przewijania w poziomie, zero
+     ucięcia tekstu. Dowód: `docs/design/evidence/kaskada223/`.
+
+     REGUŁY NIE USUWAMY. Jej usunięcie JEST zmianą zachowania na wypadek,
+     gdyby `marka-przepis.css` kiedyś zniknął — to osobna decyzja. Jeśli
+     kiedykolwiek będziesz tu poprawiać wartość: popraw ją TAM, GDZIE
+     OBOWIĄZUJE, czyli w `marka-przepis.css`. Poprawka w tej regule nie
+     dojdzie do nikogo. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`. */
   .przepis-liczby {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));
@@ -2109,12 +3267,13 @@
     }
   }
 
-  .przepis-siatka > .card {
-    border-radius: var(--radius-xl);
-  }
-
+  /* Nagłówek „Składniki" i „Przygotowanie". `margin-top: 0`, bo sekcja ma
+     własne wcięcie i drugi odstęp od góry byłby podwójny — ale margines
+     DOLNY jest potrzebny: reset Tailwinda zeruje oba, więc nagłówek stał na
+     pierwszym składniku i na pierwszym kroku bez przerwy (zmierzone: 0 px). */
   .przepis-siatka h2 {
     margin-top: 0;
+    margin-bottom: var(--spacing-4);
   }
 
   /* Sufit długości linii dla bloków z ciągłym tekstem na stronie szerokiej.
@@ -2166,6 +3325,155 @@
     padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--color-border);
     font-size: var(--text-body-lg);
+  }
+
+  /* =====================================================================
+     RYTM PIONOWY STRONY PRZEPISU (zgłoszenie właściciela, 11 września:
+     „a propos przepisw, trzeba naprawić te odstępy między tekstami
+     w przepisach")
+     =====================================================================
+
+     CO BYŁO ZMIERZONE (Chromium, `/przepisy/{slug}` pełnego przepisu:
+     zdjęcie, składniki, kroki, „Skąd ten przepis", komentarze; okno 1512 px,
+     okno 400 px i okno 1512 px przy czcionce przeglądarki 200 %):
+
+         tytuł `<h1>` → wiersz autora ......................  0 px  (0/0/0)
+         zdjęcie → plakietki („Ugotowane 3 ×") .............  0 px  (0/0/0)
+         „Skąd ten przepis" → pierwszy akapit ..............  0 px  (0/0/0)
+         „Składniki" → lista składników ....................  0 px  (0/0/0)
+         „Przygotowanie" → lista kroków ....................  0 px  (0/0/0)
+         okruszki → linia atrybucji ........................  8 px
+         linia atrybucji → tytuł ...........................  8 px
+         wiersz autora → zdjęcie ..........................  36 px na 1512 px,
+                                                              20 px na 400 px
+
+     Pięć par stało dosłownie na zero pikseli, a odstęp nagłówka od zdjęcia
+     był na desktopie i na telefonie INNY. Cztery przyczyny, każda inna:
+
+     1. RESET TAILWINDA ZERUJE MARGINESY NAGŁÓWKÓW, a `base` ich nie
+        odzyskuje. `.app-main > h1` (tokens.css) naprawia to na wszystkich
+        ~50 podstronach naraz — ale nie tutaj, bo `<h1>` przepisu siedzi
+        w `<article><header>`, nie bezpośrednio w `<main>`. Ten sam brak
+        dotyczy `<h2>` w „Składnikach", „Przygotowaniu" i „Skąd ten przepis".
+     2. `margin: 0` NA `.recipe-facts` ZJADAŁO RYTM `.stack`.
+        `.stack > * + *` i `.recipe-facts` mają tę samą swoistość (0,1,0),
+        a `.recipe-facts` stoi w pliku niżej — więc wygrywała i plakietki
+        przyklejały się do zdjęcia. Dlatego ten blok stoi TU, pod nią,
+        a nie przy `.przepis-uklad` wyżej.
+     3. MARGINESY ZJADANE PRZEZ ZLEWANIE — ale tylko w połowie stanów.
+        Poniżej 80rem `<article>` jest blokiem: `mb-4` wiersza autora zlewał
+        się z `margin-top` zdjęcia do 20 px. Od 80rem ten sam `<article>`
+        jest SIATKĄ, a marginesy elementów siatki się nie zlewają — więc
+        16 + 20 = 36 px. Ta sama strona miała dwa różne odstępy zależnie od
+        szerokości okna, czego nie widać, dopóki się nie zmierzy obu.
+     4. KLASY `mb-2` / `mt-0` / `mb-4` W SZABLONIE. Utility w Tailwindzie 4
+        leży w warstwie stojącej PO `components`, więc żadna reguła stąd by
+        ich nie przebiła. Zeszły z `show.blade.php` i ich wartości są teraz
+        tutaj — jedno miejsce zamiast trzech klas rozsypanych po nagłówku.
+
+     DLACZEGO TOKENY, A NIE PIKSELE. To są odstępy MIĘDZY BLOKAMI TEKSTU,
+     więc mają rosnąć razem z pismem: przy czcionce przeglądarki 200 %
+     `--spacing-6` to 48 px, nie dalej 24. To druga strona D-082/D-107 —
+     tamte minima są FIZYCZNE (palec nie rośnie od powiększenia czcionki),
+     ten odstęp jest typograficzny.
+
+     DLACZEGO `--spacing-6` MIĘDZY BLOKAMI ARTYKUŁU. Tę samą wartość kolumna
+     główna przyjęła w PR #387 dla dwóch sąsiadujących powierzchni
+     (`.app-main > :is(.card, …) + :is(…)` w tokens.css) i tę samą ma
+     `.app-main > h1`. TAMTEJ REGUŁY TU NIE DUPLIKUJEMY I NIE DA SIĘ:
+     celuje w bezpośrednie dzieci `<main>`, a strona przepisu ma tam
+     dokładnie jedno dziecko — `<article>`. Rytm WEWNĄTRZ artykułu jest
+     osobną rzeczą i jest robiony tu, jedną regułą, z tej samej liczby.
+
+     CO TA REGUŁA ROBI KAŻDEMU PRZEPISOWI, A NIE TYLKO TEMU ZE ZRZUTU:
+     odstępy wiszą na strukturze (`> header`, `> * + *`, `.recipe-story > p`),
+     nie na tym, że akurat jest zdjęcie, sekcja źródła albo komentarz.
+     Przepis bez zdjęcia i bez plakietek dostaje ten sam rytm — pusta lista
+     plakietek znika z układu (reguła niżej), żeby nie zostawiała po sobie
+     podwójnego odstępu.
+     ===================================================================== */
+
+  /* 1. Jeden rytm między blokami artykułu — ten sam w bloku i w siatce.
+        `margin-bottom: 0` na dzieciach jest częścią tej reguły, nie
+        ozdobą: bez niego dolny margines dziecka raz się zlewa (blok),
+        a raz sumuje (siatka od 80rem). */
+  .przepis-uklad > * {
+    margin-bottom: 0;
+  }
+
+  .przepis-uklad > * + * {
+    margin-top: var(--spacing-6);
+  }
+
+  /* WYJĄTEK: AKCJA DESTRUKCYJNA ZOSTAJE ODSUNIĘTA. `.danger-zone` ma własne
+     `margin-top: var(--spacing-8)` (tokens.css) i to nie jest rytm, tylko
+     wymóg z AGENTS.md §5 — „akcja destrukcyjna jest odsunięta od zwykłych
+     akcji". `tokens.css` jest importowany na początku `app.css`, więc reguła
+     wyżej (ta sama swoistość, dalsze miejsce w pliku) ścięłaby ten odstęp
+     z 32 px do 24. Powtarzamy tu wartość Z TEGO SAMEGO TOKENU, żeby „Usuń ten
+     przepis" nie przysunęło się do komentarzy. */
+  .przepis-uklad > .danger-zone {
+    margin-top: var(--spacing-8);
+  }
+
+  /* Pusta lista plakietek (przepis bez wykonań, bez ocen i bez roku
+     w rodzinie) nie ma czego pokazać, a jako element w ciągu brałaby własny
+     odstęp i zostawiała po sobie dziurę na dwa odstępy — zmierzone przy
+     `/przepisy/chleb-pszenno-zytni-na-zakwasie`: 24 px nad zerowej wysokości
+     listą i 24 px pod nią.
+
+     `:not(:has(li))`, NIE `:empty`. `:empty` tej listy nie łapie, bo Blade
+     zostawia w niej znaki nowej linii, a te są węzłami tekstowymi —
+     sprawdzone w Chromium: reguła z `:empty` nie zadziałała ani razu.
+     `:has()` pyta o to, co naprawdę decyduje: czy jest choć jedna
+     plakietka. */
+  .przepis-uklad > .recipe-facts:not(:has(li)) {
+    display: none;
+  }
+
+  /* 2. Nagłówek przepisu: okruszki → linia atrybucji → tytuł → wiersz
+        autora. Cztery wiersze tekstu, trzy różne odległości, bo to są trzy
+        różne relacje: okruszki i atrybucja są podpisami tytułu (`--spacing-3`),
+        wiersz autora jest już osobną informacją (`--spacing-4`), a odstęp od
+        nagłówka do treści należy do rytmu artykułu wyżej — dlatego ostatnie
+        dziecko nagłówka nie dokłada własnego marginesu.
+
+        POWIADOMIENIA („To jest szkic", „Ten przepis jest ukryty przez
+        moderację") ŚWIADOMIE NIE MA W TEJ LIŚCIE: `.notice` ma własne
+        `margin-bottom: var(--spacing-5)` wspólne dla całego serwisu, a nad
+        sobą bierze margines tytułu. Dopisanie go tutaj zmieniłoby odstęp
+        pod ramką z 20 px na 16 — czyli poprawiało rytm przepisu kosztem
+        komponentu, który wygląda tak samo na kilkunastu innych ekranach. */
+  .przepis-uklad > header .okruchy,
+  .przepis-uklad > header > .meta {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .przepis-uklad > header h1 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-4);
+  }
+
+  .przepis-uklad > header > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* 3. „Skąd ten przepis" — w środku stoją pod sobą dwa akapity (po kim
+        przepis i notatka autora), oba pismem `--text-body-lg`. Nagłówek
+        siedział na nich bez jednego piksela przerwy, a akapity dostawały
+        16 px przewidziane dla pisma podstawowego. Selektory są STRUKTURALNE
+        (`h2`, `> p`), nie `:nth-of-type` — treść tej sekcji zmienia się
+        w osobnej gałęzi i ten rytm ma ją przeżyć. */
+  .recipe-story h2 {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .recipe-story > p {
+    margin-bottom: var(--spacing-5);
+  }
+
+  .recipe-story > :last-child {
+    margin-bottom: 0;
   }
 
   .step-number {
@@ -2413,9 +3721,11 @@
   /* ---------------------------------------------------------------------
      Tablica „kuKINGi na dziś"
 
-     Świadomie NIE jest to siatka kafelków. Karta na osobę, w jednym rzędzie
-     z avatarem i przyciskiem — czytelne przy powiększonym tekście i na 320 px,
-     gdzie ściana miniaturek się rozsypuje (docs/UX_50_PLUS.md).
+     Świadomie NIE jest to siatka kafelków. Wiersz na osobę i wiersz na danie,
+     w obu to samo: zdjęcie z lewej, tekst obok, akcja i pasek miniatur na
+     własnych wierszach przy lewej krawędzi. Czytelne przy powiększonym
+     tekście i na 320 px, gdzie ściana miniaturek się rozsypuje
+     (docs/UX_50_PLUS.md).
      --------------------------------------------------------------------- */
 
   /* Wersaliki w środku wyrazu. Sam <strong> wystarcza — nie zmieniamy
@@ -2424,6 +3734,31 @@
     font-weight: inherit;
     color: var(--color-brand);
     letter-spacing: 0.01em;
+  }
+
+  /* NAZWA NIE ŁAMIE SIĘ W ŚRODKU — DOPÓKI MA GDZIE STANĄĆ.
+     Od chwili, w której dwukolorowy zapis wszedł do tekstu bieżącego
+     (`docs/brand/GLOS_MARKI.md` §2), słowo stoi w akapitach o zwykłej
+     szerokości, a nie tylko w nagłówkach. Złamanie „ku" / „KINGiem" na dwa
+     wiersze rozbija jedyny nośnik tej gry — wersaliki w ŚRODKU wyrazu.
+
+     PIERWSZA WERSJA TEJ REGUŁY BYŁA `white-space: nowrap` I OBLAŁA SKAN
+     DOSTĘPNOŚCI. Uzasadniała się tak: „najdłuższa forma («kuKINGiem») ma
+     dziewięć znaków, czyli mniej niż «Ugotowałem», które i tak musi się
+     zmieścić w jednym wierszu". Rozumowanie porównywało znaki zamiast
+     pikseli — „Ugotowałem" stoi na przycisku, a „Zostań kuKINGiem" jest
+     nagłówkiem `<h1>`. Zmierzone przez CI na `/register` przy oknie 320 px
+     i czcionce przeglądarki 200%: samo słowo brało 315 px zaczynając od
+     x = 32, czyli strona przewijała się w bok o 27 px. Przewijanie w poziomie
+     to naruszenie WCAG 2.2 AA (1.4.10 Reflow) — gra słowem nie jest.
+
+     `overflow-wrap: anywhere` łamie wyraz WYŁĄCZNIE wtedy, gdy inaczej
+     wyszedłby poza wiersz: w zdaniu nie ma spacji, więc dopóki się mieści,
+     nic go nie dzieli. `nowrap` mówił „nigdy", a to jest o jedno słowo za
+     dużo. Wariantu `break-word` nie bierzemy, bo nie zmniejsza szerokości
+     minimalnej elementu — a to ona wypychała tu stronę. */
+  .kuking-word {
+    overflow-wrap: anywhere;
   }
 
   /* MARKA NA MARCE NIE MA KONTRASTU.
@@ -2435,8 +3770,119 @@
      Wewnątrz przycisku „KING" bierze więc kolor otoczenia — przycisk zna
      swoją parę tło/tekst i ma ją sprawdzoną. Wyróżnienie robią wersaliki,
      które i tak są tu nośnikiem, a nie kolor. */
-  .btn .kuking-word strong {
+  .btn .kuking-word strong,
+  .kuking-word--bez-koloru strong {
     color: inherit;
+  }
+
+  /* JEDNA KOLUMNA ZDJĘĆ NA OBIE LISTY — STĄD CAŁA SYMETRIA TEJ SEKCJI.
+     ---------------------------------------------------------------------
+     Zgłoszenie właściciela: „bez wyglądu, układu, żadnej symetrii, byle jak".
+     Zmierzone przed poprawką na `/` przy oknie 1512 px (tablica 992 px):
+     tekst osoby zaczynał się przy `x = 345`, podpis dania ZE zdjęciem przy
+     `x = 389`, podpis dania BEZ zdjęcia przy `x = 249`, pasek miniatur przy
+     `x = 249`. Cztery krawędzie w jednej sekcji, każda z innego powodu.
+
+     Awatar osoby i zdjęcie dania są teraz jedną i tą samą kolumną, więc obie
+     listy zaczynają tekst w tym samym miejscu, a wszystko, co dostaje własny
+     wiersz (pasek miniatur, przycisk), licuje z lewą krawędzią karty.
+
+     DLACZEGO 120 px I DLACZEGO W PIKSELACH. Zdjęcie dania miało 96 px, czyli
+     mniej niż przycisk stojący obok niego — w serwisie, który stoi na
+     zdjęciach. 120 px to ta sama liczba, którą ma już miniatura przepisu na
+     liście (`.recipe-card-miniatura`), więc nie wprowadza nowej. W pikselach,
+     nie w `rem`, bo przy czcionce przeglądarki 200 % `7.5rem` zrobiłoby
+     240 px i samo zdjęcie nie zmieściłoby się na ekranie 320 px (D-082,
+     D-107). W szynie: 120 + 16 odstępu + 160 progu tekstu = 296 px przy
+     wnętrzu karty 310 px — dwie kolumny mieszczą się z zapasem 14 px. */
+  .kuking-board {
+    --tablica-zdjecie: 120px;
+    --tablica-odstep: var(--spacing-4);
+
+    /* Tablica PYTA O SIEBIE, NIE O OKNO (issue #365) — patrz
+       `.kuking-board-kolumny` niżej. */
+    container-type: inline-size;
+    container-name: tablica;
+  }
+
+  /* --- OSOBY OBOK DAŃ (issue #365) ---------------------------------------
+
+     Zgłoszenie właściciela: „w »co się dziś gotuje« można zrobić dwie
+     kolumny". `docs/UX_50_PLUS.md` §Desktop pozwala na to wprost („maks.
+     2 główne kolumny"); zabrania ŚCIANY MAŁYCH KAFELKÓW — więc zdjęcie
+     zostaje na 120 px, miniatury na 72 px, a karta nie kurczy się po to,
+     żeby się zmieścić. Gdy nie ma dla niej miejsca, wraca jedna kolumna.
+
+     `@container`, NIE `@media`. Ta sama tablica stoi w trzech miejscach
+     o trzech różnych szerokościach — w szynie (wnętrze karty 310 px),
+     w kolumnie `/odkryj` (720 px) i w pasie strony powitalnej (992 px).
+     Pytanie o okno dałoby dwie kolumny także w szynie: karta osoby ma tam
+     310 px, a rząd „zdjęcie 120 + odstęp 16 + tekst min. 160" potrzebuje
+     296 px — po podziale na pół zostałoby 147 px na kolumnę i awatar spadłby
+     nad podpis. Pytamy więc o to, co naprawdę rozstrzyga: o szerokość samej
+     tablicy.
+
+     PRÓG 44rem = 2 × 22rem. Kolumna poniżej 22rem (352 px) nie mieści rzędu
+     trzech miniatur (3 × 72 + 2 × 8 = 232 px) razem z zapasem na wcięcia
+     karty, a to ten rząd jest jedynym uczciwym argumentem, żeby kogoś
+     zaobserwować.
+
+     PRÓG W `rem`, BO MA JECHAĆ RAZEM Z TEKSTEM — ta sama zasada, co przy
+     `flex-basis` karty niżej. Przy czcionce przeglądarki 200% `44rem` to
+     1408 px, czyli więcej niż najszersze miejsce, w którym ta tablica stoi
+     (992 px) — dwie kolumny same się wtedy wyłączają, zamiast ściskać podpis
+     do słupka kilku znaków na wiersz.
+
+     `row-gap` zostaje zerem: odstęp pionowy robią marginesy nagłówków
+     `.kuking-board-subtitle` i one mają zostać jedynym źródłem tego rytmu,
+     żeby obie kolumny zaczynały się na tej samej wysokości.
+     ---------------------------------------------------------------------- */
+
+  .kuking-board-kolumny {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--spacing-8);
+  }
+
+  /* #365 zachowuje duże karty i próg dwóch kolumn 64rem.
+     #560 / D-216 zastępuje wyrównane rzędy niezależną wysokością kolumn.
+     Bez skryptu działa układ podstawowy; kolejność DOM nie jest zmieniana. */
+
+  @media (min-width: 64rem) {
+    .landing-wpisy-dwie {
+      --landing-wpisy-kolumny: 2;
+      /* Sufit `--container-content` z `.landing-wpisy-kolumna` opisuje
+         SZEROKOŚĆ KARTY, a tu opisuje już szerokość DWÓCH kart — zdejmujemy
+         go z siatki, a długości wiersza pilnuje szerokość kolumny. */
+      max-width: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--spacing-5) var(--spacing-8);
+      /* Karta niższa od sąsiadki nie rozciąga się do dołu rzędu — pustka pod
+         nią ma wyglądać na odstęp, a nie na pustą połowę karty. */
+      align-items: start;
+    }
+  }
+
+  /* #560: JS wylicza początek karty w jej kolumnie, DOM zostaje chronologiczny.
+     Małe ekrany i niedostępny skrypt zachowują zwykłą siatkę powyżej. */
+  .landing-wpisy-dwie :is(a, button, summary) {
+    scroll-margin-block: 12px;
+  }
+
+  .landing-wpisy-dwie[data-zwarte-kolumny] {
+    grid-auto-rows: 1px;
+    row-gap: 0;
+  }
+
+  .landing-wpisy-dwie[data-zwarte-kolumny] > article {
+    margin-bottom: var(--spacing-5);
+  }
+
+  @container tablica (min-width: 44rem) {
+    .kuking-board-kolumny {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
   }
 
   .kuking-board-subtitle {
@@ -2457,19 +3903,94 @@
     margin: 0;
   }
 
+  /* RYTM PIONOWY — JEDEN DLA OBU LIST.
+     Wcięcie i kreska siedzą na `<li>`, a nie na wierszu w środku: karta dania
+     ma w środku odnośnik obejmujący cały wiersz i to on jest kontenerem
+     `flex`, nie `<li>`. Rozdzielenie tych dwóch rzeczy jest jedyną różnicą
+     między listami i nie widać jej w układzie. */
   .kuking-board-person,
   .kuking-board-post {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-3);
     padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--color-border);
-    flex-wrap: wrap;
   }
 
   .kuking-board-person:last-child,
   .kuking-board-post:last-child {
     border-bottom: 0;
+  }
+
+  /* Wiersz: zdjęcie z lewej, tekst obok, reszta na własnych wierszach. */
+  .kuking-board-person,
+  .kuking-board-post-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tablica-odstep);
+    flex-wrap: wrap;
+  }
+
+  /* Kolumna zdjęcia. `flex: none` na ELEMENCIE wiersza, nie tylko na `<img>`
+     w środku — to `<a>`/`<span>` jest tu elementem `flex`, a `flex: none` na
+     obrazku niżej nic o nim nie mówi. Bez tego domyślne `flex-shrink` zgniata
+     zdjęcie przy długim opisie. */
+  .kuking-board-avatar,
+  .kuking-board-post-photo {
+    flex: none;
+    width: var(--tablica-zdjecie);
+    line-height: 0;
+  }
+
+  .kuking-board-post-photo img {
+    width: var(--tablica-zdjecie);
+    height: var(--tablica-zdjecie);
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  /* DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — TEN SAM PRÓG W OBU
+     LISTACH (issue #272, rozszerzone o listę osób).
+     ---------------------------------------------------------------------
+     Zgłoszenie z #272: zdjęcie dania wisiało samo, dociśnięte do lewej,
+     a podpis leżał POD nim, nie obok. Nie był to wybór układu — było to
+     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
+     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
+     (90 znaków) chciał kilkuset pikseli, nie mieścił się w 310 px szyny
+     i cały blok spadał do drugiego wiersza. Zmierzone przed poprawką przy
+     oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst `y = 1361`.
+
+     To `flex-basis` decyduje, kiedy dwie kolumny przechodzą w pion. `10rem`
+     przy czcionce 16 px daje 120 + 16 + 160 = 296 px, czyli mieści się we
+     wnętrzu karty w szynie (310 px, zmierzone), a tekst dostaje realne
+     174 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px — próg nie
+     jest spełniony, blok idzie do własnego wiersza i staje przy tej samej
+     krawędzi co zdjęcie.
+
+     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
+     Przy czcionce przeglądarki podkręconej do 200 % `10rem` to 320 px, więc
+     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka kilku
+     znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
+     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
+
+     `max-width` z drugiej strony: w głównej kolumnie na `/` tablica ma 992 px
+     i bez tego ograniczenia opis dania rozciągał się na 800 px, czyli grubo
+     ponad 55–75 znaków w wierszu z `docs/UX_50_PLUS.md`. Maksimum w `rem`,
+     bo to jest długość WIERSZA TEKSTU i ma rosnąć razem z nim.
+
+     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał resztę
+     wiersza aż do tego maksimum. */
+  .kuking-board-person-body,
+  .kuking-board-post-body {
+    flex: 1 1 10rem;
+    min-width: 0;
+    max-width: 34rem;
+  }
+
+  /* Kolumna zawiera pojedynczy odnośnik oraz pełny podgląd i notatkę. */
+  .kuking-board-post-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
   }
 
   /* PASEK MINIATUR MA WŁASNY WIERSZ W KARCIE OSOBY (issue #272).
@@ -2478,37 +3999,31 @@
      miniatury stały JEDNA POD DRUGĄ, choć w szynie było miejsce na rząd.
 
      Przyczyna nie leżała w tej regule, a w tym, GDZIE ten pasek stał.
-     Siedział wewnątrz bloku tekstu karty osoby (`.min-w-0.flex-1`), czyli
-     dostawał nie szerokość szyny, a resztkę po awatarze i przycisku
-     „Obserwuj". Zmierzone w Chromium przy oknie 1440 px, przed poprawką:
-     szyna 352 px → wnętrze karty 310 px → awatar 52 + odstęp 12 + blok
-     tekstu 105 + odstęp 12 + przycisk 129. Pasek miał 105 px, a rząd trzech
-     miniatur potrzebuje 3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej
-     na wiersz — nie z braku miejsca w szynie, tylko z braku miejsca w tym
-     jednym zduszonym bloku.
+     Siedział wewnątrz bloku tekstu karty osoby, czyli dostawał nie szerokość
+     szyny, a resztkę po awatarze i przycisku „Obserwuj". Zmierzone
+     w Chromium przy oknie 1440 px, przed poprawką: szyna 352 px → wnętrze
+     karty 310 px → awatar 52 + odstęp 12 + blok tekstu 105 + odstęp 12 +
+     przycisk 129. Pasek miał 105 px, a rząd trzech miniatur potrzebuje
+     3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej na wiersz — nie z braku
+     miejsca w szynie, tylko z braku miejsca w tym jednym zduszonym bloku.
 
-     Naprawą jest więc przede wszystkim PRZENIESIENIE paska w HTML-u: stoi
-     teraz jako bezpośrednie dziecko rzędu, za przyciskiem (patrz komentarz
-     w `kuking-board.blade.php`). Zmierzone po poprawce: trzy miniatury o tej
-     samej górnej krawędzi, `x` 1077/1157/1237.
+     Naprawą jest więc przede wszystkim MIEJSCE paska w HTML-u: stoi jako
+     bezpośrednie dziecko rzędu (patrz komentarz w `kuking-board.blade.php`).
 
      `flex-basis: 100%` ROBI DRUGĄ, OSOBNĄ RZECZ — i nie jest ozdobą, choć
      sam rząd stanąłby też bez niej. Bez tej deklaracji rozmiar bazowy paska
      liczy się z jego treści (232 px przy trzech miniaturach), więc o tym, czy
-     pasek trafi na własny wiersz, decyduje suma szerokości awatara, opisu
-     i przycisku „Obserwuj" — czyli przypadek, ten sam, który zepsuł tę kartę
-     za pierwszym razem. Zmierzone bez `flex-basis`, okno 1280 px, czcionka
-     przeglądarki 200 %: pasek lądował W TYM SAMYM wierszu, na prawo od
-     „Obserwuj" (`x` 959 zamiast 73, czyli zamiast krawędzi karty). Z nią
-     pasek ma zawsze cały wiersz i zawsze zaczyna się przy tej samej
-     krawędzi co reszta karty.
+     pasek trafi na własny wiersz, decyduje suma szerokości awatara i opisu —
+     czyli przypadek, ten sam, który zepsuł tę kartę za pierwszym razem.
+     Zmierzone bez `flex-basis`, okno 1280 px, czcionka przeglądarki 200 %:
+     pasek lądował W TYM SAMYM wierszu, na prawo od „Obserwuj" (`x` 959
+     zamiast 73, czyli zamiast krawędzi karty).
 
      Pilnują tego dwa pomiary w `scripts/dostepnosc.mjs`, sekcja „Tablica
      dnia": jednej krawędzi miniatur (rząd) i szerokości paska równej
      szerokości karty (własny wiersz).
 
-     Odstęp nad paskiem robi teraz `gap` rzędu (`--spacing-3`, ta sama
-     wartość co dawne `margin-top`), więc własnego marginesu tu nie ma:
+     Odstęp nad paskiem robi `gap` rzędu, więc własnego marginesu tu nie ma:
      na własnym wierszu doliczyłby się do odstępu między wierszami.
 
      UWAGA NA DWA RÓŻNE `flex` W TEJ JEDNEJ REGULE. `flex-basis` opisuje ten
@@ -2548,74 +4063,90 @@
     flex: none;
   }
 
-  /* Zdjęcie dania nie kurczy się i nie rośnie — 96 px to 96 px. Zapisane
-     na samym elemencie, nie tylko na `<img>` w środku: to `<a>` jest tu
-     elementem rzędu, a `flex: none` na obrazku niżej nic o nim nie mówi. */
-  .kuking-board-post-photo {
-    flex: none;
+  /* AKCJA NA WŁASNYM WIERSZU, PRZY LEWEJ KRAWĘDZI.
+     Przycisk stał dotąd jako trzeci element wiersza, więc w głównej kolumnie
+     na `/` (992 px) odjeżdżał do prawej krawędzi — 600 px od opisu osoby,
+     do której należy (zmierzone: „Załóż konto, żeby obserwować" przy
+     `x = 657` przy tekście kończącym się na `x = 486`). Własny wiersz daje mu
+     tę samą krawędź co paskowi miniatur i co zdjęciu, a przy okazji zdejmuje
+     z niego walkę o szerokość z opisem w szynie.
+
+     `flex-basis: 100%` daje wiersz KONTENEROWI, nie przyciskowi: przycisk
+     zostaje przy swojej naturalnej szerokości i nie rozciąga się na 992 px. */
+  .kuking-board-akcja {
+    flex-basis: 100%;
   }
 
-  .kuking-board-post-photo img {
-    width: 96px;
-    height: 96px;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    background-color: var(--color-surface-sunken);
-    flex: none;
+  /* CAŁY WIERSZ DANIA JEST ODNOŚNIKIEM — bez przycisku „Zobacz" na końcu.
+     Cel dotykowy to cała karta (zmierzone: 992 × 152 px w głównej kolumnie,
+     310 × 190 px w szynie) zamiast przycisku 120 × 48 px, a nazwa dostępna
+     bierze się z widocznego tekstu wiersza, więc mówi, dokąd prowadzi.
+     Podkreślenie pojawia się na imieniu autora przy najechaniu i przy
+     wejściu klawiszem — to jest DODATEK, nie jedyna wskazówka: sam podpis
+     ma kolor i wagę odnośnika (`.author-name`) niezależnie od stanu. */
+  .kuking-board-post-row {
+    position: relative;
+    isolation: isolate;
   }
 
-  /* DWIE KOLUMNY W KARCIE DANIA, ZAMIERZONE — I PRÓG, PRZY KTÓRYM SIĘ KOŃCZĄ
-     (issue #272).
-     ---------------------------------------------------------------------
-     Drugie zgłoszenie ze zrzutu: zdjęcie dania wisiało samo, dociśnięte do
-     lewej, a podpis („Ewa Kapica", „Pyszne jagodzianki z mascarpone",
-     „Zobacz") leżał POD nim, nie obok. Nie był to wybór układu — było to
-     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
-     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
-     (90 znaków) chciał kilkuset pikseli, 96 + 12 + to nie mieściło się
-     w 310 px szyny, i cały blok spadał do drugiego wiersza. Zmierzone przed
-     poprawką przy oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst
-     w wierszu `y = 1361`, oba przy `x = 1077`.
+  .kuking-board-post-link {
+    display: inline-block;
+    min-height: 48px;
+    min-width: 48px;
+    max-width: 100%;
+    text-decoration: none;
+    color: inherit;
+  }
 
-     WYBÓR: DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — i to `flex-basis`
-     decyduje, kiedy jedno przechodzi w drugie. `11rem` nie jest liczbą
-     z powietrza: przy czcionce 16 px daje 96 + 12 + 176 = 284 px, czyli
-     mieści się we wnętrzu karty w szynie (310 px, zmierzone) i tekst dostaje
-     realne 202 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px —
-     próg nie jest spełniony, blok idzie do własnego wiersza i staje przy tej
-     samej krawędzi co zdjęcie i co reszta karty.
+  /* Kliknięcie zdjęcia, opisu i wolnego miejsca otwiera ten sam wpis.
+     Brak position: relative na linku jest celowy: obszarem jest wiersz. */
+  .kuking-board-post-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
 
-     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
-     Przy czcionce przeglądarki podkręconej do 200 % `11rem` to 352 px, więc
-     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka
-     kilku znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
-     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
-
-     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał całą resztę
-     wiersza — inaczej podpis kończyłby się w połowie szyny, a przycisk
-     „Zobacz" wisiał w powietrzu z prawej pustką. */
-  .kuking-board-post-body {
-    flex: 1 1 11rem;
+  .kuking-board-post-link:hover,
+  .kuking-board-post-link:focus-visible {
+    text-decoration: underline;
   }
 
   .kuking-board-excerpt {
-    margin: 0 0 var(--spacing-2);
     overflow-wrap: anywhere;
   }
 
   /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
   .kuking-board-note {
-    margin: var(--spacing-2) 0 0;
+    margin: var(--spacing-1) 0 0;
     padding-left: var(--spacing-3);
     border-left: 3px solid var(--color-accent);
     font-size: var(--text-help);
     color: var(--color-ink-muted);
   }
 
+  /*
+   * „Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze." — CAŁE
+   * ZDANIE, NIE DOPISEK.
+   *
+   * ZMIERZONE: 16 px na siedmiu ekranach (tablica, odkrywanie, profile,
+   * zeszyt — wszędzie, gdzie jest prawa szyna), przy każdej szerokości
+   * i w obu motywach. Klasa `.meta` daje `--text-help`, a ten wolno użyć
+   * tylko obok tekstu ≥ 18 px niosącego treść (`docs/design/DESIGN_SYSTEM.md`).
+   * To zdanie stoi SAMO, pod linią oddzielającą je od listy — i jest jedynym
+   * miejscem, w którym serwis tłumaczy, czym ta lista NIE jest.
+   *
+   * Wariant na stronie powitalnej ustawia `--text-body` od 14 września
+   * (`marka-tablica-publiczna.css`). Ta reguła robi to samo dla wszystkich
+   * pozostałych ekranów, zamiast zostawiać jedną stronę poprawną, a siedem nie.
+   * Kolor `--color-ink-muted` z `.meta` zostaje: stonowanie idzie kolorem,
+   * nie wielkością.
+   */
   .kuking-board-footer {
     margin: var(--spacing-5) 0 0;
     padding-top: var(--spacing-3);
     border-top: 1px solid var(--color-border);
+    font-size: var(--text-body);
   }
 
   /* ---------------------------------------------------------------------
@@ -2707,6 +4238,45 @@
     overflow-wrap: anywhere;
   }
 
+  /* ETYKIETA ZAKŁADKI OWINIĘTA JEDNYM ELEMENTEM — TEN `<span>` NIE JEST PUSTY.
+
+     Nie kasuj go przy sprzątaniu „niepotrzebnych" opakowań. Reguła niżej
+     wygląda na nic nierobiącą, ale jej zadaniem jest UNIEŚĆ NAZWĘ KLASY — ta
+     nazwa jest jedynym śladem, po co ten `<span>` stoi
+     w `resources/views/pages/home.blade.php`, i jedynym miejscem, w którym
+     wolno dopisać dalsze właściwości etykiety, gdy będą potrzebne.
+
+     DLACZEGO. `.tab` wyżej jest `inline-flex`, więc tekst leżący obok elementu
+     inline staje się ANONIMOWYM elementem flex — a anonimowemu elementowi flex
+     przycina się białe znaki na końcu. Zakładka „Świeżo z <x-kuking-word/>"
+     miała spację w źródle i w wysłanym HTML-u, a mimo to czytała się na
+     telefonie „Świeżo zkuKING". W `.btn` tego nie widać tylko dlatego, że
+     `.btn` ma `gap` i ten `gap` wchodzi w miejsce zjedzonej spacji; `.tab`
+     `gap`-u nie ma.
+
+     ZMIERZONE w Chromium na `/home`, szerokość 390 px i 320 px: końcowa spacja
+     węzła tekstowego „Świeżo z " miała 0,00 px przed poprawką i 4,27 px po
+     owinięciu etykiety tym `<span>`-em. Wysokość zakładki bez zmian (48 px,
+     `--control-height-min`), zawijanie do dwóch wierszy bez zmian.
+
+     `min-width: 0` — żeby etykieta jako element flex mogła zejść poniżej
+     szerokości swojej treści i zawinąć się zgodnie z `overflow-wrap: anywhere`
+     wyżej, zamiast rozpychać zakładkę w bok (issue #294, WCAG 1.4.10 Reflow).
+
+     Siostrzana reguła i pełne uzasadnienie tego wzorca: `.btn-napis`
+     w `resources/css/tokens.css` (issue #353).
+     Strażnikiem jest `tests/Feature/ZakladkaNieGubiSpacjiPrzedNazwaTest.php`. */
+  .tab-napis {
+    min-width: 0;
+  }
+
+  /* Przewijalna rama zakładek obcina zewnętrzny obrys pierwszej pozycji.
+     Pierścień pozostaje w całości wewnątrz celu; zachowujemy awaryjne
+     przewijanie oraz pełną wysokość kontrolki (odbiór zoomu, #509). */
+  .tabs .tab:focus-visible {
+    outline-offset: -3px;
+  }
+
   /*
    * Bieżąca zakładka: `--color-brand-dark` na TLE STRONY (nie na tincie)
    * dawało w trybie ciemnym 2.76. Tu właściwym tokenem jest `--color-brand`,
@@ -2794,12 +4364,38 @@
      swój wewnętrzny układ (`.site-footer-grupy` to grid, `.site-footer-pasek`
      to wiersz) — ten kontener tylko je składa jeden pod drugim i utrzymuje
      między nimi jeden, wspólny odstęp. */
+  /*
+   * ROZMIAR PISMA W STOPCE: `--text-body` (18 px), NIE `--text-help` (16 px).
+   *
+   * ZMIERZONE, NIE ODCZYTANE Z KLASY. Przy 320/360/390/414/768/1440 px,
+   * w obu motywach i przy skali tekstu 100% i 140%, `getComputedStyle`
+   * na ułożonej stronie dawał dla odnośników stopki 16 px — na KAŻDYM
+   * z 25 mierzonych ekranów serwisu, bo stopka jest wszędzie.
+   *
+   * DLACZEGO TO JEST NARUSZENIE, A NIE DOZWOLONE UŻYCIE `--text-help`.
+   * `docs/design/DESIGN_SYSTEM.md` pozwala na 16 px wyłącznie tam, gdzie
+   * OBOK stoi tekst ≥ 18 px niosący treść. „Pomoc", „Zasady", „Prywatność",
+   * „Napisz do nas" to CAŁA treść tych elementów — nie ma przy nich niczego
+   * większego, od czego byłyby dopiskiem. To ten sam przypadek, który
+   * `MinimalnyRozmiarTekstuTest` pilnuje już dla `.bottom-nav-item`
+   * i `.site-footer-liczba`; stopka jako całość została wtedy pominięta.
+   *
+   * CO ZOSTAJE MNIEJSZE I DLACZEGO WOLNO. Pasek techniczny na samym dole:
+   * metryczka wersji (`.site-version`, 8 px) i przycisk motywu. To jest
+   * jawny, nazwany wyjątek właściciela — D-051 w `docs/DECISIONS.md`,
+   * przywołany też w AGENTS.md §5. Oba elementy mają własny `font-size`,
+   * więc ta zmiana ich nie dotyka.
+   *
+   * `.site-footer-liczba` ustawiało `--text-body` samodzielnie, bo wcześniej
+   * musiało odkręcać dziedziczenie z tej reguły. Zostaje jako jawna deklaracja
+   * — nie szkodzi, a przy kolejnej zmianie tej reguły nie zgaśnie po cichu.
+   */
   .site-footer-inner {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
-    font-size: var(--text-help);
+    font-size: var(--text-body);
   }
 
   .site-footer-haslo {
@@ -2840,6 +4436,48 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
+  }
+
+  /*
+   * ODNOŚNIK W STOPCE JEST CELEM DOTKNIĘCIA, NIE SŁOWEM W AKAPICIE.
+   *
+   * ZMIERZONE: 74,6 × 20 px („O kuKING"), 53 × 20 px („Pomoc"), 165 × 20 px
+   * („Zgłoś nielegalną treść") — przy 320, 390 i 1440 px tak samo, bo to
+   * wysokość jednego wiersza pisma, a nie skutek wąskiego ekranu. AGENTS.md
+   * §5 i `docs/UX_50_PLUS.md` żądają 48 px dla ważnych przycisków, a to jest
+   * jedyna droga do regulaminu, prywatności i zgłoszenia nielegalnej treści —
+   * czyli do rzeczy, których serwis ma obowiązek nie chować.
+   *
+   * `display: flex` zamiast samego `padding`: `<a>` jest inline, więc pionowy
+   * padding rysowałby się poza pudełkiem wiersza i NIE powiększył realnego
+   * celu (to ta sama pułapka, co przy `.bottom-nav-item` — dlatego tam też
+   * stoi flex). Jako element `flex` w kolumnie `ul` odnośnik rozciąga się
+   * na całą szerokość kolumny, więc cel rośnie w obu wymiarach naraz.
+   *
+   * `min-height`, nie `height`: przy skali tekstu 140% i wąskim ekranie
+   * „Zgłoś nielegalną treść" łamie się na dwa wiersze i musi móc urosnąć.
+   * Wysokość sztywna ucinałaby wtedy drugi wiersz.
+   */
+  /* `min-width: 0` + `overflow-wrap: anywhere` (#918 naprawa): odkąd ten
+     odnośnik jest `display: flex` (cel dotknięcia 48 px, patrz wyżej), stał
+     się elementem flex we WŁASNEJ kolumnie `ul` — a flex item domyślnie ma
+     `min-width: auto`, czyli nie kurczy się poniżej szerokości najdłuższego
+     nierozdzielnego słowa. Przy powiększonej czcionce przeglądarki (rootFont
+     32 px) i skali tekstu 140% (`bodyFont` 50,4 px) pojedyncze słowo, np.
+     „nielegalną” w „Zgłoś nielegalną treść”, jest szersze niż kolumna
+     stopki nawet przy `min(11rem, 100%)` z `.site-footer-grupy` wyżej —
+     WYNIK: 9 px poziomego przewinięcia całej strony przy 320 px
+     (`K509_OVERFLOW /login {"width":320,"scroll":329}`) i to samo na każdej
+     stronie ze stopką, w tym `/home` (`NAV638_DUZY_FONT_OVERFLOW` mierzy
+     `scrollWidth` całego dokumentu, nie samej belki). ZMIERZONE PRZED
+     POPRAWKĄ i PO NIEJ na obu stronach, oba motywy, font-200+140 — patrz
+     meldunek naprawy #918. */
+  .site-footer-grupa ul a {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-height-min);
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Nagłówek kolumny jest WIZUALNY, nie semantyczny — `aria-hidden` w Blade,
@@ -2991,12 +4629,60 @@
      Powiększone zdjęcie (nakładka)
      --------------------------------------------------------------------- */
 
-  /* Kursor „lupka” to jedyna podpowiedź dostępna WYŁĄCZNIE przez najazd
-     myszą — dlatego nie jest jedyną. Właściwą informację niesie `aria-label`
-     linku („Powiększ zdjęcie: …”), czytany też przez czytnik ekranu. */
+  /* Podpis „Powiększ zdjęcie” jest widoczny także bez najechania myszą.
+     Kursor jest dodatkiem, a aria-label uzupełnia podpis opisem fotografii. */
   .photo-zoom {
+    position: relative;
+    isolation: isolate;
     display: block;
+    width: 100%;
+    min-width: 0;
     cursor: zoom-in;
+  }
+
+  .photo-zoom-media {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .photo-zoom-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    max-width: calc(100% - 16px);
+    margin: 8px;
+    padding: 4px 8px;
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+  }
+
+  /* Link pozostaje statyczny: containing block to cała fotografia z podpisem.
+     Pseudo-element nie jest osobnym celem klawiatury ani osobnym przyciskiem. */
+  .photo-zoom-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .photo-zoom-link:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-surface-raised),
+      0 0 0 5px var(--color-focus);
+  }
+
+  @media (forced-colors: active) {
+    .photo-zoom-link:focus-visible {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
   }
 
   .lightbox {
@@ -3032,9 +4718,23 @@
   }
 
   .lightbox-akcje {
-    /* Przycisk NAD tłem zdjęcia, zawsze widoczny i zawsze w tym samym
-       miejscu — nie chowa się w rogu, gdzie trzeba go szukać. */
+    /* Przyciski NAD tłem zdjęcia, zawsze widoczne i zawsze w tym samym
+       miejscu — nie chowają się w rogu, gdzie trzeba ich szukać. */
     flex: none;
+    display: flex;
+    gap: var(--spacing-3);
+  }
+
+  /*
+   * Stan wczytywania/błędu dużego wariantu (issue #743). Kolor ostrzegawczy
+   * tylko wtedy, gdy tekst mówi o błędzie — "Wczytywanie zdjęcia…" nie jest
+   * problemem i nie powinno wyglądać jak jeden.
+   */
+  .lightbox-status {
+    color: var(--color-ink-inverse);
+    font-size: var(--text-body);
+    text-align: center;
+    max-width: 32rem;
   }
 
   /* Zamknięty dialog nie może zajmować miejsca ani łapać kliknięć. */
@@ -3082,6 +4782,7 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
@@ -3090,6 +4791,14 @@
    Pilność pokazuje KOLOROWY PASEK PLUS NAPIS „czeka X godzin". Sam kolor
    nie wystarcza: rozróżnianie barw słabnie z wiekiem, a ten ekran ma działać
    także dla kogoś, kto czerwieni od pomarańczu nie odróżni.
+
+   NAZWA STOPNIA JEST SKLEJANA, NIE WPISANA. `pages/admin/bez-odpowiedzi.blade.php`
+   renderuje `class="card czeka czeka-{{ $wpis->pilnosc }}"`, a
+   `Admin\BezOdpowiedziController` ustawia `pilnosc` na `spokojnie | uwaga |
+   alarm`. Szukanie napisu „czeka-alarm" w `resources/views` nie da ani jednego
+   trafienia — a reguła JEST używana. Skreślenie jej zabrałoby ekranowi
+   moderacji kolorowy pasek pilności i nie oblałby na tym żaden test.
+   (`czeka-spokojnie` reguły nie ma i tak ma być: to stan domyślny.)
    --------------------------------------------------------------------------- */
 .czeka {
     border-left: 6px solid var(--color-border);
@@ -3119,8 +4828,8 @@
         z odległości wyciągniętej ręki, nie kanapy;
      2. główne przyciski są WYŻSZE niż standardowe --control-height-min
         (48px) — umączony albo mokry palec trafia gorzej. DESIGN_SYSTEM.md
-        §„Tekst i dostępność” mówi, że skala tekstu skaluje WYŁĄCZNIE tekst,
-        nigdy wysokość kontrolek — i to zostaje prawdą: `--user-text-scale`
+        W tym trybie zwiększona skala tekstu nie mnoży wysokości kontrolek;
+        D-219 zagęszcza odstępy tylko poniżej 100%. `--user-text-scale`
         rośnie tu, `min-height` w rem poniżej nie.
    --------------------------------------------------------------------------- */
 
@@ -3208,6 +4917,13 @@
 
 .cook-timer p {
     margin: 0;
+}
+
+/* Fokus na tle minutnika musi kontrastować z ramką także w ciemnym motywie. */
+.cook-timer .btn:focus-visible {
+    box-shadow:
+        0 0 0 2px var(--color-accent-tint),
+        0 0 0 5px var(--color-accent-tint-ink);
 }
 
 .cook-timer-odliczanie {
@@ -3338,8 +5054,17 @@
 .ustawienia-nawigacja-pozycja > a,
 .ustawienia-nawigacja-pozycja > strong {
     font-size: var(--text-body-lg);
-    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka. */
-    min-height: 2.5rem;
+    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka.
+
+       Do 12 września 2026 stało tu `2.5rem`, czyli 40 px — komentarz mówił
+       „≥ 48 px", a kod dawał o 8 px mniej (zmierzone w Chromium: odnośnik
+       „Tagi" 316 × 40 px). Dopóki ten spis stał wyłącznie w prawej szynie
+       obok formularza, był dodatkiem; od issue #344 jest CAŁĄ treścią
+       ekranu-rozdroża `/ustawienia`, czyli główną nawigacją po ustawieniach
+       na telefonie. Wartość idzie teraz z `--control-height-min`, tego
+       samego tokenu co przyciski i pozycje obu pasków — jednej liczby nie da
+       się rozjechać z komentarzem. */
+    min-height: var(--control-height-min);
     display: inline-flex;
     align-items: center;
 }
@@ -3386,6 +5111,30 @@
 
 .zdjecie-profilowe-opis {
     margin: 0;
+
+    /* NAJDŁUŻSZE SŁOWO TEGO ZDANIA WYPYCHAŁO STRONĘ W BOK (#448, WCAG 1.4.10).
+
+       Zmierzone `scripts/zdjecie-profilowe.mjs` przy oknie 320 px i czcionce
+       przeglądarki 200%: `scrollWidth` dokumentu 333 px przy oknie 320 px,
+       na ekranie `/ustawienia/zdjecie` w stanach `pending` i `ready`.
+
+       Winowajcą nie był układ, tylko szerokość MINIMALNA akapitu. Poniżej
+       640 px awatar i zdanie idą jeden pod drugim, a `panel-formularza` ma
+       przy tej czcionce 48 px wyściółki z każdej strony — na tekst zostaje
+       158 px. Zdanie „…przy Twoich wpisach, przepisach i komentarzach."
+       ma w sobie wyraz, który przy 36 px bierze 252 px i nie ma się gdzie
+       złamać, bo `align-items: flex-start` daje akapitowi szerokość
+       `fit-content`, a ta nigdy nie schodzi poniżej min-content.
+
+       Stan `deleted` nie przepełniał, bo jego zdanie ma krótsze wyrazy —
+       czyli usterka zależała od TREŚCI, nie od układu, i pierwsze dłuższe
+       słowo w którymkolwiek z tych trzech zdań przywróciłoby ją.
+
+       `overflow-wrap: anywhere`, nie `break-word`: tylko ten wariant obniża
+       szerokość minimalną elementu, a to ona wypychała stronę — ta sama
+       droga i to samo uzasadnienie co przy `.kuking-word` wyżej. Wyraz łamie
+       się WYŁĄCZNIE wtedy, gdy inaczej wyszedłby poza wiersz. */
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
@@ -3482,11 +5231,238 @@
     outline: none;
   }
 
-  .topbar-awatar {
-    display: inline-flex;
-    align-items: center;
-    border-radius: var(--radius-pill);
+}
+
+/* --- Menu konta przy awatarze (issue #344) -------------------------------
+   `<details>`, więc otwiera się bez JavaScriptu — ten sam wzorzec co menu
+   „Więcej" nad wpisem (`.post-card-menu` niżej w tym pliku).
+
+   Reguły stoją TU, poza `@media (min-width: 64rem)`, a nie tam, gdzie stała
+   dawna `.topbar-awatar`: menu jest widoczne na KAŻDEJ szerokości. Na
+   telefonie to jedyne wejście do Ustawień i do wylogowania, bo `.side-nav`
+   ma tam `display: none`, a pasek dolny jest pełny (AGENTS.md §5).
+   ------------------------------------------------------------------------ */
+
+/* `min-width: 0` i `max-width: 100%`, a NIE `flex: none` jak przy
+   `.post-card-menu`.
+
+   ZMIERZONE, NIE ZAŁOŻONE. Pierwsza wersja miała tu `flex: none` (czyli
+   `flex-shrink: 0`) przepisane z menu nad wpisem. Przy oknie 320 px
+   i czcionce przeglądarki 200% przycisk nie miał prawa się zwęzić i cała
+   strona przewijała się w bok: `scrollWidth` 367 przy `clientWidth` 320 —
+   na KAŻDYM ekranie serwisu, bo pasek górny jest wszędzie. Przed tą zmianą
+   te same pomiary dawały równe 320. */
+.topbar-konto {
+  position: relative;
+  margin-left: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* PRZYCISK MA AWATAR, NAPIS I STRZAŁKĘ — nigdy samego awatara (AGENTS.md §5).
+
+   Sam obrazek nie mówi ani dokąd prowadzi, ani że cokolwiek się pod nim
+   kryje; przy koncie bez zdjęcia jest w ogóle samą literą. Napis „Moje
+   konto" jest więc treścią przycisku, a nie podpowiedzią po najechaniu
+   myszą — hover na telefonie nie istnieje.
+
+   `min-height` z `--control-height-min` (48 px): awatar ma 40 px, więc bez
+   tego cel dotknięcia byłby o 8 px za niski. */
+.topbar-konto > summary {
+  display: inline-flex;
+  align-items: center;
+  /* Zawijanie i `max-width` z tego samego pomiaru co `min-width: 0` wyżej:
+     przy czcionce 200% awatar, napis i strzałka nie mieszczą się w jednym
+     wierszu w 320 px. Wolno im stanąć jeden pod drugim — nie wolno im
+     wypchnąć strony. */
+  flex-wrap: wrap;
+  max-width: 100%;
+  /* Odstępy i wcięcie są tu CIAŚNIEJSZE niż w `.post-card-menu` i to jest
+     pomiar: w belce telefonu 390 px zostaje 358 px na logotyp (159),
+     „Powiadomienia" (176) i ten przycisk. Każde 8 px wcięcia decyduje o tym,
+     czy przycisk zmieści się obok „Powiadomień", czy zrzuci belkę
+     o cały wiersz w dół — a belka jest przypięta, więc jej wiersz znika
+     z widoku treści na stałe. Wysokość celu dotknięcia trzyma
+     `min-height`, nie `padding`, więc ciaśniejsze wcięcie niczego nie
+     zmniejsza pod palcem. */
+  gap: var(--spacing-1);
+  min-height: var(--control-height-min);
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background-color: transparent;
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.topbar-konto > summary::-webkit-details-marker { display: none; }
+
+/* Napis może się złamać, gdy zabraknie miejsca — nie może wypchnąć paska
+   w bok. „Moje konto" to dwa słowa, więc łamie się naturalnie między nimi. */
+.topbar-konto-napis {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Strzałka pokazuje, że to się ROZWIJA, a nie prowadzi na inną stronę.
+   Kształt `chevron` jest w zestawie skierowany w prawo — obracamy go
+   w dół, a po otwarciu w górę, zamiast dokładać drugi rysunek. */
+.topbar-konto-strzalka {
+  flex: none;
+  transform: rotate(90deg);
+}
+
+.topbar-konto[open] > summary > .topbar-konto-strzalka {
+  transform: rotate(-90deg);
+}
+
+/* TREŚĆ MENU WYPADA Z BIEGU STRONY (`position: absolute`), bo inaczej
+   otwarcie menu przesuwałoby całą stronę pod palcem.
+
+   `right: 0` — menu wyrasta w lewo od przycisku, który stoi przy prawej
+   krawędzi. `max-width` liczony od szerokości okna trzyma je w ekranie przy
+   320 px i przy czcionce przeglądarki 200%. */
+.topbar-konto-tresc {
+  position: absolute;
+  right: 0;
+  z-index: 30;
+  /* Lista jest szersza od przycisku. Konto pozostaje po prawej również
+     po zawinięciu belki; margines okna chroni lewą krawędź menu. */
+  width: min(22rem, calc(100vw - 64px));
+  min-width: 100%;
+  max-width: none;
+  /*
+     MENU MA SIĘ ROZMINĄĆ Z DOLNĄ BELKĄ (issue #344, D-107).
+
+     ZMIERZONE przed tym ograniczeniem, telefon 390 × 844 przy czcionce
+     przeglądarki 200%: menu sięgało do `y = 718`, a belka dolna zaczyna się
+     tam na `y = 663` i ma 181 px wysokości — menu przykrywało „Start",
+     „Szukaj" i „Dodaj", czyli pozycje, w które człowiek celuje kciukiem.
+
+     Rezerwa NIE jest tu nową liczbą: `--rezerwa-pod-belka` to ta sama
+     wartość, którą cała strona zostawia pod treścią na tę belkę (patrz jej
+     wyprowadzenie wyżej w tym pliku). Rośnie razem ze skalą tekstu i schodzi
+     do zera tam, gdzie belki nie ma. Menu wyższe niż to, co zostaje,
+     przewija się w środku — treść nie znika, tylko czeka.
+  */
+  max-height: calc(100dvh - var(--rezerwa-pod-belka) - var(--spacing-8));
+  overflow-y: auto;
+  /* Przewijanie menu nie ma przenosić się na stronę pod nim. */
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: var(--spacing-2) 0 0;
+  padding: var(--spacing-2);
+  list-style: none;
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+}
+
+/*
+   PRZY BARDZO DUŻYM TEKŚCIE MENU PRZESTAJE BYĆ WARSTWĄ NAD TREŚCIĄ.
+
+   To ten sam próg i ta sama decyzja co przy `.topbar` wyżej (D-107): przy
+   `max-width: 15rem` okno mieści mniej niż piętnaście wysokości tekstu, pasek
+   górny przestaje być przypięty, a rezerwa pod belką rośnie do 15rem. Menu
+   rozwijane jako warstwa nie ma się wtedy gdzie zmieścić: ZMIERZONE na
+   telefonie 390 × 844 przy czcionce przeglądarki 200% — nawet po ograniczeniu
+   wysokości menu kończyło się na `y = 680`, a belka dolna zaczyna się tam na
+   `y = 663`. Przykrywało „Start", „Szukaj" i „Dodaj", czyli pozycje, w które
+   celuje kciuk.
+
+   Samym `max-height` się tego nie da: ograniczenie liczy się od GÓRY okna,
+   a menu zaczyna się dopiero pod paskiem, którego wysokości CSS nie zna.
+   Odjęcie jej „na oko" albo zjada całą wysokość menu, albo nie wystarcza —
+   to zakład, nie poprawka (tak samo jak przy `scroll-padding` w D-107).
+
+   Dlatego przy tej skali menu wchodzi w bieg strony: rozwija się POD
+   przyciskiem, w pasku, i spycha treść niżej zamiast ją przykrywać. Strona
+   przewija się normalnie, belka dolna zostaje wolna (ma `z-index: 30`, pasek
+   górny 20 — więc to ona jest na wierzchu, nie menu), a wszystkie trzy
+   pozycje da się doczytać przewinięciem, bo przy tym progu pasek górny nie
+   jest już przypięty (D-107) i wyjeżdża do góry razem z treścią.
+
+   DRUGI WARUNEK — okno WĄSKIE I NISKIE w przeliczeniu na wysokość tekstu
+   (`30rem × 25rem`) — łapie to samo z drugiej strony: zmierzone 768 × 600 px
+   przy czcionce 200%, czyli 24rem × 18,75rem. Sama szerokość tego nie widzi:
+   768 px jest powyżej pierwszego progu, a menu jako warstwa i tak nie miało
+   się tam gdzie zmieścić — kończyło się 27 px pod górną krawędzią belki.
+   Warunek jest podwójny, żeby nie łapać szerokiego, niskiego okna na
+   komputerze (1280 × 800 przy czcionce 200% to 40rem × 25rem), gdzie pasek
+   górny nie zawija się na kilka wierszy i problemu nie ma.
+*/
+@media (max-width: 15rem), (max-width: 30rem) and (max-height: 25rem) {
+  .topbar-konto { width: 100%; }
+  .topbar-konto > summary { width: fit-content; margin-left: auto; }
+  .topbar-konto-tresc {
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    max-height: none;
+    overflow-y: visible;
   }
+}
+
+/*
+   W WĄSKIM I NISKIM OKNIE PASEK GÓRNY PRZESTAJE BYĆ PRZYPIĘTY.
+
+   To jest dokładnie ta sama decyzja co przy `.topbar` wyżej (D-107, próg
+   `max-width: 15rem`), tylko widziana od strony WYSOKOŚCI okna, i tak samo
+   nie zależy od tego menu — pasek zabiera za dużo ekranu także wtedy, gdy
+   nikt menu nie otwiera.
+
+   ZMIERZONE, 768 × 600 px przy czcionce przeglądarki 200%: pasek górny
+   z rozwiniętym menu ma 573 px wysokości przy oknie 600 px, czyli 95% ekranu,
+   i jako przypięty ZOSTAJE tam przy każdym przewinięciu. Pozycja „Wyloguj
+   się" leżała wtedy na `y = 435…531`, a belka dolna zaczyna się na `y = 464`
+   — przy pełnym przewinięciu strony nadal pod belką, czyli nieosiągalna.
+   Po odpięciu pasek wyjeżdża do góry razem z treścią i wszystkie trzy
+   pozycje da się doczytać.
+
+   Próg jest tu podwójny (wąskie ORAZ niskie) z tego samego powodu co przy
+   menu wyżej: szerokie, niskie okno na komputerze nie ma tego problemu.
+*/
+@media (max-width: 30rem) and (max-height: 25rem) {
+  .topbar {
+    position: relative;
+  }
+}
+
+/* Każda pozycja jest pełnowymiarowym celem dotknięcia, nie słowem w wierszu:
+   48 px wysokości i 18 px tekstu, tak jak pozycje nawigacji bocznej. */
+.topbar-konto-tresc a,
+.topbar-konto-tresc .topbar-konto-wyjscie {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height-min);
+  padding: 0 var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topbar-konto-tresc a:hover,
+.topbar-konto-tresc .topbar-konto-wyjscie:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+/* Formularz wylogowania nie może dokładać własnego wiersza ani własnego
+   odstępu — w menu ma wyglądać jak pozostałe dwie pozycje. */
+.topbar-konto-wyjscie-formularz {
+  margin: 0;
 }
 
 /* --- Dolna grupa nawigacji bocznej ---------------------------------------
@@ -3572,9 +5548,10 @@
  * PRZY BARDZO DUŻYM TEKŚCIE KÓŁKO PRZESTAJE ROSNĄĆ (issue #295).
  *
  * Komentarz wyżej mówi, że kółko „nie rośnie ze skalą tekstu" — i to jest
- * prawda o NASZYM ustawieniu z profilu (`--user-text-scale` mnoży tylko
- * tokeny `--text-*`, korzenia nie rusza). Przy czcionce powiększonej
- * w PRZEGLĄDARCE korzeń podwaja się realnie i `3rem` to zmierzone 96 px
+ * prawda o NASZYM ustawieniu z profilu (`--user-text-scale` mnoży
+ * tokeny `--text-*`, a poniżej 100% zagęszcza odstępy przez osobny współczynnik;
+ * korzenia nie rusza). Przy czcionce powiększonej w PRZEGLĄDARCE korzeń
+ * podwaja się realnie i `3rem` to zmierzone 96 px
  * wokół ikony o 26 px — sama ta jedna ozdoba robi wtedy z wiersza „Dodaj"
  * 135 px z 376,2 px całej belki.
  *
@@ -3609,13 +5586,21 @@
 
 /* --- Bloki w prawej szynie (UI kit v2, ekran 01) ------------------------- */
 
-/* Blok szyny. Wołany jako `class="card szyna-blok"`, więc bierze z `.card`
-   tło, obwódkę i wcięcie — a tutaj dostaje dwie rzeczy z `.szyna-modul`
-   systemu projektowego v3.1.
+/* Blok szyny — WARSTWA 4 z sekcji 2.1 w `tokens.css`. Wołany w widokach jako
+   `class="card szyna-blok"` (tak stoi w `x-szyna-blok`), ale opisuje się tu
+   SAM, wszystkimi pięcioma tokenami swojej warstwy. Wcześniej brał tło,
+   obwódkę i wcięcie z `.card` i nadpisywał tylko promień oraz cień — przez co
+   z pliku nie dało się odczytać, jak ta warstwa w ogóle wygląda, a trzy
+   z jej tokenów leżały nieużywane.
 
-   `--radius-xl` NIE JEST TU KOSMETYKĄ. Karta wpisu dostała je w poprzednim
-   commicie, a szyna stoi bezpośrednio obok strumienia: dwa różne promienie
+   `--warstwa-szyna-promien` NIE JEST TU KOSMETYKĄ i jest równy promieniowi
+   karty wpisu. Szyna stoi bezpośrednio obok strumienia: dwa różne promienie
    w jednym rzędzie czyta się jako niedokończone, a nie jako hierarchię.
+   Zewnętrzny audyt zalecał kiedyś zmniejszenie tego promienia — to jest
+   cofnięcie świadomej poprawki i nie wraca. Deklaracja zostaje jawna mimo
+   tego, że `.card` daje dziś tę samą wartość: równość tych dwóch promieni
+   jest DECYZJĄ, a decyzja ma być widoczna w pliku, a nie wynikać z tego,
+   że nikt jej nie rozdzielił.
 
    ZDJĘTY CIEŃ jest hierarchią, i to celową. System pisze o szynie: „szyna
    NIE powtarza kolumny głównej". Karta wpisu unosi się nad tłem, bo jest
@@ -3624,8 +5609,11 @@
    znikają — przestają tylko konkurować o pierwsze spojrzenie. */
 .szyna-blok {
   margin: 0;
-  border-radius: var(--radius-xl);
-  box-shadow: none;
+  background-color: var(--warstwa-szyna-tlo);
+  border: 1px solid var(--warstwa-szyna-obwodka);
+  border-radius: var(--warstwa-szyna-promien);
+  box-shadow: var(--warstwa-szyna-cien);
+  padding: var(--warstwa-szyna-wciecie);
 }
 
 .szyna-naglowek {
@@ -3667,8 +5655,26 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * „Zobacz wszystko" w nagłówku bloku szyny — 18 px i 48 px celu.
+ *
+ * ZMIERZONE PRZED POPRAWKĄ (`/@ania`, 390 px): 135 × 24,8 px, pismo 16 px.
+ * To jest jedyne wyjście z bloku szyny do pełnej listy, a nie dopisek przy
+ * większym tekście: stoi w osobnej kolumnie nagłówka, po przeciwnej stronie
+ * tytułu, i nic ≥ 18 px obok niego nie ma. Warunek z
+ * `docs/design/DESIGN_SYSTEM.md` na użycie `--text-help` nie jest spełniony,
+ * a AGENTS.md §5 żąda 48 px dla celu dotknięcia.
+ *
+ * `inline-flex`, nie `block` z paddingiem: odnośnik jest elementem `flex`
+ * w `.szyna-naglowek` i ma zostać w swoim wierszu — `min-height` bez trybu
+ * flex nie przesunęłoby napisu na środek powiększonego pudełka.
+ * Rozmiar zdejmujemy do domyślnego (18 px z `body`), waga 600 zostaje:
+ * odróżnienie idzie wagą, nie zmniejszeniem.
+ */
 .szyna-wiecej {
-  font-size: var(--text-help);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-min);
   font-weight: 600;
 }
 
@@ -3742,17 +5748,58 @@
   margin-left: auto;
 }
 
+/* PRZYCISK MENU TO SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+   (decyzja właściciela z 12 września 2026; `AGENTS.md` §5,
+   `docs/UX_50_PLUS.md`, sekcja „Jeden nazwany wyjątek").
+
+   Do 12 września stał tu napis „Więcej" obok ikony i była to świadoma
+   decyzja z 11 września. Właściciel ją odwrócił, znając ryzyko: trzy kropki
+   w rogu wpisu są dla naszej grupy utrwalonym wzorcem z Facebooka, czyli
+   znakiem już rozpoznawanym, a nie zagadką. Uzasadnienie i granica wyjątku
+   siedzą w komentarzu przy `<details class="post-card-menu">`
+   w `components/post-card.blade.php` — tam, gdzie stoi `aria-label`.
+
+   ZNIKA NAPIS, NIE PRZYCISK. `min-width` i `min-height` dalej biorą
+   `--control-height-min` (3rem = 48 px), więc cel dotknięcia zostaje
+   48 × 48 px — a to jest ta liczba, która dla mniej pewnej ręki decyduje
+   o trafieniu (docs/UX_50_PLUS.md). `padding: 0` zamiast wcięcia na tekst:
+   przy kwadracie 48 px ikona 24 px ma dookoła 12 px i nie ma czego zawijać.
+
+   OBWÓDKA ZOSTAJE, choć Facebook jej nie ma. Sama ikona w kolorze tekstu,
+   bez tła i bez ramki, wygląda w karcie na ozdobę — a to jedyne wejście do
+   „Edytuj wpis" i „Usuń wpis". Obwódka nic nie kosztuje w miejscu (rysuje
+   się na krawędzi celu, który i tak musi mieć 48 px), a mówi „to się
+   naciska".
+
+   `border-radius: var(--radius-pill)` na kwadracie 48 × 48 daje koło —
+   ten sam kształt, co ma ten przycisk w serwisach, z których nasi
+   użytkownicy przyszli.
+
+   CO ZNIKŁO RAZEM Z NAPISEM: `gap` (nie ma czego rozdzielać), `font-size`,
+   `font-weight` i `white-space` (nie ma tekstu). Zostawione byłyby
+   martwymi deklaracjami, po których ktoś kiedyś wnioskowałby, że napis tu
+   bywa. */
 .post-card-menu > summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: var(--control-height-min);
   min-height: var(--control-height-min);
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
-  color: var(--color-ink-muted);
-  font-size: var(--text-body-lg);
+  background-color: transparent;
+  color: var(--color-ink);
   cursor: pointer;
   list-style: none;
+}
+
+/* `flex: none` NA IKONIE — bez tego domyślne `flex-shrink` zgniata `<svg>`
+   z 24 px do kilku, gdy w wierszu nagłówka karty zabraknie miejsca (długa
+   nazwa autora przy 320 px). Ikona nie jest tu jedynym opisem akcji, ale
+   zgnieciona w kreskę wygląda na usterkę. */
+.post-card-menu-ikona {
+  flex: none;
 }
 
 .post-card-menu > summary::-webkit-details-marker { display: none; }
@@ -3865,6 +5912,79 @@
   border-left: 3px solid var(--color-border);
 }
 
+/* AKCJE POD KOMENTARZEM: JEDEN RZĄD, KTÓRY SIĘ ZAWIJA (issue #433).
+   ─────────────────────────────────────────────────────────────────────
+   Zgłoszenie właściciela ze zrzutu z telefonu: „odpowiedz i popraw jest jedno
+   pod drugim, gdzie jest jednak miejsce by dać obok siebie". Każda akcja była
+   osobnym elementem blokowym (`<details class="mt-2">`, `<a class="btn">`),
+   więc każda brała cały wiersz — także wtedy, gdy dwie mieściły się w jednym
+   z zapasem.
+
+   ZMIERZONE, Chromium, komentarz o jednym zdaniu („Pysznie wygląda"),
+   przerwa liczona od ostatniego piksela treści do ostatniego piksela
+   ostatniej akcji. Liczby i skrypt: `scripts/uklad-komentarzy.mjs`.
+
+   | okno   | wnętrze karty | własny: przed → po | cudzy: przed → po |
+   |--------|--------------:|-------------------:|------------------:|
+   | 320 px |        246 px |   196,5 → 196,5 px |     117 → 117 px  |
+   | 360 px |        286 px |   196,5 → 138 px   |     117 → 66,5 px |
+   | 390 px |        316 px |   196,5 → 138 px   |     117 → 66,5 px |
+   | 414 px |        340 px |   196,5 → 138 px   |     117 → 66,5 px |
+
+   PRZY 320 px AKCJE SIĘ ZAWIJAJĄ I TAK MA BYĆ. Zmierzone szerokości celów
+   dotykowych przy czcionce zwykłej: „Odpowiedz" 142,88 px, „Popraw"
+   110,09 px, „Zgłoś" 92,56 px. Para „Odpowiedz + Popraw" to 252,97 px plus
+   odstęp — a wnętrze karty przy oknie 320 px ma 246 px. Nie mieści się
+   i zmieścić się nie może bez zwężenia przycisków, czego issue zabrania
+   wprost: „mają się zawijać, a nie kurczyć". Przy 320 px układ więc ani się
+   nie pogarsza, ani nie poprawia — i to jest wynik, nie przeoczenie.
+
+   ODSTĘP W POZIOMIE I W PIONIE JEST RÓŻNY, CELOWO. `column-gap` to
+   `--spacing-3` (12 px): tyle mają między sobą przyciski w `.form-actions`,
+   czyli w rzędzie akcji formularza, i nie ma powodu, żeby komentarz miał
+   własną liczbę. `row-gap` to `--spacing-2` (8 px) — dokładnie tyle, ile
+   dawało dotychczasowe `mt-2` między akcjami stojącymi jedna pod drugą.
+   Gdyby `row-gap` też wynosił 12 px, to przy 320 px, gdzie akcje i tak się
+   zawijają, blok byłby o 4 px WYŻSZY niż przed poprawką — czyli zgłoszenie
+   o zmarnowanym miejscu zostałoby załatwione dołożeniem miejsca.
+
+   `<details>` ROZWINIĘTY BIERZE CAŁY WIERSZ. Bez tego formularz odpowiedzi
+   albo poprawki układałby się w kolumnie szerokiej na tyle, na ile szeroki
+   jest jego `<summary>` — czyli pole do pisania miałoby przy 390 px około
+   140 px zamiast całej szerokości karty. `flex-basis: 100%` przenosi
+   rozwinięty blok na własny wiersz, a `min-width: 0` pozwala mu zejść poniżej
+   szerokości własnej treści, zamiast rozpychać kartę w bok.
+
+   RZĄD BYWA PUSTY i wtedy nie ma prawa zostawić po sobie odstępu: własna
+   odpowiedź po piętnastu minutach nie ma ani „Popraw", ani „Zgłoś".
+   `:empty` tu nie zadziała, bo Blade zostawia w środku białe znaki — stąd
+   `:not(:has(> *))`. To jest czysty CSS, więc działa bez JavaScriptu;
+   przeglądarka bez `:has()` pokaże jedynie 16 px pustki, a nie usterkę.
+
+   CZEGO TA REGUŁA NIE ROBI: nie dotyka `.danger-zone`. „Usuń" stoi poza tym
+   rzędem, za kreską, i tak ma zostać (AGENTS.md §5). */
+.akcje-komentarza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+}
+
+.akcje-komentarza:not(:has(> *)) {
+  display: none;
+}
+
+.akcje-komentarza > * {
+  max-width: 100%;
+}
+
+.akcje-komentarza > details[open] {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
 /* Dwa pola obok siebie na szerokim ekranie, jedno pod drugim na telefonie.
    `auto-fit` + `minmax` zamiast media query: pola układają się według miejsca,
    które naprawdę mają, a nie według szerokości okna — komponent bywa w wąskiej
@@ -3886,6 +6006,33 @@
   display: grid;
   gap: var(--spacing-4);
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+}
+
+/* POLA W JEDNYM RZĘDZIE STOJĄ RÓWNO, CHOĆ PODPISY MAJĄ RÓŻNĄ WYSOKOŚĆ.
+
+   Zgłoszenie właściciela ze zrzutu z `/dodaj/przepis/jedna-strona`: „Na ile
+   porcji" wisiało wyżej niż „Przygotowanie (minuty)" i „Gotowanie /
+   pieczenie (minuty)". Powód jest prozaiczny — krótszy podpis mieści się
+   w mniejszej liczbie wierszy, a pole zaczyna się zaraz pod nim.
+
+   Komórki siatki i tak mają jednakową wysokość (domyślne `stretch`), więc
+   wystarczy, żeby pole opadło na sam dół swojej komórki: kolumna `flex`
+   i `margin-top: auto` na kontrolce. Bez zaglądania w treść podpisów i bez
+   narzucania im wysokości, która przy 200% czcionki i tak by się rozjechała.
+
+   ZMIERZONE w Chromium (ramka 700 px, trzy pola z tego ekranu): górne
+   krawędzie pól stały na 60 / 81 / 81 px, czyli 21 px rozrzutu. Po zmianie
+   81 / 81 / 81 px — rozrzut 0.
+
+   Dotyczy WSZYSTKICH rzędów `.siatka-pol`, nie tylko tego jednego: różne
+   długości podpisów są tu regułą, nie wyjątkiem. */
+.siatka-pol > .field {
+  display: flex;
+  flex-direction: column;
+}
+
+.siatka-pol > .field .field-input {
+  margin-top: auto;
 }
 
 .siatka-pol-szeroka {
@@ -3940,8 +6087,8 @@
       przez to 3 px dalej w prawo niż w przeczytanym — lewa krawędź listy
       była poszarpana. Cień wewnętrzny nie wchodzi do modelu pudełka, więc
       wszystkie wiersze zaczynają się w tym samym miejscu, a kreska sama
-      układa się po zaokrągleniu `--radius-lg`. Grubość z tokenu
-      (`--spacing-1` = 4 px), dokładnie jak w systemie.
+      układa się po zaokrągleniu karty (`--warstwa-tresc-promien`). Grubość
+      z tokenu (`--spacing-1` = 4 px), dokładnie jak w systemie.
       `var(--shadow-card)` MUSI stać w tej samej deklaracji: `box-shadow`
       nie sumuje się między regułami i bez tego karta nieprzeczytana traciłaby
       swój cień.
@@ -4016,35 +6163,70 @@
 }
 
 /* Miejsce po zdjęciu, którego jeszcze nie ma (albo już nie będzie).
-   Proporcje idą z klasy, nie z dokładnych wymiarów pliku — patrz komentarz
-   w `components/photo.blade.php`. */
+   Kiedy ten blok w ogóle się pokazuje — patrz komentarz w
+   `components/photo.blade.php`; po #430 jest to wyjątek, nie reguła.
+
+   NA CAŁĄ SZEROKOŚĆ, I TO JEST SEDNO POPRAWKI #432.
+   Wcześniej stało tu `display: flex` i akapit stawał się elementem
+   elastycznym, który kurczy się do swojej treści. Blok miał przez to mniej
+   niż połowę szerokości karty, zdanie łamało się przy ~390 px na osiem
+   wierszy, a kropka po „przygotowuje" wypadała na początku wiersza.
+   `display: block` oddaje akapitowi całą dostępną szerokość — a że to
+   komunikat, a nie zdjęcie, `aspect-ratio` tu nie ma: blok jest wysoki na
+   tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+   `box-sizing` i `width` jawnie, mimo że `.post-photo` daje jedno i drugie:
+   ten sam blok dostaje czasem inną klasę (`$class` w komponencie), a wtedy
+   szerokość nie miałaby skąd przyjść. */
 .photo-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: var(--spacing-4);
   border-radius: var(--radius-md);
-  aspect-ratio: 4 / 3;
+  background-color: var(--color-surface-sunken);
+  text-align: center;
 }
 
-.photo-placeholder-kwadrat { aspect-ratio: 1 / 1; }
-.photo-placeholder-pion { aspect-ratio: 3 / 4; }
-.photo-placeholder-panorama { aspect-ratio: 16 / 9; }
+/* 18 px jawnie — to jest minimum produktowe (docs/UX_50_PLUS.md), a ten
+   akapit stoi w karcie, gdzie dziedziczenie potrafi go zmniejszyć.
 
-.photo-placeholder p {
+   `text-wrap: pretty` prosi przeglądarkę, żeby nie zostawiała w ostatnim
+   wierszu jednego sierotnego słowa. Jest to PODPOWIEDŹ, nie gwarancja, i
+   starsze przeglądarki jej nie znają — dlatego właściwa naprawa osieroconej
+   kropki stoi w treści (dwa krótkie zdania zamiast jednego długiego), a nie
+   tutaj. To jest warstwa druga, nie jedyna.
+
+   `overflow-wrap: break-word` ratuje układ przed jednym bardzo długim
+   słowem przy 320 px i powiększeniu 200% — bez tego rozpychałoby kartę
+   w poziomie (WCAG 2.2 AA, 1.4.10 Reflow). */
+.photo-placeholder-zdanie {
   margin: 0;
+  font-size: var(--text-body);
   font-weight: 700;
   color: var(--color-ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
 }
 
-.photo-placeholder-blad p {
+/* Zdanie drugie jest wyjaśnieniem, nie nagłówkiem — stąd zwykła grubość
+   pisma. Cały komunikat złożony grubym pismem czyta się jak krzyk, a ma
+   uspokajać. */
+.photo-placeholder-zdanie + .photo-placeholder-zdanie {
+  margin-top: var(--spacing-2);
+  font-weight: 400;
+}
+
+.photo-placeholder-blad .photo-placeholder-zdanie {
   color: var(--color-danger-tint-ink);
 }
 
 /* Podgląd rozmiaru tekstu w ustawieniach dostępności. Wartości są zamknięte
    w `config/kuking.php` (`kuking.text.scales`), więc wystarczą trzy reguły —
    nieznana wartość zostaje przy 100% i nic się nie psuje. */
+.choice-label[data-skala='70'] { font-size: 70%; }
+.choice-label[data-skala='80'] { font-size: 80%; }
+.choice-label[data-skala='90'] { font-size: 90%; }
 .choice-label[data-skala='112'] { font-size: 112%; }
 .choice-label[data-skala='125'] { font-size: 125%; }
 .choice-label[data-skala='140'] { font-size: 140%; }
@@ -4052,13 +6234,23 @@
 /* Rozmiary awatara. Selektor atrybutowy zamiast klasy na każdy rozmiar, bo
    `x-avatar` dostaje LICZBĘ w px i tak samo trafia do atrybutów `width`
    i `height` — jedna wartość, jedno miejsce. Rozmiar spoza listy zostaje przy
-   domyślnych 48 px z `.avatar`, więc nic nie znika. */
+   domyślnych 48 px z `.avatar`, więc nic nie znika.
+   Lista MUSI pokrywać każdy `:size` użyty w widokach — pilnuje tego
+   `tests/Feature/AwatarZnaKazdyRozmiarZWidokowTest.php`. */
+.avatar[data-rozmiar='32'] { width: 32px; height: 32px; font-size: 14px; }
 .avatar[data-rozmiar='40'] { width: 40px; height: 40px; font-size: 17px; }
 .avatar[data-rozmiar='44'] { width: 44px; height: 44px; font-size: 18px; }
 .avatar[data-rozmiar='48'] { width: 48px; height: 48px; font-size: 20px; }
 .avatar[data-rozmiar='52'] { width: 52px; height: 52px; font-size: 22px; }
 .avatar[data-rozmiar='56'] { width: 56px; height: 56px; font-size: 24px; }
+.avatar[data-rozmiar='64'] { width: 64px; height: 64px; font-size: 27px; }
 .avatar[data-rozmiar='88'] { width: 88px; height: 88px; font-size: 37px; }
+/* 120 px — osoba na tablicy „kuKINGi na dziś". Ta sama liczba, co zdjęcie
+   dania w tej samej sekcji (`--tablica-zdjecie`): obie listy tablicy mają
+   jedną kolumnę zdjęć, więc tekst zaczyna się w nich przy tym samym `x`.
+   Rozmiar spoza tej listy cicho spada do 48 px z `.avatar`, czyli awatar
+   osoby byłby mniejszy od zdjęcia dania i cała symetria by przepadła. */
+.avatar[data-rozmiar='120'] { width: 120px; height: 120px; font-size: 50px; }
 /* 128 px — awatar w nagłówku profilu. Na tej jednej stronie awatar nie jest
    znaczkiem przy cudzej treści, tylko zdjęciem osoby, o której jest cała
    strona; kolumna i tak musi pomieścić przycisk „Zmień zdjęcie profilowe"
@@ -4066,6 +6258,7 @@
    drugi rozmiar „na telefon" znaczyłby dwie wartości do utrzymania i inny
    wygląd tej samej karty na dwóch urządzeniach. */
 .avatar[data-rozmiar='128'] { width: 128px; height: 128px; font-size: 54px; }
+.avatar[data-rozmiar='170'] { width: 170px; height: 170px; font-size: 72px; }
 
 /* Nagłówek przepisu w podglądzie kreatora. `margin: 0`, bo stoi jako pierwszy
    element karty i własny odstęp odsuwałby go od jej krawędzi. */
@@ -4094,12 +6287,6 @@
   width: 120px;
 }
 
-/* Cichy przycisk wyrównany do lewej krawędzi karty. Domyślne wcięcie
-   `.btn-quiet` wysuwałoby go względem tekstu nad nim. */
-.btn-quiet-bez-wciecia {
-  padding-left: 0;
-}
-
 /* Lista kroków w instrukcji („Otwórz aplikację…", „Dodaj konto…"). Wcięcie
    w `em`, nie w tokenie odstępu: ma rosnąć razem z numerem, gdy ktoś powiększy
    tekst — inaczej „10." wychodzi poza wcięcie i lista się rozjeżdża. */
@@ -4113,39 +6300,6 @@
 .notatka-wyrozniona {
   font-size: var(--text-lead);
   font-weight: 600;
-}
-
-/* Siatka wpisów pod nagłówkiem „Świeżo z Kuking". Karta wpisu niesie
-   zdjęcie i kilka zdań, więc dwie kolumny są dla niej wygodne — jedna
-   kolumna na tak szerokim ekranie zostawiałaby pustkę, o którą zgłosił
-   się właściciel.
-
-   PRZELICZONE PO WEJŚCIU PASÓW (8 września 2026). Wcześniej ta siatka
-   stała w kolumnie szerokiej na 1424 px i karta miała ~690 px. Teraz stoi
-   w pasie, którego wnętrze ma 992 px, więc karta ma ~484 px — mniej więcej
-   tyle, ile miałaby wtedy trzecia kolumna, i dlatego trzeciej dalej NIE MA.
-   To jest świadome ustępstwo: strona powitalna pokazuje sześć wpisów naraz
-   zamiast dwóch, a kto chce je obejrzeć w pełnej szerokości, wchodzi
-   w „Świeżo z Kuking" (/odkryj), gdzie karty stoją w jednej kolumnie
-   szerokiej na --container-content.
-
-   SIATKA OD RAZU, NIE `.stack` PLUS SIATKA OD 64REM. Pierwsza wersja tego
-   kodu miała na tym elemencie obie klasy naraz, a `.stack` to
-   `> * + * { margin-top }`, nie flex. W siatce ten margines DODAJE się do
-   `gap`, więc pierwsza karta w każdym rzędzie miałaby inny odstęp od góry
-   niż druga — rozjazd widoczny tylko na szerokim ekranie i tylko w drugim
-   rzędzie, czyli dokładnie taki, jakiego nikt nie zauważa przed wdrożeniem. */
-.landing-wpisy {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-5);
-  align-items: start;
-}
-
-@media (min-width: 64rem) {
-  .landing-wpisy {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -4245,8 +6399,9 @@
 /* Adres jest dłuższy niż szerokość pola przy 390 px (zmierzone: urywał się
    na „http://…/przepi…"), a ma być CZYTELNY, nie tylko zaznaczalny — stąd
    pole wielowierszowe zamiast jednowierszowego. `min-height` z `.field-input`
-   dla `textarea` to 8 rem, czyli tyle, ile ma pole na przepis; tu wystarczą
-   dwa wiersze i mają rosnąć razem ze skalą tekstu. */
+   dla `textarea` to `--pole-wielowierszowe-min` (176 px), czyli tyle, ile ma
+   pole na przepis; tu wystarczą dwa wiersze i mają rosnąć razem ze skalą
+   tekstu. */
 .podziel-sie-adres {
   min-height: 0;
   resize: none;
@@ -4282,4 +6437,105 @@
 .podziel-sie-niedostepne {
   margin-top: var(--spacing-6);
   color: var(--color-ink-muted);
+}
+
+/* --- Zakładki dodawania („Zdjęcie i kilka słów" / „Cały przepis") ---------
+   issue #366. Dwa ZWYKŁE ODNOŚNIKI, nie przełącznik przebudowujący formularz:
+   strona zmieniająca się pod palcem to przy 50+ realny koszt, a odnośnik ma
+   adres, który da się wysłać rodzinie.
+
+   MINIMUM CELU JEST W PIKSELACH, NIE W `rem` (D-082, D-107). 48 px istnieje
+   dla palca, a palec nie rośnie, gdy ktoś powiększy czcionkę w przeglądarce —
+   `var(--control-height-min)` (3rem) podwoiłoby się razem z korzeniem.
+   Pismo ZOSTAJE typograficzne: `--text-body` ma rosnąć ze skalą tekstu.
+
+   KONTRAST ZMIERZONY PRZED WKLEJENIEM (WCAG 2.2 AA, issue #365):
+     * zakładka bieżąca — `--color-ink-inverse` na `--color-brand-solid`:
+       5,72:1 w motywie jasnym (#FFFFFF na #B3401F) i 4,72:1 w ciemnym
+       (#FFFFFF na #C1502A). Próg 4,5:1 dla tekstu — przechodzi w obu;
+     * obwódka zakładki niebieżącej — `--color-border-strong` do tła karty:
+       4,16:1 w jasnym (#8A7A63 do #FFFFFF) i 3,83:1 w ciemnym (#8C7D68 do
+       #2A241E). Próg 3:1 dla obwódki kontrolki (1.4.11) — przechodzi w obu.
+       `--color-border` miałby tu 1,40:1, czyli NIE przechodzi; wybór
+       `-strong` jest więc konieczny, nie estetyczny.
+   ------------------------------------------------------------------------ */
+
+.zakladki-dodawania {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0 0 var(--spacing-5);
+}
+
+.zakladka-dodawania {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 48px;
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-raised);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-ink);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Ikona nie chudnie, gdy napis zawija się na dwa wiersze. */
+.zakladka-dodawania .ikona { flex: none; }
+
+.zakladka-dodawania:hover { background-color: var(--color-surface-sunken); }
+
+.zakladka-dodawania[aria-current="page"] {
+  background-color: var(--color-brand-solid);
+  border-color: var(--color-brand-solid);
+  color: var(--color-ink-inverse);
+}
+
+/* --- Wejście kontem u dostawcy zewnętrznego (issue #258, #259) --- */
+
+/* ZNAK MARKI NIE KURCZY SIĘ W RZĘDZIE PRZYCISKÓW.
+   Zmierzone przy 320 px i czcionce przeglądarki 200%: bez tej linijki
+   `flex-shrink` domyślne zgniatało znak Google z 24 px do CZTERECH —
+   czyli do kolorowej smugi, która nie jest już żadnym rozpoznaniem, tylko
+   śmieciem obok napisu. Atrybuty `width` i `height` na `<svg>` tego nie
+   powstrzymują: w kontenerze `flex` są tylko rozmiarem bazowym. */
+.logo-dostawcy {
+  flex-shrink: 0;
+}
+
+/* PRZY DUŻYM TEKŚCIE ZNAK MARKI SCHODZI Z PRZYCISKU.
+   Ten sam próg co odpięcie `.topbar` i rezerwa pod belką (D-082),
+   i z tego samego powodu: porównuje okno z KORZENIEM, więc znaczy „tekst
+   jest duży w stosunku do ekranu", a nie „ekran jest wąski".
+
+   ZMIERZONE, NIE PRZEWIDZIANE, i to jest cała historia tej reguły.
+   Przy 320 px i czcionce przeglądarki 200% przycisk ma 174 px szerokości —
+   nie z naszej winy, bo tyle zostaje w karcie, której wypełnienie jest
+   w `rem` i podwaja się razem z korzeniem — ta sama rodzina usterek co
+   w issue #295, którego poprawka w chwili pisania czeka w PR-ze.
+   NUMERU DECYZJI Z TAMTEJ GAŁĘZI TU NIE CYTUJĘ: na `main` jeszcze go
+   nie ma, a martwy odnośnik wygląda na uzasadnienie i zatrzymuje
+   szukanie. Złapał to `NumeryDecyzjiMajaWpisyTest` — i miał rację.
+   Napis „Wejdź kontem Google" przy piśmie 36 px łamie się wtedy co kilka
+   znaków, bo bazowe `overflow-wrap: anywhere` łamie słowo gdziekolwiek.
+
+   Sam napis dawał 367 px wysokości. Znak marki, KTÓRY PRZESTAŁ SIĘ
+   KURCZYĆ dzięki regule wyżej, zabrał kolejne 24 px szerokości z tych
+   174 — i przycisk wyrósł do 502 px, czyli ponad połowy ekranu. To była
+   regresja wprowadzona razem ze znakiem, złapana pomiarem w Chromium.
+
+   Dlatego przy tym progu znak po prostu znika, a nie kurczy się do
+   nieczytelnej smugi i nie rozpycha przycisku. NIC SIĘ PRZY TYM NIE TRACI:
+   znak jest `aria-hidden` i nigdy nie niósł treści — całe znaczenie jest
+   w napisie, który zostaje. Próba odwrotna (`flex-basis: 100%` na
+   przycisku) nie pomogła wcale: 100% z 174 px to nadal 174 px. */
+@media (max-width: 15rem) {
+  .wejscia-dostawcow .logo-dostawcy {
+    display: none;
+  }
 }

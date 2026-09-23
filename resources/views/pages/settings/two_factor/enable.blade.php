@@ -13,7 +13,7 @@
         <li>Wpisz albo wklej do pola niżej sześciocyfrowy kod, który pokaże aplikacja.</li>
     </ol>
 
-    <section class="card text-center">
+    <section class="sekcja-strony text-center">
         <div class="max-w-[260px] mx-auto">
             {!! $qr !!}
         </div>
@@ -27,7 +27,12 @@
         pierwszy, termin techniczny zostaje jako informacja drugorzędna dla
         kontaktu ze wsparciem. Test regresyjny: DwuetapowaKodKopiaTest.
     --}}
-    <section class="card mt-5" id="sekcja-recznego-wpisania">
+    {{-- SEKCJA, nie ramka pomocnicza: to jest DRUGA DROGA do tego samego
+         celu, równorzędna z kodem QR wyżej, a nie wyjaśnienie obok niego.
+         Kod QR stoi na `sekcja-strony`, więc alternatywa dla osoby, która nie
+         ma jak zeskanować, ma stać na tej samej warstwie — inaczej ekran mówi
+         „ta droga jest gorsza" komuś, kto nie ma wyboru. --}}
+    <section class="sekcja-strony mt-5" id="sekcja-recznego-wpisania">
         <h2 class="mt-0">Nie możesz zeskanować kodu?</h2>
         <p>
             Wpisz w aplikacji ten kod do ręcznego wpisania (czasem nazywany „sekretem"
@@ -40,7 +45,7 @@
 
     <x-error-summary />
 
-    <form class="card mt-5" method="POST" action="{{ route('settings.two_factor.confirm') }}">
+    <form class="panel-formularza mt-5" method="POST" action="{{ route('settings.two_factor.confirm') }}">
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required

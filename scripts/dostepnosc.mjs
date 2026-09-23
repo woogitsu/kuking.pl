@@ -45,9 +45,16 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
+import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+
+// Szybka regresja końcowego zapisu działa także przez check.sh i w CI,
+// zanim kosztowny pomiar uruchomi przeglądarkę i przygotuje bazę.
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/karuzela-raport.test.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/oauth-raport.test.mjs'], { stdio: 'inherit' });
 
 const SZYBKO = process.argv.includes('--szybko');
 
@@ -160,9 +167,34 @@ const KONTO_ZALOGOWANE = 'ania';
  */
 const KONTO_MODERATORA = 'moderacja';
 
+/*
+ * KONTO Z NAZWĄ NA PEŁNE 100 ZNAKÓW — issue #440.
+ *
+ * `display_name` ma w walidacji `max:100` i ani jednego ograniczenia na
+ * długość pojedynczego SŁOWA. Ten automat mierzył dotąd profile o nazwach
+ * „Basia" (5 znaków) i „Ania" (4) — czyli NAJŁATWIEJSZE warianty tego ekranu.
+ * Zdanie „nic nie wyjeżdża w bok na profilu" dotyczyło więc czegoś, czego
+ * ten skrypt nie sprawdził: najdłuższa nazwa, jaką człowiek może dziś wpisać,
+ * nie weszła do próbki ani razu.
+ *
+ * To jest pułapka 5 z `docs/PULAPKI_TESTOW.md` od strony danych — narzędzie
+ * melduje sukces, bo nie dostało tego, o co chodzi. Od pułapki 5 w zwykłej
+ * postaci różni się tym, że tu nawet nie było pustego ekranu, po którym dałoby
+ * się coś poznać: ekran był pełny, poprawny i łatwy.
+ *
+ * Konto zakłada `DemoSeeder` (nazwa ma tam dokładnie tyle znaków, ile wynosi
+ * limit z `kuking.profil.dlugosc_nazwy` — od #467 jest to 40; najdłuższy
+ * nieprzerwany ciąg — 55). Stała stoi tutaj, a nie w adresie wpisanym z ręki,
+ * z tego samego powodu co `KONTO_ZALOGOWANE`: rozjazd nazwy dałby 404,
+ * a strona błędu przechodzi każdy audyt dostępności, nie sprawdzając niczego.
+ */
+const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';
+
 const EKRANY = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
+  { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
@@ -201,10 +233,68 @@ const EKRANY = [
    * składamy ze stałej, a nie wpisujemy go tu drugi raz z ręki.
    */
   { nazwa: 'profil (własny)', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
+  /*
+   * TRZECI PROFIL: NAZWA NA PEŁNE 100 ZNAKÓW (issue #440).
+   *
+   * Dwie pozycje wyżej mierzą ten ekran z nazwą na cztery i pięć znaków.
+   * Ta mierzy go z najdłuższą, jaką dopuszcza walidacja — i robi to przez
+   * ten sam komplet szerokości (320/360/414/768/900/1280) i skal tekstu
+   * (bez skali, 140%, czcionka przeglądarki 200%) co każdy inny ekran na
+   * tej liście, bo lista jest jedna i pętla jest jedna.
+   *
+   * Mierzymy jako GOŚĆ, tak jak profil `basia` wyżej: główka profilu jest
+   * dla gościa i dla zalogowanego ta sama, a nazwa stoi właśnie w niej.
+   *
+   * CO TRZYMA TEN EKRAN W RYZACH: `overflow-wrap: anywhere` na dzieciach
+   * `.profil-tozsamosc` w `resources/css/ekran-profilu.css`. Zdjęcie tej
+   * jednej deklaracji ma ten pomiar WYWALIĆ — jeśli nie wywala, próbka nie
+   * mierzy tego, o co chodzi, i poprawiać należy próbkę, nie próg.
+   */
+  { nazwa: 'profil (najdłuższa dopuszczalna nazwa)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
+  { nazwa: 'dodaj zdjęcie — otwarte podpowiedzi tagów', adres: '/dodaj/zdjecie', zalogowany: true, tagiOpis: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
+  /*
+   * ROZDROŻE USTAWIEŃ (#344) — ekran, na który od teraz prowadzi KAŻDY napis
+   * „Ustawienia" w serwisie: pozycja nawigacji bocznej, przycisk w rzędzie
+   * akcji własnego profilu i nowa pozycja w menu przy awatarze.
+   *
+   * Jest tu z tego samego powodu, dla którego D-171 kazało dopisywać nowe
+   * ekrany od razu: ekran spoza tej listy niczego nie psuje — raport wygląda
+   * na kompletny i świeci na zielono. Kształt treści jest przy tym dokładnie
+   * tym ryzykownym: dziewięć pozycji, każda z nazwą i zdaniem opisu, czyli
+   * gęsty ciąg tekstu, który przy 320 px i czcionce 200% najłatwiej wypycha
+   * stronę w bok (issue #80).
+   */
+  { nazwa: 'ustawienia (rozdroże)', adres: '/ustawienia', zalogowany: true },
   { nazwa: 'czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
+
+  /*
+   * ZDJĘCIE PROFILOWE (#344) — EKRAN, KTÓRY PĘKAŁ, A NIE BYŁ MIERZONY.
+   *
+   * 12 września wyszło, że przy 320 px i czcionce przeglądarki 200% ta strona
+   * wyjeżdża w bok: `scrollWidth` 333 px w oknie 320 px. Automat nie mógł
+   * tego złapać, bo tego adresu w tym pliku nie było — czyli znowu to samo,
+   * co przy D-099 i przy `/ustawienia` wyżej: brak ekranu na liście niczego
+   * nie psuje, raport wygląda na kompletny i świeci na zielono.
+   *
+   * DOPISANIE SAMEGO ADRESU NIC BY NIE DAŁO i dlatego idzie w parze ze
+   * zmianą w `DemoSeeder`. Ekran ma trzy stany („to jest Twoje zdjęcie",
+   * „zdjęcie się przygotowuje", „nie masz jeszcze zdjęcia") i różnią się nie
+   * zdaniem, tylko układem: przy gotowym zdjęciu dochodzi obrazek 88 px obok
+   * akapitu i CAŁA sekcja „Usunięcie zdjęcia" z przyciskiem potwierdzenia.
+   * Dane demo nie dawały kontu `ania` żadnego zdjęcia, więc mierzony byłby
+   * jedyny stan, w którym tego wszystkiego NIE MA — jedyny z trzech, który
+   * nie przepełniał. Strażnik pilnujący nie tej rzeczy (pułapki 2 i 4
+   * z `docs/PULAPKI_TESTOW.md`); dlatego `DemoSeeder` sieje temu kontu
+   * PRAWDZIWY plik z wariantem `thumb`, a nie sam wiersz w `media`.
+   *
+   * Że ekran naprawdę stoi w stanie „to jest Twoje zdjęcie", a nie w stanie
+   * zapasowym, sprawdza `stanEkranuZdjecia()` niżej — tym samym mechanizmem
+   * co `TRESC_PANELU`.
+   */
+  { nazwa: 'zdjęcie profilowe', adres: '/ustawienia/zdjecie', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
   /*
    * EKRANY TAGÓW (D-021). Publiczna strona tagu jest jednym z niewielu
@@ -351,6 +441,21 @@ const EKRANY = [
   { nazwa: 'panel — sygnały automatu', adres: '/admin/sygnaly', moderator: true },
 
   /*
+   * KOLAŻ NA POWITANIE — czwarty ekran panelu na tej liście i pierwszy, który
+   * jest FORMULAREM WYBORU, a nie kolejką. Rząd pól wyboru z miniaturą, nazwą
+   * autora i fragmentem wpisu w jednej linii to dokładnie ten układ, który
+   * przy 320 px i tekście 140% ma najwięcej okazji, żeby wypchnąć stronę
+   * w bok — a tego nie mierzy żaden z trzech ekranów wyżej.
+   *
+   * Wchodzi tu razem z wpisem w `TRESC_PANELU` niżej, bo bez niego ten ekran
+   * ma dwa stany nie do odróżnienia w raporcie: lista zdjęć do wyboru i
+   * zdanie „Nie ma jeszcze ani jednego publicznego zdjęcia". Oba odpowiadają
+   * 200 pod tym samym adresem. Wymusza to
+   * `PomiarDostepnosciSprawdzaTrescPaneluTest` i bardzo dobrze.
+   */
+  { nazwa: 'panel — kolaż na powitanie', adres: '/admin/kolaz-powitalny', moderator: true },
+
+  /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
    * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
@@ -430,6 +535,37 @@ const EKRANY = [
    * za pierwszym razem.
    */
   { nazwa: 'cofnij usunięcie konta', adres: '/cofnij-usuniecie-konta' },
+
+  /* ===========================================================================
+   * BEZPIECZEŃSTWO KONTA — TRZECI EKRAN WEJŚCIA KONTEM ZEWNĘTRZNYM (#345)
+   * ===========================================================================
+   *
+   * Ekran, na którym stoi „Połącz konto Facebooka" — czyli JEDYNA bezpieczna
+   * droga powiązania istniejącego konta z Facebookiem (D-098: adres
+   * z Facebooka nie łączy kont, więc powiązanie musi zrobić ktoś, kto JUŻ
+   * jest zalogowany). Nie był mierzony przez ten automat ani razu: nie ma go
+   * ani w tej liście, ani w `EKRANY_UKLADU`, a test pilnujący kompletności
+   * (`PomiarDostepnosciObejmujeStronyPubliczneTest`) pomija z założenia trasy
+   * za `auth`, więc nie miał go jak wypisać. Milczące pominięcie, dokładnie
+   * to, przed którym tamten test ostrzega — tylko po drugiej stronie
+   * logowania.
+   *
+   * Kształt treści jest tu ryzykiem sam w sobie: rzędy „coś jest włączone"
+   * plus przycisk obok tekstu, sekcja hasła, sekcja 2FA i — od #259 — sekcja
+   * Facebooka ze znakiem marki w przycisku. Przy 320 px i tekście 140% to ten
+   * układ, który najłatwiej wypycha stronę w bok (issue #80).
+   *
+   * `zalogowany: true`, bo dla gościa ten ekran nie istnieje. Sekcja
+   * Facebooka pokazuje się dopiero, gdy droga działa — dlatego automat stawia
+   * serwer z atrapami kluczy (`KLUCZE_DOSTAWCOW_DO_POMIARU`), a to, że sekcja
+   * naprawdę wyszła, sprawdza `przeszkodaWWejsciachZewnetrznych()`.
+   *
+   * Ekrany za zgodą dostawcy mierzy osobny moduł OAuth (#345), wywołany
+   * przed zapisem wspólnego raportu. Własny lokalny serwer podstawia tylko
+   * transport dostawcy; tożsamość do sesji nadal zapisuje prawdziwy callback.
+   * Samo dopisanie adresu tutaj mierzyłoby przekierowanie na /login.
+   */
+  { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
 ];
 
 /*
@@ -439,6 +575,7 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -707,6 +844,94 @@ async function przeszkodaWFormularzachOdzyskania(adres) {
   return null;
 }
 
+/*
+ * ATRAPY KLUCZY DOSTAWCÓW TOŻSAMOŚCI — BO BEZ NICH RZĄD „WEJDŹ KONTEM
+ * GOOGLE / FACEBOOKA" NIE ISTNIEJE NA ŻADNYM MIERZONYM EKRANIE (#345).
+ *
+ * ZMIERZONE 12 WRZEŚNIA. `components/wejscia-zewnetrzne.blade.php` pyta
+ * `App\Support\Google::dziala()` i `App\Support\Facebook::dziala()`, a te
+ * odpowiadają „nie", gdy nie ma kluczy — i wtedy NIE RENDERUJE SIĘ CAŁY
+ * BLOK: nagłówek, zdanie „przeniesiemy Cię na stronę…", dwa przyciski
+ * ze znakiem marki i zdanie o tym, czego nie bierzemy. `.env` deweloperski
+ * ma te cztery zmienne puste, job `dostepnosc` w CI też — więc axe nie
+ * widział tych przycisków ANI RAZU, na żadnym ekranie, nigdy.
+ *
+ * Liczby przy 320 px (Chromium 141), `<main>`:
+ *
+ *     ekran                        stan          węzłów  znaków  odnośników  SVG
+ *     /login                       klucze są         40     923           6    2
+ *     /login                       kluczy brak       25     499           4    0
+ *     /register                    klucze są         58    1368           5    2
+ *     /register                    kluczy brak       43     936           3    0
+ *     /ustawienia/bezpieczenstwo   klucze są         48    1350           1    1
+ *     /ustawienia/bezpieczenstwo   kluczy brak       38     908           0    0
+ *
+ * Liczy się ostatnia kolumna. Bez kluczy na tych ekranach nie ma ANI JEDNEGO
+ * znaku marki — a znak marki w przycisku to dokładnie ta klasa rzeczy, której
+ * axe pilnuje (nazwa dostępna przycisku, `aria-hidden` na ozdobie, kontrast
+ * obrysu) i której nie sprawdzi nic innego. Zielony wynik nad `/login` nie
+ * mówił więc nic o rzędzie wejść zewnętrznych, bo tego rzędu tam nie było.
+ * To ten sam rodzaj fałszywej zieleni co wariant „poczta nie działa" wyżej
+ * (D-106) — tyle że dotyczy ekranu, na który człowiek trafia PIERWSZY.
+ *
+ * DLACZEGO TO NIE JEST OBCHODZENIE NICZEGO. Wartość klucza nie wchodzi do
+ * HTML-a: widok pyta wyłącznie o to, CZY klucze są, a adres przycisku to
+ * `route('google.start')` na naszej własnej domenie. Renderowany kod jest
+ * więc co do znaku ten sam, co na produkcji. Żadne żądanie do Google ani
+ * do Meta z tego nie wychodzi: automat wykonuje na tych ekranach wyłącznie
+ * GET-y i nie klika w te przyciski — a gdyby kliknął, dostałby
+ * przekierowanie na ekran zgody dostawcy, czyli poza mierzony serwis.
+ *
+ * Atrapy kluczy wystarczają do tego pomiaru przycisków. Formularze po
+ * powrocie dostawcy i stan Facebooka bez adresu są osobno mierzone przez
+ * fixtures/oauth-dostepnosc.mjs, z atrapą transportu i prawdziwym callbackiem.
+ */
+const KLUCZE_DOSTAWCOW_DO_POMIARU = {
+  GOOGLE_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
+  GOOGLE_CLIENT_SECRET: 'atrapa-do-pomiaru-dostepnosci',
+  FACEBOOK_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
+  FACEBOOK_CLIENT_SECRET: 'atrapa-do-pomiaru-dostepnosci',
+};
+
+/*
+ * KONTROLA, ŻE RZĄD WEJŚĆ ZEWNĘTRZNYCH NAPRAWDĘ SIĘ WYRENDEROWAŁ — NIE
+ * ZAŁOŻENIE. Ten sam wzorzec i ten sam powód co przy formularzach
+ * odzyskania wyżej: wyłącznik `KUKING_WEJSCIE_GOOGLE`, zapamiętana
+ * konfiguracja (`config:cache`) albo zmiana w `dziala()` po cichu wracają
+ * do wariantu BEZ przycisków, a raport dalej pokazuje ✓ nad ekranem,
+ * na którym tych przycisków nie było.
+ *
+ * Szukamy NAPISU, nie klasy CSS: napis jest tym, co czyta człowiek, i tym,
+ * czego pilnuje reguła „ikona nigdy sama" (AGENTS.md §5). Gdyby ktoś
+ * zostawił sam znak marki bez tekstu, to sprawdzenie ma zapalić się jako
+ * pierwsze.
+ */
+async function przeszkodaWWejsciachZewnetrznych(adres) {
+  const doSprawdzenia = [
+    ['/login', 'ekran logowania'],
+    ['/register', 'ekran rejestracji'],
+  ];
+
+  for (const [sciezka, opis] of doSprawdzenia) {
+    const odpowiedz = await fetch(`${adres}${sciezka}`);
+    const html = await odpowiedz.text();
+
+    const brakujace = ['Wejdź kontem Google', 'Wejdź kontem Facebooka']
+      .filter((napis) => ! html.includes(napis));
+
+    if (brakujace.length > 0) {
+      return `${opis} (${sciezka}) nie ma przycisków: ${brakujace.join(', ')} — serwis wydał `
+        + 'wariant BEZ rzędu wejść kontem zewnętrznym. Automat zmierzyłby sam formularz hasła '
+        + 'i zapisał „✓" dla ekranu, na który człowiek trafia pierwszy, nie sprawdzając '
+        + 'przycisków, którymi wchodzi większość. Sprawdź `App\\Support\\Google::dziala()` '
+        + 'i `App\\Support\\Facebook::dziala()` oraz klucze dostawców (automat stawia serwer '
+        + 'z atrapami kluczy; przy ADRES=… decyduje konfiguracja mierzonej instancji).';
+    }
+  }
+
+  return null;
+}
+
 async function podnies_serwer() {
   if (process.env.ADRES) {
     return { adres: process.env.ADRES, zamknij: () => {} };
@@ -728,13 +953,20 @@ async function podnies_serwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Mierzymy również dział przed publicznym włączeniem (#372).
+        KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
+        // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.
+        ...KLUCZE_DOSTAWCOW_DO_POMIARU,
       },
     });
 
@@ -1222,6 +1454,17 @@ if (przeszkodaOdzyskania !== null) {
   process.exit(1);
 }
 
+// Ekrany logowania i rejestracji muszą mieć rząd „Wejdź kontem Google /
+// Facebooka", a nie wariant bez kluczy — pełne uzasadnienie przy tej funkcji
+// wyżej (#345).
+const przeszkodaWejsc = await przeszkodaWWejsciachZewnetrznych(adres);
+
+if (przeszkodaWejsc !== null) {
+  console.error(`BŁĄD: ${przeszkodaWejsc}`);
+  zamknij();
+  process.exit(1);
+}
+
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
 
 /*
@@ -1239,6 +1482,37 @@ log(`Chromium ${wersjaPrzegladarki}`
   + (CHROMIUM ? ` (${CHROMIUM})` : ' (z paczki `playwright`)'));
 log('');
 
+/* =============================================================================
+ * JEDNOZNACZNY WYBÓR PRÓBKI — KAŻDY PRZEBIEG MA MIERZYĆ TEN SAM OBIEKT
+ * =============================================================================
+ *
+ * Wszystko niżej, co wybiera z bazy JEDEN przepis, JEDEN wpis albo JEDNO
+ * konto do zmierzenia, kończy się na `->orderBy('id')` — a tam, gdzie
+ * porządek ma znaczyć „najnowsze", na `->orderByDesc('published_at')
+ * ->orderByDesc('id')`, czyli dokładnie tak, jak sortuje feed (AGENTS.md §8).
+ *
+ * DLACZEGO TO NIE JEST PORZĄDKOWANIE KODU. `SELECT … LIMIT 1` bez `ORDER BY`
+ * nie obiecuje w PostgreSQL NICZEGO o tym, który wiersz wróci. Wynik zależy
+ * od planu zapytania, a plan zmienia się od liczby wierszy, od `VACUUM`,
+ * od kolejności zapisu — czyli od rzeczy, których nie ma w tym repozytorium.
+ * Ten sam kod, ta sama baza, inny dzień: inny mierzony wpis.
+ *
+ * Groźne jest to, jak taki przebieg WYGLĄDA. Raport nazywa ekran, nie próbkę,
+ * więc czerwień na „wpis — kolaż" czyta się jako skutek czyjejś zmiany, choć
+ * bywa skutkiem tego, że kolaż wylosował się dziś inny. Ktoś szuka pół dnia,
+ * co zepsuł, i nie zepsuł nic. Odwrotnie jest gorzej: prawdziwa regresja
+ * chowa się wtedy za zdaniem „a, to pewnie ta zmienność".
+ *
+ * PORZĄDKUJEMY PO `id`, NIE PO `created_at`. `id` jest UUID-em v7 (`HasUuids`),
+ * czyli kluczem głównym: unikalnym z definicji i niezmiennym. `created_at`
+ * ma rozdzielczość, w której dwa wiersze zasiane w tej samej sekundzie są
+ * nierozróżnialne — a seeder właśnie tak je zapisuje.
+ *
+ * NIE DOTYCZY to zapytań po `username` (`profiles.username` ma UNIQUE, więc
+ * wiersz jest co najwyżej jeden) ani `.first()` z Playwrighta, które chodzi
+ * po kolejności dokumentu, nie po kolejności bazy.
+ * ========================================================================== */
+
 /*
  * Adres przepisu bierzemy z BAZY, nie ze strony.
  *
@@ -1247,10 +1521,15 @@ log('');
  * ekran przepisu po cichu WYPADAŁ ze sprawdzania, a raport wyglądał
  * na kompletny. Zapytanie do bazy nie zależy od tego, która strona akurat
  * linkuje do przepisów.
+ *
+ * `->orderBy('id')` — patrz `JEDNOZNACZNY WYBÓR PRÓBKI` wyżej. Bez tego
+ * PostgreSQL wolno oddać dowolny z przepisów demo, a raport wyglądałby
+ * tak samo przy każdym z nich.
  */
 const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
-    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->first())->slug;",
+    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')"
+    + "->orderBy('id')->first())->slug;",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
 
@@ -1279,11 +1558,15 @@ if (adresPrzepisu === null) {
  * mają co pokazać — inaczej mierzylibyśmy trzy razy ten sam układ i raport
  * wyglądałby na kompletny.
  */
+// Własna rzeczywista próbka, także dla axe/układu: brak fixture jest błędem,
+// nigdy powodem do powrotu do wygodnej karuzeli z samymi poziomymi zdjęciami.
+const mieszanaKaruzela = przygotujKaruzele({ ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA });
+process.once('exit', () => mieszanaKaruzela.sprzataj());
 const wpisyPoTrybie = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     "foreach (['normal','carousel','collage'] as $t) { "
     + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
-    + "->where('visibility','public')->has('media', '>=', 2)->first(); "
+    + "->where('visibility','public')->has('media', '>=', 2)->orderBy('id')->first(); "
     + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString();
@@ -1298,8 +1581,49 @@ const wpisyPoTrybie = (() => {
     }
   }
 
+  mapa.carousel = mieszanaKaruzela.id;
   return mapa;
 })();
+
+/*
+ * WPIS AUTORA O STUZNAKOWEJ NAZWIE — PRZYPIĘTY PO AUTORZE, NIE PO KOLEJNOŚCI.
+ *
+ * ZNALEZISKO Z 12 WRZEŚNIA, i jest to Sprawa 1 w czystej postaci. Karta wpisu
+ * Zofii (`KONTO_DLUGA_NAZWA`) wchodziła do pomiaru fokusu BOCZNYMI DRZWIAMI:
+ * na `EKRANY_FOCUS` nie ma jej ani razu, a mierzona była dlatego, że pozycja
+ * „wpis (przykładowy)" rozwiązuje się przez `znajdz: 'wpis:normal'`, a wpis
+ * Zofii był akurat tym, który oddawał `SELECT … LIMIT 1` bez `ORDER BY`.
+ *
+ * Dopisanie nowszego wpisu `DISPLAY_NORMAL` do `DemoSeeder` wystarczyłoby,
+ * żeby ta próbka przestała pilnować WCAG 2.4.11 — i nie oblałby się przy tym
+ * ani jeden test. Trzy naruszenia, które ta próbka znalazła (#440), po prostu
+ * przestałyby być mierzone, a raport wyglądałby tak samo.
+ *
+ * Samo `->orderBy('id')` w `wpisyPoTrybie` wyżej czyni ten wybór POWTARZALNYM,
+ * ale nie czyni go TRUDNYM: ustala tylko, że zawsze wchodzi ten sam wpis,
+ * niezależnie od tego, czy jest to wpis o coś wart mierzenia. Dlatego karta
+ * z długą nazwą dostaje własną pozycję i własne zapytanie, pytające o AUTORA
+ * — a to jest cecha, której dopisanie wpisu nie zmienia.
+ */
+const wpisDlugiejNazwy = (() => {
+  const id = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `$a = App\\Models\\Profile::where('username','${KONTO_DLUGA_NAZWA}')->value('user_id'); `
+    + "if (! $a) { echo ''; exit; } "
+    + "echo App\\Models\\Post::where('author_id',$a)->publiclyVisible()"
+    + "->orderBy('id')->value('id') ?? '';",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return id === '' ? null : id;
+})();
+
+if (wpisDlugiejNazwy === null) {
+  console.error(`BŁĄD: konto „${KONTO_DLUGA_NAZWA}" nie ma publicznego wpisu — karta wpisu `
+    + 'autora o najdłuższej dopuszczalnej nazwie wypadłaby z pomiaru fokusu (WCAG 2.2 AA 2.4.11), '
+    + 'a raport wyglądałby tak samo jak przy pełnej próbce.');
+  zamknij();
+  process.exit(1);
+}
 
 /*
  * Decyzja moderacyjna, od której może się odwołać konto, którym ten automat
@@ -1344,16 +1668,16 @@ const wpisyPoTrybie = (() => {
  */
 const idOdwolania = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
-    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     // `username` mieszka na `Profile` (klucz główny `user_id`), nie na
     // `User` — patrz komentarz w App\Models\User o danych publicznych.
     + `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
     + "if (!$m || !$b) { echo ''; exit; } "
     + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
-    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
+    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->orderBy('id')->first(); "
     + "if (!$a) { "
-    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->value('id'); "
-    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->value('id'); "
+    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->orderBy('id')->value('id'); "
+    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->orderBy('id')->value('id'); "
     + "$cel = $przepis ?? $wpis ?? $b; "
     + "$typ = $przepis ? 'recipe' : ($wpis ? 'post' : 'user'); "
     + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>$typ,"
@@ -1401,11 +1725,11 @@ if (idOdwolania === null) {
 const idZgloszenia = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
     `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
-    + "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     + "if (!$b || !$m) { echo ''; exit; } "
-    + "$z = App\\Models\\Report::where('reporter_id',$b)->first(); "
+    + "$z = App\\Models\\Report::where('reporter_id',$b)->orderBy('id')->first(); "
     + "if (!$z) { "
-    + "$cel = App\\Models\\Post::where('author_id','!=',$b)->value('id'); "
+    + "$cel = App\\Models\\Post::where('author_id','!=',$b)->orderBy('id')->value('id'); "
     + "if (!$cel) { echo ''; exit; } "
     + "$z = App\\Models\\Report::create(['reporter_id'=>$b,'target_type'=>'post','target_id'=>$cel,"
     + "'reason'=>'harassment','details'=>'Ten wpis wyśmiewa konkretną osobę z nazwiska.',"
@@ -1429,6 +1753,133 @@ if (idZgloszenia === null) {
   zamknij();
   process.exit(1);
 }
+
+/*
+ * TRZY EKRANY PANELU MUSZĄ MIEĆ CO POKAZAĆ — INACZEJ MIERZYMY PUSTY STAN
+ * I ZAPISUJEMY „✓" (issue #294, ta sama reguła co D-106).
+ *
+ * ZMIERZONE 11 WRZEŚNIA, na świeżo wysianej bazie demo, przy 900 px:
+ *
+ *     ekran                 co stało na ekranie              węzłów w <main>
+ *     /admin/uzytkownicy    tabela czterech kont                        126
+ *     /admin/zgloszenia     „Nic tu nie ma"                              19
+ *     /admin/sygnaly        „Nic tu nie ma"                              18
+ *
+ * Dwie z trzech kolejek panelu były więc mierzone jako PUSTY STAN: nagłówek,
+ * rząd zakładek z zerami i komponent `x-empty-state`. A cała rzecz, przez
+ * którą panel wszedł do tego pomiaru — karta sprawy z formularzem decyzji
+ * (`choice-grid`, dwa zestawy pól wyboru, pole terminu, lista podstaw
+ * prawnych) i karta grupy automatu z paskiem podglądów — nie była na ekranie
+ * ani raz. Pusty stan przechodzi każdy audyt dostępności, nie sprawdzając
+ * niczego; to jest dokładnie ta pułapka, o której mówi nagłówek tego pliku
+ * i pułapka 5 z `docs/PULAPKI_TESTOW.md`.
+ *
+ * `DemoSeeder` nie tworzy ANI JEDNEGO zgłoszenia (sprawdzone:
+ * `grep -n 'Report::' database/seeders/DemoSeeder.php`, zero wyników),
+ * a jedyne zgłoszenie, jakie ten automat zakładał (`idZgloszenia` wyżej), ma
+ * status `rejected` i należy do konta zgłaszającego — kolejka moderatora
+ * pokazuje domyślnie sprawy OTWARTE i wyłącznie te od ludzi
+ * (`ModerationController::reports()`), więc go nie widzi. Kolejka automatu
+ * czyta tylko wiersze `source = 'automat'`, których nie tworzył nikt.
+ *
+ * Dane dokładamy TUTAJ, tym samym mechanizmem co `idOdwolania`,
+ * `idZgloszenia` i `tablicaDnia` wyżej — a nie w `DemoSeeder`, który jest
+ * czyjąś cudzą, trwającą pracą. Sprawdzenie „czy już jest" przed zapisem
+ * czyni to bezpiecznym także przy `ADRES=…`, czyli na serwerze postawionym
+ * wcześniej.
+ *
+ * CO DOKŁADAMY I DLACZEGO WŁAŚNIE TO
+ *  1. Sprawę OTWARTĄ ZE ŹRÓDŁA SPOŁECZNOŚCIOWEGO — jedyny stan, w którym
+ *     karta zgłoszenia rozwija PEŁNY formularz decyzji. Sprawa rozstrzygnięta
+ *     pokazuje sam wynik, czyli podzbiór tego układu.
+ *  2. Sprawę OTWARTĄ Z DROGI PRAWNEJ, anonimową (DSA art. 16 ust. 2 lit. c) —
+ *     inny kształt karty: zamiast nazwy zgłaszającego stoi tam ADRES
+ *     zgłoszonej treści w `.kod-do-przepisania`, czyli jeden długi łańcuch
+ *     bez spacji. To jest klasyczne źródło przepełnienia w poziomie przy
+ *     320 px (WCAG 1.4.10) i do dziś nie było mierzone nigdzie.
+ *  3. Trzy oznaczenia automatu w DWÓCH grupach, z czego jedna ma dwie
+ *     pozycje — bo `/admin/sygnaly` grupuje po autorze treści i przy jednej
+ *     pozycji w grupie nie pokazuje ani licznika w liczbie mnogiej, ani
+ *     drugiego wiersza listy.
+ *
+ * ZGŁOSZENIE OTWARTE NIE ZMIENIA ŻADNEGO INNEGO MIERZONEGO EKRANU. Wiersz
+ * w `reports` czytają wyłącznie dwa widoki panelu i ekran odwołań
+ * (sprawdzone: `grep -rln 'Report::\|->reports' resources/views/`), a
+ * oznaczenie automatu z definicji nie rusza treści, nie powiadamia autora
+ * i nie zmienia niczego, co widzi czytelnik (`Report::SOURCE_AUTOMAT`).
+ * Zgłaszającym jest przy tym konto INNE niż `KONTO_ZALOGOWANE`, więc lista
+ * „twoje zgłoszenia" mierzona wyżej zostaje bez zmian.
+ *
+ * Oznaczenia automatu zakładamy PRAWDZIWĄ AKCJĄ (`OznaczDoPrzegladu`), a nie
+ * `Report::create` — tą samą drogą, którą idzie wykrywacz sygnałów. Akcja
+ * sama pilnuje „jedno oznaczenie na treść" i sama zapisuje wpis do dziennika,
+ * więc drugie uruchomienie skryptu nie dokłada niczego, a mierzony ekran
+ * stoi na danych o tym samym kształcie co w produkcie.
+ */
+const kolejkiPanelu = (() => {
+  const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
+    + `$automat = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
+    + "if (! $m || ! $automat) { echo ''; exit; } "
+    // Zgłaszający INNY niż konto, którym loguje się ten automat — inaczej
+    // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
+    + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
+    + "->whereKeyNot($m)->orderBy('id')->value('id'); "
+    + "$wpisy = App\\Models\\Post::publiclyVisible()"
+    + "->orderByDesc('published_at')->orderByDesc('id')->get(); "
+    + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
+    // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
+    + "$celA = $wpisy->first(fn ($p) => $p->author_id !== $zglaszajacy); "
+    + "if ($celA && ! App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_COMMUNITY)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->exists()) { "
+    + "App\\Models\\Report::create(['reporter_id'=>$zglaszajacy,'source'=>App\\Models\\Report::SOURCE_COMMUNITY,"
+    + "'target_type'=>'post','target_id'=>$celA->getKey(),'reason'=>'spam',"
+    + "'details'=>'Ten wpis to ogłoszenie sklepu z garnkami, wklejone po raz trzeci w tym tygodniu.',"
+    + "'status'=>App\\Models\\Report::STATUS_OPEN]); } "
+    // Sprawa z drogi prawnej, OTWARTA i anonimowa — druga postać karty,
+    // z adresem treści w jednym długim łańcuchu bez spacji.
+    + "$celB = $wpisy->last(); "
+    + "if ($celB && ! App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_LEGAL_NOTICE)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->exists()) { "
+    + "App\\Models\\Report::create(['reporter_id'=>null,'source'=>App\\Models\\Report::SOURCE_LEGAL_NOTICE,"
+    + "'target_type'=>'post','target_id'=>$celB->getKey(),'target_url'=>url('/wpisy/'.$celB->getKey()),"
+    + "'reason'=>'copyright','details'=>'Zdjęcie z tego wpisu pochodzi z mojej książki kucharskiej.',"
+    + "'illegality_explanation'=>'Zdjęcie jest moim utworem w rozumieniu prawa autorskiego i zostało "
+    + "opublikowane bez mojej zgody. Wnoszę o jego usunięcie.','good_faith_at'=>now(),"
+    + "'status'=>App\\Models\\Report::STATUS_OPEN]); } "
+    // Oznaczenia automatu: dwie pozycje jednego autora (grupa się zwija)
+    // i jedna innego, żeby na ekranie stały DWIE grupy.
+    + "$akcja = app(App\\Domain\\Moderation\\Actions\\OznaczDoPrzegladu::class); "
+    + "$poAutorach = $wpisy->groupBy('author_id')->sortByDesc(fn ($g) => $g->count()); "
+    + "$grupa = $poAutorach->first(); "
+    + "$inna = $poAutorach->skip(1)->first(); "
+    + "foreach ($grupa->take(2) as $p) { $akcja->handle($p, "
+    + "[new App\\Domain\\Moderation\\Sygnaly\\Sygnal('automat_wzorzec', "
+    + "'Treść pasuje do znanego wzorca ogłoszeń sklepowych: trzy odnośniki i słowo „promocja”.')]); } "
+    + "if ($inna) { foreach ($inna->take(1) as $p) { $akcja->handle($p, "
+    + "[new App\\Domain\\Moderation\\Sygnaly\\Sygnal('automat_model', "
+    + "'Model wskazał tę treść do przejrzenia w kategorii „nękanie”.')]); } } "
+    + "$ludzi = App\\Models\\Report::where('source','!=',App\\Models\\Report::SOURCE_AUTOMAT)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->count(); "
+    + "$grup = App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_AUTOMAT)"
+    + "->whereIn('status',['open','triage','reviewing'])->distinct('autor_tresci_id')->count('autor_tresci_id'); "
+    + "echo $ludzi.'|'.$grup;",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return wynik === '' ? null : wynik;
+})();
+
+if (kolejkiPanelu === null) {
+  console.error('BŁĄD: nie udało się przygotować kolejek panelu moderacji — `/admin/zgloszenia` '
+    + 'i `/admin/sygnaly` byłyby mierzone jako PUSTY STAN, a raport zapisałby „✓" dla ekranów, '
+    + 'na których nic nie stało (brak konta moderatora, drugiego konta albo dwóch wpisów w bazie).');
+  zamknij();
+  process.exit(1);
+}
+
+log(`Kolejki panelu: ${kolejkiPanelu.split('|')[0]} otwarte sprawy od ludzi, `
+  + `${kolejkiPanelu.split('|')[1]} grupy w kolejce automatu.`);
 
 /*
  * TABLICA „kuKINGi na dziś" MUSI MIEĆ CO POKAZAĆ NA EKRANACH Z SZYNĄ
@@ -1473,20 +1924,20 @@ if (idZgloszenia === null) {
 const tablicaDnia = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     `$konto = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
-    + "$mod = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "$mod = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     + "if (! $konto) { echo ''; exit; } "
     // Osoba z paskiem miniatur. Liczymy tak samo, jak liczy widok:
     // zdjęcia gotowe z TRZECH ostatnich publicznych wpisów (kuking-board.blade.php).
     + "$osoba = null; "
-    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->get() as $u) { "
+    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->orderBy('id')->get() as $u) { "
     + "$ile = 0; "
     + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
-    + "->latest('published_at')->limit(3)->get() as $p) { "
+    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get() as $p) { "
     + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
     + "if ($ile >= 3) { $osoba = $u; break; } } "
     // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.
     + "$wpisy = App\\Models\\Post::publiclyVisible()->where('author_id','!=',$konto)"
-    + "->latest('published_at')->with('media')->get(); "
+    + "->orderByDesc('published_at')->orderByDesc('id')->with('media')->get(); "
     + "$zeZdjeciem = $wpisy->first(fn ($p) => $p->media->contains(fn ($m) => $m->isReady())); "
     + "$bezZdjecia = $wpisy->first(fn ($p) => ! $p->media->contains(fn ($m) => $m->isReady())); "
     + "if (! $osoba || ! $zeZdjeciem) { echo ''; exit; } "
@@ -1530,13 +1981,21 @@ if (tablicaDnia === null) {
  * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
  * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla konta,
  *                        którym automat się loguje (`KONTO_ZALOGOWANE`),
- * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto.
+ * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto,
+ * `znajdz: 'wpis-dluga-nazwa'` → wpis autora o najdłuższej dopuszczalnej nazwie.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
  * ze sprawdzania, jest gorszy niż ekran, który oblewa.
  */
 function sciezkaEkranu(ekran) {
+  if (ekran.znajdz === 'link-zewnetrzny') {
+    const token = execFileSync('php', ['artisan', 'tinker', '--execute',
+      "echo Illuminate\\Support\\Facades\\Crypt::encryptString('https://example.test/przepis');",
+    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } }).toString().trim();
+    if (!token) throw new Error('Nie utworzono tokenu ostrzeżenia');
+    return `/otworz-link?cel=${encodeURIComponent(token)}`;
+  }
   if (! ekran.znajdz) {
     return ekran.adres;
   }
@@ -1555,6 +2014,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'zgloszenie') {
     return `/zgloszenia/${idZgloszenia}`;
+  }
+
+  if (ekran.znajdz === 'wpis-dluga-nazwa') {
+    return `/wpisy/${wpisDlugiejNazwy}`;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -1578,6 +2041,265 @@ const stanModeratorem = await stanModeratora(przegladarka, adres);
 // KOLEJNOŚĆ JEST WYMAGANA, nie przypadkowa: 2FA na koncie moderatora włącza
 // dopiero linijka wyżej — patrz komentarz przy `stanPrzedKodem2FA()`.
 const stanPoHasle = await stanPrzedKodem2FA(przegladarka, adres);
+
+/*
+ * CO NAPRAWDĘ STOI NA TRZECH EKRANACH PANELU — SPRAWDZENIE, NIE ZAŁOŻENIE
+ * (issue #294, ta sama reguła co D-106 i ta sama co przy formularzach
+ * odzyskania hasła wyżej).
+ *
+ * PO CO TO JEST, SKORO PĘTLE NIŻEJ SPRAWDZAJĄ JUŻ KOD HTTP I ŚCIEŻKĘ
+ * Bo oba te sprawdzenia przechodzą nad PUSTYM STANEM. `/admin/zgloszenia`
+ * z zerem spraw odpowiada 200 pod własnym adresem i wygląda w raporcie
+ * dokładnie tak samo jak kolejka z kartą sprawy — a jest wtedy nagłówkiem,
+ * rzędem zakładek z zerami i komponentem `x-empty-state`. Dokładnie to
+ * pokazał pierwszy pomiar tego issue: 19 i 18 węzłów w `<main>` na dwóch
+ * z trzech ekranów panelu, przy 126 na trzecim.
+ *
+ * Poprzedni PR (#323) ustalił to samo jednym zdaniem, które zostaje tu jako
+ * reguła: samo dopisanie adresu do listy ekranów NIE WYSTARCZA — trzeba
+ * sprawdzić, że automat widzi ekran W TYM STANIE, o który chodzi, a nie
+ * wariant zapasowy.
+ *
+ * KAŻDY WARUNEK JEST TU DLATEGO, ŻE MIERZY CO INNEGO:
+ *  - `.empty-state` musi NIE być na ekranie — to jednoznaczny ślad pustej
+ *    kolejki i jedyna rzecz, której obecność sama w sobie unieważnia pomiar;
+ *  - selektor treści musi trafić co najmniej raz — pusty stan nie ma ani
+ *    wiersza tabeli, ani formularza decyzji, ani pozycji w grupie automatu;
+ *  - liczba węzłów w `<main>` musi przekroczyć próg — bo to jest jedyna
+ *    liczba, która łapie stan pośredni: ekran, który ma już coś poza pustym
+ *    stanem, ale nie ma na sobie tego układu, przez który tu jest.
+ *
+ * KAŻDY PRÓG STOI MIĘDZY DWIEMA ZMIERZONYMI LICZBAMI, a nie tuż pod tą
+ * dobrą. Liczby z 11 września, świeża baza demo, 900 px — kolumna „pusto" to
+ * ten sam ekran z opróżnioną kolejką (kontrola ujemna tego pomiaru):
+ *
+ *     ekran                 pełny   pusto   próg
+ *     /admin/uzytkownicy      126      —      60
+ *     /admin/zgloszenia       186     19      60
+ *     /admin/sygnaly           73     18      40
+ *
+ * Taki próg nie psuje się od dopisania kolumny w tabeli ani od innej liczby
+ * kont w demo i nie przepuszcza pustej kolejki. `/admin/uzytkownicy` nie ma
+ * kolumny „pusto", bo `DemoSeeder` zawsze sieje konta — pusta tabela kont
+ * znaczyłaby brak danych demo, co łapią pozycje wyżej w tym pliku.
+ *
+ * Niepowodzenie jest tu BŁĘDEM CAŁEGO PRZEBIEGU z nazwanym ekranem, a nie
+ * pominięciem jednej pozycji: pomiar w nieznanym stanie jest gorszy niż jego
+ * brak, bo wygląda identycznie jak pomiar udany.
+ */
+const TRESC_PANELU = [
+  {
+    nazwa: 'panel — użytkownicy',
+    sciezka: '/admin/uzytkownicy',
+    // Wiersz tabeli kont, nie sama tabela: `<thead>` stoi na ekranie także
+    // wtedy, gdy nie ma ani jednego konta do wypisania.
+    wybor: 'main table.tabela-kont tbody tr',
+    czego: 'ani jednego wiersza w tabeli kont',
+    progWezlow: 60,
+  },
+  {
+    nazwa: 'panel — zgłoszenia',
+    sciezka: '/admin/zgloszenia',
+    // Lista podstaw decyzji jest w formularzu, który rozwija się WYŁĄCZNIE
+    // przy sprawie otwartej — czyli w tym jednym stanie, o który tu chodzi.
+    wybor: 'main select[name="reason_code"]',
+    czego: 'ani jednej karty sprawy z formularzem decyzji',
+    progWezlow: 60,
+  },
+  {
+    nazwa: 'panel — sygnały automatu',
+    sciezka: '/admin/sygnaly',
+    wybor: 'main article.card ul.stack-tight li',
+    czego: 'ani jednego oznaczenia automatu',
+    progWezlow: 40,
+  },
+  {
+    nazwa: 'panel — kolaż na powitanie',
+    sciezka: '/admin/kolaz-powitalny',
+    // Pole wyboru przy konkretnym zdjęciu, nie sam formularz: nagłówki,
+    // zdanie o licencji i przycisk „Zapisz" stoją na ekranie także wtedy,
+    // gdy nie ma ani jednego publicznego zdjęcia do wskazania.
+    wybor: 'main input[name="zdjecia[]"]',
+    czego: 'ani jednego zdjęcia do wyboru',
+    progWezlow: 60,
+  },
+];
+
+/**
+ * Sprawdza wszystkie trzy ekrany panelu i zwraca opis pierwszej przeszkody
+ * albo `null`. Liczby wypisuje ZA KAŻDYM PRZEBIEGIEM, także udanym — bo
+ * „ile węzłów widzi automat" jest tym, co odróżnia zmierzony ekran od pustego
+ * stanu, i ma stać w logu, a nie w cudzej pamięci.
+ */
+async function przeszkodaWPanelu(przegladarka, adres, stan) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 900, height: 900 },
+    storageState: stan,
+  });
+  const strona = await kontekst.newPage();
+
+  try {
+    for (const ekran of TRESC_PANELU) {
+      const odpowiedz = await strona.goto(`${adres}${ekran.sciezka}`, { waitUntil: 'domcontentloaded' });
+      const kod = odpowiedz?.status() ?? 0;
+      const sciezka = new URL(strona.url()).pathname;
+
+      if (kod !== 200 || sciezka !== ekran.sciezka) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) odpowiedział kodem ${kod} i wylądował `
+          + `na ${sciezka}. Automat nie jest w panelu — mierzyłby stronę logowania albo błędu, `
+          + 'która przechodzi każdy audyt, nie sprawdzając niczego.';
+      }
+
+      const stanEkranu = await strona.evaluate((wybor) => {
+        const main = document.querySelector('main');
+
+        return {
+          wezlow: main ? main.querySelectorAll('*').length : 0,
+          trafien: main ? main.querySelectorAll(wybor).length : 0,
+          pustych: main ? main.querySelectorAll('.empty-state').length : 0,
+        };
+      }, ekran.wybor);
+
+      log(`  ${ekran.nazwa}: ${stanEkranu.wezlow} węzłów w <main>, `
+        + `${stanEkranu.trafien} × „${ekran.wybor}"`);
+
+      if (stanEkranu.pustych > 0) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) pokazuje PUSTY STAN `
+          + `(${stanEkranu.wezlow} węzłów w <main>). Automat zmierzyłby nagłówek i rząd zakładek `
+          + 'z zerami, i zapisał „✓" dla kolejki, w której nic nie stało. Sprawdź `kolejkiPanelu` '
+          + 'wyżej w tym pliku — to on dokłada sprawy do obu kolejek.';
+      }
+
+      if (stanEkranu.trafien === 0) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) nie ma ${ekran.czego} `
+          + `(szukane: „${ekran.wybor}", ${stanEkranu.wezlow} węzłów w <main>). Mierzony byłby `
+          + 'inny stan tego ekranu niż ten, przez który wszedł do pomiaru.';
+      }
+
+      if (stanEkranu.wezlow < ekran.progWezlow) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) ma ${stanEkranu.wezlow} węzłów `
+          + `w <main>, a układ, przez który tu jest, ma ich co najmniej ${ekran.progWezlow}. `
+          + 'Na ekranie stoi mniej, niż powinno — sprawdź, co zniknęło, zanim uwierzysz w „✓".';
+      }
+    }
+
+    return null;
+  } finally {
+    await kontekst.close();
+  }
+}
+
+log('Panel moderacji — co widzi automat:');
+
+const przeszkodaPanelu = await przeszkodaWPanelu(przegladarka, adres, stanModeratorem);
+
+if (przeszkodaPanelu !== null) {
+  console.error(`BŁĄD: ${przeszkodaPanelu}`);
+  zamknij();
+  process.exit(1);
+}
+
+log('');
+
+/*
+ * `/ustawienia/zdjecie` MUSI STAĆ W STANIE „TO JEST TWOJE ZDJĘCIE" (#344).
+ *
+ * Ta sama reguła co przy `TRESC_PANELU` wyżej i ten sam powód: kod 200 i ten
+ * sam adres dostaje się także w stanie „nie masz jeszcze swojego zdjęcia",
+ * a tamten stan jest o dwie rzeczy UBOŻSZY — nie ma obrazka 88 px obok
+ * akapitu i nie ma całej sekcji „Usunięcie zdjęcia". Właśnie tych dwóch
+ * rzeczy dotyczyło przepełnienie z 12 września, więc pomiar bez nich
+ * meldowałby „✓" o ekranie, którego trudnej połowy nie widział.
+ *
+ * DWA WARUNKI, BO MIERZĄ CO INNEGO:
+ *  - `img.avatar` w bloku stanu — dowód, że zdjęcie jest GOTOWE. Przy zdjęciu
+ *    bez wariantu albo w przetwarzaniu widok stawia tam `<span class="avatar">`
+ *    z inicjałem, czyli element o tej samej klasie i innym wpływie na układ;
+ *  - `.danger-zone` — sekcja, która istnieje wyłącznie wtedy, gdy zdjęcie
+ *    w ogóle jest.
+ *
+ * Próg węzłów stoi MIĘDZY DWIEMA ZMIERZONYMI LICZBAMI, a nie tuż pod tą
+ * dobrą (ta sama zasada co przy progach `TRESC_PANELU`). Zmierzone 12 września,
+ * świeża baza demo, 900 px — kolumna „bez zdjęcia" to ten sam ekran po
+ * wyzerowaniu `profiles.avatar_media_id`, czyli kontrola ujemna tego progu:
+ *
+ *     stan ekranu                węzłów w <main>
+ *     „to jest Twoje zdjęcie"          33
+ *     „nie masz jeszcze zdjęcia"       22
+ *
+ * Próg 28 nie przepuszcza stanu pustego i nie psuje się od dopisania jednego
+ * zdania do pełnego.
+ */
+const EKRAN_ZDJECIA = {
+  nazwa: 'zdjęcie profilowe',
+  sciezka: '/ustawienia/zdjecie',
+  progWezlow: 28,
+};
+
+async function przeszkodaNaEkranieZdjecia(przegladarka, adres, stan) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 900, height: 900 },
+    storageState: stan,
+  });
+  const strona = await kontekst.newPage();
+
+  try {
+    const odpowiedz = await strona.goto(`${adres}${EKRAN_ZDJECIA.sciezka}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+    const sciezka = new URL(strona.url()).pathname;
+
+    if (kod !== 200 || sciezka !== EKRAN_ZDJECIA.sciezka) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) odpowiedział kodem ${kod} `
+        + `i wylądował na ${sciezka}. Automat mierzyłby stronę logowania albo błędu, `
+        + 'która przechodzi każdy audyt, nie sprawdzając niczego.';
+    }
+
+    const stanEkranu = await strona.evaluate(() => {
+      const main = document.querySelector('main');
+
+      return {
+        wezlow: main ? main.querySelectorAll('*').length : 0,
+        zdjec: main ? main.querySelectorAll('.zdjecie-profilowe-stan img.avatar').length : 0,
+        usuniec: main ? main.querySelectorAll('.danger-zone').length : 0,
+      };
+    });
+
+    log(`  ${EKRAN_ZDJECIA.nazwa}: ${stanEkranu.wezlow} węzłów w <main>, `
+      + `${stanEkranu.zdjec} × gotowe zdjęcie, ${stanEkranu.usuniec} × sekcja usunięcia`);
+
+    if (stanEkranu.zdjec === 0 || stanEkranu.usuniec === 0) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) stoi w stanie BEZ `
+        + `gotowego zdjęcia (${stanEkranu.zdjec} × „.zdjecie-profilowe-stan img.avatar", `
+        + `${stanEkranu.usuniec} × „.danger-zone", ${stanEkranu.wezlow} węzłów w <main>). `
+        + 'To jedyny z trzech stanów tego ekranu, który NIE przepełniał — mierzenie go '
+        + 'byłoby pilnowaniem nie tej rzeczy. Sprawdź `nadajZdjecieProfilowe()` '
+        + 'w `database/seeders/DemoSeeder.php`.';
+    }
+
+    if (stanEkranu.wezlow < EKRAN_ZDJECIA.progWezlow) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) ma ${stanEkranu.wezlow} `
+        + `węzłów w <main>, a stan „to jest Twoje zdjęcie" ma ich co najmniej `
+        + `${EKRAN_ZDJECIA.progWezlow}. Na ekranie stoi mniej, niż powinno — sprawdź, `
+        + 'co zniknęło, zanim uwierzysz w „✓".';
+    }
+
+    return null;
+  } finally {
+    await kontekst.close();
+  }
+}
+
+log('Zdjęcie profilowe — co widzi automat:');
+
+const przeszkodaZdjecia = await przeszkodaNaEkranieZdjecia(przegladarka, adres, stanZalogowany);
+
+if (przeszkodaZdjecia !== null) {
+  console.error(`BŁĄD: ${przeszkodaZdjecia}`);
+  zamknij();
+  process.exit(1);
+}
+
+log('');
 
 /*
  * KTÓRE EKRANY NAPRAWDĘ ZOSTAŁY ZBADANE — A NIE KTÓRE ZADEKLAROWALIŚMY
@@ -1737,6 +2459,82 @@ for (const wariant of WARIANTY) {
       continue;
     }
 
+    /*
+     * OTWIERAMY KAŻDY `<details>` — I ROBIMY TO PRZED ZMIANĄ MOTYWU I SKALI,
+     * A NIE PO NIEJ.
+     *
+     * PO CO W OGÓLE OTWIERAĆ. Treść zamkniętego `<details>` nie ma
+     * `display: none` w arkuszu stylów — ale przeglądarka i tak traktuje ją
+     * jak niewidoczną (`checkVisibility()` zwraca `false`), bo tak każe robić
+     * specyfikacja HTML z zamkniętym `<details>`. Axe pomija to, co
+     * niewidoczne, tak samo jak pomija tekst `sr-only` odwrócony
+     * transformacją. Zmierzone wprost na ekranie „twoje dane": axe analizuje
+     * 8 węzłów wewnątrz zamkniętego `<details>` (sam `<summary>`), a 34, gdy
+     * jest otwarty — różnica to dokładnie hasło, oba haczyki i przycisk
+     * „Usuń moje konto" formularza usunięcia konta (D-022). Bez tego
+     * otwarcia automat NIGDY nie sprawdziłby etykiet ani kontrastu
+     * w najważniejszym nieodwracalnym formularzu serwisu — zielony wynik na
+     * tym ekranie nic by nie znaczył.
+     *
+     * DLACZEGO PRZED, A NIE PO — TO JEST TRZECIE MIGOTANIE KONTRASTU W TYM
+     * PLIKU I MA INNĄ PRZYCZYNĘ NIŻ DWA POPRZEDNIE (#454).
+     *
+     * Objaw: automat meldował „[serious] color-contrast —
+     * label[for=\"f-password\"]" na ekranie usuwania konta RAZ NA KILKASET
+     * przebiegów, przy nietkniętej palecie. Zmierzone liczby z takiego
+     * przebiegu (wariant „ciemny", 1280 px):
+     *
+     *     tekst  #2b241d   ← `--color-ink` z motywu JASNEGO
+     *     tło    #1e1a16   ← `--color-surface` z motywu CIEMNEGO
+     *     kontrast 1.13:1  przy wymaganym 4.5:1
+     *
+     * Te dwie wartości nie występują razem w żadnym motywie: pomiar
+     * zestawiał tekst sprzed przełączenia z tłem po przełączeniu. Tak samo
+     * wyglądały trzy pozostałe węzły tego naruszenia (`.meta`,
+     * `#f-password-help`, akapit `.mt-3`) — WSZYSTKIE wewnątrz `<details>`
+     * i ani jeden poza nim.
+     *
+     * Przyczyna: zamknięty `<details>` jest w Chromium poddrzewem
+     * pominiętym w przeliczaniu stylu. Zmiana `data-theme` na `<html>`
+     * NIE przelicza go — przeliczy się dopiero przy pierwszym pełnym obiegu
+     * klatki po otwarciu. `getComputedStyle` tego nie wymusza, więc dopóki
+     * otwarcie stało tu, tuż przed `analyze()`, axe potrafił przeczytać
+     * z tego poddrzewa kolory sprzed przełączenia motywu.
+     *
+     * DOWÓD, nie uzasadnienie — trzy pomiary na tym ekranie:
+     *
+     *   A. otwarcie i odczyt w JEDNYM zadaniu (klatka nie ma jak wejść
+     *      pomiędzy): `getComputedStyle(label).color` = `rgb(43, 36, 29)`,
+     *      czyli #2b241d, przy `body` już ciemnym — 100 razy na 100.
+     *      Po dwóch obiegach klatki ta sama etykieta ma `rgb(245, 239, 230)`,
+     *      czyli poprawne #f5efe6.
+     *   B. ten sam odczyt, ale `<details>` otwarty PRZED włączeniem motywu:
+     *      `rgb(245, 239, 230)` od razu — poddrzewo bierze udział w zwykłym
+     *      przeliczeniu i nie ma czemu być nieaktualnym.
+     *   C. motyw jasny, ta sama kolejność co w A: żadnego rozjazdu, bo nie
+     *      ma zmiany, którą można by przegapić.
+     *
+     * Czyli winna jest KOLEJNOŚĆ, nie paleta i nie szybkość maszyny.
+     * Dlatego otwarcie stoi teraz przed `data-text-scale` i `data-theme`:
+     * gdy te atrybuty się zmieniają, całe drzewo jest już widoczne i
+     * przelicza się razem. To samo chroni pomiar wielkości pisma w wariancie
+     * „tekst 140%" — nieaktualna wielkość przestawiałaby próg kontrastu
+     * z 4.5:1 na 3:1 i tym razem CICHO PRZEPUSZCZAŁA naruszenie.
+     *
+     * Dwa obiegi klatki po otwarciu: pierwszy kończy przeliczanie stylu
+     * poddrzewa, drugi daje pewność, że przemalowanie już się odbyło — ten
+     * sam mechanizm i ten sam powód co po zmianie motywu niżej.
+     */
+    await strona.evaluate(() => {
+      for (const el of document.querySelectorAll('details:not([open])')) {
+        el.open = true;
+      }
+    });
+
+    await strona.evaluate(() => new Promise((gotowe) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
+    }));
+
     if (wariant.skalaTekstu) {
       // Czekamy na PRZELICZONY układ, nie na sam atrybut — uzasadnienie
       // stoi przy `wlaczSkaleTekstu` wyżej.
@@ -1801,26 +2599,26 @@ for (const wariant of WARIANTY) {
       }));
     }
 
-    /*
-     * OTWIERAMY KAŻDY `<details>` PRZED POMIAREM.
-     *
-     * Treść zamkniętego `<details>` nie ma `display: none` w arkuszu stylów
-     * — ale przeglądarka i tak traktuje ją jak niewidoczną (`checkVisibility()`
-     * zwraca `false`), bo tak każe robić specyfikacja HTML z zamkniętym
-     * `<details>`. Axe pomija to, co niewidoczne, tak samo jak pomija tekst
-     * `sr-only` odwrócony transformacją. Zmierzone wprost na ekranie „twoje
-     * dane": axe analizuje 8 węzłów wewnątrz zamkniętego `<details>` (sam
-     * `<summary>`), a 34, gdy jest otwarty — różnica to dokładnie hasło,
-     * oba haczyki i przycisk „Usuń moje konto" formularza usunięcia konta
-     * (D-022). Bez tego otwarcia automat NIGDY nie sprawdziłby etykiet ani
-     * kontrastu w najważniejszym nieodwracalnym formularzu serwisu — zielony
-     * wynik na tym ekranie nic by nie znaczył.
-     */
-    await strona.evaluate(() => {
-      for (const el of document.querySelectorAll('details:not([open])')) {
-        el.open = true;
-      }
-    });
+    if (ekran.tagiOpis) {
+      const opis = strona.locator('textarea[name="body"]');
+      await opis.fill('Gotuję #probaregresjitagow');
+      const lista = strona.locator('.tagi-opis-popup:not([hidden])');
+      await lista.waitFor({ state: 'visible' });
+      await opis.press('ArrowDown');
+      const semantyka = await opis.evaluate((element) => {
+        const lista = document.getElementById(element.getAttribute('aria-controls'));
+        const aktywny = document.getElementById(element.getAttribute('aria-activedescendant'));
+        return element.tagName === 'TEXTAREA'
+          && !element.hasAttribute('role') && !element.hasAttribute('aria-expanded')
+          && element.getAttribute('aria-autocomplete') === 'list'
+          && element.getAttribute('aria-haspopup') === 'listbox'
+          && lista?.getAttribute('role') === 'listbox' && !lista.hidden
+          && lista.closest('main') !== null && lista.contains(aktywny)
+          && aktywny?.getAttribute('aria-selected') === 'true'
+          && document.activeElement === element;
+      });
+      if (!semantyka) throw new Error('TAGI_OPIS_ARIA: niepoprawna semantyka otwartej listy');
+    }
 
     const wynik = await new AxeBuilder({ page: strona })
       // Reguły WCAG 2.2 AA — cel produktowy z docs/design/DESIGN_SYSTEM.md.
@@ -1847,6 +2645,20 @@ for (const wariant of WARIANTY) {
       });
     }
 
+
+    // Zapisujemy ten sam wyrenderowany ekran, który bada axe.
+    // Artefakt pozwala odebrać wizualnie wszystkie rodziny, także panel i błędy.
+    if (wariant.nazwa === 'jasny' || wariant.nazwa === '320 px') {
+      mkdirSync('storage/port-projektu/ekrany', { recursive: true });
+      const nazwaPliku = String(EKRANY.indexOf(ekran)).padStart(2, '0') + '-' + wariant.szerokosc;
+      const zrzut = await strona.screenshot({
+        path: 'storage/port-projektu/ekrany/' + nazwaPliku + '.jpg',
+        type: 'jpeg', quality: 60,
+      });
+      if (wariant.nazwa === '320 px' && ['strona powitalna', 'przepis', 'dodaj przepis', 'logowanie', 'czytelność'].includes(ekran.nazwa)) {
+        log('PORT_SCREEN_' + nazwaPliku + ' ' + zrzut.toString('base64'));
+      }
+    }
     const ile = wynik.violations.length;
     zbadanePrzezAxe.add(ekran.nazwa);
     log(`  ${ile === 0 ? '✓' : '✗'} ${ekran.nazwa} (${wariant.nazwa})${ile ? ` — ${ile}` : ''}`);
@@ -2067,100 +2879,22 @@ if (pominieteWUkladzie.length > 0) {
 log('');
 log('Karuzela bez JavaScriptu:');
 
-const karuzelaBezJs = await (async () => {
-  const sciezka = sciezkaEkranu({ znajdz: 'wpis:carousel' });
-
-  if (! sciezka) {
-    console.error('BŁĄD: brak wpisu z karuzelą — warunek z issue #92 nie zostałby sprawdzony.');
-    process.exitCode = 1;
-
-    return null;
-  }
-
-  // 320 px: najwęższy ekran z WCAG 2.2 AA. Jeśli karuzela ma gdzieś pęknąć,
-  // pęknie tutaj.
-  const kontekst = await przegladarka.newContext({
-    viewport: { width: 320, height: 740 },
-    javaScriptEnabled: false,
+const karuzelaBezJs = { wyniki: [], blad: null };
+try {
+  await zmierzKaruzele({
+    browser: przegladarka, adres, path: mieszanaKaruzela.path, executablePath: CHROMIUM,
+    wyniki: karuzelaBezJs.wyniki,
   });
-
-  const strona = await kontekst.newPage();
-  await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
-
-  await poczekajNaFonty(strona);
-
-  const ile = await strona.locator('.karuzela-slajd').count();
-
-  /** Numer slajdu, który jest teraz na wierzchu taśmy (liczony od 1). */
-  const widocznySlajd = () => strona.evaluate(() => {
-    const tasma = document.querySelector('.karuzela-tasma');
-    const slajdy = [...tasma.querySelectorAll('.karuzela-slajd')];
-    const srodek = tasma.getBoundingClientRect().left + tasma.clientWidth / 2;
-
-    const numer = slajdy.findIndex((s) => {
-      const ramka = s.getBoundingClientRect();
-
-      return ramka.left <= srodek && ramka.right >= srodek;
-    });
-
-    return {
-      numer: numer + 1,
-      przewinieteTasma: Math.round(tasma.scrollLeft),
-      przewinietaStrona: Math.round(document.documentElement.scrollLeft),
-    };
-  });
-
-  const droga = [(await widocznySlajd()).numer];
-
-  for (let i = 1; i < ile; i++) {
-    await strona.locator('.karuzela-slajd').nth(i - 1)
-      .getByRole('link', { name: 'Następne zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    droga.push((await widocznySlajd()).numer);
+  const wynikiKaruzeli = karuzelaBezJs.wyniki;
+  if (wynikiKaruzeli.length !== 8 || wynikiKaruzeli.some(w => w.status !== 'ok')) {
+    throw new Error('Karuzela431: niepełny raport pomiaru');
   }
-
-  const naKoncu = await widocznySlajd();
-
-  const powrot = [];
-
-  for (let i = ile - 1; i > 0; i--) {
-    await strona.locator('.karuzela-slajd').nth(i)
-      .getByRole('link', { name: 'Poprzednie zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    powrot.push((await widocznySlajd()).numer);
-  }
-
-  await kontekst.close();
-
-  const oczekiwana = Array.from({ length: ile }, (_, i) => i + 1);
-
-  return {
-    slajdow: ile,
-    droga,
-    powrot,
-    przewinieteTasma: naKoncu.przewinieteTasma,
-    przewinietaStrona: naKoncu.przewinietaStrona,
-    dotarloDoKonca: JSON.stringify(droga) === JSON.stringify(oczekiwana),
-    wrocilo: JSON.stringify(powrot) === JSON.stringify(oczekiwana.slice(0, -1).reverse()),
-    przewijaSieTasmaNieStrona: naKoncu.przewinieteTasma > 0 && naKoncu.przewinietaStrona === 0,
-  };
-})();
-
-if (karuzelaBezJs) {
-  const dobrze = karuzelaBezJs.dotarloDoKonca
-    && karuzelaBezJs.wrocilo
-    && karuzelaBezJs.przewijaSieTasmaNieStrona;
-
-  log(`  ${dobrze ? '✓' : '✗'} zdjęć: ${karuzelaBezJs.slajdow}, droga ${karuzelaBezJs.droga.join('→')}`
-    + `, powrót ${karuzelaBezJs.powrot.join('→')}`
-    + `, taśma przewinięta o ${karuzelaBezJs.przewinieteTasma} px`
-    + `, strona o ${karuzelaBezJs.przewinietaStrona} px`);
-
-  if (! dobrze) {
-    process.exitCode = 1;
-  }
+  log(`  ✓ mieszana próbka: ${wynikiKaruzeli.length} wariantów, kliknięcia i Tab/Enter, ramka D-191, kontrolki 48px`);
+} catch (error) {
+  karuzelaBezJs.blad = error?.message ?? String(error);
+  console.error(error);
+  process.exitCode = 1;
 }
-
 /* =============================================================================
    WYBÓR ZDJĘCIA BEZ JAVASCRIPTU (decyzja właściciela D-035)
 
@@ -2204,8 +2938,17 @@ const wyborZdjeciaBezJs = await (async () => {
     storageState: stanZalogowany,
   });
 
+  // Bez JS DOMContentLoaded nie czeka na CSS. Opóźnienie arkusza odtwarza
+  // wyścig z CI; Tab wolno zacząć dopiero po załadowaniu dokumentu i zasobów.
+  const oczekiwaniaNaCss = [];
+  await kontekst.route('**/build/assets/*.css', (route) => {
+    const oczekiwanie = new Promise((resolve) => setTimeout(resolve, 3000))
+      .then(() => route.continue());
+    oczekiwaniaNaCss.push(oczekiwanie);
+    return oczekiwanie;
+  });
   const strona = await kontekst.newPage();
-  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
+  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'load' });
   const kod = odpowiedz?.status() ?? 0;
 
   await poczekajNaFonty(strona);
@@ -2216,6 +2959,7 @@ const wyborZdjeciaBezJs = await (async () => {
   if (kod !== 200) {
     console.error(`BŁĄD: „/dodaj/zdjecie" odpowiedziało kodem ${kod} — wybór zdjęcia nie został sprawdzony.`);
     process.exitCode = 1;
+    await Promise.all(oczekiwaniaNaCss);
     await kontekst.close();
 
     return null;
@@ -2260,9 +3004,11 @@ const wyborZdjeciaBezJs = await (async () => {
     })
     : null;
 
+  await Promise.all(oczekiwaniaNaCss);
   await kontekst.close();
 
   return {
+    opoznionychArkuszy: oczekiwaniaNaCss.length,
     krokowTabem: krokow,
     doszloTabem,
     etykiet: pomiar?.etykiet ?? 0,
@@ -2279,13 +3025,15 @@ const wyborZdjeciaBezJs = await (async () => {
 })();
 
 if (wyborZdjeciaBezJs) {
-  const dobrze = wyborZdjeciaBezJs.doszloTabem
+  const dobrze = wyborZdjeciaBezJs.opoznionychArkuszy > 0
+    && wyborZdjeciaBezJs.doszloTabem
     && wyborZdjeciaBezJs.zostajeWDrzewie
     && wyborZdjeciaBezJs.jednaEtykieta
     && wyborZdjeciaBezJs.widocznyFokusNaObszarze;
 
   log(`  ${dobrze ? '✓' : '✗'} Tab dochodzi do pola po ${wyborZdjeciaBezJs.krokowTabem} krokach`
     + ` (${wyborZdjeciaBezJs.doszloTabem ? 'tak' : 'NIE'})`
+    + `, opóźnionych arkuszy CSS: ${wyborZdjeciaBezJs.opoznionychArkuszy}`
     + `, etykiet: ${wyborZdjeciaBezJs.etykiet}`
     + `, pole display: ${wyborZdjeciaBezJs.display} / visibility: ${wyborZdjeciaBezJs.visibility}`
     + `, obrys na obszarze: ${wyborZdjeciaBezJs.obrys} ${wyborZdjeciaBezJs.gruboscObrysu} px`);
@@ -2361,6 +3109,11 @@ const EKRANY_WYROWNANIA = [
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
+  // Gość NA EKRANIE Z SZYNĄ (D-122). Od 80rem jego siatka jest szersza niż
+  // na ekranie bez szyny, a belka i stopka biorą tę szerokość z osobnej
+  // reguły (`.uklad-solo-z-szyna`) — czyli z drugiego miejsca, które może
+  // zostać w tyle. Ten wiersz pilnuje, żeby oba miejsca mówiły tę samą liczbę.
+  { nazwa: 'napisz do nas (gość, z szyną)', adres: '/napisz-do-nas' },
   // Strona powitalna ma OD 8 WRZEŚNIA układ pasów: `.app-body` idzie od
   // krawędzi do krawędzi okna, a szerokość treści wyznacza `.pas-wnetrze`.
   // To jest jedyny ekran o takim układzie i dlatego jedyny, który tę
@@ -2375,6 +3128,51 @@ const EKRANY_WYROWNANIA = [
 // przy każdej z tych szerokości siatka liczy się inaczej, a rozjazd przed
 // poprawką szedł raz w lewo, raz w prawo.
 const SZEROKOSCI_WYROWNANIA = SZYBKO ? [1512] : [1024, 1280, 1512];
+
+
+/* Nowy projekt ma niezależną, szerszą belkę. Sprawdzamy jej geometrię,
+   padding i zawartość oraz wspólną ramę stron — z tolerancją 1 px. */
+function zmierzRameMarki() {
+  if (!document.body.hasAttribute('data-marka')) return null;
+  const bledy = [];
+  const near = (nazwa, actual, expected) => {
+    if (Math.abs(actual - expected) > 1) bledy.push(nazwa + ': ' + actual + ' zamiast ' + expected);
+  };
+  const belka = document.querySelector('.marka-topbar');
+  const wnetrze = document.querySelector('.topbar-inner');
+  const rama = document.querySelector('.marka-rama');
+  const stopka = document.querySelector('.site-footer-inner');
+  const logo = document.querySelector('.wordmark');
+  const akcje = document.querySelector('.topbar-actions');
+  if (![belka, wnetrze, rama, stopka, logo, akcje].every(Boolean)) {
+    return { marka: true, bledy: ['Brak elementu ramy marki'], oczekiwanaLewa: null, oczekiwanaPrawa: null };
+  }
+  const b = belka.getBoundingClientRect();
+  const w = wnetrze.getBoundingClientRect();
+  const r = rama.getBoundingClientRect();
+  const f = stopka.getBoundingClientRect();
+  const ws = getComputedStyle(wnetrze);
+  const fs = getComputedStyle(stopka);
+  near('szerokość belki', b.width, Math.min(1220, innerWidth - 24));
+  near('wyśrodkowanie belki', (b.left + b.right) / 2, innerWidth / 2);
+  near('padding belki lewy', parseFloat(ws.paddingLeft), 20);
+  near('padding belki prawy', parseFloat(ws.paddingRight), 20);
+  near('lewa krawędź logo', logo.getBoundingClientRect().left, w.left + 20);
+  near('prawa krawędź akcji', akcje.getBoundingClientRect().right, w.right - 20);
+  near('szerokość ramy', r.width, Math.min(1120, innerWidth - 24));
+  near('wyśrodkowanie ramy', (r.left + r.right) / 2, innerWidth / 2);
+  near('szerokość stopki', f.width, Math.min(1120, innerWidth - 32));
+  near('wyśrodkowanie stopki', (f.left + f.right) / 2, innerWidth / 2);
+  near('padding stopki lewy', parseFloat(fs.paddingLeft), 24);
+  near('padding stopki prawy', parseFloat(fs.paddingRight), 24);
+  for (const element of [...wnetrze.children, ...wnetrze.querySelectorAll('.marka-nawigacja > a')]) {
+    const e = element.getBoundingClientRect();
+    if (!e.width || !e.height || getComputedStyle(element).visibility === 'hidden') continue;
+    if (e.left < w.left + 19 || e.right > w.right - 19) bledy.push('Zawartość wystaje z belki: ' + element.className);
+  }
+  return { marka: true, bledy, oczekiwanaLewa: r.left, oczekiwanaPrawa: r.right };
+}
+let sprawdzonoUjemnieRameMarki = false;
 
 const rozjazdyBelki = [];
 
@@ -2401,7 +3199,7 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
 
     await poczekajNaFonty(strona);
 
-    const pomiar = await strona.evaluate(() => {
+    let pomiar = await strona.evaluate(() => {
       // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
       // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
       const body = document.querySelector('.pas-wnetrze') ?? document.querySelector('.app-body');
@@ -2446,6 +3244,81 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       };
     });
 
+
+    const marka = await strona.evaluate(zmierzRameMarki);
+    if (marka) {
+      pomiar = marka;
+      if (!sprawdzonoUjemnieRameMarki) {
+        /* ANIMACJA WYŁĄCZONA NA CAŁY CZAS KONTROLI UJEMNEJ — i to musi objąć
+           także POWRÓT po zdjęciu mutacji, nie samo jej wstrzyknięcie.
+
+           Pasek ma `transition: transform 180ms` (`pasek-przewijany.css`),
+           a mutacje są wstrzykiwane, mierzone i zdejmowane osobnymi
+           wywołaniami przez CDP — kilka milisekund po sobie. Zmierzone na
+           prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
+           natychmiastowy pokazuje przesunięcie **2 px**, a po 400 ms pełne
+           **20 px**.
+
+           To daje DWA osobne fałszywe wyniki i oba wystąpiły w CI:
+           przy wstrzyknięciu kontrola ujemna nie wykrywa mutacji („nie
+           wykryła: wyśrodkowanie belki"), a po jej zdjęciu belka wraca
+           animacją i pomiar KOŃCOWY — ten kilka linijek niżej — łapie ją
+           w drodze, meldując rozjazd „wyśrodkowanie belki: 532 zamiast 512",
+           czyli dokładnie te 20 px z mutacji, której już nie ma.
+
+           Dlatego styl wyłączający animację stoi OBOK mutacji i żyje aż do
+           końcowego pomiaru, zamiast być dopisywany do każdej z nich.
+
+           Do 19 września 2026 nie było tego widać, bo `data-pasek-przewijany`
+           stał pod `@guest`, a te pomiary chodzą po stronach zalogowanej
+           osoby — tam belka nie miała żadnej tranzycji i zmiany wchodziły
+           natychmiast. Rozszerzenie chowania paska na zalogowanych odsłoniło
+           założenie, które sonda robiła po cichu.
+
+           Wyłączamy TYLKO animację, nie mierzoną własność: kontrola ujemna
+           sprawdza geometrię, a nie to, jak szybko ta geometria dojeżdża. */
+        const bezAnimacji = await strona.evaluateHandle(() => {
+          const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+          if (!nonce) throw new Error('Brak nonce do wyłączenia animacji w kontroli ujemnej');
+          const element = document.createElement('style');
+          element.nonce = nonce;
+          element.textContent = '[data-marka] .marka-topbar, [data-marka] .topbar-inner, [data-marka] .site-footer-inner { transition: none !important; }';
+          document.head.append(element);
+          return element;
+        });
+        try {
+        for (const [css, oczekiwanyBlad] of [
+          ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
+          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
+          ['[data-marka] .topbar-inner { padding-left: 0 !important; }', 'padding belki lewy'],
+          ['[data-marka] .site-footer-inner { width: 80px !important; }', 'szerokość stopki'],
+        ]) {
+          const styl = await strona.evaluateHandle((tresc) => {
+            const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+            if (!nonce) throw new Error('Brak nonce do kontroli ujemnej CSS');
+            const element = document.createElement('style');
+            element.nonce = nonce;
+            element.textContent = tresc;
+            document.head.append(element);
+            return element;
+          }, css);
+          try {
+            const ujemny = await strona.evaluate(zmierzRameMarki);
+            if (!ujemny.bledy.some((blad) => blad.startsWith(oczekiwanyBlad))) {
+              throw new Error('Kontrola ujemna ramy nie wykryła: ' + oczekiwanyBlad);
+            }
+            log('  Kontrola ujemna ramy: wykryto ' + oczekiwanyBlad);
+          } finally {
+            await styl.evaluate((element) => element.remove());
+          }
+        }
+        sprawdzonoUjemnieRameMarki = true;
+        pomiar = await strona.evaluate(zmierzRameMarki);
+        } finally {
+          await bezAnimacji.evaluate((element) => element.remove());
+        }
+      }
+    }
     await strona.close();
 
     if (! pomiar) {
@@ -2454,6 +3327,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       continue;
     }
 
+    if (pomiar.marka) {
+      if (pomiar.bledy.length) rozjazdyBelki.push({ ekran: ekran.nazwa, szerokosc, ...pomiar });
+    } else {
     // Jeden piksel tolerancji na zaokrąglenie — układ liczy się w ułamkach.
     const bladLewej = Math.abs(pomiar.lewa - pomiar.oczekiwanaLewa);
     const bladPrawej = Math.abs(pomiar.prawa - pomiar.oczekiwanaPrawa);
@@ -2475,6 +3351,8 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         ekran: ekran.nazwa, szerokosc, ...pomiar,
         bladLewej, bladPrawej, bladStopkiL, bladStopkiP, bladSzukajL, bladSzukajP,
       });
+    }
+
     }
 
     // DRUGA, OSOBNA REGUŁA: siatka ma stać w TYM SAMYM MIEJSCU na wszystkich
@@ -2593,6 +3471,21 @@ const EKRANY_FOCUS = [
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
   { nazwa: 'wpis (przykładowy)', adres: null, znajdz: 'wpis:normal', zalogowany: true },
+  /*
+   * KARTA WPISU AUTORA O STUZNAKOWEJ NAZWIE — PRZYPIĘTA JAWNIE (#440).
+   *
+   * Pozycja wyżej bierze „jakiś wpis w trybie zwykłym" i dopóki tym wpisem
+   * był akurat wpis Zofii, ta próbka pilnowała najtrudniejszego wariantu
+   * przez przypadek. Zmierzone przy #440, dojściem Tabem, 320 px / tekst 140%:
+   *
+   *     autor „Basia" (5 znaków)   menu „Więcej" na 314 px     0% zakryte
+   *     autor o 100 znakach        menu „Więcej" na   1 px   100% ZAKRYTE
+   *
+   * Różnicę robi wyłącznie długość nazwy autora, więc ta karta musi wchodzić
+   * do pomiaru z NAZWY, a nie z kolejności wierszy. Uzasadnienie i sposób
+   * wyboru: `wpisDlugiejNazwy` wyżej w tym pliku.
+   */
+  { nazwa: 'wpis (autor o najdłuższej dopuszczalnej nazwie)', adres: null, znajdz: 'wpis-dluga-nazwa', zalogowany: true },
   { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
 ];
 
@@ -2773,6 +3666,17 @@ async function przejdzTabemIZmierzFocus(strona) {
         return zaslonietych / (SIATKA * SIATKA);
       }
 
+      const prostokat = (element) => element ? element.getBoundingClientRect().toJSON() : null;
+      const geometria = {
+        klasa: el.className,
+        rodzic: el.parentElement?.className,
+        ramka: prostokat(el),
+        topbar: prostokat(document.querySelector('.topbar')),
+        bottomNav: prostokat(document.querySelector('.bottom-nav')),
+        scrollPaddingTop: getComputedStyle(document.documentElement).scrollPaddingTop,
+        scrollPaddingBottom: getComputedStyle(document.documentElement).scrollPaddingBottom,
+      };
+
       const opis = `${el.tagName.toLowerCase()}`
         + (el.id ? `#${el.id}` : '')
         + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
@@ -2780,6 +3684,7 @@ async function przejdzTabemIZmierzFocus(strona) {
 
       return {
         opis,
+        geometria,
         pokrycieTopbar: pokrycieNakladki('.topbar'),
         pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
       };
@@ -2949,6 +3854,8 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
           ['.bottom-nav', krok.pokrycieBottomNav],
         ]) {
           if (pokrycie === null || pokrycie === 0) continue;
+
+          console.log('FOCUS_GEOMETRIA ' + JSON.stringify({ ekran: ekran.nazwa, wariant: opis, nakladka, pokrycie, ...krok.geometria }));
 
           if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
             zlych++;
@@ -3157,27 +4064,59 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
-/* ==========================================================================
-   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
-
-   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
-   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
-   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
-   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
-   przypadkach, psuje się wyłącznie obraz na ekranie.
-
-   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
-   w przeglądarce:
-    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
-    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
-      poniżej 80rem ląduje pod całym archiwum wpisów).
-
-   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
-   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
-   w karcie — inaczej liczby lądują u niego na samym dole strony.
-   ========================================================================== */
+/* D-210: jeden zestaw pięciu rzeczywistych liczników pod ciemnym nagłówkiem,
+   poza nagłówkiem i szyną, na każdej mierzonej szerokości. */
 log('');
-log('Liczby o osobie (karta czy prawa szyna):');
+log('Liczby profilu: pojedynczy pas pod nagłówkiem (D-210):');
+
+// BEGIN POMIAR_LICZB_PROFILU — te same funkcje wykonuje wąska regresja źródła.
+function pomiarLiczbProfilu() {
+  const visible = el => {
+    if (!el || !el.getClientRects().length) return false;
+    for (let p = el; p; p = p.parentElement) {
+      const css = getComputedStyle(p);
+      if (css.visibility !== 'visible' || Number(css.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const lists = [...document.querySelectorAll('.profil-liczniki')];
+  const list = lists[0];
+  const band = document.querySelector('.marka-profil-statystyki');
+  const header = document.querySelector('.marka-profil-kompozycja');
+  const archive = document.querySelector('.marka-profil-dol');
+  const fields = [...(list?.querySelectorAll('.profil-licznik-pole') ?? [])];
+  return {
+    copies: lists.length,
+    visible: visible(list) && visible(band),
+    placement: !!list && !!band && !!header && !!archive && band.contains(list)
+      && !list.closest('.marka-profil-kompozycja, .app-rail, .marka-profil-szyna')
+      && header.nextElementSibling === band && band.nextElementSibling === archive,
+    geometry: !!band && !!header && !!archive
+      && band.getBoundingClientRect().top >= header.getBoundingClientRect().bottom - 1
+      && archive.getBoundingClientRect().top >= band.getBoundingClientRect().bottom - 1,
+    fields: fields.map(el => ({
+      visible: visible(el) && visible(el.querySelector('.stat-value')) && visible(el.querySelector('.stat-label')),
+      value: el.querySelector('.stat-value')?.textContent.trim() ?? '',
+      label: el.querySelector('.stat-label')?.textContent.trim() ?? '',
+      href: el.getAttribute('href'),
+      background: getComputedStyle(el.closest('.profil-licznik')).backgroundColor,
+    })),
+    path: location.pathname,
+    headerBackground: header ? getComputedStyle(header).backgroundColor : null,
+  };
+}
+function bledyLiczbProfilu(p) {
+  const errors = [];
+  if (p.copies !== 1) errors.push('PROFILE_COUNTER_COPIES ' + p.copies);
+  if (!p.visible) errors.push('PROFILE_COUNTER_HIDDEN');
+  if (!p.placement || !p.geometry) errors.push('PROFILE_COUNTER_POSITION');
+  const labels = [/^wpis/, /^przepis/, /Ugotowa\u0142em/, /^obserwuj/, /^obserwowan/];
+  if (p.fields.length !== 5 || p.fields.some((f, i) => !f.visible || !/^\d+$/.test(f.value) || !labels[i]?.test(f.label))) errors.push('PROFILE_COUNTER_CONTENT');
+  if (p.fields.slice(3).some((f, i) => !f.href || new URL(f.href, 'http://localhost').pathname !== p.path + ['/obserwujacy', '/obserwowani'][i])) errors.push('PROFILE_COUNTER_LINKS');
+  if (p.fields.some(f => f.background !== 'rgb(255, 255, 255)') || p.headerBackground === 'rgb(255, 255, 255)') errors.push('PROFILE_COUNTER_SURFACE');
+  return errors;
+}
+// END POMIAR_LICZB_PROFILU
 
 const EKRANY_LICZB = [
   { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
@@ -3211,68 +4150,11 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
       continue;
     }
 
-    const pomiar = await strona.evaluate(() => {
-      // `getClientRects().length` zamiast `offsetParent`: łapie także element
-      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
-      // przypadek (chowamy opakowanie bloku, nie samą listę).
-      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
-
-      const karta = document.querySelector('.profil-liczby-karta');
-      const szyna = document.querySelector('.profil-liczby-szyna');
-
-      return {
-        maKarte: karta !== null,
-        kartaWidoczna: widoczny(karta),
-        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
-        szynaWidoczna: widoczny(szyna),
-        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
-        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
-        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
-          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
-          .length,
-        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
-        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
-        goraPierwszegoWpisu: (() => {
-          const wpis = document.querySelector('.app-main .post-card');
-          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
-        })(),
-      };
-    });
-
-    const bledy = [];
-
-    if (!pomiar.maKarte) {
-      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
-    }
-
-    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
-      bledy.push(pomiar.kartaWidoczna
-        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
-        : 'liczb nie widać ANI w karcie, ANI w szynie');
-    }
-
-    if (pomiar.widocznychPodpisow !== 1) {
-      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
-    }
-
-    if (pomiar.szynaWSzynie === false) {
-      bledy.push('blok liczb nie leży w `.app-rail`');
-    }
-
-    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
-    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
-    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
-      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
-    }
-
-    // Na telefonie i u gościa MAJĄ być w karcie.
-    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
-      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
-    }
-
-    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+    await strona.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    const pomiar = await strona.evaluate(pomiarLiczbProfilu);
+    const bledy = bledyLiczbProfilu(pomiar);
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: kopii ${pomiar.copies}, pól ${pomiar.fields.length}, `
+      + `pas ${pomiar.visible ? 'widoczny' : 'niewidoczny'}, pozycja ${pomiar.placement && pomiar.geometry ? 'poprawna' : 'błędna'}`);
 
     if (bledy.length > 0) {
       rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
@@ -3285,7 +4167,7 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
 
 if (rozjazdyLiczb.length > 0) {
   log('');
-  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  log('Liczby o osobie: niezgodność z D-210:');
   for (const r of rozjazdyLiczb) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
     for (const blad of r.bledy) {
@@ -3293,6 +4175,236 @@ if (rozjazdyLiczb.length > 0) {
     }
   }
 }
+
+/* ==========================================================================
+   SZYNA GOŚCIA STOI OBOK TREŚCI, NIE POD NIĄ (D-122)
+
+   DLACZEGO TO JEST POMIAR, A NIE TEST PHP
+   Testy sprawdzają, że dokument gościa dostaje klasę układu
+   (`SzynaGosciaTest`). Tego, czy szyna NAPRAWDĘ stoi obok treści, dokument
+   nie zdradza: to wynik trzech reguł w dwóch plikach (`app.css`, `tokens.css`)
+   i progu 80rem, a każda z nich może zniknąć osobno, nie ruszając HTML-a.
+
+   ZGŁOSZENIE WŁAŚCICIELA, KTÓRE TO ZAMYKA: „niektóre podstrony jak napisz do
+   nas jest bardzo wąskie, gdzie po prawej i lewej można coś dodać na kompie".
+   Zmierzone 11 września, okno 1920 px, GOŚĆ, PRZED poprawką: treść 720 px
+   w ramce 768 px, a pierwszy blok szyny („Nie możesz się zalogować") na
+   y = 1964 px, czyli dwa ekrany niżej. Po poprawce: y = 96 px, obok treści.
+
+   TRZY RZECZY NARAZ, BO KAŻDA PSUJE SIĘ OSOBNO:
+    1. ekran gościa Z SZYNĄ przy 1280+ ma ją OBOK treści i po jej PRAWEJ,
+    2. ten sam ekran na telefonie ma ją POD treścią (inaczej blok wjechałby
+       nad treść, po którą człowiek przyszedł),
+    3. ekran gościa BEZ SZYNY ma dokładnie JEDNĄ kolumnę i stoi na środku —
+       rezerwacja pustej kolumny to ta sama usterka, którą właściciel zgłosił
+       przy panelu moderacji („po prawej duży pusty obszar").
+   ========================================================================== */
+log('');
+log('Szyna gościa (D-122):');
+
+/*
+ * `zSzyna` ZNACZY „MA `<aside class="app-rail">`", NIE „MA KOLUMNĘ SZYNY".
+ * To nie jest to samo od 11 września: „Świeżo z Kuking" używa kolumny szyny
+ * OD ŚRODKA `<main>` (`.odkryj-uklad`, zgłoszenie „prawa kolumna pusta
+ * wszystko na środku"), tak samo jak strona przepisu. Dla pomiaru wyżej to
+ * dalej ekran „bez szyny": ma mieć JEDNĄ kolumnę siatki i stać na środku —
+ * dwie kolumny `.app-body` znaczyłyby, że dostał do tego pustą kolumnę po
+ * prawej. Blok, który tę kolumnę zajmuje od środka, mierzy `szynaWTresci`
+ * niżej.
+ */
+const EKRANY_SZYNY_GOSCIA = [
+  { nazwa: 'napisz do nas (gość)', adres: '/napisz-do-nas', zSzyna: true },
+  { nazwa: 'szukaj (gość)', adres: '/szukaj?q=zupa', zSzyna: true },
+  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj', zSzyna: false, szynaWTresci: '.odkryj-szyna' },
+];
+
+// 360 to telefon (szyna MA być pod treścią), 1280 sam próg szyny, 1512 laptop
+// właściciela — czyli szerokość ze zgłoszenia.
+const SZEROKOSCI_SZYNY_GOSCIA = SZYBKO ? [360, 1512] : [360, 1280, 1512];
+
+const rozjazdySzynyGoscia = [];
+
+for (const szerokosc of SZEROKOSCI_SZYNY_GOSCIA) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+  });
+
+  for (const ekran of EKRANY_SZYNY_GOSCIA) {
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze szyny gościa.');
+      process.exitCode = 1;
+      await strona.close();
+      continue;
+    }
+
+    await poczekajNaFonty(strona);
+
+    const pomiar = await strona.evaluate((selektorWTresci) => {
+      const body = document.querySelector('.app-body');
+      const main = document.querySelector('.app-main');
+      const rail = document.querySelector('.app-rail');
+
+      if (! body || ! main) return null;
+
+      /*
+       * BLOK, KTÓRY ZAJMUJE KOLUMNĘ SZYNY OD ŚRODKA `<main>`.
+       *
+       * Mierzymy go WZGLĘDEM KOLUMNY CZYTANIA, a nie względem `<main>`:
+       * `<main>` obejmuje tu obie kolumny, więc „szyna po prawej stronie
+       * main" byłoby nieprawdą zawsze, a „szyna w main" prawdą zawsze.
+       * Kolumnę czytania reprezentuje pierwsza karta wpisu albo pusty stan —
+       * czyli to, co człowiek na tym ekranie czyta.
+       */
+      const wTresci = selektorWTresci ? document.querySelector(selektorWTresci) : null;
+      const czytanie = document.querySelector('.app-main .post-card, .app-main .empty-state');
+      const rw = (wTresci && wTresci.getClientRects().length > 0) ? wTresci.getBoundingClientRect() : null;
+      const rc = czytanie ? czytanie.getBoundingClientRect() : null;
+
+      const rb = body.getBoundingClientRect();
+      const rm = main.getBoundingClientRect();
+      const rr = rail ? rail.getBoundingClientRect() : null;
+      const kolumny = getComputedStyle(body).gridTemplateColumns;
+
+      return {
+        // `none` znaczy „siatka wyłączona" (poniżej 64rem) — jedna kolumna.
+        kolumn: kolumny === 'none' ? 1 : kolumny.trim().split(/\s+/).length,
+        maNawigacje: document.querySelector('.side-nav') !== null,
+        // Szyna z treścią, nie sam kontener: pusty `<aside>` ma zerową
+        // wysokość i „stoi obok" wszystkiego, czego się nie mierzy.
+        szynaZTrescia: rail !== null && rail.getClientRects().length > 0 && rr.height > 0,
+        szynaObokTresci: rr !== null ? rr.top < rm.bottom - 40 : null,
+        szynaPoPrawej: rr !== null ? Math.round(rr.left) >= Math.round(rm.right) : null,
+        trescSzerokosc: Math.round(rm.width),
+        szynaGora: rr !== null ? Math.round(rr.top) : null,
+        // Wyśrodkowanie siatki: tyle samo miejsca z lewej co z prawej.
+        marginesLewy: Math.round(rb.left),
+        marginesPrawy: Math.round(window.innerWidth - rb.right),
+
+        // Szyna od środka `<main>` — mierzona tylko na ekranie, który ją deklaruje.
+        wTresciJest: rw !== null,
+        wTresciOczekiwana: selektorWTresci !== undefined && selektorWTresci !== null,
+        wTresciObokCzytania: (rw && rc) ? Math.round(rw.left) >= Math.round(rc.right) : null,
+        wTresciNadCzytaniem: (rw && rc) ? Math.round(rw.top) <= Math.round(rc.top) : null,
+        wTresciGora: rw ? Math.round(rw.top) : null,
+      };
+    }, ekran.szynaWTresci ?? null);
+
+    await strona.close();
+
+    if (! pomiar) {
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje siatki (.app-body) albo kolumny treści (.app-main).`);
+      process.exitCode = 1;
+      continue;
+    }
+
+    const bledy = [];
+
+    if (pomiar.maNawigacje) {
+      bledy.push('gość dostał nawigację boczną — mierzony jest zły stan ekranu');
+    }
+
+    if (ekran.zSzyna && ! pomiar.szynaZTrescia) {
+      bledy.push('szyna jest pusta albo jej nie ma, a ten ekran ma ją mieć');
+    }
+
+    if (ekran.zSzyna && pomiar.szynaZTrescia && szerokosc >= 1280) {
+      if (pomiar.kolumn !== 2) {
+        bledy.push(`siatka ma ${pomiar.kolumn} kolumn zamiast dwóch (treść + szyna)`);
+      }
+
+      if (! pomiar.szynaObokTresci) {
+        bledy.push(`szyna zjechała pod treść (jej góra: ${pomiar.szynaGora} px)`);
+      }
+
+      if (! pomiar.szynaPoPrawej) {
+        bledy.push('szyna nie stoi po prawej stronie treści');
+      }
+    }
+
+    // Na telefonie szyna MA być pod treścią — patrz `.app-rail` w app.css.
+    if (ekran.zSzyna && pomiar.szynaZTrescia && szerokosc < 1280 && pomiar.szynaObokTresci) {
+      bledy.push('szyna stoi obok treści na wąskim ekranie — zepchnęła treść w bok');
+    }
+
+    if (! ekran.zSzyna && pomiar.kolumn !== 1) {
+      bledy.push(`ekran bez szyny ma ${pomiar.kolumn} kolumny — po prawej stoi pusta kolumna`);
+    }
+
+    if (! ekran.zSzyna && Math.abs(pomiar.marginesLewy - pomiar.marginesPrawy) > 1) {
+      bledy.push(`treść nie stoi na środku (${pomiar.marginesLewy} px z lewej, `
+        + `${pomiar.marginesPrawy} px z prawej)`);
+    }
+
+    /*
+     * SZYNA OD ŚRODKA `<main>` — ta sama reguła co dla `.app-rail`, tylko
+     * liczona względem kolumny czytania. Dokument tego nie zdradza (blok jest
+     * w drzewie tam, gdzie był na telefonie), rozstrzyga wyłącznie siatka.
+     */
+    if (pomiar.wTresciOczekiwana) {
+      if (! pomiar.wTresciJest) {
+        bledy.push(`nie ma bloku „${ekran.szynaWTresci}", który ma zajmować kolumnę szyny`);
+      } else if (pomiar.wTresciObokCzytania === null) {
+        bledy.push('nie ma czego zmierzyć w kolumnie czytania (ani karty wpisu, ani pustego stanu)');
+      } else if (szerokosc >= 1280 && ! pomiar.wTresciObokCzytania) {
+        bledy.push(`blok szyny został w kolumnie czytania (jego góra: ${pomiar.wTresciGora} px) `
+          + '— po prawej stronie treści zostaje pusty pas');
+      } else if (szerokosc < 1280 && ! pomiar.wTresciNadCzytaniem) {
+        bledy.push('na wąskim ekranie blok szyny zjechał pod wpisy — a w kodzie stoi przed nimi');
+      }
+    }
+
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: kolumn ${pomiar.kolumn}, `
+      + `treść ${pomiar.trescSzerokosc} px, `
+      + `szyna ${pomiar.szynaZTrescia ? (pomiar.szynaObokTresci ? `obok (y=${pomiar.szynaGora})` : `pod treścią (y=${pomiar.szynaGora})`) : 'brak'}`
+      + (pomiar.wTresciOczekiwana
+        ? `, szyna w treści ${pomiar.wTresciJest ? (pomiar.wTresciObokCzytania ? `obok czytania (y=${pomiar.wTresciGora})` : `nad czytaniem (y=${pomiar.wTresciGora})`) : 'BRAK'}`
+        : ''));
+
+    if (bledy.length > 0) {
+      rozjazdySzynyGoscia.push({ ekran: ekran.nazwa, szerokosc, bledy });
+    }
+  }
+
+  await kontekst.close();
+}
+
+if (rozjazdySzynyGoscia.length > 0) {
+  log('');
+  log('Szyna gościa stoi w złym miejscu (D-122):');
+  for (const r of rozjazdySzynyGoscia) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
+// OAuth: własny serwer pomiarowy, bez włazu do sesji w aplikacji (#345).
+const oauth = { wyniki: [], blad: null };
+try {
+  await zmierzOauth({ przegladarka, wyniki: oauth.wyniki });
+  const kluczOauth = (w) => JSON.stringify([w.adres, w.stan ?? null, w.wariant]);
+  const oczekiwaneOauth = EKRANY_OAUTH.flatMap((ekran) => WARIANTY_OAUTH.map((wariant) =>
+    kluczOauth({ ...ekran, ...wariant })));
+  const otrzymaneOauth = oauth.wyniki.map(kluczOauth);
+  if (oczekiwaneOauth.length !== 10 || otrzymaneOauth.length !== oczekiwaneOauth.length
+      || new Set(otrzymaneOauth).size !== oczekiwaneOauth.length
+      || ! oczekiwaneOauth.every((klucz) => otrzymaneOauth.includes(klucz))
+      || oauth.wyniki.some((w) => w.status !== 'success')) {
+    throw new Error('OAuth345: niepełny raport pięciu ekranów w dwóch motywach');
+  }
+  log(`OAuth: ${oauth.wyniki.length}/${oczekiwaneOauth.length} pomiarów zakończonych.`);
+} catch (error) {
+  oauth.blad = error?.message ?? String(error);
+  console.error(`BŁĄD OAuth: ${oauth.blad}`);
+  process.exitCode = 1;
+}
+// Koniec pomiaru OAuth.
 
 await przegladarka.close();
 zamknij();
@@ -3318,6 +4430,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  oauth,
   wyborZdjeciaBezJs,
   wyrownanieBelki: {
     szerokosci: SZEROKOSCI_WYROWNANIA,
@@ -3353,7 +4466,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     rozjazdy: rozjazdyTablicy,
   },
   /*
-   * LICZBY O OSOBIE (D-091) — kontrola, którą kod wyjścia respektował od
+   * LICZBY O OSOBIE (D-210, wcześniej D-091) — kontrola, którą kod wyjścia respektował od
    * początku, a artefakt przemilczał. Brakowało jej dokładnie tutaj, czyli
    * w trzecim z trzech miejsc zbiorczych tego pliku (sekcja 14.5
    * przekazania). Skutek nie był groźny — CI oblewało poprawnie — ale
@@ -3366,6 +4479,13 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     rozjazdow: rozjazdyLiczb.length,
     rozjazdy: rozjazdyLiczb,
   },
+  /* Szyna gościa (D-122) — ta sama zasada co przy `liczbyProfilu` wyżej:
+     kod wyjścia to respektuje, więc artefakt musi umieć powiedzieć DLACZEGO. */
+  szynaGoscia: {
+    szerokosci: SZEROKOSCI_SZYNY_GOSCIA,
+    rozjazdow: rozjazdySzynyGoscia.length,
+    rozjazdy: rozjazdySzynyGoscia,
+  },
 }, null, 2));
 
 log('');
@@ -3377,7 +4497,8 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
   + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
   + `belka ponad ${Math.round(UDZIAL_BELKI_MAKS * 100)}% okna: ${zaWysokaBelka.length}, `
-  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
+  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length}, `
+  + `szyny gościa w złym miejscu: ${rozjazdySzynyGoscia.length})`);
 // Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
 // „przepełnień: 0" znaczy coś innego przy 36 zmierzonych ekranach i przy 33.
 log(`Zbadane ekrany — axe: ${zbadanePrzezAxe.size}/${EKRANY.length}, `
@@ -3453,6 +4574,10 @@ if (rozjazdyBelki.length > 0) {
   log('Belka nie licuje z siatką treści:');
   for (const r of rozjazdyBelki) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    if (r.marka) {
+      for (const blad of r.bledy) log('      ' + blad);
+      continue;
+    }
     log(`      logotyp ${r.lewa} zamiast ${r.oczekiwanaLewa} (o ${r.bladLewej} px)`);
     log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
     log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `
@@ -3492,6 +4617,7 @@ if (
   || naruszeniaFocus.length > 0
   || rozjazdyTablicy.length > 0
   || rozjazdyLiczb.length > 0
+  || rozjazdySzynyGoscia.length > 0
   || zaWysokaBelka.length > 0
 ) {
   process.exit(1);

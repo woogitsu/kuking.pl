@@ -44,15 +44,28 @@ declare(strict_types=1);
  *    dodatkowego rejestru. Nazwa worktree jest czytelna w `psql -l` za darmo
  *    i widać po niej, do czego baza należy.
  *
- *  - Hash pełnej ścieżki repozytorium. Działałby równie dobrze jak nazwa
- *    worktree, ale jest nieczytelny przy sprzątaniu (`psql -l` pokazuje
- *    ciąg hexów, nie to, o który worktree chodzi). Git już nadaje worktree'om
- *    czytelne, unikalne nazwy — nie ma sensu liczyć własnego hashu obok.
+ *  - SAM hash pełnej ścieżki repozytorium. Działa, ale jest nieczytelny przy
+ *    sprzątaniu (`psql -l` pokazuje ciąg hexów, nie to, o który katalog
+ *    chodzi). Tam, gdzie Git nadaje worktree'owi czytelną nazwę, bierzemy ją;
+ *    hash dokładamy tylko tam, gdzie nazwy worktree NIE MA (patrz niżej) —
+ *    i wtedy obok czytelnej nazwy katalogu, nie zamiast niej.
+ *
+ * 2026-09-20: KOPIA REPOZYTORIUM BEZ `.git` TO NIE JEST GŁÓWNY CHECKOUT.
+ * Powyższe opiera się na pliku `.git`, a runtime floty (`przygotuj-runtime.sh`)
+ * przegrywa worktree rsynkiem z `--exclude '.git'`. W katalogu, w którym
+ * NAPRAWDĘ chodzą testy, tego pliku nie ma — więc każde stanowisko dostawało
+ * gołe `kuking_test` i wszystkie lądowały w jednej bazie. Objawem nie był
+ * jeden zepsuty test, tylko fałszywa czerwień z kontencji, po której każdy
+ * musiał najpierw udowodnić, że to nie jego wina. Dlatego trzecia gałąź
+ * funkcji liczy nazwę z KATALOGU REPOZYTORIUM — jedynej rzeczy, która
+ * w runtime istnieje na pewno, bo bez niej nie byłoby czego uruchamiać.
  *
  * Sprzątanie: `scripts/cleanup-test-dbs.sh` usuwa bazy `kuking_test_*`,
  * których worktree już nie istnieje na dysku (czyli został usunięty przez
  * `git worktree remove`, a baza po nim została).
  */
+require __DIR__.'/Support/kuking_nazwa_testowej_bazy.php';
+
 if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
     putenv('DB_DATABASE='.kuking_nazwa_testowej_bazy(__DIR__.'/..'));
 }
@@ -174,37 +187,26 @@ function kuking_nazwa_bazy_wyscigow(string $katalogRepo): string
 }
 
 /**
- * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
- * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
+ * Zwraca nazwę bazy POMIAROWEJ dla próby wycofania migracji
+ * (`scripts/proba-wycofania.sh`): "proba_wycofania" w głównym checkoucie,
+ * "proba_wycofania_<worktree>" w `git worktree`.
+ *
+ * Prefiks jest inny niż `kuking_*` i to jest jego jedyne zadanie. Skrypt
+ * próby wycofania KASUJE swoją bazę i zrzuca w niej schemat do zera — czyli
+ * robi dokładnie to, czego nie wolno zrobić nigdzie indziej. Jego bezpiecznik
+ * przepuszcza wyłącznie nazwy pasujące do `proba_wycofania*`, więc `kuking`,
+ * `kuking_test*`, `kuking_race*` ani `railway` nie wpadną do niego nawet
+ * przy literówce: to nie jest różnica jednego znaku.
+ *
+ * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda, co
+ * przy bazie testowej i wyścigowej, żeby nie było w repozytorium trzech reguł
+ * nazywania baz, które rozjadą się przy pierwszej zmianie.
  */
-function kuking_nazwa_testowej_bazy(string $katalogRepo): string
+function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
 {
-    $domyslna = 'kuking_test';
-
-    $wskaznikGit = $katalogRepo.'/.git';
-
-    // Główny checkout: `.git` to katalog ze schematem repo, nie plik
-    // wskazujący na worktree — nie ma czego wyliczać.
-    if (! is_file($wskaznikGit)) {
-        return $domyslna;
-    }
-
-    $tresc = file_get_contents($wskaznikGit);
-    if ($tresc === false || ! preg_match('/gitdir:\s*(\S+)/', $tresc, $dopasowanie)) {
-        return $domyslna;
-    }
-
-    // Format wskaźnika worktree: "gitdir: <repo>/.git/worktrees/<nazwa>".
-    if (! preg_match('#/\.git/worktrees/([^/]+)/?$#', trim($dopasowanie[1]), $nazwaWorktree)) {
-        return $domyslna;
-    }
-
-    // Nazwa katalogu worktree bywa dłuższa niż limit identyfikatora
-    // Postgresa (63 znaki) po doliczeniu prefiksu "kuking_test_" — a znaki
-    // spoza [a-zA-Z0-9_] wymagałyby cudzysłowu w SQL. Obcinamy i czyścimy,
-    // zamiast zakładać, że Git zawsze nada bezpieczną nazwę.
-    $sufiks = preg_replace('/[^a-zA-Z0-9_]/', '_', $nazwaWorktree[1]);
-    $sufiks = substr((string) $sufiks, 0, 50);
-
-    return $domyslna.'_'.$sufiks;
+    return 'proba_wycofania'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
 }
+
+// `kuking_nazwa_testowej_bazy()` żyje teraz w `tests/Support/kuking_nazwa_testowej_bazy.php`
+// (wymagane na górze tego pliku) — to jedyne źródło tej reguły, współdzielone
+// z `.claude/hooks/session-start.sh`. Nie dopisuj tu drugiej definicji.

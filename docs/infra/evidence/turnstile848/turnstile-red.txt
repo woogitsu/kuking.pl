@@ -1,0 +1,259 @@
+﻿
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\TurnstilePonowneWyslanieTest[39m
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/b[39m[90m…[39m [90m0.55s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/o[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/t[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/z[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/bra[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/odm[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/tab[39m[90m…[39m [90m0.01s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/za[39m[90m… [39m [90m0.01s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [31;1m⨯[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/brak"[39m[90m [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/odmow[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/tabli[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/za dl[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mpomiar obejmuje wszystkie siedem miejsc[39m[90m                             [39m [90m0.01s[39m  
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się wczytać sprawdzenia „czy to na pewno człowiek" i dlatego nie możemy przyjąć tego formularza. Twoje dane nie zniknęły: wyślij go jeszcze raz — zwykle za drugim razem sprawdzenie się wczytuje. Jeśli znowu się nie uda, włącz w przeglądarce JavaScript i wyłącz na tej stronie blokadę reklam. Gdy nic nie pomaga, napisz do nas na kontakt@kuking.pl — odpisuje człowiek i załatwimy to razem.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  remember
+Failed asserting that 0 is greater than 0.[39;22m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m74[39m
+     70▕         $this->assertSame(1, $xpath->query('//div[contains(@class,"error-summary")]//li')->length);
+     71▕         $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)?->textContent ?? ''));
+     72▕         foreach ($data as $name => $value) {
+     73▕             $fields = $xpath->query('//*[@name="'.$name.'"]');
+  ➜  74▕             $this->assertGreaterThan(0, $fields->length, $name);
+     75▕             if ($name === 'password') {
+     76▕                 $this->assertSame('', $fields->item(0)->getAttribute('value'));
+     77▕                 $page->assertDontSee($value);
+     78▕                 continue;
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m74[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  remember
+Failed asserting that 0 is greater than 0.[39;22m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m74[39m
+     70▕         $this->assertSame(1, $xpath->query('//div[contains(@class,"error-summary")]//li')->length);
+     71▕         $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)?->textContent ?? ''));
+     72▕         foreach ($data as $name => $value) {
+     73▕             $fields = $xpath->query('//*[@name="'.$name.'"]');
+  ➜  74▕             $this->assertGreaterThan(0, $fields->length, $name);
+     75▕             if ($name === 'password') {
+     76▕                 $this->assertSame('', $fields->item(0)->getAttribute('value'));
+     77▕                 $page->assertDontSee($value);
+     78▕                 continue;
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m74[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  remember
+Failed asserting that 0 is greater than 0.[39;22m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m74[39m
+     70▕         $this->assertSame(1, $xpath->query('//div[contains(@class,"error-summary")]//li')->length);
+     71▕         $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)?->textContent ?? ''));
+     72▕         foreach ($data as $name => $value) {
+     73▕             $fields = $xpath->query('//*[@name="'.$name.'"]');
+  ➜  74▕             $this->assertGreaterThan(0, $fields->length, $name);
+     75▕             if ($name === 'password') {
+     76▕                 $this->assertSame('', $fields->item(0)->getAttribute('value'));
+     77▕                 $page->assertDontSee($value);
+     78▕                 continue;
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m74[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  remember
+Failed asserting that 0 is greater than 0.[39;22m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m74[39m
+     70▕         $this->assertSame(1, $xpath->query('//div[contains(@class,"error-summary")]//li')->length);
+     71▕         $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)?->textContent ?? ''));
+     72▕         foreach ($data as $name => $value) {
+     73▕             $fields = $xpath->query('//*[@name="'.$name.'"]');
+  ➜  74▕             $this->assertGreaterThan(0, $fields->length, $name);
+     75▕             if ($name === 'password') {
+     76▕                 $this->assertSame('', $fields->item(0)->getAttribute('value'));
+     77▕                 $page->assertDontSee($value);
+     78▕                 continue;
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m74[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się wczytać sprawdzenia „czy to na pewno człowiek" i dlatego nie możemy przyjąć tego formularza. Twoje dane nie zniknęły: wyślij go jeszcze raz — zwykle za drugim razem sprawdzenie się wczytuje. Jeśli znowu się nie uda, włącz w przeglądarce JavaScript i wyłącz na tej stronie blokadę reklam. Gdy nic nie pomaga, napisz do nas na kontakt@kuking.pl — odpisuje człowiek i załatwimy to razem.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\TurnstilePonowneWyslanieTest[22m [90m>[39m instrukcja pasuje do…   
+[39;1m  Expected: [39;22m[31mNie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz jeszcze raz. Jeśli znowu się nie uda, napisz do nas na kontakt@kuking.pl — odpisuje człowiek.[39m[39;1m
+
+  To contain: [39;22m[32mwpisz hasło ponownie[39m
+
+  at [32mtests/Feature/TurnstilePonowneWyslanieTest.php[39m:[32m93[39m
+     89▕         }
+     90▕         $this->assertStringContainsString($failure === 'brak' ? 'wczytać sprawdzenia' : 'sprawdzenie mogło wygasnąć', $message);
+     91▕         $this->assertStringContainsString('wyślij', $message);
+     92▕         if (isset($data['password'])) {
+  ➜  93▕             $this->assertStringContainsString('wpisz hasło ponownie', $message);
+     94▕             $this->assertStringContainsString('Pozostałe dane', $message);
+     95▕             $this->assertLessThan(strpos($message, 'wyślij'), strpos($message, 'wpisz hasło ponownie'));
+     96▕         } else {
+     97▕             $this->assertStringNotContainsString('hasło', $message);
+
+  [33m1   [39m[39;1mtests/Feature/TurnstilePonowneWyslanieTest.php[39;22m:[39;1m93[39;22m
+
+
+  [90mTests:[39m    [31;1m12 failed[39;22m[90m,[39m[39m [39m[32;1m17 passed[39;22m[90m (618 assertions)[39m
+  [90mDuration:[39m [39m1.55s[39m
+

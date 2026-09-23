@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Media;
-use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
@@ -21,6 +20,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -36,6 +36,36 @@ use Illuminate\Support\Str;
  */
 class DemoSeeder extends Seeder
 {
+    /**
+     * Hasło do kont demonstracyjnych.
+     *
+     * DO 20 WRZEŚNIA 2026 STAŁO TU WPISANE W KODZIE. Zmieniła to decyzja
+     * właściciela, po tym jak strażnik `PoswiadczeniaPozaRepozytoriumTest`
+     * (R47) pokazał, że repozytorium nosi hasło konta MODERATORA. Chroniły je
+     * dwie bramki i jedna z nich jest zmierzona testem — ale bramka jest
+     * zabezpieczeniem, a nieobecność sekretu jest brakiem tego, co można
+     * wynieść. To drugie jest tańsze i nie wymaga niczyjej czujności.
+     *
+     * Bez `KUKING_DEMO_HASLO` losujemy hasło na każdy przebieg i wypisujemy
+     * je na koniec. Celowo NIE ma tu wartości domyślnej: wartość domyślna
+     * wróciłaby do repozytorium tym samym wejściem, którym właśnie wyszła,
+     * tylko pod inną nazwą.
+     */
+    private ?string $haslo = null;
+
+    private function hasloDemo(): string
+    {
+        if ($this->haslo !== null) {
+            return $this->haslo;
+        }
+
+        $zOtoczenia = trim((string) config('kuking.demo.haslo', ''));
+
+        return $this->haslo = $zOtoczenia !== ''
+            ? $zOtoczenia
+            : Str::password(16, symbols: false);
+    }
+
     public function run(): void
     {
         if (app()->environment('production')) {
@@ -62,9 +92,74 @@ class DemoSeeder extends Seeder
             'speciality' => 'szybkie obiady',
         ]);
 
+        /*
+         * KONTO Z NAZWĄ NA PEŁNY LIMIT — NAJTRUDNIEJSZY WARIANT PROFILU
+         * (issue #440, potem #467)
+         *
+         * `display_name` ma w walidacji `max:` z `config('kuking.profil.dlugosc_nazwy')`
+         * (RegisterController, ProfileSettingsController, oba loginy
+         * zewnętrzne) i ani jednego ograniczenia na długość pojedynczego
+         * SŁOWA. Nazwa niżej ma dokładnie tyle znaków, ile wynosi limit,
+         * a najdłuższy nieprzerwany ciąg w niej — 29. Jest więc poprawnym
+         * wejściem, jakie człowiek może wpisać dziś, bez żadnej sztuczki.
+         *
+         * DO 12 WRZEŚNIA LIMIT WYNOSIŁ 100 ZNAKÓW i ta nazwa też tyle miała.
+         * Zmierzone wtedy: sam odnośnik nazwy w karcie wpisu brał 825,16 px
+         * przy oknie 320 px i czcionce przeglądarki 200%, czyli więcej niż
+         * okno, w którym mierzy automat dostępności (740 px). Liczba w tym
+         * seederze ma iść ZA limitem, nie obok niego — inaczej automat
+         * przestanie widzieć najtrudniejszy wariant, który produkt dopuszcza.
+         *
+         * DO 12 WRZEŚNIA TAKIEGO KONTA W DANYCH DEMO NIE BYŁO. Najdłuższa
+         * nazwa profilu miała 16 znaków („Moderacja Kuking"), a dwie
+         * mierzone przez automat — po cztery i pięć („Ania", „Basia").
+         * `scripts/dostepnosc.mjs` meldował więc „nic nie wyjeżdża w bok na
+         * profilu" o ekranie, którego najtrudniejszego wariantu nie widział
+         * ani razu. To jest pułapka 5 z `docs/PULAPKI_TESTOW.md` widziana od
+         * strony DANYCH: narzędzie melduje sukces, bo nie dostało tego,
+         * o co chodzi — i wygląda przy tym dokładnie tak, jak gdyby dostało.
+         *
+         * Zofia ma własny wpis ze zdjęciem: profil bez ani jednej treści to
+         * pusty ekran, a pusty ekran przechodzi każdy pomiar układu.
+         */
+        $zofia = $this->createUser(
+            'zofia@example.test',
+            'zofia_z_bieszczad',
+            'Małgorzata Konstantynopolitańczykowianka',
+            [
+                'bio' => 'Gotuję dla wnuków, kiedy przyjeżdżają na wakacje. Najchętniej pierogi i kompot z rabarbaru.',
+                'region' => 'Dolny Śląsk',
+                'speciality' => 'pierogi i kompoty',
+            ],
+        );
+
         $moderator = $this->createUser('moderacja@example.test', 'moderacja', 'Moderacja Kuking', [
             'bio' => 'Konto zespołu Kuking.',
         ], role: User::ROLE_MODERATOR);
+
+        /*
+         * ZDJĘCIE PROFILOWE DLA KONTA, KTÓRYM LOGUJE SIĘ AUTOMAT DOSTĘPNOŚCI
+         * (`ania` — patrz `KONTO_ZALOGOWANE` w `scripts/dostepnosc.mjs`).
+         *
+         * PO CO TO JEST. Ekran `/ustawienia/zdjecie` ma TRZY stany: „to jest
+         * Twoje zdjęcie", „zdjęcie się przygotowuje" i „nie masz jeszcze
+         * zdjęcia". Różnią się nie jednym zdaniem, tylko układem: przy
+         * gotowym zdjęciu dochodzi obrazek 88 px obok akapitu, zmienia się
+         * napis na polu pliku i pojawia się CAŁA sekcja „Usunięcie zdjęcia"
+         * z przyciskiem potwierdzenia. Do 12 września dane demo nie dawały
+         * temu kontu żadnego zdjęcia, więc automat mierzyłby jedyny z tych
+         * trzech stanów, w którym tego wszystkiego NIE MA — i wpisałby „✓"
+         * dla ekranu, którego trudnej połowy nie widział ani razu
+         * (pułapki 2 i 4 z `docs/PULAPKI_TESTOW.md`).
+         *
+         * PRAWDZIWY PLIK, NIE SAM WIERSZ W BAZIE. Zdjęcia demonstracyjne
+         * wpisów mają `metadata.variants` puste, bo do ich układu to
+         * wystarcza. Tutaj nie wystarcza: bez wariantu `Media::url()` oddaje
+         * `icons/kuking-mark.svg`, czyli znak Kuking o `viewBox 0 0 64 64`.
+         * Mierzyłoby się wtedy kwadrat 64 × 64 podstawiony za zdjęcie —
+         * dane, które wyglądają na prawdziwe i nie są.
+         */
+        $this->nadajZdjecieProfilowe($ania);
 
         // Graf społeczny
         $ania->following()->syncWithoutDetaching([$basia->getKey() => ['created_at' => now()], $marek->getKey() => ['created_at' => now()]]);
@@ -138,6 +233,43 @@ class DemoSeeder extends Seeder
             now()->subHours(6),
         );
 
+        /*
+         * TRZECI AUTOR ZE ZDJĘCIEM — INACZEJ KOLAŻ W HERO NIE MA CZEGO POKAZAĆ.
+         *
+         * Kolaż na stronie powitalnej (`App\Domain\Feed\HeroKolaz`) bierze
+         * najpierw po JEDNYM zdjęciu od osoby i dopiero potem po drugim, a
+         * renderuje się wyłącznie wtedy, gdy uzbiera cztery. Do 11 września
+         * zdjęcia w danych demo miały tylko DWIE osoby (`ania` i `basia`), więc
+         * `scripts/dostepnosc.mjs` mierzyłby stronę powitalną ZAWSZE w stanie
+         * „kolażu nie ma" — a ten stan odpowiada 200 i w raporcie wygląda
+         * identycznie jak stan pełny. Dokładnie pułapka 5 z
+         * `docs/PULAPKI_TESTOW.md`, ta sama, która przy issue #294 dała trzy
+         * ptaszki nad pustą kolejką moderatora.
+         *
+         * `marek` ma już wpis o chlebie bez zdjęć — to jest ten sam chleb,
+         * tylko pokazany.
+         */
+        $this->wpisZKilkomaZdjeciami(
+            $marek,
+            'Zakwas i bochenek — ten sam chleb, dwa zdjęcia.',
+            Post::DISPLAY_NORMAL,
+            ['Słoik zakwasu na parapecie', 'Bochenek chleba przekrojony na desce'],
+            now()->subHours(4),
+        );
+
+        /*
+         * Wpis Zofii — żeby jej profil miał co pokazać. Bez ani jednej treści
+         * profil jest pustym ekranem, a pusty ekran przechodzi każdy pomiar
+         * układu, nie sprawdzając niczego.
+         */
+        $this->wpisZKilkomaZdjeciami(
+            $zofia,
+            'Pierogi ruskie na niedzielę, tak jak robiła je moja mama.',
+            Post::DISPLAY_NORMAL,
+            ['Pierogi ruskie na talerzu', 'Farsz z ziemniaków i twarogu w misce'],
+            now()->subHours(3),
+        );
+
         // Przepis rodzinny — pokazuje, po co jest sekcja „Skąd ten przepis”
         $rosol = Recipe::create([
             'author_id' => $basia->getKey(),
@@ -151,7 +283,7 @@ class DemoSeeder extends Seeder
             'visibility' => 'public',
             'status' => Recipe::STATUS_PUBLISHED,
             'source_type' => Recipe::SOURCE_FAMILY,
-            'source_person' => 'babci Zofii',
+            'source_person' => 'od babci Zofii',
             'source_note' => 'Babcia mieszkała pod Rzeszowem i gotowała ten rosół w sobotę wieczorem, żeby w niedzielę tylko podgrzać. Mówiła, że rosół nie znosi pośpiechu i że nigdy nie wolno go zagotować na dużym ogniu, bo zrobi się mętny. Kartka z tym przepisem leżała w jej kredensie przez trzydzieści lat.',
             'family_since_year' => 1974,
             'published_at' => now()->subDays(10),
@@ -215,37 +347,46 @@ class DemoSeeder extends Seeder
 
         app(SnapshotRecipeVersion::class)->handle($chleb, $marek, 'Pierwsza publikacja');
 
-        // „Ugotowałem” — najważniejsze zdarzenie w produkcie
-        $notify = app(NotifyUser::class);
+        /*
+         * „Ugotowałem” — najważniejsze zdarzenie w produkcie, i dlatego idzie
+         * TĄ SAMĄ AKCJĄ DOMENOWĄ co formularz, a nie gołym
+         * `CookedEvent::create()`.
+         *
+         * ZMIERZONE PRZED ZMIANĄ (12 września 2026): seeder zapisywał dwa
+         * wykonania, a `NotifyUser` wołał przy JEDNYM z nich. Wykonanie Marka
+         * nie powiadamiało Basi w ogóle. Obietnica z `AGENTS.md` §1
+         * („«Ugotowałem» ZAWSZE powiadamia autora przepisu”) była więc
+         * w danych demonstracyjnych prawdziwa w połowie przypadków — a to są
+         * dane, na których chodzi automat dostępności i na których wygląd
+         * serwisu ogląda każdy, kto pracuje lokalnie.
+         *
+         * Powtórzone obok zapisu powiadomienie jest jedną linijką do
+         * zapomnienia i dokładnie tak zostało zapomniane. `RecordCookedEvent`
+         * trzyma zapis i powiadomienie w JEDNEJ transakcji, więc rozdzielić
+         * ich przez przeoczenie się nie da — a reguła domenowa zostaje
+         * w `app/Domain` (`AGENTS.md` §4) zamiast mieć tutaj drugą,
+         * uproszczoną kopię.
+         */
+        $ugotowalem = app(RecordCookedEvent::class);
 
-        $wykonanie = CookedEvent::create([
-            'user_id' => $ania->getKey(),
-            'recipe_id' => $rosol->getKey(),
-            'note' => 'Zrobiłam w sobotę, żeby w niedzielę tylko podgrzać. Rzeczywiście wyszedł klarowny.',
-            'changes_note' => 'Dałam pół selera zamiast całego, bo dzieci nie lubią.',
-            'would_make_again' => true,
-            'perceived_difficulty' => 'easy',
-            'actual_minutes' => 260,
-            'cooked_at' => now()->subDays(2),
-        ]);
+        $this->przesunWykonanie($ugotowalem->handle(
+            cook: $ania,
+            recipe: $rosol,
+            note: 'Zrobiłam w sobotę, żeby w niedzielę tylko podgrzać. Rzeczywiście wyszedł klarowny.',
+            wouldMakeAgain: true,
+            perceivedDifficulty: 'easy',
+            actualMinutes: 260,
+            changesNote: 'Dałam pół selera zamiast całego, bo dzieci nie lubią.',
+        ), now()->subDays(2));
 
-        $notify->handle($basia, Notification::TYPE_COOKED, $ania, [
-            'recipe_id' => $rosol->getKey(),
-            'recipe_title' => $rosol->title,
-            'recipe_slug' => $rosol->slug,
-            'cooked_event_id' => $wykonanie->getKey(),
-            'has_photo' => false,
-        ]);
-
-        CookedEvent::create([
-            'user_id' => $marek->getKey(),
-            'recipe_id' => $rosol->getKey(),
-            'note' => 'Klasyka. Zrobiłem dokładnie tak, jak napisane, i nie ma o czym dyskutować.',
-            'would_make_again' => true,
-            'perceived_difficulty' => 'easy',
-            'actual_minutes' => 250,
-            'cooked_at' => now()->subDay(),
-        ]);
+        $this->przesunWykonanie($ugotowalem->handle(
+            cook: $marek,
+            recipe: $rosol,
+            note: 'Klasyka. Zrobiłem dokładnie tak, jak napisane, i nie ma o czym dyskutować.',
+            wouldMakeAgain: true,
+            perceivedDifficulty: 'easy',
+            actualMinutes: 250,
+        ), now()->subDay());
 
         Comment::create([
             'author_id' => $ania->getKey(),
@@ -255,6 +396,23 @@ class DemoSeeder extends Seeder
         ]);
 
         $this->komunikatKoncowy($moderator->email);
+    }
+
+    /**
+     * Cofa datę wykonania, żeby dane demonstracyjne wyglądały na rozłożone
+     * w czasie, a nie zapisane wszystkie w jednej sekundzie.
+     *
+     * To JEDYNE, czego `RecordCookedEvent` nie przyjmuje: akcja stempluje
+     * `cooked_at` chwilą zapisu, i słusznie — w produkcie nie ma miejsca,
+     * w którym człowiek podaje datę ugotowania z ręki. Dlatego data wraca tu
+     * osobnym zapisem PO wykonaniu akcji, zamiast otwierać w akcji parametr
+     * potrzebny wyłącznie seederowi.
+     */
+    private function przesunWykonanie(CookedEvent $wykonanie, \DateTimeInterface $kiedy): CookedEvent
+    {
+        $wykonanie->forceFill(['cooked_at' => $kiedy])->save();
+
+        return $wykonanie;
     }
 
     /** @param  array<string, mixed>  $profile */
@@ -349,11 +507,14 @@ class DemoSeeder extends Seeder
 
         if ($user === null) {
             $user = (new User([
-                'password' => Hash::make('haslo-testowe-123'),
                 'locale' => 'pl',
                 'text_scale' => 100,
                 'age_confirmed_at' => now(),
-            ]))->assignEmail($email, potwierdzony: true);
+            ]))
+                ->assignEmail($email, potwierdzony: true)
+                // `password` jest poza `$fillable` tak samo jak `email`
+                // — obie wartości wchodzą jawną, nazwaną metodą.
+                ->assignPassword($this->hasloDemo());
 
             $user->forceFill([
                 'status' => User::STATUS_ACTIVE,
@@ -389,11 +550,75 @@ class DemoSeeder extends Seeder
          */
         $this->probowane[] = $email;
 
-        if (Hash::check('haslo-testowe-123', (string) $user->password)) {
+        if (Hash::check($this->hasloDemo(), (string) $user->password)) {
             $this->logowalne[] = $email;
         }
 
         return $user->refresh();
+    }
+
+    /**
+     * Gotowe zdjęcie profilowe z PRAWDZIWEGO pliku (issue #26, #80).
+     *
+     * Plik źródłowy leży w repozytorium (`database/seeders/zdjecia`), ma
+     * 320 × 320 px — dokładnie tyle, ile `config('kuking.media.variants.thumb')`
+     * — i jest kopiowany pod klucz wariantu `thumb`, czyli pod ten sam, który
+     * wylicza `Media::kluczPublicznegoWariantu()`. Dzięki temu
+     * `MediaController` naprawdę ma co oddać na dysku lokalnym, a wymiary
+     * w bazie są wymiarami pliku, nie liczbami wpisanymi z ręki.
+     *
+     * ORYGINAŁU NIE PODKŁADAMY I TO JEST CELOWE. Na stronę trafia wyłącznie
+     * to, co wyszło z naszego kodera (`Media::maWariantDoPokazania()`),
+     * a `url()` oryginału nie zna. Plik pod `object_key` byłby więc bajtami,
+     * których nikt nigdy nie serwuje.
+     */
+    private function nadajZdjecieProfilowe(User $user): void
+    {
+        $zrodlo = database_path('seeders/zdjecia/awatar-demo.webp');
+
+        // Bez pliku nie ma czego nadawać, a cicha zgoda na brak zdjęcia jest
+        // tu najgorszą z opcji: automat mierzyłby wtedy stan „nie masz
+        // jeszcze zdjęcia", nie wiedząc o tym.
+        if (! is_file($zrodlo)) {
+            $this->command?->warn('Brak pliku '.$zrodlo.' — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+
+            return;
+        }
+
+        $wymiary = getimagesize($zrodlo);
+
+        if ($wymiary === false) {
+            $this->command?->warn('Plik '.$zrodlo.' nie jest obrazem — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+
+            return;
+        }
+
+        [$szerokosc, $wysokosc] = $wymiary;
+
+        $objectKey = 'media/demo/'.Str::uuid()->toString().'.webp';
+        $kluczThumb = Media::kluczPublicznegoWariantu($objectKey, 'thumb');
+
+        Storage::disk('public')->put($kluczThumb, (string) file_get_contents($zrodlo));
+
+        $zdjecie = Media::create([
+            'owner_id' => $user->getKey(),
+            'disk' => 'public',
+            'object_key' => $objectKey,
+            'mime_type' => 'image/webp',
+            'bytes' => (int) filesize($zrodlo),
+            'width' => $szerokosc,
+            'height' => $wysokosc,
+            'status' => Media::STATUS_READY,
+            // `alt` awatara jest pusty z założenia (`components/avatar.blade.php`:
+            // imię stoi obok, więc czytnik ekranu nie ma powtarzać go drugi raz).
+            // Tekst zostaje mimo to, bo opisuje plik, a nie miejsce jego użycia.
+            'alt_text' => 'Zdjęcie profilowe konta demonstracyjnego',
+            'metadata' => ['variants' => [
+                'thumb' => ['key' => $kluczThumb, 'width' => $szerokosc, 'height' => $wysokosc],
+            ]],
+        ]);
+
+        $user->profile->update(['avatar_media_id' => $zdjecie->getKey()]);
     }
 
     /**
@@ -484,12 +709,12 @@ class DemoSeeder extends Seeder
             // Seeder, który nie zostawia ŻADNEGO konta do zalogowania, jest
             // bezużyteczny do pracy nad wyglądem i do automatu dostępności.
             // Cisza w tym miejscu byłaby gorsza niż ostrzeżenie.
-            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła „haslo-testowe-123”. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
+            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła demo. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
 
             return;
         }
 
-        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: haslo-testowe-123');
+        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
 
         foreach ($logowalne as $email) {
             $rola = $email === $emailModeratora ? ' (moderator)' : '';

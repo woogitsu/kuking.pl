@@ -24,7 +24,41 @@ Co dziś ugotowałeś?  →  zdjęcie + kilka słów  →  Opublikuj
 
 Najważniejszy sygnał jakości przepisu to **„Ugotowałem”** — realne wykonanie
 przez inną osobę. Jest silniejszy niż jakikolwiek lajk i to on generuje
-najcenniejsze powiadomienie w całym serwisie.
+najcenniejsze powiadomienie w całym serwisie. **„Ugotowałem” ZAWSZE powiadamia
+autora przepisu.**
+
+### Co znaczy tu „zawsze” — i trzy przypadki, w których powiadomienia nie ma
+
+Obietnica działająca w większości ścieżek nie działa, więc słowo „zawsze”
+obowiązuje na KAŻDEJ drodze, którą w tym serwisie powstaje wykonanie: przez
+formularz, przez akcję domenową wołaną wprost i przez dane demonstracyjne.
+Do 12 września 2026 `DemoSeeder` zapisywał dwa wykonania i powiadamiał przy
+jednym — obietnica była tam prawdziwa w połowie przypadków, a to są dane, na
+których ogląda się serwis lokalnie. Dlatego seeder **też** idzie przez
+`RecordCookedEvent`, a nie przez gołe `CookedEvent::create()`.
+
+Granice są trzy, wszystkie odcina `NotifyUser` i wszystkie są zmierzone
+w `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`:
+
+1. **Autor ugotował własny przepis.** Wolno mu (`RecipePolicy::cook`), ale
+   wiadomość o własnej akcji nie niesie informacji.
+2. **Konto autora jest zamknięte** — `banned`, `pending_delete` albo `erased`.
+   Przy dwóch pierwszych wykonanie w ogóle nie powstaje, bo przepis takiego
+   konta jest niewidoczny. Przy `erased` wykonanie powstaje i **zostaje** (to
+   dorobek kucharza), a powiadomienia nie ma, bo nie ma komu go przeczytać.
+   **Zawieszenie tu nie wchodzi**: zawieszony autor powiadomienie dostaje —
+   zawieszenie odcina od pisania, nie od wiadomości, dla której warto wrócić.
+3. **Między autorem a kucharzem jest blokada** (w którąkolwiek stronę). Wtedy
+   nie powstaje samo wykonanie.
+
+Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**. Jedyna
+zgoda, jaką człowiek tu przestawia, dotyczy tygodniowego listu
+(`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka. Ugotowanie
+**cofnięte i zrobione ponownie** powiadamia drugi raz, a ta sama osoba
+gotująca ten sam przepis dwa razy daje dwa powiadomienia — to są ZDARZENIA,
+nie STAN (`NotifyUser::TYPY_WYCISZANE_W_OKNIE`). Jedno ograniczenie jest
+wąskie i nazwane: jedno wysłanie formularza to jedno powiadomienie
+(`klucz_wyslania`).
 
 ### Hierarchia priorytetów
 
@@ -54,7 +88,12 @@ Przeczytaj w tej kolejności:
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
 9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
 
-Jeśli pracujesz nad wyglądem: `docs/design/DESIGN_SYSTEM.md`.
+Jeśli pracujesz nad marką lub wyglądem: najpierw
+[`docs/brand/KONSTYTUCJA_MARKI.md`](docs/brand/KONSTYTUCJA_MARKI.md), potem
+`docs/brand/COPY_STYLE.md`, `docs/brand/GLOS_MARKI.md` oraz
+`docs/design/DESIGN_SYSTEM.md`. Konstytucja wyznacza kierunek marki;
+nie zastępuje nadrzędnych zasad tego pliku ani jawnych decyzji właściciela
+w `docs/DECISIONS.md`. Historyczna makieta nie unieważnia tych zasad.
 Jeśli nad moderacją lub prawem: `docs/legal/`.
 Jeśli nad wdrożeniem: `docs/infra/`.
 
@@ -66,16 +105,22 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 |---|---|---|
 | Backend | Laravel 13 | `composer.json`: `laravel/framework` |
 | PHP | 8.4 (minimum frameworka: 8.3) | `composer.json`: `php` |
-| UI | Blade + Livewire 4 + Alpine.js | `composer.json`: `livewire/livewire` |
+| UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu | `composer.json`: `livewire/livewire` |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) | `package.json`: `tailwindcss`, `@tailwindcss/vite` |
-| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) | usługa zewnętrzna |
+| Baza | PostgreSQL — wymagane **18+** lokalnie, w CI i na produkcji (D-227) | usługa zewnętrzna |
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
-| Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php` |
+| Wyszukiwarka | PostgreSQL: `pg_trgm` (`word_similarity`, próg 0,5) + `unaccent` — dopasowanie trigramowe (D-004, D-046) | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php`, `app/Domain/Search/SearchQuery.php` |
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+
+Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
+i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
+formularz kreatora przepisu (`resources/views/components/recipe-wizard.blade.php`).
+Dodanie `wire:poll` do często odwiedzanych ekranów wymaga osobnej decyzji
+i pomiaru kosztu żądań; nie wynika z wyboru Livewire dla kreatora.
 
 ### Ta tabela opisuje STAN, nie zamiar — i trzecia kolumna jest sprawdzana testem (D-104)
 
@@ -188,8 +233,35 @@ i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
 `docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
 indziej w serwisie te reguły obowiązują bez zmian.
 
+**Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
+wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,
+`<details class="post-card-menu">`). Ten jeden przycisk to same trzy kropki,
+bez widocznego napisu.
+
+- **Powód.** To jest utrwalony wzorzec z Facebooka, a nasza grupa spędziła
+  tam lata. Trzy kropki w rogu wpisu nie są dla niej ikoną do rozszyfrowania,
+  tylko znakiem, który już zna. Decyzja właściciela z 12 września 2026,
+  podjęta ze znajomością ryzyka — odwraca decyzję z 11 września, która
+  dokładała tam napis „Więcej".
+- **Granica.** Wyjątek dotyczy **wyłącznie tego jednego menu**. Nie obejmuje
+  paska akcji pod wpisem, pasków nawigacji, przycisku zamykania, akcji
+  moderacyjnych ani niczego innego — tam reguła obowiązuje bez zmian
+  i pilnują jej osobne testy.
+- **Co wyjątek zabiera, a czego nie.** Zabiera **widoczny napis**. Nie
+  zabiera niczego czytnikowi ekranu: `aria-label` („Więcej przy tym wpisie")
+  zostaje i jest wtedy jedyną nazwą dostępną tego przycisku. Nie zabiera też
+  celu dotknięcia — przycisk dalej ma 48 × 48 px.
+- **Czym to się różni od stanu sprzed 11 września.** Wtedy przyciskiem były
+  trzy kropki wpisane z klawiatury, schowane przed czytnikiem ekranu — oko
+  dostawało znak bez podpisu, czytnik podpis bez znaku. Teraz kropki rysuje
+  komponent ikony, `aria-label` niesie pełną nazwę, a `AGENTS.md`
+  i `docs/UX_50_PLUS.md` mówią o tym wprost, zamiast milczeć.
+- **Pilnuje tego test** `KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`.
+  Rozszerzenie wyjątku na kolejny przycisk wymaga decyzji właściciela
+  i wpisu w `docs/DECISIONS.md`, a nie dopisania klasy CSS.
+
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
-`Start | Szukaj | Dodaj | Zeszyt | Profil`.
+`Start | Szukaj | Dodaj | Moje | Profil`.
 
 Paginacja to **przycisk „Pokaż więcej”**, nie infinite scroll.
 
@@ -300,6 +372,19 @@ Nigdy:
 - hardcoded hasło administratora,
 - `status` ani `role` użytkownika w `$fillable` — zmiana stanu konta jest
   zawsze jawną, nazwaną metodą (`suspend()`, `ban()`, `markForDeletion()`).
+- **żadnego POŚWIADCZENIA w `$fillable`, w żadnej tabeli** — `password`,
+  `remember_token`, `two_factor_*`, każde `*_token`, `*_secret`, `*_token_hash`.
+  Kto zapisze taką kolumnę, ten wchodzi na konto bez znajomości hasła.
+  Wchodzą tam jawnymi, nazwanymi metodami (`assignEmail()`,
+  `assignPassword()`, `connectGoogle()`) albo przez `forceFill()` w jednej
+  nazwanej akcji domenowej. `ip_hash` i `checksum_sha256` to NIE są
+  poświadczenia — reguła mówi „poświadczenie", nie „ciąg szesnastkowy".
+  Pilnuje tego `tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php`,
+  który przechodzi po WSZYSTKICH modelach i wylicza kolumny wrażliwe
+  z schematu bazy i z relacji, a nie z listy przepisanej z palca. Kolumny
+  wrażliwe spoza kategorii poświadczeń (stan treści, klucze właściciela,
+  widoczność) wolno w `$fillable` zostawić, ale wyłącznie z wpisem w rejestrze
+  tego testu mówiącym, skąd ta wartość pochodzi, jeśli nie z żądania.
 
 Każdy endpoint przechodzi przez pięć pytań:
 **auth → authorization → validation → rate limit → audit.**
@@ -394,9 +479,16 @@ Testy chodzą na **PostgreSQL**, nie na SQLite — schemat używa indeksów
 częściowych, `num_nonnulls()`, `gen_random_uuid()`, `pg_trgm` i `unaccent`.
 Test na SQLite przechodziłby, nic nie sprawdzając.
 
-```bash
-createdb kuking_test     # jednorazowo
-```
+I to na **PostgreSQL 18 lub nowszym** — tak samo lokalnie, w CI i na produkcji.
+Jeden próg dla wszystkich trzech, bo próg niższy od produkcyjnego przepuszcza
+lokalnie migracje, które w CI padają. Produkcja ma 18, CI stawia
+`postgres:18-alpine`, więc `php artisan test` na starszym majorze mierzy silnik,
+którego nigdzie nie używamy. Pilnuje tego `TestyChodzaNaPostgresieTest` —
+i pilnuje też tego, żeby ten akapit i próg w strażniku mówiły tę samą liczbę.
+
+Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
+Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
+Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
 
 **Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
 bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
@@ -406,105 +498,62 @@ będą fałszywie zielone:
 APP_BASE_PATH=$(pwd) php artisan test
 ```
 
-### Gdy `composer install` pada na „Could not authenticate against github.com"
+### Gdy instalacja zależności nie działa
 
-Dotyczy kontenerów agentów, w których ruch wychodzi przez proxy.
-`api.github.com` i `codeload.github.com` oddają wtedy **403**, więc Composer
-nie pobierze ani jednej paczki jako `dist` — a bez `vendor/autoload.php` nie
-ruszy ani `php artisan test`, ani `vendor/bin/pint`. Łatwo z tego wyciągnąć
-wniosek, że lokalnie nie da się nic sprawdzić, i zacząć wypychać każdą
-poprawkę na CI. **Da się**, i to jest ważne, bo pula minut Actions jest
-skończona.
+Najpierw uruchom zwykłe `composer install` i odczytaj rzeczywisty błąd.
+Historyczne kontenery agentów miały proxy odrzucające pobrania z GitHuba;
+nie jest to stała właściwość każdego środowiska. Sprawdź bieżący dostęp,
+wersję narzędzia i konfigurację, zanim uznasz instalację za niewykonalną.
 
-`git` przez to samo proxy **przechodzi**, więc paczki instalują się ze
-źródeł:
+Jeśli potwierdzisz blokadę pobrań `dist`, a dostęp przez git działa,
+możesz spróbować `composer install --prefer-source`. Nie zmieniaj globalnej
+konfiguracji Composera w środowisku współdzielonym. Ewentualną konfigurację
+obejścia ogranicz do izolowanej kopii lub osobnego katalogu COMPOSER_HOME.
 
-```bash
-composer install --prefer-source
-```
+Nie usuwaj zależności z manifestu ani locka, żeby uzyskać pozornie pełną
+instalację. Zachowaj dokładne wersje z composer.lock. Historycznie lokalną
+instalację PHPStan umożliwiło przygotowanie archiwum wskazanego commita
+w cache Composera; to opis zakończonej sesji, nie nakaz stosowania obejścia
+przy każdym uruchomieniu.
 
-Jeszcze pewniej działa to z jawnym wyłączeniem API GitHuba, bo inaczej
-Composer i tak próbuje najpierw `dist`:
-
-```bash
-composer config -g use-github-api false
-composer install --prefer-source
-```
-
-Blokuje to dokładnie jedna paczka: `phpstan/phpstan` nie ma w `composer.lock`
-wpisu `source` (to repozytorium dystrybucyjne, tylko `dist`), a klon lustrzany
-jej repozytorium przekracza limit czasu Composera.
-
-**Obejście doraźne** — wyjmij **na czas instalacji** `phpstan/phpstan`
-i `larastan/larastan` z `composer.json` i `composer.lock`, zainstaluj resztę,
-po czym **przywróć oba pliki z gita**:
-
-```bash
-git checkout composer.json composer.lock
-```
-
-`vendor/` zostaje sprawne, a repozytorium nietknięte. Kosztem jest brak
-analizy statycznej.
-
-> ### ⚠️ SPROSTOWANIE, 9 września 2026: Larastan CHODZI lokalnie
->
-> Ten akapit twierdził, że „**Larastan nie chodzi lokalnie**, więc analiza
-> statyczna zostaje po stronie CI". **Nieprawda** — i to nieprawda kosztowna,
-> bo każdy agent czytał ją jako zwolnienie z obowiązku i odhaczał analizę
-> statyczną jako niewykonalną.
->
-> Zmierzone tego dnia w kontenerze agenta: **`PHPStan 2.2.13`, poziom 1
-> z `phpstan.neon`, `0 errors`** na dwóch gałęziach niezależnie. Da się.
->
-> Trzeba tylko podłożyć tę jedną paczkę do cache Composera samodzielnie:
-> sklonuj `phpstan/phpstan` na płytko (`git fetch --depth 1`) na commicie
-> zablokowanym w `composer.lock`, spakuj w kształt zipballa GitHuba i wrzuć
-> do cache Composera **pod dwiema nazwami** — `<reference>.zip`
-> oraz `sha1(<adres dist>).zip`. Ta druga jest tą, której Composer faktycznie
-> szuka, i pominięcie jej jest powodem, dla którego „podłożenie do cache"
-> zwykle nie działa za pierwszym razem.
->
-> To jest zabieg na kilka minut, więc **nie jest wymówką**, żeby go pominąć:
-> jeśli piszesz w opisie PR-a, że analizy nie uruchomiłeś, napisz też
-> dlaczego — brak czasu jest uczciwym powodem, „nie da się" już nie jest.
->
-> CI zostaje **rozstrzygające**. Chodzi o to, żeby nie wypychać na nie
-> błędów, które łapie się lokalnie w trzydzieści sekund.
+Przed obejściem wymagającym modyfikacji plików zrób kopię ich aktualnych
+bajtów i czasu modyfikacji poza repo. Preferuj izolowaną kopię wykonawczą.
+Przywróć dokładnie zapisany stan i sprawdź MD5 oraz mtime; odtworzenie pliku
+z commita nie chroni cudzych niezapisanych zmian. Nie ogłaszaj narzędzia
+niedostępnym ani testu zaliczonym na podstawie historycznej notatki.
+CI pozostaje rozstrzygające, a brak wykonania kontroli musi być jawny.
 
 Czego nadal nie wolno robić: odhaczać w opisie Pull Requesta punktu, którego
 nie uruchomiłeś. To dotyczy każdego narzędzia, nie tylko tego.
 
-Po instalacji ustaw jeszcze klucz aplikacji, inaczej każdy test padnie na
-„No application encryption key has been specified":
+W nowej izolowanej instancji lokalnej sprawdź, czy istnieje klucz aplikacji.
+Generuj go tylko, gdy go brakuje; bez niego wystąpi błąd
+„No application encryption key has been specified”. Nie zmieniaj klucza
+istniejącej aplikacji produkcyjnej podczas przygotowania testów:
 
 ```bash
 php artisan key:generate
 ```
 
-### Przeglądarka w kontenerze agenta
+### Przeglądarka w środowisku agenta
 
-Chromium **nie przejdzie przez proxy sesji** do adresu zewnętrznego: tunel
-CONNECT staje, ale połączenie TLS zrywa się po kilku sekundach bez jednego
-bajta odpowiedzi. Dotyczy to każdego hosta, nie tylko kuking.pl, więc nie
-jest to usterka serwisu i nie ma sensu tego naprawiać w kodzie.
+Najpierw sprawdź aktualny dostęp do testowanej strony. W jednej z dawnych
+sesji Chromium przerywał TLS za proxy; w późniejszych sesjach produkcja
+była dostępna zarówno przez Chromium, jak i zalogowany Chrome. Historyczny
+błąd nie jest dowodem dzisiejszej blokady ani usterki aplikacji.
 
-Obejście: postaw instancję lokalnie i chodź po `127.0.0.1`, bo localhost
-jest poza proxy:
+Do fixture, formularzy i stanów wymagających danych testowych używaj
+izolowanej instancji lokalnej. Przed migracją lub seedowaniem odczytaj
+faktyczny host, port i nazwę bazy oraz upewnij się, że należą do tego testu.
+Nie zakładaj dostępności domyślnego portu PostgreSQL: może obsługiwać inne
+projekty. Współdzielone środowisko wymaga jawnie wybranej bazy i portu.
+Nie wykonuj testów niszczących fixture równolegle z oglądem używającym
+tej samej bazy lub mediów. Nie obchodź błędów TLS przez wyłączanie ochrony.
 
-```bash
-php artisan migrate && php artisan db:seed   # dane demo
-php artisan serve --host=127.0.0.1 --port=8000
-```
-
-W Playwrighcie **nie podawaj wtedy `proxy`**:
-
-```js
-chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true })
-```
-
-Instancja lokalna ma tę przewagę, że wolno się na niej zalogować i wysyłać
-formularze, więc widać także tę połowę produktu, która na produkcji jest za
-logowaniem. Hasła do kont demo wypisuje `DemoSeeder`.
+Raportuj oddzielnie odczyt kodu, pomiary lokalne i ogląd produkcji.
+Brak dostępu do zalogowanej produkcji jest ograniczeniem, nie wynikiem
+pozytywnym; odpowiednie stany można sprawdzić lokalnie, bez zmiany danych
+użytkowników produkcyjnych.
 
 ### Pull Request zawiera
 
@@ -522,8 +571,8 @@ Poprawka bez testu, który by ten błąd złapał, nie jest poprawką — jest
 zaproszeniem do jego powtórzenia.
 
 **Test bez kontroli ujemnej nie jest dowodem.** Zepsuj to, czego test pilnuje,
-sprawdź, że OBLEWA, przywróć. Sześć pomyłek, które w tym repozytorium przeszły
-przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — jest zebranych
+sprawdź, że OBLEWA, przywróć. Pomyłki, które w tym repozytorium przeszły
+przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — są zebrane
 w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
 napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 
@@ -544,9 +593,10 @@ do niepowiązanego PR-a.
   `/ustawienia`), z wyjątkiem `/home`, `/login`, `/register`.
 - Nazwy zdarzeń analitycznych: `snake_case` po angielsku.
 
-**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`.**
-To jest dokument wiążący, nie inspiracja — ma gotowe teksty do wklejenia
-dla większości ekranów.
+**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`
+i `docs/brand/GLOS_MARKI.md`.** Oba są wiążące, nie są inspiracją: pierwszy mówi,
+JAK napisać zdanie, i ma gotowe teksty do wklejenia; drugi mówi, czym ten głos
+JEST i gdzie marka mówi głośno, a gdzie milczy.
 
 W skrócie:
 
@@ -554,8 +604,17 @@ W skrócie:
 - nie mówimy „content”, „explore”, „engage”, „creator”, „tapnij”;
 - **`kuKING` to nazwa mieszkańca serwisu, nie komplement.** Wolno „Zostań
   kuKINGiem”, nie wolno „Jesteś prawdziwym kuKINGiem!” ani „Top kuKINGi tygodnia”;
-- gra słowem `kuKING` **maksymalnie raz na ekran** i **nigdy** w komunikacie
-  błędu, wiadomości moderacyjnej ani tekście prawnym;
+- **nazwę piszemy dwukolorowo, komponentem `<x-kuking-word/>`, wszędzie — także
+  jako nazwę serwisu w tekście bieżącym.** Limitu „raz na ekran” nie ma
+  (decyzja właściciela z 11 września 2026, odwraca tę część D-009 i D-015).
+  Obowiązuje kryterium: charakter marki wolno tam, gdzie **nie konkuruje
+  z zadaniem**, a w jednym akapicie, nagłówku albo punkcie listy nazwa
+  pojawia się raz;
+- **nigdy** w komunikacie błędu, wiadomości moderacyjnej, tekście prawnym,
+  na ekranie bezpieczeństwa, w liście technicznym, w powiadomieniu o cudzej
+  aktywności ani w polu formularza, który ktoś właśnie wypełnia;
+- **nigdy tam, gdzie koloru nie ma** — `alt`, `title`, `aria-label`, tytuł
+  strony, `meta`, temat listu, pliki eksportu. Tam piszemy zwyczajnie „Kuking”;
 - zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej

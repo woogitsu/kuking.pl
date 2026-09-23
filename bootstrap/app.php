@@ -10,12 +10,17 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
+use App\Http\Middleware\PreventSharedSessionCache;
+use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -43,7 +48,81 @@ return Application::configure(basePath: dirname(__DIR__))
         // nie jest stały, a zakresy Cloudflare i tak nigdy nie są bezpośrednim
         // peerem TCP tego kontenera, więc żadna lista adresów nie ma prawa
         // zadziałać.
-        $middleware->prepend(NormalizeForwardedFor::class);
+        // DRUGI W STOSIE GLOBALNYM STOI `ApplySecurityHeaders` — i to NIE JEST
+        // przestawienie ustalenia wyżej. `NormalizeForwardedFor` zostaje
+        // PIERWSZY; nagłówki bezpieczeństwa wchodzą zaraz za nim, czyli i tak
+        // po normalizacji `X-Forwarded-For`, a przed `ValidatePostSize`
+        // i `PreventRequestsDuringMaintenance`.
+        //
+        // PO CO, SKORO TA SAMA KLASA STOI JUŻ W GRUPIE `web`. Bo połowa
+        // ekranów błędu NIGDY DO TEJ GRUPY NIE DOCHODZI, a to właśnie one
+        // wyświetlają najwięcej cudzej treści. Zmierzone 20 września 2026
+        // (`php artisan serve`, APP_DEBUG=false) — ani jednego nagłówka
+        // bezpieczeństwa, w tym ani jednej dyrektywy CSP:
+        //
+        //   404  wyjątek leci z ROUTERA, zanim ruszy grupa `web`;
+        //   419  `ValidateCsrfToken` stoi w grupie PRZED tą klasą;
+        //   429  `ThrottleRequests` jest na liście priorytetów frameworka
+        //        (`Kernel::$middlewarePriority`), więc sortowanie wynosi go
+        //        przed wszystko, co do tej listy nie należy — w tym przed
+        //        tę klasę;
+        //   413  `ValidatePostSize` jest globalny;
+        //   503  `PreventRequestsDuringMaintenance` jest globalny.
+        //
+        // 419 i 429 to JEDYNE DWA EKRANY W SERWISIE, KTÓRE WYPISUJĄ Z POWROTEM
+        // TEKST WPISANY PRZEZ CZŁOWIEKA (`OdzyskanyFormularz`). Strona, która
+        // wstawia cudzą treść do HTML-a, była dokładnie tą, która szła bez
+        // `script-src`, bez `frame-ancestors` i bez `X-Frame-Options`.
+        //
+        // DLACZEGO DWA RAZY, A NIE „przenieść z grupy `web` tutaj". Bo nonce
+        // musi powstać PRZED renderowaniem widoku, a wpis w grupie `web` jest
+        // tym miejscem, w którym cały serwis go dziś dostaje. Wywołanie
+        // zewnętrzne nie nadpisuje niczego: `handle()` zwraca odpowiedź bez
+        // zmian, gdy nagłówek `Content-Security-Policy` już na niej jest,
+        // a podpis bierze z `Vite::cspNonce()`, więc obie warstwy używają
+        // TEGO SAMEGO ciągu. Na zwykłej stronie ta warstwa nie robi nic.
+        // TRZECI W STOSIE GLOBALNYM STOI `PreventSharedSessionCache` (#597).
+        //
+        // NA WEJŚCIU pozycja nie ma znaczenia — ta klasa nie czyta ani nie
+        // zmienia żądania. Liczy się WYJŚCIE: w potoku Laravela middleware,
+        // który wchodzi jako n-ty, dotyka odpowiedzi jako n-ty OD KOŃCA.
+        // Stąd „trzeci od góry" znaczy „trzeci od końca na odpowiedzi", czyli
+        // PO grupie `web`, PO routerze i PO module wyjątków. Widzi więc:
+        //
+        //   – `Set-Cookie` dopisane przez `StartSession`
+        //     i `AddQueuedCookiesToResponse` (te stoją WEWNĄTRZ grupy `web`);
+        //   – 404 z ROUTERA, który do grupy `web` nigdy nie dochodzi;
+        //   – 419 z ochrony CSRF i 429 z limitera;
+        //   – 413/503 z globalnych `ValidatePostSize`
+        //     i `PreventRequestsDuringMaintenance`.
+        //
+        // Dokładnie ten sam powód, dla którego `ApplySecurityHeaders` stoi
+        // i tutaj, i w grupie `web`: połowa ekranów błędu do tamtej grupy
+        // nie dociera.
+        //
+        // DLACZEGO NIE PIERWSZY. Bo `NormalizeForwardedFor` ma zostać
+        // PIERWSZY (ustalenie W7-01 / SEC-01 wyżej) i nie ma powodu tego
+        // ruszać: nad `PreventSharedSessionCache` zostają wtedy wyłącznie
+        // dwie klasy, z których ŻADNA nie dokłada ciasteczka ani nagłówka
+        // cache. Przesunięcie na pierwsze miejsce nie zmieniłoby ani jednej
+        // odpowiedzi, a złamałoby ustalenie, które ktoś już raz mierzył.
+        //
+        // CZEGO TA KLASA NIE ROBI: nie usuwa ciasteczek. Odpowiedź z sesją
+        // dalej niesie `Set-Cookie` — zmienia się wyłącznie to, komu wolno
+        // ją przechować. Zakaz jest `private, no-store`, nie samo `private`:
+        // `private` pozwala jeszcze przeglądarce odłożyć odpowiedź na dysk,
+        // a to przy współdzielonym komputerze jest tym samym wyciekiem
+        // o warstwę niżej.
+        //
+        // KASUJE TAKŻE `CDN-Cache-Control`, `Cloudflare-CDN-Cache-Control`
+        // i `Surrogate-Control`. Te nagłówki mają u brzegu PIERWSZEŃSTWO nad
+        // `Cache-Control`, więc samo dopisanie `no-store` do `Cache-Control`
+        // byłoby zakazem, który Cloudflare zignoruje.
+        $middleware->prepend([
+            NormalizeForwardedFor::class,
+            ApplySecurityHeaders::class,
+            PreventSharedSessionCache::class,
+        ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
         // Cloudflare, a potem przez brzeg Railway. Bez tej linii Laravel nie
@@ -148,6 +227,56 @@ return Application::configure(basePath: dirname(__DIR__))
             AktualizujOstatniaWizyte::class,
         ]);
 
+        // DWIE PODMIANY W GRUPIE `web`, NIE DOPISKI (#597).
+        //
+        // Obie klasy DZIEDZICZĄ po frameworkowych. Gdyby je tylko dopisać,
+        // w stosie stałyby DWIE sesje i DWIE ochrony CSRF: rodzic dalej
+        // zakładałby trwałą sesję i wystawiał `Set-Cookie` przy odczycie
+        // zdjęcia, czyli dokładnie to, co ta zmiana usuwa. Dlatego
+        // `replaceInGroup`, a nie `appendToGroup`.
+        //
+        // `replaceInGroup`, A NIE `replace`: `replace()` działa wyłącznie na
+        // stosie GLOBALNYM (`Middleware::getGlobalMiddleware`), a obie
+        // frameworkowe klasy siedzą w GRUPIE `web`
+        // (`Middleware::getMiddlewareGroups`). `replace()` po cichu nie
+        // zrobiłby nic — nie rzuca błędu, gdy nie trafi.
+        //
+        // KOLEJNOŚĆ W STOSIE ZOSTAJE BEZ ZMIAN. `Kernel::$middlewarePriority`
+        // wymienia `Illuminate\Session\Middleware\StartSession`, a nie naszą
+        // klasę — ale `SortedMiddleware::middlewareNames()` sprawdza też
+        // `class_parents()`, więc podklasa dziedziczy pozycję rodzica.
+        // Sesja nadal wstaje przed `ShareErrorsFromSession`, ochroną CSRF
+        // i `SubstituteBindings`.
+        //
+        // LISTA WYJĄTKÓW CSRF NIŻEJ DZIAŁA DALEJ: `validateCsrfTokens()`
+        // woła `PreventRequestForgery::except()`, a to jest właściwość
+        // STATYCZNA rodzica, wspólna dla podklasy.
+        //
+        // CO SIĘ ZMIENIA POZA ZDJĘCIAMI: NIC.
+        // `StartSessionExceptAnonymousMedia` schodzi z drogi rodzica tylko
+        // przy `GET`/`HEAD` na trasie `media.show`, i to wyłącznie wtedy, gdy
+        // żądanie nie ma ŻADNEGO ciasteczka, nagłówka `Authorization` ani
+        // zalogowanego widza. Każde inne żądanie — HTML, formularz, logowanie,
+        // panel, błędne albo obce ciasteczko — idzie przez `parent::handle()`
+        // bez zmiany. `PreventRequestForgeryExceptMediaCookie` nadpisuje
+        // WYŁĄCZNIE `addCookieToResponse()`, czyli wystawianie ciasteczka
+        // `XSRF-TOKEN`; sama WALIDACJA tokenu (`handle()`, `tokensMatch()`,
+        // `hasValidOrigin()`) zostaje nietknięta w rodzicu. POST bez tokenu
+        // dalej kończy się na 419 — pilnuje tego
+        // `CloudflareCachePrivacyTest::test_post_nadal_wymaga_csrf_po_bezsesyjnym_zdjeciu`,
+        // który świadomie wyłącza testowy skrót `runningUnitTests()`.
+        $middleware->replaceInGroup(
+            'web',
+            StartSession::class,
+            StartSessionExceptAnonymousMedia::class,
+        );
+
+        $middleware->replaceInGroup(
+            'web',
+            PreventRequestForgery::class,
+            PreventRequestForgeryExceptMediaCookie::class,
+        );
+
         $middleware->alias([
             'moderator' => EnsureUserIsModerator::class,
             // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
@@ -182,7 +311,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // Droga POWROTNA (`podsumowanie/wracam/*`) tu NIE JEST wymieniona
         // i nie ma być: klika ją człowiek na naszej stronie, więc token ma,
         // a bez ochrony CSRF byłaby drogą do ZAPISANIA kogoś z powrotem.
-        $middleware->validateCsrfTokens(except: ['_csp', 'podsumowanie/wypisz/*']);
+        /*
+         * `wejdz/facebook/odebranie-dostepu` — woła to serwer Facebooka,
+         * nie przeglądarka człowieka: nie ma sesji, nie ma ciasteczka, nie ma
+         * skąd wziąć tokenu. Autentyczność potwierdza PODPIS `signed_request`
+         * sprawdzany na sekrecie aplikacji przez `hash_equals`, a nie sesja —
+         * uzasadnienie w `FacebookDeauthorizeController` (issue #259).
+         */
+        $middleware->validateCsrfTokens(except: [
+            '_csp',
+            'podsumowanie/wypisz/*',
+            'wejdz/facebook/odebranie-dostepu',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

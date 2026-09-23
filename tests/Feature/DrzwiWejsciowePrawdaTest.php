@@ -199,11 +199,11 @@ class DrzwiWejsciowePrawdaTest extends TestCase
         ])->assertOk();
 
         $ekran->assertSee('Formularz nie został wysłany', false);
-        $ekran->assertSee('czego jeszcze brakuje', false);
+        $ekran->assertSee('co trzeba poprawić', false);
 
         // Podsumowanie na górze zostaje — jedno nie zastępuje drugiego
         // (UX_50_PLUS.md: błąd przy polu ORAZ podsumowanie).
-        $ekran->assertSee('rzeczy jeszcze brakuje', false);
+        $ekran->assertSee('Sprawdź formularz', false);
     }
 
     #[Test]

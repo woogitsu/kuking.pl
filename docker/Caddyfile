@@ -79,9 +79,15 @@
 	}
 
 	# Statyka bez hasha (favicon, manifest PWA, ikony) — krócej.
-	@staticRoot path /favicon.ico /robots.txt /manifest.webmanifest /sw.js
+	@staticRoot path /favicon.ico /robots.txt /manifest.webmanifest
 	header @staticRoot {
 		Cache-Control "public, max-age=3600"
+	}
+
+	# Worker ma własny cykl aktualizacji; CDN nie może utrwalać jego starej wersji.
+	@serviceWorker path /sw.js
+	header @serviceWorker {
+		Cache-Control "no-store, no-cache, must-revalidate"
 	}
 
 	# -------------------------------------------------------------------------

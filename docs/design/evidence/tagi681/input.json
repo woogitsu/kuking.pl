@@ -1,0 +1,14 @@
+[
+  {
+    "width": 390,
+    "tabbedCards": 5,
+    "input": "emulated-touch",
+    "destination": "Sernik"
+  },
+  {
+    "width": 1440,
+    "tabbedCards": 5,
+    "input": "mouse",
+    "destination": "Sernik"
+  }
+]

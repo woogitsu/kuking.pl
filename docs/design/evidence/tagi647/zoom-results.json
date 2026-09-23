@@ -1,0 +1,191 @@
+{
+  "rows": [
+    {
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "zoom": 2,
+      "geometry": {
+        "dpr": 2,
+        "font": 18,
+        "width": 320,
+        "height": 856,
+        "scroll": 320,
+        "popup": {
+          "x": 8,
+          "y": 477.0703125,
+          "width": 304,
+          "height": 278,
+          "top": 477.0703125,
+          "right": 312,
+          "bottom": 755.0703125,
+          "left": 8
+        },
+        "options": [
+          {
+            "text": "#sernik — 2 publiczne wpisy",
+            "height": 51
+          },
+          {
+            "text": "#sernik-domowy — 2 publiczne wpisy",
+            "height": 78
+          },
+          {
+            "text": "#sernik-polski — 2 publiczne wpisy",
+            "height": 78
+          },
+          {
+            "text": "Dodaj #ser jako nowy tag",
+            "height": 51
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "zoom": 2,
+      "geometry": {
+        "dpr": 2,
+        "font": 25.2,
+        "width": 320,
+        "height": 856,
+        "scroll": 320,
+        "popup": {
+          "x": 8,
+          "y": 259.328125,
+          "width": 304,
+          "height": 320,
+          "top": 259.328125,
+          "right": 312,
+          "bottom": 579.328125,
+          "left": 8
+        },
+        "options": [
+          {
+            "text": "#sernik — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "#sernik-domowy — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "#sernik-polski — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "Dodaj #ser jako nowy tag",
+            "height": 99.609375
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "zoom": 2,
+      "geometry": {
+        "dpr": 2,
+        "font": 18,
+        "width": 320,
+        "height": 856,
+        "scroll": 320,
+        "popup": {
+          "x": 8,
+          "y": 268.0703125,
+          "width": 304,
+          "height": 278,
+          "top": 268.0703125,
+          "right": 312,
+          "bottom": 546.0703125,
+          "left": 8
+        },
+        "options": [
+          {
+            "text": "#sernik — 2 publiczne wpisy",
+            "height": 51
+          },
+          {
+            "text": "#sernik-domowy — 2 publiczne wpisy",
+            "height": 78
+          },
+          {
+            "text": "#sernik-polski — 2 publiczne wpisy",
+            "height": 78
+          },
+          {
+            "text": "Dodaj #ser jako nowy tag",
+            "height": 51
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "zoom": 2,
+      "geometry": {
+        "dpr": 2,
+        "font": 25.2,
+        "width": 320,
+        "height": 856,
+        "scroll": 320,
+        "popup": {
+          "x": 8,
+          "y": 259.328125,
+          "width": 304,
+          "height": 320,
+          "top": 259.328125,
+          "right": 312,
+          "bottom": 579.328125,
+          "left": 8
+        },
+        "options": [
+          {
+            "text": "#sernik — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "#sernik-domowy — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "#sernik-polski — 2 publiczne wpisy",
+            "height": 99.609375
+          },
+          {
+            "text": "Dodaj #ser jako nowy tag",
+            "height": 99.609375
+          }
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "checks": {},
+  "requests": [
+    {
+      "method": "GET",
+      "query": "ser"
+    },
+    {
+      "method": "GET",
+      "query": "ser"
+    },
+    {
+      "method": "GET",
+      "query": "ser"
+    },
+    {
+      "method": "GET",
+      "query": "ser"
+    }
+  ]
+}

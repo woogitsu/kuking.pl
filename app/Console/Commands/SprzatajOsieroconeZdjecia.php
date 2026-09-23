@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Media\OsieroconeZdjecia;
+use App\Support\Odmiana;
 use Illuminate\Console\Command;
 
 class SprzatajOsieroconeZdjecia extends Command
@@ -22,9 +23,19 @@ class SprzatajOsieroconeZdjecia extends Command
 
         $ile = (new OsieroconeZdjecia($godziny))->posprzataj($naSucho);
 
+        // Odmienia się i rzeczownik, i przymiotnik po nim — dlatego cała
+        // fraza, a nie samo „zdjęcie": „1 zdjęcie nieprzypięte",
+        // „2 zdjęcia nieprzypięte", „5 zdjęć nieprzypiętych".
+        $zdjecia = Odmiana::rzeczownik(
+            $ile,
+            'zdjęcie nieprzypięte',
+            'zdjęcia nieprzypięte',
+            'zdjęć nieprzypiętych',
+        );
+
         $this->info($naSucho
-            ? "Do skasowania: {$ile} zdjęć nieprzypiętych od co najmniej {$godziny} h."
-            : "Skasowano {$ile} zdjęć nieprzypiętych od co najmniej {$godziny} h.");
+            ? "Do skasowania: {$ile} {$zdjecia} od co najmniej {$godziny} h."
+            : "Skasowano {$ile} {$zdjecia} od co najmniej {$godziny} h.");
 
         return self::SUCCESS;
     }

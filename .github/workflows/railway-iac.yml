@@ -1,24 +1,43 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
+#  wtedy, gdy przebieg idzie na runnery GitHuba.
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
 #
-#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
-#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#  TEN WORKFLOW CHODZI SAM i nie ma tu czego odkomentowywać: blok `on:` niżej
+#  jest aktywny i ma `pull_request` (opened, synchronize, reopened, closed)
+#  na ścieżkach `.railway/**` i na tym pliku. `workflow_dispatch` tu NIE stoi
+#  — ręcznie tego workflow-a nie puścisz. Zmierzone 12.09.2026 parserem YAML.
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
+#  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
-#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
-#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
-#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
-#  na nie.
-#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#
+#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
+#  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
+#  Secrets and variables → Actions → Variables:
+#
+#      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#
+#  Wartość jest TABLICĄ JSON, bo `fromJSON` dostaje ją w całości; pojedyncza
+#  etykieta to `"self-hosted"` z cudzysłowami, nie `self-hosted`.
+#
+#  Komplet etykiet, a nie nazwa runnera: nazwa przypina job do JEDNEJ maszyny,
+#  więc jej awaria zatrzymuje całe CI. `i5-10400f` i `nvidia-gtx1070` ma
+#  wyłącznie nowa pula — stare rejestracje WSL-owe (w pomiarach
+#  `kuking-wsl-DOM-NEW-01`–`-03`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  `wsl2`, `woogitsu`, więc samo `self-hosted` wpuszcza joby także na nie.
+#
+#  STAN ZMIERZONY 11.09.2026 (D-121, przebieg CI nr 661): zmienna stoi na SAMYM
+#  `self-hosted`, więc przebiegi lądują na starej puli WSL. WŁAŚCICIEL ZOSTAWIA
+#  TO TAK ŚWIADOMIE — decyzja z 12.09.2026; to nie jest przeoczenie i nie szukaj
+#  tu usterki. Przyjęty koszt, dokładna wartość do przełączenia puli, skutek
+#  skasowania zmiennej i sygnał, po którym decyzję odwracamy:
+#  docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja właściciela
+#  z 12 września 2026". Porównanie opcji: docs/infra/CI_BEZ_ACTIONS.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================

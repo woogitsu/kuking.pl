@@ -1,0 +1,198 @@
+[
+  {
+    "sha": "181b93f6f1f06c437b4bd93413a5bed23c136960",
+    "version": "\n                        Alfa 0.32\n                        wydanie 15 września 2026, 02:20 · 181b93f\n                    ",
+    "width": 390,
+    "theme": "light",
+    "scroll": 390,
+    "body": "18px",
+    "background": "rgb(243, 244, 241)",
+    "postsBeforePeople": true,
+    "people": 3,
+    "cta": 1,
+    "photos": [
+      {
+        "width": 334,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 334,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 334,
+        "natural": 768,
+        "loaded": true
+      }
+    ],
+    "links": [
+      "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+      "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+      "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+    ],
+    "clicks": 3,
+    "visits": [
+      {
+        "target": "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+        "destination": "https://kuking.pl/przepisy/bigos-z-cukinii"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+        "destination": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af",
+        "destination": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+      }
+    ]
+  },
+  {
+    "sha": "181b93f6f1f06c437b4bd93413a5bed23c136960",
+    "version": "\n                        Alfa 0.32\n                        wydanie 15 września 2026, 02:20 · 181b93f\n                    ",
+    "width": 390,
+    "theme": "dark",
+    "scroll": 390,
+    "body": "18px",
+    "background": "rgb(21, 23, 20)",
+    "postsBeforePeople": true,
+    "people": 3,
+    "cta": 1,
+    "photos": [
+      {
+        "width": 334,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 334,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 334,
+        "natural": 768,
+        "loaded": true
+      }
+    ],
+    "links": [
+      "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+      "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+      "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+    ],
+    "clicks": 3,
+    "visits": [
+      {
+        "target": "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+        "destination": "https://kuking.pl/przepisy/bigos-z-cukinii"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+        "destination": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af",
+        "destination": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+      }
+    ]
+  },
+  {
+    "sha": "181b93f6f1f06c437b4bd93413a5bed23c136960",
+    "version": "\n                        Alfa 0.32\n                        wydanie 15 września 2026, 02:20 · 181b93f\n                    ",
+    "width": 1440,
+    "theme": "light",
+    "scroll": 1440,
+    "body": "18px",
+    "background": "rgb(243, 244, 241)",
+    "postsBeforePeople": true,
+    "people": 3,
+    "cta": 1,
+    "photos": [
+      {
+        "width": 314.65625,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 314.671875,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 314.65625,
+        "natural": 768,
+        "loaded": true
+      }
+    ],
+    "links": [
+      "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+      "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+      "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+    ],
+    "clicks": 3,
+    "visits": [
+      {
+        "target": "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+        "destination": "https://kuking.pl/przepisy/bigos-z-cukinii"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+        "destination": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af",
+        "destination": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+      }
+    ]
+  },
+  {
+    "sha": "181b93f6f1f06c437b4bd93413a5bed23c136960",
+    "version": "\n                        Alfa 0.32\n                        wydanie 15 września 2026, 02:20 · 181b93f\n                    ",
+    "width": 1440,
+    "theme": "dark",
+    "scroll": 1440,
+    "body": "18px",
+    "background": "rgb(21, 23, 20)",
+    "postsBeforePeople": true,
+    "people": 3,
+    "cta": 1,
+    "photos": [
+      {
+        "width": 314.65625,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 314.671875,
+        "natural": 960,
+        "loaded": true
+      },
+      {
+        "width": 314.65625,
+        "natural": 768,
+        "loaded": true
+      }
+    ],
+    "links": [
+      "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+      "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+      "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+    ],
+    "clicks": 3,
+    "visits": [
+      {
+        "target": "https://kuking.pl/wpisy/01a091cf-2179-71f6-9e54-4b3138ecae5d",
+        "destination": "https://kuking.pl/przepisy/bigos-z-cukinii"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e",
+        "destination": "https://kuking.pl/wpisy/01a0903f-d318-711d-8d05-83de956af67e"
+      },
+      {
+        "target": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af",
+        "destination": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af"
+      }
+    ]
+  }
+]

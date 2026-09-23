@@ -1,0 +1,175 @@
+{
+  "zoom": 2,
+  "error": "ZOOM_FOCUS_OCCLUDED /@ania {\"id\":\"0\",\"name\":\"Zmień zdjęcie profilowe\",\"hidden\":false,\"opacity\":1,\"fragments\":[{\"x\":33,\"y\":187.8203125,\"width\":220,\"height\":277}],\"visible\":true,\"centerVisible\":true,\"occluded\":false,\"contrast\":7.4776385808583035,\"color\":\"rgb(110, 168, 255)\",\"ring\":\"outline\",\"paint\":[110,168,255],\"ambiguousPoints\":[[143,184.3203125]],\"paintedEdges\":[{\"x\":143,\"y\":184.3203125,\"actual\":[255,255,255],\"visible\":false}]}",
+  "state": {
+    "width": 320,
+    "height": 740,
+    "dpr": 2,
+    "scrollY": 84,
+    "active": "<a class=\"profil-awatar-zmiana\" href=\"http://127.0.0.1:8033/ustawienia/zdjecie\" data-pomiar-tab=\"0\">\n                    <img class=\"avatar\" src=\"http://127.0.0.1:8033/zdjecia/01a0a39a-9870-71c8-b25e-3da0f3b12cef/thumb\" alt=\"\" width=\"170\" height=\"170\" data-rozmiar=\"170\" loading=\"lazy\">\n                    \n                    <span class=\"btn btn-secondary profil-awatar-zmiana-akcja\">\n                        Zmień zdjęcie profilowe\n                    </span>\n                </a>",
+    "rect": {
+      "x": 33,
+      "y": 187.8203125,
+      "width": 220,
+      "height": 277,
+      "top": 187.8203125,
+      "right": 253,
+      "bottom": 464.8203125,
+      "left": 33
+    },
+    "topbar": {
+      "x": 12,
+      "y": 8,
+      "width": 296,
+      "height": 214.8203125,
+      "top": 8,
+      "right": 308,
+      "bottom": 222.8203125,
+      "left": 12
+    },
+    "padding": "278.4px",
+    "point": [
+      143,
+      184.3203125
+    ],
+    "hits": [
+      {
+        "tag": "DIV",
+        "cls": "topbar-actions",
+        "rect": {
+          "x": 24,
+          "y": 88.7578125,
+          "width": 272,
+          "height": 122.0625,
+          "top": 88.7578125,
+          "right": 296,
+          "bottom": 210.8203125,
+          "left": 24
+        }
+      },
+      {
+        "tag": "DIV",
+        "cls": "topbar-inner",
+        "rect": {
+          "x": 12,
+          "y": 8,
+          "width": 296,
+          "height": 214.8203125,
+          "top": 8,
+          "right": 308,
+          "bottom": 222.8203125,
+          "left": 12
+        }
+      },
+      {
+        "tag": "HEADER",
+        "cls": "topbar marka-topbar",
+        "rect": {
+          "x": 12,
+          "y": 8,
+          "width": 296,
+          "height": 214.8203125,
+          "top": 8,
+          "right": 308,
+          "bottom": 222.8203125,
+          "left": 12
+        }
+      },
+      {
+        "tag": "HEADER",
+        "cls": "sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny",
+        "rect": {
+          "x": 12,
+          "y": 166.8203125,
+          "width": 296,
+          "height": 1053.5625,
+          "top": 166.8203125,
+          "right": 308,
+          "bottom": 1220.3828125,
+          "left": 12
+        }
+      },
+      {
+        "tag": "MAIN",
+        "cls": "app-main",
+        "rect": {
+          "x": 12,
+          "y": 166.8203125,
+          "width": 296,
+          "height": 9110.4765625,
+          "top": 166.8203125,
+          "right": 308,
+          "bottom": 9277.296875,
+          "left": 12
+        }
+      },
+      {
+        "tag": "DIV",
+        "cls": "app-body marka-rama    app-body-tresc-z-szyna ",
+        "rect": {
+          "x": 12,
+          "y": 166.8203125,
+          "width": 296,
+          "height": 9110.4765625,
+          "top": 166.8203125,
+          "right": 308,
+          "bottom": 9277.296875,
+          "left": 12
+        }
+      },
+      {
+        "tag": "DIV",
+        "cls": "app-shell",
+        "rect": {
+          "x": 0,
+          "y": 138.8203125,
+          "width": 320,
+          "height": 10228.828125,
+          "top": 138.8203125,
+          "right": 320,
+          "bottom": 10367.6484375,
+          "left": 0
+        }
+      },
+      {
+        "tag": "BODY",
+        "cls": "",
+        "rect": {
+          "x": 0,
+          "y": -76,
+          "width": 320,
+          "height": 10809.109375,
+          "top": -76,
+          "right": 320,
+          "bottom": 10733.109375,
+          "left": 0
+        }
+      },
+      {
+        "tag": "HTML",
+        "cls": "",
+        "rect": {
+          "x": 0,
+          "y": -84,
+          "width": 320,
+          "height": 10817.109375,
+          "top": -84,
+          "right": 320,
+          "bottom": 10733.109375,
+          "left": 0
+        }
+      }
+    ],
+    "calls": [
+      {
+        "args": [
+          0,
+          84.125
+        ],
+        "stack": "Error\n    at window.scrollBy (eval at evaluate (:311:30), <anonymous>:1:318)\n    at http://127.0.0.1:8033/build/assets/app-B738VlMs.js:1:6049",
+        "before": 0,
+        "active": "<a class=\"profil-awatar-zmiana\" href=\"http://127.0.0.1:8033/ustawienia/zdjecie\" data-pomiar-tab=\"0\">\n                    <img class=\"avatar\" src=\"http://127.0.0.1:8033/zdjecia/01a0a39a-9870-71c8-b25e-"
+      }
+    ]
+  }
+}

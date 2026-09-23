@@ -8,6 +8,7 @@ use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Ingredient;
@@ -17,6 +18,7 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\Unit;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -95,6 +97,8 @@ final class PublishRecipe
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
      * przeliczania po drodze. Zamiana na sekundy `recipe_steps.timer_seconds`
      * należy do `StepTimer` i dzieje się TU, raz, dla obu dróg zapisu.
+     * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
+     *                                      „nie wiemy, zapisuj normalnie" (ADR §4.3)
      */
     public function handle(
         User $author,
@@ -104,6 +108,7 @@ final class PublishRecipe
         bool $publish = false,
         ?Recipe $existing = null,
         ?string $ip = null,
+        ?string $kluczWyslania = null,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -144,18 +149,46 @@ final class PublishRecipe
         // bo snapshot powstaje tylko przy publikacji (audyt A07).
         $bedziePubliczny = $publish || ($existing !== null && $existing->isPublished());
 
+        /*
+         * SKŁADNIKI NIE SĄ WARUNKIEM PUBLIKACJI — ZGODA WŁAŚCICIELA
+         * z 11.09.2026 (issue #364).
+         *
+         * Stało tu:
+         *
+         *     if ($cleanIngredients === []) {
+         *         throw new BladDlaCzlowieka('Dodaj przynajmniej jeden składnik…');
+         *     }
+         *
+         * i to była ostatnia bramka, która kazała człowiekowi rozstrzygnąć
+         * strukturę przepisu, zanim wolno mu było cokolwiek opublikować.
+         * Zgoda padła świadomie i wprost, w treści zgłoszenia: „przepis wolno
+         * opublikować bez ani jednego składnika". Za pół roku nikt nie będzie
+         * pamiętał, że była świadoma — dlatego pilnuje jej test regresyjny
+         * `DodawaniePrzepisuSzescKontrolekTest`, a nie ten komentarz.
+         *
+         * KROK ZOSTAJE WARUNKIEM i to nie jest niekonsekwencja: przepis bez
+         * składników dalej mówi, CO ZROBIĆ („zalej wodą, gotuj trzy godziny"),
+         * a przepis bez ani jednego kroku nie mówi nic i nie da się z niego
+         * ugotować — czyli nie jest przepisem, tylko listą zakupów.
+         */
         if ($bedziePubliczny) {
-            if ($cleanIngredients === []) {
-                throw new BladDlaCzlowieka('Dodaj przynajmniej jeden składnik — bez tego przepis nie może być opublikowany.');
-            }
-
             if ($cleanSteps === []) {
                 throw new BladDlaCzlowieka('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
             }
         }
 
-        $recipe = DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $ip
+        /*
+         * KLUCZ DOTYCZY ZAKŁADANIA PRZEPISU, NIE JEGO EDYCJI.
+         *
+         * `recipes.update` pracuje na wierszu, który już istnieje, i nie
+         * przysyła klucza. Gdyby edycja kolumnę nadpisywała, pierwsze
+         * zapisanie szczegółów zdejmowałoby ochronę z tego przepisu — a przy
+         * pustej wartości robiłoby to po cichu.
+         */
+        $klucz = $existing === null ? $kluczWyslania : null;
+
+        $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -271,6 +304,7 @@ final class PublishRecipe
             ];
 
             if ($existing === null) {
+                $payload['klucz_wyslania'] = $klucz;
                 $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
                 $payload['published_at'] = $publish ? now() : null;
@@ -363,6 +397,22 @@ final class PublishRecipe
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
 
+            /*
+             * OPUBLIKOWANY PRZEPIS WCHODZI DO STRUMIENI (issue #368).
+             *
+             * Wpis WSKAZUJE przepis przez `posts.recipe_id` — nie kopiuje
+             * z niego ani tytułu, ani zdjęcia, ani widoczności. Cała reguła
+             * (co zapisujemy, dlaczego nie dwa razy, dlaczego pod blokadą)
+             * mieszka w `WpisWskazujacyPrzepis`, bo woła ją także komenda
+             * uzupełniająca stare przepisy.
+             *
+             * STOI W TEJ SAMEJ TRANSAKCJI co zapis przepisu i to jest
+             * warunek poprawności, nie estetyka: bramka „czy wpis już jest"
+             * idzie po blokadzie wiersza `recipes`, a poza transakcją nie
+             * byłoby czego blokować.
+             */
+            WpisWskazujacyPrzepis::dopisz($recipe);
+
             $recipe = $recipe->refresh();
 
             /*
@@ -394,6 +444,12 @@ final class PublishRecipe
              * (klucz obcy `editor_id`) i brał ją także przedtem — jedyna
              * różnica jest w tym, jak długo jest trzymana.
              *
+             * Z KLUCZEM WYSŁANIA (idempotencja zakładania): jeśli indeks
+             * `recipes_one_per_klucz_wyslania` odbije wiersz, cofa się cała ta
+             * transakcja — razem z wersją i wpisem audytu — a pierwsze
+             * wysłanie zapisało swoje we własnej transakcji. Duplikatu
+             * historii więc nie ma i nie trzeba go niżej omijać.
+             *
              * CZEGO TU NIE MA I NIE MA BYĆ: rzeczy NIEODWRACALNYCH. Wysyłka
              * listu, zapis pliku do R2 ani zadanie w kolejce nie mają prawa
              * stanąć w transakcji, bo cofnięcie transakcji ich nie cofnie
@@ -414,12 +470,56 @@ final class PublishRecipe
             return $recipe;
         });
 
+        try {
+            $recipe = $zapisz($klucz);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($klucz === null) {
+                // Bez klucza nie ma jak odbić się o
+                // `recipes_one_per_klucz_wyslania` — to inne ograniczenie
+                // (np. `recipes.slug`) i nie wolno go tu wyciszyć.
+                throw $e;
+            }
+
+            // Indeks `recipes_one_per_klucz_wyslania` odbił wiersz: to
+            // wysłanie już raz założyło przepis. Oddajemy TEN przepis i nie
+            // robimy drugiej wersji w `recipe_versions` ani drugiego wpisu
+            // w dzienniku audytowym — jedno i drugie stoi W transakcji
+            // (audyt A01), więc cofnęło się razem z odbitym wierszem,
+            // a pierwsze wysłanie zapisało je we własnej.
+            $istniejacy = $this->przepisZTegoWyslania($author, $klucz);
+
+            if ($istniejacy !== null) {
+                return $istniejacy;
+            }
+
+            // Klucz zajęty, a przepisu nie widać (np. został w tym czasie
+            // usunięty). Nie odmawiamy — zapisujemy bez klucza, z ryzykiem
+            // duplikatu (ADR §4.3).
+            $recipe = $zapisz(null);
+        }
+
         return $recipe;
     }
 
     private function kontakt(): string
     {
         return (string) config('kuking.community.contact_email');
+    }
+
+    /**
+     * Przepis założony z TEGO wysłania formularza — jeśli został założony.
+     *
+     * Zawężone do autora, a nie zadane samemu kluczowi: `klucz_wyslania`
+     * przychodzi z żądania, a UUID w żądaniu nie jest autoryzacją
+     * (`AGENTS.md` §7). Bez `author_id` w zapytaniu klucz podstawiony
+     * z cudzej przeglądarki odsyłałby człowieka pod cudzy przepis.
+     */
+    private function przepisZTegoWyslania(User $author, string $kluczWyslania): ?Recipe
+    {
+        return Recipe::query()
+            ->where('author_id', $author->getKey())
+            ->where('klucz_wyslania', $kluczWyslania)
+            ->first();
     }
 
     /**
@@ -670,16 +770,93 @@ final class PublishRecipe
      */
     private function syncSteps(Recipe $recipe, User $author, array $steps, Collection $istniejace, array $doPrzypiecia): void
     {
-        $recipe->steps()->delete();
+        /*
+         * TOZSAMOSC KROKU PRZEZYWA ZAPIS (issue #756).
+         *
+         * Stalo tu `$recipe->steps()->delete()` przed petla, a petla zawsze
+         * wolala `RecipeStep::create()` -- czyli KAZDY zapis przepisu, nawet
+         * poprawka literowki w jednym kroku, kasowala wszystkie wiersze
+         * `recipe_steps` i zakladala je od nowa z nowymi UUID-ami
+         * (`HasUuids` losuje identyfikator przy `create()`).
+         *
+         * Tryb gotowania trzyma "zrobione kroki" w sesji jako liste TYCH
+         * identyfikatorow (`CookingModeController::sessionKey()`). Nowy UUID
+         * po zapisie znaczyl, ze sesja wskazywala na wiersz, ktorego juz nie
+         * ma -- postep znikal po cichu, bez bledu i bez ostrzezenia, mimo ze
+         * krok o tej samej tresci nadal tam stal. To jest dokladnie ten
+         * rodzaj utraty danych, ktorego AGENTS.md zakazuje wprost:
+         * "poprawne dane nigdy nie znikaja".
+         *
+         * Naprawa: krok o `id`, ktore PRZEPIS MA DZIS (czyli jest w mapie
+         * `$istniejace`, zbudowanej w `handle()` przed jakakolwiek zmiana),
+         * dostaje `update()` na TYM SAMYM wierszu -- identyfikator zostaje.
+         * Wiersz bez znanego `id` (nowy krok dopisany w tym zapisie) dostaje
+         * `create()`. Kroki, ktorych w tym zapisie juz nie ma (usuniete przez
+         * autora), sa kasowane NAJPIERW, przed przestawieniem pozycji --
+         * uzasadnienie kolejnosci nizej.
+         */
+        // Identyfikatory krokow, ktore ten zapis ZATRZYMUJE -- wyliczone
+        // z samego wejscia, bez dotykania bazy, wiec da sie ich uzyc, zeby
+        // NAJPIERW skasowac kroki usuniete przez autora. Kolejnosc ma
+        // znaczenie: unique(recipe_id, position) jest sprawdzany natychmiast
+        // (Postgres nie odklada go do konca transakcji), a skasowanie
+        // usunietych wierszy PRZED przestawieniem pozycji zwalnia miejsca,
+        // o ktore mogloby sie potkniec przypisanie nizej.
+        $trzymaneId = [];
+
+        foreach ($steps as $row) {
+            $id = $this->nullIfBlank($row['id'] ?? null);
+
+            if ($id !== null && $istniejace->has($id)) {
+                $trzymaneId[] = $id;
+            }
+        }
+
+        $recipe->steps()->whereNotIn('id', $trzymaneId)->delete();
+
+        /*
+         * PRZESTAWIENIE POZYCJI NA TYMCZASOWE, WYSOKIE WARTOSCI.
+         *
+         * Krok, ktory byl na pozycji 1, a po edycji ma byc na pozycji 0,
+         * probowalby wejsc na pozycje zajeta jeszcze przez INNY zatrzymany
+         * krok, ktory nie zdazyl jeszcze zejsc ze swojej starej pozycji --
+         * `UPDATE ... SET position = 0` na wiersz A, gdy wiersz B wciaz stoi
+         * na pozycji 0, konczy sie "duplicate key value violates unique
+         * constraint recipe_steps_recipe_id_position_unique" (zlapane
+         * testem regresyjnym). Ujemna wartosc odpada -- baza ma CHECK
+         * `position >= 0` (zlapane tym samym testem, drugim bledem).
+         * Zamiast tego przesuwamy tymczasowo o liczbe wieksza niz liczba
+         * krokow w tym zapisie, czyli poza kazdy docelowy zakres 0..N-1 --
+         * te wartosci sa zawsze wolne, bo zaden prawdziwy krok nigdy nie
+         * dochodzi do tylu pozycji.
+         */
+        $przesuniecie = count($steps) + count($trzymaneId) + 1;
+        $zachowaneKroki = $istniejace->only($trzymaneId)->values();
+
+        foreach ($zachowaneKroki as $i => $krok) {
+            $krok->forceFill(['position' => $przesuniecie + $i])->save();
+        }
+
+        $zachowane = [];
 
         foreach ($steps as $position => $row) {
-            RecipeStep::create([
+            $id = $this->nullIfBlank($row['id'] ?? null);
+            $istniejacyKrok = $id === null ? null : $istniejace->get($id);
+
+            $payload = [
                 'recipe_id' => $recipe->getKey(),
                 'position' => $position,
                 'instruction' => $row['instruction'],
                 'timer_seconds' => $row['timer_seconds'],
                 'media_id' => $this->stepMediaId($author, $istniejace, $row, $doPrzypiecia),
-            ]);
+            ];
+
+            if ($istniejacyKrok !== null) {
+                $istniejacyKrok->update($payload);
+                $zachowane[] = $istniejacyKrok->getKey();
+            } else {
+                $zachowane[] = RecipeStep::create($payload)->getKey();
+            }
         }
     }
 

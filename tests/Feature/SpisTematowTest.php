@@ -12,10 +12,11 @@ use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
- * Spis wszystkich tematów (#273, druga połowa — `tags.index`, D-087
+ * Spis wszystkich tagów (#273, druga połowa — `tags.index`, D-087
  * w `docs/DECISIONS.md` ma pełne uzasadnienie kolejności i liczników).
  *
  * DLACZEGO NIE PO PROSTU `assertSee` NA CAŁYM HTML-U
@@ -28,6 +29,7 @@ use Tests\TestCase;
 class SpisTematowTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private function tag(string $slug, string $nazwa): Tag
     {
@@ -73,8 +75,20 @@ class SpisTematowTest extends TestCase
         $this->assertNotNull($sekcja, "Nie znalazłem sekcji „{$ariaLabel}” (nav[aria-label]) w dokumencie.");
 
         $linki = [];
-        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ')]", $sekcja) as $a) {
-            $linki[] = trim(preg_replace('/\s+/u', ' ', $a->textContent));
+        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ') or contains(concat(' ', normalize-space(@class), ' '), ' tag-directory-card ')]", $sekcja) as $a) {
+            $copy = $xpath->query(".//span[@class='tag-directory-copy']", $a)->item(0);
+            if ($copy) {
+                // Karta ma też podpis zdjęcia i akcję. Liczymy nadal nazwę
+                // oraz rzeczywisty licznik, bez osłabiania asercji treści.
+                $name = $xpath->query('./strong', $copy)->item(0);
+                $count = $xpath->query('./span[1]', $copy)->item(0);
+                $this->assertNotNull($name);
+                $this->assertNotNull($count);
+                $text = $name->textContent.' '.$count->textContent;
+            } else {
+                $text = $a->textContent;
+            }
+            $linki[] = trim(preg_replace('/\s+/u', ' ', $text));
         }
 
         return $linki;
@@ -87,8 +101,11 @@ class SpisTematowTest extends TestCase
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Wszystkie tematy', $html);
-        $this->assertContains('Zupy (1 wpis)', $this->chipyWSekcji($html, 'Wszystkie tematy, alfabetycznie'));
+        // NA TREŚCI EKRANU (pułapka 1b): „Wszystkie tagi" jest też `<title>`
+        // tej strony, więc asercja na całej odpowiedzi przechodziła po
+        // skasowaniu nagłówka i spisu z `<main>`. Zmierzone 12.09.2026.
+        $this->assertStringContainsString('Wszystkie tagi', $this->trescEkranu($html));
+        $this->assertContains('Zupy (1 wpis)', $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie'));
     }
 
     public function test_zalogowana_osoba_widzi_strone_spisu_tematow(): void
@@ -101,7 +118,7 @@ class SpisTematowTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertContains('Zupy (1 wpis)', $this->chipyWSekcji($html, 'Wszystkie tematy, alfabetycznie'));
+        $this->assertContains('Zupy (1 wpis)', $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie'));
     }
 
     public function test_kolejnosc_wszystkich_tematow_jest_alfabetyczna_nie_po_liczbie_wpisow(): void
@@ -117,7 +134,7 @@ class SpisTematowTest extends TestCase
         $this->tag('aromatyczne-ziola', 'Aromatyczne zioła');
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
-        $chipy = $this->chipyWSekcji($html, 'Wszystkie tematy, alfabetycznie');
+        $chipy = $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie');
 
         $pozycjaZiol = array_search('Aromatyczne zioła (0 wpisów)', $chipy, true);
         $pozycjaZup = array_search('Zupy (10 wpisów)', $chipy, true);
@@ -133,25 +150,32 @@ class SpisTematowTest extends TestCase
 
     public function test_tematy_promowane_sa_w_osobnej_sekcji_w_kolejnosci_gospodarza(): void
     {
-        // "Zupy" ma WIĘCEJ wpisów niż "Barszcz", ale gospodarz ustawił
-        // "Zupy" na wcześniejszej pozycji — sekcja "Polecane" ma respektować
-        // TĘ kolejność, nie alfabet (Barszcz < Zupy) ani liczbę wpisów.
+        // Kolejność gospodarza: Zupy (5), Barszcz (1), Salatki (8).
+        // Różni się od alfabetu oraz obu kierunków sortowania po liczbie wpisów.
         $zupy = $this->promowany('zupy', 'Zupy', 0);
         $barszcz = $this->promowany('barszcz', 'Barszcz', 1);
+        $salatki = $this->promowany('salatki', 'Salatki', 2);
         $autor = $this->user('autor_promowane');
         for ($i = 0; $i < 5; $i++) {
             $this->wpis($zupy, $autor, ['published_at' => now()->subMinutes($i)]);
         }
         $this->wpis($barszcz, $autor);
+        for ($i = 0; $i < 8; $i++) {
+            $this->wpis($salatki, $autor);
+        }
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
-        $polecane = $this->chipyWSekcji($html, 'Polecane tematy');
-
-        $this->assertSame(
-            ['Zupy (5 wpisów)', 'Barszcz (1 wpis)'],
-            $polecane,
-            'Sekcja „Polecane tematy” ma iść w kolejności gospodarza (position), nie alfabetu ani liczby wpisów.',
-        );
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $karty = $xpath->query('//nav[@aria-label="Polecane tagi"]/a');
+        $this->assertSame(3, $karty->length);
+        foreach ([[$zupy, 'Zupy', '(5 wpisów)'], [$barszcz, 'Barszcz', '(1 wpis)'], [$salatki, 'Salatki', '(8 wpisów)']] as $i => [$tag, $nazwa, $licznik]) {
+            $karta = $karty->item($i);
+            $this->assertSame(route('tags.show', $tag), $karta->getAttribute('href'), 'Kolejność kart musi odpowiadać pozycji gospodarza.');
+            $this->assertSame($nazwa, trim($xpath->query('.//strong', $karta)->item(0)->textContent));
+            $this->assertStringContainsString($licznik, trim(preg_replace('/\s+/u', ' ', $karta->textContent)));
+        }
     }
 
     public function test_pusty_temat_pokazuje_prawdziwa_zerowa_liczbe_i_ten_sam_pusty_stan_co_strona_tagu(): void
@@ -161,7 +185,7 @@ class SpisTematowTest extends TestCase
         $spis = (string) $this->get(route('tags.index'))->assertOk()->getContent();
         $this->assertContains(
             'Pusty temat (0 wpisów)',
-            $this->chipyWSekcji($spis, 'Wszystkie tematy, alfabetycznie'),
+            $this->chipyWSekcji($spis, 'Wszystkie tagi, alfabetycznie'),
             'Temat bez wpisów musi się pokazać na spisie, z PRAWDZIWYM zerem — issue #273 pozwala na puste tematy, zakazuje udawania.',
         );
 
@@ -183,7 +207,7 @@ class SpisTematowTest extends TestCase
         $scalony->save();
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
-        $chipy = $this->chipyWSekcji($html, 'Wszystkie tematy, alfabetycznie');
+        $chipy = $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie');
 
         $this->assertNotContains('Ukryty temat (0 wpisów)', $chipy);
         $this->assertNotContains('Scalony temat (0 wpisów)', $chipy);
@@ -214,7 +238,7 @@ class SpisTematowTest extends TestCase
 
         $this->assertContains(
             'Temat widoczności (1 wpis)',
-            $this->chipyWSekcji($html, 'Wszystkie tematy, alfabetycznie'),
+            $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie'),
             'Cztery wpisy mają ten tag, ale tylko JEDEN jest publiczny, opublikowany i od aktywnego autora — licznik nie może pokazać więcej niż prawda dla gościa.',
         );
     }
@@ -252,7 +276,7 @@ class SpisTematowTest extends TestCase
         Post::query()->forceDelete();
         Tag::query()->delete();
 
-        // DUŻO: dwadzieścia tematów, też po trzy wpisy. Gdyby licznik
+        // DUŻO: dwadzieścia tagów, też po trzy wpisy. Gdyby licznik
         // wpisów szedł osobnym zapytaniem na temat, byłoby tu ok. +20.
         for ($t = 0; $t < 20; $t++) {
             $tag = $this->tag('duzo-'.$t, 'Duzo'.$t);
@@ -264,7 +288,7 @@ class SpisTematowTest extends TestCase
         $this->assertSame(
             20,
             Tag::query()->count(),
-            'asercja kontrolna: w bazie musi naprawdę być 20 tematów, inaczej test nie mierzy niczego',
+            'asercja kontrolna: w bazie musi naprawdę być 20 tagów, inaczej test nie mierzy niczego',
         );
 
         $duzoHtml = null;
@@ -278,7 +302,7 @@ class SpisTematowTest extends TestCase
         // nie liczył (docs/PULAPKI_TESTOW.md #4).
         $this->assertContains(
             'Duzo5 (3 wpisy)',
-            $this->chipyWSekcji((string) $duzoHtml, 'Wszystkie tematy, alfabetycznie'),
+            $this->chipyWSekcji((string) $duzoHtml, 'Wszystkie tagi, alfabetycznie'),
         );
 
         fwrite(STDERR, sprintf(
@@ -290,7 +314,7 @@ class SpisTematowTest extends TestCase
         $this->assertSame(
             $maloZapytan,
             $duzoZapytan,
-            "Liczba zapytań rośnie z liczbą tematów (N+1): {$maloZapytan} przy 2 tematach, {$duzoZapytan} przy 20.",
+            "Liczba zapytań rośnie z liczbą tagów (N+1): {$maloZapytan} przy 2 tematach, {$duzoZapytan} przy 20.",
         );
     }
 
@@ -303,13 +327,13 @@ class SpisTematowTest extends TestCase
         }
 
         $pierwsza = (string) $this->get(route('tags.index'))->assertOk()->getContent();
-        $pierwszaLista = $this->chipyWSekcji($pierwsza, 'Wszystkie tematy, alfabetycznie');
+        $pierwszaLista = $this->chipyWSekcji($pierwsza, 'Wszystkie tagi, alfabetycznie');
 
         $this->assertSame(['TematA (0 wpisów)', 'TematB (0 wpisów)'], $pierwszaLista);
-        $this->assertStringContainsString('Pokaż więcej tematów', $pierwsza);
+        $this->assertStringContainsString('Pokaż więcej tagów', $pierwsza);
 
         $druga = (string) $this->get(route('tags.index', ['page' => 2]))->assertOk()->getContent();
-        $drugaLista = $this->chipyWSekcji($druga, 'Wszystkie tematy, alfabetycznie');
+        $drugaLista = $this->chipyWSekcji($druga, 'Wszystkie tagi, alfabetycznie');
 
         $this->assertSame(['TematC (0 wpisów)', 'TematD (0 wpisów)'], $drugaLista);
     }

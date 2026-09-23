@@ -173,9 +173,14 @@ return new class extends Migration
         $wazne = DB::table('registration_invites')->where('expires_at', '>', now())->count();
 
         if ($wazne > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // WAŻNYCH zaproszeń" to nie polszczyzna, a jedno ważne
+            // zaproszenie jest stanem prawdopodobniejszym niż pięć.
+            // Mianownik przed dwukropkiem nie odmienia się wcale, więc
+            // zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "Wycofanie odmówione: w `registration_invites` jest {$wazne} WAŻNYCH zaproszeń do "
-                .'założenia konta. Każde z nich to człowiek, który ma w skrzynce wiadomość i jeszcze '
+                'Wycofanie odmówione. Liczba WAŻNYCH zaproszeń do założenia konta '
+                .'w `registration_invites`: '.$wazne.'. Każde z nich to człowiek, który ma w skrzynce wiadomość i jeszcze '
                 ."jej nie kliknął — skasowanie tabeli zabiera mu drogę do konta bez słowa.\n"
                 ."Masz dwa wyjścia:\n"
                 .'  1. poczekać, aż zaproszenia wygasną (najwyżej `login_link.zaproszenia.waznosc_godzin`, '

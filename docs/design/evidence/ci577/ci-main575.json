@@ -1,0 +1,84 @@
+{
+  "run": 34986762320,
+  "sha": "0e1bdbe80ffe25d72accf2f773a3a533675ef458",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 104440742219,
+      "name": "Zakres zmiany",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:11:36Z",
+      "completed_at": "2026-09-15T15:11:44Z"
+    },
+    {
+      "id": 104440808216,
+      "name": "Build assetów (Vite)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:12:30Z",
+      "completed_at": "2026-09-15T15:12:49Z"
+    },
+    {
+      "id": 104440808245,
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:11:49Z",
+      "completed_at": "2026-09-15T15:12:29Z"
+    },
+    {
+      "id": 104440808273,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:21:54Z",
+      "completed_at": "2026-09-15T15:22:21Z"
+    },
+    {
+      "id": 104440808326,
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:16:01Z",
+      "completed_at": "2026-09-15T15:22:25Z"
+    },
+    {
+      "id": 104440808337,
+      "name": "Audyt zależności",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:11:46Z",
+      "completed_at": "2026-09-15T15:12:03Z"
+    },
+    {
+      "id": 104440808391,
+      "name": "Pint (styl kodu)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:21:28Z",
+      "completed_at": "2026-09-15T15:21:44Z"
+    },
+    {
+      "id": 104440808414,
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:22:23Z",
+      "completed_at": "2026-09-15T15:26:21Z"
+    },
+    {
+      "id": 104440808425,
+      "name": "Port marki — rodziny ekranów, zoom i kreator",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:12:05Z",
+      "completed_at": "2026-09-15T15:32:57Z"
+    },
+    {
+      "id": 104440808452,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:12:50Z",
+      "completed_at": "2026-09-15T15:21:26Z"
+    },
+    {
+      "id": 104440808698,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T15:11:46Z",
+      "completed_at": "2026-09-15T15:15:59Z"
+    }
+  ]
+}

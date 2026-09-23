@@ -139,8 +139,13 @@ return new class extends Migration
         $odZglaszajacych = DB::table('appeals')->where('appellant', 'reporter')->count();
 
         if ($odZglaszajacych > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // odwołań" to nie polszczyzna, a jedno odwołanie zgłaszającego
+            // jest stanem prawdopodobniejszym niż pięć. Mianownik przed
+            // dwukropkiem nie odmienia się wcale, więc zdanie jest poprawne
+            // dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "W bazie jest {$odZglaszajacych} odwołań złożonych przez zgłaszających (appellant='reporter'). ".
+                "Liczba odwołań złożonych przez zgłaszających (appellant='reporter') w bazie: ".$odZglaszajacych.'. '.
                 'Stary schemat wymaga appeals.user_id NOT NULL, a te wiersze mają user_id NULL — cofnięcie '.
                 'migracji je złamie. Te wiersze są dowodem, że zgłaszający dostał odpowiedź na skargę wymaganą '.
                 'przez art. 20 ust. 1 DSA. Usuń je ręcznie, ze świadomością tej ceny, albo zostań na tej wersji '.

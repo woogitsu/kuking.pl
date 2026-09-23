@@ -7,6 +7,22 @@ ten plik, żeby nie proponować rzeczy już rozstrzygniętych.
 Format: co, kiedy, kto zdecydował, dlaczego, i **co musiałoby się stać**,
 żeby decyzję zmienić.
 
+> ### Numeracja przeskakuje D-108 … D-112 — i to jest celowe
+>
+> System projektowy w `docs/design/system-v3.1/` ma **własny, niezależny
+> dziennik** z numerami `D-101 … D-112`. Pięć z nich (D-103 … D-107) zajmuje
+> już oba dzienniki naraz i cytat „D-105" znaczy co innego w jednym, a co
+> innego w drugim. Numery są darmowe, a odplątywanie takiej dwuznaczności
+> po fakcie nie jest — więc dziennik główny przechodzi z **D-107 od razu na
+> D-113**, czyli pierwszy numer wolny w obu miejscach.
+>
+> **Numery 108 – 112 w TYM pliku zostają na zawsze puste.** Nie są luką do
+> uzupełnienia; są odstępem od cudzej numeracji. Osobno i wcześniej puste
+> są **D-084, D-086 i D-094**.
+>
+> Decyzje systemu projektowego cytujemy z nazwą jego dziennika
+> („system-v3.1 D-111"), nigdy samym numerem.
+
 ---
 
 ## D-001 · Modularny monolit Laravel, bez mikroserwisów
@@ -84,6 +100,15 @@ unikalności zepsułoby sedno produktu.
 
 **Data:** wrzesień 2026 · Status: **obowiązuje**
 
+> **Uzupełnienie z 20 września 2026 (audyt rejestru).** Reguła jest dziś
+> TRZYelementowa, nie dwuelementowa. Commit `ed6cbf00` (19 września) wyjął
+> `posts.kind` z `$fillable` i nazwał je polem STERUJĄCYM „tej samej rodziny
+> co `users.status` i `users.role`": `kind` rozstrzyga, czy wpis jest daniem,
+> czy pytaniem, a przez to do których strumieni trafia (`scopeEnabledKinds`),
+> pod jakim adresem stoi (`url()`) i co przepuści `PostPolicy`. Jedyną drogą
+> jest nazwana metoda `Post::oznaczJakoPytanie()`. Tytuł i treść tego wpisu
+> mówią o dwóch kolumnach i nie zostały przepisane — reguła obejmuje trzy.
+
 Zmiana stanu konta jest zawsze jawną, nazwaną operacją: `suspend()`, `ban()`,
 `markForDeletion()`, `promoteTo()`. To zamyka drogę do przejęcia uprawnień
 przez dołożenie pola do formularza.
@@ -146,7 +171,7 @@ Rozstrzyga to też pozorną sprzeczność z zakazem z `brand/MASCOT_CONCEPT.md`
 
 ## D-009 · Dawka gry słowem: umiarkowana
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-145** (limit „raz na ekran") **i D-147** (odrzucenie czasownika). Lista miejsc zakazanych zostaje w mocy.
 
 Wybrana spośród trzech przedstawionych wariantów (minimalna / umiarkowana / mocna).
 
@@ -170,6 +195,17 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 
 **Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-028
 w części dotyczącej runnerów** (organizacja i prywatność repozytorium zostają)
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sekcja „Stan wykonania"
+> opisuje świat, którego już nie ma. Pozycja „pierwszy zielony przebieg —
+> `main` to dziś pusty commit inicjalizacyjny, więc GitHub nie widzi żadnego
+> workflow" jest nieaktualna: `main` stoi na `61686213` z historią do PR #731,
+> a cztery workflow-y leżą w `.github/workflows/` na tej gałęzi. Nieaktualne
+> jest też uzasadnienie przy „zmienna `CI_RUNNER` usunięta": po drugiej
+> poprawce z D-028 `runs-on` czyta `CI_RUNS_ON`
+> (`.github/workflows/ci.yml:167`), czyli inną zmienną niż ta, o której mówi
+> tamto zdanie. Reszta wpisu — organizacja `woogitsu`, prywatność
+> repozytorium, wyzwalacze — ma pokrycie.
 
 > **Zmiana wcześniejszej decyzji.** Pierwotnie: własny self-hosted runner.
 > Powód zmiany: plan Free daje **2 000 minut miesięcznie także dla repozytoriów
@@ -221,6 +257,18 @@ kontroli nad środowiskiem, której runnery GitHuba nie dają.
 
 **Data:** 5 września 2026 · **Decyzja właściciela** ·
 Status: **NIEAKTUALNE — serwis JEST na produkcji (zmierzone 7 września 2026)**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ramka ostrzegawcza mówi,
+> że `docs/infra/DEPLOYMENT_RUNBOOK.md` §2.3 i §7 „dalej KAŻĄ" utworzyć
+> `cdn.kuking.pl` z regułą „Cache Everything". To zostało naprawione:
+> `docs/infra/DEPLOYMENT_RUNBOOK.md:227-247` niesie wycofanie rozdziału i
+> zdanie „**Zamiast tego kroku: nic.**", stara instrukcja zjechała do bloku
+> opisanego jako „do czytania, NIE do wykonywania", a
+> `tests/Feature/RunbookNieKazeTworzycDomenyZdjecTest.php` pilnuje tego
+> maszynowo. Zostawione bez adnotacji ostrzeżenie szkodzi dokładnie tak, jak
+> ten wpis to opisuje: następna osoba „naprawi" rzecz już naprawioną. Sam
+> status NIEAKTUALNE potwierdzony 20 września 2026 — `GET
+> https://kuking.pl/health` odpowiada 200.
 
 > **UWAGA, TA DECYZJA JUŻ NIE OPISUJE RZECZYWISTOŚCI.** `https://kuking.pl`
 > odpowiada HTTP/2 200 z `server: cloudflare` i pełnym zestawem nagłówków
@@ -314,6 +362,18 @@ Koszt zmiany: jedna linijka w `components/kuking-board.blade.php`.
 
 **Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
+> API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
+> `composer.json`. Nieprawdziwy jest POMIAR, na którym ten wpis stoi. Zdanie
+> „logika biznesowa nie siedzi w kontrolerach, tylko w 14 Akcjach w 11
+> modułach domenowych… kontrolery mają 109–146 linii (najgrubszy 329)" nie
+> opisuje dzisiejszego kodu: Akcji jest 43, a
+> `app/Http/Controllers/HealthController.php` ma 858 linii,
+> `RecipeController.php` 827, `PostController.php` 749 — czyli 2,5× więcej niż
+> deklarowany „najgrubszy 329". Zobowiązanie „trzymamy dyscyplinę Akcji:
+> logika nigdy nie wycieka do kontrolerów ani do Blade" przestało być podparte
+> liczbami, które ten wpis przytacza jako swój dowód.
+
 Pytanie z rozmowy: skoro kiedyś powstanie wersja mobilna, czy nie pisać już
 teraz API, żeby potem było gotowe?
 
@@ -375,7 +435,7 @@ powstanie nad istniejącymi Akcjami.
 
 ## D-015 · Logotyp brzmi „KuKing.pl", teksty dalej piszą „Kuking"
 
-**Data:** 6 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+**Data:** 6 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-145** — tekst ciągły pisze dziś `kuKING` dwukolorowo, a akcent koloru w samym logotypie leży wyłącznie na „King" (PR #394). Rozróżnienie logotypu od zapisu w zdaniu zostaje w mocy.
 
 Wybrana spośród trzech wariantów zapisu w logotypie: `KUKING` (stan poprzedni),
 `KuKing.pl` (UI kit v2) i `Kuking.pl`.
@@ -408,6 +468,20 @@ D-009
 ## D-016 · Odwołanie składa się w produkcie, formularzem zamkniętym hasłem
 
 **Data:** 6 września 2026 · Status: **obowiązuje** · issues #10, #65
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ograniczenie cytowane w
+> sekcji „Ile razy: raz od jednej decyzji" — `UNIQUE
+> (appeals.moderation_action_id)` — zostało zdjęte tego samego dnia:
+> `database/migrations/2026_09_07_800000_appeals_open_to_reporters.php:127-128`
+> robi `DROP CONSTRAINT appeals_moderation_action_id_unique` i zakłada `UNIQUE
+> (moderation_action_id, appellant)`. Od jednej decyzji moderacyjnej mogą więc
+> powstać DWA odwołania — autora i zgłaszającego. Druga nieścisłość jest w
+> tytule: zgłaszający składa odwołanie podpisanym linkiem
+> (`routes/web.php:567-569`, middleware `signed`), a hasło jest bramką
+> wyłącznie na ścieżce autora
+> (`app/Http/Controllers/AppealController.php:116-130`). Reszta wpisu —
+> karencja 24 h, `previous_status`, powrót do szkicu — ma pokrycie. Słowo
+> `appellant` nie pada w tym dzienniku ani razu poza tą adnotacją.
 
 Ścieżka odwołania (DSA art. 17 i 20) mogła pójść jedną z trzech dróg. Wybór
 zapadł tak, a nie inaczej, i obie odrzucone drogi miały realne zalety.
@@ -1104,6 +1178,17 @@ musi paść przed otwarciem rejestracji.
 
 **Data:** 7 września 2026 · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „dane w DWÓCH
+> plikach JSON, czytanych przez `TagSeeder`… razem 1419 tagów i 2448 aliasów"
+> opisuje nieaktualne źródło danych. `database/seeders/TagSeeder.php:104-106`
+> deklaruje TRZY pliki — doszedł `slownik-tagow-v1.1.json` (27 nazw
+> kanonicznych), którego nie opisuje żadna decyzja w tym rejestrze. Liczby
+> 1419/2448 są przez to zaniżone, a `docs/DATABASE.md:3203` powtarza je za tym
+> wpisem, więc ta sama nieprawda stoi w dwóch dokumentach naraz. Mechanizmy
+> opisane niżej — scalanie starych nazw zamiast dublowania, zakaz tagów
+> dietetycznych — działają i mają test
+> (`tests/Feature/SlownikTagowTest.php:47-51`).
+
 Początkowa baza tagów (SPEC §1.4) była wpisana na sztywno w `TagSeeder`:
 651 nazw i 53 aliasy, ułożone przeze mnie przy okazji implementacji D-021.
 Zamówiony osobno słownik ma 1250 nazw kanonicznych i 2366 aliasów, w 13
@@ -1463,6 +1548,17 @@ albo powodu, dla którego format ma wyglądać inaczej.
 
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „pola na tytuł nie
+> ma, `posts.title` nie istnieje w żadnej migracji" przestało obowiązywać 18
+> września 2026 — patrz **D-163**. Migracja
+> `database/migrations/2026_09_18_100000_add_kind_and_title_to_posts.php:18`
+> dodaje `title varchar(180) NULL`. Sedno tej decyzji przetrwało i jest dziś
+> wymuszone bazą: `posts_kind_title_check` wymaga `(kind = 'dish' AND title IS
+> NULL)`, więc wpis-danie tytułu nadal nie ma i mieć nie może. Zmieniła się
+> klasa obiektu: `kind = 'question'` tytułu WYMAGA (10–180 znaków). D-163 nie
+> odesłała tutaj, więc do dziś ten wpis odpowiadał nieprawdziwie na pytanie
+> „czy wpis ma tytuł" dla połowy wierszy w `posts`.
+
 System projektowy v3.1 wprowadza `.karta-tytul` i opisuje go wprost jako nowy
 element: „dziś karta ma tylko treść, przez co nazwa autora jest największym
 napisem w karcie". D-110 daje mu 24 px i wagę 800 — czyli szczyt hierarchii.
@@ -1577,8 +1673,36 @@ w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
 
 ## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
 
+> **Doprecyzowanie właściciela, 20 września 2026, #878:** „Bez ilości” nie
+> oznacza „do smaku”. Pokazujemy wyłącznie tekst autora i jego uwagę, bez
+> automatycznego dopisku. Zmiana dotyczy prezentacji z #44; flaga i CHECK
+> zostają. W zadaniu #741 właściciel polecił poprawić opisy, bez budowania
+> skalowania porcji: jest ono nadal niewdrożonym planem V2 (`FEATURES.md`).
+
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana** · **poprawia D-017**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Status „przyjęta,
+> **niezbudowana**" jest dziś prawdziwy tylko dla połowy tego wpisu. Zdanie
+> „grupy składników… **w bazie nie ma na to kolumny**" jest nieprawdziwe:
+> kolumna `recipe_ingredients.group_name varchar(120) NULL` stoi w schemacie,
+> zapis i ujednolicanie pisowni idą przez
+> `app/Domain/Recipes/Actions/PublishRecipe.php:399,452`, scalanie przez
+> `app/Domain/Recipes/GrupySkladnikow.php`, nagłówki grup renderuje
+> `resources/views/pages/recipes/show.blade.php:468`, a pole w formularzu
+> działa bez JavaScriptu
+> (`resources/views/pages/recipes/szczegoly.blade.php:339-346`). Druga połowa
+> — przeliczanie porcji — faktycznie nie istnieje: `servings` jest zwykłym
+> polem liczbowym i nic nie skaluje ilości.
+>
+> **Proponowany kształt, NIE wykonany przez audyt — do rozstrzygnięcia przez
+> właściciela.** Jeden status nie może opisywać rzeczy zbudowanej i
+> niezbudowanej naraz, więc wpis prosi się o rozdzielenie: część „grupy
+> składników" zostaje pod D-033 ze statusem **obowiązuje, wdrożone**, a część
+> „przeliczanie porcji" dostaje pierwszy wolny numer na końcu dziennika ze
+> statusem **przyjęta, niezbudowana** i zdaniem „wydzielone z D-033".
+> Rozdzielenie zmienia strukturę rejestru i numerację — to nie jest adnotacja
+> i audyt tego nie robi.
 
 Pierwotne pytanie („czy składnik ma osobne pole na ilość") było nieaktualne
 w chwili zadawania: `recipe_ingredients` ma `quantity` (decimal 12,4),
@@ -1611,7 +1735,9 @@ skalowania nie ma — a nie zaprzeczać schematowi.
 **Zmiana wymaga:** nowej decyzji właściciela; ta jest świeża i nie ma jeszcze
 kodu, który mogłaby unieważnić.
 
-📄 `database/migrations/…_recipe_ingredients_*` · issue #44 · D-017 ·
+📄 `database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php` ·
+`database/migrations/2026_09_08_100000_add_group_name_check_to_recipe_ingredients.php` ·
+issue #44 · D-017 ·
 `docs/ROADMAP.md`
 
 ---
@@ -1654,6 +1780,17 @@ D-108 (system v3.1)
 
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ten wpis nosi status
+> „przyjęta, **niezbudowana**" i opisuje stan zastany zdaniem: „dziś `<input
+> type="file">` jest w pełni widoczny wewnątrz dużego obszaru »Dodaj zdjęcie«,
+> a komentarz mówi wprost, że zostaje widoczny celowo". Dziś jest dokładnie
+> odwrotnie: `resources/views/pages/posts/create.blade.php:73-90` ma pole z
+> klasą `visually-hidden pole-zdjecia-input`, a komentarz nad nim brzmi
+> „Natywne pole pliku jest tu SCHOWANE DLA OKA (decyzja właściciela D-035)".
+> Warunki wykonania postawione w tym wpisie są spełnione: nie `display:none`,
+> prawdziwa `<label for>`, `aria-labelledby` i obwódka `:focus-visible`.
+> **Decyzja jest wdrożona — nieaktualny jest jej status i akapit „Dziś…".**
 
 Dziś `<input type="file">` jest w pełni widoczny wewnątrz dużego obszaru
 „Dodaj zdjęcie", a komentarz w `pages/posts/create.blade.php` mówi wprost, że
@@ -2836,6 +2973,19 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 ## D-051 · Stopka: metryczka wersji 8 px i przełącznik motywu bez widocznego napisu — świadomy wyjątek od AGENTS.md §5
 
 **Data:** 9 września 2026 · Issue #205 · Decyzja właściciela · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Wyjątek obowiązuje i ma
+> pokrycie (`resources/css/app.css:4404-4406`,
+> `resources/views/components/layout.blade.php:1244`, `AGENTS.md:233`), ale
+> nie jest tym, czym brzmi. Strażnik minimum 18 px
+> (`tests/Feature/MinimalnyRozmiarTekstuTest.php:29-36`) chodzi po ZAMKNIĘTEJ
+> BIAŁEJ LIŚCIE sześciu selektorów i nie skanuje CSS w poszukiwaniu małych
+> rozmiarów. Reguła i wyjątek „nie kolidują" wyłącznie dlatego, że reguła do
+> `.site-version` w ogóle nie dochodzi — a samej wartości 8 px nie asertuje
+> żaden test, więc podniesienie jej do `--text-meta` (wariant tu odrzucony)
+> nie obleje niczego. To ten sam kształt co w D-091 i D-163: gwarancja na
+> papierze, mierzona przez coś, co jej nie obejmuje. Naprawa nie należy do
+> tego audytu — zgłoszona osobno.
 
 Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
 wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
@@ -4753,6 +4903,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
 
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
+
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
 - **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
@@ -5009,6 +5186,20 @@ issue #21
 
 **Data:** 10 września 2026 · Audyt drugiej warstwy QUEUE-01 / MAIL-02 /
 RACE-04 (P1) · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Rdzeń obowiązuje i ma
+> pokrycie: rezerwacja `(osoba, tydzień)` PRZED `Mail::queue()`, klucz główny
+> `(user_id, week_start)` i `CHECK` na poniedziałek
+> (`database/migrations/2026_09_10_400000_create_weekly_digest_sends_table.php:146,152`).
+> Nieaktualna jest §8 „Czego ta decyzja NIE dotyka". Zdanie
+> „**`DziennyBudzetListow` zostaje bez zmian** … pętla woła budżet tak jak
+> dotąd, **po udanej rezerwacji tygodnia**" opisuje odwrotną kolejność niż
+> kod: `app/Console/Commands/WyslijPodsumowaniaTygodnia.php:226` rezerwuje
+> budżet dobowy, `:282` dopiero tydzień, a `:287` zwalnia miejsce przy
+> niepowodzeniu — pod nagłówkiem „KOLEJNOŚĆ TYCH DWÓCH REZERWACJI JEST
+> MERYTORYCZNA" (`:233-254`), który tę zmianę uzasadnia. Sam
+> `DziennyBudzetListow` też „bez zmian" nie został — D-076 dołożyła mu
+> `sprobujZarezerwowac()` i `zwolnij()`.
 
 ### 1. Co dokładnie było zepsute — kolejność, nie brak sprawdzenia
 
@@ -6515,6 +6706,13 @@ tak jak ekran przepisu robi to od dawna (`$isSaved`). Stanem jest zdanie
 co ktoś właśnie do niego włożył (podwójne kliknięcie w tej grupie to norma,
 issue #43). Wyjąć z zeszytu można nadal w samym zeszycie.
 
+> **Poprawione 20 września 2026 — patrz D-224.** Ostatnie zdanie było
+> nieprawdziwe: ekran zeszytu renderuje TĘ SAMĄ kartę, więc przycisku
+> wyjęcia nie było tam, gdzie to zdanie obiecywało (audyt L1). Przycisk
+> „Usuń z zeszytu" stoi teraz na karcie, OBOK odnośnika „Masz to
+> w zeszycie" — a nie zamiast niego, więc opisana wyżej obawa o podwójne
+> kliknięcie zostaje zaadresowana układem.
+
 Wszystko działa **bez JavaScriptu**: formularz `POST`, przekierowanie, `GET`.
 
 ### Gdzie liczba stoi, a gdzie CELOWO nie
@@ -7012,6 +7210,71 @@ użytkownika o jego danych albo o zgodzie". Jeśli produkt kiedyś uzna
 preferencję wyglądu albo prezentacji treści za wartą tej samej ochrony,
 to osobna decyzja, nie rozszerzenie tej.
 
+### Uzupełnienie z 11 września 2026: ten przegląd był NIEKOMPLETNY
+
+**Data uzupełnienia:** 11 września 2026 · PR #327 · zamyka #287
+
+Zdanie „żadne z tych trzech nie dotyczy zgody ani zakresu usunięcia danych"
+jest prawdziwe o tych trzech i **niekompletne jako przegląd**. Przegląd
+`database/migrations/` przy #287 przeoczył czwarty przypadek tej samej
+choroby — `2026_09_06_140000_add_memories_to_users_and_posts` — i nie
+wymienił go wcale, ani jako naprawionego, ani jako świadomie pominiętego.
+Migracja łamie regułę tego wpisu **w jej własnych słowach**, bo reguła
+nazywa **widoczność** wprost.
+
+Zmierzone na prawdziwej bazie cyklem `migrate:rollback` → `migrate`, czyli
+tym, co robi `migrate:refresh` w CI i awaryjny rollback wdrożenia:
+
+```text
+PRZED:    memories_enabled=false  hide_as_memory=true
+PO CYKLU: memories_enabled=true   hide_as_memory=false
+```
+
+Po ludzku: **wyłącznik, którym osoba w żałobie wyłączyła wspomnienia, włącza
+się sam, a schowany wpis z przepisem po mamie wraca na stronę główną.** Obie
+kolumny są `NOT NULL DEFAULT`, więc kolejny `migrate` odtwarza je jako
+**odwrotność** obu decyzji.
+
+Dlaczego to NIE jest ten sam przypadek co `theme` i `posts.display_mode`,
+pominięte wyżej świadomie i słusznie: to nie jest preferencja wygody.
+Własna migracja nazywa pokazanie takiego wpisu bez ostrzeżenia „okrutnym",
+`WspomnieniaTest` mówi o „zrobieniu komuś przykrości drugi raz, po tym jak
+poprosił, żeby przestać", a kolumna siedzi w ustawieniach **prywatności**
+(`PrivacySettingsController`), nie wyglądu.
+
+**Naprawione:** `down()` liczy osobno konta z wyłączonymi wspomnieniami
+i schowane wpisy **przed pierwszym `dropColumn`** i odmawia z instrukcją.
+Dwie gałęzie warunku mają **osobne** sabotaże w kontroli ujemnej, bo dwa
+liczniki nie są ozdobą: konto z włączonymi wspomnieniami i jednym schowanym
+wpisem nie ma nic w pierwszym liczniku, a ma co stracić. Sabotaż
+„strażnik za `dropColumn`" oblewa wszystkie cztery testy. Stan zakładany
+przez **prawdziwe trasy** (`settings.privacy`, `wspomnienia.ukryj`), nie
+ręcznym `UPDATE`.
+
+**Czego nie zrobiono i to jest decyzja, nie przeoczenie:** testu skanującego
+wszystkie migracje pod tym wzorcem. Heurystyka „`down()` kasuje kolumnę,
+którą `up()` nadaje z `DEFAULT`" trafia w każdą zwykłą kolumnę i wymagałaby
+ręcznie utrzymywanej listy wyjątków — czyli tego samego co reguła
+w `AGENTS.md` §6, tylko z pozorem automatu.
+
+**Wniosek szerszy od jednej migracji, i to jest właściwa treść tego
+uzupełnienia:** reguła żyła **tylko** w `docs/DECISIONS.md`, a jedno z jej
+złamań chodziło dalej po `main`. Dlatego reguła stoi od 11 września
+w `AGENTS.md` §6 — tam, gdzie miała trafić od początku — razem z tabelką
+trzech przypadków tej choroby. **Zapisanie reguły w dzienniku nie jest jej
+wdrożeniem.**
+
+Osobno, z tego samego PR-a: w komentarzu tamtego `down()` stało „Przy
+cofaniu na produkcji najpierw kopia obu kolumn". Zdanie prawdziwe
+i konkretne, a jako zabezpieczenie bezwartościowe — przenosiło całą ochronę
+na czyjąś pamięć w jedynym momencie, w którym nikt nie czyta komentarzy
+w migracjach. **Opis rollbacku nie jest strażnikiem rollbacku**;
+zabezpieczeniem jest `throw`.
+
+**Pliki:** `database/migrations/2026_09_06_140000_add_memories_to_users_and_posts.php` ·
+`tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php` · `AGENTS.md` §6 ·
+`docs/DATABASE.md`
+
 ### Naprawa
 
 `down()` liczy `delete_scope = 'everything'` w całej tabeli PRZED jakąkolwiek
@@ -7252,6 +7515,21 @@ przerwa albo zakładka pasm.
 
 **Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
 **Stoi na:** D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sekcja „Co zostaje
+> otwarte" jest nieaktualna od **D-103**, która sama nazywa się wykonaniem
+> tego wpisu. Zdanie „awatar, zdjęcie główne przepisu, skan zeszytu i zdjęcie
+> kroku **przypinają się nadal bez blokady**" nie opisuje dzisiejszego kodu:
+> `app/Domain/Media/Actions/PrzypnijAwatar.php:113` woła
+> `ZdjeciaDoPrzypiecia::zablokuj(...)`, a
+> `app/Domain/Recipes/Actions/PublishRecipe.php:227` robi jedno wspólne
+> `zablokuj()` na `hero_media_id`, `source_scan_media_id` i
+> `recipe_steps.media_id`. Rdzeń — jedna blokada wiersza `media`,
+> `status='deleted'` jako uchwyt do ponowienia, pliki dopiero po commicie —
+> obowiązuje i jest wdrożony
+> (`app/Domain/Media/ZdjeciaDoPrzypiecia.php:66-78`). D-103 nie postawiła tu
+> adnotacji, więc czytany samodzielnie wpis wprowadzał w błąd co do stanu
+> czterech ścieżek przypinania.
 
 ### Stan sprzed zmiany — sprawdzony w plikach, nie przepisany z audytu
 
@@ -7500,6 +7778,29 @@ zachowuje alfabetyczny, nieranking'owy porządek, tylko w kawałkach po
 prawa kolumna jest marnowana, można tam dać info o użytkowniku (ile wpisów,
 przepisów, obs, obserwuj itp itd, a nie na środku przez co wpisy są dużo
 niżej".
+
+> **Adnotacja z 20 września 2026 (audyt rejestru) — ROZBIEŻNOŚĆ OPISANA,
+> NIEROZSTRZYGNIĘTA.** Tytuł obiecuje „dwa egzemplarze w HTML, jeden na
+> ekranie". W kodzie egzemplarz jest JEDEN:
+> `resources/views/pages/profile/show.blade.php:257` renderuje
+> `<x-liczby-profilu … wariant="karta" />`, a `wariant="szyna"` ani klasy
+> `profil-liczby-szyna` nie emituje żaden plik w `resources/views/`.
+> `resources/views/components/szyna-profilu.blade.php` deklaruje wprawdzie
+> `$stats`, ale nigdzie ich nie używa i kontroler ich tam nie podaje.
+>
+> Strażnik podany w tym wpisie egzekwuje dziś **zakaz** obiecanego wariantu:
+> `tests/Feature/ProfilLiczbyWPrawejSzynieTest.php:28` nazywa się
+> `test_liczby_wystepuja_raz_w_dokumencie` i asertuje
+> `assertStringNotContainsString('profil-liczby-szyna', $html)` oraz
+> `assertSame(1, substr_count($html, 'class="profil-liczniki '))`. W
+> `resources/css/ekran-profilu.css:294-316` zostały reguły
+> `.profil-liczby-szyna` / `.profil-liczby-karta`, których nic nie trafia.
+>
+> **Czego audyt NIE ustalił:** czy decyzję wdrożono i później odwrócono, czy
+> nigdy jej nie wykonano, a strażnik napisano pod stan zastany. To dwie różne
+> historie i dwie różne naprawy — przywrócić wariant szyny albo wycofać wpis
+> razem z martwym CSS-em. Żaden późniejszy wpis tego nie odwraca, a dziennik
+> cytuje D-091 dalej jako obowiązujące. **Werdykt należy do właściciela.**
 
 **Stan przed zmianą.** Karta profilu (`pages/profile/show.blade.php`) miała pod
 opisem osoby pięć osobnych wierszy po 48 px: wpisy, przepisy, „razy
@@ -8289,6 +8590,20 @@ migracja `2026_09_10_500000_create_mail_failures_table` ·
 ## D-063 · PostHog: nie teraz — statystyki zostają własne, w naszej bazie
 
 **Data:** 10 września 2026 · Issue #33 (audyt monitoringu) · Status: **obowiązuje do spełnienia warunków powrotu niżej**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Dwa zdania z zakończenia
+> tego wpisu przestały obowiązywać przy **D-092** i nie zostały wtedy
+> odnotowane. „PostHog **zostaje w tabeli stacku jako wybór docelowy**
+> (`AGENTS.md` §3)" — nie zostaje: `AGENTS.md:116` ma dziś wiersz „Analityka |
+> własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez
+> ciasteczek — D-092)". „`.railway/railway.ts` i `.env.example` mają już
+> przygotowane `POSTHOG_KEY`/`POSTHOG_HOST` (EU) — ten kawałek nie wymaga
+> zmian" — `.env.example` nie zawiera ani jednego `POSTHOG`; zostało wyłącznie
+> `.railway/railway.ts:439`. Zmieniła się też przesłanka tytułu („statystyki
+> zostają własne, w naszej bazie"): zewnętrzne narzędzie analityki odwiedzin
+> JEST wpięte (`app/Support/AnalitykaCloudflare.php`,
+> `resources/legal/polityka-prywatnosci.md:54`). Instrukcja wdrożeniowa niżej
+> odsyła do zmiennych, których nie ma.
 
 `AGENTS.md` §3 nazywa PostHog (EU) docelową analityką w tabeli stacku, a
 issue #33 prosił o „projekt na EU Cloud" i taksonomię zdarzeń. Audyt
@@ -9158,6 +9473,14 @@ issue #33, D-041, D-062, `docs/PULAPKI_TESTOW.md` §2
 **Stoi na:** D-083 (jedna blokada wiersza `media`, pliki po commicie),
 D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ten wpis domyka D-083,
+> ale nie postawił tam adnotacji — została dopisana 20 września 2026 przy
+> D-083. Sam D-103 ma pokrycie: cztery drogi są zamknięte
+> (`app/Domain/Recipes/Actions/PublishRecipe.php:227` przed
+> `Recipe::create()`, `app/Domain/Media/Actions/PrzypnijAwatar.php:149`,
+> odpinanie awatara atomowym `UPDATE … WHERE` w
+> `app/Http/Controllers/Settings/AvatarSettingsController.php:158`).
+
 To jest **wykonanie D-083**, nie nowa decyzja o mechanizmie — sekcja „Co
 zostaje otwarte" tamtego wpisu wskazuje dokładnie te cztery drogi. Numer jest
 tu potrzebny z jednego powodu: **jedna z nich nie dała się zamknąć wzorcem**
@@ -9497,6 +9820,24 @@ issue #314, #66, D-079, D-080, D-090, D-093
 **Data:** 11 września 2026 · Spłata długu siedmiu stron publicznych z **D-099**
 · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Rdzeń obowiązuje
+> (`MAIL_MAILER=smtp` dla procesu serwera,
+> `przeszkodaWFormularzachOdzyskania()` kończąca kodem 1 —
+> `scripts/dostepnosc.mjs:811,824,1449`). Nieaktualna jest sekcja „Czego ta
+> decyzja NIE robi". Zdanie „**nie spłaca dwóch ekranów wejścia kontem
+> Google** — `wejdz/google/domknij` i `wejdz/google/polacz` zostają długiem, a
+> powód i sprawdzone drogi na skróty są wypisane przy nich w
+> `PomiarDostepnosciObejmujeStronyPubliczneTest`" jest dziś nieprawdziwe w obu
+> członach. Dług spłacił moduł OAuth (#345): oba adresy są mierzone
+> (`scripts/fixtures/oauth-dostepnosc.mjs:8-13`), a job CI zbiera z tego
+> artefakt (`.github/workflows/ci.yml:1535`). Odesłanie „po powód" prowadzi
+> dziś donikąd: na liście `WYJATKI` w
+> `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php:75-79` tych
+> dwóch adresów już nie ma, a argumentacja została usunięta razem z długiem.
+> Na granicy: wyliczenie „automat wykonuje **wyłącznie** żądania GET oraz trzy
+> formularze logowania i włączenie 2FA" przestało być pełne — moduł OAuth
+> przechodzi też przez formularze `…/polacz` i `…/domknij`.
+
 ### Co się okazało przy dopisywaniu siedmiu ekranów
 
 D-099 zostawiło **siedem stron publicznych** na liście świadomych wyjątków
@@ -9767,3 +10108,5677 @@ przeglądarki 200% — i podania liczby, a nie zrzutu z domyślnej czcionki.
 
 📄 `resources/css/app.css` · `scripts/dostepnosc.mjs` ·
 `tests/Feature/BelkaPrzyDuzymTekscieTest.php` · D-082 · D-099 · D-051
+
+---
+
+## D-113 · Adres e-mail z Facebooka nigdy nie wchodzi na istniejące konto — a właściciel tego konta dostaje POWIADOMIENIE, nie klucz
+
+**Data:** 11 września 2026 · Rozstrzygnął właściciel · Ciąg dalszy **D-069**
+i **D-098** (issue #259) · Status: **obowiązuje**
+
+### Pytanie, które trzeba było rozstrzygnąć
+
+Reguła 1 z **D-069** brzmi: `email_verified` od Google jest WARUNKIEM wejścia,
+bez niego nie robimy nic. D-069 nazywa ten warunek najkrótszą znaną drogą
+przejęcia konta przy „zaloguj się przez…".
+
+**Facebook takiego pola nie ma.** Pełny opis pola `email` w Graph API to
+*„The User's primary email address listed on their profile. This field will not
+be returned if no valid email address is available."* — ani słowa
+o potwierdzeniu. Reguły 1 nie da się dla Facebooka spełnić, więc trzeba ją było
+czymś zastąpić, a to nie jest decyzja do podjęcia przy klawiaturze.
+
+### Co zostało rozstrzygnięte
+
+Słowami właściciela: *„trzeba i tak mu założyć to konto i ewentualnie wysłać
+maila żeby potwierdził email i tyle"*.
+
+1. **Nowa osoba** — konto powstaje, adres jest oznaczony jako
+   **niepotwierdzony**, wychodzi nasz własny list z potwierdzeniem. Dokładnie
+   tak jak przy rejestracji hasłem.
+2. **Adres pasuje do istniejącego konta Kuking** — wejście **odmawia**
+   i niczego nie łączy. Facebook nie dowiódł, że ta skrzynka należy do osoby
+   siedzącej przed ekranem; wystarczyłoby wpisać cudzy adres w swoim koncie
+   na Facebooku.
+3. Dochodzi **list do właściciela konta**, bo odmowę widział wyłącznie ten, kto
+   ją wywołał — właściciel nie dowiadywał się o próbie w ogóle.
+
+### Dlaczego ten list nie ma odnośnika „to ja, połącz konta"
+
+To jest najważniejsze zdanie tego wpisu. Taki odnośnik byłby wygodny i byłby
+dziurą, przez którą przechodzi dokładnie ten atak, przed którym stoi odmowa:
+obcy zakłada konto na Facebooku, wpisuje w nim cudzy adres, klika „Wejdź
+kontem Facebooka" — i wtedy **my** wysyłamy właścicielowi wiarygodny list,
+którym ten jednym kliknięciem oddaje obcemu wejście na swoje konto. Napastnik
+nie musiałby nawet mieć dostępu do skrzynki; wystarczyłoby, żeby właściciel
+kliknął.
+
+**Żaden list nie niesie u nas uprawnienia do zmiany stanu konta.** Ta sama
+granica co w `ZgloszonaZmianaAdresu` (issue #195), z tego samego powodu.
+List mówi więc: zaloguj się jak zwykle i połącz konta w `Ustawienia →
+Bezpieczeństwo`.
+
+### Cena, którą płacimy — wypisana, żeby nie wyglądała na przeoczenie
+
+Człowiek, który ma już konto w Kuking, **nie wejdzie na nie kontem Facebooka**,
+dopóki sam nie połączy kont z ustawień. Dostanie odmowę. Zdanie na ekranie musi
+więc mówić, CO ZROBIĆ — odmowa bez drogi wyjścia kończy się odejściem człowieka.
+
+Runbook (§7.1) stawiał to jako wybór „albo–albo": albo adres nigdy nie łączy,
+albo powiązanie powstaje wyłącznie z ustawień. **Kod robi jedno i drugie** —
+wejście zakłada nowe konto, a ścieżka z ustawień istnieje dla tych, którzy
+konto już mają. Dylemat był pozorny.
+
+### Ograniczenie jednego listu na godzinę na konto
+
+Bez niego ta funkcja jest zdalnym zalewaniem cudzej skrzynki: wystarczy
+w kółko wracać na adres powrotu. Ogranicznik trasy liczy żądania **napastnika**
+i jego nie boli — zalewana jest skrzynka **ofiary**, więc licznik stoi przy
+koncie odbiorcy. Pominięcie listu jest niewidoczne z zewnątrz; gdyby było
+widoczne, dałoby się nim sprawdzać, czy konto istnieje (**D-056**).
+
+### Co musiałoby się stać, żeby to zmienić
+
+Facebook musiałby zacząć oddawać potwierdzenie adresu — wtedy droga wraca do
+reguły 3 z D-069 i wygląda jak przy Google. Albo: pomiar pokazałby, że odmowa
+odbija ludzi masowo, a nie pojedynczo — wtedy szukamy trzeciej drogi, ale
+**nie** przez list z odnośnikiem łączącym.
+
+---
+
+## D-114 · Obietnica z miarą wymaga pomiaru — inaczej jej nie piszemy
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/`
+· Status: **obowiązuje**
+
+### Zasada
+
+„Zajmuje minutę", „to najczęściej czytana część", „teraz idzie najszybciej" to
+zdania o czasie, liczbie albo cudzym zachowaniu. **Wchodzą do interfejsu tylko
+wtedy, gdy w repozytorium stoi mechanizm albo pomiar, który je pokrywa.**
+
+### Dlaczego to nie jest czepianie się
+
+Człowiek, któremu obiecano minutę, a dodawanie zdjęcia zajęło pięć — bo zasięg
+był słaby — nie myśli „ładny copywriting". Myśli, że serwis nie mówi prawdy.
+Przy grupie 50+, która i tak podchodzi do nowego serwisu ostrożnie, **jedna
+niesprawdzalna obietnica kosztuje więcej niż dziesięć nudnych zdań.**
+
+Żadnej z sześciu obietnic „minuty" nikt nie zmierzył. Nie zostały uznane za
+fałszywe — zostały uznane za **niepokryte**, a to wystarczy, żeby ich nie pisać.
+
+### Czego ta zasada NIE obejmuje
+
+Liczb, które serwis naprawdę liczy: czasu gotowania z przepisu, okna na
+poprawienie komentarza, terminu odwołania. Te mają pokrycie w kodzie i wolno
+je pisać wprost.
+
+### Gdzie to stoi
+
+Pozycja listy kontrolnej w `docs/brand/COPY_STYLE.md` §7, pilnowana przez
+`tests/Feature/TekstyMowiaPrawdeTest.php` (dziesięć miejsc, A1–A10). Każdy test
+zawężony do elementu, bo słowo „minut" pada w serwisie także legalnie.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Ktoś zmierzyłby któryś z tych czasów na prawdziwych kontach i prawdziwych
+łączach. Wtedy obietnica wraca — z liczbą, która ma pokrycie.
+
+---
+
+## D-115 · Skala tekstu schodzi do 70% — bo ustawienie czytelności działające w jedną stronę jest ustawieniem połowicznym
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Zastępuje
+**system-v3.1 D-111** w zakresie dolnej granicy · Status: **obowiązuje**
+
+### Co się zmienia
+
+CHECK na `users.text_scale` przechodzi z `BETWEEN 90 AND 140` na
+`BETWEEN 70 AND 140`. Dochodzą trzy rozmiary: 90% „Trochę mniejszy" (16,2 px),
+80% „Mały" (14,4 px), 70% „Bardzo mały" (12,6 px).
+
+**Domyślna skala zostaje 100%, czyli `--text-body` = 18 px.** Nic jej nie rusza.
+
+### Dlaczego to nie łamie zasady „tekst ≥ 18 px"
+
+Zasada z `AGENTS.md` opisuje, **co człowiek widzi, zanim czegokolwiek dotknie**
+— czyli domyślny wygląd serwisu. Niżej schodzi wyłącznie ten, kto sam tak
+ustawi, i tylko na swoim koncie.
+
+Kuking jest robiony dla grupy 50+, ale „dla 50+" nie znaczy „nieczytelny dla
+reszty". Zgłosił to właściciel — trzydziestokilkulatek czytający własny
+produkt, dla którego 18 px jest za duże.
+
+### Stosunek do system-v3.1 D-111
+
+Tamten wpis mówi: *„`90%` istnieje dla osób, którym 18 px jest za duże na małym
+telefonie. Schodzi do 16.2 px, czyli nigdy poniżej progu, który dla tekstu
+podstawowego jest powszechnie przyjęty."* **To zostaje prawdą o 90% i przestaje
+być dolną granicą.** Decyzja właściciela jest późniejsza i wygrywa.
+
+Czego ta zmiana NIE rusza: górnej granicy ani tezy z system-v3.1 D-111, że
+układ trzymamy do 150%. Zmniejszanie tekstu nie zagraża układowi — zagraża mu
+powiększanie, a tam nic się nie zmieniło.
+
+### Cztery miejsca, które muszą się zgadzać
+
+`kuking.text.scales`, `resources/css/tokens.css`, `resources/css/app.css`
+(podgląd w ustawieniach) i CHECK w migracji. **Rozjazd między nimi już raz się
+zdarzył i milczał:** 8 września konfiguracja oferowała 140, arkusz znał 150,
+a CHECK nie pozwalał 150 powstać — skutkiem czego „Bardzo duży" zapisywał się
+na koncie i NIE ROBIŁ NIC. Pilnuje tego `SkalaTekstuDzialaTest`, od 11 września
+razem z podpisami (`kuking.text.scale_labels`).
+
+### Rollback odmawia (D-088)
+
+Zwężenie CHECK-a wymagałoby podniesienia skali kontom, które świadomie wybrały
+mniejszą. Po `down()` prawie zawsze idzie kolejny `migrate`, CHECK wraca i nie
+ma błędu do zauważenia — człowiek zobaczyłby większe litery i nie dowiedziałby
+się dlaczego.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Pomiar pokazałby, że ludzie ustawiają 70% przez pomyłkę i potem nie umieją
+wrócić. Wtedy znika najmniejszy stopień, a nie całe ustawienie.
+
+---
+
+## D-116 · Poczta na planie Hobby idzie wyłącznie przez API HTTPS — runbookowi nie wolno pokazywać SMTP jako drogi domyślnej
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Incydent z 9 września
+
+**Railway blokuje ruch SMTP na planach Free, Trial i Hobby.** Awaria jest CICHA:
+zadanie wisi w `RUNNING` bez końca, w logach zero błędu, rejestracja się udaje,
+a list nie dochodzi nigdzie.
+
+`DEPLOYMENT_RUNBOOK.md` uczył w **trzech** miejscach konfiguracji SMTP — na planie
+Hobby, który sam zaleca w KROK 0.2 i KROK 16. Zmiennych wariantu, który działa
+(`MAIL_MAILER=emaillabs` + `EMAILLABS_APP_KEY` / `EMAILLABS_SECRET_KEY` /
+`EMAILLABS_SMTP_ACCOUNT`), nie wymieniał wcale. Do tego `POCZTA_URUCHOMIENIE.md`
+§6 „Rekomendacja" przeczyło §2A tego samego pliku — a §6 jest ostatnim rozdziałem,
+więc czyta się go jak podsumowanie.
+
+**Skutek odwrócenia tej decyzji:** serwis, w którym rejestracja się udaje, a listy
+nie dochodzą. To nie jest hipoteza — to jest opis 9 września.
+
+Zmienne SMTP zostają uśpione w `railway.ts` jako droga na plan Pro. **Każde
+miejsce, które je wymienia, musi mówić, że na Hobby nie działają.**
+
+---
+
+## D-117 · Układ bucketów R2 rozstrzyga `config/filesystems.php`, nie dokument
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Trzy dokumenty opisywały trzy różne układy: runbook jeden bucket `kuking-media`,
+`railway.ts` trzy, `BRAMKA_R2.md` dwa pod innymi nazwami. Nie dało się wykonać
+żadnego z nich do końca bez zgadywania.
+
+**Rozstrzyga kod.** Czyta cztery osobne buckety: `AWS_BUCKET` (oryginały z EXIF),
+`AWS_PUBLIC_BUCKET` (warianty), `AWS_EXPORTS_BUCKET` (eksporty RODO) i
+`AWS_KOPIE_BUCKET` (kopie bazy, z **osobnym poświadczeniem tylko do odczytu**),
+plus `AWS_LEGACY_BUCKET` na stan sprzed rozdziału.
+
+**Pułapka warta nazwania: brak `AWS_PUBLIC_BUCKET` CICHO cofa konfigurację do
+jednego bucketu** — `config/filesystems.php` ma tam zapas na `AWS_BUCKET`. Wtedy
+warianty lądują tam, gdzie oryginały ze współrzędnymi kuchni.
+
+Dokumenty podają **mapowanie zmienna → dysk → zawartość**. Nazwy bucketów są
+wartościami i same w sobie niczego nie dowodzą.
+
+---
+
+## D-118 · Bucket R2 istnieje — ryzyko z #120 jest BIEŻĄCE, nie przyszłe
+
+**Data:** 11 września 2026 · Potwierdził właściciel · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sprostowanie, po które
+> ten wpis powstał, nigdy nie weszło do dokumentu.
+> `docs/infra/KOPIE_I_ODTWORZENIE.md:58` nadal niesie ramkę „Najpilniejsza
+> pozycja z tej tabeli" z tezą „Bucket R2 nie istnieje jeszcze", a `:130`
+> powtarza dokładnie zdanie cytowane w tym wpisie jako nieprawdziwe: „**Bucket
+> R2 nie istnieje.** Potwierdzone wprost przez właściciela". Czytelnik tamtego
+> dokumentu jest więc dalej kierowany na ryzyko, o którym ten wpis mówi, że go
+> nie ma, i dalej odwracana jest jego uwaga od ryzyka bieżącego. Wniosek
+> metodyczny tego wpisu — „zdanie o stanie świata ma nosić datę pomiaru" — nie
+> został zastosowany do samego naprawianego zdania: żadne z dwóch miejsc daty
+> nie ma i nic tego nie pilnuje testem.
+
+`KOPIE_I_ODTWORZENIE.md` twierdziło od 8 września: „Bucket R2 nie istnieje jeszcze.
+Potwierdzone wprost przez właściciela". **Zdanie zestarzało się w trzy dni** i przez
+ten czas kierowało czytelnika na ryzyko, którego nie ma (utrata zdjęć przy
+redeployu), odwracając uwagę od tego, które jest.
+
+Stan faktyczny: zdjęcia leżą na R2, a **bramka `kuking:bramka-r2` nie chodziła na
+produkcji ani razu** — więc publiczność bucketu oryginałów jest NIESPRAWDZONA.
+
+Osobno, i to nie znika razem z tym sprostowaniem: **bucketów ze zdjęciami nie
+kopiuje dziś nic**, a R2 nie ma wersjonowania obiektów ani kosza. Kopie z §7
+dotyczą wyłącznie bazy.
+
+**Wniosek metodyczny:** zdanie o stanie świata ma nosić datę pomiaru, a nie samo
+nazwisko osoby, która je potwierdziła.
+
+---
+
+## D-119 · Plik-wskaźnik nie powtarza reguły, tylko odsyła — a punkt bez nazwanego wyjątku jest rozjazdem tej samej wagi co punkt nieprawdziwy
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Z czterech rozjazdów w
+> `CLAUDE.md`, które ten wpis wymienia, naprawiony został jeden — punkt o
+> JavaScripcie odsyła dziś do D-053. Dwa nazwane tu wprost stoją dalej.
+> `CLAUDE.md:27` każe „Przed PR-em: `vendor/bin/pint` i `php artisan test`",
+> gdy `AGENTS.md:454` podaje `./scripts/check.sh` jako JEDNĄ komendę
+> obejmującą formatowanie, składnię, testy, migracje i assety. `CLAUDE.md:22`
+> mówi „Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback" bez
+> wyjątku z **D-088** (`down()` przy wartościach semantycznych ODMAWIA), który
+> `AGENTS.md:318` ma jako osobny podrozdział. Realizuje się więc dokładnie
+> ryzyko nazwane w tym wpisie: agent czytający wskaźnik jako pierwszy
+> „poprawi" decyzję właściciela, będąc przekonanym, że egzekwuje zasadę.
+>
+> **Naprawa nie weszła razem z tą adnotacją.** Zlecenie audytu ograniczało
+> zmiany do `docs/DECISIONS.md`, a `CLAUDE.md` jest plikiem instrukcji dla
+> agentów — jego zmiana należy do człowieka, nie do łańcucha zadań. Potrzebna
+> edycja jest dwuliniowa i zgodna z regułą tego wpisu („wskaźnik odsyła, nie
+> powtarza"): w `CLAUDE.md:27` zastąpić `pint` i `artisan test` odesłaniem do
+> `./scripts/check.sh` z `AGENTS.md` §10; w `CLAUDE.md:22` dopisać „rollback
+> może ODMÓWIĆ — patrz D-088 i `AGENTS.md` §6".
+
+`CLAUDE.md` sam o sobie pisze, że jest tylko wskaźnikiem na `AGENTS.md`, i sam
+ostrzega, że „rozjazd między plikami instrukcji jest gorszy niż brak instrukcji".
+**Był tym rozjazdem w czterech z siedemnastu punktów ściągi** — i jest to plik,
+który każdy agent czyta jako PIERWSZY.
+
+Rozjazdy były dwojakiego rodzaju i oba liczą się tak samo:
+
+1. **Wprost nieprawdziwe** — „ważne funkcje działają bez JavaScriptu" po tym, jak
+   D-053 tę zasadę zniósł; „przed PR-em `pint` i `test`", gdy `AGENTS.md` §10 mówi
+   `./scripts/check.sh`.
+2. **Prawdziwe, ale bez nazwanego wyjątku** — reguły UX 50+ bez wyjątku z D-051
+   i „migracja + rollback" bez tego, że przy wartościach semantycznych `down()` ma
+   ODMÓWIĆ (D-088). Agent czytający taki punkt „poprawia" decyzję właściciela,
+   będąc przekonanym, że egzekwuje zasadę.
+
+---
+
+## D-120 · Nagłówek workflow opisuje stan faktyczny wyzwalaczy; wyłącznikiem wdrożeń jest bramka na jobie, nie blok `on:`
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+`deploy.yml`, `preview.yml` i `railway-iac.yml` miały identyczny nagłówek: „ten
+workflow jest wyłączony z automatycznego uruchamiania […] żeby WŁĄCZYĆ, odkomentuj
+blok `on:` poniżej". **Bloki były aktywne od pierwszego commita** — sprawdzone
+w historii. Commit „Wyłączenie workflowów wdrożeniowych" bloków nie ruszył: wyłączył
+joby bramką `KUKING_DEPLOY_ENABLED`.
+
+Trzy dokumenty powtarzały to samo polecenie („odkomentuj blok `on:` w `ci.yml`"),
+a `ci.yml` ma w nagłówku „CI JEST WŁĄCZONE".
+
+**Nagłówek pliku wykonywalnego to nie jest miejsce na zamiar.** Ma opisywać, co ten
+plik robi teraz.
+
+---
+
+## D-121 · Runnera wybiera zmienna repozytorium `CI_RUNS_ON`, a dziś wskazuje starą pulę WSL
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Ciąg dalszy **D-028** · issue #342
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Reguła obowiązuje —
+> `runs-on` czyta `vars.CI_RUNS_ON` z fallbackiem `ubuntu-latest`. Liczba nie:
+> zdanie „wszystkie **dziewięć jobów** w `ci.yml`" opisuje stan sprzed
+> rozrostu workflow. Dziś jobów jest TRZYNAŚCIE (`zakres`, `lint`,
+> `przyrzad_605`, `static-analysis`, `test`, `dwa-polaczenia`, `assets`,
+> `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc`, `audit`,
+> `docker-build`) i każdy ma tę samą linię `runs-on`. Liczba „dziewięć"
+> została przepisana także do komentarza strażnika
+> (`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php:18`), więc rozjazd
+> stoi w dwóch miejscach naraz. Drugi człon tytułu — „a dziś wskazuje starą
+> pulę WSL" — opiera się na jednym pomiarze (CI nr 661) i dotyczy zmiennej
+> żyjącej w ustawieniach repozytorium, więc z kodu nie da się go ani
+> potwierdzić, ani obalić. Zgodnie z wnioskiem z D-118 słowo „dziś" w tytule
+> powinno nosić datę pomiaru.
+
+Wszystkie dziewięć jobów w `ci.yml` ma
+`runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}` — czyli **dokładnie**
+zmienną repozytorium, z zapasem w runnerach GitHuba. Nagłówek twierdził odwrotnie:
+że joby tej zmiennej nie biorą i zapasu nie mają.
+
+Zmierzone na żywym przebiegu (CI nr 661): `labels: ["self-hosted"]`,
+`runner_name: kuking-wsl-DOM-NEW-02`. Zmienna jest ustawiona na **samo**
+`self-hosted`, więc joby lądują na starej puli WSL-owej — tej, którą komplet sześciu
+etykiet miał wykluczać. Ten sam pomiar stał już w `SELF_HOSTED_RUNNER.md`, 160 linii
+niżej niż zdanie, któremu przeczy.
+
+**Zmienna żyje w ustawieniach repozytorium i żaden agent jej nie zmieni.** Wybór
+(komplet etykiet / usunięcie zmiennej / świadome zostawienie) należy do właściciela.
+
+---
+
+## D-122 · Gość dostaje prawą szynę obok treści, a nie pod nią — bo komentarz mówił, że gość szyny nie ma, i był nieprawdziwy od 7 września
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Decyzja obowiązuje — gość
+> dostaje szynę obok treści — ale WSZYSTKIE liczby w niej są dziś martwe, bo
+> nadpisał je późniejszy port marki. `resources/css/marka-rama.css:185` daje
+> szynę **330 px** (wpis mówi 352), `:39` ramę `min(1120px, …)` (wpis: sufit
+> 1152), `:50` kolumnę treści **760 px** (wpis: 720). Do tego `:49` ukrywa
+> `.side-nav` całkowicie, co znosi przesłankę odróżniającą gościa od
+> zalogowanego, na której zbudowana jest sekcja „Ekran gościa BEZ szyny
+> zostaje jednokolumnowy"; atrybut `data-marka="kuking-2026"` siedzi na
+> `<body>` bezwarunkowo (`resources/views/components/layout.blade.php:359`).
+> Strażnik `tests/Feature/SzynaGosciaTest.php:277-310` niczego nie zauważył,
+> bo czyta TEKST ARKUSZA, a nie wynik kaskady.
+
+### Zgłoszenie
+
+„niektóre podstrony jak napisz do nas jest bardzo wąskie, gdzie po prawej i lewej
+można coś dodać na kompie". Audyt UI/UX niezależnie nazwał to §4 i było to jego
+jedyne P0.
+
+### Co było nieprawdą i od kiedy
+
+`resources/css/app.css` zwijał układ niezalogowanego do JEDNEJ kolumny 768 px na
+każdej szerokości, a uzasadniał to zdaniem „Gość nie ma nawigacji bocznej ANI
+SZYNY". Pierwsza połowa jest prawdą do dziś. **Druga była prawdą jeden dzień:**
+zdanie powstało 6 września, 7 września `/szukaj` dostało `<x-slot:rail>`,
+10 września doszły `/napisz-do-nas` i `/@nazwa` (#231). Komentarz został i przez
+kolejne dni tłumaczył regułę, której już nie uzasadniał.
+
+Zmierzone 11 września, okno 1920 px, gość na `/napisz-do-nas`: treść 720 px
+w ramce 768 px, a blok „Nie możesz się zalogować" — czyli odpowiedź, po którą ta
+osoba przyszła — na **y = 1964 px**, dwa ekrany niżej. Na `/@nazwa` szyna zaczynała
+się na y = 5573 px.
+
+### Decyzja
+
+Gość na ekranie Z SZYNĄ dostaje od 80rem dwie kolumny: treść 720 px + szyna 352 px,
+sufit `--container-strona-solo-z-szyna` = 1152 px. Trzech kolumn nie dostaje, bo
+nawigacji bocznej nie ma. Po zmianie blok szyny stoi na **y = 96 px** przy 1920
+i przy 1280 px.
+
+### Ekran gościa BEZ szyny zostaje jednokolumnowy i wyśrodkowany
+
+Zalogowany ma trzecią kolumnę zarezerwowaną NAWET bez szyny (#294), żeby nawigacja
+boczna stała na każdym ekranie w tym samym miejscu. U gościa ten powód nie istnieje
+— rezerwacja dołożyłaby 384 px pustki po prawej i zepchnęła treść w lewo, czyli
+powtórzyłaby zgłoszenie właściciela o panelu moderacji. Cena: strony gościa mają
+dwie szerokości, 768 i 1152 px. Przyjęta świadomie.
+
+### Liczy się TREŚĆ slotu, nie sam slot
+
+`<x-slot:rail>` bywa podany i pusty — cudzy profil bez tagów i bez publicznych
+zeszytów, oglądany przez gościa, nie wypisuje ani jednego bloku (blok z liczbami
+stoi pod `@auth`). Samo `isset($rail)` dałoby tam pustą kolumnę 352 px, a pusta
+kolumna wygląda na usterkę układu, nie na wybór.
+
+### `app-body-solo` znaczy „układ gościa", nie „jedna kolumna"
+
+Klasa `app-body-solo-z-szyna` **dochodzi** do `app-body-solo`, nie zastępuje jej.
+`ekran-profilu.css` czyta `:not(.app-body-solo)`, żeby zostawić gościowi liczby
+o osobie w karcie profilu — bloku w szynie gość nie dostaje (D-091), więc
+zastąpienie klasy zabrałoby mu te liczby całkiem.
+
+### Czego pilnują pomiary
+
+`SzynaGosciaTest` (klasy układu, publiczne ekrany z szyną, pusta szyna, kolejność
+reguł w arkuszu), `UkladGosciaTest` oraz sekcja „Szyna gościa (D-122)"
+w `scripts/dostepnosc.mjs`. Lista publicznych ekranów z szyną **nie jest wpisana
+z ręki** — test skanuje katalog widoków, więc czwarty taki ekran wejdzie do pomiaru
+sam.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Pomiar pokazałby, że na ekranie gościa szyna odciąga uwagę od treści, po którą
+przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
+
+---
+
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Liczby tej decyzji nadal obowiązują
+> jako ROZSTRZYGNIĘCIE, ale reguły CSS, w których je zapisano, **w większości nie
+> dochodzą do przeglądarki**. Zmierzone `getComputedStyle` na wyrenderowanych
+> stronach, 72 konfiguracje: `.app-body { grid-template-columns:
+> var(--container-sidenav) … }`, `.app-body { max-width: var(--container-strona) }`
+> oraz `.uklad-solo .topbar-inner, .uklad-solo .site-… { max-width:
+> var(--container-strona-solo…) }` są **całkowicie przykryte** przez arkusze
+> `resources/css/marka-*.css`, które nie są owinięte w żadną warstwę — a kod
+> spoza warstw bije każdą warstwę nazwaną, także `utilities`.
+>
+> Znaczy to, że układ, który widzi gość, ustala dziś warstwa marki, a nie te
+> reguły. Sama decyzja zostaje bez zmian i nic tu nie usuwamy: usunięcie martwej
+> reguły JEST zmianą zachowania na wypadek zniknięcia arkuszy marki i wymaga
+> osobnego rozstrzygnięcia. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`.
+> Strażnik, który czytał TEKST arkusza, opisywał tu stan nieistniejący — po to
+> powstało D-223.
+
+## D-123 · Wybór gospodarza na tablicy jest UZUPEŁNIANY automatem do sufitu, a nie zamyka tablicy na resztę serwisu
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„w »co się dziś gotuje« można zrobić dwie kolumny i dać więcej tych ludzi (chyba
+że za mało wpisów i temu tak pusto)". Właściciel zgadywał przyczynę i zgadywał
+źle — i to jest najciekawsze w tym wpisie.
+
+### Co było nie tak
+
+`DailyBoard::forViewer()` sprawdzał, czy na dziś istnieje choć jeden wybór
+redakcyjny, i jeśli tak — zwracał **wyłącznie** jego:
+
+```php
+if ($picks->isNotEmpty()) {
+    return $this->fromCuratedPicks($picks, $viewer);   // i koniec
+}
+```
+
+Właściciel zaznaczył w `/kuking-na-dzis` cztery pozycje i zobaczył na stronie
+powitalnej dwie osoby i dwa dania tam, gdzie mieści się dwa razy tyle. Pustka nie
+brała się ani z układu, ani z braku treści.
+
+### Decyzja
+
+Wybór gospodarza ma **wyróżniać** kilka rzeczy, a nie zamykać tablicę. Najpierw
+idzie to, co wskazał człowiek, potem dobór automatu do sufitu.
+
+Trzy rzeczy są częścią tej decyzji, nie szczegółem implementacji:
+
+**Kolejność.** Wybór człowieka stoi pierwszy. Inaczej wyróżnienie przestaje być
+wyróżnieniem — w teście osoba niewybrana publikuje później i bez tej reguły
+stałaby na pierwszym miejscu.
+
+**Dziura po pozycji schowanej też się zapełnia.** Brakujące miejsca liczymy z tego,
+co NAPRAWDĘ zostało po odsianiu pozycji niedostępnych dla tego widza (autor
+zablokowany, wpis schowany przez moderację już po wyborze), a nie z liczby
+zaznaczeń w panelu. Inaczej widz z jedną blokadą dostawałby tablicę krótszą od
+cudzej, bez żadnego powodu.
+
+**Dobór pomija AUTORÓW wybranych dań, nie same dania.** Reguła „najwyżej jedno
+danie od osoby" obowiązuje w całej tablicy, a nie osobno w części redakcyjnej
+i osobno w dobranej. Bez tego automat dołożyłby drugi wpis dokładnie tej osoby,
+którą gospodarz przed chwilą wyróżnił — czyli zrobiłby to, przed czym broni
+`docs/product/COLD_START.md`.
+
+### Co to NIE zmienia
+
+Zakaz rankingów (AGENTS.md §12) stoi bez zmian. Automat dobiera po tym, KIEDY ktoś
+ostatnio coś pokazał; żadna miara popularności nie wchodzi ani w wybór, ani
+w kolejność.
+
+### Szczegół, który łatwo zrobić źle
+
+Wykluczenia idą **parametrem do zapytania**, a nie odsiewaniem po pobraniu. Limit
+jest narzucany w SQL, więc odsianie „po fakcie" zwracałoby mniej pozycji niż
+proszono — i błąd wyglądałby dokładnie jak ten, który naprawiamy.
+
+---
+
+## D-124 · Sufit tablicy dnia to sześć pozycji — bo panel przyjmował sześć od początku, a automat stawał na czterech
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+### Rozjazd
+
+`Admin\DailyBoardController` przyjmował `max:6` osób i `max:6` dań. `DailyBoard`
+miał `PEOPLE = 4` i `POSTS = 4`. Gospodarz mógł wskazać więcej, niż tablica była
+w stanie pokazać — i nic o tym nie mówiło.
+
+### Decyzja
+
+Sufit to sześć. Sufit zmienia, ILE pozycji widać, a nie to, KTÓRE stoją wyżej —
+więc §12 pozostaje nietknięty. Limit gościa na landingu (3/3) zostaje bez zmian,
+bo to osobna decyzja z audytu 60+.
+
+### Dlaczego zmiana sufitu niczego nie przelicza
+
+Regułę „najwyżej jedna pozycja od osoby" trzyma `DISTINCT ON (posts.author_id)` —
+**struktura zapytania**, nie zgadywany zapas nad limitem. Przy poprzednim
+podejściu („pobierz `POSTS * 6` i odsiej") każda zmiana sufitu wymagałaby
+przeliczenia zapasu od nowa.
+
+### Zmierzone
+
+Liczba zapytań jest identyczna przed i po: `peopleToFollow()` 4 zapytania przy
+limicie 4 i 4 przy 6; całe `forViewer()` 10 i 10. Limit idzie w SQL, relacje przez
+`with()`/`withCount()`, więc liczba zapytań nie zależy od liczby wierszy.
+
+Pomiar `28,6 ms` kontra `12,9 ms` z komentarza przy `peopleToFollow` zostaje ważny:
+obie wersje płacą za agregację i sortowanie całości, a `LIMIT` obcina dopiero
+posortowany wynik. Koszt rośnie z liczbą kont i wpisów, nie z sufitem.
+
+---
+
+## D-125 · Klasa `.card` niosła 126 ról naraz — sześć warstw powierzchni zamiast jednej
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Inwentarz: `docs/design/ROLE_KART.md`
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „hierarchia bierze
+> się z **uniesienia i mocy obwódki**, nie z koloru… warstwy 1, 3 i 4 różni
+> wyłącznie cień" przestało opisywać stan faktyczny po porcie marki.
+> `resources/css/marka-rama.css:238-241` nadaje globalnie `[data-marka]
+> :is(.card, .panel-formularza, .empty-state)` ten sam `border-radius: 24px` i
+> ten sam `box-shadow`, więc karta treści (warstwa 1) i panel formularza
+> (warstwa 2) różnią się dziś już tylko obwódką — uniesienie, czyli połowa
+> nośnika hierarchii z cytatu, między nimi zniknęło. Sześć klas i tokeny
+> `--warstwa-*` nadal istnieją (`resources/css/tokens.css:1204-1270`). Pomiar
+> opisany w tym wpisie (`scripts/warstwy-pomiar.mjs`, wyniki „3/1/3 → 3/2/2")
+> nie jest wywoływany ani w `scripts/check.sh`, ani w
+> `.github/workflows/ci.yml`, więc liczby stąd nie są odtwarzalne w bramce i
+> nikt nie zauważy ich zmiany.
+
+### Co było nie tak
+
+Jedno tło, jedna obwódka, jeden promień i jeden cień były jednocześnie kartą wpisu,
+sekcją strony, blokiem prawej szyny, panelem formularza, ramką z wyjaśnieniem
+i kaflem, w który się klika.
+
+Widać to było na `/napisz-do-nas`: karta „Chodzi o czyjś wpis?", formularz i karta
+„Co się stanie dalej" wyglądały identycznie, choć tylko **jedna** z tych trzech
+rzeczy czegokolwiek od człowieka chciała.
+
+### Decyzja
+
+Sześć warstw: karta treści · panel formularza · sekcja strony · blok szyny · ramka
+pomocnicza · kafel akcji. Hierarchia bierze się z **uniesienia i mocy obwódki**,
+nie z koloru. Warstwy 1, 3 i 4 różni wyłącznie cień i tak ma być.
+
+**Obwódka mocna tam, gdzie czegoś od człowieka chcemy.** Panel formularza i kafel
+akcji dostają `--color-border-strong` — tę samą, którą mają pola formularza. To
+jedyne dwie warstwy, które czegoś WYMAGAJĄ, więc niosą obwódkę kontrolki, a nie
+linię dekoracyjną: obwódka kontrolki musi mieć 3:1 do tła (WCAG 1.4.11),
+a `--color-border` tego progu nie ma.
+
+### Miara, która pokazuje płaski ekran
+
+`scripts/warstwy-pomiar.mjs` podaje **powierzchnie / sygnatury / największą grupę
+jednakowych**. Gdy pierwsza liczba równa się trzeciej, ekran nie ma hierarchii.
+`/napisz-do-nas` szło z 3/1/3 na 3/2/2, `/logowanie` z 2/1/2 na 2/2/1.
+
+### Gdy wszystko ma tę samą rangę, nic jej nie ma
+
+Najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa tekst — bo
+skanowanie wzrokiem przestaje być skrótem.
+
+---
+
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Podział `.card` na sześć warstw
+> powierzchni obowiązuje jako rozstrzygnięcie, ale zmierzone w przeglądarce
+> deklaracje samej `.card` z warstwy `components` (m.in. tło, obramowanie
+> i promień) są **całkowicie przykryte** przez `[data-marka] .post-card`
+> i pokrewne z arkuszy `marka-*.css` spoza warstw. O wyglądzie karty decyduje
+> dziś warstwa marki, nie te reguły.
+>
+> Nic tu nie usuwamy ani nie zmieniamy statusu — to jest adnotacja o tym, GDZIE
+> wartość naprawdę obowiązuje. Poprawka wpisana w regułę `.card` z `components`
+> nie dojdzie do nikogo. Szczegóły i strażnik: D-223.
+
+## D-126 · Panel formularza nie pojawia się tam, gdzie w danym stanie ekranu nie ma czego wypełnić
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Panel z mocną obwódką **obiecuje**, że jest co wypełnić. To ta sama zasada, co zakaz
+martwego przycisku (D-053), przeniesiona na warstwę powierzchni.
+
+Dlatego warstwę wybiera tam warunek, a nie stała: `errors/419`, `errors/429`, zmiana
+adresu e-mail (gdy poczta nie działa) i odpowiedź w panelu moderacji (gdy nie ma
+adresu do odpowiedzi) schodzą wtedy na sekcję.
+
+**Przypadek otwarty, świadomie:** `pages/collections/index.blade.php` ma
+`<details class="panel-formularza">` z podsumowaniem „Załóż nowy zeszyt". W stanie
+zwiniętym mocna obwódka otacza sam przycisk — pola są w środku, ale niewidoczne.
+To nie jest martwa obietnica, ale przez większość czasu panel nie ma czego
+wypełniać. Zostawione bez zmian i nazwane wprost, żeby nie udawać, że problemu nie
+ma.
+
+---
+
+## D-127 · Droga równorzędna nigdy nie schodzi na warstwę wgłębioną
+
+**Data:** 11 września 2026 · Rozstrzygnął właściciel · Status: **obowiązuje**
+
+Warstwa wgłębiona (`.ramka-pomocnicza`) mówi wizualnie **„to jest coś obok"**.
+Postawienie na niej drogi, która jest równorzędna, byłoby cofnięciem tamtej decyzji
+w warstwie wyglądu.
+
+Cofnięte na sekcję i objęte tą regułą: logowanie linkiem (D-056) · wejścia Google
+i Facebooka (D-113) · pouczenie DSA art. 16 ust. 5 (D-042) · opis skutków usunięcia
+konta (D-022) · oczekująca zmiana adresu (D-048) · kod do ręcznego wpisania
+przy włączaniu 2FA.
+
+### Rozstrzygnięcie z 11 września: kod zapasowy przy logowaniu 2FA
+
+`auth/two_factor_challenge.blade.php` trzymał **pełny, działający formularz
+logowania kodem zapasowym** („Nie mam dostępu do telefonu") w `<details>` na warstwie
+wgłębionej. Kod w tym miejscu uzasadniał to tym, że kod z aplikacji jest metodą
+podstawową, a zapasowy — ratunkową.
+
+Właściciel rozstrzygnął: **sekcja**. Człowiek, który stracił telefon, jest
+w najgorszym momencie kontaktu z serwisem, a wgłębiona ramka mówi mu „to jest coś
+obok". Strukturalnie to ta sama sytuacja, którą rozstrzyga D-056.
+
+---
+
+## D-128 · Rolę powierzchni nadaje MIEJSCE, a nie obiekt
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+To samo zgłoszenie jest **kartą treści** na liście zgłoszeń i **sekcją** na ekranie
+swoich szczegółów. Nie dlatego, że zmienia się obiekt, tylko dlatego, że zmienia się
+pytanie, które człowiek ma w głowie.
+
+### Rozstrzygnięcie z 11 września
+
+Na `/zgloszenia/{id}` trzy bloki miały jedną sygnaturę, w tym „Nasza decyzja".
+Właściciel rozstrzygnął, że **„Nasza decyzja" dostaje kartę treści**, a pozostałe
+dwa zostają sekcjami — bo decyzja jest tym, po co człowiek tam wszedł.
+
+---
+
+## D-129 · Menu poza panelem pokazuje JEDNO wejście do moderacji, a liczba z kolejek się sumuje
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„po co w menu cały panel moderacji i pod spodem przycisk otwórz panel moderacji?
+niech będzie tylko otwórz panel moderacji".
+
+### Co było nie tak
+
+Dziewięć ekranów moderacji stało w **zwykłym** menu, obok „Profil"
+i „Powiadomienia", a pod nimi przycisk prowadzący dokładnie tam, gdzie prowadziła
+ich pierwsza pozycja. Ta sama rzecz powiedziana dwa razy, kosztem dziewięciu wierszy
+menu z pracą, której się w tym miejscu nie wykonuje.
+
+### Decyzja
+
+Poza panelem — jedno wejście. W panelu — pełny spis, bo tam się tę pracę wykonuje.
+
+**Nagłówka grupy poza panelem też nie ma.** Grupa jednego elementu nie jest grupą,
+a napis „Panel moderacji" nad odnośnikiem „Otwórz panel moderacji" to jedna nazwa
+dwa razy pod rząd — czytnik ekranu przeczytałby obie.
+
+### Liczba nie znika, tylko się sumuje
+
+Plakietka przy pozycji „Bez odpowiedzi" była jedynym sygnałem „jest robota" poza
+panelem. Usunięcie listy bez niczego w zamian byłoby cichą stratą poprawnej
+informacji. Plakietka przenosi się więc na wejście i pokazuje sumę wszystkich pięciu
+kolejek; rozbicie zostaje w panelu, jedno kliknięcie dalej. Puste kolejki nie
+pokazują „0" — zero to sam hałas.
+
+Sumowanie wypisuje nazwy kolejek **wprost**, a nie `array_sum()`: nowy klucz
+w `KolejkiPanelu`, który nie jest kolejką do przejrzenia, nie doliczy się po cichu.
+
+---
+
+## D-130 · Długi wpis na karcie skraca się do „Czytaj dalej"; próg patrzy na WIERSZE i na znaki
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Na głównej długie wpisy można skrócić dać czytaj dalej" — jeden przepis ze
+składnikami wypełniał na telefonie cały ekran i wypychał wszystko poniżej.
+
+### Dlaczego próg w samych znakach by nie działał
+
+`.post-card-body` ma `white-space: pre-line`, więc **każde przełamanie autora
+zostaje osobnym wierszem**. „500 g mąki / 350 ml wody / 7 g drożdży" ma mało znaków
+i dużo wierszy — a ekran zjadają wiersze. Skracamy, gdy przekroczony JEDEN z progów:
+osiem wierszy albo czterysta znaków.
+
+Cięcie po pełnych wierszach, potem po całych wyrazach (`Str::words()`, nie
+`Str::limit()`).
+
+### „Czytaj dalej" prowadzi na stronę wpisu, nie rozwija w miejscu
+
+Nic nie skacze pod palcem, działa bez JavaScriptu, a czytelnik ląduje tam, gdzie
+i tak są komentarze.
+
+### Dlaczego odpada `-webkit-line-clamp`
+
+Klamra nie potrafi powiedzieć szablonowi, **czy** przyciąć — odnośnik pokazałby się
+także pod wpisem dwuzdaniowym, czyli byłby martwym przyciskiem (D-053). Do tego
+wysokość klamry trzeba by podać w `rem`, a wtedy próg mierzyłby co innego u każdego
+czytelnika (D-082, D-107).
+
+### Wyjątek, bez którego byłby martwy przycisk
+
+Ta sama karta stoi też na stronie pojedynczego wpisu. Bez warunku „czy jestem na
+stronie TEGO wpisu" całej treści nie dałoby się przeczytać nigdzie, a „Czytaj dalej"
+prowadziłoby samo do siebie.
+
+### Progi są hipotezą, nie pomiarem
+
+400 znaków i 8 wierszy to liczby z rozumowania, nie ze zmierzenia na telefonie. Są
+publicznymi stałymi, żeby zmiana była jedną cyfrą.
+
+---
+
+## D-131 · Napis przycisku jest JEDNYM elementem — `inline-flex` rozbija tekst na osobne elementy flex
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Objaw
+
+Na telefonie główny przycisk strony powitalnej wyglądał tak:
+
+```
+Zost    kuKINGi      — to
+ań        em      darmowe
+```
+
+### Przyczyna — nie „za długi napis"
+
+`.btn` jest `display: inline-flex`, a kontener flex robi z KAŻDEGO kawałka tekstu
+między elementami inline **osobny element flex**. Napis
+`Zostań <x-kuking-word/> — to darmowe` to trzy węzły, czyli trzy niezależnie
+zawijane elementy rozdzielone `gap`. Do tego `.btn` ma `overflow-wrap: anywhere`
+(obrona przed wypchnięciem strony przy 200% czcionki), więc każdy z nich łamał się
+w ŚRODKU WYRAZU, bo osobno był za wąski.
+
+### Zmierzone, ramka 320 px
+
+Bez owinięcia: 3 elementy flex, napis w pięciu kawałkach, przycisk 114 px wysokości.
+Z owinięciem: 1 element, dwa wiersze łamane na spacjach, 84 px.
+
+### Reguła
+
+Napis przycisku owinięty jednym elementem. **Przycisk z ikoną to POPRAWNE dwa
+elementy flex** — `gap` między ikoną a podpisem jest tam po to, żeby był, i tego się
+nie „naprawia".
+
+Strażnik pyta o wyrenderowany HTML: dla każdego `.btn` liczy bezpośrednie węzły
+tekstowe. Dwa lub więcej to błąd, bo dwa węzły tekstowe mogą być rozdzielone tylko
+elementem inline.
+
+---
+
+## D-132 · Strażnik `down()` bez testu wołającego ten `down()` nie jest strażnikiem
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Pięć migracji miało poprawną obronę — `RuntimeException`, zgoda przez `getenv()`,
+opis zgodny z `docs/DATABASE.md` — i **ani jednego testu, który by ją wywołał**.
+`down()` nie chodzi w normalnym przebiegu testów, więc taka obrona może zniknąć przy
+pierwszym refaktorze i nikt tego nie zauważy.
+
+### Każda taka migracja dostaje trzy rzeczy
+
+1. **odmowę** plus asercję, że dane NADAL SĄ — odmowa, która zdążyła skasować, to
+   tylko ładniejszy komunikat o stracie;
+2. **kontrolę dodatnią** na pustym stanie — bez niej test przechodzi także dla
+   migracji, która nie cofa się NIGDY;
+3. **wąskość** — odmowa nie rusza niczego poza swoim zakresem.
+
+Migracja z furtką przez zmienną środowiskową dostaje czwartą: furtka opisana
+w komunikacie ma naprawdę działać.
+
+### Co pokazały sabotaże
+
+Bez strażnika odmawia sama baza — surowym `SQLSTATE[23514]` albo `SQLSTATE[23502]`
+zamiast zdaniem po polsku. To jest cała różnica między „nie da się" a „nie da się,
+oto ilu osób to dotyczy i co zrobić zamiast tego".
+
+### Komunikat nie odmienia rzeczownika przez liczbę
+
+„jest 1 zgłoszeń" i „że 1 osób odebrało" to formy błędne, a jeden wiersz jest stanem
+bardziej prawdopodobnym niż pięć. Liczbę podaje się w formie odpornej: „Liczba
+zapisów, które znikną: 1".
+
+---
+
+## D-133 · `$this->fail()` nie stoi wewnątrz `try` w teście łapiącym odmowę
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+`PHPUnit\Framework\AssertionFailedError` dziedziczy po `RuntimeException`. Test
+napisany tak:
+
+```php
+try {
+    $this->migracja()->down();
+    $this->fail('Cofnięcie przeszło.');
+} catch (RuntimeException) {
+    // ...
+}
+```
+
+**łapie własne `fail()` we własnym `catch`.** Przy teście wąskości, gdzie `catch`
+jest z natury pusty, taki test byłby zielony także wtedy, gdyby strażnika w ogóle
+nie było.
+
+Wzorzec: odłóż wyjątek do zmiennej, oceń **poza** blokiem.
+
+Znalezione przez agenta w cudzym pliku wzorcowym (`CofniecieDziennikaZgodOdmawiaTest`),
+gdzie ratowały to asercje w `catch` — czyli było bezpieczne **przez przypadek, nie
+z konstrukcji**.
+
+---
+
+## D-134 · Cyfra wersji rośnie przy każdej widocznej zmianie, a każde podbicie ma wpis w `CHANGELOG.md`
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Pierwsza połowa reguły
+> działa: `config/kuking.php` stoi na `'etykieta' => 'Alfa 0.67'`, a metryczki
+> w stopce pilnuje `tests/Feature/StopkaPoziomyTest.php:119`. Druga połowa
+> jest złamana — w `CHANGELOG.md` NIE MA wpisu dla **Alfy 0.46**: `:101` to
+> „## Alfa 0.47 — kolaż po wyczyszczeniu wyboru", a następna pozycja pod nim,
+> `:107`, to „## Alfa 0.45 — przycisk rejestracji przy dużym tekście". To jest
+> dokładnie „numer bez treści", przed którym ostrzega zdanie „jedno pilnuje
+> drugiego". Przyczyna jest strukturalna: sprzężenie nie ma strażnika — `grep
+> CHANGELOG` po `tests/` i `scripts/` nie daje ani jednego trafienia. Ten wpis
+> przewiduje ryzyko „strażnika poprawianego bezmyślnie przy każdym wydaniu";
+> zrealizowało się ryzyko odwrotne — strażnika nie ma wcale.
+
+### Zgłoszenie
+
+„aktualna wersja to alfa 0.1, czemu tego nie zmieniasz? chyba dużo zmian zrobiliśmy
+od pierwszej alfy 0.1".
+
+### Co było nie tak z regułą
+
+Komentarz przy `kuking.wersja.etykieta` mówił, kiedy zmienia się **słowo** (Alfa →
+Beta → 1.0, przy kamieniach milowych z ROADMAP-y) — i ani słowa o tym, kiedy zmienia
+się **cyfra**. Przez to `0.1` nie ruszyło się ani razu od pierwszego dnia, mimo
+kilkunastu scaleń samego 11 września.
+
+**Numer, którego nikt nigdy nie podbija, nie niesie żadnej informacji.** Prawdę
+o tym, co działa, mówił w stopce wyłącznie skrót commita obok.
+
+### Decyzja
+
+Cyfra rośnie przy każdej zmianie, którą **człowiek zobaczy**: nowy ekran, zmieniony
+układ, nowa funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie
+(testy, refaktor, dokumentacja) jej nie ruszają.
+
+Każde podbicie ma wpis w `CHANGELOG.md`, pisany **językiem użytkownika, nie
+commitów**. Jedno pilnuje drugiego: wersja bez wpisu jest numerem bez treści, a wpis
+bez wersji nie da się z niczym powiązać.
+
+Historii sprzed 11 września nie odtwarzamy wstecz — wpisy pisane z pamięci po fakcie
+są gorsze niż ich brak.
+
+### Etap zostaje „Alfa"
+
+Bramki zamkniętej alfy nie przeszliśmy: sześć kont przy wymaganych dwudziestu, kopia
+produkcyjnej bazy to nadal zero, a blocker UX był otwarty w dniu tej decyzji.
+
+### Test stopki nie zna wersji na pamięć
+
+`StopkaPoziomyTest` miał w regeksie wpisane `Alfa 0\.1`. Czyta teraz etykietę
+z konfiguracji i pilnuje, że etap produktu **stoi** w metryczce — a nie że akurat
+dziś brzmi tak, a nie inaczej. Strażnik, który trzeba poprawiać przy każdym
+wydaniu, zostaje prędzej czy później poprawiony bezmyślnie.
+
+---
+
+## D-135 · Ekran dodawania przepisu pyta o SZEŚĆ rzeczy, a przepis wolno opublikować bez ani jednego składnika
+
+**Data:** 11 września 2026 · Issue #364 · Zgłosił i zgodził się właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„te dodawanie przepisów jest zbyt skomplikowane dla mnie, 32 latka który ogarnia
+programowanie itp a co dopiero dla seniora", a po obejrzeniu ekranu: „trzeba uprościć
+to i usunąć te tysiące pól, przycisków, informacji itp bo seniorzy dostaną oczopląsu".
+
+### Co było na ekranie
+
+Policzone, nie oszacowane: **98 kontrolek** na jednym ekranie dodawania przepisu.
+Pola porcji, czasów, trudności, pochodzenia, roku „w rodzinie od", skanu kartki,
+grup składników, jednostek, uwag przy składniku, czasów przy kroku — wszystko naraz,
+przed pierwszym zdjęciem.
+
+### Decyzja
+
+Ekran dodawania pyta o **sześć** rzeczy: zdjęcie, tytuł, składniki, przygotowanie,
+widoczność, przycisk publikacji. Reszta przechodzi na osobny ekran „Dopisz szczegóły",
+dostępny **po** opublikowaniu. Limit jest pilnowany testem
+(`DodawaniePrzepisuSzescKontrolekTest::LIMIT_KONTROLEK = 6`), a nie dobrą wolą —
+inaczej wróciłby po jednym polu naraz.
+
+### Przepis bez składników wolno opublikować — i to jest najtrudniejsza część tej decyzji
+
+Walidacja ma `ingredients` jako `nullable`, a `skladniki_tekst` może być puste.
+Test `test_przepis_z_samym_zdjeciem_tytulem_i_tekstem_da_sie_opublikowac` stwierdza
+wprost: zero składników, jeden krok, przepis opublikowany — i asercja
+„Przepis bez składników nie ma prawa ich sobie dorobić".
+
+Zgłosiłem to właścicielowi jako świadomy koszt: baza przepisów bez składników jest
+gorsza do wyszukiwania i do „co mam w lodówce". Odpowiedź brzmiała **„ok daję zgodę"**.
+
+Uzasadnienie, które za tym stoi: **przepis, którego ktoś nie opublikował, ma zero
+składników tak samo.** Ktoś, kto zna rosół z głowy, opisze go zdaniem i nie będzie
+rozpisywał gramatury — a jeśli wymusimy listę, nie opublikuje nic. Brakujące
+składniki da się dopisać później; nieopublikowany przepis nie wraca.
+
+### Zaproszenie do dopisania szczegółów istnieje tylko wtedy, gdy jest co dopisać
+
+`App\Domain\Recipes\CoMoznaDopisac` pyta o dziesięć pól, o zdjęcie główne oraz
+o to, czy przepis ma **ani jednego** składnika albo kroku. Komunikat po publikacji
+kieruje do „Edytuj" tylko wtedy, gdy odpowiedź brzmi „tak". Przepis wysłany
+z wypełnionym wszystkim dostałby inaczej przycisk prowadzący do formularza bez ani
+jednego pustego pola — czyli martwy przycisk z D-053.
+
+Reguła stoi w domenie, nie w widoku, bo pyta o nią więcej niż jedno miejsce
+i wszystkie muszą odpowiadać tak samo.
+
+---
+
+## D-136 · Składniki i kroki wpisuje się jako TEKST w jednym polu; baza dalej trzyma wiersze
+
+**Data:** 11 września 2026 · Issue #364 · Status: **obowiązuje**
+
+### Decyzja
+
+Formularz przyjmuje `skladniki_tekst` i `przygotowanie_tekst` — dwa zwykłe pola
+wielowierszowe. `App\Domain\Recipes\TekstNaWiersze` rozbija je na wiersze:
+składniki po liniach, kroki po pustej linii.
+
+**Schemat bazy się nie zmienia.** `recipe_ingredients` i `recipe_steps` zostają
+takie, jakie były. To jest zmiana wyłącznie po stronie wejścia — dlatego nie ma
+tu migracji ani wpisu w `docs/DATABASE.md`.
+
+### Dlaczego nie zostawić tablicy pól
+
+Lista składników jako osobne pola z jednostką, ilością, grupą i uwagą to przy
+dziesięciu składnikach czterdzieści kontrolek. Człowiek, który ma przepis
+przepisany na kartce albo w mailu, chce go **wkleić**. Rozbicie na wiersze
+robi za niego to, co i tak zrobiłby ręcznie, tylko czterdzieści razy.
+
+### Czego pilnują testy
+
+Że wklejona lista daje **tyle wierszy, ile niepustych linii** (a nie „jakieś"),
+że pusta linia rozdziela kroki, i że cztery składniki po dopisaniu szczegółów
+dalej są czterema **i w tej samej kolejności**. Ten ostatni jest tu najważniejszy:
+konwersja tekst → wiersze → tekst → wiersze to miejsce, w którym kolejność gubi
+się po cichu i nikt tego nie zauważa aż do skargi.
+
+---
+
+## D-137 · Każde wejście do dodawania pokazuje OBIE drogi, a nie tę, przez którą się weszło
+
+**Data:** 11 września 2026 · Issue #366 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„użytkownicy nie widzą że w »Dodaj« można wybrać »Zdjęcie i kilka słów« i »Cały
+przepis«… trzeba to ujednolicić".
+
+### Co było nie tak
+
+Drzwi do dodawania policzone: **osiem** prowadziło prosto do zdjęcia, **trzy**
+prosto do przepisu, **trzy** do ekranu wyboru. Czyli w jedenastu przypadkach na
+czternaście człowiek nie dowiadywał się, że druga droga w ogóle istnieje.
+
+To tłumaczy zjawisko, o które właściciel pytał osobno — „wszyscy dodają zdjęcie
+i kilka słów". Nie dlatego, że wybrali; dlatego, że nie mieli czego wybierać.
+
+### Decyzja
+
+Nad **każdym** formularzem dodawania stoi ten sam komponent
+`x-zakladki-dodawania` z dwiema zakładkami: „Zdjęcie i kilka słów" oraz
+„Cały przepis". Bieżąca jest oznaczona, druga jest odnośnikiem.
+
+Kontrast policzony **przed** wklejeniem, nie po: napis bieżącej 5,72:1 w jasnym
+i 4,72:1 w ciemnym (próg 4,5), obwódka niebieżącej 4,16:1 i 3,83:1 (próg 3 dla
+obwódki kontrolki, WCAG 1.4.11). Token `--color-border` dałby 1,40:1 i nie nadawał
+się tu w ogóle.
+
+---
+
+## D-138 · Panel moderacji bierze całą szerokość; reguła 45rem broni CZYTANIA, a nie tabeli
+
+**Data:** 11 września 2026 · Issue #365 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„dla admina i moderatora jest wąskie, przez co informacje trzeba przewijać, zrób
+dla admina i moderatora 100% szerokości".
+
+### Przyczyna miała DWIE warstwy i to jest sedno tego wpisu
+
+Pierwsza warstwa to sufit ramy. Druga to `max-width: var(--container-content)`
+na `.app-main`. **Samo podniesienie sufitu zostawiłoby tabelę przy 720 px** —
+czyli zmiana wyglądałaby na zrobioną, a zgłoszenie zostałoby otwarte.
+
+Zmierzone na `/admin/uzytkownicy`: przy 1920 px kontener 686 → 1566 px przy
+tabeli 1358 px — **przewijanie znika**. Przy 1280 px 686 → 926 px — **dalej
+przewija**, bo tabela potrzebuje 1358 px. Zgłoszenie jest więc zamknięte
+od 1600 px w górę, nie wszędzie, i tak to nazywam.
+
+### Dlaczego wolno było zdjąć 45rem akurat tutaj
+
+Reguła 45rem istnieje dla **wiersza tekstu** — oko gubi początek następnego
+wiersza przy zbyt długiej linii. Tabela kont to siedem kolumn porównywanych
+w poziomie; na zwężeniu nie zyskuje nic, a traci wszystko.
+
+Przy 320 px nic się nie zmienia: tabela dalej jeździ w **swoim** kontenerze.
+WCAG 2.2 AA 1.4.10 broni przed przewijaniem CAŁEJ strony, nie przed przewijaniem
+tabeli, która z natury jest szeroka.
+
+### Czego tu NIE zrobiono, mimo że brzmiało jak część tego samego
+
+Sufit ramy (1424 px) **nie został podniesiony**, a przepisanie go na procenty
+jest zmianą zapisu, nie pikseli — zmierzone 0 px różnicy. Powód: trzecia kolumna
+`.app-body` to sztywne `var(--container-rail)`. Przy szerszej ramie nadwyżka
+wpadłaby w kolumnę środkową, którą `.app-main` i tak przycina — pustka
+przeniosłaby się z prawej krawędzi na środek strony. Gorzej, nie lepiej.
+
+---
+
+## D-139 · Strona przepisu używa drugiej kolumny, ale NIE przez `<x-slot:rail>`
+
+**Data:** 11 września 2026 · Issue #365 · Status: **obowiązuje**
+
+### Sprawa
+
+Prawa strona ekranu przepisu marnowała się pusta, bo strona nie miała szyny
+w ogóle — a brak szyny zbijał ramę z 1424 px do ~1040 px. Naturalnym odruchem
+było przenieść panel akcji do `<x-slot:rail>`.
+
+### Dlaczego tego nie zrobiono
+
+Slot renderuje się w kodzie **za** całym `<main>`. Na telefonie szyna ląduje pod
+treścią — czyli „Ugotowałem", główna akcja produktu, zeszłoby pod składniki
+i komentarze. `EkranPrzepisuWedlugKituTest` wymaga, żeby „Ugotowałem" stało
+w kodzie PRZED „Składnikami", i ma rację.
+
+### Rozwiązanie
+
+`<main>` zajmuje obie kolumny, a panel przechodzi do drugiej siatką
+`.przepis-uklad`. Efekt dla oka jest ten z issue, mechanizm inny.
+
+Zmierzone, dane demo: gość przy 1920 px — wysokość strony 3872 → 3607 px,
+treść 720 → 1104 px; zalogowany przy 1280 px — 4634 → 4303 px, treść 576 → 960 px;
+„Ugotowałem" przy 1920 px przesuwa się z y=538 na **y=316**, i dalej jest pierwsze
+w pasku akcji oraz pierwsze w kodzie.
+
+Przy 200% czcionki wraca jedna kolumna, panel pod zdjęciem nad składnikami.
+
+### Reguła ogólna
+
+**Efekt wizualny nie jest powodem, żeby użyć konkretnego mechanizmu.** Slot
+i siatka dają tu ten sam obraz na szerokim ekranie i różny na telefonie —
+a telefon jest tym, na którym ta grupa czyta.
+
+---
+
+## D-140 · Dokumenty prawne nie mówią o sobie, że nie były sprawdzone przez prawnika
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Usuń ze strony info że coś nie było weryfikowane przez prawnika… Przejrzyj wszystko".
+
+### Co usunięto
+
+Pięć wystąpień zdania „Dokument nie był weryfikowany przez prawnika"
+w `resources/legal/regulamin.md` i `resources/legal/polityka-prywatnosci.md`.
+
+### Dlaczego to nie jest ukrywanie prawdy
+
+Ta nota nie była informacją o **usłudze** — była informacją o **procesie jej
+powstawania**, adresowaną do nas samych. Czytelnikowi nie mówiła nic, co
+mógłby wykorzystać, a podważała dokument, który ma być wiążący: regulamin,
+który sam o sobie mówi, że nie wiadomo, czy jest poprawny, jest gorszy niż brak
+regulaminu.
+
+**Wszystkie zdania mówiące o faktach dotyczących usługi zostały nietknięte** —
+także te niewygodne. Usunięta została wyłącznie nota o tym, kto dokumentu nie
+czytał.
+
+---
+
+## D-141 · Wyścig o binarkę Composera usuwa własny katalog narzędzi per job, a nie kolejkowanie
+
+**Data:** 11 września 2026 · Issue #262 · Status: **obowiązuje**
+
+### Objaw
+
+Job „Testy (PostgreSQL 18)" oblewał z kodem **126** bez ani jednego oblanego
+testu: `…/setup-php/tools/composer: /usr/bin/env: bad interpreter: Text file busy`.
+Ten sam commit lokalnie — komplet testów zielony.
+
+### Diagnoza z samego issue była BŁĘDNA i warto to zapisać
+
+Issue mówiło: „gdy dwa joby z RÓŻNYCH gałęzi startują w tej samej sekundzie".
+Logi mówią co innego. `kuking-wsl-DOM-NEW-01`…`-03` to **trzy rejestracje na
+jednej maszynie** (jedno `/home/mateusz`, jedno `/usr/local/bin`), a siedem jobów
+tego workflow startuje równolegle. W przebiegu, na którym to złapano, pisał job
+„Dostępność" na runnerze `-02`, a wykonywał job „Testy" na `-03` — **ten sam
+przebieg i ta sama gałąź**.
+
+To zmienia rozwiązanie: skoro biją się joby JEDNEGO przebiegu, żadna grupa
+`concurrency` po `github.ref` ich nie rozdziela. Grupa wspólna dla wszystkich
+przebiegów też nie — a przy tym trzyma jeden bieg działający i jeden oczekujący,
+więc trzeci ANULUJE oczekującego. Zamieniłoby to losową czerwień na anulowane
+joby i dłuższą kolejkę.
+
+### Decyzja
+
+Każdy job dostaje **własny** katalog na binarki narzędzi
+(`$RUNNER_TEMP` + numer przebiegu + numer próby + nazwa joba). Nie ma już pliku,
+do którego jeden job pisze, a drugi go wykonuje. **Wyścig znika konstrukcyjnie,
+nie statystycznie.**
+
+Katalog zakładamy sami, a nie zostawiamy tego akcji: akcja robi `sudo mkdir -p`,
+więc katalog byłby rootowy, a rootowy katalog w `_temp` blokuje potem sprzątanie
+katalogu roboczego przez runnera.
+
+Koszt: Composer (~3 MB) pobiera się raz na job. Sekundy — i po nich CI przestaje
+zależeć od tego, czy sąsiedni job właśnie nie podmienia binarki.
+
+### Czego świadomie NIE zrobiono
+
+**Ponowienia kroku.** Retry ukrywa wyścig, nie usuwa go — i uczy, że czerwone CI
+się powtarza, a nie czyta. To jest ta sama zasada, którą trzymamy przy testach.
+
+### Node tego nie potrzebuje i to jest ZMIERZONE, nie założone
+
+`actions/setup-node` trzyma Node w `_work/_tool` **każdego runnera osobno**
+(„Found in cache @ …/actions-runner-kuking-03/_work/_tool/node/22.23.2/x64"
+w logu joba dostępności z 10 września), a jeden runner wykonuje jeden job naraz.
+Wspólnej ścieżki dla Node'a tu nie ma.
+
+---
+
+## D-142 · Bramka R2 sprawdza z serwera to, co się da; pusta lista publicznych adresów to NIEPRZEJŚCIE, nie zieleń
+
+**Data:** 11 września 2026 · Issue #120 · Status: **obowiązuje**
+
+### Sprawa
+
+Issue #120 zamknęło stronę aplikacyjną (własny sterownik `r2` bez ACL, osobne
+buckety, dysk oryginałów bez klucza `url`), ale zostawiło **dwanaście punktów
+do sprawdzenia ręcznie** na prawdziwym R2 — bo z PHP nie widać panelu Cloudflare.
+
+Dwanaście ręcznych punktów to bramka, której nikt nie przejdzie dwa razy:
+pierwszy raz z zapałem, drugi nigdy. A konfiguracja bucketu może się zmienić
+bez jednej linijki w tym repozytorium.
+
+### Decyzja
+
+Komenda `kuking:bramka-r2` robi z serwera wszystko, co się da: pyta prawdziwe R2
+prawdziwymi żądaniami i mówi po polsku, co z nich wyszło. Punkty, których
+z serwera sprawdzić **nie da się** (wgranie zdjęcia z telefonu, kasowanie
+z bazy), wypisuje na końcu jako pozostałe do zrobienia — zamiast udawać, że
+ich nie ma.
+
+### Najważniejsze: pusta lista adresów znaczy „NIE WIEMY", a nie „nic nie jest publiczne"
+
+Issue żąda dowodu, że oryginał nie wyjdzie „przez KAŻDĄ publiczną ścieżkę":
+własną domenę, `r2.dev` i endpoint konta. Z konfiguracji dawał się wyprowadzić
+**jeden** z tych adresów — endpoint — bo klucz `url` został z dysków mediów
+świadomie zdjęty, a domena i `r2.dev` żyją wyłącznie w panelu Cloudflare.
+
+Bramka pytała więc o adres, którym nikt nie chodzi, milczała o adresie, którym
+chodzi przeglądarka, i **świeciła na zielono**. Dokładnie ta klasa usterki,
+przed którą sama ostrzega: narzędzie melduje sukces, oglądając co innego, niż
+się wydaje.
+
+Dlatego publiczne adresy trzeba bramce **zadeklarować**
+(`KUKING_R2_PUBLICZNE_ADRESY`), razem z tymi, które mają być wyłączone.
+Wyłączenie `r2.dev` jest udowodnione dopiero wtedy, gdy spod adresu `pub-….r2.dev`
+przyszła odmowa. Pusta lista to nieprzejście.
+
+Odmową jest `403`/`404`. `301` na inny host nie jest odmową — jest przekierowaniem
+w miejsce, którego bramka nie sprawdziła.
+
+### Granice, które komenda trzyma
+
+Nie kasuje niczego i domyślnie nic nie zapisuje. `--zapis` dokłada JEDEN plik
+tekstowy w prefiksie `bramka/` i kasuje go po sprawdzeniu — i mówi o tym
+przed zrobieniem. Klucze API nigdy nie idą na wyjście, nawet fragmentami;
+adresów podpisanych też nie wypisujemy w całości, bo sygnatura w podpisanym
+adresie jest jednorazowym prawem dostępu do czyjegoś zdjęcia, a wyjście tej
+komendy trafia do zgłoszeń i do dokumentacji.
+
+---
+
+## D-143 · Odtworzenie kopii jest udane przy DWÓCH warunkach naraz, nie przy jednym
+
+**Data:** 11 września 2026 · Issue #9 · Status: **obowiązuje**
+
+### Pytanie, na które trzeba było odpowiedzieć
+
+„Po czym poznajemy, że kopia jest dobra, a odtworzenie się udało?" Bez odpowiedzi
+próba odtworzenia jest rytuałem: skrypt się wykonał, więc chyba dobrze.
+
+### Decyzja
+
+Odtworzenie jest zaliczone, gdy `psql` kończy się kodem 0 **i** w odtworzonej
+bazie stoi spodziewana lista obiektów. Sam kod wyjścia nie wystarcza.
+
+Symetrycznie po drugiej stronie: **sonda zachowania** — zapis, który MUSI zostać
+odrzucony — jest zaliczona, gdy `psql` kończy się **błędem** i w treści błędu
+jest spodziewany napis. Znowu dwa warunki: sam niezerowy kod wyjścia potwierdziłby
+także **literówkę w SQL-u samej sondy**, a taka „zielona" sonda dowodziłaby
+dokładnie niczego.
+
+To nie jest ostrożność na wyrost. Odtworzona baza może przyjąć wszystkie dane
+i zgubić po drodze ograniczenie, które ich pilnowało — a wtedy pierwszy warunek
+świeci na zielono, i dopiero drugi mówi prawdę.
+
+### Czego próba nie zostawia po sobie
+
+Każda sonda idzie w transakcji i kończy się `ROLLBACK`. Po sondzie w bazie
+próbnej nie zostaje ani jeden wiersz — i to jest sprawdzane osobnym testem
+(`tests/skrypty/proba-odtworzenia.sh`), a nie założone.
+
+### Stan faktyczny w dniu tej decyzji
+
+Produkcyjna baza ma **zero** kopii. Ten wpis mówi, po czym poznamy, że kopia jest
+dobra — nie mówi, że jakaś jest.
+
+---
+
+## D-144 · Panel moderacji wchodzi do pomiaru dostępności Z DANYMI; pusty stan przechodzi każdy audyt
+
+**Data:** 11 września 2026 · Issue #294 · Status: **obowiązuje** · rozwinięcie D-106
+
+### Co przeoczyliśmy przez pół roku
+
+Lista ekranów w `scripts/dostepnosc.mjs` miała `/zgloszenia` — czyli ekran
+**zgłaszającego**. Adres wygląda podobnie, a to inna strona, inny układ i inna
+rola. Przez to **najbardziej osobna warstwa układu w tym serwisie** — tryb panelu
+(`.side-nav[data-tryb-panelu]`, własne reguły poniżej 64rem, własny pasek dolny
+`.bottom-nav-panel`) — nie była mierzona **nigdy**: ani na przepełnienie
+w poziomie, ani przy powiększonej czcionce.
+
+### I drugi raz to samo, już wewnątrz poprawki
+
+Zmierzone 11 września na świeżo wysianej bazie demo, przy 900 px:
+
+| ekran | co stało na ekranie | węzłów w `<main>` |
+|---|---|---|
+| `/admin/uzytkownicy` | tabela czterech kont | 126 |
+| `/admin/zgloszenia` | „Nic tu nie ma" | 19 |
+| `/admin/sygnaly` | „Nic tu nie ma" | 18 |
+
+Dwie z trzech kolejek panelu były mierzone jako **pusty stan**. A cała rzecz,
+przez którą panel w ogóle wszedł do tego pomiaru — karta sprawy z formularzem
+decyzji (`choice-grid`, dwa zestawy pól wyboru, pole terminu, lista podstaw
+prawnych) i karta grupy automatu z paskiem podglądów — nie była na ekranie
+ani razu.
+
+`DemoSeeder` nie tworzy ani jednego zgłoszenia (sprawdzone: `grep -n 'Report::'`,
+zero wyników).
+
+### Decyzja
+
+Automat **zakłada dane** przed pomiarem panelu i **twardo sprawdza, że wszedł**:
+jeśli `/admin/uzytkownicy` nie odpowie `200` pod tym właśnie adresem, automat
+przerywa z błędem mówiącym, że ekrany panelu nie zostałyby zmierzone. Cichego
+„zmierzono ekran logowania" tu nie ma.
+
+Sesja moderatora jest **osobną funkcją**, nie parametrem zwykłego logowania:
+za formularzem stoją jeszcze dwa kroki, których nie ma żaden inny ekran w tym
+automacie — włączenie weryfikacji dwuetapowej i twarde sprawdzenie, że panel
+naprawdę się otworzył. 2FA moderatora **nie jest obchodzone** na potrzeby pomiaru.
+
+### Punkt 900 px, a nie cała macierz
+
+Między 768 a 1280 px była dziura, w którą wpada cała klasa urządzeń liczących
+układ INACZEJ niż oba brzegi: telefon składany rozłożony (zgłoszenie przyszło
+z Galaxy Fold), tablet postawiony poziomo i okno przeglądarki na pół ekranu
+laptopa. Wszystkie trzy są szersze niż telefon, a mimo to poniżej progu 64rem —
+czyli dostawały układ telefonu na szerokim ekranie, którego nikt nigdy nie
+zobaczył w pomiarze.
+
+Dołożony został **jeden** punkt, nie cała macierz: każdy punkt kosztuje czas
+każdego przebiegu CI, a 900 px pokrywa te trzy przypadki naraz.
+
+---
+
+## D-145 · Dwukolorowy zapis `kuKING` obowiązuje wszędzie, także jako nazwa serwisu w tekście bieżącym
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392, B2) · PR #398 ·
+Status: **obowiązuje** · zmienia D-009 i D-015
+
+### Co zostało odwrócone
+
+Dwie rzeczy zapisane wcześniej przestają obowiązywać w części o zapisie nazwy:
+
+1. **limit „maksymalnie raz na ekran"** (D-009, `AGENTS.md` §11, `COPY_STYLE.md` §2);
+2. **podział na rejestry z D-015** — do tej pory tekst ciągły pisał `Kuking`,
+   a `kuKING` był zarezerwowany dla człowieka.
+
+Od teraz `kuKING` w zapisie dwukolorowym — **„ku" w kolorze tekstu, „KING"
+w kolorze marki** — stoi wszędzie, gdzie nazwa jest czytana jako nazwa:
+w nagłówku, w tekście bieżącym, w nawigacji, w stopce, w zaproszeniu.
+
+**Co z D-015 zostaje w mocy:** logotyp `KuKing.pl` jest znakiem i rządzi się
+swoim prawem. Akcent koloru w logotypie leży dziś wyłącznie na „King" — „Ku"
+i „.pl" biorą kolor tekstu (PR #394).
+
+### Dlaczego limit „raz na ekran" nie został podniesiony, a usunięty
+
+Sufit był liczbą, a liczba nie jest tym, co ta reguła chroniła — chroniła
+**czytania**. Ekran z jednym żartem w komunikacie błędu jest gorszy niż ekran
+z trzema w dobrych miejscach. Podbicie sufitu z 1 na 6 byłoby udawaniem reguły,
+więc `test_gra_slowem_wystepuje_najwyzej_raz_na_ekranie` został **usunięty, nie
+wyłączony**, i zastąpiony przez `test_nazwa_nie_powtarza_sie_w_jednym_bloku_tekstu`.
+
+W miejsce limitu wchodzą **dwa kryteria**:
+
+> **Charakter marki wolno tam, gdzie nie konkuruje z zadaniem.** Konkuruje,
+> jeśli stoi między człowiekiem a przyciskiem, którego szuka; wydłuża zdanie,
+> które ma być wykonane, nie przeczytane; opisuje ton zamiast podać informację;
+> albo trzeba go zrozumieć, żeby pójść dalej.
+
+> **W jednym akapicie, nagłówku albo punkcie listy nazwa pojawia się raz.** Nie
+> dlatego, że dwa to „za dużo" — dlatego, że dwa dwukolorowe słowa w polu
+> jednego spojrzenia migoczą, a to jest już koszt czytania.
+
+### Pięć miejsc, w których nazwa zostaje zwykłym „Kuking"
+
+„Wszędzie" ma granicę i to nie jest cofanie decyzji. Cztery z pięciu wyjątków
+stały w D-009 i w `COPY_STYLE.md` §2 na długo przed tą decyzją i mówią o czymś
+innym niż zasięg nazwy — **ta część D-009 zostaje w mocy**. Piąty bierze się
+z tego, że dwukolorowości fizycznie tam nie ma.
+
+| # | Gdzie | Dlaczego |
+|---|---|---|
+| 1 | `alt`, `title`, `aria-label`, `<title>`, `meta`, JSON-LD, temat listu, pliki eksportu, tekst tylko dla czytnika | **koloru tam nie ma**, a znacznik w atrybucie wypisze się dosłownie; wersaliki w środku wyrazu bez koloru czytają się jak literówka |
+| 2 | błąd, moderacja, tekst prawny, ekran bezpieczeństwa, list techniczny | hierarchia tonu; zakaz jest bezwarunkowy i **starszy** niż ta decyzja — człowiek ma wtedy problem, nie ochotę na markę |
+| 3 | powiadomienie o cudzej aktywności | „Halina — ugotowane z Twojego przepisu" jest doskonałe; to zdanie należy do Haliny, nie do marki |
+| 4 | pole formularza, który ktoś właśnie wypełnia (etykieta, podpowiedź, walidacja) | tam marka konkuruje z zadaniem. Nagłówek **tego samego** ekranu wolno — „Zostań kuKINGiem" nad `/register` zostaje |
+| 5 | tło w kolorze marki (przycisk podstawowy) | czerwień na czerwieni ma kontrast **1,00:1** i nie ma odcienia, który to naprawia; „KING" bierze kolor otoczenia, a nośnikiem zostają wersaliki (`kuking-word--bez-koloru`) |
+
+### Kontrast — policzony, nie założony
+
+„KING" jest pisane kolorem, więc jest **tekstem**, nie dekoracją: obowiązuje go
+WCAG 2.2 AA, kryterium 1.4.3 (**4,50**). Zmierzone dla `--color-brand` =
+`#B3401F` (motyw jasny) i `#F2986A` (ciemny):
+
+| Tło | Jasny | Ciemny |
+|---|---:|---:|
+| `--color-surface` (strona) | 5,31 | 7,80 |
+| `--color-surface-raised` (karta, stopka) | 5,72 | 6,92 |
+| `--color-surface-sunken` (ramka, pole) | 4,83 | 8,49 |
+| `--color-surface-brand-wash` (ciepły pas) | 4,83 | 7,03 |
+| `--color-brand-tint` (podkład marki) | **4,64** | 6,55 |
+| tło w kolorze marki (przycisk podstawowy) | **1,00** | **1,00** |
+
+**Najciaśniej jest w motywie jasnym na `brand-tint`: 4,64 przy progu 4,50, czyli
+zapas 0,14.** Jedno rozjaśnienie `--color-brand` ten zapas zabiera — dlatego
+liczby stoją w teście, a nie tylko w dokumencie. Kontrola samego licznika
+kontrastu (21:1, 1:1, symetria, para, która ma oblać) jest w tym samym pliku.
+
+**Kolor nie jest jedynym nośnikiem znaczenia** (WCAG 1.4.1): słowo czyta się
+identycznie bez koloru, bo grę niosą wersaliki.
+
+### Gęstość po wdrożeniu — zmierzona, nie oszacowana
+
+| Ekran | na stronę | z tego w stopce | na 1000 znaków | maks. w jednym akapicie |
+|---|---:|---:|---:|---:|
+| `/` | 6 | 2 | 2,6 | **1** |
+| `/o-kuking` | 6 | 2 | 2,9 | **1** |
+| `/odkryj` | 4 | 2 | 5,4 | **1** |
+| `/home`, `/szukaj` | 4 | 2 | 3,4–4,0 | **1** |
+
+Ani jeden akapit nie ma dwóch. Uczciwe zastrzeżenie do kolumny „na 1000 znaków":
+licznik bierze też tekst dla czytnika ekranu — na stronie powitalnej 42 znaki
+z 2336, czyli **1,8%** zaniżenia. Na wniosek to nie wpływa.
+
+### Cena, wprost
+
+Na przycisku podstawowym dwukolorowości **nie widać i widać nie może** — dotyczy
+to także flagowego przycisku na stronie powitalnej. Jedyne wyjście, gdyby miała
+być widoczna, to przycisk na tle `surface` (5,72:1); **nierozstrzygnięte, do
+decyzji właściciela.**
+
+Drugi koszt został zmierzony i naprawiony po drodze: pierwsza wersja reguły
+łamania wyrazu użyła `white-space: nowrap` i **oblała skan dostępności** — na
+`/register` przy oknie 320 px i czcionce przeglądarki 200% samo słowo brało
+**315 px** zaczynając od x = 32, czyli strona przewijała się w bok o **27 px**
+(naruszenie 1.4.10 Reflow). Obowiązuje `overflow-wrap: anywhere`: łamie wyraz
+wyłącznie wtedy, gdy inaczej wyszedłby poza wiersz.
+
+### Gdzie to stoi
+
+Zapis żyje w jednym komponencie — `resources/views/components/kuking-word.blade.php`
+— i nigdzie indziej; odmiana idzie atrybutem `forma`, a wersja dla czytnika
+ekranu jest osobnym tekstem, bo `aria-label` na `<span>` czytniki **ignorują**
+(specyfikacja „ARIA in HTML" zakazuje go na roli `generic`).
+
+**Zmiana wymaga:** zmierzonej trudności w czytaniu u prawdziwych użytkowników
+(#15) albo liczby 2 w kolumnie „maks. w jednym akapicie" — ta druga nie jest
+decyzją do podjęcia w locie: test oblewa, a rozstrzyga właściciel.
+
+📄 `docs/brand/GLOS_MARKI.md` §2 i §4 · `docs/brand/COPY_STYLE.md` §2 ·
+`AGENTS.md` §11 · `tests/Feature/TekstyWedlugCopyStyleTest.php` · D-009 · D-015
+
+---
+
+## D-146 · Kuking nie ma reklam i nie pobiera opłat za korzystanie — na stałe
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392 §4, B1) · PR #398 ·
+Status: **obowiązuje**
+
+### Decyzja
+
+> „w przyszłości jak bd chciał zarabiać to bardziej założę patreon albo coś żeby
+> zbiórki robić na hosting"
+
+**Za korzystanie z Kuking nikt nigdy nie płaci i w serwisie nie ma reklam.**
+Przyszłe zarabianie: najwyżej dobrowolna zbiórka albo Patreon na koszty hostingu.
+
+### Granica tej obietnicy — bez niej zostanie odczytana za wąsko albo za szeroko
+
+„Bez opłat" znaczy „za korzystanie z Kuking nikt nigdy nie płaci", a nie „Kuking
+nigdy nie sprzeda niczego".
+
+| Zgodne z tą decyzją | Zakazane na stałe |
+|---|---|
+| dobrowolna zbiórka albo Patreon na koszty hostingu — nikomu nic nie odbiera | reklamy |
+| wydrukowana książka rodzinna (`docs/product/SOUL.md` §4.3) — to produkt, nie opłata za wejście | płatny dostęp do cudzych przepisów |
+| | funkcje odbierane za brak subskrypcji |
+
+### Dlaczego to nie jest obietnica bez pokrycia
+
+Zgadza się niezależnie z trzema rzeczami, które już są w repozytorium:
+
+- `docs/research/MONETYZACJA.md` §6 — „nic poza opcjonalnym linkiem do
+  dobrowolnego wsparcia kosztów hostingu… i to jest dopuszczalna, prawdopodobnie
+  właściwa odpowiedź na tym etapie";
+- ta sama analiza pokazuje, że reklama display żyje ze skali odsłon, której
+  Kuking nie ma i długo nie będzie miał;
+- po stronie odbiorcy: „strach o pieniądze i oszustwa" jest dominującą obawą tej
+  grupy (`docs/research/AUDIENCE_50_PLUS.md` §3), a zalecenie brzmi wprost —
+  „w MVP nic nie kosztuje i produkt to mówi wprost".
+
+### Reguła, która z tego wynika i obowiązuje każdy przycisk
+
+> **Na przycisku wolno napisać zobowiązanie, którego złamanie byłoby widoczne.
+> Nie wolno zalety, której nikt nie sprawdzi.**
+
+Dlatego przycisk na stronie powitalnej brzmi **„Zostań kuKINGiem — bez opłat
+i bez reklam"**. Trzy odrzucone warianty i powody:
+
+| Odrzucone | Dlaczego |
+|---|---|
+| „Zostań kuKINGiem — to darmowe" | brzmi sprzedażowo |
+| „Zostań kuKINGiem — za darmo, na zawsze" | obietnica na przyszłość bez gwarancji |
+| „Załóż darmowe konto" (propozycja audytu) | zdejmuje nazwę mieszkańca z jedynego miejsca, w którym się ona zaprasza |
+
+„Bez reklam" przechodzi ten test, bo reklama w serwisie byłaby widoczna
+następnego dnia. „To darmowe" go nie przechodzi — to ocena, nie zobowiązanie.
+
+**Zmiana wymaga:** jawnej decyzji właściciela. Ta decyzja nie jest kalkulacją,
+tylko granicą produktu — zmiany nie uzasadnia rachunek za hosting.
+
+📄 `docs/research/MONETYZACJA.md` §6 · `docs/brand/GLOS_MARKI.md` §5 ·
+`docs/brand/COPY_STYLE.md` §6 · D-131 · D-145
+
+---
+
+## D-147 · Czasownik od `kuKING` wolno użyć tylko tam, gdzie obok stoi zdanie, które go tłumaczy
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392) · PR #398 ·
+Status: **obowiązuje** · zmienia D-009 w części odrzucającej czasownik
+
+### Co się zmienia
+
+D-009 odrzuciło `kuKINGujesz` z uzasadnieniem „nowy czasownik wymaga
+zrozumienia, a nasz odbiorca nie lubi zgadywać". Właściciel tę część odwrócił:
+**czasownika wolno używać.** Odrzucony argument nie znika — przestaje być
+zakazem, a staje się warunkiem.
+
+| Gdzie | Czasownik | Dlaczego |
+|---|---|---|
+| hasło, nagłówek sekcji, digest, zaproszenie | ✅ „Dziś kuKINGujemy z resztek" | obok stoi zdanie, które tłumaczy; nic nie zależy od zrozumienia słowa |
+| nawigacja | ❌ | nawigacja ma być przewidywalna, nie dowcipna (D-009, ta część zostaje) |
+| jedyny przycisk realizujący akcję | ❌ „kuKINGuj to" zamiast „Opublikuj" | przycisk mówi, co robi — `AGENTS.md` §5 |
+| błąd, moderacja, prawo, bezpieczeństwo | ❌ | hierarchia tonu, zakaz bezwarunkowy |
+
+Warunek jest oparty na liczbie: **w grupie 65–74 lata tylko 12,3% osób ma według
+unijnej metodologii podstawowe umiejętności cyfrowe**
+(`docs/research/AUDIENCE_50_PLUS.md`). Taki czytelnik potrafi przejść ścieżkę
+wyuczoną, a nie poradzić sobie z nową — i nie ma zgadywać, co znaczy słowo
+stojące na **jedynej** drodze do celu.
+
+### Granica, która się nie rusza: żart jest o nazwie serwisu, nigdy o użytkowniku
+
+| | O czym jest zdanie | Ocena |
+|---|---|---|
+| „Zostań kuKINGiem" | o nazwie | ✅ |
+| „Witaj w gronie kuKINGów" | o przynależności | ✅ |
+| „2 431 kuKINGów" | o liczbie ludzi tutaj | ✅ |
+| „Jesteś prawdziwym kuKINGiem!" | o użytkowniku, komplementem | ❌ |
+| „Top kuKINGi tygodnia" | o hierarchii | ❌ |
+| „Zdobądź poziom kuKING" | o nagrodzie za coś | ❌ |
+
+### Powód trzech ostatnich jest produktowy, nie estetyczny — i jest zmierzony
+
+Własne zdjęcie lub film zamieściło w ostatnim miesiącu **17% internautów 55–64
+i 13% z 65+**, przy 70% i 61% rozmawiających przez komunikator
+(`docs/research/AUDIENCE_50_PLUS.md`). `COPY_STYLE.md` §2 dokłada, że **ponad
+połowa osób 50+ w mediach społecznościowych nigdy nic nie publikuje**.
+
+Ci ludzie zdjęcia **wysyłają**, tylko ich nie **publikują** — i to jest jedyny
+nawyk, który ten produkt ma zmienić. Stąd asymetria, o której cała ta decyzja:
+**komplement za publikację podnosi poprzeczkę u ludzi, którzy jej nie
+przeskakują. Nazwa przynależności ją obniża — wystarczy tu być.** „Top kuKINGi
+tygodnia" dokłada do tego ranking, którego `AGENTS.md` §12 zabrania, a nazwa
+przynależności użyta jako wyróżnienie dzieli ludzi na dwie klasy.
+
+Formy żeńskiej nie tworzymy i to się nie zmienia; zdanie wymagające formy,
+której nie używamy (`kuKINGowi`, `kuKINGu`, `kuKINGowie`), **przepisujemy**
+zamiast odmieniać słowo na siłę.
+
+**Zmiana wymaga:** reakcji prawdziwych użytkowników w testach (#15) — ten sam
+warunek, który postawiło D-009.
+
+📄 `docs/brand/GLOS_MARKI.md` §1 · `docs/brand/MASCOT_CONCEPT.md` ·
+`docs/brand/COPY_STYLE.md` §8 · D-009 · D-145
+
+---
+
+## D-148 · Rejestr tekstów zmienia się z tłumaczącego się na zapraszający — zdań nie wycinamy, przepisujemy
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392, grupa C1–C7) ·
+PR #398 · Status: **obowiązuje**
+
+### Co audyt chciał zrobić, a co robimy
+
+Audyt copy (`docs/research/audyt-copy-2026-09-11/`) wskazał zdania uspokajające
+i chciał je **wycinać**. Rozstrzygnięcie jest inne: **zamieniamy rejestr**, bo
+problemem nie jest objętość tych zdań, tylko to, że tłumaczą się zamiast
+zapraszać.
+
+```text
+❌ Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
+✅ Wrzuć zdjęcie i kilka słów, a pokażesz je komuś, kto dziś też gotował.
+```
+
+Uwaga na drugą stronę tego samego kija: **zapraszający to nie sprzedażowy.**
+
+### Najmocniejszy przypadek: cztery zapewnienia, że odpisuje człowiek (C2)
+
+Na `/napisz-do-nas` to samo mówiły cztery miejsca naraz: prawa szyna („Lepiej
+dwa razy niż wcale"), pierwszy akapit („Po drugiej stronie jest człowiek, nie
+automat"), ramka o zgłaszaniu („To jest inna droga i prowadzi do innej kolejki")
+i dół strony („nie mamy całodobowego dyżuru i nie będziemy go udawać").
+
+Właściciel: *„nie ma co naciskać że to człowiek, bo wtedy ludzie będą mieć
+odwrotne odczucie"*.
+
+**Zapewnianie czterokrotnie, że po drugiej stronie jest człowiek, brzmi jak
+zaprzeczanie zarzutowi, którego nikt nie postawił** — i uruchamia dokładnie to
+podejrzenie, które miało uśpić. Ten sam mechanizm co w zdaniu „to naprawdę nie
+jest oszustwo": raz powiedziane jest ciepłe, cztery razy jest tłumaczeniem się.
+Zostaje **jedno** miejsce — to na dole, bo tam za zdaniem stoi konkret: jedna
+osoba, brak całodobowego dyżuru, odpowiedź czasem po weekendzie.
+
+To spostrzeżenie jest cenniejsze niż zarzut o powtórzenia, od którego audyt
+zaczynał: powtórzenie da się policzyć, a **efekt odwrotny do zamierzonego trzeba
+zrozumieć**.
+
+### C6 — piszemy o realnym życiu tej grupy, nie o abstrakcji
+
+```text
+❌ na wspólnym albo cudzym urządzeniu     abstrakcja, brzmi podejrzliwie
+✅ u rodziny czy znajomych                realny scenariusz tej grupy
+```
+
+**„Cudze urządzenie" to język regulaminu.** Rodzina jest głównym przewodnikiem
+po technologii w tej grupie (`docs/research/AUDIENCE_50_PLUS.md` §3 i §6) —
+nazwanie tego po imieniu nie jest protekcjonalne. Protekcjonalne jest pisanie
+*o* starszej osobie zamiast *do* niej.
+
+### Pozostałe pięć reguł
+
+- **C1 — zapraszaj, nie uspokajaj.** Marka nie jest kosztem do zmniejszenia.
+- **C3 — instrukcja zamiast stylu autora.** „Klikasz — i jesteś w środku" →
+  „Kliknij go, żeby wejść na konto". Sprzedaż wychodzi z tekstu szybciej, niż
+  się ją tam wkłada.
+- **C4 — nie tłumacz, czym ten krok NIE jest.** Jeśli krok jest opcjonalny,
+  **postaw „Pomiń"** — przycisk powie to lepiej niż zdanie o przycisku.
+  Konstrukcja „jedno i drugie jest w porządku" / „to też jest w porządku" stała
+  w serwisie **trzy razy** (`/pomoc`, `/dodaj`, koniec onboardingu); zostaje
+  w **jednym**, tym wskazanym przez właściciela jako wzór.
+- **C5 — mniej szczegółu, więcej luzu.** „po kolei, od najnowszego. Bez żadnego
+  układania przez komputer" → „po kolei, od najnowszego". Antytechnologiczny
+  wtręt tłumaczy technologię komuś, kto o nią nie pytał, i sugeruje, że gdzieś
+  indziej jest wróg.
+- **C7 — „nic nie" zostaje, jeśli niesie informację.** Audyt policzył
+  **36 wystąpień w 27 widokach ze 137** — to maniera, nie przypadek. Ale
+  kasowanie hurtem jest błędem w drugą stronę:
+
+| Zostaje | Idzie |
+|---|---|
+| „nic nie zginie" przy autozapisie — mówi, co robi mechanizm | „Nic nie musisz robić dalej" — nie mówi nic |
+| „jeśli nic nie zaznaczysz" — opisuje skutek wyboru | „nic nie zostało zamknięte na stałe" obok zdania, które to już powiedziało |
+| „nigdy nic nie napiszemy na Twojej tablicy" — konkretne zobowiązanie | „albo nic nie pisz, to też jest w porządku" — trzecia kopia tej samej konstrukcji |
+
+### Wzór, do którego się odwołujemy
+
+```text
+Choćby jedno zdanie. Pytanie do autora też jest w porządku.
+```
+
+Pierwsze zdanie zdejmuje presję **objętości**, drugie presję **treści**,
+i **żadne nie mówi, JAK pisać** — a poprzednia wersja („Napisz normalnie, po
+ludzku") mówiła, i powtarzała słowo z etykiety pola.
+
+```text
+❌ Napisz normalnie, po ludzku.        mówi, JAK pisać
+✅ Choćby jedno zdanie.                mówi, ILE wystarczy
+```
+
+📄 `docs/brand/GLOS_MARKI.md` §5 · `docs/research/audyt-copy-2026-09-11/` ·
+D-145 · D-149
+
+---
+
+## D-149 · Tekst dla człowieka nie uzasadnia własnego brzmienia — na ekranie tak samo jak w dokumencie prawnym
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/` ·
+PR #395 i #396 · Status: **obowiązuje** · rozwinięcie D-140
+
+### Zasada
+
+> **Zdanie o fakcie dotyczącym usługi zostaje — także niewygodne. Znika zdanie
+> o procesie pisania tego tekstu i o naszym toku rozumowania.**
+
+D-140 zdjęło z dokumentów prawnych notę o tym, kto dokumentu nie czytał:
+informację o **procesie powstawania**, adresowaną do nas samych. Ta sama choroba
+chodziła po całym interfejsie, tylko w innych słowach — i stąd rozszerzenie
+zasady na cały tekst, który czyta człowiek.
+
+### Co usunięto i z czego to zostało
+
+**W dokumentach prawnych** (`resources/legal/*`): zdania tłumaczące, skąd wiemy
+to, co piszemy, i dlaczego uważamy to za uczciwe.
+
+| było | jest |
+|---|---|
+| „Nie zapisuje niczego na Twoim urządzeniu… Sprawdziliśmy to, czytając ten skrypt **linijka po linijce, a nie wierząc na słowo**…" | „Nie zapisuje niczego na Twoim urządzeniu — ani pliku cookie, ani nic w pamięci przeglądarki, więc nie ma czym Cię oznaczyć." |
+| „**Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego.**…" | „**Tego liczenia otwarć nie da się wyłączyć z naszego kodu** — jest ustawieniem konta u dostawcy… Do tego czasu obrazek jedzie w każdym liście." |
+| „…nie podajemy tu liczby godzin, bo **nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje**." | „Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze. Nie obiecujemy konkretnej liczby godzin." |
+
+Zdjęte także: „i mówimy to **wprost**" (×3), „**Uczciwie** o granicy…",
+„Opisujemy to, bo zachodzi", odesłanie do „wewnętrznego dokumentu
+bezpieczeństwa", którego czytelnik nie ma, oraz to samo twierdzenie
+o Cloudflare powtórzone trzy razy w jednym dokumencie.
+
+**Na czterech ekranach** to samo w wersji produktowej: opis dla wyszukiwarki na
+spisie tematów mówi, co na stronie jest, zamiast **jak ją sortujemy** (reguła
+kolejności bez zmian i nadal widoczna na stronie); z `/o-kuking` zeszły trzy
+zaprzeczenia zarzutom, których nikt nie postawił; z potwierdzenia wysłanej
+wiadomości zeszło „nie zginie, nawet gdyby akurat nie działała poczta" — prawda
+o naszej architekturze, ale podsuwa myśl, że poczta bywa nieczynna.
+
+### Co zostało nietknięte — i to jest połowa tej zasady
+
+Wszystko niewygodne: brak podpisanych umów powierzenia, brak inspektora ochrony
+danych, nieustalony okres życia danych w kopiach zapasowych, sekcje „Źródła",
+„Tego nie da się odwrócić". Zostało też „ludzi, którzy **naprawdę** gotują" —
+to hasło serwisu, nie retoryka.
+
+### Jak to jest pilnowane, żeby nie zamieniło się w zakaz słowa
+
+Skan wzorców samouzasadniania (`DokumentyPrawneNieKlamiaTest`) ma kontrolę
+**dwustronną**: **15 zdań wziętych dosłownie z `main`, które muszą oblewać,
+i 18 zdań, które muszą przechodzić** — z trzema chronionymi zdaniami o brakach
+na czele oraz z „ludzi, którzy naprawdę gotują". Ta kontrola od razu się
+przydała: pierwsza wersja wzorca `wewnętrzn* dokument*` **przepuszczała zdanie,
+które miała łapać**, bo odmiana „dokumen**cie**" nie pasowała do rdzenia.
+
+Kontrola ujemna na całości: po cofnięciu `resources/legal/` — **3 padnięcia
+z 26**, każdy z trzech dokumentów oblewa z wypisanymi cytatami. Po przywróceniu:
+**26/26**.
+
+**Zmiana wymaga:** niczego. Ta zasada nie jest sądem o stylu — jest odpowiedzią
+na pytanie, po co czytelnik przyszedł.
+
+📄 `docs/brand/COPY_STYLE.md` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` · D-140 · D-150 · D-152
+
+---
+
+## D-150 · Dowód z audytu nie jest treścią dokumentu prawnego
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/` ·
+PR #395 · Status: **obowiązuje** · rozwinięcie D-149
+
+### Co stało w polityce prywatności
+
+> „Sprawdziliśmy to **9 września 2026** na prawdziwym liście doręczonym do
+> skrzynki, czytając jego **surowe źródło**, a nie wierząc na słowo."
+
+Zdanie prawdziwe, konkretne, z datą — i w dokumencie prawnym **nie na miejscu**.
+Zostało usunięte; zostało to, co dostawca rejestruje, czym to robi i że my tego
+nie odczytujemy.
+
+### Dlaczego to nie jest ukrywanie dowodu
+
+Dowód i dokument mają dwóch różnych czytelników. **Dowód z audytu jest
+adresowany do nas** — mówi, że sprawdzenie zostało wykonane, i chroni nas przed
+powtórzeniem pracy. **Dokument prawny jest adresowany do czytelnika** i ma mu
+powiedzieć, co się dzieje z jego danymi. Wpisany do dokumentu dowód robi trzy
+szkody naraz:
+
+1. czytelnik nie ma czym go zweryfikować, więc nie dostaje informacji, tylko
+   zapewnienie;
+2. **ma krótszy okres przydatności niż dokument** — data „9 września" starzeje
+   się, a akapit o danych nie; dokument zaczyna po cichu mówić nieprawdę o samym
+   sobie;
+3. sugeruje, że reszta dokumentu sprawdzona nie była, bo przy niej takiego
+   zdania nie ma.
+
+Punkt 2 nie jest teoretyczny: **dwie z trzech usuniętych not o lukach były już
+nieaktualne** — dane spółki weszły do regulaminu 8 września, EmailLabs do
+polityki 10 września, a noty stały dalej.
+
+### Gdzie dowód mieszka zamiast tego
+
+W opisie Pull Requesta, w `docs/research/`, w komentarzu przy kodzie i w teście.
+**Test jest lepszym dowodem niż zdanie w dokumencie**, bo starzeje się na
+czerwono, a zdanie starzeje się cicho.
+
+### Przy okazji, poprawka merytoryczna z tego samego przeglądu
+
+Regulamin §8 mówił „przez pierwsze 24 godziny nie można potwierdzić własnego
+rozstrzygnięcia", a kod (`ResolveAppeal::sprawdzKarencje()`,
+`kuking.moderation.appeal_self_uphold_hours`) liczy 24 h **od pierwotnej
+decyzji**, nie od złożenia odwołania. Zdanie mówi teraz to, co robi kod. Klasa
+usterki jest ta sama: dokument mówił o czymś, czego nie sprawdził przy kodzie.
+
+📄 `resources/legal/` · `docs/research/audyt-copy-2026-09-11/` · D-149 · D-140
+
+---
+
+## D-151 · Obietnica o układzie ekranu wymaga pomiaru dokładnie tak samo jak obietnica o czasie
+
+**Data:** 11 września 2026 · PR #396 · Status: **obowiązuje** · rozwinięcie D-114
+
+### Zdanie, które było nieprawdą
+
+`resources/views/pages/recipes/szczegoly.blade.php` mówił:
+
+> „Wszystko jest na jednej stronie — **nie musisz nic przewijać ani szukać**."
+
+### Ile naprawdę trzeba przewijać
+
+Zmierzone w Chromium wzorcem z `scripts/dostepnosc.mjs`, zalogowany przez
+prawdziwy formularz, adres `/przepisy/{slug}/edycja`. Skrypt sprawdza, że `h1`
+to faktycznie „Dopisz szczegóły" — żeby nie zmierzyć strony błędu:
+
+| stan przepisu | okno 360 px | okno 1280 px |
+|---|---:|---:|
+| sam tytuł, 3 puste wiersze składników i kroków | **10 249 px** = 16 ekranów | **7 836 px** = 9,8 ekranu |
+| 8 składników i 6 kroków | **16 586 px** = 25,9 ekranu | **13 065 px** = 16,3 ekranu |
+
+Kontrolek renderuje się **40** (stan pusty) do **70** (wypełniony).
+
+### Dlaczego to jest ta sama sprawa co D-114
+
+D-114 zabroniło pisać „zajmuje minutę" bez mechanizmu albo pomiaru, który to
+pokrywa. **Obietnica o układzie ekranu jest obietnicą z miarą — tylko miarą jest
+piksel, a nie sekunda.** „Nie musisz nic przewijać" mówi o wysokości strony
+i liczbie kontrolek; jedno i drugie da się zmierzyć w minutę, i jedno i drugie
+mówiło coś innego niż zdanie. To nie jest „AI voice" — to **zdanie
+nieprawdziwe**, w tej samej klasie co ekran logowania obiecujący temat
+wiadomości, której część ludzi nie dostanie.
+
+Człowiek, któremu obiecano brak przewijania, a przewija 26 ekranów, nie myśli
+„ładny copywriting". Myśli, że serwis nie mówi prawdy — i przy grupie 50+
+kosztuje to od razu.
+
+### Co zostało napisane zamiast
+
+> „Wszystko jest na jednej stronie. Nic tu nie jest obowiązkowe: wypełnij tyle,
+> ile chcesz, i zapisz. Poprawnie wpisane dane nie zginą."
+
+**Obietnica znikła, cała informacja została.** „Na jednej stronie" zostaje, bo to
+prawda i odróżnia ten ekran od kreatora w trzech krokach.
+
+### Gdzie stoją liczby
+
+W komentarzu Blade nad tym akapitem — żeby następna osoba, która chce dopisać to
+zdanie z powrotem, przeczytała najpierw pomiar. Strażniki: dwa nowe pliki,
+**13 testów**, wszystko na wyrenderowanym HTML-u; przy każdej asercji „czegoś
+nie ma" stoi kontrola dodatnia, żeby test nie przechodził dlatego, że strona się
+nie wyrenderowała.
+
+| sabotaż | wynik |
+|---|---|
+| przywrócone „nie musisz nic przewijać ani szukać" | **CZERWONE** — 2 testy, komunikat z liczbami z pomiaru |
+| usunięte przy okazji zdanie o nieobowiązkowości | **CZERWONE** — 2 testy: „Zniknęła informacja, że żadne pole nie jest wymagane" |
+
+Druga kontrola nie jest ozdobą: przy zdejmowaniu nieprawdziwej obietnicy
+najłatwiej zabrać razem z nią informację, którą ta obietnica niosła.
+
+**Zmiana wymaga:** ekranu, który naprawdę mieści się bez przewijania
+w zmierzonym stanie. Wtedy zdanie wraca — z pomiarem.
+
+📄 `docs/brand/COPY_STYLE.md` · `scripts/dostepnosc.mjs` · D-114 · D-099 · D-106
+
+---
+
+## D-152 · Powód naszej decyzji nie stoi przy kontrolce, której dotyczy
+
+**Data:** 11 września 2026 · PR #396 · Status: **obowiązuje**
+
+### Dwa zdania z ekranu „Twoje dane"
+
+Na ekranie usuwania konta, przy haczyku wybierającym zakres usunięcia, stało:
+
+> „Skasowanie tego zabrałoby coś ludziom, którzy o nic nie prosili."
+
+> „Tego nie da się odwrócić. **Dlatego haczyk jest domyślnie pusty** —
+> skasowanego tekstu nikt już nie przywróci."
+
+### Co z nimi było nie tak
+
+Pierwsze zdanie mówiło człowiekowi, **co byłoby nie w porządku, gdyby wybrał
+drugą opcję** — na ekranie, na którym ma właśnie wybrać. To nie jest informacja
+o skutku; to ocena wyboru przed jego dokonaniem.
+
+Drugie mówiło, **czemu tak zrobiliśmy**. Że haczyk jest pusty, człowiek widzi
+w formularzu dwa akapity niżej — a powód nie jest jego sprawą w tej sekundzie.
+
+### Zasada
+
+> **Uzasadnienie decyzji produktowej mieszka w `docs/DECISIONS.md`, nie przy
+> kontrolce.** Przy kontrolce stoi: co się stanie, czego nie da się odwrócić
+> i co zrobić, jeśli człowiek chce inaczej.
+
+Powód domyślnego zakresu usunięcia jest decyzją **D-022** i stoi tam, gdzie ma
+stać. Ekran ma wykonać wybór, nie obronić go.
+
+### Co zostało
+
+Wszystkie fakty: trzy listy mówiące, co dokładnie zostaje, a co znika; „Tego nie
+da się odwrócić"; „usuń je samodzielnie, zanim skasujesz konto: później nie
+będzie już jak, bo do usuniętego konta nie da się zalogować"; „warto najpierw
+pobrać swoje dane". Że przepis może być w cudzym zeszycie, mówi lista niżej —
+czyli ta sama informacja co w usuniętym kazaniu, tylko jako fakt.
+
+Usunięte zdania stoją w komentarzu Blade razem z powodem usunięcia, żeby nie
+wróciły jako „brakowało czegoś ciepłego".
+
+### Dlaczego to nie jest ta sama reguła co D-149
+
+D-149 dotyczy zdania mówiącego o **sobie** („napisaliśmy to tak, bo…"). Ta
+dotyczy zdania mówiącego o **naszej decyzji produktowej** w miejscu, w którym
+człowiek podejmuje **swoją**. Można złamać jedną, nie łamiąc drugiej, i dlatego
+stoją osobno.
+
+📄 `resources/views/pages/settings/data.blade.php` · D-022 · D-149
+
+---
+
+## D-153 · Nie doklejamy przyimka ani słowa niosącego przypadek do cudzego tekstu ani do nazwy konta
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #397 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+> „czemu źródło przepisu ma «po» przed źródłem?"
+
+Na zrzucie: sekcja **„Skąd ten przepis"**, a pod nią zdanie **„Po Nasze smaki."**
+
+### Zasada
+
+> **Nigdy nie doklejaj przyimka ani słowa niosącego przypadek do tekstu
+> wpisanego przez człowieka ani do nazwy wyświetlanej konta.** Polskiej odmiany
+> nie da się policzyć z dowolnego ciągu znaków, a każda próba kończy się
+> zdaniem, które wygląda na zepsute oprogramowanie.
+
+### Co było zepsute — sprawdzone przy plikach, nie domyślone
+
+| Miejsce | Wejście | Co widział człowiek |
+|---|---|---|
+| `pages/recipes/show.blade.php` | `Nasze smaki` | **Po Nasze smaki.** |
+| `pages/recipes/show.blade.php` | `po mamie` | **Po po mamie.** |
+| `components/recipe-wizard.blade.php` (podgląd) | to samo | to samo |
+| `app/Models/Recipe.php` `attributionLine()` | `Nasze smaki` + konto `Krzysztof` | **przepis Nasze smaki, spisany przez Krzysztof** — dwa błędy odmiany naraz |
+| to samo, bez źródła | konto `Krzysztof` | **przepis Krzysztof** |
+| formularze | — | etykieta „Po kim ten przepis", podpowiedź `po mamie, Halinie` — **formularz prosił o formę, której widok i tak nie umiał użyć** |
+
+### Rozwiązanie idzie w PYTANIE, nie w mechanizm odmiany
+
+1. **Pole pyta o frazę, która stoi samodzielnie.** „Po kim ten przepis" →
+   **„Od kogo albo skąd masz ten przepis"**, podpowiedź
+   `od mamy · z gazety · z bloga Nasze smaki`. Odpowiedź na **to** pytanie
+   działa i sama („Od mamy."), i po słowie „przepis".
+2. **Widok pokazuje wartość dosłownie**, pod nagłówkiem „Skąd ten przepis" —
+   nagłówek niósł to znaczenie od początku, przyimek był powtórzeniem. Pierwsza
+   litera przez `Str::ucfirst()` (wielobajtowe), więc „od mamy" wygląda jak
+   zdanie także przy „ó", „ż", „ś". **Kropki nie doklejamy** — przy wpisanej
+   wyszłyby dwie.
+3. **Podpis nie odmienia niczego.** Autor zostaje w linii, ale **w mianowniku,
+   w osobnym członie po „·"**, nigdy po „przez":
+
+```text
+ze źródłem:  {nazwa konta} · skąd ten przepis: {wartość pola}
+bez źródła:  {nazwa konta}
+```
+
+Dwukropek zdejmuje wymaganie przypadku, więc „od mamy", „Nasze smaki" i
+„z gazety Przyjaciółka" działają jednakowo.
+
+### Czego świadomie nie zrobiono: migracji danych
+
+Kto wpisał „po mamie" pod starym pytaniem, zobaczy „Po mamie" — czyli
+poprawniej niż „Po po mamie." Kto wpisał samo imię, zobaczy „Halina" pod
+nagłówkiem „Skąd ten przepis" zamiast „Po Halina." **Żadna automatyczna zamiana
+wolnego tekstu nie jest bezpieczna — a to jest dokładnie ta sama pułapka,
+o którą chodzi w całej tej decyzji.**
+
+### Test na wrogich danych
+
+`tests/Feature/ZrodloPrzepisuBezPrzyimkaTest.php` — **5 testów, 135 asercji** —
+chodzi na `od mamy`, `Nasze smaki`, `z gazety Przyjaciółka`, `Halina` oraz na
+dwóch nazwach kont: `Krzysztof` i `Żaneta` (odmienia się inaczej niż męskie
+imię). Kontrola ujemna wykonana naprawdę: po przywróceniu starego kodu **4 z 5**
+testów czerwone; piąty (o pytaniu w formularzu) przy tym sabotażu przechodził,
+bo go nie dotyczył, więc dostał **własny** sabotaż — starą etykietę — i wtedy
+też oblał.
+
+📄 `app/Models/Recipe.php` · `docs/brand/COPY_STYLE.md` · `docs/product/SOUL.md` ·
+`tests/Feature/ZrodloPrzepisuBezPrzyimkaTest.php`
+
+---
+
+## D-154 · Odstęp między blokami należy do JEDNEJ strony pary — w rytmie artykułu do `margin-top`
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #400 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+> „a propos przepisw, trzeba naprawić te odstępy między tekstami w przepisach"
+
+### Co było zmierzone
+
+Trzynaście par bloków na `/przepisy/{slug}`, w trzech stanach: okno
+**1512 px**, okno **400 px** i okno 1512 px przy czcionce przeglądarki **200%**.
+**Pięć par stało dosłownie na zero pikseli**, a dwie miały różny odstęp na
+telefonie i na desktopie:
+
+| Para bloków | 1512 px | 400 px | 1512 px + 200% |
+|---|---:|---:|---:|
+| `<h1>` → wiersz autora | **0** | **0** | **0** |
+| zdjęcie → plakietki | **0** | **0** | **0** |
+| „Skąd ten przepis" `<h2>` → 1. akapit | **0** | **0** | **0** |
+| „Składniki" `<h2>` → lista | **0** | **0** | **0** |
+| „Przygotowanie" `<h2>` → lista kroków | **0** | **0** | **0** |
+| wiersz autora → zdjęcie | 36 | 20 | 72 |
+| wstęp → siatka składniki/kroki | 36 | 20 | 72 |
+
+Po zmianie żadna para nie stoi na zerze, każda para bloków artykułu ma **tę samą
+liczbę w siatce i poza nią** (24 px przy 1512 i przy 400 px, 48 px przy 200%),
+a przepis ubogi — bez zdjęcia, bez plakietek, bez komentarzy — dostaje
+**24 / 24 / 24 / 24 / 24 px** bez dziury po pustej liście plakietek.
+
+### Cztery przyczyny, każda inna
+
+1. **Reset Tailwinda zeruje marginesy nagłówków**, a `.app-main > h1` naprawia to
+   na ~50 podstronach, ale nie tutaj, bo `<h1>` przepisu siedzi
+   w `<article><header>`, nie wprost w `<main>`.
+2. **`margin: 0` na `.recipe-facts` zjadało rytm `.stack`** — ta sama swoistość
+   (0,1,0), dalsze miejsce w pliku.
+3. **Marginesy raz się zlewają, a raz sumują.** Poniżej 80rem `<article>` jest
+   blokiem: `mb-4` wiersza autora zlewał się z `margin-top` zdjęcia do 20 px. Od
+   80rem ten sam `<article>` jest **siatką**, a marginesy elementów siatki się
+   nie zlewają — więc 16 + 20 = 36 px. **Ta sama strona miała dwa różne odstępy
+   zależnie od szerokości okna, czego nie widać, dopóki się nie zmierzy obu.**
+4. **Klasy `mb-2` / `mt-0` / `mb-4` w szablonie.** Utility w Tailwindzie 4 leży
+   w warstwie stojącej **po** `components`, więc dopóki tam były, żadna reguła
+   arkusza nie mogła ich poprawić.
+
+### Decyzja
+
+> **Odstęp między dwoma blokami należy do jednej strony pary. Druga strona jest
+> wyzerowana — jawnie, tą samą regułą.**
+
+W rytmie artykułu to `margin-top`:
+
+```css
+.przepis-uklad > *      { margin-bottom: 0; }
+.przepis-uklad > * + *  { margin-top: var(--spacing-6); }
+```
+
+`margin-bottom: 0` na dzieciach **jest częścią tej reguły, nie ozdobą**: bez
+niego dolny margines dziecka raz się zlewa (blok), a raz sumuje (siatka od
+80rem) — czyli wraca przyczyna nr 3.
+
+Wewnątrz jednego bloku odstęp należy do góry pary tak samo konsekwentnie, tylko
+realizuje go `margin-bottom` **z wyzerowanym ostatnim dzieckiem**
+(`.przepis-uklad > header > :last-child`, `.recipe-story > :last-child`) — bo
+tam odstęp od bloku do bloku należy już do rytmu artykułu wyżej. **Jedna para,
+jedna strona, zawsze zadeklarowana** — mieszanie stron w jednym zakresie jest
+tym, co dało pięć zer i dwie różne liczby na jednej stronie.
+
+### Odstępy z tokenów, a nie z pikseli
+
+To są odstępy **między blokami tekstu**, więc mają rosnąć razem z pismem: przy
+czcionce przeglądarki 200% `--spacing-6` to 48 px, nie dalej 24. To druga strona
+D-082 i D-107 — **tamte minima są fizyczne** (palec nie rośnie od powiększenia
+czcionki), **ten odstęp jest typograficzny.** Osobny test pilnuje, żeby
+`--spacing-3/4/5/6` zostały w `rem`: w pikselach asercje o tokenach dalej by
+przechodziły, sprawdzając nic.
+
+### Dwa jawne wyjątki i jeden cudzy obszar
+
+- **`.danger-zone` zachowuje `--spacing-8`** (32 px): `AGENTS.md` §5 wymaga, żeby
+  akcja destrukcyjna była odsunięta od zwykłych.
+- **`.notice` zostaje przy wspólnym `--spacing-5`**: dopisanie go tu poprawiłoby
+  rytm przepisu kosztem komponentu widocznego na kilkunastu innych ekranach.
+- **`.komu-wyszlo-naglowek` ma 4 px** między `<h2>` i paskiem liczb, gdy pasek
+  zejdzie pod nagłówek (zmierzone na 400 px). To też jest zlepione, ale to
+  świadoma decyzja z `karta-ugotowania.css` i cudzy obszar — **zgłoszone jako
+  obserwacja, nie zmienione przy okazji.**
+
+### Selektory strukturalne, nie pozycyjne
+
+`> header`, `> * + *`, `.recipe-story > p` — nie `:nth-of-type`. Pusta lista
+plakietek znika z układu przez `:not(:has(li))`, **nie `:empty`** — Blade
+zostawia w `<ul>` znaki nowej linii, a te są węzłami tekstowymi; sprawdzone
+w Chromium: reguła z `:empty` nie zadziałała ani razu.
+
+### Kontrola ujemna złapała dwie wady samego testu
+
+Wzorzec `<header>…</header>` trafiał w **belkę serwisu**, nie w nagłówek
+przepisu, więc test przechodził także z przywróconymi klasami utility.
+A `preg_match_all` zjada `}` razem z dopasowaniem, więc kotwica „reguła musi
+stać po `}`" łapała **co drugą regułę** (200 zamiast 407). Dopiero po obu
+poprawkach każdy z czterech sabotaży zaświecił na czerwono.
+
+📄 `resources/css/app.css` · `tests/Feature/RytmPionowyStronyPrzepisuTest.php` ·
+D-082 · D-107 · D-099 · D-106
+
+---
+
+## D-155 · `/odkryj` dostaje kolumnę szyny tym samym mechanizmem co strona przepisu
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #401 · Status: **obowiązuje** ·
+rozwinięcie D-139
+
+### Zgłoszenie
+
+> „tu się zepsuło albo nie było naprawione, prawa kolumna pusta wszystko na środku"
+
+### Co było nie tak — i dla kogo inaczej
+
+`resources/views/pages/discover.blade.php` wołało `<x-layout>` **bez szyny**.
+Skutki były dwa i różne:
+
+- **zalogowany** dostawał trzecią kolumnę **zarezerwowaną i pustą**, bo
+  `.app-body` od 80rem robi trzy kolumny na każdym ekranie, żeby nawigacja
+  boczna nie przeskakiwała między podstronami;
+- **gość** dostawał całą stronę zwiniętą do **768 px**, bo ekran bez szyny
+  bierze `--container-strona-solo` (D-122).
+
+Tablica „kuKINGi na dziś" stała przez ten czas w kolumnie czytania. Czyli: ta
+sama tablica, w dwóch zakładkach jednej listy, raz **obok** tekstu (`/`), raz
+**nad** nim (`/odkryj`).
+
+### Pustka po prawej — zmierzona
+
+| okno | rola | pustka z prawej PRZED | PO |
+|---|---|---:|---:|
+| 1920 | zalogowany | **656 px** | 272 px |
+| 1512 | zalogowany | **452 px** | 68 px |
+| 1920 | gość (rama 768 px) | 600 px | 408 px (rama 1152) |
+| 1512 | gość (rama 768 px) | 396 px | 204 px (rama 1152) |
+| 400 | oba | 0 px | 0 px |
+| 1512 / czcionka 200% | oba | 36 px | 36 px |
+
+Po zmianie `/odkryj` ma te same liczby co `/` i co strona przepisu. Przy okazji
+strona zrobiła się krótsza, bo tablica przestała stać nad wpisami: przy 1512 px
+**10 557 → 8 898 px** (−1 659).
+
+**Dwie liczby, które nie miały się zmienić i się nie zmieniły:** kolumna tekstu
+**688 px przed i 688 px po** (`docs/UX_50_PLUS.md`: 55–75 znaków — rośnie rama
+i to, co OBOK, a nie długość wiersza) oraz rytm pionowy: `h1` [96, 131], wstęp
+[155, 210] przed i po, na każdej z trzech szerokości.
+
+### Dlaczego NIE `<x-slot:rail>` — dokładnie z powodu z D-139
+
+Slot renderuje się w kodzie **za całym `<main>`**. Tablica stoi dziś PRZED
+wpisami i to jest jej miejsce na telefonie — pod slotem zjechałaby pod wszystkie
+karty wpisów i przycisk „Pokaż więcej", czyli **zniknęłaby z ekranu komuś, kto
+wchodzi tu z telefonu.**
+
+Dlatego **kolejność w kodzie zostaje kolejnością z telefonu**, a w bok przesuwa
+blok dopiero siatka samego ekranu (`.odkryj-uklad` / `.odkryj-szyna`) — ten sam
+zabieg i z tego samego powodu co `.przepis-uklad`. Zmierzone: przy 360 px blok
+szyny stoi **nad** kolumną czytania (y = 327), przy 1280 i 1512 px **obok** niej
+(y = 96).
+
+**To jest już druga strona z tym wzorcem, więc wzorzec przestaje być wyjątkiem
+strony przepisu i staje się drogą domyślną dla ekranu, który ma blok do
+przeniesienia w bok, a nie treść do dołożenia.**
+
+### Co do szyny weszło i czego tam nie ma
+
+Do kolumny szyny weszła tablica dnia, **która już była na tym ekranie** — to
+przeprowadzka jednego bloku w bok, **nie wypełniacz**. Odrzucona droga: szersza
+kolumna czytania (1104 px na wpisy to wiersz, którego się nie czyta). Tablica
+zachowuje stopkę „Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.";
+nie dołożono niczego, co porządkuje ludzi (`AGENTS.md` §12).
+
+> **Reguła ogólna: pustą kolumnę zapełnia się tym, co na ekranie już jest — albo
+> wcale. Wypełniacz zostaje na zawsze, a pustkę ktoś w końcu naprawi.**
+
+### Koszt, którego nie było w zgłoszeniu
+
+Owijka siatki **zabrała nagłówkowi regułę `.app-main > h1`** z `tokens.css` —
+zmierzony odstęp spadał **24 → 0 px**, czyli wracała usterka zgłoszona
+9 września. Arkusz ekranu odtwarza go **tym samym tokenem**, a pilnuje tego
+osobna asercja.
+
+Drugi koszt jest jawny: `app.css` dostał jeden wyjątek
+`:not(.przepis-uklad):not(.odkryj-uklad)` — lista, która zestarzeje się przy
+trzecim takim ekranie. Napisane wprost w komentarzu przy regule.
+
+### Dwa komentarze i jedna lista przestały być prawdziwe
+
+Komentarze w `kuking-board.blade.php` i `DwieKolumnyTamGdzieSieMieszczaTest`
+mówiły „tablica stoi w głównej kolumnie `/odkryj`". `SzynaGosciaTest` trzymał
+`discover` na liście „ekran gościa BEZ szyny". **Lista, która zostaje po zmianie
+produktu, tłumaczy regułę, której już nie uzasadnia** — dokładnie jak komentarz
+naprostowany przez D-122.
+
+### Pomiar w automacie też ma kontrolę ujemną
+
+`scripts/dostepnosc.mjs` mierzy od tej zmiany także szynę zajmowaną **od środka
+`<main>`** (**progów nie ruszono**). Sprawdzone, że ten pomiar nie jest martwy:
+po zmianie `grid-column: 2` → `1` skrypt zgłasza „blok szyny został w kolumnie
+czytania… po prawej stronie treści zostaje pusty pas". Po przywróceniu: `0`.
+
+📄 `resources/css/ekran-odkrywania.css` · `resources/views/pages/discover.blade.php` ·
+`tests/Feature/OdkrywanieUzywaKolumnySzynyTest.php` · `scripts/dostepnosc.mjs` ·
+D-139 · D-122 · issue #365
+
+---
+
+## D-156 · Autor w danych strukturalnych to konto, które treść opublikowało — pochodzenie idzie do `citation`
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #403 · Status: **obowiązuje** ·
+rozwinięcie D-153
+
+### Co było nieprawdą o danych
+
+Blok JSON-LD na stronie przepisu składał obiekt `Person` **z dwóch różnych
+encji**: `name` brał z `recipes.source_person`, a `url` z profilu konta
+publikującego. Autor dostawał imię jednej rzeczy i adres innej.
+
+Do tego `@type: Person` deklarował typ encji, **którego nikt nie zna** —
+`source_person` jest wolnym tekstem, a właściciel potwierdził, że wpisuje tam
+**nazwę grupy na Facebooku**. Widoczny tekst strony uznał to już przy D-153
+(wartość idzie dosłownie, bez doklejanego przyimka); dane wypuszczane do
+Google kłamały dalej, i to na dwa sposoby naraz.
+
+Widok był przy tym niezgodny z **własną specyfikacją projektu**:
+`docs/seo/SEO_TECHNICAL.md` §2.1 od początku mapuje `author.name` i
+`author.url` na `profiles.display_name` i `profiles.username` autora po
+`recipes.author_id`.
+
+### Decyzja
+
+`author` w każdym JSON-LD opisuje **konto, które treść opublikowało, i tylko
+je** — `name` i `url` z tego samego konta.
+
+**Pochodzenie treści nie jest autorem** i idzie do `citation` jako zwykły
+`Text`. Wybór sprawdzony na schema.org (V30.0), nie zgadnięty:
+
+| pole | co przyjmuje | ocena |
+|---|---|---|
+| `citation` | `CreativeWork`, **`Text`**; stoi na `CreativeWork` | **wybrane** |
+| `isBasedOn` | `CreativeWork`, `Product`, `URL` — bez `Text` | odrzucone: „od mamy" nie jest adresem |
+| `sourceOrganization` | wyłącznie `Organization` | odrzucone: ten sam fałsz z drugiej strony |
+| `recipeSource` | **w schema.org nie istnieje** (HTTP 404) | odrzucone: pole ze starego mikroformatu hRecipe |
+
+Dziedziczenie sprawdzone: `Thing > CreativeWork > HowTo > Recipe`, a `citation`
+jest wymienione na stronie `Recipe`.
+
+### Zasada ogólna, nie łatka na jedno pole
+
+> **Jeżeli o wartości nie wiemy, jakim typem encji jest, NIE WOLNO jej wkładać
+> do pola, które typ wymusza. Lepiej nie wypuścić jej do danych strukturalnych
+> wcale niż wypuścić z fałszywym `@type`.**
+
+Ryzykiem jest zaufanie do **wszystkich** danych strukturalnych domeny, nie do
+jednego pola.
+
+### Szczegół, który nie jest ozdobą
+
+`?:` przy `citation` jest konieczne: `array_filter` na końcu bloku odrzuca
+tylko `null` i `[]`, więc **pusty napis by przeszedł**. Osobna asercja tego
+pilnuje.
+
+### Strażnik
+
+`tests/Feature/AutorPrzepisuWDanychStrukturalnychTest.php` — wrogie dane
+(nazwa grupy na Facebooku, nazwa własna bez człowieka w środku, wzmianka
+o gazecie, „od mamy" i wartość, która sama jest imieniem), **oba stany ekranu**
+(publiczny ma blok, prywatny nie ma go wcale) i **rekurencyjny skan po całej
+stronie** za fałszywą encją nazwaną, a nie tylko po `author`.
+
+Pięć kontroli ujemnych, każda oblewa z osobna. Dwie z nich są tam z konkretnego
+powodu: sabotaż samego `author.name` oblewa **dwa** twierdzenia naraz, więc bez
+osobnej kontroli („`citation` poprawne, a obok dochodzi fałszywy `Person`") nie
+dałoby się pokazać, że rekurencyjny skan łapie się **sam**. Druga („bramka
+`isPublic` zawsze prawdziwa") dowodzi, że test przepisu prywatnego mierzy stan,
+w którym blok naprawdę nie istnieje — a nie pustkę z innego powodu (D-099, D-106).
+
+### Zauważone, nietknięte
+
+`source_url` przy `source_type = 'external'` nie idzie do JSON-LD wcale. Tam
+`isBasedOn` **byłoby** uczciwe, bo to prawdziwy URL — ale to poszerza zakres
+poza naprawiany błąd. Osobno: `docs/DATABASE.md` nie opisuje kolumn
+`source_person`, `source_note` ani `source_url` w ogóle.
+
+Bez zmiany schematu — nowa kolumna do tego nie jest potrzebna.
+
+📄 `resources/views/pages/recipes/show.blade.php` · `docs/seo/SEO_TECHNICAL.md` §2.1 ·
+`tests/Feature/AutorPrzepisuWDanychStrukturalnychTest.php` · D-153
+
+---
+
+## D-157 · Dokument, który cytuje regułę z kodu, jest sprawdzany testem — a wariant odrzucony zostaje w nim JAWNIE
+
+**Data:** 11 września 2026 · PR #404 (naprawa nieprawdy wniesionej przez #398) ·
+Status: **obowiązuje** · rozwinięcie D-119
+
+### Co stało w dokumencie obowiązującym
+
+`docs/brand/GLOS_MARKI.md` §2, punkt 3 podawał jako regułę zapisu nazwy:
+
+> „**`white-space: nowrap`.** Słowo nie łamie się między „ku" i „KING" — bez
+> tego przy 320 px i czcionce 200% jedyny nośnik tej gry rozpadałby się na dwa
+> wiersze."
+
+Arkusz w tej samej chwili deklarował `overflow-wrap: anywhere`, a komentarz nad
+tą regułą mówił wprost, że `nowrap` był **pierwszą wersją i OBLAŁ skan
+dostępności**: na `/register` przy oknie 320 px i czcionce przeglądarki 200%
+samo słowo brało **315 px** zaczynając od x = 32, czyli strona przewijała się
+w bok o **27 px** — naruszenie WCAG 2.2 AA (1.4.10 Reflow).
+
+### Dlaczego to groźniejsze niż zwykły nieaktualny akapit
+
+Dokument nie był po prostu stary. **Podawał jako obowiązującą dokładnie tę
+wersję, którą pomiar odrzucił, i podawał razem z nią jej uzasadnienie.**
+Następna osoba, porządkując arkusz „zgodnie z dokumentacją", przywróciłaby
+`nowrap` i zepsuła Reflow — nie z niedbalstwa, a **czytając wiążący dokument**.
+
+To trzeci przypadek tej klasy w tym repozytorium. Dwa pierwsze to numery
+decyzji, których nie napisano (stąd `NumeryDecyzjiMajaWpisyTest`); trzeci to
+wiersz tabeli stacku obiecujący Sentry'ego (D-104). Każdy raz ten sam
+mechanizm: **zapis wyglądał na odpowiedź, więc nikt nie szukał dalej — a
+szukając, znalazłby coś innego.**
+
+### Decyzja, trzy części
+
+1. **Kod jest stroną prawdziwą.** Przy rozjeździe dokumentu z arkuszem
+   poprawiamy dokument, a kod zostaje nietknięty — chyba że przegląd wykaże,
+   że to kod jest zły, i wtedy to osobna zmiana, nie „przy okazji".
+2. **Dokument, który cytuje regułę z kodu, ma test porównujący jedno
+   z drugim.** Nie „nie cytujmy reguł" — D-119 tego wymaga tam, gdzie plik
+   tylko odsyła, ale tu dokument **jest** miejscem uzasadnienia i musi podać,
+   czego uzasadnia. **Cytat bez testu starzeje się cicho; cytat z testem
+   starzeje się na czerwono.**
+3. **Odrzucony wariant zostaje w dokumencie**, jawnie, razem z pomiarem.
+   Usunięcie zostawiłoby regułę bez powodu, a reguła bez powodu jest następnym
+   kandydatem do „uproszczenia". Konsekwencja dla testu jest konkretna:
+   **zakaz nie idzie na wystąpienie napisu w dokumencie, tylko na to, co
+   dokument podaje jako REGUŁĘ** — inaczej strażnik kazałby usunąć zdanie,
+   które jest najcenniejsze w całym punkcie.
+
+### Strażnik pilnuje OBU stron, bo jedna nie wystarcza
+
+`tests/Feature/GlosMarkiOpisujeArkuszPrawdziwieTest.php` (3 testy): obietnica
+z dokumentu nie może być zakazem łamania, musi stać naprawdę w regule
+`.kuking-word`, a arkusz nie może zadeklarować `white-space: nowrap`,
+`word-break: keep-all` ani `overflow-wrap: normal`.
+
+Sprawdzenie samego dokumentu złapałoby połowę. **Druga połowa — cofnięcie
+ARKUSZA — zostawiłaby dokument prawdziwym, a produkt przewijający się w bok.**
+
+Dwa szczegóły, bez których ten test świeciłby na zielono z niewłaściwego
+powodu: arkusz czytany **po wycięciu komentarzy** (nazwa `.kuking-word` pada
+w nich wielokrotnie, a komentarz nad właściwą regułą cytuje w środku **oba**
+warianty — pułapka z `MinimalnyRozmiarTekstuTest`) oraz dopasowanie po **całym**
+selektorze (`.kuking-word strong` stoi w pliku wyżej, więc szukanie nazwy
+„gdzieś w liście selektorów" zwraca kolor zamiast łamania wyrazu).
+
+Kontrola ujemna w obie strony, każdy sabotaż **odczytany z pliku po nałożeniu**:
+`nowrap` w dokumencie → 2 z 3 czerwone; `nowrap` w arkuszu → 2 z 3;
+`word-break: keep-all` w dokumencie → 2 z 3; obietnica usunięta → 1 z 3
+(kontrola dodatnia parsera). **Dwa sabotaże nie nałożyły się za pierwszym razem
+i test wtedy przechodził** — złapane tylko dlatego, że każdy był czytany
+z pliku i porównywany przez md5, a nie zakładany. To ta trzecia z czterech
+przyczyn nieoblanej kontroli ujemnej: sabotaż się nie wykonał.
+
+### Zakres
+
+`docs/brand/COPY_STYLE.md` przeszukany pod tym samym kątem: **nie podaje żadnej
+reguły CSS**, a jego twierdzenie o `aria-label` na `<span>` zgadza się
+z komponentem. Jest jednak na liście skanowanych dokumentów, bo nosi **drugą
+kopię** sekcji o zapisie nazwy — a kopia jest miejscem, w którym taka nieprawda
+odrasta (README i tabela stacku, D-104).
+
+📄 `docs/brand/GLOS_MARKI.md` §2 ·
+`tests/Feature/GlosMarkiOpisujeArkuszPrawdziwieTest.php` ·
+`resources/css/app.css` (nietknięty, strona prawdziwa) · D-119 · D-104 · D-145
+
+---
+
+## D-158 · Odstęp pod zdjęciem karty wpisu należy do bloku POD zdjęciem i wisi na sąsiedztwie, nie na klasie
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #405 · Status: **obowiązuje** ·
+rozwinięcie D-154
+
+### Zgłoszenie
+
+> „«z przepisu» i «bigos z cukinii» jest zbyt blisko zdjęcia"
+
+### Co było zmierzone
+
+Chromium, `/home` po zalogowaniu, przerwa liczona **między treścią** bloków:
+
+| para bloków | 1512 px | 390 px |
+|---|---:|---:|
+| `post-card-head` → zdjęcie | 16 → 16 | 16 → 16 |
+| **zdjęcie → `post-card-recipe`** | **0 → 16** | **0 → 16** |
+| **karuzela → `post-card-zapisy`** | **0 → 16** | **0 → 16** |
+| `post-card-recipe` → `post-card-tagi` | 40 → 40 | 40 → 40 |
+| zdjęcie → `post-card-actions` | 17 → 17 | 17 → 17 |
+
+`diff` pomiarów przed i po: zmieniły się **dokładnie dwie pary**, w obu
+szerokościach. Zgłoszenie dotyczyło jednej z nich; druga miała tę samą wadę.
+
+### Przyczyna
+
+Cała karta trzyma rytm **dolnym wcięciem bloku wyżej** (`padding-bottom`),
+a blok zdjęć takiego wcięcia **nie ma i mieć nie może**: zdjęcie idzie od
+krawędzi do krawędzi, karta ma `overflow: hidden`. Para „zdjęcie → blok
+tekstu" była więc jedyną, której odstępu nie deklarowała żadna strona.
+
+Odstęp deklaruje strona **dolna**, jako `margin-top` — zgodnie z D-154.
+
+### Reguła wisi na SĄSIEDZTWIE, nie na klasie
+
+```css
+.post-card > :is(.photo-grid, .karuzela, .kolaz) + :is(.post-card-recipe, .post-card-zapisy) {
+  margin-top: var(--spacing-4);
+}
+```
+
+Pasek „Z przepisu" **nie zawsze stoi pod zdjęciem**: przy przepisie bez
+zdjęcia głównego stoi pod nagłówkiem, we wpisie „ugotowane z przepisu" pod
+treścią — i tam przerwa **jest**, zmierzone 16 px. Bezwarunkowy `margin-top`
+na klasie zrobiłby w tych stanach 32 px, czyli **poprawiłby jeden stan ekranu
+i zepsuł dwa** (D-099, D-106).
+
+### Konsekwencja dla testów, i to jest właściwa treść tego wpisu
+
+> **Odstęp oparty na `+` zależy od kolejności rodzeństwa w DOM-ie, więc test
+> musi sprawdzać SĄSIEDZTWO w wyrenderowanym dokumencie, nie tylko obecność
+> reguły w arkuszu.**
+
+Sabotaż „wstaw obcy element między zdjęcie a pasek" **wyłącza odstęp, nie
+ruszając ani jednej linii CSS-a**. Test, który tego nie łapie, pilnuje połowy
+reguły. Strażnik używa więc XPath `preceding-sibling::*[1]`.
+
+### Pomiar liczy przerwę między treścią, nie między krawędziami pudełek
+
+Odstępy tej karty siedzą w `padding`, a padding jest **wewnątrz** pudełka —
+różnica krawędzi pokazuje 0 px także tam, gdzie człowiek widzi 16 px.
+**Pierwsza wersja pomiaru meldowała zero dla ośmiu par i była fałszywa**;
+poprawiona, zanim cokolwiek zmieniono w arkuszu.
+
+Karta z paskiem „Z przepisu" **nie renderuje się w danych demo** (`DemoSeeder`
+nie ma ani jednego wpisu z `recipe_id`), więc skrypt pomiarowy sam dokłada taki
+wpis i **przerywa z błędem**, jeśli na zmierzonej stronie paska nie znalazł.
+
+### Świadomie nietknięte
+
+`.post-card-tagi` **nie ma wcięcia bocznego** — chipsy dochodzą do krawędzi
+karty. To usterka **pozioma**, nie ta zgłoszona. `.chipsy` (40 px)
+i `.post-card-actions` (17 px) zmierzone: nie ma tam zera, raczej nadmiar —
+wyrównywanie to zmiana wyglądu poza zgłoszeniem, na komponencie używanym też
+w wyszukiwaniu i na szynie profilu.
+
+📄 `resources/css/app.css` · `scripts/odstepy-karty-wpisu.mjs` ·
+`tests/Feature/OdstepPodZdjeciemNaKarcieWpisuTest.php` · D-154 · D-099 · D-106
+
+---
+
+## D-159 · Jedno pojęcie ma na ekranie JEDNO słowo — i nazwa usunięta z modelu danych musi zejść też z napisów
+
+**Data:** 11 września 2026 · **Decyzja właściciela** · PR #409 · Status: **obowiązuje** ·
+rozwinięcie D-021
+
+### Co było na ekranie
+
+D-021 (7 września) usunęła obiekt `Temat`, zostawiając same tagi, i podała
+powód wprost:
+
+> „dwa znaczyłyby, że osoba 50+ musi zrozumieć, czym «temat» różni się od
+> «tagu», a to jest pytanie, na które sam produkt nie ma dobrej odpowiedzi"
+
+**Tamta decyzja usunęła OBIEKT. Słowo zostało w napisach** — i cztery dni
+później interfejs mówił do człowieka dwoma słowami o jednej rzeczy:
+
+| gdzie | co stało |
+|---|---|
+| `pages/tags/index.blade.php` | `<h1>Wszystkie tematy</h1>`, `<title>`, `meta description`, dwa `<h2>`, dwa `aria-label`, pusty stan, akapit wprowadzający, „Pokaż więcej tematów" |
+| `pages/tags/show.blade.php` | odnośnik „wszystkie tematy" w okruszkach |
+| `components/post-card.blade.php` | `aria-label="Tematy tego wpisu"` |
+| **`pages/settings/tags.blade.php`** | **„Wybierz temat i kliknij «Obserwuj ten tag»"** |
+
+Ostatni wiersz to oba słowa **w jednym zdaniu**, na jednym ekranie, o jednej
+czynności. Trasa nazywała się przy tym `/tagi`, a strona mówiła „tematy".
+
+### Decyzja
+
+> **Jedno pojęcie ma na ekranie jedno słowo. Gdy nazwa schodzi z modelu
+> danych, schodzi także z napisów — inaczej decyzja jest wykonana w bazie
+> i niewykonana tam, gdzie ją widać.**
+
+Na ekranie obowiązuje **„tag"**. Słowo „temat" w znaczeniu klasyfikacji treści
+do interfejsu nie wraca.
+
+### Dlaczego to nie jest kosmetyka
+
+Sprawa wyszła przy rozstrzyganiu nazwy dla #369–#372. Koncept „Tematy jako
+miejsca" (#376) **nie przywraca obiektu** — mówi o bogatszej stronie tagu,
+z instrukcją „nie wdrażać nowej tabeli bez potrzeby". Ale przywracał **słowo**:
+gdyby strona tagu nazwała się „Temat", problem z D-021 wróciłby w nazewnictwie
+zamiast w schemacie, czyli dokładnie tam, gdzie czytelnik go widzi.
+
+### Cena, wprost
+
+Trzy z tych miejsc to `<h1>`, `<title>` i `meta description` na `/tagi` —
+**stronie publicznej z ruchem z wyszukiwarki**. Zmiana napisów, które czyta
+Google, nie jest zmianą wyłącznie w interfejsie i została właścicielowi
+zgłoszona osobno. Sama reguła kolejności i liczniki bez zmian.
+
+### Komentarz cytujący inny komentarz poprawia się razem z nim
+
+`TagController` cytował komentarz `Post::scopeTylkoOdAktywnychAutorow()`, który
+mówił „feed tematów". **Poprawienie tylko cytatu zrobiłoby z niego nieprawdę**,
+więc zmienione są oba. To ta sama zasada co w D-157, tylko w mniejszej skali:
+zapis, który cytuje inny zapis, starzeje się razem z nim.
+
+### Strażnik jest ZAWĘŻONY do ekranów tagów, i to nie z ostrożności
+
+`tests/Feature/JednoSlowoNaTagiTest.php` sprawdza `/tagi`, `/tag/{slug}`
+i `/ustawienia/tagi`. Nie skanuje całego repozytorium, bo **„temat" ma tu
+drugie, całkowicie uprawnione znaczenie: temat listu** — `app/Mail/*`,
+`app/Notifications/*` (`PodsumowanieTygodnia::temat()`), a `COPY_STYLE.md`
+wymienia „temat listu" wprost jako jedno z miejsc, gdzie nazwa serwisu zostaje
+zwykłym „Kuking". **Zakaz globalny oblewałby na poczcie i zostałby wyłączony
+w tydzień** — a strażnik, którego się wyłącza, nie jest strażnikiem.
+
+### Dopasowanie na granicach wyrazu, nie podciągiem
+
+Pierwsza wersja detektora szukała podciągu „temat". Miała dwie wady, i druga
+jest poważna: **oblałaby na słowie „tematyczny"**, czyli na „grupach
+tematycznych" z #22 — nazwie całkowicie uprawnionej. Obowiązuje
+`(?<!\p{L})temat(?:y|ów|u|em|ach|owi|ami|ce)?(?!\p{L})`, a kontrola samego
+detektora sprawdza **oba kierunki**: że łapie „tematy", „temat" i „tematów",
+i że **przepuszcza** „grupy tematyczne" oraz „tematyka wpisu".
+
+### Test mierzy NASZ tekst, nie treść od ludzi
+
+Człowiek ma prawo utworzyć tag nazwany „Temat dnia" i wtedy to słowo pojawi się
+na stronie **zgodnie z prawem**. Dane testowe nie zawierają go ani raz, więc
+każde trafienie pochodzi z szablonu. Napisane w docbloku testu, żeby nikt nie
+uznał tego za lukę i nie „naprawił" strażnika w stronę zakazu treści
+użytkownika.
+
+### Scenariusz testu musi renderować sabotowany fragment
+
+Test strony tagu zakłada **wpis z tagiem**, nie sam tag: karta wpisu pokazuje
+chipsy tylko tam, gdzie relacja jest doładowana (`relationLoaded('tags')`). Bez
+wpisu sabotowany `aria-label` **nie renderuje się wcale** i test przechodziłby,
+nie mierząc go — to czwarta z przyczyn nieoblanej kontroli ujemnej z `AGENTS.md`.
+
+### Co zostało nietknięte i dlaczego
+
+Panel gospodarza `/admin/tagi-promowane`: „Temat tygodnia" jest tam **nazwą
+planowanej funkcji z #18**, a ta decyzja jest przed właścicielem — nie
+przesądza się jej przy okazji. „Ta lista zastępuje dawne Tematy" zostaje, bo
+jest **historycznie prawdziwe**: ta lista naprawdę zastąpiła usunięty obiekt.
+
+Nazwy metod testowych, nazwa pliku `SpisTematowTest.php` i dane testowe — to
+nie interfejs, więc poza zakresem tej decyzji.
+
+**Zmiana wymaga:** decyzji właściciela o nazwie funkcji z #18, jeśli miałaby
+pociągnąć za sobą panel gospodarza.
+
+📄 `resources/views/pages/tags/` · `resources/views/pages/settings/tags.blade.php` ·
+`resources/views/components/post-card.blade.php` ·
+`tests/Feature/JednoSlowoNaTagiTest.php` · D-021 · D-157 · issue #18 · issue #22
+
+---
+
+## D-160 · Wcięcie boczne karty wpisu niesie każdy blok osobno, a klasa współdzielona z innym ekranem go nie dostaje
+
+**Data:** 12 września 2026 · PR #412 · Status: **obowiązuje**
+
+Karta wpisu nie ma własnego `padding` (`.post-card { padding: 0 }`), bo zdjęcie
+idzie od krawędzi do krawędzi. Wcięcie 20 px (`--spacing-5`) deklaruje więc
+**każdy blok karty u siebie**. Blok tagów był jedynym wyjątkiem: widok wziął dla
+niego gotowe `.chipsy` — świadomie, pod hasłem „żadnego nowego CSS" — a `.chipsy`
+powstało dla chipsów stojących wprost w kolumnie strony, czyli tam, gdzie wcięcie
+daje kolumna.
+
+**Zmierzone** (`scripts/wciecia-boczne-karty-wpisu.mjs`, Chromium,
+`getBoundingClientRect()`): 0 px z lewej i 0 px z prawej, przy 1512 px i przy
+390 px, podczas gdy każdy inny blok tej samej karty miał 20 px. Po poprawce
+20 px na obu krawędziach, na obu szerokościach.
+
+### Reguła
+
+**Klasa używana na więcej niż jednym ekranie nie dostaje odstępów kontekstu,
+w którym akurat stoi.** Odstęp idzie na klasę kontekstową (`.post-card-tagi`),
+nie na współdzieloną (`.chipsy`) — inaczej naprawa jednego ekranu psuje dwa
+inne. Tu konkretnie: wyszukiwanie i szyna profilu, gdzie 20 px doszłoby **do**
+wcięcia kolumny.
+
+Wartość zawsze z tokenu `--spacing-*`, nigdy liczbą: wcięcie ma rosnąć razem
+z pismem przy czcionce przeglądarki 200% (druga strona D-082 i D-107). Pilnuje
+tego osobna asercja w `tests/Feature/PorzadkiWArkuszuKartyTest.php`.
+
+### Druga połowa tego wpisu: martwy kod wychodzi RAZEM ze swoim komentarzem
+
+`.landing-wpisy` przeżyła przejście strony powitalnej na jedną kolumnę,
+a komentarz nad nią opisywał ją jak żywą siatkę — czyli **martwy kod bronił się
+własną dokumentacją**. Komentarz historyczny (ten, który tłumaczy, co było
+i dlaczego tego już nie ma) zostaje tam, gdzie stoi decyzja — u nas
+w `strony-publiczne.css` przy `.landing-wpisy-kolumna`.
+
+Użycie klasy sprawdza się **po tokenach w atrybucie `class`, nigdy po podciągu**:
+`landing-wpisy` „znajduje się" w `landing-wpisy-kolumna` i martwy kod zostałby
+w arkuszu na zawsze, broniony przez własną nazwę. Strażnik ma na to własny test
+kontrolny (`test_szukanie_uzyc_liczy_tokeny_a_nie_podciagi`).
+
+📄 `resources/css/app.css` · `tests/Feature/PorzadkiWArkuszuKartyTest.php` ·
+`scripts/wciecia-boczne-karty-wpisu.mjs` · D-082 · D-107 · D-132 · D-158
+
+---
+
+## D-161 · Adres strony źródłowej idzie do `isBasedOn` — bo tu typ encji jest znany
+
+**Data:** 12 września 2026 · PR #413 · Status: **obowiązuje** · domknięcie D-156
+
+### Co zostało otwarte
+
+D-156 rozstrzygnęło, że `author` w JSON-LD opisuje wyłącznie konto publikujące,
+a pochodzenie przepisu (`recipes.source_person`) idzie do `citation` jako zwykły
+`Text`. Ta sama decyzja zostawiła jawnie drugą połowę sprawy:
+
+> `source_url` przy `source_type = 'external'` nie idzie do JSON-LD wcale.
+> Tam `isBasedOn` **byłoby** uczciwe, bo to prawdziwy URL.
+
+Przepis przepisany z cudzej strony miał jej adres w bazie, pokazywał go
+człowiekowi na ekranie — a dane strukturalne o nim milczały.
+
+### Decyzja
+
+Blok `Recipe` dostaje `isBasedOn` z `recipes.source_url`, ale **tylko przy
+`source_type = 'external'`**.
+
+**To nie jest wyjątek od zasady z D-156, tylko jej druga strona.** Zasada mówi:
+wartości, o której nie wiemy, jakim typem encji jest, nie wolno wkładać do pola,
+które typ wymusza. `source_person` jest wolnym tekstem („od mamy", nazwa grupy
+na Facebooku) i dlatego poszedł do `citation`. `source_url` jest adresem strony
+i niczym innym — obie drogi zapisu walidują go regułą `url`, a widok pokazuje go
+człowiekowi jako link. **Typ jest znany, więc pole jest uczciwe.**
+
+Wybór sprawdzony u źródła (schema.org V30.0, 19 marca 2026), nie zgadnięty:
+
+| pole | co przyjmuje | ocena |
+|---|---|---|
+| `isBasedOn` | `CreativeWork`, `Product`, **`URL`**; stoi na `CreativeWork` | **wybrane** |
+| `isBasedOnUrl` | to samo, ale schema.org oznacza je „SupersededBy: `isBasedOn`" | odrzucone: zastąpione |
+| `citation` | `CreativeWork`, `Text` | zajęte przez D-156 na `source_person` — nietknięte |
+
+Dziedziczenie sprawdzone: `Thing > CreativeWork > HowTo > Recipe`, a `isBasedOn`
+jest wymienione na stronie `Recipe`. `URL` w schema.org to **goły napis**, więc
+nie deklarujemy żadnego `@type`: adres nie udaje ani osoby, ani organizacji.
+
+### Dwa szczegóły, które nie są ozdobą
+
+1. **Bramka `source_type` jest konieczna.** Formularz nie ukrywa pola adresu przy
+   pozostałych trzech odpowiedziach, więc adres bywa wpisany także przy przepisie
+   własnym czy rodzinnym — a wtedy widoczna treść strony nie pokazuje go wcale.
+   Google traktuje niezgodność danych strukturalnych z widoczną treścią jako
+   naruszenie wytycznych (`docs/seo/SEO_TECHNICAL.md` §2), więc warunek w JSON-LD
+   jest **dokładnie ten sam** co przy widocznym zdaniu „Przepis pochodzi ze strony".
+2. **`?:` przed `null`**, tak samo jak przy `citation`: `array_filter` na końcu
+   bloku odrzuca `null` i `[]`, ale **pusty napis by przepuścił**.
+
+### Zauważone, nietknięte
+
+Widoczny link w `show.blade.php` wstawia `source_url` do `href` bez sprawdzania
+schematu, a walidacja `url` przepuszcza też schematy inne niż `http`/`https`.
+To sprawa bezpieczeństwa widoku, nie danych strukturalnych — osobno. Dalej
+aktualne z D-156: `docs/DATABASE.md` nie opisuje kolumn `source_person`,
+`source_note` ani `source_url`.
+
+Bez zmiany schematu.
+
+📄 `resources/views/pages/recipes/show.blade.php` ·
+`tests/Feature/ZrodloZewnetrzneWDanychStrukturalnychTest.php` ·
+`docs/seo/SEO_TECHNICAL.md` §2 · D-156 · D-153 · D-099 · D-106
+
+---
+
+## D-162 · Manifest PWA nie deklaruje orientacji w ogóle, zamiast deklarować „any"
+
+**Data:** 12 września 2026 · PR #414 · Status: **obowiązuje** ·
+kontekst: SEO/PWA-01 z audytu 10 września 2026, zależność issue #278
+
+### Decyzja
+
+`public/manifest.webmanifest` traci klucz `orientation` w całości. Nie zostaje
+zastąpiony wartością `"any"`, choć audyt dopuszczał oba warianty.
+
+### Dlaczego w ogóle
+
+`"orientation": "portrait-primary"` wymuszało jedną orientację zainstalowanej
+aplikacji, co narusza **WCAG 2.2 §1.3.4 Orientation (AA)** — treść nie może być
+ograniczona do jednej orientacji, o ile konkretna nie jest niezbędna. W Kuking
+niezbędna nie jest: tryb gotowania przy blacie to typowo telefon albo tablet
+położony poziomo, więc blokada uderzała dokładnie w to użycie, **dla którego ten
+ekran powstał**.
+
+### Dlaczego usunięcie, a nie „any"
+
+Rozstrzygnięte tekstem W3C Web Application Manifest, nie z pamięci:
+
+- **bez klucza** przetwarzanie manifestu kończy się na „If json\[„orientation"\]
+  doesn't exist […] return" — aplikacja nie deklaruje niczego i zostaje
+  zachowanie systemu, **łącznie z blokadą obrotu włączoną przez samego
+  człowieka**;
+- **`"any"`** staje się „default screen orientation for the life of the web
+  application", a przeglądarka „MUST return the orientation to the default screen
+  orientation any time the orientation is unlocked" — to deklaracja **czynna**.
+
+Oba spełniają 1.3.4. Wybrany jest ten, który zostawia decyzję przy ustawieniu
+telefonu: dla grupy 50+ blokada obrotu bywa włączona świadomie i ma być nadrzędna
+wobec życzeń strony.
+
+### Co zmierzono przed zdjęciem blokady
+
+Chromium, osobna baza, 15 ekranów × 844×390 i 932×430 (390×844 jako odniesienie):
+nadmiar w poziomie **0 px na każdym ekranie**; dolna belka zostaje widoczna
+(`position: fixed`, 67 px), bo progi układu są **wyłącznie szerokościowe**, a
+844 px = 52,75rem, poniżej progu 64rem; najmniejszy cel dotykowy w belce 66 px;
+**zero kontrolek całkiem zasłoniętych** przez belkę po przewinięciu na dół;
+przyciski trybu gotowania 560×72, 608×72 i 216×60 px. Miejsce na treść między
+belkami: 247 px (844×390) i 287 px (932×430) wobec 701 px w pionie — widok jest
+niższy, ale nic się nie rozjeżdża.
+
+**Drugiej blokady w CSS nie ma**: w całym `resources/` nie występuje ani jedno
+`@media (orientation: …)` ani zapytanie o wysokość okna.
+
+### Strażnik
+
+`tests/Feature/ManifestNieWymuszaOrientacjiTest.php` czyta **plik**, bo
+`orientation` działa dopiero w zainstalowanej aplikacji i żaden test strony ani
+`scripts/dostepnosc.mjs` nie miał jak tej blokady zobaczyć. Przechodzi wyłącznie
+brak klucza albo `"any"` — **lista dozwolonych, nie zakazanych**, więc łapie
+także `portrait`, `landscape`, `landscape-primary` i `natural`. Drugi test w tym
+pliku jest kontrolą dodatnią (poprawny JSON + komplet pól), bez której strażnik
+byłby zielony także nad pustym plikiem.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
+decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
+
+📄 `public/manifest.webmanifest` ·
+`tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
+
+---
+
+## D-163 · Dział pytań nazywa się „Poradźcie", a osobnego miejsca na rozmowy nie o gotowaniu nie budujemy
+
+**Data:** 12 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+dotyczy issue #372
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Nazwa i ekran istnieją
+> (`resources/views/pages/questions/index.blade.php`), ale dwie rzeczy
+> zatwierdzone w tym wpisie nie powstały. Po pierwsze pozycja **w menu**:
+> wiersz „MENU: Poradźcie" nie ma pokrycia — `questions.index` nie występuje w
+> `resources/views/components/layout.blade.php` ani w szynie bocznej, ani w
+> dolnym pasku. Po drugie strażnik, który ten wpis sam stawia jako warunek
+> zatwierdzenia nazwy: „asercja: nagłówek »Poradźcie« **i** zdanie
+> wyjaśniające na tej samej stronie — powstaje razem z ekranem". Ekran jest,
+> strażnika nie ma. Jedyna asercja z tą frazą
+> (`tests/Feature/QuestionIndexTest.php:25`) dotyczy `/odkryj`, nie
+> `/pytania`, i jest `assertSee` po CAŁEJ odpowiedzi — a ta sama fraza siedzi
+> w atrybucie `description` renderowanym jako `<meta name="description">`.
+> Usunięcie `<h1>` i akapitu z `/pytania` nie zaświeciłoby dziś na czerwono
+> ani razu. To wzorzec atrapy nazwany wprost w D-164 i D-185.
+
+### Nazwa
+
+Dział, w którym można poprosić innych o radę, nazywa się **„Poradźcie"** —
+w menu i w nagłówku strony. Brzmienie ekranu zatwierdzone co do słowa:
+
+```
+MENU:  Poradźcie
+
+STRONA:
+  # Poradźcie
+  Ktoś to już robił i chętnie powie, jak.
+  Pytanie do innych jest w porządku.
+
+  [Zapytaj innych]
+
+  Czeka na odpowiedź (3)
+```
+
+### Ryzyko przedstawione właścicielowi i przez niego przyjęte
+
+„Poradźcie" to **czasownik w trybie rozkazującym**, więc w menu — bez kontekstu,
+obok rzeczowników „Start", „Szukaj", „Dodaj" — część osób może nie wiedzieć, czy
+to **ona ma radzić**, czy **jej poradzą**. To jest odstępstwo od testu czasownika
+z `docs/brand/BRAND_EXTENDED.md` §3, świadome, i ma precedens: **„Ugotowałem"**
+też jest formą czasownikową użytą jako nazwa własna funkcji.
+
+Dlatego zdanie pod nagłówkiem — **„Ktoś to już robił i chętnie powie, jak."** —
+**nie jest ozdobą, tylko warunkiem z D-147**: charakter wolno tam, gdzie obok
+stoi zdanie, które tłumaczy. Jeśli ktoś usunie to zdanie przy porządkowaniu
+tekstów, nazwa przestaje spełniać warunek, na którym została zatwierdzona.
+Strażnik na to (asercja: nagłówek „Poradźcie" **i** zdanie wyjaśniające na tej
+samej stronie) powstaje razem z ekranem — dziś ekranu nie ma.
+
+Adres strony i nazwa parametru zostają techniczne (`/pytania`,
+`bez-odpowiedzi`) — patrz otwarte pytania w #372.
+
+### Brak działu off-topic
+
+**Osobnego miejsca na rozmowy nie o gotowaniu nie budujemy.**
+
+Powód: kącik o niczym trzeba moderować **tak samo** jak resztę serwisu — te same
+zgłoszenia, te same decyzje, ten sam czas człowieka — a nie przybliża nikogo do
+ugotowania czegokolwiek. Przy jednej osobie prowadzącej moderację to koszt
+realny, nie teoretyczny.
+
+To nie jest „nigdy": **wracamy do tego, jeśli ludzie sami zaczną tak pisać** —
+czyli jeśli w pytaniach i komentarzach pojawi się rozmowa niekulinarna, której
+nie da się nigdzie odłożyć. Wtedy będzie to odpowiedź na zachowanie, a nie zakład.
+
+Konsekwencja dla pracy nad #372: zabieramy z forum **pytanie i odpowiedź**, nie
+strukturę „forum → działy → wątki → off-topic".
+
+📄 issue #372 · issue #370 · `docs/research/tematy-i-pytania-2026-09-11/` §3.5 ·
+`docs/brand/BRAND_EXTENDED.md` §1.1, §3 · D-147 · D-159
+
+---
+
+## D-164 · Asercja dodatnia na tekście ekranu idzie po `<main>`, nie po całym dokumencie
+
+**Data:** 12 września 2026 · PR #415 · Status: **obowiązuje** · rozwinięcie D-132
+
+### Reguła
+
+Asercja „człowiek widzi na tym ekranie napis X" (`assertSee`,
+`assertStringContainsString`) sprawdza się na **wyciętej treści** ekranu
+(`Tests\Support\WycinaObudoweEkranu::trescEkranu()`), nie na całej odpowiedzi.
+Asercje „X nie ma" **zostają na całym dokumencie** — szersze spojrzenie jest tam
+ostrożniejsze, nie słabsze.
+
+### Dlaczego
+
+`<title>` ekranu jest zwykle tym samym zdaniem co jego `<h1>` i powtarza się
+w `<meta>` (description, og:title, og:image:alt). Stopka niesie „Napisz do nas",
+„O kuKING" i licznik „{n} kuKINGów" na **każdym** ekranie; belka gościa niesie
+„Zaloguj się" i „Załóż konto" na każdym ekranie. Jedno zdanie stoi więc
+w dokumencie 2–5 razy, zanim ktokolwiek spojrzy na treść.
+
+**Zmierzone:** dziesięć asercji w dziesięciu plikach przechodziło po skasowaniu
+tego, czego pilnowały. Skrajny przypadek — `/o-kuking`, gdzie po D-145 napisu
+„O Kuking" **nie ma w treści ani razu** (nagłówek brzmi „O kuKING", nazwa jest
+rozbita na znaczniki), a asercja i tak była zielona z `<title>` i dwóch `<meta>`.
+
+Metoda szukania reszty: 47 wyrenderowanych ekranów (gość i zalogowany), z każdego
+wycięty `<main>`, z reszty zbudowany korpus obudowy, potem triaż 106 trafień po
+DOM-owej lokalizacji każdego napisu na jego własnej stronie.
+
+### Granica
+
+Gdy ten sam napis stoi w treści **i** w prawej szynie (np. „Dodaj zdjęcie
+profilowe"), `<main>` nie wystarcza — plik musi wybrać stronę, o którą mu chodzi.
+Dwa pliki mierzyły tam nie to, o czym są.
+
+**`bezStopki()` nie jest zamiennikiem:** zdejmuje stopkę i tylko stopkę. Po jego
+zastosowaniu na `/o-kuking` napis „O Kuking" nadal jest w dokumencie trzy razy.
+Pułapka 1 w `docs/PULAPKI_TESTOW.md` ostrzegała przed stopką i belką — dopisany
+**§1b** mówi, że najczęstszym winowajcą jest `<head>`.
+
+### Zgłoszone, nietknięte
+
+`SpisTematowTest:90` i `JednoSlowoNaTagiTest:93` sprawdzają „Wszystkie tagi" na
+całym dokumencie. Napis stoi też trzy razy w treści, więc dowód sabotażem
+wymagałby usunięcia `aria-label`, co wywala **inną** asercję w tym samym pliku —
+czerwień pochodziłaby nie z tego, co się mierzy. Te dwie asercje pełnią dziś rolę
+„strona się wyrenderowała, to nie ekran błędu" i tę rolę pełnią poprawnie.
+
+### Koszt cofnięcia
+
+Cofnięcie przywraca dziesięć zielonych testów, które nie umieją zaświecić się
+na czerwono.
+
+📄 `tests/Support/WycinaObudoweEkranu.php` · `docs/PULAPKI_TESTOW.md` §1b ·
+D-132 · D-145
+
+---
+
+## D-165 · Komentarz w pliku wykonywalnym jest dokumentem i podlega tej samej regule co dokument
+
+**Data:** 12 września 2026 · PR #416 · issue #342 · Status: **obowiązuje** ·
+rozwinięcie D-157, ciąg dalszy D-121
+
+### Co stało w pliku obowiązującym
+
+Nagłówek `.github/workflows/ci.yml` (linie 13-14) mówił:
+
+> „GDZIE TO CHODZI: na własnej puli (…), wskazanej ZESTAWEM ETYKIET,
+> nie nazwą runnera i **nie zmienną repozytorium**"
+
+i cytował `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`.
+Wszystkie dziewięć jobów **tego samego pliku** miało
+`runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}`. Ten sam nagłówek
+zapisywał jako koszt, że joby „NIE mają już zapasu w runnerach GitHuba" — a
+`|| '"ubuntu-latest"'` jest tym zapasem i jest wartością **domyślną**.
+`docs/infra/SELF_HOSTED_RUNNER.md` powtarzał obie nieprawdy, **160 linii nad
+własnym pomiarem**, który mówił coś przeciwnego (D-121).
+
+### Dlaczego to nie był „nieaktualny akapit"
+
+**Ta nieprawda miała kierunek.** Kto czytał „nie zmienną repozytorium", ten nie
+sprawdzał wartości `CI_RUNS_ON` — a to właśnie ta wartość, ustawiona na samo
+`self-hosted`, wysyłała przebiegi na starą pulę WSL, czyli tam, gdzie komplet
+sześciu etykiet miał ich **nie wpuścić**, i na tę samą maszynę, która dała wyścig
+o binarkę Composera z #262. Dokument nie tylko mylił — kierował uwagę z dala od
+jedynego miejsca, w którym leżała przyczyna.
+
+Drugi ładunek niósł „Krok 2": kazał odkomentować blok `on:` (aktywny od dawna)
+i usunąć `workflow_dispatch` (zostawiony celowo). Instrukcja, która każe zrobić
+rzecz zrobioną, uczy pomijania instrukcji — a przy okazji kazałaby zabrać jedyny
+ręczny wyzwalacz bramki deployu.
+
+### Decyzja
+
+1. **Komentarz w `ci.yml` jest dokumentem.** Obowiązuje go D-157 w całości: przy
+   rozjeździe z kodem poprawiamy komentarz, nie kod. Zmiana mechanizmu wyboru
+   runnera jest osobną decyzją (D-121), nie skutkiem ubocznym porządkowania opisu.
+2. **Komentarz cytujący linię kodu ma test porównujący jedno z drugim.** Cytat bez
+   testu starzeje się cicho; cytat z testem starzeje się na czerwono.
+3. **Uzasadnienie niewybranego wariantu zostaje jawnie.** Powód, dla którego pulę
+   wskazuje się kompletem sześciu etykiet, a nie nazwą runnera, jest najcenniejszą
+   treścią tego nagłówka i nie znika razem z nieprawdą o mechanizmie. Zakaz idzie
+   na to, co komentarz podaje jako **obowiązujący** `runs-on:`, nie na wystąpienie
+   słowa „etykiety".
+4. **Plik wykonywalny CI zmieniamy wyłącznie w liniach `#`**, a po zmianie
+   sprawdzamy, że YAML dalej się parsuje. `ci.yml` jest bramką deployu Railway
+   („Wait for CI"): zepsuty parser zatrzymuje wdrożenie.
+
+### Strażnik pilnuje OBU stron, bo jedna nie wystarcza
+
+`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php` odczytuje mechanizm
+**z jobów** i od niego uzależnia zakazy: gdy `runs-on:` czyta `vars.*`, zakazane
+są zdania odmawiające zmiennej tej roli; **gdyby ktoś wpisał etykiety na sztywno,
+zakazane stają się zdania oddające zmiennej wybór** — dokument ma wtedy przestać
+o niej mówić. Sprawdzenie samego dokumentu złapałoby połowę; cofnięcie **kodu**
+zostawiłoby dokument prawdziwym w literze, a czytelnika w złym miejscu.
+
+Zdania porównywane po normalizacji (sklejenie linii, `**`, backticki, wielkość
+liter): feralne zdanie było złamane **między liniami 13 a 14** i każdy wzorzec
+jednoliniowy by je przepuścił. `ci.yml` jest czytany dwa razy i rozdzielnie —
+linie `#` jako twierdzenia, `runs-on:` spoza komentarzy jako kod.
+
+### Kontrola ujemna, i co w niej wyszło
+
+„nie zmienną repozytorium" w `ci.yml` → 1 z 5 czerwone · stary cytat etykiet →
+1 z 5 · joby przepisane na sztywne etykiety → 3 z 5 · „nie wybiera już żadna
+zmienna" w dokumencie → 2 z 5 · wskrzeszony „Krok 2" → 1 z 5 · zepsuty wykrywacz
+`runs-on:` → 4 z 5 (kontrola pustego skanu).
+
+**Jeden sabotaż nie nałożył się za pierwszym razem i test wtedy przechodził na
+zielono** — wzorzec podmiany łapał także linię komentarza, więc licznik się nie
+zgodził i podmiana nie wykonała się wcale. Złapane wyłącznie dlatego, że md5 było
+**porównane, a nie założone**. To ta sama, trzecia z czterech przyczyn nieoblanej
+kontroli ujemnej co w D-157.
+
+### Czego ten strażnik świadomie nie pilnuje
+
+Wartości zmiennej `CI_RUNS_ON` — żyje w ustawieniach repozytorium i z kodu jej nie
+widać; jej wybór należy do właściciela (D-121). Oraz nagłówków `deploy.yml`,
+`preview.yml` i `railway-iac.yml`: niosą **dokładnie tę samą nieprawdę** przy
+identycznym `runs-on:`, ale ich poprawka jest poza zakresem #342. Kopia jest
+miejscem, w którym taka nieprawda odrasta (D-104), więc to jest dług, nie
+zamknięta sprawa — dopisanie trzech ścieżek do listy `DOKUMENTY` to jedna linia.
+
+📄 `.github/workflows/ci.yml` (linie wykonywalne nietknięte) ·
+`docs/infra/SELF_HOSTED_RUNNER.md` ·
+`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php` ·
+D-104 · D-121 · D-132 · D-157 · issue #342
+
+---
+
+## D-166 · `docs/DATABASE.md` nazywa każdą kolumnę TEKSTOWĄ, a pilnuje tego test
+
+**Data:** 12 września 2026 · PR #417 · Status: **obowiązuje** ·
+rozwinięcie D-104, wykonanie zauważenia z D-156
+
+### Co było nieprawdą o dokumencie
+
+`AGENTS.md` stawia regułę „zmiana schematu = migracja + test + `docs/DATABASE.md`
++ rollback" od pierwszego dnia. Przegląd rzeczywistego schematu (migracje
+wykonane, odczyt z `information_schema` — **49 tabel, 401 kolumn**) wobec
+dokumentu znalazł **22 kolumny tekstowe w 13 tabelach**, o których dokument nie
+pisał ani razu; sekcja `### recipes` składała się z dwóch słów („Aktualny stan."),
+więc nie było tam ani `source_person`, ani `source_note`, ani `source_url`. Drugi
+przebieg znalazł jeszcze **12 kolumn w 9 tabelach** opisanych wyłącznie na
+zbieżności nazw.
+
+**Koszt jest zmierzony, nie hipotetyczny:** `source_person` nazywa się „person",
+jest `varchar(120)` i nie ma w sobie człowieka. Zanim ktoś zapytał właściciela, ta
+sama nieprawda została zbudowana **dwa razy** — raz na ekranie („Po Nasze smaki.",
+D-153), raz w danych strukturalnych dla Google (`@type: Person`, D-156). Obie
+naprawy kosztowały cudzą pracę.
+
+### Zasada
+
+> **Dokument modelu danych ma nazywać każdą kolumnę TEKSTOWĄ, a przy kolumnie
+> niosącej treść od człowieka — powiedzieć, co w niej NAPRAWDĘ leży, i czym jest
+> `NULL`. Nazwa kolumny nie jest opisem.**
+
+### Zakres obowiązku i dlaczego akurat taki
+
+Strażnik żądający opisu KAŻDEJ kolumny oblewałby przy każdej migracji dokładającej
+`position` albo `cos_id` — i zostałby wyłączony w tydzień. **Strażnik, którego się
+wyłącza, nie jest strażnikiem.** Obowiązek obejmuje więc kolumny
+`text`/`varchar`/`char` poza ośmioma tabelami frameworka (dziś 129 kolumn w 41
+tabelach), bo kolumna tekstowa to jedyny rodzaj kolumny, której zawartości **nie
+da się odczytać z nazwy i typu**: `family_since_year smallint` mówi o sobie
+wszystko, `source_person varchar(120)` mówi nieprawdę.
+
+Lista tabel jest listą **wykluczeń**, nie objętych — nowa tabela wchodzi pod
+obowiązek sama.
+
+### Strażnik
+
+`tests/Feature/DokumentacjaBazyOpisujeSchematTest.php`. Schemat czytany
+z `information_schema` **żywej** bazy po migracjach, nie z plików migracji:
+migracje bywają wielokrotne (`posts.topic_id`), a liczy się stan końcowy. Progi
+`MIN_*` (30 tabel / 100 kolumn / 50 000 znaków dokumentu) są zamkiem na skanie
+pustego zbioru i na wytrychu „wpisz nasze tabele do wykluczeń". Osobny test
+kontroluje sam wykrywacz: musi umieć odpowiedzieć **przecząco**.
+
+### Czego ten strażnik świadomie nie pilnuje
+
+Czy opis jest **prawdziwy** — ze schematu tego wyprowadzić się nie da;
+`source_person` był `varchar(120) NULL` także wtedy, gdy wszyscy myśleli, że to
+człowiek. Ani **gdzie** w dokumencie kolumna jest nazwana — wymaganie sekcji
+oblewałoby przy każdym przestawieniu dokumentu, czyli byłoby tą kruchością, przez
+którą strażników się wyłącza. Cena tej granicy jest jawna i została raz zapłacona
+ręcznie.
+
+### Przy okazji zauważone, NIETKNIĘTE
+
+> ## ⛔ SPROSTOWANIE z 12 września 2026 — ta sekcja była w DWÓCH punktach nieprawdziwa
+>
+> Powstała z przeglądu, który tych twierdzeń **nie zmierzył**, tylko je
+> zauważył. Przy próbie ich wykonania okazało się, że:
+>
+> | twierdzenie poniżej | jak jest naprawdę |
+> |---|---|
+> | `collection_items.note` — nic nie zapisuje ani nie czyta | **żywa**: zapisują `SavePostToCollection.php:41,49` i `SaveRecipeToCollection.php:50,58`, a **wychodzi w eksporcie danych osobowych** jako `moja_notatka` (`Users/Exports/CollectUserExportData.php:335,347`, `DataExportTest.php:188`) |
+> | `daily_picks.note` — nic nie czyta | **żywa i widoczna dla człowieka**: `DailyBoardController.php:188`, `DailyBoard.php:161-165`, wyświetlana w `kuking-board.blade.php:138,278` (`DailyBoardTest.php:65,317`) |
+> | `users.role` nie ma CHECK-a | **ma**: `users_role_check` istnieje od pierwszej migracji (`0001_01_01_000001_create_users_table.php:58`) i ma własny test (`NadanieRoliTest.php:167`) |
+>
+> Prawdziwy okazał się jeden punkt: `media.perceptual_hash` była martwa
+> i została usunięta. Próbne skasowanie dwóch pozostałych kolumn **oblewa pięć
+> testów**.
+>
+> **Dlaczego zdania niżej zostają zamiast poprawki.** Sekcja „przy okazji
+> zauważone" w cudzym przeglądzie jest **hipotezą, nie ustaleniem** — a ta
+> podała hipotezę tonem ustalenia. Gdyby ktoś jej zaufał, z eksportu danych
+> osobowych zniknęłaby treść napisana przez człowieka. Ostrzeżenie jest warte
+> więcej niż czysty wpis; zdania niżej czytaj **jako przykład błędu**, nie jako
+> opis stanu.
+
+`media.perceptual_hash`, `collection_items.note` i `daily_picks.note` to kolumny,
+których dziś **nic nie zapisuje ani nie czyta**. Zostają, ale dokument mówi to
+wprost — opis obiecujący działające pole byłby tą samą klasą nieprawdy.
+`recipes.source_url` jest `text` bez limitu w bazie przy walidacji tnącej na 2000
+znaków. `users.role` i `units.unit_type` nie mają CHECK-a.
+
+📄 `docs/DATABASE.md` · `tests/Feature/DokumentacjaBazyOpisujeSchematTest.php` ·
+D-104 · D-132 · D-153 · D-156
+
+---
+
+## D-167 · `/health` mówi, gdy obiecana droga wejścia nie istnieje
+
+**Data:** 12 września 2026 · PR #418 · issues #258, #259 · Status: **obowiązuje** ·
+wykonanie D-069 i D-113
+
+### Problem
+
+Wejście kontem Google (D-069) i kontem Facebooka (D-113) były w `main` w całości —
+z kodem, ekranami, polityką prywatności i 86 testami. I żadnego z nich nie dało
+się wdrożyć, bo wdrożenie nie kończyło się niczym, co by sprawdziło, czy funkcja
+naprawdę stanęła:
+
+1. `DEPLOYMENT_RUNBOOK.md` nie miał kroku dla Facebooka (Google miał 8D);
+2. `.railway/railway.ts` nie przepuszczał `FACEBOOK_*` do serwisu, więc klucze
+   wpisane w Shared Variables nie docierały do aplikacji;
+3. `/health` nie znał **żadnego** z dwóch dostawców.
+
+**Trzecia jest najgorsza i ona nazywa klasę błędu.** Bez kluczy przycisku po
+prostu nie ma na ekranie — czyli wdrożenie, w którym obiecana droga wejścia **nie
+istnieje**, wygląda identycznie jak wdrożenie, na którym właściciel świadomie jej
+nie chciał. Dwie pierwsze luki odkrywa się, próbując wdrożyć. Trzeciej nie
+odkrywa nikt.
+
+### Rozstrzygnięcie
+
+**1. `/health` oddaje `degraded` z powodem `google_bez_kluczy` albo
+`facebook_bez_kluczy`**, gdy `APP_ENV=production`, funkcja jest włączona
+w `config/kuking.php`, a kluczy nie ma. Pytamy o **rozjazd między obietnicą
+a rzeczywistością**, nie o sam brak kluczy: `KUKING_WEJSCIE_*=false` znaczy „nie
+chcę tej drogi" i nie jest awarią. Inaczej jedynym sposobem uciszenia sygnału
+byłoby wpisanie byle czego w klucze — czyli nauczenie właściciela kłamania
+konfiguracji.
+
+**2. HTTP 200, nie 503.** Żadna z tych kontroli nie jest `KRYTYCZNE`. Healthcheck
+oddający 503 już raz położył ten serwis; serwis bez jednej z trzech dróg wejścia
+działa, serwis w pętli restartów nie działa wcale. Monitoring pilnuje **treści**
+odpowiedzi.
+
+**3. Osobny powód na dostawcę**, nie wspólne `oauth_bez_kluczy`. Naprawa każdego
+z nich to inny panel i inna czynność człowieka — Google Cloud Console to nie jest
+panel Meta.
+
+**4. Publicznie wychodzi sam kod.** Trasa `/health` nie ma `auth` i mieć nie może.
+Zdanie dla właściciela (z nazwami zmiennych i odnośnikiem do runbooka) idzie
+wyłącznie do serwerowego logu, jak przy każdym innym powodzie.
+
+**5. Poza produkcją cisza.** Brak kluczy jest tam stanem normalnym — tak stoi
+w `.env.example`, tak chodzi CI, tak chodzą **wszystkie** środowiska preview (Meta
+nie przyjmuje wieloznaczników w adresach powrotu). Stały `degraded` byłby szumem,
+który uczy ignorować to pole.
+
+### To jest D-053 widziane z drugiej strony
+
+D-053 zabrania martwych przycisków. Tu przycisku nie ma wcale, a obietnica
+została — i to jest ta sama krzywda, tylko cichsza: człowiek, któremu powiedziano
+„wejdziesz kontem Facebooka", nie ma gdzie tego zobaczyć, a my nie mamy skąd się
+dowiedzieć, że tak jest.
+
+### Dowód
+
+`tests/Feature/WdrozenieWejsciaFacebookiemTest.php` (13 testów) pilnuje trzech
+twierdzeń naraz: runbook opisuje krok Facebooka **i mówi, jak sprawdzić, że
+działa**; `railway.ts` przepuszcza te zmienne; `/health` mówi prawdę o ich braku.
+Nazwy zmiennych czytane z `config/kuking.php`, żeby runbook i `railway.ts` nie
+mogły zacząć mówić o nazwie, której aplikacja nie czyta.
+
+### Dług, świadomie zostawiony
+
+`config/kuking.php:937–945` nadal twierdzi, że sygnału `google_bez_kluczy`
+„jeszcze nie ma". Od tego wpisu to zdanie jest nieprawdziwe — do poprawienia przy
+najbliższym dotknięciu tego pliku.
+
+📄 `app/Http/Controllers/HealthController.php` ·
+`docs/infra/DEPLOYMENT_RUNBOOK.md` KROK 8E · `.railway/railway.ts` ·
+`tests/Feature/WdrozenieWejsciaFacebookiemTest.php` ·
+D-053 · D-069 · D-104 · D-113 · issues #258, #259
+
+---
+
+## D-168 · Wejście do Ustawień z telefonu stoi na ekranie profilu, przy „Wyloguj się"
+
+**Data:** 12 września 2026 · PR #419 · issue #344 (część) · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Oba zdania rozstrzygane w
+> tym wpisie przestały obowiązywać 12 września 2026 — patrz **D-174**. „Jeden
+> odnośnik »Ustawienia«… prowadzący na `settings.accessibility`" prowadzi dziś
+> na `settings.index` (`resources/views/pages/profile/show.blade.php:197`), a
+> „**ekran-rozdroże `/ustawienia` nie istnieje**" jest nieprawdą — trasa stoi
+> w `routes/web.php:827` (`SettingsIndexController`). Komentarz w tym samym
+> widoku (linie 180-190) nazywa zmianę po imieniu: „Do 12 września 2026 oba te
+> miejsca celowały w `settings.accessibility`… Rozdroże powstało (issue
+> #344)". D-174 zapisała odwrócenie u siebie, ale nie postawiła adnotacji
+> tutaj, więc do dziś dziennik niósł parę sprzecznych wpisów, oba ze statusem
+> „obowiązuje". Nieaktualna jest też sekcja o „koszcie przyjętym świadomie".
+
+### Co było
+
+Na telefonie `.side-nav` jest schowana (`app.css:1173`), awatar w pasku górnym
+jest `topbar-desktop-only` i **nie ma pod nim żadnego menu**, a dolny pasek ma
+pięć pozycji i szóstej mieć nie może (`AGENTS.md` §5).
+
+**Zmierzone** (Chromium, 390 px, konto zalogowane, pięć ekranów telefonu): słowo
+„Ustawienia" jest w DOM każdego z nich, ale `widoczny: false` na **wszystkich
+pięciu**.
+
+**Sprostowanie do zgłoszenia:** ekrany ustawień **były** osiągalne — przez „Zmień
+swój profil", bo `/ustawienia/profil` niesie `<x-ustawienia-nawigacja>` ze spisem
+wszystkich dziewięciu ekranów. Problemem nie była liczba dotknięć (2 → 2), tylko
+**brak napisu, którego człowiek szuka**.
+
+### Decyzja
+
+Jeden odnośnik „Ustawienia" w rzędzie akcji własnego profilu, prowadzący na
+`settings.accessibility` — tam, gdzie ten sam napis w nawigacji bocznej na
+komputerze. Cel dotykowy **141,8 × 50,5 px**, tekst 18 px, bez przewijania w bok
+przy 320 px i przy czcionce 200%, działa bez JavaScriptu.
+
+### Koszt przyjęty świadomie
+
+Napis „Ustawienia" prowadzi na ekran o nagłówku **„Czytelność"**. Ekran-rozdroże
+`/ustawienia` nie istnieje, a ten sam napis o dwóch celach byłby gorszy niż jeden
+cel dziwny. Ratuje to spis „Wszystkie ustawienia" na tym ekranie. Na komputerze
+tak jest od dawna; ujednolicenie wymaga rozdroża, czyli osobnej decyzji.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Czy awatar przestaje być `topbar-desktop-only` · czy powstaje ekran-rozdroże
+`/ustawienia` · czy rząd akcji na profilu ma wjechać wyżej (zmierzone: stoi na
+`y ≈ 913` przy oknie 844 px, więc wymaga przewinięcia — ale to stan **zastany**,
+sąsiedni „Zmień swój profil" stał tam już wcześniej) · przełącznik motywu
+i licznik powiadomień. Każda to decyzja produktowa, a żadna nie jest potrzebna,
+żeby usunąć ślepy zaułek. Dlatego **#344 zostaje otwarte**.
+
+### Co wyszło w kontroli ujemnej i jest warte zapamiętania
+
+Sabotaż „napis schowany pod `<span class="visually-hidden">`" **początkowo nie
+oblał testu**. Przyczyna to druga z czterech: *test nic nie mierzył w tym
+aspekcie* — szukał odnośnika przez `normalize-space(.)`, a `textContent` zlicza
+także tekst schowany dla oka. Czyli test przepuszczał dokładnie to, czego zakazuje
+„ikona nigdy sama". Po poprawce odnośnik jest szukany po **widocznym** napisie.
+
+Druga pułapka: `.side-nav` renderuje się w HTML-u **zawsze**, także na telefonie —
+chowa ją wyłącznie CSS. Razem z nią w dokumencie jest pozycja „Ustawienia" i
+formularz wylogowania, więc asercja po całym dokumencie przechodziłaby nawet nad
+cudzym profilem (D-164).
+
+📄 `resources/views/pages/profile/show.blade.php` ·
+`tests/Feature/UstawieniaZTelefonuBezZgadywaniaTest.php` ·
+D-053 · D-082 · D-107 · D-164 · issue #344
+
+---
+
+## D-169 · Gdy o stanie ekranu decyduje kliknięcie, a nie serwer, warstwę wybiera arkusz
+
+**Data:** 12 września 2026 · PR #420 · issue #343 · Status: **obowiązuje** ·
+rozszerzenie D-126
+
+### Decyzja
+
+D-126 każe panelowi formularza znikać tam, gdzie nie ma czego wypełnić, i na
+czterech ekranach robi to `@class([...])` — bo tam stan zna **serwer** w chwili
+renderowania. `<details>` przełącza się już **po** wyjściu odpowiedzi, więc Blade
+nie ma czego wybrać. Wtedy warstwę wybiera selektor stanu w arkuszu
+(`details.panel-formularza:not([open])`), i to jest **rozszerzenie D-126, nie
+wyjątek od niej**.
+
+Dwa warunki: wartości biorą się w całości z tokenów istniejącej warstwy (żadnych
+połowicznych sygnatur), a reguła działa **bez JavaScriptu**.
+
+**Zmierzony koszt** na `/zeszyt`, identycznie przy 390 i 1512 px: obwódka
+`rgb(138,122,99)` → `rgb(228,218,203)`, cień → `none`, wcięcie 24 → 20 px,
+wysokość 100,5 → 92,5 px. Przy rozwinięciu przycisk przesuwa się w dół o **4 px**;
+jego własna wysokość zostaje 50,5 px, powyżej progu 48.
+
+### Drugi werdykt: rolę nadaje MIEJSCE, nie obiekt
+
+Ekran „Komuś wyszło" (`pages/cooked/celebrate.blade.php`) zostaje **sekcją**.
+Zapisany argument za kartą brzmiał „warstwa 1 wymienia wykonanie wprost" — to
+argument z **obiektu**, a D-128 mówi, że rolę nadaje **miejsce**. Oba miejsca
+istnieją w kodzie obok siebie: stały dom wykonania `/ugotowane/{id}` → karta
+treści; jednorazowe potwierdzenie `/ugotowane/{id}/wyszlo` → sekcja (drugie
+wejście przekierowuje). To ten sam układ, który D-128 rozstrzygnął dla zgłoszeń,
+więc **nie wymagał nowej decyzji** — tylko zastosowania istniejącej.
+
+### Liczba z tytułu issue była nieaktualna
+
+`.card` niesie dziś **22** żywe wystąpienia, nie 130: 35 trafień komendą z issue,
+24 po odsianiu nazw z myślnikiem (`post-card-head`), 22 po wycięciu komentarzy
+Blade. Trzeci wyjątek (puste stany panelu) był już domknięty w `e57b2c9` (#367) —
+nieaktualny był **dokument**, nie kod.
+
+### Zostaje otwarte
+
+Czwarte ograniczenie z tej samej sekcji `ROLE_KART.md`: automat dostępności nie
+wchodzi na trzy ekrany z ramkami (403 na koncie demo, brak 2FA na koncie demo).
+To nie jest wyjątek warstwy, tylko **luka w pokryciu pomiarem** — osobna sprawa.
+
+📄 `resources/css/tokens.css` · `docs/design/ROLE_KART.md` ·
+`tests/Feature/WyjatkiRolKartTest.php` · D-053 · D-125 · D-126 · D-128 ·
+issue #343
+
+---
+
+## D-170 · Dokumenty w `docs/brand/` podlegają własnym regułom tam, gdzie podają tekst do wklejenia
+
+**Data:** 12 września 2026 · PR #421 · issue #38 (część) · Status: **obowiązuje**
+
+### Co było
+
+§6 `docs/brand/COPY_STYLE.md` przez pół roku **zalecał** frazy, które ten sam
+dokument uznaje za błąd — bo żaden test nie czytał `docs/`.
+`TekstyWedlugCopyStyleTest` skanuje `resources/views`, `resources/legal/*.md`,
+`lang/` i PHP. Przewodnik był jedynym miejscem w repozytorium, gdzie własne zasady
+wolno było łamać bezkarnie, i to akurat tam, **skąd ludzie kopiują**.
+
+Zgłoszono dwie frazy. Skan wzorów do wklejenia w całym `docs/brand/` dał
+**jedenaście trafień w czterech plikach** — pięć w §6 `COPY_STYLE.md`, dwa
+w `BRAND_EXTENDED.md`, trzy w `MASCOT_CONCEPT.md` §6.4 (sekcja, która sama nazywa
+swoje teksty „gotowymi do wklejenia").
+
+Dwa z nich są szczególnie wymowne: `mail/data-export-ready.blade.php:34` ma nad
+sobą komentarz „Gotowy napis z COPY_STYLE.md §6. Nie zmieniamy go" — a napis od
+dawna różnił się od §6. `BRAND_EXTENDED.md:137` przeczył **słowniczkowi w tym
+samym pliku** (`:46`) i produktowi.
+
+### Zasada
+
+> Gotowy napis w przewodniku jest traktowany jak napis w produkcie.
+
+**Granicą jest znacznik w samym dokumencie:** wiersz `❌`, komórka skreślona
+i cała proza zostają wolne — o błędach trzeba móc pisać. Obie zgłoszone frazy
+dalej stoją w dokumencie jako cytaty odrzucone i strażnik ich nie rusza; że je
+odróżnia, jest **zmierzone**, nie założone (sabotaż samego rozróżnienia oblewa
+cztery testy).
+
+**Gdy napis żyje już na ekranie, wiążące jest brzmienie z kodu** — dokument idzie
+za produktem, nie odwrotnie.
+
+Wszystkie poprawki to **przebudowa zdania**, nigdy dopisanie drugiej formy.
+
+### Dlaczego osobny plik, a nie rozszerzenie istniejącego testu
+
+`TekstyWedlugCopyStyleTest` bierze **powierzchnię produktu** i dokument jest tam
+**źródłem reguły**, nie przedmiotem badania. Dołożenie `docs/brand/` wymagałoby
+wniesienia do niego całego mechanizmu „wzór kontra cytat odrzucony" — wiedzy
+o tym, co znaczy `❌` w bloku ```text — której tamten plik nie ma powodu mieć.
+
+Jedno wspólne zostało uwspólnione **naprawdę**: wzorce rodzaju mieszkają
+w `tests/Support/WzorceRodzaju.php` i używają ich oba testy, więc poprawka wzorca
+nie może uczynić jednego z nich ślepym.
+
+### Co wyszło w kontroli ujemnej
+
+Przy cofnięciu całej poprawki wyszła słabość **samej frazy kontrolnej**: „Możesz
+być pierwsza albo pierwszy" stała przed poprawką jednocześnie jako `❌` **i** jako
+wzór, więc czerwień nie mówiłaby, czy zepsuty jest parser, czy dokument. Fraza
+podmieniona na występującą wyłącznie jako cytat odrzucony, kontrola powtórzona.
+
+Reguły „wykrzyknik" i „nazwa w rejestrze poważnym" nie mają dziś w przewodniku ani
+jednego trafienia — dlatego mają **własną kontrolę na podstawionych usterkach**,
+inaczej byłyby zielone bez znaczenia.
+
+📄 `docs/brand/COPY_STYLE.md` §6 · `docs/brand/BRAND_EXTENDED.md` ·
+`docs/brand/MASCOT_CONCEPT.md` §6.4 ·
+`tests/Feature/PrzewodnikTrzymaSieWlasnychZasadTest.php` ·
+`tests/Support/WzorceRodzaju.php` · D-104 · D-132 · issue #38
+
+---
+
+## D-171 · Automat dostępności mierzy ekrany wejścia z atrapami kluczy dostawców, ale nie z atrapą dostawcy
+
+**Data:** 12 września 2026 · PR #422 · issue #345 · Status: **obowiązuje**
+
+### Kontekst
+
+Blok „Wejdź kontem Google / Facebooka" renderuje się pod warunkiem
+`Google::dziala()` / `Facebook::dziala()`. Środowiska pomiaru (`.env`
+deweloperski, job `dostepnosc` w CI) mają klucze **puste**, więc axe nie zobaczył
+tych przycisków **ani razu** — mimo że `/login` i `/register` były na liście
+`EKRANY` od początku.
+
+**Zmierzone** (320 px, `<main>`): `/login` z kluczami 40 węzłów i 2 znaki marki,
+bez kluczy 25 węzłów i **zero**; `/register` odpowiednio 58 i 43. To ta sama klasa
+fałszywej zieleni co D-106.
+
+Do tego `/ustawienia/bezpieczenstwo` — jedyne miejsce z „Połącz konto Facebooka"
+(D-098) — **nie był mierzony wcale**, ani przez axe, ani przez układ; stoi za
+`auth`, więc `PomiarDostepnosciObejmujeStronyPubliczneTest` z założenia go nie
+widzi.
+
+### Rozstrzygnięcie
+
+Automat stawia swój serwer z **atrapami czterech kluczy**
+(`KLUCZE_DOSTAWCOW_DO_POMIARU`) i **twardo sprawdza, że rząd przycisków naprawdę
+wyszedł**; niepowodzenie kończy przebieg. Wartość klucza nie wchodzi do HTML-a
+(widok pyta tylko *czy* klucze są), więc renderowany kod jest co do znaku ten sam
+co na produkcji i nie wychodzi z tego ani jedno żądanie do dostawcy. Do listy
+dochodzi `/ustawienia/bezpieczenstwo`.
+
+Progów **nie ruszano**. Skan: 40/40 → **41/41** axe, 45/45 → **46/46** układ,
+zero naruszeń przed i po. Naprawiać nie było czego.
+
+### Czego to nie zmienia
+
+Ekrany za zgodą dostawcy (`/wejdz/{google,facebook}/{domknij,polacz}` oraz
+`auth.facebook-bez-adresu`) zostają **niezmierzone** i zostają wypisane jako dług
+nazwany w `WYJATKI`. Czytają z sesji tożsamość, którą zakłada wyłącznie
+`callback()` po wymianie kodu u dostawcy, a adres wymiany jest **stałą w kodzie**,
+idzie z serwera i nie da się go wskazać konfiguracją — zmierzone: przy ustawionych
+atrapach kluczy wszystkie cztery dalej oddają 302 na `/login`.
+
+**Trzy drogi rozważone i odrzucone:**
+* zapis klucza sesji z zewnątrz (choćby przez `tinker`) — **właz obchodzący
+  D-098**, granica, której nie przekracza ani `stanModeratora()`, ani
+  `stanPrzedKodem2FA()`;
+* nadpisanie adresu punktu tokenu konfiguracją — wywraca model bezpieczeństwa
+  opisany w `KlientGoogle` („nie sprawdzamy podpisu, bo token odbieramy wprost
+  z punktu Google po TLS") i robi ze zmiennej środowiskowej drogę do podstawienia
+  tożsamości oraz wycieku sekretu klienta;
+* serwer-atrapa za proxy z podłożonym CA — wymaga zaufanego CA w procesie
+  aplikacji, co jest gorsze niż to, co naprawia.
+
+Atrapa **całego dostawcy** zostaje osobną pracą z #345 i osobną decyzją; **dług to
+pięć ekranów, nie cztery.**
+
+### Zauważone o środowisku
+
+Drzewo bez zbudowanego frontu daje **mylący komunikat o poczcie**, bo każda strona
+zwraca 500 (`ViteManifestNotFoundException`). Wart osobnego zgłoszenia.
+
+📄 `scripts/dostepnosc.mjs` · D-098 · D-106 · D-132 · issue #345 · issue #278
+
+---
+
+## D-172 · Menu „więcej" na karcie wpisu to same trzy kropki — nazwany wyjątek od „ikona nigdy sama"
+
+**Data:** 12 września 2026 · PR #441 · Status: **obowiązuje**
+
+### Kontekst
+
+11 września do przycisku menu na karcie wpisu dołożyliśmy widoczny napis „Więcej",
+bo `AGENTS.md` §5 mówi: **ikona nigdy sama**. Dzień później właściciel poprosił
+o odwrotne: „Jak jest wpis to te «… Więcej» można skrócić do samych trzech kropek?
+Seniorzy są przyzwyczajeni do tego na fb itp".
+
+### Decyzja
+
+Przycisk `<details class="post-card-menu">` nie ma widocznego napisu. **To nie jest
+cofnięcie poprzedniej decyzji przez zapomnienie — to zmiana reguły, zapisana
+w `AGENTS.md` §5 i w `docs/UX_50_PLUS.md` jako nazwany wyjątek.**
+
+### Powód
+
+Nie estetyka, tylko **rozpoznawalność**. Reguła ogólna mówi o ikonie, której trzeba
+się **domyślić**. Nasi ludzie przyszli z Facebooka i spędzili tam lata; trzy kropki
+w rogu wpisu są dla nich znakiem już znanym. Domyślania tu nie ma.
+
+### Ryzyko przyjęte świadomie
+
+Za tym menu stoją „Edytuj wpis" i „Usuń wpis". `docs/UX_50_PLUS.md` wymienia wzorzec
+„`♡ ⋮ ↗` bez podpisów" jako słaby i **ten argument pozostaje prawdziwy**. Właściciel
+dostał go wprost przed decyzją i zdecydował inaczej.
+
+### Granica
+
+Wyjątek dotyczy **wyłącznie tego jednego menu**. Nie obejmuje paska akcji pod wpisem,
+pasków nawigacji, przycisków zamykania ani akcji moderacyjnych. Rozszerzenie wymaga
+osobnej decyzji i osobnego wpisu, nie dopisania klasy CSS.
+
+### Czego wyjątek nie zabiera
+
+`aria-label="Więcej przy tym wpisie"` zostaje i jest jedyną nazwą dostępną tego
+przycisku. Cel dotknięcia zostaje 48 × 48 px. Menu dalej otwiera się bez
+JavaScriptu (`<details>`). Kropki rysuje komponent ikony, a **nie znak `···`
+z klawiatury** — to jest różnica wobec stanu sprzed 11 września, gdy kropki były
+schowane przed czytnikiem ekranu i nikt nie dostawał ani znaku z podpisem, ani
+podpisu ze znakiem.
+
+### Zmierzony skutek uboczny
+
+Przycisk: **125,6 → 48 px** (czcionka 100%) i **225,1 → 96 px** (czcionka
+przeglądarki 200%). Główka karty w najgorszym z dziewięciu przypadków: przy 320 px
+**18 → 8 wierszy**, przy 414 px **8 → 5**. Przy 200% kolumna z nazwą i datą miała
+przed zmianą **0 px szerokości** — jednakowo na 320, 360, 390 i 414 px, bo ten jeden
+przycisk zjadał całą kartę.
+
+📄 `resources/views/components/post-card.blade.php` · `AGENTS.md` §5 ·
+`docs/UX_50_PLUS.md` · `KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`
+
+---
+
+## D-173 · Data wpisu w strumieniu gubi rok — ale tylko wtedy, gdy wolno
+
+**Data:** 12 września 2026 · PR #443 · Status: **obowiązuje**
+
+### Kontekst
+
+Po pomiarze główki karty wpisu (D-172) zostały dwa warianty skrócenia daty. Pomiar
+pokazał, że **oba dokładają 0–1 wiersza** ponad to, co dało skrócenie przycisku,
+i są między sobą nie do odróżnienia. Właściciel wybrał krótką datę.
+
+### Decyzja
+
+`Czas::dataWpisu()`, używane **wyłącznie na karcie wpisu**. Wpis z bieżącego roku:
+„12 września, 10:04". Starszy: „12 września 2025, 10:04".
+
+### Dlaczego nie „3 godziny temu"
+
+Bo to jest **archiwum, do którego ludzie wracają** — „2 lata temu" nie mówi, kiedy.
+Zysk wobec krótkiej daty: 0–1 wiersza, czyli żaden.
+
+### Gdzie tego nie używamy
+
+Ekrany moderacji, odwołań, wiadomości i eksportu danych. Tam data jest **dowodem
+w sprawie albo terminem, po którym coś się kończy** — pełny rok kosztuje jedno słowo
+i zostaje.
+
+### Próg roku liczony w strefie człowieka, nie w UTC
+
+To nie jest drobiazg i ma własny test. 31 grudnia 23:30 UTC to w Polsce już
+1 stycznia, 00:30. Wpis sprzed godziny jest wtedy z **poprzedniego** roku człowieka,
+a z **bieżącego** roku UTC — próg liczony w UTC gubiłby rok przy wpisach z sylwestra
+przez pierwsze dwie godziny polskiej doby (jedną zimą).
+
+📄 `app/Support/Czas.php` · `DataWpisuGubiRokTylkoWTymRokuTest` · D-172 · issue #87
+
+---
+
+## D-174 · `/ustawienia` jest kanoniczną stroną ustawień, a menu konta stoi na `<details>`
+
+**Data:** 12 września 2026 · PR #439 · issue #344 · Status: **obowiązuje**
+
+### Kontekst
+
+Napis „Ustawienia" prowadził na ekran o nagłówku **„Czytelność"**. **D-168** przyjęło
+to świadomie jako koszt — bo rozdroża `/ustawienia` w serwisie nie było, a dorobienie
+go to była nowa trasa, nowy ekran i decyzja o tym, co jest kanoniczną stroną ustawień.
+
+### Decyzja
+
+Rozdroże **istnieje** (`SettingsIndexController`, trasa w grupie `auth`) i jest spisem
+wszystkich dziewięciu ekranów ustawień. Napis „Ustawienia" wszędzie — w nawigacji
+bocznej, na profilu i w menu konta — celuje w `settings.index`. **Napis i nagłówek
+ekranu, na który prowadzi, mówią wreszcie to samo słowo.**
+
+### Menu konta przy awatarze stoi na `<details>`, nie na skrypcie
+
+Działa **bez JavaScriptu** (`AGENTS.md` §5). `resources/js/app.js` dokłada tylko
+zamykanie kliknięciem obok i klawiszem `Esc` — czyli wygodę, nie działanie.
+
+### „Powiadomienia" w pasku górnym na telefonie
+
+`.side-nav` poniżej 64rem nie ma wcale, a dolny pasek niesie pięć pozycji i szóstej
+mieć nie może. Własny profil przestał być jedynym ekranem, z którego człowiek
+z telefonem dochodzi do obsługi konta.
+
+📄 `app/Http/Controllers/Settings/SettingsIndexController.php` ·
+`resources/views/pages/settings/index.blade.php` · `MenuKontaPrzyAwatarzeTest` ·
+`RozdrozeUstawienTest` · D-168 · D-053
+
+---
+
+## D-175 · 48 px celu dotknięcia należy się rzeczom, w które da się kliknąć — nie każdemu wierszowi tekstu
+
+**Data:** 12 września 2026 · PR #442 · issue #435 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela brzmiało: „Mój profil jest miejsce by dać @woogitsu obok
+Mateusz". Za tym jednym zdaniem stała rzecz mierzalna: główka własnego profilu przy
+390 px miała **952 px** wysokości, więc rząd akcji stał na `y ≈ 851` przy oknie
+844 px — **pod pierwszym ekranem**. Do tej samej główki doszło wcześniej **D-168**,
+od zupełnie innej strony.
+
+Rozbiórka na klocki pokazała, skąd ta wysokość: **liczniki 269 px**, kolumna awatara
+213 px, bio 84 px.
+
+### Decyzja
+
+`min-height: 3rem` (48 px) dostają **tylko te liczniki, które są odnośnikami** — dwa
+z pięciu prowadzą do listy osób. Trzy pozostałe to zwykły tekst.
+
+Reguła z `AGENTS.md` §5 mówi o **celu dotknięcia**, a nie o wysokości każdego wiersza.
+Zastosowana do tekstu, w który nie da się kliknąć, kosztuje 33 px na wiersz i nie
+kupuje niczego.
+
+### Przy okazji: `@nazwa` wchodzi do wiersza z nazwą
+
+`.profil-tozsamosc` (flex z `flex-wrap` i `align-items: baseline`). Przy długiej nazwie
+(`display_name` ma `max:100`) i przy czcionce 200% `@nazwa` **schodzi pod spód** —
+schodzi, a nie wypycha strony w bok.
+
+### Zmierzone
+
+Rząd akcji, czcionka 100%: 390 px **850,77 → 767,03 px** (po raz pierwszy nad
+zgięciem przy oknie 844 px), 414 px 822,88 → 739,14, 320 px 887,95 → 826,72,
+768 px 593,88 → 532,64, 1280 px 380,66 → 351,86. Przy czcionce 200%: 768 px
+1562,58 → 1395,16, 1280 px 1506,78 → 1339,36.
+
+### Czego świadomie nie zrobiono
+
+**Liczniki zostają po jednym w wierszu.** Dwie kolumny były już raz próbowane
+i zmierzone jako gorsze: kolumna treści ma 229–373 px w całym zakresie okien, po
+podziale zostaje ~112 px i wyrazy łamią się w środku („obserwując / ych").
+
+### Przy okazji zapisana pułapka kaskady
+
+Pierwsza wersja tej poprawki postawiła `@media` z progiem **przed** regułą bazową.
+Obie mają tę samą specyficzność, więc wygrała ta niżej w pliku i **próg przestał
+działać także przy 1280 px**. Wyglądało to na zmianę ograniczoną do telefonów, a nie
+było nią — złapał to dopiero pomiar. Stąd osobny test na **kolejność reguł w pliku**.
+
+📄 `resources/css/ekran-profilu.css` · `scripts/glowka-profilu.mjs` ·
+`GlowkaProfiluScalaNazweZNazwaUzytkownikaTest` · D-168 · issue #440
+
+---
+
+## D-176 · W teście albo data jest stała i zegar przymrożony, albo obie są względne
+
+**Data:** 12 września 2026 · PR #438 · Status: **obowiązuje**
+
+### Kontekst
+
+12 września o **10:00 UTC `main` zrobił się czerwony bez ani jednego commita.**
+`AccountStatusTest::test_zawieszony_widzi_date_konca_kary_po_polsku` zawieszał konto
+do `2026-09-12 10:00:00` i sprawdzał jej polski zapis. Gdy test powstawał, data była
+w przyszłości. Tego dnia o 10:00 termin minął, `EnsureAccountIsActive` zdjął karę przy
+pierwszym żądaniu, ekran **słusznie** przestał cokolwiek pokazywać — i test zaczął
+padać **na sprawnym kodzie**.
+
+### Decyzja
+
+Test sprawdzający **format** albo **treść zależną od daty** przymraża zegar
+(`travelTo`) i podaje datę jawnie. Test sprawdzający **upływ czasu** liczy względem
+`now()` i nie wpisuje żadnej daty. **Jedno i drugie w jednym teście to bomba
+z opóźnionym zapłonem**, tykająca dokładnie tyle, ile wynosi różnica między dniem
+napisania a wpisaną datą.
+
+### Sprawdzenie, które kończy poszukiwania w pół minuty
+
+Taka czerwień wygląda nie tak, jak jest: pada w środku dnia, na gałęzi, która nie
+tknęła ani moderacji, ani layoutu, i pierwszy odruch to szukać winnego wśród świeżo
+scalonych PR-ów. **Uruchom ten jeden test na czystym `main`.** Jeśli pada i tam, to
+nie jest niczyja zmiana.
+
+Zapisane jako **pułapka 9** w `docs/PULAPKI_TESTOW.md`. Należy do tej samej rodziny co
+pułapka 8b: czerwień, którą czytasz, nie musi pochodzić ze zmiany, którą oglądasz.
+
+📄 `docs/PULAPKI_TESTOW.md` §9 · `tests/Feature/AccountStatusTest.php` · `AGENTS.md`
+
+---
+
+## D-177 · Rząd akcji zawija się dopiero, gdy naprawdę nie ma miejsca — a `.field:first-child` nie trafia w formularzu POST
+
+**Data:** 12 września 2026 · PR #446 · issue #433 · Status: **obowiązuje**
+
+### Kontekst
+
+Dwa zgłoszenia właściciela ze zrzutów: „Odpowiedz i popraw jest jedno pod drugim,
+gdzie jest jednak miejsce by dać obok siebie" oraz „patrz ile miejsca nad «napisz
+komentarz» à żadnego między «też jest w porządku» polem do pisania".
+
+### Trzy rzeczy warte zapamiętania
+
+**1. `.field:first-child` nie trafia w formularzu POST.** `@csrf` i `@method()`
+renderują **ukryte pola**, a ukryte pole jest elementem. Każda reguła oparta na
+`:first-child` wewnątrz formularza pilnuje czegoś, czego tam nie ma — sprawdzone
+pomiarem na ~50 formularzach serwisu. Naprawiona jest **przyczyna w `tokens.css`**,
+nie objaw w komentarzach: kopia reguły byłaby drugim źródłem prawdy o tej samej rzeczy.
+
+**2. Selektor sąsiedztwa naprawiający jeden układ potrafi zepsuć inny.**
+`input[type="hidden"] + .field` jest poprawne wszędzie **poza** ekranami odtwarzającymi
+cudzy formularz w pętli (419, 429), gdzie ukryte pole rozdziela dwa widoczne. Reguła
+z `+` potrzebuje więc pary z `~`, która odwraca ją tam, gdzie pole nie jest pierwsze.
+
+**3. Podział akcji idzie po odwracalności, nie po autorstwie.** „Zgłoś" wróciło do
+rzędu akcji zwykłych: renderowało się **po** `.danger-zone`, więc w jedynym stanie,
+w którym obie akcje są naraz (autor treści ogląda cudzy komentarz), kreska nie
+oddzielała już niczego.
+
+### Zmierzone
+
+Blok akcji pod komentarzem: 360 / 390 / 414 px **196,5 → 138 px** (3 → 2 wiersze),
+cudzy komentarz 117 → 66,5 px (2 → 1 wiersz). Pustka nad „Napisz komentarz"
+**24 → 0 px**, odstęp podpis → pole **0 → 12 px**.
+
+### Czego świadomie nie zrobiono
+
+**Przy 320 px akcje muszą się zawijać** — „Odpowiedz" + „Popraw" = 252,97 px przy
+wnętrzu karty 246 px. Zmieszczenie ich wymagałoby zwężenia przycisków, czego
+zgłoszenie zabrania wprost. **Parytet, nie poprawa — i to jest wynik, nie przeoczenie.**
+
+**„Wyślij komentarz" zostaje po lewej.** Pomiar jest lustrem: przesunięcie w prawo
+zyskuje na prawej dokładnie tyle, ile traci na lewej. Przy czcionce 200% różnica
+wynosi **0 px**, bo przycisk wypełnia panel.
+
+`row-gap` 8 px przy `column-gap` 12 px: gdyby oba były 12 px, blok przy 320 px byłby
+o 4 px **wyższy** niż przed poprawką — zgłoszenie o zmarnowanym miejscu załatwione
+dołożeniem miejsca.
+
+📄 `resources/css/tokens.css` · `resources/views/components/comment-thread.blade.php` ·
+`scripts/uklad-komentarzy.mjs` · `AkcjeKomentarzaWJednymRzedzieTest` ·
+`RytmFormularzaKomentarzaTest` · D-154 · D-158 · issue #444 · issue #445
+
+---
+
+## D-178 · Zawężenie kolumn musi obejmować klucze obce relacji dociąganych dalej
+
+**Data:** 12 września 2026 · PR #449 · issue #447 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela: „klikam na bigos z cukinii, przekierowuje mnie na to okno
+gdzie jest info Ula bigos napisz komentarz itp a **nie ma przepisu ani zdjęcia**".
+
+Odtworzone na produkcji: strona wpisu zwracała 200, a w całym `<main>` było **zero
+obrazków** — przy zdjęciu widocznym na tej samej karcie w strumieniu. Dwa ekrany
+rysowały ten sam komponent i **nie zgadzały się, czy wpis ma zdjęcie**.
+
+### Przyczyna
+
+`PostController::show()` doładowywał `recipe:id,title,slug`. Zawężenie gubiło dwie
+kolumny i **żadna nie zgłaszała się błędem**:
+
+* **`hero_media_id`** — bez niej relacja `heroMedia` nie ma po czym trafić w wiersz
+  i zwraca `null`. Wpis z przepisu nie ma własnych zdjęć z założenia (#368), więc
+  tracił jedyne, jakie miał.
+* **`visibility`** — bez niej karta bierze widoczność **wpisu**, a ta dla wpisu
+  z przepisu jest zawsze `public` (bramką jest przepis). Strona pisała więc autorowi
+  **„· publicznie"** także pod przepisem, który widzą wyłącznie jego obserwujący.
+
+### Reguła
+
+**Zawężenie kolumn (`with('rel:a,b,c')`, `load(...)`) musi obejmować klucze obce
+relacji, które będą dociągane dalej.** Brak klucza nie jest błędem — jest **cichym
+`null`**. To jest klasa błędu, nie jeden przypadek: nie daje żadnego sygnału ani
+w logu, ani w testach, które nie patrzą na obecność treści.
+
+### Druga decyzja tego samego PR-a: wpis bez własnej treści nie ma własnej strony
+
+`Post::jestSamymPrzepisem()` i `Post::adresTresci()`. Karta prowadzi wprost do
+przepisu, a `posts.show` takiego wpisu przekierowuje.
+
+* **Przekierowanie, a nie 404 i nie skasowana trasa:** adres wpisu mógł już ktoś komuś
+  wysłać („Podziel się"). Ma działać dalej, tylko prowadzić tam, gdzie jest danie.
+* **`url()` zostaje kanonicznym adresem wpisu** i nie wolno go zamienić
+  z `adresTresci()` — kanoniczny idzie do udostępniania, `<link rel="canonical">`
+  i danych strukturalnych.
+* **Wpis z komentarzem nie jest „samym przepisem"** i zostaje przy swojej stronie: ma
+  już coś własnego — rozmowę ludzi. Gdyby warunek o to nie pytał, przekierowanie
+  zostawiłoby ją pod adresem, do którego nic nie prowadzi.
+
+### Zauważone przy okazji
+
+W `OdstepPodZdjeciemNaKarcieWpisuTest` stał komentarz **opisujący tę usterkę jako stan
+normalny**: „`PostController::show()` doładowuje przepis bez kolumny `hero_media_id`,
+więc na stronie samego wpisu zdjęcia przepisu NIE MA". Ktoś to zauważył, obszedł
+w teście i pojechał dalej. Komentarz przepisany.
+
+📄 `app/Http/Controllers/PostController.php` · `app/Models/Post.php` ·
+`WpisZPrzepisuProwadziDoPrzepisuTest` · issue #368
+
+---
+
+## D-179 · Powitanie na stronie głównej nie zależy od godziny serwera
+
+**Data:** 12 września 2026 · PR #450 · issue #38 · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Teza z tytułu — powitanie
+> nie zależy od godziny serwera — obowiązuje i ma pokrycie: w kodzie nie ma
+> żadnej gałęzi po godzinie. Odwrócone zostało BRZMIENIE, przy **D-207**, i
+> nie odnotowano tego tutaj. Zatwierdzone w tym wpisie „**Witaj, {imię}. Co
+> dziś gotujesz?**" nie jest już tekstem na ekranie:
+> `app/Http/Controllers/FeedController.php:200` zwraca „Dzień dobry, {imię}",
+> a pytanie o gotowanie zjechało do kafla publikacji.
+> `tests/Feature/PytanieDniaTest.php:24-26` egzekwuje dziś brzmienie PRZECIWNE
+> do zapisanego niżej. Uzasadnienie zmiany stoi w
+> `docs/brand/COPY_STYLE.md:441-448` („Zastępuje to poprzednie »Witaj, {imię}.
+> Co dziś gotujesz?« i rozdziela powitanie od publikacji"). Nieaktualne są też
+> liczby w sekcji „Zmierzone", bo liczono je na „Witaj, {imię}.".
+
+### Stan zastany był inny, niż mówiło issue
+
+**Pytanie dnia na `/home` już było.** `git grep 'Co dziś gotujesz' -- resources/`
+wracał pusto tylko dlatego, że napis składa się w PHP (`FeedController::greeting()`),
+a widok renderuje gotowy tekst. Nie brakowało funkcji — brakowało **prawdy w tekście**
+i jakiegokolwiek testu.
+
+### Co było nieprawdziwe
+
+Cztery warianty po godzinie, a w nich dwa błędy naraz: **„Dobry wieczór" witało od
+15:00**, a godzinę brał `now()`, czyli **UTC** (issue #87). Latem o **11:50 czasu
+polskiego serwis liczył 9:50**, a po 23:00 witał „Dzień dobry".
+
+### Decyzja
+
+Jedno zdanie, które nie kłamie o żadnej godzinie: **„Witaj, {imię}. Co dziś
+gotujesz?"**.
+
+Naprawa progów dałaby cztery gałęzie do utrzymania i dalej mówiłaby o porze dnia
+**czytelnika**, której nie znamy: o strefę czasową nie pytamy tak samo, jak nie pytamy
+o płeć, a kuKINGi mieszkają też poza Polską.
+
+### Gdy imienia nie ma, zostaje samo pytanie
+
+`User::displayName()` podstawia „Użytkownik Kuking" — dobre wszędzie, gdzie trzeba
+kogoś **nazwać**, złe w powitaniu, bo udaje zwrot po imieniu, którego nie mamy.
+Powitanie czyta `profile?->display_name` wprost.
+
+### Zmierzone
+
+Pole dodawania na `/home`: 390 px `top` 189,5 → 189,5 px, 1512 px 154,5 → 154,5 px.
+„Witaj, {imię}." jest o sześć znaków krótsze, więc przy żadnym imieniu nie wypada
+gorzej: dla „Halina z Podlasia" nagłówek zszedł ze **105 px na 70 px**, a pole
+dodawania podniosło się z **225 px na 190 px**.
+
+### Dwa sabotaże znalazły dziury w samym teście
+
+Zwrot z pustym imieniem („Dzień dobry, . Co dziś gotujesz?") **przechodził**, bo
+asercja szła po fragmencie zamiast po całym nagłówku. Podmiana źródła imienia na
+`displayName()` **przechodziła** przy nazwie z samych spacji — `"   "` jest w PHP
+prawdziwe i `?:` jej nie podmienia.
+
+📄 `app/Http/Controllers/FeedController.php` · `PytanieDniaTest` ·
+`docs/brand/COPY_STYLE.md` · issue #87
+
+---
+
+## D-180 · Widoki pokazują wariant, nie status — i nigdy oryginału
+
+**Data:** 12 września 2026 · PR #451 · issues #430, #432 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela: „pisałem że trzeba jakoś od razu im pokazywać zdjęcie które
+dodali, a nie napis że jest przetwarzane. […] Starzy ludzie nie czytają i będzie
+panika co się stało".
+
+Przyczyna nie była w wydajności, tylko **w kolejności**: wgranie zdjęcia i publikacja
+wpisu to **jedno żądanie**, więc w chwili pierwszego renderu strony zadanie w tle nie
+mogło policzyć ani jednego wariantu. Komunikat „Twoje zdjęcie się jeszcze
+przygotowuje" nie był rzadkim widokiem na wypadek opóźnienia — **był tym, co po
+opublikowaniu wpisu widziała każda osoba, zawsze**.
+
+### Co obowiązywało do tego dnia
+
+„Widoki nigdy nie pokazują zdjęcia, które nie jest `ready`". Reguła była zapisana
+przez **stan wiersza**, a chroniła **bajty**: żeby na stronę nie trafił plik przysłany
+przez użytkownika, z nietkniętym EXIF-em. `ready` było skrótem na „ten plik przeszedł
+już przez nasz koder".
+
+### Dlaczego skrót przestał być prawdziwy
+
+Odkąd `StoreUploadedImage` robi wariant `podglad` synchronicznie, istnieje plik bez
+EXIF-u, a wiersz stoi na `pending`. Reguła po staremu kazała ukryć plik, który **jest
+bezpieczny**.
+
+### Decyzja
+
+Pokazujemy wyłącznie to, co wyszło z **naszego kodera** — czyli wariant zapisany
+w `metadata.variants`. **Oryginał nie jest wariantem** i nie ma drogi, którą mógłby
+tam trafić: `url()` go nie zna, trasa `media.show` ma białą listę nazw, status
+`deleted` nie przechodzi nigdy. Reguła jest **węższa** od poprzedniej — mówi
+o bajtach, nie o etykiecie — i nie ma w niej wyjątku dla właściciela.
+
+### Dlaczego nie pokazujemy oryginału, nawet za bramką dostępu
+
+Bramka odpowiada na pytanie **kto patrzy**, a problemem jest **co dostaje**. Oryginał
+niesie EXIF (aparat, data, a w wierszach sprzed D-023 także GPS) i **6 438 105 B**.
+Wariant rozbraja oba zarzuty naraz i waży **62 974 B** — **102× mniej**.
+
+### Cena, przyjęta świadomie
+
+**~450 ms w żądaniu publikacji** (zmierzone end-to-end: 400–471 ms wobec 19–29 ms bez
+podglądu) i **próg 25 Mpx**, powyżej którego podglądu nie robimy. Próg to granica
+pamięci kontenera web, nie ostrożność: libgd alokuje bitmapę **poza** licznikiem PHP,
+więc `memory_limit` jej nie zatrzyma — proces znika zabity przez OOM, bez wyjątku
+i bez śladu w dzienniku. Zmierzone: 12,2 Mpx → 101 MB, 24,5 Mpx → 154 MB,
+49,9 Mpx → 239 MB, przy 1 GB na wszystkie procesy PHP-FPM naraz.
+
+**Te 450 ms porównuje się do złej rzeczy, jeśli zestawić je z 19 ms.** Zanim serwer
+cokolwiek zrobi, 6,14 MB musi do niego dojechać — to 51,5 megabita. Żeby sam transfer
+zmieścił się w 400 ms, trzeba by **~130 Mbps w górę**; przy typowym LTE trwa on
+kilka sekund.
+
+### Skutek uboczny na korzyść
+
+Po przetworzeniu `podglad` zostaje w `srcset`, więc telefon 320 px pobiera
+**66,8 kB zamiast 178,6 kB**.
+
+📄 `app/Domain/Media/PodgladOdRazu.php` · `app/Models/Media.php` ·
+`docs/MEDIA_PIPELINE.md` · `PrzygotowywanieZdjeciaWpisuTest` · D-023 · issue #448
+
+---
+
+## D-181 · Podgląd przed wysłaniem idzie z pamięci przeglądarki, a jego układ mieszka w arkuszu
+
+**Data:** 12 września 2026 · PR #451 · issue #430 · Status: **obowiązuje**
+
+### Kontekst
+
+Pytanie właściciela: „Nie można zrobić coś by z cache przeglądarki pokazywało chwilowo
+a nie z serwera?".
+
+Odpowiedź ma dwie części. **Cache przeglądarki tego zdjęcia nie ma** — cache trzyma to,
+co przeglądarka **pobrała**, a zdjęcie poszło w drugą stronę, w ciele żądania POST.
+To, co istnieje, to **plik wybrany przez człowieka**, żyjący w pamięci strony do
+przejścia dalej. I tego właśnie używa `resources/js/app.js` (`URL.createObjectURL`) —
+**od dawna, jeszcze przed tym pytaniem**.
+
+### Dlaczego to nie zastępuje pracy po stronie serwera
+
+Publikacja wpisu to POST → przekierowanie → **nowy dokument**, a adres `blob:`
+poprzedniego dokumentu jest wtedy martwy — czyli znika dokładnie w tym momencie,
+w którym zaczyna się problem z D-180. Przetrwanie wymagałoby IndexedDB, JavaScriptu na
+dwóch ekranach i drugiego źródła prawdy o tym, jak wygląda to zdjęcie — a pomagałoby
+**wyłącznie osobie wgrywającej, na tym jednym urządzeniu**.
+
+**Obie połowy zostają i nie kolidują:** przed wysłaniem — z pamięci przeglądarki, po
+opublikowaniu — wariant z serwera.
+
+### Co było zepsute po stronie podglądu
+
+Siatka była wpisana **w skrypcie** jako `repeat(auto-fill, minmax(120px, 1fr))`, więc
+**jedno** zdjęcie dostawało jedną kolumnę z dwóch. Zmierzone: **150 px z 308 px** przy
+oknie 390 px, czyli 49%. Człowiek, który właśnie wybrał zdjęcie swojego obiadu, widział
+znaczek mniejszy niż połowa ekranu. To ta sama usterka, którą właściciel zgłosił przy
+bloku zastępczym w kolażu (#432), tylko o jeden ekran wcześniej.
+
+### Decyzja
+
+Skrypt mówi **ile** jest zdjęć (`data-ile`), a **układ jest w arkuszu**, na tokenach.
+Dopóki `gridTemplateColumns`, `borderRadius` i `marginTop` były przypisywane przez
+`element.style`, istniały **dwa źródła prawdy** o wyglądzie tego bloku — a to
+w skrypcie wygrywało z arkuszem i nie znało żadnego tokenu.
+
+### Zmierzone (obrazek / szerokość pojemnika)
+
+320 px: 238/238 (100%) → bez zmian · 360 px: 135/278 (49%) → **278/278 (100%)** ·
+390 px: 150/308 (49%) → **308/308 (100%)** · 414 px: 162/332 (49%) → **332/332 (100%)**.
+Źródło `blob:`, **63–103 ms** od wyboru pliku, zero naruszeń CSP (`img-src` ma `blob:`),
+zero wyjazdu w bok.
+
+### Czego pilnuje test, skoro wszystko dzieje się w przeglądarce
+
+PHPUnit widzi HTML **sprzed** wykonania skryptu, więc o tym ekranie nie powie nic.
+Pilnuje trzech rzeczy, które cicho cofają tę poprawkę: reguły dla jednego zdjęcia,
+tego że skrypt mówi arkuszowi liczbę zdjęć zamiast wpisywać style, i tego że **bez
+JavaScriptu nie zostaje na ekranie pusty `aria-live`**. Pomiar strony przeglądarkowej
+robi `scripts/podglad-przed-wyslaniem.mjs`.
+
+📄 `resources/js/app.js` · `resources/css/ekran-dodawania.css` ·
+`scripts/podglad-przed-wyslaniem.mjs` · `PodgladWybranegoZdjeciaTest` · D-180 · D-035
+
+---
+
+## D-182 · Odstęp pod podpisem należy się podpisowi, nie jego podpowiedzi
+
+**Data:** 12 września 2026 · PR #460 · issue #445 · Status: **obowiązuje**
+
+### Co było nie tak
+
+Odstęp między podpisem pola a ramką pola dostawała w praktyce **podpowiedź**: 12 px
+deklarowała reguła `.field-help + .field-input` (D-133), a pole bez podpowiedzi nie
+dostawało nic własnego — zostawało mu 8 px z `label { margin-bottom }` w warstwie base.
+Czyli **dokładnie tyle, ile dzieli podpis od jego własnego wyjaśnienia**. Rzecz
+powiązana i rzecz odrębna stały w tej samej odległości, a pole bez podpowiedzi miało
+odstęp **mniejszy** niż pole z podpowiedzią.
+
+### Decyzja
+
+Odstęp należy się **podpisowi** i jest ten sam niezależnie od tego, czy ktoś podpowiedź
+dopisał. Deklaruje go blok dolny, jako `margin-top` (D-154), a warunkiem jest
+sąsiedztwo (D-158): jedna deklaracja, dwa selektory — podpis albo podpowiedź stojąca
+zaraz nad polem.
+
+Pole z podpisem **i** podpowiedzią nie dostaje obu odstępów naraz, i wynika to
+z kształtu reguły, nie z ostrożności autora widoku: bezpośrednim sąsiadem pola jest
+albo podpowiedź, albo etykieta, nigdy oboje. Rytm pola z podpowiedzią zostaje 8 / 12 px.
+
+Podpis schowany przed okiem nie dostaje nic (`:not(.visually-hidden)`). Na
+`/admin/kuking-na-dzis` pole notatki jest podpisane wyłącznie dla czytnika ekranu,
+a 12 px pustki pod napisem, którego nie widać, zsumowałoby się w liście wierszy
+w ekran przewijania.
+
+### Zmierzone
+
+Chromium, „dół etykiety → góra ramki pola", pola **bez** podpowiedzi, na `/login`,
+`/register`, `/ustawienia/profil`, `/ustawienia/bezpieczenstwo`, `/dodaj/zdjecie`
+i `/dodaj/przepis`, przy 320 / 360 / 390 / 414 px — wszystkie ekrany i wszystkie
+szerokości tak samo: **8 → 12 px**, a przy czcionce przeglądarki 200% **16 → 24 px**.
+Pola **z** podpowiedzią: 8 / 12 px przed i po.
+
+### Sprostowanie, bo liczba w komentarzu nie była prawdziwa
+
+W kodzie stało „zmierzone 0 px, np. «Nowe hasło» na /ustawienia". Zmierzone jest 8 px,
+nie 0, a „Nowe hasło" **ma** podpowiedź, więc było akurat jednym z pól z odstępem
+12 px. Usterka jest realna, tylko dotyczy innych pól tego ekranu: „Obecne hasło"
+i „Powtórz nowe hasło". Zła liczba w uzasadnieniu jest gorsza niż brak liczby —
+wygląda jak pomiar i zatrzymuje sprawdzanie.
+
+📄 `resources/css/app.css` · `OdstepPodPodpisemPolaTest` · D-133 · D-154 · D-158
+
+---
+
+## D-183 · Martwe zadanie z kolejki kasuje się po wygaśnięciu żetonu, nie ponawia
+
+**Data:** 12 września 2026 · PR #460 · Status: **obowiązuje**
+
+### Kontekst
+
+`/health` stoi w `degraded` przez cztery zadania `UstawienieNowegoHasla` z 9 września
+2026, czyli z awarii SMTP naprawionej przez D-047.
+
+### Dlaczego `queue:retry` jest tu odpowiedzią złą
+
+`config/auth.php` daje żetonowi resetu hasła **60 minut od wystawienia**. Ponowienie po
+dniach wysłałoby ludziom list o zmianie hasła z linkiem, który już nie działa. Człowiek,
+który o nic dziś nie prosił, klika i widzi „link wygasł". Odruch „ponów, co padło" jest
+tu gorszy niż nicnierobienie.
+
+### Decyzja
+
+`kuking:martwe-zadania` rozdziela dwa przypadki, których `queue:retry` i `queue:flush`
+nie rozdzielają:
+
+- pokazuje, co stoi w `failed_jobs` — kiedy, jaka klasa i **ilu ludzi** to dotyczy
+  (różne konta, nie wiersze: jedna osoba klikała zwykle kilka razy);
+- kasuje **wyłącznie** zadania, których żeton już nie żyje, a próg czyta z konfiguracji
+  osobno dla każdej klasy (60 min z `config/auth.php`, 30 min z `config/kuking.php`);
+- trybem domyślnym jest `--na-sucho`, a przy `--skasuj --na-sucho` naraz wygrywa ta
+  intencja, **którą da się cofnąć**;
+- zadania spoza listy żetonów i te z żetonem jeszcze żywym zostają nietknięte.
+
+### Żeton nie wychodzi na ekran w żadnej gałęzi
+
+Także w tej, w której komenda nie umie odczytać wiersza. Surowego `payload` ani
+`exception` nie drukujemy nigdzie, a `unserialize()` dostaje listę dozwolonych klas,
+na której klas powiadomień nie ma. Pilnuje tego osobny test z **kontrolą dodatnią**
+(asercją, że żeton naprawdę leży w ładunku) — bez niej asercja „żetonu nie widać"
+przechodziłaby też wtedy, gdyby żetonu tam w ogóle nie było.
+
+📄 `app/Console/Commands/MartweZadania.php` · `app/Http/Controllers/HealthController.php` ·
+`MartweZadaniaTest` · D-047 · D-057
+
+---
+
+## D-184 · Rezerwa nad przypiętym paskiem jest liczona ze zmierzonej wysokości i ma sufit
+
+**Data:** 12 września 2026 · PR #460 · issue #26 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`scripts/dostepnosc.mjs` meldował „focus częściowo zasłonięty: 27". Dwadzieścia jeden
+z tych ostrzeżeń mówiło o `.topbar` i miało jedną przyczynę: przy dolnej belce stało
+`scroll-padding-bottom`, a przy górnym pasku nie stało nic. Przewinięcie fokusu w widok,
+które przeglądarka robi sama po Tab, liczy się wtedy do krawędzi okna — a na tej
+krawędzi siedzi przypięty pasek. Osoba chodząca po serwisie klawiszem Tab przestawała
+widzieć, gdzie jest.
+
+### Decyzja
+
+Rezerwa jest liczona od **zmierzonej** wysokości paska, nie z palca: 170,7 px bez
+powiększania i 194,6 px przy tekście 140% (320/360/414 px), 75,5 / 84,5 px od 768 px.
+Stąd `calc(7rem + 5rem * var(--user-text-scale, 1))` i osobny, niższy stopień od 64rem.
+
+Część stała jest konieczna, bo pasek prawie nie jest typografią: urósł o 14%, gdy tekst
+urósł o 40%. Reszta jego wysokości to minima przycisków i wypełnienia w `rem`.
+
+### Rezerwa ma sufit i to on, a nie pasek, jest tu trudny
+
+Gdy kontrolka nie mieści się w pasie między rezerwami, przeglądarka równa ją górą
+i **każdy piksel rezerwy spycha jej dół pod belkę dolną**. Zmierzone przy 320 px
+i tekście 140%: sufit **244,5 px**, a wariant 14rem × skala (313,6 px) dokładał nowe
+ostrzeżenie zamiast zbijać stare. Więcej rezerwy nie jest tu lepiej.
+
+Rezerwa znika dokładnie na obu progach, na których pasek przestaje być przypięty
+(D-107) — nad odpiętym paskiem byłaby czystą stratą ekranu.
+
+### Zmierzone
+
+Tym samym skryptem, baza `kuking_a11y_c`, axe 42/42, układ 47/47: „focus częściowo
+zasłonięty" **27 → 6**, pozostałe liczniki bez zmian. Kontrola ujemna: samo zdjęcie
+reguły `scroll-padding-top` przywraca 27.
+
+Sześć ostrzeżeń zostaje i nie da się ich zdjąć przewijaniem — to kontrolki **wyższe niż
+okno** przy czcionce przeglądarki 200% (2087, 1070 i 783 px przy oknie 740 px).
+
+📄 `resources/css/app.css` · `RezerwaNadPaskiemTest` · `scripts/dostepnosc.mjs` · D-107
+
+---
+
+## D-185 · Asercję podejrzaną o atrapę się mierzy, a nie przepisuje
+
+**Data:** 12 września 2026 · PR #460 · Status: **obowiązuje**
+
+### Kontekst
+
+Pułapka 1 i 1b z `docs/PULAPKI_TESTOW.md`: `assertSee('X')` na całej odpowiedzi łapie X
+z tytułu karty przeglądarki, z `<meta>`, ze stopki i z menu — czyli przechodzi, choć
+mierzonej rzeczy na ekranie nie ma.
+
+### Decyzja
+
+Asercja **podejrzana** nie jest asercją **złą**. Każdą poddajemy pomiarowi: usunięcie
+mierzonej rzeczy z widoku, przebieg testu, a po naprawie ten sam sabotaż jeszcze raz.
+Dopiero czerwień albo jej brak rozstrzyga.
+
+Sabotowane widoki wracają z kopii spoza repozytorium (pułapka 8), nie przez
+`git checkout` — i w diffie zostaje wyłącznie `tests/`.
+
+### Dlaczego to nie jest formalność
+
+Poddane pomiarowi **22** asercje. Atrapami okazało się **17**, dobrych było **5**:
+„Wrócimy dziś" na 503, „Bezpieczeństwo" i „Twoje dane" w spisie ustawień oraz
+„Obserwuj" i „Zablokuj" w główce profilu. Gdyby przepisać wszystkie 22 „na wszelki
+wypadek", pięć zmian byłoby ruchem bez powodu, a to w tym pliku nie do odróżnienia od
+ruchu z powodu.
+
+Naprawy używają wzorców z tabeli w §1, bez wymyślania piątego. Asercje „czegoś nie ma"
+zostają na całym dokumencie — tam szersze spojrzenie jest **ostrożniejsze**, nie słabsze.
+
+📄 `docs/PULAPKI_TESTOW.md` · `StronyBleduPoPolskuTest` · `UstawieniaNawigacjaTest` ·
+`SpisTematowTest` · D-132
+
+---
+
+## D-186 · Pomiar zmienia stan DOM-u przed motywem, nie po nim
+
+**Data:** 12 września 2026 · PR #461 · issue #454 · Status: **obowiązuje**
+
+### Objaw
+
+Automat dostępności meldował raz na kilkaset przebiegów `[serious] color-contrast`
+na ekranie usuwania konta, przy **nietkniętej palecie**. Ze złapanego wystąpienia
+(wariant ciemny, 1280 px):
+
+    tekst  #2b241d   ← --color-ink z motywu JASNEGO
+    tło    #1e1a16   ← --color-surface z motywu CIEMNEGO
+    kontrast 1.13:1  przy wymaganym 4.5:1
+
+Ta para nie występuje w żadnym motywie. Pomiar zestawiał tekst sprzed przełączenia
+z tłem po przełączeniu. Wszystkie cztery węzły tego naruszenia leżały wewnątrz
+`<details>`, ani jeden poza nim.
+
+### Przyczyna
+
+Zamknięty `<details>` jest w Chromium poddrzewem pominiętym w przeliczaniu stylu.
+Zmiana `data-theme` na `<html>` go nie dotyka, a `getComputedStyle` nie wymusza
+przeliczenia. Dopóki otwarcie `<details>` stało tuż przed `analyze()`, axe czytał
+z tego poddrzewa kolory sprzed przełączenia motywu.
+
+### Decyzja
+
+Każda zmiana stanu DOM-u, która odsłania poddrzewo, idzie **przed** `data-text-scale`
+i `data-theme`, a po niej automat czeka na pełny obieg klatki. Palety nie ruszamy —
+poprawka jest w kolejności, nie w kolorach.
+
+Zmierzone, 100 powtórzeń na `/ustawienia/twoje-dane`: motyw, potem `<details>` —
+rozjazd pary tekst/tło **100 na 100**; `<details>`, potem motyw — **0 na 100**.
+
+### Wyścig szedł też w drugą stronę
+
+Migotanie widać było jako fałszywą czerwień, więc rzucało się w oczy. Ta sama kolejność
+po cichu **przepuszczała** naruszenia: przeczytany kolor sprzed przełączenia bywa
+zgodny, choć po przełączeniu zgodny nie jest. Fałszywa zieleń nie melduje o sobie nigdy.
+
+### Kontrola ujemna złapała błąd w drugim teście
+
+Test „czeka na obieg klatki po otwarciu `<details>`" brał wycinek źródła od otwarcia do
+`wlaczSkaleTekstu`. Przy sabotażu przenoszącym otwarcie na koniec pętli ta druga kotwica
+stoi **wcześniej**, długość wychodzi ujemna, a `substr` zwraca wtedy kawałek liczony od
+końca pliku — test przechodził, mierząc nie to miejsce (pułapka 3b).
+
+📄 `scripts/dostepnosc.mjs` · `PomiarDostepnosciOtwieraDetailsPrzedMotywemTest` ·
+`docs/PULAPKI_TESTOW.md` · D-132
+
+---
+
+## D-187 · Cytat numeru decyzji wskazuje tę decyzję, a brakującego numeru się nie wymyśla
+
+**Data:** 12 września 2026 · PR #458 · Status: **obowiązuje**
+
+### Kontekst
+
+Audyt znalazł w `HealthController` cytat „D-042" przy sprawdzeniu kolejki, a pod tym
+numerem stoi decyzja o czymś zupełnie innym. `NumeryDecyzjiMajaWpisyTest` pilnował
+tylko tego, że numer **ma wpis** — nie tego, że wpis mówi o tym samym, co kod obok.
+
+To jest klasa błędu, nie jeden przypadek: numer decyzji czyta się jak uzasadnienie
+i **zatrzymuje szukanie**. Zły numer jest gorszy niż brak numeru, bo wygląda na
+sprawdzony.
+
+### Zmierzone
+
+Przejrzane **3701** wystąpień `D-NNN` w **651** plikach, każde sprawdzone wobec treści
+wpisu o tym numerze. Błędnych: **11 wystąpień w 6 plikach**, czyli cztery pomyłki.
+
+### Decyzja
+
+Gdy cytowana decyzja istnieje pod innym numerem — przepinamy odnośnik. Gdy decyzji
+w dzienniku **nie ma** — numeru nie wymyślamy: cytat znika, a zostaje odesłanie do
+dokumentu, który tę zasadę naprawdę niesie.
+
+Tak rozstrzygnięte zostało „D-004" przy zdaniu „ugotowanie jest ważniejsze niż lajk"
+na stronie powitalnej i w `GLOS_MARKI.md`. D-004 dotyczy wyszukiwarki na PostgreSQL,
+a decyzji o hierarchii „ugotowałem" ponad lajkiem w dzienniku po prostu nie było —
+patrz D-194, który tę lukę zamyka.
+
+📄 `app/Http/Controllers/HealthController.php` · `NumeryDecyzjiMajaWpisyTest` ·
+`docs/infra/MONITORING_BLEDOW.md` · D-029 · D-041 · D-057 · D-194
+
+---
+
+## D-188 · Linia 📄 ma strażnika, a martwy odnośnik znika, zamiast zgadywać cel
+
+**Data:** 12 września 2026 · PR #459 · Status: **obowiązuje**
+
+### Kontekst
+
+Linia `📄` na końcu każdego wpisu jest **jedyną** drogą od decyzji do kodu, który ją
+realizuje. Pliki się przenoszą, klasy testowe zmieniają nazwy — a dziennik nie miał
+żadnego automatu, który by to zauważył. Przy 181 wpisach nikt nigdy nie przeszedł tych
+referencji ręcznie.
+
+Zmierzone: **112** bloków referencji, ok. **780** pojedynczych referencji, martwe trzy.
+
+### Decyzja
+
+`OdnosnikiDziennikaDecyzjiIstniejaTest` chodzi po tych liniach przy każdym przebiegu.
+Lista znanych wyjątków jest **pusta i ma taka zostać** — pierwszy dopisany wyjątek
+zamienia strażnika w formalność, bo następny martwy odnośnik trafi tam odruchowo.
+
+Martwy odnośnik, którego celu nie da się ustalić, **usuwamy**. D-149 wskazywał plik
+`…/WZORCE_SAMOUZASADNIANIA`, którego nigdy nie było pod żadną ścieżką. Kusiło, żeby
+wskazać sąsiedni dokument z tego samego katalogu — ale w żadnym pliku tamtego katalogu
+nie ma słowa „samouzasadnianie", więc byłoby to zgadnięcie podane jako referencja.
+Zgadnięty odnośnik jest dokładnie tym samym błędem co zły numer decyzji (D-187), tylko
+o jedną warstwę niżej.
+
+### Próg minimalnej liczby sprawdzonych pozycji
+
+Skan, który nic nie znalazł, wygląda identycznie jak skan, który znalazł wszystko
+i wszystko było w porządku (pułapka 2). Dlatego test oblewa także wtedy, gdy bloków
+albo sprawdzonych celów jest mniej, niż być powinno.
+
+📄 `docs/DECISIONS.md` · `OdnosnikiDziennikaDecyzjiIstniejaTest` ·
+`docs/PULAPKI_TESTOW.md` · D-187
+
+---
+
+## D-189 · Trasy w dokumentach sprawdza `Route::getRoutes()`, nie nazwa pliku
+
+**Data:** 12 września 2026 · PR #462 · Status: **obowiązuje**
+
+### Kontekst
+
+Audyt wszystkich **241** plików `.md`: odnośniki markdown do plików i kotwic, ścieżki
+w backtickach, wzmianki tras serwisu.
+
+Jeden z martwych odnośników nie był tylko dokumentacją. `resources/legal/zasady.md`
+prowadziło **z żywej strony** do `/polityka-prywatnosci`, którego nie ma; właściwy
+adres to `/prywatnosc`. Dokumentacja i treść serwisu leżą w tym repozytorium obok
+siebie, więc „to tylko dokument" nie jest tu bezpiecznym założeniem.
+
+### Decyzja
+
+Prawdziwość trasy rozstrzyga `Route::getRoutes()`, a nie podobieństwo do nazwy pliku
+ani angielski odpowiednik. Cała „Mapa ekranów MVP" w `FLOWS_AND_SCREENS.md` to było
+**29** adresów, które nigdy nie istniały — dokument opisywał serwis, którego nie
+zbudowaliśmy, i wyglądał przy tym zupełnie wiarygodnie.
+
+Świadomym wyjątkiem zostają `/login`, `/register` i `/wyloguj` → `/logout`: to jedyne
+angielskie trasy w serwisie i jest to wyjątek zapisany w `AGENTS.md` §11, nie
+przeoczenie.
+
+Dokument opisujący **projekt** API, a nie kod z repozytorium, ma to napisać u siebie.
+`COMPONENTS_BLADE.md` miał 8 z 12 sekcji w tym stanie od dawna; złapał to audyt
+z września i nigdy nie trafiło to do samego dokumentu.
+
+### Co jest wyłączone z testu i dlaczego
+
+Historyczne audyty, zlecenia i dziennik decyzji. Te dokumenty **opisują stan z dnia
+zapisu** — poprawianie w nich adresu znaczyłoby przepisywanie historii, a nie naprawę.
+
+📄 `tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php` · `resources/legal/zasady.md` ·
+`docs/FLOWS_AND_SCREENS.md` · `AGENTS.md` · D-188
+
+---
+
+## D-190 · Próbka pomiaru jest powtarzalna, a powtarzalność nie może zabrać zasięgu
+
+**Data:** 12 września 2026 · PR #463 · issue #440 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`scripts/dostepnosc.mjs` wybierał przykładowy przepis, wpis i konta przez
+`->first()`/`->value()` **bez `ORDER BY`**. PostgreSQL nie obiecuje przy takim zapytaniu
+żadnej kolejności — który obiekt zostanie zmierzony, potrafi się zmienić od samego
+dołożenia wierszy. Pomiar, którego nie da się powtórzyć, nie jest dowodem, a na nim
+stoją progi bramki dostępności.
+
+Poprawionych **16** zapytań: `->orderBy('id')` (UUID v7, klucz główny), a tam, gdzie
+kolejność ma znaczyć „najnowsze", `->orderByDesc('published_at')->orderByDesc('id')`,
+czyli tak, jak sortuje feed (AGENTS.md §8). `created_at` świadomie nie rozstrzyga tu
+remisu: seeder zapisuje wiersze w jednej sekundzie.
+
+### Rzecz, której nie dało się przewidzieć
+
+**Samo uczynienie wyboru powtarzalnym odebrałoby próbkę.** Karta wpisu autora
+o stuznakowej nazwie wchodziła do pomiaru fokusu bocznymi drzwiami: na `EKRANY_FOCUS`
+nie ma jej ani razu, a mierzona była dlatego, że „wpis (przykładowy)" rozwiązywał się
+przez zapytanie bez `ORDER BY` i to jej wpis wypadał pierwszy. Po `orderBy('id')` wybór
+ląduje na innym koncie, a trzy naruszenia WCAG 2.2 AA 2.4.11 przestają być mierzone —
+**bez jednego oblanego testu**.
+
+### Decyzja
+
+Każda próbka, która ma być mierzona, ma **własną pozycję na liście ekranów i własne
+zapytanie**, pytające o to, co ją czyni ciekawą (tu: o autora), a nie o kolejność.
+To, co wpada do pomiaru przypadkiem, wypadnie z niego równie cicho.
+
+Przy okazji dopisany `/ustawienia/zdjecie`, którego na liście nie było, a który pękał:
+przy czcionce przeglądarki 200% i oknie 320 px `scrollWidth` **333 px** — przepełnienie
+13 px. Winowajcą jest akapit opisu: element flex przy `align-items: flex-start` ma
+szerokość `fit-content`, a ta nie schodzi poniżej najdłuższego słowa (252 px przy piśmie
+32 px). Zamyka to `overflow-wrap: anywhere`; globalne `break-word` z `tokens.css` nie
+wystarcza.
+
+📄 `scripts/dostepnosc.mjs` · `ProfilZNajdluzszaNazwaWchodziDoPomiaruTest` ·
+`resources/css/ekran-profilu.css` · D-107 · D-184
+
+---
+
+## D-191 · Zdjęcie pionowe obok poziomego: jedna kolumna na wąskim ekranie, kwadrat w karuzeli
+
+**Data:** 12 września 2026 · PR #455 · issue #431 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Jedno zdjęcie pionowe, drugie poziome, przez to jest rozjazd i bierze całą wysokość
+najwyższego zdjęcia nawet jak nie jest wyświetlane."
+
+### Dane demo nie miały czego pokazać — i to jest połowa tego zgłoszenia
+
+`DemoSeeder` tworzy każde zdjęcie jako 1600×1200, a te zdjęcia nie mają wygenerowanych
+wariantów, więc podstawia się znak serwisu o `viewBox="0 0 64 64"`, czyli **kwadrat**.
+Pomiar na samym demo mierzyłby galerię, w której zgłoszonej usterki **nie da się
+zrobić**, i meldował „w porządku". Dlatego `scripts/galeria-orientacje.mjs` sam dokłada
+wpisy z prawdziwymi plikami 1200×1600 i 1600×900 i **zatrzymuje się z błędem**, jeśli na
+mierzonej stronie nie stanęły obok siebie zdjęcie pionowe i poziome.
+
+### Decyzja
+
+`.photo-grid` poniżej 30rem schodzi do **jednej kolumny** — ten sam próg i ten sam
+argument co przy kolażu: przy 320 px kolumna miała 142 px, a zdjęcie poziome mieściło
+się w niej na 80 px wysokości. Martwe pole nie zostaje zasłonięte, tylko przestaje
+istnieć. Dochodzi `align-items: start`, bo rozciągał się **odnośnik** „powiększ
+zdjęcie": kliknięcie w puste miejsce pod zdjęciem otwierało powiększenie.
+
+Slajdy karuzeli dostają pole o proporcji **1/1** z `object-fit: contain`. Wysokości
+taśmy zależnej od widocznego slajdu nie da się zrobić bez JavaScriptu, a karuzela ma
+działać bez skryptu (AGENTS.md §5) — to nie jest opcja odrzucona, tylko nieistniejąca.
+
+### Cena, wprost
+
+Zdjęcie pionowe przy 320 px ma teraz 214,8 × 286 px zamiast 286 × 381,3 px. Pole 4/3
+zbijało martwe piksele mocniej, ale zabierało zdjęciu pionowemu **44%** wysokości —
+a to najczęstszy kształt tego, co ktoś robi telefonem nad garnkiem. Kwadrat zabiera 25%
+i nie wyróżnia żadnej orientacji.
+
+Zostające w karuzeli ~125 px to co innego niż 220 px sprzed poprawki: tamte brały się
+z sąsiada, którego nie było widać, te są dwoma równymi pasami nad i pod zdjęciem —
+**ramą, nie dziurą**.
+
+### Zmierzone: martwe piksele pod zdjęciem poziomym
+
+`.photo-grid`: 320 px 109,5 → 0,0 · 360 px 124,9 → 0,0 · 390 px 136,4 → 0,0 ·
+414 px 145,7 → 0,0 (przy czcionce 200% analogicznie, wszystkie → 0,0).
+Karuzela: 320 px 220,5 → 125,1 · 414 px 292,9 → 167,1.
+
+`min-height: 0` na polu slajdu nie jest ozdobą: bez niego proporcja działa tylko na
+zdjęciach poziomych, czyli poprawka poprawiałaby połowę przypadków i **wyglądała
+w pomiarze prawie jak poprawka**.
+
+📄 `resources/css/app.css` · `scripts/galeria-orientacje.mjs` ·
+`GaleriaMieszanychOrientacjiTest` · D-092
+
+---
+
+## D-192 · Próba odtworzenia kopii kończy się liczbami i nie dowodzi, że kopia istnieje
+
+**Data:** 12 września 2026 · PR #455 · issue #193 · Status: **obowiązuje**
+
+### Czego brakowało
+
+Liczba kopii produkcyjnej bazy wynosi **zero** i z repozytorium zmienić się nie może.
+Brakowało czego innego: **dowodu, że z kopii da się mieć bazę z powrotem**. Sygnał
+„dawno nie było kopii" istniał i miał testy; ćwiczenie odtworzenia było rozpisane na
+siedem komend do przepisania z dokumentu — czyli było ćwiczeniem, którego nikt nie zrobi.
+
+### Decyzja
+
+`scripts/proba-odtworzenia.sh --petla-lokalna` robi całość **jedną komendą**: kopia tym
+samym skryptem, którym robi się kopię naprawdę (nie zrzutem zrobionym obok, innymi
+flagami) → odtworzenie do świeżej bazy → porównanie liczby wierszy w **każdej** tabeli →
+`migrate:status` na odtworzonej bazie.
+
+Dwa kroki są nowe, bo dwa pytania zostawały bez odpowiedzi:
+
+- **wszystkie tabele, nie cztery wybrane z nazwy.** Zrzut, który zgubił piątą,
+  przechodził bez ostrzeżenia — bo o piątą nikt nie pytał.
+- **`migrate:status`.** Komplet wierszy w schemacie sprzed trzech migracji to nie jest
+  działająca baza.
+
+Przebieg kończy się **liczbami, nie ptaszkiem**. Zmierzone 12.09.2026: 50 tabel po obu
+stronach, 50 porównanych co do jednego wiersza, 159 wierszy, 75 migracji wykonanych,
+0 czekających, odtworzenie 1 s.
+
+### Czego to nie dowodzi
+
+Że kuking.pl ma kopię. **Nie ma.** Produkcji ten skrypt nie dotyka w żadnym trybie
+i pilnują tego dwa bezpieczniki. Zielony przebieg znaczy „mechanizm kopii i odtworzenia
+działa", nie „dane są bezpieczne". Pierwsza prawdziwa kopia produkcyjna i ćwiczenie
+odtworzenia zostają po stronie właściciela i są bramką alfy.
+
+### Przy okazji złapana pułapka 1
+
+Pierwsza wersja kroku `migrate:status` meldowała migrację czekającą na bazie, w której
+wszystkie były wykonane: `grep -i 'Pending'` trafiał w **nazwę pliku**
+`create_pending_email_changes_table`. Ta pomyłka wypadła w stronę fałszywej **czerwieni**
+— gdyby wypadła w drugą, nikt by jej nie zauważył.
+
+📄 `scripts/proba-odtworzenia.sh` · `tests/skrypty/proba-odtworzenia.sh` ·
+`PetlaOdtworzeniaJestJednaKomendaTest` · `docs/PULAPKI_TESTOW.md`
+
+---
+
+## D-193 · Obserwowanie tagu nie jest obejściem widoczności przepisu
+
+**Data:** 12 września 2026 · PR #465 · issue #464 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`TagFeed` filtrował wpisy przez `widoczneDla($viewer)` i robił to poprawnie. Ale
+zapowiedź przepisu (issue #368) jest na stałe `public` — widoczność ma trzymać
+**przepis**, nie jego zapowiedź. Filtr po widoczności **wpisu** przepuszczał więc
+zapowiedź przepisu, którego widz zobaczyć nie miał prawa.
+
+`FollowingFeed`, `DiscoverFeed` i `DailyBoard` mają na to `zWidocznymPrzepisem()`
+od issue #368. `TagFeed` był jedynym z czterech bez tej bramki — i jednocześnie jedynym,
+do którego wpisy trafiają **bez żadnej relacji między widzem a autorem**. Wystarczyło
+obserwować ten sam tag.
+
+### Co wyciekało
+
+Nie sam przepis — w niego nie dało się wejść, `RecipePolicy` trzyma. Wyciekał **tytuł**
+i **zdjęcie główne**, czyli to, co karta rysuje bez pytania o zgodę. Dla przepisu „tylko
+dla obserwujących" to cała treść widoczna z zewnątrz.
+
+Zmierzone na `/home` oczami osoby, która autora nie obserwuje: pełna karta ze zdjęciem,
+tytułem, przyciskiem „Ugotowałem" — i plakietką **„Tylko dla obserwujących"** pod
+spodem. Karta uczciwie pisała, że to treść dla obserwujących, pokazując ją komuś, kto
+nie obserwuje.
+
+### Decyzja
+
+Widoczność treści wskazywanej przez wpis jest **osobną bramką** i musi stać w każdym
+zapytaniu, które taki wpis wydaje. Filtr po widoczności samego wpisu jej nie zastępuje
+i nigdy nie zastępował — po prostu w trzech strumieniach z czterech stały obok siebie.
+
+`maTresci()` dostaje ten sam warunek co `paginate()`. Gdyby pytała szerzej,
+odpowiadałaby „jest co pokazać" o treści, której `paginate()` i tak nie odda, a widz
+dostałby pusty strumień zamiast ekranu pustego stanu, który mówi, co zrobić dalej.
+
+### Czego ta decyzja nie zmienia
+
+Świadomy wyjątek w `DailyBoard` (bramka pominięta w agregacie „kto ostatnio
+publikował", ze zmierzonym powodem w komentarzu) stoi dalej. Dotyczy wyłącznie
+**kolejności** propozycji, nie tego, co widać — pokazuje o jedno konto za dużo, nigdy
+o jedną treść za dużo.
+
+📄 `app/Domain/Feed/TagFeed.php` · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
+`FeedTagowNieGubiKolumnPrzepisuTest` · `app/Models/Post.php`
+
+---
+
+## D-194 · „Ugotowałem" jest ważniejsze niż lajk
+
+**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje**
+
+### Dlaczego ten wpis powstaje dopiero teraz
+
+Ta zasada działa w Kuking od początku: niesie ją `AGENTS.md` §1 i `CLAUDE.md`, stoi
+w tekście strony powitalnej i w `GLOS_MARKI.md`, i wynikła z niej niejedna decyzja
+w tym dzienniku. **Wpisu o niej nie było.** Kod odsyłał w dwóch miejscach do „D-004",
+a D-004 dotyczy wyszukiwarki na PostgreSQL (D-187).
+
+Zdjęcie złego numeru zostawiło zdanie bez odnośnika. Ten wpis zamyka lukę, zamiast
+kazać następnej osobie wyprowadzać tę zasadę z czterech dokumentów naraz.
+
+### Zasada
+
+Kuking to **społeczność ludzi, którzy gotują**, a nie baza przepisów. Najmocniejszym
+sygnałem w serwisie jest **„ugotowałem"** — bo kosztuje wieczór przy garnku, a nie
+jedno dotknięcie ekranu. Dlatego:
+
+- „ugotowałem" **zawsze** powiadamia autora przepisu, a lajk nie ma takiej mocy;
+- liczba ugotowań stoi wyżej niż jakakolwiek liczba polubień i to ona jest widoczna
+  na karcie;
+- feed obserwowanych jest **chronologiczny**, bez algorytmu: ranking zamienia dzielenie
+  się jedzeniem w konkurs, a w konkursie przegrywa ten, kto gotuje zwyczajnie.
+
+### Co z tej zasady wynika w praktyce
+
+Każda funkcja, która podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga
+osobnego uzasadnienia — nie odwrotnie. Domyślną odpowiedzią na „dodajmy licznik
+polubień na widoczne miejsce" jest **nie**.
+
+### Czego ten wpis nie rozstrzyga
+
+Czy lajk w serwisie **jest**. Jest i zostaje — ludzie potrzebują taniego sposobu, żeby
+powiedzieć „widzę cię". Rozstrzygnięta jest wyłącznie **hierarchia** tych dwóch
+sygnałów wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
+
+📄 `AGENTS.md` · `CLAUDE.md` · `docs/brand/GLOS_MARKI.md` ·
+`resources/views/pages/landing.blade.php` · D-187
+
+---
+
+## D-195 · Trasy z identyfikatorem sprawdzamy żądaniem, również poza wiązaniem modelu
+
+**Data:** 12 września 2026 · PR #471 · Status: **obowiązuje**
+
+### Decyzja
+
+Skan sygnatur kontrolerów nie obejmuje wszystkich sposobów wczytania obiektu. Obchód musi uwzględniać gościa, właściciela, obcą osobę i blokadę oraz jawnie rozliczać każdą nową trasę z parametrem. Podpisane adresy i prywatne pliki wymagają osobnych przypadków. Wyniki pomiarów są w opisie PR; ten wpis ich nie przedstawia jako ponownego pomiaru.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #471; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KazdaTrasaZIdentyfikatoremPodPolicyTest.php`
+
+---
+
+## D-196 · Koszt zapytań mierzymy przy rosnącej liczbie rzeczy na ekranie
+
+**Data:** 12 września 2026 · PR #474 · Status: **obowiązuje**
+
+### Decyzja
+
+Doładowanie relacji ma obejmować ścieżkę rzeczywiście czytaną przez komponent, również gdy komponent zaczyna od innego modelu. Sprawdzamy wzrost zapytań wraz z liczbą wyników, a kontrola dodatnia potwierdza obecność treści. Sam płaski wynik dla pustej strony nie jest dowodem.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #474; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/WynikiSzukaniaLudziBezWachlarzaZapytanTest.php`
+
+---
+
+## D-197 · Komunikat walidacji mierzymy przez wywołanie błędu
+
+**Data:** 12 września 2026 · PR #475 · Status: **obowiązuje**
+
+### Decyzja
+
+Komunikat nazywa pole tak jak ekran i mówi, co zrobić. Podsumowanie prowadzi do istniejącego pola, pole wskazuje swój błąd, a poprawne wartości zostają. Test wyzwala walidację żądaniem HTTP; samo znalezienie tekstu w pliku językowym nie wystarcza.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #475; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/BledyMowiaCoZrobicTest.php`
+
+---
+
+## D-198 · Brak skryptów sprawdzamy na rzeczywistych drogach użytkownika
+
+**Data:** 12 września 2026 · PR #476 · Status: **obowiązuje**
+
+### Decyzja
+
+Obowiązuje D-053: formularze chronione przez Turnstile mogą wymagać JavaScriptu. Brak skryptu ma dawać konkretną instrukcję, a nie martwą kontrolkę. Sprawdzenie drogi bez skryptów nie oznacza wyłączenia ochrony ani powrotu do dawnego obowiązku działania każdego formularza bez JavaScriptu.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #476; opisuje pracę już obecną na `main`.
+
+📄 `AGENTS.md`
+
+---
+
+## D-199 · Wycofanie migracji nie może wymazać znaczenia ustawienia
+
+**Data:** 12 września 2026 · PR #477 · Status: **obowiązuje**
+
+### Decyzja
+
+Obchód migracji obejmuje wycofanie i ponowne zastosowanie. Przy danych, których znaczenia nie da się odtworzyć, wycofanie odmawia wąsko i z instrukcją. Przypadek domyślny ma nadal przechodzić. To rozwinięcie D-088, nie zgoda na bezwarunkowe blokowanie rollbacku.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #477; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KazdaMigracjaMaWycofanieTest.php`
+
+---
+
+## D-200 · Duży tekst dostaje szerokość zamiast mniejszej czcionki
+
+**Data:** 12 września 2026 · PR #479 · Status: **obowiązuje**
+
+### Decyzja
+
+Kafel dodawania przy dużym tekście oddaje opisowi osobny wiersz, ogranicza wzrost wcięć i chowa ozdobną ikonę. Tytuł i podpis zostają. Pomiar wysokości należy do przeglądarki; test kształtu reguły CSS nie zastępuje pomiaru. Osobny problem rozmiaru podpisu pozostaje zgłoszony w issue #478.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #479; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KafelDodawaniaPrzyDuzymTekscieTest.php`
+
+---
+
+## D-201 · Dokumentację tabel porównujemy ze schematem w obie strony
+
+**Data:** 12 września 2026 · PR #480 · Status: **obowiązuje**
+
+### Decyzja
+
+Strażnik wykrywa zarówno tabelę pominiętą w opisie, jak i opis tabeli nieistniejącej. Dokument historycznego schematu nie może być nazywany pełnym aktualnym DDL. Liczba sprawdzonych pozycji jest częścią kontroli, bo pusty odczyt nie dowodzi zgodności.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #480; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/SchematBazyTrzymaSieDokumentuTest.php`
+
+---
+
+## D-202 · Obchód odnośników obejmuje stany i drogi bez wejścia z menu
+
+**Data:** 12 września 2026 · PR #481 · Status: **obowiązuje**
+
+### Decyzja
+
+Pomiar obejmuje także szkice, puste stany, moderację, błędy i podpisane adresy. Odnośnik musi mieć nazwę, formularz cel, a przycisk obsługę. Kontrola ujemna sprawdza również sam przyrząd. Szkic pokazuje tekst zamiast pustego odnośnika daty; pytanie o opis przyszłej widoczności jest osobną sprawą.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #481; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/ObchodEkranowNieZostawiaMartwegoPrzyciskuTest.php`
+
+---
+
+## D-203 · Nowy styl korzysta z tokenów i zachowuje czytelność
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Nowa paleta jasna i grafitowa ciemna działa w istniejących komponentach aplikacji.
+Znak pozostaje garnkiem z pokrywką w formie korony i uśmiechem. Podpis kafla
+dodawania ma bazowo 18 px; rozmiar pisma nie jest ceną za zmieszczenie układu.
+Zmiana zamyka kwestię podpisu z issue #478, pozostawioną w D-200.
+Konstytucja marki zachowuje społecznościowy charakter, „Ugotowałem” ponad lajkiem
+i brak fikcyjnej aktywności. Plan przepisów redakcyjnych nie oznacza ich publikacji.
+
+### Dowód
+
+Pomiar obu motywów, kafla oraz granice wyniku zapisano po scaleniu kodu.
+Nie przenosimy statycznego prototypu w miejsce Laravel.
+
+📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/NOWY_STYL.md` ·
+`docs/design/WERYFIKACJA_ALFA_08.md` · `resources/css/tokens.css`
+
+---
+
+## D-204 · Zły wybór zeszytu daje widoczny komunikat bez ujawniania własności
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Oba endpointy zapisu sprawdzają UUID przed zapytaniem do PostgreSQL oraz istnienie
+zeszytu w obrębie właściciela. Cudzy i nieistniejący zeszyt mają ten sam komunikat.
+Autoryzacja treści pozostaje pierwsza, a pobranie modelu nadal ogranicza właściciel.
+Błąd jest dostępny po powrocie na strumień, nie tylko w sesji walidacji.
+Puste pole lub brak wyboru zachowuje zapis do zeszytu domyślnego.
+
+### Dowód
+
+Czternaście przypadków HTTP, rzeczywiste ciasteczko sesji przy powrocie oraz
+oddzielne kontrole usunięcia UUID, własności i komunikatu.
+Usunięcie zeszytu pomiędzy walidacją a pobraniem może nadal dać 404; ta zmiana
+nie przebudowuje transakcji.
+
+📄 `app/Http/Controllers/CollectionController.php` ·
+`tests/Feature/WyborZeszytuMaWalidacjeTest.php` ·
+`docs/product/WALIDACJA_WYBORU_ZESZYTU.md`
+
+---
+
+## D-205 · Przyrząd kontroli ma sprawdzać źródło i udowadniać wykrycie regresji
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Pomiar kontrastu czyta produkcyjne tokeny i jest częścią builda Vite oraz Docker.
+Nie zastępuje pomiaru kaskady ani reflow. Kontrole negatywne w izolowanym CI
+najpierw wymagają dodatniego testu, potem rzeczywistej porażki po mutacji,
+przywrócenia z kopii poza repo i zgodności md5. Pełna suita idzie na przywróconym kodzie.
+Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisano w #484.
+
+📄 `scripts/kontrast-marki.mjs` · `scripts/kontrole-negatywne-alfa08.py` ·
+`docs/design/WERYFIKACJA_ALFA_08.md`
+
+
+---
+
+## D-206 · Pełny port marki obejmuje układ działającej aplikacji
+
+**Data:** 13 września 2026 · PR #488 · Status: **obowiązuje**
+
+### Decyzja
+
+Alfa 0.9 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
+pływającą ramę, menu desktop w nagłówku, pięć pozycji mobilnych, ciemny
+kafel publikacji i własnego profilu, mocną typografię oraz wspólne karty
+i formularze. Zwykły użytkownik nie ma widocznego lewego paska; panel
+moderacji zachowuje swój tryb roboczy. Wejście do niego w menu konta
+pokazuje sumę kolejek wyłącznie poza panelem.
+
+Konstytucja v1.2 opisuje całą rodzinę ekranów i głos marki. Garnek z koroną
+i uśmiechem pozostaje znakiem; ikony instalowanej aplikacji i udostępniania
+korzystają z nowej palety. Statyczne osoby, liczniki i funkcje demonstracji
+nie są przenoszone jako dane lub zachowanie produkcji.
+
+### Dowód i granice
+
+Kod scalono jako `66980acc83ea8298b76771682e4bda96264a6484`.
+Pomiar nowej ramy sprawdza jej własną szerokość, wyśrodkowanie, padding
+i zawartość, zamiast wymagać wyrównania szerszej belki do węższej treści.
+Kontrole ujemne wykrywają rzeczywiste regresje. Wymagane są zielone CI
+oraz sprawdzenie dostarczonego HTML i CSS po wdrożeniu. Publiczny test
+dymny nie zastępuje odbioru ekranu zalogowanego.
+
+Sześć ostrzeżeń częściowego zasłonięcia fokusu długiej nazwy przy
+powiększeniu pozostaje jawnie w #485; test nie podnosi progów ani nie
+usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.9.
+
+📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/PORT_PROJEKTU.md` ·
+`docs/design/WERYFIKACJA_ALFA_09.md`
+
+
+## D-207 · Kompozycja wizualizacji jest kryterium portu, nie sama paleta
+
+13 września 2026, zgłoszenie właściciela i issue #501. Właściciel porównał
+wzorzec „Dzień dobry, Basiu” z produkcją „Witaj, Mateusz” i wymagał
+odtworzenia wzorca. Poprzedni audyt tokenów i reflow nie dowiódł zgodności
+kompozycji. Dokładnego źródła HTML tego obrazu nie znaleziono w dostępnej
+historii, również w gałęzi PR #456; źródłem odniesienia jest przesłany obraz.
+
+Odtwarzamy hierarchię powitania, kafel z pierścieniem, trzy pozycje menu
+komputerowego, nagłówek strumienia oraz ciemną i jasne karty boczne.
+„Odkrywaj” wraca wyłącznie jako nazwa wejścia do publicznego strumienia
+w menu komputerowym; „Szukaj” pozostaje wyszukiwarką. Stałe „Dzień dobry”
+zastępuje „Witaj” zgodnie z nowym wzorcem; nie wprowadzamy rozpoznawania
+pory dnia, płci ani automatycznej odmiany nazwy. Uaktualniono COPY_STYLE
+i konstytucję 1.4, zamiast pozostawić sprzeczne aktywne instrukcje.
+
+Granice: potwierdzony znak garnka, prawdziwe dane i uprawnienia, pięć
+mobilnych pozycji, oba źródła strumienia oraz fallback tagów, wspomnienia,
+notatki i podglądy tablicy pozostają. Brak demonstracyjnego ostrzeżenia
+i fikcyjnych liczb z makiety jest zamierzony. Wymagane są pomiary
+rzeczywistego CSS, oglądane zrzuty oraz kontrole ujemne z kopią poza repo
+i MD5. Wynik scalenia i wynik produkcji raportujemy oddzielnie.
+
+## D-208 · Publiczne kroki i blok „Ugotowałem” według wskazanej wizualizacji
+
+13 września 2026, kolejne porównanie właściciela, issue #506. Otwarte
+kolumny 01–03 i duży tytuł „Zdjęcie. Kilka słów. I rozmowa przy okazji.”
+zastępują białe kafle „Jak działa”. Zaraz za nimi stoi ciemny blok
+„Ugotowałem / Twój przepis. Czyjś dobry obiad.”, następnie dotychczasowa
+tablica i wpisy. To zmiana kompozycji, nie usunięcie funkcji.
+
+Nowy wzorzec odwraca wcześniejsze wymaganie zachowania na tym bloku
+nagłówka „Przepis jest dobry wtedy, kiedy ktoś go ugotował” (GLOS_MARKI,
+omówienie audytu, punkt 3). Teza o realnym wykonaniu i funkcja pozostają.
+Tytuł hero „Pokaż, co dziś ugotowałeś” nie jest częścią tej zmiany.
+
+Fotografia pochodzi z pierwszego elementu istniejącego publicznego kolażu,
+z jego filtrami widoczności, gotowości mediów i aktywności autora. Podpis
+wskazuje autora zdjęcia, nie udaje wykonania konkretnego przepisu. Przy
+pustym kolażu blok jest tekstowy; nie tworzymy fotografii zastępczej ani
+fikcyjnej aktywności. Linki prowadzą do prawdziwych tras, logowanie i
+autoryzacja pozostają. Na małym ekranie kolumny układają się pionowo.
+
+Odbiór wymaga obejrzenia kompozycji oraz pomiarów i kontroli ujemnych
+rzeczywistego źródła. Sam brak overflow nie dowodzi zgodności ze wzorcem.
+
+## D-209 · Dostarczony oryginał identyfikacji i audyt jej kompletności
+
+13 września 2026, issue #508. Właściciel dostarczył pełny ZIP z pierwotną
+wizualizacją oraz snapshotem plików marki z Alfa 0.11. Zachowujemy archiwum
+w `docs/design/references/KuKing-styl-wizualizacja-konstytucja.zip` wraz
+z sumą kontrolną i macierzą w `docs/design/AUDYT_PACZKI_MARKI_508.md`.
+To uzupełnia historyczny brak źródłowego HTML odnotowany w D-207.
+
+Archiwum nie zastępuje aktualnych decyzji, backendu ani danych. Nie cofamy
+garnka do K, Inter do szeryfu, tekstów do nieprawdziwych obietnic ani
+działających formularzy do symulacji. Jednocześnie nie uznajemy różnic
+kompozycji za zgodność tylko dlatego, że kolory są podobne. Pełny port
+pozostaje częściowy; konkretne luki są wymienione w macierzy.
+
+Usuwamy sprzeczne instrukcje DESIGN_SYSTEM dotyczące SideNav, szerokości,
+skali150% i menu karty. AGENTS kieruje najpierw do aktualnej konstytucji
+przy pracy nad marką. Konfiguracja aplikacji jest sprawdzanym źródłem
+listy dostępnych skal; historyczna tabela nie może jej zastępować.
+
+## D-210 · Kompozycje wejścia, przepisu, profilu i własnych treści
+
+13 września 2026, issue #509. Kontynuacja pełnego portu zamówionego przez
+właściciela, na podstawie oryginalnego ZIP z D-209. Kolorystyczna zgodność
+nie zastępuje układu: zaproszenie stoi obok formularza, opis przepisu obok
+zdjęcia, a pojedynczy zestaw liczb profilu pod ciemnym nagłówkiem.
+Akcje przepisu są poniżej hero, przed składnikami. Zastępuje to dawny wymóg
+lokalizacji panelu w prawej szynie oraz dwóch responsywnych kopii liczb.
+
+Nie zmienia to polityk, filtrowania statystyk, sposobów logowania ani danych.
+Na stronie publicznej trzy karty wyjaśniają zeszyty, widoczność i eksport;
+nie udają wykonania tych czynności bez zalogowania. Odbiór i ograniczenia
+zapisuje docs/design/KOMPOZYCJE_MARKI_509.md. Brak wyniku nie oznacza sukcesu.
+
+## D-211 · Zeszyty i zapisane przepisy w kompozycji marki
+
+13 września 2026, issue #511. Oryginał dostarczony w D-209 pokazuje ciemne
+karty zeszytów, ostatnie zapisy w głównej części strony oraz duże zdjęcia
+nad tytułami przepisów w otwartym folderze. Przenosimy ten układ do
+istniejących widoków. Zastępuje to dawny wymóg umieszczania ostatnich
+zapisów w prawej szynie indeksu; inne zeszyty w szczególe pozostają w szynie.
+
+Pełne tytuły, opisy, liczniki i odnośniki pochodzą z prawdziwych danych.
+Nie kopiujemy fikcyjnych liczników ani niedziałających akcji prototypu.
+Zachowujemy filtrowanie dostępu, kolejność zapisów, paginację oraz formularz
+tworzenia zeszytu. Tekst pustego stanu nie obiecuje bezterminowego dostępu
+do cudzej treści. Odbiór: docs/design/ZESZYTY_MARKI_511.md.
+
+Pomiar klawiatury wykazał, że pełny długi tytuł jako link przekracza
+dostępną wysokość ekranu. Kafel zachowuje tytuł jako tekst i jeden krótki
+odnośnik „Zobacz przepis” z pełną nazwą dostępną; pseudo-element rozszerza
+kliknięcie na kartę. Nie obcinamy tytułu ani nie zmniejszamy pisma.
+Tę samą zasadę stosujemy do ostatnich zapisów oraz skrótów zeszytów
+na profilu i w folderze: pełna nazwa i opis, jeden krótki fokus.
+
+## D-212 · Kafle zainteresowań i zwykłe powiadomienia
+
+13 września 2026, issue #513. Kompozycja dostarczonego prototypu obejmuje
+duże kafle zainteresowań oraz zwykłe powiadomienie z awatarem, treścią
+i akcją obok siebie, jeśli pozwala na to dostępne miejsce.
+Przenosimy ją do istniejących formularzy, bez fikcyjnych tematów i danych.
+Zaznaczenie pozostaje zielone zgodnie z semantyką wyborów aplikacji.
+
+Zachowujemy trzy opcjonalne kroki, natywne checkboxy, prawdziwe promowane
+tagi, pomijanie i POST z CSRF. Układ powiadomień obejmuje wyłącznie pięć
+zwykłych typów: ugotowanie, komentarz, odpowiedź, obserwowanie i zapis.
+Decyzje, zgłoszenia i pozostałe typy zachowują pełną treść i wszystkie akcje.
+Kliknięcie nadal zapisuje odczyt przez formularz POST, nie odnośnik GET.
+
+Stan implementacji i granice odbioru: docs/design/ZAINTERESOWANIA_POWIADOMIENIA_513.md.
+
+
+## D-213 · Polecane tagi przed wyszukiwaniem
+
+14 września 2026, issue #515. Pełny port kompozycji wskazanej w D-209
+obejmuje otwarte kafle wyboru przed wpisaniem frazy. Dane pochodzą z
+istniejącego Tag::promowane(), zgodnie z D-021: aktywne tagi, redakcyjna
+kolejność i opis promocji. Nie powstaje nowy byt „temat” ani fikcyjna
+popularność. Nazwa funkcji pozostaje „Polecane tagi”.
+
+Brak promowanych danych daje uczciwy pusty stan. W obu stanach pozostaje
+droga do wszystkich tagów i aktualności;
+samo wdrożenie kodu nie tworzy produkcyjnych tagów. Wyszukiwanie wyników,
+zakresy, prywatność, GET oraz tablica dań zachowują dotychczasowe działanie.
+Krótki link w kaflu ma pełną nazwę dostępną; długi tytuł pozostaje widoczny.
+
+## D-214 · Zdjęcia w pustej szynie cudzego profilu
+
+14 września 2026, zgłoszenie właściciela #551. Cudzy profil bez tagów i
+zeszytów zostawiał pustą prawą część szerokiej ramy. Uzupełniamy ją trzema
+ostatnimi widocznymi wpisami z gotowymi zdjęciami. Tagi i zeszyty nadal mają
+pierwszeństwo; własny profil zachowuje skróty. Próbka jest niezależna od
+zakładki, roku i strony archiwum. Brak zdjęć nie tworzy pustego bloku.
+
+Dane wybiera kontroler przez published i ten sam filtr widoczności co
+archiwum, przed limitem. Nie powstaje publiczna galeria prywatnych mediów.
+Krótka data jest rzeczywistym odnośnikiem do wpisu; pseudo-element rozszerza
+kliknięcie na miniaturę bez dodatkowego przystanku Tab. To uzupełnienie
+istniejącej szyny, nie nowy licznik aktywności ani ranking.
+
+## D-215 · Publiczna tablica zaczyna się od dużych fotografii
+
+15 września 2026, ponowne zgłoszenie właściciela #557 ze zrzutem strony
+dla gościa. Historyczne ustawienie osób obok dań z #365 nie jest już
+akceptowaną kompozycją tego pasa. Na stronie powitalnej najpierw pokazujemy
+duże fotografie dań i ich opisy, następnie zwarte wizytówki osób oraz jedno
+wspólne zaproszenie gościa do rejestracji. Kolejność jest w DOM, nie przez
+CSS order. Pozostałe szyny zachowują dotychczasowy wariant i jego testy.
+
+Dobór osób i wpisów, uprawnienia, notatki redakcyjne oraz informacja o braku
+rankingu pozostają. Większa fotografia korzysta z feed; gotowość mediów
+i fallback przepisu nadal obowiązują. Odnośnik dania pozostaje pojedynczy,
+z fokusem na nazwie i klikaniem karty przez pseudo-element. Nie wprowadzamy
+fikcyjnych treści ani pustych kart do wyrównania siatki. Wariant bez danych
+zachowuje dotychczasowe prawdziwe wyjaśnienie i link odkrywania.
+
+## D-216 — Niezależna wysokość kolumn świeżych wpisów (15 września 2026)
+
+Właściciel w #560 wskazał pustkę pod krótszą kartą. Zmieniamy wyrównywanie
+rzędów z #365: karta trzecia zaczyna się pod pierwszą, czwarta pod drugą.
+Nie dzielimy DOM na dwie listy ani nie używamy CSS columns. Chronologiczna
+kolejność HTML, czytnika i Tab zostaje; na telefonie nadal jest jedna kolumna.
+Na szerokim ekranie czytanie wzrokiem może przechodzić między różnymi
+wysokościami — to koszt żądanej kompozycji, nie powód zmiany kolejności danych.
+Mały moduł ResizeObserver aktualizuje pozycje po zmianie rozmiaru kart;
+brak skryptu zachowuje funkcjonalną siatkę, choć z dawnymi przerwami.
+
+## D-217 — Szybki wygląd bez wymogu konta (15 września 2026)
+
+Właściciel zaakceptował panel Aa · Wygląd: istniejące skale70–140, jasny
+i ciemny motyw, reset100/light, natychmiastowy podgląd i zapis. Konto
+pozostaje źródłem dla zalogowanego; gość dostaje serwerowe cookie skali
+i motywu. LocalStorage zapisuje tylko zamknięcie jednorazowej podpowiedzi.
+Nie dodajemy motywu systemowego, nowej skali całej strony ani migracji.
+Panel nie zastępuje dostępności aplikacji i powiększenia przeglądarki.
+
+## D-218 — Panel moderacji korzysta z aktualnej marki (15 września 2026)
+
+Właściciel pokazał ekran Zgłoszeń w dawnej oprawie i zażądał przeniesienia
+panelu do nowego stylu (#581). Odrębny tryb moderacji pozostaje: nazwa,
+tarcza, tytuł karty, nawigacja narzędzi i powrót do serwisu. Zmienia się
+jego kompozycja — neutralna powierzchnia nawigacji, czytelne nagłówki,
+karty, formularze, filtry i tabela zgodne z aktualnymi tokenami marki.
+Historyczny akcent musztardowy na całej szynie nie jest już wzorcem.
+
+D-089, D-129 i D-138 pozostają: bez pustej prawej szyny, jedno wejście do
+panelu poza nim, pełna szerokość pracy w panelu. D-144 wymaga odbioru
+rzeczywistych pełnych danych, nie tylko pustych ekranów. Pozostają wszystkie
+uprawnienia, 2FA, trasy, formularze, ostrzeżenia i potwierdzenia operacji.
+Zmiana oprawy nie zmienia znaczenia moderacyjnych decyzji ani danych.
+
+Zakres testów i status wdrożenia: docs/design/PANEL_MODERACJI_MARKA_581.md.
+
+## D-219 — Mniejszy tekst zagęszcza układ (#589, 15 września 2026)
+
+Na jawne polecenie właściciela wartości 70/80/90% zmniejszają również odstępy i zapas wewnątrz kontrolek, zamiast pozostawiać mały tekst w dużych powierzchniach. Osobny współczynnik min(1, user-text-scale) zachowuje domyślne odstępy przy 100% i 140%; duży tekst naturalnie zwiększa potrzebną wysokość. Ważne cele dotykowe mają nadal minimum 48 px. Nie zmieniamy szerokości kontenerów, breakpointów ani proporcji zdjęć i nie stosujemy globalnego zoomu/transform. Nie obiecujemy liniowej skali całej geometrii. To uzupełnienie D-217.
+
+## D-220 — Zwijanie narzędzi panelu na telefonie (#581, 17 września 2026)
+
+Odbiór produkcyjny wykazał, że pełny spis narzędzi odsuwa kolejkę poza pierwszy
+ekran telefonu. Poniżej 64rem JavaScript początkowo zwija tę samą listę;
+przycisk „Nawigacja panelu” pozwala ją rozwinąć. Powrót do Kuking pozostaje
+poza zwijanym obszarem. Bez JavaScriptu i na komputerze lista jest widoczna.
+Nie zmieniamy linków, uprawnień ani 2FA. Escape zamyka menu i oddaje fokus
+przyciskowi; zmiana szerokości nie chowa skupionego linku. To uzupełnia
+D-218, a nie zmienia zakresu uprawnień moderacji.
+
+## D-221 — Poradźcie korzysta z wpisów i wspólnej rozmowy (#372, 18 września 2026)
+
+Pytanie jest wpisem kind=question z tytułem 10–180 znaków, opcjonalnym opisem,
+jednym zdjęciem i najwyżej trzema tagami. Nazwa Poradźcie i adresy /pytania
+realizują D-147/D-163. Formularz działa zwykłym POST; podpowiedzi hashtagów
+są ulepszeniem. Nie powstaje drugi system komentarzy ani powiadomień.
+
+Główne komentarze są odpowiedziami, zagnieżdżone zachowują rozmowę. Widoczność
+odpowiedzi respektuje dotychczasowe blokady i statusy. Kolejka gospodarza
+czeka na główną odpowiedź innej osoby widoczną dla pytającego. Publiczny
+szczegół emituje QAPage z widocznymi odpowiedziami, bez udawania odpowiedzi
+zaakceptowanej. Lista jest chronologiczna, z filtrem bez odpowiedzi i tagiem.
+
+Usunięcie treści odpowiedzi z dziećmi zapisuje body_removed_at, zachowując
+wątek. Ślad nie jest odpowiedzią w licznikach ani QAPage. Nie odgadujemy
+historycznych usunięć z samego zdania „Komentarz usunięty.”. Down migracji
+odmawia utraty istniejących znaczników, także w miękko usuniętych wierszach.
+
+Flaga kuking.questions.enabled pozostaje domyślnie false i obejmuje także
+profile, feedy oraz powiadomienia. Surowe operacje utrzymaniowe zachowują dane.
+Uruchomienie publiczne wymaga odbioru i etapów z #372; samo scalenie kodu
+nie jest dowodem uruchomienia funkcji. Stan kontroli i ograniczenia są w
+docs/product/ODBIOR_PORADZCIE_372.md.
+
+## D-222 — Fotograficzny katalog tagów (#681, 18 września 2026)
+
+Na prośbę właściciela katalog A–Z korzysta z szerszej ramy i dużych kart.
+Zdjęcie pochodzi z publicznego wpisu dostępnego dla oglądającego, przez
+istniejący TagCollage. Podpis wskazuje autora; brak zdjęcia daje znak marki,
+bez obrazów zastępczych udających treść użytkowników. Cała karta prowadzi
+do tagu. Alfabet, paginacja i zasady publicznych liczników pozostają.
+
+Pobieranie zdjęć obejmuje jednym batchem tagi promowane i bieżącą stronę
+katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
+stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
+zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
+
+## D-223 — Martwe reguły CSS: strażnik pyta o wynik kaskady, nie o tekst arkusza (20 września 2026)
+
+`resources/css/app.css` linia 1 ustawia `@layer theme, base, components, marka,
+utilities;`. Warstwa późniejsza bije wcześniejszą niezależnie od szczegółowości
+selektora i niezależnie od zapytania medialnego. W repozytorium żyją przez to
+reguły z komentarzami uzasadniającymi konkretne wartości, których przeglądarka
+nigdy nie widzi. Komentarz opisuje wtedy stan nieistniejący, a następny człowiek
+czyta go jak prawdę i na nim buduje.
+
+### Co zmierzono przy `.przepis-liczby` — i dlaczego wynik jest inny, niż zakładano
+
+Zlecenie pytało, czy `10rem` z `marka-ekrany.css` zamiast `7rem` z `app.css`
+psuje coś realnego przy 320 px i powiększonym piśmie. Odpowiedź: **nie psuje, bo
+ŻADNA z tych dwóch wartości nie działa.** Jedyny nosiciel `.przepis-liczby`
+(`pages/recipes/show.blade.php`) stoi wewnątrz `.marka-przepis-tekst`, a
+`marka-przepis.css` robi z niego `display: flex`. Na kontenerze flex
+`grid-template-columns` nie znaczy nic. Przykrycie `7rem` przez `10rem` było
+prawdziwe i zarazem bez znaczenia — spór o wartość toczył się o własność, która
+i tak nie dochodzi.
+
+Zmierzone w przeglądarce, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel **identyczną co do
+piksela w 30 konfiguracjach na 30** (dwa przepisy × 320/360/1280 px × pięć
+wariantów pisma). Zero przewijania w poziomie, zero ucięcia tekstu.
+Dowód: `docs/design/evidence/kaskada223/`.
+
+Dlatego **wartości nie ruszamy i reguł nie usuwamy** — poprawiono wyłącznie
+komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie martwej
+reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
+i jest osobną decyzją.
+
+### Trzy rzeczy, które ten pomiar ujawnił przy okazji
+
+1. **Osiem arkuszy nie jest owiniętych w żadną warstwę** (`marka-przepis`,
+   `marka-panel`, `marka-powiadomienia`, `marka-rama`, `marka-szukaj`,
+   `marka-wejscie`, `marka-zeszyt`, `pasek-przewijany`, `szybki-wyglad`).
+   Kod spoza warstw bije KAŻDĄ warstwę nazwaną, także `utilities` — istnieje
+   więc faktyczna warstwa najwyższa, której instrukcja `@layer` nie wymienia.
+   Komentarz przy imporcie twierdzi, że „każdy z nich dopisuje własne klasy do
+   @layer components". Dla tych ośmiu to nieprawda.
+2. **Instrukcja `@layer a, b, c;` NIE PRZEŻYWA BUDOWANIA.** W zbudowanym
+   arkuszu zostają same bloki `@layer nazwa { … }`, a kolejność wynika z ich
+   pierwszego wystąpienia. Dochodzi też wewnętrzna warstwa Tailwinda
+   `properties`, PRZED `theme` — w źródle jej nie ma.
+3. **Zapytania medialne są budowane w składni zakresowej** (`(width >= 48rem)`),
+   nie `(min-width: 48rem)`. Narzędzie szukające `min-width` znajduje zero
+   progów i wygląda wtedy na zielone.
+
+Wszystkie trzy są argumentem za tym samym: **o CSS trzeba pytać przeglądarkę, nie
+plik.** Strażnik czytający źródło mierzyłby tu co innego, niż widzi użytkownik.
+
+### Strażnik
+
+`scripts/kaskada-martwe-reguly.mjs` wykrywa deklarację z warstwy wcześniejszej
+całkowicie przykrytą przez warstwę późniejszą na tej samej własności i tym samym
+elemencie. Tekst arkusza służy wyłącznie do ZAWĘŻENIA listy kandydatów.
+Rozstrzyga pomiar: deklarację zdejmujemy z żywej reguły na wyrenderowanej
+stronie, porównujemy `getComputedStyle` każdego pasującego elementu przed i po,
+i przywracamy. Brak różnicy we wszystkich mierzonych konfiguracjach znaczy, że
+deklaracja nie zmienia nic.
+
+Strażnik nie jest listą znanych przypadków: kolejność warstw czyta z przeglądarki
+(pierwsze wystąpienie warstwy), reguły obchodzi rekurencyjnie przez `@layer`,
+`@media` i `@supports`, a szerokości bierze z progów znalezionych w arkuszu —
+więc czwarta warstwa i piąty arkusz wchodzą do pomiaru same. Jedyna lista nazw
+w tym pliku to WYJĄTKI i każdy ma przy sobie powód.
+
+Strażnik ma własną samokontrolę: brak wykrytych warstw albo zero przepytanych
+deklaracji to BŁĄD PRZYRZĄDU (kod 2), nie wynik pozytywny. Nie jest to ozdoba —
+pierwsza wersja tego strażnika czytała kolejność warstw z instrukcji `@layer`,
+której zbudowany arkusz nie zawiera, i meldowała „✓ żadna reguła nie jest
+przykryta", nie sprawdziwszy ani jednej. Samokontrola to złapała.
+
+### Czego ten strażnik nie mierzy
+
+Selektorów ze stanem interakcji (`:hover`, `:focus`), selektorów bez nosiciela na
+mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnętrzne
+reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
+pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
+
+## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+
+Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
+pełna gwarancja zaczyna się od wdrożenia.
+
+Pamięć należy do autora, nie do powiadomienia ani aktualnego gospodarza.
+`first_post_events` utrwala jeden nośnik; usunięcie go pozostawia zdarzenie,
+zmiana gospodarza nie wywołuje reemisji. Inny moderator zobaczy oznaczenie
+tylko przy tym nośniku i tylko jeśli ma dostęp. Nie dostaje alternatywnego
+„pierwszego” publicznego wpisu, gdy nośnik był followers poza jego zasięgiem.
+Bez gospodarza pierwszy publiczny wkład zużywa pierwszeństwo bez alertu;
+followers bez dostępnego odbiorcy nie zużywa go. Historia jest odtwarzana
+najpierw z alertów, potem z zachowanych dostępnych wpisów, w tym soft-deleted.
+
+Publikacja serializuje autora po blokadach mediów (D-103), przed INSERT.
+Wpis, znacznik, audyt, alert i enqueue są jedną transakcją. Standardowy
+dispatch pozostaje: gwarancja trwałego enqueue dotyczy database queue na
+identycznym obiekcie połączenia. Odmienny connection database odmawia przed
+zapisem; sync/fake zachowują dotychczasowy kontrakt testowy, nie stanowią
+dowodu trwałości. Zlecenie `low` ma beforeCommit, worker widzi je po commit.
+Nie naprawiamy historycznych częściowych publikacji z #935 ani retencji.
+Rollback jest wąsko chroniony zgodnie z D-088 (szczegóły: DATABASE.md).
+
+## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
+
+Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
+była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
+„wyjąć z zeszytu można nadal w samym zeszycie" było nieprawdziwe: ekran
+zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
+stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
+Trasy nie kasujemy.
+
+> **Sprostowane 20 września 2026 — patrz D-231.** Zdanie „przycisk stoi
+> wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
+> JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
+> to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
+> z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
+> bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
+> niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej.
+> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-231).
+
+Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
+w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
+więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
+Zmierzone: przycisk 207 × 50,5 px przy 320 px i 260 × 59,5 px przy tekście
+140%, pismo 18 i 25,2 px, 10 px przerwy od odnośnika, bez przewijania w bok.
+
+Bez potwierdzenia i bez JavaScriptu. Wyjęcie nie kasuje treści i cofa się
+jednym kliknięciem, więc pytanie „czy na pewno" zostaje dla rzeczy
+nieodwracalnych — kasowania wpisu i kasowania zeszytu. Zamiast pytania PRZED
+akcją jest droga powrotu PO niej: komunikat „Wpis wyjęty z zeszytu. Nie
+usunęliśmy go z serwisu — możesz go zapisać ponownie." i przycisk „Zapisz
+ponownie" w tym samym obszarze `aria-live` (`status_powrot` w sesji).
+
+Nazwa jest ta sama co przy przepisie — „Usuń z zeszytu" (`BRAND_EXTENDED.md`
+§3: jedna czynność, jedna nazwa). Audyt proponował „Wyjmij"; to byłby drugi
+synonim na tę samą rzecz.
+
+Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
+(`SavePostToCollection::remove()`), czyli jest ostrzejszy niż Policy: obca
+osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
+się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
+i `scripts/wyjecie-z-zeszytu.mjs`.
+
+## D-225 — Godzinny podpis zdjęcia publicznego, bez cache sesji (#597/#610)
+
+20 września 2026, jawna decyzja właściciela w zadaniu `gpt/cloudflare-cache`:
+„Zaakceptuj godzinę dla wcześniej publicznego zdjęcia”. Podpis wydany, gdy
+Policy dopuszcza anonima, może działać po zmianie widoczności do końca tej
+godziny. Z 30-minutowym cache bajtów okno może sięgnąć 90 minut od wydania.
+Treści dostępne wyłącznie prywatnie zachowują podpis do 5 minut i no-store.
+Najszerszy rodzic i kontrola Policy z D-020 pozostają bez zmian.
+
+Odpowiedzi z sesją, ciasteczkiem albo logowaniem nie trafiają do wspólnego
+cache, także dla publicznych zdjęć. Publiczny odczyt zdjęcia bez stanu
+klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
+ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
+`docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
+
+## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
+
+Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
+prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
+próg ochrony tożsamości ani ograniczenie dostępu do publicznych wpisów.
+
+Pomiar lokalny na syntetycznych danych: gość bez JavaScriptu mógł odczytać
+wszystkich autorów z kart dla tagów z 2, 3, 5, 10 i 42 osobami; ostatni
+przypadek wymagał przejścia trzech stron. Podnoszenie samego progu nie
+ukrywa autorstwa kart. Wynik nie jest badaniem danych ani użytkowników
+produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
+zakresu statystyk o prywatne treści ani ranking.
+
+Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
+
+Data: 20 września 2026. Decyzja właściciela.
+
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
+
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
+
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
+
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
+
+Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
+przycisk wyjęcia wszędzie tam, gdzie widać stan zapisu, o zakresie GLOBALNYM
+(wszystkie zeszyty widza). #776 dało przycisk wyjęcia o zakresie LOKALNYM
+(`collection_id`), ale tylko wtedy, gdy karta stoi w środku zeszytu, którego
+widz jest właścicielem. Złożone wprost renderowały się OBOK SIEBIE: na ekranie
+zeszytu stały dwa przyciski o prawie identycznych nazwach — „Usuń z zeszytu"
+i „Usuń z tego zeszytu" — i różnym zasięgu. Dla grupy 50+ to gorsze niż brak
+którejkolwiek drogi: zły wybór kosztuje tu dane w zeszytach, o których nikt
+w tym momencie nie myślał.
+
+**Zakres wybiera EKRAN, nie człowiek.**
+
+1. W środku konkretnego zeszytu, gdy widz jest jego właścicielem, stoi
+   wyłącznie **„Usuń z tego zeszytu"** — `collection_id` wskazuje ten zeszyt,
+   zapis w pozostałych zeszytach zostaje razem z notatką i datą (#775).
+   Odnośnik „Masz to w zeszycie" w tym miejscu znika: prowadzi do listy
+   zeszytów, a człowiek stojący W zeszycie już wie, że wpis tam leży.
+2. Poza zeszytem — w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+   i na stronie przepisu — stoi wyłącznie **„Usuń z zeszytu"** o zakresie
+   globalnym, obok odnośnika „Masz to w zeszycie" (D-224). Nie ma tam „tego
+   zeszytu", do którego dałoby się odnieść.
+3. **Nigdy oba naraz.** Dowodem jest scena
+   `WpisDaSieWyjacZZeszytuTest::test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia`
+   — liczy formularze wyjęcia na obu ekranach i sprawdza, że nazwa tej drugiej
+   drogi nie pada tam wcale.
+
+**Potwierdzenie PRZED akcją nie wraca.** #775 dokładało na stronie przepisu
+`x-confirm-button` z pytaniem „czy na pewno ze wszystkich zeszytów". D-224
+rozstrzygnęło odwrotnie i to rozstrzygnięcie zostaje: wyjęcie z zeszytu jest
+odwracalne, a pytanie przed każdą odwracalną czynnością uczy odklikiwania
+i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych (kasowanie wpisu,
+kasowanie zeszytu). Strona przepisu wraca więc do zwykłego formularza DELETE.
+
+**Ale zarzut #775 był słuszny i jest spełniony inaczej.** Brzmiał „usuwa ze
+wszystkich zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Zakres
+nazywa więc komunikat PO akcji, i nazywa go LICZBĄ FAKTYCZNĄ:
+`SavePostToCollection::remove()` i `SaveRecipeToCollection::remove()` oddają,
+z ilu zeszytów naprawdę wyjęto.
+
+- zakres lokalny: „Wpis wyjęty z zeszytu „Obiady". Nie usunęliśmy go
+  z serwisu — możesz go zapisać ponownie."
+- zakres globalny, kilka zeszytów: „Wpis wyjęty z 3 Twoich zeszytów. …"
+- zakres globalny, jeden zeszyt: „Wpis wyjęty z zeszytu. …" — bo zdanie
+  o „wszystkich Twoich zeszytach" przy jednym zeszycie straszy bez powodu,
+  a straszenie bez powodu uczy ignorowania komunikatów tak samo jak pytanie
+  bez powodu.
+
+**Droga powrotu wraca TAM, SKĄD WYJĘTO.** „Zapisz ponownie" (D-224) dostaje
+`pola` — po wyjęciu lokalnym niesie `collection_id` tego zeszytu. Bez tego
+cofnięcie odkładałoby wpis do zeszytu DOMYŚLNEGO, czyli cicho przenosiłoby go
+gdzie indziej; cofnięcie ma przywracać stan, nie tworzyć nowy.
+
+**Nazwy.** „Usuń z zeszytu" i „Usuń z tego zeszytu" nigdy nie stoją razem,
+więc jedna nie jest pułapką na drugą, a ekran zawsze niesie kontekst. Trzecie
+słowo na tę samą czynność („Wyjmij") byłoby złamaniem `BRAND_EXTENDED.md` §3.
+
+**D-081 zostaje w mocy** — tablica „kuKINGi na dziś" dalej świadomie nie
+dolicza stanu zeszytu.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/ZeszytUsuwaZapisanyWpisTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
+
+
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-231, 21 września 2026)
+
+*Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
+dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
+wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął go
+jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
+`gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
+D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
+
+Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
+w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
+z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
+`post-card.blade.php` — na karcie wpisu poza zeszytem nie było żadnej drogi
+wyjęcia (`WpisDaSieWyjacZZeszytuTest` obalał to na 4 z 12 scen). `jedna-droga`
+dała tę drogę wszędzie i rozstrzygnęła D-231 (jeden przycisk na ekran, zakres
+wybiera ekran, licznik zeszytów w komunikacie), ale przy okazji cofnęła
+pytanie przed akcją na stronie przepisu — bo D-224 uznało wyjęcie z zeszytu za
+w pełni odwracalne.
+
+**Właściciel rozstrzygnął: żadna z tych prac osobno nie zamyka #775, razem
+zamykają.** Bierzemy oba mechanizmy:
+
+1. **Z `jedna-droga`**: drogę wyjęcia na każdym ekranie pokazującym „Masz to
+   w zeszycie" (D-231 bez zmian) — `post-card.blade.php` dostaje przycisk
+   lokalny w środku zeszytu i globalny poza nim, liczbę zeszytów w komunikacie
+   (`Odmiana::rzeczownik()`), i „Zapisz ponownie" jako drogę powrotu, która
+   wraca DOKŁADNIE tam, skąd wyjęto (`pola['collection_id']`).
+2. **Z `zeszyty`**: `<x-confirm-button>` na stronie przepisu, jedynym ekranie
+   o zasięgu GLOBALNYM (wyjmuje ze WSZYSTKICH zeszytów naraz).
+
+**Dlaczego pytanie wraca tylko tam.** D-224 miało rację, że pytanie przed
+KAŻDĄ odwracalną czynnością uczy odklikiwania. Ale wyjęcie globalne nie jest
+w pełni odwracalne: `SavePostToCollection::remove()` i
+`SaveRecipeToCollection::remove()` wołają `detach()`, który kasuje wiersz
+pivotu RAZEM z `note` (`withPivot(['note'])`). „Zapisz ponownie" przywraca
+sam fakt bycia w zeszycie — nie treść notatki, która przy nim stała. To jest
+różnica jakościowa, nie kosmetyczna: przy zasięgu lokalnym (jeden, wybrany
+zeszyt) ryzyko jest małe i znane z kontekstu ekranu, ale przy zasięgu
+globalnym człowiek może stracić notatki w zeszytach, o których w tej chwili
+nie myśli. Stąd pytanie PRZED akcją zostaje wyłącznie na ekranie globalnym,
+a lokalne wyjęcie (D-231) zostaje jednym kliknięciem bez pytania.
+
+**Komunikat po akcji przestaje obiecywać więcej, niż daje.** Obie gałęzie
+pisały po usunięciu „Nie usunęliśmy go z serwisu — możesz go zapisać
+ponownie", co sugerowało pełną odwracalność. Nowe brzmienie
+(`CollectionController::komunikatPoWyjeciu()`):
+
+- zakres lokalny: „{Przepis/Wpis} wyjęty z zeszytu „{nazwa}”. Możesz zapisać
+  go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, N zeszytów: „{Przepis/Wpis} wyjęty z {N} Twoich zeszytów.
+  Możesz zapisać go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, jeden zeszyt: „{Przepis/Wpis} wyjęty z zeszytu. Możesz
+  zapisać go ponownie, ale notatka przy nim już nie wróci."
+
+Zachowanie się nie zmienia — `remove()` i `detach()` robią dokładnie to samo,
+co przed tą decyzją. Zmienia się wyłącznie zdanie: mówi teraz, co się NIE
+wraca, zamiast sugerować, że wraca wszystko.
+
+**Testy dwóch gałęzi wzajemnie się wykluczały** (`zeszyty` wymagała
+`<details class="confirm">` na stronie przepisu, `jedna-droga` wymagała jego
+braku) — złożone dają jeden zestaw sprawdzający stan docelowy:
+`UsuniecieZZeszytuMaZakresTest::test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji`
+zastępuje obie sprzeczne sceny i dokłada kontrolę dodatnią
+(`test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia`).
+`WpisDaSieWyjacZZeszytuTest` (issue #776, D-231) zostaje bez zmian zachowania
+— dotyczy wyłącznie wpisów (Post), których ekran przepisu (Recipe) nie
+obejmuje.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`resources/views/pages/recipes/show.blade.php`,
+`app/Http/Controllers/CollectionController.php`.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+
+**Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
+`docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
+Status: **obowiązuje**
+
+### Co było zepsute
+
+`down()` migracji `2026_09_06_120000_add_two_factor_to_users_table` kasowało
+bezwarunkowo cztery kolumny: `two_factor_secret`, `two_factor_backup_codes`,
+`two_factor_confirmed_at`, `two_factor_last_used_at` — a wcześniej zdejmowało
+CHECK `users_two_factor_confirmed_requires_secret_check`.
+
+Sekret TOTP jest zaszyfrowany i nie ma go skąd odtworzyć. Kody zapasowe są
+trzymane wyłącznie jako skróty. Po cofnięciu nie da się przywrócić ani
+jednego, ani drugiego.
+
+### Dlaczego to nie było „świadome", tylko przeoczone
+
+Migracja **broniła się własnym komentarzem**: „nikt nie zostaje zablokowany,
+bo wymóg drugiego składnika znika razem z kolumnami, które go przechowywały".
+To samo zdanie stało w `docs/DATABASE.md`. I ono jest prawdziwe — dlatego
+właśnie było groźne.
+
+> Cofnięcie nie wybija nikogo z serwisu. Ono ZDEJMUJE OCHRONĘ.
+
+Cykl `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`,
+zostawia kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika.
+Konto moderatora, o którym właściciel wie, że jest chronione dwoma
+składnikami, wraca do logowania samym hasłem — bez błędu, bez komunikatu,
+bez śladu. Moderator widzi zgłoszenia, cudze ukryte treści i odwołania;
+`docs/SECURITY_PRIVACY_LEGAL.md` obiecuje „MFA obowiązkowe dla adminów".
+
+To jest dokładnie „przywracanie stanu groźnego" z zasady **D-088**, tylko
+w postaci trudniejszej do zauważenia niż w #287: tam cofnięcie po cichu
+zmieniało ZNACZENIE decyzji człowieka, tu po cichu USUWA jego zabezpieczenie.
+Objaw jest ten sam — brak śladu błędu.
+
+### Ile było takich strażników przed tą naprawą
+
+W `database/migrations/` odmowę miało już kilkanaście migracji, a w
+`tests/Feature/` stało **dziewiętnaście** testów `Cofniecie*` — m.in. dziennik
+zgód, zaproszenia, zgłoszenia prawne, odwołania zgłaszających, tożsamość
+Google, tożsamość Facebooka, skala tekstu, znacznik odebrania dostępu,
+zeszyty, kolaż powitalny, numer sprawy, sygnały automatu i wiadomości.
+
+Dla 2FA — czyli dla najbardziej wrażliwej z tych wartości — **nie było ani
+jednego**. Nie dlatego, że ktoś to rozważył i odrzucił: przeciwnie,
+komentarz przy migracji pokazuje, że ryzyko było zauważone i uznane za
+akceptowalne, zanim powstała zasada D-088.
+
+### Rozstrzygnięcie
+
+`down()` liczy konta z `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją — **przed jakąkolwiek operacją
+niszczącą**, także przed zdjęciem CHECK-a. Świadome cofnięcie przepuszcza
+`KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`, zgodnie z konwencją furtek z
+`KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY` i `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE`
+(`getenv()`, nie `env()` — na produkcji konfiguracja bywa zbuforowana).
+
+**Granica jest przy POTWIERDZENIU, nie przy sekrecie.** Sekret zapisany bez
+`confirmed_at` to konto w trakcie włączania 2FA — ekran włączenia pokazuje
+sekret, zanim człowiek wpisze pierwszy kod. To nie jest ochrona, którą można
+stracić; człowiek zaczyna włączanie od nowa. Gdyby strażnik liczył sam
+sekret, jedno porzucone włączanie blokowałoby rollback na stałe.
+
+Na świeżym środowisku cofnięcie działa bez pytania, więc `migrate:refresh`
+w `scripts/check.sh` i w CI chodzi jak dotąd.
+
+### Czego ta decyzja NIE zmienia
+
+Nie zmienia schematu, zachowania logowania ani niczego, co widzi użytkownik.
+Kolumny, CHECK i limit prób zostają bez zmian. Zmienia się wyłącznie to, co
+`down()` robi, gdy ktoś ma 2FA naprawdę włączone.
+
+### Dowód
+
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php` — pięć przypadków, obie
+strony granicy: odmowa z danymi nietkniętymi po niej, świeże środowisko bez
+pytania, sam sekret bez potwierdzenia nieblokujący, furtka przepuszczająca
+oraz kolejność (strażnik przed zdjęciem CHECK-a i przed `dropColumn`).
+
+Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
+pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
+jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
+
+---
+
+## D-239 — Wspólny licznik całej poczty i kolejność wygaszania (#732, 22 września 2026)
+
+> Numer: gałąź `fix/732-wspolny-licznik-poczty` niosła tę decyzję jako D-225,
+> a ten numer (i D-226, D-227) zajęły w międzyczasie inne decyzje na `main`.
+> D-239 to pierwszy numer wolny na `origin/main` i na wszystkich gałęziach
+> zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź, której numeru
+> nie ma jeszcze na `main`). Treść to intencja tamtej gałęzi przeniesiona na
+> obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
+
+Do tej zmiany każda funkcja wysyłająca wiele listów miała własny sufit dobowy
+i widziała **tylko swój**, a listy bez sufitu — potwierdzenie rejestracji
+i przypomnienie hasła — nie były liczone wcale. Rezerwa transakcyjna (100 listów
+z puli 300) istniała wyłącznie jako zdanie w komentarzu `config/kuking.php`
+i nic jej nie pilnowało.
+
+Zmierzono dwie dziury tej samej rodziny. `/nie-pamietam-hasla` nie ma ani sufitu
+na adres, ani budżetu poczty: `limits.password_reset` to 5 próśb na 10 minut
+z adresu IP, czyli 720 na dobę, a każda może iść na **inny** adres. Jeden sprawca
+z jednego łącza wysyła listy na 300 różnych skrzynek i opróżnia pulę EmailLabs
+300/dobę w około 70 minut. Ponawianie potwierdzenia adresu
+(`limits.verification_resend`, 6 na minutę z konta, bez sufitu dobowego) robi to
+samo z jednego niepotwierdzonego konta w około 50 minut. W obu przypadkach
+pierwszą rzeczą, która przestaje działać, jest **potwierdzenie rejestracji
+i logowanie linkiem** — czyli wejście dla nowych ludzi.
+
+**Decyzja właściciela: jeden wspólny licznik poczty dla wszystkich dróg, nie
+osobne sufity.** Wpis przy `limits.kontakt_odpowiedz` zapowiadał to wprost —
+gdyby taki licznik powstał, ma być **jednym** miejscem tej decyzji. Osobnych
+progów przy poszczególnych drogach więc nie dopisujemy.
+
+Licznik jest rozszerzeniem `App\Domain\Security\DziennyBudzetListow`, a nie nową
+warstwą nad nią: licznik zagnieżdżony w drugim liczniku jest w tej klasie od
+D-085 (zaproszenia leżą wewnątrz budżetu logowania linkiem), a osobna warstwa
+oznaczałaby drugą implementację atomowej rezerwacji — czyli drugą kopię reguły.
+
+Sam wspólny licznik nie dokłada ochrony przed przekroczeniem 300; tego pilnuje
+dostawca. Dokłada **kolejność wygaszania**, bo odrzucony list przepada (worker ma
+trzy próby w sześć minut). Progi w `kuking.poczta.progi_wygaszania` mówią, ile
+listów z puli dana klasa ma zostawić nietkniętych:
+
+- **240 — `podsumowanie`, gaśnie pierwsze.** Liczba wynika z rachunku
+  300 − `digest.dzienny_limit` (60). Podsumowanie, które nie doszło, jest niczym.
+- **100 — `zwykla`.** Równe `poczta.rezerwa_transakcyjna`; próg jest pierwszym
+  mechanizmem, który tę rezerwę naprawdę dowozi. Tu stoi **przypomnienie hasła**:
+  też jest drogą powrotu na konto, ale prosi o nie ktokolwiek z zewnątrz, na cudzy
+  adres, bez dowodu, że adres do niego należy — czyli jest to dokładnie ta droga,
+  którą zmierzony sprawca opróżniał pulę. Tu stoi też odpowiedź z „Napisz do nas".
+- **0 — `wejscie`, gaśnie ostatnie.** Potwierdzenie rejestracji (także jego
+  ponowienie) i logowanie linkiem sięgają po ostatni list doby.
+
+Komunikat po odmowie mówi, **co zrobić teraz**, i ma dwa warianty: pusta pula
+(„nie czekaj na niego, spróbuj jutro albo napisz do nas") i ścisk na blokadzie
+licznika („kliknij jeszcze raz"). Wzorcem jest komunikat wyczerpanego budżetu
+logowania linkiem.
+
+### Zwrot rezerwacji trafia w dobę rezerwacji (#1061)
+
+Przy przenoszeniu naprawiona została wada znana z audytu: `zwolnij()` liczył
+klucz z `now()` w chwili zwrotu, więc rezerwacja z 23:59:59 oddana po północy
+zdejmowała miejsce z **nowej** doby. Po dołożeniu wspólnego licznika błąd
+dotyczyłby dwóch liczników naraz. Obiekt pamięta teraz doby swoich rezerwacji
+i oddaje ostatnią do jej własnego klucza; doba jest wyznaczana raz na
+sprawdzenie i zajęcie. `zajmij()` wołane wprost (list próbny `--tylko`) liczy się
+też we wspólnej puli.
+
+### Czego ta zmiana nie robi — powiedziane wprost
+
+**Nie gwarantuje, że list logowania wyjdzie zawsze.** Chroni klasę `wejscie`
+przed biuletynem, przed zalaniem przypomnienia hasła i przed odpowiedziami
+moderatora — te drogi nie ruszą ostatnich 100 listów doby. Ale klasa `wejscie`
+dzieli te listy **między siebie**: kto zakłada dziesiątki kont (rejestracja jest
+otwarta z decyzji właściciela; `limits.register` = 5 na 10 minut z IP) albo
+klika „Wyślij wiadomość jeszcze raz" z niepotwierdzonego konta
+(`verification_resend` = 6 na minutę), ten nadal może zjeść pulę do zera, a wtedy
+link do logowania nie wyjdzie. Człowiek dostaje wtedy jawny komunikat: że listu
+nie będzie, żeby nie czekał, że może zalogować się hasłem i gdzie odpisuje
+człowiek (`BiuletynNieZabieraListowWejsciaTest`). Osobna klasa albo sufit dla
+ponowienia potwierdzenia to osobna decyzja, tutaj świadomie niepodjęta.
+
+Nie dzieli też puli między konkretnych ludzi: jeden sprawca nadal wypali klasę
+`zwykla` i zabierze tego dnia odpowiedzi z „Napisz do nas". Poza licznikiem
+pozostają listy niskonakładowe z rodziny moderacyjnej (decyzje w sprawie
+zgłoszeń, potwierdzenia odwołań, dobowe podsumowanie automatu, eksport danych,
+ostrzeżenia o zmianie adresu) — pojedyncze sztuki na dobę, ale dopóki się nie
+liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał. To jest znana
+i nazwana niedokładność, nie przeoczenie.
+
+📄 `app/Domain/Security/DziennyBudzetListow.php`,
+`app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
+`tests/Feature/WspolnyLicznikPocztyTest.php`,
+`tests/Feature/PodzialLimituPocztyTest.php`,
+`tests/Feature/ZwrotRezerwacjiPoPolnocyTest.php`,
+`tests/Feature/BiuletynNieZabieraListowWejsciaTest.php`
+
+---
+
+## D-240 — Do OpenAI wychodzi wyłącznie pomniejszona, publiczna treść; awatar nie wychodzi wcale (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (pozycja nr 1 listy,
+„incydent trwający": `OPENAI_MODERATION_KEY` jest ustawiony na produkcji) ·
+Uzupełnia D-055, **uchyla D-061** w części „zdjęcie profilowe idzie do modelu" ·
+Zamyka #827 · Status: **obowiązuje**
+
+Decyzja dosłownie: `gpt-openai-granice` + `gpt-moderacja-ai` połączyć ręcznie
+w jedną poprawkę; do OpenAI ma wychodzić wyłącznie pomniejszona, publiczna
+treść; awatary bez potwierdzonej zgody — nie wysyłać.
+
+### Co było zepsute
+
+1. **Komentarz wychodził bez pytania o rodzica (#827).** `PrzeanalizujTresc`
+   sprawdzało u komentarza tylko `status = published`. Komentarz pod wpisem,
+   przepisem albo wykonaniem, które w międzyczasie przestały być publiczne
+   (prywatne, „dla obserwujących", ukryte, usunięte, konto autora zbanowane
+   albo w karencji usunięcia), szedł do OpenAI i stawiał oznaczenie
+   w kolejce moderatora. To samo dla śladu „Komentarz usunięty."
+   (`body_removed_at`) i komentarza zbanowanej osoby.
+2. **Zdjęcie mogło wyjść w pełnym rozmiarze.** `jakoJpeg()` brało
+   `wariantDoSerwowania('thumb')`, które przy braku miniatury podstawia
+   pierwszy lepszy wariant. Zmierzone w teście: zdjęcie z samym `large`
+   wychodziło jako JPEG 1600 × 1200, a `thumb` wskazujący na duży plik —
+   2048 × 1536. Wymiarów nikt nie sprawdzał.
+3. **Awatar wychodził zawsze** (D-061), bez żadnej zgody.
+4. **Uszkodzona odpowiedź udawała czystą ocenę.** `category_scores: []`,
+   wyniki-napisy, wyniki spoza 0–1 i odpowiedź bez znanej kategorii
+   kończyły się jako „nic nie znaleziono", bez śladu w dzienniku. Brak klucza
+   na produkcji był tak samo cichy jak lokalnie.
+
+### Co obowiązuje
+
+- **„Publiczna" = widoczna dla gościa bez konta w chwili wysyłki.**
+  `app/Moderacja/GranicaWysylki.php` pyta te same Policy co strona dla gościa
+  (`Gate::forUser(null)`, `PostPolicy`/`CommentPolicy`, a ta dalej o rodzica),
+  czytając stan świeżo z bazy. Pytana jest przed tekstem, przed **każdym**
+  zdjęciem i jeszcze raz przed postawieniem oznaczenia. **Treść „dla
+  obserwujących" przestaje być oceniana modelem** — to świadome zawężenie
+  wobec D-055, wynikające wprost ze słowa „publiczna" w decyzji.
+- **Lokalne sygnały (D-052) mają osobną, szerszą granicę** —
+  `GranicaWysylki::pozaAutorem()`: „dla obserwujących" wolno, prywatne nie,
+  jak przed tą zmianą. Nowe jest to, że komentarz pyta o aktualny stan
+  rodzica (#827) i o ślad usunięcia. Sygnały lokalne nie opuszczają
+  serwera, więc zawężanie ich do „publicznej" byłoby zmianą poza zakresem
+  tej decyzji. Jedyny skutek uboczny: zapowiedź przepisu „dla
+  obserwujących" pyta `PostPolicy` o bramkę przepisu i przez to nie stawia
+  lokalnego oznaczenia.
+- **Zdjęcie: tylko wariant `thumb`, bez zastępstwa, najwyżej 320 px
+  zmierzone z bajtów** — przed dekodowaniem i na gotowym JPEG.
+  `OcenaModelem::MAX_BOK` celowo nie jest czytany z konfiguracji wariantów.
+  Brak miniatury = zdjęcie pominięte, ostrzeżenie `stage=image_boundary`.
+- **Awatar nie wychodzi.** W serwisie nie ma mechanizmu potwierdzonej zgody
+  na ocenę zdjęcia profilowego (`dziennik_zgod` zna jeden cel —
+  `tygodniowy_digest`), więc nie ma jej nikt. `AvatarSettingsController`
+  nie zleca oceny; `PrzeanalizujAwatar` zostaje pustym zadaniem wyłącznie
+  dla zleceń czekających w kolejce sprzed wdrożenia. Przywrócenie wymaga
+  osobnej decyzji: celu zgody, ekranu udzielania i wycofania, sprawdzenia
+  przed każdą wysyłką.
+- **Awaria nie udaje „czyste".** `KlientOpenAI` odrzuca odpowiedź pustą,
+  z polem nieliczbowym, nieskończonym albo spoza 0–1 i odpowiedź bez znanej
+  kategorii — z ostrzeżeniem. Limit czasu przycięty do 1–8 s, połączenie
+  3 s (`0` w Guzzle znaczy „bez limitu"). Brak klucza **na produkcji**
+  zostawia ostrzeżenie `stage=openai_disabled` przy każdej nieocenionej
+  treści; lokalnie i w CI zostaje cichy. Lokalne sygnały działają
+  niezależnie od stanu modelu.
+
+### Co wzięto z gałęzi źródłowych, a czego nie
+
+Z `gpt-openai-granice` (7fd9aa8): zasada „dokładnie `thumb`, wymiary
+z bajtów, 320 px, bez zamiennika" i przypadki testowe zdjęć; pominięcie
+śladu usunięcia komentarza. **Pominięto:** ponowną analizę po edycji
+komentarza (#909), transakcyjne `DeleteComment` (#911) i uzupełnianie
+otwartych oznaczeń — to inne pozycje, nie granica wysyłki. Pominięto też
+decyzję tamtej gałęzi, by awatary wysyłać „wspólną ochroną" — właściciel
+rozstrzygnął odwrotnie.
+
+Z `gpt-moderacja-ai` (33ebfd0): walidacja wyników (`poprawneWyniki()`,
+`KategorieModeracji::jestZnana()`), przycięcie limitu czasu i zasada
+„aktualny stan rodzica przy wykonaniu, a nie przy zleceniu" (#827).
+**Pominięto:** `AutomaticAnalysisAccess` w tamtym kształcie (klonował
+rodzica i przestawiał mu widoczność na publiczną, żeby przepuścić
+„dla obserwujących" — sprzeczne z „wyłącznie publiczna"), rozbicie zdjęć
+na osobne zadania `PrzeanalizujZdjecieWpisu` i zapis lokalnego sygnału
+przed HTTP (#829/#830) — to niezawodność kolejki, nie granica wysyłki.
+Logowanie klasy wyjątku zamiast treści jest już na `main` (#1072,
+`ExceptionContext`).
+
+### Czego ta decyzja NIE zmienia
+
+Schematu (brak migracji), progów, alarmu pocztowego, wyglądu kolejki
+moderatora. Oznaczenia awatarów sprzed D-240 zostają w kolejce i dają się
+rozpatrzyć.
+
+### Dowód
+
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` — 46 przypadków, wszystkie
+przez `Http::fake()`. Na kodzie sprzed tej zmiany **oblewa 35**: 18 rodziców
+komentarza, 2 stany komentarza, 2 stany wpisu, zmiana na prywatny w trakcie
+oceny, 5 złych miniatur, 2 drogi awatara, brak klucza na produkcji
+i 4 uszkodzone odpowiedzi. Pozostałe 11 to kontrole dodatnie (publiczny
+rodzic × 3, poprawna miniatura 320 × 240) i zabezpieczenia, które `main`
+już miał (prywatny/ukryty/usunięty wpis, ukryty/usunięty komentarz,
+nieczytelny plik, HTTP 503) — pilnują, żeby granica nie przepuszczała
+za mało i nie blokowała za dużo. Przypadki „dla obserwujących" sprawdzają
+obie granice naraz: zero żądań do dostawcy i jedno lokalne oznaczenie.
+
+### Wycofanie
+
+Odwrócić commit. **Przed** odwróceniem wyczyścić `OPENAI_MODERATION_KEY`
+na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
+niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
+cofać: zmiana niczego nie zapisuje w bazie.

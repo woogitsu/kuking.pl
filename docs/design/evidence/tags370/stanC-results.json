@@ -1,0 +1,314 @@
+{
+ "cel": "Braki #370 nr 2 (CTA jako interakcja) i nr 3 (zrzuty stanu C przy skali 100%)",
+ "runtime": "http://127.0.0.1:8091",
+ "baza": "kuking_pasek_370 @ 127.0.0.1:55439",
+ "tag": "http://127.0.0.1:8091/tag/odbior-kolaz-5",
+ "wykonano": "2026-09-19T13:18:27.281Z",
+ "uwaga": "Wylacznie lokalnie. Zdjecia w kolazu sa rysowanymi danymi testowymi, nie zdjeciami uzytkownikow.",
+ "stanyPrzegladarki": {
+  "light-100": {
+   "dataTheme": null,
+   "dataTextScale": null
+  },
+  "light-140": {
+   "dataTheme": null,
+   "dataTextScale": "140"
+  },
+  "dark-100": {
+   "dataTheme": "dark",
+   "dataTextScale": null
+  },
+  "dark-140": {
+   "dataTheme": "dark",
+   "dataTextScale": "140"
+  }
+ },
+ "brak3_stanC": {
+  "konfiguracji": 2,
+  "PASS": true,
+  "wyniki": [
+   {
+    "konfiguracja": "C-light-100-360",
+    "theme": "light",
+    "scale": "100",
+    "width": 360,
+    "dataTheme": null,
+    "dataTextScale": null,
+    "podpowiedzWidoczna": true,
+    "podpowiedzTekst": "Dopasuj rozmiar tekstu i wygląd strony.\n        Rozumiem",
+    "podpowiedzRect": {
+     "x": 12,
+     "y": 508,
+     "w": 336,
+     "h": 156
+    },
+    "kafle": [
+     {
+      "etykieta": "Zobacz wpis: Ewelina Testowa",
+      "rect": {
+       "x": 12,
+       "y": 440,
+       "w": 336,
+       "h": 79
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 3833,
+      "osiagalny": true,
+      "trafienia": [
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Damian Testowa",
+      "rect": {
+       "x": 12,
+       "y": 527,
+       "w": 164,
+       "h": 79
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 12902,
+      "osiagalny": false,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Celina Testowa",
+      "rect": {
+       "x": 184,
+       "y": 527,
+       "w": 164,
+       "h": 79
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 12902,
+      "osiagalny": false,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Barbara Testowa",
+      "rect": {
+       "x": 12,
+       "y": 614,
+       "w": 164,
+       "h": 79
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 8233,
+      "osiagalny": true,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "self",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "self",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "self"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Anna Testowa",
+      "rect": {
+       "x": 184,
+       "y": 614,
+       "w": 164,
+       "h": 79
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 8233,
+      "osiagalny": true,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "self",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-przycisk",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-przycisk"
+      ]
+     }
+    ],
+    "kafliNieosiagalnych": 2,
+    "nieosiagalneEtykiety": [
+     "Zobacz wpis: Damian Testowa",
+     "Zobacz wpis: Celina Testowa"
+    ],
+    "maxPoleWspolne": 12902,
+    "zrzut": "C-light-100-360.png",
+    "PASS": true
+   },
+   {
+    "konfiguracja": "C-dark-100-390",
+    "theme": "dark",
+    "scale": "100",
+    "width": 390,
+    "dataTheme": "dark",
+    "dataTextScale": null,
+    "podpowiedzWidoczna": true,
+    "podpowiedzTekst": "Dopasuj rozmiar tekstu i wygląd strony.\n        Rozumiem",
+    "podpowiedzRect": {
+     "x": 18,
+     "y": 508,
+     "w": 360,
+     "h": 156
+    },
+    "kafle": [
+     {
+      "etykieta": "Zobacz wpis: Ewelina Testowa",
+      "rect": {
+       "x": 12,
+       "y": 440,
+       "w": 366,
+       "h": 86
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 6806,
+      "osiagalny": true,
+      "trafienia": [
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Damian Testowa",
+      "rect": {
+       "x": 12,
+       "y": 535,
+       "w": 179,
+       "h": 86
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 14908,
+      "osiagalny": false,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Celina Testowa",
+      "rect": {
+       "x": 199,
+       "y": 535,
+       "w": 179,
+       "h": 86
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 15425,
+      "osiagalny": false,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz",
+       "wyglad-podpowiedz"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Barbara Testowa",
+      "rect": {
+       "x": 12,
+       "y": 629,
+       "w": 179,
+       "h": 86
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 6090,
+      "osiagalny": true,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "self"
+      ]
+     },
+     {
+      "etykieta": "Zobacz wpis: Anna Testowa",
+      "rect": {
+       "x": 199,
+       "y": 629,
+       "w": 179,
+       "h": 86
+      },
+      "wOknie": true,
+      "zPodpowiedzia": 6301,
+      "osiagalny": true,
+      "trafienia": [
+       "wyglad-podpowiedz",
+       "self",
+       "self",
+       "wyglad-podpowiedz",
+       "self",
+       "wyglad-przycisk",
+       "wyglad-podpowiedz",
+       "self",
+       "wyglad-przycisk"
+      ]
+     }
+    ],
+    "kafliNieosiagalnych": 2,
+    "nieosiagalneEtykiety": [
+     "Zobacz wpis: Damian Testowa",
+     "Zobacz wpis: Celina Testowa"
+    ],
+    "maxPoleWspolne": 15425,
+    "zrzut": "C-dark-100-390.png",
+    "PASS": true
+   }
+  ]
+ }
+}

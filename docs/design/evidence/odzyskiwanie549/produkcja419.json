@@ -1,0 +1,6 @@
+{
+  "status": 419,
+  "h1": "Nie udało się wysłać formularza",
+  "url": "https://kuking.pl/zglos-nielegalna-tresc",
+  "note": "Odrzucony POST z niepoprawnym tokenem, bez tresci zgloszenia; brak proby poprawnego zapisu."
+}

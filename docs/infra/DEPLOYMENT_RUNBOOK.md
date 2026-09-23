@@ -43,10 +43,10 @@ gh --version
 | # | Co | Uwagi |
 |---|---|---|
 | 0.1 | Konto **GitHub** z repo `woogitsu/kuking.pl` | prywatne lub publiczne |
-| 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start |
+| 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start. **Hobby wyłącza ruch SMTP** — poczta idzie przez API HTTPS, patrz KROK 3. Hobby nie ma też Volume Backups ani PITR (D-043) |
 | 0.3 | Konto **Cloudflare** z domeną `kuking.pl` w strefie DNS | już masz |
 | 0.4 | Adres e-mail do alertów | np. `alerty@kuking.pl` |
-| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | rekomendacja: **EmailLabs** (300/dobę, bez karty), zapasowo Brevo — patrz `POCZTA_URUCHOMIENIE.md` §6 |
+| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | **EmailLabs przez API HTTPS** (300/dobę, bez karty, dane w UE) — `POCZTA_URUCHOMIENIE.md` §2A. Brevo tylko po przejściu na plan Pro albo po dopisaniu transportu po API: opisany wariant Brevo idzie przez SMTP |
 | 0.6 | **Włącz 2FA** na GitHubie, Railway i Cloudflare | **zrób to teraz**, nie później |
 
 > **Dlaczego 2FA teraz:** konto Cloudflare kontroluje DNS dla `kuking.pl`.
@@ -175,22 +175,77 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ---
 
-## KROK 2. Bucket R2 + klucze + własna domena
+## KROK 2. Buckety R2 + klucze (własna domena: WYCOFANA, §2.3)
 
 Robimy to **przed** Railway, bo klucze R2 są potrzebne w zmiennych Railway.
 
-### 2.1 Utwórz buckety
+### 2.1 Utwórz buckety — **trzy, nie jeden**
 
 → Panel Cloudflare → **R2 Object Storage** → **Create bucket**
 
+> **Do 11 września 2026 stał tu jeden bucket `kuking-media`.** To była
+> instrukcja niewykonalna do końca: `config/filesystems.php` czyta **trzy
+> osobne nazwy bucketów** (`AWS_BUCKET`, `AWS_PUBLIC_BUCKET`,
+> `AWS_EXPORTS_BUCKET`), a `.railway/railway.ts` podaje je z trzech osobnych
+> zmiennych sharedowych. Przy jednym buckecie oryginały z pełnym EXIF-em,
+> warianty i paczki RODO z całą zawartością konta lądują w jednym miejscu
+> z jedną polityką publiczności — a **publiczność w R2 jest cechą BUCKETU,
+> nie obiektu** (audyt G-01): Cloudflare nie obsługuje `x-amz-acl` przy
+> `PutObject` w ogóle. Jeden bucket z własną domeną wystawiał więc razem
+> z wariantami także prefiks `incoming/`, a adres oryginału daje się
+> wyprowadzić z adresu wariantu.
+
+| Bucket | Co w nim leży | Zmienna w Railway | Dysk w kodzie | Publiczny? |
+|---|---|---|---|---|
+| `kuking-oryginaly` | pliki od użytkownika, prefiks `incoming/`, **pełny EXIF z GPS** | `R2_BUCKET` | `r2` | **NIE.** Bez własnej domeny, `r2.dev` wyłączone |
+| `kuking-media` | przetworzone warianty WebP, prefiks `media/` | `R2_PUBLIC_BUCKET` | `r2_publiczne` | **NIE** (D-020) — adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}` |
+| `kuking-eksporty` | paczki RODO (art. 15 i 20), TTL 7 dni | `R2_EXPORTS_BUCKET` | `r2_eksporty` | **NIE.** To kopia CAŁEGO konta w jednym ZIP-ie |
+
 | Ustawienie | Produkcja | Staging |
 |---|---|---|
-| Nazwa | `kuking-media` | `kuking-media-staging` |
+| Nazwa | jak w tabeli wyżej | ta sama nazwa z sufiksem `-staging` |
 | Lokalizacja | **EU (European Union)** | EU |
 | Klasa storage | Standard | Standard |
 
 > **Lokalizacja EU jest istotna dla RODO** — zdjęcia użytkowników to dane
 > osobowe. Region bucketa **nie da się zmienić po utworzeniu.**
+
+> **Nazwy bucketów są WARTOŚCIAMI — kod ich nie zna.** `config/filesystems.php`
+> czyta nazwy zmiennych, nie nazwy bucketów, więc sprawdzalne jest wyłącznie to,
+> do której zmiennej trafia która nazwa. Nazwy w tabeli są tymi samymi, których
+> używają `INFRA_DECISION.md` §7 i `BRAMKA_R2.md` §3 — trzymaj się ich, żeby
+> trzy dokumenty nie zaczęły znowu opisywać trzech różnych układów.
+
+**Czwarty bucket — kopie bazy (`kuking-kopie`) — zakłada się osobno**, wraz
+z dwoma własnymi tokenami (zapis dla serwisu kopii, odczyt dla czujki
+w aplikacji): `KOPIE_I_ODTWORZENIE.md` §7.3. Nie mieszaj go z bucketami zdjęć:
+to komplet danych osobowych wszystkich kont w jednym pliku.
+
+**Jeśli buckety już istnieją, nie zakładaj ich drugi raz.** Właściciel
+potwierdził 11 września 2026, że przechowywanie zdjęć stoi już na Cloudflare R2
+(`KOPIE_I_ODTWORZENIE.md` §2.1) — **jakie to są buckety i jak się nazywają,
+z repozytorium nie wynika**. Zacznij wtedy od odczytu stanu:
+
+```bash
+railway variables --environment production | grep -E 'BUCKET|FILESYSTEM_DISK|KUKING_MEDIA_DISK'
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Bramka powie m.in., czy oba dyski nie wskazują **tego samego** bucketu
+(`TEN SAM bucket`) i czy w buckecie wariantów nie leżą klucze `incoming/`.
+
+**Jeśli istniejący bucket jest tym starym, JEDNYM** (ma w sobie i `incoming/`,
+i `media/`, i publiczny adres) — to jest bucket sprzed rozdzielenia.
+Nie kasuj go i nie przemianowuj:
+wiersze `media` zapisane wcześniej wskazują dysk `r2_legacy` i ich pliki leżą
+właśnie tam, a stary bucket jest dziś ich **jedyną kopią**
+(`app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php`). Podaj go wtedy
+w `AWS_LEGACY_BUCKET`, a nowy bucket wariantów nazwij inaczej
+(np. `kuking-warianty`) i przenieś pliki komendą `kuking:przenies-zdjecia`.
+`[DO POTWIERDZENIA PRZEZ WŁAŚCICIELA]` — jak nazywają się dziś istniejące
+buckety, co w nich leży i czy `AWS_LEGACY_BUCKET` jest ustawiony.
+Z repozytorium tego nie widać: `railway.ts` zmienne wyłącznie **referencuje**
+(`ctx.shared.X`), nigdy nie przechowuje ich wartości.
 
 ### 2.2 Klucze API `[POTRZEBNE OD WŁAŚCICIELA — zapisz bezpiecznie]`
 
@@ -200,8 +255,14 @@ Robimy to **przed** Railway, bo klucze R2 są potrzebne w zmiennych Railway.
 |---|---|
 | Nazwa | `kuking-produkcja` |
 | Uprawnienia | **Object Read & Write** |
-| Zakres | **Apply to specific buckets** → `kuking-media` |
+| Zakres | **Apply to specific buckets** → `kuking-oryginaly`, `kuking-media`, `kuking-eksporty` (oraz stary bucket, jeśli istnieje) |
 | TTL | bezterminowy (rotacja co 6 mies. wg §15) |
+
+**Jeden token do trzech bucketów zdjęć, nie trzy tokeny.** Wszystkie trzy dyski
+w `config/filesystems.php` czytają tę samą parę `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` — osobne tokeny nie miałyby gdzie trafić. Bucket kopii
+bazy jest wyjątkiem i ma własne poświadczenia (`AWS_KOPIE_*`), bo aplikacja ma
+do niego dostęp **tylko do odczytu**.
 
 Zapisz **natychmiast** — sekret pokazuje się **tylko raz**:
 
@@ -212,10 +273,11 @@ Endpoint (S3 API):  https://<ACCOUNT_ID>.r2.cloudflarestorage.com
                                               → R2_ENDPOINT
 ```
 
-Powtórz dla staginu (token `kuking-staging`, zakres `kuking-media-staging`).
+Powtórz dla staginu (token `kuking-staging`, zakres — buckety `-staging`).
 
-> **Zakres na jeden bucket, nie „all buckets".** Wyciek klucza produkcyjnego
-> nie może dać dostępu do niczego więcej.
+> **Zakres na wymienione buckety, nie „all buckets".** Wyciek klucza
+> produkcyjnego nie może dać dostępu do kopii bazy ani do niczego poza tym
+> projektem.
 
 ### 2.3 Własna domena `cdn.kuking.pl`
 
@@ -315,14 +377,48 @@ nagłówków odpowiedzi, i widać je wyłącznie w jej konsoli.
 
 ## KROK 3. Poczta transakcyjna
 
-**`[POTRZEBNE OD WŁAŚCICIELA — wybór dostawcy]`**
+**`[POTRZEBNE OD WŁAŚCICIELA — konto u dostawcy i klucze API]`**
+
+> ## ⛔ NA PLANIE HOBBY SMTP NIE DZIAŁA — i nie zgłasza błędu
+>
+> **Ten runbook każe w KROKU 0.2 i w KROKU 16 wykupić plan Hobby. Na Hobby
+> (a także na Free i Trial) Railway wyłącza ruch SMTP.** Dokumentacja Railwaya
+> mówi dosłownie: *„SMTP is only available on the Pro plan and above. Free,
+> Trial, and Hobby plans must use transactional email services with HTTPS
+> APIs."*
+>
+> Do 9 września 2026 stało tu `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` /
+> `MAIL_PASSWORD`, czyli wariant SMTP. **Kto wykonał ten krok dokładnie
+> tak, jak był napisany, dostawał rejestrację, która się udaje, listy, które
+> nigdy nie dochodzą, i zero błędu w dzienniku.** Pakiety SMTP idą w próżnię,
+> więc połączenie nie tyle pada, co wisi: zadanie
+> `App\Notifications\UstawienieNowegoHasla` wchodzi w `RUNNING` i nigdy nie
+> osiąga ani `DONE`, ani `FAIL`. W panelu wygląda to jak zawieszony worker,
+> nie jak awaria poczty. Diagnozowanie tego na żywej produkcji zajęło dzień.
+>
+> **Wariant, który działa na Hobby: EmailLabs przez API HTTPS** —
+> `MAIL_MAILER=emaillabs` plus `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`
+> i `EMAILLABS_SMTP_ACCOUNT`. Sterownik jest własny i już wmergowany
+> (`App\Poczta\TransportEmailLabs`, D-047), bez ani jednej nowej paczki
+> Composera. Tą samą drogą (HTTPS) kontener rozmawia z R2 i z Cloudflare,
+> a tej Railway nie blokuje na żadnym planie.
+>
+> Zmienne `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+> i `MAIL_SCHEME` zostają w `.railway/railway.ts` **uśpione** — jako gotowa
+> droga na wypadek planu Pro. **Nie ustawiaj ich na Hobby** i nie przestawiaj
+> `MAIL_MAILER` na `smtp` „na próbę": to jest dokładnie ta awaria z powrotem.
+>
+> `[DO POTWIERDZENIA PRZEZ WŁAŚCICIELA]` — jaki plan Railway jest dziś
+> wykupiony. Z repozytorium tego nie widać. Dopóki nie jest to Pro, obowiązuje
+> wariant API.
 
 > **Ten krok ma własny dokument: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).**
-> Jest tam komplet zmiennych i rekordów DNS dla pięciu wariantów (EmailLabs
-> i Brevo — rekomendowane, §2A–§2B; Postmark, Amazon SES, Resend — §2C–§2E),
-> wyjaśnienie, co robi SPF, DKIM i DMARC, oraz sposób sprawdzenia, że poczta
-> naprawdę wychodzi. Porównanie dostawców, ceny i rezydencja danych:
-> [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
+> Jest tam komplet zmiennych i rekordów DNS dla sześciu wariantów (EmailLabs
+> po API — **jedyny działający na Hobby**, §2A; EmailLabs i Brevo po SMTP —
+> dopiero od planu Pro, §2A-SMTP i §2B; Postmark, Amazon SES, Resend — §2C–§2E,
+> po API, ale z danymi poza UE), wyjaśnienie, co robi SPF, DKIM i DMARC, oraz
+> sposób sprawdzenia, że poczta naprawdę wychodzi. Porównanie dostawców, ceny
+> i rezydencja danych: [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
 >
 > Poniżej zostaje tylko to, co dotyczy samego wdrożenia.
 
@@ -349,8 +445,44 @@ Dodaj też **DMARC** (nie każdy dostawca o to poprosi, ale bez tego trafisz do 
 
 ### 3.2 Dane dostępowe `[POTRZEBNE OD WŁAŚCICIELA — zapisz]`
 
+> ### ⛔ NA PLANIE HOBBY SMTP NIE DZIAŁA — i nie zgłasza tego błędem
+>
+> **Railway blokuje ruch SMTP na planach Free, Trial i Hobby** — czyli na
+> planie, który ten runbook zaleca w KROKU 0.2. Awaria jest **cicha**: zadanie
+> wisi w `RUNNING` bez końca, w logach zero błędu, rejestracja się udaje,
+> a list nie dochodzi nigdzie. To nie jest hipoteza — to opis 9 września
+> 2026 (**D-116**).
+>
+> Poniżej stoi najpierw wariant, który **działa**. Zmienne SMTP są uśpione
+> w `railway.ts` jako droga na plan Pro.
+
+**Wariant domyślny — EmailLabs przez API HTTPS (działa na Hobby):**
+
+```text
+MAIL_MAILER            = emaillabs      (sterownik własny, D-047)
+EMAILLABS_APP_KEY      = ................   nagłówek `Application-Key`   ← sekret
+EMAILLABS_SECRET_KEY   = ................   nagłówek `Authorization`,
+                                            ciąg 128 znaków             ← sekret
+EMAILLABS_SMTP_ACCOUNT = 1.nazwa.smtp       pole `smtpAccount` żądania API
+```
+
+> **Skąd wziąć te dwa klucze:** panel EmailLabs → **Konto → Ustawienia → API
+> → Generuj klucz API**. Panel pokaże **oba naraz**, a klucza autoryzacyjnego
+> po przeładowaniu strony nie da się już podejrzeć — skopiuj oba od razu.
+>
+> **`EMAILLABS_SMTP_ACCOUNT` mimo nazwy NIE jest loginem SMTP**, a login
+> i hasło z sekcji „Konta SMTP" panelu **nie działają na API** — odpowie na nie
+> 401. To jest tu najbardziej prawdopodobna pomyłka konfiguracyjna.
+
+Pełna instrukcja zakładania konta i weryfikacji domeny:
+`POCZTA_URUCHOMIENIE.md` §2A.
+
+<details>
+<summary><strong>Wariant SMTP — dopiero po przejściu na plan Pro, na Hobby nie działa</strong></summary>
+
 Przy dostawcy po SMTP (Brevo, EmailLabs, Mailgun — sterownik `smtp` jest już
-skonfigurowany, zero zmian w kodzie):
+skonfigurowany, zero zmian w kodzie). **Na planie Hobby te cztery zmienne nie
+wyślą nic i nie zgłoszą błędu** (ramka na początku KROKU 3):
 
 ```text
 MAIL_HOST      = ................       (np. smtp-relay.brevo.com)
@@ -359,8 +491,17 @@ MAIL_USERNAME  = ................
 MAIL_PASSWORD  = ................       ← sekret
 ```
 
-Przy dostawcy po API (Postmark, Resend, SES) zmienne są inne, a `railway.ts`
-wymaga zmiany `MAIL_MAILER` — komplet w `POCZTA_URUCHOMIENIE.md` §2.
+**Na Free, Trial i Hobby te zmienne nie zadziałają** — pakiety idą w próżnię.
+Po przejściu na plan Pro serwis trzeba **wdrożyć jeszcze raz**, żeby SMTP
+zaczął wychodzić; opis wariantu stoi w `POCZTA_URUCHOMIENIE.md` §2A-SMTP.
+
+</details>
+
+Przy innym dostawcy po API (Postmark, Resend, SES) zmienne są inne, a
+`railway.ts` wymaga zmiany `MAIL_MAILER` — komplet w
+`POCZTA_URUCHOMIENIE.md` §2. Gdy dostawca jest **spoza UE**, dochodzi do tego
+akapit o transferze poza EOG w `resources/legal/polityka-prywatnosci.md`
+(`POCZTA_URUCHOMIENIE.md` §2C–§2E).
 
 **Sprawdź, że działa:** w panelu dostawcy poczekaj na status „Verified"
 przy domenie, a po pierwszym deployu wyślij prawdziwą wiadomość:
@@ -429,8 +570,17 @@ To normalne, poprawimy to w kroku 8.
 
 → Kanwa projektu → **+ New** → **Database** → **Add PostgreSQL**
 
-**`[POTRZEBNE OD WŁAŚCICIELA — decyzja]`** Wybierz major **18**, jeśli kreator
-go oferuje. Jeśli oferuje tylko 17:
+Wybierz major **18**. Od decyzji właściciela z 20 września 2026 (D-227)
+osiemnastka jest **wymaganiem projektu**, nie preferencją — `AGENTS.md`
+mówi o niej wprost, a `TestyChodzaNaPostgresieTest` oblewa na starszej wersji.
+
+**Warianty niżej są drogą awaryjną odtworzenia, nie dopuszczalnym stanem
+docelowym.** Wolno z nich skorzystać, gdy kreator dostawcy nie oferuje 18
+w chwili, w której stawiasz bazę po awarii — i wtedy upgrade do 18 jest
+zadaniem do domknięcia, a nie opcją. Runbook trzyma je, bo improwizowanie
+procedury w kryzysie kosztuje więcej niż zapisanie jej z góry.
+
+Jeśli kreator oferuje tylko 17:
 
 - **Opcja A (zalecana):** weź 17 i zrób upgrade in-place później
   (→ Database → Config → **Major Version Upgrade**). Railway wspiera
@@ -499,21 +649,31 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | Zmienna | Wartość | Sekret? | Opis |
 |---|---|---|---|
 | `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Nie rotować. |
-| `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID do bucketa `kuking-media` |
+| `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID tokenu obejmującego trzy buckety zdjęć |
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
-| `R2_BUCKET` | `kuking-media` | nie | Nazwa bucketa |
+| `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
+| `R2_PUBLIC_BUCKET` | `kuking-media` | nie | Bucket **wariantów** WebP. `railway.ts` → `AWS_PUBLIC_BUCKET` → dysk `r2_publiczne`. **Bez tej zmiennej `AWS_PUBLIC_BUCKET` wraca domyślnie do `AWS_BUCKET`** (`config/filesystems.php`), czyli oba dyski wskazują jeden bucket i rozdział oryginałów od wariantów istnieje tylko na papierze — pilnuje tego `RozdzialMagazynowTest` |
+| `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
+| `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
-| `MAIL_HOST` | np. `smtp.emaillabs.net.pl` (EmailLabs) | nie | Serwer SMTP |
-| `MAIL_PORT` | `587` | nie | Port SMTP (STARTTLS) |
-| `MAIL_USERNAME` | z kroku 3.2 | nie | Login SMTP |
-| `MAIL_PASSWORD` | z kroku 3.2 | **TAK** | Hasło / klucz API SMTP |
+| `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
+| `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
+| `EMAILLABS_SECRET_KEY` | z kroku 3.2 | **TAK** | Secret Key EmailLabs — nagłówek `Authorization`, ciąg 128 znaków |
+| `EMAILLABS_SMTP_ACCOUNT` | z kroku 3.2, kształt `1.nazwa.smtp` | nie | Pole `smtpAccount` żądania API. **Mimo nazwy nie jest to login SMTP** — login i hasło z „Kont SMTP" dostaną na API 401 |
+| ~~`MAIL_HOST`~~ | — | — | **NIE USTAWIAJ na Hobby.** Railway blokuje SMTP na Free, Trial i Hobby, a awaria jest cicha: zadanie wisi w `RUNNING`, rejestracja wygląda na udaną, list nie dochodzi (D-116). Do 9 IX 2026 ta tabela kazała te zmienne ustawić i tak wygląda właśnie ta awaria. Droga na plan Pro (`POCZTA_URUCHOMIENIE.md` §2A-SMTP) |
+| ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
+| ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
+| ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
 | `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
 | `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
 | `GOOGLE_CLIENT_ID` | z kroku 8D | nie | Client ID OAuth — wchodzi do adresu przekierowania, nie jest sekretem |
 | `GOOGLE_CLIENT_SECRET` | z kroku 8D | **TAK** | Client secret OAuth (wejście kontem Google, D-069) |
+| `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
+| `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania odebrania dostępu od Meta |
+| `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -528,13 +688,26 @@ wtedy pokazywać wartość w panelu i w CLI.
 `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_SAME_SITE`, `CACHE_STORE`,
 `QUEUE_CONNECTION`, `KUKING_ZAUFANE_PRZESKOKI`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
 `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `MAIL_MAILER`, `MAIL_SCHEME`,
+`AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_KOPIE_BUCKET`,
+`AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY`, `AWS_ENDPOINT`,
+`KUKING_EXPORT_DISK`, `MAIL_MAILER`, `MAIL_SCHEME`,
 `MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
 `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE`,
 `POSTHOG_HOST`, `PHP_WORKER_MEMORY_LIMIT`
 
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
+
+> **`AWS_URL` zniknęło z tej listy i nie wróci.** Była to własna domena bucketa
+> wariantów i to ona była adresem każdego zdjęcia — adres, który nikogo o nic
+> nie pyta (audyt W7-02, D-020). Wdrożenie tej zmiennej już nie ustawia. Tam,
+> gdzie stary, jeden bucket jest jeszcze w użyciu, podaje się **`AWS_LEGACY_URL`**
+> i **`AWS_LEGACY_BUCKET`** wprost — inna zmienna i inny bucket.
+>
+> **Ta lista obowiązuje dopiero po pierwszym `railway config apply`**, a to nie
+> zostało uruchomione ani razu (stan na 11 IX 2026, `POCZTA_URUCHOMIENIE.md`
+> §2A krok 4). Dopóki produkcja stoi na serwisie utworzonym klikaniem, wszystko
+> z tej listy trzeba wpisać ręcznie — ścieżka niżej.
 
 ### Ścieżka bez IaC — serwis utworzony klikaniem w panelu
 
@@ -625,7 +798,7 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > | zmienna | skutek | kiedy zmienić |
 > |---|---|---|
 > | `FILESYSTEM_DISK=local` | zdjęcia **znikają przy każdym redeployu** | gdy będzie bucket R2 → `r2` |
-> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `smtp`, `postmark`, `resend` albo `ses` |
+> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `emaillabs` (jedyny działający na Hobby, D-116). **Nie `smtp`**: na planie Hobby SMTP jest wyłączony i wisi bez błędu (KROK 3), więc `smtp` dopiero na planie Pro; `postmark`, `resend`, `ses` wymagają zmian w `railway.ts` |
 >
 > Obie są w porządku na pierwszy zielony deploy i **nie do przyjęcia**, gdy
 > wpuszczasz prawdziwych ludzi.
@@ -635,11 +808,45 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > zapomni hasła, straciłaby konto bezpowrotnie (`App\Support\Poczta`).
 > Instrukcja odblokowania: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).
 
-Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
-`AWS_USE_PATH_STYLE_ENDPOINT=false`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`, `MAIL_SCHEME=smtp`, `MAIL_FROM_ADDRESS`
+Po dodaniu R2 i poczty dołóż — **tutaj pod nazwami, których szuka kod**
+(`config/filesystems.php`, `config/services.php`), a nie pod nazwami
+sharedowymi `R2_*` z tabeli wyżej; tamte mapuje na te dopiero `railway.ts`:
+
+```bash
+FILESYSTEM_DISK=r2
+KUKING_MEDIA_DISK=r2
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=auto
+AWS_USE_PATH_STYLE_ENDPOINT=false
+AWS_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+AWS_BUCKET=kuking-oryginaly          # oryginały, dysk `r2`
+AWS_PUBLIC_BUCKET=kuking-media       # warianty, dysk `r2_publiczne`
+AWS_EXPORTS_BUCKET=kuking-eksporty   # paczki RODO, dysk `r2_eksporty`
+KUKING_EXPORT_DISK=r2_eksporty
+
+MAIL_MAILER=emaillabs
+EMAILLABS_APP_KEY=
+EMAILLABS_SECRET_KEY=
+EMAILLABS_SMTP_ACCOUNT=
+MAIL_FROM_ADDRESS=kontakt@kuking.pl
+```
+
 oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
+
+> **Trzy pułapki w tym bloku, każda już raz zapłacona:**
+>
+> 1. **`AWS_PUBLIC_BUCKET` pominięte** = `config/filesystems.php` cofa się do
+>    `AWS_BUCKET`, oba dyski wskazują jeden bucket i oryginały z GPS-em leżą
+>    obok wariantów. `kuking:bramka-r2` melduje wtedy `TEN SAM bucket`.
+> 2. **`AWS_EXPORTS_BUCKET` pominięte** = dysk paczek RODO bez bucketu:
+>    w bazie `ready`, u człowieka 404.
+> 3. **`MAIL_MAILER=smtp` z `MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD`**
+>    = na planie Hobby listy nie wychodzą i nic tego nie pokazuje (KROK 3).
+>    Tych czterech zmiennych tu świadomie nie ma.
+>
+> `AWS_URL` też tu świadomie nie ma — patrz ramka wyżej. Jeśli w użyciu jest
+> jeszcze stary, jeden bucket, dołóż `AWS_LEGACY_BUCKET` i `AWS_LEGACY_URL`.
 
 `MAIL_FROM_NAME` **celowo nie jest na tej liście.** Nieustawiona zmienna
 daje nazwę nadawcy „<gospodarz> z Kuking" złożoną w `config/mail.php`;
@@ -656,8 +863,11 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 | Zmienna | Wartość dla staginu |
 |---|---|
 | `APP_KEY` | **drugi** klucz z kroku 7 |
-| `R2_BUCKET` | `kuking-media-staging` |
+| `R2_BUCKET` | `kuking-oryginaly-staging` |
+| `R2_PUBLIC_BUCKET` | `kuking-media-staging` |
+| `R2_EXPORTS_BUCKET` | `kuking-eksporty-staging` |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | klucze tokenu `kuking-staging` |
+| `EMAILLABS_*` | osobne konto albo ten sam klucz — ale **nigdy** bucket ani baza produkcji |
 | ~~`R2_PUBLIC_URL`~~ | **NIE USTAWIAJ** — ta sama zmienna, ten sam powód co w tabeli produkcyjnej wyżej. `cdn-staging.kuking.pl` nie ma powstać. |
 
 > **Nigdy nie wskazuj staginu na produkcyjny bucket ani produkcyjną bazę.**
@@ -822,8 +1032,9 @@ Klucz nie jest wypisywany nigdzie w wyniku, nawet fragmentem. Pilnuje tego test.
 
 ## KROK 8C. R2 — sprawdzenie, czy oryginały naprawdę nie są publiczne
 
-**Po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`, przed
-wystawieniem `cdn.kuking.pl`:**
+**Zaraz po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`,
+zanim wpuścisz ludzi** — nie „przed wystawieniem `cdn.kuking.pl`", bo tej
+domeny po D-020 nie wystawiamy w ogóle (§2.3):
 
 ```
 railway ssh -- php artisan kuking:bramka-r2 --zapis
@@ -863,20 +1074,28 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 ## KROK 8D. Wejście kontem Google — dwa klucze z Google Cloud Console
 
+> ## ✅ WYKONANE — potwierdzone 12 września 2026
+>
+> `curl -s https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
+> a `/login` zawiera przycisk „Wejdź kontem Google". Klucze doszły do
+> aplikacji. Sprawdzone na żywej produkcji przy okazji domykania 8E.
+>
+> Zostaje to samo co przy 8E: przejście ścieżki z konta spoza listy
+> testerów i umowa powierzenia (#8).
+
+
 **Kiedy:** po kroku 8, przed kampanią startową.
 **Ile zajmuje:** pięć minut w Google Cloud Console, dwie zmienne w Railway.
 **Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
 „Wejdź kontem Google" po prostu nie będzie na ekranie, a hasło i wiadomość
 z linkiem działają jak dziś.
 
-> ⚠️ **`/health` o tym NA RAZIE NIE POWIE.** Zamierzone jest, żeby produkcja
-> z funkcją włączoną i bez kluczy oddawała `status: degraded` z powodem
-> `google_bez_kluczy` — cicha, nieistniejąca droga wejścia jest gorsza niż
-> jej jawny brak. Sygnał został jednak **świadomie odłożony**:
-> `HealthController` przerabia równolegle inne zlecenie (#253/#255).
-> Do czasu jego dołożenia **sprawdź to okiem po wdrożeniu**: wejdź na
-> `/login` i zobacz, czy przycisk „Wejdź kontem Google" jest na ekranie.
-> Nie ma go = kluczy nie widać.
+> ✅ **`/health` o tym POWIE** — od 12 września 2026. Produkcja z funkcją
+> włączoną i bez kluczy oddaje `status: degraded` z powodem
+> `google_bez_kluczy`, bo cicha, nieistniejąca droga wejścia jest gorsza niż
+> jej jawny brak. Do tego dnia sygnał był tylko zapowiedziany i sprawdzało
+> się to okiem; sprawdzenie okiem (czy przycisk „Wejdź kontem Google" jest
+> na `/login`) zostaje jako druga droga, nie jako jedyna.
 
 Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-069](../DECISIONS.md), issue #258.
 
@@ -1039,6 +1258,457 @@ obiecuje tę drogę.
 skasowałby powiązania — a dla części osób to jedyna droga wejścia, jaką znają
 (hasła nigdy nie ustawiały). Dlatego to cofnięcie **samo odmawia**, dopóki
 nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
+
+---
+
+## KROK 8E. Wejście kontem Facebooka — dwa klucze z panelu Meta
+
+> ## ✅ WYKONANE — 12 września 2026
+>
+> **Właściciel zgłosił:** aplikacja w panelu Meta **przeszła przegląd
+> (review), jest opublikowana (Live)** i wejście kontem Facebooka działa.
+>
+> **Sprawdzone niezależnie tego samego dnia**, poleceniami z 8E.3 poniżej —
+> nie na podstawie zgłoszenia, tylko na żywej produkcji:
+>
+> | co | polecenie | wynik |
+> |---|---|---|
+> | klucze doszły do aplikacji | `curl -s https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
+> | przycisk jest na ekranie logowania | `curl -s https://kuking.pl/login \| grep -c 'wejdz/facebook'` | `1` |
+> | kolejność przycisków | odczyt napisów z `/login` | „Wejdź kontem Google", potem „Wejdź kontem Facebooka" — zgodnie z wymogiem 8E.3 („obok przycisku Google i **nie przed nim**") |
+>
+> **Czego to sprawdzenie NIE obejmuje** i co zostaje po stronie właściciela:
+> przejście całej ścieżki **z konta, które nie jest na liście testerów**
+> (końcowe sprawdzenie z 8E.3) — to jedyne sprawdzenie odróżniające „działa
+> Tobie" od „działa ludziom", a z tego kontenera nie da się go wykonać.
+> Oraz **umowa powierzenia z Meta** (#8), która jest ryzykiem formalnym,
+> nie technicznym, i nie blokuje działania funkcji.
+>
+> ⛔ **Punkt 7 listy z 8E.1 jest BŁĘDNY i został sprostowany.** Mówi, że
+> „App Review NIE jest potrzebny — to przełącznik". **Był potrzebny:**
+> właściciel złożył wniosek, Meta go zatwierdziła, dopiero potem aplikacja
+> poszła na Live. To samo przewidywanie stoi w `FACEBOOK_LOGIN_URUCHOMIENIE.md`
+> — obecnie ten plik jest indeksem ze sprostowaniem historycznych założeń.
+>
+> **Planując kolejne wdrożenie, przewiduj czas na przegląd aplikacji**, nawet
+> przy samych uprawnieniach podstawowych (`public_profile`, `email`). Ile on
+> trwa — nie wiemy; nasz przypadek to jedna obserwacja, nie SLA.
+
+
+**Kiedy:** po kroku 8D, przed kampanią startową.
+**Ile zajmuje:** kilkanaście czynności w panelu Meta (pełna lista jest
+poniżej w 8E.1), dwie zmienne w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
+„Wejdź kontem Facebooka" po prostu nie będzie na ekranie, a hasło, wiadomość
+z linkiem i wejście kontem Google działają jak dziś.
+
+> ✅ **`/health` o tym POWIE.** Produkcja z funkcją włączoną i bez kluczy
+> oddaje `status: degraded` z powodem `facebook_bez_kluczy` — dokładnie tak
+> samo jak przy Google w 8D i z tego samego powodu: cicha, nieistniejąca
+> droga wejścia jest gorsza niż jej jawny brak.
+
+> ⚠️ **Ten krok jest DŁUŻSZY niż 8D i łatwiej go zostawić niedokończonym.**
+> Google to jeden panel i pięć minut. U Meta czynności jest kilkanaście,
+> w trzech różnych miejscach panelu, a **ostatnia z nich — przestawienie
+> aplikacji w tryb Live — ma się wydarzyć DOPIERO po wdrożeniu kodu.** Między
+> jednym a drugim jest okno, w którym wdrożenie wygląda na zdrowe, a droga
+> wejścia nie istnieje. Dlatego sprawdzenie z 8E.3 jest tu obowiązkowe, a nie
+> „jak będzie czas".
+
+**Ten krok jest kanoniczną instrukcją wdrożenia Facebook Login.**
+[`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md)
+pozostaje indeksem i sprostowaniem historycznych założeń; nie zawiera drugiej
+checklisty operacyjnej.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-113](../DECISIONS.md), issue #259.
+
+### 8E.1 Co założyć w panelu Meta
+
+Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
+
+1. **Aplikacja**: [developers.facebook.com](https://developers.facebook.com)
+   → **My Apps** → **Create App**. Przypadek użycia: **„Authenticate and
+   request data from users with Facebook Login"**. Nazwa: **`Kuking`** — to
+   jest nazwa, którą człowiek zobaczy na ekranie zgody. Adres kontaktowy:
+   `kontakt@kuking.pl`.
+2. **Portfolio firmowe** na **SAMSUFI sp. z o.o.** (krok „Business"
+   w kreatorze).
+3. **Settings → Basic** — komplet pól, bez nich nie ma trybu publicznego:
+   - **Privacy Policy URL:** `https://kuking.pl/prywatnosc`;
+   - **Terms of Service URL:** `https://kuking.pl/regulamin`;
+   - **App Icon** 1024×1024;
+   - **App Category** i **Business Use**;
+   - **App Domains:** `kuking.pl`, `staging.kuking.pl`.
+4. **Data Deletion Instructions URL:** `https://kuking.pl/prywatnosc`
+   (Settings → Basic). Jest to adres instrukcji, nie callback usuwania danych.
+   Callback odebrania dostępu nie zastępuje procedury usunięcia konta.
+5. **Valid OAuth Redirect URIs** — **wpisz wszystkie trzy, co do znaku**
+   (bez ukośnika na końcu, z `https`):
+
+   ```text
+   https://kuking.pl/wejdz/facebook/wroc
+   https://www.kuking.pl/wejdz/facebook/wroc
+   https://staging.kuking.pl/wejdz/facebook/wroc
+   ```
+
+   **To jest jedyne miejsce w całym kroku, w którym literówka objawia się
+   dopiero u człowieka:** Meta dopasowuje adres **znak w znak** i pokazuje
+   wtedy po angielsku „URL Blocked" zamiast logowania. Skopiuj te adresy
+   stąd, nie przepisuj.
+
+   **Środowisk preview (jedno na każdy PR) na tej liście NIE BĘDZIE** i nie
+   ma sensu tego obchodzić: adresy `*.up.railway.app` są losowe, a Meta nie
+   przyjmuje `*`. Bez kluczy przycisku tam po prostu nie ma i to jest
+   zachowanie poprawne dla takich środowisk.
+
+   > **Gdzie to pole naprawdę jest — ścieżka odczytana z panelu 11.09.2026.**
+   > Stało tu `Products → Facebook Login → Settings`, bo tak podaje
+   > dokumentacja Meta. Właściciel wszedł do panelu i **menu `Products` tam
+   > nie było**: przy aplikacji zakładanej „przez przypadek użycia" (pkt 1)
+   > Meta włącza produkty sama i nie pokazuje ich jako osobnej gałęzi menu.
+   >
+   > ```text
+   > lewe menu: Use cases
+   >   → przy „Facebook Login" kliknij Customize
+   >     → lewe menu wewnątrz przypadku użycia: Settings
+   >       → sekcja Client OAuth settings
+   >         → pole Valid OAuth Redirect URIs
+   > ```
+   >
+   > Poznasz, że jesteś w dobrym miejscu, po trzech rzeczach na ekranie:
+   > okruszki u góry pokazują `Use cases > Customize`, nad lewym menu jest
+   > **rozwijana lista z wybranym `Facebook Login`** (to przełącznik między
+   > przypadkami użycia, nie przycisk), a w samym menu poza `Settings` są
+   > jeszcze `Permissions and features`, `Quickstart` i `Webhooks`.
+   >
+   > **Pole jest listą, nie jednym napisem.** Wpisz pierwszy adres i naciśnij
+   > **Enter** — zamieni się w kafelek i zwolni miejsce na następny; powtórz
+   > dla drugiego i trzeciego, a na końcu **Save Changes** w prawym dolnym
+   > rogu. Jeśli Enter nie robi kafelka, wklej trzy adresy po przecinku
+   > i **po zapisaniu sprawdź, czy panel pokazuje trzy osobne wpisy, a nie
+   > jeden długi** — jeden długi nie dopasuje się do niczego.
+   >
+   > **Nad polem jest `Redirect URI Validator` z przyciskiem `Check URI`.**
+   > Wklej w niego każdy z trzech adresów powyżej po kolei — Meta odpowie,
+   > czy ten konkretny adres przejdzie. To jedyny sposób sprawdzenia
+   > dopasowania **bez** przechodzenia całego logowania, a dopasowanie jest
+   > znak w znak (patrz ostrzeżenie o „URL Blocked" wyżej).
+6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
+   zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
+7. **Permissions and features**: `public_profile` i `email` na
+   **Advanced Access**. Ten ekran stoi w tym samym miejscu co pkt 5 —
+   `Use cases` → przy „Facebook Login" **Customize** → `Permissions and
+   features` (menu odczytane z panelu 11.09.2026). Starsza nazwa
+   `App Review → Permissions and Features` pochodzi z poprzedniego kreatora.
+
+   > ⛔ **SPROSTOWANIE 12.09.2026.** Stało tu: „Wniosku App Review tu NIE MA
+   > — oba uprawnienia mają dostęp zaawansowany z automatu, zostaje
+   > przełącznik". **To było nieprawdą.** Przy wdrożeniu 12.09 właściciel
+   > złożył wniosek o App Review i Meta go zatwierdziła; dopiero potem
+   > aplikacja poszła na Live. **Przewiduj czas na przegląd**, nawet przy
+   > samych uprawnieniach podstawowych. Ile trwa — nie wiemy, jedna
+   > obserwacja to nie SLA.
+
+   Jeśli panel poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
+   NIP 5423435334).
+8. **Settings → Basic → App ID** i **App Secret** („Show") — to są dwie
+   wartości do Railway z 8E.2. **App Secret jest sekretem**: nie wysyłaj go
+   pocztą, nie wklejaj do issue na GitHubie ani do rozmowy z agentem.
+   Rotacja jest u Meta jednym przyciskiem („Reset"), więc w razie
+   wątpliwości rotuj bez wahania.
+9. **App Mode → Live** — górny pasek panelu. **DOPIERO PO wdrożeniu kodu
+   i po 8E.3.** Wcześniej wejdziesz tylko Ty i osoby z listy testerów.
+
+Wejście kontem Facebooka jest darmowe i bez limitu — Meta nie każe za nie
+płacić.
+
+### 8E.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` odwołuje się do nich przez `ctx.shared`, więc muszą istnieć
+pod dokładnie tymi nazwami):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `FACEBOOK_CLIENT_ID` | **App ID** z 8E.1 pkt 8 | nie |
+| `FACEBOOK_CLIENT_SECRET` | **App Secret** z 8E.1 pkt 8 | **TAK — zaznacz „Sealed"** |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz obie
+zmienne wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie.
+
+Dla środowiska `staging` załóż te same dwie zmienne osobno; adres staginu
+jest już na liście z 8E.1 pkt 5.
+
+> **Jeśli chodzisz bez IaC, i tak przeczytaj to zdanie.** Do 12 września 2026
+> `.railway/railway.ts` **nie przepuszczał zmiennych `FACEBOOK_*` do
+> serwisu** — stały w Shared Variables i nie docierały do aplikacji, więc
+> `railway config apply` po wykonaniu całego panelu Meta dawał ekran bez
+> przycisku i bez żadnej wskazówki dlaczego (issue #259). Dziś obie linie są
+> w pliku; pilnuje tego test
+> `tests/Feature/WdrozenieWejsciaFacebookiemTest.php`.
+
+### 8E.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.facebook'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Przycisk jest na ekranie logowania i rejestracji
+curl -s https://kuking.pl/login | grep -c 'wejdz/facebook'
+# oczekiwane: liczba większa od zera
+```
+
+Potem otwórz `https://kuking.pl/login` **na telefonie, nie na komputerze** —
+tak wchodzi większość naszych ludzi i tak wygląda ekran zgody Meta. Pod
+formularzem hasła ma być przycisk **„Wejdź kontem Facebooka"**, obok
+przycisku Google i **nie przed nim**. Kliknij go **kontem, które NIE ma
+jeszcze konta w Kuking**: powinieneś zobaczyć ekran zgody Facebooka z nazwą
+**Kuking** i **dwoma** pozycjami (profil publiczny i adres e-mail), a po
+powrocie nasz ekran domknięcia z podpowiedzianą nazwą i **dwoma
+niezaznaczonymi haczykami**. Konto powstaje dopiero po ich zaznaczeniu —
+i dostaje **naszą** wiadomość „potwierdź adres", bo adres z Facebooka jest
+u nas niepotwierdzony (D-113).
+
+**Po przestawieniu na Live powtórz punkt 2 z konta, które NIE JEST na liście
+testerów** — to jedyne sprawdzenie, które odróżnia „działa Tobie" od „działa
+ludziom".
+
+### 8E.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **Osoba, która ma już u nas konto na ten sam adres e-mail, tą drogą NIE
+  wejdzie** — zobaczy odmowę, a właściciel konta dostanie od nas list
+  o próbie wejścia. **Tak ma być, to nie usterka.** Facebook nie mówi nam,
+  czy ten adres jest potwierdzony, więc wystarczyłoby wpisać cudzy adres
+  w swoim koncie na Facebooku (D-113). Powiązanie istniejącego konta robi
+  się w **Ustawieniach → Bezpieczeństwo**, będąc na nim zalogowanym.
+- **Ten list NIE MA odnośnika „to ja, połącz konta"** i nigdy mieć nie
+  będzie — byłby dziurą, przez którą przechodzi dokładnie ten atak, przed
+  którym stoi odmowa.
+- **Facebook może w ogóle nie podać adresu e-mail.** Wtedy człowiek widzi
+  osobny ekran po polsku i wraca na hasło albo link — bez pętli dopraszania.
+- **Konto założone tą drogą ma adres NIEPOTWIERDZONY**, dopóki człowiek nie
+  kliknie w naszą wiadomość. To jedyna różnica wobec Google, o której trzeba
+  pamiętać przy wyłączaniu funkcji (8E.5).
+- **Moderator i administrator tą drogą nie wejdą wcale** — tam obowiązuje
+  hasło i kod z aplikacji.
+- **Żadnego skryptu ani piksela Facebooka na stronach Kuking nie ma i nie
+  będzie.** Cała droga to przekierowanie po stronie serwera.
+- **Awaria Facebooka nie zamyka drzwi**: człowiek wraca na ekran logowania
+  ze zdaniem po polsku, a hasło i „Wyślij mi link do zalogowania" stoją tam,
+  gdzie stały.
+- **Tokenu Facebooka nigdzie nie zapisujemy** i po zalogowaniu nie wołamy
+  już żadnego API.
+
+### 8E.5 Jak to wyłączyć w minutę
+
+```bash
+KUKING_WEJSCIE_FACEBOOK=false   # + restart serwisu
+```
+
+Przycisk znika z ekranu logowania i rejestracji, trasy odsyłają na logowanie
+ze zdaniem po polsku, **powiązania w bazie zostają nietknięte**.
+
+**Wyłączaj to świadomiej niż Google.** Konto z Google ma adres potwierdzony,
+więc zostaje mu wiadomość z linkiem do zalogowania. Konto z Facebooka ma
+adres niepotwierdzony, dopóki człowiek nie kliknie w naszą wiadomość — dla
+części tych osób zostaje więc „Nie pamiętam hasła", czyli droga dłuższa.
+**Uprzedź je**, zanim wyłączysz.
+
+Drugi sposób (mocniejszy): wyczyść `FACEBOOK_CLIENT_ID`
+i `FACEBOOK_CLIENT_SECRET`. Wtedy ustaw też `KUKING_WEJSCIE_FACEBOOK=false`,
+żeby `/health` nie zgłaszał `degraded` — brak kluczy jest błędem tylko
+wtedy, gdy konfiguracja nadal obiecuje tę drogę.
+
+**Migracji do cofania NIE MA i nie cofaj jej dla wyłączenia funkcji** — ta
+sama zasada i ten sam bezpiecznik co przy Google w 8D.5.
+
+### 8E.6 Jedna rzecz, o której trzeba pamiętać co kwartał
+
+Wersje Graph API u Mety żyją „co najmniej dwa lata od wydania", a po
+wygaśnięciu wywołania **nie padają — spadają cicho na starszą wersję**.
+Czyli działa do dnia, w którym przestanie, i nikt nie wie którego. Numer da
+się podnieść **jedną zmienną, bez wdrożenia kodu**:
+
+```bash
+FACEBOOK_GRAPH_WERSJA=v26.0   # + restart serwisu
+```
+
+Pozycja „sprawdź, czy nasza wersja Graph API jeszcze żyje" stoi
+w **przeglądzie kwartalnym (KROK 15)**. Droga Google takiego obowiązku nie
+ma wcale — to jest cena tej drogi, nie przeoczenie.
+
+---
+
+## KROK 8F. Analityka odwiedzin — Cloudflare Web Analytics
+
+**Kiedy:** po kroku 8E, najlepiej przed kampanią startową — bo od tego kroku
+zaczyna się liczyć, ile osób w ogóle do nas trafia.
+**Ile zajmuje:** dwie czynności w panelu Cloudflare, jedna zmienna w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — i to jest
+w tym kroku najniebezpieczniejsze. Strona wygląda normalnie, w dzienniku
+serwera nie ma nic, przeglądarka niczego nie zgłasza, a panel Cloudflare
+świeci zerami, bo **beacona nie ma w HTML-u wcale**.
+
+> ⚠️ **Ten krok jest inny niż 8A, 8D i 8E: tutaj obietnica stoi w DOKUMENCIE
+> PRAWNYM.** `resources/legal/polityka-prywatnosci.md` mówi czytelnikowi
+> w czasie teraźniejszym, że statystykę odwiedzin prowadzi **Cloudflare Web
+> Analytics**, a w sekcji o przekazywaniu danych poza EOG podaje nawet datę
+> („od 10 września 2026"). Dopóki tokenu nie ma, ten dokument opisuje
+> przetwarzanie, którego nie ma. Brak przycisku „Wejdź kontem Google" widać
+> okiem na `/login`; braku analityki nie widać **nigdzie**.
+
+> ✅ **`/health` o tym POWIE.** Produkcja, w której polityka prywatności
+> obiecuje analitykę, a tokenu nie ma, oddaje `status: degraded` z powodem
+> `analityka_bez_tokenu` — ta sama zasada co przy `google_bez_kluczy`
+> i `facebook_bez_kluczy` (D-167), tylko warunkiem jest tu treść dokumentu
+> prawnego, a nie przełącznik w konfiguracji. **Świadomego wyłącznika nie
+> ma i nie będzie:** przełącznik „nie krzycz" znaczyłby tyle, co „niech
+> polityka dalej mówi nieprawdę, tylko po cichu". Wycofanie analityki robi
+> się wykreśleniem obietnicy z polityki (8F.5), nie zmienną.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-092](../DECISIONS.md).
+
+### 8F.1 Co kliknąć w panelu Cloudflare — DWIE rzeczy, nie jedna
+
+To jest **praca właściciela**, nie agenta:
+
+1. **Załóż serwis.** Cloudflare → **Web Analytics** → **Add a site** →
+   `kuking.pl`. Cloudflare pokaże gotowy znacznik `<script>` z atrybutem
+   `data-cf-beacon='{"token":"..."}'`. **Potrzebna jest sama wartość pola
+   `token`**, bez cudzysłowów — reszta znacznika jest już w naszym layoucie.
+   Znacznik z panelu **nie wklejaj nigdzie**: stawiamy go sami
+   (`resources/views/components/layout.blade.php`), świadomie i pod recenzją.
+
+2. **Sprawdź wariant zbierania danych — to jest druga, niezależna przyczyna
+   pustego panelu.** W ustawieniach serwisu Cloudflare pozwala wybrać wariant
+   **wykluczający dane odwiedzających z Unii Europejskiej**
+   („excluding visitor data in the EU" / „EU visitor data excluded" —
+   nazewnictwo w panelu bywa zmieniane). **Nasz ruch jest niemal w całości
+   unijny**: przy tym wariancie beacon działa poprawnie, zdarzenia wychodzą,
+   CSP je przepuszcza, `/health` milczy — a panel **i tak zostaje pusty**,
+   bo Cloudflare odrzuca je u siebie. Z naszej strony nie da się tego wykryć
+   ani jednym pomiarem, dlatego musisz to sprawdzić okiem **teraz**.
+   Wybierz wariant zbierający dane z UE.
+
+   To nie jest powrót do banera zgody: polityka prywatności opiera tę
+   analitykę na uzasadnionym interesie (RODO art. 6 ust. 1 lit. f), a beacon
+   nie zapisuje niczego na urządzeniu — zmierzone przez odczytanie
+   `beacon.min.js` (D-092, `docs/legal/COMPLIANCE.md` §5.5). Zgody wymaga
+   zapis na urządzeniu, a nie sam fakt liczenia.
+
+3. **Wyłącz automatyczne wstrzykiwanie beacona** (Web Analytics → ustawienia
+   serwisu). Cloudflare umie wstrzyknąć ten sam skrypt w locie, na ruchu
+   przechodzącym przez proxy. **Skutek pomyłki jest cichy:** znacznik mamy
+   w layoucie, więc przy włączonym wstrzykiwaniu strona dostaje **dwa**
+   beacony — każda odsłona liczy się dwa razy, a wstrzyknięta wersja podaje
+   pole `version`, czyli wysyła zdarzenia na **inny adres** niż ten, który
+   dopuszczamy w `connect-src`. Sprawdzenie z 8F.3 punkt 2 to łapie.
+
+Cloudflare Web Analytics jest **darmowe** i nie wymaga żadnej zmiany planu.
+
+### 8F.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` sięga po nią przez `ctx.shared`, więc musi istnieć pod dokładnie
+tą nazwą):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `CLOUDFLARE_ANALYTICS_TOKEN` | wartość pola `token` z 8F.1 pkt 1 | **nie** — token stoi w HTML-u każdej strony i nie jest sekretem |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz zmienną
+wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie, a na produkcji jest ona zbuforowana.
+
+Na `staging` tej zmiennej **nie ustawiaj**: mieszałaby ruch testowy z ruchem
+ludzi w jednym panelu. Poza produkcją pusty token jest stanem normalnym
+i `/health` o niego nie pyta.
+
+> **Jeśli chodzisz bez IaC, i tak przeczytaj to zdanie.** Do 12 września 2026
+> `.railway/railway.ts` **nie przepuszczał `CLOUDFLARE_ANALYTICS_TOKEN` do
+> serwisu** — zmienna wpisana w Shared Variables stała tam i nie docierała do
+> aplikacji, dokładnie tak jak wcześniej `FACEBOOK_*` (issue #259). Dziś ta
+> linia jest w pliku; pilnuje tego test
+> `tests/Feature/WdrozenieAnalitykiOdwiedzinTest.php`.
+
+### 8F.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wpisaniem tokenu: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.analityka'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Beacon jest w HTML-u DOKŁADNIE RAZ (dwa = włączone wstrzykiwanie z 8F.1 pkt 3)
+curl -s https://kuking.pl/ | grep -c 'static.cloudflareinsights.com/beacon.min.js'
+# oczekiwane: 1
+
+# 3. Polityka bezpieczeństwa przepuszcza OBA hosty — a to są DWA RÓŻNE hosty
+curl -sI https://kuking.pl/ | grep -io 'content-security-policy:.*' | tr ' ;' '\n\n' \
+  | grep -i cloudflareinsights | sort -u
+# oczekiwane DWIE linie:
+#   https://cloudflareinsights.com          (connect-src — tam lecą zdarzenia)
+#   https://static.cloudflareinsights.com   (script-src  — stamtąd pobiera się plik)
+```
+
+Punkty 1–3 mówią tylko, że **my** zrobiliśmy swoje. Czy dane **naprawdę
+dochodzą**, widać wyłącznie po drugiej stronie i sprawdza się to tak:
+
+1. Otwórz `https://kuking.pl/` **w przeglądarce, nie curlem** — beacon jest
+   JavaScriptem, a `curl` skryptów nie wykonuje, więc żadne z poleceń wyżej
+   nie wysyła ani jednego zdarzenia. Wejdź na trzy różne podstrony (start,
+   dowolny przepis, `/pomoc`).
+2. Cloudflare → **Web Analytics** → serwis `kuking.pl` → zakres
+   **Last 30 minutes**.
+3. **Oczekiwany wynik: `Page views` co najmniej 3, a na liście `Top pages`
+   te trzy ścieżki, które przed chwilą otworzyłeś.**
+
+**Jeśli punkty 1–3 przechodzą, a panel po 30 minutach nadal pokazuje zero** —
+przyczyny są dokładnie dwie i obie siedzą w panelu Cloudflare, nie w naszym
+kodzie:
+
+- wybrany jest wariant **wykluczający dane z Unii Europejskiej** (8F.1 pkt 2)
+  — to jest przyczyna najczęstsza, bo nasz ruch jest niemal w całości unijny;
+- token należy do **innego serwisu** w tym samym koncie (literówka przy
+  kopiowaniu). Cloudflare przyjmuje zdarzenie z nieznanym tokenem i **po cichu
+  je odrzuca** — nie ma po tym ani błędu w przeglądarce, ani śladu u nas.
+
+### 8F.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **To nie jest Google Analytics i nie pokaże ścieżek ani lejków.**
+  Odpowiada na dwa pytania: skąd ludzie przychodzą i które strony oglądają.
+  Na pytanie „ile osób ugotowało w tym tygodniu" odpowiada nasza własna
+  analityka serwerowa (`php artisan kuking:wac`) i to się nie zmienia.
+- **Nie pokaże, kto to był.** Beacon nie stawia ciasteczka, nie zapisuje nic
+  na urządzeniu i nie ma po czym rozpoznać tej samej osoby jutro ani nawet na
+  następnej podstronie (D-092).
+- **Nie licz na dane wsteczne.** Panel pokazuje ruch od chwili wpisania
+  tokenu — nic sprzed tego dnia nie istnieje.
+- **Zerowy ruch nocą to nie awaria.** Zanim uznasz, że coś nie działa, zrób
+  sprawdzenie z 8F.3 własną przeglądarką.
+- **Adblock i tryb prywatny część odsłon zjedzą** i tak zostanie. To jest
+  statystyka kierunkowa, nie księgowość.
+
+### 8F.5 Jak to wycofać — i dlaczego to nie jest jedna zmienna
+
+Wyczyszczenie `CLOUDFLARE_ANALYTICS_TOKEN` + restart serwisu zatrzymuje
+zbieranie **od razu**: beacon znika z HTML-u, hosty Cloudflare wypadają
+z nagłówka CSP, panel przestaje przybywać.
+
+**Ale to jest dopiero połowa roboty.** Dopóki polityka prywatności obiecuje
+analitykę, `/health` będzie oddawał `degraded` z powodem
+`analityka_bez_tokenu` — i będzie miał rację, bo dokument prawny opisywałby
+wtedy przetwarzanie, którego nie ma. Wycofanie analityki oznacza więc **dwie
+czynności**:
+
+1. wyczyścić zmienną i zrestartować serwis;
+2. wykreślić analitykę z `resources/legal/polityka-prywatnosci.md` (tabela
+   dostawców w sekcji 3, akapit „Co robi analityka Cloudflare", akapit
+   o przekazywaniu poza EOG i uwaga o banerze w sekcji 5) oraz z
+   `docs/legal/COMPLIANCE.md` §5.5 — normalnym PR-em, z testami.
+
+Do czasu wykonania punktu 2 sygnał `/health` ma świecić i nie jest to usterka.
 
 ---
 
@@ -1324,13 +1994,27 @@ Running pre-deploy command...         ← migracje
 **Wszystko poniżej robi jedno polecenie:**
 
 ```bash
-./scripts/sprawdz-wdrozenie.sh kuking.pl
+SESSION_COOKIE=kuking-session ./scripts/sprawdz-wdrozenie.sh kuking.pl
 ```
 
 Skrypt nie potrzebuje żadnych kluczy ani dostępu do paneli — pyta z zewnątrz,
 tak jak przeglądarka użytkownika. Przerywa, gdy serwis nie odpowiada, zamiast
 meldować „w porządku" o czymś, czego nie sprawdził. Kod wyjścia `1` przy
 błędach, więc nadaje się też do CI.
+
+`SESSION_COOKIE` podaj zgodnie z efektywną konfiguracją badanego środowiska
+(`config/session.php`: jawne `SESSION_COOKIE` albo nazwa wyprowadzona z
+`APP_NAME`). Sonda nie zgaduje nazwy po innych ciasteczkach i nie wyświetla
+ich wartości. Brak nazwy, ciasteczka lub pomiaru daje błąd kontroli.
+
+Kontrola www sprawdza **jeden skok** 301/308 na HTTPS z dokładnym hostem
+podanym argumentem. Nie potwierdza końca łańcucha przekierowań. Kontrola
+Livewire wymaga jednej kompletnej odpowiedzi HEAD z HTTP 405 oraz
+`CF-Cache-Status: BYPASS` lub `DYNAMIC`. HIT/MISS to błąd cache, a timeout,
+404/500, ucięte nagłówki i brak rozpoznanego statusu cache to „nie sprawdzono”
+z kodem wyjścia 1. Brak dowodu nie zalicza odbioru.
+
+Regresje na atrapach, zakres i ograniczenia: [SONDA_WDROZENIA_805_808.md](SONDA_WDROZENIA_805_808.md).
 
 Polecenia niżej zostają jako źródło i do ręcznego dochodzenia, gdy skrypt
 pokaże problem.
@@ -1499,6 +2183,49 @@ W środowisku `staging`: **Serverless ON** dla `web`.
 **Wykonaj teraz** (na pustej bazie jest szybko) i potem **raz na kwartał**.
 Backup, którego nigdy nie przywróciłeś, jest niesprawdzony.
 
+### 13.0 Najpierw poćwicz lokalnie — jedną komendą
+
+Zanim pójdziesz do produkcji przez tunel, przejdź całą pętlę na własnej
+maszynie. To ta sama droga, tylko na bazie, której zepsucie nic nie kosztuje:
+
+```bash
+scripts/proba-odtworzenia.sh --petla-lokalna
+```
+
+Jedna komenda robi cztery rzeczy po kolei:
+
+1. **kopię** lokalnej bazy — tym samym `scripts/kopia-lokalna.sh`, którym
+   robi się kopię naprawdę, a nie zrzutem zrobionym obok innymi flagami;
+2. **odtworzenie** do świeżej, osobnej bazy `proba_odtworzenia_*`
+   (produkcji nie dotyka w żadnym trybie — pilnują tego dwa bezpieczniki);
+3. **porównanie liczby wierszy w KAŻDEJ tabeli**, co do jednego. Rozjazd
+   choćby jednej kończy przebieg kodem 63;
+4. **`php artisan migrate:status`** na odtworzonej bazie — bo komplet
+   wierszy w schemacie sprzed trzech migracji to nie jest działająca baza.
+   Migracja czekająca albo zgubiona tabela `migrations` to kod 64.
+
+Kończy się liczbami, nie ptaszkiem. Zmierzone 12 września 2026 na bazie
+deweloperskiej z danymi demo:
+
+| Co | Ile |
+|---|---|
+| tabel w archiwum / w odtworzonej bazie | 50 / 50 |
+| tabel porównanych co do jednego wiersza | 50 |
+| wierszy w odtworzonej bazie / w źródle | 159 / 159 |
+| migracji wykonanych / czekających | 75 / 0 |
+| czas odtworzenia (RTO tej warstwy) | 1 s |
+
+**Czego ta pętla NIE dowodzi.** Że kuking.pl ma kopię. Nie ma: liczba kopii
+produkcyjnej bazy wynosi dziś **zero** i zmienią to wyłącznie czynności
+właściciela z [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) §8. Zielony
+przebieg znaczy „mechanizm kopii i odtworzenia działa", a nie „dane są
+bezpieczne".
+
+**Że ta pętla naprawdę porównuje**, a nie melduje sukces nie robiąc nic,
+sprawdza kontrola ujemna w `tests/skrypty/proba-odtworzenia.sh`: kilka
+wierszy skasowanych w odtworzonej bazie przed porównaniem ma ją **oblać**
+— i oblewa, kodem 63.
+
 ```bash
 # 1. Tunel do bazy — baza NIE jest wystawiana publicznie
 railway link --environment production
@@ -1619,6 +2346,13 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 ### Co kwartał (2 h)
 
 - [ ] **Restore drill** (krok 13) — zapisz RTO i RPO
+- [ ] **Sprawdź, czy nasza wersja Graph API Facebooka jeszcze żyje** —
+      [Graph API Changelog](https://developers.facebook.com/docs/graph-api/changelog)
+      wobec `FACEBOOK_GRAPH_WERSJA` (pusto = `App\Support\Facebook::WERSJA_GRAFU_DOMYSLNA`).
+      **Ta pozycja nie jest ozdobna:** po wygaśnięciu wersji wywołania nie
+      padają, tylko cicho spadają na starszą — czyli działa do dnia, w którym
+      przestanie, i nikt nie wie którego. Podniesienie to jedna zmienna
+      i restart, bez wdrożenia kodu (krok 8E.6)
 - [ ] Przegląd Cache Rules i reguł WAF
 - [ ] Przegląd uprawnień: kto ma dostęp do GitHuba, Railway, Cloudflare
 - [ ] Test przywrócenia PITR do konkretnego znacznika czasu
@@ -1644,7 +2378,9 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 5. DOPIERO TERAZ usuń stary token w Cloudflare
 ```
 
-Ta sama procedura dla hasła SMTP i tokenów Railway.
+Ta sama procedura dla kluczy EmailLabs (`EMAILLABS_APP_KEY` +
+`EMAILLABS_SECRET_KEY` generuje się parami, więc podmieniasz obie naraz)
+i dla tokenów Railway.
 **`APP_KEY` — nigdy nie rotuj** (patrz krok 7).
 
 ---
@@ -1667,8 +2403,8 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 
 | # | Decyzja | Rekomendacja | Krok |
 |---|---|---|---|
-| 8 | Dostawca poczty | Resend (alfa) → Brevo (beta) | 3 |
-| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place | 6.3 |
+| 8 | Dostawca poczty | **EmailLabs przez API HTTPS** (`MAIL_MAILER=emaillabs`) — jedyny wariant działający na planie Hobby, dane w UE, sterownik już w kodzie (D-047). Stało tu „Resend (alfa) → Brevo (beta)", co przeczyło rekomendacji z KROKU 0.5 w tym samym dokumencie; **Brevo z `POCZTA_URUCHOMIENIE.md` §2B idzie przez SMTP, więc na Hobby nie zadziała** i jako plan zapasowy wymagałby najpierw napisania transportu po API | 3 |
+| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
@@ -1683,25 +2419,40 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 |---|---|---|---|
 | 14 | `APP_KEY` — **produkcja** | `php artisan key:generate --show` | 7 |
 | 15 | `APP_KEY` — **staging** | to samo, drugie uruchomienie | 7 |
-| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token | 2.2 |
+| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token na trzy buckety zdjęć | 2.2 |
 | 17 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (staging) | R2 API token | 2.2 |
 | 18 | `R2_ENDPOINT` (zawiera Account ID) | panel R2 | 2.2 |
-| 19 | `MAIL_USERNAME` + `MAIL_PASSWORD` | dostawca poczty | 3.2 |
+| 19 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs → Konto → Ustawienia → API (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro). **Nie login i hasło SMTP** — API odpowie na nie 401 | 3.2 |
+| 19a | `R2_KOPIE_*` — dwa tokeny do bucketu kopii bazy (zapis i odczyt) | R2 API tokens | `KOPIE_I_ODTWORZENIE.md` §7.3 |
+| 19b | Klucz PRYWATNY kopii bazy (`kuking-kopie-PRYWATNY.pem`) | `openssl req` wg §7.1 — **nigdy do Railwaya ani do repozytorium** | `KOPIE_I_ODTWORZENIE.md` §7.1 |
 | 20 | `SENTRY_LARAVEL_DSN` | Sentry | 4 |
 | 21 | `SENTRY_AUTH_TOKEN` | Sentry, zakres `project:releases` | 4 |
 | 22 | `POSTHOG_KEY` | PostHog | 5 |
 | 23 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
 | 24 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
+| 25 | ✅ `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
+| 26 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Panel krok po kroku: 8E.1; historyczne sprostowanie: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) | 8E |
 
 ### Zmiany w kodzie aplikacji (przed pierwszym deployem)
 
 | # | Co | Gdzie | Krok |
 |---|---|---|---|
-| 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
-| 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
-| 27 | Dysk `r2` | `config/filesystems.php` | 1 |
-| 28 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
-| 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
+| 27 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
+| 28 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
+| 29 | Dyski `r2`, `r2_publiczne`, `r2_eksporty` (oraz `r2_legacy` i `r2_kopie`) | `config/filesystems.php` — **zrobione**, wraz z własnym sterownikiem `r2` bez `x-amz-acl` | 1 |
+| 30 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
+| 31 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
+
+### Wartości do pobrania z paneli, które NIE są sekretami
+
+> Stoją osobno **celowo**. Wrzucenie ich do tabeli sekretów wyżej uczyłoby, że
+> wyciek każdej z nich jest incydentem — a nie jest, bo te wartości i tak stoją
+> w HTML-u strony. Odhaczyć trzeba je tak samo, tylko bez menedżera haseł
+> i bez zaznaczania „Sealed" w Railwayu.
+
+| # | Wartość | Skąd | Krok |
+|---|---|---|---|
+| 32 | `CLOUDFLARE_ANALYTICS_TOKEN` | Cloudflare → Web Analytics → serwis `kuking.pl` → pole `token` ze znacznika (D-092). **W tym samym panelu ustaw wariant zbierania danych obejmujący Unię Europejską i wyłącz automatyczne wstrzykiwanie beacona** — bez tego sam token nic nie da | 8F |
 
 ---
 
@@ -1717,10 +2468,14 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | **Brak CSS i JS** | build Vite nie wszedł do obrazu | sprawdź job `assets` w CI i `public/build/manifest.json` |
 | **Upload zdjęcia nie działa, konsola pokazuje błąd CORS** | brak polityki CORS na buckecie | krok 2.4 |
 | **Zdjęcia nie pojawiają się po uploadzie** | worker nie działa / kolejka stoi | `railway logs --service worker`, `SELECT * FROM failed_jobs` |
+| **Rejestracja się udaje, ale list nie dochodzi — i nigdzie nie ma błędu** | `MAIL_MAILER=log` (przyjmuje i nie wysyła) **albo** `MAIL_MAILER=smtp` na planie Hobby (pakiety idą w próżnię, zadanie wisi w `RUNNING`) | ustaw `MAIL_MAILER=emaillabs` i trzy zmienne `EMAILLABS_*` (KROK 3.2), zrestartuj serwis, potem `railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl` |
+| **`kuking:bramka-r2` melduje `TEN SAM bucket`** | brak `R2_PUBLIC_BUCKET` / `AWS_PUBLIC_BUCKET` — konfiguracja cofa się do bucketu oryginałów | utwórz bucket wariantów (§2.1) i ustaw zmienną; oryginały z GPS-em nie mogą leżeć w tym samym buckecie co warianty |
+| **Paczka „Twoje dane" ma w bazie `ready`, a pobranie daje 404** | brak `R2_EXPORTS_BUCKET` / `AWS_EXPORTS_BUCKET` albo `KUKING_EXPORT_DISK` inne niż `r2_eksporty` | §2.1 i KROK 8 |
 | **Livewire przestaje odpowiadać po chwili** | endpointy Livewire cache'owane na krawędzi | sprawdź regułę BYPASS (krok 10.5) |
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
+| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
 
 ## Kontakty awaryjne
 

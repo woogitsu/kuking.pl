@@ -104,7 +104,10 @@ final class KlientOpenAI
 
         try {
             $odpowiedz = Http::withToken((string) config('kuking.moderation.model.klucz'))
-                ->timeout((int) config('kuking.moderation.model.limit_czasu'))
+                // Limit z konfiguracji przycięty do 1–8 s: `0` w Guzzle znaczy
+                // „bez limitu", a zawieszony dostawca trzymałby worker kolejki.
+                ->connectTimeout(3)
+                ->timeout(max(1, min(8, (int) config('kuking.moderation.model.limit_czasu'))))
                 ->acceptJson()
                 ->post((string) config('kuking.moderation.model.endpoint'), [
                     'model' => (string) config('kuking.moderation.model.nazwa'),
@@ -115,7 +118,7 @@ final class KlientOpenAI
             // a dziennik błędów nie jest miejscem na treści użytkowników.
             Log::warning('Ocena treści modelem nie doszła do skutku.', [
                 'czego' => $czego,
-                'blad' => $blad->getMessage(),
+                ...ExceptionContext::forStage($blad, 'openai_transport'),
             ]);
 
             return null;
@@ -148,7 +151,10 @@ final class KlientOpenAI
     {
         $wyniki = $dane['results'][0]['category_scores'] ?? null;
 
-        if (! is_array($wyniki)) {
+        // Pusta albo uszkodzona lista wyników NIE jest oceną „nic nie ma".
+        // Przedtem `[]` i wyniki-napisy przechodziły tędy jako czysta treść,
+        // bez śladu w dzienniku (D-240).
+        if (! $this->poprawneWyniki($wyniki)) {
             Log::warning('Model moderacji oddał odpowiedź w nieznanym kształcie.', ['czego' => $czego]);
 
             return null;
@@ -179,5 +185,34 @@ final class KlientOpenAI
         }
 
         return new WynikOceny($ponadProg, $pilne, $czego);
+    }
+
+    /**
+     * Czy wyniki da się uczciwie nazwać oceną.
+     *
+     * Jedno uszkodzone pole unieważnia całą odpowiedź — nie wiemy, co jeszcze
+     * jest w niej nie tak. Nowa, nieznana nam kategoria obok znanych oceny nie
+     * unieważnia (dostawca dokłada kategorie), ale odpowiedź bez ANI JEDNEJ
+     * znanej kategorii nie mówi nic o tym, czego szukamy.
+     */
+    private function poprawneWyniki(mixed $wyniki): bool
+    {
+        if (! is_array($wyniki) || $wyniki === []) {
+            return false;
+        }
+
+        $znana = false;
+
+        foreach ($wyniki as $kategoria => $wynik) {
+            if (! is_string($kategoria) || trim($kategoria) === ''
+                || (! is_int($wynik) && ! is_float($wynik))
+                || ! is_finite((float) $wynik) || $wynik < 0 || $wynik > 1) {
+                return false;
+            }
+
+            $znana = $znana || KategorieModeracji::jestZnana($kategoria);
+        }
+
+        return $znana;
     }
 }

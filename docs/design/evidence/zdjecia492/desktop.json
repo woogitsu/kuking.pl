@@ -1,0 +1,18 @@
+[
+  {
+    "stage": "desktop",
+    "theme": "light",
+    "url": "http://127.0.0.1:8033/wpisy/01a0a196-9771-710e-8732-79da2a8ff877/zdjecia",
+    "width": 1440,
+    "scroll": 1440,
+    "text": "Zdjęcia w tym wpisie\n\nTen wpis ma 2 zdjęcia. Ustaw kolejność i wybierz, jak mają się wyświetlić. Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.\n\nZapisz ustawienia zdjęć\n\nZdjęcie 1 z 2\n\nPrzenieś w górę\nPrzenieś w dół\n\nZdjęcie 2 z 2\n\nPrzenieś w górę\nPrzenieś w dół\nJak mają się wyświetlić te zdjęcia?\nZwykle\nZdjęcia jedno pod drugim, wszystkie widoczne od razu.\nKaruzela\nJedno zdjęcie naraz. Pod zdjęciem są przyciski „Poprzednie” i „Następne”.\nKolaż\nWszystkie zdjęcia w siatce, na jednym ekranie. Nic nie jest przycinane. Na wąskim telefonie zdjęcia pokazują się jedno pod drugim — w siatce byłyby za małe, żeby cokolwiek na nich zobaczyć.\nZapisz\nWróć do wpisu"
+  },
+  {
+    "stage": "desktop",
+    "theme": "dark",
+    "url": "http://127.0.0.1:8033/wpisy/01a0a196-9771-710e-8732-79da2a8ff877/zdjecia",
+    "width": 1440,
+    "scroll": 1440,
+    "text": "Zdjęcia w tym wpisie\n\nTen wpis ma 2 zdjęcia. Ustaw kolejność i wybierz, jak mają się wyświetlić. Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.\n\nZapisz ustawienia zdjęć\n\nZdjęcie 1 z 2\n\nPrzenieś w górę\nPrzenieś w dół\n\nZdjęcie 2 z 2\n\nPrzenieś w górę\nPrzenieś w dół\nJak mają się wyświetlić te zdjęcia?\nZwykle\nZdjęcia jedno pod drugim, wszystkie widoczne od razu.\nKaruzela\nJedno zdjęcie naraz. Pod zdjęciem są przyciski „Poprzednie” i „Następne”.\nKolaż\nWszystkie zdjęcia w siatce, na jednym ekranie. Nic nie jest przycinane. Na wąskim telefonie zdjęcia pokazują się jedno pod drugim — w siatce byłyby za małe, żeby cokolwiek na nich zobaczyć.\nZapisz\nWróć do wpisu"
+  }
+]

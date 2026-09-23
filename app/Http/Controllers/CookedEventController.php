@@ -125,10 +125,30 @@ class CookedEventController extends Controller
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+            'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — to pole renderuje się jako
             // trzy przyciski, więc zdanie wymienia dokładnie te trzy.
             'perceived_difficulty.in' => 'Wybierz, jak trudny był ten przepis: łatwy, średni albo trudny.',
+            /*
+             * TRZY KOMUNIKATY DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
+             *
+             * `would_make_again` bez własnego zdania dostawał szablon ogólny
+             * reguły `boolean` z nazwą pola z `attributes` — a ta nazwa sama
+             * zawierała cudzysłów drukarski, więc na ekran szło zdanie
+             * z cudzysłowem w cudzysłowie: „Pole «odpowiedź «zrobię jeszcze
+             * raz»» przyjmuje tylko wartość tak/nie." Zmierzone prawdziwym
+             * żądaniem. Nie mówiło też, co zrobić — a na ekranie stoją dwa
+             * przyciski z konkretnymi napisami i to je wymienia nowe zdanie.
+             *
+             * `actual_minutes` mówił „musi być nie mniejsze niż 0" i nazywał
+             * pole „rzeczywisty czas gotowania", choć etykieta na ekranie
+             * brzmi „Ile Ci to zajęło (w minutach)".
+             */
+            'would_make_again.boolean' => 'Zaznacz jedną z odpowiedzi: „Tak, zrobię ponownie” albo „Raczej nie powtórzę”.',
+            'actual_minutes.integer' => 'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
+            'actual_minutes.min' => 'Czas nie może być ujemny. Wpisz liczbę minut, na przykład 90.',
+            'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
 
         $user = $request->user();
@@ -144,9 +164,11 @@ class CookedEventController extends Controller
         // „Ugotowałem" to najcenniejszy sygnał jakości przepisu (AGENTS.md §1).
         // Sygnał, w którym da się zapisać tylko „tak", nie jest sygnałem
         // jakości — jest licznikiem pochwał.
-        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null
+        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null || $data['would_make_again'] === ''
             ? null
             : $request->boolean('would_make_again');
+
+        $perceivedDifficulty = empty($data['perceived_difficulty']) ? null : $data['perceived_difficulty'];
 
         try {
             $mediaIds = [];
@@ -161,7 +183,7 @@ class CookedEventController extends Controller
                 note: $data['note'] ?? null,
                 mediaIds: $mediaIds,
                 wouldMakeAgain: $wouldMakeAgain,
-                perceivedDifficulty: $data['perceived_difficulty'] ?? null,
+                perceivedDifficulty: $perceivedDifficulty,
                 actualMinutes: $data['actual_minutes'] ?? null,
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
@@ -172,22 +194,19 @@ class CookedEventController extends Controller
         }
 
         // DRUGIE KLIKNIĘCIE „WYŚLIJ" — wykonanie jest to samo, co przy
-        // pierwszym, a autor przepisu dostał JEDNO powiadomienie. Komunikat
-        // mówi to wprost, bo to jest ta informacja, o którą człowiek się
-        // niepokoi, i pokazuje drogę do zapisania drugiego, prawdziwego
-        // gotowania (D-005 zostaje nienaruszone).
+        // pierwszym. Komunikat potwierdza zapis i drogę do kolejnego
+        // gotowania (D-005). Nie obiecuje powiadomienia: własne wykonanie
+        // i autor, który nie może czytać, mają świadome wyjątki (AGENTS §1).
         if (! $event->wasRecentlyCreated) {
             return redirect()->route('cooked.show', $event)->with(
                 'status',
-                'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
+                'To wykonanie już zapisaliśmy. '
                 .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
-        $authorName = $model->author->displayName();
-
         return redirect()->route('cooked.show', $event)->with('status',
-            "Zapisane. {$authorName} dowie się, że ktoś ugotował z tego przepisu.",
+            'Wykonanie zapisane.',
         );
     }
 
@@ -308,27 +327,31 @@ class CookedEventController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $cookedEvent,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $cookedEvent->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
@@ -345,18 +368,29 @@ class CookedEventController extends Controller
         // wtedy relacja zwraca null (audyt A23). Wcześniej ta linia rzucała
         // wyjątek PRZED skasowaniem, więc człowiek nie mógł usunąć własnego
         // wykonania i zostawał z trwale zepsutą zakładką „Ugotowane".
-        $slug = $cookedEvent->recipe?->slug;
+        $recipe = $cookedEvent->recipe;
         $wlascicielWykonania = $cookedEvent->user;
         $cookedEvent->delete();
 
-        if ($slug === null) {
-            // Nie ma dokąd wrócić „do przepisu" — wracamy tam, skąd człowiek
-            // to zobaczył, czyli do zakładki „Ugotowane" na jego profilu.
-            return redirect()
-                ->route('profile.show', ['username' => $wlascicielWykonania->profile->username, 'zakladka' => 'ugotowane'])
-                ->with('status', 'Wykonanie usunięte.');
+        // Przepis może nie istnieć (soft delete) ALBO aktor może nie mieć
+        // już do niego uprawnień do odczytu (np. autor zmienił widoczność
+        // na prywatną, moderacja ukryła przepis, relacja blokady — issue #766).
+        // Bez sprawdzenia uprawnień powrót do recipes.show kończył się 403 Forbidden.
+        if ($recipe === null || $request->user()->cannot('view', $recipe)) {
+            // Bezpieczny powrót na profil kucharza (zakładka „Ugotowane”).
+            // Jeśli konto kucharza nie ma profilu, wracamy na profil bieżącego użytkownika.
+            $username = $wlascicielWykonania->profile?->username
+                ?? $request->user()->profile?->username;
+
+            if ($username !== null) {
+                return redirect()
+                    ->route('profile.show', ['username' => $username, 'zakladka' => 'ugotowane'])
+                    ->with('status', 'Wykonanie usunięte.');
+            }
+
+            return redirect()->route('home')->with('status', 'Wykonanie usunięte.');
         }
 
-        return redirect()->route('recipes.show', $slug)->with('status', 'Wykonanie usunięte.');
+        return redirect()->route('recipes.show', $recipe->slug)->with('status', 'Wykonanie usunięte.');
     }
 }

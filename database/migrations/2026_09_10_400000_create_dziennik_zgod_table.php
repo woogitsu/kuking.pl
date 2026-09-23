@@ -90,15 +90,23 @@ use Illuminate\Support\Facades\Schema;
  * nie ma dziś ani jednego zapytania, które by go czytało: dziennik zgód
  * świadomie NIE MA sprzątania (D-072).
  *
- * ROLLBACK
- * `down()` kasuje tabelę razem z wyzwalaczem i funkcją. Bezpieczny dla
- * DZIAŁANIA serwisu — wysyłka digestu nie czyta tej tabeli ani razu, więc
- * nic nie przestanie chodzić. NIE jest natomiast bezpieczny dowodowo i to
- * jest cała treść tego ostrzeżenia: razem z tabelą znika JEDYNY zapis
- * o tym, kto i kiedy wyraził zgodę, a boolean na `users` tego nie odtworzy.
- * Rollback robi się więc wyłącznie na świeżym wdrożeniu, w którym tabela
- * jest jeszcze pusta, albo po wyeksportowaniu jej zawartości poza bazę
- * (`\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`).
+ * ROLLBACK — `down()` ODMAWIA, GDY JEST CO STRACIĆ (D-088)
+ * `down()` kasuje tabelę razem z wyzwalaczem i funkcją. Dla DZIAŁANIA
+ * serwisu jest to bezpieczne — wysyłka digestu nie czyta tej tabeli ani
+ * razu, więc nic nie przestanie chodzić. I właśnie dlatego było groźne:
+ * razem z tabelą znikał JEDYNY zapis o tym, kto i kiedy wyraził zgodę,
+ * a boolean na `users` tego nie odtworzy. Po `down()` prawie zawsze idzie
+ * kolejny `migrate` — tabela wracała PUSTA, aplikacja chodziła dalej
+ * i nie było błędu do zauważenia.
+ *
+ * Ten akapit stał tu od 10 września i ostrzegał, a kod robił
+ * `dropIfExists` bez słowa. Ostrzeżenie w dokumencie nie jest
+ * zabezpieczeniem — zabezpieczeniem jest `down()`, który odmawia.
+ *
+ * Odmowa mówi ILU osób to dotyczy, co zrobić zamiast tego (eksport
+ * `\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`) i jak
+ * powiedzieć wprost „wiem, co robię". Na pustej tabeli — czyli na świeżym
+ * wdrożeniu — cofnięcie przechodzi bez pytania, bo nie ma czego stracić.
  */
 return new class extends Migration
 {
@@ -206,12 +214,57 @@ return new class extends Migration
 
     public function down(): void
     {
+        $zapisow = $this->ileZapisowZgody();
+
+        if ($zapisow > 0 && ! $this->wolnoKasowacDziennik()) {
+            throw new RuntimeException(
+                'Cofnięcie tej migracji skasowałoby dziennik zgód. Liczba zapisów, '
+                .'które znikną: '.$zapisow.'. To JEDYNY dowód na to, kto i kiedy zgodził '
+                .'się na cotygodniowy przegląd. Boolean `users.wants_weekly_digest` tego nie '
+                ."odtworzy: pokazuje stan na dziś, nie historię (RODO art. 7 ust. 1).\n\n"
+                ."CO ZROBIĆ ZAMIAST TEGO\n"
+                .'Wyeksportuj dziennik poza bazę, zanim go skasujesz: '
+                ."\\copy dziennik_zgod to 'dziennik_zgod.csv' csv header\n\n"
+                ."JEŚLI DZIENNIK MA NAPRAWDĘ ZNIKNĄĆ\n"
+                .'Powiedz to wprost: KUKING_ROLLBACK_KASUJ_DZIENNIK_ZGOD=true '
+                .'php artisan migrate:rollback',
+            );
+        }
+
         Schema::dropIfExists('dziennik_zgod');
 
         if ($this->isPostgres()) {
             // Po tabeli, bo wyzwalacze na niej zależą od tej funkcji.
             DB::statement('DROP FUNCTION IF EXISTS dziennik_zgod_tylko_dopisywanie()');
         }
+    }
+
+    /**
+     * Zero także wtedy, gdy tabeli nie ma — cofnięcie migracji, która nigdy
+     * nie doszła do skutku, nie ma czego bronić i nie może się wywalić na
+     * liczeniu wierszy nieistniejącej tabeli.
+     */
+    private function ileZapisowZgody(): int
+    {
+        if (! Schema::hasTable('dziennik_zgod')) {
+            return 0;
+        }
+
+        return (int) DB::table('dziennik_zgod')->count();
+    }
+
+    /**
+     * `getenv()`, a nie `env()` ani `config()` — tak jak w pozostałych
+     * migracjach z tym samym zabezpieczeniem. `env()` oddaje `null` przy
+     * zbuforowanej konfiguracji, a zgoda na skasowanie dowodu z art. 7 nie
+     * ma prawa zależeć od tego, czy ktoś uruchomił wcześniej `config:cache`.
+     */
+    private function wolnoKasowacDziennik(): bool
+    {
+        return filter_var(
+            (string) getenv('KUKING_ROLLBACK_KASUJ_DZIENNIK_ZGOD'),
+            FILTER_VALIDATE_BOOLEAN,
+        );
     }
 
     private function isPostgres(): bool

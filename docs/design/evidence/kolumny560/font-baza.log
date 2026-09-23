@@ -1,0 +1,24 @@
+{
+  html: '<a class="photo-zoom" href="http://127.0.0.1:8033/zdjecia/01a0a39c-ddf3-730d-a4d5-403e98df887f/large" data-powieksz="" data-alt="" aria-label="Powiększ zdjęcie">\n' +
+    '            <img class="post-photo" src="http://127.0.0.1:8033/zdjecia/01a0a39c-ddf3-730d-a4d5-403e98df887f/feed" srcset="http://127.0.0.1:8033/zdjecia/01a0a39c-ddf3-730d-a4d5-403e98df887f/thumb 320w, http://127.0.0.1:8033/zdjecia/01a0a39c-ddf3-730d-a4d5-403e98df887f/feed 960w, http://127.0.0.1:8033/zdjecia/01a0a39c-ddf3-730d-a4d5-403e98df887f/large 1448w" sizes="(min-width: 64rem) 720px, 100vw" alt="" width="960" height="720" loading="lazy" decoding="async">\n' +
+    '            </a>',
+  rects: '[{"r":{"x":205,"y":170.4375,"width":1030,"height":772.5,"top":170.4375,"right":1235,"bottom":942.9375,"left":205},"hit":"IMG"}]',
+  h: 900,
+  focus: true
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: FOKUS_ZASLONIETY 2
+    at measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:66:9)
+    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/font-debug560.mjs:6:251 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

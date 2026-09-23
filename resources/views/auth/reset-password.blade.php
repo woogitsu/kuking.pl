@@ -3,7 +3,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('password.update') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('password.update') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
 

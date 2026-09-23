@@ -1,0 +1,11 @@
+{
+  "kind": "table-height",
+  "theme": "light",
+  "width": 320,
+  "height": 900,
+  "scale": 100,
+  "expectedHypothesis": "P581_FOKUS_ZASLONIETY",
+  "passed": false,
+  "error": "P581_FOKUS_ZASLONIETY {\"id\":\"30\",\"focus\":true,\"focusVisible\":true,\"dateFocusWithin\":false,\"outline\":true,\"outlineStyle\":\"solid\",\"outlineWidth\":\"3px\",\"outlineColor\":\"rgb(21, 94, 239)\",\"kolorFokusu\":\"rgb(21, 94, 239)\",\"pierscien\":false,\"shadow\":\"none\",\"fragments\":[false],\"width\":296,\"height\":588.015625,\"target\":false,\"klatki\":1}",
+  "blockedMethods": []
+}

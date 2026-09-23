@@ -70,6 +70,27 @@
     'wireModifier' => 'live.debounce.3000ms',
     'id' => null,
     'wiersz' => null,
+    'errorBag' => 'default',
+    /*
+     * LIMIT ZNAKÓW WIDOCZNY PRZED WYSŁANIEM (issue #762).
+     *
+     * Serwer i tak odrzuca za długi tekst (`max:4000` w każdym kontrolerze
+     * komentarzy) — problemem nie była walidacja, tylko to, że człowiek
+     * dowiadywał się o limicie DOPIERO po nieudanym POST/PUT, po stracie
+     * czasu na wysłanie i po tym, jak formularz i tak musiał odzyskać jego
+     * tekst z sesji.
+     *
+     * Podpowiedź pod polem („Najwyżej N znaków.") działa BEZ JavaScriptu —
+     * to jest cała naprawa dla kogoś bez JS, zgodnie z D-053: pole ma
+     * działać także wtedy, gdy skrypt się nie doczyta. `resources/js/licznik-znakow.js`
+     * dokłada NA TO tekst „na żywo" (ile zostało / o ile za dużo) — to jest
+     * ulepszenie, nie warunek działania.
+     *
+     * ŚWIADOMIE TYLKO DLA `textarea`. Pola jednowierszowe w tym serwisie nie
+     * mają limitu, przy którym człowiek realnie się zbliża do granicy —
+     * dokładanie licznika tam byłoby szumem bez odbiorcy.
+     */
+    'licznikZnakow' => null,
 ])
 @php
     /*
@@ -97,7 +118,10 @@
     // jest w pętli (`wiersz` nie podane), i tylko dla wiersza, którego
     // formularz naprawdę wrócił z błędem, jeśli jest.
     $tenWiersz = $wiersz === null || \App\Support\WierszFormularza::jestAktywny($wiersz);
-    $error = $tenWiersz ? $errors->first($name) : null;
+    // Ten sam przypadek co w `x-error-summary`: widok może dostać gotowy
+    // `MessageBag` zamiast `ViewErrorBag`, a ten nie ma `getBag()`.
+    $workiBledow = $errors instanceof \Illuminate\Support\ViewErrorBag ? $errors->getBag($errorBag) : $errors;
+    $error = $tenWiersz ? $workiBledow->first($name) : null;
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
 
     /*
@@ -115,8 +139,35 @@
      * przez kwadrans jak przepis.
      */
     $current = $type === 'password' ? null : ($wire === null ? ($tenWiersz ? old($name, $value) : $value) : $value);
+
+    /*
+     * OCHRONA TYPU PRZED WYPISANIEM (issue #745).
+     *
+     * `old($name, $value)` bierze wprost to, co przyszło w żądaniu HTTP —
+     * a HTML pozwala przesłać `name[]=coś` tam, gdzie pole jest zwykłym
+     * `<input type="text">`. Walidator (`string`) taki wpis odrzuca, ale
+     * ODRZUCA GO PO tym, jak trafił do sesji przez `withInput()`: `old()`
+     * po redirect nadal zwraca tablicę. `{{ $current }}` w Blade wywołuje
+     * `e()`, a `htmlspecialchars()` na tablicy rzuca `TypeError` — więc
+     * zamiast błędu przy POLU wywalał się render CAŁEJ reszty formularza
+     * (500), a poprawnie wypełnione pola znikały razem z nim.
+     *
+     * To pole (`x-field`) reprezentuje jedną wartość skalarną, więc każdy
+     * typ inny niż skalar/`null` jest tu z definicji niepoprawnym wejściem
+     * — wypisujemy pustą wartość i zostawiamy istniejący błąd walidacji
+     * ($error, policzony wyżej z $errors->first(), którego to nie dotyczy)
+     * żeby było widać, co poprawić. Grupy tablicowe (składniki, tagi,
+     * kroki) NIE wchodzą przez ten komponent — mają własne pętle nad
+     * old() — więc to zawężenie ich nie dotyka.
+     */
+    if ($current !== null && ! is_scalar($current)) {
+        $current = '';
+    }
+
+    $licznikZnakow = $type === 'textarea' ? $licznikZnakow : null;
     $describedBy = collect([
         $help ? $id.'-help' : null,
+        $licznikZnakow ? $id.'-licznik' : null,
         $error ? $id.'-error' : null,
     ])->filter()->implode(' ');
 @endphp
@@ -144,6 +195,16 @@
                   @if($required) required @endif
                   @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                   @if($error) aria-invalid="true" @endif
+                  {{--
+                      `data-licznik` NIE jest atrybutem `maxlength`, celowo.
+                      `maxlength` obcina wklejony tekst na poziomie
+                      przeglądarki — a issue #762 wprost tego zakazuje: człowiek
+                      ma zobaczyć, o ile jest za długo, i sam zdecydować, co
+                      skrócić, nie stracić bez ostrzeżenia końcówkę wklejonego
+                      tekstu. Licznik jest więc wyłącznie INFORMACYJNY;
+                      rozstrzyga serwer (`max:4000` w kontrolerze).
+                  --}}
+                  @if($licznikZnakow) data-licznik="{{ $licznikZnakow }}" data-licznik-cel="{{ $id }}-licznik" @endif
         >{{ $current }}</textarea>
     @else
         <input class="field-input" id="{{ $id }}" name="{{ $name }}" type="{{ $type }}"
@@ -158,6 +219,21 @@
                @if($required) required @endif
                @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                @if($error) aria-invalid="true" @endif>
+    @endif
+
+    @if($licznikZnakow)
+        {{--
+            DZIAŁA BEZ JAVASCRIPTU (AGENTS.md, D-053): to zdanie stoi tu
+            zawsze, niezależnie od tego, czy skrypt się doczyta. Bez JS to
+            jest CAŁA informacja o limicie — i wystarcza, żeby człowiek wiedział
+            PRZED wysłaniem, ile miejsca ma na tekst; walidacja serwera
+            (`max:4000`) rozstrzyga i tak.
+
+            `resources/js/licznik-znakow.js` PODMIENIA tę treść na „na żywo”
+            (ile zostało / o ile za dużo) — patrz ten plik po uzasadnienie,
+            dlaczego podmiana, a nie osobny drugi element.
+        --}}
+        <p class="field-help" id="{{ $id }}-licznik">Najwyżej {{ $licznikZnakow }} znaków.</p>
     @endif
 
     @if($error)

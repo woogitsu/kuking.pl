@@ -1,0 +1,4886 @@
+[
+  {
+    "width": 320,
+    "theme": "light",
+    "scale": 70,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 135.90625,
+      "y": 626.9375,
+      "width": 160.09375,
+      "height": 89.0625,
+      "top": 626.9375,
+      "right": 296,
+      "bottom": 716,
+      "left": 135.90625
+    },
+    "nav": {
+      "x": 8,
+      "y": 415.046875,
+      "width": 304,
+      "height": 198,
+      "top": 415.046875,
+      "right": 312,
+      "bottom": 613.046875,
+      "left": 8
+    },
+    "scrollY": 27818,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 179.0625,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 179.0625,
+            "right": 158.203125,
+            "bottom": 270.125,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 286.125,
+            "width": 238,
+            "height": 66,
+            "top": 286.125,
+            "right": 279,
+            "bottom": 352.125,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 368.125,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 368.125,
+            "right": 158.203125,
+            "bottom": 459.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 562.25,
+            "width": 238,
+            "height": 66,
+            "top": 562.25,
+            "right": 279,
+            "bottom": 628.25,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.375,
+            "width": 238,
+            "height": 130.125,
+            "top": 305.375,
+            "right": 279,
+            "bottom": 435.5,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 459.5,
+            "width": 238,
+            "height": 130.125,
+            "top": 459.5,
+            "right": 279,
+            "bottom": 589.625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 613.625,
+            "width": 238,
+            "height": 91.0625,
+            "top": 613.625,
+            "right": 279,
+            "bottom": 704.6875,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 586.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 586.984375,
+          "right": 296,
+          "bottom": 676.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.046875,
+          "width": 304,
+          "height": 198,
+          "top": 700.046875,
+          "right": 312,
+          "bottom": 898.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 486.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 486.984375,
+          "right": 296,
+          "bottom": 576.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.046875,
+          "width": 304,
+          "height": 198,
+          "top": 600.046875,
+          "right": 312,
+          "bottom": 798.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 386.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 386.984375,
+          "right": 296,
+          "bottom": 476.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.046875,
+          "width": 304,
+          "height": 198,
+          "top": 500.046875,
+          "right": 312,
+          "bottom": 698.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "scale": 100,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 95.515625,
+      "y": 610.203125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 610.203125,
+      "right": 296,
+      "bottom": 716,
+      "left": 95.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 364.265625,
+      "width": 304,
+      "height": 232.375,
+      "top": 364.265625,
+      "right": 312,
+      "bottom": 596.640625,
+      "left": 8
+    },
+    "scrollY": 42853,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 316.59375,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 316.59375,
+            "right": 172.453125,
+            "bottom": 424.390625,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 440.390625,
+            "width": 238,
+            "height": 80,
+            "top": 440.390625,
+            "right": 279,
+            "bottom": 520.390625,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 536.390625,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 536.390625,
+            "right": 172.453125,
+            "bottom": 644.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 329.78125,
+            "width": 238,
+            "height": 80,
+            "top": 329.78125,
+            "right": 279,
+            "bottom": 409.78125,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 566.96875,
+            "width": 238,
+            "height": 163.59375,
+            "top": 566.96875,
+            "right": 279,
+            "bottom": 730.5625,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 291.5625,
+            "width": 238,
+            "height": 275.1875,
+            "top": 291.5625,
+            "right": 279,
+            "bottom": 566.75,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 590.75,
+            "width": 238,
+            "height": 107.796875,
+            "top": 590.75,
+            "right": 279,
+            "bottom": 698.546875,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 570.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 570.46875,
+          "right": 296,
+          "bottom": 676.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 700.265625,
+          "right": 312,
+          "bottom": 932.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 470.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 470.46875,
+          "right": 296,
+          "bottom": 576.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 600.265625,
+          "right": 312,
+          "bottom": 832.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 370.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 370.46875,
+          "right": 296,
+          "bottom": 476.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 500.265625,
+          "right": 312,
+          "bottom": 732.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 270.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 270.46875,
+          "right": 296,
+          "bottom": 376.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 400.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 400.265625,
+          "right": 312,
+          "bottom": 632.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "scale": 140,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 41.765625,
+      "y": 587.875,
+      "width": 254.234375,
+      "height": 128.125,
+      "top": 587.875,
+      "right": 296,
+      "bottom": 716,
+      "left": 41.765625
+    },
+    "nav": {
+      "x": 8,
+      "y": 229.109375,
+      "width": 304,
+      "height": 344.421875,
+      "top": 229.109375,
+      "right": 312,
+      "bottom": 573.53125,
+      "left": 8
+    },
+    "scrollY": 69900,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.25,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 305.25,
+            "right": 191.421875,
+            "bottom": 435.375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 451.375,
+            "width": 238,
+            "height": 97,
+            "top": 451.375,
+            "right": 279,
+            "bottom": 548.375,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 564.375,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 564.375,
+            "right": 191.421875,
+            "bottom": 694.5,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 321.75,
+            "width": 238,
+            "height": 97,
+            "top": 321.75,
+            "right": 279,
+            "bottom": 418.75,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 187.25,
+            "width": 238,
+            "height": 364.5,
+            "top": 187.25,
+            "right": 279,
+            "bottom": 551.75,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 366.75,
+            "width": 238,
+            "height": 364.5,
+            "top": 366.75,
+            "right": 279,
+            "bottom": 731.25,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 490.25,
+            "width": 238,
+            "height": 208.25,
+            "top": 490.25,
+            "right": 279,
+            "bottom": 698.5,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 547.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 547.984375,
+          "right": 296,
+          "bottom": 676.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 700.109375,
+          "right": 312,
+          "bottom": 1044.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 447.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 447.984375,
+          "right": 296,
+          "bottom": 576.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 600.109375,
+          "right": 312,
+          "bottom": 944.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 347.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 347.984375,
+          "right": 296,
+          "bottom": 476.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 500.109375,
+          "right": 312,
+          "bottom": 844.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 247.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 247.984375,
+          "right": 296,
+          "bottom": 376.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 400.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 400.109375,
+          "right": 312,
+          "bottom": 744.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 147.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 147.984375,
+          "right": 296,
+          "bottom": 276.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 300.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 300.109375,
+          "right": 312,
+          "bottom": 644.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "scale": 70,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 135.90625,
+      "y": 626.9375,
+      "width": 160.09375,
+      "height": 89.0625,
+      "top": 626.9375,
+      "right": 296,
+      "bottom": 716,
+      "left": 135.90625
+    },
+    "nav": {
+      "x": 8,
+      "y": 415.046875,
+      "width": 304,
+      "height": 198,
+      "top": 415.046875,
+      "right": 312,
+      "bottom": 613.046875,
+      "left": 8
+    },
+    "scrollY": 27818,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 179.0625,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 179.0625,
+            "right": 158.203125,
+            "bottom": 270.125,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 286.125,
+            "width": 238,
+            "height": 66,
+            "top": 286.125,
+            "right": 279,
+            "bottom": 352.125,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 368.125,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 368.125,
+            "right": 158.203125,
+            "bottom": 459.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 562.25,
+            "width": 238,
+            "height": 66,
+            "top": 562.25,
+            "right": 279,
+            "bottom": 628.25,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.375,
+            "width": 238,
+            "height": 130.125,
+            "top": 305.375,
+            "right": 279,
+            "bottom": 435.5,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 459.5,
+            "width": 238,
+            "height": 130.125,
+            "top": 459.5,
+            "right": 279,
+            "bottom": 589.625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 613.625,
+            "width": 238,
+            "height": 91.0625,
+            "top": 613.625,
+            "right": 279,
+            "bottom": 704.6875,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 586.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 586.984375,
+          "right": 296,
+          "bottom": 676.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.046875,
+          "width": 304,
+          "height": 198,
+          "top": 700.046875,
+          "right": 312,
+          "bottom": 898.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 486.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 486.984375,
+          "right": 296,
+          "bottom": 576.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.046875,
+          "width": 304,
+          "height": 198,
+          "top": 600.046875,
+          "right": 312,
+          "bottom": 798.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 386.984375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 386.984375,
+          "right": 296,
+          "bottom": 476.046875,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.046875,
+          "width": 304,
+          "height": 198,
+          "top": 500.046875,
+          "right": 312,
+          "bottom": 698.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 135.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 296,
+          "bottom": 716,
+          "left": 135.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.046875,
+          "width": 304,
+          "height": 198,
+          "top": 415.046875,
+          "right": 312,
+          "bottom": 613.046875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "scale": 100,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 95.515625,
+      "y": 610.203125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 610.203125,
+      "right": 296,
+      "bottom": 716,
+      "left": 95.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 364.265625,
+      "width": 304,
+      "height": 232.375,
+      "top": 364.265625,
+      "right": 312,
+      "bottom": 596.640625,
+      "left": 8
+    },
+    "scrollY": 42853,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 316.59375,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 316.59375,
+            "right": 172.453125,
+            "bottom": 424.390625,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 440.390625,
+            "width": 238,
+            "height": 80,
+            "top": 440.390625,
+            "right": 279,
+            "bottom": 520.390625,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 536.390625,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 536.390625,
+            "right": 172.453125,
+            "bottom": 644.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 329.78125,
+            "width": 238,
+            "height": 80,
+            "top": 329.78125,
+            "right": 279,
+            "bottom": 409.78125,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 566.96875,
+            "width": 238,
+            "height": 163.59375,
+            "top": 566.96875,
+            "right": 279,
+            "bottom": 730.5625,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 291.5625,
+            "width": 238,
+            "height": 275.1875,
+            "top": 291.5625,
+            "right": 279,
+            "bottom": 566.75,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 590.75,
+            "width": 238,
+            "height": 107.796875,
+            "top": 590.75,
+            "right": 279,
+            "bottom": 698.546875,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 570.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 570.46875,
+          "right": 296,
+          "bottom": 676.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 700.265625,
+          "right": 312,
+          "bottom": 932.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 470.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 470.46875,
+          "right": 296,
+          "bottom": 576.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 600.265625,
+          "right": 312,
+          "bottom": 832.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 370.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 370.46875,
+          "right": 296,
+          "bottom": 476.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 500.265625,
+          "right": 312,
+          "bottom": 732.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 270.46875,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 270.46875,
+          "right": 296,
+          "bottom": 376.265625,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 400.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 400.265625,
+          "right": 312,
+          "bottom": 632.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 95.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 296,
+          "bottom": 716,
+          "left": 95.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 364.265625,
+          "width": 304,
+          "height": 232.375,
+          "top": 364.265625,
+          "right": 312,
+          "bottom": 596.640625,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "scale": 140,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 41.765625,
+      "y": 587.875,
+      "width": 254.234375,
+      "height": 128.125,
+      "top": 587.875,
+      "right": 296,
+      "bottom": 716,
+      "left": 41.765625
+    },
+    "nav": {
+      "x": 8,
+      "y": 229.109375,
+      "width": 304,
+      "height": 344.421875,
+      "top": 229.109375,
+      "right": 312,
+      "bottom": 573.53125,
+      "left": 8
+    },
+    "scrollY": 69900,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 304,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.25,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 305.25,
+            "right": 191.421875,
+            "bottom": 435.375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 451.375,
+            "width": 238,
+            "height": 97,
+            "top": 451.375,
+            "right": 279,
+            "bottom": 548.375,
+            "left": 41
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 564.375,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 564.375,
+            "right": 191.421875,
+            "bottom": 694.5,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 321.75,
+            "width": 238,
+            "height": 97,
+            "top": 321.75,
+            "right": 279,
+            "bottom": 418.75,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 187.25,
+            "width": 238,
+            "height": 364.5,
+            "top": 187.25,
+            "right": 279,
+            "bottom": 551.75,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 366.75,
+            "width": 238,
+            "height": 364.5,
+            "top": 366.75,
+            "right": 279,
+            "bottom": 731.25,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 490.25,
+            "width": 238,
+            "height": 208.25,
+            "top": 490.25,
+            "right": 279,
+            "bottom": 698.5,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 547.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 547.984375,
+          "right": 296,
+          "bottom": 676.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 700.109375,
+          "right": 312,
+          "bottom": 1044.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 447.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 447.984375,
+          "right": 296,
+          "bottom": 576.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 600.109375,
+          "right": 312,
+          "bottom": 944.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 347.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 347.984375,
+          "right": 296,
+          "bottom": 476.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 500.109375,
+          "right": 312,
+          "bottom": 844.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 247.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 247.984375,
+          "right": 296,
+          "bottom": 376.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 400.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 400.109375,
+          "right": 312,
+          "bottom": 744.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 147.984375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 147.984375,
+          "right": 296,
+          "bottom": 276.109375,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 300.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 300.109375,
+          "right": 312,
+          "bottom": 644.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 41.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 296,
+          "bottom": 716,
+          "left": 41.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 229.109375,
+          "width": 304,
+          "height": 344.421875,
+          "top": 229.109375,
+          "right": 312,
+          "bottom": 573.53125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "light",
+    "scale": 70,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 205.90625,
+      "y": 626.9375,
+      "width": 160.09375,
+      "height": 89.0625,
+      "top": 626.9375,
+      "right": 366,
+      "bottom": 716,
+      "left": 205.90625
+    },
+    "nav": {
+      "x": 8,
+      "y": 415.25,
+      "width": 374,
+      "height": 198,
+      "top": 415.25,
+      "right": 382,
+      "bottom": 613.25,
+      "left": 8
+    },
+    "scrollY": 26033,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 179.0625,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 179.0625,
+            "right": 158.203125,
+            "bottom": 270.125,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 174.203125,
+            "y": 191.59375,
+            "width": 174.796875,
+            "height": 66,
+            "top": 191.59375,
+            "right": 349,
+            "bottom": 257.59375,
+            "left": 174.203125
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 286.125,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 286.125,
+            "right": 158.203125,
+            "bottom": 377.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 480.25,
+            "width": 308,
+            "height": 66,
+            "top": 480.25,
+            "right": 349,
+            "bottom": 546.25,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 640.375,
+            "width": 308,
+            "height": 91.0625,
+            "top": 640.375,
+            "right": 349,
+            "bottom": 731.4375,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 453.4375,
+            "width": 308,
+            "height": 130.125,
+            "top": 453.4375,
+            "right": 349,
+            "bottom": 583.5625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 607.5625,
+            "width": 308,
+            "height": 91.0625,
+            "top": 607.5625,
+            "right": 349,
+            "bottom": 698.625,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 587.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 587.1875,
+          "right": 366,
+          "bottom": 676.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.25,
+          "width": 374,
+          "height": 198,
+          "top": 700.25,
+          "right": 382,
+          "bottom": 898.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 487.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 487.1875,
+          "right": 366,
+          "bottom": 576.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.25,
+          "width": 374,
+          "height": 198,
+          "top": 600.25,
+          "right": 382,
+          "bottom": 798.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 387.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 387.1875,
+          "right": 366,
+          "bottom": 476.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.25,
+          "width": 374,
+          "height": 198,
+          "top": 500.25,
+          "right": 382,
+          "bottom": 698.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "light",
+    "scale": 100,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 165.515625,
+      "y": 610.203125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 610.203125,
+      "right": 366,
+      "bottom": 716,
+      "left": 165.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 397.78125,
+      "width": 374,
+      "height": 198,
+      "top": 397.78125,
+      "right": 382,
+      "bottom": 595.78125,
+      "left": 8
+    },
+    "scrollY": 35438,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 260.796875,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 260.796875,
+            "right": 172.453125,
+            "bottom": 368.59375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 188.453125,
+            "y": 274.6875,
+            "width": 160.546875,
+            "height": 80,
+            "top": 274.6875,
+            "right": 349,
+            "bottom": 354.6875,
+            "left": 188.453125
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 384.59375,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 384.59375,
+            "right": 172.453125,
+            "bottom": 492.390625,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 612.1875,
+            "width": 308,
+            "height": 80,
+            "top": 612.1875,
+            "right": 349,
+            "bottom": 692.1875,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 288.578125,
+            "width": 308,
+            "height": 163.59375,
+            "top": 288.578125,
+            "right": 349,
+            "bottom": 452.171875,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 476.171875,
+            "width": 308,
+            "height": 163.59375,
+            "top": 476.171875,
+            "right": 349,
+            "bottom": 639.765625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 622.765625,
+            "width": 308,
+            "height": 107.796875,
+            "top": 622.765625,
+            "right": 349,
+            "bottom": 730.5625,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 569.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 569.984375,
+          "right": 366,
+          "bottom": 675.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 699.78125,
+          "width": 374,
+          "height": 198,
+          "top": 699.78125,
+          "right": 382,
+          "bottom": 897.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 469.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 469.984375,
+          "right": 366,
+          "bottom": 575.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 599.78125,
+          "width": 374,
+          "height": 198,
+          "top": 599.78125,
+          "right": 382,
+          "bottom": 797.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 369.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 369.984375,
+          "right": 366,
+          "bottom": 475.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 499.78125,
+          "width": 374,
+          "height": 198,
+          "top": 499.78125,
+          "right": 382,
+          "bottom": 697.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 399.78125,
+          "width": 374,
+          "height": 198,
+          "top": 399.78125,
+          "right": 382,
+          "bottom": 597.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "light",
+    "scale": 140,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 111.765625,
+      "y": 587.875,
+      "width": 254.234375,
+      "height": 128.125,
+      "top": 587.875,
+      "right": 366,
+      "bottom": 716,
+      "left": 111.765625
+    },
+    "nav": {
+      "x": 8,
+      "y": 289.984375,
+      "width": 374,
+      "height": 283.9375,
+      "top": 289.984375,
+      "right": 382,
+      "bottom": 573.921875,
+      "left": 8
+    },
+    "scrollY": 56718,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.25,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 305.25,
+            "right": 191.421875,
+            "bottom": 435.375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 207.421875,
+            "y": 321.8125,
+            "width": 141.578125,
+            "height": 97,
+            "top": 321.8125,
+            "right": 349,
+            "bottom": 418.8125,
+            "left": 207.421875
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 451.375,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 451.375,
+            "right": 191.421875,
+            "bottom": 581.5,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 321.75,
+            "width": 308,
+            "height": 97,
+            "top": 321.75,
+            "right": 349,
+            "bottom": 418.75,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 266.25,
+            "width": 308,
+            "height": 208.25,
+            "top": 266.25,
+            "right": 349,
+            "bottom": 474.5,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 366.5,
+            "width": 308,
+            "height": 364.5,
+            "top": 366.5,
+            "right": 349,
+            "bottom": 731,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 569,
+            "width": 308,
+            "height": 130.125,
+            "top": 569,
+            "right": 349,
+            "bottom": 699.125,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 547.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 547.859375,
+          "right": 366,
+          "bottom": 675.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 699.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 699.984375,
+          "right": 382,
+          "bottom": 983.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 447.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 447.859375,
+          "right": 366,
+          "bottom": 575.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 599.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 599.984375,
+          "right": 382,
+          "bottom": 883.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 347.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 347.859375,
+          "right": 366,
+          "bottom": 475.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 499.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 499.984375,
+          "right": 382,
+          "bottom": 783.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 247.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 247.859375,
+          "right": 366,
+          "bottom": 375.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 399.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 399.984375,
+          "right": 382,
+          "bottom": 683.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 299.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 299.984375,
+          "right": 382,
+          "bottom": 583.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "dark",
+    "scale": 70,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 205.90625,
+      "y": 626.9375,
+      "width": 160.09375,
+      "height": 89.0625,
+      "top": 626.9375,
+      "right": 366,
+      "bottom": 716,
+      "left": 205.90625
+    },
+    "nav": {
+      "x": 8,
+      "y": 415.25,
+      "width": 374,
+      "height": 198,
+      "top": 415.25,
+      "right": 382,
+      "bottom": 613.25,
+      "left": 8
+    },
+    "scrollY": 26033,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 179.0625,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 179.0625,
+            "right": 158.203125,
+            "bottom": 270.125,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 174.203125,
+            "y": 191.59375,
+            "width": 174.796875,
+            "height": 66,
+            "top": 191.59375,
+            "right": 349,
+            "bottom": 257.59375,
+            "left": 174.203125
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 286.125,
+            "width": 117.203125,
+            "height": 91.0625,
+            "top": 286.125,
+            "right": 158.203125,
+            "bottom": 377.1875,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 480.25,
+            "width": 308,
+            "height": 66,
+            "top": 480.25,
+            "right": 349,
+            "bottom": 546.25,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 640.375,
+            "width": 308,
+            "height": 91.0625,
+            "top": 640.375,
+            "right": 349,
+            "bottom": 731.4375,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 453.4375,
+            "width": 308,
+            "height": 130.125,
+            "top": 453.4375,
+            "right": 349,
+            "bottom": 583.5625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 607.5625,
+            "width": 308,
+            "height": 91.0625,
+            "top": 607.5625,
+            "right": 349,
+            "bottom": 698.625,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 587.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 587.1875,
+          "right": 366,
+          "bottom": 676.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 700.25,
+          "width": 374,
+          "height": 198,
+          "top": 700.25,
+          "right": 382,
+          "bottom": 898.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 487.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 487.1875,
+          "right": 366,
+          "bottom": 576.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 600.25,
+          "width": 374,
+          "height": 198,
+          "top": 600.25,
+          "right": 382,
+          "bottom": 798.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 387.1875,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 387.1875,
+          "right": 366,
+          "bottom": 476.25,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 500.25,
+          "width": 374,
+          "height": 198,
+          "top": 500.25,
+          "right": 382,
+          "bottom": 698.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 205.90625,
+          "y": 626.9375,
+          "width": 160.09375,
+          "height": 89.0625,
+          "top": 626.9375,
+          "right": 366,
+          "bottom": 716,
+          "left": 205.90625
+        },
+        "nav": {
+          "x": 8,
+          "y": 415.25,
+          "width": 374,
+          "height": 198,
+          "top": 415.25,
+          "right": 382,
+          "bottom": 613.25,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "dark",
+    "scale": 100,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 165.515625,
+      "y": 610.203125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 610.203125,
+      "right": 366,
+      "bottom": 716,
+      "left": 165.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 397.78125,
+      "width": 374,
+      "height": 198,
+      "top": 397.78125,
+      "right": 382,
+      "bottom": 595.78125,
+      "left": 8
+    },
+    "scrollY": 35438,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 260.796875,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 260.796875,
+            "right": 172.453125,
+            "bottom": 368.59375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 188.453125,
+            "y": 274.6875,
+            "width": 160.546875,
+            "height": 80,
+            "top": 274.6875,
+            "right": 349,
+            "bottom": 354.6875,
+            "left": 188.453125
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 384.59375,
+            "width": 131.453125,
+            "height": 107.796875,
+            "top": 384.59375,
+            "right": 172.453125,
+            "bottom": 492.390625,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 612.1875,
+            "width": 308,
+            "height": 80,
+            "top": 612.1875,
+            "right": 349,
+            "bottom": 692.1875,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 288.578125,
+            "width": 308,
+            "height": 163.59375,
+            "top": 288.578125,
+            "right": 349,
+            "bottom": 452.171875,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 476.171875,
+            "width": 308,
+            "height": 163.59375,
+            "top": 476.171875,
+            "right": 349,
+            "bottom": 639.765625,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 622.765625,
+            "width": 308,
+            "height": 107.796875,
+            "top": 622.765625,
+            "right": 349,
+            "bottom": 730.5625,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 569.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 569.984375,
+          "right": 366,
+          "bottom": 675.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 699.78125,
+          "width": 374,
+          "height": 198,
+          "top": 699.78125,
+          "right": 382,
+          "bottom": 897.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 469.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 469.984375,
+          "right": 366,
+          "bottom": 575.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 599.78125,
+          "width": 374,
+          "height": 198,
+          "top": 599.78125,
+          "right": 382,
+          "bottom": 797.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 369.984375,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 369.984375,
+          "right": 366,
+          "bottom": 475.78125,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 499.78125,
+          "width": 374,
+          "height": 198,
+          "top": 499.78125,
+          "right": 382,
+          "bottom": 697.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 399.78125,
+          "width": 374,
+          "height": 198,
+          "top": 399.78125,
+          "right": 382,
+          "bottom": 597.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 165.515625,
+          "y": 610.203125,
+          "width": 200.484375,
+          "height": 105.796875,
+          "top": 610.203125,
+          "right": 366,
+          "bottom": 716,
+          "left": 165.515625
+        },
+        "nav": {
+          "x": 8,
+          "y": 397.78125,
+          "width": 374,
+          "height": 198,
+          "top": 397.78125,
+          "right": 382,
+          "bottom": 595.78125,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "dark",
+    "scale": 140,
+    "focused": true,
+    "visible": true,
+    "overlap": false,
+    "onTop": true,
+    "summary": {
+      "x": 111.765625,
+      "y": 587.875,
+      "width": 254.234375,
+      "height": 128.125,
+      "top": 587.875,
+      "right": 366,
+      "bottom": 716,
+      "left": 111.765625
+    },
+    "nav": {
+      "x": 8,
+      "y": 289.984375,
+      "width": 374,
+      "height": 283.9375,
+      "top": 289.984375,
+      "right": 382,
+      "bottom": 573.921875,
+      "left": 8
+    },
+    "scrollY": 56718,
+    "panel": {
+      "box": {
+        "x": 8,
+        "y": 8,
+        "width": 374,
+        "height": 724
+      },
+      "controls": [
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 305.25,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 305.25,
+            "right": 191.421875,
+            "bottom": 435.375,
+            "left": 41
+          },
+          "text": "A−",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 207.421875,
+            "y": 321.8125,
+            "width": 141.578125,
+            "height": 97,
+            "top": 321.8125,
+            "right": 349,
+            "bottom": 418.8125,
+            "left": 207.421875
+          },
+          "text": "\n                                            70% — Bardzo mały\n                                            80% — Mały\n                                            90% — Trochę mniejszy\n                                            100% — Zwykły\n                                            112% — Trochę większy\n                                            125% — Duży\n                                            140% — Bardzo duży\n                                    ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybka-skala",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 451.375,
+            "width": 150.421875,
+            "height": 130.125,
+            "top": 451.375,
+            "right": 191.421875,
+            "bottom": 581.5,
+            "left": 41
+          },
+          "text": "A+",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 321.75,
+            "width": 308,
+            "height": 97,
+            "top": 321.75,
+            "right": 349,
+            "bottom": 418.75,
+            "left": 41
+          },
+          "text": "\n                Jasny\n                Ciemny\n            ",
+          "inside": true,
+          "tag": "SELECT",
+          "id": "szybki-motyw",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 266.25,
+            "width": 308,
+            "height": 208.25,
+            "top": 266.25,
+            "right": 349,
+            "bottom": 474.5,
+            "left": 41
+          },
+          "text": "Zapisz wygląd",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 366.5,
+            "width": 308,
+            "height": 364.5,
+            "top": 366.5,
+            "right": 349,
+            "bottom": 731,
+            "left": 41
+          },
+          "text": "Przywróć domyślne",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": false,
+          "visible": true,
+          "onTop": true
+        },
+        {
+          "withinPanel": true,
+          "rect": {
+            "x": 41,
+            "y": 569,
+            "width": 308,
+            "height": 130.125,
+            "top": 569,
+            "right": 349,
+            "bottom": 699.125,
+            "left": 41
+          },
+          "text": "Zamknij",
+          "inside": true,
+          "tag": "BUTTON",
+          "id": "",
+          "close": true,
+          "visible": true,
+          "onTop": true
+        }
+      ]
+    },
+    "scrolls": [
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 547.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 547.859375,
+          "right": 366,
+          "bottom": 675.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 699.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 699.984375,
+          "right": 382,
+          "bottom": 983.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 447.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 447.859375,
+          "right": 366,
+          "bottom": 575.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 599.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 599.984375,
+          "right": 382,
+          "bottom": 883.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 347.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 347.859375,
+          "right": 366,
+          "bottom": 475.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 499.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 499.984375,
+          "right": 382,
+          "bottom": 783.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 247.859375,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 247.859375,
+          "right": 366,
+          "bottom": 375.984375,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 399.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 399.984375,
+          "right": 382,
+          "bottom": 683.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 299.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 299.984375,
+          "right": 382,
+          "bottom": 583.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      },
+      {
+        "summary": {
+          "x": 111.765625,
+          "y": 587.875,
+          "width": 254.234375,
+          "height": 128.125,
+          "top": 587.875,
+          "right": 366,
+          "bottom": 716,
+          "left": 111.765625
+        },
+        "nav": {
+          "x": 8,
+          "y": 289.984375,
+          "width": 374,
+          "height": 283.9375,
+          "top": 289.984375,
+          "right": 382,
+          "bottom": 573.921875,
+          "left": 8
+        },
+        "visible": true,
+        "overlap": false,
+        "onTop": true
+      }
+    ]
+  }
+]

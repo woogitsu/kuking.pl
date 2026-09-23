@@ -34,6 +34,12 @@ final class ExportPhotoPlan
     /** Ile zdjęć nie weszło do paczki, bo w tej chwili jeszcze się przetwarzało. */
     private int $stillProcessing = 0;
 
+    /** Ile zdjęć nie weszło do paczki, bo przygotowanie ich się nie powiodło. */
+    private int $rejected = 0;
+
+    /** Ile zdjęć nie weszło do paczki, bo są skasowane. */
+    private int $deleted = 0;
+
     public function __construct(User $user)
     {
         $labels = $this->collectLabels($user);
@@ -64,6 +70,32 @@ final class ExportPhotoPlan
         $this->stillProcessing = $user->media()
             ->whereIn('status', [Media::STATUS_PENDING, Media::STATUS_PROCESSING])
             ->count();
+
+        // TA „INNA WIADOMOŚĆ" — DOPISANA (issue #692).
+        //
+        // Komentarz wyżej od #113 zapowiadał ją i nazywał, ale nikt jej nie
+        // napisał: paczka konta z samymi zdjęciami odrzuconymi albo
+        // skasowanymi milczała o nich całkowicie. #678 przestało obiecywać
+        // „wszystkie" zdjęcia; tu paczka zaczyna mówić, ILE ich nie ma.
+        //
+        // DWA LICZNIKI, NIE JEDEN — bo to są dwie różne historie człowieka
+        // i dwie różne rady. `rejected` znaczy „przygotowanie pliku padło"
+        // (`ProcessUploadedImage::failed()` i `catch` tamże) — oryginał
+        // z telefonu wolno wgrać jeszcze raz. `deleted` znaczy „kasowanie
+        // trwa" (D-083) — to jest decyzja, którą człowiek już podjął,
+        // i nie ma tu nic do zrobienia. Zwinięcie tego w jedną liczbę
+        // kazałoby widokom zgadywać, które zdanie napisać.
+        //
+        // Liczymy TU z tego samego powodu co `stillProcessing`: warunek
+        // `status = ready`, który te zdjęcia odsiewa, stoi kilka linijek
+        // wyżej i ma zostać w jednym miejscu.
+        $this->rejected = $user->media()
+            ->where('status', Media::STATUS_REJECTED)
+            ->count();
+
+        $this->deleted = $user->media()
+            ->where('status', Media::STATUS_DELETED)
+            ->count();
     }
 
     /**
@@ -79,6 +111,36 @@ final class ExportPhotoPlan
     public function stillProcessingCount(): int
     {
         return $this->stillProcessing;
+    }
+
+    /**
+     * Ile zdjęć nie weszło do paczki, bo ich przygotowanie się nie powiodło.
+     *
+     * NIE WEJDĄ DO ŻADNEJ NASTĘPNEJ PACZKI i to jest cała różnica wobec
+     * `stillProcessingCount()`. Tam rada brzmi „poproś o nową paczkę za
+     * kilka minut"; tutaj taka rada byłaby nieprawdą, bo `rejected` jest
+     * stanem końcowym — `ProcessUploadedImage` nie przewiduje powrotu z niego.
+     * Jedyne, co człowiek może zrobić, to wgrać oryginał jeszcze raz,
+     * a wtedy powstaje NOWE `media`, nie to samo.
+     */
+    public function rejectedCount(): int
+    {
+        return $this->rejected;
+    }
+
+    /**
+     * Ile zdjęć nie weszło do paczki, bo są skasowane.
+     *
+     * `deleted` znaczy „kasowanie trwa" (D-083): wiersz jest już tylko
+     * uchwytem do dokończenia usuwania plików, a `Media::maWariantDoPokazania()`
+     * nie przepuszcza go nawet z kompletem wariantów. Serwis powiedział
+     * komuś „skasowane" i od tej chwili nie wolno tych bajtów pokazać ani
+     * razu więcej — także w paczce RODO. Dlatego tu jest LICZBA, a nie plik,
+     * i dlatego ta liczba nie rośnie o nic w zakresie danych paczki.
+     */
+    public function deletedCount(): int
+    {
+        return $this->deleted;
     }
 
     /**

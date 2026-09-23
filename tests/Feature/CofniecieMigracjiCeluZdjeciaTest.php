@@ -85,6 +85,12 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
             'status' => Report::STATUS_OPEN,
         ]);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             // Po ŚCIEŻCE, nie `--step=1`: gdyby ktoś dopisał później nowszą
             // migrację, „ostatnia" przestałaby być tą sprawdzaną i test
@@ -93,10 +99,22 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
                 '--path' => 'database/migrations/2026_09_10_300000_zdjecie_jako_cel_oznaczenia.php',
                 '--realpath' => false,
             ]);
-            $this->fail('Cofnięcie migracji przeszło, mimo że w tabeli leży oznaczenie zdjęcia.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('oznaczeń zdjęć', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie migracji przeszło, mimo że w tabeli leży oznaczenie zdjęcia.');
+
+        // JEDNO oznaczenie, nie pięć: liczba stoi na końcu zdania, za
+        // rzeczownikiem w mianowniku, więc jedynka jest tu poprawna po polsku
+        // i wolno ją zamrozić w teście (D-132).
+        $this->assertStringContainsString(
+            'Liczba oznaczeń zdjęć (`target_type = media`) w `reports`: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('leży 1 oznaczeń', $odmowa->getMessage());
 
         // Sprawa musi zostać nietknięta — także wtedy, gdy rollback odmówił.
         $this->assertSame(1, Report::query()->where('target_type', 'media')->count());

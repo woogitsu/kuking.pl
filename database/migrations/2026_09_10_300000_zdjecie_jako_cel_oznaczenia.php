@@ -69,8 +69,13 @@ return new class extends Migration
         $zdjec = (int) DB::table('reports')->where('target_type', 'media')->count();
 
         if ($zdjec > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „leży 1
+            // oznaczeń zdjęć" to nie polszczyzna, a jedno oznaczenie jest
+            // stanem prawdopodobniejszym niż pięć. Mianownik przed
+            // dwukropkiem nie odmienia się wcale, więc zdanie jest poprawne
+            // dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'W `reports` leży '.$zdjec.' oznaczeń zdjęć (`target_type = media`). '
+                'Liczba oznaczeń zdjęć (`target_type = media`) w `reports`: '.$zdjec.'. '
                 .'Cofnięcie tej migracji odrzuciłoby te wiersze przez CHECK, a są to sprawy '
                 .'moderacyjne z decyzjami i odwołaniami. Rozstrzygnij je i przenieś ręcznie '
                 .'albo skasuj świadomie, potem cofnij migrację.',

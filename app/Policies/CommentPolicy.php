@@ -85,6 +85,7 @@ class CommentPolicy
         // wystarcza na poprawienie literówki, a nie pozwala zmienić sensu
         // rozmowy po tym, jak ktoś już odpowiedział.
         return $user->getKey() === $comment->author_id
+            && $comment->getAttribute('body_removed_at') === null
             && $comment->created_at?->diffInMinutes(now()) < 15;
     }
 

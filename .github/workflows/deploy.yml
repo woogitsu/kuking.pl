@@ -1,24 +1,42 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
+#  wtedy, gdy przebieg idzie na runnery GitHuba.
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
 #
-#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
-#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#  TEN WORKFLOW CHODZI SAM i nie ma tu czego odkomentowywać: blok `on:` niżej
+#  jest aktywny i ma `deployment_status` (Railway melduje wynik deployu) obok
+#  ręcznego `workflow_dispatch`. Zmierzone 12.09.2026 parserem YAML.
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
+#  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
-#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
-#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
-#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
-#  na nie.
-#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#
+#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
+#  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
+#  Secrets and variables → Actions → Variables:
+#
+#      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#
+#  Wartość jest TABLICĄ JSON, bo `fromJSON` dostaje ją w całości; pojedyncza
+#  etykieta to `"self-hosted"` z cudzysłowami, nie `self-hosted`.
+#
+#  Komplet etykiet, a nie nazwa runnera: nazwa przypina job do JEDNEJ maszyny,
+#  więc jej awaria zatrzymuje całe CI. `i5-10400f` i `nvidia-gtx1070` ma
+#  wyłącznie nowa pula — stare rejestracje WSL-owe (w pomiarach
+#  `kuking-wsl-DOM-NEW-01`–`-03`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  `wsl2`, `woogitsu`, więc samo `self-hosted` wpuszcza joby także na nie.
+#
+#  STAN ZMIERZONY 11.09.2026 (D-121, przebieg CI nr 661): zmienna stoi na SAMYM
+#  `self-hosted`, więc przebiegi lądują na starej puli WSL. WŁAŚCICIEL ZOSTAWIA
+#  TO TAK ŚWIADOMIE — decyzja z 12.09.2026; to nie jest przeoczenie i nie szukaj
+#  tu usterki. Przyjęty koszt, dokładna wartość do przełączenia puli, skutek
+#  skasowania zmiennej i sygnał, po którym decyzję odwracamy:
+#  docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja właściciela
+#  z 12 września 2026". Porównanie opcji: docs/infra/CI_BEZ_ACTIONS.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -136,28 +154,60 @@ jobs:
     timeout-minutes: 10
 
     # -----------------------------------------------------------------------
-    #  BRAMKA. Zawężona świadomie — patrz sprostowanie niżej.
+    #  BRAMKA. Zawężona świadomie — i ZWERYFIKOWANA POMIAREM 22.09.2026.
     #
     #  BYŁO: warunek sprawdzał dodatkowo
     #      contains(fromJSON('["production","staging"]'), github.event.deployment.environment)
+    #  To jest człon, który zawodził. Dowód z REST API (400 wdrożeń
+    #  woogitsu/kuking.pl, 9–21.09.2026, 1131 statusów):
+    #      deployment.environment = 'ideal-exploration / production'  — 400/400
+    #      status.environment     = 'ideal-exploration / production'  — 1131/1131
+    #  Gołe `production` nie pada ANI RAZU, więc `contains` nigdy nie mógł
+    #  trafić. Dopasowanie nazwy środowiska jest teraz w kroku niżej, który
+    #  obcina człon po ostatnim ukośniku (i wypisuje, co dostał).
     #
-    #  Zmierzone 9 września 2026: workflow „Deploy" ma **249 przebiegów
-    #  i WSZYSTKIE mają conclusion `skipped`.** Ten test dymny nie uruchomił
-    #  się ANI RAZU — a to on miał wyłapywać „deploy się udał, ale strona nie
-    #  działa". Przebieg 249 wystartował o 16:44:20, czyli pięć sekund po tym,
-    #  jak wdrożenie zgłosiło sukces o 16:44:15 — i też został pominięty.
+    #  SKUTEK ZDJĘCIA TEGO CZŁONU — zmierzony, nie przewidywany. Workflow
+    #  „Deploy" ma dziś 885 przebiegów. Rozkład zdarzenia deployment_status:
+    #      629 skipped, 206 success, 6 cancelled, 2 failure
+    #  Pierwszy NIEpominięty przebieg: #290 z 9.09.2026 22:17 UTC.
+    #  Ostatni: #871 z 21.09.2026 10:40 UTC — w jego dzienniku stoi
+    #      deployment.environment  = 'ideal-exploration / production'
+    #      deployment_status.state = 'success'
+    #      środowisko po obcięciu  = 'production'
+    #  i dziesięć linii `OK` z testu dymnego na https://kuking.pl.
+    #  Notatka „249 przebiegów, WSZYSTKIE skipped" opisywała stan SPRZED tej
+    #  poprawki. Test dymny wykonał się od tamtej pory 206 razy.
     #
-    #  Czyli któryś człon tego warunku nie pasuje do tego, co naprawdę
-    #  przysyła Railway. NIE ZGADUJĘ KTÓRY: sprawdzenie nazwy środowiska
-    #  przeniesione jest do kroku niżej, który ją WYPISUJE. Po najbliższym
-    #  wdrożeniu będzie w dzienniku czarno na białym, zamiast kolejnej hipotezy.
+    #  `state == 'success'` ZOSTAJE — i liczba „pięć" też się broni, choć
+    #  mechanizm jest inny, niż zapisano poprzednio. Railway NIE wysyła pięciu
+    #  statusów na jedno wdrożenie. Rozkład (400 wdrożeń):
+    #      1 status:   9 wdrożeń      2 statusy: 183     3 statusy: 113
+    #      4 statusy: 84             5 i więcej:  11
+    #  Najczęstsze sekwencje stanów:
+    #      in_progress > inactive                       — 180 wdrożeń
+    #      in_progress > success > inactive             — 112
+    #      in_progress > success > inactive > inactive  —  84
+    #  Stany, jakich Railway używa: in_progress (413), inactive (489),
+    #  success (228), failure (1). Stosunek 1131 statusów do 228 sukcesów
+    #  wynosi 4,96 — TO jest te „pięć razy". Bez członu `state == 'success'`
+    #  ten workflow odpalałby się blisko pięciokrotnie częściej, więc
+    #  argument kosztowy z D-010 stoi.
     #
-    #  Dlaczego nie zdjąłem też `state == 'success'`: `deployment_status`
-    #  strzela kilka razy na jedno wdrożenie (zmierzone: pięć razy). Bez tego
-    #  członu każde wdrożenie płaciłoby za pięć przebiegów zamiast jednego,
-    #  a minuty Actions są w tym projekcie skończone i płatne (D-010). Jeśli
-    #  po tej zmianie przebieg NADAL będzie `skipped`, to znaczy, że winny
-    #  jest właśnie ten człon — i wtedy wiadomo, co poprawić.
+    #  CZEGO TA BRAMKA NIE ZŁAPIE — i nie da się tego naprawić warunkiem:
+    #  192 z 400 wdrożeń (48%) nie mają ANI JEDNEGO statusu `success`;
+    #  kończą się `in_progress > inactive`. Stanu `failure` Railway użył
+    #  przez dwanaście dni JEDEN raz. A gdy CI jest czerwone, Railway
+    #  (`checkSuites: true`) w ogóle nie tworzy wdrożenia, więc nie ma
+    #  żadnego zdarzenia deployment_status — i nie ma czego pomijać.
+    #  Zmierzone 22.09.2026 07:16 UTC: od ostatniego statusu `success`
+    #  (21.09 10:40 UTC) minęło 20,6 godziny ciszy. Dokładnie tyle stała
+    #  produkcja podczas awarii haka runnerów — a ten job nie miał jak
+    #  krzyknąć, bo krzyczy wyłącznie PO udanym wdrożeniu.
+    #  Wykrycie „nic się nie wdrożyło" wymaga wyzwalacza `schedule:`,
+    #  niezależnego od wdrożeń. To osobna decyzja właściciela (koszt minut),
+    #  a nie zmiana w tym warunku. Nie ruszaj `state == 'success'` w nadziei,
+    #  że to załatwi — to zapłaci pięciokrotnie za to samo i dalej nie
+    #  wykryje ciszy.
     # -----------------------------------------------------------------------
     if: >-
       github.event_name == 'deployment_status' &&
@@ -294,6 +344,31 @@ jobs:
             fail=1
           else
             echo "OK    strona błędu nie ujawnia szczegółów"
+          fi
+
+
+          # Potwierdzenie portu w HTML i faktycznie serwowanym arkuszu.
+          # Sam HTTP 200 nie wykrywa pozostawienia starego wyglądu.
+          echo "--- Wersja interfejsu i zasoby marki ---"
+          html_marki=$(curl -fsS --max-time 30 --retry 3 "${BASE_URL}/") || fail=1
+          if [[ "${html_marki:-}" != *'data-marka="kuking-2026"'* ]]; then
+            echo "BLAD  serwowany HTML nie zawiera nowej ramy marki"
+            fail=1
+          else
+            echo "OK    HTML używa kuking-2026"
+          fi
+          css_marki=$(python3 -c 'import re,sys; from urllib.parse import urljoin; html=sys.stdin.read(); links=re.findall(r"<link\b[^>]*href=\"([^\"]+)\"[^>]*>",html); print(next((urljoin(sys.argv[1],x) for x in links if "/build/assets/app-" in x and x.endswith(".css")),""))' "$BASE_URL/" <<< "${html_marki:-}")
+          if [ -z "$css_marki" ]; then
+            echo "BLAD  brak adresu zbudowanego arkusza aplikacji"
+            fail=1
+          else
+            arkusz_marki=$(curl -fsS --max-time 30 --retry 3 "$css_marki") || fail=1
+            if [[ "${arkusz_marki:-}" == *".marka-topbar"* && "${arkusz_marki:-}" == *".marka-rama"* ]]; then
+              echo "OK    serwowany CSS zawiera pływający nagłówek i nowy układ"
+            else
+              echo "BLAD  serwowany CSS nie zawiera portu marki"
+              fail=1
+            fi
           fi
 
           exit $fail

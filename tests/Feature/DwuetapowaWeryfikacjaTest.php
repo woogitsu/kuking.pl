@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
 class DwuetapowaWeryfikacjaTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private function totp(): TwoFactorAuthenticator
     {
@@ -88,7 +90,17 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $this->assertNotEmpty($basia->two_factor_backup_codes);
 
         // Strona z kodami pokazuje je RAZ — z flashem z poprzedniego żądania.
-        $this->followRedirects($response)->assertSee('Zapisz swoje kody zapasowe');
+        //
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1b): to zdanie
+        // jest równocześnie `<title>` tej strony, więc asercja na całej
+        // odpowiedzi przechodziła także po skasowaniu nagłówka — zmierzone
+        // 12.09.2026 na `pages/settings/two_factor/codes.blade.php`.
+        $ekran = $this->followRedirects($response)->assertOk();
+
+        $this->assertStringContainsString(
+            'Zapisz swoje kody zapasowe',
+            $this->trescEkranu((string) $ekran->getContent()),
+        );
     }
 
     public function test_zly_kod_nie_wlacza_2fa(): void
@@ -196,7 +208,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         // Ten sam kod zapasowy drugi raz — już go nie ma w bazie.
         $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrors('backup_code');
 
         $this->assertGuest();
     }
@@ -280,7 +292,15 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $response = $this->actingAs($moderator)->get(route('admin.reports'));
 
         $response->assertForbidden();
-        $response->assertSee('Włącz weryfikację dwuetapową');
+
+        // NA TREŚCI EKRANU (pułapka 1b): `pages/admin/wymagane_2fa.blade.php`
+        // ma to zdanie także w `title=`, więc asercja na całej odpowiedzi
+        // przechodziła również wtedy, gdy ze strony znikał JEDYNY przycisk
+        // mówiący moderatorowi, co ma zrobić. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Włącz weryfikację dwuetapową',
+            $this->trescEkranu((string) $response->getContent()),
+        );
     }
 
     public function test_moderator_z_2fa_wchodzi_do_panelu(): void
@@ -310,7 +330,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.disable'), ['password' => 'zle-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('disable', ['password']);
 
         $this->assertTrue($basia->refresh()->hasTwoFactorConfirmed());
     }
@@ -379,7 +399,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $this->post(route('logout'));
         $this->post('/login', ['login' => 'basia@example.com', 'password' => 'haslo-testowe-123']);
         $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrors('backup_code');
         $this->assertGuest();
     }
 
@@ -422,7 +442,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.regenerate'), ['password' => 'nie-to-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('regenerate', ['password']);
 
         // Stary kod dalej działa — nic się nie zmieniło.
         $this->post(route('logout'));

@@ -20,7 +20,7 @@
 <x-layout title="Twoje zgłoszenie" :noindex="true">
     <h1>Twoje zgłoszenie</h1>
 
-    <article class="card">
+    <article class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Treść zgłoszenia</h2>
         <p class="meta">
             Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
@@ -36,6 +36,23 @@
     </article>
 
     @if(! $zgloszenie->jestRozstrzygniete())
+        {{--
+            KARTA TREŚCI, NIE SEKCJA — rozstrzygnięcie właściciela z 11.09
+            (D-128, issue #367): odpowiedź na sprawę jest tym, PO CO człowiek
+            na ten ekran wszedł, i ma się odróżniać od reszty.
+
+            TA SAMA WARSTWA CO „Nasza decyzja" NIŻEJ i to zostaje bez zmian.
+            Obie gałęzie stoją w tym samym miejscu ekranu i odpowiadają na to
+            samo pytanie („co z moją sprawą"), tylko w dwóch stanach. Różnica
+            warstw kazałaby ekranowi zmieniać wygląd zależnie od tego, czy
+            sprawa jest już rozstrzygnięta — a to nie jest różnica rangi.
+            Podnosimy więc OBIE gałęzie, nie jedną: rozstrzygnięcie dotyczy
+            tego bloku, nie jednego z jego stanów.
+
+            Treść zgłoszenia wyżej i pouczenie niżej zostają sekcjami — one
+            opisują sprawę, a nie są odpowiedzią na nią (D-128: rolę nadaje
+            miejsce, nie obiekt).
+        --}}
         <article class="card mt-5">
             <h2 class="mt-0 text-title-sm">Na czym stoi sprawa</h2>
             <p><strong>Sprawdzamy.</strong> Zgłoszenie trafiło do kolejki i przeczyta je człowiek.</p>
@@ -45,6 +62,8 @@
             </p>
         </article>
     @else
+        {{-- Karta treści, ta sama warstwa co gałąź „Na czym stoi sprawa"
+             wyżej — patrz komentarz tam. --}}
         <article class="card mt-5">
             <h2 class="mt-0 text-title-sm">Nasza decyzja</h2>
 
@@ -74,7 +93,12 @@
             które idą listem przy zgłoszeniu prawnym, żeby obie drogi pouczały
             tak samo, a nie podobnie.
         --}}
-        <article class="card mt-5">
+        {{-- SEKCJA, nie ramka pomocnicza. D-042 odbiera zgłaszającemu
+             formularz skargi i stawia to pouczenie W JEGO MIEJSCE — to jest
+             cały środek prawny, jaki mu zostaje, a nie przypis obok sprawy.
+             Wgłębienie mówiłoby „to jest obok głównej rzeczy" o jedynej
+             rzeczy, którą człowiek może jeszcze zrobić. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">{{ \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA }}</h2>
             @foreach(\App\Domain\Moderation\OdpowiedzDlaZglaszajacego::pouczenie($zgloszenie) as $zdanie)
                 <p>{{ $zdanie }}</p>

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -48,6 +49,7 @@ use Tests\TestCase;
 class LogowanieKontemGoogleTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private const KLIENT = 'klient-testowy.apps.googleusercontent.com';
 
@@ -804,9 +806,15 @@ class LogowanieKontemGoogleTest extends TestCase
             'Angielski kod od dostawcy nie mówi człowiekowi niczego.');
 
         // Hasło i wiadomość z linkiem zostają widoczne — nie ma martwego ekranu.
-        $ekran = $this->get(route('login'))->assertOk();
-        $ekran->assertSee('Zaloguj się');
-        $ekran->assertSee('Wyślij mi link do zalogowania');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): „Zaloguj się"
+        // jest na `/logowanie` także `<title>`, `<meta>` i przyciskiem belki dla
+        // gościa. Zmierzone: po skasowaniu nagłówka i przycisku formularza
+        // asercja na całej odpowiedzi dalej przechodziła, więc nie pilnowała
+        // tego, że ekran logowania hasłem w ogóle jest.
+        $tresc = $this->trescEkranu((string) $this->get(route('login'))->assertOk()->getContent());
+
+        $this->assertStringContainsString('Zaloguj się', $tresc);
+        $this->assertStringContainsString('Wyślij mi link do zalogowania', $tresc);
     }
 
     #[Test]
@@ -886,7 +894,11 @@ class LogowanieKontemGoogleTest extends TestCase
         }
 
         $this->assertSame(
-            ['connected_at', 'dostawca', 'id', 'identyfikator', 'user_id'],
+            // `dostep_odebrany_at` doszło 11 września (issue #259): NASZ znacznik
+            // o stanie powiązania („dostawca powiadomił nas, że ta osoba cofnęła
+            // zgodę"), a nie dana O CZŁOWIEKU wzięta od dostawcy. Pola na token
+            // nadal nie ma i nie wolno go dołożyć bez decyzji.
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
             collect(Schema::getColumnListing('tozsamosci_zewnetrzne'))->sort()->values()->all(),
             'Zmiana zakresu danych o człowieku wymaga decyzji, nie refaktoru (AGENTS.md §6).',
         );
@@ -946,18 +958,25 @@ class LogowanieKontemGoogleTest extends TestCase
         $basia = $this->user('basia');
 
         /*
-         * Facebooka na liście CHECK-a NIE MA i to jest celowe (D-098):
-         * wchodzi razem ze swoim kodem, bo warunki wejścia są u niego INNE —
-         * nie oddaje `email_verified`, więc warunku z D-069 nie da się dla
-         * niego spełnić, a łączenie po adresie musi być u niego ZAKAZANE.
-         * Gdyby lista była otwarta, wystarczyłby jeden `INSERT` z cudzą
-         * nazwą dostawcy, żeby ten wywód obejść bez żadnej decyzji.
+         * LISTA JEST ZAMKNIĘTA I ROZSZERZA JĄ MIGRACJA, NIE STAŁA W PHP
+         * (D-098). Nowy dostawca wchodzi razem ze swoim kodem, bo warunki
+         * wejścia bywają u niego INNE — Facebook nie oddaje `email_verified`,
+         * więc warunku z D-069 nie da się dla niego spełnić i łączenie po
+         * adresie musi być u niego ZAKAZANE. Gdyby lista była otwarta,
+         * wystarczyłby jeden `INSERT` z cudzą nazwą dostawcy, żeby ten wywód
+         * obejść bez żadnej decyzji i bez migracji.
+         *
+         * Do września 2026 przykładem „dostawcy spoza listy" był tutaj
+         * `facebook` — i test przestał oblewać w dniu, w którym Facebook
+         * wszedł na listę własną migracją (#259). Przykładem jest więc
+         * dostawca, którego NIE ZAMAWIALIŚMY: gdyby kiedyś doszedł, ten test
+         * ma o sobie przypomnieć razem ze swoją migracją.
          */
         $this->expectException(QueryException::class);
 
         DB::table('tozsamosci_zewnetrzne')->insert([
             'user_id' => $basia->getKey(),
-            'dostawca' => 'facebook',
+            'dostawca' => 'apple',
             'identyfikator' => '1234567890',
             'connected_at' => now(),
         ]);

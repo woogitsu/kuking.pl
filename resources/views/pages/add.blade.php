@@ -38,7 +38,7 @@
     </x-slot:rail>
 
     <h1>Co chcesz dodać?</h1>
-    <p class="mb-6">Nie musisz od razu pisać całego przepisu. Samo zdjęcie też jest w porządku.</p>
+    <p class="mb-6">Nie musisz od razu pisać całego przepisu — samo zdjęcie wystarczy.</p>
 
     @if($niedokonczoneSzkice->isNotEmpty())
         <div class="notice">
@@ -55,18 +55,29 @@
                     </li>
                 @endforeach
             </ul>
+            <p class="mb-0"><a class="btn btn-secondary" href="{{ route('recipes.drafts') }}">Wszystkie szkice</a></p>
         </div>
     @endif
 
     <div class="stack">
-        <a class="card block no-underline text-inherit" href="{{ route('posts.create') }}">
+        <a class="kafel-akcji" href="{{ route('posts.create') }}">
             <h2 class="mt-0">Zdjęcie i kilka słów</h2>
-            <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe. Zajmuje niecałą minutę.</p>
+            {{-- BEZ „Zajmuje niecałą minutę": obietnica z miarą, której nie
+                 mierzymy. Zdanie przed nią i tak mówi to samo lepiej — wymienia
+                 kroki zamiast obiecywać czas, który zależy od tego, jak szybko
+                 pójdzie zdjęcie z telefonu. --}}
+            <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe.</p>
         </a>
 
-        <a class="card block no-underline text-inherit" href="{{ route('recipes.create') }}">
+        <a class="kafel-akcji" href="{{ route('recipes.create') }}">
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>
+        @if(config('kuking.questions.enabled'))
+            <a class="kafel-akcji" href="{{ route('questions.create') }}">
+                <h2 class="mt-0">Zadaj pytanie</h2>
+                <p class="mb-0">Poradźcie — ktoś to już robił i chętnie powie, jak.</p>
+            </a>
+        @endif
     </div>
 </x-layout>

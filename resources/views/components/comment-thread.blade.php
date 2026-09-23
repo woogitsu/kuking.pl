@@ -10,6 +10,12 @@
     (Popraw / Usuń / Zgłoś) jest powtórzony dla komentarza głównego i dla
     odpowiedzi — w tym komponencie nie ma wygodnego miejsca na współdzielony
     podkomponent bez zakładania nowego pliku.
+
+    UKŁAD AKCJI (issue #433). Akcje zwykłe — „Odpowiedz", „Popraw", „Zgłoś" —
+    stoją w JEDNYM rzędzie `.akcje-komentarza`, który się zawija. „Usuń"
+    zostaje osobno, pod kreską `.danger-zone`. Podział przebiega po
+    ODWRACALNOŚCI, nie po tym, kto jest autorem: dlatego „Zgłoś" wróciło do
+    rzędu zwykłych akcji, choć dotąd renderowało się za kreską.
 --}}
 {{--
     `ile` to LICZBA WSZYSTKICH wątków, nie tylko tych na stronie. Bez tego
@@ -17,13 +23,16 @@
     pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
     paginacji nie muszą nic przekazywać i liczą jak dotąd.
 --}}
-@props(['comments', 'action', 'ile' => null])
+@props(['comments', 'action', 'ile' => null, 'answers' => false])
 @php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
-    <h2 id="komentarze">Komentarze @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
+    <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
+    @if($errors->has('body') || $errors->has('reason'))
+        <x-error-summary />
+    @endif
 
     @forelse($comments as $comment)
-        <article class="card">
+        <article class="card" id="komentarz-{{ $comment->id }}">
             <div class="flex gap-3 items-center mb-2">
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
@@ -36,12 +45,25 @@
                 </div>
             </div>
 
-            @php($commentIsRemoved = $comment->body === 'Komentarz usunięty.')
+            {{--
+                ISSUE #760: stan usunięcia wynika z ZNACZNIKA, nie z treści.
+
+                Stało tu porównanie `$comment->body === 'Komentarz usunięty.'`.
+                `CommentPolicy::update()`/`delete()` już wtedy patrzyły na
+                `body_removed_at`, więc żywy komentarz o TAKIM DOSŁOWNIE
+                brzmieniu (człowiek mógł go po prostu napisać) miał zgodę
+                Policy na poprawienie, a ten widok i tak chował przycisk —
+                autor tracił akcję, do której miał prawo.
+
+                Placeholder to WYŁĄCZNIE prezentacja tego samego znacznika,
+                którego już pilnuje Policy — nie osobne źródło prawdy.
+            --}}
+            @php($commentIsRemoved = $comment->body_removed_at !== null)
 
             @if($commentIsRemoved)
                 <p class="meta italic">{{ $comment->body }}</p>
             @else
-                <p class="tekst-jak-napisano">{{ $comment->body }}</p>
+                <p class="tekst-jak-napisano">{{ \App\Support\LinkiWTekscie::render($comment->body) }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
@@ -58,46 +80,73 @@
                         </span>
                     </div>
 
-                    @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')
+                    {{-- ISSUE #760: ta sama poprawka co przy komentarzu głównym wyżej. --}}
+                    @php($replyIsRemoved = $reply->body_removed_at !== null)
 
                     @if($replyIsRemoved)
                         <p class="meta italic">{{ $reply->body }}</p>
                     @else
-                        <p class="tekst-jak-napisano">{{ $reply->body }}</p>
+                        <p class="tekst-jak-napisano">{{ \App\Support\LinkiWTekscie::render($reply->body) }}</p>
 
                         @auth
                             @php($replyRemainingMinutes = 15 - (int) $reply->created_at->diffInMinutes(now()))
                             @php($replyContentOwnerRemovingOthers = auth()->id() !== $reply->author_id && auth()->id() === $reply->notifiableUserId())
 
-                            @can('update', $reply)
-                                @if($replyRemainingMinutes > 0)
-                                    <details class="mt-2">
-                                        <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                        {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
-                                             inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
-                                             poprawić jeszcze przez 3 minutęs". Polski ma trzy formy odmiany,
-                                             nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
-                                             nie zna wcale. --}}
-                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                        <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
-                                            @csrf
-                                            @method('PUT')
-                                            <x-field name="body" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
-                                            <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
-                                        </form>
-                                    </details>
+                            {{-- Akcje ZWYKŁE w jednym rzędzie, który się zawija —
+                                 „Usuń" zostaje niżej, za kreską (`.danger-zone`).
+                                 Uzasadnienie układu i zmierzone liczby stoją przy
+                                 `.akcje-komentarza` w `resources/css/app.css`.
+
+                                 Rząd bywa PUSTY: własna odpowiedź po piętnastu
+                                 minutach nie ma ani „Popraw", ani „Zgłoś". Pusty
+                                 nie zostawia po sobie odstępu — pilnuje tego
+                                 reguła `:not(:has(> *))` w arkuszu, bo Blade
+                                 zostawia w środku białe znaki i `:empty` nie
+                                 trafiłoby. --}}
+                            <div class="akcje-komentarza">
+                                @can('update', $reply)
+                                    @if($replyRemainingMinutes > 0)
+                                        <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$reply->id) && $errors->any()) open @endif>
+                                            <summary class="btn btn-quiet inline-flex">Popraw</summary>
+                                            {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
+                                                 inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
+                                                 poprawić jeszcze przez 3 minutęs". Polski ma trzy formy odmiany,
+                                                 nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
+                                                 nie zna wcale. --}}
+                                            <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
+                                            <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
+                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required />
+                                                <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
+                                            </form>
+                                        </details>
+                                    @endif
+                                @endcan
+
+                                {{-- „Zgłoś" jest akcją ZWYKŁĄ, więc stoi w tym
+                                     rzędzie, a nie pod kreską „Usuń". Dotąd
+                                     renderowało się PO `.danger-zone`, czyli po
+                                     stronie akcji nieodwracalnej — w jedynym
+                                     stanie, w którym obie są naraz (autor treści
+                                     ogląda cudzą odpowiedź), kreska przestawała
+                                     cokolwiek oddzielać. --}}
+                                @if(auth()->id() !== $reply->author_id)
+                                    <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $reply->getKey()]) }}">Zgłoś</a>
                                 @endif
-                            @endcan
+                            </div>
 
                             @can('delete', $reply)
-                                <div class="danger-zone mt-2 pt-3">
+                                <div class="danger-zone">
                                     @if($replyContentOwnerRemovingOthers)
-                                        <details>
+                                        <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$reply->id) && $errors->any()) open @endif>
                                             <summary class="btn btn-quiet inline-flex">Usuń</summary>
                                             <form class="mt-2" method="POST" action="{{ route('comments.destroy', $reply) }}">
                                                 @csrf
                                                 @method('DELETE')
-                                                <x-field name="reason" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
+                                                <input type="hidden" name="_wiersz" value="usun-{{ $reply->id }}">
+                                                <x-field name="reason" :wiersz="'usun-'.$reply->id" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
                                                          help="Osoba, która to napisała, zobaczy ten powód." required />
                                                 <button class="btn btn-danger" type="submit">Usuń odpowiedź</button>
                                             </form>
@@ -110,58 +159,84 @@
                                     @endif
                                 </div>
                             @endcan
-
-                            @if(auth()->id() !== $reply->author_id)
-                                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $reply->getKey()]) }}">Zgłoś</a>
-                            @endif
                         @endauth
                     @endif
                 </div>
             @endforeach
 
             @auth
-                <details class="mt-3">
-                    <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
-                    <form class="mt-3" method="POST" action="{{ $action }}">
-                        @csrf
-                        <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
-                        <x-field name="body" label="Twoja odpowiedź" type="textarea" :rows="3" required />
-                        <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
-                    </form>
-                </details>
+                @php($commentRemainingMinutes = 15 - (int) $comment->created_at->diffInMinutes(now()))
+                @php($commentContentOwnerRemovingOthers = auth()->id() !== $comment->author_id && auth()->id() === $comment->notifiableUserId())
+
+                {{-- JEDEN RZĄD AKCJI ZWYKŁYCH, NIE TRZY WIERSZE (issue #433).
+
+                     „Odpowiedz", „Popraw" i „Zgłoś" stoją obok siebie i zawijają
+                     się, gdy zabraknie miejsca — zmierzone szerokości i to,
+                     przy której szerokości okna która para przestaje się mieścić,
+                     są wypisane przy `.akcje-komentarza` w `resources/css/app.css`.
+
+                     „Usuń" ZOSTAJE POZA TYM RZĘDEM, pod kreską `.danger-zone`.
+                     Akcja nieodwracalna nie ma prawa stanąć ramię w ramię ze
+                     zwykłą (AGENTS.md §5) — a potwierdzenie dalej idzie przez
+                     `<x-confirm-button>`, czyli przez `<details>`, bez linijki
+                     JavaScriptu.
+
+                     `@php` z minutami i z rolą właściciela treści przeniesione
+                     TUTAJ, przed `@unless`: te same dwie zmienne czyta i rząd
+                     akcji, i blok „Usuń" niżej, a liczenie ich w dwóch miejscach
+                     byłoby dwoma miejscami do poprawienia. --}}
+                <div class="akcje-komentarza">
+                    <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
+                        <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
+                        <form class="mt-3" method="POST" action="{{ $action }}">
+                            @csrf
+                            <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
+                            <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
+                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required />
+                            <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                        </form>
+                    </details>
+
+                    @unless($commentIsRemoved)
+                        @can('update', $comment)
+                            @if($commentRemainingMinutes > 0)
+                                <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$comment->id) && $errors->any()) open @endif>
+                                    <summary class="btn btn-quiet inline-flex">Popraw</summary>
+                                    {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
+                                         angielski, więc pisał „3 minutęs". --}}
+                                    <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
+                                    <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
+                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required />
+                                        <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
+                                    </form>
+                                </details>
+                            @endif
+                        @endcan
+
+                        {{-- „Zgłoś" jest akcją zwykłą — to samo, co przy
+                             odpowiedzi wyżej: dotąd stało PO `.danger-zone`. --}}
+                        @if(auth()->id() !== $comment->author_id)
+                            <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $comment->getKey()]) }}">Zgłoś</a>
+                        @endif
+                    @endunless
+                </div>
             @endauth
 
             @unless($commentIsRemoved)
                 @auth
-                    @php($commentRemainingMinutes = 15 - (int) $comment->created_at->diffInMinutes(now()))
-                    @php($commentContentOwnerRemovingOthers = auth()->id() !== $comment->author_id && auth()->id() === $comment->notifiableUserId())
-
-                    @can('update', $comment)
-                        @if($commentRemainingMinutes > 0)
-                            <details class="mt-2">
-                                <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
-                                     angielski, więc pisał „3 minutęs". --}}
-                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
-                                    @csrf
-                                    @method('PUT')
-                                    <x-field name="body" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
-                                    <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
-                                </form>
-                            </details>
-                        @endif
-                    @endcan
-
                     @can('delete', $comment)
-                        <div class="danger-zone mt-2 pt-3">
+                        <div class="danger-zone">
                             @if($commentContentOwnerRemovingOthers)
-                                <details>
+                                <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$comment->id) && $errors->any()) open @endif>
                                     <summary class="btn btn-quiet inline-flex">Usuń</summary>
                                     <form class="mt-2" method="POST" action="{{ route('comments.destroy', $comment) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <x-field name="reason" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"
+                                        <input type="hidden" name="_wiersz" value="usun-{{ $comment->id }}">
+                                        <x-field name="reason" :wiersz="'usun-'.$comment->id" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"
                                                  help="Osoba, która to napisała, zobaczy ten powód." required />
                                         <button class="btn btn-danger" type="submit">Usuń komentarz</button>
                                     </form>
@@ -174,32 +249,47 @@
                             @endif
                         </div>
                     @endcan
-
-                    @if(auth()->id() !== $comment->author_id)
-                        <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $comment->getKey()]) }}">Zgłoś</a>
-                    @endif
                 @endauth
             @endunless
         </article>
     @empty
-        <p class="meta">Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.</p>
+        <p class="meta">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
     @endforelse
 
     @auth
-        <form class="card" method="POST" action="{{ $action }}">
+        <form class="panel-formularza" method="POST" action="{{ $action }}">
             @csrf
+            <input type="hidden" name="_wiersz" value="nowy-komentarz">
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
                  „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
-                 przy tym parametrze w `components/field.blade.php`. --}}
-            <x-field name="body" label="Napisz komentarz" type="textarea" :rows="4"
-                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                 przy tym parametrze w `components/field.blade.php`.
+
+                 PIERWSZE ZDANIE PODPOWIEDZI WYMIENIONE, DRUGIE NIETKNIĘTE
+                 (decyzja właściciela).
+                 Było: „Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                 Dwa powody na pierwsze zdanie: etykieta pola brzmi już „Napisz
+                 komentarz", więc podpowiedź zaczynała się tym samym słowem drugi
+                 raz pod rząd — i mówiła, JAK pisać, czyli była metajęzykiem
+                 o tonie, a nie informacją.
+                 „Choćby jedno zdanie" zdejmuje presję DŁUGOŚCI. Drugie zdanie
+                 zostaje celowo: zdejmuje presję TREŚCI komuś, kto nie ma nic
+                 mądrego do powiedzenia o daniu, a chciałby zapytać o zamiennik
+                 mąki. Razem mówią „tyle wystarczy", a nie „pisz tak".
+                 Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
+            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4"
+                     :help="$answers ? 'Napisz, co sprawdziło się w Twojej kuchni.' : 'Choćby jedno zdanie. Pytanie do autora też jest w porządku.'"
+                     :licznik-znakow="4000"
                      required bez-oznaczenia />
-            <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
+            <button class="btn btn-primary" type="submit">{{ $answers ? 'Wyślij odpowiedź' : 'Wyślij komentarz' }}</button>
         </form>
     @else
+        {{-- BEZ „Zajmuje to minutę": obietnica z miarą, której nie mierzymy,
+             a przy tym niejasna — stała po dwóch różnych drogach naraz
+             (logowanie istniejącym kontem i zakładanie nowego), więc nie było
+             wiadomo, o której mówi. Zostaje samo to, co jest do zrobienia. --}}
         <p class="notice">
-            Żeby dodać komentarz, <a href="{{ route('login') }}">zaloguj się</a>
-            albo <a href="{{ route('register') }}">załóż konto</a>. Zajmuje to minutę.
+            {{ $answers ? 'Żeby odpowiedzieć,' : 'Żeby dodać komentarz,' }} <a href="{{ route('login') }}">zaloguj się</a>
+            albo <a href="{{ route('register') }}">załóż konto</a>.
         </p>
     @endauth
 

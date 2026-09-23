@@ -9,7 +9,7 @@
 <x-layout title="Podsumowanie włączone" :noindex="true">
     <h1>Będziemy pisać dalej</h1>
 
-    <div class="card">
+    <div class="sekcja-strony">
         <p class="mt-0">
             Tygodniowe podsumowanie jest znowu włączone. Przyjdzie najwyżej raz
             w tygodniu — i tylko wtedy, gdy będzie o czym pisać.

@@ -1,0 +1,38 @@
+ZOOM_TAB_OK /szukaj 8/8
+GEOMETRIA {"scrollY":970,"innerHeight":800,"active":"<a href=\"http://127.0.0.1:8068/przepisy/nihil-qui-aliquid-d5xktd\" class=\"link-tytul\" data-pomiar-tab=\"7\">Kalarepa pieczona z warzywami i ziołami</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-235.7578125,"height":219.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-714.2421875,"height":1292.0546875,"position":"static"},{"tag":"H1","cls":"","top":-714.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-635.5078125,"height":554,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1903.84375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":144,"height":705.125,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 8/8
+GEOMETRIA {"scrollY":970,"innerHeight":800,"active":"<a href=\"http://127.0.0.1:8068/przepisy/nihil-qui-aliquid-d5xktd\" class=\"link-tytul\" data-pomiar-tab=\"7\">Kalarepa pieczona z warzywami i ziołami</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-235.7578125,"height":219.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-714.2421875,"height":1292.0546875,"position":"static"},{"tag":"H1","cls":"","top":-714.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-635.5078125,"height":554,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1903.84375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":144,"height":705.125,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 8/8
+GEOMETRIA {"scrollY":473.5,"innerHeight":800,"active":"<a href=\"http://127.0.0.1:8068/przepisy/nihil-qui-aliquid-d5xktd\" class=\"link-tytul\" data-pomiar-tab=\"7\">Kalarepa pieczona z warzywami i ziołami</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-96.7578125,"height":80.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-356.7421875,"height":883.96875,"position":"static"},{"tag":"H1","cls":"","top":-356.7421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-278.0078125,"height":377.75,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1300.390625,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":172,"height":591,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 8/8
+GEOMETRIA {"scrollY":473.5,"innerHeight":800,"active":"<a href=\"http://127.0.0.1:8068/przepisy/nihil-qui-aliquid-d5xktd\" class=\"link-tytul\" data-pomiar-tab=\"7\">Kalarepa pieczona z warzywami i ziołami</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-96.7578125,"height":80.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-356.7421875,"height":883.96875,"position":"static"},{"tag":"H1","cls":"","top":-356.7421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-278.0078125,"height":377.75,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1300.390625,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":172,"height":591,"position":"static"}]}
+[
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  }
+]

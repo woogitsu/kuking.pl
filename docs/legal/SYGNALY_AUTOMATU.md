@@ -63,8 +63,25 @@ część, którą skala naprawdę zmieniła.
 
 ## 3. Sygnały wdrożone DZIŚ
 
-Wszystkie trzy opisują zachowanie **jednego konta wobec jego własnej treści**.
-Żaden nie porównuje kont między sobą.
+Sygnałów jest **cztery**, w kolejności pilności (`Report::WAGA`):
+
+| sygnał | waga | opisany w |
+|---|---:|---|
+| `automat_model` | **4** | §8 — ocena modelem OpenAI |
+| `automat_wzorzec` | 3 | §3.1 |
+| `automat_odnosnik` | 2 | §3.2 |
+| `automat_powtorzenie` | 1 | §3.3 |
+
+**`automat_model` stoi najwyżej i dotyczy INNEJ klasy treści** niż pozostałe
+trzy: nienawiści, przemocy, treści seksualnych i samookaleczenia (D-055).
+Do 20 września ta sekcja wymieniała tylko trzy sygnały z wagami 3–2–1 —
+moderator czytający listę nie wiedział, że istnieje cięższy. Pełny opis tej
+drogi jest w §8; tutaj stoi, bo **tu się patrzy, żeby wiedzieć, co automat
+potrafi podnieść**. Zgodności listy z kodem pilnuje
+`DokumentyPrawneNieKlamiaTest::test_procedura_wymienia_kazdy_sygnal_automatu`.
+
+Trzy sygnały opisane niżej w §3.1–3.3 opisują zachowanie **jednego konta
+wobec jego własnej treści**. Żaden z nich nie porównuje kont między sobą.
 
 ### 3.1. Znany wzorzec ogłoszenia (`automat_wzorzec`, waga 3)
 
@@ -235,8 +252,10 @@ Kuking stoi na fotografiach obiadów wrzucanych przez nieznajomych. Wersja
 której nikt nie przeczyta, dopóki ktoś jej nie zgłosi**. Zdjęcia mają
 pierwszeństwo przed tekstem przy wdrożeniu.
 
-Od issue #237 dotyczy to także **zdjęcia profilowego**, które jest oglądane
-częściej niż jakikolwiek wpis — patrz §9.
+Od issue #237 dotyczyło to także **zdjęcia profilowego**, które jest oglądane
+częściej niż jakikolwiek wpis — patrz §9. **Od D-240 już nie:** awatar bez
+potwierdzonej zgody nie wychodzi do OpenAI, a mechanizmu takiej zgody nie ma
+(§10).
 
 ### 8.3. Dane wychodzą poza EOG
 
@@ -306,6 +325,16 @@ podsumowanie jest zbiorcze, a listy natychmiastowe ograniczone do dwóch
 kategorii.
 
 ### 8.6. Wymagania techniczne
+
+**Dziennik awarii (#828, #925):** cztery granice — transport OpenAI,
+przygotowanie zdjęcia, analiza treści i analiza awatara — korzystają ze
+wspólnego `App\Moderacja\ExceptionContext`. Z wyjątku zostaje tylko nazwa
+klasy; etap jest stałą podaną przez nasz kod. Nie zapisujemy wiadomości,
+niezatwierdzonego kodu wyjątku, stosu ani poprzedniego wyjątku. Mogą zawierać
+tekst, zdjęcie, adres z parametrami albo sekret. Osobna gałąź błędnej
+odpowiedzi HTTP zachowuje dotychczasowy status liczbowy, bez jej ciała.
+Awaria nadal oznacza brak wyniku analizy, nie sankcję dla autora.
+Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
 
 - klucz przez `env()` (`OPENAI_MODERATION_KEY`); **brak klucza = funkcja
   wyłączona** — `KlientOpenAI::oceniamy()` oddaje `false`, żadne żądanie nie
@@ -420,3 +449,27 @@ filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
 - **koszt w kolejce.** Endpoint jest bezpłatny, więc pieniędzy to nie kosztuje,
   ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
   na pierwszej setce kont (§6).
+
+## 10. Co wolno wysłać do OpenAI (D-240)
+
+Do dostawcy wychodzi **wyłącznie treść publiczna**: taka, którą gość bez konta
+zobaczyłby w serwisie w chwili wysyłki. Rozstrzyga `app/Moderacja/GranicaWysylki.php`,
+pytając te same Policy co strona dla gościa — więc komentarz pod wpisem albo
+przepisem przełączonym na prywatny, „dla obserwujących", ukrytym, usuniętym
+albo należącym do zbanowanego konta nie wychodzi (#827). Granica jest pytana
+przed **każdym** żądaniem, także przed każdym zdjęciem wpisu, i jeszcze raz
+przed postawieniem oznaczenia. Treść „dla obserwujących" nie jest już oceniana
+modelem — to świadome zawężenie wobec D-055.
+
+Zdjęcie wpisu wychodzi tylko z wariantu `thumb`, bez zastępstwa innym
+wariantem, i tylko gdy **bajty** — przed dekodowaniem i po przekodowaniu do
+JPEG — mają dłuższy bok najwyżej 320 px. Inaczej zdjęcie jest pomijane
+z wpisem w dzienniku (`stage=image_boundary`).
+
+**Zdjęcie profilowe nie wychodzi wcale.** `PrzeanalizujAwatar` zostaje pustym
+zadaniem tylko po to, żeby zlecenia sprzed wdrożenia nie kończyły się błędem.
+
+Brak klucza na produkcji zostawia w dzienniku `stage=openai_disabled` przy
+każdej nieocenionej treści. Odpowiedź bez ani jednej znanej kategorii,
+z pustymi albo uszkodzonymi wynikami, nie jest już oceną „czyste" — zostawia
+ostrzeżenie. Lokalne sygnały z §3 działają niezależnie od stanu modelu.

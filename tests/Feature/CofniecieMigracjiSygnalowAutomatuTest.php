@@ -63,16 +63,33 @@ class CofniecieMigracjiSygnalowAutomatuTest extends TestCase
         $otwarte = $this->oznaczenie(Report::STATUS_OPEN, (string) Str::uuid());
         $zamkniete = $this->oznaczenie(Report::STATUS_REJECTED, (string) Str::uuid());
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało rozstrzygnięte oznaczenia automatu.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić ILE się straci i CO ZROBIĆ.
-            $this->assertStringContainsString('1 rozstrzygniętych oznaczeń automatu', $e->getMessage());
-            $this->assertStringContainsString('kopię tabeli', $e->getMessage());
-            $this->assertStringContainsString(self::FURTKA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało rozstrzygnięte oznaczenia automatu.');
+
+        // Komunikat ma mówić ILE się straci i CO ZROBIĆ. JEDNO oznaczenie,
+        // nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest zdaniem poprawnym po polsku.
+        $this->assertStringContainsString(
+            'Liczba rozstrzygniętych oznaczeń automatu w bazie: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 rozstrzygniętych', $odmowa->getMessage());
+
+        $this->assertStringContainsString('kopię tabeli', $odmowa->getMessage());
+        $this->assertStringContainsString(self::FURTKA, $odmowa->getMessage());
 
         // ASERCJA KONTROLNA — strażnik stoi PRZED kasowaniem, więc nie zginęło
         // nic, także oznaczenie otwarte.

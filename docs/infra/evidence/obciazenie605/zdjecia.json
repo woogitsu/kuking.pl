@@ -1,0 +1,29 @@
+{
+    "12mpx": {
+        "plik": "\/home\/mateusz\/kuking-b605-run\/zdjecia\/kuking-b605-12mpx.jpg",
+        "szerokosc": 4000,
+        "wysokosc": 3000,
+        "megapiksele": 12,
+        "jakosc_jpeg": 88,
+        "bajty": 5909277,
+        "megabajty": 5.64
+    },
+    "24mpx": {
+        "plik": "\/home\/mateusz\/kuking-b605-run\/zdjecia\/kuking-b605-24mpx.jpg",
+        "szerokosc": 5657,
+        "wysokosc": 4243,
+        "megapiksele": 24,
+        "jakosc_jpeg": 88,
+        "bajty": 11662419,
+        "megabajty": 11.12
+    },
+    "48mpx": {
+        "plik": "\/home\/mateusz\/kuking-b605-run\/zdjecia\/kuking-b605-48mpx.jpg",
+        "szerokosc": 8000,
+        "wysokosc": 6000,
+        "megapiksele": 48,
+        "jakosc_jpeg": 72,
+        "bajty": 14282225,
+        "megabajty": 13.62
+    }
+}

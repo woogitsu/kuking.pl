@@ -14,24 +14,32 @@
     `_wiersz` (zwykły, pojedynczy formularz) zachowuje się jak dawniej —
     `old('_wiersz')` jest wtedy puste i dopisek znika.
 --}}
+@props(['errorBag' => 'default', 'fieldIds' => []])
 @php
-    $wierszSufiks = old(\App\Support\WierszFormularza::POLE) !== null
-        ? '-'.str_replace(['[', ']', '.'], '-', (string) old(\App\Support\WierszFormularza::POLE))
+    // Strony z walidacją GET (wyszukiwarka, onboarding „ludzie") przekazują
+    // tu gotowy `MessageBag` z własnego walidatora, nie `ViewErrorBag` z
+    // sesji. `MessageBag` nie ma worków (`getBag()`), więc bez tej gałęzi
+    // cała strona kończyła się błędem 500.
+    $formErrors = $errors instanceof \Illuminate\Support\ViewErrorBag
+        ? $errors->getBag($errorBag)
+        : $errors;
+    // `aktywnyWiersz()` odrzuca `_wiersz` przesłane jako tablica/obiekt
+    // zamiast rzutować je wprost na string — inaczej ten sam błąd renderu
+    // co w x-field (issue #745), tyle że tu, w podsumowaniu błędów.
+    $aktywnyWiersz = \App\Support\WierszFormularza::aktywnyWiersz();
+    $wierszSufiks = $aktywnyWiersz !== null
+        ? '-'.str_replace(['[', ']', '.'], '-', $aktywnyWiersz)
         : '';
 @endphp
-@if($errors->any())
+@if($formErrors->any())
     <div class="error-summary" role="alert" tabindex="-1">
         <p class="error-summary-title">
-            @if($errors->count() === 1)
-                Jednej rzeczy jeszcze brakuje
-            @else
-                Kilku rzeczy jeszcze brakuje
-            @endif
+            Sprawdź formularz
         </p>
         <ul>
-            @foreach($errors->keys() as $key)
+            @foreach($formErrors->keys() as $key)
                 <li>
-                    <a href="#f-{{ str_replace(['[', ']', '.'], '-', $key) }}{{ $wierszSufiks }}">{{ $errors->first($key) }}</a>
+                    <a href="#{{ $fieldIds[$key] ?? 'f-'.str_replace(['[', ']', '.'], '-', $key).$wierszSufiks }}">{{ $formErrors->first($key) }}</a>
                 </li>
             @endforeach
         </ul>

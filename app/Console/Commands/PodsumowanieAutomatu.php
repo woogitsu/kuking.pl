@@ -48,7 +48,8 @@ class PodsumowanieAutomatu extends Command
             return self::SUCCESS;
         }
 
-        $od = now()->subHours(max(1, (int) $this->option('godzin')));
+        $godzin = max(1, (int) $this->option('godzin'));
+        $od = now()->subHours($godzin);
 
         $nowe = Report::query()
             ->where('source', Report::SOURCE_AUTOMAT)
@@ -67,7 +68,7 @@ class PodsumowanieAutomatu extends Command
             ->count();
 
         Notification::route('mail', $adres)->notify(
-            new PodsumowanieKolejkiAutomatu($nowe, $czekaja, PodsumowanieKolejkiAutomatu::wedlugSygnalu($od)),
+            new PodsumowanieKolejkiAutomatu($nowe, $czekaja, PodsumowanieKolejkiAutomatu::wedlugSygnalu($od), $godzin),
         );
 
         $this->info('Wysłano podsumowanie: '.$nowe.' nowych, '.$czekaja.' czeka w kolejce.');

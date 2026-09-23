@@ -26,20 +26,26 @@
         człowiek na czytniku ekranu usłyszał „lista, 30 pozycji" zamiast
         trzydziestu niepowiązanych bloków.
 
-        Bierzemy z tego SEMANTYKĘ, nie kształt: `.lista-naga` (klasa aplikacji)
-        zdejmuje kropki i wcięcie, a karty zostają kartami. Kształt wiersza
-        (`.lista-wierszy` + `.wiersz`) to osobna decyzja — patrz komentarz przy
-        `<article class="card">` niżej.
+        `.lista-naga` zachowuje tę semantykę. D-212 przenosi kompozycję
+        zwykłych zdarzeń z prototypu: awatar, treść i akcja obok siebie,
+        gdy jest na to miejsce. Pełne decyzje zachowują własny układ.
     --}}
     {{-- `count()` to liczba pozycji NA TEJ STRONIE — dokładnie ten sam warunek,
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
          wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
     @if($notifications->count() > 0)
-    <ul class="lista-naga">
+    <ul class="lista-naga marka-powiadomienia">
         @foreach($notifications as $notification)
         @php
             $actor = $notification->actor;
             $data = $notification->data ?? [];
+            $zwykleZdarzenie = in_array($notification->type, [
+                \App\Models\Notification::TYPE_COOKED,
+                \App\Models\Notification::TYPE_COMMENT,
+                \App\Models\Notification::TYPE_REPLY,
+                \App\Models\Notification::TYPE_FOLLOW,
+                \App\Models\Notification::TYPE_SAVED,
+            ], true);
 
             /*
              * UZASADNIENIE DECYZJI MODERACYJNEJ (DSA art. 17 ust. 3).
@@ -64,27 +70,18 @@
                 : \App\Domain\Moderation\UzasadnienieDecyzji::zdania($decyzjaModeracyjna);
         @endphp
         {{--
-            KSZTAŁT KARTY ZOSTAJE — wygrywa aplikacja, wbrew §13 systemu.
-
-            System chce tu `.wiersz` w `.lista-wierszy`, bo „to krótkie,
-            jednorodne pozycje, a karta w tym miejscu udaje treść, której nie
-            ma". U nas ta przesłanka jest nieprawdziwa: powiadomienie od
-            moderacji niesie uzasadnienie decyzji z DSA art. 17 (kilka
-            akapitów) i do dwóch przycisków — „Zobacz" oraz „Odwołanie od tej
-            decyzji". Ten sam system zabrania wiersza z dwiema akcjami i chce,
-            żeby cały wiersz był jednym linkiem; to jest zmiana ZACHOWANIA,
-            nie wyglądu, więc nie rozstrzygam jej sam (pytanie do właściciela
-            w raporcie).
-
-            Zdjęte: martwa klasa `style-unread`. Nie ma dla niej reguły
-            w żadnym arkuszu ani w żadnym teście od pierwszego commita.
+            D-212: tylko pięć nazwanych zwykłych zdarzeń dostaje akcję obok
+            treści. Decyzje moderacyjne, zgłoszenia i pozostałe typy zachowują
+            pełne akapity oraz wszystkie działania. Nowy typ nie dziedziczy
+            wąskiego układu automatycznie. Karta nie staje się linkiem:
+            odczyt nadal zapisuje prawdziwy formularz POST.
         --}}
-        <li><article class="card mb-3 @if($notification->isUnread()) notification-nieprzeczytane @endif">
-            <div class="flex gap-3 items-start">
+        <li><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
+            <div class="flex gap-3 items-start powiadomienie-wiersz">
                 @if($actor)
-                    <x-avatar :user="$actor" :size="44" />
+                    <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
-                <div class="min-w-0">
+                <div class="min-w-0 powiadomienie-tresc">
                     <p class="m-0 mb-1">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
@@ -131,32 +128,31 @@
                         --}}
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
-                                <strong>{{ $actor?->displayName() }} — ugotowane z Twojego przepisu</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — ugotowane z Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
-                                <strong>{{ $actor?->displayName() }} — nowy komentarz.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — {{ ($data['question_answer'] ?? false) ? 'odpowiedź na Twoje pytanie.' : 'nowy komentarz.' }}</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
-                                <strong>{{ $actor?->displayName() }} — nowa odpowiedź.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowa odpowiedź.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
-                                <strong>{{ $actor?->displayName() }} zaczyna Cię obserwować.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() }} ma Twój przepis</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
                                 „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
-                                     (issue #6). Pierwszy wpis to jedyna okazja,
-                                     żeby ktoś poczuł, że jest tu ktoś po drugiej
-                                     stronie — i mamy na to dobę. --}}
+                                     (issue #6). Zachęca do odpowiedzi nowej osobie,
+                                     bez obietnicy terminu ani tezy o retencji. --}}
                                 <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
-                                Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
+                                To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
                                 @break
                             @case(\App\Models\Notification::TYPE_APPEAL_FILED)
                                 {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył
@@ -173,7 +169,7 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
-                                Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
+                                Zacznij od zdjęcia tego, co dziś ugotowałeś.
                                 @break
                             @case(\App\Models\Notification::TYPE_REPORT_RECEIVED)
                                 {{-- POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA

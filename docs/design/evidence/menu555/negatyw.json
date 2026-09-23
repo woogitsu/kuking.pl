@@ -1,0 +1,9 @@
+{
+  "negative_exit": 1,
+  "caught": "MENU_ZBYT_WASKIE",
+  "positive_exit": 0,
+  "md5_before": "0d0228335e9ba01f540c1e34b84ea660",
+  "md5_after": "0d0228335e9ba01f540c1e34b84ea660",
+  "mtime_restored": true,
+  "backup": "/tmp/menu555-negative-z_w31a6r/app.css"
+}

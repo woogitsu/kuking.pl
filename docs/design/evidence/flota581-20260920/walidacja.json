@@ -1,0 +1,99 @@
+{
+  "pass": true,
+  "complete": true,
+  "scope": "9 invalid server POST; geometry and native validation require separate acceptance",
+  "rows": [
+    {
+      "scenario": "report-custom",
+      "row": 1,
+      "expectedErrors": [
+        "reason_code",
+        "suspend_days_custom"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "report-custom",
+      "row": 2,
+      "expectedErrors": [
+        "reason_code",
+        "suspend_days_custom"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "report-no-term",
+      "row": 1,
+      "expectedErrors": [
+        "suspend_days"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "report-no-term",
+      "row": 2,
+      "expectedErrors": [
+        "suspend_days"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "restore-no-reason",
+      "row": 1,
+      "expectedErrors": [
+        "reason_code"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "appeal-short",
+      "row": 1,
+      "expectedErrors": [
+        "decision_note"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "appeal-short",
+      "row": 2,
+      "expectedErrors": [
+        "decision_note"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "appeal-no-outcome",
+      "row": 1,
+      "expectedErrors": [
+        "outcome"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    },
+    {
+      "scenario": "appeal-no-outcome",
+      "row": 2,
+      "expectedErrors": [
+        "outcome"
+      ],
+      "pass": true,
+      "httpStatus": 302,
+      "retryAfter": null
+    }
+  ]
+}

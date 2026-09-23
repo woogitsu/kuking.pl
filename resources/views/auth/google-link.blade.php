@@ -14,14 +14,14 @@
 
         GET niczego nie zmienia. Powiązanie powstaje dopiero po POST poniżej.
     --}}
-    <div class="card">
+    <div class="sekcja-strony">
         <p>
             Na adres <strong>{{ $email }}</strong> jest już konto w Kuking:
             <strong>{{ $displayName ?? 'to konto' }}</strong>.
         </p>
         <p>
             Możemy połączyć je z Twoim kontem Google. Od tej chwili będziesz wchodzić
-            jednym kliknięciem, a Twoje hasło zostanie takie, jakie było — nadal będzie działać.
+            przyciskiem „Wejdź kontem Google”, a Twoje hasło zostanie takie, jakie było — nadal będzie działać.
             Nic w Twoim profilu, przepisach ani zeszytach się nie zmieni.
         </p>
 

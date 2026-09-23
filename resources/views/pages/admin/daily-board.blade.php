@@ -18,11 +18,16 @@
 
     <x-error-summary />
 
-    <form method="POST" action="{{ route('admin.daily-board') }}">
+    {{-- Panel na `<form>`, nie na sekcjach — ten sam powód co w
+         `pages/recipes/create.blade.php`. Tutaj dochodzi trzeci: obie sekcje
+         mają gałąź `@empty` („w ostatnich 7 dniach nikt nic nie opublikował"),
+         a pusty tydzień to normalny stan panelu, nie awaria. Mocna obwódka
+         obiecywałaby wtedy pola, których nie ma. --}}
+    <form class="panel-formularza" method="POST" action="{{ route('admin.daily-board') }}">
         @csrf
         @method('PUT')
 
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">Osoby</h2>
             <p class="meta">Najwyżej 6. Przy każdej możesz dopisać jedno zdanie — pokaże się pod jej kartą.</p>
 
@@ -58,7 +63,7 @@
             @endforelse
         </section>
 
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">Dania z ostatnich 7 dni</h2>
             <p class="meta">Najwyżej 6.</p>
 

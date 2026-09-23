@@ -43,6 +43,26 @@ class NotificationController extends Controller
      * Wczytanie w widoku (`$decyzja->appeal`) dałoby jednak N+1 na stronie
      * z trzydziestoma powiadomieniami, więc identyfikatory zbieramy tutaj.
      *
+     * ZGŁOSZENIE IDZIE RAZEM Z DECYZJĄ, I TO NIE JEST OZDOBA.
+     * Jedno zapytanie na wiersze decyzji nie wystarczało, bo N+1 wracał
+     * o jedną warstwę niżej: `UzasadnienieDecyzji::skadSprawa()` pyta
+     * `$decyzja->report?->wykrylAutomat()` oraz `$decyzja->report?->reason`,
+     * żeby napisać prawdę wymaganą przez DSA art. 17 ust. 3 lit. b i c —
+     * czy sprawę zaczęło czyjeś zgłoszenie, czy wskazał ją automat, i który.
+     * Bez `with('report')` każde takie powiadomienie dokładało własne
+     * `select * from reports where id = ?`.
+     *
+     * Zmierzone przed poprawką (`PowiadomieniaBezWachlarzaZapytanTest`):
+     * 9 zapytań przy 2 powiadomieniach moderacyjnych i 27 przy 20 — czyli
+     * dokładnie jedno na powiadomienie. Strona mieści ich 30.
+     *
+     * Bez zawężania kolumn (`report:id,...`): `wykrylAutomat()` czyta
+     * `source`, zdanie o narzędziu czyta `reason`, a następna wersja tego
+     * uzasadnienia sięgnie po kolejną kolumnę — a kolumna spoza listy wraca
+     * jako `null` bez błędu i bez śladu (issue #368). Cicho przekłamane
+     * uzasadnienie decyzji moderacyjnej to nie jest cena za jedną kolumnę
+     * mniej w selekcie.
+     *
      * @param  list<Notification>  $powiadomienia
      * @return Collection<string, ModerationAction>
      */
@@ -67,6 +87,7 @@ class NotificationController extends Controller
         }
 
         return ModerationAction::query()
+            ->with('report')
             ->whereIn('id', array_keys($identyfikatory))
             ->get()
             ->keyBy(fn (ModerationAction $decyzja): string => (string) $decyzja->getKey());

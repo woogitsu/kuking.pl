@@ -58,7 +58,7 @@
         'avatar' => ['settings.avatar', 'Zdjęcie profilowe', 'Dodaj, zmień albo usuń swoje zdjęcie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
         'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
-        'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres, na który przychodzi nowe hasło'],
+        'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres do wiadomości z Kuking'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
@@ -66,7 +66,10 @@
     ];
 @endphp
 
-<nav class="card ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
+{{-- Sekcja strony, nie karta: to nawigacja, nie treść. Warstwa 3 ma te same
+     wartości co warstwa 4 (blok szyny), więc spis wygląda dokładnie tak jak
+     dotąd — bez cienia, który konkurowałby z kolumną główną. --}}
+<nav class="sekcja-strony ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
     <h2 class="ustawienia-nawigacja-tytul">Wszystkie ustawienia</h2>
 
     <ul class="ustawienia-nawigacja-lista">

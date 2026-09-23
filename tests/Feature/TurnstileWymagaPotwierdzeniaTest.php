@@ -308,7 +308,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             );
 
             $this->assertCount(1, $odrzucone, 'Pusta wartość ma odrzucać.');
-            $this->assertSame(Turnstile::komunikatBrakuTokenu(), $odrzucone[0]);
+            $this->assertSame(Turnstile::komunikatBrakuTokenu('rejestracja'), $odrzucone[0]);
         }
 
         $this->assertNiePytalismyCloudflare();
@@ -660,6 +660,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // Turnstile awarię i ten test sprawdzałby coś innego, niż mówi jego
         // nazwa.
         $this->pocztaDziala();
+        $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')
@@ -704,6 +705,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // domyślny `MAIL_MAILER=array` testów zepsułby ten test powodem
         // niezwiązanym z Turnstile.
         $this->pocztaDziala();
+        $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')
@@ -761,6 +763,42 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     private function pocztaDziala(): void
     {
         config(['mail.default' => 'smtp']);
+    }
+
+    /**
+     * `/health` sprawdza od 12 września 2026 także dwie dodatkowe drogi
+     * wejścia — `google` i `facebook` (issue #258/#259). Ten sam wywód co przy
+     * `pocztaDziala()` wyżej: na produkcji, z funkcją włączoną i bez kluczy,
+     * każda z nich zgłasza WŁASNY powód, więc `status` byłby `degraded`
+     * niezależnie od Turnstile i ten test sprawdzałby coś innego, niż mówi
+     * jego nazwa. Kluczy w testach nie ma i mieć nie musi, więc wyłączamy obie
+     * drogi świadomie — tym samym przełącznikiem, którym wyłącza się je na
+     * produkcji.
+     */
+    /**
+     * Ucisza sprawdzenia `/health`, które na produkcji zapalają się z WŁASNYCH
+     * powodów, niezwiązanych z Turnstile: dwie dodatkowe drogi wejścia
+     * (issue #258/#259) i analityka odwiedzin (D-092). Bez tego testy niżej
+     * mierzyłyby cudzą awarię.
+     *
+     * Analityka nie ma przełącznika „wyłącz" i mieć go nie ma (obietnica stoi
+     * w polityce prywatności, nie w konfiguracji — patrz
+     * `HealthController::sprawdzAnalityke()`), więc uciszamy ją jedyną
+     * uczciwą drogą: udawanym tokenem.
+     */
+    private function wejsciaZewnetrzneWylaczone(): void
+    {
+        config([
+            'kuking.google.wlaczone' => false,
+            'kuking.facebook.wlaczone' => false,
+            'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
+            // Czyszczenie cache CDN (audyt G-03) ma na produkcji własny sygnał
+            // `czyszczenie_cdn_wylaczone` przy pustych `CLOUDFLARE_ZONE_ID`
+            // i `CLOUDFLARE_PURGE_TOKEN` — w testach ich nie ma i mieć nie
+            // musi. Udawana para ucisza go, żeby ten plik mierzył Turnstile.
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token-czyszczenia',
+        ]);
     }
 
     private function wylaczTurnstile(): void

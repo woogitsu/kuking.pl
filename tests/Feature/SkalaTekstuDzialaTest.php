@@ -84,6 +84,51 @@ class SkalaTekstuDzialaTest extends TestCase
         }
     }
 
+    /**
+     * Każdy oferowany rozmiar ma podpis słowem.
+     *
+     * Do 11 września podpisy siedziały w widoku jako łańcuch `@if/@elseif`
+     * z gałęzią `@else` na końcu — więc każdy nowy rozmiar dostawał podpis
+     * ostatniego („Bardzo duży") i NIC BY TEGO NIE ZGŁOSIŁO. Po przeniesieniu
+     * ich do `kuking.text.scale_labels` brak podpisu jest po prostu brakiem
+     * klucza, a to daje się sprawdzić.
+     */
+    public function test_kazdy_rozmiar_ma_podpis_slowem(): void
+    {
+        /** @var array<int, string> $podpisy */
+        $podpisy = (array) config('kuking.text.scale_labels');
+
+        $this->assertNotEmpty($podpisy, 'config(kuking.text.scale_labels) jest puste — test nie mierzy niczego.');
+
+        foreach ($this->skaleZKonfiguracji() as $skala) {
+            $this->assertArrayHasKey(
+                $skala,
+                $podpisy,
+                "Rozmiar {$skala}% jest do wyboru w ustawieniach, ale nie ma podpisu — "
+                .'człowiek zobaczyłby w tym wierszu goły procent zamiast słowa.',
+            );
+
+            $this->assertNotSame('', trim($podpisy[$skala]), "Podpis rozmiaru {$skala}% jest pusty.");
+        }
+    }
+
+    /**
+     * Podpis bez rozmiaru jest martwym wpisem: sugeruje przy czytaniu, że
+     * taka opcja istnieje, a ustawienia jej nie pokazują.
+     */
+    public function test_nie_ma_podpisu_bez_rozmiaru(): void
+    {
+        $skale = $this->skaleZKonfiguracji();
+
+        foreach (array_keys((array) config('kuking.text.scale_labels')) as $podpisany) {
+            $this->assertContains(
+                (int) $podpisany,
+                $skale,
+                "Podpis opisuje rozmiar {$podpisany}%, którego nie ma w `kuking.text.scales`.",
+            );
+        }
+    }
+
     public function test_arkusz_nie_zna_skali_ktorej_baza_nie_przyjmie(): void
     {
         $arkusz = $this->arkusz();

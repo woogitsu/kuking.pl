@@ -1,0 +1,37 @@
+{
+  "scope": "Cztery bledne POST z rzeczywistym CSRF i sesja; 1440px; bez pelnego odbioru fokusu i skali",
+  "rows": [
+    {
+      "field": "reason_code",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nWybierz decyzję.\nWybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu.",
+      "before": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "after": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "pass": true
+    },
+    {
+      "field": "reason_code",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPodaj powód przywrócenia — w logu musi zostać ślad, dlaczego zdjęto ukrycie.",
+      "before": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "after": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "pass": true
+    },
+    {
+      "field": "decision_note",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nWybierz, czy podtrzymujesz decyzję, czy ją cofasz.\nUzasadnienie ma być zdaniem, nie jednym słowem.",
+      "before": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "after": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "pass": true
+    },
+    {
+      "field": "autor",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nNie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.",
+      "before": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "after": "85b363d4cf7c707b7dadc12f6b596ef6c6855f07d6b223a5c2509ab577692c92",
+      "pass": true
+    }
+  ]
+}

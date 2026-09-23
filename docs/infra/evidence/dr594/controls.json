@@ -1,0 +1,33 @@
+{
+  "negative-row": {
+    "exit_code": 0,
+    "expected": 0,
+    "expected_message_found": true
+  },
+  "generator-repeat": {
+    "exit_code": 3,
+    "expected": 3,
+    "expected_message_found": true
+  },
+  "generator-wrong-target": {
+    "exit_code": 3,
+    "expected": 3,
+    "expected_message_found": true
+  },
+  "same-count-different-content": {
+    "changed_tables": [
+      "comments"
+    ],
+    "caught": true
+  },
+  "content-restored": {
+    "equal": true,
+    "tables": 50
+  },
+  "corrupt-archive": {
+    "exit_code": 44,
+    "expected": 44,
+    "expected_message_found": true,
+    "database_created": false
+  }
+}

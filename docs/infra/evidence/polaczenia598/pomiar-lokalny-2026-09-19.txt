@@ -1,0 +1,39 @@
+=== POMIAR #598 — 2026-09-19 12:52:25 UTC ===
+host: DOM-NEW  uptime:: 13.08, 13.93, 14.62
+PG: PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26
+max_connections=100  superuser_reserved=3
+
+A. spoczynek (nic nie chodzi): 0
+B. jeden proces web (artisan serve), 24 zadania po kolei: szczyt 1
+B2. ten sam serwer bezczynny po zakonczeniu zadan: 0
+C. queue:work (jeden proces, jak w entrypoincie): szczyt 1
+D. schedule:run (jeden przebieg): szczyt 0
+E. KONTROLA: 6 rownoleglych procesow trzymajacych polaczenie: szczyt 6
+
+Kontrola E musi pokazac 6. Jesli pokazuje 1, probnik jest zepsuty i A-D nic nie znacza.
+
+=== D poprawione — probnik co 20 ms, 10 przebiegow schedule:run ===
+D. schedule:run (10 przebiegow, probnik 20 ms): SZCZYT=0
+D2. kuking:budzet-polaczen (10 przebiegow, probnik 20 ms): SZCZYT=0
+--- kontrola dodatnia tego samego probnika (6 procesow) ---
+E2. kontrola probnika 20 ms: SZCZYT=6
+
+=== POMIAR POPRAWIONY (pg_stat_clear_snapshot) — 2026-09-19 12:54:35 UTC ===
+K0. probnik przy pustej scenie (oczekiwane 0): 0
+K1. 6 procesow wstaje W TRAKCIE probkowania (oczekiwane 6): 6
+D. schedule:run (10 przebiegow): 1
+D2. kuking:budzet-polaczen (10 przebiegow): 1
+C2. queue:work (jeden proces): 1
+
+=== WEB: rownoleglosc a polaczenia — 2026-09-19 12:55:38 UTC ===
+serwer odpowiada
+W0. serwer wstal, nikt nie puka (oczekiwane 0): 0
+W1. 1 rownolegle zadanie na strone glowna: 1
+W4. 4 rownolegle zadania na strone glowna: 1
+W5. po zakonczeniu wszystkich zadan (oczekiwane 0): 0
+
+=== WEB v2: 4 workery serwera (--no-reload) — 2026-09-19 12:56:40 UTC ===
+kontrola zdrowia: kod 200, 0.114592s
+W0. serwer bezczynny (oczekiwane 0): 0
+W12. 12 rownoleglych zadan przy 4 workerach serwera: 5
+W5. po zakonczeniu (oczekiwane 0): 0

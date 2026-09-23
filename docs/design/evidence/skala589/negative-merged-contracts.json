@@ -1,0 +1,20 @@
+[
+  {
+    "case": "start",
+    "source": "marka-rama.css",
+    "md5": "c9bcdeb03dd17093c8c5f2abb53da2ad",
+    "mtime_ns": 1789506358206919700,
+    "negative": 1,
+    "restored": true,
+    "positive": 0
+  },
+  {
+    "case": "rem",
+    "source": "tokens.css",
+    "md5": "3a3431bd6dcaa0dc3bbfa5ccc9b74a0e",
+    "mtime_ns": 1789506841016235600,
+    "negative": 1,
+    "restored": true,
+    "positive": 0
+  }
+]
