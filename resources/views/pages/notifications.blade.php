@@ -130,7 +130,13 @@
                             @case(\App\Models\Notification::TYPE_COOKED)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — ugotowane z Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
-                                @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
+                                {{-- ISSUE #771: wykonanie usunięte po powiadomieniu. Bez
+                                     obietnicy zdjęcia i bez „Zobacz" prowadzącego na 404. --}}
+                                @if($notification->wykonanieUsuniete())
+                                    To ugotowanie zostało usunięte.
+                                @elseif($data['has_photo'] ?? false)
+                                    Jest zdjęcie.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — {{ ($data['question_answer'] ?? false) ? 'odpowiedź na Twoje pytanie.' : 'nowy komentarz.' }}</strong>
