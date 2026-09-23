@@ -44,6 +44,7 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
      */
     private const WYJATKI = [
         'health' => 'punkt kontrolny dla monitoringu — JSON, nie strona',
+        'wydanie' => 'SHA wydania dla testu dymnego po wdrożeniu — JSON, nie strona',
         'up' => 'punkt kontrolny frameworka — nie ma interfejsu',
         'robots.txt' => 'plik tekstowy dla robotów',
         'sitemap.xml' => 'plik XML dla robotów',
