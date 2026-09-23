@@ -102,6 +102,13 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 KONTAKT_MIGRACJA = "database/migrations/2026_09_20_140000_allow_null_handled_by_on_contact_messages.php"
 KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 
+# Znaczniki odpowiedzi (`reply_key`, `sending_started_at`) chronią przed drugą
+# wysyłką tego samego listu (#1081). Strażnik wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę cofnięcia po pierwszym
+# formularzu, więc `down()` przechodzi i test odmowy ma oblać.
+KONTAKT_ZNACZNIKI = "database/migrations/2026_09_20_160000_add_contact_reply_delivery_markers.php"
+KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -240,6 +247,8 @@ checks = [
      mniejsze_pismo_na_pierwszym_ekranie),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
+    ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
+     lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -249,6 +258,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
+run_test(KONTAKT_ZNACZNIKI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
