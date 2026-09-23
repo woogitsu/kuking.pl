@@ -583,22 +583,26 @@ konto w przekonaniu, że dane ma u siebie.
 
 ---
 
-### R-13 · Dwa przepisy o tym samym tytule mogą trafić na jedną ścieżkę w paczce
+### R-13 · Dwa przepisy o podobnych slugach mogły trafić na jedną ścieżkę w paczce
 
 **Co obiecujemy** — paczka ma zawierać wszystkie przepisy konta
 (`resources/views/pages/settings/data.blade.php:28`).
 
-**Co robi kod.** Nazwa pliku przepisu bierze **6 pierwszych znaków UUID**
-(`app/Domain/Users/Exports/ExportFileNames.php:29`), a klucz obiektu paczki —
-**8 znaków** (`:45`). Identyfikatory są UUID v7, w którym prefiks jest czasem,
-a nie losowym wyróżnikiem. Issue #825 podaje zmierzoną kolizję dwóch
-rzeczywistych wywołań: `recipe1=rosol-01a0be.html`, `recipe2=rosol-01a0be.html`.
+**Stan przed poprawką #825.** Nazwa pliku przepisu brała **6 pierwszych znaków UUID**,
+a klucz obiektu paczki — **8 znaków**. Identyfikatory są UUID v7, w którym
+prefiks jest czasem, a nie losowym wyróżnikiem. Test pełnego ZIP-u odtworzył
+utratę jednej z dwóch stron przepisu: w archiwum była jedna strona zamiast dwóch.
+Dwa kolejne eksporty tego samego konta dostawały też identyczny klucz storage.
+Po poprawce nowe nazwy i klucze używają pełnego UUID
+(`app/Domain/Users/Exports/ExportFileNames.php`); już zapisanych paczek
+nie przepisujemy, a ich klucze pozostają w rekordach `data_exports`.
+Pilnuje tego `tests/Feature/NazwyPlikowPaczkiNieKolidujaTest.php`.
 
 **Czego dotyczy** — RODO art. 15 ust. 3 (kompletność kopii).
 
-**Ryzyko dla człowieka.** Dwa szkice o tym samym tytule, zapisane blisko
-siebie, dostają jedną ścieżkę — spis w paczce nie może pod nią otworzyć
-dwóch różnych przepisów. **Dokładny efekt na gotowym ZIP-ie: niezweryfikowany.**
+**Ryzyko dla człowieka.** Dwa przepisy o tym samym początku slugu, zapisane blisko
+siebie, dostawały jedną ścieżkę — spis w paczce nie mógł pod nią otworzyć
+dwóch różnych przepisów. Efekt na gotowym ZIP-ie potwierdził test regresyjny.
 
 ---
 

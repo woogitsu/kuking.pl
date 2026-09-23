@@ -11,19 +11,15 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
-use App\Mail\DataExportReady;
-use App\Mail\DataExportReadyInGracePeriod;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -65,6 +61,10 @@ use ZipArchive;
  * Paczka NIE powstaje dla konta wymazanego ani dla eksportu unieważnionego
  * przez `EraseAccountData` (issue #1307) — sprawdzamy to na starcie i drugi
  * raz pod blokadą wiersza konta tuż przed `ready`, patrz `finalize()`.
+ *
+ * List „paczka gotowa" wysyła osobne zadanie `NotifyUserExportReady`, zlecane
+ * w tej samej transakcji co `ready` (issue #820) — awaria poczty nie dotyka
+ * paczki, a list ma własne ponowienia.
  *
  * Pliki pośrednie żyją w katalogu tego jednego eksportu (issue #993), patrz
  * `App\Domain\Users\Exports\ExportTempDirectory`.
@@ -209,8 +209,8 @@ class GenerateUserExport implements ShouldQueue
 
             $bytes = (int) filesize($this->tempZip);
 
-            if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt)) {
-                $this->notifyOwner();
+            if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt) && $this->kolejkaSynchroniczna()) {
+                $this->powiadomBezKolejki();
             }
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
@@ -255,7 +255,7 @@ class GenerateUserExport implements ShouldQueue
      * plik. Gdy kasowanie się nie uda, adres nie ginie — tą samą drogą co
      * każdą wygasłą paczkę dokończy to `kuking:sprzataj-eksporty`.
      *
-     * @return bool czy paczka jest gotowa (czy wysyłać list)
+     * @return bool czy paczka jest gotowa
      */
     private function finalize(DataExport $export, string $disk, string $objectKey, int $bytes, Carbon $generatedAt): bool
     {
@@ -290,6 +290,18 @@ class GenerateUserExport implements ShouldQueue
                 'expires_at' => $generatedAt->copy()->addDays((int) config('kuking.exports.ttl_days')),
                 'failure_reason' => null,
             ]);
+
+            // List ma własne zadanie z ponowieniami (issue #820) i wchodzi
+            // do TEJ transakcji: kolejka jest bazodanowa na tym samym
+            // połączeniu (`DataSettingsController::zlecWykonanie()`), więc
+            // wiersz w `jobs` i `ready` zatwierdzają się razem albo wcale.
+            // Po commicie, a przed zleceniem, nie ma okna, w którym paczka
+            // jest gotowa, a listu nie wyśle nikt. Kolejka `sync` wykonałaby
+            // zadanie W ŚRODKU tej transakcji, pod blokadą konta, a jego
+            // wyjątek cofnąłby `ready` — patrz `powiadomBezKolejki()`.
+            if (! $this->kolejkaSynchroniczna()) {
+                NotifyUserExportReady::dispatch((string) $current->getKey());
+            }
 
             return true;
         });
@@ -791,73 +803,25 @@ class GenerateUserExport implements ShouldQueue
         }
     }
 
-    /**
-     * List „paczka gotowa" — po ŚWIEŻYM odczycie eksportu i konta.
-     *
-     * `finalize()` sprawdza wymazanie pod blokadą, ale blokada puszcza przy
-     * commicie. `EraseAccountData`, które na nią czekało, zatwierdza się
-     * w następnej chwili: przestawia termin paczki w przeszłość
-     * i anonimizuje adres. Do 23 września 2026 szło tu
-     * `$export->refresh()` — przeładowanie razem z relacją `user` — więc
-     * list wychodził na ZANONIMIZOWANY adres, z linkiem, który już nie
-     * otwiera paczki. Teraz: konto wymazane albo paczka niepobieralna =
-     * brak listu.
-     *
-     * Zostaje okno między tym odczytem a wysłaniem. Wymazanie, które wejdzie
-     * właśnie w nie, NIE zmienia adresu listu (odczytany przed nim, czyli
-     * prawdziwy adres właściciela) — a link i tak prowadzi do paczki, której
-     * `isDownloadable()` już nie wyda. Nie ma tu wycieku danych, jest jeden
-     * list za dużo.
-     *
-     * KTÓRY LIST: konto w karencji (`pending_delete`) dostaje
-     * `DataExportReadyInGracePeriod` — „cofnij usunięcie do dnia X” — zamiast
-     * zwykłego `DataExportReady`. Konto wymazane nie dostaje żadnego.
-     */
-    private function notifyOwner(): void
+    private function kolejkaSynchroniczna(): bool
     {
-        $export = DataExport::with('user.profile')->find($this->dataExportId);
+        $nazwa = (string) config('queue.default');
 
-        if ($export === null
-            || ! $export->isDownloadable()
-            || $this->revoked($export, $export->user)) {
-            return;
-        }
+        return config("queue.connections.{$nazwa}.driver") === 'sync';
+    }
 
-        $email = $export->user?->email;
-
-        if ($email === null) {
-            return;
-        }
-
-        // Konto w karencji nie zaloguje się, a pobranie wymaga logowania —
-        // zwykły list dałby martwy przycisk „Pobierz” (decyzja właściciela
-        // z 23 września 2026). Stan konta z TEGO SAMEGO świeżego odczytu co
-        // `revoked()` wyżej, nie z modelu sprzed budowania paczki: karencja
-        // mogła się zacząć albo skończyć cofnięciem w trakcie.
-        $mail = $export->user->status === User::STATUS_PENDING_DELETE
-            ? new DataExportReadyInGracePeriod($export)
-            : new DataExportReady($export);
-
+    /**
+     * Kolejka `sync` (testy, lokalnie bez workera): list PO commicie `ready`
+     * i bez ponowień — bez kolejki nie ma kto ponawiać. Awaria poczty nie
+     * może tu zamienić gotowej paczki w `failed` przez `catch` w `handle()`;
+     * `NotifyUserExportReady` sam zapisuje ją w dzienniku, z redakcją adresu.
+     */
+    private function powiadomBezKolejki(): void
+    {
         try {
-            Mail::to($email)->send($mail);
-        } catch (Throwable $e) {
-            // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
-            // tylko dlatego, że poczta chwilowo nie działa.
-            // KOMUNIKAT PRZECHODZI PRZEZ REDAKCJĘ, NIE SUROWY.
-            //
-            // To jest wyjątek z WYSYŁKI LISTU, więc jego komunikat buduje
-            // transport, a nie my — a transport przy odrzuconym odbiorcy
-            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: Recipient
-            // address rejected"). Dziennik aplikacji nie jest miejscem na
-            // adresy (AGENTS.md §7); ta sama redakcja, którą robi
-            // `ZapiszNieudanyList` na tym samym rodzaju tekstu, a `Wyslij…`
-            // z `App\Domain\Security` rozwiązuje jeszcze ostrzej — samą
-            // nazwą klasy.
-            Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
-                'data_export_id' => $export->getKey(),
-                'wyjatek' => $e::class,
-                'error' => BezpiecznyKomunikat::z($e->getMessage()),
-            ]);
+            (new NotifyUserExportReady($this->dataExportId))->handle();
+        } catch (Throwable) {
+            // Zapisane w dzienniku przez NotifyUserExportReady::handle().
         }
     }
 
