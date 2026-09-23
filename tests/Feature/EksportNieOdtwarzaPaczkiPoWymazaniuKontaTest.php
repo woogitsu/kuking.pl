@@ -7,13 +7,16 @@ namespace Tests\Feature;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Jobs\GenerateUserExport;
 use App\Mail\DataExportReady;
+use App\Mail\DataExportReadyInGracePeriod;
 use App\Models\DataExport;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\Support\DyskEksportuZHakiem;
 use Tests\TestCase;
 
@@ -41,6 +44,9 @@ use Tests\TestCase;
  * `test_eksport_zamowiony_przed_wymazaniem_…`. Przywrócenie
  * `notifyOwner($export->refresh())` bez świeżego sprawdzenia oblewa
  * `test_wymazanie_tuz_po_gotowosci_…` — list idzie na zanonimizowany adres.
+ * Wysyłanie zwykłego `DataExportReady` także w karencji oblewa oba testy
+ * karencji; podawanie zawsze końca karencji (zamiast WCZEŚNIEJSZEJ z dat)
+ * oblewa `test_list_w_karencji_podaje_termin_paczki_…`.
  */
 class EksportNieOdtwarzaPaczkiPoWymazaniuKontaTest extends TestCase
 {
@@ -193,10 +199,19 @@ class EksportNieOdtwarzaPaczkiPoWymazaniuKontaTest extends TestCase
      * KONTROLA DODATNIA całego pliku: karencja (`pending_delete`) NIE
      * blokuje eksportu — do dnia egzekucji paczkę wolno zamówić i pobrać.
      * Bez tego testu „nigdy nie ready" przeszłoby wszystkie trzy wyżej.
+     *
+     * LIST W KARENCJI (decyzja właściciela z 23 września 2026): konto
+     * w karencji nie zaloguje się, a pobranie wymaga logowania — więc NIE
+     * zwykły „Twoje dane są gotowe” z przyciskiem „Pobierz”, tylko osobny
+     * list z linkiem do cofnięcia usunięcia i terminem. Tu karencja kończy
+     * się PRZED wygaśnięciem paczki (zgłoszenie 28 dni temu, paczka na
+     * 7 dni), więc terminem jest koniec karencji.
      */
     public function test_eksport_w_karencji_i_na_zwyklym_koncie_dalej_jest_gotowy(): void
     {
-        [, $wKarencji] = $this->kontoWKarencjiZZamowionymEksportem();
+        $this->travel(-28)->days();
+        [$basia, $wKarencji] = $this->kontoWKarencjiZZamowionymEksportem();
+        $this->travelBack();
 
         $marek = $this->user('marekeksport');
         $zwykly = DataExport::create(['user_id' => $marek->getKey(), 'status' => DataExport::STATUS_QUEUED]);
@@ -211,7 +226,58 @@ class EksportNieOdtwarzaPaczkiPoWymazaniuKontaTest extends TestCase
             $this->dysk->assertExists((string) $export->object_key);
         }
 
-        Mail::assertSent(DataExportReady::class, 2);
+        $koniecKarencji = $basia->fresh()->deletionGraceEndsAt();
+        $this->assertNotNull($koniecKarencji);
+        $this->assertTrue($koniecKarencji->lt($wKarencji->expires_at), 'Założenie testu: karencja kończy się pierwsza.');
+
+        Mail::assertSent(DataExportReadyInGracePeriod::class, 1);
+        Mail::assertSent(DataExportReadyInGracePeriod::class, function (DataExportReadyInGracePeriod $list) use ($basia, $koniecKarencji): bool {
+            $html = $list->render();
+
+            return $list->hasTo($basia->email)
+                && $list->deadline()?->equalTo($koniecKarencji)
+                && str_contains($html, route('account.delete.cancel'))
+                && str_contains($html, Czas::data($koniecKarencji, 'j F Y, H:i'))
+                && str_contains($html, 'Żeby ją pobrać, cofnij usunięcie konta')
+                // Żadnego linku do pobrania — konto w karencji go nie otworzy.
+                && ! str_contains($html, '/ustawienia/twoje-dane/pobierz/');
+        });
+
+        // Zwykłe konto — zwykły list, i TYLKO ono.
+        Mail::assertSent(DataExportReady::class, 1);
+        Mail::assertSent(DataExportReady::class, fn (DataExportReady $list): bool => $list->hasTo($marek->email));
+        Mail::assertNotSent(DataExportReady::class, fn (DataExportReady $list): bool => $list->hasTo($basia->email));
+    }
+
+    /**
+     * Paczka wygasa PRZED końcem karencji (świeże zgłoszenie: 30 dni
+     * karencji, paczka na 7) — list podaje WCZEŚNIEJSZĄ datę, czyli termin
+     * paczki. Po cofnięciu usunięcia paczka czeka w ustawieniach jak zwykle.
+     */
+    public function test_list_w_karencji_podaje_termin_paczki_gdy_ten_jest_wczesniejszy(): void
+    {
+        [$basia, $export] = $this->kontoWKarencjiZZamowionymEksportem();
+
+        (new GenerateUserExport((string) $export->getKey()))->handle();
+        $export->refresh();
+
+        $this->assertTrue($export->expires_at->lt($basia->fresh()->deletionGraceEndsAt()));
+
+        Mail::assertNotSent(DataExportReady::class);
+        Mail::assertSent(DataExportReadyInGracePeriod::class, function (DataExportReadyInGracePeriod $list) use ($export): bool {
+            $html = $list->render();
+
+            return $list->deadline()?->equalTo($export->expires_at)
+                && str_contains($html, Czas::data($export->expires_at, 'j F Y, H:i'))
+                && str_contains($html, 'Tego dnia paczka zostanie usunięta');
+        });
+
+        // Po cofnięciu usunięcia: paczka do pobrania w ustawieniach.
+        $basia->fresh()->cancelDeletion();
+
+        $link = URL::temporarySignedRoute('settings.data.download', $export->expires_at, ['export' => $export->getKey()]);
+
+        $this->actingAs($basia->fresh())->get($link)->assertOk();
     }
 
     /** @return array{0: User, 1: DataExport} */

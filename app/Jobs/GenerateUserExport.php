@@ -12,6 +12,7 @@ use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
 use App\Mail\DataExportReady;
+use App\Mail\DataExportReadyInGracePeriod;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
@@ -123,9 +124,21 @@ class GenerateUserExport implements ShouldQueue
         // już gotowy) kończy handle() od razu — i ta kopia czekałaby godzinę
         // na `sweepStale()` innego eksportu, o ile jakiś w ogóle przyjdzie.
         ExportTempDirectory::sweepStale();
-        ExportTempDirectory::remove($this->dataExportId);
 
         $export = DataExport::with('user.profile')->find($this->dataExportId);
+
+        // Duplikat zlecenia przy ŻYWYM przebiegu tego samego eksportu —
+        // katalogu nie ruszamy, bo to są JEGO pliki w trakcie pakowania.
+        // Patrz `anotherRunInProgress()`.
+        if ($export !== null && $this->anotherRunInProgress($export)) {
+            Log::info('Eksport danych już się buduje w innym przebiegu — duplikat zlecenia pominięty', [
+                'data_export_id' => $export->getKey(),
+            ]);
+
+            return;
+        }
+
+        ExportTempDirectory::remove($this->dataExportId);
 
         if ($export === null) {
             return;
@@ -288,6 +301,35 @@ class GenerateUserExport implements ShouldQueue
         $this->discardRevokedPackage($export, $disk, $objectKey, recordKept: $ready === false);
 
         return false;
+    }
+
+    /**
+     * Czy ten sam eksport buduje właśnie INNY przebieg (przegląd kodu
+     * 23 września 2026).
+     *
+     * Dwa zadania na jednym rekordzie to nie teoria: „ponów” w ustawieniach
+     * (`DataSettingsController::odpowiedzNaTrwajacy`) wysyła drugie zadanie
+     * dla `queued` stojącego 15 minut — a pierwsze mogło po prostu czekać
+     * w kolejce i ruszyć chwilę później. Bez tego strażnika drugie zaczynało
+     * od `ExportTempDirectory::remove()` i kasowało pliki pierwszego
+     * w połowie pakowania.
+     *
+     * Żywy przebieg = `processing` ustawione (albo dotknięte) nie dawniej niż
+     * limit jednej próby (`$timeout`). Starsze `processing` to próba zabita
+     * twardo: ponowienie z kolejki przychodzi po `retry_after` = 960 s, czyli
+     * PO tym progu (`config/queue.php`, `UmowaKolejkiTest`), więc strażnik
+     * go nie zatrzyma i katalog po przerwanej próbie zostanie sprzątnięty.
+     *
+     * Wymazane konto NIE jest chronione: żywy przebieg i tak skończy się
+     * odrzuceniem w `finalize()`, a kopia wymazanego konta ma zniknąć od
+     * razu (issue #993, `test_wczesny_powrot_…`).
+     */
+    private function anotherRunInProgress(DataExport $export): bool
+    {
+        return $export->status === DataExport::STATUS_PROCESSING
+            && $export->updated_at !== null
+            && $export->updated_at->gt(now()->subSeconds($this->timeout))
+            && ! $this->revoked($export, $export->user);
     }
 
     /**
@@ -766,6 +808,10 @@ class GenerateUserExport implements ShouldQueue
      * prawdziwy adres właściciela) — a link i tak prowadzi do paczki, której
      * `isDownloadable()` już nie wyda. Nie ma tu wycieku danych, jest jeden
      * list za dużo.
+     *
+     * KTÓRY LIST: konto w karencji (`pending_delete`) dostaje
+     * `DataExportReadyInGracePeriod` — „cofnij usunięcie do dnia X” — zamiast
+     * zwykłego `DataExportReady`. Konto wymazane nie dostaje żadnego.
      */
     private function notifyOwner(): void
     {
@@ -783,8 +829,17 @@ class GenerateUserExport implements ShouldQueue
             return;
         }
 
+        // Konto w karencji nie zaloguje się, a pobranie wymaga logowania —
+        // zwykły list dałby martwy przycisk „Pobierz” (decyzja właściciela
+        // z 23 września 2026). Stan konta z TEGO SAMEGO świeżego odczytu co
+        // `revoked()` wyżej, nie z modelu sprzed budowania paczki: karencja
+        // mogła się zacząć albo skończyć cofnięciem w trakcie.
+        $mail = $export->user->status === User::STATUS_PENDING_DELETE
+            ? new DataExportReadyInGracePeriod($export)
+            : new DataExportReady($export);
+
         try {
-            Mail::to($email)->send(new DataExportReady($export));
+            Mail::to($email)->send($mail);
         } catch (Throwable $e) {
             // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
             // tylko dlatego, że poczta chwilowo nie działa.

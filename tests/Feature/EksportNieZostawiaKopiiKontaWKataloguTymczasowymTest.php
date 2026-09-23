@@ -30,6 +30,8 @@ use Tests\TestCase;
  * `ExportTempDirectory::remove()` z `failed()` oblewa test o timeoucie.
  * Przeniesienie sprzątania z powrotem pod sprawdzenie wymazania (tam było
  * do przeglądu kodu 23 września 2026) oblewa test o wczesnym powrocie.
+ * Wyłączenie strażnika `anotherRunInProgress()` oblewa test o duplikacie
+ * zlecenia — pliki żywego przebiegu znikają.
  */
 class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
 {
@@ -161,6 +163,47 @@ class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
 
         $this->assertDirectoryDoesNotExist($katalogWymazanego, 'Kopia wymazanego konta została w katalogu tymczasowym.');
         $this->assertDirectoryDoesNotExist($katalogGotowego);
+    }
+
+    /**
+     * Duplikat zlecenia (np. „ponów” z ustawień przy zadaniu, które tylko
+     * czekało w kolejce) trafia na eksport, który INNY przebieg właśnie
+     * buduje. Do przeglądu kodu 23 września 2026 zaczynał od
+     * `ExportTempDirectory::remove()` i kasował pliki tamtego przebiegu.
+     */
+    public function test_duplikat_zlecenia_nie_kasuje_plikow_zywego_przebiegu(): void
+    {
+        $export = $this->zamowienie(DataExport::STATUS_PROCESSING);
+        $katalog = $this->katalogEksportu((string) $export->getKey(), mtime: time());
+
+        (new GenerateUserExport((string) $export->getKey()))->handle();
+
+        $this->assertFileExists($katalog.'/dane.json', 'Duplikat skasował pliki żywego przebiegu.');
+        $this->assertSame(DataExport::STATUS_PROCESSING, $export->refresh()->status);
+        $this->assertNull($export->object_key);
+        Mail::assertNothingSent();
+    }
+
+    /**
+     * KONTROLA DODATNIA strażnika: `processing` starsze niż limit jednej
+     * próby to próba zabita twardo. Ponowienie z kolejki (po `retry_after`)
+     * sprząta jej katalog i buduje paczkę od nowa — strażnik nie może
+     * zostawić rekordu w `processing` na zawsze.
+     */
+    public function test_ponowienie_po_twardo_przerwanej_probie_sprzata_i_buduje(): void
+    {
+        $export = $this->zamowienie(DataExport::STATUS_PROCESSING);
+        DataExport::query()->whereKey($export->getKey())->update([
+            'updated_at' => now()->subSeconds((new GenerateUserExport('x'))->timeout + 60),
+        ]);
+        $katalog = $this->katalogEksportu((string) $export->getKey(), mtime: time() - 120);
+        $staryPlik = $katalog.'/dane.json';
+
+        (new GenerateUserExport((string) $export->getKey()))->handle();
+
+        $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
+        $this->assertFileDoesNotExist($staryPlik);
+        $this->assertDirectoryDoesNotExist($katalog);
     }
 
     public function test_nieudane_usuniecie_jest_widoczne_w_dzienniku_bez_sciezki(): void
