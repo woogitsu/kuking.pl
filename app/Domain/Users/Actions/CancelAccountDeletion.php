@@ -39,6 +39,49 @@ final class CancelAccountDeletion
      */
     public function __construct(private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo) {}
 
+    /**
+     * Dlaczego nie da się cofnąć — albo `null`, gdy jest co cofać.
+     *
+     * Osobno od `handle()`, bo formularz publiczny musi znać odpowiedź
+     * PRZED zużyciem jednorazowego kodu zapasowego (#1314), a ogłosić ją
+     * dopiero PO sprawdzeniu kodu. Rozstrzyga nadal `handle()`, na świeżym
+     * wierszu pod blokadą — ten odczyt służy tylko decyzji o kodzie.
+     */
+    public function powodOdmowy(User $user): ?string
+    {
+        // KOLEJNOŚĆ TYCH DWÓCH SPRAWDZEŃ MA ZNACZENIE OD D-022.
+        //
+        // Wcześniej pierwszy warunek brzmiał „status musi być
+        // `pending_delete`", a konto po wykonanej karencji ZOSTAWAŁO na
+        // tym statusie — więc do drugiego warunku dochodziło się zawsze
+        // i komunikat był właściwy. Od D-022 stan końcowy ma własną
+        // wartość (`erased`), czyli pierwszy warunek łapałby też konto
+        // wymazane i mówił mu „nie ma czego cofać". To nieprawda: było
+        // co cofać, tylko jest za późno — a to jest zupełnie inna
+        // informacja dla człowieka, który właśnie zrozumiał, że stracił
+        // swoje przepisy.
+        //
+        // Dlatego najpierw pytamy o WYKONANIE, a potem o zgłoszenie.
+        if ($user->data_erased_at !== null || $user->isErased()) {
+            return 'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
+                .$user->data_erased_at?->translatedFormat('j F Y').'. Jeśli to pomyłka, '
+                .'napisz do nas: '.config('kuking.community.contact_email').'.';
+        }
+
+        if ($user->status !== User::STATUS_PENDING_DELETE) {
+            return self::nieMaCzegoCofac();
+        }
+
+        return null;
+    }
+
+    private static function nieMaCzegoCofac(): string
+    {
+        return 'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
+            .'Jeśli to nie zgadza się z tym, czego się spodziewasz, napisz do nas: '
+            .config('kuking.community.contact_email').'.';
+    }
+
     public function handle(User $user): void
     {
         // Transakcja z blokadą, nie odczyt z argumentu: formularz i egzekutor
@@ -50,33 +93,14 @@ final class CancelAccountDeletion
         DB::transaction(function () use ($user): void {
             $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
-            // KOLEJNOŚĆ TYCH DWÓCH SPRAWDZEŃ MA ZNACZENIE OD D-022.
-            //
-            // Wcześniej pierwszy warunek brzmiał „status musi być
-            // `pending_delete`", a konto po wykonanej karencji ZOSTAWAŁO na
-            // tym statusie — więc do drugiego warunku dochodziło się zawsze
-            // i komunikat był właściwy. Od D-022 stan końcowy ma własną
-            // wartość (`erased`), czyli pierwszy warunek łapałby też konto
-            // wymazane i mówił mu „nie ma czego cofać". To nieprawda: było
-            // co cofać, tylko jest za późno — a to jest zupełnie inna
-            // informacja dla człowieka, który właśnie zrozumiał, że stracił
-            // swoje przepisy.
-            //
-            // Dlatego najpierw pytamy o WYKONANIE, a potem o zgłoszenie.
-            if ($fresh !== null && ($fresh->data_erased_at !== null || $fresh->isErased())) {
-                throw new BladDlaCzlowieka(
-                    'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
-                    .$fresh->data_erased_at?->translatedFormat('j F Y').'. Jeśli to pomyłka, '
-                    .'napisz do nas: '.config('kuking.community.contact_email').'.',
-                );
-            }
+            // Ta sama reguła co `powodOdmowy()`, ale na świeżym wierszu pod
+            // blokadą — to jest odczyt, który rozstrzyga.
+            $powod = $fresh === null
+                ? self::nieMaCzegoCofac()
+                : $this->powodOdmowy($fresh);
 
-            if ($fresh === null || $fresh->status !== User::STATUS_PENDING_DELETE) {
-                throw new BladDlaCzlowieka(
-                    'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
-                    .'Jeśli to nie zgadza się z tym, czego się spodziewasz, napisz do nas: '
-                    .config('kuking.community.contact_email').'.',
-                );
+            if ($powod !== null) {
+                throw new BladDlaCzlowieka($powod);
             }
 
             $fresh->cancelDeletion();

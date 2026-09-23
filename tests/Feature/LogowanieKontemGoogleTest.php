@@ -10,15 +10,19 @@ use App\Google\KlientGoogle;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Support\Google;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
@@ -647,6 +651,46 @@ class LogowanieKontemGoogleTest extends TestCase
             'type' => \App\Models\Notification::TYPE_WELCOME,
         ]);
         $this->assertDatabaseHas('audit_log', ['action' => 'account.registered']);
+    }
+
+    /**
+     * Awaria po zatwierdzeniu konta z Google (#1373): `Registered` i
+     * obserwowanie gospodarza padają oba — konto istnieje, człowiek wchodzi,
+     * a odpowiedź nie jest 500. Listu i tak nie miało być (adres potwierdzony),
+     * więc komunikat zostaje zwykły.
+     */
+    #[Test]
+    public function test_awaria_po_zalozeniu_konta_z_google_nie_daje_500(): void
+    {
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle();
+        Exceptions::fake();
+        $gospodarz = $this->user('gospodarz');
+        config(['kuking.community.host_username' => 'gospodarz']);
+        Event::listen(Registered::class, function (): void {
+            throw new RuntimeException('Wstrzyknięta awaria zdarzenia');
+        });
+        DB::listen(function ($zapytanie): void {
+            if (str_contains($zapytanie->sql, 'insert into "follows"')) {
+                throw new RuntimeException('Wstrzyknięta awaria obserwowania');
+            }
+        });
+
+        $this->post(route('google.finish.store'), [
+            'display_name' => 'Basia',
+            'username' => 'basia',
+            'age_confirmed' => '1',
+            'terms_accepted' => '1',
+        ])
+            ->assertRedirect(route('onboarding.interests'))
+            ->assertSessionHas('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
+
+        $basia = User::where('email', 'basia@example.test')->firstOrFail();
+        $this->assertAuthenticatedAs($basia);
+        $this->assertFalse($basia->isFollowing($gospodarz));
+        $this->assertDatabaseHas('audit_log', ['action' => 'account.registered']);
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'nie wyszło zdarzenie Registered'));
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'nie zaczęło obserwować gospodarza'));
     }
 
     #[Test]

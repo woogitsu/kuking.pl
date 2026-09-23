@@ -449,6 +449,10 @@ class GoogleLoginController extends Controller
             );
         }
 
+        // Listu z potwierdzeniem tu nie ma (adres potwierdziło Google), więc
+        // `listPotwierdzajacyNieWyszedl` jest zawsze `false` — nie ma o czym
+        // mówić człowiekowi. Awarie po zatwierdzeniu konta idą do `report()`
+        // w `ZalozKonto` i nie dają 500 (#1373).
         $user = $zalozKonto->handle(
             email: $tozsamosc->email,
             displayName: $dane['display_name'],
@@ -464,7 +468,7 @@ class GoogleLoginController extends Controller
             googleSub: $tozsamosc->sub,
             ip: $request->ip(),
             dziennik: ['droga' => 'google'],
-        );
+        )->user;
 
         ExternalRegistrationDraft::forget($request, 'google');
         $this->zapomnijTozsamosc($request);
@@ -587,7 +591,7 @@ class GoogleLoginController extends Controller
         // KONTA OBSŁUGI SERWISU TĄ DROGĄ NIE WCHODZĄ (ten sam zakres co
         // D-056). Rolę sprawdzamy przy KAŻDYM wejściu, więc powiązanie
         // zrobione przed awansem przestaje działać z chwilą nadania roli.
-        if ($user->isModerator()) {
+        if ($user->hasStaffRole()) {
             return redirect()->route('login')->with('status',
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Google. '
                 .'Zaloguj się poniżej.',
@@ -624,7 +628,7 @@ class GoogleLoginController extends Controller
     {
         // Konto zamknięte i obsługa serwisu — odpowiedź jak przy wejściu,
         // żeby te dwa przypadki miały JEDNO miejsce prawdy.
-        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true) || $user->isModerator()) {
+        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true) || $user->hasStaffRole()) {
             return $this->wpusc($request, $user, 'account.login_google');
         }
 
@@ -668,7 +672,7 @@ class GoogleLoginController extends Controller
         return $user->email === $tozsamosc->email
             && $user->email_verified_at !== null
             && ! $user->hasGoogleConnected()
-            && ! $user->isModerator()
+            && ! $user->hasStaffRole()
             && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
             // To konto Google nie może być w międzyczasie powiązane z KIMŚ
             // INNYM — inaczej zapis wpadłby na unikalny indeks bazy.
