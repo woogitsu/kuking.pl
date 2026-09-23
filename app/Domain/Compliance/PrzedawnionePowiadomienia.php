@@ -69,19 +69,22 @@ final class PrzedawnionePowiadomienia
 
         $usunieteZwykle = $naSucho ? $zwykle->count() : $zwykle->delete();
 
-        [$usunieteModeracyjne, $zatrzymane, $bezDecyzji] = $this->posprzatajModeracyjne($prog, $naSucho);
+        [$usunieteModeracyjne, $zatrzymane, $bezDecyzji, $nieudane] = $this->posprzatajModeracyjne($prog, $naSucho);
 
         return new RaportRetencjiPowiadomien(
             usunieteZwykle: $usunieteZwykle,
             usunieteModeracyjne: $usunieteModeracyjne,
             zatrzymaneTerminemOdwolania: $zatrzymane,
             bezPowiazanejDecyzji: $bezDecyzji,
+            nieudaneModeracyjne: $nieudane,
         );
     }
 
     /**
-     * @return array{0: int, 1: int, 2: int} [usunięto, zatrzymano terminem
-     *                                       odwołania, pominięto bez decyzji]
+     * @return array{0: int, 1: int, 2: int, 3: int} [usunięto, zatrzymano
+     *                                               terminem odwołania, pominięto
+     *                                               bez decyzji, nie udało się
+     *                                               skasować]
      */
     private function posprzatajModeracyjne(CarbonInterface $prog, bool $naSucho): array
     {
@@ -99,6 +102,7 @@ final class PrzedawnionePowiadomienia
         $usuniete = 0;
         $zatrzymane = 0;
         $bezDecyzji = 0;
+        $nieudane = 0;
 
         foreach ($kandydaci as $powiadomienie) {
             $termin = $powiadomienie->terminOchronyOdwolawczej();
@@ -129,13 +133,28 @@ final class PrzedawnionePowiadomienia
                 $powiadomienie->delete();
                 $usuniete++;
             } catch (Throwable $e) {
-                Log::error('Nie udało się skasować przedawnionego powiadomienia moderacyjnego', [
-                    'notification_id' => $powiadomienie->getKey(),
-                    'error' => $e->getMessage(),
-                ]);
+                // JEDEN WADLIWY WIERSZ NIE ZATRZYMUJE RESZTY, ALE SIĘ LICZY
+                // (#1342). Wcześniej był tu sam wpis w logu, a przebieg kończył
+                // się sukcesem — harmonogram nie odróżniał pełnego sprzątania
+                // od częściowego. Licznik trafia do raportu, a komenda zwraca
+                // przy nim kod ≠ 0. Wiersz zostaje w bazie, więc następny
+                // przebieg spróbuje go jeszcze raz.
+                $nieudane++;
+
+                // Sam identyfikator i klasa wyjątku — bez komunikatu, który
+                // mógłby nieść treść powiadomienia. Zapis do logu we własnym
+                // `try`: awaria logowania nie może przesłonić wyniku ani
+                // przerwać kasowania kolejnych kandydatów.
+                try {
+                    Log::error('Nie udało się skasować przedawnionego powiadomienia moderacyjnego', [
+                        'notification_id' => $powiadomienie->getKey(),
+                        'exception' => $e::class,
+                    ]);
+                } catch (Throwable) {
+                }
             }
         }
 
-        return [$usuniete, $zatrzymane, $bezDecyzji];
+        return [$usuniete, $zatrzymane, $bezDecyzji, $nieudane];
     }
 }
