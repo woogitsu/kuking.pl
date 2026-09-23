@@ -207,10 +207,14 @@ on:
 permissions:
   contents: read
 
-# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg.
+# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg — ale NIE na
+# main: Railway wdraża dopiero po zielonym CI main („Wait for CI”), a anulowany
+# przebieg nie daje wyniku i wdrożenie commita zostaje pominięte (23.09: 112
+# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia). Na main
+# przebiegi kolejkują się zamiast się ścinać.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   PHP_VERSION: "8.4"
@@ -580,7 +584,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -895,6 +899,14 @@ jobs:
       - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
         run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
 
+      # Test DOM szybkiego panelu wyglądu (#801/#804). Stoi TU, a nie na liście
+      # `node --test` w skrypcie `build`, bo potrzebuje Chromium — a
+      # `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
+        run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
@@ -931,6 +943,12 @@ jobs:
       # Artefakt przydaje się do debugowania "u mnie działa" oraz do
       # ręcznego porównania rozmiarów bundle'a między PR-ami.
       - name: Zapis artefaktu
+        # Artefakty są materiałem diagnostycznym, nie bramką. Wyczerpany limit
+        # miejsca na artefakty (23.09, run 35849156800) nie może czerwienić CI
+        # i wstrzymywać wdrożenia: tu i w `port_panelu` zapis ma
+        # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
+        # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: vite-build-${{ github.sha }}
@@ -1049,7 +1067,10 @@ jobs:
       - name: Panel — logowanie z TOTP, faza pusta i pełna
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
-        if: always()
+        # Tylko po czerwieni: zrzuty zielonego panelu to ~33 MB na przebieg
+        # i ponad połowa zużytego miejsca na artefakty (audyt CI 23.09).
+        if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: panel-marki-${{ github.sha }}
@@ -1060,7 +1081,7 @@ jobs:
             storage/port-panelu/details/*.png
             storage/port-panelu/details-zoom/*.json
             storage/port-panelu/details-zoom/*.png
-          retention-days: 14
+          retention-days: 5
 
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
@@ -1169,7 +1190,7 @@ jobs:
         run: node scripts/port-projektu.mjs
 
       - name: Zrzuty portu marki
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: port-marki-${{ github.sha }}
@@ -1305,7 +1326,7 @@ jobs:
           node scripts/minutnik-fokus.mjs
 
       - name: Zrzuty portu marki
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: port-funkcje-${{ github.sha }}
@@ -1319,7 +1340,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -1607,7 +1628,7 @@ jobs:
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
@@ -1653,7 +1674,7 @@ jobs:
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: wydajnosc-${{ github.sha }}
@@ -1754,7 +1775,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v7
