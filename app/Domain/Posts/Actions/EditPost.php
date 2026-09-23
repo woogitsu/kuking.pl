@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
@@ -24,6 +25,16 @@ use Illuminate\Support\Facades\Gate;
  * `PublishPost` tworzy NOWY wpis: liczy „czy to pierwszy wpis" i wysyła
  * powiadomienie do gospodarza. Wywołanie jej na istniejącym wpisie
  * wysłałoby to powiadomienie drugi raz przy zwykłej poprawce literówki.
+ *
+ * DWIE KARTY NA RAZ (issue #981)
+ * Formularz niesie `wersja()` z chwili otwarcia. Jeśli pod blokadą wiersza
+ * wpis ma już inną wersję, zapis jest odrzucany (`KonfliktEdycjiWpisu`),
+ * zamiast po cichu nadpisać tekst, widoczność i tagi z drugiej karty.
+ * Wersja to odcisk TREŚCI, którą ten ekran edytuje — nie `updated_at`:
+ * ten ma sekundową dokładność (`timestampsTz()`), więc dwa zapisy w tej
+ * samej sekundzie wyglądałyby na jedną wersję, a zmienia się też przy
+ * rzeczach spoza tego formularza (zdjęcia, moderacja), co dawałoby
+ * fałszywe ostrzeżenia. Odcisk nie potrzebuje też nowej kolumny.
  */
 final class EditPost
 {
@@ -37,6 +48,7 @@ final class EditPost
         string $visibility,
         array $tagNames = [],
         ?string $questionTitle = null,
+        ?string $wersjaFormularza = null,
     ): Post {
         // Kontroler nie jest jedyną drogą do akcji domenowej. Jawny aktor
         // zamyka tę samą granicę także przed zadaniem, komendą albo testem,
@@ -52,9 +64,16 @@ final class EditPost
             throw new BladDlaCzlowieka('Wpis nie może być całkiem pusty. Napisz kilka słów.');
         }
 
-        return DB::transaction(function () use ($post, $body, $visibility, $tagNames, $questionTitle): Post {
+        return DB::transaction(function () use ($post, $body, $visibility, $tagNames, $questionTitle, $wersjaFormularza): Post {
             TagMutationLock::forPost();
             $locked = Post::query()->whereKey($post->getKey())->lockForUpdate()->firstOrFail();
+            // Porównanie POD blokadą: dwa równoległe zapisy z tą samą wersją
+            // startową szeregują się na `FOR UPDATE`, więc drugi widzi już
+            // wersję zapisaną przez pierwszy. `null` = wołający bez formularza
+            // (zadanie, komenda, test) — nie ma czego porównywać.
+            if ($wersjaFormularza !== null && ! hash_equals($this->wersja($locked), $wersjaFormularza)) {
+                throw new KonfliktEdycjiWpisu;
+            }
             if ($locked->kind === Post::KIND_QUESTION) {
                 if (! config('kuking.questions.enabled')) {
                     throw new BladDlaCzlowieka('Edycja pytań jest teraz niedostępna.');
@@ -83,6 +102,23 @@ final class EditPost
 
             return $locked;
         }, 3);
+    }
+
+    /**
+     * Odcisk tego, co edytuje ten ekran: tytuł pytania, tekst, widoczność
+     * i tagi (z pochodzeniem, w kolejności). Tagi czytane zapytaniem, nie
+     * z załadowanej relacji — wewnątrz transakcji liczy się stan bazy.
+     */
+    public function wersja(Post $post): string
+    {
+        $tagi = $post->tags()->get()
+            ->map(fn ($tag): array => [$tag->getKey(), (bool) $tag->pivot->dodany_recznie])
+            ->all();
+
+        return hash('sha256', json_encode(
+            [$post->kind, $post->title, $post->body, $post->visibility, $tagi],
+            JSON_THROW_ON_ERROR,
+        ));
     }
 
     private function cleanBody(?string $body): ?string
