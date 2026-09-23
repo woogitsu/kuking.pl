@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Comments\Actions;
 
+use App\Domain\Comments\LockCommentContext;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeanalizujTresc;
@@ -25,24 +26,6 @@ use Illuminate\Support\Facades\DB;
  */
 final class PublishComment
 {
-    /**
-     * JEDEN komunikat na wszystkie odmowy komentowania — i celowo jeden.
-     *
-     * Osobny tekst („ta osoba Cię zablokowała") potwierdzałby, kto kogo
-     * zablokował, komuś, kto właśnie próbuje to obejść. Stała zamiast
-     * trzech literałów, żeby przy następnej zmianie brzmienia nie dało się
-     * poprawić dwóch z trzech i rozjechać tej właściwości.
-     *
-     * BRZMIENIE (issue #38, docs/UX_50_PLUS.md — błędy mówią, CO ZROBIĆ)
-     * Stało tu „Nie można tu komentować." — zdanie bez podmiotu, mówiące
-     * tylko, CO się stało. Komunikat wychodzi PRZY POLU komentarza, więc
-     * człowiek musi z niego wiedzieć, co ma dalej zrobić. „Odśwież stronę"
-     * jest uczciwe i niczego nie zdradza: po odświeżeniu widać dokładnie
-     * tyle, ile ta osoba ma prawo widzieć.
-     */
-    private const NIE_MOZNA_KOMENTOWAC = 'Tu nie da się teraz dodać komentarza. '
-        .'Odśwież stronę — zobaczysz, co jest w tym miejscu dostępne.';
-
     /**
      * Przestrzeń blokad doradczych tej akcji.
      *
@@ -84,84 +67,23 @@ final class PublishComment
          *
          * `$parentRequested` niesie tę utraconą informację — kontroler mówi
          * "w żądaniu był `parent_id`", nie tylko "oto rodzic, jakiego znalazłem".
-         * Sprawdzenie stoi TUTAJ, jak reszta granic rodzica niżej, z tego
+         * Sprawdzenie stoi TUTAJ, a kolejne granice w LockCommentContext, z tego
          * samego powodu: kontrolerów jest kilka, a czwarty by o tym zapomniał.
          * Ten sam neutralny komunikat co przy blokadzie — nie zdradza, czy
          * powodem jest usunięcie, ukrycie moderacyjne, blokada czy zwykła
          * literówka w adresie.
          */
         if ($parent === null && $parentRequested) {
-            throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
-        }
-
-        $subjectOwner = $this->ownerOf($subject);
-
-        if ($author->hasBlockRelationWith($subjectOwner)) {
-            throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
+            throw new BladDlaCzlowieka(LockCommentContext::UNAVAILABLE);
         }
 
         /*
-         * BLOKADA OBOWIĄZUJE TAKŻE PRZY ODPOWIADANIU (audyt W7-06).
-         *
-         * Blokada działała dotąd na trzech powierzchniach: renderowanie
-         * (`Comment::scopeWidoczneDla`), powiadomienia (`NotifyUser`) i tu —
-         * ale tylko wobec WŁAŚCICIELA treści. Wobec autora komentarza,
-         * pod którym się odpowiada, nie działała nigdzie.
-         *
-         * Scenariusz: A i B są w relacji blokady, ale oboje mogą komentować
-         * u C. B pisze komentarz X. A go nie widzi, bo filtr go ukrywa —
-         * ale znając UUID komentarza X (ze wspólnego znajomego, ze zrzutu
-         * ekranu, sprzed blokady) A mógł wysłać `parent_id = X` i utworzyć
-         * odpowiedź STRUKTURALNIE podpiętą pod wątek B.
-         *
-         * Powiadomienie do B i tak nie szło, bo warstwa powiadomień
-         * sprawdza blokadę osobno — więc nękania z tego nie było. Ale zapis
-         * przekraczał granicę, o której interfejs mówi, że jej nie da się
-         * przekroczyć, a wątek B rósł o cudzą odpowiedź.
-         *
-         * Sprawdzenie stoi TUTAJ, a nie tylko w kontrolerze, bo kontrolery
-         * są trzy (wpis, przepis, „Ugotowałem") i czwarty by o tym zapomniał.
+         * Blokada wobec autora treści, WSKAZANEGO komentarza i KORZENIA
+         * płaskiego wątku (audyt W7-06, issue #1049) jest sprawdzana
+         * w LockCommentContext — pod zamkami, na świeżo odczytanych
+         * wierszach, osobno dla wskazanego komentarza i korzenia
+         * (`widoczneDla()` obejmuje status i blokadę w obie strony).
          */
-        $parentId = null;
-
-        if ($parent !== null) {
-            /*
-             * ISSUE #1049: najpierw odświeżamy wskazany komentarz, a potem
-             * rozstrzygamy RZECZYWISTY korzeń płaskiego wątku. Sam autor
-             * odpowiedzi pośredniej nie wyznacza granicy rozmowy: zapis
-             * ostatecznie trafia pod korzeń i blokada z jego autorem musi
-             * obowiązywać tak samo jak przy odpowiedzi bezpośredniej.
-             *
-             * `widoczneDla()` obejmuje status komentarza i autora oraz
-             * blokadę w obie strony. Używamy go osobno dla wskazanego
-             * komentarza i korzenia, bo C może być widoczny, choć korzeń B
-             * jest dla piszącego odcięty blokadą. Neutralna odmowa nie mówi,
-             * który z tych warunków nie przeszedł.
-             */
-            $wskazanyRodzic = Comment::query()
-                ->widoczneDla($author)
-                ->whereKey($parent->getKey())
-                ->first();
-
-            if ($wskazanyRodzic === null || ! $this->naleziDo($wskazanyRodzic, $subject)) {
-                throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
-            }
-
-            $korzen = $wskazanyRodzic->parent_id === null
-                ? $wskazanyRodzic
-                : Comment::query()
-                    ->widoczneDla($author)
-                    ->whereKey($wskazanyRodzic->parent_id)
-                    ->first();
-
-            if ($korzen === null || ! $this->naleziDo($korzen, $subject)) {
-                throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
-            }
-
-            $parent = $wskazanyRodzic;
-            $parentId = $korzen->getKey();
-        }
-
         /*
          * KOMENTARZ I POWIADOMIENIA O NIM POWSTAJĄ RAZEM ALBO WCALE.
          *
@@ -179,7 +101,9 @@ final class PublishComment
          * transakcja, a rozmowa, o której nikt nie wie, jest dokładnie tym,
          * czego ten serwis ma nie robić.
          */
-        $comment = DB::transaction(function () use ($author, $subject, $subjectOwner, $body, $parent, $parentId): Comment {
+        $comment = app(LockCommentContext::class)->handle($author, $subject, $parent, function (User $author, Post|Recipe|CookedEvent $subject, ?Comment $parent) use ($body): Comment {
+            $subjectOwner = $this->ownerOf($subject);
+            $parentId = $parent?->parent_id ?? $parent?->getKey();
             /*
              * DWA KLIKNIĘCIA „WYŚLIJ" TO JEDEN KOMENTARZ — BLOKADA W BAZIE,
              * NIE `exists()` W PHP (D-079, audyt podwójnego wysłania
@@ -198,16 +122,8 @@ final class PublishComment
              * Reguła żyje więc w warstwie domenowej — tam, gdzie i tak
              * kończą wszystkie trzy kontrolery.
              *
-             * DLACZEGO BLOKADA DORADCZA, A NIE `lockForUpdate()` NA WPISIE.
-             * Blokada na wierszu treści serializowałaby WSZYSTKIE komentarze
-             * pod jednym wpisem i wprowadzałaby nową kolejność blokad do
-             * transakcji, która zaraz potem dotyka `comments`, `users`
-             * i `notifications` (D-079 §1, D-093 — zakleszczenia w tym
-             * repozytorium brały się dokładnie z takich nowych kolejności).
-             * Blokada doradcza jest we własnej przestrzeni, nie dotyka
-             * żadnego wiersza i jest wąska: czekają na siebie wyłącznie dwa
-             * wysłania o tej samej tożsamości, czyli ta sama osoba z tym
-             * samym zdaniem w tym samym miejscu.
+             * Zamki w LockCommentContext chronią aktualną dostępność treści.
+             * Osobna przestrzeń 8301 nadal pilnuje tożsamości wysłania.
              *
              * SAMA BLOKADA NIE PILNUJE NICZEGO — pilnuje dopiero
              * REWALIDACJA POD NIĄ (D-079 §2). Drugie żądanie czeka, aż
@@ -283,7 +199,7 @@ final class PublishComment
             return $comment;
         }
 
-        PrzeanalizujTresc::dlaKomentarza($comment);
+        PrzeanalizujTresc::dlaKomentarza($comment)->afterCommit();
 
         return $comment;
     }
@@ -366,24 +282,6 @@ final class PublishComment
     private function oknoSekund(): int
     {
         return (int) config('kuking.formularze.okno_powtorzenia_komentarza_sekund');
-    }
-
-    /**
-     * Czy ten komentarz naprawdę stoi pod tą treścią.
-     *
-     * Kontrolery szukają rodzica przez relację treści, więc same z siebie
-     * tego nie przepuszczą. Powtarzamy to tutaj, bo akcja domenowa nie może
-     * zakładać, że każdy przyszły wywołujący zrobi to samo — a odpowiedź
-     * podpięta pod komentarz z INNEJ strony rozjeżdża wątek w obie strony:
-     * u siebie jej nie widać, a w cudzym wątku wisi.
-     */
-    private function naleziDo(Comment $parent, Post|Recipe|CookedEvent $subject): bool
-    {
-        return match (true) {
-            $subject instanceof Post => $parent->post_id === $subject->getKey(),
-            $subject instanceof Recipe => $parent->recipe_id === $subject->getKey(),
-            $subject instanceof CookedEvent => $parent->cooked_event_id === $subject->getKey(),
-        };
     }
 
     private function ownerOf(Post|Recipe|CookedEvent $subject): User

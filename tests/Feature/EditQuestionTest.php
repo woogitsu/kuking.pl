@@ -43,7 +43,7 @@ class EditQuestionTest extends TestCase
     {
         config(['kuking.questions.enabled' => true]);
         $post = Post::factory()->question()->create(['body' => null]);
-        $changed = app(EditPost::class)->handle($post, null, 'public', questionTitle: 'Jak doprawić przesoloną zupę?');
+        $changed = app(EditPost::class)->handle($post->author, $post, null, 'public', questionTitle: 'Jak doprawić przesoloną zupę?');
         $this->assertSame('Jak doprawić przesoloną zupę?', $changed->title);
         $this->assertSame(Post::KIND_QUESTION, $changed->kind);
         $this->assertNull($changed->body);
@@ -55,7 +55,7 @@ class EditQuestionTest extends TestCase
         $post = Post::factory()->question()->create();
         $title = $post->title;
         try {
-            app(EditPost::class)->handle($post, '#zupa #obiad #bulion #warzywa', 'public', questionTitle: 'Zmieniony tytuł pytania');
+            app(EditPost::class)->handle($post->author, $post, '#zupa #obiad #bulion #warzywa', 'public', questionTitle: 'Zmieniony tytuł pytania');
             $this->fail('Edycja musi respektować limit tagów.');
         } catch (BladDlaCzlowieka $e) {
             $this->assertStringContainsString('najwyżej 3 tagi', $e->getMessage());

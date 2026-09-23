@@ -395,7 +395,7 @@ class LoginLinkController extends Controller
 
             // Stan konta mógł się zmienić między prośbą a kliknięciem —
             // rola też. Konta obsługi serwisu tą drogą nie wchodzą (issue #25).
-            if ($swiezy->isModerator()) {
+            if ($swiezy->hasStaffRole()) {
                 return null;
             }
 
