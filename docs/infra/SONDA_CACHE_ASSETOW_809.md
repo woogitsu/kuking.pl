@@ -73,7 +73,10 @@ zmienione podczas wdrożenia wymagają osobnej obsługi przez operatora.
 Własny szeroki przebieg: **4396 testów, 84 582 asercje, 342,39 s**, bez porażek.
 Pominięto wyłącznie `ProbaOdtworzeniaTest`, zgodnie z jawną instrukcją floty:
 używa wspólnej bazy `kuking_zrodlo_proby_glowny`. Nie uruchamiano go na tej bazie.
-Po tym przebiegu zmieniono nazwę adaptera na angielską `ScheduledArtisanCommand`
+Po tym przebiegu adapter na chwilę dostał osobną, angielską klasę; w przeglądzie
+scalono go z istniejącym już na `main` `App\Support\Harmonogram` — w repo jest
+jeden adapter, a komunikat wyjątku to „Komenda harmonogramu '…' zakończyła się
+niepowodzeniem (kod wyjścia: N).” (nadal bez parametrów). Ponadto
 oraz zawężono odczyt odnośników sondy do link/script z prawdziwym src/href.
 Dodatkowy czerwony test wykrył private bez spacji po dwukropku nagłówka;
 po normalizacji dyrektyw ten scenariusz również przechodzi.

@@ -3,7 +3,7 @@
 ## Zmiana
 
 Wszystkie 20 komend w `routes/console.php` korzysta z
-`App\Support\ScheduledArtisanCommand::artisan()`. Adapter wykonuje komendę w tym samym
+`App\Support\Harmonogram::artisan()`. Adapter wykonuje komendę w tym samym
 procesie PHP, a kod ≠ 0 zamienia w `RuntimeException` z nazwą komendy i kodem
 (bez parametrów — szczegóły są w logu komendy). Laravel `CallbackEvent`
 uznaje za porażkę tylko wyjątek albo `false`; liczby 1 i 2 były sukcesem.
@@ -26,12 +26,12 @@ zamieniające kod ≠ 0 w `RuntimeException` (#1342). Decyzja właściciela z 23
 jeden adapter dla wszystkich zadań. Adapter przejął więc wzorzec z #1440
 (wyjątek zamiast `false` — wyjątek trafia też do zgłaszania błędów), a zadanie
 powiadomień przepięto na adapter bez zmiany zachowania: nadal kończy się
-wyjątkiem z „zakończone kodem N” (`RetencjaPowiadomienCzesciowaPorazkaTest`).
+wyjątkiem z „(kod wyjścia: N)” (`RetencjaPowiadomienCzesciowaPorazkaTest`).
 Blokady `withoutOverlapping(N)` z #1433, `onOneServer()`, nazwy i godziny
 wszystkich 20 zadań są identyczne jak na `main`.
 
 Strażnik `HarmonogramSprawdzaKodWyjsciaTest` wymaga przy kodach 1, 2 i 137
-wyjątku o treści `<komenda> zakończone kodem <N>` z KAŻDEGO zarejestrowanego
+wyjątku o treści `Komenda harmonogramu '<komenda>' zakończyła się niepowodzeniem (kod wyjścia: <N>).` z KAŻDEGO zarejestrowanego
 zdarzenia. Kontrola dodatnia w tym samym pliku rejestruje gołe
 `Schedule::call(fn () => Artisan::call(...))` i dowodzi, że ono przy kodzie 1
 kończy się sukcesem — czyli że strażnik odróżnia adapter od starego wzorca.
@@ -85,7 +85,10 @@ za właściciela i nie zmienia go asercją.
 Własny szeroki przebieg: **4396 testów, 84 582 asercje, 342,39 s**, bez porażek.
 Pominięto wyłącznie `ProbaOdtworzeniaTest`, zgodnie z jawną instrukcją floty:
 używa wspólnej bazy `kuking_zrodlo_proby_glowny`. Nie uruchamiano go na tej bazie.
-Po tym przebiegu zmieniono nazwę adaptera na angielską `ScheduledArtisanCommand`
+Po tym przebiegu adapter na chwilę dostał osobną, angielską klasę; w przeglądzie
+scalono go z istniejącym już na `main` `App\Support\Harmonogram` — w repo jest
+jeden adapter, a komunikat wyjątku to „Komenda harmonogramu '…' zakończyła się
+niepowodzeniem (kod wyjścia: N).” (nadal bez parametrów). Ponadto
 oraz zawężono odczyt odnośników sondy do link/script z prawdziwym src/href.
 Dodatkowy czerwony test wykrył private bez spacji po dwukropku nagłówka;
 po normalizacji dyrektyw ten scenariusz również przechodzi.

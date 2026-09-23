@@ -116,9 +116,9 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
                 // Wspólny adapter: nazwa komendy i kod, nic więcej.
                 $this->assertInstanceOf(RuntimeException::class, $exception, $event->description);
                 $this->assertMatchesRegularExpression(
-                    '/^kuking:[a-z-]+ zakończone kodem '.$code.' /u',
+                    '/^Komenda harmonogramu \'kuking:[a-z-]+\' zakończyła się niepowodzeniem \(kod wyjścia: '.$code.'\)\.$/u',
                     $exception->getMessage(),
-                    'Zadanie nie przechodzi przez ScheduledArtisanCommand::artisan(): '.$event->description,
+                    'Zadanie nie przechodzi przez Harmonogram::artisan(): '.$event->description,
                 );
             }
         }

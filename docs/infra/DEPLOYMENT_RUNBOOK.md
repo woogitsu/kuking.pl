@@ -1872,7 +1872,8 @@ Wtedy: Cache eligibility     = Eligible for cache
 ```
 
 Manifest `/build/manifest.json` nie należy do reguły rocznej. Caddy wysyła
-`Cache-Control: no-cache`, aby przeglądarka sprawdzała aktualną wersję.
+`Cache-Control: no-cache`: plik nie ma hasha w nazwie, więc nie może być
+„immutable”. Przeglądarka go nie pobiera — czyta go Laravel z dysku (`@vite`).
 Jeśli istnieje starsza reguła `/build/*`, zawęź ją do `/build/assets/*`
 i usuń stary manifest z cache Cloudflare przy wdrożeniu poprawki #809.
 
@@ -2052,6 +2053,11 @@ curl -sI https://kuking.pl/ | grep -i "^\(cf-ray\|server\)"
 ./scripts/sprawdz-wdrozenie.sh kuking.pl
 # Sonda wypisuje zbadane ścieżki; nie potwierdza całego buildu.
 # /build/manifest.json nie ma hasha: no-cache, bez rocznego immutable.
+# Brak odnośników /build/assets/ na stronie to teraz BŁĄD, nie ostrzeżenie:
+# gdy sonda failuje „Nie znaleziono własnego hashowanego CSS i JS”, zajrzyj
+# do źródła strony — odnośniki @vite muszą zaczynać się od /build/assets/
+# albo https://kuking.pl/build/assets/; popraw APP_URL (https, właściwy host)
+# i usuń/popraw ASSET_URL w Railway, potem wdrożenie i ponowna sonda.
 
 # 7. Endpoint Livewire NIE jest cache'owany
 curl -sI https://kuking.pl/livewire/update | grep -i "cache-control\|cf-cache-status"
