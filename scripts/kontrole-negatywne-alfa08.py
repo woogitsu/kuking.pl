@@ -94,6 +94,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
+# w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
+# dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
+OBRAZ_KOPII = "docker/kopia/Dockerfile"
+OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -197,6 +203,18 @@ def zdjecie_checku_przed_straznikiem_2fa(source):
     return replace_once(bez_zdjecia, straznik, zdjecie + straznik)
 
 
+def bez_digestu_obrazu_kopii(source):
+    """KONTROLA DODATNIA: wróć w obrazie kopii do gołego, ruchomego tagu.
+
+    `FROM postgres:18` buduje się dalej zielono — dlatego tylko mutacja
+    dowodzi, że `test_kazdy_from_w_kazdym_dockerfile_ma_digest` to zauważy.
+    """
+    start = source.index("FROM postgres:18@sha256:")
+    end = source.index("\n", start)
+
+    return source[:start] + "FROM postgres:18" + source[end:]
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -230,6 +248,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
+     bez_digestu_obrazu_kopii),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +258,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(OBRAZY_DIGEST_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
