@@ -15378,7 +15378,7 @@ jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 1
 `gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
 D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
 
-> **Sprostowane 22 września 2026 — patrz D-243.** Dwa rozstrzygnięcia poniżej
+> **Sprostowane 22 września 2026 — patrz D-242.** Dwa rozstrzygnięcia poniżej
 > przestały obowiązywać, bo przestała być prawdziwa przesłanka, na której obie
 > stały: że „`detach()` kasuje notatkę i żadna droga powrotu jej nie odtwarza".
 > Rdzeń z #1110 dołożył `restore()`, które przywraca zdjęte wiersze RAZEM
@@ -15588,7 +15588,7 @@ pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i 
 jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 
 
-## D-243 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
+## D-242 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
 
 **Decyzja właściciela: rdzeń z #1110, ekrany z #1168.** #1168 weszło na
 `main` samo, z rdzeniem, który przy wyjęciu nadal kasował notatkę
@@ -15629,15 +15629,15 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 **Bez zmian:** jedna droga wyjęcia na ekran i napisy „Usuń z tego zeszytu" /
 „Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
 
-**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-242 przez
-inne gałęzie. *Ta decyzja nosiła najpierw D-241, potem D-242* — za każdym
-razem numer był wolny w chwili sprawdzenia wszystkich gałęzi, ale zanim
-dotarł na `origin` (hak `pre-push` trwa kilkanaście minut), ten sam numer
-wzięła `flota/scal-786` (#966), która sama dwa razy ustępowała innym
-gałęziom. Żadna strona nie widziała drugiej. Zamiast sporu o pierwszeństwo
-ta decyzja — niescalona, więc tańsza do przestawienia — ustępuje i bierze
-D-243 (`scripts/numery-decyzji.sh --nastepny-wolny`, sprawdzone tuż przed
-pchnięciem). Cudzej gałęzi nie przenumerowano.
+**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
+D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
+strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
+D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
+`pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza
+opublikowała `flota/scal-786`, więc ta decyzja wraca na D-242, który tamta
+gałąź jej zostawiła. Cudzej gałęzi nie przenumerowano.
 
 Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
 `tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
