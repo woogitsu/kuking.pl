@@ -84,8 +84,10 @@
                 Napis, nie sam kolor (`docs/UX_50_PLUS.md`): kolor jest tu
                 dodatkiem do zdania, a nie jedynym nośnikiem różnicy.
             --}}
-            @php($priorytet = \App\Domain\Moderation\PriorytetSprawy::dla($report))
-            @if($napisPriorytetu = \App\Domain\Moderation\PriorytetSprawy::napis($priorytet))
+            {{-- Tylko sprawa, która CZEKA: zamknięte P0 z napisem „Nie może
+                 czekać" byłoby nieprawdą (`PriorytetSprawy::wKolejce`). --}}
+            @php($priorytet = \App\Domain\Moderation\PriorytetSprawy::wKolejce($report))
+            @if($priorytet !== null && ($napisPriorytetu = \App\Domain\Moderation\PriorytetSprawy::napis($priorytet)))
                 <p class="meta mt-0 mb-2">
                     <strong class="priorytet priorytet-{{ $priorytet }}">{{ $napisPriorytetu }}</strong>
                 </p>

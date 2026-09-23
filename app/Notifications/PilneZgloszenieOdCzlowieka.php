@@ -48,7 +48,16 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
 {
     use Queueable;
 
-    public function __construct(private readonly Report $zgloszenie) {}
+    /**
+     * @param  bool  $ostatniDzis  ten list zajął ostatnie miejsce dobowego
+     *                             sufitu alarmów (`AlarmujOPilnymZgloszeniu`) —
+     *                             mówimy to wprost, żeby cisza po nim nie
+     *                             wyglądała jak „nic się nie dzieje"
+     */
+    public function __construct(
+        private readonly Report $zgloszenie,
+        private readonly bool $ostatniDzis = false,
+    ) {}
 
     /** @return list<string> */
     public function via(object $notifiable): array
@@ -60,7 +69,7 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
     {
         $prawne = $this->zgloszenie->source === Report::SOURCE_LEGAL_NOTICE;
 
-        return (new MailMessage)
+        $list = (new MailMessage)
             ->subject('Kuking: pilne zgłoszenie w kolejce moderacji')
             ->greeting('Dzień dobry.')
             ->line($prawne
@@ -79,8 +88,14 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
             ->line('Kategorię wybrał zgłaszający i nikt jej jeszcze nie sprawdził. '
                 .'Treść jest w serwisie widoczna normalnie — samo zgłoszenie niczego '
                 .'nie ukryło ani nie zablokowało. Rozstrzyga moderator, który tego '
-                .'zgłoszenia nie wniósł.')
-            ->salutation('Kuking');
+                .'zgłoszenia nie wniósł.');
+
+        if ($this->ostatniDzis) {
+            $list->line('**To ostatni taki list dzisiaj.** Kolejne pilne zgłoszenia czekają już tylko '
+                .'w kolejce, na samej górze. Zajrzyj do niej, zanim skończysz dzień.');
+        }
+
+        return $list->salutation('Kuking');
     }
 
     /** Priorytet, przy którym ten list w ogóle wychodzi — czytane przez akcję alarmu. */

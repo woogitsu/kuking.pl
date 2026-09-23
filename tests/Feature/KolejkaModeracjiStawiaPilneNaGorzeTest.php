@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
@@ -257,6 +258,209 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // Alarm nie daje się zalać (przegląd PR #1284)
+    // ---------------------------------------------------------------
+
+    /**
+     * CZTERDZIEŚCI ZGŁOSZEŃ JEDNEGO WPISU TO JEDEN LIST.
+     *
+     * Przed poprawką każde zgłoszenie P0 wysyłało list; `reports_one_open_per_pair`
+     * pilnuje pary osoba–treść, więc wiele osób = wiele listów.
+     */
+    public function test_wiele_zgloszen_tego_samego_wpisu_daje_jeden_list(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+
+        $wpis = $this->wpis('autorfali');
+
+        for ($i = 0; $i < 5; $i++) {
+            app(ReportContent::class)->handle($this->user('zglaszajacyfali'.$i), $wpis, 'minor');
+        }
+
+        Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
+        $this->assertSame(5, Report::query()->where('target_id', $wpis->getKey())->count(),
+            'Deduplikacja listu nie może gubić zgłoszeń — każde ma stać w kolejce.');
+    }
+
+    /** Droga bez konta: ten sam adres z doklejonym „?x=1" nie otwiera nowego okna. */
+    public function test_zgloszenia_prawne_tego_samego_adresu_daja_jeden_list(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+
+        foreach (['https://kuking.test/wpisy/cel', 'https://kuking.test/wpisy/cel/?x=1', 'HTTPS://kuking.test/wpisy/cel#a'] as $adres) {
+            app(ZglosNielegalnaTresc::class)->handle(
+                imie: null,
+                email: null,
+                adres: $adres,
+                uzasadnienie: 'Uzasadnienie zgłoszenia dla potrzeb testu.',
+                powod: 'minor',
+            );
+        }
+
+        Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
+    }
+
+    /** Po oknie ten sam cel znów budzi moderatora — deduplikacja nie jest wieczna. */
+    public function test_po_oknie_ten_sam_wpis_znow_alarmuje(): void
+    {
+        Notification::fake();
+        config([
+            'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
+            'kuking.moderation.alarm_czlowieka.okno_celu_godzin' => 6,
+        ]);
+
+        $wpis = $this->wpis('autorokna');
+        app(ReportContent::class)->handle($this->user('zglaszajacyokna1'), $wpis, 'minor');
+
+        $this->travel(7)->hours();
+        app(ReportContent::class)->handle($this->user('zglaszajacyokna2'), $wpis, 'minor');
+
+        Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 2);
+    }
+
+    /**
+     * DOBOWY SUFIT: jedno konto przy kolejnych celach nie wyśle więcej niż
+     * sufit, a ostatni list mówi wprost, że kolejnych dziś nie będzie.
+     */
+    public function test_dobowy_sufit_alarmow_i_ostatni_list_to_mowi(): void
+    {
+        Notification::fake();
+        config([
+            'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
+            'kuking.moderation.alarm_czlowieka.dzienny_sufit' => 3,
+        ]);
+
+        $zglaszajacy = $this->user('zglaszajacysufit');
+
+        for ($i = 0; $i < 6; $i++) {
+            app(ReportContent::class)->handle($zglaszajacy, $this->wpis('autorsufit'.$i), 'minor');
+        }
+
+        Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 3);
+
+        $ostatnie = 0;
+        Notification::assertSentOnDemand(
+            PilneZgloszenieOdCzlowieka::class,
+            function (PilneZgloszenieOdCzlowieka $n) use (&$ostatnie): bool {
+                $list = $n->toMail(new \stdClass);
+                $tresc = implode("\n", [...$list->introLines, ...$list->outroLines]);
+                $ostatnie += str_contains($tresc, 'To ostatni taki list dzisiaj.') ? 1 : 0;
+
+                return true;
+            },
+        );
+        $this->assertSame(1, $ostatnie, 'Dokładnie jeden — ostatni — list doby ma mówić, że kolejnych nie będzie.');
+    }
+
+    /** Alarm zajmuje miejsce we WSPÓLNYM liczniku poczty (D-239), a nie obok niego. */
+    public function test_alarm_liczy_sie_we_wspolnej_puli_poczty(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+
+        $wspolny = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE);
+        $przed = $wspolny->zuzyte();
+
+        $this->zglosWpis('minor');
+
+        $this->assertSame($przed + 1, $wspolny->zuzyte());
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
+    }
+
+    /**
+     * Pusta pula = bez listu, ale klucz celu wraca: kolejne zgłoszenie tego
+     * samego wpisu, gdy miejsce się znajdzie, ma szansę kogoś obudzić.
+     */
+    public function test_pusta_pula_nie_wysyla_i_nie_blokuje_celu(): void
+    {
+        Notification::fake();
+        config([
+            'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
+            'kuking.poczta.limit_dostawcy_dobowy' => 0,
+        ]);
+
+        $wpis = $this->wpis('autorpuli');
+        app(ReportContent::class)->handle($this->user('zglaszajacypuli1'), $wpis, 'minor');
+
+        Notification::assertNothingSent();
+
+        config(['kuking.poczta.limit_dostawcy_dobowy' => 300]);
+        app(ReportContent::class)->handle($this->user('zglaszajacypuli2'), $wpis, 'minor');
+
+        Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
+    }
+
+    // ---------------------------------------------------------------
+    // Priorytet tylko dla spraw, które czekają
+    // ---------------------------------------------------------------
+
+    /** Rozstrzygnięte P0 nie mówi „Nie może czekać" — to już nieprawda. */
+    public function test_zamknieta_pilna_sprawa_nie_ma_plakietki(): void
+    {
+        $moderator = $this->moderator();
+
+        $zamkniete = $this->zgloszenie('minor', now()->subDay(), $this->user('zglaszajacazamknieta'));
+        $zamkniete->forceFill(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()])->save();
+
+        $odpowiedz = $this->actingAs($moderator)->get(route('admin.reports', ['status' => 'wszystkie']));
+
+        $odpowiedz->assertOk();
+        $odpowiedz->assertDontSee('Nie może czekać');
+    }
+
+    /** W „Wszystkie" dzisiejsze otwarte P2 stoi nad archiwum P0 i P1. */
+    public function test_we_wszystkich_otwarta_zwykla_sprawa_stoi_nad_zamknietym_p0(): void
+    {
+        $moderator = $this->moderator();
+        $zglaszajaca = $this->user('zglaszajacawszystkie');
+
+        $archiwumP0 = $this->zgloszenie('minor', now()->subHours(2), $zglaszajaca);
+        $archiwumP0->forceFill(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()])->save();
+        $archiwumP1 = $this->zgloszenie('scam', now()->subHour(), $zglaszajaca);
+        $archiwumP1->forceFill(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()])->save();
+        $otwarteP2 = $this->zgloszenie('spam', now()->subDays(3), $zglaszajaca);
+
+        $odpowiedz = $this->actingAs($moderator)->get(route('admin.reports', ['status' => 'wszystkie']));
+        $odpowiedz->assertOk();
+
+        $kolejnosc = $odpowiedz->viewData('reports')
+            ->map(static fn (Report $r): string => (string) $r->getKey())
+            ->values()
+            ->all();
+
+        $this->assertSame(
+            [(string) $otwarteP2->getKey(), (string) $archiwumP1->getKey(), (string) $archiwumP0->getKey()],
+            $kolejnosc,
+            'Zamknięte sprawy mają stać za otwartymi i między sobą po dacie, bez priorytetu.',
+        );
+    }
+
+    /** PHP i SQL zgadzają się też co do „nie czeka" — karta i pozycja w kolejce się nie rozjadą. */
+    public function test_priorytet_kolejki_z_php_zgadza_sie_z_baza_dla_kazdego_statusu(): void
+    {
+        $zglaszajaca = $this->user('zglaszajacastatusy');
+        $oczekiwane = [];
+
+        foreach ([Report::STATUS_OPEN, Report::STATUS_REVIEWING, Report::STATUS_RESOLVED] as $stan) {
+            $wiersz = $this->zgloszenie('minor', now()->subHour(), $zglaszajaca);
+            $wiersz->forceFill(['status' => $stan] + ($stan === Report::STATUS_RESOLVED ? ['resolved_at' => now()] : []))->save();
+            $oczekiwane[(string) $wiersz->getKey()] = PriorytetSprawy::wKolejce($wiersz) ?? PriorytetSprawy::NIE_CZEKA;
+        }
+
+        [$wyrazenie, $parametry] = PriorytetSprawy::wyrazenieSqlKolejki();
+
+        $zBazy = Report::query()
+            ->selectRaw('id, ('.$wyrazenie.') AS priorytet', $parametry)
+            ->pluck('priorytet', 'id')
+            ->map(static fn ($p): int => (int) $p)
+            ->all();
+
+        $this->assertSame($oczekiwane, array_intersect_key($zBazy, $oczekiwane));
+    }
+
+    // ---------------------------------------------------------------
     // Reguła: PHP i SQL liczą to samo
     // ---------------------------------------------------------------
 
@@ -341,6 +545,15 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
             ->map(static fn (Report $r): string => (string) $r->getKey())
             ->values()
             ->all();
+    }
+
+    private function wpis(string $autor): Post
+    {
+        return Post::factory()->for($this->user($autor), 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
     }
 
     private function zglosWpis(string $powod): Report

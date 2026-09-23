@@ -91,6 +91,9 @@ final class PriorytetSprawy
     /** Zwykła kolejka. */
     public const P2 = 2;
 
+    /** Pozycja spraw, które już nie czekają — za wszystkimi otwartymi. */
+    public const NIE_CZEKA = 3;
+
     /**
      * Kategoria zgłoszenia → priorytet. Czego tu nie ma, jest P2.
      *
@@ -177,6 +180,20 @@ final class PriorytetSprawy
         return $zPowodu;
     }
 
+    /**
+     * Priorytet sprawy W KOLEJCE — czyli tylko dopóki nikt jej nie ruszył.
+     *
+     * `null` dla wszystkiego, co nie jest `open`. Pytanie „czy to może
+     * poczekać do jutra" ma sens tylko dla sprawy, która czeka: rozstrzygnięte
+     * P0 z zeszłego tygodnia z napisem „Nie może czekać" jest nieprawdą,
+     * a w zakładce „Wszystkie" stało nad dzisiejszym otwartym zgłoszeniem.
+     * Karta i `ORDER BY` (`wyrazenieSqlKolejki`) czytają tę samą regułę.
+     */
+    public static function wKolejce(Report $zgloszenie): ?int
+    {
+        return $zgloszenie->status === Report::STATUS_OPEN ? self::dla($zgloszenie) : null;
+    }
+
     public static function napis(int $priorytet): ?string
     {
         return self::NAPISY[$priorytet] ?? null;
@@ -226,5 +243,25 @@ final class PriorytetSprawy
         }
 
         return ['CASE'.$warunki.' ELSE ? END', [...$parametry, self::P2]];
+    }
+
+    /**
+     * To samo, ale TYLKO DLA OTWARTYCH — do `ORDER BY` kolejki zgłoszeń.
+     *
+     * Sprawy w innym stanie dostają `NIE_CZEKA`, więc w „Wszystkie" stoją
+     * za wszystkimi otwartymi i między sobą idą po dacie. Wydajność: `CASE`
+     * nie ma indeksu i liczy się na każdym wierszu filtru. W MVP to jest
+     * świadomie w porządku — zob. D-236.
+     *
+     * @return array{0: string, 1: list<string|int>}
+     */
+    public static function wyrazenieSqlKolejki(string $kolumnaStatusu = 'status'): array
+    {
+        [$wyrazenie, $parametry] = self::wyrazenieSql();
+
+        return [
+            'CASE WHEN '.$kolumnaStatusu.' = ? THEN ('.$wyrazenie.') ELSE ? END',
+            [Report::STATUS_OPEN, ...$parametry, self::NIE_CZEKA],
+        ];
     }
 }

@@ -63,6 +63,18 @@ sam adres, co alarm automatu (D-055). Pusty adres znaczy „bez poczty" i jest
 normalnym stanem lokalnie oraz w testach. List nie niesie treści zgłoszonej
 ani pola `details`.
 
+**Alarm nie daje się zalać (D-236).** Najwyżej jeden list o danym celu
+w oknie `moderation.alarm_czlowieka.okno_celu_godzin` (6 h), najwyżej
+`moderation.alarm_czlowieka.dzienny_sufit` (10) listów na dobę dla wszystkich
+celów — ostatni mówi, że kolejnych dziś nie będzie — i każdy list zajmuje
+miejsce we wspólnym liczniku poczty (D-239, klasa `wejscie`). Powyżej sufitu
+sprawa stoi w kolejce z plakietką, a dziennik mówi, dlaczego bez listu.
+
+**Plakietka i priorytet tylko dla otwartych.** Sprawa w innym stanie nie ma
+napisu „Nie może czekać"/„Na dziś", a w zakładce „Wszystkie" stoi za
+wszystkimi otwartymi, po dacie (`PriorytetSprawy::wKolejce`,
+`wyrazenieSqlKolejki`).
+
 ## Akcje
 
 - no action;

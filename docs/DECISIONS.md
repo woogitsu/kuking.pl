@@ -16191,5 +16191,55 @@ nieprawdą, gdy zgłosił sam moderator, a list trafia na wspólny adres
 alarmowy — list mówi teraz, że rozstrzyga moderator, który zgłoszenia nie
 wniósł.
 
+### Poprawki z przeglądu PR #1284 (23 września 2026)
+
+**Ryzyko: zalanie alarmu.** Pierwsza wersja wysyłała list na KAŻDE
+zgłoszenie P0 i zakładała, że nadużyciu wystarczy `reports_one_open_per_pair`.
+Nie wystarczało: ten indeks pilnuje pary osoba–treść, a kategorię wybiera
+zgłaszający — także w formularzu DSA bez konta. 40 zgłoszeń jednego wpisu
+dawało 40 listów, jedno konto zaznaczające „Dotyczy dziecka" przy kolejnych
+celach — do 60 listów na godzinę. Listy szły poza wspólnym licznikiem poczty
+(wbrew D-239: jeden licznik dla wszystkich dróg) i zjadały pulę EmailLabs
+300/dobę, wypychając listy logowania i rejestracji.
+
+**Rozwiązanie — trzy zamki.** (1) Najwyżej jeden list o danym celu
+(`target_type` + `target_id`, a przy zgłoszeniu prawnym bez rozpoznanego celu —
+`target_url` bez `?`/`#` i końcowego ukośnika) w oknie
+`moderation.alarm_czlowieka.okno_celu_godzin` (6 h), atomowo przez
+`Cache::add()`; kolejne zgłoszenia tego celu i tak stoją na górze kolejki.
+(2) Dobowy sufit `moderation.alarm_czlowieka.dzienny_sufit` (10) dla
+wszystkich celów razem; ostatni list doby mówi wprost, że kolejnych nie
+będzie, powyżej zostaje wpis w dzienniku i sprawa w kolejce z plakietką.
+(3) Sufit jest licznikiem `DziennyBudzetListow::dlaAlarmuModeracji()`
+zagnieżdżonym we wspólnym liczniku — jedna atomowa rezerwacja na oba, tak
+jak przy podsumowaniu. Gdy list nie wychodzi po zajęciu klucza celu, klucz
+wraca.
+
+**Klasa `wejscie`, nie `zwykla` — i dlatego własny sufit.** Klasę `zwykla`
+wypala zalanie `/nie-pamietam-hasla` z jednego łącza (D-239); alarm w tej
+klasie dawałby sprawcy przepis na to, żeby zgłoszenie o dziecku przeleżało
+noc bez listu. W klasie `wejscie` alarm sięga po ostatnie listy doby, a sufit
+ogranicza, ile z nich może zabrać: najwyżej 10 ze 100 zostawianych wejściu.
+Suma z `PodzialLimituPocztyTest` się nie zmienia, bo te listy leżą w rezerwie.
+
+**Plakietka i priorytet tylko dla spraw otwartych.** Rozstrzygnięte P0
+z napisem „Nie może czekać" było nieprawdą, a sortowanie po priorytecie
+obejmowało wszystkie stany — w „Wszystkie" archiwum P0/P1 stało nad
+dzisiejszym otwartym P2. Teraz karta czyta `PriorytetSprawy::wKolejce()`
+(`null` poza `open`), a `ORDER BY` — `wyrazenieSqlKolejki()`: sprawy
+nieotwarte dostają `NIE_CZEKA` i idą za otwartymi, po dacie. Test pilnuje,
+że PHP i SQL liczą to samo dla każdego stanu.
+
+**Wydajność.** `ORDER BY CASE` nie ma indeksu i liczy się na każdym wierszu
+po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
+`open` od ludzi, czyli dziesiątki wierszy, a priorytet dotyczy tylko
+otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
+urośnie do tysięcy.
+
+**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
+w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
+kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
+w `PriorytetSprawy::MAPOWANIE`.
+
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.

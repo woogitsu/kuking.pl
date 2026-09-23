@@ -73,7 +73,9 @@ class ModerationController extends Controller
          */
         $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
 
-        [$wyrazenieSql, $parametrySql] = PriorytetSprawy::wyrazenieSql();
+        // Priorytet TYLKO dla otwartych: archiwum P0 nie stoi w „Wszystkie"
+        // nad dzisiejszym otwartym P2 (`PriorytetSprawy::wyrazenieSqlKolejki`).
+        [$wyrazenieSql, $parametrySql] = PriorytetSprawy::wyrazenieSqlKolejki();
 
         $reports = Report::query()
             ->when(
