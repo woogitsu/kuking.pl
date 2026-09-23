@@ -151,4 +151,24 @@ class Profile extends Model
         return $this->avatar?->status === Media::STATUS_REJECTED
             && $this->zdjecieDoPokazania() === null;
     }
+
+    /**
+     * Czy człowiek MA zdjęcie (nieusunięte), którego teraz nie da się pokazać.
+     *
+     * Szersze niż `zdjecieSieJeszczePrzygotowuje()`: obejmuje też zdjęcie
+     * `ready` bez wariantu na dysku i zdjęcie odrzucone. Skrót na ekranie
+     * profilu mówi w tych stanach jedno zdanie — „nie możemy teraz pokazać,
+     * sprawdź w ustawieniach zdjęcia" — a rozróżnienie zostawia ekranowi
+     * `/ustawienia/zdjecie`. Bez tej metody zawężenie „przygotowuje się" do
+     * `pending`/`processing` (#1195) kazałoby skrótowi mówić „nie masz jeszcze
+     * zdjęcia" komuś, kto zdjęcie ma.
+     */
+    public function maZdjecieNieDoPokazania(): bool
+    {
+        $zdjecie = $this->avatar;
+
+        return $zdjecie !== null
+            && $zdjecie->status !== Media::STATUS_DELETED
+            && $this->zdjecieDoPokazania() === null;
+    }
 }

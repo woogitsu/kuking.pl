@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
@@ -15666,3 +15678,245 @@ i nazwana niedokładność, nie przeoczenie.
 `tests/Feature/PodzialLimituPocztyTest.php`,
 `tests/Feature/ZwrotRezerwacjiPoPolnocyTest.php`,
 `tests/Feature/BiuletynNieZabieraListowWejsciaTest.php`
+
+---
+
+## D-240 — Do OpenAI wychodzi wyłącznie pomniejszona, publiczna treść; awatar nie wychodzi wcale (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (pozycja nr 1 listy,
+„incydent trwający": `OPENAI_MODERATION_KEY` jest ustawiony na produkcji) ·
+Uzupełnia D-055, **uchyla D-061** w części „zdjęcie profilowe idzie do modelu" ·
+Zamyka #827 · Status: **obowiązuje**
+
+Decyzja dosłownie: `gpt-openai-granice` + `gpt-moderacja-ai` połączyć ręcznie
+w jedną poprawkę; do OpenAI ma wychodzić wyłącznie pomniejszona, publiczna
+treść; awatary bez potwierdzonej zgody — nie wysyłać.
+
+### Co było zepsute
+
+1. **Komentarz wychodził bez pytania o rodzica (#827).** `PrzeanalizujTresc`
+   sprawdzało u komentarza tylko `status = published`. Komentarz pod wpisem,
+   przepisem albo wykonaniem, które w międzyczasie przestały być publiczne
+   (prywatne, „dla obserwujących", ukryte, usunięte, konto autora zbanowane
+   albo w karencji usunięcia), szedł do OpenAI i stawiał oznaczenie
+   w kolejce moderatora. To samo dla śladu „Komentarz usunięty."
+   (`body_removed_at`) i komentarza zbanowanej osoby.
+2. **Zdjęcie mogło wyjść w pełnym rozmiarze.** `jakoJpeg()` brało
+   `wariantDoSerwowania('thumb')`, które przy braku miniatury podstawia
+   pierwszy lepszy wariant. Zmierzone w teście: zdjęcie z samym `large`
+   wychodziło jako JPEG 1600 × 1200, a `thumb` wskazujący na duży plik —
+   2048 × 1536. Wymiarów nikt nie sprawdzał.
+3. **Awatar wychodził zawsze** (D-061), bez żadnej zgody.
+4. **Uszkodzona odpowiedź udawała czystą ocenę.** `category_scores: []`,
+   wyniki-napisy, wyniki spoza 0–1 i odpowiedź bez znanej kategorii
+   kończyły się jako „nic nie znaleziono", bez śladu w dzienniku. Brak klucza
+   na produkcji był tak samo cichy jak lokalnie.
+
+### Co obowiązuje
+
+- **„Publiczna" = widoczna dla gościa bez konta w chwili wysyłki.**
+  `app/Moderacja/GranicaWysylki.php` pyta te same Policy co strona dla gościa
+  (`Gate::forUser(null)`, `PostPolicy`/`CommentPolicy`, a ta dalej o rodzica),
+  czytając stan świeżo z bazy. Pytana jest przed tekstem, przed **każdym**
+  zdjęciem i jeszcze raz przed postawieniem oznaczenia. **Treść „dla
+  obserwujących" przestaje być oceniana modelem** — to świadome zawężenie
+  wobec D-055, wynikające wprost ze słowa „publiczna" w decyzji.
+- **Lokalne sygnały (D-052) mają osobną, szerszą granicę** —
+  `GranicaWysylki::pozaAutorem()`: „dla obserwujących" wolno, prywatne nie,
+  jak przed tą zmianą. Nowe jest to, że komentarz pyta o aktualny stan
+  rodzica (#827) i o ślad usunięcia. Sygnały lokalne nie opuszczają
+  serwera, więc zawężanie ich do „publicznej" byłoby zmianą poza zakresem
+  tej decyzji. Jedyny skutek uboczny: zapowiedź przepisu „dla
+  obserwujących" pyta `PostPolicy` o bramkę przepisu i przez to nie stawia
+  lokalnego oznaczenia.
+- **Zdjęcie: tylko wariant `thumb`, bez zastępstwa, najwyżej 320 px
+  zmierzone z bajtów** — przed dekodowaniem i na gotowym JPEG.
+  `OcenaModelem::MAX_BOK` celowo nie jest czytany z konfiguracji wariantów.
+  Brak miniatury = zdjęcie pominięte, ostrzeżenie `stage=image_boundary`.
+- **Awatar nie wychodzi.** W serwisie nie ma mechanizmu potwierdzonej zgody
+  na ocenę zdjęcia profilowego (`dziennik_zgod` zna jeden cel —
+  `tygodniowy_digest`), więc nie ma jej nikt. `AvatarSettingsController`
+  nie zleca oceny; `PrzeanalizujAwatar` zostaje pustym zadaniem wyłącznie
+  dla zleceń czekających w kolejce sprzed wdrożenia. Przywrócenie wymaga
+  osobnej decyzji: celu zgody, ekranu udzielania i wycofania, sprawdzenia
+  przed każdą wysyłką.
+- **Awaria nie udaje „czyste".** `KlientOpenAI` odrzuca odpowiedź pustą,
+  z polem nieliczbowym, nieskończonym albo spoza 0–1 i odpowiedź bez znanej
+  kategorii — z ostrzeżeniem. Limit czasu przycięty do 1–8 s, połączenie
+  3 s (`0` w Guzzle znaczy „bez limitu"). Brak klucza **na produkcji**
+  zostawia ostrzeżenie `stage=openai_disabled` przy każdej nieocenionej
+  treści; lokalnie i w CI zostaje cichy. Lokalne sygnały działają
+  niezależnie od stanu modelu.
+
+### Co wzięto z gałęzi źródłowych, a czego nie
+
+Z `gpt-openai-granice` (7fd9aa8): zasada „dokładnie `thumb`, wymiary
+z bajtów, 320 px, bez zamiennika" i przypadki testowe zdjęć; pominięcie
+śladu usunięcia komentarza. **Pominięto:** ponowną analizę po edycji
+komentarza (#909), transakcyjne `DeleteComment` (#911) i uzupełnianie
+otwartych oznaczeń — to inne pozycje, nie granica wysyłki. Pominięto też
+decyzję tamtej gałęzi, by awatary wysyłać „wspólną ochroną" — właściciel
+rozstrzygnął odwrotnie.
+
+Z `gpt-moderacja-ai` (33ebfd0): walidacja wyników (`poprawneWyniki()`,
+`KategorieModeracji::jestZnana()`), przycięcie limitu czasu i zasada
+„aktualny stan rodzica przy wykonaniu, a nie przy zleceniu" (#827).
+**Pominięto:** `AutomaticAnalysisAccess` w tamtym kształcie (klonował
+rodzica i przestawiał mu widoczność na publiczną, żeby przepuścić
+„dla obserwujących" — sprzeczne z „wyłącznie publiczna"), rozbicie zdjęć
+na osobne zadania `PrzeanalizujZdjecieWpisu` i zapis lokalnego sygnału
+przed HTTP (#829/#830) — to niezawodność kolejki, nie granica wysyłki.
+Logowanie klasy wyjątku zamiast treści jest już na `main` (#1072,
+`ExceptionContext`).
+
+### Czego ta decyzja NIE zmienia
+
+Schematu (brak migracji), progów, alarmu pocztowego, wyglądu kolejki
+moderatora. Oznaczenia awatarów sprzed D-240 zostają w kolejce i dają się
+rozpatrzyć.
+
+### Dowód
+
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` — 46 przypadków, wszystkie
+przez `Http::fake()`. Na kodzie sprzed tej zmiany **oblewa 35**: 18 rodziców
+komentarza, 2 stany komentarza, 2 stany wpisu, zmiana na prywatny w trakcie
+oceny, 5 złych miniatur, 2 drogi awatara, brak klucza na produkcji
+i 4 uszkodzone odpowiedzi. Pozostałe 11 to kontrole dodatnie (publiczny
+rodzic × 3, poprawna miniatura 320 × 240) i zabezpieczenia, które `main`
+już miał (prywatny/ukryty/usunięty wpis, ukryty/usunięty komentarz,
+nieczytelny plik, HTTP 503) — pilnują, żeby granica nie przepuszczała
+za mało i nie blokowała za dużo. Przypadki „dla obserwujących" sprawdzają
+obie granice naraz: zero żądań do dostawcy i jedno lokalne oznaczenie.
+
+### Wycofanie
+
+Odwrócić commit. **Przed** odwróceniem wyczyścić `OPENAI_MODERATION_KEY`
+na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
+niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
+cofać: zmiana niczego nie zapisuje w bazie.
+
+---
+
+## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`ModerationController::decide()` pytał wyłącznie `authorize('moderate', User::class)`,
+czyli „czy aktor jest moderatorem". Nie porównywał `reports.reporter_id`
+z aktorem ani roli osoby, którą decyzja karze (`ModeratedContent::osoba()`),
+a `applyAction()` wołał `suspend()` / `ban()` bez osobnej reguły. Jeden
+moderator mógł więc zgłosić administratora, sam to zgłoszenie rozstrzygnąć
+i go zbanować (ban unieważnia sesje). Przy kilku administratorach i w połączeniu
+z #1016 była to droga do odcięcia od panelu wszystkich, którzy rozpatrują
+odwołania.
+
+### Reguły
+
+1. **Nikt nie rozstrzyga sprawy, którą sam wniósł** — `ReportPolicy::decide()`.
+   Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
+   i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
+   bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
+   `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
+   administrator także moderatorów. **Konta administratora nie zawiesza ani
+   nie blokuje nikt z panelu** (równa ranga); sprawa administratora idzie do
+   właściciela serwisu, a rolę odbiera `kuking:nadaj-role`, która pilnuje
+   ostatniego czynnego administratora (#1016). Ta sama reguła rangi wyklucza
+   karanie samego siebie.
+3. **Ocena treści nie zależy od roli autora.** Ukrycie, usunięcie
+   i ostrzeżenie wpisu administratora działają jak przy każdym innym.
+
+Obie reguły są sprawdzane w `decide()` **pod blokadą wiersza zgłoszenia,
+przed `ModerationAction::create()`**. Odmowa wycofuje transakcję: zgłoszenie
+zostaje otwarte, nie powstaje decyzja, powiadomienie ani wpis
+`moderation.decided`. Wstępne sprawdzenie „własnej sprawy" przed transakcją
+służy tylko komunikatowi. Reguły żyją w politykach, więc przyszła droga
+wykonująca sankcję (endpoint, zadanie, komenda) pyta o te same ability.
+
+### Czego ta zmiana nie robi
+
+Nie rozwiązuje #1016 (ochrona ostatniego czynnego administratora przy
+zmianie statusu i współbieżności) — zamyka tylko drogę przez panel moderacji,
+która tamten problem czyniła osiągalnym dla moderatora. Nie ukrywa formularza
+decyzji przy własnym zgłoszeniu: formularz zostaje, a serwer odmawia
+z komunikatem, co zrobić.
+
+📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
+`app/Http/Controllers/Admin/ModerationController.php`,
+`tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
+## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
+`claude/audyt-w-transakcji-g7`) · Prostuje podstawę `AuditLogEntry::recordBezWywracania()` ·
+Status: **obowiązuje**
+
+### Co było źle
+
+`recordBezWywracania()` i jego trzy miejsca wywołania powoływały się na
+**D-088** cytatem „dziennik audytu zostaje POZA transakcją… jest osobnym
+śladem, nie częścią relacji". D-088 dotyczy **odmowy rollbacku migracji**
+i o dzienniku audytu nie mówi nic. Cytat pochodzi z **D-090** i opisuje
+wyłącznie `BlockUser` (wpis ma powstać wtedy, gdy blokada naprawdę się
+zapisała). Na tej złej podstawie zbiorcze zamknięcie sygnałów automatu
+(#1343) poszło drogą „za transakcją" — wbrew issue, które wymagało wpisu
+w transakcji decyzji.
+
+### Reguła
+
+Każdy wpis `audit_log` należy do jednej z dwóch klas. Trzeciej nie ma.
+
+1. **Atomowy z decyzją — `record()` WEWNĄTRZ `DB::transaction` zmiany.**
+   Dla decyzji podjętych przez człowieka z uprawnieniami wobec cudzej
+   treści albo konta i dla zmian uprawnień: `moderation.decided`,
+   `moderation.automat_dismissed`, `user.role_changed`, a także
+   `post.published` (już tak zapisany). Tu wpis jest częścią decyzji —
+   „kto, kiedy i ile jednym kliknięciem" nie ma innego zapisu. Awaria
+   dziennika **cofa decyzję**, człowiek dostaje komunikat „nic się nie
+   zmieniło, spróbuj jeszcze raz", a ponowienie daje jeden komplet.
+   Decyzja bez wpisu jest gorsza niż decyzja, którą trzeba kliknąć drugi raz.
+2. **Pomocniczy — `recordBezWywracania()` PO zatwierdzeniu zmiany.** Dla
+   czynności samego człowieka, których autorytatywny ślad żyje w tabeli
+   zmiany: `account.registered` (wiersz `users` z `created_at`
+   i `age_confirmed_at`), `content.reported` (wiersz `reports` z terminami
+   DSA). Tu cofnięcie zmiany przez awarię dziennika byłoby szkodą dla
+   człowieka (utracone zgłoszenie z biegnącym terminem, rejestracja
+   odbijająca się od własnego adresu), a 500 po `COMMIT` — kłamstwem.
+   Awaria idzie do `report()` z nazwą brakującego wpisu; to nie jest cichy
+   sukces.
+
+Rozstrzyga pytanie: **czy bez tego wpisu zostaje w bazie pełny ślad tego,
+kto i co zdecydował?** Nie — klasa 1. Tak — klasa 2.
+
+Ta sama zasada dotyczy innych skutków po `COMMIT` rejestracji (#1373):
+`event(new Registered)` i obserwowanie gospodarza stoją w punkcie zapisu,
+ich awaria idzie do `report()`, a `ZalozKonto` zwraca `ZalozoneKonto`
+z flagą „list z potwierdzeniem nie wyszedł", żeby ekran po rejestracji nie
+kazał czekać na wiadomość, której nie ma. Ponowienie listu należy do
+człowieka („Wyślij potwierdzenie jeszcze raz" w Ustawieniach), naprawa
+obserwowania — do operatora (jedno `FollowUser` dla konta z raportu).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
+(`BlockUser` z D-090, zmiany adresu e-mail, logowania i inne). Zostają,
+jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
+klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
+
+### Dowód
+
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
+awaria `moderation.automat_dismissed` → brak `ModerationAction`, grupa
+otwarta, komunikat błędu; ponowienie → jedna decyzja i jeden wpis. Awarie
+`account.registered`, `content.reported`, `Registered` i obserwowania
+gospodarza → konto albo sprawa istnieje, odpowiedź udana, `report()`
+z nazwą braku (rejestracja hasłem, Google i Facebook).
+
+### Wycofanie
+
+Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.

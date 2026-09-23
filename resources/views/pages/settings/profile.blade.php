@@ -34,18 +34,21 @@
         na osobny ekran tylko po to, żeby sprawdzić, czy w ogóle jakieś jest.
     --}}
     <section class="ramka-pomocnicza zdjecie-profilowe-skrot">
+        @php($hasPhoto = $profile->zdjecieDoPokazania() !== null)
         <x-avatar :user="$profile->user" :size="64" />
         <div>
             <h2 class="mt-0 mb-2">Zdjęcie profilowe</h2>
             <p class="mb-4">
-                @if($profile->avatar?->isReady())
-                    Twoje zdjęcie widać przy wpisach, przepisach i komentarzach.
+                @if($hasPhoto)
+                    Możesz zmienić lub usunąć swoje zdjęcie profilowe.
+                @elseif($profile->maZdjecieNieDoPokazania())
+                    Nie możemy teraz pokazać zdjęcia. Sprawdź je w ustawieniach zdjęcia profilowego.
                 @else
                     Nie masz jeszcze zdjęcia — wszędzie stoi pierwsza litera Twojego imienia.
                 @endif
             </p>
             <a class="btn btn-secondary" href="{{ route('settings.avatar') }}">
-                {{ $profile->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                {{ $hasPhoto ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
             </a>
         </div>
     </section>

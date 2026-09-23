@@ -107,7 +107,9 @@
             <x-confirm-button
                 :action="route('settings.avatar.destroy')"
                 label="Usuń zdjęcie"
-                question="Na pewno usunąć swoje zdjęcie? Pliku nie da się potem odzyskać." />
+                question="Na pewno usunąć swoje zdjęcie? Pliku nie da się potem odzyskać.">
+                <input type="hidden" name="avatar_media_id" value="{{ $profile->avatar_media_id }}">
+            </x-confirm-button>
         </div>
     @endif
 

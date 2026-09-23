@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -249,6 +251,65 @@ class PanelBezOdpowiedziTest extends TestCase
             ->assertNotFound();
 
         $this->assertSame(0, $wpis->allComments()->count());
+    }
+
+    /**
+     * #1382: odpowiedź z kolejki przechodzi przez `PostPolicy::comment`.
+     *
+     * Zapowiedź prywatnego przepisu (wpis bez treści i zdjęć) spełnia
+     * zapytanie kolejki, ale zwykłą ścieżką moderator nie może jej
+     * skomentować — `PostPolicy::view` odmawia, bo przepis jest prywatny.
+     * Panel nie może być furtką obok tej granicy.
+     *
+     * Komunikat odróżnia odmowę NA WEJŚCIU kontrolera od drugiej linii
+     * w `LockCommentContext` („Tu nie da się teraz dodać komentarza…"):
+     * bez sprawdzenia w kontrolerze ten test czerwienieje.
+     */
+    public function test_odpowiedz_z_kolejki_podlega_tej_samej_policy_co_zwykly_komentarz(): void
+    {
+        $autorka = $this->user('basia');
+        $gospodarz = $this->gospodarz();
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autorka->getKey(),
+            'visibility' => 'private',
+        ]);
+        $zapowiedz = $this->wpis($autorka, '');
+        $zapowiedz->forceFill(['body' => null, 'recipe_id' => $przepis->getKey()])->save();
+
+        // Warunek wstępny: kolejka wpis przepuszcza, a Policy odmawia.
+        $this->assertTrue(app(UnansweredContent::class)->eligiblePosts($gospodarz)->whereKey($zapowiedz->getKey())->exists());
+        $this->assertFalse($gospodarz->can('comment', $zapowiedz->refresh()));
+
+        $this->actingAs($gospodarz)
+            ->post(route('posts.comment', $zapowiedz), ['body' => 'Zwykla sciezka'])
+            ->assertForbidden();
+
+        $this->actingAs($gospodarz)
+            ->from(route('admin.unanswered'))
+            ->post(route('admin.unanswered.reply', $zapowiedz), ['body' => 'Z kolejki'])
+            ->assertRedirect(route('admin.unanswered'))
+            ->assertSessionHasErrors(['body' => 'Tego wpisu nie możesz skomentować — nie masz do niego dostępu jako czytelnik. Wybierz inny wpis z listy.'])
+            ->assertSessionHasInput('body', 'Z kolejki');
+
+        $this->assertSame(0, $zapowiedz->allComments()->count());
+    }
+
+    /** Kontrola dodatnia do testu wyżej: dozwolony wpis — odpowiedź przechodzi. */
+    public function test_odpowiedz_z_kolejki_na_dozwolony_wpis_przechodzi_przez_policy(): void
+    {
+        $wpis = $this->wpis($this->user('basia'), 'Moge skomentowac');
+        $gospodarz = $this->gospodarz();
+
+        $this->assertTrue($gospodarz->can('comment', $wpis));
+
+        $this->actingAs($gospodarz)
+            ->from(route('admin.unanswered'))
+            ->post(route('admin.unanswered.reply', $wpis), ['body' => 'Pysznie!'])
+            ->assertRedirect(route('admin.unanswered'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Odpowiedź wysłana.');
+
+        $this->assertSame(1, $wpis->allComments()->count());
     }
 
     // ---------------------------------------------------------------
