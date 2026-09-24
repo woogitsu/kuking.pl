@@ -82,6 +82,17 @@ class FakeElement extends FakeNode {
     get classList() { return new Set(this._className.split(' ').filter(Boolean)); }
     setAttribute(klucz, wartosc) { this._attrs[klucz] = wartosc; }
     getAttribute(klucz) { return this._attrs[klucz] ?? null; }
+    hasAttribute(klucz) { return klucz in this._attrs; }
+
+    remove() {
+        if (!this.parentElement) {
+            return;
+        }
+
+        const rodzic = this.parentElement;
+        rodzic.children.splice(rodzic.children.indexOf(this), 1);
+        this.parentElement = null;
+    }
 
     get nextElementSibling() {
         if (!this.parentElement) {
@@ -94,11 +105,13 @@ class FakeElement extends FakeNode {
     }
 
     insertAdjacentElement(pozycja, element) {
-        assert.equal(pozycja, 'afterend', 'Test obsługuje tylko "afterend" — tyle używa kod źródłowy.');
+        // `afterend` wstawia podgląd pod polem, `beforebegin` — status wyboru
+        // nad podglądem (#1195). Innych pozycji kod źródłowy nie używa.
+        assert.ok(['afterend', 'beforebegin'].includes(pozycja), 'Test obsługuje tylko "afterend" i "beforebegin" — tyle używa kod źródłowy.');
         assert.ok(this.parentElement, 'Element bez rodzica nie ma gdzie wstawić sąsiada.');
 
         const indeks = this.parentElement.children.indexOf(this);
-        this.parentElement.children.splice(indeks + 1, 0, element);
+        this.parentElement.children.splice(pozycja === 'afterend' ? indeks + 1 : indeks, 0, element);
         element.parentElement = this.parentElement;
     }
 }
