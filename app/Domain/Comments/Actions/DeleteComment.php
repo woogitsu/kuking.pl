@@ -17,11 +17,25 @@ final class DeleteComment
 
     public function __construct(private readonly NotifyUser $notify) {}
 
-    public function handle(User $actor, Comment $comment, ?string $reason = null): void
+    /**
+     * Zwraca `false`, gdy komentarz był już usunięty — wtedy nic się nie
+     * zmienia i nikt nie dostaje powiadomienia (issue #911).
+     */
+    public function handle(User $actor, Comment $comment, ?string $reason = null): bool
     {
-        DB::transaction(function () use ($actor, $comment, $reason): void {
-            $fresh = Comment::query()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        return DB::transaction(function () use ($actor, $comment, $reason): bool {
+            $fresh = Comment::withTrashed()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
             Gate::forUser($actor)->authorize('delete', $fresh);
+
+            // Issue #911: powtórzone żądanie (druga karta, ponowione wysłanie)
+            // nie jest drugą decyzją. Bez tego korzeń z odpowiedziami dostawał
+            // placeholder jeszcze raz, a autor komentarza drugie powiadomienie
+            // z cytatem „Komentarz usunięty.” i drugim powodem. Sprawdzenie
+            // POD zamkiem, więc dwa równoległe żądania też dają jeden skutek.
+            if ($fresh->trashed() || $fresh->body_removed_at !== null) {
+                return false;
+            }
+
             $originalBody = $fresh->body;
 
             // Decyzja dopiero POD zamkiem wspólnym z publikacją odpowiedzi.
@@ -43,6 +57,8 @@ final class DeleteComment
                     ],
                 );
             }
+
+            return true;
         });
     }
 }
