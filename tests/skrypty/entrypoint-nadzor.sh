@@ -45,7 +45,6 @@ sprawdz() {
 wczytaj_funkcje() {
   # shellcheck disable=SC2016
   sed -n '/^nadzoruj() {/,/^}/p' "${ENTRYPOINT}"
-  sed -n '/^sekundy_do_pelnej_minuty() {/,/^}/p' "${ENTRYPOINT}"
   sed -n '/^petla_harmonogramu() {/,/^}/p' "${ENTRYPOINT}"
   echo 'log() { printf "[test] %s\n" "$*" >&2; }'
 }
@@ -336,40 +335,94 @@ done
 #     o czas przebiegu, aż przeskoczyła całą minutę — i zadanie dzienne z tej
 #     minuty nie wykonało się wcale. Zegar jest atrapą, pętla jest prawdziwa.
 # ---------------------------------------------------------------------------
-for sekunda in 00:60 08:52 09:51 59:1; do
-  wynik="$(bash -c "$(wczytaj_funkcje)
-date() { echo '${sekunda%%:*}'; }
-sekundy_do_pelnej_minuty" 2>&1)"
-  sprawdz "sen do pełnej minuty przy sekundzie ${sekunda%%:*}" "${sekunda##*:}" "${wynik}"
+#
+#     Atrapa zegara odpowiada na `date +%s` i `date +%S`, atrapa `sleep` przesuwa
+#     zegar, atrapa `schedule:run` (harmonogram_raz) „trwa” tyle sekund, ile
+#     podaje lista. Wynik to godziny startów (GG:MM:SS) i ostrzeżenia z logu.
+# ---------------------------------------------------------------------------
+# $1 — definicja pętli (kod basha), $2 — start (sekunda doby), $3.. — czasy
+# kolejnych przebiegów; po ostatnim pętla jest przerywana.
+proba_harmonogramu() {
+  local petla="$1" poczatek="$2"
+  shift 2
+  timeout 5 bash -c "log() { printf 'LOG %s\n' \"\$*\"; }
+${petla}
+czas=${poczatek} obrot=0 czasy=( $* )
+date() {
+  case \"\${1:-}\" in
+    +%s) echo \"\${czas}\" ;;
+    +%S) printf '%02d\n' \$(( czas % 60 )) ;;
+  esac
+}
+sleep() { czas=\$(( czas + \$1 )); }
+harmonogram_raz() {
+  (( obrot < \${#czasy[@]} )) || exit 0
+  printf 'START %02d:%02d:%02d\n' \$(( czas / 3600 )) \$(( czas / 60 % 60 )) \$(( czas % 60 ))
+  czas=\$(( czas + czasy[obrot] ))
+  obrot=\$(( obrot + 1 ))
+}
+petla_harmonogramu" 2>&1
+}
+
+# Werdykt dla serii krótkich przebiegów: każdy start po pierwszym na :00
+# i w KOLEJNEJ minucie — bez przeskoków i bez dwóch startów w jednej minucie.
+ocen_krotkie() {
+  awk '/^START/ { split($2, t, ":"); m = t[1] * 60 + t[2]; n++
+         if (n > 1) { if (t[3] != "00") zle++; if (m != p + 1) skok++ }
+         p = m }
+       END { printf "starty=%d poza_granica=%d przeskoki=%d\n", n, zle + 0, skok + 0 }'
+}
+
+# Cały blok pętli razem z funkcjami pomocniczymi — od nagłówka #1355 do
+# nagłówka o `schedule:work`. Bez pomocników próba oblewałaby na „command not
+# found”, a nie na zachowaniu pętli.
+PETLA_MAIN="$(sed -n '/PĘTLA WYRÓWNANA DO PEŁNEJ MINUTY/,/DLACZEGO PĘTLA, A NIE/p' "${ENTRYPOINT}")"
+# Kontrole dodatnie: stara pętla sprzed #1433 oraz pętla z #1433, która po
+# przebiegu dłuższym niż minuta spała do kolejnej granicy.
+PETLA_SLEEP60='petla_harmonogramu() { while true; do harmonogram_raz; sleep 60; done; }'
+PETLA_1433='petla_harmonogramu() { while true; do harmonogram_raz; sleep "$(( 60 - 10#$(date +%S) ))"; done; }'
+
+# 90 krótkich przebiegów po 7 s, start 03:00:13: stara pętla zgubiłaby 10 minut.
+KROTKIE="$(printf '7 %.0s' {1..90})"
+sprawdz "krótkie przebiegi startują na każdej pełnej minucie, bez przeskoków" \
+  "starty=90 poza_granica=0 przeskoki=0" \
+  "$(proba_harmonogramu "${PETLA_MAIN}" $(( 3 * 3600 + 13 )) ${KROTKIE} | ocen_krotkie)"
+wynik="$(proba_harmonogramu "${PETLA_SLEEP60}" $(( 3 * 3600 + 13 )) ${KROTKIE} | ocen_krotkie)"
+if [[ "${wynik}" == "starty=90 poza_granica=0 przeskoki=0" ]]; then
+  sprawdz "kontrola dodatnia: pętla 'sleep 60' oblewa próbę krótkich przebiegów" "oblewa" "przechodzi"
+else
+  sprawdz "kontrola dodatnia: pętla 'sleep 60' oblewa próbę krótkich przebiegów" "oblewa" "oblewa"
+fi
+
+# Przebieg dłuższy niż minuta, zadanie dzienne o 03:40. Start 03:39:00 trwa
+# 65 s → minuta 03:40 nie była sprawdzona, więc pętla rusza od razu (03:40:05)
+# i zadanie dzienne się wykona. Potem 2 s i sen do 03:41:00. Przebieg 150 s
+# od 03:41:00 przesypia całą minutę 03:42 — ta jest stracona, ale w logu
+# stoi ostrzeżenie; start od razu 03:43:30 łapie minutę 03:43.
+DLUGIE_OCZEKIWANE="START 03:39:00
+START 03:40:05
+START 03:41:00
+LOG OSTRZEŻENIE: przebieg harmonogramu trwał 150 s — pominięte minuty: 1. Zadania z tych minut nie wykonały się; sprawdź, które zadanie jest za długie.
+START 03:43:30
+START 03:44:00"
+sprawdz "przebieg dłuższy niż minuta: bez nakładania, minuta 03:40 złapana, strata minuty w logu" \
+  "${DLUGIE_OCZEKIWANE}" \
+  "$(proba_harmonogramu "${PETLA_MAIN}" $(( 3 * 3600 + 39 * 60 )) 65 2 150 1 1)"
+for kontrola in PETLA_SLEEP60 PETLA_1433; do
+  if proba_harmonogramu "${!kontrola}" $(( 3 * 3600 + 39 * 60 )) 65 2 | grep -q '^START 03:40:'; then
+    sprawdz "kontrola dodatnia: ${kontrola} gubi zadanie dzienne 03:40 po długim przebiegu" "gubi" "łapie"
+  else
+    sprawdz "kontrola dodatnia: ${kontrola} gubi zadanie dzienne 03:40 po długim przebiegu" "gubi" "gubi"
+  fi
 done
 
-# 90 obrotów po 7 s pracy: stara pętla zgubiłaby w tym czasie 10 minut.
-wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
-$(cat <<'PROBA'
-set -Eeuo pipefail
-czas=$(( 1000 * 60 + 13 )) obroty=0 starty=() pominiete=0
-date() { printf '%02d\n' $(( czas % 60 )); }
-sleep() { czas=$(( czas + $1 )); }
-harmonogram_raz() {
-  starty+=( "$(( czas / 60 )):$(( czas % 60 ))" )
-  czas=$(( czas + 7 ))
-  obroty=$(( obroty + 1 ))
-  if (( obroty == 90 )); then
-    local poprzednia="" s m
-    for s in "${starty[@]:1}"; do
-      m="${s%%:*}"
-      [[ "${s##*:}" == 0 ]] || { echo "start nie na pełnej minucie: ${s}"; exit 0; }
-      [[ -z "$poprzednia" ]] || (( m == poprzednia + 1 )) || pominiete=$(( pominiete + 1 ))
-      poprzednia="$m"
-    done
-    echo "obroty=${obroty} pominiete=${pominiete}"
-    exit 0
-  fi
-}
-petla_harmonogramu
-PROBA
-)" 2>&1)"
-sprawdz "pętla harmonogramu startuje na każdej pełnej minucie, bez przeskoków" "obroty=90 pominiete=0" "${wynik}"
+# Przebieg kończący się dokładnie na granicy (:00) nowej minuty: ta minuta nie
+# była sprawdzona, więc start od razu, a nie po 60 s.
+sprawdz "przebieg kończący się o :00 nowej minuty nie przesypia jej" \
+  "START 03:39:30
+START 03:40:00
+START 03:41:00" \
+  "$(proba_harmonogramu "${PETLA_MAIN}" $(( 3 * 3600 + 39 * 60 + 30 )) 30 1 1)"
 
 # ---------------------------------------------------------------------------
 # 4. Kod wyjścia. Railway restartuje kontener po KODZIE NIEZEROWYM; przy
