@@ -100,6 +100,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
+# w `tests/`, `scripts/` i `app/`; mutacja przywraca stary podział w skanerze
+# poświadczeń — tym miejscu, gdzie strzępy wierszy kosztowały najwięcej.
+PODZIAL_WIERSZY = "tests/Feature/PoswiadczeniaPozaRepozytoriumTest.php"
+PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
+
 # Test dymny po wdrożeniu (#1012, #1332, #974). Strażnik czyta workflow, bo
 # GitHub Actions nie da się uruchomić z testu. Mutacja przywraca starą sondę
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
@@ -125,6 +131,13 @@ XMP_TEST = "OryginalTraciGpsZXmpTest"
 # naprawdę widzi nowe pliki, a nie tylko potwierdza listę, którą już zna.
 ZDEJMIJ_TRESC = "app/Domain/Moderation/Actions/ZdejmijTresc.php"
 DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka"
+
+# Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
+# z hashem w `/build/assets/*` dostają rok `immutable`, manifest `no-cache`.
+# Mutacja wraca do dawnej, szerokiej reguły `/build/*` — tej, która dawała
+# manifestowi bez hasha roczny cache — i test ma zapalić.
+CADDYFILE = "docker/Caddyfile"
+CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
 
 def digest(path):
@@ -305,6 +318,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
+     lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      stara_sonda_https),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
@@ -313,6 +328,8 @@ checks = [
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
     ("Decyzja moderacyjna tworzona poza listą", ZDEJMIJ_TRESC, DECYZJA_Z_CZLOWIEKIEM_TEST,
      lambda s: replace_once(s, "final class ZdejmijTresc\n{\n", "final class ZdejmijTresc\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
+    ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
+     lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -322,10 +339,12 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
+run_test(CACHE_MANIFESTU_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

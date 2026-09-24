@@ -17,6 +17,8 @@
     */
     $gotowe = $profile->zdjecieDoPokazania() !== null;
     $wPrzygotowaniu = $profile->zdjecieSieJeszczePrzygotowuje();
+    // Obróbka skończona odmową, obrazka brak (#891) — tu nie ma na co czekać.
+    $nieUdaloSie = $profile->zdjecieNieUdaloSiePrzygotowac();
 @endphp
 <x-layout title="Zdjęcie profilowe" :noindex="true">
     <h1>Zdjęcie profilowe</h1>
@@ -29,6 +31,9 @@
             <p class="zdjecie-profilowe-opis">
                 @if($gotowe)
                     To jest Twoje zdjęcie. Widzą je inni przy Twoich wpisach, przepisach i komentarzach.
+                @elseif($nieUdaloSie)
+                    Nie udało się przygotować Twojego zdjęcia. Wybierz inne zdjęcie poniżej
+                    i kliknij „Zapisz zdjęcie” — do tego czasu wszędzie stoi pierwsza litera Twojego imienia.
                 @elseif($wPrzygotowaniu)
                     Twoje nowe zdjęcie się przygotowuje. Odśwież tę stronę za chwilę —
                     do tego czasu wszędzie stoi pierwsza litera Twojego imienia.
@@ -92,7 +97,7 @@
          a ekran mówi wtedy wprost „nie masz jeszcze swojego zdjęcia".
          Przycisk „Usuń zdjęcie" pod takim zdaniem przeczyłby mu w tej samej
          chwili (#448). --}}
-    @if($gotowe || $wPrzygotowaniu)
+    @if($gotowe || $wPrzygotowaniu || $nieUdaloSie)
         {{-- Usunięcie ODSUNIĘTE od zwykłych akcji i z potwierdzeniem
              (AGENTS.md §5). `x-confirm-button` robi to bez JavaScriptu,
              na `<details>`. --}}

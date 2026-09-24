@@ -44,6 +44,14 @@
     'zoom' => true,
     'alt' => null,
     'sizes' => '(min-width: 64rem) 720px, 100vw',
+    // Czego to zdjęcie jest częścią: 'wpis' albo 'przepis' (#752). Od tego
+    // zależy rada dla właściciela odrzuconego pliku — przepisu nie trzeba
+    // usuwać, żeby wymienić zdjęcie.
+    'tresc' => 'wpis',
+    // Gdzie wymienić zdjęcie. Podaje RODZIC i tylko wtedy, gdy Policy treści
+    // na to pozwala (`@can('update', $recipe)`) — komponent nie zgaduje
+    // uprawnień z samego `media.owner_id`.
+    'wymienUrl' => null,
 ])
 @if($media && $media->maWariantDoPokazania($variant))
     @if($zoom)
@@ -222,7 +230,14 @@
                     Tego zdjęcia nie udało się przygotować.
                 @endif
             </p>
-            @if($jestWlascicielem)
+            {{-- RADA ZALEŻY OD TREŚCI (#752). Przy przepisie zdjęcie wymienia
+                 się w edycji, bez kasowania przepisu. Gdy rodzic nie podał
+                 adresu wymiany (karta z linkiem na miniaturze albo Policy
+                 odmawia), nie radzimy niczego zamiast radzić źle. --}}
+            @if($jestWlascicielem && $wymienUrl)
+                <p class="photo-placeholder-zdanie">Wybierz inne zdjęcie — reszta przepisu zostaje bez zmian.</p>
+                <p class="photo-placeholder-zdanie"><a class="btn btn-secondary" href="{{ $wymienUrl }}">Wymień zdjęcie</a></p>
+            @elseif($jestWlascicielem && $tresc === 'wpis')
                 <p class="photo-placeholder-zdanie">Wpis możesz usunąć i dodać ponownie z innym zdjęciem.</p>
             @endif
         @else

@@ -1,0 +1,16 @@
+{
+  "nazwa": "910 tekst poprawki",
+  "plik": "resources/views/components/expired-comment-edit.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "3f51d584ded76c90cd4813702af89460",
+  "md5_po_mutacji": "469c6e1e31352b11226ddfdac544f34f",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Moja poprawka",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:55:57Z"
+}

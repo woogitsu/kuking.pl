@@ -58,7 +58,7 @@ class JobDostepnosciNieMyliPrzyczynyTest extends TestCase
             'W czytanym fragmencie nie ma wywołania Lighthouse. Czytam zły job albo zły plik.',
         );
 
-        $wiersze = preg_split('/\R/', $job) ?: [];
+        $wiersze = preg_split('/\r\n|\n|\r/', $job) ?: [];
 
         foreach ($wiersze as $numer => $wiersz) {
             // Komentarze mają prawo (i obowiązek) tłumaczyć, czego tu nie ma.
