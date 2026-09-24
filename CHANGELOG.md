@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Czas przepisu liczy się tak samo na stronie przepisu i w filtrze „Do 30 minut”. Łączny czas pokazujemy tylko wtedy, gdy podano oba czasy — przygotowania i gotowania. Puste pole znaczy „nie wiem”, a 0 znaczy „tego etapu nie ma”. Wcześniej przepis z samym czasem przygotowania pokazywał na stronie „Około 10 min”, a w szybkich przepisach się nie pojawiał (#1090).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).

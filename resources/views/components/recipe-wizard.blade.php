@@ -952,11 +952,13 @@ new class extends Component
         return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel(afterNa: true);
     }
 
+    /** Ta sama reguła co na stronie przepisu i w filtrze „Do 30 minut" (#1090). */
     public function totalMinutes(): ?int
     {
-        $total = (int) $this->intOrNull($this->prep_minutes) + (int) $this->intOrNull($this->cook_minutes);
-
-        return $total > 0 ? $total : null;
+        return (new Recipe([
+            'prep_minutes' => $this->intOrNull($this->prep_minutes),
+            'cook_minutes' => $this->intOrNull($this->cook_minutes),
+        ]))->totalMinutes();
     }
 
     // -----------------------------------------------------------------

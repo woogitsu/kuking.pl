@@ -308,13 +308,43 @@ class Recipe extends Model
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
     }
 
+    /**
+     * CZAS CAŁKOWITY JEST ZNANY TYLKO WTEDY, GDY PODANO OBA CZASY (#1090).
+     *
+     * Puste pole znaczy „nie wiem", a nie „zero": przy 10 min przygotowania
+     * i pustym gotowaniu nikt nie zmierzył, ile to zajmie razem. Jawne `0`
+     * znaczy „tego etapu nie ma" (np. surówka bez gotowania), więc 10 + 0
+     * to znane 10 minut. Suma 0 (0 + 0) też jest „nie wiem" — obiecywanie
+     * dania w zero minut byłoby tak samo nieprawdą.
+     *
+     * Tę samą regułę stosują: strona przepisu, `totalTime` w JSON-LD,
+     * podgląd w kreatorze i filtr „Do 30 minut" (`scopeGotoweWCiagu()`
+     * niżej). Przedtem strona pokazywała „Około 10 min", a filtr ten sam
+     * przepis pomijał.
+     */
     public function totalMinutes(): ?int
     {
-        if ($this->prep_minutes === null && $this->cook_minutes === null) {
+        if ($this->prep_minutes === null || $this->cook_minutes === null) {
             return null;
         }
 
-        return (int) $this->prep_minutes + (int) $this->cook_minutes;
+        $suma = $this->prep_minutes + $this->cook_minutes;
+
+        return $suma > 0 ? $suma : null;
+    }
+
+    /**
+     * Przepisy, których czas całkowity jest ZNANY (reguła z `totalMinutes()`)
+     * i mieści się w `$maksMinut`. SQL-owy odpowiednik tamtej metody — obie
+     * muszą zmieniać się razem.
+     */
+    public function scopeGotoweWCiagu(Builder $query, int $maksMinut): void
+    {
+        $query
+            ->whereNotNull('recipes.prep_minutes')
+            ->whereNotNull('recipes.cook_minutes')
+            ->whereRaw('(recipes.prep_minutes + recipes.cook_minutes) > 0')
+            ->whereRaw('(recipes.prep_minutes + recipes.cook_minutes) <= ?', [$maksMinut]);
     }
 
     /** Czas w formacie ISO 8601 dla structured data (np. PT1H30M). */
