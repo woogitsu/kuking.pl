@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\DataExport;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -126,6 +127,64 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         // ...ale ADRES ZOSTAJE, bo plik nadal tam leży i ktoś musi go usunąć.
         $this->assertSame('local', $export->disk);
         $this->assertSame('eksporty/basia.zip', $export->object_key);
+    }
+
+    public function test_nieudane_kasowanie_jest_ponawiane_i_dopiero_sukces_czysci_adres(): void
+    {
+        Storage::fake('local');
+
+        $export = DataExport::create([
+            'user_id' => $this->user('basia')->getKey(),
+            'status' => DataExport::STATUS_READY,
+            'disk' => 'local',
+            'object_key' => 'eksporty/do-ponowienia.zip',
+            'bytes' => 1234,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $dysk = \Mockery::mock(Filesystem::class);
+        $dysk->shouldReceive('delete')->twice()->andReturn(false, true);
+        $dysk->shouldReceive('exists')->twice()->andReturn(true, false);
+        Storage::shouldReceive('disk')->twice()->with('local')->andReturn($dysk);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
+        $this->assertSame('eksporty/do-ponowienia.zip', $export->object_key);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->assertNull($export->refresh()->disk);
+        $this->assertNull($export->object_key);
+    }
+
+    public function test_niepelny_adres_nie_jest_uznawany_za_udane_kasowanie(): void
+    {
+        $log = Log::spy();
+
+        $export = DataExport::create([
+            'user_id' => $this->user('basia')->getKey(),
+            'status' => DataExport::STATUS_READY,
+            'disk' => 'local',
+            'object_key' => null,
+            'bytes' => 1234,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+
+        $export->refresh();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->status);
+        $this->assertSame('local', $export->disk);
+        $this->assertNull($export->object_key);
+        $log->shouldHaveReceived('error')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'Paczka z danymi ma niepełny adres pliku'
+                && $context['data_export_id'] === $export->getKey());
+
+        // Niespójnego adresu nie da się automatycznie naprawić. Po zapisaniu
+        // błędu nie raportujemy go codziennie jako nowego usunięcia.
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
     }
 
     public function test_udane_kasowanie_zapomina_adres(): void
