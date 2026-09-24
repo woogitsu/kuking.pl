@@ -33,6 +33,12 @@ use Tests\TestCase;
  * Zdjęcie nie: dane są w pikselach — twarz, wnętrze mieszkania, dokument na
  * stole — a w oryginale jeszcze EXIF z datą, modelem telefonu i miejscem.
  * Podmiana podpisu nie zmienia tam niczego.
+ *
+ * KONTROLA DODATNIA (issue #1386, zmierzona 24.09.2026)
+ * Obie mutacje z `tests/mutacje/kasowanie.txt` — wymazanie kasujące sam
+ * oryginał zamiast `KasujZdjecie::skasujPliki()` oraz pominięcie pętli po
+ * `metadata.variants` — wywracają `test_kasuje_zdjecia_z_wpisow_i_przepisow_nie_tylko_awatar`.
+ * Przy starej fixture (wariant pod kluczem oryginału) ten test obie przeżywał.
  */
 class UsuwanieKontaKasujeZdjeciaTest extends TestCase
 {
@@ -42,23 +48,40 @@ class UsuwanieKontaKasujeZdjeciaTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         Storage::fake('public');
-        config(['kuking.media.disk' => 'public', 'kuking.media.public_disk' => 'public']);
+        config(['kuking.media.disk' => 'local', 'kuking.media.public_disk' => 'public']);
     }
 
+    /**
+     * Oryginał i wariant to DWA RÓŻNE pliki na DWÓCH dyskach — tak jak na
+     * produkcji (`r2` dla oryginałów, `r2_publiczne` dla wariantów).
+     *
+     * Do issue #1386 wariant wskazywał ten sam klucz na tym samym dysku co
+     * oryginał, więc skasowanie samego oryginału „kasowało" też wariant
+     * i test nie widział ścieżki wymazania, która pomija warianty. Nie wracaj
+     * do wspólnego klucza.
+     */
     private function zdjecie(User $wlasciciel, string $nazwa): Media
     {
-        $klucz = "media/{$wlasciciel->getKey()}/{$nazwa}.webp";
+        $oryginal = "originals/{$wlasciciel->getKey()}/{$nazwa}.jpg";
+        $wariant = "variants/{$wlasciciel->getKey()}/{$nazwa}-feed.webp";
 
-        Storage::disk('public')->put($klucz, 'zawartosc');
+        Storage::disk('local')->put($oryginal, 'oryginal z EXIF-em');
+        Storage::disk('public')->put($wariant, 'wariant do feedu');
 
         return Media::factory()->create([
             'owner_id' => $wlasciciel->getKey(),
-            'disk' => 'public',
+            'disk' => 'local',
             'variants_disk' => 'public',
-            'object_key' => $klucz,
-            'metadata' => ['variants' => ['feed' => ['key' => $klucz]]],
+            'object_key' => $oryginal,
+            'metadata' => ['variants' => ['feed' => ['key' => $wariant]]],
         ]);
+    }
+
+    private function kluczWariantu(Media $zdjecie): string
+    {
+        return (string) $zdjecie->metadata['variants']['feed']['key'];
     }
 
     public function test_kasuje_zdjecia_z_wpisow_i_przepisow_nie_tylko_awatar(): void
@@ -76,13 +99,24 @@ class UsuwanieKontaKasujeZdjeciaTest extends TestCase
 
         Recipe::factory()->for($basia, 'author')->create(['hero_media_id' => $doPrzepisu->getKey()]);
 
+        $zdjecia = [$awatar, $doWpisu, $doPrzepisu];
+
+        // Kontrola dodatnia fixture: oba pliki naprawdę leżą, osobno.
+        foreach ($zdjecia as $zdjecie) {
+            $this->assertNotSame($zdjecie->object_key, $this->kluczWariantu($zdjecie));
+            Storage::disk('local')->assertExists($zdjecie->object_key);
+            Storage::disk('public')->assertExists($this->kluczWariantu($zdjecie));
+        }
+
         $basia->markForDeletion();
 
         $this->assertTrue((new EraseAccountData)->handle($basia->refresh()));
 
-        foreach ([$awatar, $doWpisu, $doPrzepisu] as $zdjecie) {
+        foreach ($zdjecia as $zdjecie) {
             $this->assertDatabaseMissing('media', ['id' => $zdjecie->getKey()]);
-            Storage::disk('public')->assertMissing($zdjecie->object_key);
+            Storage::disk('local')->assertMissing($zdjecie->object_key);
+            // Publiczny wariant to te same piksele co oryginał (#1386).
+            Storage::disk('public')->assertMissing($this->kluczWariantu($zdjecie));
         }
     }
 
@@ -139,7 +173,8 @@ class UsuwanieKontaKasujeZdjeciaTest extends TestCase
 
         $this->assertDatabaseMissing('media', ['id' => $mojeZdjecie->getKey()]);
         $this->assertDatabaseHas('media', ['id' => $cudzeZdjecie->getKey()]);
-        Storage::disk('public')->assertExists($cudzeZdjecie->object_key);
+        Storage::disk('local')->assertExists($cudzeZdjecie->object_key);
+        Storage::disk('public')->assertExists($this->kluczWariantu($cudzeZdjecie));
     }
 
     public function test_ekran_obiecuje_dokladnie_to_co_kod_robi(): void
