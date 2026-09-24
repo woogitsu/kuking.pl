@@ -68,6 +68,15 @@ class Recipe extends Model
 
     public const MAX_INGREDIENTS = 120;
 
+    /**
+     * Relacje, które czyta `<x-recipe-card>`: `attributionLine()` sięga po
+     * `author->profile`, plakietka „konto przykładowe" po `author`,
+     * miniatura po `heroMedia` (#1374). Każda lista kart — profil,
+     * wyszukiwarka, zeszyt — ładuje je z góry tą jedną stałą, żeby karta
+     * nie dociągała autora osobnym zapytaniem na każdy przepis.
+     */
+    public const RELACJE_KARTY = ['author.profile', 'heroMedia'];
+
     protected $fillable = [
         'author_id',
         // Tożsamość JEDNEGO wysłania formularza „Opublikuj" — nie treść

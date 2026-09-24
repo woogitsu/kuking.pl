@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
 - Pytanie ma teraz jeden adres — stronę w dziale pytań. Stary odnośnik do pytania jako zwykłego wpisu przenosi na właściwą stronę, a mapa strony dla wyszukiwarek podaje pytania pod ich własnym adresem — także te, które mają sam tytuł (#968).
 - Strona przepisu bez gotowego zdjęcia nie wysyła już wyszukiwarkom niepełnych danych o przepisie. Gdy zdjęcie się przygotuje, dane pojawią się same (#1005).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
