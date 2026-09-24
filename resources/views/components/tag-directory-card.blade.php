@@ -1,6 +1,6 @@
 @props(['tag', 'photo' => null, 'stats'])
 
-<a class="tag-directory-card {{ $photo ? 'tag-directory-card--photo' : '' }}" href="{{ route('tags.show', $tag) }}">
+<a data-klucz="tag-{{ $tag->getKey() }}" class="tag-directory-card {{ $photo ? 'tag-directory-card--photo' : '' }}" href="{{ route('tags.show', $tag) }}">
     @if($photo)
         <img class="tag-directory-photo" src="{{ $photo->url('feed') }}" alt="" loading="lazy" decoding="async">
     @else

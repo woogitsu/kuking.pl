@@ -20,7 +20,7 @@
 --}}
 @props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
 @php $author = $post->author; @endphp
-<article class="card post-card">
+<article class="card post-card" data-klucz="wpis-{{ $post->getKey() }}">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
 

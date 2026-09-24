@@ -84,7 +84,8 @@ class TagPublicStatsPagesTest extends TestCase
         $this->assertSame('Publicznie: 5 zdjęć od 3 osób.', $this->text($stats->item(1)->textContent));
         $this->assertOneStatsBatch($queries, [$a->getKey(), $b->getKey(), $z->getKey()]);
 
-        $more = $xpath->query('//main//a[contains(normalize-space(.), "Pokaż więcej")]');
+        // Bez skryptu przycisk jest odnośnikiem „Następna strona tagów” (#986).
+        $more = $xpath->query('//main//a[contains(normalize-space(.), "Następna strona")]');
         $this->assertSame(1, $more->length);
         $next = $this->xpath($this->get($more->item(0)->getAttribute('href'))->assertOk()->getContent());
         $this->assertSame([route('tags.show', $z)], $this->hrefs($next, '//nav[@aria-label="Wszystkie tagi, alfabetycznie"]/a'));

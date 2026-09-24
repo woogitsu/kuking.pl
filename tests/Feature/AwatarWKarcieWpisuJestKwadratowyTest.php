@@ -105,7 +105,7 @@ class AwatarWKarcieWpisuJestKwadratowyTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $start = strpos($html, '<article class="card post-card">');
+        $start = strpos($html, '<article class="card post-card"');
 
         $this->assertNotFalse(
             $start,

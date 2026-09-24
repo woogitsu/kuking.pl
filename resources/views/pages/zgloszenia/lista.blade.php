@@ -18,12 +18,12 @@
     </p>
 
     @if($zgloszenia->count() > 0)
-        <ul class="lista-naga">
+        <ul class="lista-naga" id="lista-zgloszen">
             @foreach($zgloszenia as $zgloszenie)
                 @php
                     $decyzja = $decyzje[(string) $zgloszenie->getKey()] ?? null;
                 @endphp
-                <li><article class="card mb-3">
+                <li data-klucz="zgloszenie-{{ $zgloszenie->getKey() }}"><article class="card mb-3">
                     <h2 class="mt-0 text-title-sm">
                         Zgłoszenie: {{ $zgloszenie->targetLabel() }}
                     </h2>
@@ -59,7 +59,7 @@
             @endforeach
         </ul>
 
-        <x-show-more :paginator="$zgloszenia" czego="zgłoszeń" />
+        <x-show-more :paginator="$zgloszenia" czego="zgłoszeń" lista="lista-zgloszen" />
     @else
         <x-empty-state title="Nie masz jeszcze żadnych zgłoszeń.">
             Pod każdym wpisem, przepisem i komentarzem jest przycisk „Zgłoś".

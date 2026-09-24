@@ -185,7 +185,7 @@ class PaginacjaKomentarzyIWykonanTest extends TestCase
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
         }
-        $links = (new DOMXPath($dom))->query('//main//a[normalize-space(.)="Pokaż więcej '.$kind.'"]/@href');
+        $links = (new DOMXPath($dom))->query('//main//a[normalize-space(.)="Następna strona '.$kind.'"]/@href');
         $this->assertNotFalse($links);
         $this->assertSame(1, $links->length, 'Oczekiwany jeden rzeczywisty odnośnik paginacji '.$kind);
 

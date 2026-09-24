@@ -907,6 +907,13 @@ jobs:
       - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
         run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
 
+      # Test DOM „Pokaż więcej” (#986): kolejne porcje doklejane do listy,
+      # fokus, `aria-live`, odświeżenie, powrót i błąd pobrania. Stoi TU,
+      # a nie na liście `node --test` w `build`, z tego samego powodu co dwa
+      # kroki wyżej — potrzebuje Chromium.
+      - name: Regresja „Pokaż więcej” (DOM w Chromium)
+        run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.

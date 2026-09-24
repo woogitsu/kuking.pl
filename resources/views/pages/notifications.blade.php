@@ -34,7 +34,7 @@
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
          wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
     @if($notifications->count() > 0)
-    <ul class="lista-naga marka-powiadomienia">
+    <ul class="lista-naga marka-powiadomienia" id="lista-powiadomien">
         @foreach($notifications as $notification)
         @php
             $actor = $notification->actor;
@@ -89,7 +89,7 @@
             wąskiego układu automatycznie. Karta nie staje się linkiem:
             odczyt nadal zapisuje prawdziwy formularz POST.
         --}}
-        <li><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
+        <li data-klucz="powiadomienie-{{ $notification->getKey() }}"><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
             <div class="flex gap-3 items-start powiadomienie-wiersz">
                 @if($actor)
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
@@ -370,5 +370,5 @@
         </x-empty-state>
     @endif
 
-    <x-show-more :paginator="$notifications" czego="powiadomień" />
+    <x-show-more :paginator="$notifications" czego="powiadomień" lista="lista-powiadomien" />
 </x-layout>

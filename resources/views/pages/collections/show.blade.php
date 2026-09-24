@@ -60,12 +60,12 @@
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
-            <div class="marka-zeszyt-przepisy">
+            <div class="marka-zeszyt-przepisy" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" uklad="kafel" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
 
         @if(($posts ?? collect())->count() > 0)
@@ -73,7 +73,7 @@
                  a nie wymieszane z przepisami: to są dwie różne rzeczy i dwa
                  różne powody, dla których się je zapisuje. --}}
             <h2 class="mt-8">Zapisane wpisy</h2>
-            <div class="stack">
+            <div class="stack" id="lista-zapisanych-wpisow">
                 @foreach($posts as $post)
                     {{-- `:zeszyt` daje karcie kontekst TEGO zeszytu, więc
                          zamiast odnośnika „Masz to w zeszycie" pokazuje
@@ -81,7 +81,7 @@
                     <x-post-card :post="$post" :zeszyt="$collection" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
+            <x-show-more :paginator="$posts" czego="zapisanych wpisów" lista="lista-zapisanych-wpisow" />
         @endif
 
         @if(($niewidoczne ?? 0) > 0)

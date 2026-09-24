@@ -33,9 +33,11 @@ final class ZeszytPaginacjaObuListTest extends TestCase
     /** Rozmiar strony przepisów jest wpisany wprost w `CollectionController::show()`. */
     private const PRZEPISOW_NA_STRONIE = 12;
 
-    private const PRZYCISK_PRZEPISY = 'Pokaż więcej przepisów';
+    // Etykiety odnośników BEZ skryptu (#986): odnośnik otwiera następną
+    // stronę, więc tak się nazywa. „Pokaż więcej …” dokłada dopiero skrypt.
+    private const PRZYCISK_PRZEPISY = 'Następna strona przepisów';
 
-    private const PRZYCISK_WPISY = 'Pokaż więcej zapisanych wpisów';
+    private const PRZYCISK_WPISY = 'Następna strona zapisanych wpisów';
 
     public function test_przejscie_do_kolejnych_wpisow_zachowuje_druga_strone_przepisow(): void
     {
@@ -412,7 +414,7 @@ final class ZeszytPaginacjaObuListTest extends TestCase
         $this->assertSame(1, $sekcje->length, 'Ekran zeszytu ma dokładnie jedną sekcję `.marka-zeszyt`.');
 
         $linki = [];
-        foreach ($xpath->query('.//a[starts-with(normalize-space(.), "Pokaż więcej")]', $sekcje->item(0)) as $link) {
+        foreach ($xpath->query('.//a[starts-with(normalize-space(.), "Następna strona")]', $sekcje->item(0)) as $link) {
             $linki[trim((string) preg_replace('/\s+/u', ' ', $link->textContent))] = $link->getAttribute('href');
         }
 

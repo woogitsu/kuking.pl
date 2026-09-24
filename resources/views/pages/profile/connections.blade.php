@@ -30,7 +30,7 @@
             @endif
         </x-empty-state>
     @else
-        <div class="stack">
+        <div class="stack" id="lista-osob">
             @foreach($people as $person)
                 @php
                     $personUsername = $person->profile?->username;
@@ -40,7 +40,7 @@
                     // czyli osobny `SELECT EXISTS` na każdy wiersz listy.
                     $isFollowingPerson = $viewer !== null && ! $isSelf && (bool) ($person->obserwowany ?? false);
                 @endphp
-                <div class="card flex gap-3 items-center justify-between flex-wrap">
+                <div class="card flex gap-3 items-center justify-between flex-wrap" data-klucz="osoba-{{ $person->getKey() }}">
                     <a href="{{ $person->profile?->url() }}" class="osoba-link">
                         <x-avatar :user="$person" :size="56" />
                         <span>
@@ -100,6 +100,6 @@
             @endforeach
         </div>
 
-        <x-show-more :paginator="$people" czego="osób" />
+        <x-show-more :paginator="$people" czego="osób" lista="lista-osob" />
     @endif
 </x-layout>

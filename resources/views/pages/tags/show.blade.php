@@ -113,7 +113,7 @@
     @endif
     </section>
 
-    <div class="stack mt-6">
+    <div class="stack mt-6" id="lista-wpisow">
         @forelse($posts as $post)
             <x-post-card :post="$post" />
         @empty
@@ -130,6 +130,6 @@
     </div>
 
     @if($posts->hasPages())
-        <x-show-more :paginator="$posts" />
+        <x-show-more :paginator="$posts" lista="lista-wpisow" />
     @endif
 </x-layout>

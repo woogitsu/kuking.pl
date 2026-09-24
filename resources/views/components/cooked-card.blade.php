@@ -5,7 +5,7 @@
     dowód, że przepis działa u zwykłego człowieka, a nie na sesji zdjęciowej.
 --}}
 @props(['event', 'showRecipe' => false])
-<article class="card">
+<article class="card" data-klucz="wykonanie-{{ $event->getKey() }}">
     <div class="flex gap-3 items-center mb-3">
         <x-avatar :user="$event->user" :size="44" />
         <div class="min-w-0">

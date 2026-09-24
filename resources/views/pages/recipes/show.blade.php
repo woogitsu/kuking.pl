@@ -672,10 +672,12 @@
 
             @if($cookedEvents->isNotEmpty())
                 <p class="meta">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
-                @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" />
-                @endforeach
-                <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+                <div class="stack" id="lista-wykonan">
+                    @foreach($cookedEvents as $event)
+                        <x-cooked-card :event="$event" />
+                    @endforeach
+                </div>
+                <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
                 {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako
