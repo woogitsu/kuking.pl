@@ -104,6 +104,12 @@
             `kuking-board.blade.php` i `tags/show.blade.php` w tej samej roli.
         --}}
         <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.</p>
+    @elseif($bezTresci)
+        {{--
+            Fraza bez liter i cyfr (np. same emoji) — po normalizacji nie zostaje
+            nic, po czym można szukać (issue #1050). Silnik nie szukał.
+        --}}
+        <p class="meta">We frazie „{{ $phrase }}” nie ma liter ani cyfr, po których możemy szukać. Wpisz nazwę dania, składnik albo imię osoby.</p>
     @elseif($zaKrotka)
         {{--
             Osobny, uczciwy tekst — nie „Nic nie znaleźliśmy" (SearchController

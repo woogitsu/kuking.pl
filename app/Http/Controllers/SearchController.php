@@ -120,8 +120,14 @@ class SearchController extends Controller
         //
         // Próg 2 MUSI się zgadzać z SearchQuery — jeśli go tam zmienisz,
         // zmień i tutaj.
+        //
+        // Próg liczy się PO normalizacji (issue #1050) — tą samą
+        // SearchQuery::doSzukania(), której używa domena. „🍲🍲" ma dwa znaki,
+        // ale po transliteracji nic z niej nie zostaje: to nie jest wyszukiwanie
+        // bez wyników, tylko fraza bez treści — osobny komunikat `$bezTresci`.
         $phraseForLength = $section === 'ludzie' ? SearchQuery::peoplePhrase($phrase) : $phrase;
-        $zaKrotka = $phrase !== '' && mb_strlen($phraseForLength) < 2;
+        $bezTresci = SearchQuery::bezTresci($phraseForLength);
+        $zaKrotka = $phrase !== '' && ! $bezTresci && SearchQuery::doSzukania($phraseForLength) === null;
 
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
@@ -175,7 +181,7 @@ class SearchController extends Controller
         // Fraza odrzucona przez `phraseValidator()` (za długa) też nie
         // odpytała bazy — `$przepisy`/`$ludzie` wyżej są wtedy puste — więc
         // z tego samego powodu nie ma czego zapisywać.
-        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
+        if ($phrase !== '' && ! $zaKrotka && ! $bezTresci && $searchErrors->isEmpty()) {
             $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
                 'query_length' => mb_strlen($phrase),
                 'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
@@ -189,6 +195,7 @@ class SearchController extends Controller
             'promowaneTagi' => $phrase === '' ? Tag::promowane()->get() : collect(),
             'section' => $section,
             'zaKrotka' => $zaKrotka,
+            'bezTresci' => $bezTresci,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
             'recipes' => $przepisy->take($ile),

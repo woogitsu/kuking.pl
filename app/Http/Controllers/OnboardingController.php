@@ -122,11 +122,13 @@ class OnboardingController extends Controller
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
         // w ogóle nie odpytuje bazy), inaczej ekran pokazałby „nic nie
         // znaleźliśmy" tam, gdzie baza w ogóle nie została zapytana.
-        $zaKrotka = $phrase !== '' && mb_strlen(SearchQuery::peoplePhrase($phrase)) < 2;
+        // Próg liczy się PO normalizacji, tak jak w domenie (issue #1050).
+        $bezTresci = SearchQuery::bezTresci(SearchQuery::peoplePhrase($phrase));
+        $zaKrotka = $phrase !== '' && ! $bezTresci && SearchQuery::doSzukania(SearchQuery::peoplePhrase($phrase)) === null;
 
         $wynikiWyszukiwania = null;
 
-        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
+        if ($phrase !== '' && ! $zaKrotka && ! $bezTresci && $searchErrors->isEmpty()) {
             $user = $request->user();
 
             $wynikiWyszukiwania = $this->search
@@ -155,6 +157,7 @@ class OnboardingController extends Controller
             'phrase' => $phrase,
             'searchErrors' => $searchErrors,
             'zaKrotka' => $zaKrotka,
+            'bezTresci' => $bezTresci,
             'wynikiWyszukiwania' => $results,
             'jestWiecejWynikow' => ($wynikiWyszukiwania?->count() ?? 0) > self::WYNIKI_WYSZUKIWANIA,
         ]);

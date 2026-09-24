@@ -87,7 +87,12 @@
                 osoby, nie katalog ludzi do przeglądania
                 (docs/research/MIGRACJA_Z_GARNKA.md §3.1 i zadanie tego PR-a).
             --}}
-            @if($zaKrotka)
+            @if($bezTresci)
+                {{-- Same emoji lub symbole — po normalizacji nie ma po czym szukać (#1050). --}}
+                <p class="meta">
+                    We frazie „{{ $phrase }}” nie ma liter ani cyfr, po których możemy szukać. Wpisz imię albo nazwę użytkownika.
+                </p>
+            @elseif($zaKrotka)
                 {{-- Ten sam, uczciwy powód co na `/szukaj`: poniżej dwóch
                      znaków `SearchQuery` w ogóle nie pyta bazy. --}}
                 <p class="meta">

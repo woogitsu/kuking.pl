@@ -251,11 +251,12 @@ final class SearchQuery
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
 
-        if (mb_strlen($phrase) < 2) {
+        // Próg dwóch znaków sprawdzany PO normalizacji (issue #1050) — patrz
+        // doSzukania(). Pusty `$needle` dałby wzorzec `LIKE '%%'`.
+        $needle = self::doSzukania($phrase);
+        if ($needle === null) {
             return new Collection;
         }
-
-        $needle = $this->normalize($phrase);
 
         // Metaznaki LIKE (`%`, `_`, znak ucieczki `\`) z frazy MUSZĄ zostać
         // dosłownym tekstem, nie operatorem wzorca (issue #753). Wyłącznie
@@ -385,11 +386,12 @@ final class SearchQuery
         self::phraseValidator($phrase)->validate();
         $phrase = self::peoplePhrase($phrase);
 
-        if (mb_strlen($phrase) < 2) {
+        // Próg dwóch znaków sprawdzany PO normalizacji (issue #1050) — patrz
+        // doSzukania(). Pusty `$needle` dałby wzorzec `LIKE '%%'`.
+        $needle = self::doSzukania($phrase);
+        if ($needle === null) {
             return new Collection;
         }
-
-        $needle = $this->normalize($phrase);
 
         // Metaznaki LIKE dosłownie — patrz komentarz w recipes() (issue #753).
         // Ta metoda nie ma gałęzi trigramowej, więc CAŁY `$needle` idzie
@@ -505,11 +507,45 @@ final class SearchQuery
      *
      * Str::ascii odpowiada temu, co robi `unaccent` z polskimi znakami
      * diakrytycznymi. Obie publiczne metody sprawdzają długość PRZED
-     * zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć całego tekstu (#885).
+     * zapytaniem — także po normalizacji (doSzukania(), #1050). Nie obcinamy frazy: wynik ma dotyczyć całego tekstu (#885).
      */
-    private function normalize(string $phrase): string
+    private static function normalize(string $phrase): string
     {
         return mb_strtolower(Str::ascii($phrase));
+    }
+
+    /**
+     * Fraza gotowa do zapytania albo null, gdy nie ma po czym szukać.
+     *
+     * PRÓG DWÓCH ZNAKÓW LICZY SIĘ PO NORMALIZACJI, NIE TYLKO PRZED (issue #1050).
+     * `Str::ascii` usuwa znaki, których nie umie przepisać (emoji, symbole):
+     * „🍲🍲" ma dwa znaki, a po normalizacji jest pustym tekstem. Pusty
+     * `$needle` zamieniał się we wzorzec `LIKE '%%'`, który pasuje do
+     * KAŻDEGO przepisu i każdej osoby — wyszukiwarka pokazywała przypadkowe
+     * wyniki jako „trafienia". Brzegowe spacje po usuniętych znakach
+     * („żurek 🍲" → „zurek ") też nie są treścią, więc idą precz.
+     *
+     * Wspólne dla recipes(), people() i SearchController — ten sam próg
+     * decyduje, czy baza jest odpytana i czy zapisać `search_performed`.
+     */
+    public static function doSzukania(string $phrase): ?string
+    {
+        $phrase = trim($phrase);
+        if (mb_strlen($phrase) < 2) {
+            return null;
+        }
+
+        $needle = trim(self::normalize($phrase));
+
+        return mb_strlen($needle) < 2 ? null : $needle;
+    }
+
+    /** Czy fraza (niepusta) traci po normalizacji całą treść — np. same emoji (#1050). */
+    public static function bezTresci(string $phrase): bool
+    {
+        $phrase = trim($phrase);
+
+        return $phrase !== '' && trim(self::normalize($phrase)) === '';
     }
 
     /**

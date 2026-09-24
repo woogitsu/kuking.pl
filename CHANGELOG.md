@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wyszukiwarka nie pokazuje już przypadkowych przepisów i osób, gdy wpiszecie same emoji albo symbole bez liter i cyfr. Zamiast tego prosi o nazwę dania, składnik albo imię osoby, a wpisany tekst zostaje w polu. Tak samo działa szukanie znajomych przy zakładaniu konta.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
