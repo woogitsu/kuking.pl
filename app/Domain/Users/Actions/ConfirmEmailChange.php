@@ -69,11 +69,13 @@ use App\Support\AdresEmail;
 final class ConfirmEmailChange
 {
     /**
+     * @param  string|null  $biezacaSesja  identyfikator sesji, w której kliknięto
+     *                                     link — ta jedna przeżywa zmianę adresu
      * @return string adres, który od tej chwili obowiązuje
      *
      * @throws BladDlaCzlowieka gdy żądanie wygasło albo adres jest zajęty
      */
-    public function handle(User $user, PendingEmailChange $zmiana, ?string $ip = null): string
+    public function handle(User $user, PendingEmailChange $zmiana, ?string $ip = null, ?string $biezacaSesja = null): string
     {
         $nowyAdres = User::normalizeEmail($zmiana->new_email);
         $staryAdres = (string) $user->email;
@@ -91,7 +93,7 @@ final class ConfirmEmailChange
             );
         }
 
-        ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $zmiana, $nowyAdres): void {
+        ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $zmiana, $nowyAdres, $biezacaSesja): void {
             if ($swiezy === null) {
                 throw new BladDlaCzlowieka(
                     'Tego konta już nie ma, więc nie mamy czemu zmienić adresu.',
@@ -158,6 +160,15 @@ final class ConfirmEmailChange
             // Żądanie skonsumowane: link działa dokładnie raz. Kasujemy
             // wiersz odczytany POD BLOKADĄ, nie model podany z zewnątrz.
             $aktualna->delete();
+
+            // ZMIANA ADRESU UNIEWAŻNIA LINK LOGOWANIA I INNE SESJE (#979).
+            // Adres to poświadczenie: link logowania wysłany chwilę temu na
+            // STARY adres dalej otwierałby konto, a sesja na urządzeniu, na
+            // którym ktoś się podszył, żyłaby dalej — właściciel zmienia adres
+            // właśnie wtedy, gdy stracił kontrolę nad starą skrzynką. Ta sama
+            // zasada co przy zmianie hasła: bieżąca przeglądarka zostaje.
+            // Pod blokadą, żeby adres i unieważnienie weszły razem albo wcale.
+            $swiezy->invalidateSessions($biezacaSesja);
 
             // Model przekazany z zewnątrz musi zobaczyć nową wartość —
             // inaczej kontroler wypisze na ekranie stary adres.

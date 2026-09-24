@@ -207,7 +207,7 @@ class ZdjecieProfiloweNaSkrotyTest extends TestCase
         $media = $this->gotoweZdjecieNaProfilu($basia);
 
         $this->actingAs($basia)
-            ->delete(route('settings.avatar.destroy'))
+            ->delete(route('settings.avatar.destroy'), ['avatar_media_id' => $media->getKey()])
             ->assertRedirect(route('settings.avatar'));
 
         $this->assertNull(

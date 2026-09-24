@@ -268,7 +268,7 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
             'user_id' => 'Profil powstaje razem z kontem, w jednej transakcji, z identyfikatorem świeżo zapisanego wiersza.',
         ],
         Recipe::class => [
-            'author_id' => 'PublishRecipe składa wiersz jednym create() z autorem z sesji.',
+            'author_id' => 'PublishRecipe ustawia autora wyłącznie przy create(); edycja przechodzi przez RecipePolicy i nie aktualizuje tej kolumny.',
             'status' => 'O stanie decyduje macierz przejść RecipeStatusTransitions, nie pole formularza.',
             'visibility' => 'To JEST wybór człowieka na ekranie, walidowany regułą in.',
         ],

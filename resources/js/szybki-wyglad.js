@@ -88,13 +88,18 @@ function initialize() {
             const result = await response.json();
             saved = {theme: result.theme, text_scale: String(result.text_scale)};
             if (widget.isConnected && item.revision === revision) status.textContent = 'Wygląd zapisany.';
+            return true;
         } catch {
             if (widget.isConnected && item.revision === revision) {
                 scale.value = saved.text_scale;
                 theme.value = saved.theme;
                 apply(saved);
-                status.textContent = 'Nie udało się zapisać wyglądu. Przywróciliśmy ostatnie ustawienie. Spróbuj ponownie.';
+                // Utrata odpowiedzi nie dowodzi, że serwer nie zapisał wyboru.
+                status.textContent = 'Nie mamy potwierdzenia zapisu wyglądu. Wybierz ustawienie ponownie albo kliknij link jeszcze raz, aby przejść dalej.';
+                widget.open = true;
+                geometry();
             }
+            return false;
         } finally {
             running = false;
             controls.forEach(control => { control.disabled = false; });
@@ -118,7 +123,7 @@ function initialize() {
         if (!running || !link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || link.target || link.hasAttribute('download') || !link.href.startsWith(location.origin)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        completion.then(() => { location.href = link.href; });
+        completion.then(saved => { if (saved) location.href = link.href; });
     };
     document.addEventListener('click', navigate, {capture: true, signal: events.signal});
     listen(form, 'change', change);

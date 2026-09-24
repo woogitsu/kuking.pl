@@ -147,9 +147,34 @@ class CookedEventPolicy
         return app(RecipePolicy::class)->view($user, $event->recipe);
     }
 
+    /**
+     * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
+     *
+     * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.
+     * Ta droga omija panel `/admin` (2FA — `moderator.2fa`), uzasadnienie,
+     * wiersz w `moderation_actions`, powiadomienie i odwołanie (DSA art. 17
+     * i 20). Cudzą treść zdejmuje się decyzją „Usuń" w `/admin/zgloszenia`.
+     */
     public function delete(User $user, CookedEvent $event): bool
     {
-        return $user->getKey() === $event->user_id || $user->isModerator();
+        return $user->getKey() === $event->user_id;
+    }
+
+    /**
+     * „Ugotowałem” Z URZĘDU NIE ZDEJMUJE NIKT (G31, D-251) — i to nie jest
+     * przeoczenie.
+     *
+     * `cooked_events` nie ma soft delete: `delete()` kasuje wiersz na stałe,
+     * razem z komentarzami pod nim. Od decyzji przysługuje odwołanie, a przy
+     * „cofam” powiadomienie obiecuje, że treść wraca od razu
+     * (`UzasadnienieDecyzji`). Przy tej tabeli nie ma czego przywrócić, więc
+     * decyzja z urzędu byłaby obietnicą bez pokrycia — ten sam powód, dla
+     * którego zdjęcie (`media`) nie ma `remove` w `ModerationAction::DOZWOLONE`.
+     * Wraca po dodaniu soft delete do `cooked_events` (osobna praca).
+     */
+    public function removeExOfficio(User $user, CookedEvent $event): bool
+    {
+        return false;
     }
 
     /**
