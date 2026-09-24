@@ -140,7 +140,7 @@ Prawdopodobnie **niewymagana obowiązkowo** dla podstawowego zakresu Kuking MVP 
 
 | Prawo | Termin realizacji | Uwaga praktyczna |
 |---|---|---|
-| Dostęp (Art. 15) | bez zbędnej zwłoki, max 1 miesiąc (przedłużalne o 2 miesiące przy skomplikowanych wnioskach, z informacją do wnioskodawcy) | Kuking i tak buduje eksport danych w MVP — to naturalnie realizuje to prawo |
+| Dostęp (Art. 15) | bez zbędnej zwłoki, max 1 miesiąc (przedłużalne o 2 miesiące przy skomplikowanych wnioskach, z informacją do wnioskodawcy) | Paczka z ustawień (`CollectUserExportData`) plus droga na żądanie. Mapa „tabela/kolumna → eksport / na żądanie / nie dotyczy” to `app/Domain/Users/Exports/InwentarzDanychKonta.php`; test `EksportObejmujeKazdaTabeleKontaTest` oblewa, gdy w schemacie pojawi się kolumna wskazująca na konto bez rozstrzygnięcia (#953). Kategorie „na żądanie” paczka wypisuje w `kategorie_poza_paczka` z powodami — przy ręcznym żądaniu z art. 15 trzeba je wydać osobno (poświadczeń nie wydajemy nigdy) |
 | Sprostowanie (Art. 16) | jw. | Realizowane przez edycję profilu/treści przez użytkownika samodzielnie w większości przypadków |
 | Usunięcie / "prawo do bycia zapomnianym" (Art. 17) | jw. | Usunięcie konta w MVP — zwrócić uwagę na **backupy** (patrz niżej) i na **treści, które zostały skomentowane/cytowane przez innych** — trzeba mieć politykę, czy komentarze usuniętego użytkownika zostają (zwykle: tak, zanonimizowane jako "użytkownik usunięty") |
 | Przenoszenie danych (Art. 20) | jw. | Eksport w formacie strukturalnym (JSON/CSV) — MVP i tak to zakłada |

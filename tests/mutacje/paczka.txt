@@ -47,3 +47,21 @@ na: 'zdjec_jeszcze_w_przygotowaniu' => 0,
 oczekuj: Failed asserting|przygotowaniu
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportMowiOZdjeciachWDrodzeTest.php
 ocena:
+---
+# #953: inwentarz tabel konta. Kolumna bez rozstrzygniecia musi oblac test.
+nazwa: kazda kolumna wskazujaca na konto ma rozstrzygniecie w inwentarzu
+plik: app/Domain/Users/Exports/InwentarzDanychKonta.php
+zamien: 'sessions.user_id' => [self::EKSPORT, 'aktywne_sesje'],
+na: // usuniete przez kontrole ujemna
+oczekuj: sessions.user_id
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportObejmujeKazdaTabeleKontaTest.php
+ocena:
+---
+nazwa: paczka niesie wylacznie sesje tego konta
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: return DB::table('sessions')
+            ->where('user_id', $user->getKey())
+na: return DB::table('sessions')
+oczekuj: tylko JEJ sesje|198.51.100.9
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportObejmujeKazdaTabeleKontaTest.php
+ocena:

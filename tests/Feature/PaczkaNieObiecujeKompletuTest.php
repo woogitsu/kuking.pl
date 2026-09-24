@@ -33,9 +33,11 @@ use Tests\TestCase;
  * rzeczywistości i każe wrócić do zdania; gdy ktoś wróci do „wszystkich",
  * oblewa się test obietnicy.
  *
- * CZEGO TEN PLIK NIE ROBI: nie poszerza zakresu eksportu i nie jest żądaniem,
- * żeby wersje przepisów do paczki weszły. To jest decyzja o zakresie danych,
- * osobna od tego, co paczka o sobie mówi.
+ * #953 ZROBIŁ DOKŁADNIE TO, CO TEN PLIK ZAPOWIADAŁ: wersje przepisów weszły
+ * do paczki (sekcja `wersje_przepisow`), test rzeczywistości oblał i kazał
+ * wrócić do zdania. Test rzeczywistości mierzy więc teraz odwrotność —
+ * historia JEST w paczce — a test obietnicy zostaje bez zmian, bo poza
+ * paczką nadal leżą kategorie wydawane na żądanie (`kategorie_poza_paczka`).
  */
 final class PaczkaNieObiecujeKompletuTest extends TestCase
 {
@@ -47,7 +49,7 @@ final class PaczkaNieObiecujeKompletuTest extends TestCase
     /** Stoi w aktualnym przepisie — i ma być w paczce. */
     private const ZDANIE_AKTUALNE = 'Zdanie z wersji aktualnej.';
 
-    public function test_wczesniejsze_wersje_wlasnych_przepisow_nie_wchodza_do_paczki(): void
+    public function test_wczesniejsze_wersje_wlasnych_przepisow_wchodza_do_paczki(): void
     {
         [$autor, $przepis] = $this->przepisZDwiemaWersjami();
 
@@ -60,7 +62,8 @@ final class PaczkaNieObiecujeKompletuTest extends TestCase
             'Scena nie zbudowała wersji przepisu — pomiar nie dotyczy tego, co miał mierzyć.',
         );
 
-        $json = json_encode($this->paczka($autor), JSON_UNESCAPED_UNICODE);
+        $paczka = $this->paczka($autor);
+        $json = json_encode($paczka, JSON_UNESCAPED_UNICODE);
 
         $this->assertIsString($json);
 
@@ -69,9 +72,10 @@ final class PaczkaNieObiecujeKompletuTest extends TestCase
         // gdyby w paczce nie było w ogóle żadnego przepisu.
         $this->assertStringContainsString(self::ZDANIE_AKTUALNE, $json, 'Paczka nie niesie nawet aktualnej wersji przepisu — pomiar nie dotyczy tego, co miał mierzyć.');
 
-        $this->assertStringNotContainsString(self::ZDANIE_HISTORYCZNE, $json, 'Zdanie z wcześniejszej wersji przepisu wyszło w paczce — zakres eksportu się zmienił, więc zdanie „co_zawiera" wymaga ponownego sprawdzenia.');
-        $this->assertStringNotContainsString('version_number', $json, 'Paczka zaczęła nieść numery wersji przepisów — patrz wyżej.');
-        $this->assertStringNotContainsString('change_note', $json, 'Paczka zaczęła nieść notatki zmian wersji — patrz wyżej.');
+        // Zdanie z wcześniejszej wersji stoi w sekcji wersji, nie w przepisie.
+        $this->assertStringContainsString(self::ZDANIE_HISTORYCZNE, (string) json_encode($paczka['wersje_przepisow'], JSON_UNESCAPED_UNICODE), 'Wcześniejsza wersja przepisu wypadła z paczki (#953) — to jest treść, którą ta osoba napisała.');
+        $this->assertStringNotContainsString(self::ZDANIE_HISTORYCZNE, (string) json_encode($paczka['przepisy'], JSON_UNESCAPED_UNICODE), 'Zdanie z wcześniejszej wersji wyszło jako aktualny przepis.');
+        $this->assertSame([1, 2], array_column($paczka['wersje_przepisow'], 'numer_wersji'));
     }
 
     public function test_opis_paczki_nie_obiecuje_kompletu_danych_konta(): void
@@ -87,7 +91,7 @@ final class PaczkaNieObiecujeKompletuTest extends TestCase
         $this->assertDoesNotMatchRegularExpression(
             '/\b(wszystk\w+|komplet\w*|pełn\w+ kopi\w+)\b/ui',
             $opis['co_zawiera'],
-            'Opis paczki znów obiecuje komplet: „'.$opis['co_zawiera'].'". Poza paczką zostają m.in. wcześniejsze wersje własnych przepisów.',
+            'Opis paczki znów obiecuje komplet: „'.$opis['co_zawiera'].'". Poza paczką zostają m.in. kategorie wydawane na żądanie (`kategorie_poza_paczka`).',
         );
 
         // Granica dotycząca cudzych treści ma zostać tam, gdzie jest —
