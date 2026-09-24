@@ -52,7 +52,9 @@ class PomiarFeeduGraniceTest extends TestCase
         $this->wpis($ukarany, 58);
         foreach (['hidden', 'deleted', 'private'] as $i => $stan) {
             $niedostepny = Recipe::factory()->create(['author_id' => $autor->id]);
-            $this->wpis($autor, 60 + $i, ['recipe_id' => $niedostepny->id]);
+            // Czysta zapowiedź (bez tekstu i zdjęć) idzie za przepisem; wpis
+            // z własną treścią zostałby według własnej widoczności (#1377).
+            $this->wpis($autor, 60 + $i, ['recipe_id' => $niedostepny->id, 'body' => null]);
             if ($stan === 'deleted') {
                 $niedostepny->delete();
             } else {

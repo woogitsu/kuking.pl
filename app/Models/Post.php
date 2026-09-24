@@ -284,6 +284,85 @@ class Post extends Model
     }
 
     /**
+     * Wpisy z WŁASNĄ treścią — niepustym tekstem albo choć jednym zdjęciem.
+     * SQL-owa strona `czyJestZapowiedziaPrzepisu()`: wpis, który ją spełnia,
+     * nie jest zapowiedzią, więc `PostPolicy::view()` nie bramkuje go
+     * przepisem (issue #1377).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWlasnaTrescia(Builder $query): void
+    {
+        $query->where(function (Builder $w): void {
+            // `~ '\S'` = `filled()` z PHP: sam biały znak to brak treści.
+            $w->whereRaw("posts.body ~ '\\S'")
+                ->orWhereExists(function ($sub): void {
+                    $sub->selectRaw('1')->from('post_media')->whereColumn('post_media.post_id', 'posts.id');
+                });
+        });
+    }
+
+    /**
+     * Zapowiedź przepisu wychodzi na listy tylko z widocznym przepisem
+     * (`zWidocznymPrzepisem()`, #368/#941), a wpis z własną treścią — według
+     * WŁASNEJ widoczności, jak na swojej stronie (`PostPolicy::view()`,
+     * issue #1377). Lista, która go pokazuje, musi przed kartą zdjąć
+     * niedostępną relację: `ukryjNiedostepnePrzepisy()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisemAlboWlasnaTrescia(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->where(fn (Builder $tresc) => $tresc->zWlasnaTrescia())
+                ->orWhere(fn (Builder $zapowiedz) => $zapowiedz->zWidocznymPrzepisem($widz));
+        });
+    }
+
+    /**
+     * Zdejmuje z wpisów relację przepisu, którego widz nie może zobaczyć —
+     * to samo `setRelation('recipe', null)` co `PostController::show()`,
+     * tylko jednym zapytaniem na stronę listy (issue #1377). Karta czyta
+     * z relacji tytuł, slug, zdjęcie, plakietkę i przycisk „Ugotowałem”;
+     * bez relacji pokazuje sam wpis z jego własną widocznością.
+     *
+     * Reguły `RecipePolicy::view()` w SQL: `Recipe::widoczneDla()` (własne
+     * zawsze, cudze opublikowane, widoczność, blokada) plus dostępny autor
+     * cudzego przepisu. Bez furtki moderatora — ostrzej, nigdy luźniej.
+     *
+     * @param  iterable<Post>  $wpisy
+     */
+    public static function ukryjNiedostepnePrzepisy(iterable $wpisy, ?User $widz): void
+    {
+        $zPrzepisem = collect($wpisy)->filter(
+            fn (Post $wpis): bool => $wpis->relationLoaded('recipe') && $wpis->recipe !== null,
+        );
+
+        if ($zPrzepisem->isEmpty()) {
+            return;
+        }
+
+        $widoczne = Recipe::query()
+            ->whereIn('recipes.id', $zPrzepisem->pluck('recipe_id')->unique()->values())
+            ->widoczneDla($widz)
+            ->where(function (Builder $autor) use ($widz): void {
+                $autor->whereHas('author', fn ($a) => $a->dostepnyJakoAutor());
+                if ($widz !== null) {
+                    $autor->orWhere('recipes.author_id', $widz->getKey());
+                }
+            })
+            ->pluck('recipes.id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        foreach ($zPrzepisem as $wpis) {
+            if (! in_array((string) $wpis->recipe_id, $widoczne, true)) {
+                $wpis->setRelation('recipe', null);
+            }
+        }
+    }
+
+    /**
      * Wpisy, które MOŻE zobaczyć konkretna osoba — licząc per autor wiersza.
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE

@@ -53,8 +53,9 @@ final class DiscoverFeed
             ))
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
-            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
-            ->zWidocznymPrzepisem($viewer)
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Wpis
+            // z własną treścią idzie za własną widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -84,7 +85,8 @@ final class DiscoverFeed
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->cursorPaginate($perPage);
+            ->cursorPaginate($perPage)
+            ->tap(fn (CursorPaginator $strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer));
     }
 
     /** @return list<string> */
