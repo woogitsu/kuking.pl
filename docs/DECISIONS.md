@@ -15443,6 +15443,22 @@ jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 1
 `gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
 D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
 
+> **Sprostowane 22 września 2026 — patrz D-242.** Dwa rozstrzygnięcia poniżej
+> przestały obowiązywać, bo przestała być prawdziwa przesłanka, na której obie
+> stały: że „`detach()` kasuje notatkę i żadna droga powrotu jej nie odtwarza".
+> Rdzeń z #1110 dołożył `restore()`, które przywraca zdjęte wiersze RAZEM
+> z notatką i pierwotną datą zapisu. Dlatego:
+>
+> - **pytanie przed akcją na stronie przepisu (`<x-confirm-button>`) zostało
+>   zdjęte** — wyjęcie jest teraz odwracalne w całości, więc wraca reguła
+>   D-224 (nie pytamy przed czynnością, którą da się cofnąć), a zakres stoi
+>   napisany NAD przyciskiem zamiast w pytaniu;
+> - **zdanie „notatka przy nim już nie wróci" zostało zastąpione** zdaniem,
+>   które obiecuje przywrócenie — bo notatka wraca.
+>
+> Reszta tej decyzji — droga wyjęcia na każdym ekranie ze stanem zapisu, jeden
+> przycisk na ekran (D-231), liczba zeszytów w komunikacie — obowiązuje dalej.
+
 Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
 w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
 z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
@@ -15848,6 +15864,8 @@ na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
 niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
 cofać: zmiana niczego nie zapisuje w bazie.
 
+---
+
 ## D-241 — Lokalne wzorce spamu sprawdzają także treść niepubliczną; wysyłka do OpenAI bez zmian (22 września 2026)
 
 **Data:** 22 września 2026 · **Decyzja właściciela** (22.09, doprecyzowana
@@ -15916,6 +15934,64 @@ zostało w tych przypadkach bez zmian.
 
 Odwrócić commit. Nic się nie zapisuje w bazie ani nie wychodzi poza serwer.
 Po odwróceniu wracają tylko luki w lokalnych oznaczeniach opisane wyżej.
+
+---
+
+## D-242 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
+
+**Decyzja właściciela: rdzeń z #1110, ekrany z #1168.** #1168 weszło na
+`main` samo, z rdzeniem, który przy wyjęciu nadal kasował notatkę
+bezpowrotnie. Tabela `collection_items` nie ma miękkiego kasowania ani
+historii, więc po `detach()` notatki własnej („mniej soli", „dla Ani bez
+orzechów") nie ma skąd odtworzyć. Utrata cudzej notatki jest nieodwracalna,
+a brak ekranu da się naprawić później — dlatego cofanie ma pierwszeństwo,
+a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
+
+### Co się zmienia wobec stanu po #1168
+
+1. **`remove()` oddaje zdjęte wiersze, nie liczbę.**
+   `SaveRecipeToCollection::remove()` i `SavePostToCollection::remove()`
+   zwracają listę `{collection_id, note, created_at}` zamiast `int`. Liczba
+   w komunikacie to `count()` tej listy, więc nadal jest faktyczna, nie
+   deklarowana (D-230, D-231).
+2. **Nowe `restore()`** odkłada zdjęte wiersze tam, skąd zeszły — z notatką
+   i z pierwotnym `created_at`, więc zeszyt nie przestawia się na górę listy.
+   Nie nadpisuje świeższego wiersza (ktoś zdążył zapisać ponownie), nie sięga
+   zeszytu, który zniknął albo nigdy nie był tej osoby.
+3. **Droga powrotu czeka w sesji, nie we flashu.** Flash żyje jedno żądanie,
+   a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po kliknięciu).
+   `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to nie jest powrót
+   po wyjęciu; gdyby zadziałały jak zwykły zapis, rzecz wróciłaby do zeszytu
+   DOMYŚLNEGO z pustą notatką. Powrót jest jednorazowy. Przycisk brzmi
+   **„Przywróć do zeszytu"**, nie „Zapisz ponownie", bo to jest teraz prawda.
+4. **Pytanie przed akcją na stronie przepisu zdjęte** (sprostowanie D-230).
+   Zakres ujawnia zdanie NAD przyciskiem, związane z nim przez
+   `aria-describedby`: przy jednym zeszycie formularz niesie `collection_id`
+   i nazywa ten zeszyt, przy kilku stoi ostrzeżenie z liczbą zeszytów
+   i zapowiedzią przycisku powrotu.
+5. **Jedna reguła własnego zeszytu** (`regulyWlasnegoZeszytu()`) dla zapisu
+   i dla wyjęcia — dwie kopie granicy „nie wyjmiesz z cudzego zeszytu"
+   rozjechałyby się przy pierwszej poprawce, a kontrola ujemna
+   `scripts/kontrole-negatywne-alfa08.py` wymaga, żeby ta lista stała w kodzie
+   dokładnie raz.
+
+**Bez zmian:** jedna droga wyjęcia na ekran i napisy „Usuń z tego zeszytu" /
+„Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
+
+**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
+D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
+strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
+D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
+`pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza
+opublikowała `flota/scal-786`, więc ta decyzja wraca na D-242, który tamta
+gałąź jej zostawiła. Cudzej gałęzi nie przenumerowano.
+
+Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
 
 ---
 
@@ -16111,6 +16187,32 @@ Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
 
 ---
 
+## D-254 — Adres źródła przepisu: tylko HTTP/HTTPS, dawny adres może zostać (#900, 20 września 2026)
+
+**Data:** 20 września 2026 · Decyzja właściciela
+
+Pole „Adres strony, z której jest przepis” przyjmuje **nowy lub zmieniony**
+adres tylko z protokołem HTTP albo HTTPS (`url:http,https`) — w formularzu
+jednostronicowym (`RecipeController`) i w kreatorze (`recipe-wizard`), z tym
+samym komunikatem. Pomoc pola od zawsze mówiła o stronie internetowej; ogólna
+reguła `url` przepuszczała też `ftp://` i `ssh://`.
+
+**Niezmieniony dawny adres** z bazy (np. FTP zapisany przed tą zmianą) nie
+blokuje edycji innych pól — nie zmuszamy autora do poprawiania go przy okazji
+i nie migrujemy cudzych danych automatycznie. Kreator porównuje wartość z
+**bazą**, nie ze stanem komponentu, więc autozapis nie zrobi z dopiero
+wpisanego FTP „historycznego wyjątku”: taki adres jest odrzucany przed
+zapisem szkicu.
+
+Strona przepisu linkuje wyłącznie adresy HTTP/HTTPS; inne zachowane wartości
+pokazuje zwykłym tekstem, bez `href`.
+
+### Wycofanie
+Powrót do ogólnego `url` w obu regułach i do bezwarunkowego linku w
+`show.blade.php`. Danych nie trzeba cofać — zmiana niczego nie zapisuje.
+
+---
+
 ## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
 
 22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
@@ -16159,6 +16261,16 @@ wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
 komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
+
+## D-253 — Decyzja właściciela #926: prywatne czynności podczas zawieszenia (20 września 2026)
+
+Właściciel wybrał wariant 2: zeszyt, odhaczanie i reset (`cooking.restart`) pozostają dostępne;
+komentarze i obserwowanie pozostają zablokowane. Wyjątek obejmuje zapis
+do własnych prywatnych zeszytów, bez powiadamiania autora przepisu,
+oraz porządkowanie własnych zapisów. Nie otwiera publikacji w publicznym
+zeszycie ani dostępu do cudzych prywatnych treści. Formularze komentarza
+i obserwowania pytają politykę przed wyświetleniem. Pełny zakres,
+koszt wariantów, testy i wycofanie: [ZAWIESZENIE_926.md](product/ZAWIESZENIE_926.md).
 
 ---
 
@@ -16278,6 +16390,75 @@ drugą osobę”.
 Odwrócić commit. Bez migracji — schemat się nie zmienia.
 Decyzje z urzędu już zapisane zostają w rejestrze jako zwykłe `remove`
 z pustym `report_id`.
+
+---
+
+## D-246 — Ponowne wysłanie potwierdzenia adresu ma sufit na konto i własną klasę w puli (audyt 23.09, znalezisko 2; 23 września 2026)
+
+> Numer: D-239..D-245 są zajęte na `main`, na gałęziach zdalnych albo
+> w otwartych stanowiskach floty w dniu tej decyzji. D-246 to pierwszy wolny.
+
+D-239 zostawiło to wprost jako „osobną decyzję, tutaj świadomie niepodjętą".
+Audyt bezpieczeństwa scaleń z 23 września zmierzył, ile to kosztuje:
+„Wyślij wiadomość jeszcze raz" stało w klasie `wejscie` (próg 0), a jedynym
+limitem było `limits.verification_resend` = 6 na minutę, bez sufitu dobowego.
+**Jedno niepotwierdzone konto zużywa całą dobową pulę (300 listów) w około
+50 minut.** Po D-239 odmawia wtedy już sama aplikacja: do końca doby nikt nie
+dostaje linku do logowania ani potwierdzenia rejestracji. Komentarz przy
+`DziennyBudzetListow::dlaPotwierdzeniaAdresu()` twierdził przy tym, że wspólny
+licznik „pilnuje, żeby jedno niepotwierdzone konto nie wypaliło puli całemu
+serwisowi" — nie pilnował.
+
+**Decyzja właściciela (23.09): osobny sufit dla ponowienia. Rejestracja
+i logowanie linkiem zostają jak są.**
+
+Dwie granice, bo są dwa różne zagrożenia:
+
+- **Sufit dobowy na konto — 5 ponowień na dobę kalendarzową**
+  (`kuking.poczta.ponowienie_potwierdzenia_na_dobe`,
+  `KUKING_PONOWIENIE_POTWIERDZENIA_NA_DOBE`). Broni przed jednym kontem.
+  Ten sam rząd co `login_link.limit_na_adres` (3 na godzinę), tylko na dobę, bo
+  ten list nie jest drogą na konto: z konta korzysta się normalnie bez
+  potwierdzonego adresu. Pierwszy list przy rejestracji się nie liczy. Licznik
+  chodzi po identyfikatorze konta i dacie (bez adresu e-mail w `cache`), rusza
+  atomowo (`RateLimiter::increment`) i oddaje miejsce, gdy list nie wyszedł.
+- **Własna klasa `ponowienie` we wspólnej puli, próg 100**
+  (`kuking.poczta.progi_wygaszania.ponowienie`, `KUKING_POCZTA_PROG_PONOWIENIE`).
+  Broni przed wieloma kontami naraz: ponowienia razem gasną, gdy w puli zostaje
+  100 listów, więc nie ruszą rezerwy dla pierwszego potwierdzenia rejestracji
+  i logowania linkiem. 100 to znowu `rezerwa_transakcyjna` — ta sama obietnica
+  co przy klasie `zwykla`, a nie nowa liczba. Osobna klasa zamiast dopisania do
+  `zwykla`, bo właściciel może ją przesunąć bez ruszania przypomnienia hasła.
+  `PodzialLimituPocztyTest` pilnuje, że `ponowienie` > `wejscie`.
+
+Obie wartości mają wartość domyślną w `config/kuking.php`, więc **produkcja nie
+potrzebuje żadnej nowej zmiennej środowiskowej**.
+
+Do wyczerpania klasy `ponowienie` (200 listów) trzeba teraz 40 kont, a każde
+z nich to osobna rejestracja pod `limits.register`.
+
+**Komunikaty.** Po przekroczeniu sufitu konta ekran mówi, ile dodatkowych
+wiadomości już wysłaliśmy, że kolejną można zamówić jutro po północy, że
+z konta korzysta się normalnie bez potwierdzenia i gdzie odpisuje człowiek.
+Po wygaszeniu klasy mówi, że skończyły się e-maile przeznaczone na ponowne
+wysyłki (a nie „wszystkie e-maile" — rezerwa dla wejścia jeszcze jest).
+
+### Czego ta zmiana nie robi
+
+Nie zmienia rejestracji ani logowania linkiem: pierwsze potwierdzenie i link
+nadal są w klasie `wejscie` i dzielą ostatnie 100 listów między siebie. Kto
+zakłada dziesiątki kont, dalej może zjeść tę rezerwę samymi rejestracjami —
+to jest granica `limits.register`, nie tej decyzji. Nie rusza też
+`/nie-pamietam-hasla` (sufit na adres to nadal osobna decyzja z D-239).
+
+📄 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
+`app/Domain/Security/WynikPonowieniaPotwierdzenia.php`,
+`app/Domain/Security/DziennyBudzetListow.php`,
+`app/Http/Controllers/Auth/EmailVerificationController.php`,
+`config/kuking.php`,
+`tests/Feature/SufitPonowieniaPotwierdzeniaTest.php`,
+`tests/Feature/PodzialLimituPocztyTest.php`,
+`tests/Feature/WspolnyLicznikPocztyTest.php`
 
 ---
 

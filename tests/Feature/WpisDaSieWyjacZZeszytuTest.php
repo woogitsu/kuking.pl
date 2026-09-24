@@ -291,11 +291,13 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $odpowiedz->assertRedirect();
 
         // CO SIĘ STAŁO — po polsku i bez dwuznaczności: wpis wyszedł
-        // z zeszytu (nie z serwisu), a droga powrotu przywraca zapis, NIE
-        // notatkę przy nim — `detach()` kasuje wiersz pivotu razem z `note`
-        // (D-230), więc komunikat tego nie zaciera.
+        // z zeszytu, a nie z serwisu. I droga powrotu naprawdę PRZYWRACA,
+        // a nie zapisuje od nowa: `remove()` oddaje zdjęte wiersze razem
+        // z notatką, `restore()` odkłada je tam, skąd zeszły (D-242), więc
+        // komunikat może obiecać przywrócenie, nie samo „zapisz ponownie".
         $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'wyjęty z zeszytu')
-            && str_contains($tekst, 'notatka przy nim już nie wróci'));
+            && str_contains($tekst, 'Nie usunęliśmy go z serwisu')
+            && str_contains($tekst, 'przywrócić'));
 
         // DROGA POWROTU — przycisk, nie samo zdanie „możesz zapisać ponownie”.
         $html = $this->actingAs($basia)
@@ -312,6 +314,12 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $this->actingAs($basia)->post($powrot->getAttribute('action'))->assertRedirect();
 
         $this->assertSame(1, $basia->defaultCollection()->posts()->count());
+
+        // …a etykieta mówi „przywróć", nie „zapisz ponownie", bo to jest
+        // teraz prawda: wraca ten sam wiersz, nie nowy (D-242).
+        $przycisk = (new DOMXPath($powrot->ownerDocument))->query('.//button', $powrot)?->item(0);
+        $this->assertInstanceOf(DOMElement::class, $przycisk);
+        $this->assertStringContainsString('Przywróć do zeszytu', $przycisk->textContent);
     }
 
     public function test_po_wyjeciu_karta_znow_proponuje_zapis(): void
