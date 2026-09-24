@@ -184,6 +184,11 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
+# behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
+# zwrot miejsca do wspólnej puli poczty.
+BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
 # Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
 # akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
 # `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
@@ -470,6 +475,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
     ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
