@@ -335,8 +335,11 @@ final class SearchQuery
             // i o kolejności decydowałaby data. Z nim krótszy, dokładniejszy
             // tytuł wraca na górę — zmierzone: dokładny tytuł zostaje na
             // pozycji 1 tak samo jak przed zmianą.
+            // Wyrażenia wpisane dosłownie, nie przez `$ws`/`$s`: rejestr
+            // FeedNieSortujePoMierzeReakcjiTest pilnuje tego tekstu. Muszą być
+            // identyczne z tymi w kursorze niżej.
             ->orderByRaw(
-                "{$ws} DESC, {$s} DESC",
+                'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC',
                 [$needle, $needle],
             )
             ->orderByDesc('published_at')
@@ -445,7 +448,7 @@ final class SearchQuery
             // „karanie za długość", które psuło kolejność przepisów, nie ma
             // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
             // zmianą kolejności wyników za darmo.
-            ->orderByRaw("{$s} DESC", [$needle])
+            ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
             ->orderBy('profiles.user_id')
             // Kursor rankingu — uzasadnienie przy KURSOR_PRZEPISU wyżej.
             ->when($kursor !== null, fn ($query) => $query->whereRaw(
