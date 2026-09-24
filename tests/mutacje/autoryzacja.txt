@@ -40,6 +40,14 @@ oczekuj: moderacje|Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KomentarzePolicyZgadzaSieZListaTest.php
 ocena:
 ---
+nazwa: odpowiedz pod ukrytym korzeniem nie przechodzi bramki zgloszen
+plik: app/Policies/CommentPolicy.php
+zamien: if ($comment->parent_id !== null && ! $this->korzenWidoczny($user, $comment, $jestAutorem)) {
+na: if (false) {
+oczekuj: korzen|Failed asserting|404
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/OdpowiedzPodUkrytymKorzeniemTest.php
+ocena:
+---
 nazwa: wykonanie zbanowanego kucharza nie dostaje ekranu celebracji
 plik: app/Policies/CookedEventPolicy.php
 zamien: return $event->user->jestDostepnyJakoAutor();
