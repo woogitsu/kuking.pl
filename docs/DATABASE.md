@@ -654,12 +654,29 @@ użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
 sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
 z przyciskiem do włączenia (403), nie ścianę.
 
-**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
-bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
-zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
-SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
-znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
-awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+**Rollback: ODMAWIA, gdy ktokolwiek ma 2FA potwierdzone** (D-238, zasada
+D-088). `down()` zdejmuje CHECK i wszystkie cztery kolumny, więc każde konto
+z włączonym 2FA traci sekret i kody zapasowe — bezpowrotnie, bo sekret jest
+zaszyfrowany i nie ma go skąd odtworzyć.
+
+Stało tu wcześniej, że to „świadomy powrót do stanu sprzed tej zmiany,
+nikt nie zostaje zablokowany". To prawda i dlatego właśnie jest groźne:
+cofnięcie nie wybija nikogo z serwisu, tylko po cichu ZDEJMUJE OCHRONĘ.
+Cykl `rollback` → `migrate` (czyli to, co robi `migrate:refresh`) zostawia
+kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika — konto
+moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+wraca do samego hasła i nikt się o tym nie dowiaduje.
+
+Dlatego `down()` liczy `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją, **zanim** wykona cokolwiek
+niszczącego — także zanim zdejmie CHECK. Świadome cofnięcie przepuszcza
+zmienna `KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`.
+
+Sam sekret **bez** potwierdzenia nie blokuje niczego: to konto w trakcie
+włączania 2FA, które po prostu zaczyna włączanie od nowa. Na świeżym
+środowisku cofnięcie działa bez pytania, więc `migrate:refresh` w CI
+i u dewelopera chodzi jak dotąd. Pilnuje tego
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php`.
 
 **Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
 ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
@@ -2132,6 +2149,18 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+Równoległe pierwsze zapisy (#778) rozstrzyga indeks
+`collections_one_default_per_owner_idx`, który nadal dopuszcza tylko jeden
+zeszyt domyślny na właściciela. `User::defaultCollection()` próbuje wstawić
+wiersz w osobnej transakcji (PostgreSQL savepoint, gdy akcja już jest
+w transakcji), a złapane 23505 sprawdza po nazwie tego właśnie indeksu
+i dopiero wtedy odczytuje zwycięski wiersz — kolizja nazwy zeszytu ani inna
+przyszła reguła unikalności nie zniknie pod pozornie udanym zapisem.
+Szukamy po `is_default`, nigdy po nazwie publicznego zeszytu właściciela.
+Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
+oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
+się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
@@ -2197,6 +2226,10 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
 o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
+(następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
+liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
+w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
@@ -2436,6 +2469,66 @@ samego powodu: ciche skasowanie „nadmiarowego" zgłoszenia byłoby skasowaniem
 sprawy DSA, na którą ktoś mógł się powołać. Który wiersz obowiązuje,
 rozstrzyga człowiek.
 
+**`reports_resolution_complete_check` — status związany z datą rozstrzygnięcia**
+(issue #997, migracja `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`).
+
+```sql
+CHECK (
+  (status IN ('open','triage','reviewing')
+     AND resolved_at IS NULL AND resolved_by IS NULL AND resolution_note IS NULL)
+  OR (status IN ('resolved','rejected') AND resolved_at IS NOT NULL)
+)
+```
+
+Retencja liczy od `resolved_at` i bierze tylko `resolved`/`rejected`, więc
+zamknięta sprawa bez daty nie zostałaby skasowana **nigdy**, a otwarta z datą
+wisiałaby w kolejce z fałszywym śladem rozstrzygnięcia. To trzeci przypadek
+tego samego niezmiennika co `appeals_decision_complete_check`
+i `contact_messages_handled_complete`.
+
+- **`resolved_by` w stanie końcowym nie jest wymagane** — klucz ma świadome
+  `nullOnDelete()`; fizyczne usunięcie konta operatora nie może unieważnić
+  historycznej sprawy. Kto rozstrzygnął, zapisuje też niemutowalny
+  `moderation_actions.moderator_id`.
+- **`resolution_note` w stanie końcowym nie jest wymagane** — wewnętrzna
+  notatka, formularz decyzji i odrzucenie oznaczeń automatu pozwalają ją
+  pominąć (uzasadnienie dla człowieka: `moderation_actions.user_message`).
+- **Lista statusów wypisana wprost** — nowy status w `reports_status_check`
+  bez przemyślenia tej reguły odbije się o bazę. Celowo.
+- Status zmieniają dziś dwie ścieżki i obie zapisują status, datę
+  i moderatora jednym `update()`: `ModerationController::decide()`
+  i `SygnalyController::odrzucGrupe()` (`StatusZgloszeniaZwiazanyZRozstrzygnieciemTest`).
+
+**`up()` najpierw liczy niespójne wiersze i ODMAWIA**, gdy jakiekolwiek są —
+z liczbami w komunikacie. Nie zgaduje: `created_at` jako data zamknięcia
+przyspieszyłoby retencję i skasowało sprawę przed czasem. Potem
+`ADD CONSTRAINT … NOT VALID` i osobno `VALIDATE CONSTRAINT`
+(`$withinTransaction = false`, więc walidacja nie blokuje zapisów). Gdy
+`VALIDATE` padnie (niespójny zapis w trakcie wdrożenia), CHECK jest zdejmowany,
+żeby ponowne `migrate` zaczęło od czystego stanu.
+
+**Zapytanie kontrolne przed wdrożeniem (tylko odczyt, dla właściciela):**
+
+```sql
+SELECT id, numer_sprawy, source, status, resolved_at, resolved_by,
+       resolution_note IS NOT NULL AS ma_notatke, created_at,
+       (SELECT min(ma.created_at) FROM moderation_actions ma WHERE ma.report_id = r.id) AS data_decyzji
+FROM reports r
+WHERE (status IN ('resolved','rejected') AND resolved_at IS NULL)
+   OR (status IN ('open','triage','reviewing')
+       AND (resolved_at IS NOT NULL OR resolved_by IS NOT NULL OR resolution_note IS NOT NULL))
+ORDER BY created_at;
+```
+
+Pusty wynik = migracja przejdzie. Wiersze w wyniku poprawia człowiek: datę
+zamknięcia bierze z `data_decyzji`, a nie z `created_at`; otwarta sprawa
+z polami rozstrzygnięcia jest albo zamknięta (popraw status), albo otwarta
+(wyczyść trzy pola).
+
+**Rollback:** `DROP CONSTRAINT IF EXISTS reports_resolution_complete_check`.
+Bezstratnie — poluzowanie reguły nie dotyka żadnego wiersza, więc nie ma
+czego odmawiać (inaczej niż w przypadkach z D-088).
+
 ### moderation_actions
 Decyzje moderatorów.
 
@@ -2628,6 +2721,16 @@ usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
 w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
 Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
+**Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
+częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
+`user.role_changed`, `post.published`) idzie przez `record()` **wewnątrz**
+transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
+komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
+człowieka (`account.registered`, `content.reported`), idzie przez
+`AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
+z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
+błąd przy koncie czy sprawie, które już istnieją.
+
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
 uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
@@ -2645,6 +2748,173 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+### potwierdzenia_zadan_rodo
+Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
+obsłużone — **zamiast** bezterminowego dziennika osobowego.
+
+Powstało z `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C, która nie kwestionuje
+liczby, tylko kształt: trzy kategorie `audit_log` z listy
+`AuditLogEntry::NIGDY_NIE_KASUJ` trzymają dziś BEZTERMINOWO wpis z `actor_id`,
+`ip_hash` i dowolnym `metadata jsonb`. Ocena każe je zastąpić zamkniętym
+zestawem pól z określonym okresem trzymania; ocena proponowała **36 miesięcy od
+zakończenia obsługi**, ale **właściciel wstrzymał automatyczne kasowanie do
+potwierdzenia okresu przez prawnika** (D-233 — patrz „Retencja" niżej). Pełny projekt,
+razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
+`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+
+**Kto do niej pisze (od 21.09.2026):** wyłącznie
+`App\Domain\Compliance\RejestrPotwierdzenRodo`. Wiersz `w_toku` powstaje przy
+zgłoszeniu żądania z `/ustawienia/twoje-dane` (w jednej transakcji
+z `users.markForDeletion()`), a domknięcie — `wykonane` albo `cofniete` — idzie
+**w tej samej transakcji** co `EraseAccountData` i `CancelAccountDeletion`.
+Potwierdzenie zapisane osobną transakcją potrafiłoby opisywać wykonanie,
+którego nie było, albo przemilczeć wykonanie, które było; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`.
+
+Model `App\Models\PotwierdzenieZadaniaRodo` ma w `$fillable` **wyłącznie opis
+sprawy** (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`). `numer`,
+`wynik`, `zakres`, `zakonczono`, `konto_id`, `wstrzymanie_do`
+i `wstrzymanie_sprawa` stoją **poza** `$fillable` — ta sama ostrożność co przy
+`status` i `role` użytkownika, tylko stawką jest tu prawdziwość dowodu, wskaźnik
+na dane osobowe i zegar retencji.
+
+**Czego nadal nie ma:** backfillu istniejących wpisów `account.*` i skasowania
+ich pełnych kopii — to osobne kroki właściciela (lista w projekcie wyżej), więc
+do ich wykonania dziennik i potwierdzenia stoją **obok siebie**, nie zamiast
+siebie. Numer sprawy też nie jest jeszcze nigdzie pokazywany ani wysyłany
+człowiekowi (brzmienie pisma to krok 2 właściciela).
+
+- `id uuid` PK, `DEFAULT gen_random_uuid()`;
+- **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
+  z `App\Support\NumerZadaniaRodo` (alfabet bez `0`, `1`, `I`, `L`, `O`, `U`
+  wspólny z `NumerSprawy`, 12 znaków ≈ 59 bitów). To jest **jedyne powiązanie
+  wiersza z człowiekiem po wykonaniu usunięcia** — numer dostaje wnioskodawca,
+  baza nie trzyma niczego, z czego dałoby się go odtworzyć. Przedrostek inny
+  niż `KU` zgłoszeń moderacyjnych, żeby dwa rejestry nie mówiły tym samym
+  numerem. Wzór pilnuje CHECK `potwierdzenia_zadan_rodo_numer_check`,
+  **zamrożony w dniu migracji** — zmiana `NumerSprawy::ALFABET` wymaga nowej
+  migracji (tak samo jak przy `reports`);
+- **`rodzaj varchar(40)`** — CHECK po `SlownikPotwierdzenRodo::RODZAJE`. Dziś
+  jedna wartość: `usuniecie_konta`;
+- **`wynik varchar(30)`** — `w_toku` / `wykonane` / `cofniete` / `odmowa`.
+  Ta kolumna zastępuje TRZY kategorie dziennika jednym wierszem: cofnięcie
+  żądania jest **wynikiem**, nie osobnym zdarzeniem („Przechowuj właściwy stan
+  końcowy, nie trzy niekasowalne kopie wszelkich danych" — §C);
+- **`zakres varchar(20) NULL`** — `minimum` / `everything`, te same wartości co
+  `users.delete_scope` (D-022). CHECK wiąże je z wynikiem w OBIE strony:
+  `wykonane` musi mieć zakres, każdy inny wynik mieć go nie może;
+- **`otrzymano date`** + **`zakonczono date NULL`** — daty wpływu i zakończenia.
+  **`date`, nie `timestamptz`, i to jest minimalizacja**: sekunda zamknięcia
+  sprawy daje się zestawić z chwilą, w której czyjeś wpisy zmieniły autora na
+  „konto usunięte", czyli sama identyfikuje. Doba do wykazania terminu z art. 12
+  ust. 3 i do policzenia 36 miesięcy wystarcza. `zakonczono` jest **początkiem
+  zegara retencji**; `NULL` znaczy „sprawa w toku" i CHECK wiąże to z
+  `wynik = 'w_toku'` w obie strony, żeby bezterminowość nie wróciła przez pustą
+  kolumnę;
+- **`wersja_procedury varchar(20)`** — która wersja procedury usunięcia to
+  wykonała (`RRRR-MM-DD` daty obowiązywania). Bez niej „wykonane" znaczy tylko
+  „zrobiliśmy wtedy to, co wtedy robiliśmy";
+- **`wyjatki text NULL`** — czego NIE usunięto i z jakiej reguły to wynika
+  (przy `minimum` treści zostają zanonimizowane, `COMPLIANCE.md` §2; sprawa
+  moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
+  o człowieku;
+- **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
+  z wnioskodawcą, **zostające także po wykonaniu żądania**.
+
+  **DECYZJA WŁAŚCICIELA Z 21.09.2026, nie rekomendacja oceny zewnętrznej.**
+  Pierwotny schemat miał tu CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, zabraniający `konto_id`
+  przy `wynik = 'wykonane'`: z chwilą wykonania konto jest anonimizowane,
+  a wskaźnik wiąże dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Właściciel zdecydował inaczej — ma się dać
+  odpowiedzieć regulatorowi o konkretną osobę bez pytania jej o numer sprawy —
+  i CHECK zdejmuje migracja
+  `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo` (jej
+  `down()` zakłada go z powrotem i odmawia wąsko, gdy stoi wiersz, który by go
+  złamał).
+
+  **CENA TEJ DECYZJI I JEDYNE, CO PO NIEJ ZOSTAŁO Z OCHRONY.** Rejestr umie
+  teraz odpowiedzieć na pytanie „czy ta osoba usunęła konto" każdemu, kto ma
+  dostęp do bazy — a przy zakresie `minimum` treści tej osoby zostają pod tym
+  samym `user_id` (D-022), więc wskaźnik prowadzi od potwierdzenia wprost do
+  jej zachowanego dorobku. Decyzja brzmiała „ma się dać odpowiedzieć
+  regulatorowi", a **nie** „ma być wyszukiwarka", więc:
+  - **nie ma i nie będzie ekranu, trasy ani endpointu** czytającego tę tabelę
+    po `konto_id` — pilnuje tego
+    `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php` (skan tras, skan
+    warstwy HTTP i widoków, zamknięta lista publicznych metod klasy piszącej,
+    zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią);
+  - **kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+    **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+    nadzorczego albo sądu, notując przy sprawie, czego odczyt dotyczył. To nie
+    jest funkcja produktu i nie ma być wygodne — niewygoda jest tu jedynym, co
+    zostało z ochrony zdjętej razem z CHECK-iem.
+
+  Pełny zapis decyzji, argumentów przeciw i tego zawężenia:
+  `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.2 punkt 3 i §3.3 punkt 7;
+- **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
+  udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
+  sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
+  wskazanej sprawy to znów retencja bezterminowa, tylko pisana inną kolumną.
+  Data, nie flaga — blokada ma wygasać sama;
+- `created_at` / `updated_at` (`timestamptz`) — kiedy wiersz powstał. To **nie**
+  jest `otrzymano`; rozjazd między nimi jest jedynym sygnałem daty wpisanej
+  wstecz.
+
+**Czego tu nie ma, świadomie:** adresu e-mail (jawnego ani jako skrót), nazwy,
+biogramu, zdjęć, treści wniosku, korespondencji, `ip_hash` — oraz `metadata
+jsonb`, czyli tej jednej kolumny, przez którą wszystkie powyższe wróciłyby bez
+migracji i bez recenzji schematu.
+
+**Indeksy** (wszystkie częściowe — każdy pod jedno zapytanie):
+`potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
+`..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
+oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
+D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
+
+Powód nie jest niechęcią do retencji, tylko dwiema konkretnymi rzeczami:
+okresu **nie potwierdził jeszcze prawnik** (36 miesięcy było analogią do
+sprawy moderacyjnej, nie ustaleniem), a kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby" nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą" — czyli nie wiadomo nawet, jak długo istnieje droga odzysku.
+
+Wyłączenie stoi na **dwóch niezależnych barierach**: `retencja_wlaczona` jest
+`false`, a `kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte
+w `routes/console.php`**, więc nie wystartuje nawet przy przypadkowo ustawionej
+zmiennej. `retention_months` jest `null`, nie 36 — żeby samo przestawienie
+flagi nie uruchomiło kasowania według zgadniętego progu.
+
+Sam predykat istnieje, jest przetestowany i gotowy:
+`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo` liczy od `zakonczono`,
+pomija wiersze z `wstrzymanie_do` w przyszłości, a sprawy w toku (`zakonczono IS
+NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
+retencję w sprzątanie dowodów zaniedbania. Próg liczony `subMonthsNoOverflow`,
+nie `subMonths` (A6-04) — przepełnienie daty przesuwa go w stronę nowszych
+wierszy i kasowałoby dowód wykonania art. 17 przed czasem.
+
+**Do przygotowania danych historycznych** służy
+`kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które działa mimo
+wyłączenia i nie wykonuje żadnego `DELETE` — pokazuje wyłącznie, ile wierszy
+wpadłoby pod dany próg.
+
+**Jak to włączyć, gdy prawnik potwierdzi okres:** trzy kroki opisane przy kluczu
+`potwierdzenia_rodo` w `config/kuking.php` i w `PROJEKT_POTWIERDZENIA_RODO.md`
+§6. `tests/Feature/RetencjaPotwierdzenRodoTest.php` pilnuje obu stron: że
+domyślnie nic się nie kasuje (z kontrolą dodatnią, że wiersz naprawdę był
+kandydatem) i że po jawnym włączeniu automat kasuje oraz omija wstrzymane.
+
+**Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
+jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
+ma gdzie indziej. Odmowa jest wąska (AGENTS.md §6, D-088): pusta tabela i tabela
+z samymi sprawami w toku cofają się bez pytania, bo sprawa w toku żyje nadal
+w `users.delete_requested_at`. Kolejność: **najpierw kod, potem migracja**.
+Pilnuje tego `MinimalnePotwierdzenieRodoTest` (odmowa + dwie kontrole dodatnie).
 
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
@@ -3041,8 +3311,9 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
 | `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
-| `unknown` | Worek na resztę — każda inna awaria. |
+| `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
 
 `DataExport::failureReasonLabel()` zamienia kod na zdanie po polsku (z adresem
 kontaktowym z `config('kuking.community.contact_email')`) i **nigdy** nie
@@ -3050,7 +3321,7 @@ pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
 dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
 w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
 
-Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych pięciu
 wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
 kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
 
@@ -3059,6 +3330,74 @@ zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
 dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
+
+#### Eksport a wymazanie konta i pliki pośrednie (issues #1307, #993)
+
+Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
+
+- `GenerateUserExport` nie zaczyna pracy dla konta `erased` ani dla eksportu,
+  któremu `EraseAccountData` przestawiło `expires_at` w przeszłość (`failed`,
+  `account_missing`). Karencja `pending_delete` eksportu nie blokuje.
+- Przejście w `ready` idzie w krótkiej transakcji z `lockForUpdate()` na
+  wierszu `users` (ta sama kolejność blokad co w `EraseAccountData`) i na
+  wierszu eksportu, z ponownym sprawdzeniem obu warunków. Przegrany wyścig:
+  wiersz dostaje `expired` z **zachowanym** `disk`/`object_key` i terminem
+  w przeszłości, job kasuje plik z weryfikacją `exists()` i dopiero wtedy
+  zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
+  `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
+- Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
+  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
+  instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
+  godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
+  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
+  pierwszego eksportu po upływie godziny albo do restartu kontenera
+  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  z identyfikatorem eksportu, bez ścieżek. Sprzątanie stoi na samym
+  początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
+  eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
+  wymazanego konta czekałaby na cudzy eksport.
+- List „paczka gotowa” wychodzi po **świeżym** odczycie wiersza eksportu
+  i konta, po commicie `ready`. Wymazanie, które czekało na blokadę
+  finalizacji i zatwierdziło się tuż po niej, odcina list (adres jest już
+  zanonimizowany, a paczka niepobieralna). Wymazanie wchodzące między tym
+  odczytem a wysyłką daje co najwyżej jeden list na prawdziwy adres
+  właściciela z linkiem, który już nie wyda paczki — bez danych w treści.
+
+#### Trwale brakujące zdjęcie blokuje eksport RODO (issue #1388)
+
+Skutek wybranego kontraktu „paczka niepełna nie jest wydawana”, nazwany
+wprost: jeśli plik JEDNEGO zdjęcia `ready` zniknął z magazynu na stałe
+(np. utracony przy przenosinach bucketów, #1031), **każda** próba eksportu
+tego konta kończy się `failed` / `photo_unreadable` — ponowienie nic nie
+zmieni, a człowiek nie dostanie paczki z pozostałymi danymi. Ekran mówi mu,
+żeby spróbował za kilka minut, a gdy się powtarza — napisał do nas. Nie ma
+tu automatu i świadomie go nie dokładamy: „pomiń zdjęcie i wydaj resztę”
+po cichu to dokładnie usterka #1388.
+
+Ścieżka dla obsługi (admin z dostępem do produkcji, **za jawną zgodą
+właściciela danych** — to zapis na produkcji, AGENTS.md):
+
+1. W dzienniku znaleźć `Nie udało się zbudować paczki z danymi użytkownika`
+   dla tego `data_export_id` — `error` niesie identyfikator zdjęcia
+   i przyczynę (`brak pliku w storage`, klasa wyjątku albo
+   „odczytano X z Y bajtów”). Bez ścieżek i bez komunikatu dostawcy.
+2. `php artisan kuking:sprawdz-zdjecia-po-przenosinach` (tylko odczyt)
+   rozstrzyga: **DO ODZYSKANIA** — plik leży w starym buckecie; naprawa jak
+   w opisie tej komendy, potem człowiek zamawia paczkę ponownie. Przyczyna
+   chwilowa (plik jest, odczyt się urywał) — zwykłe ponowienie.
+3. **UTRACONE** — bajtów nie odzyska nic. Decyzja właściciela danych:
+   zdjęcie przestaje być `ready` — `status = rejected` („przygotowanie
+   pliku padło, oryginał wolno wgrać jeszcze raz”), NIE `deleted`, które
+   README tłumaczy jako decyzję samego człowieka (D-083). Wtedy
+   `ExportPhotoPlan` go nie planuje, a README paczki liczy je jawnie
+   (`ExportPhotoPlan::rejectedCount()`). Dopiero potem nowy eksport. Człowiekowi
+   odpisujemy, którego zdjęcia brakuje — paczka nie może tego przemilczeć.
+
+Nie ma do tego komendy; jeśli zgłoszeń będzie więcej niż pojedyncze, to
+jest powód na osobne issue, nie na obejście w `GenerateUserExport`.
 
 Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
 w kolejności; `data_exports_one_active_per_user` — patrz niżej.
@@ -3385,7 +3724,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
-| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. Konto jest anonimizowane, nie kasowane (D-022), więc `nullOnDelete()` się nie uruchamia — `user_id` zeruje jawnie `EraseAccountData` w tej samej transakcji co wymazanie (#995, pilnuje `WymazanieKontaOdlaczaWiadomosciDoNasTest`). |
 | `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
@@ -4154,8 +4493,13 @@ replice) liczba jest praktycznie ta sama: 4 + 1 + 1 = 6 w spoczynku,
 a wdrożenie z nakładaniem daje 12 + 1 = **13**.
 
 **Koszt każdej dodatkowej repliki `web`:** +4 w spoczynku, +8 w oknie
-wdrożenia. Przy 497 miejscach i budżecie 16 zapas starcza na ponad sto replik,
-zanim połączenia staną się ograniczeniem.
+wdrożenia. Przy 497 miejscach, jednym workerze i jednym schedulerze wzór
+wdrożeniowy to `8R + 8`: mieści się maksymalnie 61 replik web (496 miejsc),
+ale to wyczerpuje pulę i **nie jest bezpiecznym limitem skalowania**.
+Poniżej progu ostrzegawczego 50 mieści się 5 replik (48 miejsc).
+Wcześniejsze „ponad sto replik” pomijało nakładanie wdrożeń.
+Własny pomiar z 20.09.2026, ograniczenia tego wyliczenia i wariant z osobnym
+workerem media: [odbiór lokalny #598/#599](infra/MONITORING_ODBIOR_2026_09_20.md).
 
 ### D. Progi alarmowe i skąd się wzięły
 

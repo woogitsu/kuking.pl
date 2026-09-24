@@ -80,7 +80,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $kod = $this->aktualnyKod($basia->two_factor_secret);
 
         $response = $this->actingAs($basia)
-            ->post(route('settings.two_factor.confirm'), ['code' => $kod]);
+            ->post(route('settings.two_factor.confirm'), ['code' => $kod, 'password' => 'haslo-testowe-123']);
 
         $response->assertRedirect(route('settings.two_factor.codes'));
         $response->assertSessionHas('kody_zapasowe');
@@ -110,7 +110,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $basia->refresh();
 
         $this->actingAs($basia)
-            ->post(route('settings.two_factor.confirm'), ['code' => '000000'])
+            ->post(route('settings.two_factor.confirm'), ['code' => '000000', 'password' => 'haslo-testowe-123'])
             ->assertSessionHasErrors('code');
 
         $this->assertFalse($basia->refresh()->hasTwoFactorConfirmed());
@@ -227,7 +227,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         // wywołanie go tutaj zużyłoby jedną z prób limitu, który ma testować
         // WYŁĄCZNIE ten test. Test logowania z 2FA (wyżej) i tak sprawdza
         // pełną ścieżkę przez /login.
-        $this->withSession(['logowanie.2fa.user_id' => $basia->getKey()]);
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($basia->fresh()));
 
         for ($i = 0; $i < (int) $maxProb; $i++) {
             $this->post(route('login.two_factor.store'), ['code' => '000000'])
@@ -259,7 +259,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         [$maxProb] = explode(',', config('kuking.limits.two_factor'));
 
-        $this->withSession(['logowanie.2fa.user_id' => $basia->getKey()]);
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($basia->fresh()));
 
         for ($i = 0; $i < (int) $maxProb; $i++) {
             $this->withServerVariables(['REMOTE_ADDR' => "10.0.{$i}.1"])
@@ -330,7 +330,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.disable'), ['password' => 'zle-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('disable', ['password']);
 
         $this->assertTrue($basia->refresh()->hasTwoFactorConfirmed());
     }
@@ -442,7 +442,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.regenerate'), ['password' => 'nie-to-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('regenerate', ['password']);
 
         // Stary kod dalej działa — nic się nie zmieniło.
         $this->post(route('logout'));

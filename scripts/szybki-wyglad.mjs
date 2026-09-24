@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';import {mkdirSync,writeFileSync} from 'node:fs';
+import {komunikatPomiaru} from './wyglad-komunikat.mjs';
 export async function sprawdzSzybkiWyglad({browser:b,adres,out='output/wyglad574'}) {
 mkdirSync(out,{recursive:true});
 try{
@@ -7,7 +8,7 @@ const p=await b.newPage({viewport:{width:390,height:850},serviceWorkers:'block'}
 await p.locator('[data-szybki-wyglad] summary').click();await p.selectOption('#szybka-skala','80');await p.locator('[data-wyglad-status]').filter({hasText:'Wygląd zapisany.'}).waitFor();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'80');await p.reload();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'80');
 await p.locator('[data-szybki-wyglad] summary').click();await p.selectOption('#szybki-motyw','dark');await p.locator('[data-wyglad-status]').filter({hasText:'Wygląd zapisany.'}).waitFor();await p.reload();assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
 await p.locator('[data-szybki-wyglad] summary').click();await p.locator('[name=reset_appearance]').click();await p.locator('[data-wyglad-status]').filter({hasText:'Wygląd zapisany.'}).waitFor();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'100');
-await p.route('**/motyw',route=>route.fulfill({status:429,contentType:'application/json',body:'{}'}));await p.selectOption('#szybka-skala','70');await p.locator('[data-wyglad-status]').filter({hasText:'Nie udało'}).waitFor();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'100');await p.unroute('**/motyw');
+await p.route('**/motyw',route=>route.fulfill({status:429,contentType:'application/json',body:'{}'}));await p.selectOption('#szybka-skala','70');await p.locator('[data-wyglad-status]').filter({hasText:'Nie mamy potwierdzenia'}).waitFor();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'100');await p.unroute('**/motyw');
 const rows=[];
 for(const width of [320,360,390,414,768,1440])for(const theme of ['light','dark'])for(const scale of [70,100,140]){
  await p.setViewportSize({width,height:850});await p.evaluate(({theme,scale})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.textScale=String(scale);},{theme,scale});await p.waitForTimeout(80);
@@ -217,6 +218,35 @@ export async function sprawdzWygladBezJs({browser,adres,storageState}) {
  } finally {await page.close();}
 }
 
+/* Strona sama przewija do podsumowania błędów i 400 ms później ustawia na nim
+   fokus (`resources/js/app.js`, blok „BŁĄD FORMULARZA MA BYĆ WIDOCZNY OD
+   RAZU"). Dopóki to nie zajdzie, KAŻDY pomiar na tej stronie ściga się
+   z timerem aplikacji: pod obciążeniem fokus podsumowania przychodził PO
+   naszym fokusie w polu i zdejmował stan, na który pomiar czekał. Czekamy
+   więc na fokus podsumowania i na zatrzymanie płynnego przewijania. */
+async function czekajNaPodsumowanieBledow(page) {
+ const liczby=async()=>page.evaluate(()=>({scrollY:Math.round(scrollY),wysokoscDokumentu:document.documentElement.scrollHeight,okno:innerHeight,podsumowanie:!!document.querySelector('.error-summary'),aktywnyTag:document.activeElement?.tagName??null,aktywneToPodsumowanie:document.activeElement===document.querySelector('.error-summary')}));
+ try {await page.waitForFunction(()=>document.activeElement===document.querySelector('.error-summary'),null,{timeout:15000});}
+ catch {throw new Error(komunikatPomiaru('P581_PODSUMOWANIE_BEZ_FOKUSU',await liczby()));}
+ try {await page.waitForFunction(()=>{const y=Math.round(scrollY),stalo=window.__wygladPoprzedniY===y;window.__wygladPoprzedniY=y;return stalo;},null,{timeout:15000});}
+ catch {throw new Error(komunikatPomiaru('P581_PRZEWIJANIE_NIE_STANELO',await liczby()));}
+}
+
+/* Jeden krok przewijania: same LICZBY. Prostokąty, `scrollY` i wysokość
+   dokumentu nie są treścią strony, więc wolno im pójść do komunikatu porażki
+   w całości (granica z `scripts/panel-komunikat.mjs`). Tekst błędu ani
+   cokolwiek wpisanego w pole NIE WYCHODZI stąd nigdy. */
+const KROK_PRZEWIJANIA=()=>{
+ const widget=document.querySelector('[data-szybki-wyglad]');
+ const w=widget.querySelector('summary').getBoundingClientRect();
+ const bledy=[...document.querySelectorAll('.field-error')].flatMap(e=>[...e.getClientRects()]).filter(r=>r.width>0&&r.height>0);
+ const zaslaniany=bledy.find(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom);
+ const ramka=r=>r?{x:Math.round(r.x),y:Math.round(r.y),szerokosc:Math.round(r.width),wysokosc:Math.round(r.height)}:null;
+ return {scrollY:Math.round(scrollY),wysokoscDokumentu:document.documentElement.scrollHeight,okno:innerHeight,
+  wPrzeplywie:widget.hasAttribute('data-wyglad-w-przeplywie'),widget:ramka(w),blad:ramka(zaslaniany??bledy[0]),
+  bledow:bledy.length,zaslania:!!zaslaniany};
+};
+
 // Prawdziwa odpowiedź walidacji, przewijana bez fokusowania komunikatu.
 export async function sprawdzBladPodWygladem({browser,adres}) {
  const page=await browser.newPage({viewport:{width:720,height:456}});
@@ -236,36 +266,34 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
    document.documentElement.dataset.textScale='140';
    document.querySelector('[data-wyglad-podpowiedz]').hidden=true;
   });
+  await czekajNaPodsumowanieBledow(page);
   await page.locator('input[name=login]').focus();
-  await page.evaluate(()=>{
-   const error=document.querySelector('.field-error').getBoundingClientRect();
-   const widget=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
-   window.scrollBy(0,error.top-widget.top);
-  });
-  // NIE czekamy na atrybut `data-wyglad-w-przeplywie`. Zmierzone na żywo na
-  // tym samym /login, 20.09.2026: scrollBy realnie przesuwa stronę
-  // (np. 445 px → 0 px, przycięte do góry dokumentu),
-  // `scroll` faktycznie leci, `geometry()` w `resources/js/szybki-wyglad.js`
-  // faktycznie się wykonuje — a mimo to atrybut bywa ustawiony w jednym
-  // przebiegu i nie ustawiony w kolejnym (3 uruchomienia pod rząd:
-  // FAIL 30,8 s / PASS / FAIL 30,8 s), bo `geometry()` ustawia go WYŁĄCZNIE
-  // gdy w danej klatce realnie wykryje zasłonięcie — to jest wynik, nie
-  // warunek wstępny testu. Czekanie na ten atrybut testowało więc
-  // implementację, nie zachowanie, i było źródłem timeoutu.
-  // Zamiast tego czekamy dwie klatki animacji — `scroll` po programowym
-  // `scrollBy` bywa dostarczany asynchronicznie, więc potrzeba co najmniej
-  // jednej klatki, by `geometry()` zdążyła przeliczyć layout — a potem
-  // mierzymy PRAWDZIWE zasłonięcie bezpośrednio. To wciąż twarda asercja na
-  // mechanizm: jeśli błąd naprawdę chowa się pod widżetem, `overlaps` niżej
-  // będzie `true` i test poczerwienieje, tak jak przed tą zmianą.
-  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  const overlaps=await page.evaluate(()=>{
-   const w=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
-   return [...document.querySelectorAll('.field-error')].some(e=>[...e.getClientRects()].some(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom));
-  });
-  assert(!overlaps,'WYGLAD_ZASLANIA_BLAD');
+  /* CAŁE przewijanie, nie jeden skok. Do 20 września 2026 stał tu skok
+     wyliczony z prostokąta przycisku wyglądu — a ten prostokąt w tym
+     momencie opisuje widget JUŻ USTĄPIONY do przepływu, czyli leżący
+     ~1780 px niżej w dokumencie. Skok wynosił więc tyle, żeby przewinąć
+     stronę na sam początek: zabierał błąd sprzed pływającego przycisku,
+     `geometry()` słusznie zdejmowało `data-wyglad-w-przeplywie`, a stojące
+     niżej `waitForFunction` czekało na stan, który ten sam skok przed
+     chwilą zburzył. Warunek nie był powolny — był NIESPEŁNIALNY: 30 s
+     i `TimeoutError` bez jednej liczby w komunikacie (rejestr migotania,
+     pozycja M-4). Zmierzone: przy zwolnionym procesorze 0/6 przebiegów
+     spełniało go w 10 s, przy szybkim 15/15 spełniało go w 0–3 ms. */
+  const kroki=[];let ustapil=0;
+  const zakres=await page.evaluate(()=>document.documentElement.scrollHeight-innerHeight);
+  for(let y=0;y<=zakres;y+=40) {
+   await page.evaluate(y=>window.scrollTo(0,y),y);await page.waitForTimeout(30);
+   const krok=await page.evaluate(KROK_PRZEWIJANIA);
+   kroki.push(krok);if(krok.wPrzeplywie)ustapil++;
+   assert(!krok.zaslania,komunikatPomiaru('P581_WYGLAD_ZASLANIA_BLAD',krok));
+  }
+  /* Samo „nie zasłania" spełniłby też widget, który zniknął. Pilnujemy więc,
+     że ustąpienie NAPRAWDĘ zaszło przynajmniej raz, i że przycisk dalej się
+     otwiera. */
+  assert(ustapil>0,komunikatPomiaru('P581_WYGLAD_NIE_USTAPIL',{krokow:kroki.length,zakres,ustapil,pierwszy:kroki[0]??null,ostatni:kroki.at(-1)??null}));
   await page.locator('[data-szybki-wyglad] summary').click();
-  assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
+  assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'P581_WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
+  console.log(`Błąd pod wyglądem: ${kroki.length} położeń przewijania, ustąpienie w ${ustapil}, zasłonięć 0`);
  } finally {await page.close();}
 }
 
@@ -294,6 +322,23 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
  * rozpoczęty od 75% wysokości startuje NA NIEJ, więc `hint.contains(target)`
  * jest prawdziwe i podpowiedź słusznie zostaje. Wygląda to jak niedziałająca
  * poprawka, a jest źle wycelowanym palcem. Gest musi omijać podpowiedź.
+ *
+ * TA SAMA PUŁAPKA, DRUGI RAZ — UŁAMEK WYSOKOŚCI TO NIE JEST POMIAR (#684)
+ * Pierwotna wersja startowała palec od 0,45·h i zakładała, że „górna połowa
+ * okna" leży poza podpowiedzią. To założenie jest fałszywe przy niskim oknie.
+ * Podpowiedź jest zakotwiczona do DOLNEJ krawędzi (`bottom: 76px`) i ma stałą
+ * wysokość ~156,3 px, więc jej górna krawędź to zawsze `h − 232,3` — a nie
+ * jakiś procent wysokości. Zmierzone na `/` (Chromium, gość):
+ *   320×512 → podpowiedź 279,7–436,0; punkt 0,45·h = 230 leży 49,7 px NAD nią,
+ *   320×420 → podpowiedź 187,7–344,0; punkt 0,45·h = 189 wpada 1,3 px W NIĄ.
+ * Warunek `0,45·h < h − 232,3` spełnia się dopiero powyżej ~422 px wysokości,
+ * więc okno 320×420 przewracało się z definicji, a nie przez wadę układu:
+ * przykrycie jest przy obu oknach identyczne co do piksela (296×156,3 px,
+ * 76 px nad dolną krawędzią, te same elementy strony pod spodem).
+ * Dlatego punkt startu liczymy z FAKTYCZNEGO prostokąta podpowiedzi i jawnie
+ * sprawdzamy, że `elementFromPoint` nie zwraca z niej niczego. To nie jest
+ * poluzowanie strażnika: dotąd „poza podpowiedzią" było życzeniem autora
+ * testu, teraz jest zmierzone przy każdym oknie i każdym sposobie.
  */
 export async function sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out}) {
   const OKNA = [{w:320,h:512},{w:320,h:420},{w:384,h:512},{w:390,h:520}];
@@ -309,10 +354,23 @@ export async function sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out}
       if (sposob === 'kolko') {
         await p.mouse.wheel(0,600);
       } else {
-        // Prawdziwe przeciągnięcie palcem, celowo w GÓRNEJ połowie okna,
-        // żeby nie dotknąć samej podpowiedzi — patrz pułapka w nagłówku.
+        // Prawdziwe przeciągnięcie palcem, celowo POZA podpowiedzią. Punkt
+        // startu bierzemy z jej zmierzonego prostokąta, nie z ułamka wysokości
+        // okna — przy 320×420 ułamek 0,45 wpadał 1,3 px w podpowiedź, bo jej
+        // górna krawędź to `h − 232,3`, a nie procent wysokości (patrz nagłówek).
         const cdp = await ctx.newCDPSession(p);
-        const x = Math.round(o.w/2), gora = Math.round(o.h*0.45), dol = Math.round(o.h*0.05);
+        const x = Math.round(o.w/2);
+        const gornaKrawedz = await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').getBoundingClientRect().top);
+        const dol = Math.round(o.h*0.05);
+        const gora = Math.min(Math.round(o.h*0.45), Math.floor(gornaKrawedz) - 12);
+        // Dwie asercje zamiast założenia: palec startuje NAPRAWDĘ poza
+        // podpowiedzią i gest zostaje prawdziwym przeciągnięciem, a nie
+        // muśnięciem, którego przeglądarka mogłaby nie policzyć za przewijanie.
+        assert(gora - dol >= 48,`GEST_ZA_KROTKI ${o.w}x${o.h} ${sposob} start=${gora} koniec=${dol}`);
+        assert(await p.evaluate(([x,y])=>{
+          const el = document.elementFromPoint(x,y);
+          return !!el && !document.querySelector('[data-wyglad-podpowiedz]').contains(el);
+        },[x,gora]),`PUNKT_GESTU_W_PODPOWIEDZI ${o.w}x${o.h} ${sposob} y=${gora} gora_podpowiedzi=${gornaKrawedz}`);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y:gora}]});
         for (let k=1;k<=5;k++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.round(gora-(gora-dol)*k/5)}]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});

@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
@@ -4902,6 +4914,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
 - Dokumentacja: ten wpis, `docs/research/ANALITYKA_STAN_WDROZENIA.md` §2.3,
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
+
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
 
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
@@ -10508,6 +10547,24 @@ przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
 
 ---
 
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Liczby tej decyzji nadal obowiązują
+> jako ROZSTRZYGNIĘCIE, ale reguły CSS, w których je zapisano, **w większości nie
+> dochodzą do przeglądarki**. Zmierzone `getComputedStyle` na wyrenderowanych
+> stronach, 72 konfiguracje: `.app-body { grid-template-columns:
+> var(--container-sidenav) … }`, `.app-body { max-width: var(--container-strona) }`
+> oraz `.uklad-solo .topbar-inner, .uklad-solo .site-… { max-width:
+> var(--container-strona-solo…) }` są **całkowicie przykryte** przez arkusze
+> `resources/css/marka-*.css`, które nie są owinięte w żadną warstwę — a kod
+> spoza warstw bije każdą warstwę nazwaną, także `utilities`.
+>
+> Znaczy to, że układ, który widzi gość, ustala dziś warstwa marki, a nie te
+> reguły. Sama decyzja zostaje bez zmian i nic tu nie usuwamy: usunięcie martwej
+> reguły JEST zmianą zachowania na wypadek zniknięcia arkuszy marki i wymaga
+> osobnego rozstrzygnięcia. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`.
+> Strażnik, który czytał TEKST arkusza, opisywał tu stan nieistniejący — po to
+> powstało D-223.
+
 ## D-123 · Wybór gospodarza na tablicy jest UZUPEŁNIANY automatem do sufitu, a nie zamyka tablicy na resztę serwisu
 
 **Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
@@ -10657,6 +10714,18 @@ Najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa tekst — bo
 skanowanie wzrokiem przestaje być skrótem.
 
 ---
+
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Podział `.card` na sześć warstw
+> powierzchni obowiązuje jako rozstrzygnięcie, ale zmierzone w przeglądarce
+> deklaracje samej `.card` z warstwy `components` (m.in. tło, obramowanie
+> i promień) są **całkowicie przykryte** przez `[data-marka] .post-card`
+> i pokrewne z arkuszy `marka-*.css` spoza warstw. O wyglądzie karty decyduje
+> dziś warstwa marki, nie te reguły.
+>
+> Nic tu nie usuwamy ani nie zmieniamy statusu — to jest adnotacja o tym, GDZIE
+> wartość naprawdę obowiązuje. Poprawka wpisana w regułę `.card` z `components`
+> nie dojdzie do nikogo. Szczegóły i strażnik: D-223.
 
 ## D-126 · Panel formularza nie pojawia się tam, gdzie w danym stanie ekranu nie ma czego wypełnić
 
@@ -15023,6 +15092,86 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
+## D-223 — Martwe reguły CSS: strażnik pyta o wynik kaskady, nie o tekst arkusza (20 września 2026)
+
+`resources/css/app.css` linia 1 ustawia `@layer theme, base, components, marka,
+utilities;`. Warstwa późniejsza bije wcześniejszą niezależnie od szczegółowości
+selektora i niezależnie od zapytania medialnego. W repozytorium żyją przez to
+reguły z komentarzami uzasadniającymi konkretne wartości, których przeglądarka
+nigdy nie widzi. Komentarz opisuje wtedy stan nieistniejący, a następny człowiek
+czyta go jak prawdę i na nim buduje.
+
+### Co zmierzono przy `.przepis-liczby` — i dlaczego wynik jest inny, niż zakładano
+
+Zlecenie pytało, czy `10rem` z `marka-ekrany.css` zamiast `7rem` z `app.css`
+psuje coś realnego przy 320 px i powiększonym piśmie. Odpowiedź: **nie psuje, bo
+ŻADNA z tych dwóch wartości nie działa.** Jedyny nosiciel `.przepis-liczby`
+(`pages/recipes/show.blade.php`) stoi wewnątrz `.marka-przepis-tekst`, a
+`marka-przepis.css` robi z niego `display: flex`. Na kontenerze flex
+`grid-template-columns` nie znaczy nic. Przykrycie `7rem` przez `10rem` było
+prawdziwe i zarazem bez znaczenia — spór o wartość toczył się o własność, która
+i tak nie dochodzi.
+
+Zmierzone w przeglądarce, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel **identyczną co do
+piksela w 30 konfiguracjach na 30** (dwa przepisy × 320/360/1280 px × pięć
+wariantów pisma). Zero przewijania w poziomie, zero ucięcia tekstu.
+Dowód: `docs/design/evidence/kaskada223/`.
+
+Dlatego **wartości nie ruszamy i reguł nie usuwamy** — poprawiono wyłącznie
+komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie martwej
+reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
+i jest osobną decyzją.
+
+### Trzy rzeczy, które ten pomiar ujawnił przy okazji
+
+1. **Osiem arkuszy nie jest owiniętych w żadną warstwę** (`marka-przepis`,
+   `marka-panel`, `marka-powiadomienia`, `marka-rama`, `marka-szukaj`,
+   `marka-wejscie`, `marka-zeszyt`, `pasek-przewijany`, `szybki-wyglad`).
+   Kod spoza warstw bije KAŻDĄ warstwę nazwaną, także `utilities` — istnieje
+   więc faktyczna warstwa najwyższa, której instrukcja `@layer` nie wymienia.
+   Komentarz przy imporcie twierdzi, że „każdy z nich dopisuje własne klasy do
+   @layer components". Dla tych ośmiu to nieprawda.
+2. **Instrukcja `@layer a, b, c;` NIE PRZEŻYWA BUDOWANIA.** W zbudowanym
+   arkuszu zostają same bloki `@layer nazwa { … }`, a kolejność wynika z ich
+   pierwszego wystąpienia. Dochodzi też wewnętrzna warstwa Tailwinda
+   `properties`, PRZED `theme` — w źródle jej nie ma.
+3. **Zapytania medialne są budowane w składni zakresowej** (`(width >= 48rem)`),
+   nie `(min-width: 48rem)`. Narzędzie szukające `min-width` znajduje zero
+   progów i wygląda wtedy na zielone.
+
+Wszystkie trzy są argumentem za tym samym: **o CSS trzeba pytać przeglądarkę, nie
+plik.** Strażnik czytający źródło mierzyłby tu co innego, niż widzi użytkownik.
+
+### Strażnik
+
+`scripts/kaskada-martwe-reguly.mjs` wykrywa deklarację z warstwy wcześniejszej
+całkowicie przykrytą przez warstwę późniejszą na tej samej własności i tym samym
+elemencie. Tekst arkusza służy wyłącznie do ZAWĘŻENIA listy kandydatów.
+Rozstrzyga pomiar: deklarację zdejmujemy z żywej reguły na wyrenderowanej
+stronie, porównujemy `getComputedStyle` każdego pasującego elementu przed i po,
+i przywracamy. Brak różnicy we wszystkich mierzonych konfiguracjach znaczy, że
+deklaracja nie zmienia nic.
+
+Strażnik nie jest listą znanych przypadków: kolejność warstw czyta z przeglądarki
+(pierwsze wystąpienie warstwy), reguły obchodzi rekurencyjnie przez `@layer`,
+`@media` i `@supports`, a szerokości bierze z progów znalezionych w arkuszu —
+więc czwarta warstwa i piąty arkusz wchodzą do pomiaru same. Jedyna lista nazw
+w tym pliku to WYJĄTKI i każdy ma przy sobie powód.
+
+Strażnik ma własną samokontrolę: brak wykrytych warstw albo zero przepytanych
+deklaracji to BŁĄD PRZYRZĄDU (kod 2), nie wynik pozytywny. Nie jest to ozdoba —
+pierwsza wersja tego strażnika czytała kolejność warstw z instrukcji `@layer`,
+której zbudowany arkusz nie zawiera, i meldowała „✓ żadna reguła nie jest
+przykryta", nie sprawdziwszy ani jednej. Samokontrola to złapała.
+
+### Czego ten strażnik nie mierzy
+
+Selektorów ze stanem interakcji (`:hover`, `:focus`), selektorów bez nosiciela na
+mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnętrzne
+reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
+pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
+
 ## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
 Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
@@ -15056,6 +15205,15 @@ była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
 zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
 stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
 Trasy nie kasujemy.
+
+> **Sprostowane 20 września 2026 — patrz D-231.** Zdanie „przycisk stoi
+> wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
+> JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
+> to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
+> z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
+> bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
+> niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej.
+> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-231).
 
 Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
 w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
@@ -15109,3 +15267,842 @@ produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
 zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
+
+Data: 20 września 2026. Decyzja właściciela.
+
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
+
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
+
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
+
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
+
+Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
+przycisk wyjęcia wszędzie tam, gdzie widać stan zapisu, o zakresie GLOBALNYM
+(wszystkie zeszyty widza). #776 dało przycisk wyjęcia o zakresie LOKALNYM
+(`collection_id`), ale tylko wtedy, gdy karta stoi w środku zeszytu, którego
+widz jest właścicielem. Złożone wprost renderowały się OBOK SIEBIE: na ekranie
+zeszytu stały dwa przyciski o prawie identycznych nazwach — „Usuń z zeszytu"
+i „Usuń z tego zeszytu" — i różnym zasięgu. Dla grupy 50+ to gorsze niż brak
+którejkolwiek drogi: zły wybór kosztuje tu dane w zeszytach, o których nikt
+w tym momencie nie myślał.
+
+**Zakres wybiera EKRAN, nie człowiek.**
+
+1. W środku konkretnego zeszytu, gdy widz jest jego właścicielem, stoi
+   wyłącznie **„Usuń z tego zeszytu"** — `collection_id` wskazuje ten zeszyt,
+   zapis w pozostałych zeszytach zostaje razem z notatką i datą (#775).
+   Odnośnik „Masz to w zeszycie" w tym miejscu znika: prowadzi do listy
+   zeszytów, a człowiek stojący W zeszycie już wie, że wpis tam leży.
+2. Poza zeszytem — w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+   i na stronie przepisu — stoi wyłącznie **„Usuń z zeszytu"** o zakresie
+   globalnym, obok odnośnika „Masz to w zeszycie" (D-224). Nie ma tam „tego
+   zeszytu", do którego dałoby się odnieść.
+3. **Nigdy oba naraz.** Dowodem jest scena
+   `WpisDaSieWyjacZZeszytuTest::test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia`
+   — liczy formularze wyjęcia na obu ekranach i sprawdza, że nazwa tej drugiej
+   drogi nie pada tam wcale.
+
+**Potwierdzenie PRZED akcją nie wraca.** #775 dokładało na stronie przepisu
+`x-confirm-button` z pytaniem „czy na pewno ze wszystkich zeszytów". D-224
+rozstrzygnęło odwrotnie i to rozstrzygnięcie zostaje: wyjęcie z zeszytu jest
+odwracalne, a pytanie przed każdą odwracalną czynnością uczy odklikiwania
+i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych (kasowanie wpisu,
+kasowanie zeszytu). Strona przepisu wraca więc do zwykłego formularza DELETE.
+
+**Ale zarzut #775 był słuszny i jest spełniony inaczej.** Brzmiał „usuwa ze
+wszystkich zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Zakres
+nazywa więc komunikat PO akcji, i nazywa go LICZBĄ FAKTYCZNĄ:
+`SavePostToCollection::remove()` i `SaveRecipeToCollection::remove()` oddają,
+z ilu zeszytów naprawdę wyjęto.
+
+- zakres lokalny: „Wpis wyjęty z zeszytu „Obiady". Nie usunęliśmy go
+  z serwisu — możesz go zapisać ponownie."
+- zakres globalny, kilka zeszytów: „Wpis wyjęty z 3 Twoich zeszytów. …"
+- zakres globalny, jeden zeszyt: „Wpis wyjęty z zeszytu. …" — bo zdanie
+  o „wszystkich Twoich zeszytach" przy jednym zeszycie straszy bez powodu,
+  a straszenie bez powodu uczy ignorowania komunikatów tak samo jak pytanie
+  bez powodu.
+
+**Droga powrotu wraca TAM, SKĄD WYJĘTO.** „Zapisz ponownie" (D-224) dostaje
+`pola` — po wyjęciu lokalnym niesie `collection_id` tego zeszytu. Bez tego
+cofnięcie odkładałoby wpis do zeszytu DOMYŚLNEGO, czyli cicho przenosiłoby go
+gdzie indziej; cofnięcie ma przywracać stan, nie tworzyć nowy.
+
+**Nazwy.** „Usuń z zeszytu" i „Usuń z tego zeszytu" nigdy nie stoją razem,
+więc jedna nie jest pułapką na drugą, a ekran zawsze niesie kontekst. Trzecie
+słowo na tę samą czynność („Wyjmij") byłoby złamaniem `BRAND_EXTENDED.md` §3.
+
+**D-081 zostaje w mocy** — tablica „kuKINGi na dziś" dalej świadomie nie
+dolicza stanu zeszytu.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/ZeszytUsuwaZapisanyWpisTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
+
+
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-231, 21 września 2026)
+
+*Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
+dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
+wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął go
+jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
+`gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
+D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
+
+Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
+w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
+z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
+`post-card.blade.php` — na karcie wpisu poza zeszytem nie było żadnej drogi
+wyjęcia (`WpisDaSieWyjacZZeszytuTest` obalał to na 4 z 12 scen). `jedna-droga`
+dała tę drogę wszędzie i rozstrzygnęła D-231 (jeden przycisk na ekran, zakres
+wybiera ekran, licznik zeszytów w komunikacie), ale przy okazji cofnęła
+pytanie przed akcją na stronie przepisu — bo D-224 uznało wyjęcie z zeszytu za
+w pełni odwracalne.
+
+**Właściciel rozstrzygnął: żadna z tych prac osobno nie zamyka #775, razem
+zamykają.** Bierzemy oba mechanizmy:
+
+1. **Z `jedna-droga`**: drogę wyjęcia na każdym ekranie pokazującym „Masz to
+   w zeszycie" (D-231 bez zmian) — `post-card.blade.php` dostaje przycisk
+   lokalny w środku zeszytu i globalny poza nim, liczbę zeszytów w komunikacie
+   (`Odmiana::rzeczownik()`), i „Zapisz ponownie" jako drogę powrotu, która
+   wraca DOKŁADNIE tam, skąd wyjęto (`pola['collection_id']`).
+2. **Z `zeszyty`**: `<x-confirm-button>` na stronie przepisu, jedynym ekranie
+   o zasięgu GLOBALNYM (wyjmuje ze WSZYSTKICH zeszytów naraz).
+
+**Dlaczego pytanie wraca tylko tam.** D-224 miało rację, że pytanie przed
+KAŻDĄ odwracalną czynnością uczy odklikiwania. Ale wyjęcie globalne nie jest
+w pełni odwracalne: `SavePostToCollection::remove()` i
+`SaveRecipeToCollection::remove()` wołają `detach()`, który kasuje wiersz
+pivotu RAZEM z `note` (`withPivot(['note'])`). „Zapisz ponownie" przywraca
+sam fakt bycia w zeszycie — nie treść notatki, która przy nim stała. To jest
+różnica jakościowa, nie kosmetyczna: przy zasięgu lokalnym (jeden, wybrany
+zeszyt) ryzyko jest małe i znane z kontekstu ekranu, ale przy zasięgu
+globalnym człowiek może stracić notatki w zeszytach, o których w tej chwili
+nie myśli. Stąd pytanie PRZED akcją zostaje wyłącznie na ekranie globalnym,
+a lokalne wyjęcie (D-231) zostaje jednym kliknięciem bez pytania.
+
+**Komunikat po akcji przestaje obiecywać więcej, niż daje.** Obie gałęzie
+pisały po usunięciu „Nie usunęliśmy go z serwisu — możesz go zapisać
+ponownie", co sugerowało pełną odwracalność. Nowe brzmienie
+(`CollectionController::komunikatPoWyjeciu()`):
+
+- zakres lokalny: „{Przepis/Wpis} wyjęty z zeszytu „{nazwa}”. Możesz zapisać
+  go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, N zeszytów: „{Przepis/Wpis} wyjęty z {N} Twoich zeszytów.
+  Możesz zapisać go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, jeden zeszyt: „{Przepis/Wpis} wyjęty z zeszytu. Możesz
+  zapisać go ponownie, ale notatka przy nim już nie wróci."
+
+Zachowanie się nie zmienia — `remove()` i `detach()` robią dokładnie to samo,
+co przed tą decyzją. Zmienia się wyłącznie zdanie: mówi teraz, co się NIE
+wraca, zamiast sugerować, że wraca wszystko.
+
+**Testy dwóch gałęzi wzajemnie się wykluczały** (`zeszyty` wymagała
+`<details class="confirm">` na stronie przepisu, `jedna-droga` wymagała jego
+braku) — złożone dają jeden zestaw sprawdzający stan docelowy:
+`UsuniecieZZeszytuMaZakresTest::test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji`
+zastępuje obie sprzeczne sceny i dokłada kontrolę dodatnią
+(`test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia`).
+`WpisDaSieWyjacZZeszytuTest` (issue #776, D-231) zostaje bez zmian zachowania
+— dotyczy wyłącznie wpisów (Post), których ekran przepisu (Recipe) nie
+obejmuje.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`resources/views/pages/recipes/show.blade.php`,
+`app/Http/Controllers/CollectionController.php`.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+
+**Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
+`docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
+Status: **obowiązuje**
+
+### Co było zepsute
+
+`down()` migracji `2026_09_06_120000_add_two_factor_to_users_table` kasowało
+bezwarunkowo cztery kolumny: `two_factor_secret`, `two_factor_backup_codes`,
+`two_factor_confirmed_at`, `two_factor_last_used_at` — a wcześniej zdejmowało
+CHECK `users_two_factor_confirmed_requires_secret_check`.
+
+Sekret TOTP jest zaszyfrowany i nie ma go skąd odtworzyć. Kody zapasowe są
+trzymane wyłącznie jako skróty. Po cofnięciu nie da się przywrócić ani
+jednego, ani drugiego.
+
+### Dlaczego to nie było „świadome", tylko przeoczone
+
+Migracja **broniła się własnym komentarzem**: „nikt nie zostaje zablokowany,
+bo wymóg drugiego składnika znika razem z kolumnami, które go przechowywały".
+To samo zdanie stało w `docs/DATABASE.md`. I ono jest prawdziwe — dlatego
+właśnie było groźne.
+
+> Cofnięcie nie wybija nikogo z serwisu. Ono ZDEJMUJE OCHRONĘ.
+
+Cykl `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`,
+zostawia kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika.
+Konto moderatora, o którym właściciel wie, że jest chronione dwoma
+składnikami, wraca do logowania samym hasłem — bez błędu, bez komunikatu,
+bez śladu. Moderator widzi zgłoszenia, cudze ukryte treści i odwołania;
+`docs/SECURITY_PRIVACY_LEGAL.md` obiecuje „MFA obowiązkowe dla adminów".
+
+To jest dokładnie „przywracanie stanu groźnego" z zasady **D-088**, tylko
+w postaci trudniejszej do zauważenia niż w #287: tam cofnięcie po cichu
+zmieniało ZNACZENIE decyzji człowieka, tu po cichu USUWA jego zabezpieczenie.
+Objaw jest ten sam — brak śladu błędu.
+
+### Ile było takich strażników przed tą naprawą
+
+W `database/migrations/` odmowę miało już kilkanaście migracji, a w
+`tests/Feature/` stało **dziewiętnaście** testów `Cofniecie*` — m.in. dziennik
+zgód, zaproszenia, zgłoszenia prawne, odwołania zgłaszających, tożsamość
+Google, tożsamość Facebooka, skala tekstu, znacznik odebrania dostępu,
+zeszyty, kolaż powitalny, numer sprawy, sygnały automatu i wiadomości.
+
+Dla 2FA — czyli dla najbardziej wrażliwej z tych wartości — **nie było ani
+jednego**. Nie dlatego, że ktoś to rozważył i odrzucił: przeciwnie,
+komentarz przy migracji pokazuje, że ryzyko było zauważone i uznane za
+akceptowalne, zanim powstała zasada D-088.
+
+### Rozstrzygnięcie
+
+`down()` liczy konta z `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją — **przed jakąkolwiek operacją
+niszczącą**, także przed zdjęciem CHECK-a. Świadome cofnięcie przepuszcza
+`KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`, zgodnie z konwencją furtek z
+`KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY` i `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE`
+(`getenv()`, nie `env()` — na produkcji konfiguracja bywa zbuforowana).
+
+**Granica jest przy POTWIERDZENIU, nie przy sekrecie.** Sekret zapisany bez
+`confirmed_at` to konto w trakcie włączania 2FA — ekran włączenia pokazuje
+sekret, zanim człowiek wpisze pierwszy kod. To nie jest ochrona, którą można
+stracić; człowiek zaczyna włączanie od nowa. Gdyby strażnik liczył sam
+sekret, jedno porzucone włączanie blokowałoby rollback na stałe.
+
+Na świeżym środowisku cofnięcie działa bez pytania, więc `migrate:refresh`
+w `scripts/check.sh` i w CI chodzi jak dotąd.
+
+### Czego ta decyzja NIE zmienia
+
+Nie zmienia schematu, zachowania logowania ani niczego, co widzi użytkownik.
+Kolumny, CHECK i limit prób zostają bez zmian. Zmienia się wyłącznie to, co
+`down()` robi, gdy ktoś ma 2FA naprawdę włączone.
+
+### Dowód
+
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php` — pięć przypadków, obie
+strony granicy: odmowa z danymi nietkniętymi po niej, świeże środowisko bez
+pytania, sam sekret bez potwierdzenia nieblokujący, furtka przepuszczająca
+oraz kolejność (strażnik przed zdjęciem CHECK-a i przed `dropColumn`).
+
+Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
+pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
+jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
+
+---
+
+## D-239 — Wspólny licznik całej poczty i kolejność wygaszania (#732, 22 września 2026)
+
+> Numer: gałąź `fix/732-wspolny-licznik-poczty` niosła tę decyzję jako D-225,
+> a ten numer (i D-226, D-227) zajęły w międzyczasie inne decyzje na `main`.
+> D-239 to pierwszy numer wolny na `origin/main` i na wszystkich gałęziach
+> zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź, której numeru
+> nie ma jeszcze na `main`). Treść to intencja tamtej gałęzi przeniesiona na
+> obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
+
+Do tej zmiany każda funkcja wysyłająca wiele listów miała własny sufit dobowy
+i widziała **tylko swój**, a listy bez sufitu — potwierdzenie rejestracji
+i przypomnienie hasła — nie były liczone wcale. Rezerwa transakcyjna (100 listów
+z puli 300) istniała wyłącznie jako zdanie w komentarzu `config/kuking.php`
+i nic jej nie pilnowało.
+
+Zmierzono dwie dziury tej samej rodziny. `/nie-pamietam-hasla` nie ma ani sufitu
+na adres, ani budżetu poczty: `limits.password_reset` to 5 próśb na 10 minut
+z adresu IP, czyli 720 na dobę, a każda może iść na **inny** adres. Jeden sprawca
+z jednego łącza wysyła listy na 300 różnych skrzynek i opróżnia pulę EmailLabs
+300/dobę w około 70 minut. Ponawianie potwierdzenia adresu
+(`limits.verification_resend`, 6 na minutę z konta, bez sufitu dobowego) robi to
+samo z jednego niepotwierdzonego konta w około 50 minut. W obu przypadkach
+pierwszą rzeczą, która przestaje działać, jest **potwierdzenie rejestracji
+i logowanie linkiem** — czyli wejście dla nowych ludzi.
+
+**Decyzja właściciela: jeden wspólny licznik poczty dla wszystkich dróg, nie
+osobne sufity.** Wpis przy `limits.kontakt_odpowiedz` zapowiadał to wprost —
+gdyby taki licznik powstał, ma być **jednym** miejscem tej decyzji. Osobnych
+progów przy poszczególnych drogach więc nie dopisujemy.
+
+Licznik jest rozszerzeniem `App\Domain\Security\DziennyBudzetListow`, a nie nową
+warstwą nad nią: licznik zagnieżdżony w drugim liczniku jest w tej klasie od
+D-085 (zaproszenia leżą wewnątrz budżetu logowania linkiem), a osobna warstwa
+oznaczałaby drugą implementację atomowej rezerwacji — czyli drugą kopię reguły.
+
+Sam wspólny licznik nie dokłada ochrony przed przekroczeniem 300; tego pilnuje
+dostawca. Dokłada **kolejność wygaszania**, bo odrzucony list przepada (worker ma
+trzy próby w sześć minut). Progi w `kuking.poczta.progi_wygaszania` mówią, ile
+listów z puli dana klasa ma zostawić nietkniętych:
+
+- **240 — `podsumowanie`, gaśnie pierwsze.** Liczba wynika z rachunku
+  300 − `digest.dzienny_limit` (60). Podsumowanie, które nie doszło, jest niczym.
+- **100 — `zwykla`.** Równe `poczta.rezerwa_transakcyjna`; próg jest pierwszym
+  mechanizmem, który tę rezerwę naprawdę dowozi. Tu stoi **przypomnienie hasła**:
+  też jest drogą powrotu na konto, ale prosi o nie ktokolwiek z zewnątrz, na cudzy
+  adres, bez dowodu, że adres do niego należy — czyli jest to dokładnie ta droga,
+  którą zmierzony sprawca opróżniał pulę. Tu stoi też odpowiedź z „Napisz do nas".
+- **0 — `wejscie`, gaśnie ostatnie.** Potwierdzenie rejestracji (także jego
+  ponowienie) i logowanie linkiem sięgają po ostatni list doby.
+
+Komunikat po odmowie mówi, **co zrobić teraz**, i ma dwa warianty: pusta pula
+(„nie czekaj na niego, spróbuj jutro albo napisz do nas") i ścisk na blokadzie
+licznika („kliknij jeszcze raz"). Wzorcem jest komunikat wyczerpanego budżetu
+logowania linkiem.
+
+### Zwrot rezerwacji trafia w dobę rezerwacji (#1061)
+
+Przy przenoszeniu naprawiona została wada znana z audytu: `zwolnij()` liczył
+klucz z `now()` w chwili zwrotu, więc rezerwacja z 23:59:59 oddana po północy
+zdejmowała miejsce z **nowej** doby. Po dołożeniu wspólnego licznika błąd
+dotyczyłby dwóch liczników naraz. Obiekt pamięta teraz doby swoich rezerwacji
+i oddaje ostatnią do jej własnego klucza; doba jest wyznaczana raz na
+sprawdzenie i zajęcie. `zajmij()` wołane wprost (list próbny `--tylko`) liczy się
+też we wspólnej puli.
+
+### Czego ta zmiana nie robi — powiedziane wprost
+
+**Nie gwarantuje, że list logowania wyjdzie zawsze.** Chroni klasę `wejscie`
+przed biuletynem, przed zalaniem przypomnienia hasła i przed odpowiedziami
+moderatora — te drogi nie ruszą ostatnich 100 listów doby. Ale klasa `wejscie`
+dzieli te listy **między siebie**: kto zakłada dziesiątki kont (rejestracja jest
+otwarta z decyzji właściciela; `limits.register` = 5 na 10 minut z IP) albo
+klika „Wyślij wiadomość jeszcze raz" z niepotwierdzonego konta
+(`verification_resend` = 6 na minutę), ten nadal może zjeść pulę do zera, a wtedy
+link do logowania nie wyjdzie. Człowiek dostaje wtedy jawny komunikat: że listu
+nie będzie, żeby nie czekał, że może zalogować się hasłem i gdzie odpisuje
+człowiek (`BiuletynNieZabieraListowWejsciaTest`). Osobna klasa albo sufit dla
+ponowienia potwierdzenia to osobna decyzja, tutaj świadomie niepodjęta.
+
+Nie dzieli też puli między konkretnych ludzi: jeden sprawca nadal wypali klasę
+`zwykla` i zabierze tego dnia odpowiedzi z „Napisz do nas". Poza licznikiem
+pozostają listy niskonakładowe z rodziny moderacyjnej (decyzje w sprawie
+zgłoszeń, potwierdzenia odwołań, dobowe podsumowanie automatu, eksport danych,
+ostrzeżenia o zmianie adresu) — pojedyncze sztuki na dobę, ale dopóki się nie
+liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał. To jest znana
+i nazwana niedokładność, nie przeoczenie.
+
+📄 `app/Domain/Security/DziennyBudzetListow.php`,
+`app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
+`tests/Feature/WspolnyLicznikPocztyTest.php`,
+`tests/Feature/PodzialLimituPocztyTest.php`,
+`tests/Feature/ZwrotRezerwacjiPoPolnocyTest.php`,
+`tests/Feature/BiuletynNieZabieraListowWejsciaTest.php`
+
+---
+
+## D-240 — Do OpenAI wychodzi wyłącznie pomniejszona, publiczna treść; awatar nie wychodzi wcale (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (pozycja nr 1 listy,
+„incydent trwający": `OPENAI_MODERATION_KEY` jest ustawiony na produkcji) ·
+Uzupełnia D-055, **uchyla D-061** w części „zdjęcie profilowe idzie do modelu" ·
+Zamyka #827 · Status: **obowiązuje**
+
+Decyzja dosłownie: `gpt-openai-granice` + `gpt-moderacja-ai` połączyć ręcznie
+w jedną poprawkę; do OpenAI ma wychodzić wyłącznie pomniejszona, publiczna
+treść; awatary bez potwierdzonej zgody — nie wysyłać.
+
+### Co było zepsute
+
+1. **Komentarz wychodził bez pytania o rodzica (#827).** `PrzeanalizujTresc`
+   sprawdzało u komentarza tylko `status = published`. Komentarz pod wpisem,
+   przepisem albo wykonaniem, które w międzyczasie przestały być publiczne
+   (prywatne, „dla obserwujących", ukryte, usunięte, konto autora zbanowane
+   albo w karencji usunięcia), szedł do OpenAI i stawiał oznaczenie
+   w kolejce moderatora. To samo dla śladu „Komentarz usunięty."
+   (`body_removed_at`) i komentarza zbanowanej osoby.
+2. **Zdjęcie mogło wyjść w pełnym rozmiarze.** `jakoJpeg()` brało
+   `wariantDoSerwowania('thumb')`, które przy braku miniatury podstawia
+   pierwszy lepszy wariant. Zmierzone w teście: zdjęcie z samym `large`
+   wychodziło jako JPEG 1600 × 1200, a `thumb` wskazujący na duży plik —
+   2048 × 1536. Wymiarów nikt nie sprawdzał.
+3. **Awatar wychodził zawsze** (D-061), bez żadnej zgody.
+4. **Uszkodzona odpowiedź udawała czystą ocenę.** `category_scores: []`,
+   wyniki-napisy, wyniki spoza 0–1 i odpowiedź bez znanej kategorii
+   kończyły się jako „nic nie znaleziono", bez śladu w dzienniku. Brak klucza
+   na produkcji był tak samo cichy jak lokalnie.
+
+### Co obowiązuje
+
+- **„Publiczna" = widoczna dla gościa bez konta w chwili wysyłki.**
+  `app/Moderacja/GranicaWysylki.php` pyta te same Policy co strona dla gościa
+  (`Gate::forUser(null)`, `PostPolicy`/`CommentPolicy`, a ta dalej o rodzica),
+  czytając stan świeżo z bazy. Pytana jest przed tekstem, przed **każdym**
+  zdjęciem i jeszcze raz przed postawieniem oznaczenia. **Treść „dla
+  obserwujących" przestaje być oceniana modelem** — to świadome zawężenie
+  wobec D-055, wynikające wprost ze słowa „publiczna" w decyzji.
+- **Lokalne sygnały (D-052) mają osobną, szerszą granicę** —
+  `GranicaWysylki::pozaAutorem()`: „dla obserwujących" wolno, prywatne nie,
+  jak przed tą zmianą. Nowe jest to, że komentarz pyta o aktualny stan
+  rodzica (#827) i o ślad usunięcia. Sygnały lokalne nie opuszczają
+  serwera, więc zawężanie ich do „publicznej" byłoby zmianą poza zakresem
+  tej decyzji. Jedyny skutek uboczny: zapowiedź przepisu „dla
+  obserwujących" pyta `PostPolicy` o bramkę przepisu i przez to nie stawia
+  lokalnego oznaczenia.
+- **Zdjęcie: tylko wariant `thumb`, bez zastępstwa, najwyżej 320 px
+  zmierzone z bajtów** — przed dekodowaniem i na gotowym JPEG.
+  `OcenaModelem::MAX_BOK` celowo nie jest czytany z konfiguracji wariantów.
+  Brak miniatury = zdjęcie pominięte, ostrzeżenie `stage=image_boundary`.
+- **Awatar nie wychodzi.** W serwisie nie ma mechanizmu potwierdzonej zgody
+  na ocenę zdjęcia profilowego (`dziennik_zgod` zna jeden cel —
+  `tygodniowy_digest`), więc nie ma jej nikt. `AvatarSettingsController`
+  nie zleca oceny; `PrzeanalizujAwatar` zostaje pustym zadaniem wyłącznie
+  dla zleceń czekających w kolejce sprzed wdrożenia. Przywrócenie wymaga
+  osobnej decyzji: celu zgody, ekranu udzielania i wycofania, sprawdzenia
+  przed każdą wysyłką.
+- **Awaria nie udaje „czyste".** `KlientOpenAI` odrzuca odpowiedź pustą,
+  z polem nieliczbowym, nieskończonym albo spoza 0–1 i odpowiedź bez znanej
+  kategorii — z ostrzeżeniem. Limit czasu przycięty do 1–8 s, połączenie
+  3 s (`0` w Guzzle znaczy „bez limitu"). Brak klucza **na produkcji**
+  zostawia ostrzeżenie `stage=openai_disabled` przy każdej nieocenionej
+  treści; lokalnie i w CI zostaje cichy. Lokalne sygnały działają
+  niezależnie od stanu modelu.
+
+### Co wzięto z gałęzi źródłowych, a czego nie
+
+Z `gpt-openai-granice` (7fd9aa8): zasada „dokładnie `thumb`, wymiary
+z bajtów, 320 px, bez zamiennika" i przypadki testowe zdjęć; pominięcie
+śladu usunięcia komentarza. **Pominięto:** ponowną analizę po edycji
+komentarza (#909), transakcyjne `DeleteComment` (#911) i uzupełnianie
+otwartych oznaczeń — to inne pozycje, nie granica wysyłki. Pominięto też
+decyzję tamtej gałęzi, by awatary wysyłać „wspólną ochroną" — właściciel
+rozstrzygnął odwrotnie.
+
+Z `gpt-moderacja-ai` (33ebfd0): walidacja wyników (`poprawneWyniki()`,
+`KategorieModeracji::jestZnana()`), przycięcie limitu czasu i zasada
+„aktualny stan rodzica przy wykonaniu, a nie przy zleceniu" (#827).
+**Pominięto:** `AutomaticAnalysisAccess` w tamtym kształcie (klonował
+rodzica i przestawiał mu widoczność na publiczną, żeby przepuścić
+„dla obserwujących" — sprzeczne z „wyłącznie publiczna"), rozbicie zdjęć
+na osobne zadania `PrzeanalizujZdjecieWpisu` i zapis lokalnego sygnału
+przed HTTP (#829/#830) — to niezawodność kolejki, nie granica wysyłki.
+Logowanie klasy wyjątku zamiast treści jest już na `main` (#1072,
+`ExceptionContext`).
+
+### Czego ta decyzja NIE zmienia
+
+Schematu (brak migracji), progów, alarmu pocztowego, wyglądu kolejki
+moderatora. Oznaczenia awatarów sprzed D-240 zostają w kolejce i dają się
+rozpatrzyć.
+
+### Dowód
+
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` — 46 przypadków, wszystkie
+przez `Http::fake()`. Na kodzie sprzed tej zmiany **oblewa 35**: 18 rodziców
+komentarza, 2 stany komentarza, 2 stany wpisu, zmiana na prywatny w trakcie
+oceny, 5 złych miniatur, 2 drogi awatara, brak klucza na produkcji
+i 4 uszkodzone odpowiedzi. Pozostałe 11 to kontrole dodatnie (publiczny
+rodzic × 3, poprawna miniatura 320 × 240) i zabezpieczenia, które `main`
+już miał (prywatny/ukryty/usunięty wpis, ukryty/usunięty komentarz,
+nieczytelny plik, HTTP 503) — pilnują, żeby granica nie przepuszczała
+za mało i nie blokowała za dużo. Przypadki „dla obserwujących" sprawdzają
+obie granice naraz: zero żądań do dostawcy i jedno lokalne oznaczenie.
+
+### Wycofanie
+
+Odwrócić commit. **Przed** odwróceniem wyczyścić `OPENAI_MODERATION_KEY`
+na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
+niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
+cofać: zmiana niczego nie zapisuje w bazie.
+
+## D-241 — Lokalne wzorce spamu sprawdzają także treść niepubliczną; wysyłka do OpenAI bez zmian (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (22.09, doprecyzowana
+o 23:30) · Uzupełnia D-240 w części „lokalne sygnały”, D-052 bez zmian ·
+Status: **obowiązuje**
+
+Decyzja w brzmieniu właściciela: OpenAI ocenia całą treść publiczną (obrazy
+pomniejszone). Treść niepubliczna nie wychodzi poza serwer, ale nadal sprawdzają
+ją lokalne wzorce spamu. #1298 (D-240) miał wejść bez zmian, bo zamyka
+incydent. Lokalną analizę przywraca osobny PR.
+
+### Co było zepsute
+
+D-240 pytało o granicę lokalną (`GranicaWysylki::pozaAutorem()`) tę samą
+Policy gościa co o wysyłkę. Podmieniało tylko widoczność samego wpisu
+z „dla obserwujących” na publiczną. Policy odrzucała jednak także:
+
+- wpis i przepis **zbanowanego konta**, oraz komentarz pod nim;
+- komentarz, którego autor jest zbanowany;
+- komentarz pod **zapowiedzią przepisu „dla obserwujących”**. Bramką
+  zapowiedzi jest przepis, a przepisu nikt nie podmieniał.
+
+Wszystkie te treści traciły lokalne oznaczenie, choć przed D-240 je
+dostawały. Sama wysyłka była w porządku: żadna z nich nie wychodziła do
+OpenAI i dalej nie wychodzi.
+
+### Co obowiązuje
+
+- `pozaAutorem()` pyta Policy gościa o **kopię** treści, której nigdy się
+  nie zapisuje (`kopiaDlaLokalnej()`). W kopii „dla obserwujących” zmienia
+  się w „publiczny”, konto **zbanowane** udaje aktywne, a przepis zapowiedzi
+  (rekurencyjnie) przechodzi te same dwie podmiany. O resztę warunków decyduje
+  dalej Policy: status, usunięcie, ślad usunięcia komentarza, prywatność.
+- Komentarz zbanowanego autora znów dostaje lokalną analizę.
+- **Poza granicą lokalną zostają:** treść prywatna (D-052 pkt 3), ukryta,
+  usunięta oraz konto **w karencji usunięcia** albo **wymazane**. Ban jest
+  karą nałożoną przez nas. Karencję człowiek wybrał sam, bo obiecujemy mu
+  „konto zniknie od razu”, więc nie kładziemy jego treści przed moderatorem.
+- `publiczna()` i `zdjecieWpisu()`, czyli granica wysyłki, **nie zmieniają
+  się ani o wiersz**. `OcenaModelem` pyta tylko je.
+
+### Czego nie przywrócono i dlaczego
+
+`ZgodaNaOceneAwatara` z lokalnej wersji równoległej (`2acfc098`). D-240 usunęło
+drogę awatara na sztywno: nie ma zlecenia, zadanie jest puste. Klasa zgody,
+która dziś zawsze odpowiada „nie”, dodałaby odczyt pliku i zlecenie tylko po
+to, żeby je zaraz zatrzymać. Awatar nie ma też lokalnych wzorców, bo te
+pracują na tekście, więc do przywrócenia nie ma tu nic. Mechanizm zgody
+wymaga osobnej decyzji (D-240, „Awatar nie wychodzi”).
+
+### Dowód
+
+`tests/Feature/LokalnaAnalizaTresciNiepublicznejTest.php` — 7 przypadków,
+tylko `Http::fake()` przy **ustawionym** kluczu. Każdy przypadek niepubliczny
+sprawdza naraz, że lokalne oznaczenie istnieje i że `Http::assertNothingSent()`.
+Na kodzie D-240 **oblewają 4**: wpis zbanowanego konta, komentarz pod
+zapowiedzią przepisu „dla obserwujących”, komentarz zbanowanego autora
+i komentarz pod wpisem zbanowanego konta. Trzy pozostałe to kontrole:
+zapowiedź przepisu prywatnego i konto w karencji dalej bez oznaczenia
+i bez wysyłki, a publiczny komentarz dalej wychodzi (zabezpieczenie przed
+zepsutą atrapą). W `GranicaWysylkiDoOpenAiTest` oczekiwania dla zbanowanego
+autora zmieniono z „0 oznaczeń” na „1 oznaczenie”. `Http::assertNothingSent()`
+zostało w tych przypadkach bez zmian.
+
+### Wycofanie
+
+Odwrócić commit. Nic się nie zapisuje w bazie ani nie wychodzi poza serwer.
+Po odwróceniu wracają tylko luki w lokalnych oznaczeniach opisane wyżej.
+
+---
+
+## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`ModerationController::decide()` pytał wyłącznie `authorize('moderate', User::class)`,
+czyli „czy aktor jest moderatorem". Nie porównywał `reports.reporter_id`
+z aktorem ani roli osoby, którą decyzja karze (`ModeratedContent::osoba()`),
+a `applyAction()` wołał `suspend()` / `ban()` bez osobnej reguły. Jeden
+moderator mógł więc zgłosić administratora, sam to zgłoszenie rozstrzygnąć
+i go zbanować (ban unieważnia sesje). Przy kilku administratorach i w połączeniu
+z #1016 była to droga do odcięcia od panelu wszystkich, którzy rozpatrują
+odwołania.
+
+### Reguły
+
+1. **Nikt nie rozstrzyga sprawy, którą sam wniósł** — `ReportPolicy::decide()`.
+   Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
+   i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
+   bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
+   `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
+   administrator także moderatorów. **Konta administratora nie zawiesza ani
+   nie blokuje nikt z panelu** (równa ranga); sprawa administratora idzie do
+   właściciela serwisu, a rolę odbiera `kuking:nadaj-role`, która pilnuje
+   ostatniego czynnego administratora (#1016). Ta sama reguła rangi wyklucza
+   karanie samego siebie.
+3. **Ocena treści nie zależy od roli autora.** Ukrycie, usunięcie
+   i ostrzeżenie wpisu administratora działają jak przy każdym innym.
+
+Obie reguły są sprawdzane w `decide()` **pod blokadą wiersza zgłoszenia,
+przed `ModerationAction::create()`**. Odmowa wycofuje transakcję: zgłoszenie
+zostaje otwarte, nie powstaje decyzja, powiadomienie ani wpis
+`moderation.decided`. Wstępne sprawdzenie „własnej sprawy" przed transakcją
+służy tylko komunikatowi. Reguły żyją w politykach, więc przyszła droga
+wykonująca sankcję (endpoint, zadanie, komenda) pyta o te same ability.
+
+### Czego ta zmiana nie robi
+
+Nie rozwiązuje #1016 (ochrona ostatniego czynnego administratora przy
+zmianie statusu i współbieżności) — zamyka tylko drogę przez panel moderacji,
+która tamten problem czyniła osiągalnym dla moderatora. Nie ukrywa formularza
+decyzji przy własnym zgłoszeniu: formularz zostaje, a serwer odmawia
+z komunikatem, co zrobić.
+
+📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
+`app/Http/Controllers/Admin/ModerationController.php`,
+`tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
+## D-245 — Włączenie 2FA prosi o obecne hasło, jak jej wyłączenie (#1376, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`POST /ustawienia/2fa/wlacz` (`TwoFactorSettingsController::confirm()`)
+sprawdzał wyłącznie sześciocyfrowy kod z sekretu wygenerowanego chwilę
+wcześniej na tym samym ekranie. Kod dowodzi, że **nowy** telefon jest dobrze
+ustawiony — nie tego, że sesję obsługuje właściciel konta. Kto przejął ważną
+sesję (30 dni), podpinał własny telefon, zabierał kody zapasowe, a właściciel
+przy następnym logowaniu stawał przed kodem, którego nie ma. Wyłączenie 2FA
+i nowe kody zapasowe o hasło już prosiły; włączenie — nie.
+
+### Reguła
+
+Włączenie 2FA wymaga **obecnego hasła do Kuking** obok kodu z aplikacji.
+Zmiana telefonu idzie przez wyłączenie (hasło) i ponowne włączenie (hasło),
+więc obejmuje ją ta sama reguła. Hasło jest sprawdzane **przed** kodem: przy
+złym haśle kod nie jest ani weryfikowany, ani zużywany, a 2FA zostaje
+wyłączona. Trasa dostaje oba limity: `two_factor` (kod) i `confirm_password`
+(`Hash::check()` to ta sama wyrocznia co przy wyłączeniu, więc nie ma prawa
+mieć luźniejszego limitu).
+
+**Dlaczego pole hasła, a nie middleware `password.confirm` z Laravela.**
+Repozytorium nigdzie go nie używa. Każda wrażliwa akcja w ustawieniach
+(zmiana hasła i adresu, wyłączenie 2FA, nowe kody, usunięcie konta) prosi
+o hasło w tym samym formularzu i sprawdza je `Hash::check()` pod limitem
+`confirm_password`. Włączenie idzie tą samą drogą: jedno pole więcej na
+ekranie, który człowiek i tak wypełnia, zamiast osobnego ekranu z własnym
+oknem ważności.
+
+### Konta bez własnego hasła (Google, #876)
+
+Nie wymyślamy dla nich drugiej drogi: tak samo jak przy wyłączaniu, ekran
+mówi, jak ustawić hasło do Kuking przez „Nie pamiętam hasła"
+(`two_factor/_password-help`), i ostrzega, żeby nie wpisywać hasła do Google.
+Świadomy koszt: dopóki serwis nie wysyła poczty (`Poczta::dziala()`), konto
+założone wyłącznie przez Google nie włączy 2FA samo — ekran mówi to wprost
+i kieruje do „Napisz do nas". Świeże ponowne logowanie przez Google jako
+dowód tożsamości to osobna decyzja, tu niepodjęta.
+
+### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
+
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
+istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
+inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
+mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
+Wszystkie te poświadczenia powstały bez drugiego składnika; zostawione,
+otwierałyby konto bez kodu, a konto moderatora od tej chwili także `/admin`,
+bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
+zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
+się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
+bieżącej przeglądarki nie jest wystawiane — jak w #584.
+
+📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
+`routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
+`resources/views/pages/settings/two_factor/_password-help.blade.php`,
+`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`,
+`tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php`,
+`docs/security/ZAPAMIETANE_LOGOWANIE_584.md`
+
+---
+
+## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
+`claude/audyt-w-transakcji-g7`) · Prostuje podstawę `AuditLogEntry::recordBezWywracania()` ·
+Status: **obowiązuje**
+
+### Co było źle
+
+`recordBezWywracania()` i jego trzy miejsca wywołania powoływały się na
+**D-088** cytatem „dziennik audytu zostaje POZA transakcją… jest osobnym
+śladem, nie częścią relacji". D-088 dotyczy **odmowy rollbacku migracji**
+i o dzienniku audytu nie mówi nic. Cytat pochodzi z **D-090** i opisuje
+wyłącznie `BlockUser` (wpis ma powstać wtedy, gdy blokada naprawdę się
+zapisała). Na tej złej podstawie zbiorcze zamknięcie sygnałów automatu
+(#1343) poszło drogą „za transakcją" — wbrew issue, które wymagało wpisu
+w transakcji decyzji.
+
+### Reguła
+
+Każdy wpis `audit_log` należy do jednej z dwóch klas. Trzeciej nie ma.
+
+1. **Atomowy z decyzją — `record()` WEWNĄTRZ `DB::transaction` zmiany.**
+   Dla decyzji podjętych przez człowieka z uprawnieniami wobec cudzej
+   treści albo konta i dla zmian uprawnień: `moderation.decided`,
+   `moderation.automat_dismissed`, `user.role_changed`, a także
+   `post.published` (już tak zapisany). Tu wpis jest częścią decyzji —
+   „kto, kiedy i ile jednym kliknięciem" nie ma innego zapisu. Awaria
+   dziennika **cofa decyzję**, człowiek dostaje komunikat „nic się nie
+   zmieniło, spróbuj jeszcze raz", a ponowienie daje jeden komplet.
+   Decyzja bez wpisu jest gorsza niż decyzja, którą trzeba kliknąć drugi raz.
+2. **Pomocniczy — `recordBezWywracania()` PO zatwierdzeniu zmiany.** Dla
+   czynności samego człowieka, których autorytatywny ślad żyje w tabeli
+   zmiany: `account.registered` (wiersz `users` z `created_at`
+   i `age_confirmed_at`), `content.reported` (wiersz `reports` z terminami
+   DSA). Tu cofnięcie zmiany przez awarię dziennika byłoby szkodą dla
+   człowieka (utracone zgłoszenie z biegnącym terminem, rejestracja
+   odbijająca się od własnego adresu), a 500 po `COMMIT` — kłamstwem.
+   Awaria idzie do `report()` z nazwą brakującego wpisu; to nie jest cichy
+   sukces.
+
+Rozstrzyga pytanie: **czy bez tego wpisu zostaje w bazie pełny ślad tego,
+kto i co zdecydował?** Nie — klasa 1. Tak — klasa 2.
+
+Ta sama zasada dotyczy innych skutków po `COMMIT` rejestracji (#1373):
+`event(new Registered)` i obserwowanie gospodarza stoją w punkcie zapisu,
+ich awaria idzie do `report()`, a `ZalozKonto` zwraca `ZalozoneKonto`
+z flagą „list z potwierdzeniem nie wyszedł", żeby ekran po rejestracji nie
+kazał czekać na wiadomość, której nie ma. Ponowienie listu należy do
+człowieka („Wyślij potwierdzenie jeszcze raz" w Ustawieniach), naprawa
+obserwowania — do operatora (jedno `FollowUser` dla konta z raportu).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
+(`BlockUser` z D-090, zmiany adresu e-mail, logowania i inne). Zostają,
+jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
+klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
+
+### Dowód
+
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
+awaria `moderation.automat_dismissed` → brak `ModerationAction`, grupa
+otwarta, komunikat błędu; ponowienie → jedna decyzja i jeden wpis. Awarie
+`account.registered`, `content.reported`, `Registered` i obserwowania
+gospodarza → konto albo sprawa istnieje, odpowiedź udana, `report()`
+z nazwą braku (rejestracja hasłem, Google i Facebook).
+
+### Wycofanie
+
+Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
+
+22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
+przepisu i tryb gotowania traktują `no_amount` INACZEJ i tak ma zostać.
+To nie jest rozjazd do naprawienia ani przeoczenie po scaleniu — jest to
+decyzja, i jest zapisana tutaj właśnie po to, żeby następna osoba nie wzięła
+jej za usterkę i nie „ujednoliciła" dwóch ekranów jednym commitem.
+
+**Strona przepisu (`resources/views/pages/recipes/show.blade.php`) nie dopisuje
+niczego.** Ten ekran jest tekstem autora — co do znaku. „Sól do smaku",
+„mleko ile weźmie", „olej do smażenia" to zdania, które człowiek napisał
+świadomie, i serwis nie dokłada do nich swoich słów. Każdy dopisek o dozowaniu
+byłby zgadywaniem za autora: „mleko ile weźmie" mówi o konsystencji ciasta,
+„olej do smażenia" o zastosowaniu — żadne z nich nie jest doprawianiem, a to
+właśnie mierzyło #878. Pilnuje tego
+`tests/Feature/SkladnikBezIlosciTest::test_przepis_zachowuje_tekst_autora_bez_dopisywania_sposobu_dozowania`,
+porównując wiersze listy znak w znak.
+
+**Tryb gotowania (`resources/views/pages/recipes/cooking.blade.php`) dopisuje
+„— do smaku".** Ten ekran nie jest tekstem autora, tylko widokiem roboczym:
+człowiek stoi przy garnku, zerka znad patelni i ma jedną rękę wolną. Gołe
+„sól" w rozwiniętej liście wygląda w tej sytuacji jak brak informacji — jak
+coś, co się zgubiło po drodze — i wysyła gotującego z powrotem na stronę
+przepisu, żeby sprawdził, czy czegoś nie brakuje. Dopisek jest tam po to, żeby
+jednoznacznie powiedzieć „nic nie zginęło, sypnij ile lubisz", i nie musi być
+dosłownym cytatem z autora, bo ten ekran niczego nie cytuje. Pilnuje tego
+`tests/Feature/CookingModeTest::test_skladniki_pokazuja_grupy_i_do_smaku`.
+Warunek z #44 zostaje: dopisku nie ma, gdy autor sam napisał „do smaku"
+w tekście składnika, żeby nie wyszło „sól do smaku — do smaku".
+
+**Trzecia treść odpada.** PR #1222 proponował jedno neutralne „— bez podanej
+ilości" na obu ekranach, w nowym wspólnym komponencie
+`resources/views/components/wiersz-skladnika.blade.php`. Komponent nie miał
+wołającego — żaden widok go nie renderował — a jego test
+`WierszSkladnikaJedenKontraktTest` pilnował treści sprzecznej z OBOMA
+istniejącymi testami naraz: wymagał dopisku tam, gdzie #878 wymaga jego braku,
+i innego dopisku tam, gdzie #764/#1197 wymaga „do smaku". Oba pliki zostały
+z gałęzi usunięte. Samo słowo „bez podanej ilości" jest zresztą nadal
+zgadywaniem — mówi czytelnikowi, że czegoś na ekranie nie ma, zamiast pomóc
+mu gotować.
+
+**Konsekwencja dla przyszłych zmian.** `SkladnikBezIlosciTest`
+i `CookingModeTest` pilnują DWÓCH RÓŻNYCH zachowań i żadnego z nich nie wolno
+osłabić ani skasować „dla spójności". Czerwień jednego z nich po wprowadzeniu
+wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
+komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
+tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
+ponownej decyzji właściciela.

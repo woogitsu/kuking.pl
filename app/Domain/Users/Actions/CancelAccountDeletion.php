@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,57 @@ use Illuminate\Support\Facades\DB;
  */
 final class CancelAccountDeletion
 {
+    /**
+     * Wartość domyślna, tak samo jak w `EraseAccountData`: ta klasa bywa
+     * tworzona wprost (`new CancelAccountDeletion`), a rejestr potwierdzeń nie
+     * ma stanu ani zależności, więc wymaganie kontenera byłoby tu kosztem bez
+     * zysku.
+     */
+    public function __construct(private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo) {}
+
+    /**
+     * Dlaczego nie da się cofnąć — albo `null`, gdy jest co cofać.
+     *
+     * Osobno od `handle()`, bo formularz publiczny musi znać odpowiedź
+     * PRZED zużyciem jednorazowego kodu zapasowego (#1314), a ogłosić ją
+     * dopiero PO sprawdzeniu kodu. Rozstrzyga nadal `handle()`, na świeżym
+     * wierszu pod blokadą — ten odczyt służy tylko decyzji o kodzie.
+     */
+    public function powodOdmowy(User $user): ?string
+    {
+        // KOLEJNOŚĆ TYCH DWÓCH SPRAWDZEŃ MA ZNACZENIE OD D-022.
+        //
+        // Wcześniej pierwszy warunek brzmiał „status musi być
+        // `pending_delete`", a konto po wykonanej karencji ZOSTAWAŁO na
+        // tym statusie — więc do drugiego warunku dochodziło się zawsze
+        // i komunikat był właściwy. Od D-022 stan końcowy ma własną
+        // wartość (`erased`), czyli pierwszy warunek łapałby też konto
+        // wymazane i mówił mu „nie ma czego cofać". To nieprawda: było
+        // co cofać, tylko jest za późno — a to jest zupełnie inna
+        // informacja dla człowieka, który właśnie zrozumiał, że stracił
+        // swoje przepisy.
+        //
+        // Dlatego najpierw pytamy o WYKONANIE, a potem o zgłoszenie.
+        if ($user->data_erased_at !== null || $user->isErased()) {
+            return 'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
+                .$user->data_erased_at?->translatedFormat('j F Y').'. Jeśli to pomyłka, '
+                .'napisz do nas: '.config('kuking.community.contact_email').'.';
+        }
+
+        if ($user->status !== User::STATUS_PENDING_DELETE) {
+            return self::nieMaCzegoCofac();
+        }
+
+        return null;
+    }
+
+    private static function nieMaCzegoCofac(): string
+    {
+        return 'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
+            .'Jeśli to nie zgadza się z tym, czego się spodziewasz, napisz do nas: '
+            .config('kuking.community.contact_email').'.';
+    }
+
     public function handle(User $user): void
     {
         // Transakcja z blokadą, nie odczyt z argumentu: formularz i egzekutor
@@ -41,36 +93,31 @@ final class CancelAccountDeletion
         DB::transaction(function () use ($user): void {
             $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
-            // KOLEJNOŚĆ TYCH DWÓCH SPRAWDZEŃ MA ZNACZENIE OD D-022.
-            //
-            // Wcześniej pierwszy warunek brzmiał „status musi być
-            // `pending_delete`", a konto po wykonanej karencji ZOSTAWAŁO na
-            // tym statusie — więc do drugiego warunku dochodziło się zawsze
-            // i komunikat był właściwy. Od D-022 stan końcowy ma własną
-            // wartość (`erased`), czyli pierwszy warunek łapałby też konto
-            // wymazane i mówił mu „nie ma czego cofać". To nieprawda: było
-            // co cofać, tylko jest za późno — a to jest zupełnie inna
-            // informacja dla człowieka, który właśnie zrozumiał, że stracił
-            // swoje przepisy.
-            //
-            // Dlatego najpierw pytamy o WYKONANIE, a potem o zgłoszenie.
-            if ($fresh !== null && ($fresh->data_erased_at !== null || $fresh->isErased())) {
-                throw new BladDlaCzlowieka(
-                    'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
-                    .$fresh->data_erased_at?->translatedFormat('j F Y').'. Jeśli to pomyłka, '
-                    .'napisz do nas: '.config('kuking.community.contact_email').'.',
-                );
-            }
+            // Ta sama reguła co `powodOdmowy()`, ale na świeżym wierszu pod
+            // blokadą — to jest odczyt, który rozstrzyga.
+            $powod = $fresh === null
+                ? self::nieMaCzegoCofac()
+                : $this->powodOdmowy($fresh);
 
-            if ($fresh === null || $fresh->status !== User::STATUS_PENDING_DELETE) {
-                throw new BladDlaCzlowieka(
-                    'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
-                    .'Jeśli to nie zgadza się z tym, czego się spodziewasz, napisz do nas: '
-                    .config('kuking.community.contact_email').'.',
-                );
+            if ($powod !== null) {
+                throw new BladDlaCzlowieka($powod);
             }
 
             $fresh->cancelDeletion();
+
+            // DOMKNIĘCIE SPRAWY W REJESTRZE RODO — W TEJ SAMEJ TRANSAKCJI,
+            // I TO JEST CAŁA WARTOŚĆ TEJ LINIJKI W TYM MIEJSCU.
+            //
+            // `cancelDeletion()` ZERUJE `delete_requested_at` (ADR_RETENCJE.md
+            // §3.1), więc po wyjściu z tej transakcji nie ma już w `users`
+            // żadnego śladu, że żądanie w ogóle wpłynęło. Gdyby potwierdzenie
+            // szło osobną transakcją, jej porażka zostawiłaby konto
+            // odzyskane, a rejestr ze sprawą wiecznie „w toku" — czyli dowód
+            // twierdzący coś innego niż stan faktyczny, dokładnie w sporze
+            // („nigdy nie prosiłem o usunięcie konta"), dla którego ten
+            // wiersz istnieje. Dowodzi tego
+            // `PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`.
+            $this->rejestr->domknijJakoCofniete($fresh);
         });
     }
 }

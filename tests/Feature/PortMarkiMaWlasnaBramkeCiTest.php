@@ -4,10 +4,32 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 {
+    public function test_pomiary_nie_pobieraja_historii_ktora_czyta_tylko_zakres(): void
+    {
+        foreach (['port_marki', 'port_funkcje', 'dostepnosc'] as $name) {
+            $job = $this->job($name);
+            // Kontrola dodatnia: brak całego checkoutu nie jest oszczędnością.
+            $this->assertSame(1, preg_match('/uses: actions\/checkout@[^\s]+(?<opcje>.*?)(?=^      - |\z)/ms', $job, $checkout), $name.': brak checkoutu.');
+            $this->assertDoesNotMatchRegularExpression('/fetch-depth:\s*0\b/', $checkout['opcje'],
+                $name.': pełną historię pobiera już zakres; pomiar potrzebuje drzewa i indeksu.');
+            $this->assertStringContainsString('needs: zakres', $job);
+            $this->assertStringContainsString('needs.zakres.outputs.widok', $job);
+        }
+    }
+
+    public function test_zakres_zachowuje_historie_do_porownania_z_baza(): void
+    {
+        $job = $this->job('zakres');
+        $this->assertStringContainsString('fetch-depth: 0', $job);
+        $this->assertStringContainsString('git diff --name-only "${BAZA}" HEAD', $job);
+    }
+
     private function workflow(): string
     {
         return (string) file_get_contents(base_path('.github/workflows/ci.yml'));
@@ -37,7 +59,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
             $this->assertStringContainsString('storage/port-projektu', $job);
-            $this->assertStringContainsString('uses: actions/checkout@v7', $job);
+            $this->assertStringContainsString('uses: actions/checkout@', $job);
         }
         $job = $this->job('port_funkcje');
         $this->assertStringContainsString($kroki, $job);
@@ -101,6 +123,54 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         $this->assertSame(0, preg_match($pattern, 'docs/PRODUCT.md'));
     }
 
+    public static function screenPaths(): array
+    {
+        return [
+            'kreator' => ['app/Livewire/RecipeWizard.php', true],
+            'komponent' => ['app/View/Components/Layout.php', true],
+            'kontroler' => ['app/Http/Controllers/RecipeController.php', true],
+            'kontroler techniczny bez wyjątków' => ['app/Http/Controllers/HealthController.php', true],
+            'middleware' => ['app/Http/Middleware/EnsureAccountIsActive.php', true],
+            'model' => ['app/Models/Recipe.php', true],
+            'polityka' => ['app/Policies/RecipePolicy.php', true],
+            'domena' => ['app/Domain/Search/SearchQuery.php', true],
+            'trasy' => ['routes/web.php', true],
+            'konfiguracja' => ['config/kuking.php', true],
+            'start aplikacji' => ['bootstrap/app.php', true],
+            'tłumaczenia' => ['lang/pl/validation.php', true],
+            'dane ekranów' => ['database/seeders/DemoSeeder.php', true],
+            'zależności' => ['composer.json', true],
+            'wersje zależności' => ['composer.lock', true],
+            'dokumentacja' => ['docs/PRODUCT.md', false],
+            'instrukcja główna' => ['README.md', false],
+            'ścieżka podobna do zależności' => ['composer.json.md', false],
+            'dokumentacja i PHP' => ["docs/PRODUCT.md\napp/Livewire/RecipeWizard.php", true],
+            'duży diff bez SIGPIPE' => ["app/Livewire/RecipeWizard.php\n".str_repeat("docs/dlugi-niezmieniajacy-interfejsu-opis.md\n", 10000), true],
+        ];
+    }
+
+    /** Uruchamia rzeczywisty warunek w Bashu, nie tłumaczenie regexu na PCRE. */
+    #[DataProvider('screenPaths')]
+    public function test_php_sterujace_ekranem_uruchamia_pomiar(string $paths, bool $expected): void
+    {
+        $this->assertSame(1, preg_match('/^\s*(if [^\n]*grep -qE .*?^\s*fi)/ms', $this->job('zakres'), $matches));
+        $output = tempnam(sys_get_temp_dir(), 'kuking-zakres-');
+        $this->assertNotFalse($output);
+
+        try {
+            $process = new Process(['bash', '-c', "set -euo pipefail\nZMIENIONE=\"$(cat)\"\n".$matches[1]], base_path(), [
+                'GITHUB_OUTPUT' => $output,
+            ]);
+            $process->setInput($paths);
+            $process->run();
+            $this->assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            $this->assertSame('widok='.($expected ? 'true' : 'false')."\n", file_get_contents($output),
+                'zakres: błędna decyzja dla '.strtok($paths, "\n"));
+        } finally {
+            unlink($output);
+        }
+    }
+
     /**
      * NIE DA SIĘ PRZEJŚĆ JOBA PRZEGLĄDARKOWEGO, NIE URUCHAMIAJĄC POMIARU.
      *
@@ -144,16 +214,19 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             );
 
             // 3. Żaden KROK nie może już decydować o pominięciu pomiaru.
-            //    Jedyny dopuszczony warunek na kroku to `always()` przy
-            //    wysyłce dowodów — ten ma się wykonać także po czerwieni.
+            //    Jedyny dopuszczony warunek na kroku stoi przy wysyłce
+            //    dowodów: `always()` albo `failure()` — oba wykonują krok po
+            //    czerwieni. `failure()` od 23.09: przy wyczerpanym limicie
+            //    miejsca na artefakty wysyłka po zielonym jobie czerwieniła
+            //    CI, a dowody zielonego przebiegu nikomu nie są potrzebne.
             preg_match_all('/^        if: (.+)$/m', $job, $warunki);
             foreach ($warunki[1] as $warunek) {
                 $this->assertStringNotContainsString('warto', $warunek,
                     $name.': warunek pomijania wrócił na krok — job znowu może być zielony bez pomiaru.');
                 $this->assertStringNotContainsString('steps.zmiany', $warunek,
                     $name.': krok znowu czyta własny filtr zamiast wyjścia joba `zakres`.');
-                $this->assertStringContainsString('always()', $warunek,
-                    $name.': krok ma warunek inny niż `always()` — pomiar może zostać pominięty przy zielonym jobie.');
+                $this->assertMatchesRegularExpression('/^(always|failure)\(\)$/', trim($warunek),
+                    $name.': krok ma warunek inny niż `always()` albo `failure()` — pomiar może zostać pominięty przy zielonym jobie.');
             }
         }
     }

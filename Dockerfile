@@ -48,7 +48,12 @@
 # -----------------------------------------------------------------------------
 # ETAP 1 — assety front-endu (Vite 7 + Tailwind 4)
 # -----------------------------------------------------------------------------
-FROM node:22-bookworm-slim AS assets
+# Każdy obraz bazowy: `tag@sha256:<digest>` (#952). Tag zostaje dla człowieka,
+# o tym, CO się pobiera, decyduje digest — przepisanie tagu w rejestrze nie
+# zmieni po cichu obrazu produkcyjnego. Nowy digest przynosi PR Dependabota
+# (ekosystem `docker` w .github/dependabot.yml); pilnuje tego
+# tests/Unit/ObrazyBazowePrzypieteDoDigestowTest.php.
+FROM node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9 AS assets
 
 WORKDIR /app
 
@@ -76,15 +81,35 @@ COPY routes ./routes
 # Pomiar palety jest częścią polecenia budowania assetów.
 COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
 COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
+# Testy z listy `node --test` w skrypcie `build` MUSZĄ tu dojechać — inaczej
+# `npm run build` w tym etapie pada na brakującym pliku.
 COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
 COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
+COPY scripts/kopiowanie-adresu.test.mjs ./scripts/kopiowanie-adresu.test.mjs
+# `wyglad-komunikat.test.mjs` importuje `wyglad-komunikat.mjs` ORAZ
+# `panel-komunikat.mjs` (sprawdza, że komunikat przechodzi przez granicę
+# poświadczeń nieskrócony) — więc w obrazie muszą stać oba pliki.
+COPY scripts/wyglad-komunikat.mjs ./scripts/wyglad-komunikat.mjs
+COPY scripts/wyglad-komunikat.test.mjs ./scripts/wyglad-komunikat.test.mjs
 
 # Node pomija nieistniejący plik podany do `--test` zamiast kończyć błędem.
 # Bez tej bramki obraz budował się zielono, uruchamiając 21 zamiast 33 testów.
 RUN test -f scripts/panel-komunikat.mjs \
- && test -f scripts/panel-komunikat.test.mjs
+ && test -f scripts/panel-komunikat.test.mjs \
+ && test -f scripts/wyglad-komunikat.mjs \
+ && test -f scripts/wyglad-komunikat.test.mjs \
+ && test -f scripts/kopiowanie-adresu.test.mjs
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
+
+
+# -----------------------------------------------------------------------------
+# ETAP 1b — sama binarka Composera (#952)
+# -----------------------------------------------------------------------------
+# Osobny etap zamiast `COPY --from=composer:2`: Dependabot (ekosystem `docker`)
+# aktualizuje obrazy w liniach `FROM`, a obrazu podanego wprost w `COPY --from`
+# nie widzi. Digest wpisany tam starzałby się po cichu. Tu jest pod nadzorem.
+FROM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c48c248b AS composer-bin
 
 
 # -----------------------------------------------------------------------------
@@ -92,7 +117,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Ten sam obraz bazowy co runtime, żeby platform-check Composera i skompilowane
 # rozszerzenia zgadzały się 1:1 z tym, na czym aplikacja faktycznie pobiegnie.
-FROM dunglas/frankenphp:1-php8.4-trixie AS vendor
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS vendor
 
 # install-php-extensions jest częścią obrazu FrankenPHP
 # (docker-php-extension-installer).
@@ -107,7 +132,7 @@ RUN install-php-extensions \
       bcmath \
       opcache
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
@@ -131,7 +156,7 @@ RUN COMPOSER_CACHE_DIR=/tmp/composer-cache \
 # -----------------------------------------------------------------------------
 # ETAP 3 — obraz runtime
 # -----------------------------------------------------------------------------
-FROM dunglas/frankenphp:1-php8.4-trixie AS runtime
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS runtime
 
 LABEL org.opencontainers.image.title="kuking.pl"
 LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"
@@ -211,7 +236,7 @@ RUN date -u +%Y-%m-%dT%H:%M:%SZ > /app/bootstrap/wydanie.txt
 #
 # Nie osłabiamy z tego powodu php.ini. `package:discover` i tak wołamy niżej
 # wprost — bez Procesu, bez proc_open, z tym samym skutkiem.
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scripts \
  && php artisan package:discover --ansi \
  && rm -f /usr/bin/composer

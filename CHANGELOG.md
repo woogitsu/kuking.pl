@@ -1,6 +1,6 @@
 # Co się zmieniło w Kuking
 
-## Alfa 0.69 — gotowanie od nowa i komentarz, który nie przepada po piętnastu minutach
+## Nieopublikowane
 
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.

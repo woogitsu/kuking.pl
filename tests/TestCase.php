@@ -8,7 +8,9 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -28,6 +30,58 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->withoutVite();
+        Http::preventStrayRequests();
+        $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * ZERUJE STAN LIVEWIRE'A, KTÓRY PRZECIEKA MIĘDZY TESTAMI W JEDNYM PROCESIE.
+     *
+     * `Livewire\Features\SupportAutoInjectedAssets\SupportAutoInjectedAssets`
+     * trzyma DWIE STATYKI KLASOWE — `$hasRenderedAComponentThisRequest`
+     * (podnoszoną w `dehydrate()`, czyli przy KAŻDYM wyrenderowanym
+     * komponencie) i `$forceAssetInjection`. Statyka klasowa żyje tyle, co
+     * proces PHP: `Illuminate\Foundation\Testing\TestCase::tearDown()`
+     * wyrzuca kontener aplikacji, ale klasy nie dotyka. Livewire zeruje te
+     * flagi WYŁĄCZNIE na zdarzeniu `flush-state`, a `flush-state` leci tylko
+     * z `Livewire::flushState()` — które w całym vendorze woła u siebie sam
+     * `Livewire::test()` (`SupportTesting/InitialRender.php`,
+     * `SupportTesting/SubsequentRender.php`). Zwykłe żądanie HTTP w teście
+     * NIE woła tego nigdy.
+     *
+     * Skutek bez tego zerowania: gdy wcześniej w tym samym procesie PHP
+     * jakikolwiek test wyrenderował stronę z komponentem Livewire'a (np.
+     * `/przepisy/{slug}/szczegoly`, albo test przejeżdżający WSZYSTKIE trasy
+     * — `KazdaTrasaZIdentyfikatoremPodPolicyTest`,
+     * `AutoryzacjaTrasZWiazaniemModeluTest`), to nasłuch `RequestHandled`
+     * dokleja `@livewireScripts` do KAŻDEJ następnej odpowiedzi 200 text/html
+     * w tym procesie — także na stronach, które Livewire'a nie używają.
+     * `NapiszDoNasTest::test_formularz_dziala_bez_javascriptu` pada wtedy na
+     * `livewire.js`, choć w samej aplikacji nie zmieniło się nic.
+     *
+     * To NIE jest przypadłość wyłącznie `--parallel`: zmierzone szeregowo,
+     * `--filter='KazdaTrasaZIdentyfikatoremPodPolicyTest|NapiszDoNasTest'`
+     * dawało czerwień, a `--filter='...|NapiszDoNasTest'` z niewinną klasą
+     * obok — zieleń. Pełna bateria bywała zielona tylko dlatego, że między te
+     * klasy trafiał się test wołający `Livewire::test()`, czyli zerujący
+     * flagę przypadkiem. To szczęście, nie zabezpieczenie.
+     *
+     * DLACZEGO W `setUp()`, A NIE W `tearDown()`: tak zerowanie jest
+     * niezależne od tego, czy któraś z ~20 klas nadpisujących `tearDown()`
+     * woła `parent::tearDown()` i w którym miejscu (po `parent::tearDown()`
+     * kontener już nie istnieje, więc `flushState()` by się wywrócił).
+     * `setUp()` biegnie dla każdego testu, zawsze na świeżym kontenerze.
+     *
+     * KOSZT: jedno `trigger('flush-state')` na test — przejście po liście
+     * nasłuchów i wyzerowanie kilkunastu tablic w pamięci. To DOKŁADNIE to
+     * samo, co Livewire robi sam po każdym `Livewire::test()`.
+     *
+     * STRAŻNIK REGRESJI:
+     * `tests/Feature/StanLivewireNiePrzeciekaMiedzyTestamiTest.php`.
+     */
+    private function wyzerujStanLivewire(): void
+    {
+        Livewire::flushState();
     }
 
     /**
@@ -103,5 +157,43 @@ abstract class TestCase extends BaseTestCase
         $admin->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
 
         return $admin->refresh();
+    }
+
+    /**
+     * Okno ważności podpisu S3 (`X-Amz-Expires`) z tolerancją JEDNEJ SEKUNDY.
+     *
+     * DLACZEGO NIE `assertSame('3600', ...)`: w adresie nie ma żadnej z tych
+     * dwóch liczb osobno — jest ich RÓŻNICA, policzona z DWÓCH NIEZALEŻNIE
+     * OBCIĘTYCH ZEGARÓW. `MediaController` wyznacza koniec okna Carbonem
+     * (`now()->addMinutes(...)->getTimestamp()`), a SigV4 odejmuje od niego
+     * własny początek (`SignatureV4::presign()` → `$startTimestamp = time()`).
+     * Oba obcinają ułamek sekundy w dół, i to w dwóch różnych momentach.
+     *
+     * Jeśli między jednym a drugim wywołaniem przeskoczy granica sekundy —
+     * `now()` o 12:00:00.999, `time()` o 12:00:01.001 — różnica wychodzi
+     * 3599 zamiast 3600. Nie jest to usterka podpisu ani zmiana konfiguracji,
+     * tylko błąd pomiaru wpisany w sposób, w jaki ta liczba powstaje.
+     * Dokładnie na tym padł run 35719363702 (PR #1237), na gałęzi, która
+     * zmieniała wyłącznie komentarze w `deploy.yml`.
+     *
+     * Dlaczego tolerancja jest JEDNOSTRONNA (`[$sekundy - 1, $sekundy]`),
+     * a nie `assertEqualsWithDelta(..., 1)`: różnica NIGDY nie może wyjść
+     * większa od zadanej, bo koniec okna liczony jest ZANIM SigV4 odczyta
+     * swój początek. Wartość 3601 oznaczałaby, że okno wydłużyło się samo —
+     * i ma czerwienić, tak samo jak 3500 czy 300. Ta asercja nadal pilnuje
+     * REGUŁY (`kuking.media.*_signed_url_minutes`), gubi wyłącznie tę jedną
+     * sekundę, której żaden z dwóch zegarów i tak nie zna.
+     */
+    protected function assertOknoPodpisu(int $sekundy, mixed $wartosc, string $komunikat = ''): void
+    {
+        $this->assertContains(
+            (int) $wartosc,
+            [$sekundy - 1, $sekundy],
+            $komunikat !== '' ? $komunikat : sprintf(
+                'Podpis deklaruje okno %s s, a ma deklarować %d s (dopuszczalne %d s — '
+                .'obcięcie ułamka sekundy na dwóch zegarach).',
+                var_export($wartosc, true), $sekundy, $sekundy - 1,
+            ),
+        );
     }
 }

@@ -81,6 +81,8 @@ use Tests\TestCase;
  *  - `test_kryterium_odroznia_czas_od_popularnosci` — czy klasyfikator ma moc,
  *    gdy dostanie sortowanie po popularności. Bez tej drugiej skan mógłby
  *    czytać wszystko i nie umieć niczego odrzucić.
+ *
+ * @bez-kontroli-dodatniej Skan pilnuje własnego zasięgu (assertGreaterThanOrEqual na liczbie plików, sortowań i kolumn schematu), więc skurczony skan czerwieni zamiast przechodzić nad pustką.
  */
 class FeedNieSortujePoMierzeReakcjiTest extends TestCase
 {
@@ -127,6 +129,16 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
                 .'coś pokazał, nie po tym, ile ma obserwujących." Ten test jest po to, żeby ta reguła przestała być '
                 .'komentarzem przy jednym zapytaniu i zaczęła obowiązywać następne, które napisze ktoś inny.',
         ],
+        'app/Domain/Feed/DailyBoardCandidates.php' => [
+            "'latest_publication'" => 'Alias `withMax([\'posts as latest_publication\'], \'published_at\')`, '
+                .'czyli MAX(published_at) po WŁASNYCH, publicznie widocznych wpisach osoby — agreguje CZAS, '
+                .'nie cudze reakcje. Ta sama miara i ten sam powód co \'ostatnie.ostatnia_publikacja\' '
+                .'w app/Domain/Feed/DailyBoard.php, tylko liczona przez withMax zamiast podzapytania. '
+                .'Dodatkowo: to jest kolejność LISTY WYBORU dla gospodarza tablicy w panelu moderacji, '
+                .'a nie kolejność treści pokazywanej ludziom — ta gałąź przeniosła tu porządkowanie osób '
+                .'z DailyBoardController, gdzie było alfabetyczne. Rozstrzyga `orderBy(\'id\')` tuż obok, '
+                .'więc przy równym czasie kolejność jest stała, a nie losowa.',
+        ],
         'app/Domain/Search/SearchQuery.php' => [
             "'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC', [\$needle, \$needle]" => 'Trafność wyszukiwania przepisów. '
                 .'TO NIE JEST FEED — i to jest pierwsza rzecz, którą zakwestionuje następny czytelnik tego rejestru, '
@@ -141,11 +153,6 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             "'tag_row'" => 'Alias ROW_NUMBER() OVER (PARTITION BY tag_id ORDER BY …) z podzapytania — numer kafla w kolażu tagu. '
                 .'Porządek wewnątrz okna wyznacza `$order`, czyli czas publikacji; sam `tag_row` niczego nie mierzy, '
                 .'tylko numeruje już ustawiony rząd.',
-        ],
-        'app/Http/Controllers/Admin/DailyBoardController.php' => [
-            'fn (User $user) => $user->displayName()' => 'Sortowanie alfabetyczne listy autorów w panelu moderacji — '
-                .'kolejność na LIŚCIE WYBORU dla gospodarza tablicy, nie kolejność treści pokazywanej ludziom. '
-                .'Klucz to nazwa wyświetlana, nie miara czegokolwiek.',
         ],
     ];
 

@@ -74,7 +74,8 @@
 #
 #  CO ROBI TEN PLIK
 #    A) po deployu: test dymny na żywym środowisku + rejestracja wydania w Sentry
-#    B) na żądanie (workflow_dispatch): migracje, rollback, redeploy
+#    B) na żądanie (workflow_dispatch): migracje, redeploy i instrukcja
+#       ręcznego cofnięcia (rollbacku NIE wykonuje — patrz krok niżej)
 #       — czyli to, co potrzebne podczas incydentu, bez wchodzenia w panel
 #
 #  WYMAGANE SEKRETY (Settings → Secrets and variables → Actions):
@@ -127,10 +128,11 @@ on:
           Co zrobić: smoke = tylko testy dymne;
           migrate = uruchom migracje w kontenerze;
           redeploy = ponowny deploy aktualnej wersji;
-          rollback = powrót do poprzedniego deployu
+          instrukcja-cofniecia = NICZEGO NIE COFA, tylko wypisuje listę
+          wdrożeń i instrukcję rollbacku w panelu Railway
         required: true
         type: choice
-        options: [smoke, migrate, redeploy, rollback]
+        options: [smoke, migrate, redeploy, instrukcja-cofniecia]
         default: smoke
 
 permissions:
@@ -151,38 +153,73 @@ jobs:
   verify:
     name: Test dymny po deployu
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 10
+    # 15, nie 10: sonda wydania (#1012) czeka na przełączenie ruchu najwyżej
+    # SONDA_PROBY × (SONDA_ODSTEP + limit curl) ≈ 7,5 minuty, a reszta testu
+    # dymnego potrzebuje swoich dwóch-trzech.
+    timeout-minutes: 15
 
     # -----------------------------------------------------------------------
-    #  BRAMKA. Zawężona świadomie — patrz sprostowanie niżej.
+    #  BRAMKA. Zawężona świadomie — i ZWERYFIKOWANA POMIAREM 22.09.2026.
     #
     #  BYŁO: warunek sprawdzał dodatkowo
     #      contains(fromJSON('["production","staging"]'), github.event.deployment.environment)
+    #  To jest człon, który zawodził. Dowód z REST API (400 wdrożeń
+    #  woogitsu/kuking.pl, 9–21.09.2026, 1131 statusów):
+    #      deployment.environment = 'ideal-exploration / production'  — 400/400
+    #      status.environment     = 'ideal-exploration / production'  — 1131/1131
+    #  Gołe `production` nie pada ANI RAZU, więc `contains` nigdy nie mógł
+    #  trafić. Dopasowanie nazwy środowiska jest teraz w kroku niżej, który
+    #  obcina człon po ostatnim ukośniku (i wypisuje, co dostał).
     #
-    #  Zmierzone 9 września 2026: workflow „Deploy" ma **249 przebiegów
-    #  i WSZYSTKIE mają conclusion `skipped`.** Ten test dymny nie uruchomił
-    #  się ANI RAZU — a to on miał wyłapywać „deploy się udał, ale strona nie
-    #  działa". Przebieg 249 wystartował o 16:44:20, czyli pięć sekund po tym,
-    #  jak wdrożenie zgłosiło sukces o 16:44:15 — i też został pominięty.
+    #  SKUTEK ZDJĘCIA TEGO CZŁONU — zmierzony, nie przewidywany. Workflow
+    #  „Deploy" ma dziś 885 przebiegów. Rozkład zdarzenia deployment_status:
+    #      629 skipped, 206 success, 6 cancelled, 2 failure
+    #  Pierwszy NIEpominięty przebieg: #290 z 9.09.2026 22:17 UTC.
+    #  Ostatni: #871 z 21.09.2026 10:40 UTC — w jego dzienniku stoi
+    #      deployment.environment  = 'ideal-exploration / production'
+    #      deployment_status.state = 'success'
+    #      środowisko po obcięciu  = 'production'
+    #  i dziesięć linii `OK` z testu dymnego na https://kuking.pl.
+    #  Notatka „249 przebiegów, WSZYSTKIE skipped" opisywała stan SPRZED tej
+    #  poprawki. Test dymny wykonał się od tamtej pory 206 razy.
     #
-    #  Czyli któryś człon tego warunku nie pasuje do tego, co naprawdę
-    #  przysyła Railway. NIE ZGADUJĘ KTÓRY: sprawdzenie nazwy środowiska
-    #  przeniesione jest do kroku niżej, który ją WYPISUJE. Po najbliższym
-    #  wdrożeniu będzie w dzienniku czarno na białym, zamiast kolejnej hipotezy.
+    #  `state == 'success'` ZOSTAJE — i liczba „pięć" też się broni, choć
+    #  mechanizm jest inny, niż zapisano poprzednio. Railway NIE wysyła pięciu
+    #  statusów na jedno wdrożenie. Rozkład (400 wdrożeń):
+    #      1 status:   9 wdrożeń      2 statusy: 183     3 statusy: 113
+    #      4 statusy: 84             5 i więcej:  11
+    #  Najczęstsze sekwencje stanów:
+    #      in_progress > inactive                       — 180 wdrożeń
+    #      in_progress > success > inactive             — 112
+    #      in_progress > success > inactive > inactive  —  84
+    #  Stany, jakich Railway używa: in_progress (413), inactive (489),
+    #  success (228), failure (1). Stosunek 1131 statusów do 228 sukcesów
+    #  wynosi 4,96 — TO jest te „pięć razy". Bez członu `state == 'success'`
+    #  ten workflow odpalałby się blisko pięciokrotnie częściej, więc
+    #  argument kosztowy z D-010 stoi.
     #
-    #  Dlaczego nie zdjąłem też `state == 'success'`: `deployment_status`
-    #  strzela kilka razy na jedno wdrożenie (zmierzone: pięć razy). Bez tego
-    #  członu każde wdrożenie płaciłoby za pięć przebiegów zamiast jednego,
-    #  a minuty Actions są w tym projekcie skończone i płatne (D-010). Jeśli
-    #  po tej zmianie przebieg NADAL będzie `skipped`, to znaczy, że winny
-    #  jest właśnie ten człon — i wtedy wiadomo, co poprawić.
+    #  CZEGO TA BRAMKA NIE ZŁAPIE — i nie da się tego naprawić warunkiem:
+    #  192 z 400 wdrożeń (48%) nie mają ANI JEDNEGO statusu `success`;
+    #  kończą się `in_progress > inactive`. Stanu `failure` Railway użył
+    #  przez dwanaście dni JEDEN raz. A gdy CI jest czerwone, Railway
+    #  (`checkSuites: true`) w ogóle nie tworzy wdrożenia, więc nie ma
+    #  żadnego zdarzenia deployment_status — i nie ma czego pomijać.
+    #  Zmierzone 22.09.2026 07:16 UTC: od ostatniego statusu `success`
+    #  (21.09 10:40 UTC) minęło 20,6 godziny ciszy. Dokładnie tyle stała
+    #  produkcja podczas awarii haka runnerów — a ten job nie miał jak
+    #  krzyknąć, bo krzyczy wyłącznie PO udanym wdrożeniu.
+    #  Wykrycie „nic się nie wdrożyło" wymaga wyzwalacza `schedule:`,
+    #  niezależnego od wdrożeń. To osobna decyzja właściciela (koszt minut),
+    #  a nie zmiana w tym warunku. Nie ruszaj `state == 'success'` w nadziei,
+    #  że to załatwi — to zapłaci pięciokrotnie za to samo i dalej nie
+    #  wykryje ciszy.
     # -----------------------------------------------------------------------
     if: >-
       github.event_name == 'deployment_status' &&
       github.event.deployment_status.state == 'success'
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Ustal adres środowiska
         id: target
@@ -245,15 +282,36 @@ jobs:
       #  Test dymny. Cel: wyłapać "deploy się udał, ale strona nie działa".
       #  Railway sprawdza tylko /health przy przełączaniu ruchu i NIE monitoruje
       #  go później. My sprawdzamy realne ścieżki użytkownika przez Cloudflare.
+      #
+      #  NAJPIERW: CZY POD ADRESEM DZIAŁA TEN COMMIT (issue #1012). Adres jest
+      #  stały, a wynik zapisuje się przy commicie ze zdarzenia. Runner potrafi
+      #  ruszyć kilka minut po zdarzeniu (zmierzone: prawie siedem), więc przy
+      #  dwóch szybkich wdrożeniach test zdarzenia A sprawdzałby wydanie B
+      #  i świecił na zielono przy A. `concurrency` porządkuje joby, ale nie
+      #  przywraca pod adresem starszej wersji. Dlatego sonda czeka (z limitem),
+      #  aż `/wydanie` poda pełny SHA zdarzenia, a przy niezgodności kończy
+      #  job porażką z oczekiwanym i otrzymanym SHA — reszty nie sprawdza, bo
+      #  sprawdzałaby cudze wydanie. Na końcu pyta jeszcze raz: wydanie mogło
+      #  się zmienić W TRAKCIE testu. Logika: scripts/sonda-wdrozenia.sh.
       # -----------------------------------------------------------------------
       - name: Test dymny
         id: dymny
         if: steps.target.outputs.pomin != '1'
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
+          # Dla `deployment_status` to jest commit PRZEZNACZONY do wdrożenia.
+          OCZEKIWANY_SHA: ${{ github.event.deployment.sha }}
         run: |
           set -euo pipefail
+          source scripts/sonda-wdrozenia.sh
           fail=0
+
+          echo "oczekiwany=${OCZEKIWANY_SHA}" >> "$GITHUB_OUTPUT"
+          echo "=== Które wydanie działa pod ${BASE_URL} ==="
+          if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then
+            echo "::error title=Pod adresem działa inne wydanie::Oczekiwano ${OCZEKIWANY_SHA}, otrzymano ${SONDA_OTRZYMANY:-nic}. Test dymny nie sprawdza cudzego wydania."
+            exit 1
+          fi
 
           check() {
             local path="$1" expected="$2" label="$3"
@@ -276,14 +334,12 @@ jobs:
           check /robots.txt      200 "robots"
           check /nie-ma-takiej-strony-$(date +%s) 404 "obsługa 404"
 
-          # HTTPS musi być wymuszony na krawędzi Cloudflare.
+          # HTTPS musi być wymuszony na krawędzi Cloudflare — i to NA TEN HOST.
+          # Stało tu `case 301|302|307|308`: przekierowanie na `http://`, na
+          # obcy host albo bez `Location` też dawało OK (issue #1332). Sonda
+          # porównuje cel z `https://<host>/`, jak ręczny kontrakt runbooka.
           echo "--- Przekierowanie HTTP -> HTTPS ---"
-          redirect=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
-                       "http://${BASE_URL#https://}/" || echo "000")
-          case "$redirect" in
-            301|302|307|308) echo "OK    HTTP przekierowuje ($redirect)" ;;
-            *) echo "BLAD  HTTP nie przekierowuje na HTTPS ($redirect)"; fail=1 ;;
-          esac
+          sonda_https "${BASE_URL#https://}" || fail=1
 
           # APP_DEBUG=true na produkcji ujawnia zmienne środowiskowe
           # (czyli sekrety) na stronie błędu. To najgorszy możliwy błąd
@@ -339,6 +395,12 @@ jobs:
             fi
           fi
 
+          # Wydanie mogło zostać podmienione W TRAKCIE sprawdzeń — wtedy część
+          # z nich opisuje cudzy commit. Jedna próba, bez czekania.
+          echo "--- Wydanie po testach ---"
+          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1
+          echo "potwierdzony=${SONDA_POTWIERDZONY}" >> "$GITHUB_OUTPUT"
+
           exit $fail
 
       # -----------------------------------------------------------------------
@@ -357,7 +419,7 @@ jobs:
         # starej wersji, przy zielonym CI i zielonych PR-ach.
         if: steps.target.outputs.pomin != '1' && vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
-        uses: getsentry/action-release@v3
+        uses: getsentry/action-release@ff07929a6537bac57790c3451cf4d364aca38528 # v3.7.0
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
@@ -401,7 +463,8 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| Adres | ${{ steps.target.outputs.url || 'NIE USTALONO' }} |"
-            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Commit oczekiwany (zdarzenie) | \`${{ steps.dymny.outputs.oczekiwany || github.event.deployment.sha }}\` |"
+            echo "| Commit potwierdzony pod adresem | \`${{ steps.dymny.outputs.potwierdzony || 'NIE POTWIERDZONO' }}\` |"
             echo "| Test dymny | ${{ steps.dymny.outcome }} |"
             echo "| Job jako całość | ${{ job.status }} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -449,10 +512,10 @@ jobs:
       APP_SERVICE: kuking.pl
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Node (dla Railway CLI)
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
 
@@ -529,7 +592,18 @@ jobs:
           railway redeploy --service "$APP_SERVICE" --environment "$TARGET_ENV" --yes
 
       # -----------------------------------------------------------------------
-      #  ROLLBACK
+      #  INSTRUKCJA COFNIĘCIA — NIE ROLLBACK (issue #974)
+      #
+      #  Ta akcja nazywała się `rollback` i obiecywała „powrót do poprzedniego
+      #  deployu", a kończyła się zielono, NIE COFAJĄC NICZEGO: wypisywała
+      #  listę i odsyłała do panelu, test dymny był pomijany, a podsumowanie
+      #  mówiło „success". Podczas incydentu taki wynik czyta się jako
+      #  „produkcja przywrócona". Railway CLI nie potrafi wskrzesić wybranego
+      #  starszego wdrożenia (`railway redeploy` powtarza BIEŻĄCE), a wyboru
+      #  bezpiecznego celu nie wolno zgadywać przez zgodność migracji — więc
+      #  akcja zostaje instrukcją, nazywa się jak instrukcja, wystawia
+      #  ostrzeżenie i mówi w podsumowaniu wprost, że nic nie zmieniła.
+      #  Procedura: docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 14.
       #
       #  UWAGA — PRZECZYTAJ, ZANIM KLIKNIESZ:
       #  Rollback cofa KOD, ale NIE cofa MIGRACJI. Jeśli wdrożenie dodało
@@ -541,22 +615,19 @@ jobs:
       #  expand → migrate → switch → contract z docs/DEPLOYMENT.md), a odzyskanie
       #  danych to osobna procedura — INFRA_DECISION.md, sekcja "Backupy i restore".
       #
-      #  CLI nie ma jednej komendy "rollback", więc robimy to przez API GraphQL:
-      #  bierzemy poprzedni UDANY deploy i wskrzeszamy go.
-      #  [do weryfikacji] najprostsza i najpewniejsza droga to przycisk
-      #  "Redeploy" na poprzednim deployu w panelu Railway
-      #  (Service → Deployments → ... → Redeploy). Ten krok jest wygodą,
-      #  panel jest źródłem prawdy.
+      #  Rollback robi się w panelu Railway
+      #  (Service → Deployments → poprzedni udany → ... → Redeploy).
       # -----------------------------------------------------------------------
-      - name: Rollback
-        if: github.event.inputs.action == 'rollback'
+      - name: Instrukcja cofnięcia (niczego nie cofa)
+        if: github.event.inputs.action == 'instrukcja-cofniecia'
         run: |
           set -euo pipefail
           echo "=========================================================="
-          echo " ROLLBACK środowiska: ${TARGET_ENV}"
+          echo " INSTRUKCJA COFNIĘCIA środowiska: ${TARGET_ENV}"
+          echo " TEN KROK NICZEGO NIE COFA. Środowisko NIE zostało zmienione."
           echo "=========================================================="
           echo ""
-          echo "Ostatnie deploye serwisu web:"
+          echo "Ostatnie deploye serwisu ${APP_SERVICE}:"
           railway deployment list --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             || echo "(nie udało się pobrać listy — użyj panelu)"
           echo ""
@@ -574,12 +645,14 @@ jobs:
           echo ""
           echo "Krok celowo NIE wykonuje rollbacku automatycznie —"
           echo "wymaga świadomej decyzji człowieka o stanie bazy."
+          echo "Procedura: docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 14."
+          echo "::warning title=Nic nie zostało cofnięte::Akcja instrukcja-cofniecia wypisała tylko instrukcję. Środowisko ${TARGET_ENV} NIE zostało zmienione — rollback wykonaj w panelu Railway i sprawdź go testem dymnym (action: smoke)."
 
       # -----------------------------------------------------------------------
       #  Test dymny po każdej operacji zmieniającej stan.
       # -----------------------------------------------------------------------
       - name: Test dymny po operacji
-        if: github.event.inputs.action != 'rollback'
+        if: github.event.inputs.action != 'instrukcja-cofniecia'
         run: |
           set -euo pipefail
           if [ "$TARGET_ENV" = "production" ]; then
@@ -609,4 +682,8 @@ jobs:
             echo "| Środowisko | ${{ github.event.inputs.environment }} |"
             echo "| Uruchomił | @${{ github.actor }} |"
             echo "| Wynik | ${{ job.status }} |"
+            if [ "${{ github.event.inputs.action }}" = "instrukcja-cofniecia" ]; then
+              echo ""
+              echo "**Nic nie zostało cofnięte — środowisko NIE zostało zmienione.** Ta akcja wypisuje tylko instrukcję; rollback wykonuje się w panelu Railway (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 14)."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

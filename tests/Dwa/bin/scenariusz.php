@@ -23,6 +23,7 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
@@ -99,6 +100,21 @@ try {
             return ['code' => $code, 'output' => $output->fetch()];
         })(),
 
+        'zapis-do-zeszytu' => (function () use ($argumenty): string {
+            $save = function () use ($argumenty): string {
+                $user = User::query()->findOrFail($argumenty['kto']);
+                $collection = $argumenty['typ'] === 'recipe'
+                    ? app(SaveRecipeToCollection::class)->handle($user, Recipe::query()->findOrFail($argumenty['tresc']))
+                    : app(SavePostToCollection::class)->handle($user, Post::query()->findOrFail($argumenty['tresc']));
+
+                return (string) $collection->getKey();
+            };
+
+            // Transakcja zewnętrzna sprawdza, czy konflikt INSERT nie zostawia
+            // połączenia w stanie 25P02 i pozwala dopisać zamówioną treść.
+            return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
+        })(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
@@ -118,6 +134,27 @@ try {
             );
 
             return true;
+        })(),
+
+        // Edycja OPUBLIKOWANEGO przepisu (A01). Prawdziwa akcja domenowa,
+        // bo mierzymy właśnie to, czy zapis treści i zapis historii idą
+        // razem — przepisany do testu SQL byłby zielony także po zmianie
+        // kolejności w `PublishRecipe`.
+        'edytuj-przepis' => (function () use ($argumenty): string {
+            $przepis = app(PublishRecipe::class)->handle(
+                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                attributes: [
+                    'title' => $argumenty['tytul'],
+                    'visibility' => 'public',
+                    'source_type' => Recipe::SOURCE_OWN,
+                ],
+                ingredients: [['text' => $argumenty['skladnik']]],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: true,
+                existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            );
+
+            return (string) $przepis->title;
         })(),
 
         // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).

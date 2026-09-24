@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Random\Engine\Secure;
+use Random\Randomizer;
 
 /**
  * Cała logika TOTP w jednym miejscu (issue #12, część 2FA).
@@ -42,9 +44,90 @@ class TwoFactorAuthenticator
 {
     private Google2FA $engine;
 
-    public function __construct()
+    private readonly Randomizer $random;
+
+    public function __construct(?Randomizer $random = null)
     {
         $this->engine = new Google2FA;
+        $this->random = $random ?? new Randomizer(new Secure);
+    }
+
+    /**
+     * Klucz limitu prób drugiego składnika — JEDEN na konto (issue #1314).
+     *
+     * Kod pada nie tylko na ekranie logowania (`TwoFactorChallengeController`),
+     * ale też przy cofaniu usunięcia konta (`AccountDeletionController`). Oba
+     * ekrany liczą próby w TYM SAMYM koszyku: osobne koszyki dawałyby
+     * zgadującemu podwójny budżet na sześć cyfr jednego konta.
+     */
+    public static function kluczLimituProb(User $user): string
+    {
+        return 'weryfikacja-2fa|'.$user->getKey();
+    }
+
+    /**
+     * Sesja po PIERWSZYM składniku (hasło, link, Google, Facebook) — issue #931.
+     *
+     * Obok identyfikatora konta zapisujemy odcisk jego stanu z tej chwili.
+     * Sam identyfikator przeżywał reset hasła i „wyloguj inne urządzenia”:
+     * `User::invalidateSessions()` kasuje sesje po `user_id`, a oczekująca
+     * sesja jest jeszcze sesją gościa, więc stary pierwszy krok dało się
+     * dokończyć kodem zapasowym bez znajomości nowego hasła.
+     *
+     * @return array<string, mixed>
+     */
+    public static function oczekujaceLogowanie(User $user): array
+    {
+        return [
+            'logowanie.2fa.user_id' => $user->getKey(),
+            'logowanie.2fa.odcisk' => self::odciskOczekujacegoLogowania($user),
+        ];
+    }
+
+    /**
+     * Czy oczekujące logowanie nadal pasuje do stanu konta (issue #931).
+     *
+     * Brak odcisku (sesja sprzed tej poprawki) też jest odmową — zaczęcie
+     * logowania od nowa kosztuje chwilę, przepuszczenie kosztuje konto.
+     */
+    public static function oczekujaceLogowanieAktualne(User $user, mixed $odcisk): bool
+    {
+        return is_string($odcisk) && hash_equals(self::odciskOczekujacegoLogowania($user), $odcisk);
+    }
+
+    /**
+     * Odcisk zmienia się przy każdym zdarzeniu, które ma odwołać wcześniejsze
+     * potwierdzenie pierwszego składnika:
+     * - `password` — zmiana i reset hasła;
+     * - `remember_token` — rotuje go `invalidateSessions()`, czyli „wyloguj
+     *   inne urządzenia”, ban, zawieszenie, zgłoszenie usunięcia (a że token
+     *   nie wraca, stary krok nie odżywa po przywróceniu konta);
+     * - `status` — każda inna zmiana stanu konta;
+     * - `two_factor_confirmed_at` — wyłączenie i ponowne włączenie 2FA.
+     *
+     * HMAC z kluczem aplikacji, bo sesje leżą w bazie: odcisk nie może
+     * zdradzać hasha hasła ani tokenu.
+     */
+    private static function odciskOczekujacegoLogowania(User $user): string
+    {
+        return hash_hmac('sha256', implode("\0", [
+            'logowanie-2fa',
+            (string) $user->getKey(),
+            (string) $user->getAuthPassword(),
+            (string) $user->getRememberToken(),
+            (string) $user->status,
+            (string) $user->two_factor_confirmed_at?->toIso8601String(),
+        ]), (string) config('app.key'));
+    }
+
+    /**
+     * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
+     */
+    public static function limitProb(): array
+    {
+        [$max, $minuty] = explode(',', (string) config('kuking.limits.two_factor'));
+
+        return [(int) $max, (int) $minuty];
     }
 
     /**
@@ -151,16 +234,25 @@ class TwoFactorAuthenticator
     /**
      * Nowy komplet kodów zapasowych, w postaci jawnej — do pokazania RAZ.
      *
-     * Format „XXXX-XXXX" (litery i cyfry, bez znaków łatwych do pomylenia
-     * przy przepisywaniu z kartki — Str::random domyślnie miesza wielkość
-     * liter i cyfry z alfanumerycznego zbioru).
+     * Format „XXXXX-XXXXX”, alfabet 32 znaków bez 0/O i 1/I.
+     * Dziesięć niezależnych znaków daje 50 bitów — więcej niż górna granica
+     * starego formatu: 8 × log2(36), czyli 41,36 bitu po zamianie na wersaliki.
+     * Weryfikacja starych kompletów pozostaje bez zmian.
      */
     public function generateBackupCodes(): array
     {
         $ile = (int) config('kuking.two_factor.recovery_codes');
 
         return collect(range(1, $ile))
-            ->map(fn (): string => Str::upper(Str::random(4).'-'.Str::random(4)))
+            ->map(function (): string {
+                $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                $code = '';
+                for ($i = 0; $i < 10; $i++) {
+                    $code .= $alphabet[$this->random->getInt(0, strlen($alphabet) - 1)];
+                }
+
+                return substr($code, 0, 5).'-'.substr($code, 5);
+            })
             ->all();
     }
 
@@ -218,6 +310,28 @@ class TwoFactorAuthenticator
 
             return false;
         });
+    }
+
+    /**
+     * Czy kod zapasowy pasuje — BEZ zużycia.
+     *
+     * Dla miejsc, w których poprawny kod ma otworzyć tylko informację, a nie
+     * akcję: cofnięcie usunięcia konta, którego nie ma czego cofać
+     * (`AccountDeletionController::cancel`). Zużycie kodu przy odmowie
+     * zabierałoby człowiekowi kod ratunkowy za nic. Normalizacja ta sama co
+     * w `consumeBackupCode()`; blokady nie trzeba, bo nic tu nie zapisujemy.
+     */
+    public function backupCodeMatches(User $user, string $podanyKod): bool
+    {
+        $znormalizowany = Str::upper(trim($podanyKod));
+
+        foreach ($user->two_factor_backup_codes ?? [] as $hash) {
+            if (Hash::check($znormalizowany, $hash)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

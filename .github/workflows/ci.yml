@@ -207,10 +207,14 @@ on:
 permissions:
   contents: read
 
-# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg.
+# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg — ale NIE na
+# main: Railway wdraża dopiero po zielonym CI main („Wait for CI”), a anulowany
+# przebieg nie daje wyniku i wdrożenie commita zostaje pominięte (23.09: 112
+# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia). Na main
+# przebiegi kolejkują się zamiast się ścinać.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   PHP_VERSION: "8.4"
@@ -249,7 +253,7 @@ jobs:
       widok: ${{ steps.sprawdz.outputs.widok }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Pełna historia, bo porównujemy z bazą, a nie z ostatnim commitem.
           fetch-depth: 0
@@ -319,7 +323,14 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
-          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|app/Http/Middleware/ApplySecurityHeaders\.php|app/Support/AnalitykaCloudflare\.php|scripts/(referrer-sekret-browser|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          # Lista pomiarów niesie też `referrer-sekret-browser` (z `main`).
+          # Sterujące nim `ApplySecurityHeaders.php` i `AnalitykaCloudflare.php`
+          # łapie już szersze `app/`, więc nie stoją na liście osobno.
+          # PHP także steruje ekranem: komponenty, trasy, kontrolery, polityki
+          # i modele. Konserwatywnie obejmujemy całe app/, konfigurację,
+          # start aplikacji, tłumaczenia, bazę oraz zależności PHP (#1039).
+          # Here-string nie gubi trafienia przez SIGPIPE przy dużym diffie.
+          if grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -337,7 +348,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
       # uzasadnienie stoi teraz przy kodzie, w `.github/actions/php`.
@@ -347,7 +358,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -455,9 +466,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -496,7 +507,7 @@ jobs:
     # patrz komentarz przy samym kroku niżej.
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Własny katalog narzędzi tego joba — pełne uzasadnienie i pomiary
       # przy tym samym kroku w jobie `lint` wyżej (issue #262).
@@ -508,7 +519,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -520,7 +531,7 @@ jobs:
       # PHPStan cache'uje wyniki — bez tego każdy przebieg analizuje wszystko
       # od zera (kilka minut zamiast kilkudziesięciu sekund).
       - name: Cache PHPStana
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .phpstan-cache
           key: phpstan-${{ runner.os }}-${{ github.sha }}
@@ -573,7 +584,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -628,7 +639,7 @@ jobs:
       SENTRY_LARAVEL_DSN: ""
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # ---------------------------------------------------------------------
       #  DYNAMICZNY PORT POSTGRESA → do wszystkich dalszych kroków
@@ -663,7 +674,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -809,7 +820,7 @@ jobs:
       FILESYSTEM_DISK: local
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -825,7 +836,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -859,10 +870,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -887,6 +898,14 @@ jobs:
       # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
       - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
         run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
+
+      # Test DOM szybkiego panelu wyglądu (#801/#804). Stoi TU, a nie na liście
+      # `node --test` w skrypcie `build`, bo potrzebuje Chromium — a
+      # `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
+        run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
 
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
@@ -924,7 +943,13 @@ jobs:
       # Artefakt przydaje się do debugowania "u mnie działa" oraz do
       # ręcznego porównania rozmiarów bundle'a między PR-ami.
       - name: Zapis artefaktu
-        uses: actions/upload-artifact@v7
+        # Artefakty są materiałem diagnostycznym, nie bramką. Wyczerpany limit
+        # miejsca na artefakty (23.09, run 35849156800) nie może czerwienić CI
+        # i wstrzymywać wdrożenia: tu i w `port_panelu` zapis ma
+        # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
+        # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vite-build-${{ github.sha }}
           path: public/build
@@ -935,8 +960,8 @@ jobs:
   # ===========================================================================
   #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
   #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
-  #  i bazę, czyli jest najdroższy z całego CI. Filtr ścieżek sprawia, że nie
-  #  płacimy za niego przy zmianie w kontrolerze albo w migracji.
+  #  i bazę, czyli jest najdroższy z całego CI. Filtr obejmuje także PHP,
+  #  które steruje ekranem; sama dokumentacja nie uruchamia pomiaru.
   #
   #  Bez tego joba automat chodziłby tylko wtedy, gdy ktoś PAMIĘTA o fladze
   #  `./scripts/check.sh --dostepnosc` — a o rzeczach, o których trzeba
@@ -1004,7 +1029,7 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Izolowane połączenie i narzędzia PHP
         run: |
           set -euo pipefail
@@ -1015,14 +1040,14 @@ jobs:
           echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1042,8 +1067,11 @@ jobs:
       - name: Panel — logowanie z TOTP, faza pusta i pełna
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
-        if: always()
-        uses: actions/upload-artifact@v7
+        # Tylko po czerwieni: zrzuty zielonego panelu to ~33 MB na przebieg
+        # i ponad połowa zużytego miejsca na artefakty (audyt CI 23.09).
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: panel-marki-${{ github.sha }}
           path: |
@@ -1053,7 +1081,7 @@ jobs:
             storage/port-panelu/details/*.png
             storage/port-panelu/details-zoom/*.json
             storage/port-panelu/details-zoom/*.png
-          retention-days: 14
+          retention-days: 5
 
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
@@ -1093,10 +1121,27 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1113,7 +1158,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1145,8 +1190,8 @@ jobs:
         run: node scripts/port-projektu.mjs
 
       - name: Zrzuty portu marki
-        if: always()
-        uses: actions/upload-artifact@v7
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: port-marki-${{ github.sha }}
           path: |
@@ -1193,10 +1238,27 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1214,7 +1276,7 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
@@ -1222,7 +1284,7 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1264,8 +1326,8 @@ jobs:
           node scripts/minutnik-fokus.mjs
 
       - name: Zrzuty portu marki
-        if: always()
-        uses: actions/upload-artifact@v7
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: port-funkcje-${{ github.sha }}
           path: |
@@ -1278,7 +1340,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -1326,12 +1388,32 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
-      # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
-      # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
-      - uses: actions/checkout@v7
+      # Bez `fetch-depth: 0`. Porównanie z bazą (`git diff --name-only`)
+      # robi WYŁĄCZNIE job `zakres` — to on potrzebuje pełnej historii.
+      # Ten job nie woła gita; czy rusza warstwę widoku, czyta gotowe
+      # z `needs.zakres.outputs.widok` i `needs.zakres.outputs.kod`.
+      # Pilnuje tego `PortMarkiMaWlasnaBramkeCiTest`.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       # Dynamiczny port Postgresa — pełne uzasadnienie i pomiary przy tym
       # samym kroku w jobie `test` wyżej.
@@ -1342,9 +1424,8 @@ jobs:
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
       # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
-      # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
-      # przy zmianie w kontrolerze albo w migracji job kończy się w kilka
-      # sekund, zamiast pobierać przeglądarkę i podnosić bazę.
+      # więc decyduje wyjście joba `zakres`. Warunek stoi na całym jobie,
+      # nie na krokach; PHP sterujące ekranem też uruchamia pomiar (#1039).
       - name: Własny katalog narzędzi PHP (issue #262)
         run: |
           set -euo pipefail
@@ -1354,7 +1435,7 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
@@ -1362,7 +1443,7 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1513,8 +1594,8 @@ jobs:
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
-        if: always()
-        uses: actions/upload-artifact@v7
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dostepnosc-${{ github.sha }}
           path: |
@@ -1558,8 +1639,8 @@ jobs:
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
-        if: always()
-        uses: actions/upload-artifact@v7
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wydajnosc-${{ github.sha }}
           path: storage/wydajnosc.json
@@ -1581,7 +1662,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Prywatny katalog narzędzi joba i konfiguracja PHP — oba kroki stoją
       # razem w `.github/actions/php`, bo działają TYLKO w tej kolejności
@@ -1594,7 +1675,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1659,16 +1740,16 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build obrazu
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: false
@@ -1765,7 +1846,7 @@ jobs:
       #  z alarmu o trzeciej nad ranem.
       # =====================================================================
       - name: Build obrazu kopii bazy
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/kopia/Dockerfile

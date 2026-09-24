@@ -43,10 +43,10 @@ gh --version
 | # | Co | Uwagi |
 |---|---|---|
 | 0.1 | Konto **GitHub** z repo `woogitsu/kuking.pl` | prywatne lub publiczne |
-| 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start |
+| 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start. **Hobby wyłącza ruch SMTP** — poczta idzie przez API HTTPS, patrz KROK 3. Hobby nie ma też Volume Backups ani PITR (D-043) |
 | 0.3 | Konto **Cloudflare** z domeną `kuking.pl` w strefie DNS | już masz |
 | 0.4 | Adres e-mail do alertów | np. `alerty@kuking.pl` |
-| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | rekomendacja: **EmailLabs** (300/dobę, bez karty), zapasowo Brevo — patrz `POCZTA_URUCHOMIENIE.md` §6 |
+| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | **EmailLabs przez API HTTPS** (300/dobę, bez karty, dane w UE) — `POCZTA_URUCHOMIENIE.md` §2A. Brevo tylko po przejściu na plan Pro albo po dopisaniu transportu po API: opisany wariant Brevo idzie przez SMTP |
 | 0.6 | **Włącz 2FA** na GitHubie, Railway i Cloudflare | **zrób to teraz**, nie później |
 
 > **Dlaczego 2FA teraz:** konto Cloudflare kontroluje DNS dla `kuking.pl`.
@@ -175,22 +175,77 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ---
 
-## KROK 2. Bucket R2 + klucze + własna domena
+## KROK 2. Buckety R2 + klucze (własna domena: WYCOFANA, §2.3)
 
 Robimy to **przed** Railway, bo klucze R2 są potrzebne w zmiennych Railway.
 
-### 2.1 Utwórz buckety
+### 2.1 Utwórz buckety — **trzy, nie jeden**
 
 → Panel Cloudflare → **R2 Object Storage** → **Create bucket**
 
+> **Do 11 września 2026 stał tu jeden bucket `kuking-media`.** To była
+> instrukcja niewykonalna do końca: `config/filesystems.php` czyta **trzy
+> osobne nazwy bucketów** (`AWS_BUCKET`, `AWS_PUBLIC_BUCKET`,
+> `AWS_EXPORTS_BUCKET`), a `.railway/railway.ts` podaje je z trzech osobnych
+> zmiennych sharedowych. Przy jednym buckecie oryginały z pełnym EXIF-em,
+> warianty i paczki RODO z całą zawartością konta lądują w jednym miejscu
+> z jedną polityką publiczności — a **publiczność w R2 jest cechą BUCKETU,
+> nie obiektu** (audyt G-01): Cloudflare nie obsługuje `x-amz-acl` przy
+> `PutObject` w ogóle. Jeden bucket z własną domeną wystawiał więc razem
+> z wariantami także prefiks `incoming/`, a adres oryginału daje się
+> wyprowadzić z adresu wariantu.
+
+| Bucket | Co w nim leży | Zmienna w Railway | Dysk w kodzie | Publiczny? |
+|---|---|---|---|---|
+| `kuking-oryginaly` | pliki od użytkownika, prefiks `incoming/`, **pełny EXIF z GPS** | `R2_BUCKET` | `r2` | **NIE.** Bez własnej domeny, `r2.dev` wyłączone |
+| `kuking-media` | przetworzone warianty WebP, prefiks `media/` | `R2_PUBLIC_BUCKET` | `r2_publiczne` | **NIE** (D-020) — adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}` |
+| `kuking-eksporty` | paczki RODO (art. 15 i 20), TTL 7 dni | `R2_EXPORTS_BUCKET` | `r2_eksporty` | **NIE.** To kopia CAŁEGO konta w jednym ZIP-ie |
+
 | Ustawienie | Produkcja | Staging |
 |---|---|---|
-| Nazwa | `kuking-media` | `kuking-media-staging` |
+| Nazwa | jak w tabeli wyżej | ta sama nazwa z sufiksem `-staging` |
 | Lokalizacja | **EU (European Union)** | EU |
 | Klasa storage | Standard | Standard |
 
 > **Lokalizacja EU jest istotna dla RODO** — zdjęcia użytkowników to dane
 > osobowe. Region bucketa **nie da się zmienić po utworzeniu.**
+
+> **Nazwy bucketów są WARTOŚCIAMI — kod ich nie zna.** `config/filesystems.php`
+> czyta nazwy zmiennych, nie nazwy bucketów, więc sprawdzalne jest wyłącznie to,
+> do której zmiennej trafia która nazwa. Nazwy w tabeli są tymi samymi, których
+> używają `INFRA_DECISION.md` §7 i `BRAMKA_R2.md` §3 — trzymaj się ich, żeby
+> trzy dokumenty nie zaczęły znowu opisywać trzech różnych układów.
+
+**Czwarty bucket — kopie bazy (`kuking-kopie`) — zakłada się osobno**, wraz
+z dwoma własnymi tokenami (zapis dla serwisu kopii, odczyt dla czujki
+w aplikacji): `KOPIE_I_ODTWORZENIE.md` §7.3. Nie mieszaj go z bucketami zdjęć:
+to komplet danych osobowych wszystkich kont w jednym pliku.
+
+**Jeśli buckety już istnieją, nie zakładaj ich drugi raz.** Właściciel
+potwierdził 11 września 2026, że przechowywanie zdjęć stoi już na Cloudflare R2
+(`KOPIE_I_ODTWORZENIE.md` §2.1) — **jakie to są buckety i jak się nazywają,
+z repozytorium nie wynika**. Zacznij wtedy od odczytu stanu:
+
+```bash
+railway variables --environment production | grep -E 'BUCKET|FILESYSTEM_DISK|KUKING_MEDIA_DISK'
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Bramka powie m.in., czy oba dyski nie wskazują **tego samego** bucketu
+(`TEN SAM bucket`) i czy w buckecie wariantów nie leżą klucze `incoming/`.
+
+**Jeśli istniejący bucket jest tym starym, JEDNYM** (ma w sobie i `incoming/`,
+i `media/`, i publiczny adres) — to jest bucket sprzed rozdzielenia.
+Nie kasuj go i nie przemianowuj:
+wiersze `media` zapisane wcześniej wskazują dysk `r2_legacy` i ich pliki leżą
+właśnie tam, a stary bucket jest dziś ich **jedyną kopią**
+(`app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php`). Podaj go wtedy
+w `AWS_LEGACY_BUCKET`, a nowy bucket wariantów nazwij inaczej
+(np. `kuking-warianty`) i przenieś pliki komendą `kuking:przenies-zdjecia`.
+`[DO POTWIERDZENIA PRZEZ WŁAŚCICIELA]` — jak nazywają się dziś istniejące
+buckety, co w nich leży i czy `AWS_LEGACY_BUCKET` jest ustawiony.
+Z repozytorium tego nie widać: `railway.ts` zmienne wyłącznie **referencuje**
+(`ctx.shared.X`), nigdy nie przechowuje ich wartości.
 
 ### 2.2 Klucze API `[POTRZEBNE OD WŁAŚCICIELA — zapisz bezpiecznie]`
 
@@ -200,8 +255,14 @@ Robimy to **przed** Railway, bo klucze R2 są potrzebne w zmiennych Railway.
 |---|---|
 | Nazwa | `kuking-produkcja` |
 | Uprawnienia | **Object Read & Write** |
-| Zakres | **Apply to specific buckets** → `kuking-media` |
+| Zakres | **Apply to specific buckets** → `kuking-oryginaly`, `kuking-media`, `kuking-eksporty` (oraz stary bucket, jeśli istnieje) |
 | TTL | bezterminowy (rotacja co 6 mies. wg §15) |
+
+**Jeden token do trzech bucketów zdjęć, nie trzy tokeny.** Wszystkie trzy dyski
+w `config/filesystems.php` czytają tę samą parę `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` — osobne tokeny nie miałyby gdzie trafić. Bucket kopii
+bazy jest wyjątkiem i ma własne poświadczenia (`AWS_KOPIE_*`), bo aplikacja ma
+do niego dostęp **tylko do odczytu**.
 
 Zapisz **natychmiast** — sekret pokazuje się **tylko raz**:
 
@@ -212,10 +273,11 @@ Endpoint (S3 API):  https://<ACCOUNT_ID>.r2.cloudflarestorage.com
                                               → R2_ENDPOINT
 ```
 
-Powtórz dla staginu (token `kuking-staging`, zakres `kuking-media-staging`).
+Powtórz dla staginu (token `kuking-staging`, zakres — buckety `-staging`).
 
-> **Zakres na jeden bucket, nie „all buckets".** Wyciek klucza produkcyjnego
-> nie może dać dostępu do niczego więcej.
+> **Zakres na wymienione buckety, nie „all buckets".** Wyciek klucza
+> produkcyjnego nie może dać dostępu do kopii bazy ani do niczego poza tym
+> projektem.
 
 ### 2.3 Własna domena `cdn.kuking.pl`
 
@@ -315,14 +377,48 @@ nagłówków odpowiedzi, i widać je wyłącznie w jej konsoli.
 
 ## KROK 3. Poczta transakcyjna
 
-**`[POTRZEBNE OD WŁAŚCICIELA — wybór dostawcy]`**
+**`[POTRZEBNE OD WŁAŚCICIELA — konto u dostawcy i klucze API]`**
+
+> ## ⛔ NA PLANIE HOBBY SMTP NIE DZIAŁA — i nie zgłasza błędu
+>
+> **Ten runbook każe w KROKU 0.2 i w KROKU 16 wykupić plan Hobby. Na Hobby
+> (a także na Free i Trial) Railway wyłącza ruch SMTP.** Dokumentacja Railwaya
+> mówi dosłownie: *„SMTP is only available on the Pro plan and above. Free,
+> Trial, and Hobby plans must use transactional email services with HTTPS
+> APIs."*
+>
+> Do 9 września 2026 stało tu `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` /
+> `MAIL_PASSWORD`, czyli wariant SMTP. **Kto wykonał ten krok dokładnie
+> tak, jak był napisany, dostawał rejestrację, która się udaje, listy, które
+> nigdy nie dochodzą, i zero błędu w dzienniku.** Pakiety SMTP idą w próżnię,
+> więc połączenie nie tyle pada, co wisi: zadanie
+> `App\Notifications\UstawienieNowegoHasla` wchodzi w `RUNNING` i nigdy nie
+> osiąga ani `DONE`, ani `FAIL`. W panelu wygląda to jak zawieszony worker,
+> nie jak awaria poczty. Diagnozowanie tego na żywej produkcji zajęło dzień.
+>
+> **Wariant, który działa na Hobby: EmailLabs przez API HTTPS** —
+> `MAIL_MAILER=emaillabs` plus `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`
+> i `EMAILLABS_SMTP_ACCOUNT`. Sterownik jest własny i już wmergowany
+> (`App\Poczta\TransportEmailLabs`, D-047), bez ani jednej nowej paczki
+> Composera. Tą samą drogą (HTTPS) kontener rozmawia z R2 i z Cloudflare,
+> a tej Railway nie blokuje na żadnym planie.
+>
+> Zmienne `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+> i `MAIL_SCHEME` zostają w `.railway/railway.ts` **uśpione** — jako gotowa
+> droga na wypadek planu Pro. **Nie ustawiaj ich na Hobby** i nie przestawiaj
+> `MAIL_MAILER` na `smtp` „na próbę": to jest dokładnie ta awaria z powrotem.
+>
+> `[DO POTWIERDZENIA PRZEZ WŁAŚCICIELA]` — jaki plan Railway jest dziś
+> wykupiony. Z repozytorium tego nie widać. Dopóki nie jest to Pro, obowiązuje
+> wariant API.
 
 > **Ten krok ma własny dokument: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).**
-> Jest tam komplet zmiennych i rekordów DNS dla pięciu wariantów (EmailLabs
-> i Brevo — rekomendowane, §2A–§2B; Postmark, Amazon SES, Resend — §2C–§2E),
-> wyjaśnienie, co robi SPF, DKIM i DMARC, oraz sposób sprawdzenia, że poczta
-> naprawdę wychodzi. Porównanie dostawców, ceny i rezydencja danych:
-> [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
+> Jest tam komplet zmiennych i rekordów DNS dla sześciu wariantów (EmailLabs
+> po API — **jedyny działający na Hobby**, §2A; EmailLabs i Brevo po SMTP —
+> dopiero od planu Pro, §2A-SMTP i §2B; Postmark, Amazon SES, Resend — §2C–§2E,
+> po API, ale z danymi poza UE), wyjaśnienie, co robi SPF, DKIM i DMARC, oraz
+> sposób sprawdzenia, że poczta naprawdę wychodzi. Porównanie dostawców, ceny
+> i rezydencja danych: [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
 >
 > Poniżej zostaje tylko to, co dotyczy samego wdrożenia.
 
@@ -363,20 +459,30 @@ Dodaj też **DMARC** (nie każdy dostawca o to poprosi, ale bez tego trafisz do 
 **Wariant domyślny — EmailLabs przez API HTTPS (działa na Hobby):**
 
 ```text
-MAIL_MAILER            = emaillabs
-EMAILLABS_APP_KEY      = ................
-EMAILLABS_SECRET_KEY   = ................       ← sekret
-EMAILLABS_SMTP_ACCOUNT = ................
+MAIL_MAILER            = emaillabs      (sterownik własny, D-047)
+EMAILLABS_APP_KEY      = ................   nagłówek `Application-Key`   ← sekret
+EMAILLABS_SECRET_KEY   = ................   nagłówek `Authorization`,
+                                            ciąg 128 znaków             ← sekret
+EMAILLABS_SMTP_ACCOUNT = 1.nazwa.smtp       pole `smtpAccount` żądania API
 ```
+
+> **Skąd wziąć te dwa klucze:** panel EmailLabs → **Konto → Ustawienia → API
+> → Generuj klucz API**. Panel pokaże **oba naraz**, a klucza autoryzacyjnego
+> po przeładowaniu strony nie da się już podejrzeć — skopiuj oba od razu.
+>
+> **`EMAILLABS_SMTP_ACCOUNT` mimo nazwy NIE jest loginem SMTP**, a login
+> i hasło z sekcji „Konta SMTP" panelu **nie działają na API** — odpowie na nie
+> 401. To jest tu najbardziej prawdopodobna pomyłka konfiguracyjna.
 
 Pełna instrukcja zakładania konta i weryfikacji domeny:
 `POCZTA_URUCHOMIENIE.md` §2A.
 
 <details>
-<summary><strong>Wariant SMTP — dopiero po przejściu na plan Pro</strong></summary>
+<summary><strong>Wariant SMTP — dopiero po przejściu na plan Pro, na Hobby nie działa</strong></summary>
 
 Przy dostawcy po SMTP (Brevo, EmailLabs, Mailgun — sterownik `smtp` jest już
-skonfigurowany, zero zmian w kodzie):
+skonfigurowany, zero zmian w kodzie). **Na planie Hobby te cztery zmienne nie
+wyślą nic i nie zgłoszą błędu** (ramka na początku KROKU 3):
 
 ```text
 MAIL_HOST      = ................       (np. smtp-relay.brevo.com)
@@ -386,12 +492,16 @@ MAIL_PASSWORD  = ................       ← sekret
 ```
 
 **Na Free, Trial i Hobby te zmienne nie zadziałają** — pakiety idą w próżnię.
+Po przejściu na plan Pro serwis trzeba **wdrożyć jeszcze raz**, żeby SMTP
+zaczął wychodzić; opis wariantu stoi w `POCZTA_URUCHOMIENIE.md` §2A-SMTP.
 
 </details>
 
 Przy innym dostawcy po API (Postmark, Resend, SES) zmienne są inne, a
 `railway.ts` wymaga zmiany `MAIL_MAILER` — komplet w
-`POCZTA_URUCHOMIENIE.md` §2.
+`POCZTA_URUCHOMIENIE.md` §2. Gdy dostawca jest **spoza UE**, dochodzi do tego
+akapit o transferze poza EOG w `resources/legal/polityka-prywatnosci.md`
+(`POCZTA_URUCHOMIENIE.md` §2C–§2E).
 
 **Sprawdź, że działa:** w panelu dostawcy poczekaj na status „Verified"
 przy domenie, a po pierwszym deployu wyślij prawdziwą wiadomość:
@@ -460,8 +570,17 @@ To normalne, poprawimy to w kroku 8.
 
 → Kanwa projektu → **+ New** → **Database** → **Add PostgreSQL**
 
-**`[POTRZEBNE OD WŁAŚCICIELA — decyzja]`** Wybierz major **18**, jeśli kreator
-go oferuje. Jeśli oferuje tylko 17:
+Wybierz major **18**. Od decyzji właściciela z 20 września 2026 (D-227)
+osiemnastka jest **wymaganiem projektu**, nie preferencją — `AGENTS.md`
+mówi o niej wprost, a `TestyChodzaNaPostgresieTest` oblewa na starszej wersji.
+
+**Warianty niżej są drogą awaryjną odtworzenia, nie dopuszczalnym stanem
+docelowym.** Wolno z nich skorzystać, gdy kreator dostawcy nie oferuje 18
+w chwili, w której stawiasz bazę po awarii — i wtedy upgrade do 18 jest
+zadaniem do domknięcia, a nie opcją. Runbook trzyma je, bo improwizowanie
+procedury w kryzysie kosztuje więcej niż zapisanie jej z góry.
+
+Jeśli kreator oferuje tylko 17:
 
 - **Opcja A (zalecana):** weź 17 i zrób upgrade in-place później
   (→ Database → Config → **Major Version Upgrade**). Railway wspiera
@@ -509,11 +628,13 @@ APP_KEY (production) = base64:................    [POTRZEBNE OD WŁAŚCICIELA �
 APP_KEY (staging)    = base64:................
 ```
 
-> **`APP_KEY` to najważniejszy sekret w systemie.** Szyfruje sesje i dane
-> w bazie. **Nigdy go nie rotuj na działającej produkcji** — unieważni to
-> wszystkie sesje i **trwale** uniemożliwi odszyfrowanie danych zapisanych
-> starym kluczem. Zapisz w menedżerze haseł (1Password / Bitwarden), nie
-> w notatniku i nie w repo.
+> **`APP_KEY` to najważniejszy sekret w systemie.** Szyfruje ciasteczka,
+> sekret 2FA i kody zapasowe w bazie, podpisuje linki z maili. **Nigdy nie
+> podmieniaj go „na gołym”** — sama podmiana wyloguje wszystkich i **trwale**
+> zablokuje 2FA każdemu, kto je ma. Rotacja jest możliwa, ale wyłącznie
+> procedurą z kroku 15 („Rotacja `APP_KEY`”), przez `APP_PREVIOUS_KEYS`.
+> Zapisz w menedżerze haseł (1Password / Bitwarden), nie w notatniku i nie
+> w repo.
 
 ---
 
@@ -529,20 +650,24 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 
 | Zmienna | Wartość | Sekret? | Opis |
 |---|---|---|---|
-| `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Nie rotować. |
-| `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID do bucketa `kuking-media` |
+| `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Rotacja tylko procedurą z kroku 15 („Rotacja `APP_KEY`”). |
+| `APP_PREVIOUS_KEYS` | **nie ustawiaj** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Istnieje tylko w okresie przejściowym rotacji (krok 15) — na co dzień zmiennej nie ma wcale |
+| `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID tokenu obejmującego trzy buckety zdjęć |
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
-| `R2_BUCKET` | `kuking-media` | nie | Nazwa bucketa |
+| `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
+| `R2_PUBLIC_BUCKET` | `kuking-media` | nie | Bucket **wariantów** WebP. `railway.ts` → `AWS_PUBLIC_BUCKET` → dysk `r2_publiczne`. **Bez tej zmiennej `AWS_PUBLIC_BUCKET` wraca domyślnie do `AWS_BUCKET`** (`config/filesystems.php`), czyli oba dyski wskazują jeden bucket i rozdział oryginałów od wariantów istnieje tylko na papierze — pilnuje tego `RozdzialMagazynowTest` |
+| `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
+| `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
-| `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116). `smtp` dopiero na planie Pro. |
-| `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs (API HTTPS) |
-| `EMAILLABS_SECRET_KEY` | z kroku 3.2 | **TAK** | Secret Key EmailLabs |
-| `EMAILLABS_SMTP_ACCOUNT` | z kroku 3.2 | nie | Nazwa konta nadawczego w EmailLabs |
-| ~~`MAIL_HOST`~~ | — | — | **NIE USTAWIAJ na Hobby.** Railway blokuje SMTP na Free, Trial i Hobby, a awaria jest cicha (D-116). Droga na plan Pro. |
-| ~~`MAIL_PORT`~~ | — | — | jw. |
-| ~~`MAIL_USERNAME`~~ | — | — | jw. |
-| ~~`MAIL_PASSWORD`~~ | — | — | jw. |
+| `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
+| `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
+| `EMAILLABS_SECRET_KEY` | z kroku 3.2 | **TAK** | Secret Key EmailLabs — nagłówek `Authorization`, ciąg 128 znaków |
+| `EMAILLABS_SMTP_ACCOUNT` | z kroku 3.2, kształt `1.nazwa.smtp` | nie | Pole `smtpAccount` żądania API. **Mimo nazwy nie jest to login SMTP** — login i hasło z „Kont SMTP" dostaną na API 401 |
+| ~~`MAIL_HOST`~~ | — | — | **NIE USTAWIAJ na Hobby.** Railway blokuje SMTP na Free, Trial i Hobby, a awaria jest cicha: zadanie wisi w `RUNNING`, rejestracja wygląda na udaną, list nie dochodzi (D-116). Do 9 IX 2026 ta tabela kazała te zmienne ustawić i tak wygląda właśnie ta awaria. Droga na plan Pro (`POCZTA_URUCHOMIENIE.md` §2A-SMTP) |
+| ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
+| ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
+| ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
 | `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
@@ -566,13 +691,26 @@ wtedy pokazywać wartość w panelu i w CLI.
 `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_SAME_SITE`, `CACHE_STORE`,
 `QUEUE_CONNECTION`, `KUKING_ZAUFANE_PRZESKOKI`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
 `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `MAIL_MAILER`, `MAIL_SCHEME`,
+`AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_KOPIE_BUCKET`,
+`AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY`, `AWS_ENDPOINT`,
+`KUKING_EXPORT_DISK`, `MAIL_MAILER`, `MAIL_SCHEME`,
 `MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
 `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE`,
 `POSTHOG_HOST`, `PHP_WORKER_MEMORY_LIMIT`
 
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
+
+> **`AWS_URL` zniknęło z tej listy i nie wróci.** Była to własna domena bucketa
+> wariantów i to ona była adresem każdego zdjęcia — adres, który nikogo o nic
+> nie pyta (audyt W7-02, D-020). Wdrożenie tej zmiennej już nie ustawia. Tam,
+> gdzie stary, jeden bucket jest jeszcze w użyciu, podaje się **`AWS_LEGACY_URL`**
+> i **`AWS_LEGACY_BUCKET`** wprost — inna zmienna i inny bucket.
+>
+> **Ta lista obowiązuje dopiero po pierwszym `railway config apply`**, a to nie
+> zostało uruchomione ani razu (stan na 11 IX 2026, `POCZTA_URUCHOMIENIE.md`
+> §2A krok 4). Dopóki produkcja stoi na serwisie utworzonym klikaniem, wszystko
+> z tej listy trzeba wpisać ręcznie — ścieżka niżej.
 
 ### Ścieżka bez IaC — serwis utworzony klikaniem w panelu
 
@@ -663,7 +801,7 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > | zmienna | skutek | kiedy zmienić |
 > |---|---|---|
 > | `FILESYSTEM_DISK=local` | zdjęcia **znikają przy każdym redeployu** | gdy będzie bucket R2 → `r2` |
-> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `emaillabs` (jedyny działający na Hobby, D-116). `smtp` dopiero na planie Pro; `postmark`, `resend`, `ses` wymagają zmian w `railway.ts` |
+> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `emaillabs` (jedyny działający na Hobby, D-116). **Nie `smtp`**: na planie Hobby SMTP jest wyłączony i wisi bez błędu (KROK 3), więc `smtp` dopiero na planie Pro; `postmark`, `resend`, `ses` wymagają zmian w `railway.ts` |
 >
 > Obie są w porządku na pierwszy zielony deploy i **nie do przyjęcia**, gdy
 > wpuszczasz prawdziwych ludzi.
@@ -673,11 +811,45 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > zapomni hasła, straciłaby konto bezpowrotnie (`App\Support\Poczta`).
 > Instrukcja odblokowania: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).
 
-Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
-`AWS_USE_PATH_STYLE_ENDPOINT=false`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`, `MAIL_SCHEME=smtp`, `MAIL_FROM_ADDRESS`
+Po dodaniu R2 i poczty dołóż — **tutaj pod nazwami, których szuka kod**
+(`config/filesystems.php`, `config/services.php`), a nie pod nazwami
+sharedowymi `R2_*` z tabeli wyżej; tamte mapuje na te dopiero `railway.ts`:
+
+```bash
+FILESYSTEM_DISK=r2
+KUKING_MEDIA_DISK=r2
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=auto
+AWS_USE_PATH_STYLE_ENDPOINT=false
+AWS_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+AWS_BUCKET=kuking-oryginaly          # oryginały, dysk `r2`
+AWS_PUBLIC_BUCKET=kuking-media       # warianty, dysk `r2_publiczne`
+AWS_EXPORTS_BUCKET=kuking-eksporty   # paczki RODO, dysk `r2_eksporty`
+KUKING_EXPORT_DISK=r2_eksporty
+
+MAIL_MAILER=emaillabs
+EMAILLABS_APP_KEY=
+EMAILLABS_SECRET_KEY=
+EMAILLABS_SMTP_ACCOUNT=
+MAIL_FROM_ADDRESS=kontakt@kuking.pl
+```
+
 oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
+
+> **Trzy pułapki w tym bloku, każda już raz zapłacona:**
+>
+> 1. **`AWS_PUBLIC_BUCKET` pominięte** = `config/filesystems.php` cofa się do
+>    `AWS_BUCKET`, oba dyski wskazują jeden bucket i oryginały z GPS-em leżą
+>    obok wariantów. `kuking:bramka-r2` melduje wtedy `TEN SAM bucket`.
+> 2. **`AWS_EXPORTS_BUCKET` pominięte** = dysk paczek RODO bez bucketu:
+>    w bazie `ready`, u człowieka 404.
+> 3. **`MAIL_MAILER=smtp` z `MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD`**
+>    = na planie Hobby listy nie wychodzą i nic tego nie pokazuje (KROK 3).
+>    Tych czterech zmiennych tu świadomie nie ma.
+>
+> `AWS_URL` też tu świadomie nie ma — patrz ramka wyżej. Jeśli w użyciu jest
+> jeszcze stary, jeden bucket, dołóż `AWS_LEGACY_BUCKET` i `AWS_LEGACY_URL`.
 
 `MAIL_FROM_NAME` **celowo nie jest na tej liście.** Nieustawiona zmienna
 daje nazwę nadawcy „<gospodarz> z Kuking" złożoną w `config/mail.php`;
@@ -694,8 +866,11 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 | Zmienna | Wartość dla staginu |
 |---|---|
 | `APP_KEY` | **drugi** klucz z kroku 7 |
-| `R2_BUCKET` | `kuking-media-staging` |
+| `R2_BUCKET` | `kuking-oryginaly-staging` |
+| `R2_PUBLIC_BUCKET` | `kuking-media-staging` |
+| `R2_EXPORTS_BUCKET` | `kuking-eksporty-staging` |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | klucze tokenu `kuking-staging` |
+| `EMAILLABS_*` | osobne konto albo ten sam klucz — ale **nigdy** bucket ani baza produkcji |
 | ~~`R2_PUBLIC_URL`~~ | **NIE USTAWIAJ** — ta sama zmienna, ten sam powód co w tabeli produkcyjnej wyżej. `cdn-staging.kuking.pl` nie ma powstać. |
 
 > **Nigdy nie wskazuj staginu na produkcyjny bucket ani produkcyjną bazę.**
@@ -860,8 +1035,9 @@ Klucz nie jest wypisywany nigdzie w wyniku, nawet fragmentem. Pilnuje tego test.
 
 ## KROK 8C. R2 — sprawdzenie, czy oryginały naprawdę nie są publiczne
 
-**Po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`, przed
-wystawieniem `cdn.kuking.pl`:**
+**Zaraz po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`,
+zanim wpuścisz ludzi** — nie „przed wystawieniem `cdn.kuking.pl`", bo tej
+domeny po D-020 nie wystawiamy w ogóle (§2.3):
 
 ```
 railway ssh -- php artisan kuking:bramka-r2 --zapis
@@ -1169,8 +1345,8 @@ Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
 4. **Data Deletion Instructions URL:** `https://kuking.pl/prywatnosc`
    (Settings → Basic). Jest to adres instrukcji, nie callback usuwania danych.
    Callback odebrania dostępu nie zastępuje procedury usunięcia konta.
-5. **Products → Facebook Login → Settings → Valid OAuth Redirect URIs** —
-   **wpisz wszystkie trzy, co do znaku** (bez ukośnika na końcu, z `https`):
+5. **Valid OAuth Redirect URIs** — **wpisz wszystkie trzy, co do znaku**
+   (bez ukośnika na końcu, z `https`):
 
    ```text
    https://kuking.pl/wejdz/facebook/wroc
@@ -1187,10 +1363,46 @@ Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
    ma sensu tego obchodzić: adresy `*.up.railway.app` są losowe, a Meta nie
    przyjmuje `*`. Bez kluczy przycisku tam po prostu nie ma i to jest
    zachowanie poprawne dla takich środowisk.
+
+   > **Gdzie to pole naprawdę jest — ścieżka odczytana z panelu 11.09.2026.**
+   > Stało tu `Products → Facebook Login → Settings`, bo tak podaje
+   > dokumentacja Meta. Właściciel wszedł do panelu i **menu `Products` tam
+   > nie było**: przy aplikacji zakładanej „przez przypadek użycia" (pkt 1)
+   > Meta włącza produkty sama i nie pokazuje ich jako osobnej gałęzi menu.
+   >
+   > ```text
+   > lewe menu: Use cases
+   >   → przy „Facebook Login" kliknij Customize
+   >     → lewe menu wewnątrz przypadku użycia: Settings
+   >       → sekcja Client OAuth settings
+   >         → pole Valid OAuth Redirect URIs
+   > ```
+   >
+   > Poznasz, że jesteś w dobrym miejscu, po trzech rzeczach na ekranie:
+   > okruszki u góry pokazują `Use cases > Customize`, nad lewym menu jest
+   > **rozwijana lista z wybranym `Facebook Login`** (to przełącznik między
+   > przypadkami użycia, nie przycisk), a w samym menu poza `Settings` są
+   > jeszcze `Permissions and features`, `Quickstart` i `Webhooks`.
+   >
+   > **Pole jest listą, nie jednym napisem.** Wpisz pierwszy adres i naciśnij
+   > **Enter** — zamieni się w kafelek i zwolni miejsce na następny; powtórz
+   > dla drugiego i trzeciego, a na końcu **Save Changes** w prawym dolnym
+   > rogu. Jeśli Enter nie robi kafelka, wklej trzy adresy po przecinku
+   > i **po zapisaniu sprawdź, czy panel pokazuje trzy osobne wpisy, a nie
+   > jeden długi** — jeden długi nie dopasuje się do niczego.
+   >
+   > **Nad polem jest `Redirect URI Validator` z przyciskiem `Check URI`.**
+   > Wklej w niego każdy z trzech adresów powyżej po kolei — Meta odpowie,
+   > czy ten konkretny adres przejdzie. To jedyny sposób sprawdzenia
+   > dopasowania **bez** przechodzenia całego logowania, a dopasowanie jest
+   > znak w znak (patrz ostrzeżenie o „URL Blocked" wyżej).
 6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
    zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
-7. **App Review → Permissions and Features**: `public_profile` i `email` na
-   **Advanced Access**.
+7. **Permissions and features**: `public_profile` i `email` na
+   **Advanced Access**. Ten ekran stoi w tym samym miejscu co pkt 5 —
+   `Use cases` → przy „Facebook Login" **Customize** → `Permissions and
+   features` (menu odczytane z panelu 11.09.2026). Starsza nazwa
+   `App Review → Permissions and Features` pochodzi z poprzedniego kreatora.
 
    > ⛔ **SPROSTOWANIE 12.09.2026.** Stało tu: „Wniosku App Review tu NIE MA
    > — oba uprawnienia mają dostęp zaawansowany z automatu, zostaje
@@ -2075,8 +2287,19 @@ railway logs --service web --environment production | tail -50
 
 Powtórz dla `worker` i `scheduler`. Czas: 2–5 minut.
 
-Albo z GitHuba: **Actions** → **Deploy** → **Run workflow** →
-environment `production`, action `redeploy`.
+**Z GitHuba rollbacku NIE zrobisz.** Action `redeploy` wdraża ponownie
+BIEŻĄCĄ wersję, a action `instrukcja-cofniecia` (do 23.09.2026: `rollback`)
+tylko wypisuje listę wdrożeń i tę instrukcję — niczego nie zmienia, wystawia
+ostrzeżenie i mówi to w podsumowaniu (issue #974). Railway CLI nie potrafi
+wskrzesić wybranego starszego wdrożenia; robi się to w panelu, jak wyżej.
+
+**Przed kliknięciem:** sprawdź, czy wdrożenia, które cofasz, nie niosły
+migracji `DROP`/`RENAME` (ścieżka C niżej) — stary kod musi pasować do
+schematu, który zostaje w bazie.
+
+**Po kliknięciu:** **Actions** → **Deploy** → **Run workflow** → action
+`smoke`, a pod `https://kuking.pl/wydanie` sprawdź, że pole `commit` wskazuje
+commit, do którego wracałeś.
 
 ### Ścieżka B — deploy Z migracją NIEDESTRUKCYJNĄ (dodanie kolumny/tabeli)
 
@@ -2169,8 +2392,131 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 5. DOPIERO TERAZ usuń stary token w Cloudflare
 ```
 
-Ta sama procedura dla hasła SMTP i tokenów Railway.
-**`APP_KEY` — nigdy nie rotuj** (patrz krok 7).
+Ta sama procedura dla kluczy EmailLabs (`EMAILLABS_APP_KEY` +
+`EMAILLABS_SECRET_KEY` generuje się parami, więc podmieniasz obie naraz)
+i dla tokenów Railway.
+**`APP_KEY` nie idzie tą drogą** — ma własną procedurę, niżej.
+
+### Rotacja `APP_KEY` — przez `APP_PREVIOUS_KEYS` (issue #1043)
+
+**Kiedy:** tylko z powodu — klucz wyciekł albo mógł wyciec (widział go ktoś,
+kto nie powinien; trafił do logu, zrzutu ekranu, repo, czatu), odchodzi osoba
+z dostępem do zmiennych Railway. **Nie** rotuj „profilaktycznie co pół roku”:
+każda rotacja kosztuje ludzi (patrz tabela skutków) i nic nie daje, jeśli
+klucz nie wyciekł.
+
+**Najpierw na stagingu.** Staging ma własny klucz (krok 7) — przejdź całą
+procedurę tam, dopiero potem na produkcji.
+
+#### Co zależy od `APP_KEY` i co się stanie przy rotacji
+
+Stan kodu na 23 IX 2026. `config/app.php` czyta `previous_keys` z
+`APP_PREVIOUS_KEYS`; Laravel przy **odczycie** próbuje kolejno bieżącego
+i poprzednich kluczy, przy **zapisie** używa wyłącznie bieżącego.
+
+| Co | Gdzie w kodzie | Po rotacji z `APP_PREVIOUS_KEYS` | Po usunięciu starego klucza |
+|---|---|---|---|
+| Sekret 2FA i kody zapasowe (`users.two_factor_secret`, `users.two_factor_backup_codes`, cast `encrypted`) | `App\Models\User` | działa (odczyt starym kluczem) | **nieczytelne → konto bez wejścia**, chyba że wcześniej przeszło `kuking:przeszyfruj-klucz` |
+| Ciasteczka (identyfikator sesji, „zapamiętaj mnie”, `XSRF-TOKEN`) i treść sesji w tabeli `sessions` (`SESSION_ENCRYPT=true` na produkcji, `.railway/railway.ts`) | middleware `EncryptCookies`, `EncryptedStore` | przeżywają; sesja używana w okresie przejściowym sama zapisuje się nowym kluczem przy następnym żądaniu | ciasteczka i sesje nieruszane od rotacji odrzucone → wylogowanie. Komenda ich nie przepisuje — sesje są ulotne |
+| Podpisane linki z maili: wypisanie z podsumowania (**bez daty ważności**), potwierdzenie zmiany adresu, odwołanie od decyzji, paczka danych RODO | `URL::signedRoute` / `temporarySignedRoute` | działają | **stare linki z maili przestają działać** — także wypisanie z podsumowania, które nie wygasa nigdy |
+| Tokeny `Crypt::encryptString` w formularzach i linkach: link zewnętrzny, obserwowanie tagu, podpowiedź instalacji aplikacji | `LinkiWTekscie`, `TagFollowForm`, `InstallPromptContext` | działają | stare odnośniki / otwarte formularze odrzucone (odświeżenie strony pomaga) |
+| **Link do logowania** (`login_link_tokens`) i **zaproszenie do rejestracji** (`registration_invites`) — w bazie HMAC tokenu z `APP_KEY` | `App\Support\Skrot::hmac()` | **przestają działać od razu po wdrożeniu** — HMAC nie zna poprzednich kluczy. Link żyje ≤ 30 min, zaproszenie ≤ 24 h: kto kliknie stary, prosi o nowy | — |
+| Klucze limitów prób (logowanie, link) | `App\Support\KluczeLimitow` | liczniki zaczynają się od zera — jednorazowe, akceptowalne | — |
+| `audit_log.ip_hash` | `App\Models\AuditLogEntry` | nowe wpisy mają inne skróty niż stare dla tego samego IP (nic ich dziś nie porównuje) | — |
+| Livewire: suma kontrolna stanu komponentu, adres aktualizacji, nazwy plików w trakcie wgrywania | pakiet Livewire | **otwarte strony z formularzem** dostają błąd przy następnej akcji — trzeba odświeżyć; zdjęcie wgrywane w chwili wdrożenia trzeba wybrać ponownie | — |
+| Tokeny resetu hasła | `password_reset_tokens` (`Hash::make`) | przeżywają | przeżywają |
+
+Wniosek: poprzedni klucz musi zostać w `APP_PREVIOUS_KEYS`, dopóki
+`kuking:przeszyfruj-klucz` nie skończy się sukcesem. Potem trzyma go już tylko
+wygoda (stare linki z maili i ciasteczka).
+
+#### Procedura krok po kroku
+
+```text
+0. Przygotuj (bez zmian w Railway):
+   - wygeneruj NOWY klucz: php artisan key:generate --show   (lokalnie; NIE --force na serwerze)
+   - zapisz w menedżerze haseł OBA: stary i nowy, z datą
+   - wybierz porę najmniejszego ruchu (otwarte formularze i linki logowania
+     przestaną działać — patrz tabela)
+   - upewnij się, że jest świeża kopia bazy (krok 6.4 / KOPIE_I_ODTWORZENIE.md)
+
+1. Railway → production → Variables — w KAŻDYM miejscu, gdzie siedzi APP_KEY
+   (Shared Variables albo wprost na serwisie, jeśli serwis klikany — patrz
+   „Ścieżka bez IaC”; muszą to widzieć i web, i worker):
+     APP_PREVIOUS_KEYS = <STARY klucz, w całości, z prefiksem base64:>
+     APP_KEY           = <NOWY klucz>
+   Obie zmiany w JEDNYM zatwierdzeniu zmian (jeden deploy). Kilka starych
+   kluczy: po przecinku, bez spacji, najnowszy pierwszy.
+   UWAGA: `.railway/railway.ts` NIE przekazuje dziś `APP_PREVIOUS_KEYS`
+   (przekazuje tylko `APP_KEY`). Sama Shared Variable nie dotrze więc do
+   serwisu — ustaw `APP_PREVIOUS_KEYS` wprost na serwisie web i worker
+   (albo `${{shared.APP_PREVIOUS_KEYS}}` jako wartość) i sprawdź w kroku 3.
+
+2. Wdróż (GitHub → Actions → Deploy → redeploy, albo deploy ze zmian
+   zmiennych). config:cache przebudowuje się przy starcie kontenera.
+
+3. SPRAWDŹ od razu:
+   - /health zwraca ok
+   - zmienna dotarła do kontenera (wypisuje tylko „jest”/„brak”, nie klucz):
+       railway ssh -- php -r 'echo getenv("APP_PREVIOUS_KEYS") ? "jest\n" : "brak\n";'
+     „brak” = STOP, wróć do kroku 1 — bez niej 2FA nie przejdzie nikomu
+   - jesteś nadal zalogowany (ciasteczko odczytane starym kluczem)
+   - konto z włączonym 2FA: wyloguj się i zaloguj z kodem z aplikacji
+
+4. Przepisz zaszyfrowane kolumny na nowy klucz (w kontenerze serwisu web):
+     railway ssh -- php artisan kuking:przeszyfruj-klucz --na-sucho   # tylko liczy
+     railway ssh -- php artisan kuking:przeszyfruj-klucz              # przepisuje
+   Komenda jest idempotentna — przerwaną puść jeszcze raz. Na końcu ma
+   być „Przepisano N wartości” i kod wyjścia 0. Drugie uruchomienie ma
+   pokazać „Przepisano 0 wartości”.
+   Jeśli zgłosi „Nieczytelne żadnym kluczem” — STOP: brakuje któregoś
+   klucza w APP_PREVIOUS_KEYS. Niczego nie usuwaj, dopisz brakujący klucz
+   i powtórz krok 4.
+
+5. Okres przejściowy — ile czekać, zanim usuniesz stary klucz:
+   - rotacja PLANOWA (klucz nie wyciekł): 30 dni. Przez ten czas działają
+     stare linki z maili i ciasteczka; potem ludzie zalogują się jeszcze
+     raz, a stare linki wypisania z podsumowania przestaną działać
+     (nowe listy mają już nowe).
+   - rotacja PO WYCIEKU: tak krótko, jak się da — zaraz po sukcesie kroku 4.
+     Dopóki stary klucz jest w APP_PREVIOUS_KEYS, jego posiadacz nadal może
+     podrobić podpisany link i zaszyfrowane ciasteczko, które serwis
+     przyjmie. Wszystkich wyloguje — to jest cena, nie błąd.
+     Po wycieku klucza RAZEM z kopią bazy sekrety 2FA trzeba uznać za
+     ujawnione: przepisanie ich nowym kluczem tego nie cofa. Wtedy decyzja
+     właściciela, czy wymusić ponowne włączenie 2FA (kuking:2fa-wylacz
+     per konto + wiadomość do tych osób).
+
+6. Usuń stary klucz: skasuj APP_PREVIOUS_KEYS (albo usuń z niej stary
+   klucz, jeśli są tam inne) → wdróż → sprawdź jak w kroku 3.
+   Przed tym krokiem uruchom jeszcze raz
+     php artisan kuking:przeszyfruj-klucz --na-sucho
+   — ma pokazać „Do przepisania: 0 wartości”. Inaczej wróć do kroku 4.
+
+7. Oznacz stary klucz w menedżerze haseł jako wycofany (z datą). NIE
+   kasuj go od razu: jest potrzebny do odtworzenia kopii bazy sprzed
+   rotacji (sekrety 2FA w starej kopii są zaszyfrowane starym kluczem).
+   Trzymaj go tak długo jak najstarszą kopię bazy.
+```
+
+#### Plan cofnięcia
+
+- **Po kroku 1–3, coś nie działa** (500, 2FA nie przechodzi): przywróć
+  `APP_KEY` = stary, **usuń** `APP_PREVIOUS_KEYS` (albo wpisz tam nowy klucz,
+  jeśli coś zdążyło się nim zaszyfrować — np. ktoś włączył 2FA po
+  wdrożeniu), wdróż. Nic w bazie nie zostało przepisane, więc stary klucz
+  czyta wszystko.
+- **Po kroku 4** (kolumny już przepisane nowym kluczem): cofnięcie = zamiana
+  ról — `APP_KEY` = stary, `APP_PREVIOUS_KEYS` = nowy, wdróż, uruchom
+  `kuking:przeszyfruj-klucz` (przepisze z powrotem na stary), dopiero potem
+  usuń nowy z `APP_PREVIOUS_KEYS`. **Nigdy** nie ustawiaj samego starego
+  klucza bez nowego w `APP_PREVIOUS_KEYS` — sekrety 2FA zaszyfrowane nowym
+  staną się nieczytelne.
+- **Po kroku 6** stary klucz jest już tylko w menedżerze haseł; cofnięcie
+  jak wyżej (wpisz go z powrotem do `APP_PREVIOUS_KEYS`).
+- **Kopia bazy sprzed rotacji** odtworzona po rotacji: sekrety 2FA w niej są
+  zaszyfrowane starym kluczem — dopisz stary klucz do `APP_PREVIOUS_KEYS`
+  i uruchom `kuking:przeszyfruj-klucz` (krok 7 wyżej: dlatego go trzymasz).
 
 ---
 
@@ -2192,8 +2538,8 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 
 | # | Decyzja | Rekomendacja | Krok |
 |---|---|---|---|
-| 8 | Dostawca poczty | Resend (alfa) → Brevo (beta) | 3 |
-| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place | 6.3 |
+| 8 | Dostawca poczty | **EmailLabs przez API HTTPS** (`MAIL_MAILER=emaillabs`) — jedyny wariant działający na planie Hobby, dane w UE, sterownik już w kodzie (D-047). Stało tu „Resend (alfa) → Brevo (beta)", co przeczyło rekomendacji z KROKU 0.5 w tym samym dokumencie; **Brevo z `POCZTA_URUCHOMIENIE.md` §2B idzie przez SMTP, więc na Hobby nie zadziała** i jako plan zapasowy wymagałby najpierw napisania transportu po API | 3 |
+| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
@@ -2208,10 +2554,12 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 |---|---|---|---|
 | 14 | `APP_KEY` — **produkcja** | `php artisan key:generate --show` | 7 |
 | 15 | `APP_KEY` — **staging** | to samo, drugie uruchomienie | 7 |
-| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token | 2.2 |
+| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token na trzy buckety zdjęć | 2.2 |
 | 17 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (staging) | R2 API token | 2.2 |
 | 18 | `R2_ENDPOINT` (zawiera Account ID) | panel R2 | 2.2 |
-| 19 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro) | 3.2 |
+| 19 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs → Konto → Ustawienia → API (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro). **Nie login i hasło SMTP** — API odpowie na nie 401 | 3.2 |
+| 19a | `R2_KOPIE_*` — dwa tokeny do bucketu kopii bazy (zapis i odczyt) | R2 API tokens | `KOPIE_I_ODTWORZENIE.md` §7.3 |
+| 19b | Klucz PRYWATNY kopii bazy (`kuking-kopie-PRYWATNY.pem`) | `openssl req` wg §7.1 — **nigdy do Railwaya ani do repozytorium** | `KOPIE_I_ODTWORZENIE.md` §7.1 |
 | 20 | `SENTRY_LARAVEL_DSN` | Sentry | 4 |
 | 21 | `SENTRY_AUTH_TOKEN` | Sentry, zakres `project:releases` | 4 |
 | 22 | `POSTHOG_KEY` | PostHog | 5 |
@@ -2226,7 +2574,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 |---|---|---|---|
 | 27 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
 | 28 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
-| 29 | Dysk `r2` | `config/filesystems.php` | 1 |
+| 29 | Dyski `r2`, `r2_publiczne`, `r2_eksporty` (oraz `r2_legacy` i `r2_kopie`) | `config/filesystems.php` — **zrobione**, wraz z własnym sterownikiem `r2` bez `x-amz-acl` | 1 |
 | 30 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
 | 31 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
@@ -2255,6 +2603,9 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | **Brak CSS i JS** | build Vite nie wszedł do obrazu | sprawdź job `assets` w CI i `public/build/manifest.json` |
 | **Upload zdjęcia nie działa, konsola pokazuje błąd CORS** | brak polityki CORS na buckecie | krok 2.4 |
 | **Zdjęcia nie pojawiają się po uploadzie** | worker nie działa / kolejka stoi | `railway logs --service worker`, `SELECT * FROM failed_jobs` |
+| **Rejestracja się udaje, ale list nie dochodzi — i nigdzie nie ma błędu** | `MAIL_MAILER=log` (przyjmuje i nie wysyła) **albo** `MAIL_MAILER=smtp` na planie Hobby (pakiety idą w próżnię, zadanie wisi w `RUNNING`) | ustaw `MAIL_MAILER=emaillabs` i trzy zmienne `EMAILLABS_*` (KROK 3.2), zrestartuj serwis, potem `railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl` |
+| **`kuking:bramka-r2` melduje `TEN SAM bucket`** | brak `R2_PUBLIC_BUCKET` / `AWS_PUBLIC_BUCKET` — konfiguracja cofa się do bucketu oryginałów | utwórz bucket wariantów (§2.1) i ustaw zmienną; oryginały z GPS-em nie mogą leżeć w tym samym buckecie co warianty |
+| **Paczka „Twoje dane" ma w bazie `ready`, a pobranie daje 404** | brak `R2_EXPORTS_BUCKET` / `AWS_EXPORTS_BUCKET` albo `KUKING_EXPORT_DISK` inne niż `r2_eksporty` | §2.1 i KROK 8 |
 | **Livewire przestaje odpowiadać po chwili** | endpointy Livewire cache'owane na krawędzi | sprawdź regułę BYPASS (krok 10.5) |
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |

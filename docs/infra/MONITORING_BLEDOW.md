@@ -1,5 +1,117 @@
 # Monitoring błędów — webhook na Slack/Discord (i docelowo Sentry)
 
+> Aktualizacja 20.09.2026: [odbiór lokalny #598/#599](MONITORING_ODBIOR_2026_09_20.md)
+> zawiera pomiary, próbę rzeczywistego transportu, naprawę alarmu przy awarii
+> cache oraz instrukcję potwierdzenia odbiorcy. Opis stanu produkcji poniżej
+> jest historyczny; w tej sesji nie odczytano jej konfiguracji.
+
+## Kod żądania i zadania — issue #1040
+
+`CorrelateRequest` nadaje losowy UUID v4, niezależny od nagłówka klienta,
+konta, sesji, IP i treści formularza. W trakcie żądania `request_id` trafia
+do kontekstu otwartych oraz później tworzonych kanałów logowania.
+Webhook pokazuje go jako `żądanie: …`, odpowiedź jako `X-Request-ID`,
+a zwykła strona 500 jako „Kod błędu: … Podaj go, gdy do nas napiszesz.”.
+Obsługa może szukać dokładnego kodu w logu. Dotychczasowy ośmioznakowy
+`odcisk` nadal grupuje rodzaj awarii; nie zastępuje kodu żądania.
+Kilka wpisów logu tego samego żądania ma ten sam kod.
+
+Nagłówek otrzymują także odpowiedzi poprawne, JSON oraz 500 zwrócone
+bez wyjątku. Sam status 500 nie uruchamia nowego alarmu: dotychczasowe
+reguły raportowania pozostają bez zmian. Widok nie wymaga bazy ani
+manifestu assetów; kod jest zwykłym tekstem, bez przycisku wymagającego JS.
+Webhook dopuszcza tylko pełny kształt UUID v4 w tym nowym polu;
+pozostałych danych kontekstu nadal nie serializuje.
+
+### Jawna granica HTTP
+
+Middleware jest czwarty w stosie globalnym, po `NormalizeForwardedFor`,
+`ApplySecurityHeaders` i `PreventSharedSessionCache`. Zachowujemy ich
+istniejącą kolejność.
+Korelacja obejmuje raportowanie i renderowanie wyjątku wewnątrz dalszego
+pipeline Laravela. Awaria rozruchu aplikacji albo wcześniejszych warstw
+nie otrzymuje sztucznego kodu: strona 500 zachowuje instrukcję kontaktu,
+ale kod i nagłówek mogą być nieobecne. Nie jest to dowód sprawności
+monitoringu całego procesu PHP.
+
+`finally` usuwa wyłącznie `request_id` z istniejących kanałów oraz ze
+współdzielonego kontekstu przyszłych kanałów; inne pola zostają.
+Atrybut żądania pozostaje dostępny przy późniejszym bezpośrednim
+renderowaniu strony. **Po wyjściu z tego middleware** (np. wyjątek podczas
+odwijania wcześniejszej warstwy, callback zakończenia odpowiedzi albo
+streaming) nie obiecujemy pełnego łańcucha log–alarm–nagłówek–widok.
+
+### Kolejka: żądanie, zadanie i osobna próba
+
+`CorrelationServiceProvider` rejestruje hook tworzenia payloadu oraz
+słuchaczy `JobProcessing` i `JobAttempted`. Nie trzeba dopisywać middleware
+do każdego joba osobno. Koperta `kuking:correlation` przenosi wyłącznie
+poprawny UUID `request_id` z aktywnego kontekstu — nigdy całą sesję,
+kontekst logu ani atrybuty użytkownika. Zwykły UUID payloadu, już losowany
+przez Laravel, jest `job_id`: nie dublujemy go drugą losową wartością.
+Przy retry pozostaje stały. `attempt_id` jest nowym losowym UUID każdej
+próby, aby dwa takie same błędy tego samego zadania dało się rozróżnić.
+
+W logach zadania wszystkie trzy pola są w kontekście, a webhook nazywa
+je `żądanie`, `zadanie` i `próba`. Zadanie wysłane z CLI nie ma
+`request_id`; nie przejmuje go od poprzedniego zadania workera. Zadanie
+wysłane podczas innego zadania dziedziczy bezpieczny kod źródłowego HTTP,
+ale dostaje własne `job_id`. Payloady spoza standardowego mechanizmu
+Laravela, bez poprawnego UUID zadania, dostają losowy kod bieżącego
+wykonania; nie gwarantujemy w nich stałego `job_id` pomiędzy retry.
+
+`QueueCorrelation` przywraca poprzedni kontekst w `JobAttempted`, także
+po błędzie i przy zagnieżdżonym `sync`. Jest tu ważna kolejność Laravel 13:
+worker najpierw emituje `JobAttempted`, **potem** raportuje wyjątek.
+Dlatego same bezpieczne ID zostają przy obiekcie wyjątku w `WeakMap`.
+Standardowy handler dodaje je do logu i jawnego kanału alarmu już po
+sprzątnięciu kontekstu. Mapa nie utrzymuje wyjątku przy życiu i nie niesie
+referencji do zadania, sesji ani requestu w swoich wartościach.
+
+Wbudowany `Context` Laravela hydratuje całą własną kopertę do `extra`
+rekordu przy `JobProcessing`. Nie zapewnia naszej wąskiej listy pól,
+przywrócenia zagnieżdżonego zakresu przy `JobAttempted` ani zachowania
+korelacji wyjątku raportowanego po tym zdarzeniu. Dlatego nie włączamy
+automatycznego kopiowania całego kontekstu do naszej koperty.
+
+Granica kolejki: obsługujemy zwykły cykl `database` workera i `sync`.
+Nie obiecujemy alarmu po zabiciu procesu, OOM ani błędzie, który uniemożliwił
+rozruch frameworka. Nie dodajemy nowych kolumn, retencji, APM ani usług.
+
+### Weryfikacja i wycofanie
+
+`KodBleduLaczyZadanieZAlarmemTest` przechodzi przez prawdziwy kernel HTTP,
+czyta zapisany lokalnie log i przechwytuje wysyłkę przez `Http::fake()`.
+Dwa wyjątki z tego samego miejsca mają różne UUID, ale jednakowy odcisk.
+Test obejmuje kanał otwarty później, podrobiony nagłówek, JSON, 500 bez
+wyjątku, granicę przed middleware i renderowanie bez bazy/manifestu.
+Żadna próba nie wysyła alarmu produkcyjnego.
+
+Kontrole ujemne (`scripts/kontrola-ujemna.sh`): usunięcie `$correlation`
+z treści alarmu oblewa `BRAK_KORELACJI_ALARMU`; usunięcie
+`Log::flushSharedContext()` oblewa `WYCIEK_KONTEKSTU_HTTP`. Po przywróceniu
+oba testy znów przechodzą. Wycofanie tej zmiany kodu usuwa nowe pole,
+nagłówek i akapit; nie ma migracji ani zmiany retencji danych.
+
+`KorelacjaKolejkiTest` używa PostgreSQL, prawdziwie serializowanego joba
+i **tego samego `Illuminate\Queue\Worker` przez kilka `runNextJob()`**:
+błąd, inne zadanie, retry, końcowa porażka oraz zagnieżdżony `sync`.
+Nie podstawia zdarzeń kolejki i nie używa `Queue::fake()`. Czyta plik
+logu i przechwytuje rzeczywisty payload alarmu przez `Http::fake()`.
+Sprawdza alarm po `JobAttempted`, brak ID w logach między zadaniami,
+nowy `attempt_id` przy retry oraz zwolnienie wyjątku po usunięciu referencji
+testowego kolektora Laravel. To pomiar workera w procesie PHP testu,
+nie uruchomienie produkcyjnego workera ani pomiar wielu procesów.
+Kontrole ujemne osobno usuwają propagację, mapę wyjątku i sprzątanie;
+każda musi dać PASS → FAIL właściwej asercji → PASS po przywróceniu.
+
+Rollback części kolejkowej: wycofać provider, kopertę i formatowanie tych
+pól razem. Istniejące payloady pozostają wykonywalne: stary kod ignoruje
+dodatkową kopertę; nowy obsługuje payload bez niej. Nie usuwać rekordów
+`jobs` ani `failed_jobs` w ramach wycofania.
+
+---
+
 Ten dokument jest dla **właściciela**. Zakłada, że masz dostęp do panelu
 Railway i konto na Discordzie (albo Slacku) — i nic więcej. Nie zakłada
 znajomości Sentry, Monologa ani tego, jak Laravel loguje wyjątki.

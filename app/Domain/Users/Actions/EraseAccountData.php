@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
@@ -72,6 +74,7 @@ final class EraseAccountData
     public function __construct(
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
+        private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
@@ -133,6 +136,15 @@ final class EraseAccountData
             // haczyk, dawno się zamknął. Domyślny `minimum` (haczyk
             // nietknięty) zostawia teksty; `everything` kasuje je razem
             // z resztą.
+            // ZAPAMIĘTUJEMY ZAKRES TERAZ, ZANIM COKOLWIEK ZMIENIMY.
+            // Ten sam odczyt powtórzony na końcu transakcji trafiłby już na
+            // wiersz po anonimizacji, a `zakres` w potwierdzeniu ma być
+            // zapisem tego, co NAPRAWDĘ zrobiliśmy, nie domysłem
+            // („pewnie minimum, bo taki jest domyślny").
+            $zakresWykonany = $fresh->chceUsunacTresci()
+                ? User::DELETE_SCOPE_EVERYTHING
+                : User::DELETE_SCOPE_MINIMUM;
+
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
             }
@@ -242,6 +254,8 @@ final class EraseAccountData
              * tu nie zadziałało.
              */
             $fresh->tozsamosciZewnetrzne()->delete();
+
+            $this->odlaczWiadomosciDoOperatora($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -355,6 +369,24 @@ final class EraseAccountData
                     ->where('user_id', $fresh->getKey())
                     ->delete();
             }
+
+            // DOMKNIĘCIE SPRAWY W REJESTRZE RODO — W TEJ SAMEJ TRANSAKCJI CO
+            // WYMAZANIE, I TO JEST CAŁY SENS UMIESZCZENIA TEGO TUTAJ.
+            //
+            // Potwierdzenie zapisane w OSOBNEJ transakcji potrafi kłamać
+            // w obie strony: zapisane przed wymazaniem, które padło, twierdzi
+            // „wykonane" o czymś, czego nie było; zapisane po wymazaniu,
+            // które się udało, a samo padło — przemilcza wykonanie prawa
+            // z art. 17 i zostawia sprawę wiecznie „w toku". Jedna transakcja
+            // znaczy: albo dane są wymazane I jest na to potwierdzenie, albo
+            // nie ma ani jednego, ani drugiego. Dowodzi tego
+            // `PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`, wymuszając
+            // porażkę po każdej z tych dwóch stron.
+            //
+            // `konto_id` w tym wierszu ZOSTAJE — decyzja właściciela
+            // z 21.09.2026, razem z jej ceną, opisana w
+            // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
+            $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
 
             return true;
         });
@@ -532,6 +564,14 @@ final class EraseAccountData
         $skasowane = 0;
 
         foreach ($zdjecia as $zdjecie) {
+            // Świeży, przejęty wiersz, nie model wczytany w transakcji
+            // wymazania — patrz `KasujZdjecie::przejmijDoWymazania()` (#1003).
+            $zdjecie = $this->kasujZdjecie->przejmijDoWymazania($zdjecie);
+
+            if ($zdjecie === null) {
+                continue;
+            }
+
             if ($this->kasujZdjecie->skasujPliki($zdjecie)) {
                 $zdjecie->delete();
                 $skasowane++;
@@ -539,6 +579,30 @@ final class EraseAccountData
         }
 
         return $skasowane;
+    }
+
+    /**
+     * WIADOMOŚCI „NAPISZ DO NAS" ZOSTAJĄ, ALE TRACĄ POWIĄZANIE Z KONTEM (#995).
+     *
+     * `resources/legal/polityka-prywatnosci.md`, tabela w §2, wiersz
+     * „Wiadomości do nas przez formularz »Napisz do nas«": „Jeśli usuniesz
+     * konto, wiadomość zostaje, ale przestaje być z nim powiązana". Robimy
+     * dokładnie to i nic więcej: `user_id → NULL`. Treść, odpowiedzi,
+     * `status` i `handled_at` zostają, bo od `handled_at` liczy się
+     * 12-miesięczna retencja, której ta akcja nie skraca.
+     *
+     * Jawnie, a nie kaskadą klucza obcego — ten sam powód co przy
+     * `pending_email_changes`: kont z Kuking się NIE KASUJE, tylko
+     * anonimizuje (D-022), więc `nullOnDelete()` nigdy by się nie uruchomił.
+     *
+     * `handled_by` (operator, który sprawę załatwił) celowo zostaje: obietnica
+     * dotyczy nadawcy wiadomości, nie osoby obsługującej panel.
+     */
+    private function odlaczWiadomosciDoOperatora(User $user): void
+    {
+        ContactMessage::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
     }
 
     /**

@@ -46,6 +46,18 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
         Log::shouldReceive('warning')->andReturnUsing(function (string $message, array $context = []): void {
             $this->records[] = [$message, $context];
         });
+
+        // `Log::shouldReceive()` podmienia cały LogManager na ścisłą atrapę.
+        // Hook payloadu kolejki (`QueueCorrelation::payload()`, #1040) czyta
+        // przy każdym `dispatch()` `sharedContext()`, a słuchacze zadania
+        // ustawiają i sprzątają kontekst. Bez tych zgód test mierzyłby własną
+        // atrapę (`BadMethodCallException`), a nie treść logu. `byDefault()`,
+        // bo liczby wywołań tu nie sprawdzamy — ten sam wzór, co
+        // `KontaktPotwierdzeniaTest::pozwolNaKontekstKorelacji()`.
+        Log::shouldReceive('shareContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('sharedContext')->andReturn([])->byDefault();
+        Log::shouldReceive('withoutContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('flushSharedContext')->andReturnSelf()->byDefault();
     }
 
     public function test_transport_openai_nie_loguje_tresci_wyjatku(): void
@@ -65,11 +77,19 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
     public function test_przygotowanie_zdjecia_nie_loguje_tresci_wyjatku(): void
     {
         $media = $this->media();
+        $post = Post::create([
+            'author_id' => $media->owner_id,
+            'body' => '',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $post->media()->attach($media);
         Storage::shouldReceive('disk')->once()->with('public')->andReturnSelf();
         Storage::shouldReceive('get')->once()->with('media/proba_thumb.webp')
             ->andThrow(new RuntimeException(self::FOREIGN_MESSAGE, 123456));
 
-        $this->assertSame([], app(OcenaModelem::class)->dlaZdjecia($media));
+        $this->assertSame([], app(OcenaModelem::class)->dla($post));
         Http::assertNothingSent();
         $this->assertSafeRecord('Nie udało się przygotować zdjęcia do oceny modelem.', 'image_preparation');
     }
@@ -91,16 +111,21 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
         $this->assertNoSanctions();
     }
 
-    public function test_zewnetrzny_catch_analizy_awatara_nie_loguje_wyjatku(): void
+    /**
+     * Zadanie awatara nie ma już czego logować: od D-240 nic nie wysyła.
+     * Zostaje sprawdzenie, że zadanie z kolejki sprzed wdrożenia kończy się
+     * bez żądania, bez wpisu w dzienniku i bez skutku dla zdjęcia.
+     */
+    public function test_zadanie_awatara_z_kolejki_konczy_sie_bez_sladu_i_bez_wysylki(): void
     {
         $media = $this->media();
         Profile::query()->where('user_id', $media->owner_id)->update(['avatar_media_id' => $media->getKey()]);
 
-        $this->failInsideModel(fn () => dispatch_sync(new PrzeanalizujAwatar((string) $media->getKey())));
+        dispatch_sync(new PrzeanalizujAwatar((string) $media->getKey()));
 
         $this->assertSame(Media::STATUS_READY, $media->refresh()->status);
         $this->assertDatabaseHas('profiles', ['user_id' => $media->owner_id, 'avatar_media_id' => $media->getKey()]);
-        $this->assertSafeRecord('Ocena zdjęcia profilowego modelem nie powiodła się.', 'avatar_analysis');
+        $this->assertSame([], $this->records);
         $this->assertNoSanctions();
     }
 
