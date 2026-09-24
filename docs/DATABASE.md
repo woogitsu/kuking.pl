@@ -52,6 +52,9 @@ Konto:
   **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
+- `punishment_status`, `punishment_expires_at` — kara (`suspended`/`banned`)
+  ODŁOŻONA na czas cyklu usunięcia konta (issue #980, patrz niżej). Pola
+  sterujące: poza `$fillable`, zapisuje je wyłącznie `User` pod blokadą;
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
@@ -395,6 +398,45 @@ KUKING_ROLLBACK_KASUJ_TERMINY_KAR=true php artisan migrate:rollback
 
 Pilnuje tego `CofniecieMigracjiNieRobiKaryBezterminowejTest` (odmowa + dwie
 kontrole dodatnie).
+
+#### `punishment_status` — kara odłożona na czas usuwania konta (issue #980)
+
+Migracja `2026_09_24_100000_add_punishment_status_to_users`.
+
+`status` niósł dwa niezależne procesy — karę moderacyjną i cykl usunięcia —
+a każda operacja nadpisywała go bez patrzenia na drugi: ban po zgłoszeniu
+usunięcia wyjmował konto spod `kuking:usun-wygasle-konta` (ten wybiera
+`status = 'pending_delete'`), a zgłoszenie usunięcia po banie gubiło karę
+(cofnięcie usunięcia stawiało `active`).
+
+**Kontrakt.** Dopóki konto jest w cyklu usunięcia (`pending_delete`,
+`erased`), `status` mówi o usuwaniu, a kara czeka tutaj. Macierz przejść
+(`App\Models\User`, każde przejście na świeżym wierszu pod `ZamekKonta`):
+
+| Stan przed | `suspend()`/`ban()` | `markForDeletion()` | `cancelDeletion()` | `reinstate()` |
+|---|---|---|---|---|
+| `active` | `status` = kara | `pending_delete` | — | — |
+| `suspended`/`banned` | `status` = kara | `pending_delete`, kara → `punishment_*` | — | `active` |
+| `pending_delete` | kara → `punishment_*` | odmowa (`BladDlaCzlowieka`) | `status` = odłożona kara albo `active` | zeruje `punishment_*` |
+| `erased` | kara → `punishment_*` | odmowa | (odmawia `CancelAccountDeletion`) | zeruje `punishment_*` |
+
+Wymazanie danych zostawia `punishment_status` na wierszu jako zapis stanu
+konta w chwili wymazania; autorytatywny zapis decyzji żyje
+w `moderation_actions` (retencja: `docs/decyzje/ADR_RETENCJE.md`).
+Mechanizmu blokady ponownej rejestracji w projekcie nie ma i ta migracja go
+nie wprowadza.
+
+```sql
+CHECK (punishment_status IS NULL OR punishment_status IN ('suspended','banned'))  -- users_punishment_status_check
+CHECK (punishment_status IS NULL OR status IN ('pending_delete','erased'))        -- users_punishment_status_deletion_check
+CHECK (punishment_expires_at IS NULL OR punishment_status = 'suspended')           -- users_punishment_expires_at_check
+```
+
+**Rollback ODMAWIA** (D-088), gdy choć jedno konto ma odłożoną karę: stary
+schemat nie ma gdzie jej zapisać, a stary kod przy cofnięciu usunięcia
+ustawiłby `active`. Bez takich kont cofnięcie przechodzi i nic nie ginie.
+Testy: `BanIUsuniecieKontaNieNadpisujaSieTest`,
+`tests/Dwa/BanIUsuniecieKontaRownolegleTest`.
 
 #### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
 
@@ -4088,6 +4130,35 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### zalegle_czyszczenia_cdn
+
+Adresy skasowanych zdjęć, których cache CDN **jeszcze nie wyczyszczono**,
+migracja `2026_09_24_100000_utworz_zalegle_czyszczenia_cdn` (issue #959).
+Do niej `PurgePublicMediaCache` bez `CLOUDFLARE_ZONE_ID` albo
+`CLOUDFLARE_PURGE_TOKEN` kończył się sukcesem z samym ostrzeżeniem w logu,
+a po uzupełnieniu zmiennych nikt nie wiedział, co dokończyć.
+
+| Kolumna | Opis |
+|---|---|
+| `id bigserial` | Kolejność odkładania — `kuking:wyczysc-zalegle-cdn` bierze najstarsze. |
+| `adres varchar(2048) NOT NULL` | Pełny publiczny adres wariantu. **UNIKALNY** (`zalegle_czyszczenia_cdn_adres_unique`): czyszczenie jest idempotentne, drugie odłożenie nic nie dodaje (`insertOrIgnore`). CHECK `zalegle_czyszczenia_cdn_adres_http_check`: `adres ~ '^https?://'` — adresu względnego Cloudflare nie wyczyści nigdy. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy odłożono. |
+
+Kto pisze: zadanie na **produkcji** bez konfiguracji oraz `failed()` po
+wyczerpaniu prób (wszędzie). Kto kasuje: wyłącznie
+`ZalegleCzyszczeniaCdn::wyczysc()` — **po** potwierdzeniu Cloudflare
+(`success: true` dla każdej partii). Porażka zostawia wiersze na następny
+przebieg (co kwadrans). `/health` → `cdn_zalegle` = `czyszczenie_cdn_zalegle`,
+dopóki tabela nie jest pusta.
+
+**Rollback odmawia przy niepustej tabeli (D-088):** każdy wiersz to zdjęcie,
+które może się jeszcze otwierać z cache — często po wymazaniu konta albo
+decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
+`php artisan kuking:wyczysc-zalegle-cdn`, potem wycofuj. Pusta tabela znika
+bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
+z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
+`tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
 ### sessions
 
