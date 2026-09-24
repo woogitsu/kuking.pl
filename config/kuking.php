@@ -1797,6 +1797,13 @@ return [
         // konta bez końca.
         'ttl_days' => (int) env('KUKING_EXPORT_TTL_DAYS', 7),
 
+        // Katalog na pliki pośrednie eksportu (ZIP w budowie, `dane.json`,
+        // kopie zdjęć). Pusty = `<tmp>/kuking-eksport.u<uid>`, osobny dla
+        // użytkownika systemu procesu: wspólny `<tmp>/kuking-eksport` założony
+        // przez jednego użytkownika był nieczytelny dla drugiego i wywracał
+        // eksport już na sprzątaniu. Patrz `ExportTempDirectory`.
+        'temp_dir' => env('KUKING_EXPORT_TEMP_DIR'),
+
         // Ile plików zdjęć wrzucamy do archiwum, zanim domkniemy je i otworzymy
         // od nowa. ZipArchive wymaga, żeby dodane pliki istniały do momentu
         // close(); ten próg ogranicza zużycie dysku tymczasowego przy koncie

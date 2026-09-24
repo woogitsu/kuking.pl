@@ -1364,8 +1364,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Trzy wywołania w trzech kontrolerach dawałyby ten sam skutek do
         // czasu, gdy ktoś dopisze czwarte miejsce i o jednym z nich zapomni.
         // Objęte tą drogą jest więc wszystko naraz: zmiana hasła, reset hasła,
-        // „wyloguj mnie z innych urządzeń", blokada, zawieszenie i zgłoszenie
-        // usunięcia konta.
+        // „wyloguj mnie z innych urządzeń", włączenie 2FA (#930), blokada,
+        // zawieszenie i zgłoszenie usunięcia konta.
         //
         // `$exceptSessionId` NIE MA TU ODPOWIEDNIKA i mieć nie powinien:
         // wyjątek istnieje dla BIEŻĄCEJ przeglądarki osoby, która właśnie
