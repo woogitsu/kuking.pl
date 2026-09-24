@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
 - Publiczny zeszyt nie mówi już innym osobom, ile jest w nim zapisów, których nie mogą zobaczyć. Tę liczbę widzi tylko właściciel zeszytu; inni widzą wyłącznie to, co mogą otworzyć, a gdy nie ma nic takiego — zwykły pusty zeszyt (#1297).
 - Karta zeszytu i lista „Ostatnio zapisane” nie liczą już zapowiedzi przepisu, którego nie można otworzyć — bo przepis stał się prywatny, został usunięty albo konto jego autora jest zamknięte. Liczba na karcie zgadza się z tym, co widać w środku zeszytu, a zapis zostaje i wróci, gdy przepis znów będzie dostępny. Wpis z własnym tekstem albo zdjęciem, który wskazuje taki przepis, zostaje w zeszycie, na karcie i w „Ostatnio zapisane” — tylko bez tytułu, zdjęcia i odnośnika do przepisu (#1319, #1377).
 - Wpis z własnym tekstem albo zdjęciem, który wskazuje przepis, nie znika już z odkrywania, feedu obserwowanych, profilu, strony tagu i feedu obserwowanych tagów, tablicy „kuKINGi na dziś” ani z nawigacji „poprzedni / następny wpis”, a liczba wpisów przy tagu znowu go liczy, gdy autor przepisu zmieni go na prywatny albo tylko dla obserwujących, gdy przepis zostanie ukryty lub usunięty. Wpis zostaje według własnej widoczności, a na karcie nie ma wtedy tytułu, zdjęcia ani odnośnika do przepisu — tak samo jak na stronie samego wpisu. Sama zapowiedź przepisu, bez własnej treści, dalej znika razem z przepisem (#1377).

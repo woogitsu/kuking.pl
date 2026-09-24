@@ -13,6 +13,7 @@ use App\Notifications\PotwierdzenieAdresu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -266,6 +267,7 @@ class WspolnyLicznikPocztyTest extends TestCase
             $wiadomosc,
             $this->user('moderatorka'),
             'Przycisk poprawiliśmy dziś rano.',
+            replyKey: (string) Str::uuid(),
         );
 
         Mail::assertNothingSent();
