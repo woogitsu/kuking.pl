@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Formularz „Prywatność” otwarty w starej karcie nie zapisuje już ponownie na tygodniowy e-mail kogoś, kto w międzyczasie wypisał się odnośnikiem z listu, ani nie włącza z powrotem wspomnień wyłączonych w innej karcie. Zapis zmienia tylko to, co człowiek przestawił na tym ekranie, a komunikat mówi, które ustawienie zostało zmienione gdzie indziej i jak świadomie wrócić do listu.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

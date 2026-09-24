@@ -22,6 +22,23 @@
             poprzednie żądanie: gdy tak, brak pola ma znaczyć odznaczone,
             a nie „sięgnij do bazy".
         --}}
+        {{--
+            STAN WIDZIANY PRZY OTWARCIU FORMULARZA (issue #880).
+
+            Oba haczyki idą jednym przyciskiem „Zapisz", więc bez tego
+            stara karta, w której ktoś zmienił tylko wspomnienia, odesłałaby
+            też dawny, zaznaczony haczyk listu — i ponownie zapisała na list
+            człowieka, który w międzyczasie wypisał się odnośnikiem z e-maila.
+            Kontroler zmienia tylko to, co różni się od stanu z tych pól.
+            Po odrzuconym żądaniu (#792) zostaje stan z PIERWSZEGO otwarcia,
+            nie z bazy — inaczej zmiana człowieka przestałaby być widoczna
+            jako zmiana.
+        --}}
+        <input type="hidden" name="wants_weekly_digest_bylo"
+               value="{{ old('wants_weekly_digest_bylo', auth()->user()->wants_weekly_digest ? '1' : '0') }}">
+        <input type="hidden" name="memories_enabled_bylo"
+               value="{{ old('memories_enabled_bylo', auth()->user()->memories_enabled ? '1' : '0') }}">
+
         <div class="field @error('wants_weekly_digest') has-error @enderror">
             <label class="choice" for="f-wants_weekly_digest">
                 <input id="f-wants_weekly_digest" type="checkbox" name="wants_weekly_digest" value="1"
