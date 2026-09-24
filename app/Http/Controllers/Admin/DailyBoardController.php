@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Feed\DailyBoardCandidates;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Models\DailyPick;
 use App\Models\User;
-use App\Support\Czas;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -30,7 +27,10 @@ use Illuminate\View\View;
  */
 class DailyBoardController extends Controller
 {
-    public function __construct(private readonly DailyBoardCandidates $candidates) {}
+    public function __construct(
+        private readonly DailyBoardCandidates $candidates,
+        private readonly ZapiszTabliceDnia $zapis,
+    ) {}
 
     public function edit(Request $request): View
     {
@@ -105,72 +105,32 @@ class DailyBoardController extends Controller
         if ($this->candidates->people($request->user())->whereIn('id', $data['osoby'])->count() !== count($data['osoby'])) {
             throw ValidationException::withMessages(['osoby' => 'Wybierz ponownie osoby z dostępnej listy.']);
         }
-        if ($this->candidates->posts($request->user())->whereIn('id', $data['wpisy'])->count() !== count($data['wpisy'])) {
+        $wybraneWpisy = $this->candidates->posts($request->user())->whereIn('id', $data['wpisy'])->with('author.profile')->get();
+        if ($wybraneWpisy->count() !== count($data['wpisy'])) {
             throw ValidationException::withMessages(['wpisy' => 'Wybierz ponownie publiczne wpisy z dostępnej listy.']);
+        }
+        // Najwyżej jedno danie od osoby także w części redakcyjnej (#1296) —
+        // ta sama reguła, której automat pilnuje w `DailyBoard`. Bez niej
+        // jedna aktywna osoba może zająć całą tablicę. Odrzucamy cały zapis,
+        // zamiast po cichu odsiać drugie danie: gospodarz ma zdecydować, które
+        // zostaje, a zaznaczenia wracają do formularza.
+        $powtorzeni = $wybraneWpisy->groupBy('author_id')->filter(fn ($wpisy) => $wpisy->count() > 1);
+        if ($powtorzeni->isNotEmpty()) {
+            throw ValidationException::withMessages(['wpisy' => 'Na tablicy może stać najwyżej jedno danie od osoby. '
+                .'Zostaw zaznaczone tylko jedno danie od: '.$powtorzeni->map(fn ($wpisy) => $wpisy->first()->author->displayName())->implode(', ').'.']);
         }
 
         $notatki = $data['notatki'] ?? [];
-        $moderator = $request->user();
 
-        // WYŚCIG PRZY PODWÓJNYM ZAPISIE (audyt zewnętrzny, "wyścig w
-        // daily_board"): strona wolno się ładuje, gospodarz klika "Zapisz"
-        // drugi raz z TĄ SAMĄ treścią formularza — dokładnie ten przypadek,
-        // który AGENTS.md każe traktować jako normę w grupie 50+, nie jako
-        // brzeg. Dwa niemal jednoczesne żądania mogą przeplatać się tak, że
-        // oba wykonują DELETE (widząc jeszcze pustą tablicę), a potem oba
-        // próbują wstawić TĘ SAMĄ pozycję (ta sama osoba/wpis, ten sam
-        // dzień) — drugi INSERT zderza się z UNIQUE
-        // (`daily_picks.unique(['shown_on','subject_type','subject_id'])`,
-        // migracja `create_daily_picks_table`).
-        //
-        // CAŁOŚĆ W JEDNEJ TRANSAKCJI, A KAŻDY INSERT Z PRZECHWYCENIEM
-        // ZDERZENIA — ten sam wzorzec co `SaveRecipeToCollection`/
-        // `SavePostToCollection` (issue #43): dla człowieka, który kliknął
-        // "Zapisz" dwa razy z tym samym wyborem, wynik ma być JEDNĄ pozycją
-        // na tablicy, nie błędem 500. Transakcja pilnuje, że DELETE i INSERT-y
-        // JEDNEGO zapisu widać razem albo wcale — bez niej przerwanie
-        // w połowie zostawiałoby tablicę w stanie ani starym, ani nowym.
-        $saved = DB::transaction(function () use ($data, $notatki, $moderator): array {
-            // Wybór na dany dzień zastępujemy w całości — to jest prostsze
-            // w obsłudze niż dokładanie i odejmowanie pozycji.
-            DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
-
-            $position = 0;
-
-            foreach ($data['osoby'] ?? [] as $userId) {
-                $this->utworzPozycje(
-                    DailyPick::TYPE_USER,
-                    $userId,
-                    $position++,
-                    $moderator,
-                    $this->nullIfBlank($notatki[$userId] ?? null),
-                );
-            }
-
-            $position = 0;
-
-            foreach ($data['wpisy'] ?? [] as $postId) {
-                $this->utworzPozycje(
-                    DailyPick::TYPE_POST,
-                    $postId,
-                    $position++,
-                    $moderator,
-                    $this->nullIfBlank($notatki[$postId] ?? null),
-                );
-            }
-
-            return DailyPick::query()->forDate()->get()->countBy('subject_type')->all();
-        });
-
-        AuditLogEntry::record(
-            action: 'daily_board.updated',
-            actor: $moderator,
-            metadata: [
-                'osoby' => $saved[DailyPick::TYPE_USER] ?? 0,
-                'przeslane_osoby' => $submittedPeople,
-                'wpisy' => $saved[DailyPick::TYPE_POST] ?? 0,
-                'przeslane_wpisy' => $submittedPosts,
-            ],
+        // Blokada dnia, zastąpienie całego wyboru i wpis audytu w jednej
+        // transakcji — uzasadnienie w `ZapiszTabliceDnia` (#1027, #1329).
+        $saved = $this->zapis->zastap(
+            gospodarz: $request->user(),
+            osoby: $data['osoby'],
+            wpisy: $data['wpisy'],
+            notatki: is_array($notatki) ? $notatki : [],
+            przeslaneOsoby: $submittedPeople,
+            przeslaneWpisy: $submittedPosts,
             ip: $request->ip(),
         );
 
@@ -186,65 +146,14 @@ class DailyBoardController extends Controller
     {
         $this->authorize('moderate', User::class);
 
-        DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
+        $this->zapis->wyczysc($request->user(), $request->ip());
 
         return back()->with('status', 'Wyczyszczone. Tablica dobierze treści sama.');
-    }
-
-    /**
-     * Jedna pozycja tablicy — z przechwyceniem zderzenia z UNIQUE.
-     *
-     * Zderzenie znaczy: konkurencyjne żądanie (drugie kliknięcie "Zapisz"
-     * z tym samym wyborem) zdążyło wstawić DOKŁADNIE tę samą pozycję (ta
-     * sama osoba/wpis, ten sam dzień) w tej samej szczelinie między naszym
-     * DELETE-em a naszym INSERT-em. Dla człowieka to wciąż jest JEDEN zapis,
-     * więc kończymy cicho — bez błędu 500 i bez drugiego wiersza, którego
-     * UNIQUE i tak by nie przepuścił.
-     */
-    private function utworzPozycje(string $typ, string $subjectId, int $pozycja, User $moderator, ?string $notatka): void
-    {
-        try {
-            // WŁASNA ZAGNIEŻDŻONA TRANSAKCJA, NIE SAM `try/catch`.
-            //
-            // W PostgreSQL zderzenie z UNIQUE nie tylko rzuca wyjątkiem —
-            // oznacza CAŁĄ otaczającą transakcję jako nieużywalną
-            // ("current transaction is aborted") aż do jej zakończenia.
-            // Samo złapanie wyjątku w PHP nic by tu nie dało: kolejny
-            // `INSERT` w tej samej transakcji i tak by już padł. Zagnieżdżone
-            // `DB::transaction()` Laravel zamienia na `SAVEPOINT`, więc
-            // wycofuje się TYLKO ten jeden `INSERT`, nie cały zapis tablicy —
-            // dokładnie ten mechanizm, którego `Builder::createOrFirst()`
-            // (`firstOrCreate()`) używa wewnętrznie dla tego samego problemu.
-            DB::transaction(function () use ($typ, $subjectId, $pozycja, $moderator, $notatka): void {
-                DailyPick::create([
-                    'shown_on' => Czas::dzisiajData(),
-                    'subject_type' => $typ,
-                    'subject_id' => $subjectId,
-                    'position' => $pozycja,
-                    'curator_id' => $moderator->getKey(),
-                    'note' => $notatka,
-                ]);
-            });
-        } catch (UniqueConstraintViolationException) {
-            // Nic do zrobienia — konkurencyjne żądanie już zapisało dokładnie
-            // tę pozycję na dziś.
-        }
     }
 
     /** @return list<string> */
     private function ids(mixed $value): array
     {
         return is_array($value) ? array_values(array_unique(array_filter($value, fn ($id) => is_string($id) && Str::isUuid($id)))) : [];
-    }
-
-    private function nullIfBlank(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : $trimmed;
     }
 }

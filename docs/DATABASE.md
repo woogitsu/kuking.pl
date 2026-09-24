@@ -2738,7 +2738,9 @@ Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
 **Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
 częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
-`user.role_changed`, `post.published`) idzie przez `record()` **wewnątrz**
+`user.role_changed`, `post.published`, wybór redakcyjny `daily_board.updated`,
+`daily_board.cleared`, `hero_kolaz.updated`, `hero_kolaz.cleared`) idzie przez
+`record()` **wewnątrz**
 transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
 komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
 człowieka (`account.registered`, `content.reported`), idzie przez
@@ -4286,7 +4288,8 @@ z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 - `curator_id uuid NULL` → `users` (`ON DELETE SET NULL`) — kto wskazał;
 - `daily_picks.note varchar(300) NULL` — zdanie gospodarza przy wskazaniu.
   **Kolumna jest ŻYWA i widoczna dla człowieka.** Zapisuje ją formularz panelu
-  (`DailyBoardController.php:188`, odczyt do formularza w `:40`), pobiera
+  (zapis w `app/Domain/Feed/Actions/ZapiszTabliceDnia.php`, odczyt do
+  formularza w `DailyBoardController::edit()`), pobiera
   `DailyBoard.php:161-165`, a **wyświetla tablica dnia** —
   `components/kuking-board.blade.php:138` (przy koncie) i `:278` (przy wpisie).
   Asercje: `DailyBoardTest.php:65,317`. `NULL` jest stanem normalnym: gospodarz

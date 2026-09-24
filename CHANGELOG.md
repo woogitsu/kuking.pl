@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Tablica „kuKINGi na dziś” pokazuje najwyżej jedno danie od osoby także wtedy, gdy wybiera je gospodarz. Panel mówi po polsku, czyje drugie danie trzeba odznaczyć, i zostawia zaznaczenia oraz notatki na miejscu. Dwa jednoczesne zapisy tablicy albo kolażu na stronie powitalnej nie sklejają się już w jeden za długi wybór, a każda zmiana i każde wyczyszczenie zostawia ślad w dzienniku panelu.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

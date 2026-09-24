@@ -212,6 +212,13 @@ final class DailyBoard
             $picks->where('subject_type', DailyPick::TYPE_POST)
                 ->map(fn (DailyPick $pick) => $postsById->get($pick->subject_id))
                 ->filter()
+                // Najwyżej jedno danie od osoby TAKŻE w części redakcyjnej
+                // (#1296). Panel już tego pilnuje przy zapisie, ale zastane
+                // albo ręcznie wstawione `daily_picks` mogą mieć dwa dania
+                // jednego autora. Zostaje pierwsze według pozycji gospodarza
+                // (`forDate()` sortuje po `position`, `id`), a zwolnione
+                // miejsce uzupełnia automat w `uzupelnijDoSufitu()`.
+                ->unique('author_id')
                 ->values(),
         );
 

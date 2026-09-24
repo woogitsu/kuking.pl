@@ -23,6 +23,8 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Feed\Actions\ZapiszKolaz;
+use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -51,6 +53,24 @@ function barieraPoLiczeniuAdministratorow(): void
             && str_contains($query->sql, '"status" =')
             && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
             DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
+/**
+ * Bariera #1027: uczestnik staje PO rzeczywistym `DELETE` z tabeli wyboru,
+ * a PRZED pierwszym `INSERT`-em — dokładnie w szczelinie, w której dwa
+ * zastąpienia zestawu złączały się w A ∪ B. Czeka na blokadę doradczą
+ * trzymaną przez test; zwolnienie jej puszcza uczestnika dalej.
+ */
+function barieraPoKasowaniuWyboru(string $tabela): void
+{
+    $zatrzymany = false;
+
+    DB::listen(static function (QueryExecuted $query) use ($tabela, &$zatrzymany): void {
+        if (! $zatrzymany && str_starts_with(strtolower(ltrim($query->sql)), 'delete from "'.$tabela.'"')) {
+            $zatrzymany = true;
+            DB::select('SELECT pg_advisory_xact_lock(91027, 1)');
         }
     });
 }
@@ -203,6 +223,36 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
+        // bariera po ich własnym DELETE.
+        'tablica-dnia' => (function () use ($argumenty): array {
+            barieraPoKasowaniuWyboru('daily_picks');
+
+            return app(ZapiszTabliceDnia::class)->zastap(
+                gospodarz: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                osoby: [],
+                wpisy: (array) json_decode($argumenty['wpisy'], true),
+                notatki: [],
+                przeslaneOsoby: 0,
+                przeslaneWpisy: count((array) json_decode($argumenty['wpisy'], true)),
+                ip: null,
+                dzien: $argumenty['dzien'],
+            );
+        })(),
+
+        'kolaz' => (function () use ($argumenty): int {
+            barieraPoKasowaniuWyboru('hero_picks');
+            /** @var array<string, string> $dopuszczone */
+            $dopuszczone = (array) json_decode($argumenty['zdjecia'], true);
+
+            return app(ZapiszKolaz::class)->zastap(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                array_keys($dopuszczone),
+                $dopuszczone,
+                null,
+            );
+        })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

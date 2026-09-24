@@ -169,6 +169,24 @@ z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
 zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
 
+## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
+
+Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`
+i serię `INSERT`-ów. Zapis mieszka w `app/Domain/Feed/Actions/ZapiszTabliceDnia`
+i `ZapiszKolaz`; kontrolery panelu tylko autoryzują, walidują i odpowiadają.
+Jedna transakcja obejmuje trzy rzeczy, w tej kolejności:
+
+1. blokadę doradczą zasobu (`ZamekWyboruRedakcji`: tablica osobno dla
+   każdej daty, kolaż jako jeden zasób) — istnieje także przy pustym
+   zestawie, więc dwa równoległe zapisy dają zestaw A albo B, nigdy A ∪ B
+   (#1027);
+2. `DELETE` i wstawienie nowego zestawu;
+3. wpis `audit_log` (`daily_board.updated|cleared`, `hero_kolaz.updated|cleared`)
+   — awaria dziennika cofa zmianę wyboru (#1329, D-249 klasa 1).
+
+Pomiar przeplotu na dwóch połączeniach:
+`tests/Dwa/WyborRedakcjiNieZlaczaDwochZestawowTest.php`.
+
 ## PWA
 
 Od początku:
