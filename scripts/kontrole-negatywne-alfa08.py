@@ -152,6 +152,12 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
+# behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
+# zwrot miejsca do wspólnej puli poczty.
+BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -352,6 +358,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
