@@ -1911,6 +1911,28 @@
     overflow: hidden;
   }
 
+  /* OTWARTE MENU „…" ZDEJMUJE PRZYCINANIE KARTY (issue #1082).
+     Panel menu (`.post-card-menu-tresc`) jest `position: absolute`, więc
+     nie powiększa karty. Na krótkim wpisie bez zdjęcia rozwinięte
+     „Usuń wpis" → „Tak, usuń wpis" wychodziło poza dół karty i `overflow:
+     hidden` je ucinało. Zmierzone w Chromium (`scripts/menu-karty-wpisu.mjs`,
+     wpis „Zupa.", 1280 px): karta 231 px, rozwinięty panel sięga 338 px
+     poniżej jej dołu (390 px: 203 px). Myszą nie dało się trafić „Tak, usuń
+     wpis", a Tab przewijał TREŚĆ WEWNĄTRZ karty o 339 px — nagłówek i tekst
+     znikały nad jej górną krawędzią. Wpis ze zdjęciem jest wystarczająco
+     wysoki i przycięcia nie miał.
+
+     Dlaczego tylko przy otwartym menu, a nie w ogóle bez `overflow`:
+     przycinanie zostaje stanem spoczynku, więc zamknięta karta wygląda
+     dokładnie jak przedtem. Zdjęcia nigdy nie stoją w rogu karty (pierwsza
+     jest główka, ostatni pasek akcji), więc na czas otwartego menu nic nie
+     wychodzi poza zaokrąglenie. `z-index` panelu nie pomógłby — przycina
+     przodek, nie kolejność warstw. Bez JavaScriptu: `details[open]` to stan
+     z HTML-a. */
+  .post-card:has(.post-card-menu[open]) {
+    overflow: visible;
+  }
+
   /*
    * GŁÓWKA ZAWIJA SIĘ DO DWÓCH RZĘDÓW, ZAMIAST ZGNIATAĆ NAZWĘ AUTORA DO ZERA
    *

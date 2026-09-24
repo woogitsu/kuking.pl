@@ -474,6 +474,17 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+            } elseif ($recipe->isPublished()) {
+                /*
+                 * ZAPIS BEZ PUBLIKACJI NA PUBLICZNYM PRZEPISIE TEŻ ZOSTAWIA
+                 * HISTORIĘ (issue #1316). Macierz przejść nie pozwala wrócić
+                 * z `published` do szkicu, więc autozapis kreatora i „Zapisz
+                 * zmiany" zmieniają treść, którą czytelnik widzi od razu —
+                 * a wersja powstawała tylko przy `$publish`. Warunek to stan
+                 * PO zapisie, nie flaga wywołania: `publish = false` nie znaczy
+                 * „szkic". Sklejanie autozapisów opisuje `SnapshotRecipeVersion::poprawka()`.
+                 */
+                $this->snapshots->poprawka($recipe, $author);
             }
 
             return $recipe;

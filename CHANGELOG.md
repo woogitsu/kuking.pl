@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Na krótkim wpisie menu „…” i pytanie „Na pewno usunąć ten wpis?” nie są już ucinane przez dolną krawędź karty. Przycisk „Tak, usuń wpis” da się trafić myszą i dojść do niego klawiszem Tab, także przy powiększonym tekście (#1082).
+- Poprawka opublikowanego przepisu — zapisana samoczynnie albo przyciskiem „Zapisz zmiany” — zostaje w historii wersji przepisu. Kolejne zapisy jednej poprawki w ciągu pół godziny tworzą jedną wersję, a zapis bez zmian nie tworzy żadnej (#1316).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
