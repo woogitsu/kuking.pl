@@ -153,7 +153,7 @@ tu i w JSON się rozjedzie, **wiąże JSON**.
 **0. Przegląd przed zmianą** (dash.cloudflare.com → strefa `kuking.pl`):
 Caching → Cache Rules, Rules → Page Rules, Workers Routes, Rules →
 Transform Rules (Response Header). Zapisz, co jest. Reguła „Cache
-Everything” obejmująca `/zdjecia/` albo usuwająca `Set-Cookie`/`Cache-Control`
+Everything” obejmująca `/zdjecia/{uuid}/{wariant}` albo usuwająca `Set-Cookie`/`Cache-Control`
 = **stop**, najpierw ją wyłącz (D-020). Sprawdź też Caching → Configuration:
 „Always Online” i „Serve stale content while revalidating” (rozdział #610).
 
@@ -206,10 +206,16 @@ w obu wyrażeniach), potem produkcja:
    zalogowanego, 404 dla anonima na prywatnym zdjęciu, brak `Set-Cookie`.
    Czy Cloudflare przechowuje **302 bez rozszerzenia pliku** — rozstrzyga
    ten HIT, nie założenie.
-3. Na produkcji ręcznie: dwa razy
-   `curl -s -o /dev/null -D - https://kuking.pl/zdjecia/<UUID_PUBLICZNEGO>/feed | grep -i -E 'cf-cache-status|cache-control|set-cookie|location'`
-   — drugi raz `cf-cache-status: HIT`, brak `set-cookie`. **Nie wklejaj**
-   nigdzie linii `location` (podpisany adres).
+3. Na produkcji ręcznie, dwa razy pod rząd (UUID publicznego zdjęcia
+   z konta testowego):
+
+   ```bash
+   curl -s -o /dev/null -D - https://kuking.pl/zdjecia/UUID_PUBLICZNEGO/feed \
+     | grep -i -E 'cf-cache-status|cache-control|set-cookie'
+   ```
+
+   Drugi raz `cf-cache-status: HIT`, brak `set-cookie`. Filtr celowo
+   pomija `location` — to podpisany adres, nie wklejaj go nigdzie.
 4. Wpisz do #597: datę, host, wynik sondy, wynik curl (bez `location`).
 
 **Cofnięcie:** wyłącz regułę zdjęć (sekundy) → Caching → Configuration →
