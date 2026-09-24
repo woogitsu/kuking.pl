@@ -121,7 +121,7 @@
 
         @if($nicNieMa && $odPrzepisu === 0 && $odOsoby === 0)
             {{--
-                Tekst domyślnej gałęzi (przepisy/wszystko) jest dosłownym
+                Tekst gałęzi „przepisy" jest dosłownym
                 cytatem z docs/brand/COPY_STYLE.md §6 „Puste stany" — ten
                 dokument wiąże każdy tekst widoczny dla użytkownika i ma tu
                 gotowe brzmienie, nie tylko przykład.
@@ -132,6 +132,12 @@
                     Spróbuj zakresu „Przepisy” — może być trochę dłuższy.
                 @elseif($section === 'ludzie')
                     Nie ma tu osoby o nazwie „{{ $phrase }}”.
+                @elseif($section === 'wszystko')
+                    {{-- „Wszystko" przeszukuje przepisy I ludzi (#944). Tekst
+                         o samym przepisie zmieniałby znaczenie zapytania
+                         komuś, kto wpisał imię — do czego zachęca pomoc pola. --}}
+                    Nie znaleźliśmy ani przepisu, ani osoby pasującej do „{{ $phrase }}”.
+                    Sprawdź, czy wszystko jest dobrze wpisane, albo wpisz krócej: samo imię albo jedną nazwę dania.
                 @else
                     Nie ma jeszcze przepisu, który by pasował do „{{ $phrase }}”. Może to Ty go dodasz?
                 @endif
@@ -145,7 +151,8 @@
             --}}
             <p class="text-center">
                 @if($section !== 'ludzie')
-                    <a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a>
+                    {{-- W „Wszystko" fraza mogła być imieniem, więc bez „taki". --}}
+                    <a class="btn btn-primary" href="{{ route('recipes.create') }}">{{ $section === 'wszystko' ? 'Dodaj przepis' : 'Dodaj taki przepis' }}</a>
                 @endif
                 <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z <x-kuking-word /></a>
             </p>
