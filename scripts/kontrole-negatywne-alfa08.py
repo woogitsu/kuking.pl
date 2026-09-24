@@ -145,6 +145,13 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
+# jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
+# końca, więc przechodzi host podszywający się sufiksem.
+STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
+STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+
 # Wybór kolażu należy do wpisu (#955). Strażnik ładuje migrację przez
 # `base_path(...)` i sprawdza definicję złożonego FK w `pg_constraint`.
 # Mutacja zdejmuje z migracji `ON DELETE CASCADE` — FK nadal istnieje, więc
@@ -235,16 +242,19 @@ def akcja_php_na_ruchomym_tagu(source):
 
 
 def bez_kopii_testu_assetow(source):
-    """KONTROLA DODATNIA: zabierz etapowi `assets` jeden z plików `node --test`.
+    """KONTROLA DODATNIA: zabierz etapowi `assets` pliki `node --test` z `scripts/`.
 
-    `package.json` nadal podaje `scripts/pwa-install.test.mjs` do `node --test`,
-    więc po tej mutacji Dockerfile obiecuje mniej, niż wymaga budowanie. Test
-    ma to zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
+    Etap kopiuje dziś cały katalog (`COPY scripts ./scripts`). Mutacja cofa go
+    do wyliczanki z jednym plikiem — samym `kontrast-marki.mjs`, którego
+    potrzebuje pierwszy człon `build` — czyli do dokładnie tej regresji, przed
+    którą chroni ten test: `package.json` nadal podaje do `node --test` pliki
+    `scripts/*.test.mjs`, a Dockerfile przestaje je obiecywać. Test ma to
+    zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
     """
     return replace_once(
         source,
-        "COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs\n",
-        "",
+        "COPY scripts ./scripts\n",
+        "COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs\n",
     )
 
 
@@ -345,6 +355,10 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
 ]
@@ -363,6 +377,7 @@ run_test(XMP_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(STRAZNIK_R2_TEST, True)
 run_test(HERO_PICKS_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"

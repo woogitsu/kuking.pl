@@ -80,7 +80,7 @@ async function podniesSerwer() {
   /* Strona wciąga zbudowany `public/build/assets/app-*.css` przez manifest
      Vite — pomiar bez przebudowania opisywałby POPRZEDNIĄ wersję arkusza. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   try {
     execFileSync('createdb', [env().DB_DATABASE], {
@@ -395,14 +395,14 @@ try {
     try {
       appendFileSync(source, css);
       console.log('FOKUS_UJEMNA przed=' + before + ' zmieniony=' + hash());
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       let caught = false;
       try { await check(); }
       catch (error) { if (error.message.startsWith(code)) { caught = true; console.log('FOKUS_UJEMNA wykryto=' + code); } else throw error; }
       if (!caught) throw new Error('Kontrola ujemna nie wykryła ' + code);
     } finally {
       execFileSync('cp', [backup, source]);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       if (hash() !== before) throw new Error('Nie przywrócono źródła');
       console.log('FOKUS_UJEMNA przywrocony=' + hash());
     }
