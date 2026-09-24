@@ -3404,10 +3404,13 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
-  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
-  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
-  pierwszego eksportu po upływie godziny albo do restartu kontenera
-  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze
+  oraz pętla samego workera (zdarzenie `Looping`, najwyżej raz na 10 minut,
+  `ExportTempDirectory::SWEEP_EVERY_SECONDS`; każdy worker sprząta własny
+  dysk) — czyli po twardym przerwaniu procesu pliki pośrednie żyją przy
+  działającym workerze najdłużej ok. 85 minut (60 min progu + 10 min
+  odstępu + 15 min najdłuższego zadania blokującego pętlę), a gdy worker
+  nie wstaje — do restartu kontenera (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
   z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
   (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
   jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
