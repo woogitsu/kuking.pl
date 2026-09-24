@@ -18,7 +18,7 @@ use Tests\TestCase;
 /**
  * Tryb ścisły Eloquent poza produkcją (issue #976).
  *
- * `AppServiceProvider` woła `Model::shouldBeStrict(! isProduction())`, więc
+ * `AppServiceProvider` woła `Model::shouldBeStrict(environment('local', 'testing'))`, więc
  * w `local` i `testing` trzy ciche przeoczenia przerywają test w miejscu
  * błędu: leniwe ładowanie relacji (N+1), odczyt kolumny spoza częściowego
  * `select()` i pole spoza `$fillable` odrzucone przy masowym przypisaniu.
@@ -114,5 +114,17 @@ class TrybScislyEloquentTest extends TestCase
         $wpis = new Post(['kind' => Post::KIND_QUESTION, 'body' => 'Podrzucony rodzaj.']);
         $this->assertSame(Post::KIND_DISH, $wpis->kind, 'Pole sterujące przeszło masowym przypisaniem w produkcji.');
         $this->assertSame('Podrzucony rodzaj.', $wpis->body);
+    }
+
+    public function test_na_stagingu_ochrony_sa_wylaczone(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'staging');
+        $this->assertTrue($this->app->environment('staging'), 'Kontrola: środowisko naprawdę przełączone na staging.');
+
+        (new AppServiceProvider($this->app))->boot();
+
+        $this->assertFalse(Model::preventsLazyLoading(), 'Staging blokuje leniwe ładowanie — joby spoza testów padałyby bez wyłącznika.');
+        $this->assertFalse(Model::preventsSilentlyDiscardingAttributes(), 'Staging rzuca na polu spoza $fillable.');
+        $this->assertFalse(Model::preventsAccessingMissingAttributes(), 'Staging rzuca na niepobranej kolumnie.');
     }
 }

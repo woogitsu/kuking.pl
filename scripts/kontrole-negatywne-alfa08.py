@@ -480,7 +480,7 @@ checks = [
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
-     lambda s: replace_once(s, "        Model::shouldBeStrict(! $this->app->isProduction());\n", "")),
+     lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing'));\n", "")),
 ]
 
 run_test(COLLECTION_TEST, True)

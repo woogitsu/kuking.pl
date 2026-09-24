@@ -250,13 +250,15 @@ class AppServiceProvider extends ServiceProvider
      * (odczyt kolumny, której nie pobrał częściowy `select()`). W `local`
      * i `testing` każde z tych przeoczeń przerywa test dokładnie w miejscu
      * błędu; produkcja zostaje tolerancyjna, żeby przeoczenie nie stało się
-     * błędem widocznym dla użytkownika.
+     * błędem widocznym dla użytkownika. Staging i podglądy PR (`APP_ENV=staging`)
+     * też zostają tolerancyjne: tam biegną joby i komendy spoza zasięgu testów,
+     * a wyłącznika bez wdrożenia nie ma (wariant zachowawczy, noc 24.09).
      *
      * Świadomie BEZ automatycznego eager loadingu relacji — maskowałby brak
      * jawnego planu zapytań (`with()`, `loadMissing()`).
      */
     private function wlaczTrybScislyEloquentPozaProdukcja(): void
     {
-        Model::shouldBeStrict(! $this->app->isProduction());
+        Model::shouldBeStrict($this->app->environment('local', 'testing'));
     }
 }
