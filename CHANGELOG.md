@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Gdy serwis nie zdoła zlecić przygotowania wgranego zdjęcia, nie zostawia już zdjęcia, które na zawsze „przygotowuje się”. Nic się wtedy nie zapisuje, a przy polu zdjęć pojawia się komunikat, żeby wysłać je jeszcze raz — wpisany tekst zostaje na miejscu.
 
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
