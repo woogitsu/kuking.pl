@@ -100,6 +100,20 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
+# Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
+# definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
+# cofnięcie przy wiadomościach po usuniętym operatorze wywraca się dopiero
+# na CHECK-u, innym wyjątkiem i bez zdania, co zrobić — test ma to zauważyć.
+KONTAKT_MIGRACJA = "database/migrations/2026_09_24_100000_allow_null_handled_by_on_contact_messages.php"
+KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
+
+# Znaczniki odpowiedzi (`reply_key`, `sending_started_at`) chronią przed drugą
+# wysyłką tego samego listu (#1081). Strażnik wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę cofnięcia po pierwszym
+# formularzu, więc `down()` przechodzi i test odmowy ma oblać.
+KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
+KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
 # Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
@@ -173,6 +187,20 @@ CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_asset
 STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+
+# Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
+# behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
+# zwrot miejsca do wspólnej puli poczty.
+BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+# Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
+# akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
+# `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
+# osobno z akcji przepisu i z akcji wpisu — każda ma zapalić ten sam test.
+ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
 
 def digest(path):
@@ -410,6 +438,10 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
+    ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
+     lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
@@ -442,6 +474,12 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
+    ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -451,6 +489,8 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(KONTAKT_MIGRACJA_TEST, True)
+run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
@@ -463,6 +503,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
