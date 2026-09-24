@@ -193,6 +193,14 @@ ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
+# Runbook nie każe instalować niewdrożonych Sentry i PostHog (#1010). Strażnik
+# czyta dokument; mutacje przywracają do części wykonywanej (poza `<details>`)
+# polecenie instalacji pakietu i wiersz z kluczem PostHog w tabeli zmiennych.
+RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
+RUNBOOK_USLUGI_TEST = "RunbookNieKazeInstalowacNiewdrozonychUslugTest"
+RUNBOOK_KROK_4 = "3. Próba po wdrożeniu stoi w kroku 11.3 (punkt 19).\n"
+RUNBOOK_WIERSZ_WEBHOOKA = "| `LOG_BLAD_WEBHOOK_URL` | z kroku 4 |"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -467,6 +475,10 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_KROK_4, RUNBOOK_KROK_4 + "\n```bash\ncomposer require sentry/sentry-laravel\n```\n")),
+    ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_WIERSZ_WEBHOOKA, "| `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |\n" + RUNBOOK_WIERSZ_WEBHOOKA)),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -490,6 +502,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(RUNBOOK_USLUGI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
