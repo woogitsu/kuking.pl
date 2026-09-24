@@ -130,7 +130,7 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
   .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }
 }
 
-.szybki-wyglad-podpowiedz { position: fixed; z-index: 26; right: calc(var(--spacing-3) + var(--safe-right)); bottom: calc(var(--wyglad-dol, 0px) + 76px); }
+.szybki-wyglad-podpowiedz { position: fixed; z-index: 26; right: calc(var(--spacing-3) + var(--safe-right)); bottom: calc(var(--wyglad-dol, 0px) + var(--safe-bottom) + 76px); }
 
 .szybki-wyglad select { border: 1px solid var(--color-border); border-radius: var(--spacing-2); padding: var(--spacing-2); background: var(--color-surface); color: var(--color-ink); }
 /* .btn ma własne display, więc jawnie zachowujemy wariant bez JavaScriptu. */

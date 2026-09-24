@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 
 /**
- * Jeden kontrakt bezpiecznego obszaru: `viewport-fit=cover` + cztery tokeny (#987, D-257).
+ * Jeden kontrakt bezpiecznego obszaru: `viewport-fit=cover` + cztery tokeny (#987, D-260).
  *
  * Przy `cover` strona wchodzi pod wycięcie, zaokrąglone narożniki i wskaźnik
  * Home. Pojedyncze `env(safe-area-inset-bottom)` w trzech arkuszach —
@@ -21,10 +21,14 @@ class BezpiecznyObszarMaJedenKontraktTest extends TestCase
     {
         $layout = (string) file_get_contents(resource_path('views/components/layout.blade.php'));
 
-        $this->assertTrue(
-            str_contains($layout, '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'),
-            'Wspólny meta viewport musi wybierać viewport-fit=cover (D-257).',
-        );
+        // Tokeny, nie cały napis: inne zmiany (np. `interactive-widget`, #947)
+        // dopisują się do tego samego znacznika i nie mogą czerwienić tego testu.
+        $this->assertSame(1, preg_match('#<meta\s+name="viewport"\s+content="([^"]*)"#', $layout, $meta), 'Brak wspólnego meta viewport.');
+        $tokeny = array_map('trim', explode(',', $meta[1]));
+
+        foreach (['width=device-width', 'initial-scale=1', 'viewport-fit=cover'] as $token) {
+            $this->assertContains($token, $tokeny, "Wspólny meta viewport musi zawierać {$token} (D-260).");
+        }
     }
 
     public function test_insety_czyta_tylko_plik_kontraktu_i_wszystkie_cztery(): void
@@ -61,6 +65,9 @@ class BezpiecznyObszarMaJedenKontraktTest extends TestCase
         $this->assertStringContainsString('left: calc(8px + var(--safe-left));', $rama);
         $this->assertStringContainsString('right: calc(8px + var(--safe-right));', $rama);
         $this->assertStringContainsString('bottom: calc(8px + var(--safe-bottom));', $rama);
+
+        $wyglad = $this->bezKomentarzy('szybki-wyglad.css');
+        $this->assertStringContainsString('bottom: calc(var(--wyglad-dol, 0px) + var(--safe-bottom) + 76px);', $wyglad, 'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home.');
     }
 
     private function bezKomentarzy(string $plik): string

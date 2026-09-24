@@ -16789,7 +16789,7 @@ wyłącznik, odrzucone nie wraca).
 Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
 edycji zostają w kolejce jak każde inne.
 
-## D-257 — Bezpieczny obszar: `viewport-fit=cover` i cztery tokeny `--safe-*` (24 września 2026)
+## D-260 — Bezpieczny obszar: `viewport-fit=cover` i cztery tokeny `--safe-*` (24 września 2026)
 
 **Data:** 24 września 2026 · Issue #987 · Status: **do odbioru na urządzeniu**
 
@@ -16817,6 +16817,8 @@ ekranowa i visual viewport zostają w #947.
 odbioru na fizycznym iPhonie (Safari i ekran główny, pion i poziom, tekst
 100/140/200%) wymaga #987 i nie da się go zastąpić emulacją.
 
-Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (meta
-viewport, jedyne źródło insetów, właściciel każdego brzegu) z trzema
-kontrolami dodatnimi w `scripts/kontrole-negatywne-alfa08.py`.
+Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (tokeny
+meta viewport — nie cały napis, żeby dopisany `interactive-widget` z #947 go
+nie czerwienił — jedyne źródło insetów, właściciel każdego brzegu, w tym dół
+podpowiedzi szybkiego wyglądu) z trzema kontrolami ujemnymi w
+`scripts/kontrole-negatywne-alfa08.py`.

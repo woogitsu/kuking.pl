@@ -413,10 +413,11 @@ def akcje_poza_filtrem_widoku(source):
 # z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
 FONTY_CSS = "resources/css/fonts.css"
 FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
-# Kontrakt bezpiecznego obszaru (#987, D-257): meta viewport z `cover`
-# i boki dolnej belki przez tokeny `--safe-*`.
+# Kontrakt bezpiecznego obszaru (#987, D-260): meta viewport z `cover`
+# i boki dolnej belki oraz dół podpowiedzi wyglądu przez tokeny `--safe-*`.
 BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
 MARKA_RAMA_CSS = "resources/css/marka-rama.css"
+SZYBKI_WYGLAD_CSS = "resources/css/szybki-wyglad.css"
 
 
 checks = [
@@ -480,9 +481,11 @@ checks = [
     ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
      lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
     ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
-     lambda s: replace_once(s, "initial-scale=1, viewport-fit=cover", "initial-scale=1")),
+     lambda s: replace_once(s, ", viewport-fit=cover", "")),
     ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
      lambda s: replace_once(s, "left: calc(8px + var(--safe-left));", "left: 8px;")),
+    ("Podpowiedź wyglądu bez dolnego insetu", SZYBKI_WYGLAD_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "+ var(--safe-bottom) + 76px)", "+ 76px)")),
 ]
 
 run_test(COLLECTION_TEST, True)
