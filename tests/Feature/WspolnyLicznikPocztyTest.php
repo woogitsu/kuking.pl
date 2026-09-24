@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Sleep;
+use Illuminate\Support\Str;
 use ReflectionClass;
 use Tests\TestCase;
 
@@ -354,6 +355,7 @@ class WspolnyLicznikPocztyTest extends TestCase
             $wiadomosc,
             $this->user('moderatorka'),
             'Przycisk poprawiliśmy dziś rano.',
+            replyKey: (string) Str::uuid(),
         );
 
         Mail::assertNothingSent();

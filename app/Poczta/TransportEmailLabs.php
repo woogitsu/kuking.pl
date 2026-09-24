@@ -407,6 +407,7 @@ final class TransportEmailLabs extends AbstractTransport
                 $this->powodOdmowy($odpowiedz, $tresc),
                 $this->powod($odpowiedz, $tresc),
                 $odpowiedz->status(),
+                confirmedRejection: $odpowiedz->status() >= 400 && $odpowiedz->status() < 500 && $odpowiedz->status() !== 408,
             );
         }
 
@@ -428,6 +429,7 @@ final class TransportEmailLabs extends AbstractTransport
                 $this->powodOdmowy($odpowiedz, $tresc),
                 $this->powod($odpowiedz, $tresc),
                 $odpowiedz->status(),
+                confirmedRejection: ($meta['numberOfData'] ?? null) === 0,
             );
         }
 
@@ -438,6 +440,7 @@ final class TransportEmailLabs extends AbstractTransport
                 .'przyjętej wiadomości (`meta.numberOfData` = 0). Nikt nic nie dostanie. '
                 .$this->identyfikator($meta),
                 $odpowiedz->status(),
+                confirmedRejection: ($meta['numberOfData'] ?? null) === 0,
             );
         }
 
