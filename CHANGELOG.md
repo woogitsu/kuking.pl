@@ -1,11 +1,13 @@
 # Co się zmieniło w Kuking
 
-## Alfa 0.69 — formularze mówią, ile zdjęć się zmieści, i pozwalają wycofać wybrane
+## Nieopublikowane
+
+> Tu trafia wpis z każdego PR-a, który zmienia coś, co człowiek zobaczy — jedna linia `- …` językiem użytkownika. PR nie podbija numeru wersji: numer (`config/kuking.php` → `wersja.etykieta`) rośnie raz, przy wydaniu, a wtedy ta lista przechodzi pod nowy nagłówek wersji. Pilnuje tego job CI `bramka_wersji`; zmiana bez śladu w interfejsie przechodzi z linią `Bez-podbicia-wersji: <powód>` w opisie PR-a albo w commicie.
 
 - Formularz wpisu i „Ugotowałem” mówią z góry, ile zdjęć łącznie można dodać i jak duży może być jeden plik — a także wprost, że zdjęcia zachowane po poprzednim wysłaniu wliczają się do tego limitu.
 - Wybrane zdjęcie da się wycofać jeszcze przed wysłaniem. Każdy plik ma swoją nazwę i przycisk „Usuń zdjęcie”; usunięcie jednego nie miesza kolejności pozostałych ani nie kasuje wpisanego tekstu.
 - Ekran „Twoje zdjęcie” przestał obiecywać przygotowanie zdjęcia, którego już nikt nie przygotowuje. Gdy przygotowanie się nie uda, strona mówi to wprost i prosi o wybranie zdjęcia jeszcze raz, zamiast kazać w nieskończoność odświeżać.
-- Ta gałąź niesie też — przeniesione wprost z pracy nad zdjęciami przy publikacji — zachowywanie zdjęć po błędzie formularza, ochronę przed wgraniem ich drugi raz po ponowionym wysłaniu i kotwice błędów zdjęć w podsumowaniu. Jeśli tamta praca wejdzie wcześniej, w tym punkcie nie ma tu nic nowego.
+- Zdjęcia wybrane w formularzu wpisu i „Ugotowałem” nie przepadają, gdy inne pole ma błąd — czekają na miejscu, a ponowne wysłanie tego samego formularza nie wgrywa ich drugi raz. Podsumowanie błędów prowadzi prosto do pola ze zdjęciami.
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
