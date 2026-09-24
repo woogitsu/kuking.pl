@@ -36,3 +36,19 @@ test('Formularz odesłany z błędami pyta zawsze — dane z old() nie są jeszc
     assert.equal(czyFormularzZmieniony(formularz([tekst('Rosół')], { niezapisaneOdSerwera: '' })), true);
     assert.equal(czyFormularzZmieniony(formularz([tekst('Rosół')])), false);
 });
+
+test('Lista bez opcji `selected` w HTML-u nie jest zmianą, dopóki nikt nie wybierze innej', () => {
+    // Przeglądarka pokazuje wtedy pierwszą dostępną opcję: selected=true,
+    // ale defaultSelected=false. Porównanie opcja po opcji uznałoby to za zmianę.
+    const lista = (wybrana, opcje = [{}, {}, {}]) => ({
+        type: 'select-one',
+        options: opcje.map((o, i) => ({ defaultSelected: false, disabled: false, ...o, selected: i === wybrana })),
+    });
+    assert.equal(czyPolaZmienione([lista(0)]), false);
+    assert.equal(czyPolaZmienione([lista(2)]), true);
+    // Pierwsza opcja wyłączona — przeglądarka zaczyna od pierwszej dostępnej.
+    assert.equal(czyPolaZmienione([lista(1, [{ disabled: true }, {}, {}])]), false);
+    // Jawne `selected` nadal wygrywa z pierwszą opcją.
+    assert.equal(czyPolaZmienione([lista(1, [{}, { defaultSelected: true }, {}])]), false);
+    assert.equal(czyPolaZmienione([lista(0, [{}, { defaultSelected: true }, {}])]), true);
+});

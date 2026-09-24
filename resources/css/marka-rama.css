@@ -241,6 +241,21 @@
     --rezerwa-nad-belka: calc(6rem + 2rem * var(--user-text-scale, 1));
   }
 }
+/* Niskie okno przy KAŻDEJ szerokości (issue #947): telefon w poziomie albo
+   okno zmniejszone klawiaturą (`interactive-widget=resizes-content`).
+   Zmierzone w Chromium na zbudowanym CSS (`scripts/przegladarka/
+   klawiatura-belki.test.mjs`): 844×390 z klawiaturą daje 844×190, a belka
+   górna (8–79) i dolna `fixed` (96–182) zostawiały na pole 17 px — pole
+   z fokusem lądowało pod dolną belką; 768×500 z klawiaturą → 768×260, ten sam
+   obraz. Warunek szerokości `30rem` wyżej tego nie łapie. Próg 25rem to ten
+   sam niski próg co przy `.topbar` w app.css (D-107); tablet 768×500 BEZ
+   klawiatury zostaje przypięty — ma 335 px treści między belkami. Stoi PO
+   regule 64rem, żeby zerować także rezerwy komputera. */
+@media (max-height: 25rem) {
+  [data-marka] .marka-topbar { position: relative; top: 0; }
+  [data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + env(safe-area-inset-bottom, calc(0px * var(--user-layout-scale, 1)))); }
+  :root:has(body[data-marka]) { --rezerwa-nad-belka: .5rem; --rezerwa-pod-belka: 0rem; scroll-padding-bottom: .5rem; }
+}
 [data-marka] :is(.card, .panel-formularza, .empty-state) {
   border-radius: 24px;
   box-shadow: var(--marka-cien);

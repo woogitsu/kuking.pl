@@ -17,9 +17,10 @@
  * wyrenderował stronę (`defaultValue`, `defaultChecked`, `defaultSelected`),
  * a nie z migawką zrobioną po wczytaniu skryptu — przeglądarka potrafi
  * odtworzyć wpisany tekst po „Wstecz” ZANIM skrypt ruszy, i migawka uznałaby
- * go za zapisany. Wybrany plik liczy się zawsze jako zmiana. Formularz
- * odesłany z błędami (`data-niezapisane-od-serwera`) też: pokazuje wtedy
- * wpisane dane z `old()`, których w bazie jeszcze nie ma.
+ * go za zapisany. Lista `<select>` bez opcji `selected` porównuje indeks
+ * z tym, który przeglądarka wybrała sama. Wybrany plik liczy się zawsze
+ * jako zmiana. Formularz odesłany z błędami (`data-niezapisane-od-serwera`)
+ * też: pokazuje wtedy wpisane dane z `old()`, których w bazie jeszcze nie ma.
  */
 
 /**
@@ -43,7 +44,19 @@ export function czyPolaZmienione(pola) {
             continue;
         }
         if (pole.options) {
-            for (const opcja of pole.options) {
+            const opcje = Array.from(pole.options);
+            if (typ === 'select-one') {
+                // Lista bez żadnej opcji `selected` w HTML-u pokazuje pierwszą
+                // dostępną — i ta opcja ma `defaultSelected === false`, choć
+                // nikt niczego nie wybrał. Porównujemy więc INDEKS wybranej
+                // opcji z tym, który przeglądarka wybrała sama przy wczytaniu.
+                let domyslna = -1;
+                opcje.forEach((opcja, i) => { if (opcja.defaultSelected) domyslna = i; });
+                if (domyslna === -1 && !(pole.size > 1)) domyslna = opcje.findIndex((opcja) => !opcja.disabled);
+                if (opcje.findIndex((opcja) => opcja.selected) !== domyslna) return true;
+                continue;
+            }
+            for (const opcja of opcje) {
                 if (Boolean(opcja.selected) !== Boolean(opcja.defaultSelected)) return true;
             }
             continue;
@@ -77,9 +90,17 @@ function podlacz(odnosnik) {
         ramka.focus();
     });
 
-    ramka.querySelector('[data-niezapisane-zostan]')?.addEventListener('click', () => {
+    const zostan = () => {
         ramka.hidden = true;
         odnosnik.focus();
+    };
+    ramka.querySelector('[data-niezapisane-zostan]')?.addEventListener('click', zostan);
+    // Esc to „zostań” — jedyne wyjście, które niczego nie traci.
+    ramka.addEventListener('keydown', (zdarzenie) => {
+        if (zdarzenie.key === 'Escape' && !ramka.hidden) {
+            zdarzenie.preventDefault();
+            zostan();
+        }
     });
 }
 

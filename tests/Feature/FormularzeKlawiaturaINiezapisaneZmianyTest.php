@@ -17,14 +17,19 @@ use Tests\TestCase;
  * #947 — bez `interactive-widget=resizes-content` klawiatura ekranowa zmniejsza
  * w Chrome tylko visual viewport; `@media (max-height: 40rem)` z
  * `marka-rama.css` nie widzi wtedy niskiego okna i obie belki zostają przypięte.
- * Zoom nie może zostać przy tym zablokowany.
+ * Zoom nie może zostać przy tym zablokowany. Geometrię pola z fokusem i belek
+ * przy zmniejszonym oknie (390×844, 844×390, 768×500) mierzy w Chromium
+ * `scripts/przegladarka/klawiatura-belki.test.mjs` — razem z regułą
+ * `@media (max-height: 25rem)` z `marka-rama.css`, która odpina belki przy
+ * niskim oknie niezależnie od szerokości.
  *
  * #899 — oba odnośniki z „Dopisz szczegóły” do kreatora są zwykłym GET-em,
  * a kreator czyta przepis z bazy. Odnośniki muszą być podpięte pod
  * `resources/js/niezapisane-zmiany.js` (ramka z pytaniem, ukryta do czasu
  * zmiany), zdanie przy nich ma mówić o tym także bez skryptu, a formularz
  * odesłany z błędami — oznaczony jako niezapisany. Samo zachowanie po
- * kliknięciu sprawdza `resources/js/niezapisane-zmiany.test.mjs`.
+ * kliknięciu sprawdzają `resources/js/niezapisane-zmiany.test.mjs` (logika)
+ * i `scripts/przegladarka/niezapisane-zmiany.test.mjs` (klik w Chromium).
  *
  * Test chodzi po WYRENDEROWANYM HTML-u (XPath), nie po pliku Blade.
  */

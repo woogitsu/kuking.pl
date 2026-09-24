@@ -7,11 +7,13 @@
     przy nim sam mówi, że kreator otworzy ostatnią zapisaną wersję.
 
     `tabindex="-1"`: skrypt przenosi tu fokus, żeby czytnik ekranu przeczytał
-    pytanie, a osoba z klawiaturą miała oba wyjścia tuż pod ręką.
+    pytanie, a osoba z klawiaturą miała oba wyjścia tuż pod ręką. BEZ
+    `role="alert"`: fokus już każe czytnikowi przeczytać ramkę, a alert
+    kazałby mu to zrobić drugi raz. Esc działa jak „Zostań na tej stronie”.
 --}}
 @props(['id', 'href', 'zapisz'])
 
-<div id="{{ $id }}" class="notice mb-5" role="alert" tabindex="-1" hidden>
+<div id="{{ $id }}" class="notice mb-5" tabindex="-1" hidden>
     <p>
         <strong>Masz niezapisane zmiany na tej stronie.</strong>
         Kreator otworzy ostatnią zapisaną wersję przepisu — tego, co tu wpisano

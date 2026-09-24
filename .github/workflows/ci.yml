@@ -907,6 +907,19 @@ jobs:
       - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
         run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
 
+      # #947: pole z fokusem przy klawiaturze (emulowanej przez
+      # `interactive-widget=resizes-content`) nie chowa się pod belkami —
+      # zbudowany CSS, 390×844 / 844×390 / 768×500, z kontrolą ujemną w teście.
+      # Czyta `public/build`, więc stoi po „Build”. Uzasadnienie w nagłówku pliku.
+      - name: Regresja belek przy klawiaturze ekranowej (Chromium)
+        run: node --test scripts/przegladarka/klawiatura-belki.test.mjs
+
+      # #899: klik w oba odnośniki do kreatora przy zmienionym formularzu
+      # pokazuje ramkę i nie przechodzi; przy niezmienionym — przechodzi.
+      # Zbudowany pakiet app.js, więc wycięty import też tu pada.
+      - name: Regresja pytania o niezapisane zmiany (DOM w Chromium)
+        run: node --test scripts/przegladarka/niezapisane-zmiany.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
