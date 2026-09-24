@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-> Tu trafia wpis z każdego PR-a, który zmienia coś, co człowiek zobaczy — jedna linia `- …` językiem użytkownika. PR nie podbija numeru wersji: numer (`config/kuking.php` → `wersja.etykieta`) rośnie raz, przy wydaniu, a wtedy ta lista przechodzi pod nowy nagłówek wersji. Pilnuje tego job CI `bramka_wersji`; zmiana bez śladu w interfejsie przechodzi z linią `Bez-podbicia-wersji: <powód>` w opisie PR-a albo w commicie.
+> Tu trafia wpis z każdego PR-a, który zmienia coś, co człowiek zobaczy — jedna linia `- …` językiem użytkownika. PR nie podbija numeru wersji: numer (`config/kuking.php` → `wersja.etykieta`) rośnie raz, przy wydaniu, a wtedy ta lista przechodzi pod nowy nagłówek wersji.
 
 - Formularz wpisu i „Ugotowałem” mówią z góry, ile zdjęć łącznie można dodać i jak duży może być jeden plik — a także wprost, że zdjęcia zachowane po poprzednim wysłaniu wliczają się do tego limitu.
 - Wybrane zdjęcie da się wycofać jeszcze przed wysłaniem. Każdy plik ma swoją nazwę i przycisk „Usuń zdjęcie”; usunięcie jednego nie miesza kolejności pozostałych ani nie kasuje wpisanego tekstu.
