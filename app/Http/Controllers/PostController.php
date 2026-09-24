@@ -679,7 +679,6 @@ class PostController extends Controller
         }
 
         return view('pages.posts.show', [
-            'podgladModeracji' => $podgladModeracji,
             'komentarze' => $komentarze,
             'komentarzyRazem' => $komentarze->total(),
             'post' => $post,
