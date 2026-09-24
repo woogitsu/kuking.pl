@@ -536,6 +536,12 @@ class GenerateUserExport implements ShouldQueue
             'photosRejected' => $photos->rejectedCount(),
             'photosDeleted' => $photos->deletedCount(),
             'savedOtherRecipeCount' => $this->savedOtherRecipeCount($user),
+            // Ile pozycji z zeszytów filtr widoczności schował (#1017) —
+            // z `dane.json`, żeby oba pliki mówiły o brakach to samo.
+            'savedHiddenCount' => array_sum(array_map(
+                fn (array $zeszyt): int => $zeszyt['przepisow_juz_niewidocznych'] + $zeszyt['wpisow_juz_niewidocznych'],
+                $data['kolekcje'],
+            )),
             'displayName' => $user->profile?->display_name,
             'generatedAt' => $generatedAt,
         ])->render());
@@ -573,6 +579,14 @@ class GenerateUserExport implements ShouldQueue
             ->join('recipes', 'recipes.id', '=', 'collection_items.recipe_id')
             ->where('recipes.author_id', '!=', $user->getKey())
             ->whereNull('recipes.deleted_at')
+            // Tylko przepisy, które paczka naprawdę wypisuje (#1017): ta sama
+            // bramka co w `CollectUserExportData::collections()`. Bez niej
+            // zdanie o „tytule i autorze" wychodziło na koncie, którego
+            // jedyny zapisany cudzy przepis jest już niewidoczny.
+            ->whereIn('recipes.id', Recipe::query()
+                ->widoczneDla($user)
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                ->select('recipes.id'))
             ->count();
     }
 

@@ -20,6 +20,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -739,6 +740,95 @@ class DataExportTest extends TestCase
 
         Storage::disk('local')->assertExists((string) $export->object_key);
         $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
+    }
+
+    public function test_usunieta_paczka_nie_wraca_w_kolejnym_przebiegu_ani_w_podgladzie(): void
+    {
+        $export = $this->runExportFor($this->user('basia'));
+        $export->update(['expires_at' => now()->subDay()]);
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutputToContain('Usunięto: '.$export->getKey())
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-eksporty', ['--dry-run' => true])
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+
+        $export->refresh();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->status);
+        $this->assertNull($export->disk);
+        $this->assertNull($export->object_key);
+        $this->assertDatabaseHas('data_exports', ['id' => $export->getKey()]);
+    }
+
+    public function test_sprzatanie_przechodzi_przez_wiecej_niz_jedna_partie_bez_pominiec(): void
+    {
+        Storage::fake('local');
+        $user = $this->user('basia');
+        $ile = 105;
+
+        foreach (range(1, $ile) as $i) {
+            $key = 'eksporty/partia-'.$i.'.zip';
+            Storage::disk('local')->put($key, 'paczka '.$i);
+            DataExport::create([
+                'user_id' => $user->getKey(),
+                'status' => DataExport::STATUS_READY,
+                'disk' => 'local',
+                'object_key' => $key,
+                'bytes' => 8,
+                // Kolejność terminów celowo nie odpowiada UUID-om.
+                'expires_at' => now()->subMinutes(($i * 37) % 101 + 1),
+            ]);
+        }
+
+        $selectyEksportow = [];
+        DB::listen(function ($query) use (&$selectyEksportow): void {
+            if (str_starts_with($query->sql, 'select') && str_contains($query->sql, 'from "data_exports"')) {
+                $selectyEksportow[] = $query->sql;
+            }
+        });
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Gotowe. Usunięto 105 wygasłych paczek.')
+            ->assertSuccessful();
+
+        $selectyKomendy = $selectyEksportow;
+        $this->assertGreaterThanOrEqual(2, count($selectyKomendy));
+        foreach ($selectyKomendy as $sql) {
+            $this->assertStringContainsString('limit 100', $sql);
+        }
+
+        $this->assertSame($ile, DataExport::query()->where('status', DataExport::STATUS_EXPIRED)->count());
+        $this->assertSame(0, DataExport::query()->whereNotNull('object_key')->count());
+        $this->assertSame([], Storage::disk('local')->allFiles('eksporty'));
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+    }
+
+    public function test_gotowy_rekord_bez_pliku_jest_domykany_tylko_raz(): void
+    {
+        $export = DataExport::create([
+            'user_id' => $this->user('basia')->getKey(),
+            'status' => DataExport::STATUS_READY,
+            'disk' => null,
+            'object_key' => null,
+            'bytes' => null,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
     }
 
     // -----------------------------------------------------------------
