@@ -228,7 +228,7 @@ async function podniesSerwer() {
      zmianę. Build trwa sekundę; zgadywanie, czy manifest jest świeży, kosztuje
      więcej. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {

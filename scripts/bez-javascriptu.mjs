@@ -131,7 +131,7 @@ async function podniesSerwer(dodatkoweEnv = {}, przygotuj = true) {
   if (! przygotuj) return uruchomSerwer(dodatkoweEnv);
 
   console.log('Buduję arkusz i skrypt (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   try {
     execFileSync('createdb', [env().DB_DATABASE], { stdio: 'ignore', env: {

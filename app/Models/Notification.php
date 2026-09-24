@@ -40,6 +40,12 @@ class Notification extends Model
 
     public const TYPE_REPLY = 'comment.replied';
 
+    /** Ile znaków komentarza niesie powiadomienie (issue #758, D-229). */
+    public const DLUGOSC_WYCINKA_KOMENTARZA = 120;
+
+    /** Typy, których wycinek JEST treścią komentarza — i tylko te. */
+    public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY];
+
     public const TYPE_FOLLOW = 'follow.created';
 
     public const TYPE_SAVED = 'recipe.saved';
@@ -219,6 +225,86 @@ class Notification extends Model
     }
 
     /**
+     * AKTUALNE wycinki komentarzy dla podanych powiadomień — JEDNYM zapytaniem.
+     *
+     * DECYZJA WŁAŚCICIELA Z 20 WRZEŚNIA 2026 (issue #758, D-229): wycinek
+     * treści komentarza liczy się PRZY WYŚWIETLANIU, z aktualnej treści.
+     * Jedno źródło prawdy — nie zamrożona kopia w `notifications.data`.
+     * Do tej zmiany `PublishComment` wpisywał do `data.excerpt` 120 znaków
+     * z chwili publikacji i nikt tego nigdy nie odświeżał: ktoś pisał
+     * „dodaję dwie łyżki masła", poprawiał w oknie 15 minut na „łyżeczki",
+     * a powiadomienie — i paczka RODO na zawsze — dalej mówiło „łyżki".
+     *
+     * TA METODA NIE JEST FURTKĄ DOOKOŁA `scopeVisibleTo()`.
+     * Warunki `status`/`deleted_at`/`body_removed_at` stoją tu drugi raz
+     * ŚWIADOMIE, choć bramka z #757 odcina takie powiadomienia już przy
+     * odczycie listy. Żywy wycinek czyta `comments` bezpośrednio, więc gdyby
+     * kiedykolwiek zawołał go ekran BEZ `visibleTo()`, brak tych trzech
+     * warunków przywróciłby do widoku treść, którą usunięcie ukryło —
+     * na ekranie i w paczce RODO naraz. To jest najgroźniejsza regresja tej
+     * zmiany i dlatego ma własny test
+     * (`PowiadomienieSledziTrescKomentarzaTest`).
+     *
+     * WIDOCZNOŚCI TRESCI NADRZĘDNEJ tu NIE liczymy — to robi `visibleTo()`
+     * dla konkretnego odbiorcy i to jest jedyne miejsce, które zna odbiorcę.
+     * Brak wiersza w wyniku znaczy „bez wycinka", NIGDY „weź stary z `data`":
+     * sięgnięcie po zamrożoną kopię jako zapasowy plan byłoby dokładnie tym
+     * wyciekiem, przed którym broni warunek wyżej.
+     *
+     * KOSZT (D-196). Strona mieści 30 powiadomień, a eksport nie ma górnej
+     * granicy — wycinek liczony po jednym komentarzu na wiersz dokładałby
+     * jedno zapytanie na wiersz. Wzór jest ten sam co
+     * `NotificationController::decyzje()`: zbieramy identyfikatory z całej
+     * strony i pytamy raz.
+     *
+     * @param  iterable<Notification>  $powiadomienia
+     * @return array<string, string> identyfikator powiadomienia → wycinek
+     */
+    public static function zyweWycinkiKomentarzy(iterable $powiadomienia): array
+    {
+        /** @var array<string, list<string>> $poKomentarzu */
+        $poKomentarzu = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            if (! in_array($powiadomienie->type, self::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
+                continue;
+            }
+
+            $komentarzId = ($powiadomienie->data ?? [])['comment_id'] ?? null;
+
+            if (is_string($komentarzId) && $komentarzId !== '') {
+                // Jeden komentarz potrafi mieć DWA powiadomienia (odpowiedź
+                // w cudzym wątku idzie i do autora treści, i do autora
+                // komentarza-rodzica), więc mapa jest jeden-do-wielu.
+                $poKomentarzu[$komentarzId][] = (string) $powiadomienie->getKey();
+            }
+        }
+
+        if ($poKomentarzu === []) {
+            return [];
+        }
+
+        $wiersze = Comment::query()
+            ->whereIn('id', array_keys($poKomentarzu))
+            ->where('status', Comment::STATUS_PUBLISHED)
+            ->whereNull('deleted_at')
+            ->whereNull('body_removed_at')
+            ->get(['id', 'body']);
+
+        $wycinki = [];
+
+        foreach ($wiersze as $komentarz) {
+            $wycinek = mb_substr((string) $komentarz->body, 0, self::DLUGOSC_WYCINKA_KOMENTARZA);
+
+            foreach ($poKomentarzu[(string) $komentarz->getKey()] ?? [] as $idPowiadomienia) {
+                $wycinki[$idPowiadomienia] = $wycinek;
+            }
+        }
+
+        return $wycinki;
+    }
+
+    /**
      * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
      *
      * DLACZEGO TO STOI W MODELU, A NIE W WIDOKU (bo tam stało do 8 września).
@@ -340,87 +426,114 @@ class Notification extends Model
      */
     private function urlDoKomentarza(array $data): ?string
     {
-        $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
-
-        $commentId = $data['comment_id'] ?? null;
-
-        if (! is_string($commentId) || $commentId === '') {
-            return $fallback;
-        }
-
         $viewer = $this->user;
 
         if ($viewer === null) {
-            return $fallback;
+            return self::commentFallback($data);
         }
 
-        $comment = Comment::query()->find($commentId);
+        return self::destinationUrls([$this], $viewer)[(string) $this->getKey()];
+    }
 
-        if ($comment === null) {
-            return $fallback;
+    private static function commentFallback(array $data): ?string
+    {
+        return is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
+    }
+
+    /**
+     * Adresy całej strony, z jednym odczytem komentarzy (#833).
+     * Odbiorca i jego widoczność obowiązują tylko podczas tego wywołania:
+     * nie zapisujemy numerów stron ani nie buforujemy ich między żądaniami.
+     *
+     * @param  iterable<Notification>  $notifications  powiadomienia jednego odbiorcy
+     * @return array<string, string|null>
+     */
+    public static function destinationUrls(iterable $notifications, User $viewer): array
+    {
+        $urls = [];
+        $byComment = [];
+
+        foreach ($notifications as $notification) {
+            $id = (string) $notification->getKey();
+            if (! in_array($notification->type, self::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
+                $urls[$id] = $notification->adresDocelowy();
+
+                continue;
+            }
+
+            $data = $notification->data ?? [];
+            $urls[$id] = self::commentFallback($data);
+            $commentId = $data['comment_id'] ?? null;
+            if ((string) $notification->user_id === (string) $viewer->getKey()
+                && is_string($commentId) && $commentId !== '') {
+                $byComment[$commentId][] = $id;
+            }
         }
 
-        $subject = $comment->subject();
-
-        if ($subject === null) {
-            return $fallback;
+        if ($byComment === []) {
+            return $urls;
         }
 
-        $rootId = $comment->parent_id ?? $comment->getKey();
-        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
+        // Ten sam zakres co w relacjach comments() i na ekranie rozmowy.
+        // Korelacja po korzeniu nie pobiera całych rozmów do pamięci PHP.
+        $roots = Comment::query()->whereNull('comments.parent_id')->widoczneDla($viewer);
+        $preceding = (clone $roots)->selectRaw('count(*)')
+            ->where(function (Builder $subject): void {
+                $subject->whereColumn('comments.post_id', 'root.post_id')
+                    ->orWhereColumn('comments.recipe_id', 'root.recipe_id')
+                    ->orWhereColumn('comments.cooked_event_id', 'root.cooked_event_id');
+            })
+            ->whereRaw('(comments.created_at, comments.id) < (root.created_at, root.id)');
 
-        if ($root === null) {
-            return $fallback;
-        }
-
-        // Kolejność i filtr IDENTYCZNE jak w kontrolerach (`Post::comments()`,
-        // `Recipe::comments()`, `CookedEvent::comments()`: `whereNull('parent_id')`,
-        // `status=published`, `oldest()->orderBy('id')`) plus `widoczneDla($viewer)`
-        // — inna kolejność albo inny filtr policzyłaby INNĄ stronę niż ta,
-        // na którą trafi kontroler przy renderowaniu.
-        $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
-
-        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
-            // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
-            // jest, tylko wracamy do zwykłego adresu treści.
-            return $fallback;
-        }
-
-        $bazowy = $subject->url();
-        $kotwica = '#komentarz-'.$comment->getKey();
-
-        if (! ($subject instanceof Post || $subject instanceof Recipe)) {
-            // "Ugotowałem" nie stronicuje komentarzy (`CookedEventController::show()`
-            // ładuje je wszystkie naraz) — sama kotwica wystarczy.
-            return $bazowy.$kotwica;
-        }
+        $comments = Comment::query()
+            ->join('comments as root', function ($join): void {
+                $join->whereRaw('root.id = coalesce(comments.parent_id, comments.id)');
+            })
+            ->leftJoin('posts', 'posts.id', '=', 'comments.post_id')
+            ->leftJoin('recipes', 'recipes.id', '=', 'comments.recipe_id')
+            ->leftJoin('cooked_events', 'cooked_events.id', '=', 'comments.cooked_event_id')
+            ->whereIn('comments.id', array_keys($byComment))
+            ->whereIn('root.id', (clone $roots)->select('comments.id'))
+            ->where(function (Builder $subject): void {
+                $subject->whereColumn('comments.post_id', 'root.post_id')
+                    ->orWhereColumn('comments.recipe_id', 'root.recipe_id')
+                    ->orWhereColumn('comments.cooked_event_id', 'root.cooked_event_id');
+            })
+            ->where(function (Builder $subject): void {
+                $subject->where(fn (Builder $post) => $post->whereNotNull('posts.id')->whereNull('posts.deleted_at'))
+                    ->orWhere(fn (Builder $recipe) => $recipe->whereNotNull('recipes.id')->whereNull('recipes.deleted_at'))
+                    ->orWhereNotNull('cooked_events.id');
+            })
+            ->select(['comments.id', 'comments.post_id', 'comments.recipe_id', 'comments.cooked_event_id', 'posts.kind', 'recipes.slug'])
+            ->selectSub($preceding, 'preceding_count')
+            ->get();
 
         $pageSize = (int) config('kuking.comments.page_size');
+        foreach ($comments as $comment) {
+            if ($comment->cooked_event_id !== null) {
+                $subject = (new CookedEvent)->forceFill(['id' => $comment->cooked_event_id]);
+                $page = 1;
+            } else {
+                if ($pageSize < 1) {
+                    continue;
+                }
+                $subject = $comment->post_id !== null
+                    ? (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind])
+                    : (new Recipe)->forceFill(['slug' => $comment->slug]);
+                $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
+            }
 
-        if ($pageSize < 1) {
-            return $fallback;
+            $url = $subject->url();
+            if ($page > 1) {
+                $url .= (str_contains($url, '?') ? '&' : '?').'komentarze='.$page;
+            }
+            $url .= '#komentarz-'.$comment->getKey();
+            foreach ($byComment[(string) $comment->getKey()] as $id) {
+                $urls[$id] = $url;
+            }
         }
 
-        $pozycja = $widoczneKorzenie->clone()
-            ->where(function (Builder $wczesniejsze) use ($root): void {
-                $wczesniejsze
-                    ->where('comments.created_at', '<', $root->created_at)
-                    ->orWhere(function (Builder $remis) use ($root): void {
-                        $remis->where('comments.created_at', $root->created_at)
-                            ->where('comments.id', '<', $root->getKey());
-                    });
-            })
-            ->count();
-
-        $strona = intdiv($pozycja, $pageSize) + 1;
-
-        if ($strona <= 1) {
-            return $bazowy.$kotwica;
-        }
-
-        $laczek = str_contains($bazowy, '?') ? '&' : '?';
-
-        return $bazowy.$laczek.'komentarze='.$strona.$kotwica;
+        return $urls;
     }
 
     /**
@@ -565,8 +678,8 @@ class Notification extends Model
          * POWIADOMIENIE O KOMENTARZU, KTÓREGO TREŚĆ ZNIKŁA ALBO DO KTÓREJ
          * ODBIORCA STRACIŁ DOSTĘP.
          *
-         * `comment.created`/`comment.replied` niosą własną kopię fragmentu
-         * (`data.excerpt`) — dlatego SAME W SOBIE nie znikają, kiedy znika
+         * `comment.created`/`comment.replied` istnieją jako wiersze niezależne
+         * od komentarza — dlatego SAME W SOBIE nie znikają, kiedy znika
          * komentarz albo treść, pod którą stał: autor mógł go skasować,
          * moderacja mogła go ukryć, a wpis/przepis mógł w międzyczasie zmienić
          * widoczność na węższą (audyt: dokładnie ta usterka, co wpis
@@ -612,10 +725,12 @@ class Notification extends Model
                         // żeby dzieci nie zawisły bez rodzica — `CommentController::destroy()`
                         // zostawia zamiast tego placeholder i ustawia `body_removed_at`.
                         // Bez tego warunku ta gałąź NIE łapała tej jedynej innej drogi
-                        // usunięcia, więc zamrożony `excerpt` z chwili publikacji (do
-                        // 120 znaków oryginalnej treści) dalej wychodził w powiadomieniu
-                        // i w eksporcie danych (`CollectUserExportData` używa tego samego
-                        // `visibleTo()`), mimo że treść w wątku jest już zastąpiona.
+                        // usunięcia, więc wycinek treści (do 120 znaków) dalej wychodził
+                        // w powiadomieniu i w eksporcie danych (`CollectUserExportData`
+                        // używa tego samego `visibleTo()`), mimo że treść w wątku jest
+                        // już zastąpiona. Od #758 wycinek jest ŻYWY, więc ten sam warunek
+                        // stoi drugi raz w `zyweWycinkiKomentarzy()` — patrz komentarz
+                        // tamtej metody: to nie jest powtórka przez przeoczenie.
                         ->whereNull('pc.body_removed_at')
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc

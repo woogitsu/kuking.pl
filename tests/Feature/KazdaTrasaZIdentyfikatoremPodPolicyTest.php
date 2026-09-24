@@ -116,7 +116,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
      * Tą trasą wychodzą bajty z `storage/app/private` — czyli m.in. PACZKA
      * RODO, bo `kuking.exports.disk` to lokalnie i w testach `local`.
      * Sam identyfikator paczki jest zgadywalny w stopniu, o który nie warto
-     * się spierać (`eksporty/<id konta>/<8 znaków id paczki>-…`), więc
+     * się spierać (`eksporty/<id konta>/<id paczki>-…`), więc
      * ochroną nie może być to, że nikt nie zna ścieżki — i nie jest:
      * `ServeFile` wymaga podpisu, bo dysk `local` nie ma `visibility =>
      * 'public'`. TO JEST WARUNEK, KTÓRY WOLNO ZGUBIĆ JEDNĄ LINIJKĄ
@@ -448,6 +448,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $wpisDoWspomnien = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisBezOdpowiedzi = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
 
+        // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
+        $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
@@ -627,6 +630,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.restore', 'przywrócenie treści', 'post',
             route('admin.reports.restore', $zgloszenieDoPrzywrocenia), [], [$O, $O, $O, $W, $O]);
+        // „Zdejmij z urzędu” (G31, D-251): wyłącznie moderacja, przez
+        // `removeExOfficio` — autor własnej treści tędy nie wchodzi.
+        $dodaj('admin.z-urzedu.create', 'zdjęcie z urzędu — formularz', 'get',
+            route('admin.z-urzedu.create', ['typ' => 'post', 'id' => $wpisPubliczny->getKey()]), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.z-urzedu.store', 'zdjęcie z urzędu', 'post',
+            route('admin.z-urzedu.store', ['typ' => 'post', 'id' => $wpisZUrzedu->getKey()]),
+            ['reason_code' => 'spam-reklama', 'user_message' => 'Wpis jest reklamą, nie ma nic wspólnego z gotowaniem.'],
+            [$O, $O, $O, $W, $O]);
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.
@@ -733,6 +744,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
             route('cooking.zaznacz', $przepisPrywatny), ['krok' => 1, 'stan' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.restart', 'reset odhaczeń prywatnego przepisu', 'post',
+            route('cooking.restart', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',

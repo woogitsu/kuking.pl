@@ -125,7 +125,7 @@ async function podniesSerwer() {
   /* Strona wciąga zbudowany `public/build/assets/app-*.css` przez manifest
      Vite — pomiar bez przebudowania opisywałby POPRZEDNIĄ wersję arkusza. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {

@@ -198,7 +198,7 @@ async function podniesSerwer() {
      opisywałby POPRZEDNIĄ wersję CSS — czyli po poprawce pokazywałby te same
      liczby co przed nią. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {

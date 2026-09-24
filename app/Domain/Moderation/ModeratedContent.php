@@ -169,6 +169,23 @@ final class ModeratedContent
         return null;
     }
 
+    /**
+     * Czy treść jest już zdjęta z serwisu — miękko usunięta albo komentarz,
+     * który autor sam usunął i w wątku stoi po nim napis „Komentarz
+     * usunięty.” (`DeleteComment`). Używa tego „Zdejmij z urzędu” (G31).
+     *
+     * Drugi przypadek wiersz fizycznie ma i nawet status `published`, ale
+     * tekstu już nie — decyzja o nim byłaby decyzją o napisie.
+     */
+    public static function jestZdjeta(object $model): bool
+    {
+        if (method_exists($model, 'trashed') && $model->trashed()) {
+            return true;
+        }
+
+        return $model instanceof Comment && $model->body_removed_at !== null;
+    }
+
     /** Czy tę treść w ogóle da się ukryć (a więc i przywrócić). */
     public static function daSieUkryc(object $model): bool
     {

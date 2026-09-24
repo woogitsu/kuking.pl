@@ -113,7 +113,7 @@ async function podniesSerwer() {
   /* Skrypt renderujący podgląd jest w ZBUDOWANYM `public/build/assets/app-*.js`.
      Pomiar bez przebudowania opisywałby poprzednią wersję. */
   console.log('Buduję skrypt i arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
