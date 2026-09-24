@@ -45,6 +45,13 @@ class DataExport extends Model
     /** Zapis gotowej paczki do magazynu plików się nie udał (`App\Exceptions\DataExportStorageFailure`). */
     public const REASON_STORAGE = 'storage';
 
+    /**
+     * Zdjęcie, które miało wejść do paczki, nie dało się odczytać z magazynu
+     * (`App\Exceptions\DataExportPhotoUnreadable`, issue #1388). Paczka bez
+     * niego NIE jest gotowa — liczniki i odnośniki w środku by kłamały.
+     */
+    public const REASON_PHOTO_UNREADABLE = 'photo_unreadable';
+
     /** Budowa paczki przekroczyła limit czasu joba (15 minut, `GenerateUserExport::$timeout`). */
     public const REASON_TIMEOUT = 'timeout';
 
@@ -71,6 +78,8 @@ class DataExport extends Model
             .'Jeśli uważasz, że to pomyłka, napisz do nas: {kontakt}.',
         self::REASON_STORAGE => 'Nie udało się zapisać paczki w naszym magazynie plików. '
             .'Spróbuj przygotować paczkę jeszcze raz za kilka minut. Jeśli to się powtórzy, napisz do nas: {kontakt}.',
+        self::REASON_PHOTO_UNREADABLE => 'Nie udało się pobrać jednego z Twoich zdjęć do paczki, więc jej nie wydaliśmy — byłaby niepełna. '
+            .'Spróbuj przygotować paczkę jeszcze raz za kilka minut. Jeśli to się powtórzy, napisz do nas: {kontakt}.',
         self::REASON_TIMEOUT => 'Przygotowanie paczki trwało za długo i zostało przerwane. '
             .'Spróbuj przygotować paczkę jeszcze raz. Jeśli to się powtórzy, napisz do nas: {kontakt}.',
         self::REASON_UNKNOWN => 'Nie udało się przygotować paczki z Twoimi danymi. '
@@ -93,6 +102,9 @@ class DataExport extends Model
         return [
             'completed_at' => 'datetime',
             'expires_at' => 'datetime',
+            // Poza `$fillable`: wpisuje wyłącznie `NotifyUserExportReady`
+            // warunkowym `UPDATE` (zajęcie listu, issue #820).
+            'notified_at' => 'datetime',
             'bytes' => 'integer',
         ];
     }

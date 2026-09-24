@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\DziennyBudzetListow;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Security\WyslijLinkDoLogowania;
 use App\Domain\Users\ZamekKonta;
 use App\Http\Controllers\Controller;
@@ -395,7 +396,7 @@ class LoginLinkController extends Controller
 
             // Stan konta mógł się zmienić między prośbą a kliknięciem —
             // rola też. Konta obsługi serwisu tą drogą nie wchodzą (issue #25).
-            if ($swiezy->isModerator()) {
+            if ($swiezy->hasStaffRole()) {
                 return null;
             }
 
@@ -415,7 +416,7 @@ class LoginLinkController extends Controller
         // drugi składnik.
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }

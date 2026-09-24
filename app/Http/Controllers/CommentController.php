@@ -8,12 +8,14 @@ use App\Domain\Comments\Actions\DeleteComment;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * Edycja i usunięcie komentarza.
  *
  * Reguły KTO MOŻE CO żyją w CommentPolicy (edycja — autor, 15 minut od
- * publikacji; usunięcie — autor komentarza, autor treści albo moderator).
+ * publikacji; usunięcie — autor komentarza albo autor treści; moderator
+ * zdejmuje cudzy komentarz wyłącznie z panelu moderacji, issue #932).
  * Kontroler woła Policy i waliduje dane. Akcja DeleteComment pilnuje dwóch
  * rzeczy, których Policy świadomie nie robi:
  *  - wątek nie może się rozsypać, gdy usunięty komentarz ma odpowiedzi,
@@ -24,10 +26,33 @@ class CommentController extends Controller
 {
     public function __construct(private readonly DeleteComment $deleteComment) {}
 
-    public function update(Request $request, Comment $comment): RedirectResponse
+    public function update(Request $request, Comment $comment): RedirectResponse|Response
     {
+        // Issue #937: autor widzi własny ukryty komentarz, ale nie może go
+        // poprawić (CommentPolicy::update). Zamiast gołego 403 mówimy mu,
+        // co może zrobić — o istnieniu komentarza wie, bo to jego tekst.
+        if ($request->user()->getKey() === $comment->author_id
+            && $comment->status !== Comment::STATUS_PUBLISHED) {
+            return back()->withInput()->withErrors([
+                'body' => 'Moderacja ukryła ten komentarz, więc nie da się go już poprawić. '
+                    .'Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.',
+            ]);
+        }
+
+        // Po 15 minutach autor nie poprawi komentarza, ale nie traci tekstu,
+        // który właśnie wpisał — dopiero PO kontroli moderacji wyżej.
+        if ($request->user()->can('recoverExpiredEdit', $comment)) {
+            return response()->view('pages.comments.expired-edit', [
+                'body' => is_string($request->input('body')) ? $request->input('body') : '',
+                'returnUrl' => $comment->subject()->url(),
+            ], 403);
+        }
+
         $this->authorize('update', $comment);
 
+        // Po walidacji przekierowanie może dotrzeć już po zamknięciu okna.
+        // Identyfikator pochodzi z autoryzowanego modelu, nie z pola formularza.
+        $request->session()->flash('comment_edit_recovery', $comment->getKey());
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4000'],
         ], [
@@ -36,6 +61,7 @@ class CommentController extends Controller
         ]);
 
         $comment->update(['body' => trim($data['body'])]);
+        $request->session()->forget('comment_edit_recovery');
 
         return back()->with('status', 'Komentarz poprawiony.');
     }

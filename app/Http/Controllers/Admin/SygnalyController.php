@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * KOLEJKA AUTOMATU — rzeczy, których NIKT nie zgłosił (D-052).
@@ -106,54 +107,76 @@ class SygnalyController extends Controller
         $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
 
-        $ile = DB::transaction(function () use ($autorId, $moderator, $dane): int {
-            $oznaczenia = $this->otwarte()
-                ->when($autorId === null,
-                    fn ($q) => $q->whereNull('autor_tresci_id'),
-                    fn ($q) => $q->where('autor_tresci_id', $autorId),
-                )
-                // Blokada wiersza z tego samego powodu co w `decide()`:
-                // dwie karty moderatora nie mogą wydać dwóch decyzji do
-                // jednego oznaczenia (`moderation_actions` ma UNIQUE na
-                // `report_id`).
-                ->lockForUpdate()
-                ->get();
+        try {
+            $ile = DB::transaction(function () use ($autorId, $moderator, $dane, $request): int {
+                $oznaczenia = $this->otwarte()
+                    ->when($autorId === null,
+                        fn ($q) => $q->whereNull('autor_tresci_id'),
+                        fn ($q) => $q->where('autor_tresci_id', $autorId),
+                    )
+                    // Blokada wiersza z tego samego powodu co w `decide()`:
+                    // dwie karty moderatora nie mogą wydać dwóch decyzji do
+                    // jednego oznaczenia (`moderation_actions` ma UNIQUE na
+                    // `report_id`).
+                    ->lockForUpdate()
+                    ->get();
 
-            foreach ($oznaczenia as $oznaczenie) {
-                ModerationAction::create([
-                    'moderator_id' => $moderator->getKey(),
-                    'report_id' => $oznaczenie->getKey(),
-                    'target_type' => $oznaczenie->target_type,
-                    'target_id' => $oznaczenie->target_id,
-                    'subject_user_id' => $oznaczenie->autor_tresci_id,
-                    'action' => ModerationAction::ACTION_NONE,
-                    'reason_code' => self::POWOD_ODRZUCENIA,
-                    'note' => $dane['note'] ?? 'Automat się pomylił — treść zostaje bez zmian.',
-                ]);
+                foreach ($oznaczenia as $oznaczenie) {
+                    ModerationAction::create([
+                        'moderator_id' => $moderator->getKey(),
+                        'report_id' => $oznaczenie->getKey(),
+                        'target_type' => $oznaczenie->target_type,
+                        'target_id' => $oznaczenie->target_id,
+                        'subject_user_id' => $oznaczenie->autor_tresci_id,
+                        'action' => ModerationAction::ACTION_NONE,
+                        'reason_code' => self::POWOD_ODRZUCENIA,
+                        'note' => $dane['note'] ?? 'Automat się pomylił — treść zostaje bez zmian.',
+                    ]);
 
-                $oznaczenie->update([
-                    'status' => Report::STATUS_REJECTED,
-                    'resolution_note' => $dane['note'] ?? null,
-                    'resolved_by' => $moderator->getKey(),
-                    'resolved_at' => now(),
-                ]);
-            }
+                    $oznaczenie->update([
+                        'status' => Report::STATUS_REJECTED,
+                        'resolution_note' => $dane['note'] ?? null,
+                        'resolved_by' => $moderator->getKey(),
+                        'resolved_at' => now(),
+                    ]);
+                }
 
-            return $oznaczenia->count();
-        });
+                $ile = $oznaczenia->count();
+
+                // Wpis zbiorczy jest CZĘŚCIĄ tej decyzji, więc stoi w jej
+                // transakcji, jak `moderation.decided` w `ModerationController`
+                // (D-249, #1343). Awaria dziennika cofa decyzje i statusy
+                // razem z nim, a ponowienie daje jeden komplet — zamiast
+                // zamkniętej grupy bez wpisu, której ponowienie już nie
+                // znajdzie. Zero zamkniętych to zero decyzji: nie ma czego
+                // zapisywać.
+                if ($ile > 0) {
+                    AuditLogEntry::record(
+                        action: 'moderation.automat_dismissed',
+                        actor: $moderator,
+                        metadata: ['autor_tresci_id' => $autorId, 'ile' => $ile],
+                        ip: $request->ip(),
+                    );
+                }
+
+                return $ile;
+            });
+        } catch (Throwable $awaria) {
+            // Transakcja jest wycofana w całości — grupa zostaje otwarta,
+            // więc moderator dostaje prawdę i drogę dalej, a operator
+            // przyczynę. Nie połykamy: `report()` idzie do monitoringu.
+            report($awaria);
+
+            return back()->withErrors([
+                'autor' => 'Nie udało się zamknąć tej grupy i nic się w niej nie zmieniło. Spróbuj jeszcze raz za chwilę.',
+            ]);
+        }
 
         if ($ile === 0) {
             return back()->withErrors([
                 'autor' => 'Te oznaczenia zostały już zamknięte. Odśwież stronę, żeby zobaczyć aktualną listę.',
             ]);
         }
-
-        AuditLogEntry::record(
-            action: 'moderation.automat_dismissed',
-            actor: $moderator,
-            metadata: ['autor_tresci_id' => $autorId, 'ile' => $ile],
-            ip: $request->ip(),
-        );
 
         return back()->with('status', $ile === 1
             ? 'Zamknięte. Treść zostaje bez zmian, a automat już do niej nie wróci.'
