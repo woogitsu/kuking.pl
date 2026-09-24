@@ -624,6 +624,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/witaj/ludzie', [OnboardingController::class, 'saveFollows'])
         ->middleware("throttle:{$limits['masowe_obserwowanie']},masowe_obserwowanie");
     Route::get('/witaj/gotowe', [OnboardingController::class, 'done'])->name('onboarding.done');
+    Route::post('/witaj/nie-przypominaj', [OnboardingController::class, 'dismiss'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('onboarding.dismiss');
 
     // Dodawanie treści
     Route::view('/dodaj', 'pages.add')->name('add');

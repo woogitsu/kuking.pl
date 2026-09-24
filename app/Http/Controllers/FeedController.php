@@ -165,6 +165,7 @@ class FeedController extends Controller
                 ? app(InstallPromptContext::class)->issue($user, $request->session()->getId())
                 : null,
             'greeting' => $this->pytanieDnia($user),
+            'pierwszeKroki' => $user->onboardingDoDokonczenia(),
             'zeszyt' => $zeszyt,
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),

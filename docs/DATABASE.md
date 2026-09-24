@@ -1111,6 +1111,33 @@ opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
 rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
 co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
 
+#### `onboarding_zakonczony_at` — pierwsze kroki zakończone albo pominięte (#985)
+
+Migracja `2026_09_24_130000_add_onboarding_zakonczony_at_to_users`.
+`timestampTz`, nullable, bez indeksu (czytana tylko dla zalogowanego konta).
+
+**Po co.** Onboarding przerwany zamknięciem karty nie miał drogi powrotu.
+`null` znaczy „pokaż na Starcie odnośnik »Dokończ pierwsze kroki«".
+`User::onboardingDoDokonczenia()` jest jedynym miejscem decyzji: prowadzi do
+`/witaj/ludzie`, gdy konto ma już zapisane zainteresowania, inaczej do
+`/witaj/zainteresowania`; zawieszone konto (tylko odczyt) przypomnienia nie
+dostaje. Po zalogowaniu NIC nie przekierowuje — `intended` zostaje nietknięte
+dla każdej drogi logowania.
+
+**Kto zapisuje.** Wyłącznie `OnboardingController::done()` (koniec, także po
+„Pomiń ten krok") i `::dismiss()` („Nie przypominaj"), i tylko gdy wartość
+jest pusta. Nic jej nie zeruje, więc ponowny powrót do wcześniejszego kroku czy stary
+formularz nie przywracają przypomnienia. Poza `$fillable`.
+
+**Backfill.** `up()` ustawia `created_at` wszystkim kontom istniejącym przed
+migracją — nie wiemy, czy skończyły onboarding, a przypomnienie pokazane nagle
+wszystkim byłoby gorsze od jego braku u kilku osób.
+
+**Rollback:** `down()` zdejmuje kolumnę bez strażnika D-088. Ponowny `up()`
+oznacza każde konto jako zakończone, więc cofnięcie może najwyżej wyłączyć
+przypomnienie kontom w trakcie onboardingu — nigdy nie włącza go komuś, kto
+wybrał „Nie przypominaj". Żaden inny wiersz nie ginie.
+
 #### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
 
 Migracja `2026_09_08_200000_add_last_seen_to_users_table`. `timestampTz`,

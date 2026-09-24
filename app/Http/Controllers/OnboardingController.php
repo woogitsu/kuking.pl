@@ -299,9 +299,31 @@ class OnboardingController extends Controller
     public function done(Request $request): View
     {
         $request->session()->forget('onboarding.selection');
+        $this->oznaczZakonczony($request);
 
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
         ]);
+    }
+
+    /**
+     * „Nie przypominaj" przy odnośniku na Starcie — trwała decyzja (#985).
+     */
+    public function dismiss(Request $request): RedirectResponse
+    {
+        $this->oznaczZakonczony($request);
+
+        return redirect()->route('home')
+            ->with('status', 'Dobrze, nie będziemy już przypominać o pierwszych krokach.');
+    }
+
+    /** Tylko pierwszy raz: ponowne wejście pod `/witaj/...` niczego nie cofa ani nie przesuwa. */
+    private function oznaczZakonczony(Request $request): void
+    {
+        $user = $request->user();
+
+        if ($user->onboarding_zakonczony_at === null) {
+            $user->forceFill(['onboarding_zakonczony_at' => now()])->save();
+        }
     }
 }

@@ -29,6 +29,9 @@ class UserFactory extends Factory
             'wants_weekly_digest' => true,
             'age_confirmed_at' => now(),
             'email_verified_at' => now(),
+            // Konto z fabryki to konto „po pierwszych krokach” — inaczej każdy
+            // test Startu widziałby przypomnienie z #985.
+            'onboarding_zakonczony_at' => now(),
         ];
     }
 
