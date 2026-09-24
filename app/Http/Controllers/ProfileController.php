@@ -318,6 +318,22 @@ class ProfileController extends Controller
         }
 
         if ($isOwner) {
+            // ZAPOWIEDŹ USUNIĘTEGO PRZEPISU (#1395). Właściciel omija bramkę
+            // przepisu niżej, bo własne przepisy — także prywatne i ukryte —
+            // otwiera (`RecipePolicy::view()`). Wyjątkiem jest przepis
+            // usunięty miękko: relacja `recipe` go nie pobiera, karta traciła
+            // tytuł i zdjęcie, a odnośnik prowadził do 403 z `PostPolicy::view()`.
+            // Wiersz wpisu i jego komentarze ZOSTAJĄ w bazie (moderacja,
+            // odzyskanie) — znikają tylko z listy, lat i licznika naraz.
+            // Wpis z własną treścią albo zdjęciem nie jest zapowiedzią
+            // (`Post::czyJestZapowiedziaPrzepisu()`) i zostaje widoczny.
+            if ($query->getModel() instanceof Post) {
+                $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                    ->orWhereHas('recipe')
+                    ->orWhereRaw("posts.body ~ '[^[:space:]]'")
+                    ->orWhereHas('media'));
+            }
+
             return;
         }
 

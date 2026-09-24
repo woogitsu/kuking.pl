@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Po usunięciu własnego przepisu na Waszym profilu nie zostaje już pusta karta prowadząca do strony „Brak dostępu”. Znika z listy wpisów, z lat i z licznika naraz. Wpis i komentarze pod nim nie są kasowane; wpis z własnym opisem albo zdjęciem zostaje widoczny.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
