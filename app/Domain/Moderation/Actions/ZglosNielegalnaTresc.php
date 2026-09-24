@@ -116,7 +116,7 @@ final class ZglosNielegalnaTresc
                 throw $e;
             }
 
-            $istniejace = $this->zgloszenieZTegoWyslania($kluczWyslania, $adres, $powod, $uzasadnienie);
+            $istniejace = $this->zgloszenieZTegoWyslania($kluczWyslania, $imie, $email, $adres, $powod, $uzasadnienie);
 
             if ($istniejace !== null) {
                 // Drugie kliknięcie ma być nieodróżnialne od pierwszego:
@@ -124,6 +124,19 @@ final class ZglosNielegalnaTresc
                 // potwierdzenie odbioru więcej (art. 16 ust. 4 mówi o jednym
                 // potwierdzeniu jednej sprawy, nie o liście na każde
                 // kliknięcie).
+                //
+                // ALE PONOWIENIE PO AWARII DOKAŃCZA TO, CZEGO PIERWSZE
+                // WYSŁANIE NIE ZDĄŻYŁO (issue #1323). Sprawa jest zapisana
+                // przed potwierdzeniem, więc gdy zlecenie listu padło,
+                // człowiek widział stronę błędu i wysłał formularz jeszcze
+                // raz. Wczesny `return` oddawał mu numer sprawy, a listu
+                // z tym numerem nie dostawał nigdy. Duplikatu nie będzie:
+                // `potwierdzOdbior()` zleca list tylko wtedy, gdy zajmie
+                // znacznik, a alarm do moderatora ma własną blokadę celu
+                // (`AlarmujOPilnymZgloszeniu`, `Cache::add`).
+                $this->potwierdzOdbior($istniejace);
+                $this->alarm->handle($istniejace);
+
                 return $istniejace;
             }
 
@@ -139,12 +152,7 @@ final class ZglosNielegalnaTresc
         // zgłoszenie nie może zależeć od tego, czy poczta akurat działa.
         // Powiadomienie jest kolejkowane, więc awaria serwera poczty ląduje
         // w `failed_jobs`, a nie na ekranie człowieka.
-        if ($zgloszenie->notifier_email !== null) {
-            Notification::route('mail', $zgloszenie->notifier_email)
-                ->notify(new PotwierdzenieZgloszeniaNielegalnejTresci($zgloszenie));
-
-            $zgloszenie->forceFill(['receipt_sent_at' => now()])->save();
-        }
+        $this->potwierdzOdbior($zgloszenie);
 
         // ALARM DO MODERATORA — ta sama reguła i ta sama klasa, co przy
         // zgłoszeniu społecznościowym. Ta droga jest OTWARTA DLA KAŻDEGO,
@@ -170,9 +178,21 @@ final class ZglosNielegalnaTresc
      * w żądaniu nie jest autoryzacją (`AGENTS.md` §7). Dlatego wiersz musi
      * zgadzać się także treścią zgłoszenia — dla prawdziwego podwójnego
      * kliknięcia jest identyczna, bo to bajt w bajt to samo żądanie.
+     *
+     * DANE KONTAKTOWE TEŻ SĄ TREŚCIĄ ZGŁOSZENIA (issue #1325). Ten sam klucz
+     * i opis, ale inne imię albo inny adres e-mail, to nie drugie kliknięcie,
+     * tylko poprawiony formularz albo inna osoba przy tej samej karcie.
+     * Uznanie tego za „to samo wysłanie" gubiło nowy adres: nie trafiał do
+     * bazy, nie dostawał potwierdzenia ani decyzji, a ekran pokazywał numer
+     * cudzej sprawy. Teraz taka różnica idzie drogą „klucz zajęty przez inne
+     * zgłoszenie" — nowa sprawa bez klucza, bez ujawniania pierwszej.
+     * `null` porównujemy jako `IS NULL`: zgłoszenie anonimowe (art. 16
+     * ust. 2 lit. c) kliknięte dwa razy dalej jest jedną sprawą.
      */
     private function zgloszenieZTegoWyslania(
         ?string $kluczWyslania,
+        ?string $imie,
+        ?string $email,
         string $adres,
         string $powod,
         string $uzasadnienie,
@@ -188,6 +208,57 @@ final class ZglosNielegalnaTresc
             ->where('target_url', $adres)
             ->where('reason', $powod)
             ->where('illegality_explanation', $uzasadnienie)
+            ->when($imie === null, fn ($q) => $q->whereNull('notifier_name'), fn ($q) => $q->where('notifier_name', $imie))
+            ->when($email === null, fn ($q) => $q->whereNull('notifier_email'), fn ($q) => $q->where('notifier_email', $email))
             ->first();
+    }
+
+    /**
+     * Zleca potwierdzenie odbioru (art. 16 ust. 4) — najwyżej raz na sprawę.
+     *
+     * ZNACZNIK I ZLECENIE W JEDNEJ TRANSAKCJI (issue #1323), tak jak
+     * w `NotifyReporterReceipt` dla zgłoszeń z kontem. Przedtem były to dwa
+     * osobne kroki: zlecenie listu, potem `save()` znacznika. Awaria
+     * zlecenia zostawiała sprawę bez listu, a awaria znacznika po zleceniu
+     * zostawiała list w kolejce przy `receipt_sent_at = null` — więc samo
+     * „ponów, gdy znacznika nie ma" wysłałoby wtedy drugi list.
+     *
+     * Kolejka jest bazodanowa, na tym samym połączeniu i bez `after_commit`
+     * (`config/queue.php`), więc wiersz zadania w `jobs` wchodzi do tej samej
+     * transakcji co znacznik: albo są oba, albo żadne. Warunkowy `UPDATE
+     * ... WHERE receipt_sent_at IS NULL` jest zamkiem — dwa równoległe
+     * ponowienia rozstrzyga baza, nie `if` w PHP.
+     *
+     * Cztery stany sprawy i co z nimi robimy:
+     *  - brak adresu e-mail — nie ma adresata, nic nie zlecamy (zgłoszenie
+     *    anonimowe jest dopuszczalne i przyjęte);
+     *  - znacznik ustawiony — list zlecony albo już doręczony, nic więcej;
+     *  - znacznik pusty — list nigdy nie został skutecznie zlecony, zlecamy;
+     *  - zlecenie pada — transakcja cofa też znacznik, a wyjątek idzie dalej.
+     *    Samej sprawy to nie wycofuje: jest zatwierdzona wcześniej, a jej
+     *    ponowienie wraca tutaj i ma co dokończyć.
+     */
+    private function potwierdzOdbior(Report $zgloszenie): void
+    {
+        if ($zgloszenie->notifier_email === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($zgloszenie): void {
+            $zajete = Report::query()
+                ->whereKey($zgloszenie->getKey())
+                ->whereNull('receipt_sent_at')
+                ->update(['receipt_sent_at' => now()]);
+
+            if ($zajete === 0) {
+                return;
+            }
+
+            Notification::route('mail', $zgloszenie->notifier_email)
+                ->notify(new PotwierdzenieZgloszeniaNielegalnejTresci($zgloszenie));
+        });
+
+        // `UPDATE` przez query builder nie odświeża modelu w ręku wołającego.
+        $zgloszenie->refresh();
     }
 }
