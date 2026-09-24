@@ -162,9 +162,17 @@
    zmierzona szerokość (≈ 7,5rem z napisem „Aa · Wygląd" przy skali 100%,
    rośnie ze skalą tekstu) + odstęp. Wersja stoi przy przycisku motywu,
    a nie na prawym końcu paska, bo prawy koniec należy do przycisku.
-   Pilnuje tego `scripts/stopka-pusty-pas.mjs` (przycisk nie leży na treści). */
+   Pilnuje tego `scripts/stopka-pusty-pas.mjs` (przycisk nie leży na treści).
+   SUFIT 50% (24.09, CI #1250): rezerwa rośnie ze skalą i z `rem`, a szerokość
+   paska nie. Przy 414 px, czcionce przeglądarki 32 px i skali 140% wychodziło
+   382 px wypełnienia na pasek szeroki na 350 px — pasek rozpychał się poza
+   ekran i strona przewijała się w poziomie o 16 px (`nawigacja-etykiety.mjs`,
+   `kompozycje-marki.mjs`). Procent w `padding` liczy się od szerokości
+   `.site-footer-inner`, więc połowa paska zostaje zawsze na motyw i wersję.
+   Przy skali 100% i czcionce 16 px sufit nie działa nigdzie; przy 140%
+   ścina tylko 414 px (191 → 175 px), a przycisk nadal nie leży na treści. */
 [data-marka] .site-footer-pasek {
-  padding-right: calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1));
+  padding-right: min(calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1)), 50%);
 }
 [data-marka] .site-footer-pasek .site-version { margin-left: 0; }
 /* Do 400px przycisk pokazuje samo „Wygląd" (bez „Aa · ", `szybki-wyglad.css`),
@@ -174,7 +182,7 @@
    jego odstępu od krawędzi − te 32 px + 16 px luzu. Przy 390 px i skali
    100% to 98 px zamiast 140 — tyle, że wersja mieści się obok motywu. */
 @media (max-width: 400px) {
-  [data-marka] .site-footer-pasek { padding-right: calc(30px + 4.25rem * var(--user-text-scale, 1)); }
+  [data-marka] .site-footer-pasek { padding-right: min(calc(30px + 4.25rem * var(--user-text-scale, 1)), 50%); }
 }
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {

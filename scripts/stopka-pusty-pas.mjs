@@ -65,6 +65,15 @@ const SZEROKOSCI_GOSCIA = [320, 360, 390, 414, 768, 1190, 1440];
 const SKALE = [100, 140];
 const SZEROKOSCI_ZALOGOWANEGO = [320, 390, 768, 1190, 1440];
 
+/* CZCIONKA PRZEGLĄDARKI 32 px (tekst 200%) — CI #1250, 24.09. Boczna rezerwa
+   paska technicznego rośnie z `rem` i skalą, a szerokość okna nie: przy 414 px
+   i skali 140% wypełnienie (382 px) było szersze od paska (350 px) i strona
+   przewijała się w poziomie o 16 px. Tu pilnujemy tylko minim UX 50+ (brak
+   przewijania w poziomie, cele, pismo) — progi pustki i przycisku „Wygląd"
+   dotyczą zwykłej czcionki. */
+const DUZA_CZCIONKA = 32;
+const SZEROKOSCI_DUZEJ_CZCIONKI = [320, 360, 390, 414];
+
 async function zmierz(page) {
   return page.evaluate(() => {
     const stopka = document.querySelector('.site-footer');
@@ -143,8 +152,8 @@ async function naKoniec(page) {
 
 /* Wszystkie progi w jednym miejscu, żeby tryb żywy, statyczny i kontrola
    ujemna oblewały na tej samej regule. Zwraca listę naruszeń. */
-export function naruszenia(m, { kto, width, skala }) {
-  const opis = `${kto}, ${width} px, skala ${skala ?? 100}%`;
+export function naruszenia(m, { kto, width, skala, czcionka }) {
+  const opis = `${kto}, ${width} px, skala ${skala ?? 100}%${czcionka ? `, czcionka ${czcionka} px` : ''}`;
   const bledy = [];
   const sprawdz = (warunek, tekst) => { if (!warunek) bledy.push(`${tekst} (${opis})`); };
 
@@ -155,6 +164,8 @@ export function naruszenia(m, { kto, width, skala }) {
   sprawdz(m.najnizszyCel >= MIN_CEL - 0.5, `cel dotykowy w stopce zszedł do ${m.najnizszyCel} px przy wymaganych ${MIN_CEL} px`);
   sprawdz(m.najmniejszePismo >= MIN_TEKST - 0.5, `tekst w stopce zszedł do ${m.najmniejszePismo} px przy wymaganych ${MIN_TEKST} px`);
   sprawdz(!m.przepelnieniePoziome, `strona przewija się w poziomie: ${m.scrollWidth} > ${m.clientWidth}`);
+  if (czcionka) return bledy;
+
   sprawdz(m.wygladNaTresci === 0, `przycisk „Wygląd" leży na ${m.wygladNaTresci} elementach treści stopki`);
 
   if (kto === 'gość') sprawdz(!m.maBelke, 'gość nie powinien mieć przypiętej .bottom-nav');
@@ -317,6 +328,7 @@ const SABOTAZE = [
   ['rezerwa zdjęta także zalogowanemu z belką', '[data-marka] .site-footer{padding-bottom:16px !important}', { kto: 'zalogowany', width: 390, skala: 100 }],
   ['pasek techniczny bez miejsca na przycisk „Wygląd"', '[data-marka] .site-footer-pasek{padding-right:0 !important}.site-version{margin-left:auto !important}', { kto: 'gość', width: 1190, skala: 100 }],
   ['odnośniki ściśnięte poniżej 48 px', '.site-footer-grupa ul a{min-height:0 !important}', { kto: 'gość', width: 390, skala: 100 }],
+  ['rezerwa paska bez sufitu (jak w #1250 przed poprawką CI)', '[data-marka] .site-footer-pasek{padding-right:calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1)) !important}', { kto: 'gość', width: 414, skala: 140, czcionka: DUZA_CZCIONKA }],
 ];
 
 async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
@@ -332,6 +344,10 @@ async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
 
     await kontekst.route('**/*', (r) => r.abort());
     const strona = await kontekst.newPage();
+
+    if (przypadek.czcionka) {
+      await (await kontekst.newCDPSession(strona)).send('Page.setFontSizes', { fontSizes: { standard: przypadek.czcionka, fixed: przypadek.czcionka } });
+    }
 
     await strona.setContent(szkielet({ kto: przypadek.kto, css, font, js }));
 
@@ -353,10 +369,11 @@ async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
   const przypadki = [
     ...SZEROKOSCI_GOSCIA.flatMap((width) => SKALE.map((skala) => ({ kto: 'gość', width, skala }))),
     ...SZEROKOSCI_ZALOGOWANEGO.flatMap((width) => SKALE.map((skala) => ({ kto: 'zalogowany', width, skala }))),
+    ...['gość', 'zalogowany'].flatMap((kto) => SZEROKOSCI_DUZEJ_CZCIONKI.flatMap((width) => SKALE.map((skala) => ({ kto, width, skala, czcionka: DUZA_CZCIONKA })))),
   ];
 
   for (const p of przypadki) {
-    const zrzut = p.skala === 100 && [1440, 1190, 390].includes(p.width) ? `${p.kto === 'gość' ? 'gosc' : 'zalogowany'}-${p.width}` : null;
+    const zrzut = !p.czcionka && p.skala === 100 && [1440, 1190, 390].includes(p.width) ? `${p.kto === 'gość' ? 'gosc' : 'zalogowany'}-${p.width}` : null;
     const m = await pomiar(p, { zrzut });
     const bledy = naruszenia(m, p);
 
