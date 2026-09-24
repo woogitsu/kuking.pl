@@ -117,6 +117,7 @@ final class CollectUserExportData
                 // zdjęcia, ani powodu odrzucenia, ani identyfikatora.
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
                     .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
+                    .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
@@ -370,12 +371,29 @@ final class CollectUserExportData
      * nic swojego nikomu tu nie ubywa.
      *
      * ILE FILTR SCHOWAŁ — MÓWIMY WPROST, TAK JAK EKRAN
-     * `wpisow_juz_niewidocznych` jest ZAWSZE, także gdy wynosi zero — ta sama
+     * `wpisow_juz_niewidocznych` i `przepisow_juz_niewidocznych` są ZAWSZE,
+     * także gdy wynoszą zero — ta sama
      * reguła co przy `zdjec_jeszcze_w_przygotowaniu` (issue #113): klucz
      * pojawiający się tylko przy brakach zmusza czytającego do zgadywania,
      * czy zera nie ma, bo braków nie było, czy dlatego, że paczkę zbudowała
      * starsza wersja serwisu. Ekran zeszytu mówi „ile, nie czego" — paczka
      * mówi to samo.
+     *
+     * ZAPISANE PRZEPISY — TA SAMA GRANICA (#1017)
+     * Do 24 września przepisy ładowały się bez filtra: cudzy przepis zmieniony
+     * na „Tylko ja", ukryty przez moderację, objęty blokadą albo należący do
+     * zbanowanego lub zamykanego konta znikał z ekranu zeszytu, a w paczce
+     * dalej stał tytuł i podpis autora. Teraz obie relacje przechodzą przez
+     * `widoczneDla()` i `dostepnyJakoAutor()`. Własne przepisy (także
+     * prywatne i szkice) filtr przepuszcza zawsze. Pozycji w `collection_items`
+     * NIE kasujemy: gdy autor znów udostępni przepis, wraca w następnej
+     * paczce, tak jak na ekranie.
+     *
+     * Notatka przy niewidocznej pozycji też nie wychodzi — ani przy wpisie,
+     * ani przy przepisie. Samotna notatka („bigos Zenka, mniej kminku")
+     * potrafi zdradzić, czego dotyczyła, więc pozycja zostaje wyłącznie
+     * w liczniku `przepisow_juz_niewidocznych`. Notatka nie ginie: leży dalej
+     * w zeszycie i wraca razem z przepisem.
      *
      * CZEGO TU NIE MA: ZDJĘĆ Z ZAPISANYCH WPISÓW
      * `ExportPhotoPlan` chodzi wyłącznie po `$user->media()`, więc zdjęcie
@@ -390,7 +408,12 @@ final class CollectUserExportData
     {
         $collections = $user->collections()
             ->with([
-                'recipes.author.profile',
+                // Ta sama bramka co przy wpisach niżej i co na ekranie
+                // zeszytu (`CollectionController::show()`) — issue #1017.
+                'recipes' => fn ($zapytanie) => $zapytanie
+                    ->widoczneDla($user)
+                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->with('author.profile'),
                 'posts' => fn ($zapytanie) => $zapytanie
                     ->widoczneDla($user)
                     ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
@@ -400,6 +423,10 @@ final class CollectUserExportData
             // Różnica między nią a liczbą wypisanych pozycji to dokładnie to,
             // co filtr schował — i to jest liczba, którą paczka podaje.
             ->withCount('posts')
+            // Liczba WSZYSTKICH zapisanych przepisów, także skasowanych —
+            // tak liczy ekran zeszytu (`recipes_total_count`), więc przepis
+            // usunięty przez autora też wychodzi tu jako brak, a nie znika.
+            ->withCount(['recipes as recipes_total_count' => fn ($q) => $q->withTrashed()])
             ->orderBy('created_at')
             ->get();
 
@@ -429,6 +456,10 @@ final class CollectUserExportData
                 'moja_notatka' => $post->pivot->note ?? null,
                 'zapisano' => $this->date($post->pivot->created_at ?? null),
             ])->all(),
+            'przepisow_juz_niewidocznych' => max(
+                0,
+                (int) ($collection->recipes_total_count ?? 0) - $collection->recipes->count(),
+            ),
             'wpisow_juz_niewidocznych' => max(
                 0,
                 (int) ($collection->posts_count ?? 0) - $collection->posts->count(),
