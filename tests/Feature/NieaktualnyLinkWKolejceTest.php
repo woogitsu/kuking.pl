@@ -21,11 +21,18 @@ class NieaktualnyLinkWKolejceTest extends TestCase
 
     public static function delays(): array
     {
-        return ['od razu' => [0, 1], 'sekunda przed' => [1799, 1], 'dokladnie termin' => [1800, 0], 'po terminie' => [1801, 0]];
+        // Spóźniony list mówi, ile zostało, zamiast powtarzać pełne pół godziny
+        // (zachowanie `LinkDoLogowania::waznosc()` z main, #889).
+        return [
+            'od razu' => [0, 1, 'przez pół godziny od chwili zamówienia'],
+            'sekunda przed' => [1799, 1, 'jeszcze przez niecałą minutę'],
+            'dokladnie termin' => [1800, 0, null],
+            'po terminie' => [1801, 0, null],
+        ];
     }
 
     #[DataProvider('delays')]
-    public function test_kolejka_respektuje_termin_i_nie_odnawia_tokenu(int $seconds, int $count): void
+    public function test_kolejka_respektuje_termin_i_nie_odnawia_tokenu(int $seconds, int $count, ?string $waznosc): void
     {
         $this->freezeTime();
         config(['mail.default' => 'array', 'kuking.login_link.waznosc_minut' => 30]);
@@ -49,7 +56,8 @@ class NieaktualnyLinkWKolejceTest extends TestCase
         $this->assertSame($before, LoginLinkToken::sole()->getAttributes());
         if ($count) {
             $html = $transport->messages()->sole()->getOriginalMessage()->getHtmlBody();
-            $this->assertStringContainsString('przez pół godziny od chwili zamówienia', $html);
+            $this->assertIsString($waznosc);
+            $this->assertStringContainsString($waznosc, $html);
         }
     }
 
