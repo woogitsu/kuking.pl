@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Str;
 
 /**
  * Powiadomienie w aplikacji.
@@ -26,6 +27,14 @@ class Notification extends Model
 
     /** Ktoś ugotował z Twojego przepisu. Najważniejsze powiadomienie w Kuking. */
     public const TYPE_COOKED = 'cooked_event.created';
+
+    /**
+     * Klucz sesji (flash na jedno żądanie): „to kliknięcie «Zobacz» zgasiło
+     * to powiadomienie" — wartością jest identyfikator powiadomienia.
+     * Ustawia `NotificationController::open()`, czyta
+     * `CookedEventController::celebrate()` (issue #770).
+     */
+    public const SESJA_PIERWSZE_OTWARCIE = 'powiadomienie_pierwsze_otwarcie';
 
     public const TYPE_COMMENT = 'comment.created';
 
@@ -178,6 +187,14 @@ class Notification extends Model
         'data',
     ];
 
+    /**
+     * Czy wykonanie z `data.cooked_event_id` wciąż istnieje (issue #771).
+     * `null` = jeszcze nie sprawdzano. Lista ustawia to jednym zapytaniem
+     * dla całej strony (`NotificationController::index()`), żeby każde
+     * powiadomienie o ugotowaniu nie dokładało własnego `select`.
+     */
+    private ?bool $wykonanieIstnieje = null;
+
     protected function casts(): array
     {
         return [
@@ -222,9 +239,22 @@ class Notification extends Model
             // w produkcie i zasługuje na własną stronę, nie jeden wiersz
             // na liście. `celebrate()` sam się cofa do `cooked.show`,
             // kiedy ekran już był raz pokazany.
-            self::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
+            //
+            // ISSUE #771: usunięte wykonanie nie ma dokąd prowadzić. Link do
+            // niego kończył się 404 — widok pokazuje wtedy uczciwy stan
+            // („To ugotowanie zostało usunięte.") bez przycisku „Zobacz".
+            self::TYPE_COOKED => isset($data['cooked_event_id']) && ! $this->wykonanieUsuniete()
+                ? route('cooked.celebrate', $data['cooked_event_id'])
+                : null,
             self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
-            self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
+            // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
+            // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
+            // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
+            // do INNEJ osoby niż ta, którą powiadomienie opisuje. Brak
+            // profilu = brak celu, nigdy zgadywanie po starej nazwie.
+            self::TYPE_FOLLOW => is_string($nazwa = $this->actor?->profile?->username) && $nazwa !== ''
+                ? route('profile.show', $nazwa)
+                : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
@@ -245,6 +275,34 @@ class Notification extends Model
             self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
+    }
+
+    /**
+     * Powiadomienie o ugotowaniu, którego wykonanie zostało usunięte
+     * (issue #771). Wykonanie kasuje się twardo (`CookedEventController::destroy()`),
+     * a identyfikator w `data` nie jest kluczem obcym, więc powiadomienie
+     * zostaje — i ma zostać: to było prawdziwe zdarzenie. Kłamać nie może
+     * tylko o tym, co jest za nim dziś („Jest zdjęcie", „Zobacz").
+     */
+    public function wykonanieUsuniete(): bool
+    {
+        $id = $this->data['cooked_event_id'] ?? null;
+
+        if ($this->type !== self::TYPE_COOKED || ! is_string($id) || $id === '') {
+            return false;
+        }
+
+        // Nie-UUID nie trafi w żadne wykonanie (a PostgreSQL odrzuciłby je
+        // błędem rzutowania), więc traktujemy je jak wykonanie, którego nie ma.
+        $this->wykonanieIstnieje ??= Str::isUuid($id) && CookedEvent::query()->whereKey($id)->exists();
+
+        return ! $this->wykonanieIstnieje;
+    }
+
+    /** Wynik zbiorczego sprawdzenia z listy — patrz `$wykonanieIstnieje`. */
+    public function zapamietajIstnienieWykonania(bool $istnieje): void
+    {
+        $this->wykonanieIstnieje = $istnieje;
     }
 
     /**
@@ -479,6 +537,23 @@ class Notification extends Model
          * Powiadomienia bez sprawcy (`actor_id IS NULL`) przechodzą zawsze,
          * z tego samego powodu co przy blokadzie wyżej.
          */
+        /*
+         * ZAWIADOMIENIE SŁUŻBOWE PO ODEBRANIU UPRAWNIEŃ (issue #1351).
+         *
+         * `appeal.filed` niesie nazwę składającego, rodzaj sprawy i termin —
+         * dane z kolejki odwołań, do której wstęp ma tylko czynny
+         * administrator. Adresatów wybiera `PowiadomOOdwolaniu` w chwili
+         * złożenia odwołania, więc bez tego warunku zawiadomienie zostawało
+         * na liście (i w liczniku) po odebraniu roli albo przy zawieszeniu.
+         * Pytamy o `isAdmin()` PRZY ODCZYCIE, nie kasujemy wierszy: ponowne
+         * nadanie roli albo koniec zawieszenia pokazuje je z powrotem,
+         * a retencja tego typu zostaje bez zmian. `actor_id` jest tu NULL,
+         * więc filtr sprawcy niżej niczego by nie ukrył.
+         */
+        if (! $viewer->isAdmin()) {
+            $query->where('notifications.type', '!=', self::TYPE_APPEAL_FILED);
+        }
+
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')

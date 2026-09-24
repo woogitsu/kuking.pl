@@ -175,7 +175,7 @@ class EmailSettingsController extends Controller
         }
 
         try {
-            $nowyAdres = $potwierdz->handle($user, $oczekujaca, $request->ip());
+            $nowyAdres = $potwierdz->handle($user, $oczekujaca, $request->ip(), $request->session()->getId());
         } catch (BladDlaCzlowieka $e) {
             return redirect()->route('settings.email')->withErrors(['email' => $e->getMessage()]);
         }
