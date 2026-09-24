@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
+use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Notifications\UstawienieNowegoHasla;
@@ -1205,11 +1206,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
             throw new \InvalidArgumentException("Nieznany zakres usunięcia konta: {$scope}");
         }
 
+        // Ostatni czynny administrator nie może odejść, zanim nie przekaże
+        // roli (#1016) — ten sam wspólny zamek co degradacja i kary.
+        // Kolejność: blokada doradcza → wiersz konta → `ZamekKonta`.
+        //
         // Rozstrzyga ŚWIEŻY wiersz pod blokadą, nie model z formularza (#980):
         // między sprawdzeniem hasła a tym zapisem moderator mógł zablokować
         // konto — ten ban ma przeczekać karencję w `punishment_status`,
         // a nie zniknąć pod `pending_delete`.
-        $this->przejdz(static function (self $konto) use ($scope): void {
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->przejdz(static function (self $konto) use ($scope): void {
             if (in_array($konto->status, [self::STATUS_PENDING_DELETE, self::STATUS_ERASED], true)) {
                 throw new BladDlaCzlowieka('To konto jest już oznaczone do usunięcia. '
                     .'Jeśli chcesz zmienić zdanie, skorzystaj ze strony „Cofnij usunięcie konta”.');
@@ -1227,7 +1232,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'delete_requested_at' => now(),
                 'delete_scope' => $scope,
             ]);
-        });
+        }));
 
         // Ta sama zasada co przy `ban()`/`suspend()`: zmiana stanu konta, która
         // ma odciąć dostęp, musi kasować sesje z INNYCH przeglądarek, nie tylko
@@ -1315,10 +1320,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `$until` to termin, po którym konto wraca do `active` samo. Bez niego
      * zawieszenie trwa do decyzji człowieka. CHECK w bazie pilnuje, że termin
      * może istnieć wyłącznie przy statusie `suspended` (issue #40).
+     *
+     * Ostatniego czynnego administratora nie zawiesi ani nie zablokuje nikt
+     * (#1016): `OstatniAdministrator` odmawia wyjątkiem pod wspólnym zamkiem.
      */
     public function suspend(?DateTimeInterface $until = null): void
     {
-        $this->nalozKare(self::STATUS_SUSPENDED, $until);
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->nalozKare(self::STATUS_SUSPENDED, $until));
 
         $this->invalidateSessions();
     }
@@ -1332,7 +1340,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function ban(): void
     {
-        $this->nalozKare(self::STATUS_BANNED, null);
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->nalozKare(self::STATUS_BANNED, null));
 
         $this->invalidateSessions();
     }
