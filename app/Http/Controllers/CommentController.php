@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,6 +63,15 @@ class CommentController extends Controller
 
         $comment->update(['body' => trim($data['body'])]);
         $request->session()->forget('comment_edit_recovery');
+
+        // Issue #909, D-256: nowa treść przechodzi przez tę samą analizę co
+        // pierwsza — w kolejce, więc zapis nie czeka. Zapis bez zmiany nic
+        // nie zleca. Zadanie czyta komentarz po ID, więc przy kilku szybkich
+        // poprawkach każde ogląda najnowszy tekst, a indeks jednego oznaczenia
+        // na treść nie pozwala postawić drugiej pozycji w kolejce moderatora.
+        if ($comment->wasChanged('body')) {
+            PrzeanalizujTresc::dlaKomentarza($comment)->afterCommit();
+        }
 
         return back()->with('status', 'Komentarz poprawiony.');
     }
