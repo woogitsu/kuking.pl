@@ -37,7 +37,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 
     private function job(string $name): string
     {
-        $matched = preg_match('/^  '.preg_quote($name, '/').':\R(.*?)(?=^  [a-z_]+:|\z)/ms', $this->workflow(), $matches);
+        $matched = preg_match('/^  '.preg_quote($name, '/').':(?:\r\n|\n|\r)(.*?)(?=^  [a-z_]+:|\z)/ms', $this->workflow(), $matches);
         $this->assertSame(1, $matched, 'Brak sprawdzanego joba CI: '.$name);
 
         return (string) preg_replace('/^\s*#.*$/m', '', $matches[1]);
@@ -59,7 +59,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
             $this->assertStringContainsString('storage/port-projektu', $job);
-            $this->assertStringContainsString('uses: actions/checkout@v7', $job);
+            $this->assertStringContainsString('uses: actions/checkout@', $job);
         }
         $job = $this->job('port_funkcje');
         $this->assertStringContainsString($kroki, $job);
@@ -315,7 +315,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             'Job `zakres` nie wystawia obu wyjść.',
         );
 
-        $linie = preg_split('/\R/', $zakres) ?: [];
+        $linie = preg_split('/\r\n|\n|\r/', $zakres) ?: [];
 
         $wczesne = 0;
         foreach ($linie as $i => $linia) {

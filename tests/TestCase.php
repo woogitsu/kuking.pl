@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -30,6 +31,57 @@ abstract class TestCase extends BaseTestCase
 
         $this->withoutVite();
         Http::preventStrayRequests();
+        $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * ZERUJE STAN LIVEWIRE'A, KTÓRY PRZECIEKA MIĘDZY TESTAMI W JEDNYM PROCESIE.
+     *
+     * `Livewire\Features\SupportAutoInjectedAssets\SupportAutoInjectedAssets`
+     * trzyma DWIE STATYKI KLASOWE — `$hasRenderedAComponentThisRequest`
+     * (podnoszoną w `dehydrate()`, czyli przy KAŻDYM wyrenderowanym
+     * komponencie) i `$forceAssetInjection`. Statyka klasowa żyje tyle, co
+     * proces PHP: `Illuminate\Foundation\Testing\TestCase::tearDown()`
+     * wyrzuca kontener aplikacji, ale klasy nie dotyka. Livewire zeruje te
+     * flagi WYŁĄCZNIE na zdarzeniu `flush-state`, a `flush-state` leci tylko
+     * z `Livewire::flushState()` — które w całym vendorze woła u siebie sam
+     * `Livewire::test()` (`SupportTesting/InitialRender.php`,
+     * `SupportTesting/SubsequentRender.php`). Zwykłe żądanie HTTP w teście
+     * NIE woła tego nigdy.
+     *
+     * Skutek bez tego zerowania: gdy wcześniej w tym samym procesie PHP
+     * jakikolwiek test wyrenderował stronę z komponentem Livewire'a (np.
+     * `/przepisy/{slug}/szczegoly`, albo test przejeżdżający WSZYSTKIE trasy
+     * — `KazdaTrasaZIdentyfikatoremPodPolicyTest`,
+     * `AutoryzacjaTrasZWiazaniemModeluTest`), to nasłuch `RequestHandled`
+     * dokleja `@livewireScripts` do KAŻDEJ następnej odpowiedzi 200 text/html
+     * w tym procesie — także na stronach, które Livewire'a nie używają.
+     * `NapiszDoNasTest::test_formularz_dziala_bez_javascriptu` pada wtedy na
+     * `livewire.js`, choć w samej aplikacji nie zmieniło się nic.
+     *
+     * To NIE jest przypadłość wyłącznie `--parallel`: zmierzone szeregowo,
+     * `--filter='KazdaTrasaZIdentyfikatoremPodPolicyTest|NapiszDoNasTest'`
+     * dawało czerwień, a `--filter='...|NapiszDoNasTest'` z niewinną klasą
+     * obok — zieleń. Pełna bateria bywała zielona tylko dlatego, że między te
+     * klasy trafiał się test wołający `Livewire::test()`, czyli zerujący
+     * flagę przypadkiem. To szczęście, nie zabezpieczenie.
+     *
+     * DLACZEGO W `setUp()`, A NIE W `tearDown()`: tak zerowanie jest
+     * niezależne od tego, czy któraś z ~20 klas nadpisujących `tearDown()`
+     * woła `parent::tearDown()` i w którym miejscu (po `parent::tearDown()`
+     * kontener już nie istnieje, więc `flushState()` by się wywrócił).
+     * `setUp()` biegnie dla każdego testu, zawsze na świeżym kontenerze.
+     *
+     * KOSZT: jedno `trigger('flush-state')` na test — przejście po liście
+     * nasłuchów i wyzerowanie kilkunastu tablic w pamięci. To DOKŁADNIE to
+     * samo, co Livewire robi sam po każdym `Livewire::test()`.
+     *
+     * STRAŻNIK REGRESJI:
+     * `tests/Feature/StanLivewireNiePrzeciekaMiedzyTestamiTest.php`.
+     */
+    private function wyzerujStanLivewire(): void
+    {
+        Livewire::flushState();
     }
 
     /**

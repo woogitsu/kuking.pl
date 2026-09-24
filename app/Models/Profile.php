@@ -138,6 +138,28 @@ class Profile extends Model
 
         return $zdjecie !== null
             && $zdjecie->status !== Media::STATUS_DELETED
+            && $zdjecie->status !== Media::STATUS_REJECTED
+            && $this->zdjecieDoPokazania() === null;
+    }
+
+    /**
+     * Czy obróbka zdjęcia skończyła się odmową i nie ma czego pokazać (#891).
+     *
+     * `rejected` to stan KOŃCOWY — nic się już nie przygotowuje, więc
+     * „odśwież za chwilę" byłoby obietnicą bez pokrycia. Człowiek ma
+     * usłyszeć prawdę i to, co może zrobić: wybrać inne zdjęcie.
+     *
+     * Odrzucone zdjęcie z bezpiecznym podglądem NIE wpada tutaj —
+     * `Media::maWariantDoPokazania()` celowo je przepuszcza i wtedy
+     * `zdjecieDoPokazania()` je zwraca. Chowanie działającego obrazka
+     * z powodu samego statusu byłoby nową usterką.
+     */
+    public function zdjecieNieUdaloSiePrzygotowac(): bool
+    {
+        $zdjecie = $this->avatar;
+
+        return $zdjecie !== null
+            && $zdjecie->status === Media::STATUS_REJECTED
             && $this->zdjecieDoPokazania() === null;
     }
 }

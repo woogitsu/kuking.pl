@@ -59,6 +59,9 @@ class WspolnyLicznikPocztyTest extends TestCase
             'kuking.poczta.limit_dostawcy_dobowy' => $limit,
             'kuking.poczta.progi_wygaszania.podsumowanie' => $podsumowanie,
             'kuking.poczta.progi_wygaszania.zwykla' => $zwykla,
+            // Ponowienie potwierdzenia (D-246) w tej samej proporcji co
+            // produkcyjnie: gaśnie razem z klasą `zwykla`.
+            'kuking.poczta.progi_wygaszania.ponowienie' => $zwykla,
             'kuking.poczta.progi_wygaszania.wejscie' => 0,
             // Sufity własne poza drogą — w tym pliku mierzymy wspólny licznik.
             'kuking.login_link.dzienny_budzet' => 1000,

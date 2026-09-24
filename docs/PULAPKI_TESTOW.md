@@ -101,7 +101,21 @@ $this->assertGreaterThan(100, $przeskanowane, 'Skan nie czyta plików — zła �
 Bez tej asercji przeniesienie katalogu wyłącza test bez jednego czerwonego
 przebiegu.
 
-### 2b. Ta sama dziura wraca przez ZAWĘŻENIE — i jest wtedy lepiej ukryta
+## 2b. Skaner może zobaczyć tylko część dużego katalogu
+
+**Złapała: #1303, strażnik odnośników w dzienniku decyzji.** Na środowisku
+WSL/Windows `RecursiveDirectoryIterator` odczytał 143 z 696 pozycji w
+`tests/Feature`. `scandir()` zwrócił 698 pozycji wraz z `.` i `..`. Strażnik
+uznał przez to 23 istniejące klasy testowe za martwe referencje i blokował
+pełną kontrolę repozytorium. Jedna z rzekomo martwych klas, `KartaWpisuTest`,
+istniała i miała wskazaną metodę.
+
+**Co robić:** gdy test skanuje katalog, porównaj listę odczytanych plików z
+niezależnym spisem nazw w tym katalogu. Sam próg „ponad 100 plików” nie
+wystarczy, jeśli rzeczywistych plików jest kilkaset. Nie poprawiaj poprawnych
+odnośników w dokumentacji w odpowiedzi na niepełny skan.
+
+## 2c. Dziura z §2 wraca przez ZAWĘŻENIE — i jest wtedy lepiej ukryta
 
 **Złapało: `scripts/kaskada-martwe-reguly.mjs --tylko`, 20.09.2026.**
 
