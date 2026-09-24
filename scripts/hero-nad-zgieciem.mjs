@@ -172,7 +172,7 @@ async function podniesSerwer() {
   execFileSync('php', ['artisan', 'config:clear'], { stdio: 'ignore', env: env() });
 
   console.log('Buduję arkusz i skrypt (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   if (process.env.HERO_POMIN_BAZE !== '1') {
     try {
