@@ -270,7 +270,23 @@ return [
     |
     */
 
-    'release_token' => 'a',
+    // KUKING (issue #977): token = SHA wdrożonego commita, nie stałe 'a'.
+    //
+    // Przy stałym tokenie karta otwarta przed wdrożeniem wysyłała po nim
+    // migawkę komponentu z poprzedniego kodu — z właściwościami, których
+    // nowy kod może już nie znać — i Livewire nie miał jak tego rozpoznać.
+    // Z SHA pierwsze żądanie takiej karty dostaje 419 i prośbę o odświeżenie.
+    //
+    // To samo źródło co wersja w stopce (`kuking.wersja.commit`): Railway
+    // wstrzykuje RAILWAY_GIT_COMMIT_SHA do KAŻDEGO wdrożenia w runtime,
+    // a `config:cache` robi `php artisan optimize` w docker/entrypoint.sh
+    // przy starcie kontenera — nie w buildzie — więc zapieka SHA tego
+    // wdrożenia, a nie pustą wartość z builda.
+    //
+    // Lokalnie i w testach zmiennej nie ma: stały zapas 'lokalnie', żeby
+    // token nie zmieniał się między żądaniami (losowy zapas wywalałby
+    // każdą kartę po restarcie serwera deweloperskiego).
+    'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',
 
     /*
     |---------------------------------------------------------------------------
