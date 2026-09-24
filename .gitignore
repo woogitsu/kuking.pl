@@ -56,3 +56,6 @@ Thumbs.db
 # wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
 .pint.cache
 .php-cs-fixer.cache
+
+# Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
+docs/flota/chmura/czuwanie-stan.json

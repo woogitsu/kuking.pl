@@ -22,6 +22,7 @@ import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
 import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
 import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
 import { sprawdzStopke } from './stopka-pusty-pas.mjs';
+import { wymagajStanu } from './lib/stan-ustalony.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -302,6 +303,25 @@ const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
   if (response.status() !== 200) throw new Error(`${path}: HTTP ${response.status()}`);
   await page.evaluate(() => document.fonts.ready);
+  /* KOLORY PORÓWNUJEMY DOPIERO PO PRZEJŚCIACH CSS (wzorzec z PR #1472:
+     `scripts/lib/stan-ustalony.mjs`, `docs/PULAPKI_TESTOW.md` §14).
+     `KARTA_OSOB` porównuje tło karty osób z tłem paska, a te dwa elementy
+     przechodzą zmianę motywu RÓŻNIE: pasek ma `data-pasek-przewijany`, więc
+     przy `reducedMotion: 'reduce'` `pasek-przewijany.css` daje mu
+     `transition: none` i nowe tło ma od razu; karta dostaje z `tokens.css`
+     `transition-duration: 0.01ms` przy domyślnym `transition-property: all`,
+     więc tło po zmianie `data-theme`/`data-text-scale` z `DOMContentLoaded`
+     PRZECHODZI i do najbliższej klatki `getComputedStyle` oddaje wartość
+     pośrednią. Na zajętym runnerze (main 1acbfeeb, DOM-NEW-04, wariant
+     „tekst 140%") pomiar trafiał przed tę klatkę. Odtworzone lokalnie
+     wydłużeniem samych przejść: karta `rgb(70, 73, 68)` przy pasku
+     `rgb(34, 38, 32)`. Czekamy więc, co klatkę, aż w dokumencie nie ma
+     trwającego przejścia i fonty są wczytane — stan, nie zegar. */
+  await wymagajStanu(page, {
+    opis: `${path}: przejścia CSS przed pomiarem marki (${width} px)`,
+    warunek: (_, przejscia) => document.fonts.status === 'loaded' && przejscia().length === 0,
+    pomiar: (_, przejscia) => ({ fonty: document.fonts.status, przejscia: przejscia().slice(0, 12) }),
+  });
   const result = await page.evaluate(() => {
     const main = document.querySelector('.app-main').getBoundingClientRect();
     const nav = document.querySelector('.marka-nawigacja');

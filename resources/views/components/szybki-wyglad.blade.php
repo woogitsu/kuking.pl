@@ -4,7 +4,10 @@
     <section class="szybki-wyglad-panel" aria-labelledby="szybki-wyglad-tytul">
         <h2 id="szybki-wyglad-tytul">Dopasuj wygląd</h2>
         <form method="POST" action="{{ route('theme.update') }}">
-            @csrf
+            {{-- #610: bez tokenu na stronie z brzegu — patrz PublicznyHtmlGoscia. --}}
+            @unless (\App\Support\PublicznyHtmlGoscia::bezSesji())
+                @csrf
+            @endunless
             <label for="szybka-skala">Rozmiar tekstu</label>
             <p class="szybki-wyglad-info">Poniżej 100% zmniejszamy też odstępy. Przyciski pozostają wygodne do dotknięcia.</p>
             <div class="szybki-wyglad-skala">
