@@ -1573,7 +1573,7 @@ deklaracją pochodzenia (`docs/MODERATION.md`).
 | `source_type` | `varchar(20) NOT NULL DEFAULT 'own'` | Zamknięta lista, CHECK `recipes_source_type_check`: `own` \| `family` \| `adaptation` \| `external`. Etykiety dla człowieka trzyma `Recipe::SOURCE_LABELS`. |
 | `source_person` | `varchar(120) NULL` | **Wolny tekst od człowieka.** Patrz niżej — to nie jest osoba. |
 | `source_note` | `varchar(2000) NULL` | Historia przepisu, wspomnienie. Pokazywane pod nagłówkiem „Skąd ten przepis", PRZED składnikami, z zachowaniem łamań wierszy (`whitespace-pre-line`). |
-| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**, jako `rel="nofollow noopener"`. W bazie bez limitu długości; formularz przyjmuje najwyżej 2000 znaków i wymaga poprawnego adresu (`'url'` w regułach `RecipeController`). |
+| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**; link z `rel="nofollow noopener"` powstaje tylko dla HTTP/HTTPS, inne zachowane adresy są zwykłym tekstem. W bazie bez limitu długości; formularz i kreator przyjmują najwyżej 2000 znaków. Nowy lub zmieniony adres musi być HTTP/HTTPS (`url:http,https`), niezmieniony dawny adres z bazy może zostać (#900, D-254). |
 
 Puste i złożone z samych spacji wartości `PublishRecipe` zamienia na `NULL`
 **przed** zapisem (`nullIfBlank`), więc „pole wyczyszczone" i „pole nigdy nie
@@ -2602,6 +2602,15 @@ Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`
 wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
 zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
 
+#### `report_id IS NULL` przy decyzji odwoływalnej — decyzja z urzędu (G31, D-251)
+
+Pusty `report_id` przy `action = 'remove'` znaczy „nikt tego nie zgłosił”:
+moderator zdjął treść z własnego przeglądu („Zdejmij z urzędu”,
+`App\Domain\Moderation\Actions\ZdejmijZUrzedu`). Nie ma przy tym sztucznego
+zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
+znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
+decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
@@ -3302,8 +3311,44 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
+| `notified_at` | Nullable `timestamptz`: kiedy `App\Jobs\NotifyUserExportReady` zajął list „paczka gotowa" (issue #820). Poza `$fillable`. CHECK `data_exports_notified_after_completed_check`: bez `completed_at` nie ma listu. Szczegóły niżej. Migracja `2026_09_23_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
+
+List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
+5 prób, przerwy 1, 5, 15 i 60 minut), a nie `GenerateUserExport` — tamto
+łapało awarię poczty i nikt listu nie ponawiał. Zadanie jest zlecane
+w transakcji, która ustawia `ready` (`GenerateUserExport::finalize()`): na
+kolejce bazodanowej wiersz w `jobs` i `ready` zatwierdzają się razem albo
+wcale. Kolejka `sync` (testy) wysyła list po commicie, bez ponowień.
+
+Zadanie **zajmuje** list jednym `UPDATE … SET notified_at = teraz WHERE
+notified_at IS NULL AND status = 'ready' AND expires_at > teraz`; z dwóch
+przebiegów naraz przechodzi jeden. Gdy wysyłka padnie, zajęcie jest
+zwalniane (tylko po tym samym znaczniku) i kolejka ponawia. Granice:
+zerwane połączenie PO przyjęciu listu przez dostawcę daje drugi list;
+proces zabity między zajęciem a wysyłką — żadnego (zajęcie zostaje).
+Wartość znaczy więc „list zajęty do wysyłki i nie zgłoszono awarii", a nie
+„list doręczony".
+
+Pusta kolumna przy paczce gotowej do pobrania to na ekranie ustawień zdanie
+„E-mail o tej paczce jeszcze nie wyszedł. Nie musisz na niego czekać —
+paczkę pobierzesz tutaj."
+
+**Backfill:** wiersze `ready` i `expired` sprzed migracji dostają
+`notified_at = completed_at` — stary kod próbował wysłać list w tym samym
+przebiegu, a nikt tej próby już nie powtórzy; pusta kolumna kazałaby ekranowi
+mówić o nich „jeszcze nie wyszedł".
+
+**Rollback:** `down()` usuwa CHECK i kolumnę bez odmowy. To nie jest wartość
+semantyczna w rozumieniu D-088: ponowne `up()` odtwarza znaczniki gotowych
+paczek z `completed_at`, więc cykl down/up może najwyżej zgubić list
+czekający w kolejce, nie wysłać drugiego. Przy cofaniu wdrożenia: zatrzymać
+workery; zadania `NotifyUserExportReady` pozostałe w `jobs` po powrocie do
+starego kodu nie znajdą klasy i trafią do `failed_jobs` — paczka czeka
+w ustawieniach. `down()` bez tabeli albo kolumny nic nie robi.
 
 #### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
 
@@ -4601,3 +4646,54 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
+
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
+schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
+
+**Co robi.** Zdejmuje klucz `excerpt` z `notifications.data` w wierszach typu
+`comment.created` i `comment.replied`. Operator `data - 'excerpt'` na `jsonb`
+zostawia resztę kluczy nietkniętą; warunek `jsonb_exists(data, 'excerpt')`
+zawęża zapis do wierszy, które ten klucz naprawdę mają.
+
+**Dlaczego.** Decyzja właściciela D-229: wycinek treści komentarza liczy się
+teraz z **aktualnej** treści, a eksport RODO zmienia się razem z ekranem.
+Uzasadnieniem było zdanie „paczka ma pokazywać, co o kimś trzymamy dziś" —
+a zamrożone kopie sprzed zmiany (do 120 znaków cudzego tekstu) leżały dalej
+w bazie, tyle że nikt ich nie czytał. Decyzja rozstrzyga tę różnicę na
+**„nie trzymamy"**, nie „nie czytamy".
+
+**Zakres jest wąski celowo.** `excerpt` zostaje w innych typach powiadomień,
+bo tam nie został zastąpiony niczym żywym — skasowanie zabrałoby treść,
+której nic nie odtworzy.
+
+**WYCOFANIE NIE PRZYWRACA DANYCH.** `down()` jest świadomie puste: kasujemy
+wartości, których nie ma skąd odczytać z powrotem, a `down()` wpisujące
+cokolwiek wpisałoby wartość zmyśloną. Migrację można cofnąć bez błędu, ale
+**to nie jest przywrócenie**.
+
+**Bez kopii bazy — decyzja właściciela z 23.09.2026.** Migracja wchodzi bez
+osobnej kopii zapasowej przed uruchomieniem: „to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników". Po jej wykonaniu skasowanych wycinków nie odtworzy
+**nic** — ani `down()`, ani kopia. Gdyby Kuking miał już prawdziwych
+użytkowników, ta sama migracja wymagałaby kopii przed uruchomieniem.
+
+**Dlaczego rollback tu NIE odmawia (D-088, AGENTS.md §6).** Odmowa w `down()`
+jest dla wartości semantycznych, które cykl `down()` → `migrate` po cichu
+odwraca (zgoda, zakres usunięcia, widoczność). Tu takiej wartości nie ma:
+ponowne `up()` znów tylko zdejmuje klucz, a kod sprzed tej zmiany, który
+czytał `data.excerpt`, przy braku klucza pokazuje powiadomienie **bez
+wycinka** — mniej treści, nie inna decyzja człowieka. Odmowa musiałaby być
+przy tym bezwarunkowa (w bazie nie zostaje ślad, które wiersze straciły
+wycinek), czyli blokowałaby `migrate:refresh` w CI na zawsze — a to D-088
+nazywa błędem tej samej wagi w drugą stronę. Stąd świadomie pusty `down()`
+z uzasadnieniem w kodzie.
+
+Numer `2026_09_23_120000` — przenumerowane z `2026_09_20_120000` przy scalaniu
+z main (PR #1180), żeby migracja stała po najnowszej migracji na main.
+
+Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
+trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
+nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
+warunek przestał trafiać w jakikolwiek wiersz.

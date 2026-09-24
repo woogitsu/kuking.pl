@@ -7,6 +7,7 @@ namespace App\Domain\Users\Exports;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -38,6 +39,11 @@ final class CollectUserExportData
      *
      * Świadomie NIE ma tu `username` ani żadnego `*_id` — to identyfikatory
      * (cudze albo wewnętrzne), a paczka ma być czytelna, nie technicznie pełna.
+     *
+     * `excerpt` jest na tej liście dla typów, które niosą własny tekst
+     * (np. wiadomość od moderacji). Dla `comment.created`/`comment.replied`
+     * NIE bierze się z `data` — tam wycinek liczy się z AKTUALNEJ treści
+     * komentarza przy budowaniu paczki (#758, D-229, `notifications()` niżej).
      */
     private const NOTIFICATION_DATA_KEYS = [
         'excerpt',
@@ -111,6 +117,7 @@ final class CollectUserExportData
                 // zdjęcia, ani powodu odrzucenia, ani identyfikatora.
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
                     .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
+                    .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
@@ -360,16 +367,36 @@ final class CollectUserExportData
      * już nie widać, byłoby trwałym wyjęciem cudzego tekstu z jego ustawień.
      *
      * Własne wpisy przechodzą przez ten filtr ZAWSZE, także prywatne i szkice
-     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), więc
-     * nic swojego nikomu tu nie ubywa.
+     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), a
+     * `dostepnyJakoAutor()` stosujemy wyłącznie do CUDZYCH autorów — inaczej
+     * właścicielka w karencji (`pending_delete`, paczkę wolno wtedy pobrać)
+     * straciłaby w paczce własne pozycje. Nic swojego nikomu tu nie ubywa.
      *
      * ILE FILTR SCHOWAŁ — MÓWIMY WPROST, TAK JAK EKRAN
-     * `wpisow_juz_niewidocznych` jest ZAWSZE, także gdy wynosi zero — ta sama
+     * `wpisow_juz_niewidocznych` i `przepisow_juz_niewidocznych` są ZAWSZE,
+     * także gdy wynoszą zero — ta sama
      * reguła co przy `zdjec_jeszcze_w_przygotowaniu` (issue #113): klucz
      * pojawiający się tylko przy brakach zmusza czytającego do zgadywania,
      * czy zera nie ma, bo braków nie było, czy dlatego, że paczkę zbudowała
      * starsza wersja serwisu. Ekran zeszytu mówi „ile, nie czego" — paczka
      * mówi to samo.
+     *
+     * ZAPISANE PRZEPISY — TA SAMA GRANICA (#1017)
+     * Do 24 września przepisy ładowały się bez filtra: cudzy przepis zmieniony
+     * na „Tylko ja", ukryty przez moderację, objęty blokadą albo należący do
+     * zbanowanego lub zamykanego konta znikał z ekranu zeszytu, a w paczce
+     * dalej stał tytuł i podpis autora. Teraz obie relacje przechodzą przez
+     * `widoczneDla()` i `dostepnyJakoAutor()`. Własne przepisy (także
+     * prywatne i szkice) przechodzą zawsze — również gdy konto właścicielki
+     * jest w karencji, bo filtr autora dotyczy tylko cudzych przepisów. Pozycji w `collection_items`
+     * NIE kasujemy: gdy autor znów udostępni przepis, wraca w następnej
+     * paczce, tak jak na ekranie.
+     *
+     * Notatka przy niewidocznej pozycji też nie wychodzi — ani przy wpisie,
+     * ani przy przepisie. Samotna notatka („bigos Zenka, mniej kminku")
+     * potrafi zdradzić, czego dotyczyła, więc pozycja zostaje wyłącznie
+     * w liczniku `przepisow_juz_niewidocznych`. Notatka nie ginie: leży dalej
+     * w zeszycie i wraca razem z przepisem.
      *
      * CZEGO TU NIE MA: ZDJĘĆ Z ZAPISANYCH WPISÓW
      * `ExportPhotoPlan` chodzi wyłącznie po `$user->media()`, więc zdjęcie
@@ -384,16 +411,36 @@ final class CollectUserExportData
     {
         $collections = $user->collections()
             ->with([
-                'recipes.author.profile',
+                // Ta sama bramka co przy wpisach niżej i co na ekranie
+                // zeszytu (`CollectionController::show()`) — issue #1017.
+                //
+                // Własne pozycje omijają `dostepnyJakoAutor()`: w karencji
+                // (`pending_delete`) paczkę wolno zamówić i pobrać, a wtedy
+                // filtr autora wyciąłby właścicielce JEJ WŁASNY przepis
+                // z notatką i policzył go jako „już Ci nie pokazują".
+                'recipes' => fn ($zapytanie) => $zapytanie
+                    ->widoczneDla($user)
+                    ->where(fn ($q) => $q
+                        ->where('recipes.author_id', $user->getKey())
+                        ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
+                    ->with('author.profile'),
                 'posts' => fn ($zapytanie) => $zapytanie
                     ->widoczneDla($user)
-                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->where(fn ($q) => $q
+                        ->where('posts.author_id', $user->getKey())
+                        ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
                     ->with('author.profile'),
             ])
-            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności.
-            // Różnica między nią a liczbą wypisanych pozycji to dokładnie to,
-            // co filtr schował — i to jest liczba, którą paczka podaje.
-            ->withCount('posts')
+            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności,
+            // także skasowanych — tak jak `posts_total_count` na ekranie
+            // zeszytu. Różnica między nią a liczbą wypisanych pozycji to
+            // dokładnie to, co filtr schował — i to jest liczba, którą
+            // paczka podaje.
+            ->withCount(['posts as posts_total_count' => fn ($q) => $q->withTrashed()])
+            // Liczba WSZYSTKICH zapisanych przepisów, także skasowanych —
+            // tak liczy ekran zeszytu (`recipes_total_count`), więc przepis
+            // usunięty przez autora też wychodzi tu jako brak, a nie znika.
+            ->withCount(['recipes as recipes_total_count' => fn ($q) => $q->withTrashed()])
             ->orderBy('created_at')
             ->get();
 
@@ -423,9 +470,13 @@ final class CollectUserExportData
                 'moja_notatka' => $post->pivot->note ?? null,
                 'zapisano' => $this->date($post->pivot->created_at ?? null),
             ])->all(),
+            'przepisow_juz_niewidocznych' => max(
+                0,
+                (int) ($collection->recipes_total_count ?? 0) - $collection->recipes->count(),
+            ),
             'wpisow_juz_niewidocznych' => max(
                 0,
-                (int) ($collection->posts_count ?? 0) - $collection->posts->count(),
+                (int) ($collection->posts_total_count ?? 0) - $collection->posts->count(),
             ),
         ])->all();
     }
@@ -502,15 +553,38 @@ final class CollectUserExportData
             ->reorder('created_at')
             ->get();
 
-        return $notifications->map(function ($notification): array {
+        // WYCINEK KOMENTARZA JEST ZYWY - ISSUE #758, decyzja wlasciciela
+        // z 20 wrzesnia 2026 (D-229). Paczka ma pokazywac dane, ktore DZIS
+        // o kims trzymamy, a nie ich historyczna wersje: zamrozony wycinek
+        // opisywalby stan, ktorego w bazie juz nie ma. Jedno zapytanie na
+        // CALY eksport, nie jedno na powiadomienie - pozycji bywa tu wiecej
+        // niz trzydziesci mieszczace sie na ekranie (D-196).
+        $wycinki = Notification::zyweWycinkiKomentarzy($notifications);
+
+        return $notifications->map(function ($notification) use ($wycinki): array {
             $data = is_array($notification->data) ? $notification->data : [];
+            $szczegoly = array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS));
+
+            if (in_array($notification->type, Notification::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
+                // Zamrozony `excerpt` ze starych wierszy NIE wychodzi
+                // z paczki nawet jako plan zapasowy: brak wycinka w mapie
+                // znaczy "komentarz usuniety albo ukryty", czyli dokladnie
+                // ten przypadek, w ktorym tresci pokazac nie wolno (#757).
+                unset($szczegoly['excerpt']);
+
+                $zywy = $wycinki[(string) $notification->getKey()] ?? null;
+
+                if ($zywy !== null) {
+                    $szczegoly['excerpt'] = $zywy;
+                }
+            }
 
             return [
                 'rodzaj' => $notification->type,
                 'kiedy' => $this->date($notification->created_at),
                 'przeczytane' => $notification->read_at !== null,
                 'od_kogo' => $notification->actor?->displayName(),
-                'szczegoly' => array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS)),
+                'szczegoly' => $szczegoly,
             ];
         })->all();
     }

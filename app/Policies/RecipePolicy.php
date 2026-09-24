@@ -74,6 +74,15 @@ class RecipePolicy
     }
 
     /**
+     * Zdjęcie przepisu Z URZĘDU, bez zgłoszenia, z panelu moderacji (G31, D-251).
+     * Reguła: `UserPolicy::takeDownContentOf()` — 2FA i niższa rola autora.
+     */
+    public function removeExOfficio(User $user, Recipe $recipe): bool
+    {
+        return app(UserPolicy::class)->takeDownContentOf($user, $recipe->author);
+    }
+
+    /**
      * "Ugotowałem" można dodać do CUDZEGO przepisu.
      *
      * Do własnego też — bo ludzie realnie gotują swoje przepisy i chcą mieć

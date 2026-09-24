@@ -10,6 +10,9 @@ use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Domain\Users\OstatniAdministrator;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -72,6 +75,10 @@ class ModerationController extends Controller
          */
         $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
 
+        // Priorytet TYLKO dla otwartych: archiwum P0 nie stoi w „Wszystkie"
+        // nad dzisiejszym otwartym P2 (`PriorytetSprawy::wyrazenieSqlKolejki`).
+        [$wyrazenieSql, $parametrySql] = PriorytetSprawy::wyrazenieSqlKolejki();
+
         $reports = Report::query()
             ->when(
                 $zrodlo === Report::SOURCE_AUTOMAT,
@@ -102,6 +109,25 @@ class ModerationController extends Controller
             // `id` jest UUID-em v7, więc rozstrzyga remis w tę samą stronę co
             // czas: nowsze na górze. Nie zmienia to kolejności ANI JEDNEJ pary
             // wierszy o różnym `created_at`.
+            //
+            // PRZED CZASEM STOI PRIORYTET (`PriorytetSprawy`) i to jest
+            // ZMIANA WOBEC POPRZEDNIEJ GWARANCJI „najnowsze na górze".
+            //
+            // Sama data nie wystarczała: spam przychodzi falami, więc im
+            // gorszy dzień, tym głębiej pod nim leży rzecz, która nie może
+            // czekać. ZMIERZONE (`KolejkaModeracjiStawiaPilneNaGorzeTest`):
+            // zgłoszenie „Dotyczy dziecka" sprzed dwóch dni leży pod
+            // trzydziestoma zgłoszeniami spamu z ostatniej godziny, czyli na
+            // DRUGIEJ stronie kolejki stronicowanej po 25.
+            //
+            // Wewnątrz jednego priorytetu porządek zostaje DOKŁADNIE taki,
+            // jaki był — najnowsze na górze, remis po `id`. Zmieniamy jedną
+            // rzecz naraz: kolejność MIĘDZY wagami. Odwrócenie kierunku
+            // wewnątrz wagi (jak proponowała odrzucona gałąź) jest osobną
+            // decyzją, bez dowodu i z własną ceną: góra kolejki przestałaby
+            // się odświeżać, a moderator patrzyłby codziennie na te same
+            // sprawy, których z jakiegoś powodu nie rozstrzygnął.
+            ->orderByRaw($wyrazenieSql.' ASC', $parametrySql)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(25)
@@ -320,6 +346,14 @@ class ModerationController extends Controller
          * wyjść, jeśli zapis się nie powiedzie.
          */
         $wynik = DB::transaction(function () use ($request, $report, $data, $moderator, $termin) {
+            // Kara na koncie idzie pod wspólny zamek ostatniego administratora
+            // (#1016) PRZED pierwszym zapisem: INSERT do `moderation_actions`
+            // bierze `FOR KEY SHARE` na wierszu osoby i zamek wzięty po nim
+            // zakleszczyłby się z równoległą zmianą roli.
+            if (in_array($data['action'], [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
+                OstatniAdministrator::zablokuj();
+            }
+
             $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
             if ($zablokowane === null || $zablokowane->status !== Report::STATUS_OPEN) {
@@ -390,7 +424,13 @@ class ModerationController extends Controller
                 'user_message' => $data['user_message'] ?? null,
             ]);
 
-            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            // Odmowa strażnika wycofuje decyzję razem z transakcją: nie
+            // zostaje ani wpis, ani powiadomienie o karze, której nie było.
+            try {
+                $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            } catch (OdmowaOstatniegoAdministratora $odmowa) {
+                throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+            }
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
             // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora

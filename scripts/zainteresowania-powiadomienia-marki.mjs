@@ -110,7 +110,7 @@ export async function sprawdzKompozycje513({ browser, adres, sesja, tagi513, akc
       const hash = p => createHash('md5').update(readFileSync(p)).digest('hex');
       const before = hash(source), mtime = statSync(source).mtimeMs;
       execFileSync('cp',['-p',source,backup]);
-      const build = () => execFileSync('npm',['run','build'],{stdio:'pipe'});
+      const build = () => execFileSync('npm',['run','build:assets'],{stdio:'pipe'});
       let failure;
       const scale = name === 'dluga-legenda' ? 'font+140' : name === 'akcja-pod-tekstem' ? 100 : 140;
       try {
