@@ -39,6 +39,20 @@ class TrybPaneluWMenuTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Ekrany panelu, których zwykły moderator NIE widzi — przemiatane jako
+     * admin. Każdy wpis musi mieć powód; „bo test padał" nie jest powodem.
+     *
+     * @var array<string, string>
+     */
+    private const EKRANY_TYLKO_DLA_ADMINA = [
+        // Issue #599: nazwy zadań i klas wyjątków to obraz infrastruktury
+        // (dostawca poczty, baza, worker), a moderator jest od treści i ludzi
+        // — bramka `UserPolicy::diagnozujKolejke`, różnicę ról mierzy
+        // `PanelKolejkiZadanTest`.
+        'admin/kolejka' => 'UserPolicy::diagnozujKolejke',
+    ];
+
     /** Pozycje menu przeznaczone dla użytkownika — w trybie panelu nie ma ich wcale. */
     private const POZYCJE_UZYTKOWNIKA = ['Start', 'Szukaj', 'Dodaj', 'Moje', 'Profil'];
 
@@ -111,7 +125,11 @@ class TrybPaneluWMenuTest extends TestCase
      */
     public function test_kazdy_ekran_panelu_ma_menu_bez_pozycji_uzytkownika(): void
     {
+        // Przemiatamy jako MODERATOR — to jego konto najczęściej ogląda panel,
+        // więc to na nim pasek i menu muszą się zgadzać. Wyjątki idą jako
+        // admin i każdy ma jawne uzasadnienie w `EKRANY_TYLKO_DLA_ADMINA`.
         $moderator = $this->moderator();
+        $admin = $this->admin();
 
         $trasy = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($trasa): bool => in_array('GET', $trasa->methods(), true))
@@ -126,8 +144,21 @@ class TrybPaneluWMenuTest extends TestCase
             'Router oddał mniej niż sześć bezparametrowych ekranów panelu — czytam złe trasy.',
         );
 
+        foreach (array_keys(self::EKRANY_TYLKO_DLA_ADMINA) as $wyjatek) {
+            $this->assertContains(
+                $wyjatek,
+                $trasy->all(),
+                "Wyjątek „{$wyjatek}” nie odpowiada już żadnej trasie — usuń go z listy.",
+            );
+
+            // Wyjątek jest uzasadniony tylko dopóty, dopóki moderator
+            // NAPRAWDĘ dostaje odmowę. Gdy bramka zniknie, wyjątek ma zniknąć.
+            $this->actingAs($moderator)->get('/'.$wyjatek)->assertForbidden();
+        }
+
         foreach ($trasy as $uri) {
-            $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
+            $konto = array_key_exists($uri, self::EKRANY_TYLKO_DLA_ADMINA) ? $admin : $moderator;
+            $html = $this->actingAs($konto)->get('/'.$uri)->assertOk()->getContent();
             $boczna = $this->wytnijBoczna((string) $html);
 
             $this->assertStringContainsString(

@@ -11,7 +11,7 @@ export async function sprawdzNegatywyMenu({ browser, adres, sesja, outputDir }) 
     || process.env.DB_DATABASE !== 'kuking_581_menu_extra' || !['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('P581_NEGATYW_IZOLACJA');
   const backup = mkdtempSync(join(tmpdir(), 'kuking-menu-negative-'));
   const md5 = path => createHash('md5').update(readFileSync(path)).digest('hex');
-  const build = () => execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+  const build = () => execFileSync('npm', ['run', 'build:assets'], { stdio: 'pipe' });
   const probe = async () => {
     const context = await browser.newContext({ storageState: sesja, viewport: { width: 320, height: 900 }, reducedMotion: 'reduce' });
     try {

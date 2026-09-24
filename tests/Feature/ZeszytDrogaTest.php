@@ -30,7 +30,12 @@ final class ZeszytDrogaTest extends TestCase
         if ($response->isRedirect()) {
             $response = $this->get($response->headers->get('Location'));
         }
-        $response->assertOk()->assertDontSee('W tym zeszycie nic jeszcze nie ma')->assertSee('Wpis wyjęty z zeszytu.');
+        // Komunikat NAZYWA TERAZ ZESZYT PO IMIENIU (issue #775): po wyjęciu
+        // z jednego zeszytu zdanie brzmi „Wpis wyjęty z zeszytu «Zapisane».",
+        // a nie „Wpis wyjęty z zeszytu." z kropką zaraz po słowie. Scena
+        // pilnuje dalej tego samego: że komunikat przeżywa przekierowanie na
+        // poprzednią stronę listy.
+        $response->assertOk()->assertDontSee('W tym zeszycie nic jeszcze nie ma')->assertSee('Wpis wyjęty z zeszytu');
         $this->assertCount(12, $response->viewData('posts'));
         $this->assertSame(12, $book->posts()->count());
     }
