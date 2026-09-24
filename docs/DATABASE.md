@@ -2039,6 +2039,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
+
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
 „Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
