@@ -108,6 +108,15 @@ class PostPolicy
         return $user->getKey() === $post->author_id;
     }
 
+    /**
+     * Zdjęcie wpisu Z URZĘDU, bez zgłoszenia, z panelu moderacji (G31, D-251).
+     * Reguła: `UserPolicy::takeDownContentOf()` — 2FA i niższa rola autora.
+     */
+    public function removeExOfficio(User $user, Post $post): bool
+    {
+        return app(UserPolicy::class)->takeDownContentOf($user, $post->author);
+    }
+
     public function comment(User $user, Post $post): bool
     {
         return $this->view($user, $post) && $user->isActive();

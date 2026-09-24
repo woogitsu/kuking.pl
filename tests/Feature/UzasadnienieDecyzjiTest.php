@@ -350,6 +350,10 @@ class UzasadnienieDecyzjiTest extends TestCase
             // w `moderation_actions` — właśnie po to, żeby ta lista nie
             // musiała rosnąć o miejsce bez człowieka.
             'app/Http/Controllers/Admin/SygnalyController.php',
+            // CZWARTE (G31, D-251): „Zdejmij z urzędu”. Stoi za
+            // `removeExOfficio` (czynny moderator z 2FA) i zapisuje
+            // `moderator_id` zalogowanego człowieka.
+            'app/Domain/Moderation/Actions/ZdejmijZUrzedu.php',
         ];
 
         $znalezione = [];
