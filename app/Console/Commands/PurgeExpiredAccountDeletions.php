@@ -174,7 +174,7 @@ class PurgeExpiredAccountDeletions extends Command
             }
         }
 
-        foreach ($this->partiami($doPonowienia, $budzet) as $user) {
+        foreach ($this->partiami($doPonowienia, $budzet, array_keys($obsluzoneTeraz)) as $user) {
             if ($dryRun) {
                 $this->line("[dry-run, ponowienie] {$user->getKey()} — zostały nieskasowane zdjęcia z poprzedniej próby");
 
@@ -327,12 +327,20 @@ class PurgeExpiredAccountDeletions extends Command
      * nieobsłużone. Nie `chunkById()`: kolejność po identyfikatorze zamiast po
      * dacie zgłoszenia kazałaby najstarszym zgłoszeniom czekać przy zatorze.
      *
+     * Konta z `$pomin` (obsłużone już w tym przebiegu) są wyłączane w samym
+     * zapytaniu, żeby nie zajmowały miejsca w budżecie.
+     *
      * @param  \Closure(): Builder  $kolejka
+     * @param  list<string>  $pomin
      * @return \Generator<int, User>
      */
-    private function partiami(\Closure $kolejka, int $budzet): \Generator
+    private function partiami(\Closure $kolejka, int $budzet, array $pomin = []): \Generator
     {
-        $identyfikatory = $kolejka()->limit($budzet)->pluck('id')->all();
+        $identyfikatory = $kolejka()
+            ->when($pomin !== [], static fn (Builder $q): Builder => $q->whereKeyNot($pomin))
+            ->limit($budzet)
+            ->pluck('id')
+            ->all();
 
         foreach (array_chunk($identyfikatory, max(1, $this->rozmiarPartii)) as $partia) {
             $konta = User::query()->whereKey($partia)->get()->keyBy(static fn (User $u): string => (string) $u->getKey());
