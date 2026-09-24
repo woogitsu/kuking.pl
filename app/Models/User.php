@@ -1107,6 +1107,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
          * ekran zgody opisuje stan, którego już nie ma. Granicą jest
          * `zgoda_potwierdzona_at`, a dla powiązania, które od założenia nie
          * widziało ponownego wejścia — `connected_at`.
+         *
+         * RÓWNE SEKUNDY (`<=`, nie `<`): WYGRYWA ODEBRANIE DOSTĘPU.
+         * `issued_at` od Facebooka ma dokładność sekundy, więc przy tej samej
+         * sekundzie nie wiemy, co było pierwsze. Błąd w stronę uśpienia
+         * kosztuje człowieka jedno kliknięcie „Połącz konto Facebooka jeszcze
+         * raz"; błąd w drugą stronę zostawiłby nam dostęp, który ktoś
+         * naprawdę odebrał w ustawieniach Facebooka — tego cofnąć się nie da.
          */
         return $this->tozsamosciZewnetrzne()
             ->where('dostawca', $dostawca)

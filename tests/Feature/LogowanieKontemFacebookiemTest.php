@@ -17,6 +17,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
@@ -972,8 +973,81 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $this->assertDatabaseCount('tozsamosci_zewnetrzne', 1);
         $this->assertStringContainsString('już połączone', (string) session('status'));
+        $this->assertStringNotContainsString('znów działa', (string) session('status'));
         $this->assertStringNotContainsString('jednym kliknięciem', (string) session('status'));
         $this->assertStringContainsString('Wejdź kontem Facebooka', (string) session('status'));
+    }
+
+    /**
+     * PRZYCISK „POŁĄCZ KONTO FACEBOOKA JESZCZE RAZ" NIE JEST MARTWY (issue #1025).
+     *
+     * Zalogowana osoba z uśpionym powiązaniem wraca z ekranu zgody Facebooka
+     * na TO SAMO konto. Wcześniej kod odpowiadał „już połączone" i niczego
+     * nie zmieniał: uśpienie zostawało, granica zgody się nie zapisywała,
+     * a stare powiadomienie o odebraniu dostępu dalej usypiało powiązanie.
+     * Cała droga przez HTTP — callback (atrapa Facebooka) i `signed_request`
+     * z testowym sekretem.
+     */
+    #[Test]
+    public function test_ponowne_polaczenie_zalogowanego_budzi_uspione_powiazanie(): void
+    {
+        $this->wlaczFacebooka();
+
+        Carbon::setTestNow('2026-09-20 10:00:00');
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+        $basia->connectFacebook(self::FB_ID);
+
+        $stary = $this->podpisaneOdebranie(Carbon::now()->addMinutes(5)->getTimestamp());
+
+        Carbon::setTestNow('2026-09-20 10:10:00');
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $stary])->assertOk();
+        $this->assertTrue($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Kontrola wstępna: bez uśpionego powiązania ten test nie mierzyłby niczego.');
+
+        Carbon::setTestNow('2026-09-20 11:00:00');
+
+        $this->actingAs($basia);
+        $this->wracamyZFacebooka()->assertRedirect(route('settings.security'));
+
+        $status = (string) session('status');
+        $this->assertStringContainsString('znów działa', $status);
+        $this->assertStringNotContainsString('już połączone', $status);
+        $this->assertFalse($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Po ponownej zgodzie u Facebooka uśpienie ma zgasnąć.');
+        $this->assertSame('2026-09-20 11:00:00', Carbon::parse(
+            DB::table('tozsamosci_zewnetrzne')->where('identyfikator', self::FB_ID)->value('zgoda_potwierdzona_at'),
+        )->format('Y-m-d H:i:s'), 'Ponowne połączenie ma zapisać granicę nowej zgody.');
+        $this->assertDatabaseCount('tozsamosci_zewnetrzne', 1);
+
+        Carbon::setTestNow('2026-09-20 11:05:00');
+
+        // Stary podpis (wystawiony przed ponowną zgodą) — 200 bez skutku.
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $stary])->assertOk();
+        $this->assertFalse($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Powiadomienie sprzed ponownej zgody nie może znów uśpić powiązania.');
+
+        // Kontrola dodatnia: podpis wystawiony PO ponownej zgodzie usypia.
+        $this->post(route('facebook.deauthorize'), [
+            'signed_request' => $this->podpisaneOdebranie(Carbon::now()->getTimestamp()),
+        ])->assertOk();
+        $this->assertTrue($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Świeże powiadomienie po ponownej zgodzie ma usypiać.');
+    }
+
+    /** `signed_request` o odebraniu dostępu, podpisany testowym sekretem. */
+    private function podpisaneOdebranie(int $wydanoO): string
+    {
+        $dane = rtrim(strtr(base64_encode((string) json_encode([
+            'algorithm' => Facebook::ALGORYTM_PODPISU,
+            'user_id' => self::FB_ID,
+            'issued_at' => $wydanoO,
+        ])), '+/', '-_'), '=');
+
+        $podpis = hash_hmac('sha256', $dane, 'sekret-testowy', true);
+
+        return rtrim(strtr(base64_encode($podpis), '+/', '-_'), '=').'.'.$dane;
     }
 
     // ─────────────────── co pilnuje BAZA, a nie PHP (D-098) ───────────────────

@@ -285,8 +285,28 @@ class FacebookLoginController extends Controller
         $user = Auth::user();
 
         if ($powiazane !== null) {
-            // To samo konto — nie ma nic do zrobienia i nie ma o co krzyczeć.
+            /*
+             * TO SAMO KONTO — ALE ZGODA U FACEBOOKA WŁAŚNIE PADŁA NA NOWO.
+             *
+             * Tędy wraca przycisk „Połącz konto Facebooka jeszcze raz" z ekranu
+             * „Ustawienia → Bezpieczeństwo" (issue #1025). Człowiek przeszedł
+             * przez ekran zgody Facebooka, więc znacznik uśpienia gaśnie
+             * i zapisuje się granica tej zgody — dokładnie tak samo jak przy
+             * wejściu gościa w `wpusc()`. Bez tego przycisk byłby martwy
+             * (D-053): uśpienie by zostało, a stare powiadomienie o odebraniu
+             * dostępu dalej usypiałoby powiązanie.
+             */
             if ($powiazane->getKey() === $user->getKey()) {
+                $byloUspione = $user->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                if ($byloUspione) {
+                    return redirect()->route('settings.security')->with('status',
+                        'Połączenie z Facebookiem znów działa. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
+                    );
+                }
+
                 return redirect()->route('settings.security')->with('status',
                     'To konto jest już połączone z Twoim kontem Facebooka. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
                 );
