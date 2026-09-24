@@ -441,7 +441,7 @@ class GenerateUserExport implements ShouldQueue
     private function addRecipePages(ZipArchive $zip, User $user, ExportPhotoPlan $photos, array $data): void
     {
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps'])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps.media'])
             ->orderBy('created_at')
             ->get();
 

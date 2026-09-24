@@ -572,7 +572,10 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
+                                            {{-- Opis dla czytnika (issue #1304): własny opis autora,
+                                                 a bez niego kontekst kroku zamiast pustego `alt`. --}}
                                             <x-photo :media="$step->media" variant="feed" class="post-photo"
+                                                     :alt="$step->media->alt_text ?: 'Zdjęcie do kroku '.($step->position + 1)"
                                                      tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$loop->index.'-photo' : null" />
                                         </div>
                                     @endif

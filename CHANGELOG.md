@@ -9,6 +9,9 @@
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- W trybie gotowania wybór „Nie usypiaj ekranu podczas gotowania” zostaje przy przejściu do kolejnego kroku i po oznaczeniu kroku jako zrobiony — w tej samej karcie i dla tego samego przepisu. Jeśli przeglądarka odmówi, przełącznik pokazuje, że ekran może zgasnąć. „Zakończ gotowanie” i ręczne odznaczenie kończą ten wybór (#1302).
+- Zdjęcie bieżącego kroku w trybie gotowania wczytuje się od razu, bez czekania, aż przeglądarka ułoży stronę (#1368).
+- Zdjęcia kroków mają opis dla czytnika ekranu na stronie przepisu, w trybie gotowania i w kopii przepisu w paczce z danymi: własny opis zdjęcia, a gdy go nie ma — „Zdjęcie do kroku N” zamiast pustego opisu albo samego numeru kroku (#1304).
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
