@@ -227,11 +227,17 @@ class ZmianaAdresuEmailTest extends TestCase
         $link->expires_at = now()->addMinutes(30);
         $link->save();
 
+        // Link do ustawienia hasła czekający w STAREJ skrzynce — ta tabela
+        // jest kluczowana adresem, nie kontem.
+        $tokenResetu = Password::broker()->createToken($basia);
+        $this->assertTrue(Password::broker()->tokenExists($basia, $tokenResetu), 'Kontrola dodatnia: token resetu istnieje.');
+
         $tokenPrzed = $basia->fresh()->remember_token;
 
         $this->actingAs($basia)
             ->get($this->link($zmiana))
-            ->assertRedirect(route('settings.email'));
+            ->assertRedirect(route('settings.email'))
+            ->assertSessionHas('status', fn (string $s): bool => str_contains($s, 'Wylogowaliśmy wszystkie inne urządzenia'));
 
         $this->assertSame('nowa.basia@example.test', $basia->fresh()->email);
         $this->assertSame(0, LoginLinkToken::query()->where('user_id', $basia->getKey())->count(),
@@ -240,8 +246,14 @@ class ZmianaAdresuEmailTest extends TestCase
         $this->assertNotSame($tokenPrzed, $basia->fresh()->remember_token,
             'Ciasteczko „zapamiętaj mnie" z innego urządzenia ma przestać działać.');
 
-        // Osoba, która właśnie potwierdziła adres, nie zostaje wylogowana.
-        $this->assertDatabaseHas('sessions', ['id' => $biezaca, 'user_id' => $basia->getKey()]);
+        $this->assertSame(0, DB::table('password_reset_tokens')->whereRaw('lower(email) = ?', ['basia@example.test'])->count(),
+            'Link do ustawienia hasła wysłany na stary adres ma przestać działać.');
+
+        // Osoba, która właśnie potwierdziła adres, nie zostaje wylogowana —
+        // ale jej sesja dostaje NOWY identyfikator, a stary nie działa.
+        $this->assertDatabaseMissing('sessions', ['id' => $biezaca]);
+        $this->assertSame(1, DB::table('sessions')->where('user_id', $basia->getKey())->count(),
+            'Bieżąca przeglądarka ma zostać zalogowana pod nowym identyfikatorem sesji.');
         $this->get(route('settings.email'))->assertOk();
     }
 

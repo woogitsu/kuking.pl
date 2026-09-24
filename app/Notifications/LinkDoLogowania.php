@@ -60,16 +60,30 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    /** Starsze zadania bez daty także sprawdzają aktualny token w bazie. */
+    /**
+     * STRAŻNIK TERMINU PRZY WYKONANIU ZADANIA (#889).
+     *
+     * Kolejka potrafi się spóźnić. Bez tego sprawdzenia worker wysłałby
+     * zaproszenie do kliknięcia w link, który już nie działa — a osoba 60+
+     * uzna wtedy, że „znowu coś zepsuła". Wygasły, zużyty albo zastąpiony
+     * kolejną prośbą link zatrzymuje list PRZED transportem. Nowego tokenu
+     * nie wystawiamy i terminu nie przesuwamy: nowy link to nowa prośba
+     * człowieka, z własnym limitem i budżetem.
+     *
+     * Budżetu nie oddajemy — miejsce zarezerwowała prośba i budżet liczy
+     * PRÓBY (ta sama zasada co przy nieudanej wysyłce w `WyslijLinkDoLogowania`).
+     *
+     * Starsze zadania mogą mieć `wygasa === null`: wtedy termin bierzemy
+     * z wiersza w bazie, nigdy z chwili wykonania zadania.
+     */
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        $row = LoginLinkToken::znajdzPoTokenie($this->token);
+        $wiersz = LoginLinkToken::znajdzPoTokenie($this->token);
 
         return $notifiable instanceof User
-            && $row !== null
-            && $row->user_id === $notifiable->getKey()
-            && $row->jestWazny()
-            && (($this->wygasa ?? null) === null || $this->wygasa->isFuture());
+            && $wiersz !== null
+            && (string) $wiersz->user_id === (string) $notifiable->getKey()
+            && $this->termin($wiersz)?->isFuture() === true;
     }
 
     /**
@@ -100,23 +114,43 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
      * `'timezone' => 'UTC'`, więc „link działa do 09:15" pokazywałoby czas
      * przesunięty o dwie godziny względem zegara w polskiej kuchni. Czas
      * TRWANIA jest na tę pomyłkę odporny.
+     *
+     * Czas liczymy z TEGO linku, nie z konfiguracji (#889): list wysłany
+     * z opóźnieniem mówi, ile naprawdę zostało, zamiast obiecywać pełne
+     * pół godziny od chwili wysyłki.
      */
     private function waznosc(): string
     {
-        $row = LoginLinkToken::znajdzPoTokenie($this->token);
-        if ($row === null) {
+        $wiersz = LoginLinkToken::znajdzPoTokenie($this->token);
+        $termin = $wiersz === null ? null : $this->termin($wiersz);
+        if ($wiersz === null || $termin === null || $wiersz->created_at === null) {
             return 'tylko do terminu ustalonego przy zamówieniu';
         }
 
-        // Czas liczymy od zamówienia, nie od wykonania kolejki ani doręczenia.
-        // Bieżąca konfiguracja nie zmienia ważności już wystawionego tokenu.
-        $expiry = ($this->wygasa ?? $row->expires_at)->min($row->expires_at);
-        $minut = max(0, (int) $row->created_at->diffInMinutes($expiry));
+        $pelne = max(1, (int) round($wiersz->created_at->diffInSeconds($termin) / 60));
+        $sekund = max(0, now()->diffInSeconds($termin, false));
+        $zostalo = (int) round($sekund / 60);
 
-        return (match (true) {
-            $minut === 60 => 'przez godzinę',
-            $minut === 30 => 'przez pół godziny',
-            default => "przez {$minut} min.",
-        }).' od chwili zamówienia';
+        if ($zostalo >= $pelne - 1) {
+            return (match ($pelne) {
+                60 => 'przez godzinę',
+                30 => 'przez pół godziny',
+                default => "przez {$pelne} min.",
+            }).' od chwili zamówienia';
+        }
+
+        return ($sekund < 60 ? 'jeszcze przez niecałą minutę' : "jeszcze przez około {$zostalo} min.")
+            .' (list wyszedł z opóźnieniem, a czas liczy się od chwili zamówienia)';
+    }
+
+    /** Termin tego linku; przekazana data może go skrócić, nigdy wydłużyć. */
+    private function termin(LoginLinkToken $wiersz): ?Carbon
+    {
+        $zBazy = $wiersz->expires_at;
+        if ($zBazy === null) {
+            return null;
+        }
+
+        return ($this->wygasa ?? null) === null ? $zBazy : $zBazy->min($this->wygasa);
     }
 }
