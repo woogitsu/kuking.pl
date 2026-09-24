@@ -295,69 +295,22 @@ class OdstepPodPodpisemPolaTest extends TestCase
         );
     }
 
-    /**
-     * PODPIS SCHOWANY PRZED OKIEM NIE DOSTAJE ODSTĘPU.
-     *
-     * `:not(.visually-hidden)` w regule ma konkretny cel w tym repozytorium:
-     * `/admin/kuking-na-dzis` podpisuje pole notatki wyłącznie dla czytnika
-     * ekranu. Pusty pas 12 px pod napisem, którego nie widać, byłby odstępem
-     * bez rzeczy, którą oddziela — a w liście kilkudziesięciu wierszy
-     * zsumowałby się w ekran przewijania.
-     *
-     * Test ma DWIE połowy z tego samego powodu co reszta pliku: warunek
-     * w arkuszu bez takiej etykiety w dokumencie byłby zabezpieczeniem
-     * przed niczym, a etykieta bez warunku — usterką.
-     */
+    /** Panel ma widoczne podpisy notatek, zgodnie z UX 50+ (#865). */
     #[Test]
-    public function test_podpis_schowany_przed_okiem_nie_dostaje_odstepu(): void
+    public function test_panel_tablicy_ma_widoczne_podpisy_notatek_nad_polami(): void
     {
-        $zMarginesem = array_values(array_filter(
-            $this->reguly(),
-            fn (array $regula): bool => preg_match(
-                '/\.field\s*>\s*label[^,{]*\+\s*\.field-input/',
-                $regula[0],
-            ) === 1,
-        ));
-
-        $this->assertNotEmpty($zMarginesem, 'Brak reguły odstępu pod podpisem — patrz test wyżej.');
-
-        $this->assertMatchesRegularExpression(
-            '/\.field\s*>\s*label:not\(\.visually-hidden\)\s*\+\s*\.field-input/',
-            $zMarginesem[0][0],
-            'Reguła odstępu pod podpisem nie wyłącza podpisów schowanych przed okiem. '.
-            'Bez `:not(.visually-hidden)` każdy wiersz `/admin/kuking-na-dzis` dostaje '.
-            '12 px pustki pod napisem, którego nie widać. '.
-            "Zastana lista selektorów: {$zMarginesem[0][0]}",
-        );
-
-        // …i druga połowa: taka etykieta naprawdę stoi zaraz nad polem.
-        //
-        // Ekran wybiera spośród ŚWIEŻYCH wpisów i osób, które coś pokazały —
-        // bez danych renderuje pusty stan, a pusty stan przechodzi każdą
-        // asercję o sąsiedztwie (pułapka 2 z docs/PULAPKI_TESTOW.md).
         Post::factory()->create(['author_id' => $this->user('kucharka')->getKey()]);
-
         [, $xpath] = $this->ekran(
-            (string) $this->actingAs($this->moderator())
-                ->get(route('admin.daily-board'))
-                ->assertOk()
-                ->getContent(),
+            (string) $this->actingAs($this->moderator())->get(route('admin.daily-board'))->assertOk()->getContent(),
         );
-
-        $schowane = $xpath->query(
-            '//*[contains(concat(" ", normalize-space(@class), " "), " field ")]'
-            .'/label[contains(concat(" ", normalize-space(@class), " "), " visually-hidden ")]'
-            .'[following-sibling::*[1][contains(concat(" ", normalize-space(@class), " "), " field-input ")]]',
-        );
-
-        $this->assertInstanceOf(DOMNodeList::class, $schowane);
-        $this->assertGreaterThan(
-            0,
-            $schowane->length,
-            'Na `/admin/kuking-na-dzis` nie ma już pola z podpisem schowanym przed okiem, '.
-            'stojącym zaraz nad polem. Wyjątek `:not(.visually-hidden)` nie ma wtedy czego '.
-            'pilnować — albo usuń go z arkusza razem z tym testem, albo przywróć ekran. '.
-            'Uwaga: pusta lista osób i wpisów też daje zero — sprawdź, czy ekran ma dane.',
-        );
+        $notes = $xpath->query('//input[starts-with(@name, "notatki[")]');
+        $this->assertGreaterThan(0, $notes->length, 'Pomiar wymaga pól notatek.');
+        foreach ($notes as $note) {
+            $label = $xpath->query('preceding-sibling::*[1][self::label]', $note)->item(0);
+            $this->assertNotNull($label, 'Notatka nie ma podpisu bezpośrednio nad polem.');
+            $this->assertSame($note->getAttribute('id'), $label->getAttribute('for'));
+            $this->assertStringNotContainsString('visually-hidden', $label->getAttribute('class'));
+            $this->assertNotSame('', trim($label->textContent));
+        }
     }
 }

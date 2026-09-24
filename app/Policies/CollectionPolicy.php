@@ -24,6 +24,26 @@ class CollectionPolicy
             return false;
         }
 
+        // FLAGA WIDOCZNOŚCI JEST PIERWSZA — I MUSI BYĆ (issue #1092).
+        //
+        // Zeszyt prywatny nie ma poza właścicielem żadnego widza. Żaden
+        // warunek NIŻEJ nie może tego odwrócić, więc żaden nie ma prawa
+        // stać wyżej. Wcześniej stan konta właściciela był sprawdzany PRZED
+        // tą flagą i cała bramka zwracała wtedy `$user->isModerator()` —
+        // bez pytania, czy zeszyt jest w ogóle publiczny. Skutek był
+        // dokładnie odwrotny do zamierzonego: zbanowanie właściciela albo
+        // ustawienie mu `pending_delete` OTWIERAŁO moderatorowi jego
+        // PRYWATNY zeszyt, którego przy koncie aktywnym nie widział.
+        // Zmiana statusu ROZSZERZAŁA dostęp zamiast go zawężać — ta sama
+        // rodzina co P0 #941.
+        //
+        // To nie jest przeniesienie „dla porządku": dopóki widoczność stoi
+        // niżej, każdy przyszły warunek wpuszczający kogoś „z urzędu"
+        // dziedziczy tę samą dziurę.
+        if (! $collection->isPublic()) {
+            return false;
+        }
+
         // TA SAMA REGUŁA CO `UserPolicy::viewProfile()` — i z tego samego
         // powodu: `/@konto-zbanowane` daje 403 (chyba że patrzy moderator),
         // ale bez tego warunku publiczny zeszyt tej samej osoby zostawał pod
@@ -32,6 +52,10 @@ class CollectionPolicy
         // przez bezpośredni link do zeszytu. Ten sam rozjazd co wpis
         // zbanowanego autora w feedzie obserwowanych (commit 964b99c), tylko
         // na poziomie POJEMNIKA, nie pojedynczej treści w środku.
+        //
+        // Ten warunek tylko ZAWĘŻA: publiczny zeszyt zbanowanego znika
+        // wszystkim poza moderatorem. Niczego nie odblokowuje, bo zeszyt
+        // niepubliczny odpadł wyżej.
         if (! $collection->owner->jestDostepnyJakoAutor()) {
             return $user !== null && $user->isModerator();
         }
@@ -46,12 +70,18 @@ class CollectionPolicy
             return false;
         }
 
-        return $collection->isPublic();
+        return true;
     }
 
     public function update(User $user, Collection $collection): bool
     {
-        return $user->getKey() === $collection->owner_id;
+        return $user->getKey() === $collection->owner_id
+            && ($user->isActive() || ($user->isSuspended() && ! $collection->isPublic()));
+    }
+
+    public function create(User $user, string $visibility = 'private'): bool
+    {
+        return $user->isActive() || ($user->isSuspended() && $visibility === 'private');
     }
 
     public function delete(User $user, Collection $collection): bool

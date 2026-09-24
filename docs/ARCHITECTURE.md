@@ -96,6 +96,7 @@ MVP:
 Jobs:
 - ProcessUploadedImage;
 - GenerateUserExport;
+- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki);
 - SendDigest;
 - RefreshSearchDocument;
 - GenerateSitemapChunk.
@@ -165,6 +166,15 @@ byłaby to siódma kopia reguły widoczności w tym repozytorium.
 Szczegóły, kompromisy i to, czego ta zmiana nie załatwia:
 `docs/MEDIA_PIPELINE.md` → „Adresem zdjęcia jest trasa aplikacji"
 oraz `docs/DECISIONS.md` → D-020.
+
+## Publikacja komentarza na bieżącym stanie
+
+`PublishComment` korzysta z `LockCommentContext`: w jednej transakcji blokuje
+uporządkowany zbiór kont, istniejące obserwowania, zależności celu oraz rodzica
+i korzeń. Dopiero świeża kontrola dostępu pozwala zapisać komentarz razem
+z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
+zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
+Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
 
 ## PWA
 

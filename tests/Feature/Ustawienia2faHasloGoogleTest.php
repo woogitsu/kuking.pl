@@ -32,14 +32,15 @@ class Ustawienia2faHasloGoogleTest extends TestCase
         $this->get(route('google.callback', ['code' => 'test', 'state' => session('wejscie_google.state')]))->assertRedirect(route('google.finish'));
         $this->post(route('google.finish.store'), ['display_name' => 'Basia', 'username' => 'basia876', 'age_confirmed' => '1', 'terms_accepted' => '1'])->assertRedirect();
         $user = User::where('email', 'google876@example.test')->firstOrFail();
-        $this->get(route('settings.two_factor.enable'))->assertOk();
+        // Włączenie 2FA prosi o hasło do Kuking (#1376, D-245). Konto z Google
+        // go jeszcze nie ma — ekran mówi, jak je ustawić, a hasło do Google
+        // (albo cokolwiek innego) nie włącza zabezpieczenia.
+        $this->get(route('settings.two_factor.enable'))->assertOk()
+            ->assertSee('Jeśli logujesz się przez Google', false)->assertSee('Nie pamiętam hasła', false);
         $secret = $user->fresh()->two_factor_secret;
-        $this->post(route('settings.two_factor.confirm'), ['code' => (new Google2FA)->getCurrentOtp($secret)])->assertRedirect(route('settings.two_factor.codes'));
-        $this->get(route('settings.two_factor.codes'))->assertOk();
-        $this->get(route('settings.two_factor.codes'))->assertRedirect(route('settings.two_factor.edit'));
-        $page = $this->get(route('settings.two_factor.edit'))->assertOk();
-        $page->assertSee('Hasło do Kuking', false)->assertSee('Nie pamiętam hasła', false)->assertSee('Google', false);
-        $this->assertSame(2, substr_count($page->getContent(), 'Jeśli logujesz się przez Google'));
+        $this->post(route('settings.two_factor.confirm'), ['code' => (new Google2FA)->getCurrentOtp($secret), 'password' => 'haslo-do-google'])
+            ->assertSessionHasErrors('password')->assertSessionMissing('kody_zapasowe');
+        $this->assertFalse($user->fresh()->hasTwoFactorConfirmed());
         $this->post(route('logout'))->assertRedirect(route('landing'));
         $this->get(route('landing'))->assertOk()->assertSee(route('login'), false);
         $this->get(route('login'))->assertOk()->assertSee(route('password.request'), false);
@@ -54,6 +55,19 @@ class Ustawienia2faHasloGoogleTest extends TestCase
         $this->get(route('password.reset', ['token' => $resetToken, 'email' => $user->email]))->assertOk();
         $password = 'kuchnia-wrzesien-test-876';
         $this->post(route('password.update'), ['token' => $resetToken, 'email' => $user->email, 'password' => $password, 'password_confirmation' => $password])->assertRedirect(route('login'));
+        $this->post('/login', ['login' => $user->email, 'password' => $password])->assertRedirect();
+        $this->assertAuthenticatedAs($user);
+        // Z ustawionym hasłem włączenie przechodzi; sekret zostaje ten sam, bo
+        // pierwsza próba go nie potwierdziła.
+        $this->get(route('settings.two_factor.enable'))->assertOk();
+        $this->assertTrue($secret === $user->fresh()->two_factor_secret);
+        $this->post(route('settings.two_factor.confirm'), ['code' => (new Google2FA)->getCurrentOtp($secret), 'password' => $password])->assertRedirect(route('settings.two_factor.codes'));
+        $this->get(route('settings.two_factor.codes'))->assertOk();
+        $this->get(route('settings.two_factor.codes'))->assertRedirect(route('settings.two_factor.edit'));
+        $page = $this->get(route('settings.two_factor.edit'))->assertOk();
+        $page->assertSee('Hasło do Kuking', false)->assertSee('Nie pamiętam hasła', false)->assertSee('Google', false);
+        $this->assertSame(2, substr_count($page->getContent(), 'Jeśli logujesz się przez Google'));
+        $this->post(route('logout'))->assertRedirect(route('landing'));
         $this->post('/login', ['login' => $user->email, 'password' => $password])->assertRedirect(route('login.two_factor'));
         $this->assertGuest();
         // Następny krok TOTP: nie osłabiamy ochrony przed ponownym użyciem kodu włączenia.
