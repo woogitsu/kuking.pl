@@ -71,11 +71,16 @@ class TagController extends Controller
         // obserwujących", ukrytego albo usuniętego podnosiła liczbę, choć
         // gość na stronie tagu jej nie zobaczy, a `TagPublicStats` i
         // `TagCollage` na tym samym ekranie ją pomijają (issue #941).
-        // `null`, nie widz: liczba ma być ta sama dla każdego.
+        // `null`, nie widz: liczba ma być ta sama dla każdego. Wpis z własną
+        // treścią liczy się według własnej widoczności — tak jak stoi na
+        // stronie tagu (issue #1377). `TagPublicStats`, `TagCollage`
+        // i `PodpowiedziTagow` zostają przy węższym `zWidocznymPrzepisem()`
+        // — ich testy utrwalają to od #941; różnica to niedoszacowanie,
+        // nigdy zawyżenie (D-087).
         $liczPubliczneWpisy = fn ($query) => $query
             ->publiclyVisible()
             ->tylkoOdAktywnychAutorow()
-            ->zWidocznymPrzepisem(null);
+            ->zWidocznymPrzepisemAlboWlasnaTrescia(null);
 
         $polecane = Tag::query()
             ->promowane()
@@ -136,7 +141,11 @@ class TagController extends Controller
             // obserwujących" (issue #941). Ten sam zakres i w tej samej roli
             // stoi w `TagFeed`, `TagCollage`, `TagPublicStats`, `FollowingFeed`,
             // `DiscoverFeed`, `DailyBoard` i `PodpowiedziTagow`.
-            ->zWidocznymPrzepisem($widz)
+            //
+            // Wpis z własną treścią zostaje według własnej widoczności
+            // (issue #1377); przepis zdejmuje z karty
+            // `Post::ukryjNiedostepnePrzepisy()` po paginacji.
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
@@ -173,7 +182,8 @@ class TagController extends Controller
             ->latest('published_at')
             ->latest('id')
             ->paginate((int) config('kuking.feed.page_size'))
-            ->withQueryString();
+            ->withQueryString()
+            ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $widz));
 
         return view('pages.tags.show', [
             'tag' => $tag,

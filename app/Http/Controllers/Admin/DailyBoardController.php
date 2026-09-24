@@ -8,6 +8,7 @@ use App\Domain\Feed\DailyBoardCandidates;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\DailyPick;
+use App\Models\Post;
 use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -59,6 +60,9 @@ class DailyBoardController extends Controller
             ->concat((clone $postsQuery)->where('published_at', '>=', now()->subDays(7))
                 ->orderByDesc('published_at')->orderByDesc('id')->limit(40)->get())
             ->unique('id')->values();
+        // Kafel tablicy widzi gość, więc podgląd liczy przepis jak dla gościa
+        // (issue #1377): wpis z własną treścią bez niedostępnego przepisu.
+        Post::ukryjNiedostepnePrzepisy($posts, null);
         $people = collect($selectedPeople)->map(fn ($id) => $chosenPeople->get($id))->filter()
             ->concat($this->candidates->searchPeople($request->user(), $search)->with('profile.avatar')->limit(40)->get())
             ->unique('id')->values();
