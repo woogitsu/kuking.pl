@@ -7,6 +7,8 @@ namespace Tests;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
+use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -32,6 +34,34 @@ abstract class TestCase extends BaseTestCase
         $this->withoutVite();
         Http::preventStrayRequests();
         $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * `actingAs()` jako prawdziwe logowanie także w generacji sesji (#1046).
+     *
+     * Na produkcji każde logowanie zapisuje w sesji generację konta
+     * (listener `Login`), a `SprawdzGeneracjeSesji` odrzuca sesję ze starszą.
+     * `actingAs()` omija zdarzenie `Login`, więc bez tego konto po
+     * `suspend()`/`ban()` (generacja > 0) byłoby w teście wylogowywane przy
+     * pierwszym żądaniu — czego na produkcji nie widać, bo po odcięciu sesji
+     * ta osoba loguje się od nowa i dostaje bieżącą generację. Odczyt
+     * z bazy, nie z modelu: test mógł zawiesić konto na innej instancji.
+     */
+    public function be(UserContract $user, $guard = null)
+    {
+        parent::be($user, $guard);
+
+        // Tylko dla generacji > 0: brak klucza znaczy 0, a zbędny zapis do
+        // sesji między żądaniami testu potrafi zgubić dane flash.
+        $generacja = $user instanceof User && ($guard ?? 'web') === 'web' && $user->exists
+            ? (int) User::query()->whereKey($user->getKey())->value('session_generation')
+            : 0;
+
+        if ($generacja > 0) {
+            $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
+        }
+
+        return $this;
     }
 
     /**

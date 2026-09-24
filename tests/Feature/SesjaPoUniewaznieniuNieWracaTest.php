@@ -30,6 +30,8 @@ use Tests\TestCase;
  * logowanie hasłem, linkiem, 2FA. Dlatego wolne żądanie niesie tu SAMO
  * ciasteczko zapamiętania — tak wygląda obca przeglądarka, której sesja
  * wygasła, a recaller jeszcze nie.
+ *
+ * @bez-kontroli-dodatniej nie czyta źródeł — `base_path()` wskazuje skrypt procesu HTTP, a kontrola ujemna (strażnik jako przepust) jest testem w tej klasie.
  */
 class SesjaPoUniewaznieniuNieWracaTest extends TestCase
 {
