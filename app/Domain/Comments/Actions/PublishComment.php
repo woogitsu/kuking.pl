@@ -37,6 +37,10 @@ final class PublishComment
      */
     private const PRZESTRZEN_BLOKAD = 8301;
 
+    /** Powtórne wysłanie komentarza, który w oknie powtórzenia przestał być widoczny (issue #1094). */
+    public const NIEWIDOCZNY = 'Ten komentarz jest już zapisany, ale nie jest teraz widoczny w rozmowie. '
+        .'Nie trzeba wysyłać go ponownie.';
+
     public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(
@@ -133,6 +137,26 @@ final class PublishComment
             $this->zablokujToWyslanie($author, $subject, $parentId, $body);
 
             $juzJest = $this->komentarzZTegoSamegoWyslania($author, $subject, $parentId, $body);
+
+            /*
+             * ISSUE #1094: POWTÓRKA KOMENTARZA, KTÓREGO JUŻ NIE WIDAĆ, TO NIE
+             * „DODANO".
+             *
+             * Wyszukanie wyżej celowo NIE filtruje po `status`: komentarz
+             * ukryty lub usunięty przez moderację w oknie powtórzenia nadal
+             * jest „tym samym wysłaniem". Gdyby filtrował, druga kopia
+             * powstałaby obok ukrytej i ominęła decyzję moderacji. Ale bez tego
+             * sprawdzenia kontroler dostawał ukryty wiersz i pokazywał
+             * „Komentarz dodany.", choć lista (`widoczneDla()`) go nie pokaże.
+             *
+             * Neutralny komunikat, bez słowa o moderacji i jej powodach — ten
+             * sam tekst przy `hidden` i `removed`. Po upływie okna obowiązuje
+             * zwykła reguła: to samo zdanie jest nową wypowiedzią i przechodzi
+             * tę samą analizę (`PrzeanalizujTresc`) co każdy nowy komentarz.
+             */
+            if ($juzJest !== null && $juzJest->status !== Comment::STATUS_PUBLISHED) {
+                throw new BladDlaCzlowieka(self::NIEWIDOCZNY);
+            }
 
             if ($juzJest !== null) {
                 // Ten sam komentarz, jedno powiadomienie. Oddajemy wiersz
