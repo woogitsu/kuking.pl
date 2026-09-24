@@ -124,6 +124,13 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
+# Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
+# z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
+# (`NotifyModerationDecision`, sąsiad nowego `ZdejmijZUrzedu`) — strażnik ma zapalić, czyli
+# naprawdę widzi nowe pliki, a nie tylko potwierdza listę, którą już zna.
+POWIADOM_O_DECYZJI = "app/Domain/Moderation/Actions/NotifyModerationDecision.php"
+DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka"
 # Polityka nazywa każde ciasteczko ustawień (R6). Strażnik czyta dokument
 # prawny; mutacja zdejmuje NAZWĘ ciasteczka motywu w backtickach, a zwykłe
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
@@ -325,6 +332,8 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
+     lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
@@ -342,6 +351,7 @@ run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
