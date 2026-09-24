@@ -66,25 +66,25 @@ class TokenKrawedziTest extends TestCase
 
     public function test_bez_sekretu_bramka_jest_wylaczona_i_nic_sie_nie_zmienia(): void
     {
-        Log::spy();
+        $log = Log::spy();
 
         $this->get('/'.self::SCIEZKA, $this->naglowki(null))
             ->assertOk()
             ->assertJson(['ip' => self::PODROBIONY, 'https' => true]);
 
-        Log::shouldNotHaveReceived('warning');
+        $log->shouldNotHaveReceived('warning');
     }
 
     public function test_obserwacja_przepuszcza_zadanie_bez_tokenu_i_tylko_loguje(): void
     {
         $this->wlacz('obserwacja');
-        Log::spy();
+        $log = Log::spy();
 
         $this->get('/'.self::SCIEZKA, $this->naglowki(null))
             ->assertOk()
             ->assertJson(['ip' => self::PODROBIONY]);
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $log->shouldHaveReceived('warning')->withArgs(
             fn (string $wiadomosc, array $kontekst = []): bool => str_contains($wiadomosc, 'Token krawędzi')
                 && $kontekst === ['powod' => 'brak', 'tryb' => 'obserwacja'],
         )->once();
@@ -103,14 +103,14 @@ class TokenKrawedziTest extends TestCase
     public function test_egzekwowanie_odrzuca_zly_token_i_nie_zdradza_sekretu(): void
     {
         $this->wlacz('egzekwowanie');
-        Log::spy();
+        $log = Log::spy();
 
         $odpowiedz = $this->post('/'.self::SCIEZKA, [], $this->naglowki('zgaduje'));
 
         $odpowiedz->assertForbidden();
         $this->assertStringNotContainsString(self::SEKRET, (string) $odpowiedz->getContent());
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $log->shouldHaveReceived('warning')->withArgs(
             fn (string $wiadomosc, array $kontekst = []): bool => ($kontekst['powod'] ?? null) === 'niezgodny'
                 && ! str_contains(json_encode($kontekst).$wiadomosc, 'zgaduje')
                 && ! str_contains(json_encode($kontekst).$wiadomosc, self::SEKRET),
@@ -169,11 +169,11 @@ class TokenKrawedziTest extends TestCase
     public function test_egzekwowanie_bez_sekretu_nie_odcina_serwisu_ale_ostrzega(): void
     {
         config(['proxy.token_krawedzi.tryb' => 'egzekwowanie', 'proxy.token_krawedzi.aktualny' => '']);
-        Log::spy();
+        $log = Log::spy();
 
         $this->get('/'.self::SCIEZKA, $this->naglowki(null))->assertOk();
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $log->shouldHaveReceived('warning')->withArgs(
             fn (string $wiadomosc): bool => str_contains($wiadomosc, 'bez KUKING_EDGE_TOKEN'),
         )->once();
     }
