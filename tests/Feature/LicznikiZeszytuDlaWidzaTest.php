@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,11 @@ use Tests\TestCase;
  * który wnętrze zeszytu już ukrywało (przepis schowany, usunięty, autor
  * przepisu zbanowany). Karta mówiła „1 wpis", szyna dawała odnośnik,
  * który `PostPolicy::view()` kończy odmową.
+ *
+ * #1377 (komentarz w #1319 z 23.09) — bramka przepisu dotyczy wyłącznie
+ * CZYSTEJ zapowiedzi. Wpis z własnym tekstem albo zdjęciem, który wskazuje
+ * niedostępny przepis, zostaje we wnętrzu, na karcie i w „Ostatnio
+ * zapisane" (Policy go wpuszcza), a jego karta nie pokazuje przepisu.
  */
 final class LicznikiZeszytuDlaWidzaTest extends TestCase
 {
@@ -157,6 +163,83 @@ final class LicznikiZeszytuDlaWidzaTest extends TestCase
         $this->assertSame(1, $liczba);
         $this->assertContains($zapowiedz->url(), $odnosniki);
         $this->assertSame(1, $this->zeszytOczami($autor, $zeszyt)->viewData('posts')->total());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function niedostepnosciPrzepisu(): array
+    {
+        return [
+            'prywatny' => ['private'],
+            'tylko dla obserwujących' => ['followers'],
+            'ukryty przez moderację' => ['hidden'],
+            'usunięty' => ['soft-delete'],
+            'autor przepisu zbanowany' => ['banned'],
+        ];
+    }
+
+    /**
+     * Para w jednym zeszycie: czysta zapowiedź i wpis z własną treścią,
+     * obie wskazują ten sam przepis A, obie napisał B, zapisuje C.
+     */
+    #[DataProvider('niedostepnosciPrzepisu')]
+    public function test_wpis_z_wlasna_trescia_zostaje_w_zeszycie_gdy_czysta_zapowiedz_znika(string $jak): void
+    {
+        $autorPrzepisu = $this->user();
+        $autorWpisu = $this->user();
+        $zapisujacy = $this->user();
+        $zeszyt = Collection::create(['owner_id' => $zapisujacy->id, 'name' => 'Para', 'visibility' => 'private']);
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autorPrzepisu->id,
+            'visibility' => 'public',
+            'title' => 'Sekretna Zupa Szczawiowa',
+            'slug' => 'sekretna-zupa-szczawiowa',
+        ]);
+        $zapowiedz = Post::factory()->create(['author_id' => $autorWpisu->id, 'recipe_id' => $przepis->id, 'body' => null]);
+        $wlasny = Post::factory()->create([
+            'author_id' => $autorWpisu->id,
+            'recipe_id' => $przepis->id,
+            'body' => 'Ugotowałam po swojemu, z koprem '.Str::uuid(),
+        ]);
+        $zeszyt->posts()->attach([$zapowiedz->id, $wlasny->id]);
+
+        // Kontrola dodatnia: przy dostępnym przepisie oba wpisy są liczone,
+        // podane w szynie i pokazane w środku — razem z tytułem i slugiem
+        // przepisu, więc asercje „brak tytułu" niżej mają co wykryć.
+        [$liczba, $odnosniki] = $this->karta($zapisujacy, $zeszyt);
+        $this->assertSame(2, $liczba);
+        $this->assertContains($zapowiedz->url(), $odnosniki);
+        $this->assertContains($wlasny->url(), $odnosniki);
+        $wnetrze = $this->zeszytOczami($zapisujacy, $zeszyt);
+        $this->assertEqualsCanonicalizing([$zapowiedz->id, $wlasny->id], $wnetrze->viewData('posts')->pluck('id')->all());
+        $this->assertSame(0, $wnetrze->viewData('niewidoczne'));
+        $this->assertStringContainsString($przepis->title, $wnetrze->getContent());
+        $this->assertStringContainsString($przepis->slug, $wnetrze->getContent());
+
+        match ($jak) {
+            'private', 'followers' => $przepis->update(['visibility' => $jak]),
+            'hidden' => Recipe::query()->whereKey($przepis->id)->update(['status' => Recipe::STATUS_HIDDEN]),
+            'soft-delete' => $przepis->delete(),
+            'banned' => $autorPrzepisu->forceFill(['status' => User::STATUS_BANNED])->save(),
+        };
+
+        // Karta i szyna: zostaje wpis z własną treścią, znika czysta zapowiedź.
+        [$liczba, $odnosniki] = $this->karta($zapisujacy, $zeszyt);
+        $this->assertSame(1, $liczba, 'karta zeszytu');
+        $this->assertContains($wlasny->url(), $odnosniki, 'Ostatnio zapisane');
+        $this->assertNotContains($zapowiedz->url(), $odnosniki, 'Ostatnio zapisane');
+
+        // Wnętrze: ten sam podział, jeden niedostępny zapis (zapowiedź),
+        // a karta wpisu bez tytułu, sluga i odnośnika przepisu.
+        $wnetrze = $this->zeszytOczami($zapisujacy, $zeszyt);
+        $this->assertSame([$wlasny->id], $wnetrze->viewData('posts')->pluck('id')->all(), 'wnętrze zeszytu');
+        $this->assertSame(1, $wnetrze->viewData('niewidoczne'));
+        $html = $wnetrze->getContent();
+        $this->assertStringContainsString($wlasny->body, $html);
+        $this->assertStringNotContainsString($przepis->title, $html);
+        $this->assertStringNotContainsString($przepis->slug, $html);
+
+        // Obie pozycje zostają w zeszycie — wrócą po przywróceniu przepisu.
+        $this->assertSame(2, $zeszyt->posts()->count());
     }
 
     /** @return array{0: User, 1: User, 2: Collection} */

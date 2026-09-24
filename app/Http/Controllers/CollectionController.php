@@ -195,7 +195,7 @@ class CollectionController extends Controller
 
         $posts = $collection->posts()
             // Cztery granice w jednym zakresie (`Post::scopeWidoczneWZeszycieDla()`):
-            // widoczność wpisu, bramka przepisu (#368 — zapowiedź ma
+            // widoczność wpisu, bramka przepisu dla czystej zapowiedzi (#368, #1377 — zapowiedź ma
             // `visibility = 'public'` na stałe, bramką jest PRZEPIS), autor
             // wpisu i autor PRZEPISU (W5-08). W zeszycie wyciek dojrzewa
             // w czasie: zapowiedź zostaje wskazana na stałe, a przepis można
@@ -238,6 +238,11 @@ class CollectionController extends Controller
 
             return redirect()->route('collections.show', ['collection' => $collection, ...$pages]);
         }
+
+        // Wpis z własną treścią zostaje w zeszycie także wtedy, gdy jego
+        // przepis stał się niedostępny (#1377) — ale karta nie może wtedy
+        // pokazać tytułu, zdjęcia ani odnośnika tego przepisu (#1036).
+        Post::ukryjNiedostepnePrzepisy($posts->items(), $request->user());
 
         // Każdy przycisk przesuwa swoją listę i zachowuje pozycję drugiej.
         PaginationLinks::preserveOtherPage($recipes, $posts);

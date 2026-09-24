@@ -448,14 +448,22 @@ class Post extends Model
      *
      * Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu.
      *
+     * OBIE BRAMKI PRZEPISU DOTYCZĄ TYLKO CZYSTEJ ZAPOWIEDZI (#1377, komentarz
+     * w #1319 z 23.09). Wpis z własnym tekstem albo zdjęciem, który wskazuje
+     * przepis, `PostPolicy::view()` wpuszcza według WŁASNEJ widoczności —
+     * więc zostaje we wnętrzu, na karcie i w „Ostatnio zapisane", a nie
+     * wpada do „niedostępnych". Wnętrze zeszytu zdejmuje mu wtedy przepis
+     * z karty (`ukryjNiedostepnePrzepisy()` w `CollectionController::show()`).
+     *
      * @param  Builder<Post>  $query
      */
     public function scopeWidoczneWZeszycieDla(Builder $query, ?User $widz): void
     {
         $query->widoczneDla($widz)
-            ->zWidocznymPrzepisem($widz)
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
                 ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 
