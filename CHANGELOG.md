@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Formularze „Dodaj zdjęcie” i „Ugotowałem” mówią przy polu zdjęć, ile zdjęć można wybrać naraz, zanim klikniesz „Opublikuj”. Gdy część zdjęć została zachowana po błędzie w innym polu, pomoc podaje, ile można dodać jeszcze. „Ugotowałem” podaje też największy dopuszczalny rozmiar pliku (#883).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).

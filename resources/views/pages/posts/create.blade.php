@@ -97,6 +97,7 @@
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
+                    {{ \App\Support\LimityZdjec::pomocLiczbyZdjec($zachowane->count()) }}
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>

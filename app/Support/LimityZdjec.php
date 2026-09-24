@@ -197,6 +197,39 @@ final class LimityZdjec
             .self::maksMegabajtowDoKomunikatu().' MB, i spróbuj jeszcze raz.';
     }
 
+    /**
+     * Pomoc PRZY POLU zdjęć (issue #883): ile zdjęć wolno wybrać, zanim
+     * człowiek kliknie „Opublikuj". Komunikat `komunikatZaDuzoZdjec()` mówi
+     * to samo dopiero PO błędzie — a wtedy wybór już przepadł.
+     *
+     * `$juzZachowanych` to zdjęcia, które przetrwały nieudaną walidację
+     * (audyt C1). Liczą się do TEGO SAMEGO limitu co nowe
+     * (`PostController::zdjeciaWpisu`), więc tekst nie może obiecywać pełnej
+     * puli, gdy część jest już zajęta.
+     */
+    public static function pomocLiczbyZdjec(int $juzZachowanych = 0): string
+    {
+        $limit = self::maksZdjecNaWysylke();
+        $wolne = max(0, $limit - $juzZachowanych);
+
+        if ($juzZachowanych > 0 && $wolne === 0) {
+            return 'Masz już tyle zdjęć, ile można dodać. Nowych nie wybieraj.';
+        }
+
+        if ($juzZachowanych > 0) {
+            return 'Możesz dodać jeszcze '.$wolne.' '
+                .Odmiana::rzeczownik($wolne, 'zdjęcie', 'zdjęcia', 'zdjęć')
+                .' — razem z zachowanymi najwyżej '.$limit.'.';
+        }
+
+        if ($limit === 1) {
+            return 'Możesz dodać jedno zdjęcie.';
+        }
+
+        return 'Możesz dodać najwyżej '.$limit.' '
+            .Odmiana::rzeczownik($limit, 'zdjęcie', 'zdjęcia', 'zdjęć').' naraz.';
+    }
+
     public static function komunikatZaDuzoZdjec(): string
     {
         $limit = self::maksZdjecNaWysylke();
