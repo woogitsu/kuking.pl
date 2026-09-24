@@ -1010,7 +1010,8 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
             'Podtrzymać własną decyzję może najwcześniej po 24 godzinach od jej podjęcia — cofnąć ją może od razu.',
             'Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze. Nie obiecujemy konkretnej liczby godzin.',
             'Nie mamy dziś zewnętrznego narzędzia do zbierania błędów.',
-            'Dzienniki serwera żyją tyle, ile działająca instancja serwisu.',
+            'Jak długo go tam trzyma, zależy od planu, który mamy wykupiony u Railway.',
+            'Nie podajemy tu liczby dni, bo nie potwierdziliśmy jej jeszcze w ustawieniach konta u dostawcy — podamy ją, gdy będzie potwierdzona.',
             'Ten dokument opisuje stan serwisu na 11 września 2026 i jest aktualizowany razem z nim.',
             // „naprawdę" NIE JEST SŁOWEM ZAKAZANYM. Wzorzec łapie jedną
             // frazę obronną, a nie samo słowo — inaczej padłoby zdanie

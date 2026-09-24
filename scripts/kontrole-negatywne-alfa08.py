@@ -137,6 +137,10 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # a nie wyrazu.
 POLITYKA = "resources/legal/polityka-prywatnosci.md"
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
+# Retencja dziennika serwera (#994). Mutacja przywraca dawne zdanie, które
+# wiązało dziennik z życiem instancji — strażnik ma zapalić.
+POLITYKA_DZIENNIK_TEST = "PolitykaOpisujeRetencjeDziennikaSerweraTest"
+POLITYKA_DZIENNIK_ZDANIE = "Jak długo go tam trzyma, zależy od planu, który mamy wykupiony u Railway."
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
 # z hashem w `/build/assets/*` dostają rok `immutable`, manifest `no-cache`.
@@ -346,6 +350,8 @@ checks = [
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
+    ("Polityka wiąże dziennik z instancją", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_ZDANIE, "Dzienniki serwera żyją tyle, ile działająca instancja serwisu.")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
@@ -367,6 +373,7 @@ run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
+run_test(POLITYKA_DZIENNIK_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Polityka prywatności nie twierdzi już, że dziennik serwera znika razem z instancją serwisu. Mówi teraz, że dziennik przechowuje nasz dostawca hostingu, Railway, przez okres zależny od planu konta, a Railway figuruje w tabeli dostawców także jako miejsce przechowywania dziennika. Liczbę dni dopiszemy po jej potwierdzeniu u dostawcy.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

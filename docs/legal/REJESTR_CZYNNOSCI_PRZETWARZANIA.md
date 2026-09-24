@@ -360,6 +360,22 @@ egzekwuje.
   `DECYZJE_WLASCICIELA_R1_R6_DPA.md` §R1. To jest **otwarta decyzja
   właściciela**, nie stan docelowy.
 
+### 3.18 Dziennik serwera (błędy techniczne)
+
+- **Cel:** wykrywanie i naprawa błędów technicznych.
+- **Dane:** zapis błędu (bez zamierzonego zbierania treści prywatnych),
+  kod żądania (`docs/infra/MONITORING_BLEDOW.md`).
+- **Podstawa:** art. 6 ust. 1 lit. f RODO.
+- **Odbiorcy:** Railway. Produkcja pisze dziennik na `stderr`
+  (`.railway/railway.ts` → `LOG_CHANNEL`), a Railway przechwytuje
+  `stdout`/`stderr` do własnego narzędzia dzienników — wpisy **przeżywają**
+  restart i wymianę instancji.
+- **Termin usunięcia:** okres przechowywania dzienników u Railway, zależny
+  od planu konta. **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** aktywny plan
+  i liczba dni odczytane z panelu Railway (#994). Procedura po zmianie
+  planu albo odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera
+  i polityka prywatności”.
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
@@ -375,7 +391,7 @@ brakuje.
 
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
-| Railway | podmiot przetwarzający | cała aplikacja i baza | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
+| Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
 | Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |

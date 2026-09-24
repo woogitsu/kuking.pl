@@ -195,6 +195,8 @@ export default defineRailway((ctx) => {
     // restarcie. JsonFormatter daje w Railway structured logs (filtrowanie
     // po polach, nie po regexie).
     // https://docs.railway.com/guides/laravel#logging
+    // Railway przechowuje te logi wg planu konta — zmiana odbiornika albo planu
+    // wymaga poprawki polityki prywatności (docs/DEPLOYMENT.md, #994).
     LOG_CHANNEL: "stderr",
     LOG_STDERR_FORMATTER: "\\Monolog\\Formatter\\JsonFormatter",
     LOG_LEVEL: isProduction ? "warning" : "debug",
