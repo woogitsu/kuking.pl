@@ -595,7 +595,13 @@ final class DziennyBudzetListow
             // ODMOWA, NIE WYSYŁKA „NA WSZELKI WYPADEK" — uzasadnienie przy
             // `CZEKANIE_SEKUND`. Wołający ma powiedzieć człowiekowi, co
             // zrobić, a nie wypuścić list poza sufitem.
-            return false;
+            //
+            // BEZ `return` (#1393): odmowa idzie tą samą ścieżką co odmowa
+            // własnego sufitu, bo miejsce u rodzica JUŻ jest zajęte i musi
+            // wrócić do wspólnej puli. Wcześniejszy `return false` pomijał
+            // ten zwrot — każdy ścisk na blokadzie funkcji zjadał jedno
+            // miejsce wspólnej puli do końca doby, nie wysławszy listu.
+            $zajete = false;
         }
 
         // OSTRZEŻENIE O KOŃCZĄCEJ SIĘ PULI STOI TUTAJ, PO ODDANIU BLOKADY,
@@ -614,7 +620,8 @@ final class DziennyBudzetListow
         // opisuje komentarz przy `BLOKADA_SEKUND`: pod blokadą mają być
         // dwie operacje na cache i nic więcej.
         if (! $zajete) {
-            // WŁASNY SUFIT ODMÓWIŁ, WIĘC LIST NIE WYJDZIE — a miejsce zajęte
+            // WŁASNY SUFIT ODMÓWIŁ (albo nie zdobyliśmy jego blokady), WIĘC
+            // LIST NIE WYJDZIE — a miejsce zajęte
             // u rodzica musi wrócić do wspólnej puli. Bez tego wyczerpany
             // sufit jednej funkcji (albo ścisk na jej blokadzie) zjadałby
             // listy wszystkim pozostałym, nie wysławszy ani jednego.
