@@ -64,9 +64,18 @@ class TagController extends Controller
         // każdemu i jest dokładnie tym, co zobaczy gość wchodząc na
         // `/tag/{slug}` — dla zalogowanej osoby to bezpieczne
         // niedoszacowanie, nigdy zawyżenie (D-087).
+        //
+        // `zWidocznymPrzepisem(null)` — z tego samego powodu co w `show()`:
+        // zapowiedź przepisu jest na stałe `public`, więc `publiclyVisible()`
+        // jej nie odcina. Bez tej bramki zapowiedź przepisu „tylko dla
+        // obserwujących", ukrytego albo usuniętego podnosiła liczbę, choć
+        // gość na stronie tagu jej nie zobaczy, a `TagPublicStats` i
+        // `TagCollage` na tym samym ekranie ją pomijają (issue #941).
+        // `null`, nie widz: liczba ma być ta sama dla każdego.
         $liczPubliczneWpisy = fn ($query) => $query
             ->publiclyVisible()
-            ->tylkoOdAktywnychAutorow();
+            ->tylkoOdAktywnychAutorow()
+            ->zWidocznymPrzepisem(null);
 
         $polecane = Tag::query()
             ->promowane()
