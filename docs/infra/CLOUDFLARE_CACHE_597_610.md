@@ -11,18 +11,17 @@ Składnia i pola pochodzą z dokumentacji dostawcy; projektu nie wysłano
 do API Cloudflare w celu walidacji ani zastosowania.
 
 **#597:** anonimowe zdjęcie bez Cookie i Authorization może być cache'owane.
-**#610: NIE WŁĄCZAĆ.** Dziś HTML gościa uruchamia sesję, wystawia ciasteczka
-i zawiera formularze z CSRF. Landing, przepis i profil nie stają się statyczne
-od tego, że widz nie jest zalogowany. Reguła HTML jest projektem do późniejszego
-odbioru, nie gotową optymalizacją. Nie usuwaj `Set-Cookie`, tokenów ani
-`private/no-store`, aby uzyskać HIT. Nie wyłączaj ochrony CSRF.
-
-Przed dopuszczeniem HTML potrzebna jest osobna implementacja renderowania
-bez sesji i bez danych klienta, zachowująca działanie formularzy, wygląd
-gościa, komunikaty walidacji oraz CSP. Następnie ta sama bramka musi przejść
-dla landingu, przepisu i profilu osobno. Proponowane 120 sekund cache HTML
-i opóźnienie ukrycia treści wymagają decyzji właściciela; w tym zadaniu nie
-nadano HTML publicznego TTL i nie zapisano tej propozycji jako wymagania testu.
+**#610 (24.09.2026): aplikacja jest gotowa, brzeg i TTL czekają na właściciela.**
+Do 24.09 HTML gościa zawsze zakładał sesję, wystawiał `kuking-session`
+i `XSRF-TOKEN` i niósł token CSRF w dwóch formularzach motywu — więc nie
+wolno go było cache'ować. Teraz, **tylko gdy właściciel ustawi
+`KUKING_HTML_EDGE_CACHE_SECONDS` > 0**, landing, przepis i profil publiczny
+dla gościa bez żadnego ciasteczka renderują się bez sesji, bez tokenu
+i z `public, max-age=0, s-maxage=N`. Domyślnie (0) wszystko jest jak
+przed #610. Szczegóły, reguła do wklejenia i wycofanie:
+rozdział „#610 — HTML gościa na brzegu” na końcu tego dokumentu.
+Nie usuwaj `Set-Cookie`, tokenów ani `private/no-store` na innych trasach,
+aby uzyskać HIT. Nie wyłączaj ochrony CSRF.
 
 ## Własny pomiar przed zmianą
 
@@ -134,8 +133,9 @@ to samo zdjęcie ma innego publicznego rodzica, pozostaje publiczne.
    string, metody inne niż GET/HEAD i wskazane trasy konta. To świadomie
    szersza granica niż sama nazwa sesji. Nazwa z konfiguracji to zwykle
    `kuking-session`; stary przykład `kuking_session` nie jest wiarygodny.
-4. HTML pozostaw wyłączony. Sam BYPASS bez pozytywnego pomiaru publicznego
-   wariantu nie daje zgody na włączenie cache HTML.
+4. HTML włączaj dopiero według rozdziału #610 niżej: najpierw zmienna
+   środowiskowa na stagingu, potem reguła, potem sonda. Sam BYPASS bez
+   pozytywnego pomiaru publicznego wariantu nie daje zgody na produkcję.
 5. Przejrzyj również Workers, Page Rules i reguły odpowiedzi — zewnętrzny
    override może unieważnić nagłówki aplikacji. Kod PHP tego nie wykryje.
 6. Do pomiaru na stagingu właściciel włącza najpierw ochronny BYPASS, potem
@@ -182,9 +182,11 @@ Przy zdjęciach sonda wymaga także HTTPS Location z sygnaturą, datą i termine
 do 3600 sekund oraz cache do 1800 sekund, krótszym niż termin podpisu.
 Nie weryfikuje kryptograficznie sygnatury i nie pobiera bajtów z R2.
 
-Po przygotowaniu bezsesyjnego HTML użyj `CACHE_KIND=html`, publicznej ścieżki
-treści i prywatnego przepisu widocznego właścicielowi (200) oraz niewidocznego
-gościowi (404). W dzisiejszym stanie ten przebieg **ma odmówić** odbioru.
+Dla HTML użyj `CACHE_KIND=html`, publicznej ścieżki treści i prywatnego
+przepisu widocznego właścicielowi (200) oraz niewidocznego gościowi (403 pod
+bieżącym adresem przepisu albo 404 — sonda przyjmuje oba dla HTML, dla zdjęć
+tylko 404). Bez `KUKING_HTML_EDGE_CACHE_SECONDS` > 0 ten przebieg **ma
+odmówić** odbioru — to jest kontrola, że flaga naprawdę coś przełącza.
 
 Osobno zmierz odpowiedź z prawdziwego R2: podpis i nagłówki bajtów, wygaśnięcie,
 zmianę publiczny → prywatny, blokadę, ukrycie przez moderatora, usunięcie oraz
@@ -206,8 +208,9 @@ już wydane. Purge Cloudflare nie czyści cache przeglądarek ani zapisanych kop
 Nie zmieniono Cloudflare, DNS, Railway ani R2. Nie wykonano push ani PR.
 Nie potwierdzono produkcyjnego HIT, obsługi parametrów przez R2, działania
 purge ani kompletności obecnych reguł. Odbiór infrastruktury zostaje dla
-właściciela. #610 pozostaje zablokowane technicznie przez sesyjny HTML;
-osobną decyzją jest dopuszczalne opóźnienie ukrycia HTML.
+właściciela. Blokada #610 przez sesyjny HTML jest zdjęta w aplikacji
+(24.09.2026, za flagą); dopuszczalne opóźnienie ukrycia HTML pozostaje
+decyzją właściciela — patrz rozdział #610.
 
 ## Weryfikacja lokalna — 20 września 2026
 
@@ -307,3 +310,139 @@ Sondę przyjęto jako zależność z commita
 Jej testy uruchomiono ponownie lokalnie; historycznych pomiarów autora sondy
 nie przedstawiono tutaj jako własnych. Testy podpisu używają SDK bez połączenia
 z R2, a testy bramki — atrapy transportu. Nie zastępują odbioru infrastruktury.
+
+## #610 — HTML gościa na brzegu
+
+Stan wyjściowy zmierzony 24.09.2026 jednym `GET https://kuking.pl/` bez
+ciasteczek (wartości ciasteczek nie zapisano): `HTTP/2 200`,
+`Cache-Control: no-store, private`, `Set-Cookie: XSRF-TOKEN`,
+`Set-Cookie: kuking-session`, `Vary: Accept-Encoding`,
+`CF-Cache-Status: DYNAMIC`. Każde wejście gościa idzie więc do Laravela
+i zakłada wiersz w `sessions`.
+
+### Co robi aplikacja (kod w repozytorium)
+
+Jedna reguła, `App\Support\PublicznyHtmlGoscia`, czytana przez trzy
+middleware i dwa formularze motywu:
+
+| Warunek | Dlaczego |
+|---|---|
+| `KUKING_HTML_EDGE_CACHE_SECONDS` > 0, obcięte do 300 s | domyślnie 0 = zachowanie sprzed #610; górna granica niezależna od zmiennej |
+| trasa `landing`, `recipes.show`, `profile.show` | strony z ruchem z wyszukiwarki; `/odkryj`, `/szukaj`, tryb gotowania, listy obserwujących — nie |
+| GET/HEAD, **pusty query string** | paginacja i `?q=` zostają dynamiczne; ta sama granica jest w regule brzegu |
+| **żadnego** ciasteczka, `Authorization`, zalogowanego | motyw, skala tekstu, remember-me i sesja zmieniają HTML |
+| odpowiedź 200, bez `Set-Cookie`, bez `name="_token"` i `csrf-token` w treści | ostatni bezpiecznik: dopisany kiedyś formularz z tokenem daje `no-store`, nie wyciek |
+
+Gdy wszystko się zgadza: brak sesji w bazie, brak `XSRF-TOKEN`, formularze
+motywu bez `_token`, nagłówki `Cache-Control: public, max-age=0, s-maxage=N`
+oraz `Vary: Cookie, Authorization`. W każdym innym przypadku
+`PreventSharedSessionCache` wysyła `private, no-store` jak dotąd.
+`max-age=0` znaczy, że przeglądarka nie trzyma strony gościa u siebie —
+po zalogowaniu nie zobaczy jej z dysku.
+
+Świadomy koszt: w odpowiedzi z brzegu nonce CSP (nagłówek i znaczniki
+`<script nonce>`) oraz `X-Request-Id` są te same dla wszystkich gości przez
+N sekund. Nagłówek i treść pochodzą z jednej odpowiedzi, więc CSP działa;
+nonce przestaje być tajemnicą tylko wobec kogoś, kto i tak widzi tę samą
+publiczną stronę, a wstrzyknąć musiałby do niej treść, zanim powstała.
+Nie jest to zamiana CSP na słabszą politykę, ale warstwa obronna jest
+cieńsza na tych trzech trasach.
+
+Przełącznik motywu na stronie z brzegu nie ma tokenu. Zapis przechodzi
+sprawdzeniem pochodzenia: `Sec-Fetch-Site: same-origin` (wbudowane
+w `PreventRequestForgery` Laravela 13) albo — tylko dla `theme.update`
+i tylko bez `Sec-Fetch-Site` (Safari przed 16.4) — `Origin` równym naszemu
+hostowi. Obcy `Origin`, `cross-site` i brak obu nagłówków dają 419.
+
+Testy: `tests/Feature/CacheHtmlGosciaTest.php` (macierz gość / zalogowany /
+ciasteczko / `Authorization` × strona publiczna / strona z formularzem /
+query / 403 / 404 / przekierowanie; flaga wyłączona jako kontrola, że bez
+decyzji właściciela nic się nie zmienia; kontrole dodatnie bezpiecznika na
+trasach-atrapach). Kontrole ujemne wykonane ręcznie 24.09.2026, każda
+czerwona po zepsuciu i zielona po przywróceniu: ignorowanie ciasteczek,
+usunięcie bezpiecznika tokenu, bezwarunkowe `@csrf` w panelu wyglądu,
+wyjątek pochodzenia bez zawężenia do motywu, publiczny TTL dla odpowiedzi
+innej niż 200, sonda bez przyjęcia 403.
+
+### Okno nieświeżości — do świadomej akceptacji
+
+Przepis przełączony na prywatny, ukryty przez moderację, usunięty albo
+profil zamknięty (w tym usunięcie konta z RODO) może być widoczny z brzegu
+**do N sekund** od ostatniego pobrania przez gościa. Proponowane N = **120**.
+Aplikacja nie wysyła `stale-while-revalidate` ani `stale-if-error`.
+Czyszczenie cache HTML przy edycji przepisu (punkt 4 issue) **nie jest
+zrobione** — krótki TTL jest jedynym ograniczeniem. To temat na osobne
+zadanie, jeśli 120 s okaże się za dużo.
+
+**Do potwierdzenia w panelu Cloudflare** (z repozytorium tego nie widać):
+
+- czy „Always Online” albo „Serve stale content” nie wydłużają okna ponad N
+  przy awarii originu;
+- czy Bot Fight Mode ustawia ciasteczko `__cf_bm` zwykłym przeglądarkom —
+  wtedy od drugiego żądania reguła brzegu i aplikacja widzą ciasteczko i HIT
+  dostaje tylko pierwsze wejście (roboty wyszukiwarek zwykle ciasteczek nie
+  trzymają, więc główny cel zostaje osiągnięty); 24.09.2026 zwykłe `GET /`
+  go nie dostało;
+- czy `Vary: Cookie` nie wyłącza cache w Cloudflare (według dokumentacji
+  dostawcy `Vary` poza `Accept-Encoding` jest ignorowane — stąd warunek na
+  ciasteczko musi być w regule, a nie tylko w nagłówku); rozstrzyga to
+  sonda: drugie pobranie musi dać HIT.
+
+### Reguła do wklejenia (Caching → Cache Rules)
+
+Jest w `cloudflare-cache-rules-597-610.json` jako druga, wyłączona reguła.
+Ręcznie w panelu:
+
+- **Nazwa:** `Kuking: HTML goscia bez ciasteczek (#610)`
+- **Wyrażenie (Edit expression):**
+
+```text
+(http.host eq "kuking.pl"
+ and http.request.method in {"GET" "HEAD"}
+ and (http.request.uri.path eq "/"
+      or starts_with(http.request.uri.path, "/przepisy/")
+      or starts_with(http.request.uri.path, "/@"))
+ and http.request.uri.query eq ""
+ and http.cookie eq ""
+ and not any(http.request.headers["authorization"][*] ne ""))
+```
+
+- **Cache eligibility:** Eligible for cache.
+- **Edge TTL:** *Use cache-control header if present, bypass cache if not*
+  (`bypass_by_default`). **Nie** wpisuj liczby — o TTL decyduje
+  `s-maxage` z aplikacji, a `no-store` na trasach spoza listy (np.
+  tryb gotowania i listy obserwujących pod profilem) musi dalej wygrywać.
+- **Browser TTL:** *Respect origin*.
+- **Nie** włączaj „Ignore query string”, „Cache deception armor” zostaw
+  domyślnie, nie usuwaj `Set-Cookie`.
+- **Kolejność:** przed końcową regułą BYPASS (trzecia w JSON), która musi
+  zostać **ostatnia**. Ostatnia pasująca reguła wygrywa.
+
+Warunek bezwzględny: `http.cookie eq ""`. To szerzej niż „brak ciasteczka
+sesji” — obejmuje też remember-me, motyw i skalę tekstu, które zmieniają
+HTML. Końcowy BYPASS powtarza to samo z drugiej strony.
+
+### Kolejność włączenia
+
+1. Staging: `KUKING_HTML_EDGE_CACHE_SECONDS=120`, deploy. Bez reguły brzegu
+   nic się nie cache'uje (Cloudflare nie trzyma HTML bez reguły), a nagłówki
+   można obejrzeć: `curl -s -o /dev/null -D - https://staging.kuking.pl/`
+   — ma być `public, max-age=0, s-maxage=120` i **brak** `Set-Cookie`.
+2. Staging: reguła z hostem `staging.kuking.pl`, potem sonda
+   `CACHE_KIND=html` (rozdział „Odbiór stagingu” wyżej) dla przepisu
+   i osobno dla profilu i landingu.
+3. Produkcja: zmienna, deploy, reguła, ta sama sonda.
+
+### Wycofanie
+
+Każdy krok cofa się niezależnie i w kolejności od najszybszego:
+
+1. **Wyłącz regułę HTML** w panelu (sekundy). Końcowego BYPASS nie ruszaj.
+2. **Caching → Configuration → Purge Cache → Custom Purge** po prefiksach
+   `kuking.pl/przepisy/`, `kuking.pl/@` i adresie `kuking.pl/` — albo
+   „Purge Everything”, jeśli podejrzewasz wyciek. (Purge po prefiksie może
+   zależeć od planu — do potwierdzenia; „Purge Everything” działa zawsze.)
+3. **`KUKING_HTML_EDGE_CACHE_SECONDS=0`** i redeploy — aplikacja wraca do
+   sesji i `private, no-store` na wszystkich stronach.
+4. Dopiero jeśli coś jest nie tak w samym kodzie: `git revert` commita #610.
+   Brak migracji, brak danych do odtworzenia.
