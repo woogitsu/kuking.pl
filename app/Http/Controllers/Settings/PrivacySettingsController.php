@@ -13,10 +13,35 @@ use Illuminate\View\View;
 
 class PrivacySettingsController extends Controller
 {
+    /**
+     * Ile zablokowanych osób pokazuje jedno wejście na stronę (#1366).
+     *
+     * Wcześniej szła CAŁA lista — każde wejście, także po to, żeby zmienić
+     * jedną zgodę, pobierało wszystkie blokady z awatarami i rysowało przy
+     * każdej formularz. Tabela `blocks` nie ma limitu, więc koszt rósł bez
+     * końca.
+     */
+    public const BLOKAD_NA_STRONE = 20;
+
     public function edit(Request $request): View
     {
         return view('pages.settings.privacy', [
-            'blocked' => $request->user()->blocking()->with('profile.avatar')->get(),
+            // KURSOR PO `blocked_id`, NIE `paginate()`.
+            //
+            // Klucz główny `blocks (blocker_id, blocked_id)` daje tę kolejność
+            // wprost z indeksu, a kursor nie liczy wszystkich wierszy (COUNT)
+            // ani nie przewija OFFSET-em. `blocked_id` jest unikalny w obrębie
+            // jednej osoby blokującej, więc kolejność jest stabilna i żadna
+            // pozycja nie powtórzy się ani nie zgubi między stronami — także
+            // gdy ktoś w międzyczasie zdejmie blokadę z poprzedniej strony.
+            //
+            // Kotwica `#zablokowane`: „Pokaż więcej osób" ma zostawić człowieka
+            // przy liście, a nie na górze formularza zgód.
+            'blocked' => $request->user()->blocking()
+                ->with('profile.avatar')
+                ->orderBy('blocks.blocked_id')
+                ->cursorPaginate(self::BLOKAD_NA_STRONE)
+                ->fragment('zablokowane'),
         ]);
     }
 

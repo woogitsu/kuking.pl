@@ -6161,14 +6161,29 @@
 
 /* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.
    `min-width` pilnuje, żeby przy dwóch kolumnach nazwa nie łamała się po jednej
-   literze. */
+   literze.
+
+   `min(14rem, 100%)`, NIE SAMO `14rem` (#1341). `rem` rośnie z czcionką
+   przeglądarki: przy 200% samo minimum miało 448 px i w oknie 320 px wypychało
+   stronę w bok — `flex-wrap` karty przenosi link do nowego wiersza, ale nie
+   zdejmuje jego minimalnej szerokości. Teraz minimum nigdy nie przekracza
+   karty; gdy miejsca jest dość, zostaje wygodne 14rem. Pismo i cel dotknięcia
+   się nie zmieniają — zwija się tekst: `min-width: 0` pozwala części z nazwą
+   zejść poniżej długości najdłuższego słowa, a `overflow-wrap: anywhere` łamie
+   długą nazwę bez ukrywania jej fragmentu. Pomiar w przeglądarce:
+   `scripts/lista-osob-szerokosc.mjs`. */
 .osoba-link {
   display: flex;
   gap: var(--spacing-3);
   align-items: center;
   text-decoration: none;
   color: inherit;
-  min-width: 14rem;
+  min-width: min(14rem, 100%);
+}
+
+.osoba-link > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Kod zapasowy i sekret dwuetapowej weryfikacji. Odstępy między znakami, bo

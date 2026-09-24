@@ -64,10 +64,16 @@
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
-    <section class="mt-8">
+    <section class="mt-8" id="zablokowane">
         <h2>Zablokowane osoby</h2>
-        @if($blocked->isEmpty())
+        @if($blocked->isEmpty() && $blocked->onFirstPage())
             <p class="meta">Nikogo nie blokujesz.</p>
+        @elseif($blocked->isEmpty())
+            {{-- Dalsza strona bywa pusta, gdy ktoś zdjął na niej ostatnią
+                 blokadę — „Nikogo nie blokujesz" byłoby wtedy nieprawdą
+                 o osobach z początku listy. --}}
+            <p>Dalej na liście nie ma już nikogo.</p>
+            <p><a class="btn btn-secondary" href="{{ route('settings.privacy') }}#zablokowane">Wróć do początku listy</a></p>
         @else
             <p>Te osoby nie widzą Twoich treści, a Ty nie widzisz ich.</p>
             <div class="stack-tight">
@@ -88,6 +94,10 @@
                     </div>
                 @endforeach
             </div>
+
+            {{-- Lista idzie stronami po 20 (#1366) — kursorem, bez numerów
+                 stron; zasady przycisku: components/show-more.blade.php. --}}
+            <x-show-more :paginator="$blocked" czego="osób" />
         @endif
     </section>
 
