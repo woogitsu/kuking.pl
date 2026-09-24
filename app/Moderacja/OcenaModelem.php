@@ -71,8 +71,10 @@ final class OcenaModelem
      *
      * BUDŻET (#829) jest pytany tak samo często: przed każdą oceną i jeszcze
      * raz po przygotowaniu zdjęcia. Ocena, na którą zabrakło czasu, nie
-     * wychodzi i zostaje policzona w `$budzet->pominiete()` — wołający mówi
-     * moderatorowi, że ocena była niepełna. `null` = bez wspólnego budżetu.
+     * wychodzi i zostaje policzona w `$budzet->pominiete()`; ocena, która
+     * wyszła, ale nie wróciła z wynikiem (timeout, 5xx), trafia do
+     * `$budzet->nieudane()`. Wołający mówi moderatorowi, że ocena była
+     * niepełna (`niepelne()`). `null` = bez wspólnego budżetu.
      *
      * @return list<Sygnal>
      */
@@ -93,7 +95,7 @@ final class OcenaModelem
             $klient = $this->klientWBudzecie($budzet);
 
             if ($klient !== null) {
-                $sygnaly = $this->zWyniku($klient->ocenTekst($tekst), $sygnaly);
+                $sygnaly = $this->zWyniku($klient->ocenTekst($tekst), $sygnaly, $budzet);
             }
         }
 
@@ -120,7 +122,7 @@ final class OcenaModelem
                 $klient = $this->klientWBudzecie($budzet);
 
                 if ($klient !== null) {
-                    $sygnaly = $this->zWyniku($klient->ocenObraz($dataUri), $sygnaly);
+                    $sygnaly = $this->zWyniku($klient->ocenObraz($dataUri), $sygnaly, $budzet);
                 }
             }
         }
@@ -170,12 +172,21 @@ final class OcenaModelem
     }
 
     /**
+     * `null` od klienta to NIEUDANA ocena, nie czysta (#829): przy wspólnym
+     * budżecie liczymy ją, żeby moderator nie wziął ciszy za „sprawdzone".
+     *
      * @param  list<Sygnal>  $sygnaly
      * @return list<Sygnal>
      */
-    private function zWyniku(?WynikOceny $wynik, array $sygnaly): array
+    private function zWyniku(?WynikOceny $wynik, array $sygnaly, ?BudzetCzasu $budzet): array
     {
-        if ($wynik === null || ! $wynik->costamZnalazl()) {
+        if ($wynik === null) {
+            $budzet?->nieudana();
+
+            return $sygnaly;
+        }
+
+        if (! $wynik->costamZnalazl()) {
             return $sygnaly;
         }
 

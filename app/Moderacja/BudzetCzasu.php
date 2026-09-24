@@ -32,6 +32,8 @@ final class BudzetCzasu
 
     private int $pominiete = 0;
 
+    private int $nieudane = 0;
+
     private function __construct(private readonly CarbonImmutable $koniec) {}
 
     public static function naSekund(int $sekund): self
@@ -59,5 +61,27 @@ final class BudzetCzasu
     public function pominiete(): int
     {
         return $this->pominiete;
+    }
+
+    /**
+     * Żądanie wyszło, ale odpowiedzi nie ma: timeout (także przez limit
+     * przycięty do reszty budżetu), 5xx, nieznany kształt odpowiedzi.
+     * Dla moderatora to to samo co ocena pominięta — „nie wiemy", nie
+     * „czysto".
+     */
+    public function nieudana(): void
+    {
+        $this->nieudane++;
+    }
+
+    public function nieudane(): int
+    {
+        return $this->nieudane;
+    }
+
+    /** Wszystkie oceny, po których nie ma wyniku: pominięte i nieudane. */
+    public function niepelne(): int
+    {
+        return $this->pominiete + $this->nieudane;
     }
 }

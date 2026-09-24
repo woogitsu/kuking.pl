@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Domain\Moderation\Actions\AlarmujModeratora;
-use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
+use App\Domain\Moderation\Actions\DolozDoOznaczenia;
 use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
@@ -115,7 +115,7 @@ class PrzeanalizujTresc implements ShouldQueue
      * publikacją nie jest jeszcze do niczego przypięte, więc nie zleca nic.
      *
      * IDEMPOTENTNE: ponowna analiza stawia to samo jedno oznaczenie,
-     * a powody już obecne nie są dopisywane drugi raz (`OznaczDoPrzegladu::dolacz`).
+     * a powody już obecne nie są dopisywane drugi raz (`DolozDoOznaczenia::handle`).
      * Granica prywatności jest sprawdzana od nowa w chwili wykonania —
      * odpięte zdjęcie albo wpis przełączony na prywatny nie wychodzi.
      *
@@ -166,13 +166,13 @@ class PrzeanalizujTresc implements ShouldQueue
      *
      * OD #829 ZAPISUJEMY JE W DWÓCH KROKACH tego samego zadania: najpierw
      * lokalne, potem model — dołożony do TEGO SAMEGO oznaczenia
-     * (`OznaczDoPrzegladu::dolacz`), więc nadal nic nie przepada na
+     * (`DolozDoOznaczenia::handle`), więc nadal nic nie przepada na
      * deduplikacji, a wolny model nie zabiera lokalnych sygnałów ze sobą.
      */
     public function handle(
         WykrywaczSygnalow $wykrywacz,
         OcenaModelem $model,
-        OznaczDoPrzegladu $oznacz,
+        DolozDoOznaczenia $oznacz,
         AlarmujModeratora $alarm,
         GranicaWysylki $granica,
     ): void {
@@ -208,8 +208,8 @@ class PrzeanalizujTresc implements ShouldQueue
 
             $this->zapisz($oznacz, $alarm, $tresc, $sygnalyModelu);
 
-            if ($budzet->pominiete() > 0) {
-                $this->ocenaNiepelna($oznacz, $tresc, $budzet->pominiete());
+            if ($budzet->niepelne() > 0) {
+                $this->ocenaNiepelna($oznacz, $tresc, $budzet);
             }
         } catch (Throwable $blad) {
             // Bez treści analizowanego wpisu w logu — to jest cudzy tekst,
@@ -230,9 +230,9 @@ class PrzeanalizujTresc implements ShouldQueue
      *
      * @param  list<Sygnal>  $sygnaly
      */
-    private function zapisz(OznaczDoPrzegladu $oznacz, AlarmujModeratora $alarm, Post|Comment $tresc, array $sygnaly): void
+    private function zapisz(DolozDoOznaczenia $oznacz, AlarmujModeratora $alarm, Post|Comment $tresc, array $sygnaly): void
     {
-        $wynik = $oznacz->dolacz($tresc, $sygnaly);
+        $wynik = $oznacz->handle($tresc, $sygnaly);
 
         if ($wynik !== null) {
             $alarm->handle($wynik[0], $wynik[1]);
@@ -240,20 +240,27 @@ class PrzeanalizujTresc implements ShouldQueue
     }
 
     /**
-     * Brak sygnału modelu po przekroczeniu budżetu to „nie wiemy", nie
-     * „czysto" (#829). Ślad w dzienniku zawsze; uwaga dla moderatora tylko
-     * przy istniejącym oznaczeniu — sama nie zakłada sprawy.
+     * Brak sygnału modelu po przekroczeniu budżetu albo po nieudanym żądaniu
+     * to „nie wiemy", nie „czysto" (#829). Ślad w dzienniku zawsze; uwaga
+     * dla moderatora tylko przy istniejącym oznaczeniu — sama nie zakłada
+     * sprawy — i najwyżej raz na sprawę.
      */
-    private function ocenaNiepelna(OznaczDoPrzegladu $oznacz, Post|Comment $tresc, int $pominiete): void
+    private function ocenaNiepelna(DolozDoOznaczenia $oznacz, Post|Comment $tresc, BudzetCzasu $budzet): void
     {
-        Log::warning('Ocena modelem niepełna: zabrakło czasu zadania na część ocen.', [
+        Log::warning('Ocena modelem niepełna: część ocen nie odbyła się albo nie wróciła z wynikiem w czasie zadania.', [
             'typ' => $this->typ,
             'id' => $this->id,
-            'pominiete' => $pominiete,
+            'niepelne' => $budzet->niepelne(),
+            'pominiete' => $budzet->pominiete(),
+            'nieudane' => $budzet->nieudane(),
             'stage' => 'model_budzet',
         ]);
 
-        $oznacz->dopiszUwage($tresc, "Ocena modelem NIEPEŁNA: zabrakło czasu na {$pominiete} z ocen (tekst lub zdjęcia). Brak sygnału modelu nie znaczy, że ta część jest w porządku — obejrzyj całość.");
+        $oznacz->uwaga(
+            $tresc,
+            "Ocena modelem NIEPEŁNA: {$budzet->niepelne()} z ocen (tekst lub zdjęcia) nie odbyło się albo nie dostało odpowiedzi w czasie. Brak sygnału modelu nie znaczy, że ta część jest w porządku — obejrzyj całość.",
+            znacznik: 'Ocena modelem NIEPEŁNA:',
+        );
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Posts\Actions\EditPost;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujTresc;
@@ -53,6 +54,9 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
     /** Ile sekund „trwa" jedna odpowiedź dostawcy. */
     private int $odpowiedzTrwa = 0;
 
+    /** Dostawca odpowiada błędem 5xx od razu, bez przekroczenia czasu. */
+    private bool $awariaDostawcy = false;
+
     /** Żądania, które naprawdę wyszły — także te zakończone timeoutem (`Http::recorded()` ich nie liczy). */
     private int $wyslane = 0;
 
@@ -95,6 +99,10 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
             }
 
             Carbon::setTestNow(Carbon::now()->addSeconds($this->odpowiedzTrwa));
+
+            if ($this->awariaDostawcy) {
+                return Http::response('awaria', 503);
+            }
 
             $obraz = ($zadanie['input'][0]['type'] ?? null) === 'image_url';
 
@@ -146,23 +154,29 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $this->assertSame(1, substr_count((string) $this->oznaczenia($wpis)[0]->details, 'Model ocenił tekst'));
     }
 
-    /** @return array<string, array{int, int, int, int}> */
+    /** @return array<string, array{int, int, int, int, bool}> */
     public static function konfiguracje(): array
     {
-        // [zdjęć na wpis, sekund na odpowiedź, oczekiwanych żądań, pominiętych]
+        // [zdjęć na wpis, sekund na odpowiedź, oczekiwanych żądań,
+        //  niepełnych ocen (pominięte + bez odpowiedzi), wynik tekstu dotarł]
         return [
             // Kontrola dodatnia: szybki dostawca — budżet niczego nie ucina.
-            'szybko, 6 zdjęć' => [6, 1, 7, 0],
+            'szybko, 6 zdjęć' => [6, 1, 7, 0, true],
             // Domyślne 2 zdjęcia przy wolnym dostawcy: 3 × 6 s = 18 s < 22 s.
-            'wolno, 2 zdjęcia' => [2, 6, 3, 0],
+            'wolno, 2 zdjęcia' => [2, 6, 3, 0, true],
             // Stary rachunek: 7 × 6 s = 42 s przy zadaniu 30 s. Teraz:
-            // tekst + 2 zdjęcia po 6 s, trzecie z limitem 4 s, reszta pominięta.
-            'wolno, 6 zdjęć' => [6, 6, 4, 3],
+            // tekst + 2 zdjęcia po 6 s; trzecie wychodzi z limitem 4 s i nie
+            // wraca (timeout = ocena NIEUDANA, nie czysta), 3 pominięte.
+            'wolno, 6 zdjęć' => [6, 6, 4, 4, true],
+            // Każda odpowiedź dłuższa niż limit: tekst 8 s, zdjęcie 8 s,
+            // zdjęcie z limitem 6 s — wszystkie timeout — reszta pominięta.
+            // Model nie powiedział NIC, a sprawa nie może wyglądać na czystą.
+            'każda odpowiedź dłuższa niż limit' => [6, 9, 3, 7, false],
         ];
     }
 
     #[DataProvider('konfiguracje')]
-    public function test_ocena_miesci_sie_w_czasie_zadania_i_mowi_ze_jest_niepelna(int $zdjec, int $sekund, int $zadan, int $pominietych): void
+    public function test_ocena_miesci_sie_w_czasie_zadania_i_mowi_ze_jest_niepelna(int $zdjec, int $sekund, int $zadan, int $niepelnych, bool $wynikTekstu): void
     {
         config(['kuking.moderation.model.zdjec_na_wpis' => $zdjec]);
         $this->odpowiedzTrwa = $sekund;
@@ -189,19 +203,76 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $oznaczenia = $this->oznaczenia($wpis);
         $this->assertCount(1, $oznaczenia);
         $opis = (string) $oznaczenia[0]->details;
-        $this->assertStringContainsString('Model ocenił tekst', $opis, 'Wynik modelu uzyskany przed końcem budżetu przepadł.');
 
-        if ($pominietych === 0) {
+        if ($wynikTekstu) {
+            $this->assertStringContainsString('Model ocenił tekst', $opis, 'Wynik modelu uzyskany przed końcem budżetu przepadł.');
+        } else {
+            $this->assertStringNotContainsString('Model ocenił', $opis);
+        }
+
+        if ($niepelnych === 0) {
             $this->assertStringNotContainsString('NIEPEŁNA', $opis);
             $log->shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($k): bool => ($k['stage'] ?? null) === 'model_budzet')]);
 
             return;
         }
 
-        $this->assertStringContainsString("NIEPEŁNA: zabrakło czasu na {$pominietych} z ocen", $opis);
+        $this->assertStringContainsString("NIEPEŁNA: {$niepelnych} z ocen", $opis);
         $log->shouldHaveReceived('warning')->withArgs(
-            fn (string $w, array $k = []): bool => ($k['stage'] ?? null) === 'model_budzet' && ($k['pominiete'] ?? null) === $pominietych,
+            fn (string $w, array $k = []): bool => ($k['stage'] ?? null) === 'model_budzet' && ($k['niepelne'] ?? null) === $niepelnych,
         )->once();
+
+        // Ponowna analiza nie dopisuje drugiej uwagi o niepełnej ocenie.
+        Carbon::setTestNow(Carbon::now()->addMinute());
+        $this->analizuj($wpis);
+        $this->assertSame(1, substr_count((string) $this->oznaczenia($wpis)[0]->details, 'NIEPEŁNA'), 'Uwaga o niepełnej ocenie dopisana drugi raz.');
+    }
+
+    /**
+     * Nieudane żądanie BEZ przekroczenia czasu (5xx) to też ocena niepełna,
+     * nie „model nic nie znalazł".
+     */
+    public function test_blad_dostawcy_liczy_sie_jako_ocena_niepelna(): void
+    {
+        $this->awariaDostawcy = true;
+        $wpis = $this->wpis($this->user('awaria'), 'Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+
+        $this->assertStringContainsString('NIEPEŁNA: 1 z ocen', (string) $this->oznaczenia($wpis)[0]->details);
+    }
+
+    // ---------------------------------------------------------------
+    // D-052 — ISTNIEJĄCA OTWARTA SPRAWA DOSTAJE NOWE SYGNAŁY
+    // ---------------------------------------------------------------
+
+    /**
+     * Niezależnie od tego, co `OznaczDoPrzegladu::handle()` oddaje dla
+     * treści już oglądanej (`null` przed #1051, istniejący wiersz po nim),
+     * nowe sygnały trafiają do TEJ SAMEJ, jedynej sprawy.
+     */
+    public function test_istniejaca_otwarta_sprawa_dostaje_nowe_sygnaly(): void
+    {
+        $wpis = $this->wpis($this->user('istniejaca'), 'Zupa pomidorowa jak u mamy.');
+        $sprawa = Report::query()->create([
+            'reporter_id' => null,
+            'autor_tresci_id' => $wpis->author_id,
+            'source' => Report::SOURCE_AUTOMAT,
+            'target_type' => ModeratedContent::typ($wpis),
+            'target_id' => $wpis->getKey(),
+            'reason' => 'automat_odnosnik',
+            'details' => "Automat oznaczył tę treść do przeglądu.\n— Wcześniejszy powód.",
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->analizuj($wpis);
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Nowe sygnały postawiły drugą sprawę (D-052).');
+        $this->assertSame($sprawa->getKey(), $oznaczenia[0]->getKey());
+        $this->assertStringContainsString('Wcześniejszy powód.', (string) $oznaczenia[0]->details);
+        $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details, 'Sygnał modelu nie dopisał się do istniejącej sprawy.');
+        $this->assertSame('automat_model', $oznaczenia[0]->reason);
     }
 
     public function test_wylaczona_ocena_zdjec_i_brak_klucza_nie_zaliczaja_sie_do_niepelnej(): void
