@@ -216,7 +216,7 @@ class PrzywrocenieTresciTest extends TestCase
         $post->forceFill(['status' => Post::STATUS_HIDDEN])->save();
 
         $report = $this->zgloszenie('post', $post->getKey());
-        $report->update(['status' => Report::STATUS_RESOLVED]);
+        $report->update(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()]);
 
         ModerationAction::create([
             'moderator_id' => $moderator->getKey(),
@@ -241,7 +241,7 @@ class PrzywrocenieTresciTest extends TestCase
 
         $post = Post::factory()->create(['author_id' => $autor->getKey()]);
         $report = $this->zgloszenie('post', $post->getKey());
-        $report->update(['status' => Report::STATUS_RESOLVED]);
+        $report->update(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()]);
 
         $this->przywroc($moderator, $report)
             ->assertRedirect(route('admin.reports'))

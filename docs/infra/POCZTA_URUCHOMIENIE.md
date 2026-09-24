@@ -69,7 +69,7 @@ moderacyjne (DSA) wychodzą mimo to — czyli donikąd.
 |---|---|---|---|
 | Potwierdź swój adres e-mail | `App\Notifications\PotwierdzenieAdresu` | rejestracja i ponowna wysyłka | tak |
 | Ustaw nowe hasło | `App\Notifications\UstawienieNowegoHasla` | „Nie pamiętam hasła” | tak |
-| Twoje dane są gotowe | `App\Mail\DataExportReady` | koniec pakowania danych (RODO) | w tle, wewnątrz zadania |
+| Twoje dane są gotowe | `App\Mail\DataExportReady` (konto w karencji: `DataExportReadyInGracePeriod`) | koniec pakowania danych (RODO) | tak — osobne zadanie `NotifyUserExportReady` z ponowieniami, najwyżej jeden list (`data_exports.notified_at`) |
 | Przyjęliśmy Twoje zgłoszenie | `App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci` | zgłoszenie nielegalnej treści (DSA art. 16 ust. 4) | tak |
 | Decyzja w sprawie zgłoszenia | `App\Notifications\DecyzjaWSprawieZgloszenia` | decyzja moderacyjna (DSA art. 16 ust. 5) | tak |
 | Dostaliśmy Twoje odwołanie | `App\Notifications\PotwierdzenieOdwolaniaZglaszajacego` | odwołanie zgłaszającego (DSA art. 20) | tak |

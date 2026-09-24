@@ -304,6 +304,11 @@ class WyslijPodsumowaniaTygodnia extends Command
                 // w `failed_jobs` i widać w teście. `Mail::later()` przekazuje
                 // je bokiem, do samej kolejki, i po drodze nie zostaje po nim
                 // ślad, którym dałoby się to sprawdzić.
+                //
+                // Adres i treść z TEJ chwili nie są ostateczne: zgodę, konto,
+                // aktualny adres i widoczność każdej pozycji sprawdza jeszcze
+                // raz `PodsumowanieTygodnia::send()` w chwili wysyłki (#1328,
+                // #1383). Tu w zadaniu zostają same identyfikatory.
                 $list = (new PodsumowanieTygodnia($tresc))->delay(now()->addSeconds($numer * $odstep));
 
                 Mail::to($osoba->email)->queue($list);

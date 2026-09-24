@@ -118,12 +118,12 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # SDK `railway` musi być zainstalowane, żeby runner mógł wykonać
       # .railway/railway.ts (plik importuje "railway/iac").
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -132,7 +132,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Plan zmian infrastruktury
-        uses: railwayapp/config@v1
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
         with:
           command: plan
           railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
@@ -168,12 +168,12 @@ jobs:
     steps:
       # Wersja ZMERGOWANA, nie head PR-a — stosujemy to, co faktycznie
       # weszło na main.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -182,7 +182,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Zastosowanie zmian
-        uses: railwayapp/config@v1
+        uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
         with:
           command: apply
           railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}

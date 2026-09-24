@@ -57,7 +57,7 @@ Prefiks `livewire-b7a314a9` w tabeli jest snapshotem lokalnej instancji, nie sta
 | `/odkryj` | ekran | `pages.discover` | pusto/wyniki; fraza; filtry; paginacja; widoczność |
 | `/odwolanie` | ekran | `pages.appeals.guest` | formularz/potwierdzenie; autor/zgłaszający/gość; podpis; termin; wynik sprawy |
 | `/odwolanie/{action}` | ekran | `pages.appeals.create` | formularz/potwierdzenie; autor/zgłaszający/gość; podpis; termin; wynik sprawy |
-| `/podsumowanie/wracam/{user}` | ekran | `pages.podsumowanie-wrocono` | podpis; wypisanie/powrót; ponowne otwarcie; także POST |
+| `/podsumowanie/wracam/{user}` | ekran | `pages.podsumowanie-wracam` (GET, tylko pytanie), `pages.podsumowanie-wrocono` (po POST) | podpis; GET niczego nie zapisuje, zgodę włącza tylko POST z CSRF (#1403); ponowne otwarcie |
 | `/podsumowanie/wypisz/{user}` | ekran | `pages.podsumowanie-wypisano` | podpis; wypisanie/powrót; ponowne otwarcie; także POST |
 | `/pomoc` | ekran | `pages.static.help` | treść; dostęp; brak zasobu; błąd odpowiedzi |
 | `/potwierdz-email` | ekran | `auth.verify-email` | walidacja; poczta dostępna/niedostępna; potwierdzony/niepotwierdzony adres; token/stan konta |

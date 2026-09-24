@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Nieopublikowane
+
+- Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
+- Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
+- W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
+- Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
+
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
 - Formularze ze zdjęciami przestały gubić to, co już wpisaliście. Wcześniej jedno źle wypełnione pole potrafiło zabrać całą resztę formularza razem z poprawnie wypełnionymi polami — teraz błąd zostaje przy swoim polu, a Wasz tekst czeka na miejscu. Podsumowanie błędów w kreatorze przepisu prowadzi do kroku, na którym to pole naprawdę jest.

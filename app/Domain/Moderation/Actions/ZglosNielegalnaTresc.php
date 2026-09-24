@@ -58,6 +58,8 @@ use Illuminate\Support\Facades\Notification;
  */
 final class ZglosNielegalnaTresc
 {
+    public function __construct(private readonly AlarmujOPilnymZgloszeniu $alarm) {}
+
     /**
      * @param  string|null  $imie  NULL jest dopuszczalny — patrz niżej
      * @param  string|null  $email  NULL jest dopuszczalny — art. 16 ust. 2
@@ -143,6 +145,18 @@ final class ZglosNielegalnaTresc
 
             $zgloszenie->forceFill(['receipt_sent_at' => now()])->save();
         }
+
+        // ALARM DO MODERATORA — ta sama reguła i ta sama klasa, co przy
+        // zgłoszeniu społecznościowym. Ta droga jest OTWARTA DLA KAŻDEGO,
+        // także bez konta (art. 16 ust. 1), więc to właśnie tędy przychodzi
+        // zgłoszenie od kogoś, kto nie ma u nas konta i nie założy go po to,
+        // żeby zgłosić przestępstwo. Cisza po tej stronie byłaby najgorsza.
+        //
+        // Poza transakcją i PO potwierdzeniu odbioru: przyjęte zgłoszenie
+        // nie może zależeć od tego, czy alarm wyszedł. Zwróconej wartości
+        // nie sprawdzamy — pusty `alarm_email` znaczy „bez poczty" i jest
+        // normalnym stanem (patrz `AlarmujOPilnymZgloszeniu`).
+        $this->alarm->handle($zgloszenie);
 
         return $zgloszenie;
     }

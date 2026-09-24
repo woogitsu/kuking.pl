@@ -38,24 +38,25 @@ class TagiInlinePochodzenieTest extends TestCase
         $user = $this->user();
         $post = app(PublishPost::class)->handle($user, '#chleb #zupa', tagNames: ['obiad']);
         $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $this->origins($post));
-        app(EditPost::class)->handle($post, '#chleb #zupa', 'public', ['obiad']);
+        app(EditPost::class)->handle($user, $post, '#chleb #zupa', 'public', ['obiad']);
         $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $this->origins($post));
-        app(EditPost::class)->handle($post, '#sernik', 'public', ['obiad']);
+        app(EditPost::class)->handle($user, $post, '#sernik', 'public', ['obiad']);
         $this->assertSame(['obiad' => true, 'sernik' => false], $this->origins($post));
-        app(EditPost::class)->handle($post, 'Bez tokenów', 'private', ['obiad']);
+        app(EditPost::class)->handle($user, $post, 'Bez tokenów', 'private', ['obiad']);
         $this->assertSame(['obiad' => true], $this->origins($post));
     }
 
     public function test_reczny_i_inline_maja_niezalezne_przejscia_oraz_poprawna_kolejnosc(): void
     {
-        $post = app(PublishPost::class)->handle($this->user(), '#chleb', tagNames: ['zupa']);
-        app(EditPost::class)->handle($post, '#chleb', 'public', ['chleb', 'zupa']);
+        $user = $this->user();
+        $post = app(PublishPost::class)->handle($user, '#chleb', tagNames: ['zupa']);
+        app(EditPost::class)->handle($user, $post, '#chleb', 'public', ['chleb', 'zupa']);
         $this->assertSame(['chleb' => true, 'zupa' => true], $this->origins($post));
-        app(EditPost::class)->handle($post, 'Obiad', 'public', ['zupa', 'chleb']);
+        app(EditPost::class)->handle($user, $post, 'Obiad', 'public', ['zupa', 'chleb']);
         $this->assertSame(['zupa' => true, 'chleb' => true], $this->origins($post));
-        app(EditPost::class)->handle($post, '#chleb', 'public', ['zupa']);
+        app(EditPost::class)->handle($user, $post, '#chleb', 'public', ['zupa']);
         $this->assertSame(['zupa' => true, 'chleb' => false], $this->origins($post));
-        app(EditPost::class)->handle($post, 'Obiad', 'public', []);
+        app(EditPost::class)->handle($user, $post, 'Obiad', 'public', []);
         $this->assertSame([], $this->origins($post));
     }
 
@@ -64,14 +65,15 @@ class TagiInlinePochodzenieTest extends TestCase
         $target = $this->tag('zupa pomidorowa');
         $source = $this->tag('pomidorówka');
         app(MergeTags::class)->handle($source, $target);
-        $post = app(PublishPost::class)->handle($this->user(), '#zupa-pomidorowa #pomidorowka #pomidorówka');
+        $user = $this->user();
+        $post = app(PublishPost::class)->handle($user, '#zupa-pomidorowa #pomidorowka #pomidorówka');
         $this->assertSame(['zupa pomidorowa' => false], $this->origins($post));
         $this->assertDatabaseCount('tags', 2);
-        app(EditPost::class)->handle($post, '#pomidorowka', 'public');
+        app(EditPost::class)->handle($user, $post, '#pomidorowka', 'public');
         $this->assertSame(['zupa pomidorowa' => false], $this->origins($post));
         $final = $this->tag('pomidorowa zupa');
         app(MergeTags::class)->handle($target, $final);
-        app(EditPost::class)->handle($post, '#pomidorowka', 'public');
+        app(EditPost::class)->handle($user, $post, '#pomidorowka', 'public');
         $this->assertSame(['pomidorowa zupa' => false], $this->origins($post));
     }
 
@@ -90,11 +92,12 @@ class TagiInlinePochodzenieTest extends TestCase
 
     public function test_limit_unii_cofa_body_pivoty_i_tworzenie_nowych_tagow(): void
     {
-        $post = app(PublishPost::class)->handle($this->user(), 'Opis', tagNames: ['sernik']);
+        $user = $this->user();
+        $post = app(PublishPost::class)->handle($user, 'Opis', tagNames: ['sernik']);
         $before = DB::table('posts')->where('id', $post->id)->first();
         $pivot = DB::table('post_tags')->where('post_id', $post->id)->get()->toArray();
         try {
-            app(EditPost::class)->handle($post, '#chleb #zupa #obiad', 'private', ['sernik', 'kolacja', 'sniadanie']);
+            app(EditPost::class)->handle($user, $post, '#chleb #zupa #obiad', 'private', ['sernik', 'kolacja', 'sniadanie']);
             $this->fail('Sześć kanonicznych tagów nie zostało odrzuconych.');
         } catch (BladDlaCzlowieka) {
             $this->assertEquals($before, DB::table('posts')->where('id', $post->id)->first());
@@ -114,14 +117,15 @@ class TagiInlinePochodzenieTest extends TestCase
 
     public function test_hidden_zostaje_przy_dotychczasowym_wpisie_ale_nie_jest_nowym_powiazaniem(): void
     {
-        $post = app(PublishPost::class)->handle($this->user(), '#sernik', tagNames: ['chleb']);
+        $user = $this->user();
+        $post = app(PublishPost::class)->handle($user, '#sernik', tagNames: ['chleb']);
         Tag::query()->update(['status' => Tag::STATUS_HIDDEN]);
-        app(EditPost::class)->handle($post, '#sernik poprawiony opis', 'private', ['chleb']);
+        app(EditPost::class)->handle($user, $post, '#sernik poprawiony opis', 'private', ['chleb']);
         $this->assertSame(['chleb' => true, 'sernik' => false], $this->origins($post));
         $new = app(PublishPost::class)->handle($this->user(), '#sernik', tagNames: ['chleb']);
         $this->assertSame([], $this->origins($new));
         $this->assertDatabaseCount('tags', 2);
-        app(EditPost::class)->handle($post, 'Bez tokenu', 'public', ['chleb']);
+        app(EditPost::class)->handle($user, $post, 'Bez tokenu', 'public', ['chleb']);
         $this->assertSame(['chleb' => true], $this->origins($post));
         $this->assertSame(2, Tag::where('status', Tag::STATUS_HIDDEN)->count());
         $this->get(route('posts.show', $post))->assertOk()
