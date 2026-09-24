@@ -1635,7 +1635,13 @@ Snapshot po istotnych zmianach.
   numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
 - `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
   przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
-  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+  czasy, wszystkie cztery kolumny pochodzenia i `family_since_year`,
+  składniki z `no_amount`, kroki). `source_url` i `ingredients[].no_amount` są
+  w migawce od issue #896 — **w starszych migawkach tych kluczy nie ma
+  i brak znaczy „nieznane"**; nie uzupełniamy ich dzisiejszą wartością
+  z przepisu. Numer wersji i migawka powstają w transakcji zapisu treści,
+  pod blokadą wiersza `recipes` (issue #895). Zmiana kształtu JSON, nie
+  schematu — bez migracji;
 - `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
@@ -2226,6 +2232,10 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
 o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
+(następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
+liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
+w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
@@ -2465,6 +2475,66 @@ samego powodu: ciche skasowanie „nadmiarowego" zgłoszenia byłoby skasowaniem
 sprawy DSA, na którą ktoś mógł się powołać. Który wiersz obowiązuje,
 rozstrzyga człowiek.
 
+**`reports_resolution_complete_check` — status związany z datą rozstrzygnięcia**
+(issue #997, migracja `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`).
+
+```sql
+CHECK (
+  (status IN ('open','triage','reviewing')
+     AND resolved_at IS NULL AND resolved_by IS NULL AND resolution_note IS NULL)
+  OR (status IN ('resolved','rejected') AND resolved_at IS NOT NULL)
+)
+```
+
+Retencja liczy od `resolved_at` i bierze tylko `resolved`/`rejected`, więc
+zamknięta sprawa bez daty nie zostałaby skasowana **nigdy**, a otwarta z datą
+wisiałaby w kolejce z fałszywym śladem rozstrzygnięcia. To trzeci przypadek
+tego samego niezmiennika co `appeals_decision_complete_check`
+i `contact_messages_handled_complete`.
+
+- **`resolved_by` w stanie końcowym nie jest wymagane** — klucz ma świadome
+  `nullOnDelete()`; fizyczne usunięcie konta operatora nie może unieważnić
+  historycznej sprawy. Kto rozstrzygnął, zapisuje też niemutowalny
+  `moderation_actions.moderator_id`.
+- **`resolution_note` w stanie końcowym nie jest wymagane** — wewnętrzna
+  notatka, formularz decyzji i odrzucenie oznaczeń automatu pozwalają ją
+  pominąć (uzasadnienie dla człowieka: `moderation_actions.user_message`).
+- **Lista statusów wypisana wprost** — nowy status w `reports_status_check`
+  bez przemyślenia tej reguły odbije się o bazę. Celowo.
+- Status zmieniają dziś dwie ścieżki i obie zapisują status, datę
+  i moderatora jednym `update()`: `ModerationController::decide()`
+  i `SygnalyController::odrzucGrupe()` (`StatusZgloszeniaZwiazanyZRozstrzygnieciemTest`).
+
+**`up()` najpierw liczy niespójne wiersze i ODMAWIA**, gdy jakiekolwiek są —
+z liczbami w komunikacie. Nie zgaduje: `created_at` jako data zamknięcia
+przyspieszyłoby retencję i skasowało sprawę przed czasem. Potem
+`ADD CONSTRAINT … NOT VALID` i osobno `VALIDATE CONSTRAINT`
+(`$withinTransaction = false`, więc walidacja nie blokuje zapisów). Gdy
+`VALIDATE` padnie (niespójny zapis w trakcie wdrożenia), CHECK jest zdejmowany,
+żeby ponowne `migrate` zaczęło od czystego stanu.
+
+**Zapytanie kontrolne przed wdrożeniem (tylko odczyt, dla właściciela):**
+
+```sql
+SELECT id, numer_sprawy, source, status, resolved_at, resolved_by,
+       resolution_note IS NOT NULL AS ma_notatke, created_at,
+       (SELECT min(ma.created_at) FROM moderation_actions ma WHERE ma.report_id = r.id) AS data_decyzji
+FROM reports r
+WHERE (status IN ('resolved','rejected') AND resolved_at IS NULL)
+   OR (status IN ('open','triage','reviewing')
+       AND (resolved_at IS NOT NULL OR resolved_by IS NOT NULL OR resolution_note IS NOT NULL))
+ORDER BY created_at;
+```
+
+Pusty wynik = migracja przejdzie. Wiersze w wyniku poprawia człowiek: datę
+zamknięcia bierze z `data_decyzji`, a nie z `created_at`; otwarta sprawa
+z polami rozstrzygnięcia jest albo zamknięta (popraw status), albo otwarta
+(wyczyść trzy pola).
+
+**Rollback:** `DROP CONSTRAINT IF EXISTS reports_resolution_complete_check`.
+Bezstratnie — poluzowanie reguły nie dotyka żadnego wiersza, więc nie ma
+czego odmawiać (inaczej niż w przypadkach z D-088).
+
 ### moderation_actions
 Decyzje moderatorów.
 
@@ -2656,6 +2726,16 @@ jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
 usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
 w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
 Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
+
+**Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
+częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
+`user.role_changed`, `post.published`) idzie przez `record()` **wewnątrz**
+transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
+komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
+człowieka (`account.registered`, `content.reported`), idzie przez
+`AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
+z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
+błąd przy koncie czy sprawie, które już istnieją.
 
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
@@ -3237,8 +3317,9 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
 | `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
-| `unknown` | Worek na resztę — każda inna awaria. |
+| `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
 
 `DataExport::failureReasonLabel()` zamienia kod na zdanie po polsku (z adresem
 kontaktowym z `config('kuking.community.contact_email')`) i **nigdy** nie
@@ -3246,7 +3327,7 @@ pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
 dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
 w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
 
-Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych pięciu
 wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
 kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
 
@@ -3255,6 +3336,80 @@ zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
 dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
+
+#### Eksport a wymazanie konta i pliki pośrednie (issues #1307, #993)
+
+Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
+
+- `GenerateUserExport` nie zaczyna pracy dla konta `erased` ani dla eksportu,
+  któremu `EraseAccountData` przestawiło `expires_at` w przeszłość (`failed`,
+  `account_missing`). Karencja `pending_delete` eksportu nie blokuje.
+- Przejście w `ready` idzie w krótkiej transakcji z `lockForUpdate()` na
+  wierszu `users` (ta sama kolejność blokad co w `EraseAccountData`) i na
+  wierszu eksportu, z ponownym sprawdzeniem obu warunków. Przegrany wyścig:
+  wiersz dostaje `expired` z **zachowanym** `disk`/`object_key` i terminem
+  w przeszłości, job kasuje plik z weryfikacją `exists()` i dopiero wtedy
+  zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
+  `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
+- Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport.u<uid>`
+  katalogu tymczasowego systemu — osobny dla użytkownika systemu procesu, albo
+  `KUKING_EXPORT_TEMP_DIR` / `kuking.exports.temp_dir` — tworzony z prawami
+  0700, a w nim katalog nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
+  instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
+  godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
+  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
+  pierwszego eksportu po upływie godziny albo do restartu kontenera
+  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
+  (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
+  jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
+  dalej. Stary wspólny podkatalog `kuking-eksport` (sprzed #1436) nie jest już
+  czytany — znika z restartem kontenera. Sprzątanie stoi na samym
+  początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
+  eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
+  wymazanego konta czekałaby na cudzy eksport.
+- List „paczka gotowa” wychodzi po **świeżym** odczycie wiersza eksportu
+  i konta, po commicie `ready`. Wymazanie, które czekało na blokadę
+  finalizacji i zatwierdziło się tuż po niej, odcina list (adres jest już
+  zanonimizowany, a paczka niepobieralna). Wymazanie wchodzące między tym
+  odczytem a wysyłką daje co najwyżej jeden list na prawdziwy adres
+  właściciela z linkiem, który już nie wyda paczki — bez danych w treści.
+
+#### Trwale brakujące zdjęcie blokuje eksport RODO (issue #1388)
+
+Skutek wybranego kontraktu „paczka niepełna nie jest wydawana”, nazwany
+wprost: jeśli plik JEDNEGO zdjęcia `ready` zniknął z magazynu na stałe
+(np. utracony przy przenosinach bucketów, #1031), **każda** próba eksportu
+tego konta kończy się `failed` / `photo_unreadable` — ponowienie nic nie
+zmieni, a człowiek nie dostanie paczki z pozostałymi danymi. Ekran mówi mu,
+żeby spróbował za kilka minut, a gdy się powtarza — napisał do nas. Nie ma
+tu automatu i świadomie go nie dokładamy: „pomiń zdjęcie i wydaj resztę”
+po cichu to dokładnie usterka #1388.
+
+Ścieżka dla obsługi (admin z dostępem do produkcji, **za jawną zgodą
+właściciela danych** — to zapis na produkcji, AGENTS.md):
+
+1. W dzienniku znaleźć `Nie udało się zbudować paczki z danymi użytkownika`
+   dla tego `data_export_id` — `error` niesie identyfikator zdjęcia
+   i przyczynę (`brak pliku w storage`, klasa wyjątku albo
+   „odczytano X z Y bajtów”). Bez ścieżek i bez komunikatu dostawcy.
+2. `php artisan kuking:sprawdz-zdjecia-po-przenosinach` (tylko odczyt)
+   rozstrzyga: **DO ODZYSKANIA** — plik leży w starym buckecie; naprawa jak
+   w opisie tej komendy, potem człowiek zamawia paczkę ponownie. Przyczyna
+   chwilowa (plik jest, odczyt się urywał) — zwykłe ponowienie.
+3. **UTRACONE** — bajtów nie odzyska nic. Decyzja właściciela danych:
+   zdjęcie przestaje być `ready` — `status = rejected` („przygotowanie
+   pliku padło, oryginał wolno wgrać jeszcze raz”), NIE `deleted`, które
+   README tłumaczy jako decyzję samego człowieka (D-083). Wtedy
+   `ExportPhotoPlan` go nie planuje, a README paczki liczy je jawnie
+   (`ExportPhotoPlan::rejectedCount()`). Dopiero potem nowy eksport. Człowiekowi
+   odpisujemy, którego zdjęcia brakuje — paczka nie może tego przemilczeć.
+
+Nie ma do tego komendy; jeśli zgłoszeń będzie więcej niż pojedyncze, to
+jest powód na osobne issue, nie na obejście w `GenerateUserExport`.
 
 Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
 w kolejności; `data_exports_one_active_per_user` — patrz niżej.
@@ -3581,7 +3736,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
-| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. Konto jest anonimizowane, nie kasowane (D-022), więc `nullOnDelete()` się nie uruchamia — `user_id` zeruje jawnie `EraseAccountData` w tej samej transakcji co wymazanie (#995, pilnuje `WymazanieKontaOdlaczaWiadomosciDoNasTest`). |
 | `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |

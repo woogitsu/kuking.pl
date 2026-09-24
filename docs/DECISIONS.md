@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
@@ -15801,6 +15813,77 @@ cofać: zmiana niczego nie zapisuje w bazie.
 
 ---
 
+## D-241 — Lokalne wzorce spamu sprawdzają także treść niepubliczną; wysyłka do OpenAI bez zmian (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (22.09, doprecyzowana
+o 23:30) · Uzupełnia D-240 w części „lokalne sygnały”, D-052 bez zmian ·
+Status: **obowiązuje**
+
+Decyzja w brzmieniu właściciela: OpenAI ocenia całą treść publiczną (obrazy
+pomniejszone). Treść niepubliczna nie wychodzi poza serwer, ale nadal sprawdzają
+ją lokalne wzorce spamu. #1298 (D-240) miał wejść bez zmian, bo zamyka
+incydent. Lokalną analizę przywraca osobny PR.
+
+### Co było zepsute
+
+D-240 pytało o granicę lokalną (`GranicaWysylki::pozaAutorem()`) tę samą
+Policy gościa co o wysyłkę. Podmieniało tylko widoczność samego wpisu
+z „dla obserwujących” na publiczną. Policy odrzucała jednak także:
+
+- wpis i przepis **zbanowanego konta**, oraz komentarz pod nim;
+- komentarz, którego autor jest zbanowany;
+- komentarz pod **zapowiedzią przepisu „dla obserwujących”**. Bramką
+  zapowiedzi jest przepis, a przepisu nikt nie podmieniał.
+
+Wszystkie te treści traciły lokalne oznaczenie, choć przed D-240 je
+dostawały. Sama wysyłka była w porządku: żadna z nich nie wychodziła do
+OpenAI i dalej nie wychodzi.
+
+### Co obowiązuje
+
+- `pozaAutorem()` pyta Policy gościa o **kopię** treści, której nigdy się
+  nie zapisuje (`kopiaDlaLokalnej()`). W kopii „dla obserwujących” zmienia
+  się w „publiczny”, konto **zbanowane** udaje aktywne, a przepis zapowiedzi
+  (rekurencyjnie) przechodzi te same dwie podmiany. O resztę warunków decyduje
+  dalej Policy: status, usunięcie, ślad usunięcia komentarza, prywatność.
+- Komentarz zbanowanego autora znów dostaje lokalną analizę.
+- **Poza granicą lokalną zostają:** treść prywatna (D-052 pkt 3), ukryta,
+  usunięta oraz konto **w karencji usunięcia** albo **wymazane**. Ban jest
+  karą nałożoną przez nas. Karencję człowiek wybrał sam, bo obiecujemy mu
+  „konto zniknie od razu”, więc nie kładziemy jego treści przed moderatorem.
+- `publiczna()` i `zdjecieWpisu()`, czyli granica wysyłki, **nie zmieniają
+  się ani o wiersz**. `OcenaModelem` pyta tylko je.
+
+### Czego nie przywrócono i dlaczego
+
+`ZgodaNaOceneAwatara` z lokalnej wersji równoległej (`2acfc098`). D-240 usunęło
+drogę awatara na sztywno: nie ma zlecenia, zadanie jest puste. Klasa zgody,
+która dziś zawsze odpowiada „nie”, dodałaby odczyt pliku i zlecenie tylko po
+to, żeby je zaraz zatrzymać. Awatar nie ma też lokalnych wzorców, bo te
+pracują na tekście, więc do przywrócenia nie ma tu nic. Mechanizm zgody
+wymaga osobnej decyzji (D-240, „Awatar nie wychodzi”).
+
+### Dowód
+
+`tests/Feature/LokalnaAnalizaTresciNiepublicznejTest.php` — 7 przypadków,
+tylko `Http::fake()` przy **ustawionym** kluczu. Każdy przypadek niepubliczny
+sprawdza naraz, że lokalne oznaczenie istnieje i że `Http::assertNothingSent()`.
+Na kodzie D-240 **oblewają 4**: wpis zbanowanego konta, komentarz pod
+zapowiedzią przepisu „dla obserwujących”, komentarz zbanowanego autora
+i komentarz pod wpisem zbanowanego konta. Trzy pozostałe to kontrole:
+zapowiedź przepisu prywatnego i konto w karencji dalej bez oznaczenia
+i bez wysyłki, a publiczny komentarz dalej wychodzi (zabezpieczenie przed
+zepsutą atrapą). W `GranicaWysylkiDoOpenAiTest` oczekiwania dla zbanowanego
+autora zmieniono z „0 oznaczeń” na „1 oznaczenie”. `Http::assertNothingSent()`
+zostało w tych przypadkach bez zmian.
+
+### Wycofanie
+
+Odwrócić commit. Nic się nie zapisuje w bazie ani nie wychodzi poza serwer.
+Po odwróceniu wracają tylko luki w lokalnych oznaczeniach opisane wyżej.
+
+---
+
 ## D-242 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
 
 **Decyzja właściciela: rdzeń z #1110, ekrany z #1168.** #1168 weszło na
@@ -15856,3 +15939,246 @@ Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
 `tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
 `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
 `scripts/wyjecie-z-zeszytu.mjs`.
+
+---
+
+## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`ModerationController::decide()` pytał wyłącznie `authorize('moderate', User::class)`,
+czyli „czy aktor jest moderatorem". Nie porównywał `reports.reporter_id`
+z aktorem ani roli osoby, którą decyzja karze (`ModeratedContent::osoba()`),
+a `applyAction()` wołał `suspend()` / `ban()` bez osobnej reguły. Jeden
+moderator mógł więc zgłosić administratora, sam to zgłoszenie rozstrzygnąć
+i go zbanować (ban unieważnia sesje). Przy kilku administratorach i w połączeniu
+z #1016 była to droga do odcięcia od panelu wszystkich, którzy rozpatrują
+odwołania.
+
+### Reguły
+
+1. **Nikt nie rozstrzyga sprawy, którą sam wniósł** — `ReportPolicy::decide()`.
+   Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
+   i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
+   bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
+   `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
+   administrator także moderatorów. **Konta administratora nie zawiesza ani
+   nie blokuje nikt z panelu** (równa ranga); sprawa administratora idzie do
+   właściciela serwisu, a rolę odbiera `kuking:nadaj-role`, która pilnuje
+   ostatniego czynnego administratora (#1016). Ta sama reguła rangi wyklucza
+   karanie samego siebie.
+3. **Ocena treści nie zależy od roli autora.** Ukrycie, usunięcie
+   i ostrzeżenie wpisu administratora działają jak przy każdym innym.
+
+Obie reguły są sprawdzane w `decide()` **pod blokadą wiersza zgłoszenia,
+przed `ModerationAction::create()`**. Odmowa wycofuje transakcję: zgłoszenie
+zostaje otwarte, nie powstaje decyzja, powiadomienie ani wpis
+`moderation.decided`. Wstępne sprawdzenie „własnej sprawy" przed transakcją
+służy tylko komunikatowi. Reguły żyją w politykach, więc przyszła droga
+wykonująca sankcję (endpoint, zadanie, komenda) pyta o te same ability.
+
+### Czego ta zmiana nie robi
+
+Nie rozwiązuje #1016 (ochrona ostatniego czynnego administratora przy
+zmianie statusu i współbieżności) — zamyka tylko drogę przez panel moderacji,
+która tamten problem czyniła osiągalnym dla moderatora. Nie ukrywa formularza
+decyzji przy własnym zgłoszeniu: formularz zostaje, a serwer odmawia
+z komunikatem, co zrobić.
+
+📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
+`app/Http/Controllers/Admin/ModerationController.php`,
+`tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
+## D-245 — Włączenie 2FA prosi o obecne hasło, jak jej wyłączenie (#1376, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`POST /ustawienia/2fa/wlacz` (`TwoFactorSettingsController::confirm()`)
+sprawdzał wyłącznie sześciocyfrowy kod z sekretu wygenerowanego chwilę
+wcześniej na tym samym ekranie. Kod dowodzi, że **nowy** telefon jest dobrze
+ustawiony — nie tego, że sesję obsługuje właściciel konta. Kto przejął ważną
+sesję (30 dni), podpinał własny telefon, zabierał kody zapasowe, a właściciel
+przy następnym logowaniu stawał przed kodem, którego nie ma. Wyłączenie 2FA
+i nowe kody zapasowe o hasło już prosiły; włączenie — nie.
+
+### Reguła
+
+Włączenie 2FA wymaga **obecnego hasła do Kuking** obok kodu z aplikacji.
+Zmiana telefonu idzie przez wyłączenie (hasło) i ponowne włączenie (hasło),
+więc obejmuje ją ta sama reguła. Hasło jest sprawdzane **przed** kodem: przy
+złym haśle kod nie jest ani weryfikowany, ani zużywany, a 2FA zostaje
+wyłączona. Trasa dostaje oba limity: `two_factor` (kod) i `confirm_password`
+(`Hash::check()` to ta sama wyrocznia co przy wyłączeniu, więc nie ma prawa
+mieć luźniejszego limitu).
+
+**Dlaczego pole hasła, a nie middleware `password.confirm` z Laravela.**
+Repozytorium nigdzie go nie używa. Każda wrażliwa akcja w ustawieniach
+(zmiana hasła i adresu, wyłączenie 2FA, nowe kody, usunięcie konta) prosi
+o hasło w tym samym formularzu i sprawdza je `Hash::check()` pod limitem
+`confirm_password`. Włączenie idzie tą samą drogą: jedno pole więcej na
+ekranie, który człowiek i tak wypełnia, zamiast osobnego ekranu z własnym
+oknem ważności.
+
+### Konta bez własnego hasła (Google, #876)
+
+Nie wymyślamy dla nich drugiej drogi: tak samo jak przy wyłączaniu, ekran
+mówi, jak ustawić hasło do Kuking przez „Nie pamiętam hasła"
+(`two_factor/_password-help`), i ostrzega, żeby nie wpisywać hasła do Google.
+Świadomy koszt: dopóki serwis nie wysyła poczty (`Poczta::dziala()`), konto
+założone wyłącznie przez Google nie włączy 2FA samo — ekran mówi to wprost
+i kieruje do „Napisz do nas". Świeże ponowne logowanie przez Google jako
+dowód tożsamości to osobna decyzja, tu niepodjęta.
+
+### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
+
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
+istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
+inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
+mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
+Wszystkie te poświadczenia powstały bez drugiego składnika; zostawione,
+otwierałyby konto bez kodu, a konto moderatora od tej chwili także `/admin`,
+bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
+zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
+się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
+bieżącej przeglądarki nie jest wystawiane — jak w #584.
+
+📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
+`routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
+`resources/views/pages/settings/two_factor/_password-help.blade.php`,
+`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`,
+`tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php`,
+`docs/security/ZAPAMIETANE_LOGOWANIE_584.md`
+
+---
+
+## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
+`claude/audyt-w-transakcji-g7`) · Prostuje podstawę `AuditLogEntry::recordBezWywracania()` ·
+Status: **obowiązuje**
+
+### Co było źle
+
+`recordBezWywracania()` i jego trzy miejsca wywołania powoływały się na
+**D-088** cytatem „dziennik audytu zostaje POZA transakcją… jest osobnym
+śladem, nie częścią relacji". D-088 dotyczy **odmowy rollbacku migracji**
+i o dzienniku audytu nie mówi nic. Cytat pochodzi z **D-090** i opisuje
+wyłącznie `BlockUser` (wpis ma powstać wtedy, gdy blokada naprawdę się
+zapisała). Na tej złej podstawie zbiorcze zamknięcie sygnałów automatu
+(#1343) poszło drogą „za transakcją" — wbrew issue, które wymagało wpisu
+w transakcji decyzji.
+
+### Reguła
+
+Każdy wpis `audit_log` należy do jednej z dwóch klas. Trzeciej nie ma.
+
+1. **Atomowy z decyzją — `record()` WEWNĄTRZ `DB::transaction` zmiany.**
+   Dla decyzji podjętych przez człowieka z uprawnieniami wobec cudzej
+   treści albo konta i dla zmian uprawnień: `moderation.decided`,
+   `moderation.automat_dismissed`, `user.role_changed`, a także
+   `post.published` (już tak zapisany). Tu wpis jest częścią decyzji —
+   „kto, kiedy i ile jednym kliknięciem" nie ma innego zapisu. Awaria
+   dziennika **cofa decyzję**, człowiek dostaje komunikat „nic się nie
+   zmieniło, spróbuj jeszcze raz", a ponowienie daje jeden komplet.
+   Decyzja bez wpisu jest gorsza niż decyzja, którą trzeba kliknąć drugi raz.
+2. **Pomocniczy — `recordBezWywracania()` PO zatwierdzeniu zmiany.** Dla
+   czynności samego człowieka, których autorytatywny ślad żyje w tabeli
+   zmiany: `account.registered` (wiersz `users` z `created_at`
+   i `age_confirmed_at`), `content.reported` (wiersz `reports` z terminami
+   DSA). Tu cofnięcie zmiany przez awarię dziennika byłoby szkodą dla
+   człowieka (utracone zgłoszenie z biegnącym terminem, rejestracja
+   odbijająca się od własnego adresu), a 500 po `COMMIT` — kłamstwem.
+   Awaria idzie do `report()` z nazwą brakującego wpisu; to nie jest cichy
+   sukces.
+
+Rozstrzyga pytanie: **czy bez tego wpisu zostaje w bazie pełny ślad tego,
+kto i co zdecydował?** Nie — klasa 1. Tak — klasa 2.
+
+Ta sama zasada dotyczy innych skutków po `COMMIT` rejestracji (#1373):
+`event(new Registered)` i obserwowanie gospodarza stoją w punkcie zapisu,
+ich awaria idzie do `report()`, a `ZalozKonto` zwraca `ZalozoneKonto`
+z flagą „list z potwierdzeniem nie wyszedł", żeby ekran po rejestracji nie
+kazał czekać na wiadomość, której nie ma. Ponowienie listu należy do
+człowieka („Wyślij potwierdzenie jeszcze raz" w Ustawieniach), naprawa
+obserwowania — do operatora (jedno `FollowUser` dla konta z raportu).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
+(`BlockUser` z D-090, zmiany adresu e-mail, logowania i inne). Zostają,
+jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
+klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
+
+### Dowód
+
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
+awaria `moderation.automat_dismissed` → brak `ModerationAction`, grupa
+otwarta, komunikat błędu; ponowienie → jedna decyzja i jeden wpis. Awarie
+`account.registered`, `content.reported`, `Registered` i obserwowania
+gospodarza → konto albo sprawa istnieje, odpowiedź udana, `report()`
+z nazwą braku (rejestracja hasłem, Google i Facebook).
+
+### Wycofanie
+
+Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
+
+22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
+przepisu i tryb gotowania traktują `no_amount` INACZEJ i tak ma zostać.
+To nie jest rozjazd do naprawienia ani przeoczenie po scaleniu — jest to
+decyzja, i jest zapisana tutaj właśnie po to, żeby następna osoba nie wzięła
+jej za usterkę i nie „ujednoliciła" dwóch ekranów jednym commitem.
+
+**Strona przepisu (`resources/views/pages/recipes/show.blade.php`) nie dopisuje
+niczego.** Ten ekran jest tekstem autora — co do znaku. „Sól do smaku",
+„mleko ile weźmie", „olej do smażenia" to zdania, które człowiek napisał
+świadomie, i serwis nie dokłada do nich swoich słów. Każdy dopisek o dozowaniu
+byłby zgadywaniem za autora: „mleko ile weźmie" mówi o konsystencji ciasta,
+„olej do smażenia" o zastosowaniu — żadne z nich nie jest doprawianiem, a to
+właśnie mierzyło #878. Pilnuje tego
+`tests/Feature/SkladnikBezIlosciTest::test_przepis_zachowuje_tekst_autora_bez_dopisywania_sposobu_dozowania`,
+porównując wiersze listy znak w znak.
+
+**Tryb gotowania (`resources/views/pages/recipes/cooking.blade.php`) dopisuje
+„— do smaku".** Ten ekran nie jest tekstem autora, tylko widokiem roboczym:
+człowiek stoi przy garnku, zerka znad patelni i ma jedną rękę wolną. Gołe
+„sól" w rozwiniętej liście wygląda w tej sytuacji jak brak informacji — jak
+coś, co się zgubiło po drodze — i wysyła gotującego z powrotem na stronę
+przepisu, żeby sprawdził, czy czegoś nie brakuje. Dopisek jest tam po to, żeby
+jednoznacznie powiedzieć „nic nie zginęło, sypnij ile lubisz", i nie musi być
+dosłownym cytatem z autora, bo ten ekran niczego nie cytuje. Pilnuje tego
+`tests/Feature/CookingModeTest::test_skladniki_pokazuja_grupy_i_do_smaku`.
+Warunek z #44 zostaje: dopisku nie ma, gdy autor sam napisał „do smaku"
+w tekście składnika, żeby nie wyszło „sól do smaku — do smaku".
+
+**Trzecia treść odpada.** PR #1222 proponował jedno neutralne „— bez podanej
+ilości" na obu ekranach, w nowym wspólnym komponencie
+`resources/views/components/wiersz-skladnika.blade.php`. Komponent nie miał
+wołającego — żaden widok go nie renderował — a jego test
+`WierszSkladnikaJedenKontraktTest` pilnował treści sprzecznej z OBOMA
+istniejącymi testami naraz: wymagał dopisku tam, gdzie #878 wymaga jego braku,
+i innego dopisku tam, gdzie #764/#1197 wymaga „do smaku". Oba pliki zostały
+z gałęzi usunięte. Samo słowo „bez podanej ilości" jest zresztą nadal
+zgadywaniem — mówi czytelnikowi, że czegoś na ekranie nie ma, zamiast pomóc
+mu gotować.
+
+**Konsekwencja dla przyszłych zmian.** `SkladnikBezIlosciTest`
+i `CookingModeTest` pilnują DWÓCH RÓŻNYCH zachowań i żadnego z nich nie wolno
+osłabić ani skasować „dla spójności". Czerwień jednego z nich po wprowadzeniu
+wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
+komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
+tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
+ponownej decyzji właściciela.

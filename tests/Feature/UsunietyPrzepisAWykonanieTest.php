@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Models\CookedEvent;
+use App\Models\ModerationAction;
 use App\Models\Recipe;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -119,16 +121,40 @@ class UsunietyPrzepisAWykonanieTest extends TestCase
         $this->assertNull(CookedEvent::find($event->getKey()));
     }
 
-    public function test_moderator_tez_moze_usunac_wykonanie_osierocone(): void
+    public function test_moderator_zdejmuje_wykonanie_osierocone_tylko_z_panelu(): void
     {
         [, , $event] = $this->wykonanieOsierocone();
 
         $moderator = $this->moderator();
 
+        // Issue #932: zwykły DELETE należy do autora. Moderator dostaje 403
+        // i zdejmuje wykonanie decyzją w panelu — z wpisem w rejestrze.
         $this->actingAs($moderator)
             ->delete(route('cooked.destroy', $event))
-            ->assertRedirect();
+            ->assertForbidden();
+        $this->assertNotNull(CookedEvent::find($event->getKey()));
+
+        $report = Report::create([
+            'reporter_id' => $this->user('zglaszajacy')->getKey(),
+            'target_type' => 'cooked_event',
+            'target_id' => $event->getKey(),
+            'reason' => 'spam',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->actingAs($moderator)
+            ->post(route('admin.reports.decide', $report), [
+                'action' => ModerationAction::ACTION_REMOVE,
+                'reason_code' => 'spam_link',
+                'user_message' => 'Usunęliśmy to wykonanie, bo zawierało link reklamowy.',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
         $this->assertNull(CookedEvent::find($event->getKey()));
+        $this->assertDatabaseHas('moderation_actions', [
+            'report_id' => $report->getKey(),
+            'action' => ModerationAction::ACTION_REMOVE,
+        ]);
     }
 }

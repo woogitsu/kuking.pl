@@ -51,6 +51,11 @@ final class ChangeUserRole
             }
 
             $fresh->promoteTo($role);
+            // Rola to uprawnienie, nie wygląd (#1315): sesja otwarta przed
+            // awansem weszłaby do panelu bez ponownego logowania i 2FA,
+            // a po degradacji trzymałaby w pamięci stan sprzed zmiany.
+            // Komenda nie ma własnej sesji, więc padają wszystkie.
+            $fresh->invalidateSessions();
             AuditLogEntry::record(
                 action: 'user.role_changed',
                 subject: $fresh,

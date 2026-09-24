@@ -47,6 +47,26 @@ rozstrzyga to jawnie, a formularz pokazuje tylko decyzje możliwe dla danego
 zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
 `status`: przycisk istniał i nie robił nic.
 
+### Kto może rozstrzygnąć i kogo ukarać (issue #1408, D-244)
+
+- **Nikt nie rozstrzyga zgłoszenia, które sam złożył** — także administrator
+  i także decyzją „Bez działania" (`ReportPolicy::decide()`). Zgłoszenie
+  prawne bez konta rozstrzyga każdy moderator.
+- **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
+  moderator karze zwykłe konta, administrator także moderatorów. Konta
+  administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
+  do właściciela serwisu, rolę odbiera `kuking:nadaj-role`.
+- Ukrycie, usunięcie i ostrzeżenie treści nie zależą od roli autora.
+- **Cudzą treść moderator usuwa wyłącznie z panelu** (issue #932). Zwykły
+  `DELETE` ze strony wpisu, przepisu, komentarza i „Ugotowałem” należy do
+  autora (przy komentarzu także do autora treści, pod którą stoi) — moderator
+  i administrator dostają tam 403, także z 2FA. Tamta droga omijała 2FA
+  panelu, uzasadnienie, wiersz w `moderation_actions` i odwołanie. Pilnuje
+  tego `tests/Feature/ModeratorUsuwaCudzaTrescTylkoZPaneluTest.php`.
+
+Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
+w dzienniku.
+
 ### Przywracanie treści (issue #65)
 
 Ukrycie **musi** dać się cofnąć z poziomu serwisu. Podręcznik moderacji sam
@@ -247,6 +267,20 @@ są sprawdzane ponownie po oczekiwaniu. Pytanie o potwierdzenie nie trzyma
 transakcji. To ochrona przed równoległymi degradacjami, nie nowa blokada
 zawieszenia, bana ani usunięcia konta. Zakres i pomiar:
 [`OSTATNI_ADMINISTRATOR_1016.md`](security/OSTATNI_ADMINISTRATOR_1016.md).
+
+**Zawieszone konto obsługi nie ma uprawnień moderacji** (issue #1336, #1351).
+Zawieszenie nie zmienia roli, ale `User::isModerator()` i `User::isAdmin()`
+zwracają `true` tylko dla czynnego konta (`status = active`). Zawieszony
+moderator albo administrator czyta własne treści, może się wylogować i złożyć
+odwołanie jak każdy zawieszony — ale panel `/admin/**` daje mu 404, a Policy
+nie otwierają mu cudzych szkiców, prywatnych treści ani zdjęć.
+Zawiadomienia o odwołaniach (`appeal.filed`) widzi na liście, w liczniku
+i przez „Zobacz" tylko czynny administrator; po odebraniu roli albo przy
+zawieszeniu wiersz zostaje w bazie i wraca razem z uprawnieniami.
+`reinstate()` przywraca dostęp bez ponownego nadawania roli (2FA dalej
+obowiązuje). Zakaz wejścia kontem obsługi linkiem, przez Google albo
+Facebooka patrzy na samą rolę (`User::hasStaffRole()`), więc zawieszenie go
+nie zdejmuje.
 
 **Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta

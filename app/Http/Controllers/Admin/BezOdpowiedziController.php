@@ -120,6 +120,18 @@ class BezOdpowiedziController extends Controller
             'body.required' => 'Napisz coś, zanim wyślesz odpowiedź.',
         ]);
 
+        // Ta sama granica co zwykły komentarz (`PostController::comment`,
+        // #1382). Zapytanie kolejki to filtr listy, nie prawo komentowania —
+        // np. zapowiedź prywatnego przepisu jest w kolejce, a zwykłą ścieżką
+        // nie da się jej skomentować. `LockCommentContext` sprawdza tę Policy
+        // drugi raz pod zamkiem; tu jest wejście, więc odmowa pada przed
+        // akcją domenową. Błąd pola zamiast 403 — napisana odpowiedź zostaje.
+        if ($request->user()->cannot('comment', $post)) {
+            return back()->withInput()->withErrors([
+                'body' => 'Tego wpisu nie możesz skomentować — nie masz do niego dostępu jako czytelnik. Wybierz inny wpis z listy.',
+            ]);
+        }
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
