@@ -227,7 +227,6 @@ class KolejkiModeracjiBezWachlarzaZapytanTest extends TestCase
             Report::create([
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),
-                'subject_user_id' => $autor->getKey(),
                 'reporter_id' => $zglaszajacy->getKey(),
                 'source' => Report::SOURCE_COMMUNITY,
                 'status' => Report::STATUS_OPEN,
@@ -252,7 +251,6 @@ class KolejkiModeracjiBezWachlarzaZapytanTest extends TestCase
             Report::create([
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),
-                'subject_user_id' => $autor->getKey(),
                 'autor_tresci_id' => $autor->getKey(),
                 'source' => Report::SOURCE_AUTOMAT,
                 'status' => Report::STATUS_OPEN,
@@ -271,7 +269,6 @@ class KolejkiModeracjiBezWachlarzaZapytanTest extends TestCase
             $zgloszenie = Report::create([
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),
-                'subject_user_id' => $autor->getKey(),
                 'reporter_id' => $this->user()->getKey(),
                 'source' => Report::SOURCE_COMMUNITY,
                 'status' => Report::STATUS_RESOLVED,

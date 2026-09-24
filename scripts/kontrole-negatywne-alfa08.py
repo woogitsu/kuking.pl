@@ -198,6 +198,11 @@ ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
+# Tryb ścisły Eloquent poza produkcją (#976). Mutacja usuwa samo włączenie
+# z `AppServiceProvider` — test kontraktu ma zapalić, że ochron nie ma.
+TRYB_SCISLY = "app/Providers/AppServiceProvider.php"
+TRYB_SCISLY_TEST = "TrybScislyEloquentTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -474,6 +479,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
+     lambda s: replace_once(s, "        Model::shouldBeStrict(! $this->app->isProduction());\n", "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +504,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(TRYB_SCISLY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

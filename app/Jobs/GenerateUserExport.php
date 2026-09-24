@@ -445,6 +445,12 @@ class GenerateUserExport implements ShouldQueue
             ->orderBy('created_at')
             ->get();
 
+        // `attributionLine()` w widoku czyta autora i jego profil. Autorem
+        // każdego z tych przepisów jest właściciel paczki, już wczytany —
+        // podpinamy go zamiast dociągać osobno na każdy przepis (#976).
+        $user->loadMissing('profile');
+        $recipes->each->setRelation('author', $user);
+
         // Komentarze bierzemy z już przygotowanych danych — są tam przepuszczone
         // przez filtr cudzych danych osobowych i nie chcemy tego filtru
         // powtarzać (ani zapomnieć) w widoku.

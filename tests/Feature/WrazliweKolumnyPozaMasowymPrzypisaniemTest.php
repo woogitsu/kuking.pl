@@ -571,6 +571,9 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
     {
         $basia = $this->user('basia', ['password' => Hash::make('stare-haslo-basi')]);
 
+        // Skutek w bazie po cichym odrzuceniu, jak w produkcji (#976).
+        $this->mierzMasowePrzypisanieJakWProdukcji();
+
         $basia->update(['password' => 'podstawione-przez-napastnika']);
 
         $this->assertTrue(

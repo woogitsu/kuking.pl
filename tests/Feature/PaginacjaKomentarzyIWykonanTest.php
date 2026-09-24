@@ -137,7 +137,7 @@ class PaginacjaKomentarzyIWykonanTest extends TestCase
         $this->cookedTotal = $cookedTotal;
         $this->recipeUrl = route('recipes.show', $recipe->slug);
         for ($i = 0; $i < $this->commentsTotal; $i++) {
-            Comment::create(['recipe_id' => $recipe->getKey(), 'author_id' => $author->getKey(), 'body' => 'Komentarz652-'.$i, 'status' => Comment::STATUS_PUBLISHED, 'created_at' => now()->subMinutes(100 - $i)]);
+            Comment::forceCreate(['recipe_id' => $recipe->getKey(), 'author_id' => $author->getKey(), 'body' => 'Komentarz652-'.$i, 'status' => Comment::STATUS_PUBLISHED, 'created_at' => now()->subMinutes(100 - $i)]);
         }
         for ($i = 0; $i < $this->cookedTotal; $i++) {
             CookedEvent::factory()->create(['recipe_id' => $recipe->getKey(), 'user_id' => $author->getKey(), 'note' => 'Wykonanie652-'.$i, 'cooked_at' => now()->subMinutes($i)]);

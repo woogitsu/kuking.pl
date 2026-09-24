@@ -173,7 +173,6 @@ class PowiadomieniaBezWachlarzaZapytanTest extends TestCase
             $zgloszenie = Report::create(array_merge([
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),
-                'subject_user_id' => $adresat->getKey(),
                 'status' => Report::STATUS_RESOLVED,
                 'resolved_at' => now(),
             ], $automat ? [

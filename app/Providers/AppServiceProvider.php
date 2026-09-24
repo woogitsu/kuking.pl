@@ -14,6 +14,7 @@ use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -36,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->wlaczTrybScislyEloquentPozaProdukcja();
+
         // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
         // `x-amz-acl` (issue #120, audyt G-02).
         //
@@ -236,5 +239,24 @@ class AppServiceProvider extends ServiceProvider
             $model::saved($odswiez);
             $model::deleted($odswiez);
         }
+    }
+
+    /**
+     * TRYB ŚCISŁY ELOQUENT POZA PRODUKCJĄ (issue #976).
+     *
+     * `shouldBeStrict()` włącza trzy ochrony naraz: `preventLazyLoading()`
+     * (przypadkowe N+1), `preventSilentlyDiscardingAttributes()` (atrybut
+     * spoza `$fillable` odrzucony po cichu) i `preventAccessingMissingAttributes()`
+     * (odczyt kolumny, której nie pobrał częściowy `select()`). W `local`
+     * i `testing` każde z tych przeoczeń przerywa test dokładnie w miejscu
+     * błędu; produkcja zostaje tolerancyjna, żeby przeoczenie nie stało się
+     * błędem widocznym dla użytkownika.
+     *
+     * Świadomie BEZ automatycznego eager loadingu relacji — maskowałby brak
+     * jawnego planu zapytań (`with()`, `loadMissing()`).
+     */
+    private function wlaczTrybScislyEloquentPozaProdukcja(): void
+    {
+        Model::shouldBeStrict(! $this->app->isProduction());
     }
 }

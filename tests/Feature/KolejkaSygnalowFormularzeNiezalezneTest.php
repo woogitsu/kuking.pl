@@ -42,7 +42,6 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             'target_type' => 'post',
             'target_id' => $wpis->getKey(),
             'autor_tresci_id' => $autor->getKey(),
-            'subject_user_id' => $autor->getKey(),
             'source' => Report::SOURCE_AUTOMAT,
             'status' => Report::STATUS_OPEN,
             'reason' => OcenaModelem::KOD,

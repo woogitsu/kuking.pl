@@ -7,6 +7,7 @@ namespace Tests;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -32,6 +33,22 @@ abstract class TestCase extends BaseTestCase
         $this->withoutVite();
         Http::preventStrayRequests();
         $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * MIERZY MASOWE PRZYPISANIE TAK, JAK DZIAŁA W PRODUKCJI — CICHYM ODRZUCENIEM.
+     *
+     * Poza produkcją `AppServiceProvider` włącza tryb ścisły Eloquent
+     * (#976), więc pole spoza `$fillable` rzuca `MassAssignmentException`
+     * już przy `fill()`. Testy pól sterujących (AGENTS.md §7, D-006) mierzą
+     * jednak SKUTEK w bazie po `update($request->all())` w produkcji, gdzie
+     * ta ochrona jest wyłączona — i tylko po to ją tu wyłączają. Dotyczy
+     * wyłącznie bieżącego testu: następny `setUp()` buduje aplikację od
+     * nowa, a jej `boot()` włącza tryb ścisły z powrotem.
+     */
+    protected function mierzMasowePrzypisanieJakWProdukcji(): void
+    {
+        Model::preventSilentlyDiscardingAttributes(false);
     }
 
     /**

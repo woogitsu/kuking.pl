@@ -42,7 +42,7 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         // Wypełniamy pierwszą stronę (i trochę więcej), żeby wątek, w którym
         // padnie odpowiedź, na pewno leżał na DRUGIEJ stronie.
         for ($i = 0; $i < $rozmiarStrony; $i++) {
-            Comment::create([
+            Comment::forceCreate([
                 'author_id' => $this->user('wypelniacz759_'.$i)->getKey(),
                 'post_id' => $wpis->getKey(),
                 'body' => 'Wypełniacz numer '.$i,
@@ -52,7 +52,7 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         }
 
         $korzenNaDrugiejStronie = $this->user('korzendrugastrona759');
-        $komentarzGlowny = Comment::create([
+        $komentarzGlowny = Comment::forceCreate([
             'author_id' => $korzenNaDrugiejStronie->getKey(),
             'post_id' => $wpis->getKey(),
             'body' => 'KORZEN-NA-DRUGIEJ-STRONIE-759',
@@ -125,7 +125,7 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         $rozmiarStrony = (int) config('kuking.comments.page_size');
 
         for ($i = 0; $i < $rozmiarStrony; $i++) {
-            Comment::create([
+            Comment::forceCreate([
                 'author_id' => $this->user('wypelniaczprzepis759_'.$i)->getKey(),
                 'recipe_id' => $przepis->getKey(),
                 'body' => 'Wypełniacz przepisu numer '.$i,
@@ -135,7 +135,7 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         }
 
         $korzen = $this->user('korzenprzepis759');
-        $komentarzGlowny = Comment::create([
+        $komentarzGlowny = Comment::forceCreate([
             'author_id' => $korzen->getKey(),
             'recipe_id' => $przepis->getKey(),
             'body' => 'KORZEN-PRZEPIS-DRUGA-STRONA-759',

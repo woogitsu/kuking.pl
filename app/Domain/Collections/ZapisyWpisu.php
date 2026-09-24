@@ -186,7 +186,10 @@ final class ZapisyWpisu
      */
     public function liczba(Post $post): ?int
     {
-        $wartosc = $post->getAttribute('zapisow_count');
+        // Surowe atrybuty, nie `getAttribute()`: brak kolumny to tu legalny
+        // stan („ekran nie doliczył”), a w trybie ścisłym Eloquent (#976)
+        // `getAttribute()` rzuca na kolumnę, której nie ma w SELECT-cie.
+        $wartosc = $post->getAttributes()['zapisow_count'] ?? null;
 
         return $wartosc === null ? null : (int) $wartosc;
     }
@@ -194,7 +197,8 @@ final class ZapisyWpisu
     /** Czy widz ma ten wpis w swoim zeszycie (potwierdzenie na karcie). */
     public function czyZapisany(Post $post): bool
     {
-        return (bool) $post->getAttribute('czy_zapisany');
+        // Jak w `liczba()`: ekran, który nie doliczył kolumny, to „nie zapisany”.
+        return (bool) ($post->getAttributes()['czy_zapisany'] ?? false);
     }
 
     /**

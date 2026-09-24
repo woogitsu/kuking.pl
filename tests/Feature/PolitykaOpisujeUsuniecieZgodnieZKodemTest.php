@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,9 +51,18 @@ class PolitykaOpisujeUsuniecieZgodnieZKodemTest extends TestCase
     {
         $uzytkownik = $this->user('kucharka');
 
-        app(EraseAccountData::class)->handle($uzytkownik->fresh());
+        // Bez oznaczenia do usunięcia `handle()` nic nie robi i zwraca false —
+        // podpis zostawał „Testowa osoba”, czego test nie widział (#976).
+        $uzytkownik->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+        $this->assertTrue(
+            app(EraseAccountData::class)->handle($uzytkownik->fresh()),
+            'Kontrola: anonimizacja naprawdę się wykonała.',
+        );
 
-        $podpis = (string) $uzytkownik->fresh()?->display_name;
+        // Podpis siedzi w profilu, nie w `users` — `$user->display_name` był
+        // zawsze pusty, więc obie asercje niżej przechodziły na pustym
+        // napisie niezależnie od polityki (ujawnił to tryb ścisły, #976).
+        $podpis = (string) $uzytkownik->fresh()?->displayName();
 
         // Kontrola: bez tej asercji test przechodziłby, gdyby anonimizacja
         // w ogóle nie zmieniła nazwy.
