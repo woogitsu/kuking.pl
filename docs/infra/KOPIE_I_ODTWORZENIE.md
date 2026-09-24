@@ -376,6 +376,11 @@ wcześniej nie mówił: **bucketów zdjęć nie kopiuje dziś nic.** Kopie z §7
 obejmują wyłącznie bazę, a R2 nie ma wersjonowania obiektów ani kosza — więc
 „utracone" znaczy tu utracone naprawdę, a nie „do przywrócenia z kopii":
 
+> Ochrona przed logicznym usunięciem zdjęć (#617) — bucket kopii z datowanymi
+> migawkami, komenda `kuking:sprawdz-kopie-zdjec` i próba odtworzenia — ma
+> własny runbook: **`docs/infra/DR_ZDJEC_R2.md`**. Dopóki jego tabela §8 jest
+> pusta, zdania niżej opisują stan faktyczny.
+
 **(c1) Warianty (`r2_publiczne`) utracone, oryginały (`r2`) całe.**
 Da się przetworzyć na nowo — ale w repozytorium **nie ma dziś gotowej
 komendy** do masowego ponownego przetworzenia (`ProcessUploadedImage`
