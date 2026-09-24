@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -27,9 +29,16 @@ class NotificationController extends Controller
             ->with('actor.profile.avatar')
             ->paginate(30);
 
+        $this->sprawdzWykonania($notifications->items());
+
         return view('pages.notifications', [
             'notifications' => $notifications,
+            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
+            // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
+            // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
+            // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
+            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
         ]);
     }
 
@@ -91,6 +100,43 @@ class NotificationController extends Controller
             ->whereIn('id', array_keys($identyfikatory))
             ->get()
             ->keyBy(fn (ModerationAction $decyzja): string => (string) $decyzja->getKey());
+    }
+
+    /**
+     * Czy wykonania z powiadomień o ugotowaniu na tej stronie jeszcze
+     * istnieją (issue #771) — JEDNYM zapytaniem, z tego samego powodu co
+     * `decyzje()` wyżej: bez tego każde takie powiadomienie pytałoby
+     * o swoje wykonanie osobno, w widoku, dwa razy.
+     *
+     * @param  list<Notification>  $powiadomienia
+     */
+    private function sprawdzWykonania(array $powiadomienia): void
+    {
+        $doSprawdzenia = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            $id = $powiadomienie->data['cooked_event_id'] ?? null;
+
+            if ($powiadomienie->type === Notification::TYPE_COOKED && is_string($id) && Str::isUuid($id)) {
+                $doSprawdzenia[$id][] = $powiadomienie;
+            }
+        }
+
+        if ($doSprawdzenia === []) {
+            return;
+        }
+
+        $istniejace = CookedEvent::query()
+            ->whereIn('id', array_keys($doSprawdzenia))
+            ->pluck('id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->flip();
+
+        foreach ($doSprawdzenia as $id => $grupa) {
+            foreach ($grupa as $powiadomienie) {
+                $powiadomienie->zapamietajIstnienieWykonania($istniejace->has($id));
+            }
+        }
     }
 
     /**
@@ -202,37 +248,111 @@ class NotificationController extends Controller
         // `notifications()`, czyli `WHERE user_id = <ta osoba>` — cudzy wiersz
         // nie wejdzie do `UPDATE`, nawet gdyby ktoś kiedyś rozluźnił `firstOrFail()`
         // wyżej. AGENTS.md §7: UUID w adresie to nie autoryzacja.
-        $request->user()
+        $oznaczono = $request->user()
             ->notifications()
             ->whereKey($powiadomienie->getKey())
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
+        // ISSUE #771: wykonanie mogło zniknąć między wyświetleniem listy
+        // a kliknięciem. Zamiast 404 — zdanie, co się stało.
+        if ($powiadomienie->wykonanieUsuniete()) {
+            return back()->with('status', 'To ugotowanie zostało usunięte.');
+        }
+
         $cel = $powiadomienie->adresDocelowy();
 
-        // ODESŁANIE TYLKO W OBRĘBIE SERWISU. Adres dla typów spoza `match`
-        // bierze się z `data['url']`, czyli z wiersza w bazie. Dziś wpisuje
-        // go wyłącznie nasz kod, ale przekierowanie pod dowolny adres z bazy
-        // to gotowe otwarte przekierowanie na przyszłość — a koszt zamknięcia
-        // tego dziś wynosi trzy linijki.
-        if ($cel === null || ! $this->wlasnyAdres($cel)) {
+        // ODESŁANIE TYLKO W OBRĘBIE SERWISU (issue #733) — patrz `adresWewnetrzny()`.
+        $cel = $cel === null ? null : $this->adresWewnetrzny($cel);
+
+        if ($cel === null) {
             return back();
         }
 
-        return redirect()->to($cel);
-    }
+        $odeslanie = redirect()->to($cel);
 
-    /** Czy adres prowadzi do tego serwisu, a nie na zewnątrz. */
-    private function wlasnyAdres(string $adres): bool
-    {
-        if (str_starts_with($adres, '/') && ! str_starts_with($adres, '//')) {
-            return true;
+        // ISSUE #770: PIERWSZE „Zobacz" przy ugotowaniu ma pokazać ekran
+        // „Komuś wyszło". `celebrate()` rozpoznaje „już pokazano" po `read_at`,
+        // a ten właśnie ustawiliśmy wyżej — bez tej informacji pierwsze
+        // kliknięcie lądowało od razu na zwykłym wpisie. Nie cofamy `read_at`
+        // (od niego liczy się retencja, D-079), tylko przekazujemy jednemu
+        // następnemu żądaniu, że to TO kliknięcie zgasiło powiadomienie.
+        // `$oznaczono === 1` rozstrzyga baza, więc drugie kliknięcie (albo
+        // wcześniejsze „oznacz wszystkie") celebracji nie powtórzy.
+        if ($oznaczono === 1 && $powiadomienie->type === Notification::TYPE_COOKED) {
+            $odeslanie->with(Notification::SESJA_PIERWSZE_OTWARCIE, (string) $powiadomienie->getKey());
         }
 
-        $gospodarz = parse_url($adres, PHP_URL_HOST);
+        return $odeslanie;
+    }
 
-        return $gospodarz !== false
-            && $gospodarz !== null
-            && $gospodarz === parse_url((string) config('app.url'), PHP_URL_HOST);
+    /**
+     * Adres wewnątrz serwisu, pod który wolno odesłać — albo `null` (issue #733).
+     *
+     * Adres dla typów spoza `match` w `adresDocelowy()` bierze się
+     * z `data['url']`, czyli z wiersza w bazie. Dziś wpisuje go wyłącznie
+     * nasz kod, ale przekierowanie pod dowolny adres z bazy to gotowe
+     * otwarte przekierowanie na przyszłość.
+     *
+     * CO PRZEPUSZCZAŁ POPRZEDNI WARUNEK („zaczyna się od `/`, ale nie od `//`"
+     * albo „host równy hostowi aplikacji"): `/\obcy.invalid` (przeglądarki
+     * czytają `\` jak `/`), `https://kuking.pl//obcy.invalid` (po
+     * wyjęciu ścieżki `//obcy` to adres bez schematu), inny port tego
+     * samego hosta, `user@host`.
+     *
+     * JEDNO KRYTERIUM: wynikiem jest zawsze ŚCIEŻKA od jednego ukośnika,
+     * którą `redirect()->to()` dokleja do adresu aplikacji. Adres pełny
+     * przechodzi tylko z hostem aplikacji, schematem http(s), bez danych
+     * logowania i bez obcego portu — i też jest sprowadzany do ścieżki.
+     * Dzięki temu stary `http://` z tym samym hostem (nie ma na to decyzji,
+     * żeby go odrzucać) i tak kończy się na originie aplikacji, a nie
+     * na tym, który stoi w bazie.
+     */
+    private function adresWewnetrzny(string $adres): ?string
+    {
+        // Znaki sterujące i białe (przeglądarka po cichu wycina tabulator
+        // i nową linię, więc `/\t/obcy` staje się `//obcy`) oraz backslash.
+        if ($adres === '' || preg_match('/[\x00-\x20\x7F\\\\]/', $adres) === 1) {
+            return null;
+        }
+
+        $czesci = parse_url($adres);
+
+        if ($czesci === false) {
+            return null;
+        }
+
+        if (isset($czesci['scheme']) || isset($czesci['host'])) {
+            $schemat = strtolower($czesci['scheme'] ?? '');
+            $aplikacja = parse_url((string) config('app.url'));
+            $hostAplikacji = strtolower((string) ($aplikacja['host'] ?? ''));
+
+            if (! in_array($schemat, ['http', 'https'], true)
+                || isset($czesci['user'])
+                || isset($czesci['pass'])
+                || $hostAplikacji === ''
+                || strtolower((string) ($czesci['host'] ?? '')) !== $hostAplikacji) {
+                return null;
+            }
+
+            if (isset($czesci['port'])) {
+                $portAplikacji = $aplikacja['port']
+                    ?? (strtolower((string) ($aplikacja['scheme'] ?? 'https')) === 'http' ? 80 : 443);
+
+                if ($czesci['port'] !== $portAplikacji) {
+                    return null;
+                }
+            }
+
+            $adres = ($czesci['path'] ?? '') === '' ? '/' : $czesci['path'];
+            $adres .= isset($czesci['query']) ? '?'.$czesci['query'] : '';
+            $adres .= isset($czesci['fragment']) ? '#'.$czesci['fragment'] : '';
+        }
+
+        if (! str_starts_with($adres, '/') || str_starts_with($adres, '//')) {
+            return null;
+        }
+
+        return $adres;
     }
 }

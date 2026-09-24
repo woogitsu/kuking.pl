@@ -32,6 +32,49 @@ open
 → resolved / rejected
 ```
 
+## Kolejność w kolejce — priorytet (D-236)
+
+`/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`.
+Priorytet **liczy się z danych** (`App\Domain\Moderation\PriorytetSprawy`),
+nie ma kolumny w bazie i nie da się go wpisać ręcznie.
+
+| Priorytet | Skąd | Napis na karcie |
+|---|---|---|
+| **P0** — nie może czekać | `reason` ∈ `minor`, `sexual` — ta sama para, co `KategorieModeracji::PILNE` | „Nie może czekać" |
+| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
+| **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `dangerous_advice`, `other`) | bez plakietki |
+
+Wewnątrz jednego priorytetu porządek jest ten sam co zawsze: najnowsze na
+górze, remis rozstrzygany po `id` (stabilne stronicowanie —
+`KolejkiModeracjiMajaStabilnyPorzadekTest`).
+
+Podział zgodny z tabelą SLA w `docs/legal/MODERATION_PLAYBOOK.md`, gdzie
+opisane są też dwie granice: „groźby zagrażające życiu" i „aktywny doxxing"
+są tam P0, ale formularz nie ma takich pozycji, więc wchodzą jako P1.
+
+**Kategorię wybiera zgłaszający i nikt jej jeszcze nie sprawdził.** Priorytet
+zmienia WYŁĄCZNIE kolejność czytania i wysyła jeden list — nie ukrywa treści,
+nie ogranicza jej zasięgu i nie powiadamia autora.
+
+**Alarm pocztą przy P0.** `AlarmujOPilnymZgloszeniu` woła obie drogi
+zgłoszenia (społecznościową i prawną, bo ta druga działa bez konta) i wysyła
+`PilneZgloszenieOdCzlowieka` na `kuking.moderation.model.alarm_email` — ten
+sam adres, co alarm automatu (D-055). Pusty adres znaczy „bez poczty" i jest
+normalnym stanem lokalnie oraz w testach. List nie niesie treści zgłoszonej
+ani pola `details`.
+
+**Alarm nie daje się zalać (D-236).** Najwyżej jeden list o danym celu
+w oknie `moderation.alarm_czlowieka.okno_celu_godzin` (6 h), najwyżej
+`moderation.alarm_czlowieka.dzienny_sufit` (10) listów na dobę dla wszystkich
+celów — ostatni mówi, że kolejnych dziś nie będzie — i każdy list zajmuje
+miejsce we wspólnym liczniku poczty (D-239, klasa `wejscie`). Powyżej sufitu
+sprawa stoi w kolejce z plakietką, a dziennik mówi, dlaczego bez listu.
+
+**Plakietka i priorytet tylko dla otwartych.** Sprawa w innym stanie nie ma
+napisu „Nie może czekać"/„Na dziś", a w zakładce „Wszystkie" stoi za
+wszystkimi otwartymi, po dacie (`PriorytetSprawy::wKolejce`,
+`wyrazenieSqlKolejki`).
+
 ## Akcje
 
 - no action;
@@ -57,6 +100,12 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
   do właściciela serwisu, rolę odbiera `kuking:nadaj-role`.
 - Ukrycie, usunięcie i ostrzeżenie treści nie zależą od roli autora.
+- **Cudzą treść moderator usuwa wyłącznie z panelu** (issue #932). Zwykły
+  `DELETE` ze strony wpisu, przepisu, komentarza i „Ugotowałem” należy do
+  autora (przy komentarzu także do autora treści, pod którą stoi) — moderator
+  i administrator dostają tam 403, także z 2FA. Tamta droga omijała 2FA
+  panelu, uzasadnienie, wiersz w `moderation_actions` i odwołanie. Pilnuje
+  tego `tests/Feature/ModeratorUsuwaCudzaTrescTylkoZPaneluTest.php`.
 
 Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
 w dzienniku.

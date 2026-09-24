@@ -63,6 +63,7 @@ use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\WydanieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
 
@@ -99,6 +100,8 @@ Route::get('/szukaj', [SearchController::class, 'index'])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
+// Pełny SHA działającego wydania dla testu dymnego po wdrożeniu (#1012).
+Route::get('/wydanie', WydanieController::class)->name('wydanie');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
 
@@ -195,6 +198,9 @@ Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recip
 // bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
 // endpointów zmieniających stan.
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
+Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::class, 'restart'])
+    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+    ->name('cooking.restart');
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
@@ -964,8 +970,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // niżej), dla zwykłego konta zostaje opcjonalna.
     Route::get('/ustawienia/2fa', [TwoFactorSettingsController::class, 'edit'])->name('settings.two_factor.edit');
     Route::get('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'create'])->name('settings.two_factor.enable');
+    // Włączenie prosi o kod z NOWEGO telefonu ORAZ o obecne hasło (#1376,
+    // D-245). Dwa limity naraz: kod TOTP ma swój koszyk, a `Hash::check()`
+    // na haśle z formularza jest tą samą wyrocznią co wyłączenie 2FA, więc
+    // nie ma prawa mieć luźniejszego limitu niż ono.
     Route::post('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'confirm'])
-        ->middleware("throttle:{$limits['two_factor']},two_factor")
+        ->middleware(["throttle:{$limits['two_factor']},two_factor", "throttle:{$limits['confirm_password']},confirm_password"])
         ->name('settings.two_factor.confirm');
     Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
     // Nowy komplet kodów zapasowych bez zdejmowania 2FA. Ten sam limit co

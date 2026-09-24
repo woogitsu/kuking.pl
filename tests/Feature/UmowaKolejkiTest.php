@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Jobs\GenerateUserExport;
+use App\Jobs\NotifyUserExportReady;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PurgePublicMediaCache;
 use Illuminate\Support\Facades\Queue;
@@ -39,6 +40,7 @@ class UmowaKolejkiTest extends TestCase
     private const ZADANIA = [
         ProcessUploadedImage::class => 'media',
         GenerateUserExport::class => 'low',
+        NotifyUserExportReady::class => 'default', // jeden list — nie czeka w `low` za cudzą paczką
         PurgePublicMediaCache::class => null, // domyślna wystarcza — czyszczenie jest tanie
     ];
 
@@ -77,9 +79,11 @@ class UmowaKolejkiTest extends TestCase
 
         ProcessUploadedImage::dispatch('media-id');
         GenerateUserExport::dispatch('export-id');
+        NotifyUserExportReady::dispatch('export-id');
 
         Queue::assertPushedOn('media', ProcessUploadedImage::class);
         Queue::assertPushedOn('low', GenerateUserExport::class);
+        Queue::assertPushedOn('default', NotifyUserExportReady::class);
     }
 
     public function test_entrypoint_naprawde_obsluguje_te_kolejki(): void

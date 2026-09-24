@@ -59,7 +59,7 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
     private function wadyIzolacjiNarzedzi(string $yaml): array
     {
         // NIE `\R`: bez modyfikatora `u` PCRE traktuje bajt 0x85 jako
-        // znak końca wiersza (NEL), a to jest DRUGI BAJT polskich „ą" i „ł".
+        // znak końca wiersza (NEL), a to jest DRUGI BAJT polskiego „ą" (C4 85).
         // Zmierzone na tym pliku: `preg_split('/\R/')` rozrywało wiersze
         // w środku wyrazu, skaner nie widział ANI JEDNEGO joba i test
         // przechodził, nie sprawdzając niczego.

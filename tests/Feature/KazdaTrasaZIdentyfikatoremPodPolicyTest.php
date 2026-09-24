@@ -116,7 +116,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
      * Tą trasą wychodzą bajty z `storage/app/private` — czyli m.in. PACZKA
      * RODO, bo `kuking.exports.disk` to lokalnie i w testach `local`.
      * Sam identyfikator paczki jest zgadywalny w stopniu, o który nie warto
-     * się spierać (`eksporty/<id konta>/<8 znaków id paczki>-…`), więc
+     * się spierać (`eksporty/<id konta>/<id paczki>-…`), więc
      * ochroną nie może być to, że nikt nie zna ścieżki — i nie jest:
      * `ServeFile` wymaga podpisu, bo dysk `local` nie ma `visibility =>
      * 'public'`. TO JEST WARUNEK, KTÓRY WOLNO ZGUBIĆ JEDNĄ LINIJKĄ
@@ -481,6 +481,23 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'visibility' => 'private',
         ]);
 
+        // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
+        // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
+        // nie jest właścicielem tych dwóch zeszytów, więc wejście może dać
+        // wyłącznie Policy, nigdy sam identyfikator w adresie.
+        $zbanowany = $this->user('zbanowanyzeszytowy');
+        $zeszytZbanowanegoPrywatny = Collection::create([
+            'owner_id' => $zbanowany->getKey(),
+            'name' => 'Prywatny zeszyt zbanowanego',
+            'visibility' => 'private',
+        ]);
+        $zeszytZbanowanegoPubliczny = Collection::create([
+            'owner_id' => $zbanowany->getKey(),
+            'name' => 'Publiczny zeszyt zbanowanego',
+            'visibility' => 'public',
+        ]);
+        $zbanowany->ban();
+
         $zgloszenie = $this->zgloszenie($wlasciciel, $wpisPubliczny);
         $zgloszenieDoDecyzji = $this->zgloszenie($wlasciciel, $wpis);
         $zgloszenieDoPrzywrocenia = $this->zgloszenie($wlasciciel, $wpisDoWspomnien);
@@ -613,6 +630,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.
+        //
+        // Ten wiersz mierzy bramkę KONTROLERA i był zielony także wtedy,
+        // gdy rola nie była sprawdzana nigdzie indziej (#1087) — czyli gdy
+        // ta sama czynność wykonana z komendy, kolejki albo nowego
+        // endpointu obchodziła regułę A-4 w całości. Domenową stronę tej
+        // bramki mierzy `RolaRozstrzygajacegoOdwolanieStoiWDomenieTest`,
+        // bo żądaniem HTTP na tę trasę nie da się jej zobaczyć.
         $dodaj('admin.appeals.resolve', 'rozstrzygnięcie odwołania', 'post',
             route('admin.appeals.resolve', $this->odwolanie), ['decision' => 'upheld', 'note' => 'Notatka.'],
             [$O, $O, $O, $O, $O]);
@@ -688,9 +712,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave-post', $wpis), [], [$W, $W, $W, $W, $O]);
         $dodaj('wspomnienia.ukryj', 'ukrycie wspomnienia', 'post',
             route('wspomnienia.ukryj', $wpisDoWspomnien), [], [$W, $O, $O, $O, $O]);
-        // Moderator kasuje z urzędu (`PostPolicy::delete`).
+        // Moderator NIE kasuje tędy cudzej treści (issue #932) — tylko
+        // decyzją „Usuń" w panelu, z rejestrem i odwołaniem. To samo przy
+        // `recipes.destroy`, `cooked.destroy` i `comments.destroy` niżej.
         $dodaj('posts.destroy', 'usunięcie wpisu', 'delete',
-            route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
@@ -707,6 +733,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
             route('cooking.zaznacz', $przepisPrywatny), ['krok' => 1, 'stan' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.restart', 'reset odhaczeń prywatnego przepisu', 'post',
+            route('cooking.restart', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',
@@ -717,7 +745,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.unsave', 'wyjęcie przepisu z własnego zeszytu', 'delete',
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
-            route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',
@@ -731,19 +759,37 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
-            route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',
             route('comments.update', $komentarz), ['body' => 'Poprawiona treść komentarza.'], [$W, $O, $O, $O, $O]);
         $dodaj('comments.destroy', 'usunięcie komentarza', 'delete',
-            route('comments.destroy', $komentarzDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('comments.destroy', $komentarzDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── ZESZYTY ─────────────────────────────────────────────────────
         $dodaj('collections.show', 'prywatny zeszyt', 'get',
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
+        //
+        // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
+        // widoczności — i to jest cały pomiar. Przed poprawką
+        // `CollectionPolicy::view()` pytała o status właściciela PRZED
+        // flagą, więc oba wiersze wychodziły tak samo: moderator wchodził
+        // też na PRYWATNY. Czyli zbanowanie właściciela otwierało
+        // moderatorowi zeszyt, którego przy koncie aktywnym nie widział
+        // (wiersz `collections.show` wyżej: moderator ma tam ODMOWĘ).
+        //
+        // Wiersz PUBLICZNY jest tu kontrolą dodatnią: gdyby poprawka
+        // zamknęła tę trasę wszystkim, moderator przestałby widzieć treść,
+        // za którą to konto zbanował — i prywatny wiersz byłby zielony
+        // z zupełnie niewłaściwego powodu.
+        $dodaj('collections.show', 'prywatny zeszyt osoby zbanowanej', 'get',
+            route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
+        $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
+            route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
         // Edycja zeszytu (#777) — nazwa, opis i widoczność. O własnym
         // zeszycie decyduje wyłącznie jego właściciel, także moderator nie
         // przestawia cudzej widoczności (`CollectionPolicy::update()`).

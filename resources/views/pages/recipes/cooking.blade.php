@@ -73,8 +73,11 @@
                             <li>
                                 {{ $ingredient->ingredient_text }}
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                     tego sam w tekście składnika (issue #44),
-                                     ten sam warunek co na stronie przepisu. --}}
+                                     tego sam w tekście składnika (issue #44).
+                                     DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
+                                     roboczy przy garnku, gdzie gołe „sól” wygląda jak
+                                     brak informacji. Strona przepisu dopisku NIE daje
+                                     i tak ma zostać — nie zbieraj tych wierszy w jeden. --}}
                                 @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
                                     <span class="meta"> — do smaku</span>
                                 @endif
@@ -108,7 +111,10 @@
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
-                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo" />
+                    {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752). --}}
+                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo"
+                             tresc="przepis"
+                             :wymien-url="auth()->user()?->isActive() && auth()->user()->can('update', $recipe) ? route('recipes.edit', $recipe->slug).'#f-steps-'.($krok - 1).'-photo' : null" />
                 </div>
             @endif
 
@@ -191,20 +197,35 @@
             {{--
                 Ostatni krok — issue: „Ugotowałem" jako naturalne domknięcie,
                 najlepszy moment na zdjęcie efektu. Widoczne tylko
-                zalogowanym — dokładnie jak na stronie przepisu, ten sam
-                warunek, żeby nie obiecywać akcji, która i tak odbije się
-                o ekran logowania.
+                osobom dopuszczonym przez tę samą Policy co formularz.
             --}}
             <section class="cook-finish">
                 <h2 class="mt-0">To już ostatni krok.</h2>
-                @auth
+                @can('cook', $recipe)
                     <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
                     <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                 @else
-                    <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
-                @endauth
+                    @guest
+                        <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
+                        <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
+                    @endguest
+                @endcan
             </section>
+        @endif
+        @if($hasProgress && ! auth()->user()?->isSuspended())
+            <div class="danger-zone">
+                <details class="confirm">
+                    <summary class="btn btn-secondary">Zacznij od początku</summary>
+                    <div class="confirm-body stack">
+                        <p>Usunąć odhaczenia wszystkich kroków tego przepisu? Pozostałe przepisy i zapisane wykonania zostaną bez zmian.</p>
+                        <a class="btn btn-secondary" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $krok]) }}">Zostaw odhaczenia</a>
+                        <form method="POST" action="{{ route('cooking.restart', $recipe->slug) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-danger">Usuń odhaczenia i zacznij od początku</button>
+                        </form>
+                    </div>
+                </details>
+            </div>
         @endif
     </article>
 </x-layout>

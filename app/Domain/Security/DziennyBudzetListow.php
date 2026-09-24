@@ -305,6 +305,32 @@ final class DziennyBudzetListow
     }
 
     /**
+     * Alarm o pilnym zgłoszeniu od CZŁOWIEKA (`AlarmujOPilnymZgloszeniu`, D-236).
+     *
+     * WŁASNY SUFIT DOBOWY I KLASA `wejscie` — JEDNO BEZ DRUGIEGO BYŁOBY BŁĘDEM.
+     *
+     * Klasa `zwykla` wyglądała na oczywistą (to list moderacyjny), ale ją
+     * wypala zalanie `/nie-pamietam-hasla` z jednego łącza (D-239). Wtedy
+     * sprawca, który chce, żeby zgłoszenie „dotyczy dziecka" przeleżało noc
+     * bez listu, miałby na to gotowy przepis. Alarm sięga więc po ostatnie
+     * listy doby razem z wejściem na konto.
+     *
+     * Za to własny sufit (`moderation.alarm_czlowieka.dzienny_sufit`) mówi,
+     * ILE najwyżej z tych ostatnich listów może zabrać: kategorię wybiera
+     * zgłaszający, więc bez sufitu to on decydowałby, ile listów logowania
+     * dziś nie wyjdzie. Konstrukcja jest ta sama co przy podsumowaniu —
+     * licznik w liczniku, jedna atomowa rezerwacja na oba.
+     */
+    public static function dlaAlarmuModeracji(): self
+    {
+        return new self(
+            'alarm-pilnego-zgloszenia',
+            'kuking.moderation.alarm_czlowieka.dzienny_sufit',
+            self::wspolny(self::KLASA_WEJSCIE),
+        );
+    }
+
+    /**
      * Tygodniowe podsumowanie od gospodarza (issue #11, D-057).
      *
      * Klasa `podsumowanie`: gaśnie PIERWSZE. Podsumowanie, które nie doszło,

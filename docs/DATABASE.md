@@ -1635,7 +1635,13 @@ Snapshot po istotnych zmianach.
   numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
 - `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
   przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
-  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+  czasy, wszystkie cztery kolumny pochodzenia i `family_since_year`,
+  składniki z `no_amount`, kroki). `source_url` i `ingredients[].no_amount` są
+  w migawce od issue #896 — **w starszych migawkach tych kluczy nie ma
+  i brak znaczy „nieznane"**; nie uzupełniamy ich dzisiejszą wartością
+  z przepisu. Numer wersji i migawka powstają w transakcji zapisu treści,
+  pod blokadą wiersza `recipes` (issue #895). Zmiana kształtu JSON, nie
+  schematu — bez migracji;
 - `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
@@ -2226,6 +2232,10 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
 o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
+(następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
+liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
+w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
@@ -3292,8 +3302,44 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
+| `notified_at` | Nullable `timestamptz`: kiedy `App\Jobs\NotifyUserExportReady` zajął list „paczka gotowa" (issue #820). Poza `$fillable`. CHECK `data_exports_notified_after_completed_check`: bez `completed_at` nie ma listu. Szczegóły niżej. Migracja `2026_09_23_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
+
+List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
+5 prób, przerwy 1, 5, 15 i 60 minut), a nie `GenerateUserExport` — tamto
+łapało awarię poczty i nikt listu nie ponawiał. Zadanie jest zlecane
+w transakcji, która ustawia `ready` (`GenerateUserExport::finalize()`): na
+kolejce bazodanowej wiersz w `jobs` i `ready` zatwierdzają się razem albo
+wcale. Kolejka `sync` (testy) wysyła list po commicie, bez ponowień.
+
+Zadanie **zajmuje** list jednym `UPDATE … SET notified_at = teraz WHERE
+notified_at IS NULL AND status = 'ready' AND expires_at > teraz`; z dwóch
+przebiegów naraz przechodzi jeden. Gdy wysyłka padnie, zajęcie jest
+zwalniane (tylko po tym samym znaczniku) i kolejka ponawia. Granice:
+zerwane połączenie PO przyjęciu listu przez dostawcę daje drugi list;
+proces zabity między zajęciem a wysyłką — żadnego (zajęcie zostaje).
+Wartość znaczy więc „list zajęty do wysyłki i nie zgłoszono awarii", a nie
+„list doręczony".
+
+Pusta kolumna przy paczce gotowej do pobrania to na ekranie ustawień zdanie
+„E-mail o tej paczce jeszcze nie wyszedł. Nie musisz na niego czekać —
+paczkę pobierzesz tutaj."
+
+**Backfill:** wiersze `ready` i `expired` sprzed migracji dostają
+`notified_at = completed_at` — stary kod próbował wysłać list w tym samym
+przebiegu, a nikt tej próby już nie powtórzy; pusta kolumna kazałaby ekranowi
+mówić o nich „jeszcze nie wyszedł".
+
+**Rollback:** `down()` usuwa CHECK i kolumnę bez odmowy. To nie jest wartość
+semantyczna w rozumieniu D-088: ponowne `up()` odtwarza znaczniki gotowych
+paczek z `completed_at`, więc cykl down/up może najwyżej zgubić list
+czekający w kolejce, nie wysłać drugiego. Przy cofaniu wdrożenia: zatrzymać
+workery; zadania `NotifyUserExportReady` pozostałe w `jobs` po powrocie do
+starego kodu nie znajdą klasy i trafią do `failed_jobs` — paczka czeka
+w ustawieniach. `down()` bez tabeli albo kolumny nic nie robi.
 
 #### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
 
@@ -3342,8 +3388,10 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
   `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
 - Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
-  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
-  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport.u<uid>`
+  katalogu tymczasowego systemu — osobny dla użytkownika systemu procesu, albo
+  `KUKING_EXPORT_TEMP_DIR` / `kuking.exports.temp_dir` — tworzony z prawami
+  0700, a w nim katalog nazwany identyfikatorem eksportu) na dysku **workera** i znikają
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
@@ -3351,7 +3399,11 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
   pierwszego eksportu po upływie godziny albo do restartu kontenera
   (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
-  z identyfikatorem eksportu, bez ścieżek. Sprzątanie stoi na samym
+  z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
+  (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
+  jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
+  dalej. Stary wspólny podkatalog `kuking-eksport` (sprzed #1436) nie jest już
+  czytany — znika z restartem kontenera. Sprzątanie stoi na samym
   początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
   eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
   wymazanego konta czekałaby na cudzy eksport.
@@ -3720,7 +3772,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
-| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. Konto jest anonimizowane, nie kasowane (D-022), więc `nullOnDelete()` się nie uruchamia — `user_id` zeruje jawnie `EraseAccountData` w tej samej transakcji co wymazanie (#995, pilnuje `WymazanieKontaOdlaczaWiadomosciDoNasTest`). |
 | `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
@@ -4585,3 +4637,54 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
+
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
+schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
+
+**Co robi.** Zdejmuje klucz `excerpt` z `notifications.data` w wierszach typu
+`comment.created` i `comment.replied`. Operator `data - 'excerpt'` na `jsonb`
+zostawia resztę kluczy nietkniętą; warunek `jsonb_exists(data, 'excerpt')`
+zawęża zapis do wierszy, które ten klucz naprawdę mają.
+
+**Dlaczego.** Decyzja właściciela D-229: wycinek treści komentarza liczy się
+teraz z **aktualnej** treści, a eksport RODO zmienia się razem z ekranem.
+Uzasadnieniem było zdanie „paczka ma pokazywać, co o kimś trzymamy dziś" —
+a zamrożone kopie sprzed zmiany (do 120 znaków cudzego tekstu) leżały dalej
+w bazie, tyle że nikt ich nie czytał. Decyzja rozstrzyga tę różnicę na
+**„nie trzymamy"**, nie „nie czytamy".
+
+**Zakres jest wąski celowo.** `excerpt` zostaje w innych typach powiadomień,
+bo tam nie został zastąpiony niczym żywym — skasowanie zabrałoby treść,
+której nic nie odtworzy.
+
+**WYCOFANIE NIE PRZYWRACA DANYCH.** `down()` jest świadomie puste: kasujemy
+wartości, których nie ma skąd odczytać z powrotem, a `down()` wpisujące
+cokolwiek wpisałoby wartość zmyśloną. Migrację można cofnąć bez błędu, ale
+**to nie jest przywrócenie**.
+
+**Bez kopii bazy — decyzja właściciela z 23.09.2026.** Migracja wchodzi bez
+osobnej kopii zapasowej przed uruchomieniem: „to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników". Po jej wykonaniu skasowanych wycinków nie odtworzy
+**nic** — ani `down()`, ani kopia. Gdyby Kuking miał już prawdziwych
+użytkowników, ta sama migracja wymagałaby kopii przed uruchomieniem.
+
+**Dlaczego rollback tu NIE odmawia (D-088, AGENTS.md §6).** Odmowa w `down()`
+jest dla wartości semantycznych, które cykl `down()` → `migrate` po cichu
+odwraca (zgoda, zakres usunięcia, widoczność). Tu takiej wartości nie ma:
+ponowne `up()` znów tylko zdejmuje klucz, a kod sprzed tej zmiany, który
+czytał `data.excerpt`, przy braku klucza pokazuje powiadomienie **bez
+wycinka** — mniej treści, nie inna decyzja człowieka. Odmowa musiałaby być
+przy tym bezwarunkowa (w bazie nie zostaje ślad, które wiersze straciły
+wycinek), czyli blokowałaby `migrate:refresh` w CI na zawsze — a to D-088
+nazywa błędem tej samej wagi w drugą stronę. Stąd świadomie pusty `down()`
+z uzasadnieniem w kodzie.
+
+Numer `2026_09_23_120000` — przenumerowane z `2026_09_20_120000` przy scalaniu
+z main (PR #1180), żeby migracja stała po najnowszej migracji na main.
+
+Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
+trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
+nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
+warunek przestał trafiać w jakikolwiek wiersz.
