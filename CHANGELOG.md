@@ -9,6 +9,8 @@
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- Zmiana nazwy zeszytu na nazwę, którą w tej samej chwili zajął inny Wasz zeszyt (np. w drugiej karcie), nie kończy się już błędem serwera. Formularz wraca z komunikatem „Masz już zeszyt o tej nazwie. Wybierz inną.”, a wpisana nazwa zostaje w polu (#1339).
+- Stary adres tagu połączonego z innym tagiem przekierowuje teraz na stałe (kod 301), więc wyszukiwarki przenoszą go na adres tagu docelowego (#1350).
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
