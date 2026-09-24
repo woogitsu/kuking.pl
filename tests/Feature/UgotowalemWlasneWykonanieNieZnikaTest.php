@@ -156,13 +156,14 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
      * Furtka „własne wykonanie widać zawsze" NIE MOŻE być obejściem blokady.
      *
      * Karta wykonania renderuje tytuł i adres przepisu, czyli treść AUTORA
-     * PRZEPISU. Dotąd blokadę z nim wycinała po drodze `RecipePolicy::view()`;
-     * po dodaniu furtki dla kucharza to wywołanie już nie następuje, więc
-     * granica musi być sprawdzona wprost. Blokada ma pierwszeństwo przed
-     * wszystkim innym (`AGENTS.md` §4) — także przed prawem do własnej treści.
+     * PRZEPISU. Blokada ma pierwszeństwo (`AGENTS.md` §4), więc przy blokadzie
+     * z autorem ta treść nie może się pokazać.
      *
-     * Ten test pilnuje MOJEJ WŁASNEJ poprawki, nie starego błędu: bez niego
-     * naprawa jednej luki otwierałaby drugą.
+     * ZMIANA ROZSTRZYGNIĘCIA (issue #1394): wcześniej ten test żądał 403 dla
+     * kucharza. Skutek — własna zakładka „Ugotowane" obiecywała przycisk,
+     * który kończył się odmową, a kucharz tracił dostęp do własnego zdjęcia.
+     * Teraz kucharz wchodzi (200), ale tytułu ani adresu przepisu nie widzi.
+     * Pełna macierz: `WykonaniePoBlokadzieAutoraPrzepisuTest`.
      */
     public function test_furtka_na_wlasne_wykonanie_nie_obchodzi_blokady_z_autorem_przepisu(): void
     {
@@ -173,6 +174,7 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
             'author_id' => $autorPrzepisu->getKey(),
             'visibility' => 'public',
             'slug' => 'rosol-z-blokada',
+            'title' => 'Rosół zablokowanej autorki',
         ]);
 
         $wykonanie = CookedEvent::factory()->create([
@@ -181,14 +183,19 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
             'note' => 'Notatka kucharza przy blokadzie.',
         ]);
 
-        // KONTROLA: przed blokadą kucharz wchodzi na własne wykonanie.
-        $this->actingAs($kucharz)->get(route('cooked.show', $wykonanie))->assertOk();
+        // KONTROLA: przed blokadą kucharz widzi tytuł przepisu.
+        $this->actingAs($kucharz)->get(route('cooked.show', $wykonanie))
+            ->assertOk()
+            ->assertSee('Rosół zablokowanej autorki');
 
         app(BlockUser::class)->handle($kucharz, $autorPrzepisu);
 
         $this->actingAs($kucharz->refresh())
             ->get(route('cooked.show', $wykonanie))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertSee('Notatka kucharza przy blokadzie.')
+            ->assertDontSee('Rosół zablokowanej autorki')
+            ->assertDontSee('rosol-z-blokada');
 
         // I w drugą stronę — to autor przepisu blokuje kucharza.
         $drugiKucharz = $this->user('drugikucharz');
@@ -197,12 +204,16 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
             'user_id' => $drugiKucharz->getKey(),
         ]);
 
-        $this->actingAs($drugiKucharz)->get(route('cooked.show', $drugieWykonanie))->assertOk();
+        $this->actingAs($drugiKucharz)->get(route('cooked.show', $drugieWykonanie))
+            ->assertOk()
+            ->assertSee('Rosół zablokowanej autorki');
 
         app(BlockUser::class)->handle($autorPrzepisu, $drugiKucharz);
 
         $this->actingAs($drugiKucharz->refresh())
             ->get(route('cooked.show', $drugieWykonanie))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertDontSee('Rosół zablokowanej autorki')
+            ->assertDontSee('rosol-z-blokada');
     }
 }

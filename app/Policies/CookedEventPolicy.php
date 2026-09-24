@@ -23,7 +23,6 @@ class CookedEventPolicy
         }
 
         $jestKucharzem = $user !== null && $user->getKey() === $event->user_id;
-        $jestKucharzemLubModeratorem = $jestKucharzem || ($user !== null && $user->isModerator());
 
         // 2. STATUSU KONTA KUCHARZA TA METODA CELOWO NIE SPRAWDZA.
         //
@@ -67,17 +66,30 @@ class CookedEventPolicy
         //
         // Moderator z tego samego powodu co wszędzie — ma zaglądać z urzędu.
         //
-        // JEDEN WYJĄTEK OD TEJ FURTKI: BLOKADA Z AUTOREM PRZEPISU.
-        // Blokada ma pierwszeństwo przed wszystkim innym (AGENTS.md §4), także
-        // przed prawem do własnej treści — bo karta wykonania renderuje TYTUŁ
-        // i ADRES przepisu (`components/cooked-card`, `showRecipe`), czyli
-        // treść osoby, z którą blokada wiąże. Bez tego warunku ta furtka
-        // stałaby się obejściem blokady, którego wcześniej nie było: dotąd
-        // blokadę wycinała po drodze `RecipePolicy::view()`, a teraz to
-        // wywołanie już nie następuje. Dla kucharza wynik jest więc dokładnie
-        // taki jak przed tą zmianą — to naprawa stanu przepisu, nie blokady.
-        if ($jestKucharzemLubModeratorem) {
-            if ($user !== null && $event->recipe !== null && $user->hasBlockRelationWith($event->recipe->author)) {
+        // BLOKADA Z AUTOREM PRZEPISU — FURTKA DLA KUCHARZA ZOSTAJE (#1394).
+        //
+        // Wcześniej blokada z autorem przepisu zamykała tę furtkę także
+        // kucharzowi, bo karta wykonania renderowała TYTUŁ i ADRES przepisu,
+        // czyli treść osoby, z którą blokada wiąże. Skutek zmierzony: własna
+        // zakładka „Ugotowane" dalej pokazywała kartę z przyciskiem
+        // „Zobacz i skomentuj", a przycisk i zdjęcie kończyły się 403 —
+        // lista i polityka znów odpowiadały inaczej.
+        //
+        // Granica jest teraz w widoku, nie w wejściu: przy blokadzie karta
+        // nie pokazuje tytułu ani adresu przepisu (`components/cooked-card`,
+        // `przepisZaBlokada`), tytuł strony też go nie zawiera, a komentarze
+        // tnie `Comment::widoczneDla()`. Zdjęcie i notatka należą do
+        // kucharza, więc zostają dla niego dostępne — także po to, żeby mógł
+        // je skasować.
+        //
+        // Moderatora ta zmiana nie dotyczy: jego blokada z autorem przepisu
+        // dalej zamyka wejście, jak dotąd.
+        if ($jestKucharzem) {
+            return true;
+        }
+
+        if ($user !== null && $user->isModerator()) {
+            if ($event->recipe !== null && $user->hasBlockRelationWith($event->recipe->author)) {
                 return false;
             }
 

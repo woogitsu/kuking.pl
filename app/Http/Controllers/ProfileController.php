@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -109,6 +110,16 @@ class ProfileController extends Controller
             'cookedEvents' => $tab === 'ugotowane'
                 ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
                 : null,
+            // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
+            // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
+            // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
+            // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
+            // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
+            // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
+            // mu takie wykonania już na liście.
+            'autorzyZaBlokada' => $tab === 'ugotowane' && $isOwner
+                ? $this->osobyZBlokada($owner)
+                : [],
             'stats' => [
                 'posts' => $owner->posts()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
@@ -401,6 +412,25 @@ class ProfileController extends Controller
             $sub->widoczneDla($viewer)
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
         });
+    }
+
+    /**
+     * Identyfikatory osób związanych z `$user` blokadą w którąkolwiek stronę.
+     *
+     * @return list<string>
+     */
+    private function osobyZBlokada(User $user): array
+    {
+        return Block::query()
+            ->where('blocker_id', $user->getKey())
+            ->orWhere('blocked_id', $user->getKey())
+            ->get(['blocker_id', 'blocked_id'])
+            ->flatMap(fn (Block $blokada) => [$blokada->blocker_id, $blokada->blocked_id])
+            ->reject(fn ($id) => $id === $user->getKey())
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

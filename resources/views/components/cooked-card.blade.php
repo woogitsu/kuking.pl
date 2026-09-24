@@ -4,7 +4,7 @@
     Zdjęcie cudzego wykonania jest tu najważniejszym elementem — to jest
     dowód, że przepis działa u zwykłego człowieka, a nie na sesji zdjęciowej.
 --}}
-@props(['event', 'showRecipe' => false])
+@props(['event', 'showRecipe' => false, 'przepisZaBlokada' => false])
 <article class="card">
     <div class="flex gap-3 items-center mb-3">
         <x-avatar :user="$event->user" :size="44" />
@@ -24,7 +24,15 @@
 
     @if($showRecipe)
         <p class="m-0 mb-3">
-            @if($event->recipe)
+            @if($event->recipe && $przepisZaBlokada)
+                {{--
+                    Między osobą, która patrzy, a autorem przepisu jest blokada
+                    (issue #1394). Kucharz dalej widzi swoje zdjęcie i notatkę,
+                    ale tytuł i adres przepisu to treść autora — blokada
+                    wycina ją w obie strony (AGENTS.md §4).
+                --}}
+                Ten przepis nie jest dla Ciebie dostępny. Twoje zdjęcie i notatka zostają.
+            @elseif($event->recipe)
                 z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
             @else
                 {{--
