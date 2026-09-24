@@ -1013,6 +1013,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Topologia Railway (#595). Stoi TU (katalog `scripts/railway/`, jak `scripts/przegladarka/`), a nie na liście `node --test`
+      # w skrypcie `build`, bo `npm run build` jedzie także w Dockerfile,
+      # a `.dockerignore` wycina `.railway/`. Potrzebuje `npm ci` (paczka
+      # `railway`), sieci do Railwaya — nie.
+      - name: Topologia Railway (graf IaC, bez połączenia)
+        run: node --test scripts/railway/iac.test.mjs
+
       - name: Proporcje małej skali — rzeczywisty CSS w Chromium
         run: |
           flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium

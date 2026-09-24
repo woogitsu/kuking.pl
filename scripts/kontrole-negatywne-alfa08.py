@@ -118,6 +118,12 @@ KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
 # Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
 # mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
+# Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
+# zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
+# wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
+REGULY_CF = "docs/infra/cloudflare-cache-rules-597-610.json"
+REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_cache"
+REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
 BRAMKA_CI = ".github/workflows/ci.yml"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
 # `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
@@ -474,6 +480,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
+     lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +505,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(REGULY_CF_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

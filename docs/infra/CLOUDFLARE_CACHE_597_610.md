@@ -142,6 +142,83 @@ to samo zdjęcie ma innego publicznego rodzica, pozostaje publiczne.
    regułę zdjęć; dopiero dodatni odbiór pozwala powtórzyć to na produkcji.
    Porażka sondy oznacza wyłączenie eligible i purge, nie podnoszenie TTL.
 
+### Krok po kroku w panelu — zdjęcia (#597)
+
+Dopisane 24.09.2026. Nie wykonano; to instrukcja dla właściciela. Wyrażenia
+są przepisane z `cloudflare-cache-rules-597-610.json` — strażnik
+`CloudflareCacheGateTest::test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_cache`
+pilnuje, że plik ma warunki ciasteczka, `Authorization` i query. Gdy tekst
+tu i w JSON się rozjedzie, **wiąże JSON**.
+
+**0. Przegląd przed zmianą** (dash.cloudflare.com → strefa `kuking.pl`):
+Caching → Cache Rules, Rules → Page Rules, Workers Routes, Rules →
+Transform Rules (Response Header). Zapisz, co jest. Reguła „Cache
+Everything” obejmująca `/zdjecia/` albo usuwająca `Set-Cookie`/`Cache-Control`
+= **stop**, najpierw ją wyłącz (D-020). Sprawdź też Caching → Configuration:
+„Always Online” i „Serve stale content while revalidating” (rozdział #610).
+
+**1. Reguła ochronna — najpierw, żeby od początku stała na końcu.**
+Caching → Cache Rules → Create rule:
+
+- Rule name: `Kuking: ostatnia regula - nigdy nie wspoldziel stanu klienta`
+- Custom filter expression → **Edit expression**, wklej:
+
+```text
+(http.host eq "kuking.pl" and (http.cookie ne "" or any(http.request.headers["authorization"][*] ne "") or not http.request.method in {"GET" "HEAD"} or http.request.uri.query ne "" or starts_with(http.request.uri.path, "/livewire/") or starts_with(http.request.uri.path, "/api/") or starts_with(http.request.uri.path, "/ustawienia") or starts_with(http.request.uri.path, "/konto/") or http.request.uri.path in {"/login" "/register" "/logout"}))
+```
+
+- Cache eligibility: **Bypass cache**. Deploy.
+
+Ta reguła niczego nie przyspiesza, więc wolno ją włączyć od razu; sama nie
+zmienia zachowania strony (dziś nic nie jest cache'owane).
+
+**2. Reguła zdjęć.** Create rule:
+
+- Rule name: `Kuking: anonimowe przekierowania zdjec`
+- Edit expression:
+
+```text
+(http.host eq "kuking.pl" and starts_with(http.request.uri.path, "/zdjecia/") and http.request.uri.query eq "" and http.cookie eq "" and not any(http.request.headers["authorization"][*] ne ""))
+```
+
+- Cache eligibility: **Eligible for cache**.
+- Edge TTL: **Use cache-control header if present, bypass cache if not**.
+  **Nie** wpisuj liczby i **nie** dodawaj „Status code TTL” — o czasie
+  decyduje `public, max-age=1800` z aplikacji, a `private, no-store` dla
+  zalogowanego ma wygrywać.
+- Browser TTL: **Respect origin TTL**.
+- Pozostałe ustawienia (Cache key, Serve stale, Origin error page
+  pass-through) — domyślne. **Nie** włączaj „Ignore query string”.
+- Save as **Draft** (albo Deploy wyłączonej), nie od razu włączona.
+
+**3. Kolejność.** Na liście Cache Rules reguła ochronna ma być **niżej**
+niż reguła zdjęć (i niżej niż reguła HTML #610, jeśli powstanie). Ostatnia
+pasująca reguła wygrywa, więc przy ciasteczku BYPASS przebija „eligible”.
+Przeciągnij, jeśli trzeba.
+
+**4. Włączenie i odbiór** — najpierw staging (host `staging.kuking.pl`
+w obu wyrażeniach), potem produkcja:
+
+1. Włącz regułę zdjęć.
+2. Sonda z rozdziału „Odbiór stagingu przez istniejącą sondę” niżej
+   (`CACHE_KIND=media`). Musi przejść w całości: HIT przy drugim
+   anonimowym pobraniu, BYPASS/DYNAMIC i `private, no-store` dla
+   zalogowanego, 404 dla anonima na prywatnym zdjęciu, brak `Set-Cookie`.
+   Czy Cloudflare przechowuje **302 bez rozszerzenia pliku** — rozstrzyga
+   ten HIT, nie założenie.
+3. Na produkcji ręcznie: dwa razy
+   `curl -s -o /dev/null -D - https://kuking.pl/zdjecia/<UUID_PUBLICZNEGO>/feed | grep -i -E 'cf-cache-status|cache-control|set-cookie|location'`
+   — drugi raz `cf-cache-status: HIT`, brak `set-cookie`. **Nie wklejaj**
+   nigdzie linii `location` (podpisany adres).
+4. Wpisz do #597: datę, host, wynik sondy, wynik curl (bez `location`).
+
+**Cofnięcie:** wyłącz regułę zdjęć (sekundy) → Caching → Configuration →
+Purge Cache → Custom Purge prefiksem `kuking.pl/zdjecia/` albo Purge
+Everything przy podejrzeniu wycieku → regułę ochronną **zostaw**. Wydane
+już podpisy R2 żyją do 60 minut niezależnie od purge (rozdział o godzinie
+wyżej); szybsze odcięcie: `KUKING_MEDIA_PUBLIC_SIGNED_URL_MINUTES=5` +
+redeploy, działa dla nowych podpisów.
+
 W aktualnej dokumentacji Cloudflare ostatnia pasująca reguła wygrywa dla
 sprzecznych ustawień. `bypass_by_default` odmawia cache przy braku nagłówka;
 `respect_origin` ma w tej sytuacji domyślny fallback i nie jest tym samym.
