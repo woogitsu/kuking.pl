@@ -1,25 +1,20 @@
-{{--
-    Jedna wiadomość z „Napisz do nas" — podgląd, ODPOWIEDŹ i obsługa.
+{{-- DWA OSOBNE FORMULARZE, W TEJ KOLEJNOŚCI (D-058): najpierw odpowiedź
+     (list wychodzi na zewnątrz i jest nieodwracalny), potem stan i notatka
+     dla siebie (do poprawienia w każdej chwili). Każda trasa pyta Policy.
 
-    WEJŚCIE PRZECHODZI PRZEZ `ContactMessagePolicy::view()`, nie przez to,
-    że adres z UUID-em jest trudny do zgadnięcia (AGENTS.md §7). Wysłanie
-    odpowiedzi pyta osobno o `ContactMessagePolicy::reply()`.
+     JEDEN WSPÓLNY FORMULARZ BYŁBY BŁĘDEM, i to nie stylistycznym. Formularz
+     z dwoma przyciskami `submit` ma przycisk DOMYŚLNY — pierwszy w kolejności
+     drzewa. Enter wciśnięty na przycisku radio w „Stanie wiadomości” nie pyta,
+     który to przycisk: wysyła formularz tym domyślnym, czyli WYSYŁA LIST.
+     Osoba, która chciała tylko zaznaczyć stan, nie ma jak tego cofnąć.
+     Rozdzielenie formularzy jest jedyną rzeczą, która to wyklucza bez
+     JavaScriptu (AGENTS.md §5 pkt 3).
 
-    Adres do odpowiedzi jest tu pokazany OTWARTYM TEKSTEM i to jest celowe:
-    ten ekran istnieje po to, żeby dało się komuś odpisać, a kopiowanie
-    adresu z bazy przez konsolę byłoby gorsze pod każdym względem, także
-    pod względem ochrony danych.
-
-    DWA FORMULARZE, W TEJ KOLEJNOŚCI, I TO NIE JEST PRZYPADEK (D-058):
-    najpierw „Odpowiedz tej osobie" (list wychodzi na zewnątrz i jest
-    nieodwracalny), potem „Stan wiadomości" z notatką dla siebie (do
-    poprawienia w każdej chwili). Odwrotna kolejność znaczyłaby, że
-    najważniejsza rzecz na tym ekranie jest pod polem, którego nikt poza
-    obsługą nigdy nie zobaczy.
-
-    TEN EKRAN DZIAŁA BEZ JAVASCRIPTU. Oba formularze to zwykły POST, więc
-    nie ma tu ani `<noscript>`, ani martwego przycisku (AGENTS.md §5 pkt 3).
---}}
+     CENĄ jest to, że zapis stanu nie niesie już szkicu odpowiedzi w tym samym
+     żądaniu. `withInput()` w kontrolerze zostaje — działa, gdy oba komplety
+     pól przyjdą razem — ale przeglądarka wysyła teraz tylko pola tego
+     formularza, który został zatwierdzony. Nieodwracalna wysyłka listu przez
+     pomyłkę jest gorsza niż przepisanie szkicu. --}}
 <x-layout title="Wiadomość do nas — Panel moderacji" :noindex="true">
     <x-panel-moderacji ekran="Wiadomości do nas" />
 
@@ -34,6 +29,9 @@
         {{ $wiadomosc->statusLabel() }}
         @if($wiadomosc->handler && $wiadomosc->handled_at)
             · {{ $wiadomosc->handler->displayName() }},
+            {{ \App\Support\Czas::data($wiadomosc->handled_at, 'j F Y, H:i') }}
+        @elseif($wiadomosc->handled_at)
+            · obsługa Kuking,
             {{ \App\Support\Czas::data($wiadomosc->handled_at, 'j F Y, H:i') }}
         @endif
     </p>
@@ -198,6 +196,9 @@
         @if($wiadomosc->adresDoOdpowiedzi())
             <form method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
                 @csrf
+                @php($attempt = $wiadomosc->odpowiedzi->firstWhere('reply_key', old('reply_key', '')))
+                <input type="hidden" name="reply_key" value="{{ old('reply_key', (string) \Illuminate\Support\Str::uuid()) }}">
+                @error('reply_key')<p class="field-error" id="f-reply_key" tabindex="-1">{{ $message }}</p>@enderror
 
                 <x-field name="odpowiedz" label="Treść odpowiedzi" type="textarea" :rows="8"
                          :required="true"
@@ -209,7 +210,12 @@
                      a przy powiększonym tekście łatwo go trafić palcem, celując
                      w koniec pisania. --}}
                 <div class="form-actions">
-                    <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                    @if($attempt)
+                        <p>To będzie osobny list. Przy nieustalonym wyniku najpierw sprawdź u dostawcy, czy poprzedni został przyjęty.</p>
+                        <button class="btn btn-primary" type="submit" name="reply_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">Wyślij jako nową odpowiedź</button>
+                    @else
+                        <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                    @endif
                 </div>
             </form>
 
@@ -255,6 +261,16 @@
 
     <form id="stan-wiadomosci" class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
         @csrf
+        <input type="hidden" name="version" value="{{ $errors->has('version') ? $wiadomosc->version : old('version', $wiadomosc->version) }}">
+        <div id="f-version" tabindex="-1">
+            @error('version')
+                <p class="notice" role="alert">{{ $message }}</p>
+                <p>Bieżący stan: <strong>{{ $wiadomosc->statusLabel() }}</strong>.</p>
+                <p>Bieżąca notatka:</p>
+                <p class="whitespace-pre-line">{{ $wiadomosc->handler_note ?? 'Brak notatki.' }}</p>
+                <p>Twój tekst pozostał w polu „Notatka dla siebie”.</p>
+            @enderror
+        </div>
 
         <fieldset class="border-0 p-0">
             <legend class="font-bold mb-3">Stan wiadomości</legend>
