@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Nieopublikowane
+
+- Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
+
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
 - Formularze ze zdjęciami przestały gubić to, co już wpisaliście. Wcześniej jedno źle wypełnione pole potrafiło zabrać całą resztę formularza razem z poprawnie wypełnionymi polami — teraz błąd zostaje przy swoim polu, a Wasz tekst czeka na miejscu. Podsumowanie błędów w kreatorze przepisu prowadzi do kroku, na którym to pole naprawdę jest.
