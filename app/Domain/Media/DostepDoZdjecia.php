@@ -317,7 +317,7 @@ final class DostepDoZdjecia
                 ->where('target_type', ModeratedContent::TYPY[Post::class])
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
                 ->whereIn('target_id', fn ($wpisy) => $wpisy
-                    ->selectRaw('posts.id::text')
+                    ->select('posts.id')
                     ->from('post_media')
                     ->join('posts', 'posts.id', '=', 'post_media.post_id')
                     ->where('post_media.media_id', $id)

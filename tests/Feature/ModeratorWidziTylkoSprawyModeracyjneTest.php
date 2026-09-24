@@ -412,7 +412,7 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
 
     private function zglosWpis(Post $wpis, string $status = Report::STATUS_OPEN): void
     {
-        Report::create([
+        $zgloszenie = Report::create([
             'reporter_id' => null,
             'autor_tresci_id' => $wpis->author_id,
             'source' => Report::SOURCE_AUTOMAT,
@@ -420,8 +420,20 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
             'target_id' => $wpis->getKey(),
             'reason' => 'automat_model',
             'details' => 'Wpis: znany wzorzec spamu.',
-            'status' => $status,
+            'status' => Report::STATUS_OPEN,
         ]);
+
+        // Rozstrzygnięcie idzie jednym zapisem ze znacznikiem czasu —
+        // tego pilnuje `reports_resolution_complete_check`.
+        if ($status !== Report::STATUS_OPEN) {
+            $zamkniete = in_array($status, [Report::STATUS_RESOLVED, Report::STATUS_REJECTED], true);
+
+            $zgloszenie->forceFill([
+                'status' => $status,
+                'resolved_at' => $zamkniete ? now() : null,
+                'resolved_by' => $zamkniete ? $this->moderator->getKey() : null,
+            ])->save();
+        }
     }
 
     private function zglos(Media $zdjecie): void
