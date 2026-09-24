@@ -193,6 +193,14 @@ ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
+# Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
+# `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
+# `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
+# zdejmuje ten rethrow — oba testy mają oblać na braku wyjątku.
+EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
+EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
+EKSPORT_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n\n            throw $e;\n"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -467,6 +475,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
+     lambda s: replace_once(s, EKSPORT_RETHROW, "            $this->markFailed($export, $this->reasonFor($e));\n\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -490,6 +500,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(EKSPORT_PORAZKA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
