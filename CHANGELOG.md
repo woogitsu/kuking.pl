@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
 - Przepis wydrukowany z przeglądarki (Ctrl+P) mieści się czytelnie na kartkach A4: zostają tytuł, autor, adres przepisu, porcje, składniki z grupami i uwagami, wszystkie kroki i „Skąd ten przepis”. Na papier nie idą już menu, górna i dolna belka, przyciski ani komentarze, motyw ciemny drukuje się czarnym na białym, a krok nie przełamuje się między stronami. Długi przepis zajmuje 4 strony zamiast 8–9 (#765).
 
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
