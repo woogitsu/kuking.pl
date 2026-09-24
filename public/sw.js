@@ -16,7 +16,7 @@
  */
 
 // Zmieniaj przy zmianie zasobów startowych, w tym strony offline.
-const WERSJA = 'kuking-alfa-012';
+const WERSJA = 'kuking-alfa-013';
 const OFFLINE_URL = '/offline.html';
 
 const ZASOBY_STARTOWE = [

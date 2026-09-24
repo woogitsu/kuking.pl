@@ -256,6 +256,43 @@ class DalszeWynikiWyszukiwaniaTest extends TestCase
     }
 
     /**
+     * Issue #738, druga połowa: zalogowana osoba widzi w layoucie pole
+     * „Szukaj" w belce, a jego `value` czytało surowe `request('q')`.
+     * Tablica trafiała do `e()` → `htmlspecialchars(array)` → TypeError → 500,
+     * mimo że kontroler już normalizował frazę. Belka ma pokazywać tę samą
+     * frazę, którą widzi kontroler — dla tablicy pustą. Kontrola ujemna:
+     * przywrócenie `request('q')` w `components/layout.blade.php` daje 500.
+     */
+    public function test_tablicowe_q_nie_wywala_belki_zalogowanej_osoby(): void
+    {
+        $this->actingAs($this->user('czytelnik_tablicowego_q'));
+
+        foreach ([
+            ['q' => ['pierogi']],
+            ['q' => ['nazwa' => 'pierogi']],
+            ['q' => [['pierogi']]],
+        ] as $parametry) {
+            $response = $this->get(route('search').'?'.http_build_query($parametry))->assertOk();
+            $this->assertSame('', $response->viewData('phrase'));
+            $this->assertMatchesRegularExpression('/id="topbar-q"[^>]*value=""/s', $response->getContent());
+            $response->assertDontSee('Array');
+        }
+    }
+
+    /**
+     * Kontrola dodatnia do testu wyżej: zalogowana osoba z tekstową frazą
+     * nadal widzi ją w polu belki (z polskim znakiem, po `trim`).
+     */
+    public function test_tekstowe_q_nadal_wypelnia_belke_zalogowanej_osoby(): void
+    {
+        $this->actingAs($this->user('czytelnik_tekstowego_q'));
+
+        $this->get(route('search', ['q' => '  Żurek  ']))
+            ->assertOk()
+            ->assertSee('value="Żurek"', false);
+    }
+
+    /**
      * Kontrola dodatnia do testu wyżej: zwykła fraza (w tym z polskim znakiem)
      * nadal działa normalnie i nie jest myląco traktowana jak tablica.
      */

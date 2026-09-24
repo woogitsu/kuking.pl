@@ -2,6 +2,10 @@
 
 ## Nieopublikowane
 
+- Na ekranie „Nie ma teraz połączenia z internetem” przycisk „Spróbuj ponownie” otwiera ponownie tę samą stronę, która się nie wczytała — przepis albo wyszukiwanie z wpisaną frazą — zamiast przenosić na stronę główną. Do strony głównej prowadzi osobny przycisk „Przejdź na stronę główną” (#749).
+
+- Wyszukiwarka nie kończy się już błędem dla zalogowanej osoby, gdy adres zawiera nietypowo zapisaną frazę (np. z innego programu); pokazuje wtedy zwykły, pusty ekran „Szukaj” (#738).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).

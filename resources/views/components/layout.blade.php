@@ -420,11 +420,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth

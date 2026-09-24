@@ -47,6 +47,13 @@
         font-weight: 700;
         text-decoration: none;
     }
+    a.drugorzedny {
+        background: transparent;
+        color: inherit;
+        border: 2px solid currentColor;
+        text-decoration: underline;
+    }
+    a.drugorzedny:hover { background: transparent; }
 </style>
 </head>
 <body>
@@ -57,7 +64,15 @@
         Kuking potrzebuje internetu, żeby pokazać nowe wpisy.
         Sprawdź, czy masz włączone Wi-Fi albo dane w telefonie, i spróbuj jeszcze raz.
     </p>
-    <p><a href="/home">Spróbuj ponownie</a></p>
+    <!--
+        Pusty href to BIEŻĄCY adres (#749). Service worker podaje ten dokument
+        w odpowiedzi na nieudane wejście, pod adresem, który się nie wczytał —
+        przepis, wyszukiwanie z frazą. Kliknięcie ponawia właśnie to wejście,
+        ze ścieżką i parametrami, bez JavaScriptu i bez niczego z sieci.
+        Nie wpisuj tu "/home": napis obiecuje ponowienie, a nie powrót.
+    -->
+    <p><a href="">Spróbuj ponownie</a></p>
+    <p><a class="drugorzedny" href="/home">Przejdź na stronę główną</a></p>
 </main>
 </body>
 </html>
