@@ -274,6 +274,11 @@
                     @endif
                 @endauth
             </div>
+            {{-- Tylko na papierze (#765, resources/css/wydruk-przepisu.css):
+                 z kartki trzeba umieć wrócić do przepisu. Adres kanoniczny,
+                 nie bieżący z parametrami stronicowania komentarzy; dostęp
+                 i tak rozstrzyga RecipePolicy przy wejściu. --}}
+            <p class="meta m-0 przepis-adres-druk">Adres przepisu: {{ route('recipes.show', $recipe->slug) }}</p>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)
             <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>

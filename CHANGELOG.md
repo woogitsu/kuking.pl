@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Przepis wydrukowany z przeglądarki (Ctrl+P) mieści się czytelnie na kartkach A4: zostają tytuł, autor, adres przepisu, porcje, składniki z grupami i uwagami, wszystkie kroki i „Skąd ten przepis”. Na papier nie idą już menu, górna i dolna belka, przyciski ani komentarze, motyw ciemny drukuje się czarnym na białym, a krok nie przełamuje się między stronami. Długi przepis zajmuje 4 strony zamiast 8–9 (#765).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).

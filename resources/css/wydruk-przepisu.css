@@ -1,0 +1,194 @@
+/* =============================================================================
+   WYDRUK POJEDYNCZEGO PRZEPISU NA A4 (issue #765)
+
+   Kartka leży obok blatu (D-033, uzasadnienie grup składników). Ma na niej
+   być: tytuł, autor, adres przepisu, porcje, składniki z grupami i uwagami,
+   wszystkie kroki i „Skąd ten przepis”. Nie ma na niej być niczego, czego
+   na papierze nie da się kliknąć: nawigacji, górnej i dolnej belki,
+   szybkiego wyglądu, przycisków, formularzy, cudzych wykonań i komentarzy.
+
+   POMIAR, NIE ZGADYWANIE. Reguły sprawdza `node scripts/wydruk-przepisu.mjs`:
+   prawdziwe `@media print` w Chromium, krótki i długi przepis, jasny
+   i ciemny motyw, gość i autor, PDF A4 w storage/wydruk-765/. Przed tą
+   zmianą długi przepis zajmował 8–9 stron A4 (po niej 4), a papier dostawał belki,
+   17 przycisków autora i ciemne tło w motywie ciemnym.
+
+   ZAKRES: tylko strona przepisu — każda reguła jest pod
+   `body:has(.przepis-uklad)`. Inne ekrany drukują się jak dotąd.
+
+   POZA WARSTWAMI, CELOWO. `app.css` układa reguły w `@layer`, a reguła
+   nieuwarstwiona bije każdą warstwę (patrz komentarze przy `@layer
+   components` w app.css). Druk ma wygrać z ekranowym ustawieniem — więc nie
+   wchodzi do żadnej warstwy.
+
+   `!important` TYLKO W DWÓCH MIEJSCACH: przy kolorach i przy ukrywaniu.
+   Arkusze marki (`marka-przepis.css` i inne) też stoją poza warstwami,
+   z `[data-marka] …` o wyższej swoistości — pierwszy pomiar pokazał ciemne
+   tło nagłówka przepisu i szary tekst na nim mimo resetu kolorów. Wyścig
+   swoistości z każdą przyszłą regułą marki byłby kruchy; kolor i „nie ma
+   na papierze” mają wygrać zawsze.
+
+   PISMO W PUNKTACH, POMNOŻONE PRZEZ SKALĘ TEKSTU. Piksele ekranu (18 px
+   minimum) nie przenoszą się na papier jeden do jednego, ale kto ustawił
+   sobie 140%, ten dostaje 140% także na kartce.
+   ============================================================================= */
+
+.przepis-adres-druk {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body:has(.przepis-uklad) {
+    --druk-skala: var(--user-text-scale, 1);
+    color-scheme: light;
+    background: #FFFFFF;
+    color: #151714;
+    font-size: calc(12pt * var(--druk-skala));
+    padding: 0;
+  }
+
+  /* Motyw ciemny nie może zużyć tonera na tło. Kolory ekranu idą w kosz,
+     zostaje czarny tekst na białym. */
+  body:has(.przepis-uklad) *,
+  body:has(.przepis-uklad) *::before,
+  body:has(.przepis-uklad) *::after {
+    color: #151714 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Rama i wszystko, co na papierze jest martwe. */
+  body:has(.przepis-uklad) :is(
+    .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
+    .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
+    .przepis-akcje, .podziel-sie, .danger-zone,
+    [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
+  ),
+  body:has(.przepis-uklad) main :is(.btn, button, form) {
+    display: none !important;
+  }
+
+  /* Karty ekranu (ramki, zaokrąglenia) na papierze są tylko szumem. */
+  body:has(.przepis-uklad) .przepis-uklad :is(.marka-przepis-hero, .marka-przepis-tekst, .przepis-panel, .sekcja-strony, .recipe-story, .marka-przepis-zdjecie) {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  /* Belki są `sticky`/`fixed`; w druku nic nie może nachodzić na treść. */
+  body:has(.przepis-uklad) :is(.app-body, .app-main, .przepis-uklad, .przepis-uklad > header) {
+    position: static;
+    display: block;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  body:has(.przepis-uklad) .przepis-uklad > * + * {
+    margin-top: 10pt;
+  }
+
+  body:has(.przepis-uklad) .przepis-uklad h1 {
+    font-size: calc(22pt * var(--druk-skala));
+    line-height: 1.2;
+    margin: 4pt 0 8pt;
+  }
+
+  body:has(.przepis-uklad) .przepis-uklad h2 {
+    font-size: calc(16pt * var(--druk-skala));
+    margin: 12pt 0 4pt;
+  }
+
+  body:has(.przepis-uklad) .przepis-uklad :is(h1, h2, h3) {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  body:has(.przepis-uklad) .meta {
+    color: #3F453C !important;
+  }
+
+  body:has(.przepis-uklad) a {
+    text-decoration: none;
+  }
+
+  /* Adres na kartce: skąd wrócić do przepisu, gdy kartka się poplami. */
+  body:has(.przepis-uklad) .przepis-adres-druk {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.przepis-uklad) .przepis-autor {
+    display: block;
+  }
+
+  body:has(.przepis-uklad) .przepis-autor .avatar,
+  body:has(.przepis-uklad) .przepis-autor img {
+    display: none;
+  }
+
+  body:has(.przepis-uklad) .przepis-liczby {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4pt 16pt;
+    margin: 6pt 0 0;
+    padding: 0;
+  }
+
+  body:has(.przepis-uklad) .przepis-liczba svg {
+    display: none;
+  }
+
+  /* Zdjęcie „opcjonalnie małe”: jest, ale nie zjada kartki ani tuszu. */
+  body:has(.przepis-uklad) .przepis-uklad :is(.przepis-hero-zdjecie, .recipe-story .mt-4, .step-list .mt-3) {
+    max-width: 7cm;
+    break-inside: avoid;
+  }
+
+  body:has(.przepis-uklad) .przepis-uklad img {
+    max-height: 5cm;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  body:has(.przepis-uklad) .przepis-siatka {
+    display: block;
+  }
+
+  body:has(.przepis-uklad) :is(.ingredient-list li, .step-list > li) {
+    font-size: calc(13pt * var(--druk-skala));
+    padding: 3pt 0;
+    border-bottom: 0.5pt solid #929A8C;
+  }
+
+  body:has(.przepis-uklad) .naglowek-grupy {
+    font-size: calc(14pt * var(--druk-skala));
+    font-weight: 700;
+    margin: 8pt 0 2pt;
+  }
+
+  /* Krok czyta się w całości: nie łamiemy go między stronami. */
+  body:has(.przepis-uklad) :is(.step-list > li, .ingredient-list li, .recipe-story) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body:has(.przepis-uklad) .step-list > li {
+    gap: 8pt;
+    grid-template-columns: 2em minmax(0, 1fr);
+  }
+
+  /* Numer przy pierwszym wierszu kroku, nie w połowie długiego akapitu. */
+  body:has(.przepis-uklad) .step-number {
+    font-size: calc(14pt * var(--druk-skala));
+    align-self: start;
+  }
+}

@@ -32,6 +32,8 @@
 /storage/martwe-przyciski.json
 # Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
 /storage/kroki-kreatora/
+# PDF-y A4 z pomiaru wydruku przepisu (#765, scripts/wydruk-przepisu.mjs).
+/storage/wydruk-765/
 /storage/pail
 /vendor
 _ide_helper.php
