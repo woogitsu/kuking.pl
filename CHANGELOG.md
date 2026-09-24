@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
+
 - Przy wydzielonym serwisie pracy w tle zdjęcia, paczki z danymi i sprawdzanie treści nie czekają już w kolejce za mailami: każdy rodzaj pracy ma własny proces. W obecnym układzie z jednym kontenerem praca w tle zostaje w jednym procesie, żeby nie zabrakło pamięci dla strony. Przy wdrożeniu praca w tle dokańcza bieżące zadanie, zamiast przerywać je w połowie (#1030).
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
