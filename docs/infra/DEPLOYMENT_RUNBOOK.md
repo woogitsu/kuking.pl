@@ -933,6 +933,23 @@ konfigurację przy starcie.
 Dla środowiska `staging` zrób osobny widget albo dopisz domenę staginu do
 listy hostnames w tym samym widgetcie. Ten sam Secret Key wolno użyć w obu.
 
+**Lista hostnames w panelu musi odpowiadać liście, którą sprawdza aplikacja**
+(issue #992). Od tej zmiany serwer przyjmuje token tylko wtedy, gdy Siteverify
+zwróci `hostname` z tej listy i `action` formularza, który jest wysyłany:
+
+- host z `APP_URL` danego środowiska (`kuking.pl` na produkcji,
+  `staging.kuking.pl` na stagingu),
+- plus hosty wpisane jawnie w `TURNSTILE_HOSTY_STAGINGU` (po przecinku, bez
+  `https://`; domyślnie puste i na produkcji puste ma zostać).
+
+Host dopisany tylko w panelu Cloudflare aplikacja odrzuci („Nie udało się
+potwierdzić…”), a w dzienniku zobaczysz `Turnstile odrzucił token wystawiony
+w innym kontekście` z `powod: host_spoza_listy`. Host dopisany tylko
+w aplikacji nie wystawi tokenu wcale (`Error: 400020`). Zmieniasz jedno —
+zmień drugie. Wpis `kuking-pl-production.up.railway.app` w panelu nie otwiera
+formularzy na tym adresie: aplikacja nie przyjmuje ruchu na ten host
+(`ZaufaneHosty`) i nie przyjmie z niego tokenu.
+
 ### 8A.3 Sprawdzenie, że naprawdę działa
 
 ```bash

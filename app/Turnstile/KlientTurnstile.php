@@ -29,8 +29,19 @@ use Throwable;
  * `POST https://challenges.cloudflare.com/turnstile/v0/siteverify`, ciało
  * `application/x-www-form-urlencoded`, pola `secret`, `response`
  * i nieobowiązkowe `remoteip`. Odpowiedź JSON: `success` (bool),
- * `error-codes` (lista), `challenge_ts`, `hostname`.
+ * `error-codes` (lista), `challenge_ts`, `hostname`, `action`.
  * https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
+ *
+ * `success=true` TO JESZCZE NIE „PRZESZEDŁ" (issue #992)
+ * Siteverify potwierdza, że token jest prawdziwy i niezużyty — ale nie, że
+ * wystawiono go NA TYM formularzu i NA NASZYM hoście. Jeden widget chroni
+ * siedem czynności, więc bez porównania `action` token z logowania
+ * przechodziłby na zgłoszeniu DSA, a bez porównania `hostname` — token
+ * z innego środowiska albo z hosta omyłkowo dopuszczonego w panelu
+ * Cloudflare. Brak albo niezgodność któregokolwiek pola to DEFINITYWNA
+ * odmowa (`Odrzucony`), nie „nie wiem": Cloudflare odpowiedział w pełni,
+ * tylko o czymś innym niż ten formularz. Świadomy fail-open z D-050 dotyczy
+ * wyłącznie niedostępności usługi i naszego błędu konfiguracji.
  *
  * ZASADA NADRZĘDNA: NIEDOSTĘPNOŚĆ CUDZEJ USŁUGI NIE ZAMYKA REJESTRACJI
  * Ten klient stoi w środku wysyłania NASZEGO formularza. Cokolwiek pójdzie
@@ -67,7 +78,11 @@ final class KlientTurnstile
         'internal-error',
     ];
 
-    public function sprawdz(string $token, ?string $ip = null): WynikTurnstile
+    /**
+     * @param  string  $akcja  oczekiwane `action` — `Turnstile::akcja()` miejsca,
+     *                         którego formularz jest właśnie wysyłany
+     */
+    public function sprawdz(string $token, string $akcja, ?string $ip = null): WynikTurnstile
     {
         if (! Turnstile::skonfigurowany()) {
             // Bez kluczy nie ma czego i czym sprawdzać. Nie pytamy Cloudflare
@@ -116,7 +131,7 @@ final class KlientTurnstile
         $sukces = $odpowiedz->json('success');
 
         if ($sukces === true) {
-            return WynikTurnstile::Przeszedl;
+            return $this->zgodnoscKontekstu($odpowiedz->json('hostname'), $odpowiedz->json('action'), $akcja);
         }
 
         if ($sukces !== false) {
@@ -150,6 +165,45 @@ final class KlientTurnstile
         // odpowiedzieć na pytanie „czy ktoś nas w ogóle atakuje" — bez adresu
         // IP i bez treści formularza (AGENTS.md §7).
         Log::info('Turnstile odrzucił token.', ['kody' => $kody]);
+
+        return WynikTurnstile::Odrzucony;
+    }
+
+    /**
+     * Czy prawdziwy token wystawiono na NASZYM hoście i dla TEGO formularza.
+     *
+     * Do dziennika idzie wyłącznie zamknięty kod przyczyny i nazwa miejsca —
+     * bez tokenu, bez odpowiedzi Cloudflare i bez podanego w niej hosta.
+     */
+    private function zgodnoscKontekstu(mixed $host, mixed $akcjaZOdpowiedzi, string $akcja): WynikTurnstile
+    {
+        $dozwolone = Turnstile::dozwoloneHosty();
+
+        if ($dozwolone === []) {
+            // `APP_URL` bez hosta: NASZ błąd konfiguracji, jak zły sekret.
+            Log::error('Turnstile nie ma z czym porównać hosta — nikogo nie zatrzymujemy.', [
+                'co_zrobic' => 'Ustaw APP_URL na pełny adres serwisu (np. https://kuking.pl).',
+            ]);
+
+            return WynikTurnstile::Nierozstrzygniety;
+        }
+
+        $powod = match (true) {
+            ! is_string($host) || $host === '' => 'brak_hosta',
+            ! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',
+            ! is_string($akcjaZOdpowiedzi) || $akcjaZOdpowiedzi === '' => 'brak_akcji',
+            ! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',
+            default => null,
+        };
+
+        if ($powod === null) {
+            return WynikTurnstile::Przeszedl;
+        }
+
+        Log::info('Turnstile odrzucił token wystawiony w innym kontekście.', [
+            'powod' => $powod,
+            'miejsce' => $akcja,
+        ]);
 
         return WynikTurnstile::Odrzucony;
     }

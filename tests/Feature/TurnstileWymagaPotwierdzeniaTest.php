@@ -94,7 +94,12 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     public function test_formularz_przechodzi_z_prawidlowym_tokenem(): void
     {
         $this->wlaczTurnstile();
-        $this->udawajOdpowiedz(['success' => true, 'hostname' => 'kuking.pl']);
+        // Host z `APP_URL` i akcja tego formularza — inaczej od #992 odmowa.
+        $this->udawajOdpowiedz([
+            'success' => true,
+            'hostname' => parse_url((string) config('app.url'), PHP_URL_HOST),
+            'action' => 'rejestracja',
+        ]);
 
         $this->zarejestruj(['cf-turnstile-response' => 'token-od-widgetu'])
             ->assertRedirect(route('onboarding.interests'));

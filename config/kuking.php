@@ -991,6 +991,16 @@ return [
         // niedostępność Cloudflare nie może zamykać rejestracji.
         'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
 
+        // Hosty stagingu, na których wystawiony token przyjmujemy OPRÓCZ hosta
+        // z `APP_URL` (issue #992). Nazwy hostów po przecinku, bez protokołu
+        // i bez gwiazdek. Domyślnie puste: na produkcji i na stagingu z własnym
+        // `APP_URL` nic nie trzeba ustawiać. Host żądania nie wchodzi tu nigdy.
+        // Każdy wpis musi też stać na liście hostnames widgetu w Cloudflare.
+        'hosty_stagingu' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TURNSTILE_HOSTY_STAGINGU', '')),
+        ), static fn (string $host): bool => $host !== '')),
+
         /*
          * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
          * (brak tokenu odrzuca wysłanie — D-050, zaostrzenie z 9 września

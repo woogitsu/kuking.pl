@@ -32,6 +32,9 @@
     kogoś, kto nie może włączyć JavaScriptu, jest to jedyna droga dalej —
     `/napisz-do-nas` nią nie jest, bo ma to samo sprawdzenie.
 
+    `data-action` wiąże token z tym formularzem: serwer porównuje je
+    z miejscem, które waliduje (`KlientTurnstile`, issue #992).
+
     `nonce` przy skrypcie jest wymagane: CSP tego serwisu nie ma
     `unsafe-inline` ani otwartego `script-src` (`ApplySecurityHeaders`).
 --}}
@@ -54,6 +57,7 @@
 
         <div class="cf-turnstile"
              data-sitekey="{{ \App\Support\Turnstile::kluczPubliczny() }}"
+             data-action="{{ \App\Support\Turnstile::akcja($miejsce) }}"
              data-language="pl"
              data-theme="{{ $motyw }}"
              data-size="compact"></div>

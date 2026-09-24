@@ -204,6 +204,12 @@ z niej fałszywego wniosku o poziomie ochrony:
    w dzienniku. To jest świadome: awaria cudzej usługi albo nasza literówka
    w sekrecie nie może zamykać rejestracji, odzyskiwania hasła i drogi z DSA
    art. 16 naraz.
+4. **Token jest związany z hostem i formularzem** (issue #992). `success=true`
+   przechodzi tylko z `hostname` z listy środowiska (host z `APP_URL` plus
+   jawne `TURNSTILE_HOSTY_STAGINGU`, nigdy host żądania) i z `action` równym
+   miejscu wysyłanego formularza. Brak albo niezgodność to odmowa jak przy
+   podrobionym tokenie — nie „nie wiem" z punktu 3. Lista hostnames widgetu
+   w panelu Cloudflare ma odpowiadać liście w aplikacji (runbook, krok 8A.2).
 
 Pełne uzasadnienie, droga wycofania i to, co idzie razem z zaciśnięciem:
 `docs/DECISIONS.md` D-050.
