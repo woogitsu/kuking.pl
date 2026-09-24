@@ -112,6 +112,14 @@ oczekuj: moderacje|Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KomentarzePolicyZgadzaSieZListaTest.php
 ocena:
 ---
+nazwa: komentarza po decyzji moderatora nie usuwa autor ani autor wpisu
+plik: app/Policies/CommentPolicy.php
+zamien: if ($comment->status !== Comment::STATUS_PUBLISHED) {
+na: if (false) {
+oczekuj: po_decyzji_moderatora|Failed asserting|403
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KomentarzUkrytyPrzezModeracjeNieDoUsunieciaTest.php
+ocena:
+---
 nazwa: wykonanie zbanowanego kucharza nie dostaje ekranu celebracji
 plik: app/Policies/CookedEventPolicy.php
 zamien: return $event->user->jestDostepnyJakoAutor();

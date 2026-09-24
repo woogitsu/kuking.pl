@@ -41,7 +41,9 @@ $post = Post::query()
     ->orderByDesc('published_at')
     ->firstOrFail();
 
+// Od #1361 akcja wymaga jawnego aktora; edytuje autor wpisu — jak w produkcji.
 app(EditPost::class)->handle(
+    $post->author,
     $post,
     "Rolada z kurczaka, tak jak robiła ją babcia. #rolada\n#ciasto #nasłodko na koniec.",
     'public',
