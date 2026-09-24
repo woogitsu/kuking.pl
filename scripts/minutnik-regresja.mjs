@@ -51,6 +51,19 @@ assert(zakonczTemplate && ugotowalemTemplate, 'Nie znaleziono rzeczywistych link
 const withExits = body => zakonczTemplate.replace(/\{\{ route\([^}]*\}\}/, '/przepis')
   + ugotowalemTemplate.replace(/\{\{ route\([^}]*\}\}/, '/ugotowalem') + body;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Wstrzyknięty moduł wykonuje się ASYNCHRONICZNIE — dopiero po pobraniu
+// `minutnik-krok.js` — a `addScriptTag` z `content` na to nie czeka. Bez
+// tego oczekiwania zapis w sessionStorage zrobiony zaraz po `openStep`
+// potrafił wyprzedzić start minutnika na TEJ stronie: na wolnym runnerze
+// CI (i przy CPU spowolnionym 6×) spóźniony termin alarmował jeszcze na
+// pierwszej stronie i znikał, a druga — ta sprawdzana — nie miała już
+// czego ogłosić („0 !== 1”). Znacznik na końcu fragmentu mówi, że cały
+// blok app.js się wykonał; czekamy na zdarzenie, nie na zegar.
+const injectTimerModule = async page => {
+  await page.addScriptTag({ type: 'module',
+    content: importLine + source.slice(begin, end) + '\nwindow.minutnikGotowy = true;\n' });
+  await page.waitForFunction(() => window.minutnikGotowy === true);
+};
 
 // Prawdziwe pochodzenie (origin) zamiast `page.setContent`. Dwa niezależne
 // powody:
@@ -95,10 +108,7 @@ async function fixture(durations, run) {
         }).observe(node, { childList: true, characterData: true, subtree: true });
       });
     });
-    await page.addScriptTag({
-      type: 'module',
-      content: importLine + source.slice(begin, end),
-    });
+    await injectTimerModule(page);
     await run(page);
   } finally { await page.close(); }
 }
@@ -145,7 +155,7 @@ async function openStep(page, krok, seconds, { exits = false, telefon = false } 
       createOscillator() { window.alarmBeeps += 1; return super.createOscillator(); }
     };
   }, telefon);
-  await page.addScriptTag({ type: 'module', content: importLine + source.slice(begin, end) });
+  await injectTimerModule(page);
 }
 const block = (page, index = 0) => page.locator('.cook-timer').nth(index);
 const button = (page, index = 0) => block(page, index).locator('.cook-timer-start');
