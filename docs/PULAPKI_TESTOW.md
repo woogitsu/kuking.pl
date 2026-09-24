@@ -725,6 +725,65 @@ i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
 tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
 (`tokens.css` daje 70/80/90/112/125/140).
 
+## 16. Czekanie na ZMIANĘ zawisa na stronie, która już jest u celu
+
+Numer 16, bo §14 i §15 wnosi PR #1472 (`claude/f1-niestabilne-kontrole`).
+Przy scalaniu obu zachowaj wszystkie trzy wpisy w kolejności numerów.
+
+`scripts/dostepnosc.mjs` przed audytem axe w wariancie „ciemny” ustawiał
+`data-theme="dark"` i czekał `waitForFunction(tło body !== tło sprzed)`
+z limitem 5 s. CI PR #1470 (który frontu nie dotyka) padł na tym gołym
+`TimeoutError` zaraz po ekranie „panel — kolaż na powitanie (ciemny)”
+i wywrócił cały przebieg. Warunek „coś się zmieniło” mówi o DRODZE, nie
+o CELU — i ma trzy znane słabości:
+
+- **Strona już ciemna nie zmieni się nigdy.** Motyw z konta albo
+  z ciasteczka wydaje na `<html>` sam serwer. Sprawdzone na statycznej
+  stronie z regułą `body` z `tokens.css`: stary warunek zawisł 10 razy na 10.
+  Czekanie kończy się błędem na stronie, która jest DOKŁADNIE w stanie,
+  którego chcieliśmy.
+- **„Inne” to jeszcze nie „docelowe”.** Przy `prefers-reduced-motion`
+  `tokens.css` skraca przejścia do 0.01ms, ale ich nie wyłącza: zaraz po
+  `setAttribute` `getComputedStyle(body)` oddaje wciąż STARE tło, nowe
+  dopiero po klatce. Pierwsza zmiana tła nie mówi też nic o kolorze tekstu
+  ani o innych węzłach — a axe czyta kolor każdego. Na zdławionym runnerze
+  klatek jest mało i 5 s potrafi nie wystarczyć.
+- **Goły `TimeoutError` nie niesie danych.** Z samego „5000ms exceeded” nie
+  da się odróżnić strony, która była już ciemna, od strony bez klatek.
+
+Trzecią hipotezę — że maluje się inny element niż `body` — wykluczyliśmy
+w kodzie: `body` ma `background-color: var(--color-surface)`, `<html>`
+własnego tła nie ma. Logu z tego przebiegu nie da się już pobrać (zadanie
+wróciło do kolejki), więc między dwiema pierwszymi przyczynami rozstrzygnie
+pomiar przy następnej porażce — po to on jest.
+
+### Co robić
+
+**Czekaj na wartość oczekiwaną, nie na zmianę.** `poczekajNaMotywCiemny` liczy
+cel w przeglądarce: nowo wstawiony element-sonda z
+`background-color: var(--color-surface)` i `color: var(--color-ink)`
+dziedziczy tokeny z `:root[data-theme="dark"]` i — jako świeży element — nie
+ma przejścia, więc ma od razu wartość docelową w postaci `rgb(…)`. Warunek:
+tło i tekst `body` równe sondzie **oraz** zero trwających `CSSTransition`
+w dokumencie. Palety nie przepisujemy do testu — po zmianie tokenu pomocnik
+dalej mówi prawdę. Strona już ciemna przechodzi od razu.
+
+**Limit to bezpiecznik, porażka to pomiar.** 10 s, a przy porażce błąd
+z tłem sprzed, wartościami oczekiwanymi i aktualnymi, listą trwających
+przejść, `visibilityState` i nazwą ekranu; ekran jest pomijany z kodem
+wyjścia 1, jak przy skali tekstu — nie wywraca reszty przebiegu.
+
+**Funkcja, nie łańcuch, w `waitForFunction`.** Łańcuch strona wykonuje jak
+`eval`, a CSP aplikacji nie ma `unsafe-eval`. Pomocnik składa funkcję
+w Node; sprawdzone na `php artisan serve` (`/prywatnosc`, `/regulamin`, `/`,
+`/login`: ciemne tło po 280–530 ms) i na statycznej stronie z CSP (100 na
+100, także dla strony już ciemnej; strona, której `body` nie ma tokenu,
+kończy się błędem z pomiarem po limicie).
+
+Ten sam wzorzec „stan, nie zmiana ani zegar” opisuje §14 i wspólny pomocnik
+`scripts/lib/stan-ustalony.mjs` z PR #1472. Gdy oba są na `main`,
+`poczekajNaMotywCiemny` można przenieść na `wymagajStanu` — warunek zostaje ten sam.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
