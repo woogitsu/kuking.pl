@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
@@ -177,6 +178,13 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.show' => route('recipes.show', $recipe->slug),
             'cooking.show' => route('cooking.show', $recipe->slug),
             'posts.show' => route('posts.show', $post),
+            // Zeszyt „Wszyscy" jest publiczny od issue #965 — publiczny
+            // zeszyt idzie do indeksu, więc musi mieć opis.
+            'collections.show' => route('collections.show', Collection::create([
+                'owner_id' => $autor->getKey(),
+                'name' => 'Zeszyt do indeksu',
+                'visibility' => 'public',
+            ])),
 
             // Wypisanie z tygodniowego podsumowania i droga powrotna
             // (issue #11, D-057). Adresy są PODPISANE, bo trasy stoją za

@@ -143,13 +143,27 @@ class SitemapController extends Controller
             // prefiksach. Strony nie trafiały więc do indeksu, ale budżet
             // indeksowania szedł na `/szukaj?q=...`, a plik twierdził coś,
             // czego nie robił.
-            'Disallow: /szukaj',
+            //
+            // `/szukaj` CELOWO NIE MA TU `Disallow` (issue #964). Strona wysyła
+            // `noindex` w meta i w `X-Robots-Tag` — ale robot, któremu
+            // robots.txt zabrania wejścia, nigdy tej reguły nie odczyta,
+            // a adres odkryty z zewnętrznego linku zostaje w indeksie jako
+            // goły URL bez opisu. Google Search Central: `noindex` działa
+            // tylko na stronie, której robots.txt nie blokuje. To samo mówi
+            // `docs/seo/SEO_TECHNICAL.md` §1.3 i §3.1.
             'Disallow: /home',
             'Disallow: /dodaj',
             'Disallow: /witaj',
             'Disallow: /powiadomienia',
             'Disallow: /ustawienia',
-            'Disallow: /zeszyt',
+            // `/zeszyt` BEZ PRZEDROSTKA CAŁOŚCI (issue #965). Publiczny zeszyt
+            // („Ten zeszyt widzą wszyscy") stoi pod `/zeszyt/{uuid}` i ma być
+            // dostępny dla gościa i robota. Zablokowane zostają: sama lista
+            // `/zeszyt` (za logowaniem) i wszystko pod `/zeszyt/{uuid}/...`
+            // (edycja). Prywatny zeszyt robot i tak dostaje jako 403,
+            // a właścicielowi widok dokłada `noindex`.
+            'Disallow: /zeszyt$',
+            'Disallow: /zeszyt/*/',
             'Disallow: /admin',
             // UKOŚNIK NA KOŃCU MA ZNACZENIE. `Disallow: /zglos` to dopasowanie
             // po przedrostku, więc blokowało też `/zglos-nielegalna-tresc` —

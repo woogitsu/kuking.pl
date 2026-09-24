@@ -288,10 +288,9 @@ final class ZeszytPaginacjaObuListTest extends TestCase
     /**
      * Cudzy, publiczny zeszyt — inna gałąź `CollectionPolicy::view()`.
      *
-     * Wszystkie pozostałe sceny oglądają zeszyt WŁASNY. Zeszyt gościa spoza
-     * konta nie wchodzi w grę: trasa stoi za `auth`, więc niezalogowany dostaje
-     * przekierowanie, a nie listę — i to też jest tu sprawdzone, żeby nikt nie
-     * dopisywał testu na stan, którego nie ma.
+     * Wszystkie pozostałe sceny oglądają zeszyt WŁASNY. Od issue #965 publiczny
+     * zeszyt otwiera się też bez konta — więc gość przechodzi tę samą drogę
+     * co zalogowany obcy i też nie może zgubić strony drugiej listy.
      */
     public function test_cudzy_publiczny_zeszyt_tez_zachowuje_strone_drugiej_listy(): void
     {
@@ -309,9 +308,13 @@ final class ZeszytPaginacjaObuListTest extends TestCase
         $this->assertSame(2, $dalej->viewData('recipes')->currentPage(), 'Cudzy zeszyt: przepisy nie przeszły na stronę 2.');
         $this->assertSame(2, $dalej->viewData('posts')->currentPage(), 'Cudzy zeszyt: wpisy cofnęły się ze strony 2 — issue #646.');
 
-        // Trasa stoi za `auth` — gość nie dostaje listy, tylko logowanie.
+        // Gość (issue #965): ta sama lista i ten sam zachowany numer strony.
         $this->post(route('logout'));
-        $this->get(route('collections.show', $book))->assertRedirect(route('login'));
+        $this->assertGuest();
+        $gosc = $this->get(route('collections.show', ['collection' => $book, 'wpisy' => 2]))->assertOk();
+        $linkiGoscia = $this->przyciskiWiecej($gosc->getContent());
+        $this->assertArrayHasKey(self::PRZYCISK_PRZEPISY, $linkiGoscia, 'Gość w publicznym zeszycie ma widzieć przycisk przepisów.');
+        $this->assertSame(['page' => '2', 'wpisy' => '2'], $this->parametry($linkiGoscia[self::PRZYCISK_PRZEPISY]), 'Gość gubi stronę drugiej listy.');
     }
 
     private function sprawdzPrzejscie(string $staly, string $ruchomy, string $listaStala, string $listaRuchoma, string $przycisk): void

@@ -342,9 +342,9 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
 | `/szukaj`, `/powiadomienia`, `/ustawienia/*`, `/admin/*` | `noindex, nofollow` (+ `Disallow` w `robots.txt` dla `/ustawienia`, `/admin`, `/powiadomienia` — auth-only, crawler i tak ich nie zobaczy, ale to tania dodatkowa warstwa) | Brak wartości publicznej, ryzyko crawl budgetu |
-| `/home`, `/dodaj`, `/zeszyt` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
+| `/home`, `/dodaj`, lista `/zeszyt` i `/zeszyt/{uuid}/edytuj` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
 | Kolekcje prywatne | `noindex, nofollow` | `collections.visibility='private'` domyślne |
-| Kolekcje publiczne | `index, follow` | Realna, kuracyjna treść — dobry sygnał jakości |
+| Kolekcje publiczne | `index, follow` — `/zeszyt/{uuid}` otwiera się bez logowania, ma opis meta i nie dostaje `X-Robots-Tag` (issue #965) | Realna, kuracyjna treść — dobry sygnał jakości |
 
 ### 3.1 `robots.txt`
 
@@ -359,6 +359,8 @@ Allow: /
 
 Sitemap: https://kuking.pl/sitemap_index.xml
 ```
+
+Realny plik ma dodatkowo `Disallow: /zeszyt$` i `Disallow: /zeszyt/*/` — blokują listę własnych zeszytów i ich podstrony, ale nie publiczny zeszyt `/zeszyt/{uuid}` (issue #965). `Disallow: /szukaj` celowo nie ma (issue #964, patrz niżej).
 
 Realny plik generuje `app/Http/Controllers/SitemapController.php::robots()` — adresy tam i tu muszą się zgadzać; do 12 września 2026 ten dokument (i sam kontroler) miały `/search`, `/home` i `/add` po angielsku, czyli pod adresami, których serwis nie ma, więc wyszukiwarka i ekran dodawania nie były w praktyce wyłączone z indeksowania.
 
