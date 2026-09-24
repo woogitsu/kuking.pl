@@ -75,6 +75,28 @@ export function modulyBezImportu(moduly, appJs) {
     return moduly.filter((plik) => plik !== 'app.js' && ! importowane.has(plik)).sort();
 }
 
+/**
+ * Skrypty pomiarowe, które przebudowują arkusz pełnym `npm run build`.
+ *
+ * Pełny `build` to kontrast marki + `node --test` całej listy + Vite. Kontrola
+ * ujemna, która dopisuje sabotaż do CSS i przebudowuje stronę, potrzebuje
+ * wyłącznie Vite: z pełnym buildem jej wynik zależy od kilkunastu testów
+ * niezwiązanych z pomiarem (także czasowych, pod obciążeniem serwera
+ * i Chromium) — port marki padał „Command failed: npm run build" w środku
+ * kontroli LANDING. Skrypty wołają więc `npm run build:assets`.
+ */
+export function pelneBuildyWSkryptach(skrypty) {
+    // Dwie formy wywołania: tablica argumentów (`'npm', ['run', 'build']`)
+    // i polecenie powłoki (`execSync('npm run build')`). Sama wzmianka
+    // w komentarzu nie jest przebudową i nie może zapalać.
+    const wzor = /['"]npm['"]\s*,\s*\[\s*['"]run['"]\s*,\s*['"]build['"]|\b(?:exec|execSync|spawn|spawnSync)\(\s*['"`]npm\s+run\s+build(?![\w:-])/;
+
+    return Object.entries(skrypty)
+        .filter(([, tekst]) => wzor.test(tekst))
+        .map(([plik]) => plik)
+        .sort();
+}
+
 // --- KONTROLA DODATNIA -----------------------------------------------------
 
 test('kontrola dodatnia: reguła list testów ZAPALA na podłożonej sierocie', () => {
@@ -105,6 +127,25 @@ test('kontrola dodatnia: reguła importów ZAPALA na module wyrzuconym z app.js'
         modulyBezImportu(['app.js', 'nazwany.js', 'domyslny.js', 'niema.js'], zWiazaniami),
         ['niema.js'],
     );
+});
+
+test('kontrola dodatnia: reguła przebudowy ZAPALA na pełnym `npm run build` w skrypcie', () => {
+    const skrypty = {
+        'scripts/pojedyncze.mjs': "execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });",
+        'scripts/podwojne.mjs': 'execFileSync("npm", ["run", "build"], { stdio: "pipe" });',
+        'scripts/powloka.mjs': "execSync('npm run build');",
+        'scripts/dobry.mjs': "execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });",
+        'scripts/komentarz.mjs': '// łapie zapomniany `npm run build`, nie woła go',
+    };
+
+    assert.deepEqual(
+        pelneBuildyWSkryptach(skrypty),
+        ['scripts/podwojne.mjs', 'scripts/pojedyncze.mjs', 'scripts/powloka.mjs'],
+    );
+    assert.deepEqual(pelneBuildyWSkryptach({
+        'scripts/dobry.mjs': skrypty['scripts/dobry.mjs'],
+        'scripts/komentarz.mjs': skrypty['scripts/komentarz.mjs'],
+    }), []);
 });
 
 // --- POMIAR NA PRAWDZIWYM DRZEWIE -----------------------------------------
@@ -141,5 +182,31 @@ test('app.js importuje każdy moduł z resources/js', () => {
         [],
         'Te moduły nie są importowane w app.js, więc NIE trafiają na stronę. Vite zbuduje się '
         + 'zielono, testy modułu też — a w przeglądarce poleci ReferenceError.',
+    );
+});
+
+test('skrypty pomiarowe przebudowują same assety, nie pełny `build` z testami', () => {
+    const { build, 'build:assets': assety } = JSON.parse(readFileSync(join(korzen, 'package.json'), 'utf8')).scripts;
+
+    assert.equal(assety, 'vite build', '`build:assets` ma przebudowywać wyłącznie arkusz i skrypty strony.');
+    assert.ok(build.endsWith('&& vite build'), 'Pełny `build` przestał kończyć się budową Vite.');
+
+    const katalog = join(korzen, 'scripts');
+    const skrypty = Object.fromEntries(
+        readdirSync(katalog, { withFileTypes: true })
+            .filter((wpis) => wpis.isFile() && wpis.name.endsWith('.mjs') && ! wpis.name.endsWith('.test.mjs'))
+            .map((wpis) => [`scripts/${wpis.name}`, readFileSync(join(katalog, wpis.name), 'utf8')]),
+    );
+
+    assert.ok(Object.keys(skrypty).length >= 20, 'Skan skryptów znalazł podejrzanie mało plików — to sam skan jest zepsuty.');
+    assert.ok(
+        Object.values(skrypty).some((tekst) => tekst.includes("'build:assets'")),
+        'Żaden skrypt nie woła `build:assets` — skan nie patrzy tam, gdzie trzeba.',
+    );
+    assert.deepEqual(
+        pelneBuildyWSkryptach(skrypty),
+        [],
+        'Te skrypty przebudowują arkusz pełnym `npm run build` (kontrast + wszystkie testy JS + Vite). '
+        + 'Użyj `npm run build:assets` — pomiar i kontrola ujemna nie mogą zależeć od niezwiązanych testów.',
     );
 });

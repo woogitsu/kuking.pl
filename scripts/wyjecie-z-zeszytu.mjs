@@ -142,7 +142,7 @@ async function podniesSerwer() {
   // Arkusz jest ZBUDOWANY, nie czytany z `resources/` — bez przebudowania
   // pomiar opisywałby poprzednią wersję CSS.
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
