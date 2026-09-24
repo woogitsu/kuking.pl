@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Feed\DailyBoardCandidates;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\DailyPick;
-use App\Models\Post;
 use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -28,35 +30,47 @@ use Illuminate\View\View;
  */
 class DailyBoardController extends Controller
 {
+    public function __construct(private readonly DailyBoardCandidates $candidates) {}
+
     public function edit(Request $request): View
     {
         $this->authorize('moderate', User::class);
 
         $picks = DailyPick::query()->forDate()->get();
 
+        $selectedPosts = $picks->where('subject_type', DailyPick::TYPE_POST)->pluck('subject_id')->all();
+        $selectedPeople = $picks->where('subject_type', DailyPick::TYPE_USER)->pluck('subject_id')->all();
+        $restoring = $request->session()->hasOldInput('_board_form');
+        $notes = $picks->pluck('note', 'subject_id')->filter()->all();
+        if ($restoring) {
+            $selectedPosts = $this->ids($request->old('wpisy', []));
+            $selectedPeople = $this->ids($request->old('osoby', []));
+            $oldNotes = $request->old('notatki', []);
+            $notes = is_array($oldNotes) ? array_filter($oldNotes, fn ($note) => is_string($note) || $note === null) : [];
+        }
+        $searchInput = $restoring ? $request->old('szukaj', '') : $request->query('szukaj', '');
+        $search = is_string($searchInput) ? mb_substr($searchInput, 0, 100) : '';
+        $postsQuery = $this->candidates->posts($request->user())->with(['author.profile.avatar', 'media', 'recipe']);
+        $peopleQuery = $this->candidates->people($request->user())->with('profile.avatar');
+        // Wybrane pozycje mają pola także poza limitem kandydatów i wiekiem wpisu.
+        $chosenPosts = (clone $postsQuery)->whereIn('id', $selectedPosts)->get()->keyBy('id');
+        $chosenPeople = (clone $peopleQuery)->whereIn('id', $selectedPeople)->get()->keyBy('id');
+        $posts = collect($selectedPosts)->map(fn ($id) => $chosenPosts->get($id))->filter()
+            ->concat((clone $postsQuery)->where('published_at', '>=', now()->subDays(7))
+                ->orderByDesc('published_at')->orderByDesc('id')->limit(40)->get())
+            ->unique('id')->values();
+        $people = collect($selectedPeople)->map(fn ($id) => $chosenPeople->get($id))->filter()
+            ->concat($this->candidates->searchPeople($request->user(), $search)->with('profile.avatar')->limit(40)->get())
+            ->unique('id')->values();
+
         return view('pages.admin.daily-board', [
-            'wybraneWpisy' => $picks->where('subject_type', DailyPick::TYPE_POST)->pluck('subject_id')->all(),
-            'wybraneOsoby' => $picks->where('subject_type', DailyPick::TYPE_USER)->pluck('subject_id')->all(),
-            'notatki' => $picks->pluck('note', 'subject_id')->filter()->all(),
-
-            // Świeże wpisy z ostatnich dni — z tego gospodarz wybiera.
-            'wpisy' => Post::query()
-                ->publiclyVisible()
-                ->where('published_at', '>=', now()->subDays(7))
-                ->with(['author.profile.avatar', 'media'])
-                ->orderByDesc('published_at')
-                ->limit(40)
-                ->get(),
-
-            // Osoby, które ostatnio coś pokazały.
-            'osoby' => User::query()
-                ->where('status', User::STATUS_ACTIVE)
-                ->whereHas('posts', fn ($query) => $query->publiclyVisible())
-                ->with('profile.avatar')
-                ->limit(40)
-                ->get()
-                ->sortBy(fn (User $user) => $user->displayName())
-                ->values(),
+            'wybraneWpisy' => $selectedPosts,
+            'wybraneOsoby' => $selectedPeople,
+            'notatki' => $notes,
+            'szukaj' => $search,
+            'wpisy' => $posts,
+            'osoby' => $people,
+            'niedostepne' => count($selectedPosts) + count($selectedPeople) - $chosenPosts->count() - $chosenPeople->count(),
         ]);
     }
 
@@ -64,6 +78,7 @@ class DailyBoardController extends Controller
     {
         $this->authorize('moderate', User::class);
 
+        $request->merge(['_board_form' => '1']);
         $data = $request->validate([
             'wpisy' => ['nullable', 'array', 'max:6'],
             'wpisy.*' => ['uuid'],
@@ -71,10 +86,28 @@ class DailyBoardController extends Controller
             'osoby.*' => ['uuid'],
             'notatki' => ['nullable', 'array'],
             'notatki.*' => ['nullable', 'string', 'max:300'],
+            'szukaj' => ['nullable', 'string', 'max:100'],
         ], [
-            'wpisy.max' => 'Wybierz najwyżej 6 dań. Tablica ma być krótka.',
-            'osoby.max' => 'Wybierz najwyżej 6 osób. Tablica ma być krótka.',
+            'wpisy.max' => 'Wybierz najwyżej :max wpisów. Tablica ma być krótka.',
+            'osoby.max' => 'Wybierz najwyżej :max osób. Tablica ma być krótka.',
+            'notatki.*.max' => 'Skróć notatkę do :max znaków.',
+            'notatki.*.string' => 'Wpisz notatkę jako tekst.',
         ]);
+
+        if ($request->has('przegladaj')) {
+            return redirect()->route('admin.daily-board')->withInput($request->except(['_token', 'przegladaj']));
+        }
+
+        $submittedPeople = count($data['osoby'] ?? []);
+        $submittedPosts = count($data['wpisy'] ?? []);
+        $data['osoby'] = array_values(array_unique($data['osoby'] ?? []));
+        $data['wpisy'] = array_values(array_unique($data['wpisy'] ?? []));
+        if ($this->candidates->people($request->user())->whereIn('id', $data['osoby'])->count() !== count($data['osoby'])) {
+            throw ValidationException::withMessages(['osoby' => 'Wybierz ponownie osoby z dostępnej listy.']);
+        }
+        if ($this->candidates->posts($request->user())->whereIn('id', $data['wpisy'])->count() !== count($data['wpisy'])) {
+            throw ValidationException::withMessages(['wpisy' => 'Wybierz ponownie publiczne wpisy z dostępnej listy.']);
+        }
 
         $notatki = $data['notatki'] ?? [];
         $moderator = $request->user();
@@ -97,7 +130,7 @@ class DailyBoardController extends Controller
         // na tablicy, nie błędem 500. Transakcja pilnuje, że DELETE i INSERT-y
         // JEDNEGO zapisu widać razem albo wcale — bez niej przerwanie
         // w połowie zostawiałoby tablicę w stanie ani starym, ani nowym.
-        DB::transaction(function () use ($data, $notatki, $moderator): void {
+        $saved = DB::transaction(function () use ($data, $notatki, $moderator): array {
             // Wybór na dany dzień zastępujemy w całości — to jest prostsze
             // w obsłudze niż dokładanie i odejmowanie pozycji.
             DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
@@ -125,23 +158,27 @@ class DailyBoardController extends Controller
                     $this->nullIfBlank($notatki[$postId] ?? null),
                 );
             }
+
+            return DailyPick::query()->forDate()->get()->countBy('subject_type')->all();
         });
 
         AuditLogEntry::record(
             action: 'daily_board.updated',
             actor: $moderator,
             metadata: [
-                'osoby' => count($data['osoby'] ?? []),
-                'wpisy' => count($data['wpisy'] ?? []),
+                'osoby' => $saved[DailyPick::TYPE_USER] ?? 0,
+                'przeslane_osoby' => $submittedPeople,
+                'wpisy' => $saved[DailyPick::TYPE_POST] ?? 0,
+                'przeslane_wpisy' => $submittedPosts,
             ],
             ip: $request->ip(),
         );
 
-        $razem = count($data['osoby'] ?? []) + count($data['wpisy'] ?? []);
+        $razem = array_sum($saved);
 
         return back()->with('status', $razem === 0
             ? 'Wyczyszczone. Tablica dobierze treści sama.'
-            : "Zapisane. Na tablicy jest dziś {$razem} pozycji.");
+            : 'Zapisaliśmy wyróżnienia. Pozostałe miejsca tablica uzupełni automatycznie.');
     }
 
     /** Usuwa dzisiejszy wybór — tablica wraca do trybu automatycznego. */
@@ -192,6 +229,12 @@ class DailyBoardController extends Controller
             // Nic do zrobienia — konkurencyjne żądanie już zapisało dokładnie
             // tę pozycję na dziś.
         }
+    }
+
+    /** @return list<string> */
+    private function ids(mixed $value): array
+    {
+        return is_array($value) ? array_values(array_unique(array_filter($value, fn ($id) => is_string($id) && Str::isUuid($id)))) : [];
     }
 
     private function nullIfBlank(?string $value): ?string

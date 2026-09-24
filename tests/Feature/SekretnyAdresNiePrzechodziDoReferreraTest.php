@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -117,6 +118,33 @@ final class SekretnyAdresNiePrzechodziDoReferreraTest extends TestCase
         $this->assertCount(1, $response->headers->all('Content-Security-Policy'));
         preg_match("/'nonce-([^']+)'/", $response->headers->get('Content-Security-Policy'), $nonce);
         $this->assertNotEmpty($nonce[1]);
-        $response->assertSee('nonce="'.$nonce[1].'"', false);
+
+        // DLACZEGO NIE `assertSee('nonce="…"')` NA HTML-u.
+        //
+        // Ta strona w teście NIE MA ANI JEDNEGO znacznika, który mógłby nonce
+        // ponieść: `Tests\TestCase::setUp()` woła `withoutVite()`, więc `@vite`
+        // nic nie emituje, a poza tym `/nowe-haslo` nie ma własnych skryptów.
+        // Zmierzone: zero `<script>` i zero wystąpień `nonce=` w odpowiedzi.
+        //
+        // Asercja na HTML przechodziła WYŁĄCZNIE przez PRZECIEK: gdy wcześniej
+        // w tym samym procesie jakiś test wyrenderował komponent Livewire'a,
+        // `SupportAutoInjectedAssets` doklejało `@livewireScripts` do każdej
+        // następnej odpowiedzi 200 text/html — i to ten wstrzyknięty skrypt
+        // niósł nonce. Pomiar wprost na czystym `main`: ten test SAM oblewa,
+        // a puszczony po `KazdaTrasaZIdentyfikatoremPodPolicyTest` przechodzi
+        // (38/38). Zieleń brała się z cudzego stanu, nie z zachowania CSP.
+        //
+        // Sprawdzamy więc to, co ten test NAPRAWDĘ ma pilnować i co da się
+        // sprawdzić bez żadnego wyrenderowanego assetu: że nagłówek niesie
+        // DOKŁADNIE ten nonce, który aplikacja wydała jako swój jedyny
+        // (`Vite::useCspNonce()` w `ApplySecurityHeaders`). Gdyby druga
+        // warstwa middleware wygenerowała własny, te dwie wartości by się
+        // rozjechały — czyli dokładnie regresja z nazwy tego testu.
+        $this->assertSame(
+            $nonce[1],
+            Vite::cspNonce(),
+            'Nagłówek CSP niesie inny nonce niż ten, który aplikacja wydała jako swój jedyny — '
+            .'druga warstwa middleware wygenerowała własny.',
+        );
     }
 }

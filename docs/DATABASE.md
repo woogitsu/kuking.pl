@@ -1635,7 +1635,13 @@ Snapshot po istotnych zmianach.
   numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
 - `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
   przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
-  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+  czasy, wszystkie cztery kolumny pochodzenia i `family_since_year`,
+  składniki z `no_amount`, kroki). `source_url` i `ingredients[].no_amount` są
+  w migawce od issue #896 — **w starszych migawkach tych kluczy nie ma
+  i brak znaczy „nieznane"**; nie uzupełniamy ich dzisiejszą wartością
+  z przepisu. Numer wersji i migawka powstają w transakcji zapisu treści,
+  pod blokadą wiersza `recipes` (issue #895). Zmiana kształtu JSON, nie
+  schematu — bez migracji;
 - `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
@@ -3346,8 +3352,10 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
   `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
 - Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
-  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
-  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport.u<uid>`
+  katalogu tymczasowego systemu — osobny dla użytkownika systemu procesu, albo
+  `KUKING_EXPORT_TEMP_DIR` / `kuking.exports.temp_dir` — tworzony z prawami
+  0700, a w nim katalog nazwany identyfikatorem eksportu) na dysku **workera** i znikają
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
@@ -3355,7 +3363,11 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
   pierwszego eksportu po upływie godziny albo do restartu kontenera
   (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
-  z identyfikatorem eksportu, bez ścieżek. Sprzątanie stoi na samym
+  z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
+  (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
+  jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
+  dalej. Stary wspólny podkatalog `kuking-eksport` (sprzed #1436) nie jest już
+  czytany — znika z restartem kontenera. Sprzątanie stoi na samym
   początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
   eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
   wymazanego konta czekałaby na cudzy eksport.
