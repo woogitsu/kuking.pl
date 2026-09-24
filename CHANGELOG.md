@@ -2,8 +2,11 @@
 
 ## Nieopublikowane
 
+- Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
+- Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
 - Lista zablokowanych osób w ustawieniach prywatności pokazuje po 20 osób, a dalsze wyświetla przycisk „Pokaż więcej osób”. Strona otwiera się szybko także przy długiej liście, a zgody na e-mail i wspomnienia są na miejscu jak dotąd (#1366).
 - Listy „Obserwujący” i „Obserwowani” nie przewijają się już w bok na wąskim telefonie przy powiększonej czcionce przeglądarki. Długa nazwa łamie się w karcie zamiast wychodzić poza ekran; pismo i przyciski mają ten sam rozmiar co wcześniej (#1341).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
