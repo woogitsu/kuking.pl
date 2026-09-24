@@ -23,6 +23,7 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
@@ -38,6 +39,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -258,6 +260,23 @@ try {
 
             return $bledy === null ? 'ok' : implode(' ', $bledy->all());
         })(),
+
+        // Komenda obchodząca zaległe potwierdzenia zgłoszeń (issue #797).
+        // Wołamy PRAWDZIWĄ komendę przez Artisana, nie jej wnętrzności —
+        // razem z jej kodem wyjścia, bo to na nim stoi wpięcie
+        // w harmonogram.
+        'dosylka-potwierdzen' => Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen'),
+
+        // Człowiek wracający do tej samej sprawy: ponowne kliknięcie „Zgłoś"
+        // na tej samej treści. `ReportContent` oddaje istniejące zgłoszenie
+        // i po drodze dokańcza zaległe potwierdzenie — to jest DRUGA droga
+        // do tego samego znacznika i to z nią ma się ścigać dosyłka.
+        'powrot-do-sprawy' => (string) app(ReportContent::class)->handle(
+            reporter: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reason: 'spam',
+            details: 'To jest reklama.',
+        )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
