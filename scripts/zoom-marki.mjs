@@ -8,6 +8,83 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { sprawdzFokusProfilu } from './szybki-wyglad.mjs';
 
+/* FOKUS MIERZYMY DOPIERO, GDY SIĘ USTALI — NIE KLATKĘ PO TAB.
+
+   CI PR #1372 (runner DOM-NEW-02; PR zmieniał tylko backend digestu):
+   `ZOOM_FOCUS_CONTRAST` dla „Poprzednie zdjęcie” na /home z
+   `{"visible":true,"occluded":false,"contrast":0,"ring":null}` — element miał
+   już fokus, ale ani obwódki, ani cienia. Wcześniej czekaliśmy klatkę,
+   potem na animacje `activeElement` z limitem 500 ms, potem drugą klatkę
+   (bez JS: czas animacji + 34 ms w Node). `tokens.css` przy
+   `prefers-reduced-motion` skraca przejścia do 0.01ms, ale ich NIE wyłącza:
+   styl fokusu, przejście `box-shadow` z `none` (pierwsza klatka to warstwy
+   o rozstawie 0px, których pomiar słusznie nie uznaje za pierścień) albo
+   przewinięcie karuzeli do elementu mogą na zdławionym runnerze nie zdążyć
+   w stałym oknie — a wtedy mierzymy stan pośredni. Logu z samego
+   przebiegu nie da się już rozstrzygnąć, bo pomiar nie niósł stylu; to
+   ten sam błąd co docs/PULAPKI_TESTOW.md §14: zegar mierzy szybkość
+   maszyny, nie stronę.
+
+   Czekamy więc na STAN (limit to tylko bezpiecznik): fokus jest na elemencie
+   pasującym do `selektor`, ten element ma niepustą obwódkę albo cień, nie ma
+   na nim trwającej skończonej animacji ani przejścia, a jego prostokąt jest
+   taki sam w dwóch kolejnych próbkach (przewinięcie do elementu się
+   skończyło). Fokus poza `selektor` (np. pasek u góry) nie jest mierzony,
+   więc nie ma na co czekać. Animacje nieskończone pomijamy — nigdy się nie
+   skończą, a stary kod też ich nie wymagał.
+
+   Po limicie NIE rzucamy: oddajemy zmierzony stan i pomiar ocenia jak
+   dotąd (pierścień istnieje i kontrast ≥ 3 — warunek bez zmian). Dzięki
+   temu kontrola ujemna bez pierścienia dalej kończy się
+   `ZOOM_FOCUS_CONTRAST`, tylko po limicie, a komunikat niesie obwódkę,
+   cień, przejścia i `activeElement`.
+
+   Próbkujemy z Node, nie `waitForFunction(polling: 'raf')`: ta sama ścieżka
+   działa w kontekście bez JS (nawigacja-niski-widok), gdzie stary kod też
+   nie polegał na klatkach ani zegarach strony. Funkcja, nie łańcuch — CSP
+   bez `unsafe-eval` (docs/PULAPKI_TESTOW.md §16). Wzorzec jak
+   `scripts/lib/stan-ustalony.mjs` z PR #1472 — tu lokalnie, bo tego pliku
+   nie ma jeszcze na `main`. */
+export const FOKUS_LIMIT_MS = 4000;
+
+function stanFokusu(selektor) {
+  const el = document.activeElement;
+  const opis = el && el !== document.body
+    ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '')
+      + (el.textContent ? ' „' + el.textContent.trim().replace(/\s+/g, ' ').slice(0, 40) + '”' : '')
+    : (el ? 'body' : null);
+  if (!el || el === document.body || !el.matches(selektor)) return { mierzony: false, activeElement: opis };
+  const css = getComputedStyle(el);
+  const obwodka = parseFloat(css.outlineWidth) > 0 && !['none', 'hidden'].includes(css.outlineStyle);
+  const cien = css.boxShadow !== 'none' && css.boxShadow !== '';
+  const trwajace = el.getAnimations()
+    .filter(a => a.playState !== 'finished' && Number.isFinite(a.effect?.getComputedTiming().endTime))
+    .map(a => (a instanceof CSSTransition ? 'transition:' + a.transitionProperty : 'animation:' + (a.animationName ?? '?')) + ':' + a.playState + (a.pending ? ':pending' : ''));
+  const b = el.getBoundingClientRect();
+  return {
+    mierzony: true, activeElement: opis, focusVisible: el.matches(':focus-visible'),
+    outline: `${css.outlineStyle} ${css.outlineWidth} ${css.outlineColor} offset ${css.outlineOffset}`,
+    boxShadow: css.boxShadow, transition: css.transition, trwajace,
+    prostokat: [b.x, b.y, b.width, b.height].map(v => Math.round(v * 100) / 100).join(','),
+    pierscien: obwodka || cien,
+  };
+}
+
+export async function poczekajNaFokus(page, { selektor, limitMs = FOKUS_LIMIT_MS } = {}) {
+  const start = Date.now();
+  let poprzedni = null, stan;
+  for (;;) {
+    stan = await page.evaluate(stanFokusu, selektor);
+    if (!stan.mierzony) return { ...stan, ustalony: true, ms: Date.now() - start };
+    const gotowy = stan.pierscien && stan.trwajace.length === 0 && poprzedni?.prostokat === stan.prostokat
+      && poprzedni?.activeElement === stan.activeElement;
+    if (gotowy) return { ...stan, ustalony: true, ms: Date.now() - start };
+    if (Date.now() - start >= limitMs) return { ...stan, ustalony: false, ms: Date.now() - start };
+    poprzedni = stan;
+    await page.waitForTimeout(20);
+  }
+}
+
 export async function sprawdzTab(page, path, { bezJs = false } = {}) {
   const expected = await page.evaluate(() => {
     const elements = [...document.querySelectorAll('main a[href], main button, main input, main select, main textarea, main summary, main [tabindex]')]
@@ -27,22 +104,9 @@ export async function sprawdzTab(page, path, { bezJs = false } = {}) {
   const seen = new Set();
   for (let i = 0; i < expected + 80 && seen.size < expected; i++) {
     await page.keyboard.press('Tab');
-    // Bez JS oczekiwanie odbywa się w Node; aplikacja nadal ma wyłączone skrypty.
-    if (bezJs) {
-      const duration = await page.evaluate(() => Math.max(0, ...document.activeElement.getAnimations().map(a => Math.min(500, a.effect.getComputedTiming().endTime || 0))));
-      await page.waitForTimeout(duration + 34);
-    }
-    const r = await page.evaluate(async ({ bezJs }) => {
-      if (!bezJs) {
-        await new Promise(requestAnimationFrame);
-        // Pierwsza klatka może zawierać dopiero początek transition (halo 0px).
-        // Czekamy na skończenie krótkiej animacji, nie obniżamy progu kontrastu.
-        await Promise.race([
-          Promise.all(document.activeElement?.getAnimations().map(a => a.finished.catch(() => {})) ?? []),
-          new Promise(resolve => setTimeout(resolve, 500)),
-        ]);
-        await new Promise(requestAnimationFrame);
-      }
+    // Mierzymy dopiero USTALONY fokus (poczekajNaFokus niżej), nie klatkę po Tab.
+    const oczekiwanie = await poczekajNaFokus(page, { selektor: '[data-pomiar-tab]' });
+    const r = await page.evaluate(() => {
       const el = document.activeElement;
       if (!el?.hasAttribute('data-pomiar-tab')) return null;
       const fragments = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
@@ -139,8 +203,11 @@ export async function sprawdzTab(page, path, { bezJs = false } = {}) {
         visible: fragments.length > 0 && fragments.every(b => b.y >= 0 && b.bottom <= innerHeight && b.x >= 0 && b.right <= innerWidth),
         centerVisible: centersVisible, occluded, contrast, color: css.outlineColor,
         ring: ring?.kind ?? null, paint: ring?.paint, ambiguousPoints };
-    }, { bezJs });
+    });
     if (!r) continue;
+    // Stan z oczekiwania trafia do każdego komunikatu ZOOM_FOCUS_* — porażka
+    // ma mówić, czy pierścień był ustalony, czy limit minął w trakcie.
+    r.oczekiwanie = oczekiwanie;
     if (r.hidden || r.opacity <= .01) throw new Error('ZOOM_FOCUS_HIDDEN ' + path + ' ' + JSON.stringify(r));
     if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
     if (!r.visible || !r.centerVisible || r.occluded) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify(r));
