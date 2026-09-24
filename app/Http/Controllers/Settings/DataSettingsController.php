@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
@@ -415,11 +416,17 @@ class DataSettingsController extends Controller
         // Połączenie wzięte z modelu nie zależy od żadnego importu, więc działa
         // niezależnie od kolejności scalania. To ta sama transakcja i to samo
         // połączenie.
-        $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
-            $user->markForDeletion($zakres);
+        try {
+            $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
+                $user->markForDeletion($zakres);
 
-            $rejestr->przyjmijZadanieUsunieciaKonta($user);
-        });
+                $rejestr->przyjmijZadanieUsunieciaKonta($user);
+            });
+        } catch (BladDlaCzlowieka $blad) {
+            // Świeży stan pod blokadą mówi, że konto już jest w usuwaniu
+            // (drugie kliknięcie, druga karta — #980). Nic nie zapisano.
+            return back()->withErrors(['confirm' => $blad->getMessage()]);
+        }
 
         // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
         // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy

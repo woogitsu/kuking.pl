@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
+use App\Domain\Users\ZamekKonta;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
@@ -312,6 +314,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'delete_requested_at' => 'datetime',
             'data_erased_at' => 'datetime',
             'status_expires_at' => 'datetime',
+            // Kara odłożona na czas usuwania konta (#980) — pole sterujące,
+            // poza `$fillable` jak `status` (AGENTS.md §7).
+            'punishment_expires_at' => 'datetime',
             // Zapisywana WYŁĄCZNIE przez `App\Domain\Analytics\ZanotujOstatniaWizyte`
             // (throttlowany middleware, nigdy formularz) — dlatego nie ma jej
             // w `$fillable`, mimo że to nie jest `status` ani `role`.
@@ -603,7 +608,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function statusLabel(): string
     {
-        return self::ETYKIETY_STATUSU[$this->status] ?? (string) $this->status;
+        $etykieta = self::ETYKIETY_STATUSU[$this->status] ?? (string) $this->status;
+
+        // Kara odłożona na czas usuwania (#980) — moderator ma ją widzieć,
+        // bo wróci, jeśli ta osoba cofnie usunięcie.
+        if ($this->punishment_status !== null) {
+            $etykieta .= ' · '.mb_strtolower(self::ETYKIETY_STATUSU[$this->punishment_status] ?? (string) $this->punishment_status);
+        }
+
+        return $etykieta;
     }
 
     /** Rola po polsku (panel moderacji). Ten sam zapas co przy statusie. */
@@ -1192,11 +1205,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
             throw new \InvalidArgumentException("Nieznany zakres usunięcia konta: {$scope}");
         }
 
-        $this->forceFill([
-            'status' => self::STATUS_PENDING_DELETE,
-            'delete_requested_at' => now(),
-            'delete_scope' => $scope,
-        ])->save();
+        // Rozstrzyga ŚWIEŻY wiersz pod blokadą, nie model z formularza (#980):
+        // między sprawdzeniem hasła a tym zapisem moderator mógł zablokować
+        // konto — ten ban ma przeczekać karencję w `punishment_status`,
+        // a nie zniknąć pod `pending_delete`.
+        $this->przejdz(static function (self $konto) use ($scope): void {
+            if (in_array($konto->status, [self::STATUS_PENDING_DELETE, self::STATUS_ERASED], true)) {
+                throw new BladDlaCzlowieka('To konto jest już oznaczone do usunięcia. '
+                    .'Jeśli chcesz zmienić zdanie, skorzystaj ze strony „Cofnij usunięcie konta”.');
+            }
+
+            $kara = in_array($konto->status, [self::STATUS_SUSPENDED, self::STATUS_BANNED], true)
+                ? $konto->status
+                : null;
+
+            $konto->forceFill([
+                'status' => self::STATUS_PENDING_DELETE,
+                'status_expires_at' => null,
+                'punishment_status' => $kara,
+                'punishment_expires_at' => $kara === self::STATUS_SUSPENDED ? $konto->status_expires_at : null,
+                'delete_requested_at' => now(),
+                'delete_scope' => $scope,
+            ]);
+        });
 
         // Ta sama zasada co przy `ban()`/`suspend()`: zmiana stanu konta, która
         // ma odciąć dostęp, musi kasować sesje z INNYCH przeglądarek, nie tylko
@@ -1216,14 +1247,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * wraca do `active`, a CHECK w bazie wiąże `delete_scope` wyłącznie ze
      * stanami usuwania. Kto zgłosi usunięcie ponownie, wybierze na nowo —
      * i to jest poprawne: po miesiącu ta decyzja może być inna.
+     *
+     * KARA WRACA, NIE ZNIKA (#980). Konto zablokowane albo zawieszone przed
+     * zgłoszeniem — lub w trakcie karencji — wraca do tej kary, z jej
+     * terminem, a nie do `active`. Zawieszenie, któremu termin minął
+     * w karencji, zdejmie przy pierwszym wejściu `EnsureAccountIsActive`.
      */
     public function cancelDeletion(): void
     {
-        $this->forceFill([
-            'status' => self::STATUS_ACTIVE,
-            'delete_requested_at' => null,
-            'delete_scope' => null,
-        ])->save();
+        $this->przejdz(static function (self $konto): void {
+            $kara = $konto->punishment_status;
+
+            $konto->forceFill([
+                'status' => $kara ?? self::STATUS_ACTIVE,
+                'status_expires_at' => $kara === self::STATUS_SUSPENDED ? $konto->punishment_expires_at : null,
+                'punishment_status' => null,
+                'punishment_expires_at' => null,
+                'delete_requested_at' => null,
+                'delete_scope' => null,
+            ]);
+        });
     }
 
     /**
@@ -1275,10 +1318,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function suspend(?DateTimeInterface $until = null): void
     {
-        $this->forceFill([
-            'status' => self::STATUS_SUSPENDED,
-            'status_expires_at' => $until,
-        ])->save();
+        $this->nalozKare(self::STATUS_SUSPENDED, $until);
 
         $this->invalidateSessions();
     }
@@ -1292,23 +1332,83 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function ban(): void
     {
-        $this->forceFill([
-            'status' => self::STATUS_BANNED,
-            'status_expires_at' => null,
-        ])->save();
+        $this->nalozKare(self::STATUS_BANNED, null);
 
         $this->invalidateSessions();
     }
 
     /**
+     * Wspólne ciało `suspend()` i `ban()` — macierz przejść #980.
+     *
+     * Konto w cyklu usunięcia (`pending_delete`, `erased`) ZOSTAJE w nim:
+     * decyzja moderacyjna nie zatrzymuje egzekucji karencji, a sama kara
+     * trafia do `punishment_status`, skąd przywróci ją `cancelDeletion()`.
+     * Każde inne konto dostaje karę w `status`, jak dotąd.
+     */
+    private function nalozKare(string $kara, ?DateTimeInterface $until): void
+    {
+        $this->przejdz(static function (self $konto) use ($kara, $until): void {
+            if (in_array($konto->status, [self::STATUS_PENDING_DELETE, self::STATUS_ERASED], true)) {
+                $konto->forceFill([
+                    'punishment_status' => $kara,
+                    'punishment_expires_at' => $until,
+                ]);
+
+                return;
+            }
+
+            $konto->forceFill([
+                'status' => $kara,
+                'status_expires_at' => $until,
+            ]);
+        });
+    }
+
+    /**
      * Przywrócenie konta po odsiedzeniu kary albo po decyzji moderatora.
+     *
+     * Na koncie w cyklu usunięcia zdejmuje wyłącznie karę odłożoną (#980) —
+     * uchylony ban nie może anulować żądania usunięcia danych.
      */
     public function reinstate(): void
     {
-        $this->forceFill([
-            'status' => self::STATUS_ACTIVE,
-            'status_expires_at' => null,
-        ])->save();
+        $this->przejdz(static function (self $konto): void {
+            if (in_array($konto->status, [self::STATUS_PENDING_DELETE, self::STATUS_ERASED], true)) {
+                $konto->forceFill(['punishment_status' => null, 'punishment_expires_at' => null]);
+
+                return;
+            }
+
+            $konto->forceFill([
+                'status' => self::STATUS_ACTIVE,
+                'status_expires_at' => null,
+            ]);
+        });
+    }
+
+    /**
+     * Jedyna droga zmiany stanu konta w tej klasie (#980).
+     *
+     * `$zmiana` dostaje ŚWIEŻY wiersz odczytany pod blokadą (`ZamekKonta`,
+     * `users` przed rekordami zależnymi) i na NIM decyduje — model, na którym
+     * wołano metodę, mógł zostać wczytany przed sprawdzeniem hasła albo przed
+     * równoległą decyzją moderatora. Po zapisie ten model dostaje stan z bazy,
+     * żeby wołający nie działał dalej na nieaktualnym `status`.
+     *
+     * @param  \Closure(self): void  $zmiana
+     */
+    private function przejdz(\Closure $zmiana): void
+    {
+        ZamekKonta::zablokuj($this, function (?self $swiezy) use ($zmiana): void {
+            if ($swiezy === null) {
+                throw new \LogicException('Konto zniknęło, zanim zmieniono jego stan.');
+            }
+
+            $zmiana($swiezy);
+            $swiezy->save();
+
+            $this->setRawAttributes($swiezy->getAttributes(), true);
+        });
     }
 
     /**
