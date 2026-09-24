@@ -160,9 +160,12 @@ final class StanKolejki
      * Gotowe zadania osobno dla każdej kolejki (issue #1030).
      *
      * Suma z całej tabeli nie odróżnia zdrowej zaległości `default` od
-     * `media` albo `low`, których nikt nie bierze. Każda kolejka ma dziś
-     * własny proces workera (`docker/entrypoint.sh`, `QUEUE_WORKERS`), więc
-     * stojąca kolejka to zwykle jeden padnięty proces — i trzeba wiedzieć który.
+     * `media` albo `low`, których nikt nie bierze. W osobnym kontenerze
+     * workera każda kolejka ma własny proces (`listy_kolejek()` w
+     * `docker/entrypoint.sh`), więc stojąca kolejka to zwykle jeden padnięty
+     * proces. W roli `all` proces jest jeden, a stojące `media`/`low` przy
+     * żywym `default` to głodzenie przez priorytet — sygnał do wydzielenia
+     * workera. W obu przypadkach trzeba wiedzieć, która kolejka stoi.
      *
      * Czytamy tylko kolumny `queue` i `available_at`, nigdy `payload`.
      *

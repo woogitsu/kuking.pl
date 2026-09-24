@@ -193,6 +193,7 @@ ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
+UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
 
@@ -470,7 +471,9 @@ checks = [
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
-     lambda s: replace_once(s, "QUEUE_WORKERS:-default media low}", "QUEUE_WORKERS:-high,default,media,low}")),
+     lambda s: replace_once(s, 'local osobne="default media low"', 'local osobne="high,default,media,low"')),
+    ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
+     lambda s: replace_once(s, '${QUEUE_NAMES:-default,media,low}', '${QUEUE_NAMES:-default media low}')),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -495,6 +498,7 @@ run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
+run_test(UMOWA_KOLEJKI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

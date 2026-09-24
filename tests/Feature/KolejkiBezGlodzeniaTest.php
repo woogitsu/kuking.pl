@@ -19,15 +19,21 @@ use Tests\TestCase;
  *
  * Test jedzie na PRAWDZIWYM sterowniku `database` i prawdziwym
  * `Illuminate\Queue\Worker` — tym samym, który uruchamia `queue:work`.
- * Procesy z `docker/entrypoint.sh` (lista `QUEUE_WORKERS`) symulujemy
+ * Procesy roli `worker` z `docker/entrypoint.sh` (`listy_kolejek()`,
+ * zmienna `osobne`) symulujemy
  * na zmianę: każdy obrót to jedno `runNextJob()` na proces, a przed każdym
  * obrotem kolejka `default` jest dopełniana, więc nigdy nie pustoszeje.
  *
  * Kontrola ujemna jest w tym samym pliku: dawny pojedynczy worker
  * `high,default,media,low` przy tej samej zaległości nie bierze ani zdjęcia,
  * ani eksportu. Kontrola dodatnia (zmierzona 24.09.2026): wpisanie w
- * entrypoincie `QUEUE_WORKERS:-high,default,media,low` wywraca
+ * entrypoincie `local osobne="high,default,media,low"` wywraca
  * test_media_i_low_ruszaja_mimo_stalej_zaleglosci_default.
+ *
+ * Rola `all` (jeden kontener z WWW) CELOWO zostaje przy jednym procesie
+ * i tym samym głodzeniu, które pokazuje kontrola ujemna — trzy szczyty
+ * pamięci naraz groziłyby OOM całej strony. Pilnuje tego UmowaKolejkiTest
+ * i tests/skrypty/entrypoint-nadzor.sh; lekarstwem jest wydzielony worker.
  */
 class KolejkiBezGlodzeniaTest extends TestCase
 {
@@ -51,7 +57,7 @@ class KolejkiBezGlodzeniaTest extends TestCase
     private function procesyZEntrypointu(): array
     {
         $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
-        $this->assertSame(1, preg_match('/QUEUE_WORKERS:-([a-z, ]+)\}/', $entrypoint, $trafienie));
+        $this->assertSame(1, preg_match('/local osobne="([a-z, ]+)"/', $entrypoint, $trafienie));
 
         return preg_split('/ +/', trim($trafienie[1]));
     }

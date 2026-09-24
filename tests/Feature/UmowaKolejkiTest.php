@@ -86,47 +86,55 @@ class UmowaKolejkiTest extends TestCase
         Queue::assertPushedOn('default', NotifyUserExportReady::class);
     }
 
+    /**
+     * Domyślne procesy `queue:work` z `listy_kolejek()` w entrypoincie:
+     * każdy element to lista `--queue` jednego procesu.
+     *
+     * `worker` (osobny kontener) — proces na kolejkę; `all` (jeden kontener
+     * z WWW, produkcja dziś) — jeden proces, żeby szczyty pamięci zdjęcia
+     * i eksportu nie zeszły się z WWW (przegląd #1030).
+     *
+     * @return list<string>
+     */
+    private function procesyRoli(string $rola): array
+    {
+        $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
+        $wzor = $rola === 'worker'
+            ? '/local osobne="([a-z, ]+)"/'
+            : '/QUEUE_NAMES:-([a-z,]+)\}/';
+
+        $this->assertSame(1, preg_match($wzor, $entrypoint, $trafienie), "Nie znalazłem listy kolejek roli `{$rola}` w docker/entrypoint.sh.");
+
+        return preg_split('/ +/', trim($trafienie[1]));
+    }
+
     public function test_entrypoint_naprawde_obsluguje_te_kolejki(): void
     {
         // Nazwa kolejki wpisana w zadaniu, której worker nie odbiera, jest
         // gorsza niż brak nazwy: zadanie leży w bazie i nikt go nie bierze.
-        $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
+        foreach (['worker', 'all'] as $rola) {
+            $obslugiwane = preg_split('/[, ]+/', implode(' ', $this->procesyRoli($rola)));
 
-        $this->assertSame(
-            1,
-            preg_match('/QUEUE_WORKERS:-([a-z, ]+)\}/', $entrypoint, $trafienie),
-            'Nie znalazłem listy kolejek w docker/entrypoint.sh.',
-        );
-
-        $obslugiwane = preg_split('/[, ]+/', $trafienie[1]);
-
-        foreach (self::ZADANIA as $klasa => $kolejka) {
-            if ($kolejka === null) {
-                continue;
+            foreach (self::ZADANIA as $klasa => $kolejka) {
+                $this->assertContains(
+                    $kolejka ?? 'default',
+                    $obslugiwane,
+                    class_basename($klasa).' idzie na kolejkę `'.($kolejka ?? 'default')."`, której worker roli `{$rola}` nie odbiera. ".
+                    'Zadanie zostanie w bazie na zawsze.',
+                );
             }
-
-            $this->assertContains(
-                $kolejka,
-                $obslugiwane,
-                class_basename($klasa)." idzie na kolejkę `{$kolejka}`, której worker nie odbiera. ".
-                'Zadanie zostanie w bazie na zawsze.',
-            );
         }
     }
 
-    public function test_kazda_kolejka_z_producentem_ma_wlasny_proces_workera(): void
+    public function test_rola_worker_ma_proces_na_kazda_kolejke_z_producentem(): void
     {
         // Issue #1030. Kolejność w jednym `--queue` to ścisły priorytet:
         // przy stałym napływie `default` zdjęcie i eksport nie ruszyłyby
-        // nigdy. Dlatego każda kolejka z producentem stoi na PIERWSZYM
-        // miejscu jakiegoś procesu — wtedy ten proces bierze ją zawsze,
-        // bez względu na zaległość gdzie indziej.
-        $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
-
-        preg_match('/QUEUE_WORKERS:-([a-z, ]+)\}/', $entrypoint, $trafienie);
+        // nigdy. W osobnym kontenerze workera każda kolejka z producentem
+        // stoi więc na PIERWSZYM miejscu jakiegoś procesu.
         $pierwsze = array_map(
             fn (string $lista) => explode(',', $lista)[0],
-            preg_split('/ +/', trim($trafienie[1] ?? '')),
+            $this->procesyRoli('worker'),
         );
 
         foreach (array_unique(array_map(fn ($k) => $k ?? 'default', self::ZADANIA)) as $kolejka) {
@@ -136,11 +144,33 @@ class UmowaKolejkiTest extends TestCase
                 "Kolejka `{$kolejka}` nie ma procesu, który bierze ją jako pierwszą — przy zaległości wyżej czeka bez końca.",
             );
         }
+    }
 
-        $this->assertSame(
-            1,
-            count(array_filter(preg_split('/ +/', trim($trafienie[1] ?? '')), fn ($l) => in_array('media', explode(',', $l), true))),
-            'Kolejkę `media` ma brać dokładnie jeden proces — dwa zdjęcia 50 Mpx naraz nie mieszczą się w pamięci kontenera.',
+    public function test_rola_all_ma_jeden_proces_ze_zdjeciem_przed_eksportem(): void
+    {
+        // Jeden kontener 1024 MB z WWW: trzy procesy mogłyby mieć szczyt
+        // naraz (zdjęcie ~452 MB, eksport do 512M) i OOM położyłby stronę.
+        $procesy = $this->procesyRoli('all');
+        $this->assertCount(1, $procesy, 'Rola `all` ma uruchamiać JEDEN proces `queue:work`.');
+
+        // Kolejność w `--queue` to priorytet: zdjęcie z wpisu czeka człowiek,
+        // paczkę z danymi dostaje się e-mailem.
+        $kolejnosc = explode(',', $procesy[0]);
+        $this->assertLessThan(
+            array_search('low', $kolejnosc, true),
+            array_search('media', $kolejnosc, true),
+            'Kolejka `low` stoi przed `media` — paczka z danymi wyprzedzi zdjęcie z wpisu.',
         );
+    }
+
+    public function test_media_bierze_dokladnie_jeden_proces_w_kazdej_roli(): void
+    {
+        foreach (['worker', 'all'] as $rola) {
+            $this->assertCount(
+                1,
+                array_filter($this->procesyRoli($rola), fn ($l) => in_array('media', explode(',', $l), true)),
+                "Kolejkę `media` ma brać dokładnie jeden proces roli `{$rola}` — dwa zdjęcia 50 Mpx naraz nie mieszczą się w pamięci kontenera.",
+            );
+        }
     }
 }

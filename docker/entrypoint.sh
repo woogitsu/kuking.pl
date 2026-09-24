@@ -6,6 +6,7 @@
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
 #    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty)
+#                 (w roli all: jeden proces dla wszystkich kolejek — listy_kolejek())
 #    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
@@ -358,8 +359,8 @@ start_worker() {
   # --tries=3         → 3 próby, potem failed_jobs; ProcessUploadedImage musi
   #                     być idempotentny (patrz docs/MEDIA_PIPELINE.md).
   # --backoff=10,60,300 → rosnące opóźnienie między próbami.
-  # --queue           → każdy proces ma JEDNĄ klasę pracy, patrz
-  #                     nadzoruj_kolejki() niżej (issue #1030).
+  # --queue           → liczba procesów i ich kolejki zależą od roli, patrz
+  #                     listy_kolejek() niżej (issue #1030).
   # Worker dostaje wyższy limit pamięci niż web. php.ini nie umie wartości
   # domyślnych, więc podajemy to flagą -d.
   #
@@ -379,48 +380,78 @@ start_worker() {
 }
 
 # -----------------------------------------------------------------------------
-#  OSOBNY PROCES NA KAŻDĄ KLASĘ PRACY (issue #1030)
+#  ILE PROCESÓW `queue:work` I NA JAKICH KOLEJKACH (issue #1030)
 #
-#  Był jeden `queue:work --queue=high,default,media,low`. Laravel czyta tę
-#  listę jako ŚCISŁY priorytet: dopóki `default` ma gotowe zadanie, worker
-#  nie zajrzy do `media`, a do `low` — dopóki czeka cokolwiek wyżej. Przy
-#  stałym napływie maili zdjęcia nie przetwarzały się wcale, a eksport RODO
-#  i analiza moderacyjna mogły czekać bez końca.
+#  Jeden `queue:work --queue=default,media,low` czyta listę jako ŚCISŁY
+#  priorytet: dopóki `default` ma gotowe zadanie, worker nie zajrzy do
+#  `media`, a do `low` — dopóki czeka cokolwiek wyżej. Przy stałym napływie
+#  maili zdjęcia i eksport RODO czekałyby bez końca.
 #
-#  Teraz każda pozycja z QUEUE_WORKERS (rozdzielone spacją) to osobny proces
-#  pod własnym nadzorcą, więc żadna kolejka nie czeka na cudzą:
+#  Osobny proces na kolejkę to usuwa, ale kosztuje pamięć. Dlatego domyślna
+#  liczba procesów ZALEŻY OD ROLI:
 #
-#    default → maile, powiadomienia, czyszczenie CDN (wszystko bez onQueue)
-#    media   → ProcessUploadedImage — JEDEN proces celowo: dekodowanie
-#              zdjęcia 50 Mpx to ~450 MB RSS, dwa naraz nie zmieszczą się
-#              w kontenerze 1024 MB (BudzetPamieciZdjecTest)
-#    low     → eksport danych, analiza treści
+#    worker (osobny kontener, cała pamięć dla kolejki)
+#        → proces na kolejkę: `default`, `media`, `low`. Żadna nie czeka
+#          na cudzą zaległość.
 #
-#  `high` zniknęła z listy: żaden kod jej nie używał, a pusta kolejka
-#  „pilna" dawała pozór ścieżki, której nie ma.
+#    all (produkcja dziś: jeden kontener 1024 MB z FrankenPHP i harmonogramem)
+#        → JEDEN proces `default,media,low`, kolejność = priorytet, tak jak
+#          przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
+#          przy zdjęciu 50 Mpx, `low` do limitu 512M przy eksporcie, do tego
+#          WWW — OOM położyłby także stronę. Ceną jest głodzenie `media`
+#          i `low` przy stałej zaległości `default`; lekarstwem jest
+#          wydzielenie workera (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
 #
-#  Koszt: dwa dodatkowe bezczynne procesy PHP (po kilkadziesiąt MB RSS).
-#  Powrót do starego zachowania bez wdrożenia: QUEUE_WORKERS="high,default,media,low".
+#  Ręczne sterowanie, bez wdrożenia (docs/DEPLOYMENT.md, „Kolejki"):
+#    QUEUE_WORKERS — procesy rozdzielone SPACJĄ, w każdym lista po przecinku,
+#                    np. "default media low" albo "default,low media".
+#                    Wygrywa z domyślną wartością każdej roli.
+#    QUEUE_NAMES   — dawna zmienna (przed #1030): lista po przecinku dla
+#                    JEDNEGO procesu. Obsługiwana jako alias, gdy nie ma
+#                    QUEUE_WORKERS.
 #
-#  Nadzorca któregokolwiek procesu, który się poddał (nadzoruj() zwraca 1),
-#  kończy całą grupę kodem 1 — tak samo jak dotąd jeden nadzorca kolejki.
+#  `media` zawsze bierze JEDEN proces: dwa dekodowania 50 Mpx naraz nie
+#  mieszczą się w 1024 MB (BudzetPamieciZdjecTest). `high` zniknęła z listy:
+#  żaden kod jej nie używał.
+# -----------------------------------------------------------------------------
+listy_kolejek() {
+  local osobne="default media low"
+  local wspolny="${QUEUE_NAMES:-default,media,low}"
+
+  if [[ -n "${QUEUE_WORKERS:-}" ]]; then
+    [[ -n "${QUEUE_NAMES:-}" ]] && log "OSTRZEŻENIE: ustawione QUEUE_WORKERS i QUEUE_NAMES — QUEUE_NAMES jest pomijane"
+    echo "${QUEUE_WORKERS}"
+  elif [[ -n "${QUEUE_NAMES:-}" || "$1" != worker ]]; then
+    echo "${wspolny}"
+  else
+    echo "${osobne}"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+#  NADZORCY PROCESÓW KOLEJKI I ZATRZYMANIE SYGNAŁEM
+#
+#  Każda pozycja z listy_kolejek() to osobny nadzorca (nadzoruj()) w tle.
+#  Nadzorca, który się poddał (nadzoruj() zwraca 1), kończy całą grupę
+#  kodem 1 — tak samo jak dotąd jeden nadzorca kolejki.
+#
+#  SIGTERM (deploy, `shutdown` roli `all`) trafia do tej powłoki. Przekazujemy
+#  go nadzorcom, a każdy nadzorca — swojemu procesowi PHP (pułapka w
+#  nadzoruj_jedna_kolejke()). `queue:work` dzięki pcntl dokańcza bieżące
+#  zadanie i wychodzi; CZEKAMY na to (`wait`), zanim powłoka się zakończy.
+#  Bez tego zdjęcie w połowie przetwarzania ginęłoby od SIGKILL.
+#  `jobs -p`, nie `pidy`: sygnał może przyjść między `&` a dopisaniem PID-u.
 # -----------------------------------------------------------------------------
 nadzoruj_kolejki() {
   local -a listy pidy=()
   local lista pid
-  read -r -a listy <<< "${QUEUE_WORKERS:-default media low}"
-  if [[ -n "${QUEUE_NAMES:-}" ]]; then
-    log "OSTRZEŻENIE: QUEUE_NAMES jest ignorowane od issue #1030 — ustaw QUEUE_WORKERS"
-  fi
+  read -r -a listy <<< "$(listy_kolejek "${1:-all}")"
 
-  # SIGTERM (deploy, `shutdown` roli `all`) trafia do tej powłoki, nie do
-  # nadzorców w tle — bez przekazania zostaliby sierotami. `jobs -p`, nie
-  # `pidy`: sygnał może przyjść między `&` a dopisaniem PID-u do tablicy.
-  trap 'kill -TERM $(jobs -p) 2>/dev/null || true; exit 0' TERM INT
+  trap 'kill -TERM $(jobs -p) 2>/dev/null || true; wait || true; exit 0' TERM INT
 
   for lista in "${listy[@]}"; do
     log "start queue:work --queue=${lista}"
-    nadzoruj "kolejka[${lista}]" jeden_przebieg_kolejki "${lista}" &
+    nadzoruj_jedna_kolejke "${lista}" &
     pidy+=("$!")
   done
 
@@ -437,8 +468,26 @@ nadzoruj_kolejki() {
   done
 }
 
+# Podpowłoka jednego nadzorcy. PHP chodzi w TLE z `wait`, bo tylko wtedy
+# pułapka odpala się od razu — przy procesie na pierwszym planie bash
+# odłożyłby ją do jego końca, a PHP sygnału by nie dostał.
+nadzoruj_jedna_kolejke() {
+  PID_PRZEBIEGU=""
+  trap 'if [[ -n "${PID_PRZEBIEGU}" ]]; then kill -TERM "${PID_PRZEBIEGU}" 2>/dev/null || true; wait "${PID_PRZEBIEGU}" || true; fi; exit 0' TERM INT
+  nadzoruj "kolejka[$1]" przebieg_w_tle "$1"
+}
+
+przebieg_w_tle() {
+  jeden_przebieg_kolejki "$1" &
+  PID_PRZEBIEGU="$!"
+  local kod=0
+  wait "${PID_PRZEBIEGU}" || kod=$?
+  PID_PRZEBIEGU=""
+  return "${kod}"
+}
+
 jeden_przebieg_kolejki() {
-  php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
+  exec php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
     --queue="$1" \
     --tries="${QUEUE_TRIES:-3}" \
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \
@@ -537,7 +586,7 @@ case "${ROLE}" in
     # Kolejka i harmonogram idą pod NADZORCĄ, bo oba KOŃCZĄ SIĘ PLANOWO:
     # worker po --max-time, harmonogram po każdym przebiegu. Wcześniej ich
     # normalne zakończenie kładło cały serwis — patrz opis przy nadzoruj().
-    nadzoruj_kolejki &
+    nadzoruj_kolejki all &
     PID_KOLEJKI="$!"
     CHILD_PIDS+=("${PID_KOLEJKI}")
 

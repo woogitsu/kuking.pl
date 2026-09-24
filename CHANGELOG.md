@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Zdjęcia, paczki z danymi i sprawdzanie treści nie czekają już w kolejce za mailami. Każdy rodzaj pracy w tle ma teraz własny proces, więc przy dużym ruchu powiadomień zdjęcie z wpisu i tak zostanie przygotowane (#1030).
+- Przy wydzielonym serwisie pracy w tle zdjęcia, paczki z danymi i sprawdzanie treści nie czekają już w kolejce za mailami: każdy rodzaj pracy ma własny proces. W obecnym układzie z jednym kontenerem praca w tle zostaje w jednym procesie, żeby nie zabrakło pamięci dla strony. Przy wdrożeniu praca w tle dokańcza bieżące zadanie, zamiast przerywać je w połowie (#1030).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).

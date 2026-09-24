@@ -58,7 +58,7 @@ class PrzeanalizujTresc implements ShouldQueue
 
     public int $timeout = 30;
 
-    /** Osobny proces workera dla `low` (`docker/entrypoint.sh`, #1030) — nie czeka za mailami ani zdjęciami. */
+    /** Kolejka `low`: w osobnym kontenerze workera ma własny proces (`listy_kolejek()` w `docker/entrypoint.sh`, #1030). */
     private const KOLEJKA = 'low';
 
     public const TYP_WPIS = 'post';

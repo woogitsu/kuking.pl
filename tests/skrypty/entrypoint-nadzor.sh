@@ -165,44 +165,113 @@ sprawdz "długie błędy zachowują rosnący backoff" $'przerwa=2\nprzerwa=4' "$
 sprawdz "log awarii podaje kod, czas i numer próby" "tak" "$(grep -q 'kolejka awaria (kod 23) po 31 s (3/3)' <<< "$wynik" && echo tak || echo nie)"
 sprawdz "niezerowy kod nigdy nie jest planowym recyklingiem" "brak" "$(grep -q 'planowy recykling' <<< "$wynik" && echo jest || echo brak)"
 
-# Issue #1030: każda kolejka ma własny proces pod własnym nadzorcą. Jeden
-# `--queue=high,default,media,low` to ścisły priorytet — `media` i `low`
-# czekały, dopóki `default` miał cokolwiek do zrobienia.
-wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
-$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
+# Issue #1030 i przegląd: liczba procesów `queue:work` zależy od roli.
+# `worker` (osobny kontener) — proces na kolejkę, bez głodzenia.
+# `all` (jeden kontener 1024 MB z WWW) — JEDEN proces, bo trzy szczyty
+# pamięci naraz (zdjęcie ~452 MB, eksport do 512M, WWW) to OOM całej strony.
+funkcje_kolejek() {
+  local f
+  for f in listy_kolejek nadzoruj_kolejki nadzoruj_jedna_kolejke przebieg_w_tle; do
+    sed -n "/^${f}() {/,/^}/p" "$ENTRYPOINT"
+  done
+}
+
+# Uruchamia nadzoruj_kolejki z atrapą PHP i zwraca posortowane listy
+# `--queue`, z którymi wystartowały procesy. Zmienne środowiska: "$@".
+procesy_kolejek() {
+  local rola="$1"; shift
+  timeout 5 env -u QUEUE_WORKERS -u QUEUE_NAMES "$@" ROLA="$rola" bash -c "$(wczytaj_funkcje)
+$(funkcje_kolejek)
 $(cat <<'PROBA'
 set -Eeuo pipefail
 SLAD="$(mktemp)"
 trap 'rm -f "$SLAD"' EXIT
 sleep() { command sleep 0.05; }
-jeden_przebieg_kolejki() { echo "$1" >> "$SLAD"; while true; do command sleep 0.05; done; }
-nadzoruj_kolejki &
+PIDY="$(mktemp)"
+trap 'rm -f "$SLAD" "$PIDY"' EXIT
+jeden_przebieg_kolejki() {
+  echo "$1" >> "$SLAD"; echo "$BASHPID" >> "$PIDY"
+  exec >/dev/null 2>&1
+  while true; do command sleep 0.05; done
+}
+nadzoruj_kolejki "$ROLA" &
 grupa=$!
-for _ in $(seq 40); do (( $(wc -l < "$SLAD") >= 3 )) && break; command sleep 0.05; done
+command sleep 0.5
 kill "$grupa" 2>/dev/null
+wait "$grupa" || true
 sort "$SLAD" | tr '\n' ' '
+# Sierota z wadliwej wersji nie może przeżyć testu.
+while read -r p; do kill -KILL "$p" 2>/dev/null || true; done < "$PIDY"
 PROBA
-)" 2>/dev/null)"
-sprawdz "domyślnie osobny proces na default, media i low (bez high)" "default low media " "${wynik}"
+)" 2>/dev/null
+}
+
+sprawdz "rola worker: osobny proces na default, media i low (bez high)" "default low media " "$(procesy_kolejek worker)"
+sprawdz "rola all: JEDEN proces, kolejność default,media,low" "default,media,low " "$(procesy_kolejek all)"
+sprawdz "rola all: jawne QUEUE_WORKERS wygrywa" "default low media " "$(procesy_kolejek all QUEUE_WORKERS='default media low')"
+sprawdz "rola worker: jawne QUEUE_WORKERS wygrywa" "default,low media " "$(procesy_kolejek worker QUEUE_WORKERS='default,low media')"
+sprawdz "QUEUE_NAMES to alias jednego procesu (rola worker)" "default,media " "$(procesy_kolejek worker QUEUE_NAMES='default,media')"
+sprawdz "QUEUE_NAMES to alias jednego procesu (rola all)" "media,default " "$(procesy_kolejek all QUEUE_NAMES='media,default')"
 
 wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
-$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
+$(funkcje_kolejek)
 $(cat <<'PROBA'
 set -Eeuo pipefail
 NADZOR_LIMIT=2
 sleep() { command sleep 0.05; }
+PIDY="$(mktemp)"
 jeden_przebieg_kolejki() {
   if [[ "$1" == media ]]; then return 23; fi
-  trap 'echo "zatrzymany $1"; exit 0' TERM
+  echo "$BASHPID" >> "$PIDY"
+  exec >/dev/null 2>&1
   while true; do command sleep 0.05; done
 }
 kod=0
-QUEUE_WORKERS="default media" nadzoruj_kolejki || kod=$?
+QUEUE_WORKERS="default media" nadzoruj_kolejki worker || kod=$?
 echo "grupa=${kod}"
+while read -r p; do kill -KILL "$p" 2>/dev/null || true; done < "$PIDY"
+rm -f "$PIDY"
 PROBA
 )" 2>&1)"
 sprawdz "poddany nadzorca jednej kolejki kończy grupę kodem 1" "tak" "$(grep -q 'grupa=1' <<< "$wynik" && echo tak || echo nie)"
 sprawdz "grupa zatrzymuje pozostałe procesy kolejek" "tak" "$(grep -q 'nadzorca kolejki PID .* się poddał' <<< "$wynik" && echo tak || echo nie)"
+
+# SIGTERM (deploy): TERM ma dojść do procesu PHP, a grupa ma CZEKAĆ, aż
+# PHP dokończy bieżące zadanie. Atrapa PHP to osobny proces (exec, jak
+# w prawdziwym jeden_przebieg_kolejki), który na TERM „dokańcza" 0,3 s.
+# Na wersji, która zabijała tylko podpowłoki nadzorców, atrapa nie dostaje
+# TERM wcale, a grupa kończy się, zanim cokolwiek zostanie dokończone.
+for rola in worker all; do
+  wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
+$(funkcje_kolejek)
+$(cat <<'PROBA'
+set -Eeuo pipefail
+export SLAD="$(mktemp)"
+trap 'rm -f "$SLAD"' EXIT
+sleep() { command sleep 0.05; }
+jeden_przebieg_kolejki() {
+  exec bash -c 'trap "command sleep 0.3; echo \"dokonczone $1\" >> \"\$SLAD\"; exit 0" TERM
+    echo "pid $$" >> "$SLAD"; echo "start $1" >> "$SLAD"
+    while true; do command sleep 0.05; done' atrapa "$1" >/dev/null 2>&1
+}
+PROBA
+)
+nadzoruj_kolejki ${rola} &
+grupa=\$!
+command sleep 0.5
+kill -TERM \"\$grupa\"
+kod=0
+wait \"\$grupa\" || kod=\$?
+echo \"grupa-koniec kod=\${kod}\" >> \"\$SLAD\"
+cat \"\$SLAD\"
+# Sierota z wadliwej wersji nie może przeżyć testu.
+for p in \$(sed -n 's/^pid //p' \"\$SLAD\"); do kill -KILL \"\$p\" 2>/dev/null || true; done" 2>/dev/null)"
+  startow="$(grep -c '^start ' <<< "$wynik")"
+  dokonczonych="$(grep -c '^dokonczone ' <<< "$wynik")"
+  sprawdz "SIGTERM (${rola}): każdy proces PHP dostaje TERM i dokańcza zadanie" "tak" \
+    "$( (( startow > 0 && startow == dokonczonych )) && echo tak || echo "nie (start=${startow}, dokończone=${dokonczonych})")"
+  sprawdz "SIGTERM (${rola}): grupa czeka na PHP i kończy się kodem 0" "grupa-koniec kod=0" "$(tail -n 1 <<< "$wynik")"
+done
 
 # Wykonujemy prawdziwy blok all, nie jego odpis. Atrapy nie uruchamiają PHP,
 # WWW ani bazy. Prawdziwy shutdown ma zatrzymać pozostałe procesy. Trzy
@@ -210,17 +279,18 @@ sprawdz "grupa zatrzymuje pozostałe procesy kolejek" "tak" "$(grep -q 'nadzorca
 for cel in kolejka www harmonogram recykling; do
   wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
 $(sed -n '/^czekaj_na_uslugi() {/,/^}/p' "$ENTRYPOINT")
-$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
+$(funkcje_kolejek)
 $(sed -n '/^shutdown() {/,/^}/p' "$ENTRYPOINT")
 $(cat <<'PROBA'
 set -Eeuo pipefail
 ROLE=all PORT=8080 CHILD_PIDS=()
 NADZOR_MIN_CZAS=30 NADZOR_LIMIT=2
-STAN="$(mktemp)"
+STAN="$(mktemp)" PIDY="$(mktemp)"
 echo 0 > "$STAN"
-trap 'rm -f "$STAN"' EXIT
+# Sierota z wadliwej wersji nie może przeżyć testu ani trzymać potoku.
+trap 'while read -r p; do kill -KILL "$p" 2>/dev/null || true; done < "$PIDY"; rm -f "$STAN" "$PIDY"' EXIT
 sleep() { command sleep 0.05; }
-trwaj() { while true; do command sleep 0.05; done; }
+trwaj() { echo "$BASHPID" >> "$PIDY"; exec >/dev/null 2>&1; while true; do command sleep 0.05; done; }
 # Funkcja zastępuje jedynie właściwą pracę, NIE nadzorcę.
 jeden_przebieg_kolejki() {
   case "$CEL" in

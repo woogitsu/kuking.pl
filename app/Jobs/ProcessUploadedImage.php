@@ -58,7 +58,9 @@ class ProcessUploadedImage implements ShouldQueue
      * i komentarz mówił, że interakcje użytkownika mają wyprzedzać ciężkie
      * przetwarzanie obrazów. Żaden job nie przypisywał się jednak do kolejki,
      * więc wszystkie lądowały na `default` — a kolejność w tej fladze nie
-     * robiła nic. Dziś `media` ma własny, jedyny proces workera (#1030).
+     * robiła nic. Dziś w osobnym kontenerze workera `media` ma własny,
+     * jedyny proces; w roli `all` dzieli jeden proces z `default` i `low`
+     * (`listy_kolejek()` w entrypoincie, #1030).
      */
     private const KOLEJKA = 'media';
 
