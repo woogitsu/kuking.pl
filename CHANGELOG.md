@@ -2,6 +2,11 @@
 
 ## Nieopublikowane
 
+- Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
+
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
+- Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
 - Gdy autor skutecznie odwoła się od zdjęcia treści i treść wraca do serwisu, osoba, która ją zgłosiła, dostaje nową wiadomość: „Po ponownym sprawdzeniu zmieniliśmy decyzję. Zgłoszona treść wróciła do serwisu.” Lista „Twoje zgłoszenia” pokazuje aktualny wynik, a karta sprawy — pierwszą decyzję i pod nią zmianę. Przy zgłoszeniu nielegalnej treści z adresem e-mail ta sama informacja idzie listem. Nie podajemy, kto się odwołał ani co napisał (#1024).
 - W kolejce sygnałów automatu „To nic takiego — zamknij wszystkie” zamyka tylko oznaczenia widoczne na ekranie. Jeśli po otwarciu strony w grupie pojawiło się nowe oznaczenie, nic nie zostaje zamknięte, a moderator dostaje prośbę, żeby przejrzał grupę jeszcze raz (#1059).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
