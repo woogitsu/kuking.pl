@@ -19,6 +19,8 @@ use Tests\TestCase;
  * (`DataExport::isDownloadable()`). Wcześniej baza przyjmowała `ready` bez
  * dysku, klucza, rozmiaru i daty ukończenia, a ekran ustawień pokazywał go
  * jako gotową paczkę, której pobranie kończyło się 404.
+ *
+ * @bez-kontroli-dodatniej plik migracji jest WYKONYWANY (`require` → `up()`/`down()`), nie czytany jako tekst; kontrola ujemna (usunięcie CHECK, usunięcie warunku w modelu) wykonana ręcznie i opisana w commicie.
  */
 class GotowyEksportMaKompletMetadanychTest extends TestCase
 {
