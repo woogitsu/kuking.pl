@@ -26,7 +26,9 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -203,6 +205,28 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Dwa RÓŻNE konta potwierdzają zmianę na ten sam wolny adres (#1435).
+        // Bariera przyrządu staje zaraz PO aplikacyjnym „czy adres wolny",
+        // więc oba procesy mają go już za sobą, gdy ruszają do zapisu.
+        // Blokada współdzielona: po zwolnieniu bariery oba idą naraz,
+        // a rozstrzyga dopiero `users_email_lower_unique`.
+        'potwierdz-wspolny-adres' => (function () use ($argumenty): string {
+            // Sesje w bazie, jak na produkcji — inaczej `invalidateSessions()`
+            // nie rusza tabeli `sessions` i test nie widziałby jej wycofania.
+            config(['session.driver' => 'database']);
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_contains($query->sql, 'exists(') && str_contains($query->sql, 'lower(email) = ?')) {
+                    DB::select('SELECT pg_advisory_xact_lock_shared(1435, 1)');
+                }
+            });
+
+            return app(ConfirmEmailChange::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
+                biezacaSesja: $argumenty['sesja'],
+            );
+        })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

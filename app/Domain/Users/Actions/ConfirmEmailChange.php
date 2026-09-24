@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
 use App\Support\AdresEmail;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Potwierdzenie nowego adresu e-mail — DOPIERO TU adres wchodzi w życie
@@ -65,9 +66,28 @@ use App\Support\AdresEmail;
  * baza: `users_email_lower_unique` nie pozwoli zapisać duplikatu, nawet
  * gdyby dwa potwierdzenia trafiły w tę samą milisekundę (AGENTS.md §6 —
  * walidacja w PHP jest dodatkiem, nie zamiennikiem).
+ *
+ * Blokada trzyma jednak wiersz WŁASNEGO konta, a nie docelowy adres. Dwa
+ * RÓŻNE konta potwierdzające zmianę na ten sam wolny adres przechodzą więc
+ * oba przez `$zajety` — i przegrany dowiaduje się o tym dopiero od indeksu.
+ * Ten rozpoznany konflikt zamieniamy na ten sam komunikat, co przy
+ * zwykłym zajętym adresie (#1435). Każdy INNY błąd bazy leci dalej jako
+ * błąd techniczny — „adres zajęty" nad cudzą awarią byłby kłamstwem.
  */
 final class ConfirmEmailChange
 {
+    /**
+     * Indeksy unikalności adresu — jedyne konflikty, które tu tłumaczymy.
+     * Oba, bo zapisujemy adres już znormalizowany, więc duplikat łamie
+     * zwykle OBA, a PostgreSQL zgłasza ten, który sprawdzi pierwszy
+     * (zmierzone: przy wyścigu wychodzi `users_email_unique`).
+     */
+    private const INDEKSY_ADRESU = ['users_email_unique', 'users_email_lower_unique'];
+
+    private const ADRES_ZAJETY = 'Na ten adres jest już założone inne konto w Kuking, a jeden adres to jedno konto. '
+        .'Zaloguj się na tamto konto albo zamów zmianę na inny adres. '
+        .'Twoje obecne konto zostaje bez zmian.';
+
     /**
      * @param  string|null  $biezacaSesja  identyfikator sesji, w której kliknięto
      *                                     link — ta jedna przeżywa zmianę adresu
@@ -143,11 +163,7 @@ final class ConfirmEmailChange
                 ->exists();
 
             if ($zajety) {
-                throw new BladDlaCzlowieka(
-                    'Na ten adres jest już założone inne konto w Kuking, a jeden adres to jedno konto. '
-                    .'Zaloguj się na tamto konto albo zamów zmianę na inny adres. '
-                    .'Twoje obecne konto zostaje bez zmian.',
-                );
+                throw new BladDlaCzlowieka(self::ADRES_ZAJETY);
             }
 
             // Adres jest potwierdzony JUŻ W TEJ CHWILI: kliknięcie w link
@@ -155,7 +171,21 @@ final class ConfirmEmailChange
             // o drugie potwierdzenie tego samego byłoby pytaniem o to samo
             // dwa razy — a przy okazji zostawiałoby konto bez potwierdzonego
             // adresu, czyli bez prawa do pobrania własnych danych.
-            $swiezy->assignEmail($nowyAdres, potwierdzony: true)->save();
+            //
+            // Zapis może jeszcze przegrać z RÓWNOLEGŁYM potwierdzeniem innego
+            // konta, które przeszło `$zajety` w tej samej chwili (#1435).
+            // Wyjątek wychodzi z domknięcia, więc `ZamekKonta` wycofuje całą
+            // transakcję: stary adres, sesje, `remember_token`, linki
+            // logowania i oczekujące żądanie zostają, wpisu w dzienniku nie ma.
+            try {
+                $swiezy->assignEmail($nowyAdres, potwierdzony: true)->save();
+            } catch (UniqueConstraintViolationException $e) {
+                if (! self::naruszonoIndeksAdresu($e)) {
+                    throw $e;
+                }
+
+                throw new BladDlaCzlowieka(self::ADRES_ZAJETY, previous: $e);
+            }
 
             // Żądanie skonsumowane: link działa dokładnie raz. Kasujemy
             // wiersz odczytany POD BLOKADĄ, nie model podany z zewnątrz.
@@ -187,5 +217,25 @@ final class ConfirmEmailChange
         );
 
         return $nowyAdres;
+    }
+
+    /**
+     * Czy to konflikt na indeksie adresu, a nie na jakimkolwiek innym.
+     *
+     * `UniqueConstraintViolationException` to już SQLSTATE 23505; nazwę
+     * indeksu PostgreSQL podaje wyłącznie w treści komunikatu, więc jej
+     * szukamy — tak samo jak `User::defaultCollection()`.
+     */
+    private static function naruszonoIndeksAdresu(UniqueConstraintViolationException $e): bool
+    {
+        for ($wyjatek = $e; $wyjatek !== null; $wyjatek = $wyjatek->getPrevious()) {
+            foreach (self::INDEKSY_ADRESU as $indeks) {
+                if (str_contains($wyjatek->getMessage(), '"'.$indeks.'"')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
