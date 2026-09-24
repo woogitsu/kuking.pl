@@ -397,6 +397,32 @@ rosnących, malejących i równych; sprawdza także odczyt cache i wykluczenia.
 Poniższy podział na pliki pozostaje planem większej skali. Poprawka #1055
 nie zmienia czasu cache, reguł profili ani wyboru adresów pytań.
 
+### Świeżość zapamiętanej mapy (#1006)
+
+Lista adresów stoi w cache pod kluczem `sitemap.urls`
+(`App\Support\MapaStrony::KLUCZ`) z czasem życia sześciu godzin. Ten czas
+jest **tylko zabezpieczeniem awaryjnym** — docelowa zwłoka po zmianie
+widoczności to **zero**: następne żądanie `/sitemap.xml` po zatwierdzeniu
+zapisu składa mapę od nowa. Sześć godzin to górna granica wyłącznie dla
+zmian, które ominą Eloquenta (surowe `UPDATE` w bazie).
+
+Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
+(`MapaStrony::zarejestrujHaki()`):
+
+| Model | Zdarzenie |
+|---|---|
+| `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
+| `Recipe` | dodatkowo zmiana `slug` (inny adres) |
+| `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Profile` | zmiana `username` (inny adres), usunięcie |
+| `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
+
+Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
+po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
+magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
+rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
+
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
 
 ### 4.1 Struktura
