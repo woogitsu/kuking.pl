@@ -10,6 +10,7 @@ use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\Media;
+use App\Models\ProductSignal;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -97,6 +98,10 @@ final class EraseAccountData
         // bezterminowo, mimo że człowiek dostał potwierdzenie usunięcia
         // danych.
         if ($fresh !== null && $fresh->data_erased_at !== null) {
+            // Konto wymazane przed poprawką #1324 nie przejdzie już przez
+            // główną transakcję — ponowienie domyka i to powiązanie.
+            $this->odlaczSygnalyProduktowe($fresh);
+
             $zostaly = $fresh->media()->get()->all();
 
             if ($zostaly === []) {
@@ -256,6 +261,7 @@ final class EraseAccountData
             $fresh->tozsamosciZewnetrzne()->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);
+            $this->odlaczSygnalyProduktowe($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -601,6 +607,26 @@ final class EraseAccountData
     private function odlaczWiadomosciDoOperatora(User $user): void
     {
         ContactMessage::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
+    }
+
+    /**
+     * SYGNAŁY PRODUKTOWE ZOSTAJĄ, ALE BEZ KONTA (issue #1324).
+     *
+     * `product_signals.user_id` ma `nullOnDelete()`, a konta się nie kasuje
+     * (D-022) — więc bez tej linii zdarzenia z ostatnich 90 dni dalej
+     * wskazywały identyfikator wymazanego konta. Żaden raport nie potrzebuje
+     * osoby po zamknięciu konta: liczy się fakt zdarzenia, więc wiersz
+     * zostaje do zwykłej retencji (`PrzedawnioneSygnaly`) z `user_id = NULL`.
+     *
+     * Wyścig z sygnałem zapisywanym w tej samej chwili domyka
+     * `ZapiszSygnal` — `FOR SHARE` na wierszu konta i sprawdzenie
+     * `data_erased_at`.
+     */
+    private function odlaczSygnalyProduktowe(User $user): void
+    {
+        ProductSignal::query()
             ->where('user_id', $user->getKey())
             ->update(['user_id' => null]);
     }
