@@ -346,6 +346,8 @@ class CollectionController extends Controller
 
         $data = $this->validateCollectionData($request, $user->getKey());
 
+        $this->authorize('create', [Collection::class, $data['visibility']]);
+
         try {
             $collection = $user->collections()->create($data);
         } catch (UniqueConstraintViolationException) {

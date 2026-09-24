@@ -222,7 +222,7 @@
                 @endcan
             </section>
         @endif
-        @if($hasProgress && ! auth()->user()?->isSuspended())
+        @if($hasProgress)
             <div class="danger-zone">
                 <details class="confirm">
                     <summary class="btn btn-secondary">Zacznij od początku</summary>

@@ -49,6 +49,12 @@ class UserPolicy
         return $viewer->isModerator();
     }
 
+    public function unfollow(User $viewer, User $target): bool
+    {
+        // Można wycofać relację także z osobą, której konto przestało być aktywne.
+        return $viewer->isActive() && $viewer->getKey() !== $target->getKey();
+    }
+
     /**
      * Rozstrzyganie odwołań od decyzji moderacyjnych (A-4).
      *
