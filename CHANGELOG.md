@@ -2,6 +2,9 @@
 
 ## Nieopublikowane
 
+- „Świeżo z Kuking” i strona powitalna pokazują najwyżej jeden wpis od każdej osoby — jej najnowszy, który możecie zobaczyć. Jedna bardzo aktywna osoba nie zasłania już całej reszty, a kolejność nadal jest po prostu od najnowszych (#940).
+- Strona główna nie zostaje pusta, gdy tuż przed jej otwarciem przestaliście kogoś obserwować, zablokowaliście kogoś albo zniknął ostatni wpis z Waszych tagów. Zamiast pustego ekranu pokazuje wtedy wpisy z tagów albo „Świeżo z Kuking” (#983).
+- W wyszukiwarce na zakładce „Wszystko” przycisk „Pokaż więcej przepisów” wydłuża tylko listę przepisów, a „Pokaż więcej osób” — tylko listę osób. Druga lista zostaje taka, jaka była (#984).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
