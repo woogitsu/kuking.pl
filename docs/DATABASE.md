@@ -2942,9 +2942,11 @@ i wpis `account.delete_requested` powstają w jednej transakcji
 (`PrzyjmijZadanieUsunieciaKonta`, #1347, D-249 klasa 1): awaria dziennika
 cofa całe żądanie, konto zostaje czynne i zalogowane.
 **Migracja odmawia** założenia indeksu, gdy w bazie są już konta z więcej niż
-jedną sprawą `w_toku` — podaje ich identyfikatory i każe domknąć nadmiarowe
-ręcznie (nie kasować: to dowody). **Rollback:** `DROP INDEX` — nie usuwa
-żadnego wiersza, więc nie odmawia (D-088).
+jedną sprawą `w_toku` — podaje ich LICZBĘ (nie identyfikatory: komunikat
+idzie do logu wdrożenia) i zapytanie SQL, które je wskaże, oraz każe domknąć
+nadmiarowe ręcznie (nie kasować: to dowody). **Rollback:** `DROP INDEX` — nie
+usuwa żadnego wiersza, więc nie odmawia (D-088). Odmowę, kontrolę dodatnią
+i cofnięcie pilnuje `tests/Feature/JednaSprawaRodoWTokuMigracjaTest.php`.
 
 **Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
 D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.

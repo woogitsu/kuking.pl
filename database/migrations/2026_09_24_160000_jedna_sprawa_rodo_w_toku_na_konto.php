@@ -33,18 +33,25 @@ return new class extends Migration
             return;
         }
 
-        $zdublowane = DB::table('potwierdzenia_zadan_rodo')
+        // Liczba, nie lista identyfikatorów: komunikat trafia do logu
+        // wdrożenia, a UUID konta w sprawie RODO to dana osobowa, której tam
+        // nie potrzeba. Kto będzie to naprawiał, dostaje zapytanie do bazy.
+        $ileKont = DB::table('potwierdzenia_zadan_rodo')
             ->where('wynik', 'w_toku')
             ->whereNotNull('konto_id')
             ->groupBy('konto_id')
             ->havingRaw('count(*) > 1')
-            ->pluck('konto_id');
+            ->pluck('konto_id')
+            ->count();
 
-        if ($zdublowane->isNotEmpty()) {
+        if ($ileKont > 0) {
             throw new RuntimeException(
                 'Odmawiam założenia indeksu '.self::INDEKS.'. Liczba kont z więcej niż jedną otwartą '
-                .'sprawą RODO (wynik = w_toku): '.$zdublowane->count().'. Identyfikatory kont: '
-                .$zdublowane->implode(', ').'.'
+                .'sprawą RODO (wynik = w_toku): '.$ileKont.'.'
+                ."\n\nKTÓRE TO KONTA — sprawdź ręcznie w bazie:\n"
+                ."  SELECT konto_id, count(*) FROM potwierdzenia_zadan_rodo\n"
+                ."  WHERE wynik = 'w_toku' AND konto_id IS NOT NULL\n"
+                ."  GROUP BY konto_id HAVING count(*) > 1;"
                 ."\n\nCO ZROBIĆ: dla każdego z tych kont zostaw otwartą tę sprawę, której `otrzymano` "
                 .'zgadza się z `users.delete_requested_at` (albo, gdy konto już nie jest w usuwaniu, '
                 .'domknij wszystkie tak, jak zostało obsłużone żądanie), resztę domknij ręcznie z tym '
