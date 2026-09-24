@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,6 +18,11 @@ use Tests\TestCase;
  * apexu z sitemapy. Kontrola ujemna: powrót do `$request->url()`
  * w `KanonicznyAdresStrony::dla()` oblewa test wariantów pisowni i test
  * `www`; usunięcie `ustawSciezke()` z `ProfileController` — te same dwa.
+ *
+ * Linki „Podziel się" (WhatsApp, e-mail, Facebook, arkusz systemowy) muszą
+ * wskazywać ten sam host co canonical i sitemapa. Kontrola ujemna: zdjęcie
+ * `AdresKanoniczny::zbuduj()` z `Udostepnianie::adres()` oblewa test `www`
+ * dla linków udostępniania; test apeksu zostaje zielony.
  */
 class CanonicalProfiluIHostaTest extends TestCase
 {
@@ -88,5 +95,75 @@ class CanonicalProfiluIHostaTest extends TestCase
 
         $odpowiedz->assertForbidden()->assertHeaderMissing('Location');
         $this->assertStringNotContainsString('Zamkniete_Konto', (string) $odpowiedz->getContent());
+    }
+
+    /**
+     * Adres treści musi trafić w każde miejsce „Podziel się": arkusz
+     * systemowy (`data-podziel-adres`), WhatsApp, e-mail i Facebook.
+     */
+    private function assertLinkiUdostepniania(string $adresStrony, string $oczekiwanyAdresTresci, ?string $zakazanyHost = null): void
+    {
+        $html = (string) $this->get($adresStrony)->assertOk()->getContent();
+        $zakodowany = preg_quote(e(rawurlencode($oczekiwanyAdresTresci)), '~');
+
+        $this->assertStringContainsString('data-podziel-adres="'.e($oczekiwanyAdresTresci).'"', $html);
+        $this->assertMatchesRegularExpression('~href="'.preg_quote(e('https://wa.me/?text='), '~').'[^"]*'.$zakodowany.'"~', $html);
+        $this->assertMatchesRegularExpression('~href="'.preg_quote(e('mailto:?subject='), '~').'[^"]*'.$zakodowany.'"~', $html);
+        $this->assertStringContainsString(
+            'href="'.e('https://www.facebook.com/sharer/sharer.php?u='.rawurlencode($oczekiwanyAdresTresci)).'"',
+            $html,
+        );
+
+        if ($zakazanyHost !== null) {
+            $this->assertStringNotContainsString('data-podziel-adres="https://'.$zakazanyHost, $html);
+            $this->assertStringNotContainsString(rawurlencode('https://'.$zakazanyHost), $html);
+        }
+    }
+
+    /** @return array{0: Recipe, 1: Post} */
+    private function publiczneTresci(): array
+    {
+        $autor = $this->user('Basia_1971');
+
+        return [
+            Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']),
+            Post::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public', 'body' => 'Obiad']),
+        ];
+    }
+
+    public function test_linki_udostepniania_przy_wejsciu_przez_www_wskazuja_host_z_app_url(): void
+    {
+        config(['app.url' => 'https://kuking.pl']);
+        [$przepis, $wpis] = $this->publiczneTresci();
+
+        foreach ([route('recipes.show', $przepis), $wpis->url()] as $adres) {
+            $sciezka = (string) parse_url($adres, PHP_URL_PATH);
+
+            $this->assertLinkiUdostepniania('https://www.kuking.pl'.$sciezka, 'https://kuking.pl'.$sciezka, 'www.kuking.pl');
+        }
+    }
+
+    public function test_linki_udostepniania_na_apeksie_wskazuja_apex(): void
+    {
+        config(['app.url' => 'https://kuking.pl']);
+        [$przepis, $wpis] = $this->publiczneTresci();
+
+        foreach ([route('recipes.show', $przepis), $wpis->url()] as $adres) {
+            $sciezka = (string) parse_url($adres, PHP_URL_PATH);
+
+            $this->assertLinkiUdostepniania('https://kuking.pl'.$sciezka, 'https://kuking.pl'.$sciezka);
+        }
+    }
+
+    public function test_po_linkach_udostepniania_reszta_strony_zostaje_na_hoscie_zadania(): void
+    {
+        config(['app.url' => 'https://kuking.pl']);
+        [$przepis] = $this->publiczneTresci();
+        $sciezka = (string) parse_url(route('recipes.show', $przepis), PHP_URL_PATH);
+
+        $this->get('https://www.kuking.pl'.$sciezka)->assertOk();
+
+        // Wymuszony korzeń nie przecieka poza budowę adresu do udostępnienia.
+        $this->assertSame('https://www.kuking.pl/odkryj', url('/odkryj'));
     }
 }

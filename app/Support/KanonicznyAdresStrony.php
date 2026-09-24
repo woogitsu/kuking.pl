@@ -88,10 +88,7 @@ final class KanonicznyAdresStrony
 
     private static function korzen(Request $request): string
     {
-        $korzen = rtrim((string) config('app.url'), '/');
-        $schemat = parse_url($korzen, PHP_URL_SCHEME);
-
-        return is_string($schemat) && $schemat !== '' ? $korzen : $request->root();
+        return AdresKanoniczny::korzen() ?? $request->root();
     }
 
     private static function sciezka(Request $request): string
