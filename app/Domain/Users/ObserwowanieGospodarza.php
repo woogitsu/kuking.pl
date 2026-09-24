@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 
 /**
@@ -30,7 +31,7 @@ interface ObserwowanieGospodarza
     /**
      * @param  string  $nazwaGospodarza  niepusta nazwa z `kuking.community.host_username`
      *
-     * @throws \App\Exceptions\BladDlaCzlowieka gdy obserwowanie jest świadomie niemożliwe
+     * @throws BladDlaCzlowieka gdy obserwowanie jest świadomie niemożliwe
      */
     public function zacznij(User $konto, string $nazwaGospodarza): void;
 }
