@@ -819,8 +819,18 @@ class Notification extends Model
     /**
      * To samo dla komentarza pod „Ugotowałem" (`CookedEventPolicy::view()`):
      * wykonanie nie ma własnej widoczności, idzie za przepisem, a osobno
-     * liczy się blokada widz↔kucharz. Brak przepisu (skasowany) zostawia
-     * dostęp wyłącznie właścicielowi wykonania.
+     * liczy się blokada widz↔kucharz.
+     *
+     * WŁAŚCICIEL WYKONANIA — punkt 3 w `CookedEventPolicy::view()` (issue
+     * #1385). Kucharz widzi własne wykonanie NIEZALEŻNIE od stanu przepisu:
+     * skasowanego (`recipe_id` NULL albo wiersz z `deleted_at`), ukrytego
+     * przez moderację, prywatnego. Do #1385 ta gałąź łapała tylko
+     * `recipe_id IS NULL`, więc po ukryciu przepisu kucharz otwierał kartę
+     * wykonania z komentarzem, a powiadomienie o tym komentarzu znikało
+     * z listy i z licznika. Jedyny wyjątek jest ten sam co w Policy:
+     * blokada kucharza z autorem ISTNIEJĄCEGO (nieskasowanego) przepisu —
+     * Policy sprawdza ją na `$event->recipe`, a relacja skasowanego przepisu
+     * nie ładuje. Zmiana tej reguły w Policy wymaga zmiany tutaj.
      */
     private function wierszWykonaniaWidoczny(QueryBuilder $sub, User $widz): void
     {
@@ -840,8 +850,24 @@ class Notification extends Model
                     });
             })
             ->where(function (QueryBuilder $w) use ($widzId, $widz): void {
-                $w->where(function (QueryBuilder $bezPrzepisu) use ($widzId): void {
-                    $bezPrzepisu->whereNull('ce.recipe_id')->where('ce.user_id', $widzId);
+                $w->where(function (QueryBuilder $wlasne) use ($widzId): void {
+                    $wlasne->where('ce.user_id', $widzId)
+                        ->whereNotExists(function (QueryBuilder $zablokowanyAutor) use ($widzId): void {
+                            $zablokowanyAutor->selectRaw('1')
+                                ->from('recipes as rw')
+                                ->whereColumn('rw.id', 'ce.recipe_id')
+                                ->whereNull('rw.deleted_at')
+                                ->whereExists(function (QueryBuilder $blok) use ($widzId): void {
+                                    $blok->selectRaw('1')
+                                        ->from('blocks')
+                                        ->where(function (QueryBuilder $k) use ($widzId): void {
+                                            $k->where('blocks.blocker_id', $widzId)->whereColumn('blocks.blocked_id', 'rw.author_id');
+                                        })
+                                        ->orWhere(function (QueryBuilder $k) use ($widzId): void {
+                                            $k->whereColumn('blocks.blocker_id', 'rw.author_id')->where('blocks.blocked_id', $widzId);
+                                        });
+                                });
+                        });
                 })->orWhere(fn (QueryBuilder $q) => $q->whereExists(
                     fn (QueryBuilder $s) => $this->wierszTresciWidoczny($s, 'recipes', 'ce.recipe_id', $widz),
                 ));

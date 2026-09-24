@@ -9,6 +9,7 @@
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- Powiadomienie o komentarzu pod Waszym „Ugotowałem” nie znika już z listy ani z licznika, gdy przepis, z którego gotowaliście, zostanie ukryty przez moderację albo usunięty. Zdjęcie, notatka i komentarze pod nimi były wtedy dalej dostępne — teraz prowadzi do nich także powiadomienie. Inne osoby w rozmowie takiego powiadomienia nie widzą, a blokada z autorem przepisu nadal je zamyka (#1385).
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
