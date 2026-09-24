@@ -90,6 +90,7 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
+                   data-usuwanie-zdjec
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
                    aria-describedby="f-photos-help">
             <label class="pole-zdjecia" for="f-photos">

@@ -306,4 +306,110 @@ class CookingModeTest extends TestCase
 
         $odpowiedz->assertSeeInOrder(['Ciasto', 'mąka', 'Farsz', 'sól', 'do smaku']);
     }
+
+    // --- „Zacznij od początku” (issue #903) ------------------------------
+
+    private function kluczPostepu(Recipe $recipe): string
+    {
+        return 'gotowanie.'.$recipe->getKey().'.zrobione';
+    }
+
+    public function test_903_bez_odhaczen_nie_ma_zbednego_resetu(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka903a'), 2);
+
+        $this->get(route('cooking.show', $recipe->slug))
+            ->assertOk()
+            ->assertDontSee('Zacznij od początku')
+            ->assertDontSee(route('cooking.restart', $recipe->slug));
+    }
+
+    /** Kontrola dodatnia widoku: przy postępie jest formularz POST z CSRF i droga wycofania. */
+    public function test_903_przy_postepie_jest_potwierdzenie_z_formularzem_post_i_wycofaniem(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka903b'), 2);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+
+        $html = $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
+            ->assertOk()
+            ->assertSee('Zacznij od początku')
+            ->assertSee('Zostaw odhaczenia')
+            ->assertSee('Usuń odhaczenia i zacznij od początku')
+            ->getContent();
+
+        $akcja = preg_quote(route('cooking.restart', $recipe->slug), '#');
+        $this->assertMatchesRegularExpression(
+            '#<form method="POST" action="'.$akcja.'">\s*<input type="hidden" name="_token"#',
+            $html,
+            'Reset musi być formularzem POST z tokenem CSRF — działa bez JavaScriptu.'
+        );
+    }
+
+    public function test_903_reset_czysci_tylko_ten_przepis_i_wraca_do_pierwszego_kroku(): void
+    {
+        $autor = $this->user('autorka903c');
+        $recipe = $this->przepisZKrokami($autor, 2);
+        $inny = $this->przepisZKrokami($autor, 2);
+
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 2, 'zrobiono' => 1]);
+        $this->post(route('cooking.zaznacz', $inny->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $postepInnego = session($this->kluczPostepu($inny));
+        $this->assertCount(2, session($this->kluczPostepu($recipe)), 'Kontrola dodatnia: przed resetem są dwa odhaczenia.');
+
+        $this->post(route('cooking.restart', $recipe->slug))
+            ->assertRedirect(route('cooking.show', $recipe->slug))
+            ->assertSessionHas('status', 'Odhaczenia usunięte. Możesz zacząć od pierwszego kroku.')
+            ->assertSessionMissing($this->kluczPostepu($recipe));
+
+        $this->assertSame($postepInnego, session($this->kluczPostepu($inny)), 'Reset jednego przepisu ruszył postęp innego.');
+
+        // Odświeżenie i ponowne wejście: pusty postęp, pierwszy krok, bez przycisku resetu.
+        foreach ([1, 2] as $krok) {
+            $this->get(route('cooking.show', [$recipe->slug, 'krok' => $krok]))
+                ->assertSee('Oznacz krok jako zrobiony')
+                ->assertDontSee('Zrobione ✓')
+                ->assertDontSee('Zacznij od początku');
+        }
+        $this->get(route('cooking.show', [$inny->slug, 'krok' => 1]))->assertSee('Zrobione ✓');
+    }
+
+    public function test_903_get_nie_resetuje(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka903d'), 1);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+
+        $this->get(route('cooking.restart', $recipe->slug))->assertMethodNotAllowed();
+
+        $this->assertCount(1, session($this->kluczPostepu($recipe)));
+    }
+
+    public function test_903_reset_bez_tokenu_csrf_dostaje_419_i_nic_nie_czysci(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka903e'), 1);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+
+        // Framework pomija CSRF w testach; tu świadomie przywracamy walidację
+        // (ten sam zabieg co w CacheHtmlGosciaTest).
+        $this->app->instance('env', 'local');
+        $this->post(route('cooking.restart', $recipe->slug))->assertStatus(419);
+
+        $this->assertCount(1, session($this->kluczPostepu($recipe)));
+    }
+
+    public function test_903_reset_cudzego_prywatnego_przepisu_jest_zabroniony(): void
+    {
+        $autor = $this->user('autorka903f');
+        $obcy = $this->user('obcy903f');
+        $recipe = $this->przepisZKrokami($autor, 1);
+        $recipe->forceFill(['visibility' => 'private'])->save();
+        $klucz = $this->kluczPostepu($recipe);
+
+        $this->actingAs($obcy)
+            ->withSession([$klucz => [$recipe->steps()->first()->getKey()]])
+            ->post(route('cooking.restart', $recipe->slug))
+            ->assertForbidden();
+
+        $this->assertCount(1, session($klucz), 'Odmowa dostępu nie może niczego zmieniać.');
+    }
 }

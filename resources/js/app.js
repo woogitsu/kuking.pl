@@ -24,6 +24,7 @@ import './tagi-w-opisie.js';
 import './licznik-znakow.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -85,6 +86,14 @@ document.addEventListener('change', (event) => {
         return;
     }
 
+    pokazPodgladWyboru(input);
+});
+
+/*
+ * `komunikatPo` — zdanie po usunięciu jednego zdjęcia (issue #884), czytane
+ * przez `aria-live` pojemnika razem z nowym licznikiem.
+ */
+function pokazPodgladWyboru(input, komunikatPo = null) {
     const pojemnikId = `${input.id}-podglad`;
     let pojemnik = document.getElementById(pojemnikId);
 
@@ -102,6 +111,15 @@ document.addEventListener('change', (event) => {
     const pliki = Array.from(input.files ?? []);
 
     if (pliki.length === 0) {
+        if (komunikatPo) {
+            // Po usunięciu OSTATNIEGO zdjęcia pusty pojemnik nic by nie
+            // powiedział — człowiek musi usłyszeć i zobaczyć, że pole jest puste.
+            const pusto = document.createElement('p');
+            pusto.className = 'podglad-wyboru-info';
+            pusto.textContent = `${komunikatPo} Nie ma teraz wybranego żadnego zdjęcia.`;
+            pojemnik.appendChild(pusto);
+        }
+
         return;
     }
 
@@ -122,12 +140,23 @@ document.addEventListener('change', (event) => {
 
     const info = document.createElement('p');
     info.className = 'podglad-wyboru-info';
-    info.textContent = pliki.length === 1
-        ? 'Wybrano 1 zdjęcie.'
-        : `Wybrano ${pliki.length} zdjęcia.`;
+    info.textContent = komunikatPo
+        ? `${komunikatPo} ${komunikatWyboru(pliki.length)}`
+        : komunikatWyboru(pliki.length);
     pojemnik.appendChild(info);
 
-    for (const plik of pliki) {
+    /*
+     * „Usuń” przy miniaturze (issue #884) — tylko w polach, które o to
+     * proszą atrybutem `data-usuwanie-zdjec` (formularz wpisu i „Ugotowałem”),
+     * i tylko w przeglądarce, która umie podmienić listę plików. Kreator
+     * Livewire wysyła zdjęcie od razu po wyborze, więc tam „usuń z podglądu”
+     * nie usuwałoby niczego z serwera — celowo poza zakresem.
+     */
+    const zUsuwaniem = input.dataset.usuwanieZdjec !== undefined && moznaUsuwacZWyboru();
+    const obrazy = pliki.filter((plik) => plik.type.startsWith('image/')).length;
+    let pozycja = 0;
+
+    for (const [indeks, plik] of pliki.entries()) {
         if (! plik.type.startsWith('image/')) {
             continue;
         }
@@ -141,9 +170,51 @@ document.addEventListener('change', (event) => {
         // zostawałby zarezerwowany aż do zamknięcia dokumentu.
         img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
         img.addEventListener('error', () => URL.revokeObjectURL(img.src), { once: true });
-        pojemnik.appendChild(img);
+
+        if (! zUsuwaniem) {
+            pojemnik.appendChild(img);
+            continue;
+        }
+
+        pozycja += 1;
+        const numer = pozycja;
+        const kafel = document.createElement('div');
+        kafel.className = 'podglad-wyboru-pozycja';
+        kafel.appendChild(img);
+
+        const przycisk = document.createElement('button');
+        // `button`, NIE domyślne `submit` — inaczej „Usuń” wysłałby formularz.
+        przycisk.type = 'button';
+        przycisk.className = 'btn btn-secondary podglad-wyboru-usun';
+        przycisk.appendChild(document.createTextNode('Usuń'));
+        // Widoczne „Usuń” + ukryte „zdjęcie 2 z 3”: czytnik ekranu słyszy,
+        // KTÓRE zdjęcie zniknie, zamiast trzech identycznych przycisków.
+        const opis = document.createElement('span');
+        opis.className = 'visually-hidden';
+        opis.textContent = ` zdjęcie ${numer} z ${obrazy}`;
+        przycisk.appendChild(opis);
+
+        przycisk.addEventListener('click', () => {
+            const udane = usunPlikZWyboru(input, indeks);
+
+            // Podgląd rysujemy ZAWSZE od nowa z `input.files` — pokazuje to,
+            // co formularz naprawdę wyśle, także gdy przeglądarka odmówiła.
+            pokazPodgladWyboru(input, udane
+                ? 'Usunięto zdjęcie.'
+                : 'Nie udało się usunąć tego zdjęcia w tej przeglądarce. Wybierz zdjęcia jeszcze raz, bez tego jednego.');
+
+            // Fokus nie może przepaść razem z usuniętym przyciskiem: idzie na
+            // „Usuń” następnego zdjęcia, a po ostatnim — na samo pole wyboru
+            // (obwódkę rysuje wtedy etykieta „Dodaj zdjęcie”).
+            const zostale = pojemnik.querySelectorAll('button.podglad-wyboru-usun');
+            const cel = zostale[Math.min(numer - 1, zostale.length - 1)] ?? input;
+            cel.focus();
+        });
+
+        kafel.appendChild(przycisk);
+        pojemnik.appendChild(kafel);
     }
-});
+}
 
 // --- Nieudana wysyłka zdjęcia w kreatorze (Livewire) ----------------------
 

@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Przy dodawaniu wpisu i „Ugotowałem” każde wybrane zdjęcie ma pod miniaturą przycisk „Usuń”. Pomyłkowe zdjęcie znika z tego, co naprawdę zostanie wysłane — pozostałe zdjęcia, ich kolejność i opis zostają. Licznik mówi teraz poprawnie „Wybrano 5 zdjęć”. W przeglądarce, która nie pozwala zmienić wybranych plików, przycisku nie ma, a formularz działa jak dotąd (#884).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
