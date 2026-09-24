@@ -145,7 +145,7 @@ class OstatniaWizytaPoOdpowiedziTest extends TestCase
     public function test_awaria_odroczonego_zapisu_nie_zmienia_odpowiedzi_ani_nie_loguje_uuid(): void
     {
         $basia = $this->osoba();
-        Log::spy();
+        $dziennik = Log::spy();
         DB::beforeExecuting(function (string $sql): void {
             if (str_starts_with($sql, 'update') && str_contains($sql, 'ostatnio_widziany_at')) {
                 throw new RuntimeException('awaria zapisu '.$sql);
@@ -154,7 +154,7 @@ class OstatniaWizytaPoOdpowiedziTest extends TestCase
 
         $this->actingAs($basia)->get('/_1044/odczyt')->assertOk();
 
-        Log::shouldHaveReceived('warning')->withArgs(function (string $komunikat, array $kontekst) use ($basia): bool {
+        $dziennik->shouldHaveReceived('warning')->withArgs(function (string $komunikat, array $kontekst) use ($basia): bool {
             return $komunikat === 'Nie udało się zapisać ostatniej wizyty użytkownika.'
                 && $kontekst === ['wyjatek' => RuntimeException::class]
                 && ! str_contains(json_encode($kontekst, JSON_THROW_ON_ERROR), (string) $basia->getKey());
