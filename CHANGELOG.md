@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Gdy serwis nie zdoła zlecić przygotowania wgranego zdjęcia, nie zostawia już zdjęcia, które na zawsze „przygotowuje się”. Nic się wtedy nie zapisuje, a przy polu zdjęć pojawia się komunikat, żeby wysłać je jeszcze raz — wpisany tekst zostaje na miejscu.
+
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.

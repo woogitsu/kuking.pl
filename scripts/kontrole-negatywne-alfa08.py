@@ -138,6 +138,13 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Wiersz `media` i zadanie przetwarzania w jednej transakcji (issue #1456).
+# Test wymusza fizyczną odmowę INSERT-u do `jobs`; mutacja wynosi dispatch
+# z powrotem ZA granicę transakcji i kompensacji — test ma wtedy oblać, bo
+# zostaje wiersz `pending` bez zadania i pliki w buckecie.
+STORE_UPLOADED_IMAGE = "app/Domain/Media/Actions/StoreUploadedImage.php"
+ZLECENIE_ZDJECIA_TEST = "ZlecenieZdjeciaWTransakcjiTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -283,6 +290,15 @@ def bez_digestu_obrazu_kopii(source):
     return source[:start] + "FROM postgres:18" + source[end:]
 
 
+def dispatch_zdjecia_poza_transakcja(source):
+    source = replace_once(source, "ProcessUploadedImage::dispatch($media->getKey());", "null;")
+    return replace_once(
+        source,
+        "            throw $e;\n        }\n\n        return $media;",
+        "            throw $e;\n        }\n\n        ProcessUploadedImage::dispatch($media->getKey());\n\n        return $media;",
+    )
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -329,6 +345,8 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
+     dispatch_zdjecia_poza_transakcja),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -344,6 +362,7 @@ run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(ZLECENIE_ZDJECIA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
