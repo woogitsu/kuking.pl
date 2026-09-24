@@ -67,7 +67,7 @@ return [
      * od wejścia wprost na origin. Mechanizm i tryby: `App\Support\TokenKrawedzi`.
      *
      *   - `KUKING_EDGE_TOKEN` puste → bramka wyłączona (lokalnie, testy, preview);
-     *   - `KUKING_EDGE_TOKEN_TRYB` — `obserwacja` (DOMYŚLNIE: tylko log)
+     *   - `KUKING_EDGE_TRYB` — `obserwacja` (DOMYŚLNIE: tylko log)
      *     albo `egzekwowanie` (403 bez ważnego tokenu). Blokowanie włącza się
      *     dopiero wtedy, gdy log z trybu obserwacji potwierdzi, że cały
      *     prawdziwy ruch niesie token;
@@ -79,7 +79,7 @@ return [
     'token_krawedzi' => [
         'aktualny' => (string) env('KUKING_EDGE_TOKEN', ''),
         'poprzedni' => (string) env('KUKING_EDGE_TOKEN_POPRZEDNI', ''),
-        'tryb' => (string) env('KUKING_EDGE_TOKEN_TRYB', 'obserwacja'),
+        'tryb' => (string) env('KUKING_EDGE_TRYB', 'obserwacja'),
 
         // Sondy zdrowia chodzą do kontenera z pominięciem Cloudflare
         // (`/health` — healthcheck Railwaya, `/up` — framework). Tylko GET/HEAD
