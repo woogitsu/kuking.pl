@@ -11,6 +11,7 @@ use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
+use App\Support\Poczta;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,21 @@ class DataSettingsController extends Controller
      * trafił, więc zdanie musi być JEDNO; dwie kopie tego samego komunikatu
      * rozjechałyby się przy pierwszej korekcie tekstu.
      */
-    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.';
+    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.';
+
+    /**
+     * Dopisek o liście — TYLKO gdy poczta naprawdę wysyła (`Poczta::dziala()`,
+     * issue #820). Do 23 września 2026 każdy z trzech komunikatów niżej
+     * obiecywał „napiszemy na Twój adres e-mail" bezwarunkowo: przy
+     * `MAIL_MAILER=log` człowiek czekał na list, który nie powstanie, a przy
+     * awarii poczty — na list, którego nikt nie ponawiał. Miejscem, gdzie
+     * gotowość widać zawsze, jest sekcja „Twoje paczki”, więc to ona stoi
+     * w zdaniu głównym, a e-mail jest dodatkiem.
+     */
+    private static function obietnicaListu(): string
+    {
+        return Poczta::dziala() ? ' Napiszemy też do Ciebie e-mail, gdy paczka będzie gotowa.' : '';
+    }
 
     public function show(Request $request): View
     {
@@ -197,7 +212,8 @@ class DataSettingsController extends Controller
         AuditLogEntry::record('data.export_requested', $user, $user, ip: $request->ip());
 
         return back()->with('status',
-            'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut — napiszemy na Twój adres e-mail, gdy będzie gotowa.',
+            'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut. '
+            .'Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu(),
         );
     }
 
@@ -245,7 +261,7 @@ class DataSettingsController extends Controller
     private function odpowiedzNaTrwajacy(DataExport $aktywny): RedirectResponse
     {
         if (! $this->porzucony($aktywny)) {
-            return back()->with('status', self::JUZ_TRWA);
+            return back()->with('status', self::JUZ_TRWA.self::obietnicaListu());
         }
 
         // POD BLOKADĄ WIERSZA I Z REWALIDACJĄ POD NIĄ (D-079 §2). Dwuklik
@@ -271,12 +287,12 @@ class DataSettingsController extends Controller
         });
 
         if (! $ponowiony) {
-            return back()->with('status', self::JUZ_TRWA);
+            return back()->with('status', self::JUZ_TRWA.self::obietnicaListu());
         }
 
         return back()->with('status',
             'Przygotowanie paczki z Twoimi danymi trwało dłużej, niż powinno, więc właśnie ponowiliśmy '
-            .'zlecenie. Napiszemy na Twój adres e-mail, gdy paczka będzie gotowa.',
+            .'zlecenie. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu(),
         );
     }
 
