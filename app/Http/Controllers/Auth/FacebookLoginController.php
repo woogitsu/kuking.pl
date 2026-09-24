@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\ZalozKonto;
+use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Domain\Users\ZamekKonta;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
@@ -16,6 +18,7 @@ use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\ExternalRegistrationDraft;
 use App\Support\Facebook;
 use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
@@ -399,11 +402,13 @@ class FacebookLoginController extends Controller
             return $this->trzebaZaczacOdNowa();
         }
 
+        $draft = ExternalRegistrationDraft::restore($request, 'facebook', $tozsamosc->identyfikator);
+
         return view('auth.facebook-finish', [
             'email' => $tozsamosc->email,
             // PODPOWIEDŹ, NIE NADANIE — ten sam wywód co przy Google.
-            'proponowanaNazwa' => $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $tozsamosc->imie,
+            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
+            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
         ]);
     }
 
@@ -421,9 +426,12 @@ class FacebookLoginController extends Controller
         // skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
+        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.identyfikator');
         $tozsamosc = $this->tozsamoscZSesji($request);
 
         if ($tozsamosc === null || $tozsamosc->email === null) {
+            ExternalRegistrationDraft::remember($request, 'facebook', $previousIdentity);
+
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -478,6 +486,7 @@ class FacebookLoginController extends Controller
          */
         if (User::findByFacebookId($tozsamosc->identyfikator) !== null
             || User::where('email', $tozsamosc->email)->exists()) {
+            ExternalRegistrationDraft::forget($request, 'facebook');
             $this->zapomnijTozsamosc($request);
 
             return redirect()->route('login')->with('status',
@@ -486,7 +495,7 @@ class FacebookLoginController extends Controller
             );
         }
 
-        $user = $zalozKonto->handle(
+        $konto = $zalozKonto->handle(
             email: $tozsamosc->email,
             displayName: $dane['display_name'],
             username: $dane['username'],
@@ -515,11 +524,18 @@ class FacebookLoginController extends Controller
             ip: $request->ip(),
             dziennik: ['droga' => 'facebook'],
         );
+        $user = $konto->user;
 
+        ExternalRegistrationDraft::forget($request, 'facebook');
         $this->zapomnijTozsamosc($request);
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
+
+        // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
+        if ($konto->listPotwierdzajacyNieWyszedl) {
+            return redirect()->route('onboarding.interests')->with('status', ZalozoneKonto::KOMUNIKAT_BEZ_LISTU);
+        }
 
         return redirect()->route('onboarding.interests')->with('status',
             'Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
@@ -634,7 +650,7 @@ class FacebookLoginController extends Controller
         // D-056 i co przy Google). Rolę sprawdzamy przy KAŻDYM wejściu, więc
         // powiązanie zrobione przed awansem przestaje działać z chwilą
         // nadania roli.
-        if ($user->isModerator()) {
+        if ($user->hasStaffRole()) {
             return redirect()->route('login')->with('status',
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',
@@ -662,7 +678,7 @@ class FacebookLoginController extends Controller
          */
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }
@@ -691,7 +707,7 @@ class FacebookLoginController extends Controller
     private function wolnoPolaczyc(User $user, TozsamoscFacebook $tozsamosc): bool
     {
         return ! $user->hasFacebookConnected()
-            && ! $user->isModerator()
+            && ! $user->hasStaffRole()
             && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
             // To konto Facebooka nie może być w międzyczasie powiązane z KIMŚ
             // INNYM — inaczej zapis wpadłby na unikalne ograniczenie bazy.
@@ -850,7 +866,7 @@ class FacebookLoginController extends Controller
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
         return redirect()->route('login')->with('status',
-            'Wejście kontem Facebooka trwało zbyt długo i musimy zacząć od nowa — nic się nie stało. '
+            'Wejście kontem Facebooka wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Facebooka" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
         );

@@ -1,6 +1,6 @@
         @if($posts->isNotEmpty())
             <div class="kuking-board-kolumna">
-                <h3 class="kuking-board-subtitle">Dania</h3>
+                <h3 class="kuking-board-subtitle">{{ $posts->contains('kind', \App\Models\Post::KIND_QUESTION) ? 'Dania i pytania' : 'Dania' }}</h3>
                 <ul class="kuking-board-posts">
                     @foreach($posts as $post)
                         <li class="kuking-board-post">
@@ -14,7 +14,10 @@
                                 $glowne = $post->media->first(fn ($media) => $media->isReady())
                                     ?? $post->recipe?->heroMedia;
                                 $glowne = ($glowne && $glowne->isReady()) ? $glowne : null;
-                                $opis = $post->body ?: $post->recipe?->title;
+                                $opis = $post->kind === \App\Models\Post::KIND_QUESTION
+                                    ? $post->title
+                                    : ($post->body ?: $post->recipe?->title);
+                                $etykieta = $post->kind === \App\Models\Post::KIND_QUESTION ? $opis : \Illuminate\Support\Str::limit($opis ?? '', 90);
                             @endphp
 
                             {{-- Jeden odnośnik prowadzi do wpisu, a pseudoelement rozciąga
@@ -41,10 +44,10 @@
                                      w szynie, w której miejsce jest. --}}
                                 <span class="kuking-board-post-body">
                                     <a class="author-name kuking-board-post-link" href="{{ $post->url() }}"
-                                       aria-label="{{ $post->author->displayName().($opis ? ' — '.\Illuminate\Support\Str::limit($opis, 90) : '') }}">{{ $post->author->displayName() }}</a>
+                                       aria-label="{{ $post->author->displayName().($opis ? ' — '.$etykieta : '') }}">{{ $post->author->displayName() }}</a>
 
                                     @if($opis)
-                                        <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($opis, $naPowitalnej ? 180 : 90) }}</span>
+                                        <span class="kuking-board-excerpt">{{ $post->kind === \App\Models\Post::KIND_QUESTION ? $opis : \Illuminate\Support\Str::limit($opis, $naPowitalnej ? 180 : 90) }}</span>
                                     @endif
 
                                     @if(isset($notes[$post->getKey()]))

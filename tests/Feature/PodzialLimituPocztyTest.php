@@ -155,6 +155,29 @@ class PodzialLimituPocztyTest extends TestCase
     }
 
     /**
+     * PONOWIENIE POTWIERDZENIA NIE SIĘGA PO OSTATNIE LISTY DOBY (D-246).
+     *
+     * Do 23 września 2026 ponowienie stało w klasie `wejscie` z progiem zero
+     * i razem z nią zjadało rezerwę zostawioną dla rejestracji i logowania
+     * linkiem. Próg równy progowi `wejscie` cofnąłby tę decyzję po cichu.
+     * Sufit na konto zero albo mniej to świadome awaryjne odcięcie — ale
+     * wartość domyślna ma być dodatnia, bo inaczej przycisk na ekranie
+     * potwierdzenia nigdy by nic nie wysłał.
+     */
+    public function test_ponowienie_potwierdzenia_gasnie_przed_wejsciem(): void
+    {
+        $ponowienie = (int) config('kuking.poczta.progi_wygaszania.ponowienie');
+        $wejscie = (int) config('kuking.poczta.progi_wygaszania.wejscie');
+
+        $this->assertGreaterThan($wejscie, $ponowienie,
+            'Ponowne wysłanie potwierdzenia sięga tak głęboko jak rejestracja i logowanie linkiem — '
+            .'ponowienia z wielu kont znowu zjedzą ostatnie listy doby.');
+        $this->assertLessThan((int) config('kuking.poczta.limit_dostawcy_dobowy'), $ponowienie,
+            'Próg ponowienia nie mniejszy od całej puli znaczy, że przycisk „Wyślij jeszcze raz” nigdy nic nie wyśle.');
+        $this->assertGreaterThan(0, (int) config('kuking.poczta.ponowienie_potwierdzenia_na_dobe'));
+    }
+
+    /**
      * Próg podsumowania NIE JEST liczbą z powietrza: wynika z jego własnego
      * sufitu dobowego. Podniesienie `digest.dzienny_limit` bez obniżenia tego
      * progu nie dałoby biuletynowi ani jednego listu więcej, a rozjazd tych

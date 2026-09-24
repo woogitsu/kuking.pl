@@ -698,6 +698,13 @@ class HealthController extends Controller
      * bywa pełnym śladem stosu z argumentami wywołań, czyli dokładnie tym,
      * czego `WebhookBleduHandler` i `check()` unikają gdzie indziej. Diagnozę
      * daje `php artisan queue:failed` z powłoki serwera, nie trasa publiczna.
+     *
+     * POWŁOKI SERWERA NA RAILWAY NIE MA — i dlatego to zdanie było przez
+     * dziesięć dni ślepym zaułkiem: `/health` mówił `degraded`, a jedyna
+     * odpowiedź na pytanie „które zadanie" stała za ścianą. Od issue #599
+     * jest druga droga, TEŻ nie publiczna: `/admin/kolejka`, za rolą `admin`
+     * (`UserPolicy::diagnozujKolejke`). Ona także nie pokazuje ładunku ani
+     * treści wyjątku — tylko nazwy klas i liczby.
      * To sprawdzenie ma jedno zadanie: powiedzieć „coś tam leży, zajrzyj" —
      * publiczna odpowiedź niesie tylko kod, nigdy liczbę ani treść.
      *
@@ -736,6 +743,8 @@ class HealthController extends Controller
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_ZADANIA_NIEUDANE,
             "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
+                .'KTÓRE to zadania i co je przewróciło, widać bez powłoki serwera: '
+                .'panel moderacji → „Kolejka zadań" (`/admin/kolejka`, rola `admin`). '
                 .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
                 .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
                 .'`php artisan kuking:kto-nie-dostal-listu`.',

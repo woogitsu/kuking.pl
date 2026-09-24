@@ -291,7 +291,7 @@ class RecipeController extends Controller
     {
         $this->authorize('update', $recipe);
 
-        $data = $this->validated($request);
+        $data = $this->validated($request, $recipe);
         $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
         if ($duplicateErrors !== []) {
             throw ValidationException::withMessages($duplicateErrors);
@@ -493,6 +493,21 @@ class RecipeController extends Controller
                 ->widoczneDla($request->user())
                 ->whereNotNull('would_make_again')
                 ->count(),
+            // ZESZYTY, W KTÓRYCH TEN PRZEPIS LEŻY — nie samo „tak/nie" (issue #775).
+            //
+            // Sam `isSaved` nie wystarczał ekranowi do niczego poza podmianą
+            // napisu na przycisku. Wyjęcie potrzebuje wiedzieć WIĘCEJ: gdy
+            // zeszyt jest jeden, formularz może wskazać go wprost (`collection_id`)
+            // i wtedy nic poza nim nie zostanie ruszone; gdy jest ich kilka,
+            // przycisk musi napisać, że zdejmuje ze wszystkich, zanim ktoś
+            // w niego kliknie. Jedno zapytanie, dwie nazwane kolumny.
+            'zeszytyZPrzepisem' => $request->user() === null
+                ? collect()
+                : $request->user()
+                    ->collections()
+                    ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
+                    ->orderBy('name')
+                    ->get(['collections.id', 'collections.name']),
             'isSaved' => $request->user() !== null && $request->user()
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
@@ -563,7 +578,7 @@ class RecipeController extends Controller
     /**
      * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}
      */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Recipe $existing = null): array
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
@@ -599,7 +614,8 @@ class RecipeController extends Controller
             'source_type' => ['nullable', 'in:own,family,adaptation,external'],
             'source_person' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_person']],
             'source_note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_note']],
-            'source_url' => ['nullable', 'url', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
+            // Decyzja właściciela (#900): niezmieniony dawny adres nie blokuje edycji.
+            'source_url' => ['nullable', $existing !== null && $request->input('source_url') === $existing->source_url ? 'url' : 'url:http,https', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
@@ -675,7 +691,7 @@ class RecipeController extends Controller
             'source_type.in' => 'Zaznacz, skąd jest ten przepis: Twój własny, rodzinny, adaptacja czy z zewnątrz.',
             'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Ten adres strony wygląda na niepełny. Wklej go jeszcze raz z paska przeglądarki — powinien zaczynać się od https://',
+            'source_url.url' => 'Wklej adres strony zaczynający się od http:// lub https://.',
             // Te trzy komunikaty są celowo IDENTYCZNE jak w komponencie
             // `recipe-wizard` (droga z JavaScriptem) — to jest ten sam
             // formularz na jednej stronie, więc ma mówić to samo (issue #86,

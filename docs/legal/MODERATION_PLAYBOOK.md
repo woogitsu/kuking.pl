@@ -74,7 +74,25 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 | P2 — standardowy | Spam, prawa autorskie, niebezpieczne porady, podszywanie | W ciągu 72 godzin |
 | P3 — niski | Drobne naruszenia stylu/tonu, wątpliwe kategorie | W ciągu 7 dni, mogą czekać na tygodniowy przegląd |
 
-**Priorytetu nie ma w narzędziu.** `reports` nie ma kolumny priorytetu, a kolejka `/admin/zgloszenia` jest posortowana od NAJNOWSZYCH. Podział P0–P3 wyżej to porządek w głowie moderatora i nic go nie wymusza: sprawa P0 sprzed dwóch dni leży niżej niż spam sprzed godziny. Praktyczny wniosek — przeglądaj całą zakładkę „Otwarte", a nie tylko jej pierwszy ekran.
+**Priorytet jest już w narzędziu — od 22 września 2026 (D-236).** Zdanie, które tu stało („priorytetu nie ma w narzędziu… sprawa P0 sprzed dwóch dni leży niżej niż spam sprzed godziny"), opisywało stan sprzed tej zmiany i przestało być prawdziwe.
+
+Kolejka `/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`. Priorytet **liczy się z danych** (`App\Domain\Moderation\PriorytetSprawy`) — z kategorii wybranej przez zgłaszającego i z tego, czy zgłoszenie przyszło drogą prawną z DSA art. 16. **Nadal nie ma kolumny `priorytet`** i nie da się go zmienić ręcznie; to reguła w kodzie, nie pole w bazie. Sprawy P0 i P1 mają na karcie napis („Nie może czekać", „Na dziś”).
+
+Jak podział z tabeli wyżej przekłada się na to, co robi kod:
+
+| SLA | Kategorie `Report::REASONS` | W narzędziu | Dowód |
+|---|---|---|---|
+| P0 | „Dotyczy dziecka" (`minor`), „Treść nieprzyzwoita" (`sexual`) | Pierwsze w kolejce, **alarm pocztą** do moderacji | `KolejkaModeracjiStawiaPilneNaGorzeTest` — kolejność i alarm; reguła w `app/Domain/Moderation/PriorytetSprawy.php` |
+| P1 | `harassment`, `hate`, `personal_data`, `scam` | Nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zgloszenie_prawne_o_zwyklej_kategorii_wyprzedza_te_sama_kategorie_bez_terminu` |
+| P2 i P3 | `spam`, `copyright`, `dangerous_advice`, `impersonation`, `other` | Zwykła kolejka, bez plakietki | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zwykla_sprawa_nie_dostaje_plakietki` |
+
+**Czego kod nie umie odczytać z kategorii — i co dalej zostaje na Tobie:**
+
+- **„groźby zagrażające życiu" to w tabeli P0, ale w formularzu zgłoszenia nie ma takiej pozycji.** Człowiek wybierze najbliższą, czyli „Obraża lub nęka kogoś" (`harassment`), więc sprawa wejdzie jako **P1, nie P0**. Zagrożenie życia rozpoznaje się dopiero po przeczytaniu treści — patrz sekcja 6;
+- **„aktywny doxxing" to P0, a `personal_data` wchodzi jako P1** — z tego samego powodu: „ujawnia czyjeś dane" i „podał adres domowy z wezwaniem, żeby tam pojechać" to w formularzu jedna pozycja;
+- **P3 nie ma odpowiednika** w narzędziu i nie potrzebuje go: drobne naruszenia stylu trafiają w `other`, czyli do zwykłej kolejki.
+
+Praktyczny wniosek nie znika, tylko się zawęża: **pierwszy ekran zakładki „Otwarte" to teraz naprawdę najpilniejsze sprawy**, ale kategoria to słowo zgłaszającego, którego nikt jeszcze nie sprawdził. Priorytet zmienia kolejność czytania i nic poza tym — nie ukrywa treści ani nie powiadamia autora.
 
 **Zasada realistyczna:** przy 1–2 osobach nie da się gwarantować SLA 24/7. Ustaw oczekiwania w komunikacji z użytkownikami ("odpowiadamy zwykle w ciągu 2–3 dni roboczych") i **nie obiecuj więcej, niż jesteś w stanie dotrzymać** — niedotrzymane obietnice szkodzą zaufaniu bardziej niż szczery, dłuższy czas reakcji.
 
@@ -110,7 +128,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    i przyciskiem „Odwołanie od tej decyzji".
 2. Odwołanie składa się **formularzem w produkcie**:
    - osoba aktywna albo zawieszona — z powiadomienia (`/odwolanie/{decyzja}`);
-     zawieszenie nie blokuje wysłania odwołania, choć blokuje wszystko inne;
+     zawieszenie nie blokuje wysłania odwołania. Dostępne są też nazwane czynności prywatne: zeszyt i postęp gotowania (decyzja #926, `docs/product/ZAWIESZENIE_926.md`);
    - osoba **zablokowana** — `/odwolanie`, formularz przed logowaniem,
      zamknięty loginem i hasłem (nie loguje i nie zdejmuje blokady). Link jest
      na ekranie logowania, bo to jedyny ekran, który taka osoba zobaczy;
