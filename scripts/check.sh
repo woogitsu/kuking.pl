@@ -133,6 +133,10 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
     # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
+elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
+    # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
+    # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
+    zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi

@@ -135,6 +135,20 @@ final class Wersja
         return (string) config('kuking.wersja.etykieta');
     }
 
+    /**
+     * PEŁNY SHA wdrożonego commita albo `null`, gdy nic nie wdrożono.
+     *
+     * Dla maszyn (`/wydanie`, test dymny po wdrożeniu — issue #1012), nie dla
+     * ludzi: skrót jest niejednoznaczny, a sonda ma porównać DOKŁADNIE ten
+     * commit, który miał zostać wdrożony.
+     */
+    public static function commit(): ?string
+    {
+        $commit = config('kuking.wersja.commit');
+
+        return is_string($commit) && trim($commit) !== '' ? strtolower(trim($commit)) : null;
+    }
+
     /** Skrót wdrożonego commita albo „lokalnie", gdy nic nie wdrożono. */
     public static function wydanie(): string
     {

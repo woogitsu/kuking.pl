@@ -1125,9 +1125,14 @@ Najważniejsze, w kolejności skutków:
 
 ### 11.2 Czego pilnować, żeby wdrożenie w ogóle ruszyło
 
-`ci.yml` ma `concurrency: cancel-in-progress` na `ci-refs/heads/main`, więc
-KAŻDE kolejne scalenie kasuje przebieg poprzedniego commita. Railway czeka
-na zielony przebieg wierzchołka. Praktyczna reguła, sprawdzona dziś:
+Od 23.09 `ci.yml` NIE anuluje biegnącego przebiegu na `main`
+(`cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`): biegnący
+przebieg zawsze dochodzi do końca. GitHub trzyma w grupie jeden przebieg
+biegnący i jeden oczekujący, więc przy szybkiej serii scaleń oczekujący
+zostaje zastąpiony nowszym — wierzchołek zawsze dostaje pełne CI. Wcześniej
+KAŻDE kolejne scalenie kasowało przebieg poprzedniego commita i przy serii
+scaleń żaden nie dochodził do końca. Railway czeka na zielony przebieg
+wierzchołka. Praktyczna reguła, sprawdzona dziś:
 **scalaj serią, a ostatni w serii niech dotyka `watchPatterns`**
 (`app/`, `config/`, `routes/`, `resources/`…) — sam `docs/` builda nie
 wywoła. Potem przestań scalać i sprawdź stopkę:
