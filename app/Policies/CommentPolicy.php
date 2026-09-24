@@ -95,12 +95,17 @@ class CommentPolicy
             && $comment->created_at?->diffInMinutes(now()) < 15;
     }
 
+    /**
+     * Zwykłe usunięcie komentarza — autor komentarza albo autor treści,
+     * pod którą stoi (to jego kuchnia; `DeleteComment` powiadamia wtedy
+     * autora komentarza).
+     *
+     * Issue #932: moderator NIE usuwa tędy cudzego komentarza, nawet z 2FA.
+     * Cudzy komentarz zdejmuje się decyzją „Usuń" w `/admin/zgloszenia`
+     * — z uzasadnieniem, wpisem w `moderation_actions` i odwołaniem.
+     */
     public function delete(User $user, Comment $comment): bool
     {
-        if ($user->isModerator()) {
-            return true;
-        }
-
         if ($user->getKey() === $comment->author_id) {
             return true;
         }

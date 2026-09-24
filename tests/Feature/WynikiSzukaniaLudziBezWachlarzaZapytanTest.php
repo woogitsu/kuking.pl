@@ -218,7 +218,7 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
-        $sekcja = '//form[@method="POST" and @action="'.route('onboarding.people').'"]'
+        $sekcja = '//form[@method="GET" and @action="'.route('onboarding.people').'"]'
             .'/h2[normalize-space(.)="Wyniki wyszukiwania"]/following-sibling::*[1][self::div]';
         $this->assertSame(1, $xpath->query($sekcja)->length);
         $wiersze = $xpath->query($sekcja.'/label');

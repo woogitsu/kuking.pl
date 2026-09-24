@@ -253,7 +253,7 @@ jobs:
       widok: ${{ steps.sprawdz.outputs.widok }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Pełna historia, bo porównujemy z bazą, a nie z ostatnim commitem.
           fetch-depth: 0
@@ -348,7 +348,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
       # uzasadnienie stoi teraz przy kodzie, w `.github/actions/php`.
@@ -358,7 +358,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -466,9 +466,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -507,7 +507,7 @@ jobs:
     # patrz komentarz przy samym kroku niżej.
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Własny katalog narzędzi tego joba — pełne uzasadnienie i pomiary
       # przy tym samym kroku w jobie `lint` wyżej (issue #262).
@@ -519,7 +519,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -531,7 +531,7 @@ jobs:
       # PHPStan cache'uje wyniki — bez tego każdy przebieg analizuje wszystko
       # od zera (kilka minut zamiast kilkudziesięciu sekund).
       - name: Cache PHPStana
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .phpstan-cache
           key: phpstan-${{ runner.os }}-${{ github.sha }}
@@ -639,7 +639,7 @@ jobs:
       SENTRY_LARAVEL_DSN: ""
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # ---------------------------------------------------------------------
       #  DYNAMICZNY PORT POSTGRESA → do wszystkich dalszych kroków
@@ -674,7 +674,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -820,7 +820,7 @@ jobs:
       FILESYSTEM_DISK: local
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -836,7 +836,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
@@ -870,10 +870,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -949,7 +949,7 @@ jobs:
         # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
         # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vite-build-${{ github.sha }}
           path: public/build
@@ -1029,7 +1029,7 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Izolowane połączenie i narzędzia PHP
         run: |
           set -euo pipefail
@@ -1040,14 +1040,14 @@ jobs:
           echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1071,7 +1071,7 @@ jobs:
         # i ponad połowa zużytego miejsca na artefakty (audyt CI 23.09).
         if: failure()
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: panel-marki-${{ github.sha }}
           path: |
@@ -1131,7 +1131,7 @@ jobs:
       KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
@@ -1158,7 +1158,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1191,7 +1191,7 @@ jobs:
 
       - name: Zrzuty portu marki
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: port-marki-${{ github.sha }}
           path: |
@@ -1248,7 +1248,7 @@ jobs:
       KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
@@ -1276,7 +1276,7 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
@@ -1284,7 +1284,7 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1327,7 +1327,7 @@ jobs:
 
       - name: Zrzuty portu marki
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: port-funkcje-${{ github.sha }}
           path: |
@@ -1403,7 +1403,7 @@ jobs:
       # Ten job nie woła gita; czy rusza warstwę widoku, czyta gotowe
       # z `needs.zakres.outputs.widok` i `needs.zakres.outputs.kod`.
       # Pilnuje tego `PortMarkiMaWlasnaBramkeCiTest`.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
@@ -1435,7 +1435,7 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
@@ -1443,7 +1443,7 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1595,7 +1595,7 @@ jobs:
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dostepnosc-${{ github.sha }}
           path: |
@@ -1640,7 +1640,7 @@ jobs:
 
       - name: Zapis wyniku (wydajność)
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wydajnosc-${{ github.sha }}
           path: storage/wydajnosc.json
@@ -1662,7 +1662,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Prywatny katalog narzędzi joba i konfiguracja PHP — oba kroki stoją
       # razem w `.github/actions/php`, bo działają TYLKO w tej kolejności
@@ -1675,7 +1675,7 @@ jobs:
           wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -1743,13 +1743,13 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build obrazu
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: false
@@ -1846,7 +1846,7 @@ jobs:
       #  z alarmu o trzeciej nad ranem.
       # =====================================================================
       - name: Build obrazu kopii bazy
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/kopia/Dockerfile
