@@ -3657,7 +3657,7 @@ jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
 | `normalized_name` | `UNIQUE`. Do UNIKALNOŚCI — `mb_strtolower(trim(...))` + redukcja białych znaków + Unicode NFC, **BEZ `unaccent`** (`App\Models\Tag::znormalizujNazwe`). **Nigdy** `kuking_normalize()` — ta funkcja robi `unaccent` i służy wyłącznie wyszukiwaniu/podpowiadaniu; użyta tutaj złamałaby wymóg, że `zurek` i `żurek` to dwa różne tagi. |
 | `slug` | `UNIQUE`, CHECK `^[a-z0-9-]{1,40}$`, liczony osobno od `name`. |
 | `status` | `active` \| `hidden` \| `merged`. CHECK w bazie. |
-| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`. |
+| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`, CHECK `tags_merged_not_self_check` (`merged_into_tag_id <> id`) i wyzwalacz `tags_scalenie_jednym_skokiem_trg` — cel scalenia jest zawsze aktywny (#996, niżej). |
 | `is_seeded` | Tag z początkowej bazy redakcyjnej (SPEC §1.4) — atrybut pochodzenia danych, nie osobny system widoczny dla użytkownika. |
 | `internal_category` | Techniczna, jedna z trzynastu kategorii słownika tagów (`potrawy`, `wypieki`, `skladniki`, `przygotowanie`, `przetwory`, `okazje`, `sezon`, `regiony`, `kuchnie-swiata`, `diety`, `okolicznosci`, `sprzet`, `pamiec`) — do raportu z importu i sortowania panelu, **nigdy** pokazywana użytkownikowi. Wcześniej było tu osiem innych wartości (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — pochodziły z bazy wpisanej na sztywno w `TagSeeder`, zastąpionej słownikiem z pliku (D-026). `TagSeeder` aktualizuje tę kolumnę na istniejących wierszach, więc migracja danych nie była potrzebna. |
 
@@ -3685,6 +3685,33 @@ przepina wpisy i obserwujących, przepina aliasy źródła, dopisuje nazwę
 NIE JEST kasowany (SPEC §1.8), więc jego adres `/tag/{slug}` nadal działa
 i przekierowuje. `audit_log` zapisuje wywołujący, nie ta akcja — scalenie
 z panelu ma autora, scalenie z seedera nie ma go wcale.
+
+**Graf scaleń ma w bazie jeden skok do aktywnego celu (#996).** Migracja
+`2026_09_24_100000_scalenia_tagow_jednym_skokiem_do_aktywnego` egzekwuje
+regułę, na której stoi `Tag::tagKanoniczny()` (dokładnie jeden skok):
+każda krawędź `X.merged_into_tag_id = Y` ma `X ≠ Y` i `Y.status = 'active'`.
+Skoro aktywny tag nie ma celu scalenia, łańcuch `A → B → C` i cykl nie mają
+jak powstać — bez rekurencji. Pętlę `A → A` odrzuca CHECK
+`tags_merged_not_self_check`; resztę wyzwalacz `BEFORE INSERT OR UPDATE OF
+status, merged_into_tag_id` z obu stron krawędzi: (1) cel ukryty albo scalony
+jest odrzucany, (2) tag, na który wskazuje inny scalony tag, nie może zostać
+ukryty ani scalony („najpierw przepnij je na nowy cel” — `MergeTags` robi to
+w tej kolejności). Cel jest czytany `FOR SHARE`, więc dwa równoległe
+scalenia (`A → B` i `B → C`) serializują się na wierszu B i druga transakcja
+odmawia — zmierzone w `tests/Dwa/ScalenieTagowNaDwochPolaczeniachTest`.
+`MergeTags` zostaje czytelną walidacją domenową; bariera łapie każdą inną
+drogę zapisu (import, seeder, konsola).
+
+Istniejące dane: migracja blokuje zapisy do `tags` na czas kontroli
+i DDL, liczy krawędzie łamiące regułę i przy choćby jednej **odmawia**
+z liczbami, niczego nie zmieniając — dokąd ma prowadzić stary adres, to
+decyzja redakcyjna. Diagnostyka (tylko odczyt, rekurencyjne CTE ze ścieżką
+każdego złego scalenia): `docs/diagnostyka/996_graf_scalen_tagow.sql`.
+
+**Rollback #996:** `down()` zdejmuje wyzwalacz, funkcję
+`tags_scalenie_jednym_skokiem()` i CHECK. Bezstratnie — poluzowanie reguły
+nie dotyka wierszy, więc nie ma czego odmawiać; gwarancję trzyma wtedy
+już tylko `MergeTags`.
 
 `tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
 adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).

@@ -150,6 +150,15 @@ try {
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),
 
+        // Scalenie tagu SUROWYM `UPDATE` (#996). Świadomie z pominięciem
+        // `MergeTags`: mierzymy barierę w PostgreSQL, która ma działać na
+        // KAŻDEJ drodze zapisu — `MergeTags` i tak serializuje się własną
+        // blokadą `TagMutationLock`, więc przez nią wyścigu nie widać.
+        'scal-tag-surowo' => DB::table('tags')->where('id', $argumenty['zrodlo'])->update([
+            'status' => 'merged',
+            'merged_into_tag_id' => $argumenty['cel'],
+        ]),
+
         // „Zablokuj" (D-090).
         'zablokuj' => (function () use ($argumenty): bool {
             app(BlockUser::class)->handle(
