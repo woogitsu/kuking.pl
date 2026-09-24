@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 - Ekran „Potwierdź swój adres e-mail” nie obiecuje już wiadomości, gdy serwis nie wysyła poczty. Zamiast „Wysłaliśmy wiadomość” i rady o folderze „Spam” mówi, że wiadomość nie przyjdzie, i podaje adres, pod którym człowiek pomoże potwierdzić adres inaczej. Przycisk „Wyślij wiadomość jeszcze raz” pokazuje się tylko wtedy, gdy list naprawdę może wyjść (#1335).
 - Kontrola poczty (`/health`, `kuking:sprawdz-poczte` i formularze wysyłające listy) nie uznaje już za działającą pocztę łańcucha `failover` ani `roundrobin`, w którym jest zapis do dziennika (`log`) albo do pamięci (`array`) — także pod własną nazwą mailera. Domyślny wpis `failover` wysyła teraz przez EmailLabs, a w zapasie przez SMTP, zamiast kończyć się dziennikiem (#1084).
 
