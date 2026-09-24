@@ -152,12 +152,12 @@ Magazyny w testach były lokalnymi `Storage::fake()` — nie produkcyjnym R2.
 `app/Domain/Users/Exports/CollectUserExportData.php::collections()`,
 `app/Domain/Users/Exports/ExportPhotoPlan.php`, `resources/views/exports/`.
 
-**Dodatkowa granica [odczyt kodu, bez osobnej reprodukcji]:**
-`GenerateUserExport::copyToTemp()` przy błędzie odczytu zdjęcia loguje
-pominięcie i zwraca `null`; job może wydać paczkę mimo brakującego pliku.
-Status `ready` nie jest więc dowodem kompletności mediów. Przed materiałem
-obiecującym „wszystkie zdjęcia” potrzebny byłby osobny pomiar tego scenariusza
-i decyzja o komunikowaniu braków; nie naprawiam eksportu przy okazji #30.
+**Dodatkowa granica — zamknięta przez issue #1388:** do 23 września 2026
+`GenerateUserExport::copyToTemp()` przy błędzie odczytu zdjęcia logował
+pominięcie, a job wydawał paczkę `ready` mimo brakującego pliku. Teraz
+nieodczytane zdjęcie `ready` przerywa eksport (ponowienie z kolejki, potem
+`failed` z kodem `photo_unreadable`), więc `ready` oznacza, że każde zdjęcie
+`ready` z planu jest w archiwum. Zdjęcia w innym stanie opisuje osobno #692.
 
 ### 2.2 Co odpada i dlaczego
 

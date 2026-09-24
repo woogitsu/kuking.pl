@@ -6,7 +6,7 @@
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
 #    worker     — php artisan queue:work (przetwarzanie zdjęć, maile, eksporty)
-#    scheduler  — php artisan schedule:work (Laravel scheduler, co minutę)
+#    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
 #                 UWAGA: to jest DZIŚ TRYB PRODUKCYJNY, wbrew temu, co ten
@@ -398,11 +398,36 @@ start_scheduler() {
   # Źródło: https://docs.railway.com/cron-jobs (sekcja "Frequency")
   #
   # WAŻNE: dokładnie 1 replika. Dwie repliki = podwójne maile z digestem.
-  log "start harmonogramu (schedule:run co 60 s)"
+  log "start harmonogramu (schedule:run na początku każdej minuty)"
 
+  petla_harmonogramu
+}
+
+# -----------------------------------------------------------------------------
+#  PĘTLA WYRÓWNANA DO PEŁNEJ MINUTY, NIE `sleep 60` (issue #1355)
+#
+#  `schedule:run` sprawdza, co jest do zrobienia W MINUCIE, w której wystartował.
+#  Stara pętla „przebieg + sleep 60” przesuwała start o czas przebiegu przy
+#  każdym obrocie: przebieg trwający 2 s co minutę zjada minutę co pół godziny.
+#  Wypadało wtedy całe `:SS` na granicy minuty — a jeśli wypadła 03:40, to
+#  `dailyAt('03:40')` nie wykonał się tego dnia wcale, bez żadnego śladu w logu.
+#
+#  Po każdym przebiegu śpimy do początku NASTĘPNEJ minuty, tak jak cron.
+#  Przebieg dłuższy niż minuta (zadania wykonują się sekwencyjnie w tym
+#  procesie) dalej gubi minuty, które przespał — to koszt braku `proc_open`,
+#  dlatego zadania w routes/console.php są rozsunięte o dziesięć minut.
+# -----------------------------------------------------------------------------
+sekundy_do_pelnej_minuty() {
+  local sekunda
+  sekunda="$(date +%S)"
+  # 10# — „08” i „09” to dla basha błędne liczby ósemkowe.
+  echo $(( 60 - 10#${sekunda} ))
+}
+
+petla_harmonogramu() {
   while true; do
     harmonogram_raz
-    sleep 60
+    sleep "$(sekundy_do_pelnej_minuty)"
   done
 }
 
@@ -459,7 +484,7 @@ case "${ROLE}" in
 
     # NIE `schedule:work`: ten wymaga proc_open, wyłączonego w docker/php.ini.
     # Uzasadnienie przy harmonogram_raz().
-    ( while true; do harmonogram_raz; sleep 60; done ) &
+    petla_harmonogramu &
     PID_HARMONOGRAMU="$!"
     CHILD_PIDS+=("${PID_HARMONOGRAMU}")
 

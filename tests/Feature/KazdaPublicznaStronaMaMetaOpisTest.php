@@ -75,6 +75,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
      */
     private const TRASY_TECHNICZNE = [
         'health' => 'sonda zdrowia — zwraca zwykłą odpowiedź, nie stronę HTML',
+        'wydanie' => 'SHA wydania dla testu dymnego — JSON, nie strona HTML',
         'sitemap' => 'plik XML — Google nie czyta z niego meta description',
         'robots' => 'plik tekstowy robots.txt, nie strona HTML',
         'storage.local' => 'serwuje surowy plik z dysku (dev), nie renderuje layoutu',
