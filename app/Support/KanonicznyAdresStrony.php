@@ -30,6 +30,21 @@ use Illuminate\Pagination\Cursor;
  *
  * Kolejność parametrów bierze się z listy, nie z adresu, więc
  * `?tag=x&filtr=y` i `?filtr=y&tag=x` mają ten sam canonical.
+ *
+ * HOST Z `APP_URL`, NIE Z ŻĄDANIA (issue #1369)
+ * `ZaufaneHosty` wpuszcza też `www.kuking.pl`; przekierowanie na apex robi
+ * Cloudflare, ale gdy reguły zabraknie, strona `www` ogłaszała SIEBIE jako
+ * kanoniczną, a sitemapa (budowana z `APP_URL`) — apex. Korzeń bierzemy więc
+ * z konfiguracji, tak jak sitemapa. Staging i preview mają własne `APP_URL`,
+ * więc wskazują same siebie. Bez `APP_URL` ze schematem — korzeń z żądania.
+ *
+ * ŚCIEŻKA MOŻE PRZYJŚĆ Z KONTROLERA (issue #1311)
+ * Profil szuka nazwy bez rozróżniania wielkości liter, więc `/@basia_1971`
+ * i `/@BASIA_1971` pokazują konto `Basia_1971`. Kontroler podaje wtedy
+ * ścieżkę z ZAPISANĄ pisownią (`ustawSciezke()`), już po autoryzacji —
+ * odmowa dostępu nie ujawnia więc nazwy. Zostajemy przy 200 zamiast 301:
+ * stare linki działają bez zmian, a canonical, `og:url`, sitemapa
+ * i `ProfilePage` wskazują jeden adres.
  */
 final class KanonicznyAdresStrony
 {
@@ -47,9 +62,17 @@ final class KanonicznyAdresStrony
         'discover' => ['cursor'],
     ];
 
+    private const ATRYBUT_SCIEZKI = 'kanoniczna_sciezka';
+
+    /** Kontroler zna kanoniczną ścieżkę lepiej niż adres wpisany przez człowieka. */
+    public static function ustawSciezke(Request $request, string $sciezka): void
+    {
+        $request->attributes->set(self::ATRYBUT_SCIEZKI, '/'.ltrim($sciezka, '/'));
+    }
+
     public static function dla(Request $request): string
     {
-        $adres = $request->url();
+        $adres = self::korzen($request).self::sciezka($request);
         $parametry = self::PARAMETRY_TRAS[$request->route()?->getName() ?? ''] ?? [];
 
         $zachowane = [];
@@ -61,6 +84,25 @@ final class KanonicznyAdresStrony
         }
 
         return $zachowane === [] ? $adres : $adres.'?'.http_build_query($zachowane, '', '&', PHP_QUERY_RFC3986);
+    }
+
+    private static function korzen(Request $request): string
+    {
+        $korzen = rtrim((string) config('app.url'), '/');
+        $schemat = parse_url($korzen, PHP_URL_SCHEME);
+
+        return is_string($schemat) && $schemat !== '' ? $korzen : $request->root();
+    }
+
+    private static function sciezka(Request $request): string
+    {
+        $ustawiona = $request->attributes->get(self::ATRYBUT_SCIEZKI);
+        if (is_string($ustawiona)) {
+            return $ustawiona === '/' ? '' : $ustawiona;
+        }
+
+        // `url()` bez korzenia — ścieżka zakodowana tak, jak przyszła.
+        return substr($request->url(), strlen($request->root()));
     }
 
     /** Czy wartość zmienia treść względem widoku domyślnego (tak jak czyta ją kontroler). */
