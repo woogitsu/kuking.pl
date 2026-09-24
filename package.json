@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "node scripts/kontrast-marki.mjs && node --test resources/js/licznik-znakow.test.mjs resources/js/minutnik-krok.test.mjs resources/js/tagi-w-opisie.test.mjs resources/js/wake-lock-gotowania.test.mjs scripts/fixtures/karuzela-raport.test.mjs scripts/fixtures/oauth-raport.test.mjs scripts/kafel-dodawania-bramka.test.mjs scripts/kopiowanie-adresu.test.mjs scripts/korpus-605.test.mjs scripts/panel-komunikat.test.mjs scripts/podglad-object-url.test.mjs scripts/port-grupy.test.mjs scripts/probnik-605.test.mjs scripts/przyrzad-605.test.mjs scripts/pwa-install.test.mjs scripts/service-worker-marka.test.mjs scripts/straznik-testow-js.test.mjs scripts/wyglad-komunikat.test.mjs && vite build",
+        "build": "node scripts/kontrast-marki.mjs && node --test resources/js/licznik-znakow.test.mjs resources/js/minutnik-krok.test.mjs resources/js/niezapisane-zmiany.test.mjs resources/js/tagi-w-opisie.test.mjs resources/js/wake-lock-gotowania.test.mjs scripts/fixtures/karuzela-raport.test.mjs scripts/fixtures/oauth-raport.test.mjs scripts/kafel-dodawania-bramka.test.mjs scripts/kopiowanie-adresu.test.mjs scripts/korpus-605.test.mjs scripts/panel-komunikat.test.mjs scripts/podglad-object-url.test.mjs scripts/port-grupy.test.mjs scripts/probnik-605.test.mjs scripts/przyrzad-605.test.mjs scripts/pwa-install.test.mjs scripts/service-worker-marka.test.mjs scripts/straznik-testow-js.test.mjs scripts/wyglad-komunikat.test.mjs && vite build",
         "build:assets": "vite build",
         "dev": "vite",
         "sprawdz:marke": "node scripts/kontrast-marki.mjs"

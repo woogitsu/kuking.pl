@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Na ekranie „Dopisz szczegóły” przejście do kreatora w trzech krokach najpierw pyta, jeśli coś zostało zmienione i nie jest zapisane. Kreator otwiera ostatnią zapisaną wersję przepisu, więc można zostać i zapisać albo świadomie przejść bez tych zmian. Bez zmian przejście działa od razu, jak dotąd.
+- Na telefonie z Chrome otwarta klawiatura ekranowa zmniejsza teraz układ strony, więc przy niskim oknie górna i dolna belka przestają być przypięte i nie zabierają miejsca nad wpisywanym polem. Powiększanie strony działa jak dotąd.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
