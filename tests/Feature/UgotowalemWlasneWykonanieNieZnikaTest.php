@@ -153,11 +153,13 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
     }
 
     /**
-     * Furtka „własne wykonanie widać zawsze" NIE MOŻE być obejściem blokady.
+     * Własne wykonanie otwiera się kucharzowi mimo blokady z autorem przepisu,
+     * ale bez tytułu i adresu przepisu (D-259).
      *
      * Karta wykonania renderuje tytuł i adres przepisu, czyli treść AUTORA
-     * PRZEPISU. Blokada ma pierwszeństwo (`AGENTS.md` §4), więc przy blokadzie
-     * z autorem ta treść nie może się pokazać.
+     * PRZEPISU. Blokada ma pierwszeństwo (`AGENTS.md` §4) wobec TEJ treści,
+     * więc przy blokadzie z autorem nie może się ona pokazać. Zdjęcie
+     * i notatka są treścią kucharza i zostają dla niego dostępne.
      *
      * ZMIANA ROZSTRZYGNIĘCIA (issue #1394): wcześniej ten test żądał 403 dla
      * kucharza. Skutek — własna zakładka „Ugotowane" obiecywała przycisk,
@@ -165,7 +167,7 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
      * Teraz kucharz wchodzi (200), ale tytułu ani adresu przepisu nie widzi.
      * Pełna macierz: `WykonaniePoBlokadzieAutoraPrzepisuTest`.
      */
-    public function test_furtka_na_wlasne_wykonanie_nie_obchodzi_blokady_z_autorem_przepisu(): void
+    public function test_wlasne_wykonanie_po_blokadzie_z_autorem_przepisu_otwiera_sie_bez_przepisu(): void
     {
         $autorPrzepisu = $this->user('autorkaprzepisu');
         $kucharz = $this->user('kucharz');

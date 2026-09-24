@@ -47,3 +47,15 @@ na: return true;
 oczekuj: zbanowanego|Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/Visibility/KomusWyszloWidocznoscTest.php
 ocena:
+---
+# D-259 (#1394): kucharz wchodzi we WLASNE wykonanie takze przy blokadzie
+# z autorem przepisu. Bez tej galezi kucharz spada do dalszych warunkow,
+# a przy blokadzie dostaje 403 na szczegole i zdjeciu — martwy przycisk
+# „Zobacz i skomentuj" na wlasnej zakladce „Ugotowane".
+nazwa: wlasne wykonanie otwiera sie kucharzowi mimo blokady z autorem przepisu
+plik: app/Policies/CookedEventPolicy.php
+zamien: if ($jestKucharzem) {
+na: if ($jestKucharzem && false) {
+oczekuj: Failed asserting|403|blokad
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
+ocena:
