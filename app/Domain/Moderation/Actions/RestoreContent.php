@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
+use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
+use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -153,6 +155,8 @@ final class RestoreContent
 
         $target->forceFill(['status' => $docelowy])->save();
 
+        $korzenJakoSlad = $this->przywrocKorzenJakoSlad($target);
+
         $osoba = ModeratedContent::osoba($target);
 
         if ($osoba !== null && $zPowiadomieniem) {
@@ -177,6 +181,7 @@ final class RestoreContent
                 // jako szkic, bo był szkicem" od „wrócił jako szkic, bo nie
                 // wiedzieliśmy".
                 'previous_status_known' => $poprzedni !== null,
+                'parent_restored_as_placeholder' => $korzenJakoSlad,
             ],
             ip: $ip,
         );
@@ -208,5 +213,55 @@ final class RestoreContent
         $status = $ostatnie?->previous_status;
 
         return is_string($status) && $status !== '' ? $status : null;
+    }
+
+    /**
+     * Odpowiedź wraca widocznie — także wtedy, gdy autor usunął jej korzeń,
+     * zanim moderacja zdjęła ukrycie (#1317).
+     *
+     * Wątek pokazuje odpowiedzi tylko wewnątrz żywego komentarza głównego.
+     * Korzeń w koszu = odpowiedź „przywrócona”, ale nikt jej nie widzi.
+     * Wracamy więc korzeń jako ślad „Komentarz usunięty.” — ten sam, który
+     * zostawia `DeleteComment`, gdy pod korzeniem jest odpowiedź. Tekst,
+     * który autor korzenia usunął, NIE wraca.
+     *
+     * Korzeń zdjęty przez moderację (ostatnia decyzja o nim to `remove`)
+     * zostaje w koszu: o nim rozstrzyga osobna decyzja, a przywrócenie
+     * odpowiedzi nie jest furtką do jej obejścia. Korzeń ukryty (status
+     * `hidden`) też zostaje ukryty — odpowiedź pokaże się razem z nim.
+     *
+     * Zwraca `true`, gdy korzeń wrócił jako ślad.
+     */
+    private function przywrocKorzenJakoSlad(Model $target): bool
+    {
+        if (! $target instanceof Comment || $target->parent_id === null) {
+            return false;
+        }
+
+        $korzen = Comment::withTrashed()->whereKey($target->parent_id)->lockForUpdate()->first();
+
+        if ($korzen === null || ! $korzen->trashed()) {
+            return false;
+        }
+
+        $ostatnia = ModerationAction::query()
+            ->where('target_type', ModeratedContent::typ($korzen))
+            ->where('target_id', $korzen->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE, ModerationAction::ACTION_UNHIDE])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->value('action');
+
+        if ($ostatnia === ModerationAction::ACTION_REMOVE) {
+            return false;
+        }
+
+        $korzen->forceFill([
+            $korzen->getDeletedAtColumn() => null,
+            'body' => DeleteComment::DELETED_PLACEHOLDER,
+            'body_removed_at' => $korzen->body_removed_at ?? now(),
+        ])->save();
+
+        return true;
     }
 }
