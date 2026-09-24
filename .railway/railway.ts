@@ -358,8 +358,10 @@ export default defineRailway((ctx) => {
     MAIL_MAILER: "emaillabs",
 
     //  Klucze EmailLabs (i uśpione SMTP) żyją w `pocztaEnv` niżej: dostają je
-    //  tylko web i worker, bo tylko one budują transport poczty (#1013).
-    //  Scheduler listy wyłącznie KOLEJKUJE, więc kluczy nie potrzebuje.
+    //  web, worker I scheduler (#1013). Scheduler też, choć list tylko
+    //  KOLEJKUJE: `kuking:wyslij-podsumowania` woła `Mail::to()->queue()`,
+    //  a `Mail::to()` buduje transport od razu — bez kluczy digest padnie
+    //  na `BrakKonfiguracjiEmailLabs`.
     // UWAGA: Symfony przyjmuje TYLKO `smtp` i `smtps`. Stało tu `tls` —
     // wygląda sensownie, opisuje prawdziwą intencję (STARTTLS na 587)
     // i NIE DZIAŁA: transport się nie buduje, a każdy list kończy się

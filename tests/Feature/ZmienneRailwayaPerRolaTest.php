@@ -163,6 +163,8 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_LEGACY_BUCKET' => 'Stary, jeden bucket (dysk `r2_legacy`) — ustawiany ręcznie tylko tam, gdzie '
             .'jest jeszcze w użyciu, do końca `kuking:przenies-zdjecia` (#120).',
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
+        'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
+            .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
 
         // --- Domyślne połączenie Laravela jest poprawne (null = domyślne) ----
         'CACHE_STORAGE_DISK' => 'Cache stoi na bazie (`CACHE_STORE=database`); dysk cache nieużywany.',
