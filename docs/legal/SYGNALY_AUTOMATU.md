@@ -326,9 +326,11 @@ kategorii.
 
 ### 8.6. Wymagania techniczne
 
-**Dziennik awarii (#828, #925):** cztery granice — transport OpenAI,
-przygotowanie zdjęcia, analiza treści i analiza awatara — korzystają ze
-wspólnego `App\Moderacja\ExceptionContext`. Z wyjątku zostaje tylko nazwa
+**Dziennik awarii (#828, #925):** trzy granice — transport OpenAI,
+przygotowanie zdjęcia i analiza treści — korzystają ze
+wspólnego `App\Moderacja\ExceptionContext`. Czwarta, analiza awatara
+(`avatar_analysis`), zniknęła z D-240: `PrzeanalizujAwatar` nic już nie robi,
+więc nie ma w nim czego zapisać. Z wyjątku zostaje tylko nazwa
 klasy; etap jest stałą podaną przez nasz kod. Nie zapisujemy wiadomości,
 niezatwierdzonego kodu wyjątku, stosu ani poprzedniego wyjątku. Mogą zawierać
 tekst, zdjęcie, adres z parametrami albo sekret. Osobna gałąź błędnej
@@ -363,7 +365,32 @@ Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
 
 ---
 
-## 9. ZDJĘCIE PROFILOWE — trzecia droga do modelu (issue #237)
+## 9. ZDJĘCIE PROFILOWE — do modelu nie idzie (D-240; dawniej issue #237)
+
+### 9.1. Stan dziś
+
+- **Nowe i podmieniane awatary nie są wysyłane do żadnego modelu.**
+  `AvatarSettingsController` nie zleca `PrzeanalizujAwatar` — pilnuje tego
+  `ModeracjaZdjeciaProfilowegoTest::test_wgranie_zdjecia_nie_zleca_oceny_modelem`
+  (`Queue::assertNotPushed`).
+- **Awatar nadal może zgłosić człowiek** — przyciskiem „Zgłoś” na profilu
+  (`reports.create` z typem `user`), jak każdą inną treść.
+- **`PrzeanalizujAwatar` to tymczasowy no-op.** Klasa zostaje tylko po to,
+  żeby zlecenia czekające w kolejce `low` sprzed wdrożenia D-240 dały się
+  zdeserializować i zakończyć bez błędu. Takie zadanie nie wysyła żadnego
+  żądania i nie stawia oznaczenia (`GranicaWysylkiDoOpenAiTest::test_awatar_z_poprawna_miniatura_nie_wychodzi`).
+  Do usunięcia, gdy kolejka sprzed wdrożenia będzie pusta.
+- **Ponowne włączenie analizy wymaga osobnej decyzji**: celu zgody
+  w `dziennik_zgod` (dziś zna tylko `tygodniowy_digest`), ekranu, na którym
+  człowiek zgodę daje i wycofuje, oraz sprawdzenia tej zgody w zadaniu przed
+  każdą wysyłką. „Naprawienie” pustego zadania według opisu niżej cofnęłoby
+  D-240.
+
+Podrozdziały 9.2 i 9.3 opisują przepływ, który działał od 10 do 22 września
+2026. Zostają, bo tłumaczą, skąd w bazie wartość `target_type = media`
+i oznaczenia awatarów sprzed D-240. **Dziś żaden z tych kroków się nie dzieje.**
+
+<!-- historia: przed D-240 -->
 
 Do 10 września 2026 model oceniał zdjęcia **wpisów** i nic więcej. Zdjęcie
 profilowe szło zupełnie inną drogą (`AvatarSettingsController` →
@@ -371,7 +398,7 @@ profilowe szło zupełnie inną drogą (`AvatarSettingsController` →
 analizy — awatar nie pojawiał się w kolejce automatu nigdy, dopóki ktoś nie
 zgłosił go ręcznie.
 
-### 9.1. Dlaczego to była większa luka, niż wyglądała
+### 9.2. Dlaczego to była większa luka, niż wyglądała
 
 **Awatar jest widoczny CZĘŚCIEJ niż jakikolwiek wpis.** Wpis widzą
 obserwujący i ci, którzy trafią na niego w feedzie. Awatar chodzi za
@@ -385,7 +412,7 @@ wymaga napisania ani jednego słowa, więc nie rusza `WykrywaczSygnalow`
 (pracuje na tekście), a przy fali migracyjnej nikt nie będzie oglądał
 kilkuset nowych awatarów po kolei.
 
-### 9.2. Jak to działa
+### 9.3. Jak to działało od 10 do 22 września 2026
 
 | Krok | Co się dzieje |
 |---|---|
@@ -401,20 +428,28 @@ Gdyby `PrzeanalizujAwatar` kończyło się powodzeniem przy zdjęciu w stanie
 `processing`, cała funkcja działałaby wyłącznie wtedy, gdy worker mediów
 wyprzedzi worker kolejki `low` — czyli losowo, i nikt by tego nie zauważył.
 
-### 9.3. Celem oznaczenia jest PLIK, nie konto
+<!-- /historia -->
+
+### 9.4. Celem oznaczenia był PLIK, nie konto
 
 Indeks `reports_jeden_automat_na_tresc` przepuszcza jedno oznaczenie automatu
 na (typ, identyfikator) — **na zawsze**, także po odrzuceniu. Gdyby celem
 było konto (`target_type = user`), oceniony zostałby pierwszy awatar tego
-konta i **żaden następny**, a podmiana zdjęcia to sekunda pracy. Cel to więc
-konkretne zdjęcie.
+konta i **żaden następny**, a podmiana zdjęcia to sekunda pracy. Celem było
+więc konkretne zdjęcie.
+
+**Dziś wartości `media` nic nie produkuje.** Zostaje w
+`reports_target_type_check`, bo oznaczenia awatarów sprzed D-240 są sprawami
+moderacyjnymi z decyzjami i odwołaniami — i dają się dalej rozpatrzyć
+(`ModerationAction::DOZWOLONE['media']` niżej). Zgłoszenie awatara przez
+człowieka ma cel `user`, nie `media`.
 
 Nazwa typu w bazie to `media`, a nie `avatar`, bo `ModeratedContent::TYPY`
 mapuje **klasę** modelu, a klasa jest ta sama dla awatara i dla zdjęcia we
 wpisie. Że w danym wierszu chodzi o zdjęcie profilowe, mówi treść powodu
 i podgląd w kolejce.
 
-### 9.4. Co moderator może z tym zrobić — i czego NIE MOŻE
+### 9.5. Co moderator może z tym zrobić — i czego NIE MOŻE
 
 `ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban`.
 Świadomie **bez `hide` i bez `remove`**:
@@ -431,7 +466,7 @@ Zostaje więc ostrzeżenie (od D-058 razem z odpowiedzią pocztą wprost
 z panelu), zawieszenie i ban. **Usuwanie zdjęcia profilowego przez
 moderatora wymaga najpierw miękkiego kasowania zdjęć** — osobna praca.
 
-### 9.5. Granica bez zmian
+### 9.6. Granica bez zmian
 
 Awatar **zostaje widoczny**, autor niczego się nie dowiaduje, decyzję
 podejmuje człowiek (poz. 3.6, 3.10, D-052). Przy zdjęciu profilowym pokusa
@@ -439,7 +474,9 @@ jest większa niż zwykle — „przecież wystarczy podmienić na literę" — 
 ciche podmienienie komuś awatara przez maszynę to jest dokładnie shadow
 filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
 
-### 9.6. Czego ta zmiana NIE objęła
+<!-- historia: przed D-240 -->
+
+### 9.7. Czego nie objęło issue #237 (stan historyczny)
 
 - **zdjęcia przepisów i „Ugotowałem"** — sprawdzone: idą przez
   `PublishPost`/`PublishComment`, więc model je widzi tą samą drogą co
@@ -449,6 +486,8 @@ filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
 - **koszt w kolejce.** Endpoint jest bezpłatny, więc pieniędzy to nie kosztuje,
   ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
   na pierwszej setce kont (§6).
+
+<!-- /historia -->
 
 ## 10. Co wolno wysłać do OpenAI (D-240)
 

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dokumentacja moderacji i bazy danych nie opisuje już automatycznej oceny zdjęć profilowych jako działającej. Od decyzji D-240 zdjęcie profilowe nie trafia do żadnego modelu; nadal można je zgłosić przyciskiem „Zgłoś” na profilu. Test pilnuje, żeby dokumenty mówiły to samo co kod.
 - Polityka prywatności nie twierdzi już, że dziennik serwera znika razem z instancją serwisu. Mówi teraz, że dziennik przechowuje nasz dostawca hostingu, Railway, obecnie do 7 dni, i że kraju przechowywania dziennika jeszcze nie potwierdziliśmy.
 - Polityka prywatności mówi teraz jednym głosem, że zdjęcia przechowujemy w Cloudflare R2, w części tej usługi zastrzeżonej dla Unii Europejskiej — w streszczeniu, w tabeli dostawców i w akapicie o przekazywaniu danych poza EOG. Nowa wersja polityki ma datę 24 września 2026.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
