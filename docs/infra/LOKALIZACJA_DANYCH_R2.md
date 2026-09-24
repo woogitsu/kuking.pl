@@ -130,6 +130,25 @@ który kłamie.
 
 ---
 
+## 3a. Strażnik hosta w aplikacji (D-255, 24.09.2026)
+
+Od decyzji właściciela z 24.09.2026 aplikacja **sama odmawia** pracy z endpointem
+bez jurysdykcji UE. `App\Support\Storage\DozwolonyHostR2` dopuszcza wyłącznie
+`https://<32 znaki hex>.eu.r2.cloudflarestorage.com` (bez portu, ścieżki,
+danych logowania) dla każdego dysku R2/S3 — `r2`, `r2_publiczne`, `r2_legacy`,
+`r2_eksporty`, `r2_kopie`, `s3`. Zły adres → dysk się nie buduje, a `/health`
+pokazuje `checks.magazyn.error = magazyn_r2_zly_host`.
+
+To domyka wariant **A** z §6 po stronie kodu: wariant **B** (zostawić buckety
+bez jurysdykcji) wymaga od teraz zmiany D-255 i `WZOR_HOSTA`, nie samej
+polityki. Serwis `kopia-bazy` (skrypt powłoki, `KOPIA_S3_ENDPOINT`) nie
+przechodzi przez PHP i tym strażnikiem **nie** jest objęty.
+
+**Przed wdrożeniem** sprawdź w panelu R2, że każdy bucket (oryginały, warianty,
+eksporty, kopie) ma „Jurisdiction: European Union”, i że `R2_ENDPOINT` na
+Railway ma segment `.eu.`. Endpoint `eu` nie widzi bucketów bez jurysdykcji —
+aplikacja by się zbudowała, ale każdy odczyt dostałby `NoSuchBucket`.
+
 ## 4. Co wiadomo na 17.09.2026 — i skąd
 
 | Ustalenie | Źródło | Data |

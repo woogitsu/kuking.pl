@@ -15,7 +15,7 @@ export async function sprawdzNegatywNawigacji({ browser, adres, sesja, outputDir
   const md5 = () => createHash('md5').update(readFileSync(source)).digest('hex');
   const before = { md5: md5(), mtime: statSync(source, { bigint: true }).mtimeNs.toString(), atime: statSync(source, { bigint: true }).atimeNs.toString() };
   copyFileSync(source, saved);
-  const build = () => execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+  const build = () => execFileSync('npm', ['run', 'build:assets'], { stdio: 'pipe' });
   const probe = async () => {
     const context = await browser.newContext({ storageState: sesja, viewport: { width: 305, height: 900 }, reducedMotion: 'reduce' });
     try {
