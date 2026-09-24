@@ -11,6 +11,7 @@ use App\Turnstile\WynikTurnstile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -31,6 +32,8 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
     private const SEKRET = '1x0000000000000000000000000000000AA';
 
     private const TOKEN = 'token-od-widgetu-992';
+
+    private MockInterface $dziennik;
 
     /** @var array<string, string> adres formularza => oczekiwane `data-action` */
     private const WIDGETY = [
@@ -102,7 +105,7 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
     #[DataProvider('obceHosty')]
     public function test_host_spoza_listy_jest_odrzucany(string $host): void
     {
-        Log::spy();
+        $this->dziennik = Log::spy();
 
         $this->assertSame(WynikTurnstile::Odrzucony, $this->sprawdz(['hostname' => $host, 'action' => 'logowanie'], 'logowanie'));
 
@@ -121,7 +124,7 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
 
     public function test_akcja_innego_formularza_jest_odrzucana(): void
     {
-        Log::spy();
+        $this->dziennik = Log::spy();
 
         $this->assertSame(
             WynikTurnstile::Odrzucony,
@@ -144,7 +147,7 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
     #[DataProvider('brakujacePola')]
     public function test_brak_wymaganych_pol_jest_odrzucany(array $pola, string $kod): void
     {
-        Log::spy();
+        $this->dziennik = Log::spy();
 
         $this->assertSame(WynikTurnstile::Odrzucony, $this->sprawdz($pola, 'logowanie'));
 
@@ -203,11 +206,11 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
      */
     private function assertOdmowaZKodem(string $kod): void
     {
-        Log::shouldHaveReceived('info')->once()->withArgs(
+        $this->dziennik->shouldHaveReceived('info')->once()->withArgs(
             static fn (string $wiadomosc, array $kontekst): bool => array_keys($kontekst) === ['powod', 'miejsce']
                 && $kontekst['powod'] === $kod,
         );
-        Log::shouldNotHaveReceived('warning');
-        Log::shouldNotHaveReceived('error');
+        $this->dziennik->shouldNotHaveReceived('warning');
+        $this->dziennik->shouldNotHaveReceived('error');
     }
 }
