@@ -13,9 +13,9 @@
       }
     },
     {
-      "description": "Kuking: HTML goscia - BLOKADA sesja i CSRF, nie wlaczaj",
+      "description": "Kuking: HTML goscia bez ciasteczek (#610) - wlacz po KUKING_HTML_EDGE_CACHE_SECONDS>0 i odbiorze sondy",
       "enabled": false,
-      "expression": "(http.host eq \"kuking.pl\" and (http.request.uri.path eq \"/\" or starts_with(http.request.uri.path, \"/przepisy/\") or starts_with(http.request.uri.path, \"/@\")) and http.request.uri.query eq \"\" and http.cookie eq \"\" and not any(http.request.headers[\"authorization\"][*] ne \"\"))",
+      "expression": "(http.host eq \"kuking.pl\" and http.request.method in {\"GET\" \"HEAD\"} and (http.request.uri.path eq \"/\" or starts_with(http.request.uri.path, \"/przepisy/\") or starts_with(http.request.uri.path, \"/@\")) and http.request.uri.query eq \"\" and http.cookie eq \"\" and not any(http.request.headers[\"authorization\"][*] ne \"\"))",
       "action": "set_cache_settings",
       "action_parameters": {
         "cache": true,
