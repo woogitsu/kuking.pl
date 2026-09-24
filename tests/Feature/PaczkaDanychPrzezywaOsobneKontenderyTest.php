@@ -116,7 +116,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $niekasujacy->shouldReceive('delete')->andReturn(false);
         $niekasujacy->shouldReceive('exists')->andReturn(true);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
 
