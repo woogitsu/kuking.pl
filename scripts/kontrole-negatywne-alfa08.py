@@ -196,6 +196,10 @@ BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_pu
 ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+DEMO_SEEDER = "database/seeders/DemoSeeder.php"
+DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
+# #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
+WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
 
@@ -474,6 +478,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
+     lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +503,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(DEMO_SEEDER_HASLO_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
