@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\NowaDecyzja;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
@@ -45,22 +46,23 @@ use Illuminate\Support\Facades\Gate;
  * i dostaje odpowiedź mailem (`NotifyReporterAppealOutcome`) na adres
  * zapisany przy jego zgłoszeniu.
  *
- * GRANICA, KTÓREJ TA KLASA ŚWIADOMIE NIE PRZESUWA: cofnięcie decyzji
- * `no_action` po odwołaniu ZGŁASZAJĄCEGO nie ma dziś żadnego mechanicznego
- * odpowiednika — `cofnij()` niżej poprawnie nic nie robi (nic nie było
- * ukryte), a rzeczywiste podjęcie działania wobec zgłoszonej treści
- * wymagałoby NOWEJ decyzji moderacyjnej na już rozstrzygniętym zgłoszeniu,
- * czego `moderation_actions_one_per_report` i `ModerationController::decide()`
- * dziś nie dopuszczają. To jest świadomie zostawiona granica tej zmiany, nie
- * przeoczenie: naprawia dostęp do systemu skarg (art. 20), nie dodaje
- * mechanizmu ponownego rozpatrzenia zgłoszenia. Jeśli moderator uzna
- * odwołanie za zasadne, realne działanie na treści wykonuje dziś ręcznie,
- * tak jak każdą decyzję poza tym systemem — `decision_note` jest miejscem,
- * w którym mówi zgłaszającemu, co konkretnie zrobi.
+ * ODWOŁANIE ZGŁASZAJĄCEGO OD DECYZJI BEZ DZIAŁANIA (#989, DSA art. 20 ust. 4)
+ * Cofnięcie `no_action` nie ma czego przywrócić, więc „cofam" bez niczego
+ * więcej byłoby odpowiedzią „zmieniamy decyzję" bez zmiany. Do 24.09.2026
+ * dokładnie tak było: moderator miał działać „ręcznie, poza systemem".
+ * Teraz uznanie takiego odwołania WYMAGA nowej decyzji
+ * (`Appeal::wymagaNowejDecyzji()`, `NowaDecyzja`), a `DecyzjaPoOdwolaniu`
+ * wykonuje ją w tej samej transakcji: skutek, wiersz `moderation_actions`
+ * z `appeal_id`, powiadomienie autora, zgłoszenie `resolved`. Jeśli nowej
+ * decyzji nie da się wykonać (celu nie ma, kara wobec wyższej rangi),
+ * odwołania nie da się uznać — zostaje „podtrzymuję" z uzasadnieniem.
  */
 final class ResolveAppeal
 {
     public const JUZ_ROZPATRZONE = 'To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.';
+
+    public const WYBIERZ_NOWA_DECYZJE = 'Cofając decyzję „Bez działania”, wybierz nową decyzję wobec zgłoszonej treści. '
+        .'Jeśli po ponownym sprawdzeniu nadal nie trzeba nic robić, wybierz „Podtrzymuję decyzję”.';
 
     /** Dopisek do odpowiedzi, gdy uchylona kara nie jest tą, która dziś obowiązuje (#933). */
     public const KONTO_ZOSTAJE_ZABLOKOWANE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zablokowane '
@@ -73,10 +75,13 @@ final class ResolveAppeal
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
         private readonly NotifyReporterAppealOutcome $powiadomZglaszajacego,
+        private readonly DecyzjaPoOdwolaniu $decyzjaPoOdwolaniu,
     ) {}
 
     /**
      * @param  string  $wynik  Appeal::STATUS_UPHELD albo Appeal::STATUS_OVERTURNED
+     * @param  ?NowaDecyzja  $nowaDecyzja  wymagana (i używana) wyłącznie przy uznaniu
+     *                                     odwołania, dla którego `wymagaNowejDecyzji()` (#989)
      *
      * @throws AuthorizationException gdy `$moderator`
      *                                nie ma roli uprawniającej do rozstrzygania odwołań (issue #1087)
@@ -88,6 +93,7 @@ final class ResolveAppeal
         string $wynik,
         string $uzasadnienie,
         ?string $ip = null,
+        ?NowaDecyzja $nowaDecyzja = null,
     ): Appeal {
         // KTO ROZSTRZYGA — PYTANIE DOMENY, NIE KONTROLERA (issue #1087).
         //
@@ -157,7 +163,7 @@ final class ResolveAppeal
         // albo konto. Nikt inny nie bierze blokady odwołania, więc ta
         // kolejność nie ma z kim się odwrócić. Pomiar na dwóch połączeniach:
         // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
-        return DB::transaction(function () use ($moderator, $odwolanie, $wynik, $uzasadnienie, $ip): Appeal {
+        return DB::transaction(function () use ($moderator, $odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
             $zablokowane = Appeal::query()->whereKey($odwolanie->getKey())->lockForUpdate()->first();
 
             if ($zablokowane === null || ! $zablokowane->isOpen()) {
@@ -170,9 +176,18 @@ final class ResolveAppeal
                 $this->sprawdzKarencje($moderator, $decyzja);
             }
 
-            $dopisek = $wynik === Appeal::STATUS_OVERTURNED
-                ? $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip)
-                : null;
+            $dopisek = null;
+            $poOdwolaniu = null;
+
+            if ($wynik === Appeal::STATUS_OVERTURNED && $zablokowane->wymagaNowejDecyzji()) {
+                if ($nowaDecyzja === null) {
+                    throw new BladDlaCzlowieka(self::WYBIERZ_NOWA_DECYZJE);
+                }
+
+                $poOdwolaniu = $this->decyzjaPoOdwolaniu->handle($moderator, $zablokowane, $decyzja, $nowaDecyzja, $ip);
+            } elseif ($wynik === Appeal::STATUS_OVERTURNED) {
+                $dopisek = $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
+            }
 
             $zablokowane->update([
                 'status' => $wynik,
@@ -201,6 +216,9 @@ final class ResolveAppeal
                     // Uchylona kara nie była tą obowiązującą — konto zostało
                     // przy późniejszej decyzji (#933).
                     'later_sanction_kept' => $dopisek !== null,
+                    // Decyzja wykonana po uznaniu odwołania od „Bez działania” (#989).
+                    'new_action_id' => $poOdwolaniu === null ? null : (string) $poOdwolaniu->getKey(),
+                    'new_decision' => $poOdwolaniu?->action,
                 ],
                 ip: $ip,
             );

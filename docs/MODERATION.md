@@ -411,6 +411,31 @@ zatwierdzona w trakcie rozpatrzenia też zostaje. Granica: cofnięcie
 PÓŹNIEJSZEJ kary nie przywraca wcześniejszego zawieszenia, które jeszcze by
 trwało — konto wraca do `active`, jak przed tą zmianą.
 
+**Uznanie odwołania zgłaszającego od „Bez działania” to nowa decyzja**
+(#989, DSA art. 20 ust. 4). Cofnięcie `no_action` nie ma czego przywrócić,
+więc „cofam” bez niczego więcej byłoby odpowiedzią „zmieniamy decyzję” bez
+zmiany. Formularz rozpatrzenia pokazuje przy takim odwołaniu pola nowej
+decyzji — te same co przy decyzji ze zgłoszenia: decyzja z macierzy dla typu
+celu (bez „Bez działania”), termin przy zawieszeniu, podstawa i wiadomość dla
+autora. Przy „Podtrzymuję” pola są ignorowane. Bez wybranej decyzji odwołania
+nie da się uznać.
+
+- Nowa decyzja wykonuje się w tej samej transakcji co odpowiedź: skutek,
+  wiersz w `moderation_actions` z `report_id = NULL` i `appeal_id` (powiązanie
+  z odwołaniem, przez nie z pierwotną decyzją i zgłoszeniem), powiadomienie
+  autora z uzasadnieniem i jego własną drogą odwołania, zgłoszenie
+  przestawione z `rejected` na `resolved`, wpisy `moderation.after_appeal`
+  i `appeal.resolved` z identyfikatorami obu decyzji.
+- Zgłaszający dostaje „Zmieniamy naszą decyzję” i zdanie o tym, co stało się
+  z treścią — bez rodzaju kary nałożonej na autora (ta sama granica co przy
+  każdej decyzji, #800). Ekran jego sprawy pokazuje to samo.
+- Czego się nie da wykonać, tego się nie zapisuje: treści już nie ma, treść
+  już zdjęta, kara wobec konta równej albo wyższej rangi. Odwołanie zostaje
+  otwarte i można je podtrzymać z uzasadnieniem.
+- Ścieżka jest świadomie wąska: tylko zgłaszający i tylko decyzje bez
+  działania. Odwołanie zgłaszającego od innej decyzji (np. „za łagodnie”)
+  rozpatruje się jak dotąd.
+
 **Jak odpowiedź dociera** — powiadomieniem typu moderacyjnego. Osoba
 zablokowana czyta je na ekranie logowania (`LoginController`), bo do serwisu
 nie wejdzie.

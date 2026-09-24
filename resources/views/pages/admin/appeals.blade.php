@@ -141,6 +141,7 @@
                     </p>
                 @elseif($appeal->isOpen())
                     @php($skutekCofniecia = match(true) {
+                        $appeal->wymagaNowejDecyzji() => 'Uznaję odwołanie — podejmuję nową decyzję (niżej)',
                         in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_HIDE, \App\Models\ModerationAction::ACTION_REMOVE], true) => 'Cofam decyzję — treść wraca',
                         in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — zdejmuję tę karę z konta',
                         default => 'Cofam decyzję',
@@ -189,12 +190,91 @@
                                 zostaje w mocy — ta osoba dostanie o tym zdanie w odpowiedzi.
                             </p>
                         @endif
-                        @if($appeal->isFromReporter() && $decyzja->action === \App\Models\ModerationAction::ACTION_NONE)
-                            <p class="meta">
-                                Ta decyzja to „bez działania" — system nie umie sam podjąć nowej
-                                decyzji na już rozstrzygniętym zgłoszeniu. Jeśli cofasz, napisz
-                                w uzasadnieniu, co konkretnie zrobisz z treścią, i zrób to osobno.
-                            </p>
+                        @if($appeal->wymagaNowejDecyzji())
+                            {{-- #989, DSA art. 20 ust. 4: uznanie skargi na „Bez działania”
+                                 to NOWA decyzja, wykonana tu i teraz — nie opis w uzasadnieniu.
+                                 Te same pola co przy decyzji ze zgłoszenia; bez JavaScriptu,
+                                 o tym, które są potrzebne, rozstrzyga serwer. Przy
+                                 „Podtrzymuję” pola niżej są ignorowane. --}}
+                            @php($aktywny = \App\Support\WierszFormularza::jestAktywny($appeal->id))
+                            @php($bladNowej = $aktywny ? $errors->first('nowa_decyzja') : null)
+                            <fieldset class="border-0 p-0 mt-4">
+                                <legend class="odwolanie-etykieta">
+                                    Nowa decyzja — jeśli uznajesz odwołanie
+                                </legend>
+                                <p class="meta">
+                                    Zapisze się i wykona razem z odpowiedzią. Autor treści dostanie
+                                    powiadomienie z uzasadnieniem i może się od niej odwołać.
+                                </p>
+                                <div class="choice-grid">
+                                    @foreach(\App\Models\ModerationAction::dozwoloneDla($decyzja->target_type) as $value => $label)
+                                        @continue($value === \App\Models\ModerationAction::ACTION_NONE)
+                                        <label class="choice">
+                                            <input type="radio" name="nowa_decyzja" value="{{ $value }}"
+                                                   @if($bladNowej) aria-invalid="true" @endif
+                                                   @checked(\App\Support\WierszFormularza::stareLubDomyslne('nowa_decyzja', $appeal->id) === $value)>
+                                            <span class="choice-label">{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @if($bladNowej)
+                                    <p class="field-error">{{ $bladNowej }}</p>
+                                @endif
+                            </fieldset>
+
+                            @php($bladTerminu = $aktywny ? $errors->first('suspend_days') : null)
+                            @php($bladDni = $aktywny ? $errors->first('suspend_days_custom') : null)
+                            <fieldset class="border-0 p-0 mt-4">
+                                <legend class="odwolanie-etykieta">Na jak długo — jeśli zawieszasz konto</legend>
+                                <div class="choice-grid">
+                                    @foreach(\App\Domain\Moderation\DlugoscZawieszenia::dlaFormularza() as $value => $label)
+                                        <label class="choice">
+                                            <input type="radio" name="suspend_days" value="{{ $value }}"
+                                                   @checked(\App\Support\WierszFormularza::stareLubDomyslne('suspend_days', $appeal->id, \App\Domain\Moderation\DlugoscZawieszenia::BRAK) === (string) $value)>
+                                            <span class="choice-label">{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @if($bladTerminu)
+                                    <span class="field-error">{{ $bladTerminu }}</span>
+                                @endif
+                                <div class="field mt-3 @if($bladDni) has-error @endif">
+                                    <label for="wlasny-termin-odwolanie-{{ $appeal->id }}">
+                                        Własny termin — liczba dni
+                                        <span class="meta">(wymagane przy „Własnym terminie”)</span>
+                                    </label>
+                                    <input class="field-input" id="wlasny-termin-odwolanie-{{ $appeal->id }}"
+                                           name="suspend_days_custom" type="number" inputmode="numeric"
+                                           min="{{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}"
+                                           max="{{ \App\Domain\Moderation\DlugoscZawieszenia::MAX_DNI }}" step="1"
+                                           value="{{ \App\Support\WierszFormularza::stareLubDomyslne('suspend_days_custom', $appeal->id) }}"
+                                           @if($bladDni) aria-invalid="true" @endif>
+                                    @if($bladDni)
+                                        <span class="field-error">{{ $bladDni }}</span>
+                                    @endif
+                                </div>
+                            </fieldset>
+
+                            @php($bladPodstawy = $aktywny ? $errors->first('reason_code') : null)
+                            <div class="field @if($bladPodstawy) has-error @endif">
+                                <label for="podstawa-odwolanie-{{ $appeal->id }}">
+                                    Podstawa nowej decyzji <span class="meta">(wymagane przy uznaniu)</span>
+                                </label>
+                                <select class="field-input" id="podstawa-odwolanie-{{ $appeal->id }}" name="reason_code"
+                                        @if($bladPodstawy) aria-invalid="true" @endif>
+                                    <option value="">— wybierz podstawę —</option>
+                                    @foreach(\App\Domain\Moderation\PodstawaDecyzji::dlaFormularza() as $kod => $etykieta)
+                                        <option value="{{ $kod }}" @selected(\App\Support\WierszFormularza::stareLubDomyslne('reason_code', $appeal->id) === $kod)>{{ $etykieta }}</option>
+                                    @endforeach
+                                </select>
+                                @if($bladPodstawy)
+                                    <span class="field-error">{{ $bladPodstawy }}</span>
+                                @endif
+                            </div>
+
+                            <x-field name="user_message" label="Wiadomość dla autora treści" type="textarea" :rows="3"
+                                     :wiersz="$appeal->id"
+                                     help="Co konkretnie się stało — własnymi słowami. Autor nie zobaczy odwołania ani tego, kto zgłosił. Podstawę, termin i drogę odwołania powiadomienie dopisuje samo." />
                         @endif
 
                         <x-field name="decision_note" label="Uzasadnienie dla tej osoby" type="textarea" :rows="4" required
@@ -217,6 +297,13 @@
                         {{ $appeal->decider?->displayName() ?? 'usunięte konto' }}
                     </p>
                     <blockquote class="odwolanie-cytat odwolanie-cytat-cichy whitespace-pre-line">{{ $appeal->decision_note }}</blockquote>
+                    @if($appeal->decisionAfterAppeal)
+                        {{-- #989: powiązanie widoczne w panelu, nie tylko w bazie. --}}
+                        <p class="meta">
+                            Decyzja po odwołaniu: {{ $appeal->decisionAfterAppeal->label() }} ·
+                            {{ \App\Domain\Moderation\PodstawaDecyzji::etykieta($appeal->decisionAfterAppeal->reason_code) }}
+                        </p>
+                    @endif
                 @endif
             </div>
         </article>

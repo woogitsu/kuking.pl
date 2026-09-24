@@ -354,6 +354,10 @@ class UzasadnienieDecyzjiTest extends TestCase
             // `removeExOfficio` (czynny moderator z 2FA) i zapisuje
             // `moderator_id` zalogowanego człowieka.
             'app/Domain/Moderation/Actions/ZdejmijZUrzedu.php',
+            // PIĄTE (#989): decyzja po uznaniu odwołania zgłaszającego od
+            // „Bez działania”. Woła ją wyłącznie `ResolveAppeal`, za bramką
+            // `resolveAppeals` (administrator), z `moderator_id` tej osoby.
+            'app/Domain/Moderation/Actions/DecyzjaPoOdwolaniu.php',
         ];
 
         $znalezione = [];
@@ -410,16 +414,22 @@ class UzasadnienieDecyzjiTest extends TestCase
      */
     public function test_nie_ma_automatu_ktory_sam_ukrywa_albo_blokuje(): void
     {
+        // Drugie miejsce (#989): nowa decyzja po uznaniu odwołania
+        // zgłaszającego od „Bez działania”. Woła ją wyłącznie `ResolveAppeal`,
+        // za bramką `resolveAppeals` — administrator, człowiek.
+        $poOdwolaniu = 'app/Domain/Moderation/Actions/DecyzjaPoOdwolaniu.php';
+
         $oczekiwane = [
             // Kara na koncie — wyłącznie z panelu moderacji.
-            '->ban()' => ['app/Http/Controllers/Admin/ModerationController.php'],
-            '->suspend(' => ['app/Http/Controllers/Admin/ModerationController.php'],
+            '->ban()' => ['app/Http/Controllers/Admin/ModerationController.php', $poOdwolaniu],
+            '->suspend(' => ['app/Http/Controllers/Admin/ModerationController.php', $poOdwolaniu],
             // Ustawienie statusu „ukryte" — panel plus słownik statusów,
             // który tę wartość tylko definiuje i czyta. Szukamy `UKRYTY[`
             // bez nazwy klasy, bo w samym słowniku odwołanie brzmi `self::`.
             'UKRYTY[' => [
                 'app/Domain/Moderation/ModeratedContent.php',
                 'app/Http/Controllers/Admin/ModerationController.php',
+                $poOdwolaniu,
             ],
         ];
 

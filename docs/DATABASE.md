@@ -2611,6 +2611,37 @@ zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
 znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
 decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
+Wyjątek od tej reguły ma własną kolumnę — patrz niżej `appeal_id`.
+
+#### `appeal_id` — decyzja po uznaniu odwołania (#989)
+
+Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions`.
+
+| Kolumna | Po co |
+|---|---|
+| `appeal_id uuid NULL` → `appeals`, `ON DELETE SET NULL` | Odwołanie, po którego uznaniu zapadła ta decyzja. Dziś wyłącznie odwołanie **zgłaszającego** od `no_action`/`target_unavailable`: uznanie takiego odwołania wymaga nowej decyzji (DSA art. 20 ust. 4), a wykonuje ją `App\Domain\Moderation\Actions\DecyzjaPoOdwolaniu` w transakcji `ResolveAppeal`. Pierwotna decyzja i zgłoszenie są osiągalne przez `appeals.moderation_action_id` i `appeals.report_id`. |
+
+- `moderation_actions_one_per_appeal` — częściowy `UNIQUE (appeal_id) WHERE
+  appeal_id IS NOT NULL`: jedno odwołanie, najwyżej jedna decyzja po nim.
+- `moderation_actions_appeal_or_report_check` — `CHECK (appeal_id IS NULL OR
+  report_id IS NULL)`: decyzja po odwołaniu nie jest drugą decyzją pierwszej
+  instancji, więc `moderation_actions_one_per_report` zostaje nietknięty.
+- Poza `$fillable` — ustawia ją wyłącznie `DecyzjaPoOdwolaniu` (`forceFill`).
+- `ON DELETE SET NULL`, nie `RESTRICT`: retencja kasuje `appeals` przed
+  `moderation_actions`; `RESTRICT` zatrzymywałby ją na każdym takim
+  odwołaniu na zawsze.
+- `UzasadnienieDecyzji::skadSprawa()` przy niepustym `appeal_id` mówi autorowi,
+  że sprawa zaczęła się od zgłoszenia i wróciła po odwołaniu — nie „nikt tego
+  nie zgłosił”.
+
+**Rollback:** `down()` **odmawia**, gdy istnieje choć jeden wiersz z
+`appeal_id` (D-088): bez kolumny taka decyzja wyglądałaby jak decyzja z urzędu,
+a uzasadnienie dla autora mówiłoby nieprawdę. Komunikat podaje liczbę wierszy
+i zapytanie do zachowania powiązań. Bez takich wierszy (świeża baza, żadne
+odwołanie od „Bez działania” nie zostało uznane) rollback zdejmuje CHECK,
+indeks, klucz obcy i kolumnę bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/CofniecieMigracjiDecyzjiPoOdwolaniuTest.php`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
