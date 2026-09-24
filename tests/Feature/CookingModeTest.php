@@ -236,6 +236,27 @@ class CookingModeTest extends TestCase
     }
 
     /**
+     * Regresja issue #1301: minutnik uruchomiony w kroku 1 nie alarmował
+     * po przejściu do kroku 2, bo na stronie kroku 2 nie było nic, co by go
+     * odliczało. Pas alarmów innych kroków musi stać na KAŻDYM kroku — także
+     * bez własnego minutnika — i nieść przepis oraz widoczny krok, żeby
+     * skrypt wiedział, których zapisów pilnować. Samo zachowanie (alarm,
+     * „Wyłącz alarm”, brak podwójnego alarmu) sprawdza przeglądarka
+     * w `scripts/minutnik-regresja.mjs`.
+     */
+    public function test_krok_bez_minutnika_ma_pas_alarmow_innych_krokow(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka30'), 2, minutnikNaPierwszym: 90);
+
+        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
+            ->assertDontSee('data-timer-krok', false)
+            ->assertSee('class="cook-alarmy stack"', false)
+            ->assertSee('data-alarmy-recipe="'.$recipe->slug.'"', false)
+            ->assertSee('data-alarmy-krok="2"', false)
+            ->assertSee('data-alarmy-adres="'.route('cooking.show', $recipe->slug).'"', false);
+    }
+
+    /**
      * Regresja issue #755: minutnik ma dać się świadomie anulować, nie
      * tylko doczekać do końca albo opuścić tryb gotowania. Przycisk stoi
      * w znaczniku niezależnie od JS-u (ulepszenie odsłania go dopiero

@@ -54,7 +54,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║                                                                            ║
 ║   ┌────────────────────────────────┐   ┌────────────────────────────────┐  ║
 ║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media) WYCOFANE  │  ║
-║   │  /build/*        → 1 rok       │   │  cdn.kuking.pl/*               │  ║
+║   │  /build/assets/* → 1 rok       │   │  cdn.kuking.pl/*               │  ║
 ║   │  /favicon, /sw.js→ 1 godz.     │   │  → Cache Everything, 30 dni    │  ║
 ║   │  /livewire/*     → BYPASS      │   │  ↑ NIE ODTWARZAĆ — D-020       │  ║
 ║   │  cookie sesji    → BYPASS      │   └───────────────┬────────────────┘  ║
@@ -634,7 +634,7 @@ cache (sesja i CSRF). Reguły zdjęć wymagają odbioru stagingu.
 
 | Reguła | Warunek | Akcja |
 |---|---|---|
-| Assety Vite | `starts_with(http.request.uri.path, "/build/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
+| Assety Vite | `starts_with(http.request.uri.path, "/build/assets/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
 | Statyka PWA | ścieżka w `/favicon.ico`, `/robots.txt`, `/manifest.webmanifest` | Edge TTL 1 godz. |
 | Zdjęcia przez aplikację (projekt #597) | `/zdjecia/{media}/{wariant}`, bez stanu klienta | Respektuj origin, przy braku nagłówka BYPASS; odbiór według dokumentu powyżej |
 

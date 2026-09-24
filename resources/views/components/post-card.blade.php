@@ -331,6 +331,7 @@
             <a href="{{ route('recipes.show', $post->recipe->slug) }}">
                 <x-photo :media="$post->recipe->heroMedia"
                          :zoom="false"
+                         tresc="przepis"
                          :alt="$post->recipe->heroMedia->alt_text ?: 'Zdjęcie do przepisu: '.$post->recipe->title" />
             </a>
         </div>

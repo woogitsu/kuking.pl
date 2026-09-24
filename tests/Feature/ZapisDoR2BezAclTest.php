@@ -317,7 +317,7 @@ class ZapisDoR2BezAclTest extends TestCase
             'secret' => 'probny-sekret',
             'region' => 'auto',
             'bucket' => 'kuking-oryginaly',
-            'endpoint' => 'https://konto.r2.cloudflarestorage.com',
+            'endpoint' => 'https://0123456789abcdef0123456789abcdef.eu.r2.cloudflarestorage.com',
             'use_path_style_endpoint' => false,
             'throw' => true,
             // Ostatnie ogniwo stosu AWS SDK. Żądanie jest tu już podpisane
