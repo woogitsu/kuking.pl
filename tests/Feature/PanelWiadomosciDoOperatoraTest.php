@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Compliance\PrzedawnioneWiadomosciDoOperatora;
 use App\Models\ContactMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -136,6 +137,60 @@ class PanelWiadomosciDoOperatoraTest extends TestCase
         $this->assertNull($wiadomosc->handled_by);
         $this->assertNull($wiadomosc->handled_at);
         $this->assertSame('Jednak nie załatwione.', $wiadomosc->handler_note);
+    }
+
+    /**
+     * #843: edycja samej notatki zamkniętej sprawy nie jest ponownym
+     * zamknięciem. Druga osoba dopisująca numer issue nie staje się „tą,
+     * która załatwiła", a zegar retencji (od `handled_at`) nie startuje od
+     * nowa. Kontrola dodatnia: prawdziwe otwarcie i ponowne zamknięcie
+     * NADAL wpisuje nową datę i nowego operatora.
+     */
+    public function test_edycja_notatki_zamknietej_nie_nadpisuje_daty_i_autora_zalatwienia(): void
+    {
+        $zamykajacy = $this->moderator();
+        $poprawiajacy = $this->moderator();
+        $zamknieta = now()->subMonths(13)->startOfSecond();
+        $wiadomosc = ContactMessage::factory()->zalatwiona($zamykajacy, $zamknieta)->create();
+        $formularz = [
+            'status' => ContactMessage::STATUS_ZALATWIONA,
+            'handler_note' => 'Odpisane, poprawka w issue #843.',
+        ];
+
+        foreach ([1, 2] as $_) {
+            $this->actingAs($poprawiajacy)
+                ->post(route('admin.contact.update', $wiadomosc), $formularz)
+                ->assertRedirect(route('admin.contact.show', $wiadomosc));
+
+            $wiadomosc->refresh();
+            $this->assertSame(ContactMessage::STATUS_ZALATWIONA, $wiadomosc->status);
+            $this->assertSame($zamykajacy->getKey(), $wiadomosc->handled_by);
+            $this->assertTrue($zamknieta->equalTo($wiadomosc->handled_at));
+            $this->assertSame('Odpisane, poprawka w issue #843.', $wiadomosc->handler_note);
+        }
+
+        $this->assertSame(
+            1,
+            app(PrzedawnioneWiadomosciDoOperatora::class)->posprzataj(12, naSucho: true),
+            'Dopisanie notatki nie może przesuwać terminu sprzątania.',
+        );
+
+        $this->actingAs($poprawiajacy)->post(route('admin.contact.update', $wiadomosc), [
+            'status' => ContactMessage::STATUS_W_TOKU,
+            'handler_note' => 'Wraca do roboty.',
+        ]);
+        $this->actingAs($poprawiajacy)->post(route('admin.contact.update', $wiadomosc), $formularz);
+
+        $wiadomosc->refresh();
+        $this->assertSame(ContactMessage::STATUS_ZALATWIONA, $wiadomosc->status);
+        $this->assertSame($poprawiajacy->getKey(), $wiadomosc->handled_by);
+        $this->assertTrue($wiadomosc->handled_at->greaterThan($zamknieta->copy()->addMonths(12)));
+        $this->assertSame(
+            0,
+            app(PrzedawnioneWiadomosciDoOperatora::class)->posprzataj(12, naSucho: true),
+            'Kontrola dodatnia: prawdziwe ponowne zamknięcie liczy retencję od nowa.',
+        );
+        $this->assertSame(1, ContactMessage::count());
     }
 
     public function test_zwykly_uzytkownik_nie_zamknie_cudzej_wiadomosci(): void

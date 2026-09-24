@@ -107,11 +107,12 @@ class WiadomosciController extends Controller
             'handler_note.max' => 'Notatka jest za długa — zmieść się w 2000 znakach.',
         ]);
 
-        // Notatka najpierw, stan potem. `oznaczJako()` zapisuje wiersz sam
+        // Notatka i stan JEDNYM zapisem: `oznaczJako()` zapisuje wiersz sam
         // (musi, bo CHECK w bazie wymaga kompletu `status` + `handled_by` +
-        // `handled_at`), więc odwrotna kolejność gubiłaby notatkę przy
-        // przejściu na „Nowa", które czyści ślad obsługi.
-        $wiadomosc->forceFill(['handler_note' => $dane['handler_note'] ?? null])->save();
+        // `handled_at`) i zabiera ze sobą ustawioną tu notatkę. Dwa osobne
+        // zapisy mogły rozjechać się w połowie (#843). Przy niezmienionym
+        // stanie data i autor załatwienia zostają, jak były.
+        $wiadomosc->forceFill(['handler_note' => $dane['handler_note'] ?? null]);
         $wiadomosc->oznaczJako($dane['status'], $request->user());
 
         return redirect()

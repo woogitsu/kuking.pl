@@ -156,10 +156,25 @@ class ContactMessage extends Model
      * informacji i jest nią świadomie: „nowa" znaczy „nikt tego jeszcze nie
      * tknął", a wiersz z `handled_at` i statusem `new` byłby zdaniem
      * wewnętrznie sprzecznym — i tak samo odrzuciłby go CHECK.
+     *
+     * TEN SAM STAN TO NIE JEST NOWE ZDARZENIE (#843). Zapis formularza
+     * z niezmienionym stanem — dopisanie numeru issue do notatki zamkniętej
+     * sprawy, ponowne wysłanie tego samego formularza — nie przepisuje
+     * `handled_at` ani `handled_by`. Inaczej druga osoba poprawiająca
+     * literówkę stawałaby się „tą, która załatwiła", a zegar retencji
+     * (liczony od `handled_at`) startowałby od nowa przy każdej notatce.
+     * Brudne pola ustawione wcześniej (notatka) zapisują się tym samym
+     * `save()` — jeden zapis całego zamierzonego stanu.
      */
     public function oznaczJako(string $status, User $operator): void
     {
         $nowa = $status === self::STATUS_NOWA;
+
+        if ($this->exists && $this->getOriginal('status') === $status) {
+            $this->save();
+
+            return;
+        }
 
         $this->forceFill([
             'status' => $status,
