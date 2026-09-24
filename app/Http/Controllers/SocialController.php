@@ -58,6 +58,7 @@ class SocialController extends Controller
     public function unfollow(Request $request, string $username): RedirectResponse
     {
         $target = $this->findUser($username);
+        $this->authorize('unfollow', $target);
 
         try {
             // ODOBSERWOWANIE TEŻ, CHOĆ WYGLĄDA NIEGROŹNIE.
