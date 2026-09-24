@@ -70,6 +70,16 @@ final class NieudaneZadania
     public const NIEZNANA = '?';
 
     /**
+     * Wartość `displayName` z ładunku W POSTACI JSON-OWEGO NAPISU (z ucieczkami
+     * `\\`), wycięta bez parsowania całego ładunku. Składnia ARE PostgreSQL:
+     * `substring(... from wzór)` zwraca pierwszy nawias chwytający.
+     */
+    private const WZOR_DISPLAY_NAME = '"displayName":"((?:[^"\\\\]|\\\\.)*)"';
+
+    /** Pierwsza linia wyjątku do pierwszego `:` — tam zaczyna się komunikat. */
+    private const WZOR_KLASY_WYJATKU = '^[^:\r\n]*';
+
+    /**
      * @return array{
      *     razem: int,
      *     grupy: list<array{klasa: string, nazwa: string, wyjatek: string, nazwa_wyjatku: string, kolejka: string, ile: int, najstarsze: ?Carbon, najnowsze: ?Carbon}>,
@@ -79,10 +89,31 @@ final class NieudaneZadania
      */
     public function pogrupowane(): array
     {
+        // Grupowanie robi baza, nie PHP: `failed_jobs` rośnie bez górnej
+        // granicy (od 9 września 2026 nikt jej nie czyścił), a każdy wiersz
+        // niesie kilobajty ładunku i śladu stosu. Do PHP przychodzą tylko
+        // DWA WYCIĘTE KAWAŁKI tekstu na grupę — `displayName` wyrażeniem
+        // regularnym, bez rzutowania na JSON (jeden uszkodzony wiersz
+        // wywróciłby `::json` całe zapytanie), i pierwsza linia wyjątku do
+        // pierwszego `:`, czyli sama nazwa klasy — plus liczby i daty.
+        $wiersze = DB::query()->fromSub(
+            DB::table('failed_jobs')->selectRaw(
+                'queue, failed_at, substring(payload from ?) as klasa, substring(exception from ?) as wyjatek',
+                [self::WZOR_DISPLAY_NAME, self::WZOR_KLASY_WYJATKU],
+            ),
+            'f',
+        );
+
         try {
-            $wiersze = DB::table('failed_jobs')
-                ->select(['queue', 'payload', 'exception', 'failed_at'])
-                ->orderByDesc('failed_at')
+            $razem = DB::table('failed_jobs')->count();
+            $wszystkichGrup = DB::query()
+                ->fromSub((clone $wiersze)->groupBy('klasa', 'wyjatek', 'queue')->selectRaw('1'), 'g')
+                ->count();
+            $surowe = $wiersze
+                ->groupBy('klasa', 'wyjatek', 'queue')
+                ->selectRaw('klasa, wyjatek, queue, count(*) as ile, min(failed_at) as najstarsze, max(failed_at) as najnowsze')
+                ->orderByRaw('max(failed_at) desc nulls last, count(*) desc')
+                ->limit(self::GRUP_NA_EKRAN)
                 ->get();
         } catch (Throwable) {
             // Bez treści wyjątku: komunikat sterownika potrafi wnieść w siebie
@@ -92,11 +123,15 @@ final class NieudaneZadania
 
         $grupy = [];
 
-        foreach ($wiersze as $wiersz) {
-            $klasa = $this->klasaZadania($wiersz->payload ?? null);
-            $wyjatek = $this->klasaWyjatku($wiersz->exception ?? null);
+        // Dwa różne surowe napisy mogą po `nazwaKlasy()` dać ten sam `?` —
+        // wtedy scalamy je w jedną grupę, żeby ekran nie pokazał dwóch
+        // identycznych kart.
+        foreach ($surowe as $wiersz) {
+            $klasa = $this->klasaZadania($wiersz->klasa ?? null);
+            $wyjatek = $this->nazwaKlasy($wiersz->wyjatek ?? null);
             $kolejka = $this->nazwaKolejki($wiersz->queue ?? null);
-            $kiedy = $this->kiedy($wiersz->failed_at ?? null);
+            $najstarsze = $this->kiedy($wiersz->najstarsze ?? null);
+            $najnowsze = $this->kiedy($wiersz->najnowsze ?? null);
 
             $klucz = $klasa."\0".$wyjatek."\0".$kolejka;
 
@@ -113,35 +148,27 @@ final class NieudaneZadania
                 ];
             }
 
-            $grupy[$klucz]['ile']++;
+            $grupy[$klucz]['ile'] += (int) $wiersz->ile;
 
-            if ($kiedy instanceof Carbon) {
-                $najstarsze = $grupy[$klucz]['najstarsze'];
-                $najnowsze = $grupy[$klucz]['najnowsze'];
+            $dotad = $grupy[$klucz]['najstarsze'];
+            if ($najstarsze instanceof Carbon && ($dotad === null || $najstarsze->lt($dotad))) {
+                $grupy[$klucz]['najstarsze'] = $najstarsze;
+            }
 
-                $grupy[$klucz]['najstarsze'] = $najstarsze === null || $kiedy->lt($najstarsze) ? $kiedy : $najstarsze;
-                $grupy[$klucz]['najnowsze'] = $najnowsze === null || $kiedy->gt($najnowsze) ? $kiedy : $najnowsze;
+            $dotad = $grupy[$klucz]['najnowsze'];
+            if ($najnowsze instanceof Carbon && ($dotad === null || $najnowsze->gt($dotad))) {
+                $grupy[$klucz]['najnowsze'] = $najnowsze;
             }
         }
 
-        // Najnowsza awaria na górze: człowiek wchodzi tu, żeby zobaczyć, co
-        // się dzieje TERAZ. Grupy bez czytelnej daty lądują na końcu, ale
-        // NIE ZNIKAJĄ — „nie wiem, co to jest" jest informacją, nie brakiem.
-        $lista = array_values($grupy);
-
-        usort($lista, function (array $a, array $b): int {
-            $czasA = $a['najnowsze'] instanceof Carbon ? $a['najnowsze']->getTimestamp() : PHP_INT_MIN;
-            $czasB = $b['najnowsze'] instanceof Carbon ? $b['najnowsze']->getTimestamp() : PHP_INT_MIN;
-
-            return $czasB <=> $czasA ?: $b['ile'] <=> $a['ile'];
-        });
-
-        $pokazane = array_slice($lista, 0, self::GRUP_NA_EKRAN);
-
+        // Najnowsza awaria na górze (kolejność już z bazy): człowiek wchodzi
+        // tu, żeby zobaczyć, co się dzieje TERAZ. Grupy bez daty lądują na
+        // końcu (`nulls last`), ale NIE ZNIKAJĄ — „nie wiem, co to jest" jest
+        // informacją, nie brakiem.
         return [
-            'razem' => $wiersze->count(),
-            'grupy' => $pokazane,
-            'poza_lista' => count($lista) - count($pokazane),
+            'razem' => $razem,
+            'grupy' => array_values($grupy),
+            'poza_lista' => max(0, $wszystkichGrup - $surowe->count()),
             'odczytane' => true,
         ];
     }
@@ -153,40 +180,17 @@ final class NieudaneZadania
      * odtwarzać obiekt, bo liczy OSOBY; temu ekranowi wystarcza nazwa, więc
      * nie otwiera ładunku wcale i nie ma czego z niego wynieść.
      */
-    private function klasaZadania(mixed $payload): string
+    private function klasaZadania(mixed $displayName): string
     {
-        if (! is_string($payload) || $payload === '') {
+        if (! is_string($displayName) || $displayName === '') {
             return self::NIEZNANA;
         }
 
-        $odczyt = json_decode($payload, true);
+        // Wycinek jest wnętrzem JSON-owego napisu — dekodujemy go jako napis,
+        // żeby `App\\Jobs\\X` stało się `App\Jobs\X`.
+        $odczyt = json_decode('"'.$displayName.'"');
 
-        if (! is_array($odczyt)) {
-            return self::NIEZNANA;
-        }
-
-        return $this->nazwaKlasy($odczyt['displayName'] ?? null);
-    }
-
-    /**
-     * Sama nazwa klasy wyjątku — wszystko po pierwszym `:` jest odcinane
-     * PRZED jakąkolwiek inną obróbką, bo tam zaczyna się komunikat.
-     */
-    private function klasaWyjatku(mixed $exception): string
-    {
-        if (! is_string($exception) || $exception === '') {
-            return self::NIEZNANA;
-        }
-
-        $pierwszaLinia = strtok($exception, "\r\n");
-
-        if ($pierwszaLinia === false) {
-            return self::NIEZNANA;
-        }
-
-        $dwukropek = strpos($pierwszaLinia, ':');
-
-        return $this->nazwaKlasy($dwukropek === false ? $pierwszaLinia : substr($pierwszaLinia, 0, $dwukropek));
+        return $this->nazwaKlasy($odczyt);
     }
 
     /**

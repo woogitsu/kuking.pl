@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Symfony\Component\Mailer\Envelope;
@@ -56,10 +57,10 @@ class PanelKolejkiZadanTest extends TestCase
     private const DZIS = '2026-09-12 09:00:00';
 
     /** Znacznik wchodzący do komunikatu wyjątku, a więc i do kolumny `exception`. */
-    private const SLAD_W_WYJATKU = 'SLAD-STOSU-DO-TESTU-717a';
+    private const SLAD_W_WYJATKU = 'SLAD-STOSU-DO-TESTU-599a';
 
     /** Żeton wkładany w powiadomienie — ląduje w `payload` W JAWNEJ POSTACI. */
-    private const ZETON = 'ZETON-DO-TESTU-717b';
+    private const ZETON = 'ZETON-DO-TESTU-599b';
 
     protected function setUp(): void
     {
@@ -123,6 +124,71 @@ class PanelKolejkiZadanTest extends TestCase
         // ILE i KIEDY.
         $odpowiedz->assertSee('2 zadania');
         $odpowiedz->assertSee('9.09.2026');
+    }
+
+    /**
+     * Regresja z przeglądu PR #725: daty szły na ekran w UTC. Awaria z 14:05
+     * UTC to w Polsce 16:05 (czas letni) — i tak ma ją zobaczyć człowiek,
+     * który porównuje ekran z własnym zegarkiem i z `/health`.
+     */
+    public function test_daty_sa_w_strefie_polskiej_a_nie_w_utc(): void
+    {
+        $this->wAwarii(fn () => $this->nieudanyListHasla($this->konto('maria@przyklad.pl', 'Maria')));
+
+        $odpowiedz = $this->actingAs($this->admin())->get('/admin/kolejka');
+
+        $odpowiedz->assertOk();
+        $odpowiedz->assertSee('9.09.2026, 16:05');
+        $odpowiedz->assertDontSee('9.09.2026, 14:05');
+    }
+
+    /**
+     * Regresja z przeglądu PR #725: odmiana liczyła „< 5 → zadania", więc
+     * przy 22 wychodziło „22 zadań" zamiast „22 zadania". Dwadzieścia dwa
+     * prawdziwe wierszy powstaje przez skopiowanie jednego prawdziwego —
+     * ładunek dalej pochodzi z workera, nie z wyobrażenia o formacie.
+     */
+    public function test_liczba_zadan_jest_odmieniona_po_polsku(): void
+    {
+        $this->wAwarii(fn () => $this->nieudanyListHasla($this->konto('maria@przyklad.pl', 'Maria')));
+
+        DB::statement(
+            'insert into failed_jobs (uuid, connection, queue, payload, exception, failed_at)
+             select gen_random_uuid()::text, connection, queue, payload, exception, failed_at
+             from failed_jobs cross join generate_series(1, 21)',
+        );
+        $this->assertSame(22, DB::table('failed_jobs')->count());
+
+        $odpowiedz = $this->actingAs($this->admin())->get('/admin/kolejka');
+
+        $odpowiedz->assertOk();
+        $odpowiedz->assertSee('UstawienieNowegoHasla — 22 zadania');
+        $odpowiedz->assertDontSee('22 zadań');
+    }
+
+    /**
+     * Regresja z przeglądu PR #725: zaległość szła jako „900 sekund", czyli
+     * liczba, którą człowiek musi dopiero przeliczyć w głowie.
+     */
+    public function test_zaleglosc_jest_podana_w_minutach(): void
+    {
+        config(['kuking.kolejka.prog_zaleglosci_sekundy' => 600]);
+
+        DB::table('jobs')->insert([
+            'queue' => 'default',
+            'payload' => '{"displayName":"App\\\\Jobs\\\\Cokolwiek"}',
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => now()->getTimestamp() - 900,
+            'created_at' => now()->getTimestamp() - 900,
+        ]);
+
+        $odpowiedz = $this->actingAs($this->admin())->get('/admin/kolejka');
+
+        $odpowiedz->assertOk();
+        $odpowiedz->assertSee('czeka 15 minut');
+        $odpowiedz->assertSee('próg: 10 min');
+        $odpowiedz->assertDontSee('900 sekund');
     }
 
     /**
@@ -197,7 +263,7 @@ class PanelKolejkiZadanTest extends TestCase
     public function test_wiersz_nieczytelny_jest_policzony_ale_jego_ladunek_nie_jest_cytowany(): void
     {
         DB::table('failed_jobs')->insert([
-            'uuid' => 'e5a5a0e0-0000-4000-8000-000000000717',
+            'uuid' => 'e5a5a0e0-0000-4000-8000-000000000599',
             'connection' => 'database',
             'queue' => 'default',
             'payload' => 'to-nie-jest-json-'.self::ZETON,
@@ -319,6 +385,16 @@ class PanelKolejkiZadanTest extends TestCase
 
     private function nieudanyListHasla(User $uzytkownik): void
     {
+        // Żeton musi naprawdę istnieć w brokerze haseł: od #889
+        // `UstawienieNowegoHasla::shouldSend()` pomija list z żetonem
+        // nieznanym, zużytym albo wygasłym. Bez tego wiersza worker kończy
+        // zadanie „sukcesem" bez wysyłki i `failed_jobs` zostaje puste —
+        // test mierzyłby wtedy pominięcie, nie awarię SMTP.
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $uzytkownik->getEmailForPasswordReset()],
+            ['token' => Hash::make(self::ZETON), 'created_at' => now()],
+        );
+
         $uzytkownik->notify(new UstawienieNowegoHasla(self::ZETON));
 
         $this->przepracujJedno();

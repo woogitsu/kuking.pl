@@ -45,12 +45,14 @@
                 @if($stan['stan'] === \App\Domain\Kolejka\StanKolejki::SPOKOJNA)
                     Kolejka pracuje. W ostatnich {{ $stan['okno_godzin'] }} godzinach nie padło żadne zadanie.
                 @elseif($stan['stan'] === \App\Domain\Kolejka\StanKolejki::ZALEGLOSC)
-                    <strong>Najstarsze gotowe zadanie czeka {{ $stan['zaleglosc_sekundy'] }} sekund</strong>
-                    (próg: {{ $stan['prog_zaleglosci_sekundy'] }} s). To wygląda na workera, który nie pracuje —
+                    @php($minut = intdiv($stan['zaleglosc_sekundy'], 60))
+                    @php($progMinut = intdiv($stan['prog_zaleglosci_sekundy'], 60))
+                    <strong>Najstarsze gotowe zadanie czeka {{ $minut < 1 ? 'krócej niż minutę' : $minut.' '.\App\Support\Odmiana::rzeczownik($minut, 'minutę', 'minuty', 'minut') }}</strong>
+                    (próg: {{ $progMinut < 1 ? $stan['prog_zaleglosci_sekundy'].' s' : $progMinut.' min' }}). To wygląda na workera, który nie pracuje —
                     a worker, który nie chodzi, nie zgłasza żadnego błędu.
                 @else
                     <strong>W ostatnich {{ $stan['okno_godzin'] }} godzinach padło
-                        {{ $stan['nieudane_w_oknie'] }} zadań.</strong> To jest awaria świeża, nie zaległość.
+                        {{ $stan['nieudane_w_oknie'].' '.\App\Support\Odmiana::rzeczownik($stan['nieudane_w_oknie'], 'zadanie', 'zadania', 'zadań') }}.</strong> To jest awaria świeża, nie zaległość.
                 @endif
             </p>
 
@@ -81,7 +83,7 @@
             @foreach($nieudane['grupy'] as $grupa)
                 <li class="card">
                     <h3 class="mt-0 text-title-sm">
-                        {{ $grupa['nazwa'] }} — {{ $grupa['ile'].' '.($grupa['ile'] === 1 ? 'zadanie' : ($grupa['ile'] < 5 ? 'zadania' : 'zadań')) }}
+                        {{ $grupa['nazwa'] }} — {{ $grupa['ile'].' '.\App\Support\Odmiana::rzeczownik($grupa['ile'], 'zadanie', 'zadania', 'zadań') }}
                     </h3>
 
                     <p>Przewrócił to: <strong>{{ $grupa['nazwa_wyjatku'] }}</strong></p>
@@ -97,10 +99,10 @@
                         <dd><code>{{ $grupa['kolejka'] }}</code></dd>
 
                         <dt>Najstarsze</dt>
-                        <dd>{{ $grupa['najstarsze']?->format('j.m.Y, H:i') ?? 'nie wiadomo' }}</dd>
+                        <dd>{{ \App\Support\Czas::dataLubNic($grupa['najstarsze'], 'j.m.Y, H:i') ?: 'nie wiadomo' }}</dd>
 
                         <dt>Najnowsze</dt>
-                        <dd>{{ $grupa['najnowsze']?->format('j.m.Y, H:i') ?? 'nie wiadomo' }}</dd>
+                        <dd>{{ \App\Support\Czas::dataLubNic($grupa['najnowsze'], 'j.m.Y, H:i') ?: 'nie wiadomo' }}</dd>
                     </dl>
                 </li>
             @endforeach
