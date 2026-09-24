@@ -1086,11 +1086,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * oznaczać — powiadomienie o odebraniu dostępu może przyjść dla
      * identyfikatora, którego u nas nie ma, i to nie jest awaria.
      */
-    public function oznaczOdebranieDostepu(string $dostawca): int
+    public function oznaczOdebranieDostepu(string $dostawca, DateTimeInterface $wydanoO): int
     {
+        /*
+         * STARSZA WIADOMOŚĆ NIE NADPISUJE NOWSZEJ ZGODY (issue #1025).
+         * Powiadomienie wystawione przed ostatnim przejściem człowieka przez
+         * ekran zgody opisuje stan, którego już nie ma. Granicą jest
+         * `zgoda_potwierdzona_at`, a dla powiązania, które od założenia nie
+         * widziało ponownego wejścia — `connected_at`.
+         */
         return $this->tozsamosciZewnetrzne()
             ->where('dostawca', $dostawca)
             ->whereNull('dostep_odebrany_at')
+            ->whereRaw('COALESCE(zgoda_potwierdzona_at, connected_at) <= ?', [$wydanoO])
             ->update(['dostep_odebrany_at' => now()]);
     }
 
@@ -1100,13 +1108,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
      *
      * Odmowa wejścia komuś, kto WŁAŚNIE na nowo przeszedł przez ekran zgody
      * dostawcy, byłaby karą za skorzystanie z własnych ustawień.
+     *
+     * Przy okazji zapisuje GRANICĘ tej zgody (`zgoda_potwierdzona_at`,
+     * issue #1025) — przy KAŻDYM wejściu, nie tylko po uśpieniu. Wejście
+     * przez dostawcę znaczy, że w tej chwili dostęp był dany, więc każde
+     * powiadomienie o odebraniu wystawione wcześniej jest nieaktualne —
+     * także takie, które zdążyło się spóźnić i przyjdzie dopiero teraz.
      */
     public function cofnijOdebranieDostepu(string $dostawca): void
     {
         $this->tozsamosciZewnetrzne()
             ->where('dostawca', $dostawca)
-            ->whereNotNull('dostep_odebrany_at')
-            ->update(['dostep_odebrany_at' => null]);
+            ->update([
+                'dostep_odebrany_at' => null,
+                'zgoda_potwierdzona_at' => now(),
+            ]);
     }
 
     /** Czy powiązanie z tym dostawcą jest uśpione (dostęp odebrany u dostawcy). */

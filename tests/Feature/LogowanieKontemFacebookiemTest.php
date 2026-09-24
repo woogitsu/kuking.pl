@@ -1064,7 +1064,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $basia = $this->user('basia', ['email' => 'basia@example.test']);
         $basia->connectFacebook(self::FB_ID);
-        $basia->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+        $basia->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK, now());
 
         $this->assertTrue($basia->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
             'Kontrola wstępna: bez zapalonego znacznika ten test nie mierzyłby niczego.');
@@ -1075,6 +1075,13 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertFalse($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
             'Po ponownej zgodzie u Facebooka znacznik ma zgasnąć — inaczej ekran bezpieczeństwa '
             .'pokazuje „dostęp odebrany" komuś, kto właśnie tą drogą wszedł.');
+
+        // Granica nowej zgody (issue #1025): bez niej stare powiadomienie
+        // o odebraniu dostępu mogłoby znów uśpić to powiązanie.
+        $this->assertNotNull(
+            DB::table('tozsamosci_zewnetrzne')->where('identyfikator', self::FB_ID)->value('zgoda_potwierdzona_at'),
+            'Wejście kontem Facebooka ma zapisać chwilę ponownej zgody.',
+        );
     }
 
     #[Test]
@@ -1095,8 +1102,12 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // powiadomił nas, że ta osoba cofnęła zgodę". Nie da się nim wejść
         // na konto i nie ma go skąd wykraść, bo nie pochodzi z Facebooka;
         // pochodzi z faktu, że Facebook do nas zadzwonił.
+        //
+        // `zgoda_potwierdzona_at` (issue #1025) — tak samo NASZ znacznik:
+        // chwila, w której człowiek ostatni raz wszedł przez dostawcę.
+        // Służy wyłącznie do odrzucania powiadomień starszych od tej chwili.
         $this->assertSame(
-            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id', 'zgoda_potwierdzona_at'],
             collect(array_keys($wiersz))->sort()->values()->all(),
         );
 

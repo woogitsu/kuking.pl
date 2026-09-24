@@ -752,7 +752,37 @@ o TYM identyfikatorze, od TEJ chwili".
 - `connected_at` — `timestamptz NOT NULL DEFAULT now()`, od kiedy;
 - `dostep_odebrany_at` — `timestamptz NULL` (migracja
   `2026_09_11_700000_dodaj_znacznik_odebrania_dostepu`, issue #259), kiedy
-  człowiek odebrał nam dostęp u dostawcy. `NULL` znaczy „powiązanie żywe".
+  człowiek odebrał nam dostęp u dostawcy. `NULL` znaczy „powiązanie żywe";
+- `zgoda_potwierdzona_at` — `timestamptz NULL` (migracja
+  `2026_09_24_120000_dodaj_granice_zgody_dostawcy`, issue #1025), kiedy
+  człowiek ostatni raz wszedł przez dostawcę, czyli ostatni raz potwierdził
+  nam dostęp. `NULL` znaczy „od założenia powiązania nie było ponownego
+  wejścia" i wtedy granicą jest `connected_at`.
+
+#### `zgoda_potwierdzona_at` — granica dla starych powiadomień
+
+Poprawny podpis `signed_request` nie wygasa. Bez granicy czasu to samo
+powiadomienie o odebraniu dostępu, dostarczone ponownie PO tym, jak człowiek
+znów wszedł kontem Facebooka, usypiało powiązanie drugi raz — nadpisując
+nowszą decyzję człowieka. Kontroler czyta więc `issued_at` i znacznik
+`dostep_odebrany_at` zapala tylko wtedy, gdy
+`COALESCE(zgoda_potwierdzona_at, connected_at) <= issued_at`. Starsza
+wiadomość kończy się spokojnym `200` i niczego nie zmienia.
+
+Kolumnę ustawia `User::cofnijOdebranieDostepu()` przy **każdym** wejściu
+kontem Facebooka, nie tylko po uśpieniu: wejście znaczy, że w tej chwili
+dostęp był dany, więc spóźnione powiadomienie wystawione wcześniej też jest
+nieaktualne. `connected_at` zostaje nietknięte — odpowiada na „od kiedy",
+a nie „kiedy ostatnio".
+
+Polityka `issued_at`: brak, inny typ niż liczba całkowita, zero i wartość
+więcej niż 5 minut w przyszłości to `400`, jak zły podpis. Sam wiek
+wiadomości nie odrzuca — rozstrzyga granica zgody.
+
+**Rollback ODMAWIA** (D-088), gdy w kolumnie jest choć jedna data: po
+ponownym `migrate` kolumna wróciłaby pusta, a stare powiadomienia znów
+mogłyby usypiać powiązania — bez błędu do zauważenia. Wymuszenie:
+`KUKING_ROLLBACK_KASUJ_GRANICE_ZGODY=true`.
 
 #### `dostep_odebrany_at` — dlaczego znacznik, a nie skasowanie wiersza
 
