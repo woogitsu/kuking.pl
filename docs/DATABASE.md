@@ -3302,8 +3302,44 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
+| `notified_at` | Nullable `timestamptz`: kiedy `App\Jobs\NotifyUserExportReady` zajął list „paczka gotowa" (issue #820). Poza `$fillable`. CHECK `data_exports_notified_after_completed_check`: bez `completed_at` nie ma listu. Szczegóły niżej. Migracja `2026_09_23_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
+
+List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
+5 prób, przerwy 1, 5, 15 i 60 minut), a nie `GenerateUserExport` — tamto
+łapało awarię poczty i nikt listu nie ponawiał. Zadanie jest zlecane
+w transakcji, która ustawia `ready` (`GenerateUserExport::finalize()`): na
+kolejce bazodanowej wiersz w `jobs` i `ready` zatwierdzają się razem albo
+wcale. Kolejka `sync` (testy) wysyła list po commicie, bez ponowień.
+
+Zadanie **zajmuje** list jednym `UPDATE … SET notified_at = teraz WHERE
+notified_at IS NULL AND status = 'ready' AND expires_at > teraz`; z dwóch
+przebiegów naraz przechodzi jeden. Gdy wysyłka padnie, zajęcie jest
+zwalniane (tylko po tym samym znaczniku) i kolejka ponawia. Granice:
+zerwane połączenie PO przyjęciu listu przez dostawcę daje drugi list;
+proces zabity między zajęciem a wysyłką — żadnego (zajęcie zostaje).
+Wartość znaczy więc „list zajęty do wysyłki i nie zgłoszono awarii", a nie
+„list doręczony".
+
+Pusta kolumna przy paczce gotowej do pobrania to na ekranie ustawień zdanie
+„E-mail o tej paczce jeszcze nie wyszedł. Nie musisz na niego czekać —
+paczkę pobierzesz tutaj."
+
+**Backfill:** wiersze `ready` i `expired` sprzed migracji dostają
+`notified_at = completed_at` — stary kod próbował wysłać list w tym samym
+przebiegu, a nikt tej próby już nie powtórzy; pusta kolumna kazałaby ekranowi
+mówić o nich „jeszcze nie wyszedł".
+
+**Rollback:** `down()` usuwa CHECK i kolumnę bez odmowy. To nie jest wartość
+semantyczna w rozumieniu D-088: ponowne `up()` odtwarza znaczniki gotowych
+paczek z `completed_at`, więc cykl down/up może najwyżej zgubić list
+czekający w kolejce, nie wysłać drugiego. Przy cofaniu wdrożenia: zatrzymać
+workery; zadania `NotifyUserExportReady` pozostałe w `jobs` po powrocie do
+starego kodu nie znajdą klasy i trafią do `failed_jobs` — paczka czeka
+w ustawieniach. `down()` bez tabeli albo kolumny nic nie robi.
 
 #### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
 
