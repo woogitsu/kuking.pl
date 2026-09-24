@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
+use Throwable;
 
 /**
  * Logowanie linkiem e-mail — „magic link" (issue #25, D-056).
@@ -323,91 +325,127 @@ class LoginLinkController extends Controller
             return $this->odeslijZNieaktualnymLinkiem();
         }
 
-        $user = ZamekKonta::zablokuj($konto, function (?User $swiezy) use ($token): ?User {
-            // KONTA JUŻ NIE MA. Kaskada z `login_link_tokens.user_id`
-            // zabrała razem z nim wiersz tokenu, więc nie ma tu czego
-            // sprzątać ani kogo wpuszczać.
-            if ($swiezy === null) {
-                return null;
-            }
+        $audytZawiodl = false;
 
-            $wiersz = LoginLinkToken::query()
-                ->where('token_hash', LoginLinkToken::skrot($token))
-                ->lockForUpdate()
-                ->first();
+        try {
+            $user = ZamekKonta::zablokuj($konto, function (?User $swiezy) use ($token, $request, &$audytZawiodl): ?User {
+                // KONTA JUŻ NIE MA. Kaskada z `login_link_tokens.user_id`
+                // zabrała razem z nim wiersz tokenu, więc nie ma tu czego
+                // sprzątać ani kogo wpuszczać.
+                if ($swiezy === null) {
+                    return null;
+                }
 
-            // TOKEN ZNIKNĄŁ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA. Zniknąć
-            // mógł na każdy z pięciu sposobów wypisanych w `LoginLinkToken`
-            // — najczęściej przez drugie kliknięcie tego samego linku albo
-            // przez nową prośbę o link z drugiego urządzenia. Człowiek
-            // dostaje wtedy dokładnie ten sam komunikat co przy tokenie
-            // zużytym i wygasłym: tamten ekran łączy te trzy przypadki
-            // świadomie (patrz `ekranNieaktualnegoLinku()`) i nie ma
-            // powodu, żeby rozjeżdżać się z nim tutaj. Przypadek wygaśnięcia
-            // stoi niżej, za pytaniem o właściciela — powód tam.
-            if ($wiersz === null) {
-                return null;
-            }
+                $wiersz = LoginLinkToken::query()
+                    ->where('token_hash', LoginLinkToken::skrot($token))
+                    ->lockForUpdate()
+                    ->first();
 
-            // CZY TEN WIERSZ JEST NADAL NASZ — trzecie pytanie rewalidacji
-            // z D-079 §3. Blokadę trzymamy na koncie wybranym w kroku (1);
-            // gdyby wiersz tokenu należał w tej chwili do kogoś innego,
-            // zużylibyśmy cudzy token BEZ blokady jego konta i wpuścili
-            // konto, do którego ten token nie należy. Wtedy nie robimy nic
-            // — także nie kasujemy, bo to nie nasz wiersz i nie nasza
-            // blokada.
-            //
-            // DLACZEGO TO PYTANIE STOI PRZED PYTANIEM O WAŻNOŚĆ, a nie po
-            // nim. Kasowanie wygasłego wiersza jest zapisem, więc podlega
-            // tej samej regule co zapis niżej: wolno nam pisać tylko do
-            // wiersza, którego konto trzymamy pod blokadą. Odwrotna
-            // kolejność kasowałaby cudzy wygasły wiersz bez blokady jego
-            // konta — czyli łamałaby regułę, którą ta metoda w ogóle
-            // wprowadza, i to w komentarzu tuż obok. Żadne dziś osiągalne
-            // żądanie tu nie trafia (wiersz odnajdujemy po skrócie tokenu,
-            // a drugie konto musiałoby mieć ten sam token), więc zamiana
-            // kolejności nie zmienia niczego, co widać z zewnątrz. Stoi tak
-            // dlatego, że reguła bez wyjątku jest sprawdzalna, a reguła
-            // z jednym nieosiągalnym wyjątkiem — już nie.
-            if ((string) $wiersz->user_id !== (string) $swiezy->getKey()) {
-                return null;
-            }
+                // TOKEN ZNIKNĄŁ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA. Zniknąć
+                // mógł na każdy z pięciu sposobów wypisanych w `LoginLinkToken`
+                // — najczęściej przez drugie kliknięcie tego samego linku albo
+                // przez nową prośbę o link z drugiego urządzenia. Człowiek
+                // dostaje wtedy dokładnie ten sam komunikat co przy tokenie
+                // zużytym i wygasłym: tamten ekran łączy te trzy przypadki
+                // świadomie (patrz `ekranNieaktualnegoLinku()`) i nie ma
+                // powodu, żeby rozjeżdżać się z nim tutaj. Przypadek wygaśnięcia
+                // stoi niżej, za pytaniem o właściciela — powód tam.
+                if ($wiersz === null) {
+                    return null;
+                }
 
-            // TOKEN PRZEDAWNIŁ SIĘ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA.
-            // Wygasły wiersz kasujemy przy okazji — nie jest już do
-            // niczego, a zostawianie go zależnym od nocnego sprzątania
-            // byłoby trzymaniem martwego klucza dłużej, niż trzeba. Tu
-            // wolno: konto tego wiersza jest już zablokowane.
-            if (! $wiersz->jestWazny()) {
+                // CZY TEN WIERSZ JEST NADAL NASZ — trzecie pytanie rewalidacji
+                // z D-079 §3. Blokadę trzymamy na koncie wybranym w kroku (1);
+                // gdyby wiersz tokenu należał w tej chwili do kogoś innego,
+                // zużylibyśmy cudzy token BEZ blokady jego konta i wpuścili
+                // konto, do którego ten token nie należy. Wtedy nie robimy nic
+                // — także nie kasujemy, bo to nie nasz wiersz i nie nasza
+                // blokada.
+                //
+                // DLACZEGO TO PYTANIE STOI PRZED PYTANIEM O WAŻNOŚĆ, a nie po
+                // nim. Kasowanie wygasłego wiersza jest zapisem, więc podlega
+                // tej samej regule co zapis niżej: wolno nam pisać tylko do
+                // wiersza, którego konto trzymamy pod blokadą. Odwrotna
+                // kolejność kasowałaby cudzy wygasły wiersz bez blokady jego
+                // konta — czyli łamałaby regułę, którą ta metoda w ogóle
+                // wprowadza, i to w komentarzu tuż obok. Żadne dziś osiągalne
+                // żądanie tu nie trafia (wiersz odnajdujemy po skrócie tokenu,
+                // a drugie konto musiałoby mieć ten sam token), więc zamiana
+                // kolejności nie zmienia niczego, co widać z zewnątrz. Stoi tak
+                // dlatego, że reguła bez wyjątku jest sprawdzalna, a reguła
+                // z jednym nieosiągalnym wyjątkiem — już nie.
+                if ((string) $wiersz->user_id !== (string) $swiezy->getKey()) {
+                    return null;
+                }
+
+                // TOKEN PRZEDAWNIŁ SIĘ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA.
+                // Wygasły wiersz kasujemy przy okazji — nie jest już do
+                // niczego, a zostawianie go zależnym od nocnego sprzątania
+                // byłoby trzymaniem martwego klucza dłużej, niż trzeba. Tu
+                // wolno: konto tego wiersza jest już zablokowane.
+                if (! $wiersz->jestWazny()) {
+                    $wiersz->delete();
+
+                    return null;
+                }
+
+                // JEDNORAZOWOŚĆ. Kasujemy ZANIM cokolwiek zalogujemy i niezależnie
+                // od tego, czy konto okaże się dalej wpuszczalne — link zużyty to
+                // link zużyty, także wtedy, gdy trafił na konto zablokowane
+                // w międzyczasie.
                 $wiersz->delete();
 
-                return null;
+                if (in_array($swiezy->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
+                    return null;
+                }
+
+                // Stan konta mógł się zmienić między prośbą a kliknięciem —
+                // rola też. Konta obsługi serwisu tą drogą nie wchodzą (issue #25).
+                if ($swiezy->hasStaffRole()) {
+                    return null;
+                }
+
+                // WPIS W TEJ SAMEJ TRANSAKCJI CO ZUŻYCIE TOKENU (D-249, klasa 1;
+                // #1530). Przedtem stał za nią: token był już skasowany i
+                // zatwierdzony, a awaria dziennika dawała 500, człowieka bez
+                // sesji i link, który przy ponowieniu mówił „już nie działa".
+                // Jednorazowe poświadczenie przepadało, zanim ktokolwiek wszedł.
+                // Teraz albo token znika RAZEM z wpisem, albo nie znika nic
+                // i ten sam przycisk z listu działa dalej. Sesja HTTP (niżej)
+                // nie jest zapisem do wycofania — powstaje dopiero po `COMMIT`.
+                try {
+                    AuditLogEntry::record('account.login_link_used', $swiezy, $swiezy, ip: $request->ip());
+                } catch (Throwable $awaria) {
+                    $audytZawiodl = true;
+
+                    throw $awaria;
+                }
+
+                return $swiezy;
+            });
+        } catch (Throwable $awaria) {
+            if (! $audytZawiodl) {
+                throw $awaria;
             }
 
-            // JEDNORAZOWOŚĆ. Kasujemy ZANIM cokolwiek zalogujemy i niezależnie
-            // od tego, czy konto okaże się dalej wpuszczalne — link zużyty to
-            // link zużyty, także wtedy, gdy trafił na konto zablokowane
-            // w międzyczasie.
-            $wiersz->delete();
+            // Transakcja wycofana: token jest z powrotem, konto nietknięte.
+            // Operator dostaje nazwę brakującego wpisu (bez tokenu i adresu),
+            // człowiek — prawdę i jedną rzecz do zrobienia.
+            report(new RuntimeException(
+                'Nie zapisał się wpis dziennika audytu „account.login_link_used" dla User '
+                .$konto->getKey().' — wejście linkiem wycofane, link nadal ważny.',
+                previous: $awaria,
+            ));
 
-            if (in_array($swiezy->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
-                return null;
-            }
-
-            // Stan konta mógł się zmienić między prośbą a kliknięciem —
-            // rola też. Konta obsługi serwisu tą drogą nie wchodzą (issue #25).
-            if ($swiezy->hasStaffRole()) {
-                return null;
-            }
-
-            return $swiezy;
-        });
+            return redirect()->route('login.link.confirm', ['token' => $token])->with('status',
+                'Nie udało się Cię zalogować — to usterka po naszej stronie. Nic się nie zmieniło '
+                .'i link nadal działa: kliknij „Zaloguj mnie” jeszcze raz.',
+            );
+        }
 
         if ($user === null) {
             return $this->odeslijZNieaktualnymLinkiem();
         }
-
-        AuditLogEntry::record('account.login_link_used', $user, $user, ip: $request->ip());
 
         // KONTO Z 2FA NIE WCHODZI TU DO KOŃCA. Dokładnie ta sama ścieżka co
         // po poprawnym haśle w `LoginController`: w sesji ląduje SAM
