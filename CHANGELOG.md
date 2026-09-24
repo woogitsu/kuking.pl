@@ -2,6 +2,9 @@
 
 ## Nieopublikowane
 
+- Ekran „Potwierdź swój adres e-mail” nie obiecuje już wiadomości, gdy serwis nie wysyła poczty. Zamiast „Wysłaliśmy wiadomość” i rady o folderze „Spam” mówi, że wiadomość nie przyjdzie, i podaje adres, pod którym człowiek pomoże potwierdzić adres inaczej. Przycisk „Wyślij wiadomość jeszcze raz” pokazuje się tylko wtedy, gdy list naprawdę może wyjść (#1335).
+- Kontrola poczty (`/health`, `kuking:sprawdz-poczte` i formularze wysyłające listy) nie uznaje już za działającą pocztę łańcucha `failover` ani `roundrobin`, w którym jest zapis do dziennika (`log`) albo do pamięci (`array`) — także pod własną nazwą mailera. Domyślny wpis `failover` wysyła teraz przez EmailLabs, a w zapasie przez SMTP, zamiast kończyć się dziennikiem (#1084).
+
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
