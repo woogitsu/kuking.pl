@@ -367,8 +367,10 @@ final class CollectUserExportData
      * już nie widać, byłoby trwałym wyjęciem cudzego tekstu z jego ustawień.
      *
      * Własne wpisy przechodzą przez ten filtr ZAWSZE, także prywatne i szkice
-     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), więc
-     * nic swojego nikomu tu nie ubywa.
+     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), a
+     * `dostepnyJakoAutor()` stosujemy wyłącznie do CUDZYCH autorów — inaczej
+     * właścicielka w karencji (`pending_delete`, paczkę wolno wtedy pobrać)
+     * straciłaby w paczce własne pozycje. Nic swojego nikomu tu nie ubywa.
      *
      * ILE FILTR SCHOWAŁ — MÓWIMY WPROST, TAK JAK EKRAN
      * `wpisow_juz_niewidocznych` i `przepisow_juz_niewidocznych` są ZAWSZE,
@@ -385,7 +387,8 @@ final class CollectUserExportData
      * zbanowanego lub zamykanego konta znikał z ekranu zeszytu, a w paczce
      * dalej stał tytuł i podpis autora. Teraz obie relacje przechodzą przez
      * `widoczneDla()` i `dostepnyJakoAutor()`. Własne przepisy (także
-     * prywatne i szkice) filtr przepuszcza zawsze. Pozycji w `collection_items`
+     * prywatne i szkice) przechodzą zawsze — również gdy konto właścicielki
+     * jest w karencji, bo filtr autora dotyczy tylko cudzych przepisów. Pozycji w `collection_items`
      * NIE kasujemy: gdy autor znów udostępni przepis, wraca w następnej
      * paczce, tak jak na ekranie.
      *
@@ -410,19 +413,30 @@ final class CollectUserExportData
             ->with([
                 // Ta sama bramka co przy wpisach niżej i co na ekranie
                 // zeszytu (`CollectionController::show()`) — issue #1017.
+                //
+                // Własne pozycje omijają `dostepnyJakoAutor()`: w karencji
+                // (`pending_delete`) paczkę wolno zamówić i pobrać, a wtedy
+                // filtr autora wyciąłby właścicielce JEJ WŁASNY przepis
+                // z notatką i policzył go jako „już Ci nie pokazują".
                 'recipes' => fn ($zapytanie) => $zapytanie
                     ->widoczneDla($user)
-                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->where(fn ($q) => $q
+                        ->where('recipes.author_id', $user->getKey())
+                        ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
                     ->with('author.profile'),
                 'posts' => fn ($zapytanie) => $zapytanie
                     ->widoczneDla($user)
-                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->where(fn ($q) => $q
+                        ->where('posts.author_id', $user->getKey())
+                        ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
                     ->with('author.profile'),
             ])
-            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności.
-            // Różnica między nią a liczbą wypisanych pozycji to dokładnie to,
-            // co filtr schował — i to jest liczba, którą paczka podaje.
-            ->withCount('posts')
+            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności,
+            // także skasowanych — tak jak `posts_total_count` na ekranie
+            // zeszytu. Różnica między nią a liczbą wypisanych pozycji to
+            // dokładnie to, co filtr schował — i to jest liczba, którą
+            // paczka podaje.
+            ->withCount(['posts as posts_total_count' => fn ($q) => $q->withTrashed()])
             // Liczba WSZYSTKICH zapisanych przepisów, także skasowanych —
             // tak liczy ekran zeszytu (`recipes_total_count`), więc przepis
             // usunięty przez autora też wychodzi tu jako brak, a nie znika.
@@ -462,7 +476,7 @@ final class CollectUserExportData
             ),
             'wpisow_juz_niewidocznych' => max(
                 0,
-                (int) ($collection->posts_count ?? 0) - $collection->posts->count(),
+                (int) ($collection->posts_total_count ?? 0) - $collection->posts->count(),
             ),
         ])->all();
     }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Jobs\GenerateUserExport;
 use App\Models\DataExport;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Closure;
@@ -88,6 +90,58 @@ class EksportZeszytuWidocznoscPrzepisowTest extends TestCase
 
         $this->assertSame(['Moja tajna nalewka'], array_column($zeszyt['przepisy'], 'tytul'));
         $this->assertSame(0, $zeszyt['przepisow_juz_niewidocznych']);
+    }
+
+    /**
+     * Regresja z przeglądu #1017: `dostepnyJakoAutor()` obejmował też
+     * właścicielkę zeszytu. W karencji (`pending_delete`) paczkę wolno
+     * zamówić i pobrać (`GenerateUserExport::revoked()`), a wtedy jej
+     * WŁASNY przepis i wpis z notatkami wypadały z zeszytu, a index.html
+     * twierdził, że „autorzy już Ci nie pokazują: 2".
+     */
+    public function test_wlascicielka_w_karencji_zachowuje_wlasne_pozycje_zeszytu(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $przepis = Recipe::factory()->for($basia, 'author')->create(['title' => 'Moja nalewka z pigwy']);
+        $wpis = Post::factory()->create(['author_id' => $basia->getKey(), 'body' => 'Mój rosół na niedzielę']);
+        $zeszyt = $basia->defaultCollection();
+        app(SaveRecipeToCollection::class)->handle($basia, $przepis, $zeszyt, self::NOTATKA);
+        app(SavePostToCollection::class)->handle($basia, $wpis, $zeszyt, 'Dla wnuków');
+
+        $basia->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
+
+        $export = $this->eksport($basia);
+        $this->assertSame(DataExport::STATUS_READY, $export->status);
+        $dane = $this->dane($export)['kolekcje'][0];
+
+        $this->assertSame(['Moja nalewka z pigwy'], array_column($dane['przepisy'], 'tytul'));
+        $this->assertSame(self::NOTATKA, $dane['przepisy'][0]['moja_notatka']);
+        $this->assertSame(0, $dane['przepisow_juz_niewidocznych']);
+
+        $this->assertSame(['Mój rosół na niedzielę'], array_column($dane['wpisy'], 'tresc'));
+        $this->assertSame('Dla wnuków', $dane['wpisy'][0]['moja_notatka']);
+        $this->assertSame(0, $dane['wpisow_juz_niewidocznych']);
+
+        $this->assertStringNotContainsString('już Ci nie pokazują', $this->plik($export, 'index.html'));
+    }
+
+    /**
+     * Wpis skasowany przez autora liczy się jako brak — tak jak na ekranie
+     * zeszytu (`posts_total_count` z `withTrashed()`), a nie znika bez śladu.
+     */
+    public function test_skasowany_cudzy_wpis_wychodzi_jako_brak(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek Kowal']);
+        $wpis = Post::factory()->create(['author_id' => $zenek->getKey()]);
+        app(SavePostToCollection::class)->handle($basia, $wpis, $basia->defaultCollection());
+
+        $wpis->delete();
+
+        $dane = $this->dane($this->eksport($basia))['kolekcje'][0];
+
+        $this->assertSame([], $dane['wpisy']);
+        $this->assertSame(1, $dane['wpisow_juz_niewidocznych']);
     }
 
     /**
