@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Wpis z własnym tekstem albo zdjęciem, który wskazuje przepis, nie znika już z odkrywania, feedu obserwowanych i profilu, gdy autor przepisu zmieni go na prywatny albo tylko dla obserwujących, gdy przepis zostanie ukryty lub usunięty. Wpis zostaje według własnej widoczności, a na karcie nie ma wtedy tytułu, zdjęcia ani odnośnika do przepisu — tak samo jak na stronie samego wpisu. Sama zapowiedź przepisu, bez własnej treści, dalej znika razem z przepisem (#1377).
+- Powiadomienie o odpowiedzi znika z listy i z licznika, gdy nie widać już komentarza, pod którym ta odpowiedź stoi — na przykład po zablokowaniu jego autora albo ukryciu go przez moderację. Po zdjęciu blokady rozmowa i powiadomienie wracają (#1378).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.

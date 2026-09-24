@@ -732,6 +732,16 @@ class Notification extends Model
                         // stoi drugi raz w `zyweWycinkiKomentarzy()` — patrz komentarz
                         // tamtej metody: to nie jest powtórka przez przeoczenie.
                         ->whereNull('pc.body_removed_at')
+                        // ISSUE #1378: odpowiedź widać tylko wewnątrz wątku —
+                        // ekran pobiera najpierw widoczne komentarze główne
+                        // (`Comment::scopeWidoczneDla()`), a dopiero pod nimi
+                        // odpowiedzi. Niewidoczny korzeń zabiera odpowiedź z ekranu,
+                        // więc zabiera też powiadomienie. Filtr przy odczycie:
+                        // odblokowanie przywraca wątek i powiadomienie razem.
+                        ->where(function (QueryBuilder $watek) use ($viewer): void {
+                            $watek->whereNull('pc.parent_id')
+                                ->orWhereExists(fn (QueryBuilder $s) => $this->korzenWatkuWidoczny($s, $viewer));
+                        })
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc
                                 ->where(fn (QueryBuilder $q) => $q->whereExists(
@@ -748,6 +758,43 @@ class Notification extends Model
         });
 
         return $query;
+    }
+
+    /**
+     * EXISTS potwierdzający, że komentarz główny odpowiedzi `pc` jest dziś
+     * widoczny dla $widz pod TĄ SAMĄ treścią — regułami relacji `comments()`
+     * i `Comment::scopeWidoczneDla()`: opublikowany, nieskasowany, autor
+     * dostępny, bez blokady widz↔autor korzenia (issue #1378).
+     */
+    private function korzenWatkuWidoczny(QueryBuilder $sub, User $widz): void
+    {
+        $widzId = $widz->getKey();
+
+        $sub->selectRaw('1')
+            ->from('comments as kw')
+            ->whereColumn('kw.id', 'pc.parent_id')
+            ->whereNull('kw.parent_id')
+            ->whereRaw('kw.post_id is not distinct from pc.post_id')
+            ->whereRaw('kw.recipe_id is not distinct from pc.recipe_id')
+            ->whereRaw('kw.cooked_event_id is not distinct from pc.cooked_event_id')
+            ->where('kw.status', Comment::STATUS_PUBLISHED)
+            ->whereNull('kw.deleted_at')
+            ->whereNotExists(function (QueryBuilder $autor): void {
+                $autor->selectRaw('1')
+                    ->from('users as autorzy_korzeni')
+                    ->whereColumn('autorzy_korzeni.id', 'kw.author_id')
+                    ->whereIn('autorzy_korzeni.status', User::STATUSY_UKRYWAJACE_TRESC);
+            })
+            ->whereNotExists(function (QueryBuilder $blok) use ($widzId): void {
+                $blok->selectRaw('1')
+                    ->from('blocks')
+                    ->where(function (QueryBuilder $w) use ($widzId): void {
+                        $w->where('blocks.blocker_id', $widzId)->whereColumn('blocks.blocked_id', 'kw.author_id');
+                    })
+                    ->orWhere(function (QueryBuilder $w) use ($widzId): void {
+                        $w->whereColumn('blocks.blocker_id', 'kw.author_id')->where('blocks.blocked_id', $widzId);
+                    });
+            });
     }
 
     /**
