@@ -2624,6 +2624,48 @@ wygoda (stare linki z maili i ciasteczka).
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
 | **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
+| **Jedno zadanie harmonogramu milczy** (np. liczniki panelu moderacji stoją), a pętla harmonogramu żyje | stara blokada `withoutOverlapping` po procesie zabitym bez sygnału (SIGKILL, OOM, ubity kontener) | sekcja „Stara blokada harmonogramu" niżej |
+
+### Stara blokada harmonogramu (#1002)
+
+Każde zadanie w `routes/console.php` ma jawny czas wygaśnięcia blokady,
+krótszy niż odstęp do następnego terminu (co 5 min → 4, co 15 min → 10,
+co godzinę → 50, codziennie → 120 minut). Po zabiciu procesu blokada
+**sama zniknie** w tym czasie — zwykle wystarczy poczekać jeden termin.
+Ręczne czyszczenie jest działaniem awaryjnym, nie podstawowym mechanizmem.
+
+**Rozpoznanie.** Blokady leżą w tabeli `cache_locks`. Klucz blokady
+`withoutOverlapping` kończy się na `framework/schedule-` + 40 znaków
+`sha1(nazwa zadania)`; klucze `onOneServer` mają na końcu jeszcze godzinę
+i minutę (`HHMM`) i nie wstrzymują kolejnych terminów.
+
+```sql
+SELECT key, owner, to_timestamp(expiration) AS wygasa
+FROM cache_locks
+WHERE key ~ 'framework/schedule-[0-9a-f]{40}$'
+ORDER BY expiration;
+```
+
+Nazwę zadania dopasujesz lokalnie: `php -r "echo sha1('kuking:policz-kolejki'), PHP_EOL;"`.
+Blokada jest podejrzana, gdy `wygasa` wypada **dalej niż** czas z tabelki
+wyżej od teraz — to ślad sprzed zmiany z #1002 (wtedy 1440 minut). Po
+pierwszym wdrożeniu #1002 sprawdź to raz: stara blokada zachowuje swój
+dawny termin wygaśnięcia, nowy kod go nie skraca.
+
+**Bezpieczne czyszczenie.**
+
+1. Upewnij się, że zadanie **naprawdę nie trwa**: w logach serwisu z
+   harmonogramem nie ma rozpoczętego, niezakończonego przebiegu tego
+   zadania. Zadania idą w procesie `schedule:run`, więc trwający przebieg
+   to żywy `schedule:run` ze startem sprzed ponad minuty.
+2. Najwęższe działanie: usuń jeden wiersz tej blokady
+   (`DELETE FROM cache_locks WHERE key = '…';`).
+3. `php artisan schedule:clear-cache` zdejmuje blokady **wszystkich** zadań
+   naraz — także tych, które właśnie się wykonują, więc dopuszcza drugi,
+   równoległy przebieg. Używaj go tylko wtedy, gdy krok 1 wykluczył
+   trwające przebiegi dla całego harmonogramu.
+4. Po następnym terminie sprawdź, że zadanie ruszyło (log albo świeże
+   dane, np. liczniki panelu moderacji).
 
 ## Kontakty awaryjne
 
