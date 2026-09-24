@@ -398,6 +398,19 @@ zostało już rozpatrzone” — bez skutku i bez drugiej odpowiedzi. List do
 zgłaszającego wychodzi z kolejki po zatwierdzeniu. Pomiar:
 `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
 
+**Cofnięcie kary zdejmuje tylko tę karę, której dotyczy odwołanie** (#933).
+Konto wraca do `active` wyłącznie wtedy, gdy jest dziś zawieszone albo
+zablokowane i obowiązuje właśnie ta decyzja — najnowsza decyzja `suspend`/`ban`
+wobec tej osoby, której nie cofnięto po odwołaniu. Jeśli później zapadła inna
+kara (np. ban po zawieszeniu, drugie zawieszenie z innym terminem), zostaje
+w mocy z jej terminem, a odpowiedź na odwołanie mówi wprost: „Tę decyzję
+cofnęliśmy. Twoje konto pozostaje jednak zablokowane (zawieszone)…”. Konto
+w trakcie usuwania (`pending_delete`) ani wymazane (`erased`) nie wraca.
+Odczyt obowiązującej kary idzie pod blokadą wiersza konta, więc nowa kara
+zatwierdzona w trakcie rozpatrzenia też zostaje. Granica: cofnięcie
+PÓŹNIEJSZEJ kary nie przywraca wcześniejszego zawieszenia, które jeszcze by
+trwało — konto wraca do `active`, jak przed tą zmianą.
+
 **Jak odpowiedź dociera** — powiadomieniem typu moderacyjnego. Osoba
 zablokowana czyta je na ekranie logowania (`LoginController`), bo do serwisu
 nie wejdzie.

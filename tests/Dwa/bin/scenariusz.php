@@ -28,13 +28,17 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Http\Controllers\Admin\ModerationController;
 use App\Models\Appeal;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -191,6 +195,32 @@ try {
             wynik: $argumenty['wynik'],
             uzasadnienie: $argumenty['uzasadnienie'],
         )->status,
+
+        // Decyzja w sprawie zgłoszenia przez prawdziwy kontroler panelu
+        // (#933: nowa kara równolegle z uchyleniem starej). Bez HTTP, tak jak
+        // `ModerationDecideRaceTest` — middleware 2FA nie jest tu mierzone.
+        'decyzja-zgloszenia' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zadanie = Request::create('/admin/zgloszenia/x', 'POST', array_filter([
+                'action' => $argumenty['akcja'],
+                'reason_code' => 'harassment',
+                'suspend_days' => $argumenty['dni'] ?? null,
+                'user_message' => 'Decyzja z testu wyścigu.',
+            ]));
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+
+            $odpowiedz = app(ModerationController::class)->decide(
+                $zadanie,
+                Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail(),
+            );
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

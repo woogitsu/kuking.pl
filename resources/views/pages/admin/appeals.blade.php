@@ -142,7 +142,7 @@
                 @elseif($appeal->isOpen())
                     @php($skutekCofniecia = match(true) {
                         in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_HIDE, \App\Models\ModerationAction::ACTION_REMOVE], true) => 'Cofam decyzję — treść wraca',
-                        in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — konto wraca',
+                        in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — zdejmuję tę karę z konta',
                         default => 'Cofam decyzję',
                     })
                     <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}">
@@ -181,6 +181,14 @@
                                 <p class="field-error" id="{{ $idWyniku }}-error">{{ $errors->first('outcome') }}</p>
                             @endif
                         </fieldset>
+                        @if(in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true))
+                            {{-- #933: cofnięcie starej kary nie zdejmuje późniejszej. --}}
+                            <p class="meta">
+                                Konto wraca tylko wtedy, gdy trzyma je właśnie ta kara. Jeśli
+                                później zapadła inna decyzja o zawieszeniu albo blokadzie,
+                                zostaje w mocy — ta osoba dostanie o tym zdanie w odpowiedzi.
+                            </p>
+                        @endif
                         @if($appeal->isFromReporter() && $decyzja->action === \App\Models\ModerationAction::ACTION_NONE)
                             <p class="meta">
                                 Ta decyzja to „bez działania" — system nie umie sam podjąć nowej

@@ -62,6 +62,13 @@ final class ResolveAppeal
 {
     public const JUZ_ROZPATRZONE = 'To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.';
 
+    /** Dopisek do odpowiedzi, gdy uchylona kara nie jest tą, która dziś obowiązuje (#933). */
+    public const KONTO_ZOSTAJE_ZABLOKOWANE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zablokowane '
+        .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
+    public const KONTO_ZOSTAJE_ZAWIESZONE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zawieszone '
+        .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
     public function __construct(
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
@@ -163,9 +170,9 @@ final class ResolveAppeal
                 $this->sprawdzKarencje($moderator, $decyzja);
             }
 
-            if ($wynik === Appeal::STATUS_OVERTURNED) {
-                $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
-            }
+            $dopisek = $wynik === Appeal::STATUS_OVERTURNED
+                ? $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip)
+                : null;
 
             $zablokowane->update([
                 'status' => $wynik,
@@ -179,7 +186,7 @@ final class ResolveAppeal
             if ($zablokowane->isFromReporter()) {
                 $this->powiadomZglaszajacego->handle($zablokowane);
             } else {
-                $this->powiadom->handle($zablokowane);
+                $this->powiadom->handle($zablokowane, $dopisek);
             }
 
             AuditLogEntry::record(
@@ -191,6 +198,9 @@ final class ResolveAppeal
                     'appellant' => $zablokowane->appellant,
                     'original_decision' => $decyzja->action,
                     'original_moderator_id' => (string) $decyzja->moderator_id,
+                    // Uchylona kara nie była tą obowiązującą — konto zostało
+                    // przy późniejszej decyzji (#933).
+                    'later_sanction_kept' => $dopisek !== null,
                 ],
                 ip: $ip,
             );
@@ -226,24 +236,22 @@ final class ResolveAppeal
      * ma zostać zamknięte i odpowiedź ma dojść — brak roboty technicznej nie
      * jest powodem, żeby człowiek nie dostał odpowiedzi.
      */
-    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): void
+    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): ?string
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
-            $decyzja->subject?->reinstate();
-
-            return;
+            return $this->zdejmijKareKonta($decyzja);
         }
 
         if (! in_array($decyzja->action, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true)) {
             // `warn` nie zrobiło nic z treścią ani z kontem — cofnięcie jest
             // w całości treścią odpowiedzi.
-            return;
+            return null;
         }
 
         $tresc = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($tresc === null || ! ModeratedContent::daSieUkryc($tresc)) {
-            return;
+            return null;
         }
 
         try {
@@ -263,5 +271,66 @@ final class ResolveAppeal
             // (dziedziczy po nim przez `PDOException`), czyli awaria bazy
             // w środku cofania decyzji zniknęłaby bez śladu.
         }
+
+        return null;
+    }
+
+    /**
+     * Zdjęcie kary z konta — wyłącznie tej, której dotyczy odwołanie (#933).
+     *
+     * Do 24.09.2026 każde uznane odwołanie od zawieszenia albo blokady wołało
+     * `reinstate()` bez pytania, CO dziś trzyma konto. Uchylenie starego
+     * zawieszenia A zdejmowało więc późniejszy, niezależny ban B, którego
+     * nikt nie rozpatrywał — a `reinstate()` na koncie `pending_delete`
+     * albo `erased` przywracałoby do życia konto w trakcie usuwania.
+     *
+     * Reguła: konto wraca do `active` tylko wtedy, gdy jest dziś zawieszone
+     * albo zablokowane I obowiązująca kara to właśnie ta decyzja — czyli
+     * najnowsza decyzja `suspend`/`ban` wobec tej osoby, której nikt dotąd
+     * nie cofnął po odwołaniu. Kary nie zapisanej w `moderation_actions`
+     * nie ma: zawieszenie i blokadę nakłada wyłącznie decyzja moderacyjna.
+     *
+     * Blokada wiersza konta PRZED odczytem obowiązującej kary: równoległa
+     * decyzja nakładająca nową karę pisze do tego samego wiersza, więc albo
+     * zatwierdzi się przed nami (i ją zobaczymy), albo po nas (i jej kara
+     * nadpisze nasze odblokowanie). Obie kolejności kończą się stanem
+     * zgodnym z nowszą decyzją.
+     *
+     * @return ?string dopisek do odpowiedzi, gdy decyzję cofamy, a konto
+     *                 zostaje przy późniejszej karze
+     */
+    private function zdejmijKareKonta(ModerationAction $decyzja): ?string
+    {
+        if ($decyzja->subject_user_id === null) {
+            return null;
+        }
+
+        $osoba = User::query()->whereKey($decyzja->subject_user_id)->lockForUpdate()->first();
+
+        if ($osoba === null || ! in_array($osoba->status, [User::STATUS_SUSPENDED, User::STATUS_BANNED], true)) {
+            // Konto już czynne (termin minął, kara zdjęta wcześniej) albo
+            // w trakcie usuwania — nic tu nie przywracamy.
+            return null;
+        }
+
+        $obowiazujaca = ModerationAction::query()
+            ->where('subject_user_id', $osoba->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN])
+            ->whereNotIn('id', Appeal::query()
+                ->where('status', Appeal::STATUS_OVERTURNED)
+                ->select('moderation_action_id'))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($obowiazujaca !== null && ! $obowiazujaca->is($decyzja)) {
+            return $osoba->status === User::STATUS_BANNED
+                ? self::KONTO_ZOSTAJE_ZABLOKOWANE
+                : self::KONTO_ZOSTAJE_ZAWIESZONE;
+        }
+
+        $osoba->reinstate();
+
+        return null;
     }
 }
