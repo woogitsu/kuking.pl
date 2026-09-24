@@ -97,6 +97,8 @@ Zasady ogólne Google (2026): JSON-LD to jedyny **rekomendowany** format (Google
 - `name`
 - `image` (URL lub `ImageObject`; min. 50 000 pikseli w iloczynie wymiarów; zalecane proporcje 16:9, 4:3 i 1:1 — Kuking i tak generuje warianty `960px`/`1600px`, patrz `MEDIA_PIPELINE.md`, więc technicznie to tani warunek do spełnienia).
 
+**Stan w kodzie (#1005):** zdjęcie w Kuking jest opcjonalne i przez chwilę po wgraniu nie jest `ready`. Wtedy strona przepisu **nie emituje `Recipe` wcale** (zostaje sam `BreadcrumbList`) — niepełny obiekt nie kwalifikuje się do wyniku rozszerzonego, a w Search Console daje błąd. Logo w zastępstwie odpada: obraz ma przedstawiać danie. `Recipe` pojawia się sam, gdy zdjęcie jest gotowe, pod tym samym adresem przepisu.
+
 **Zalecane** (podnoszą jakość rich result, nie są twarde do kwalifikacji): `author`, `datePublished`, `description`, `prepTime`, `cookTime`, `totalTime`, `recipeYield`, `recipeCategory`, `recipeCuisine`, `keywords`, `recipeIngredient`, `recipeInstructions`, `nutrition`, `video`, `aggregateRating`.
 
 **Ważna zmiana 2026:** Google usunął wsparcie dla zakresów czasu (np. „20–30 min”) w `prepTime`/`cookTime` — akceptowany jest tylko **jeden konkretny czas w ISO 8601** (`PT30M`). Kreator przepisu w Kuking już zbiera `prep_minutes integer` i `cook_minutes integer` jako pojedyncze liczby (nie zakresy) — to jest zgodne z wymogiem bez zmian w UI.
@@ -437,6 +439,8 @@ Recipe::query()
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 
 ### 4.3 Co wchodzi do sitemapy
+
+**Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 
 Tylko URL-e z sekcji 3 oznaczone `index` — status HTTP 200, brak `noindex`, `visibility='public'`. Filtr identyczny z tym używanym do generowania meta robots, żeby nie rozjechały się dwa niezależne źródła prawdy (jedna metoda `RecipePolicy::isPubliclyIndexable()` używana w obu miejscach).
 
