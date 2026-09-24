@@ -410,6 +410,28 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         }
     }
 
+    /**
+     * `kopia-bazy` trzyma w rękach zrzut całej bazy, więc ma zamkniętą listę
+     * zmiennych (#193) i nie jest żadną z ról aplikacji. Spread któregokolwiek
+     * zestawu (`...appEnv`, `...schedulerEnv`, …) dałby temu procesowi APP_KEY,
+     * klucze do zdjęć i poczty — macierz ról tego nie złapie, bo nie czyta
+     * tego serwisu.
+     */
+    #[Test]
+    public function serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji(): void
+    {
+        $env = $this->envUslugi($this->kodBezKomentarzy(), 'kopia-bazy');
+
+        $this->assertStringNotContainsString(
+            '...',
+            $env,
+            'Serwis `kopia-bazy` ma zamkniętą listę zmiennych (#193). Żaden zestaw aplikacji '
+            .'(`appEnv`, `schedulerEnv`, …) nie może tam trafić spreadem.',
+        );
+        // Kontrola niepustości: parser, który zgubi blok, przepuściłby pusty napis.
+        $this->assertStringContainsString('KOPIA_S3_SEKRET: ctx.shared.R2_KOPIE_SECRET_ACCESS_KEY', $env);
+    }
+
     #[Test]
     public function kazda_zmienna_macierzy_ma_konsumenta_w_config(): void
     {

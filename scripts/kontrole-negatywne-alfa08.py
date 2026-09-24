@@ -135,6 +135,10 @@ HARMONOGRAM_POCZTA_TEST = "harmonogram_budujacy_mailer_ma_klucze_poczty"
 # Klucz modelu i adres alarmu tylko na produkcji — środowisko PR jest kopią
 # bazowego, więc bez warunku preview dostałby wartości produkcji (#1014).
 TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
+# Serwis `kopia-bazy` ma zamkniętą listę zmiennych (#193): spread zestawu
+# aplikacji dałby procesowi ze zrzutem bazy APP_KEY i klucze zdjęć/poczty.
+KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
+KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
 # Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
 # Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
 # z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
@@ -371,6 +375,8 @@ checks = [
      lambda s: replace_once(s, 'KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",', "KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,")),
     ("Scheduler bez kluczy poczty przy digeście", RAILWAY_IAC, HARMONOGRAM_POCZTA_TEST,
      lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
+    ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
+     lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
