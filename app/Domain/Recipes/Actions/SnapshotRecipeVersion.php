@@ -25,21 +25,10 @@ use Illuminate\Support\Facades\DB;
 final class SnapshotRecipeVersion
 {
     /*
-     * Opis wersji z zapisu bez publikacji na już opublikowanym przepisie
-     * (issue #1316). Jest też znacznikiem: sklejać wolno tylko wersje z tym
-     * opisem, nigdy wersji z publikacji.
+     * Opis wersji ze świadomego zapisu bez publikacji na już opublikowanym
+     * przepisie (issue #1316): „Zapisz zmiany" albo wyjście z kreatora.
      */
     public const OPIS_POPRAWKI = 'Poprawka opublikowanego przepisu';
-
-    /*
-     * Ile minut od założenia wersji-poprawki kolejne zapisy tej samej osoby
-     * dopisują się do niej, zamiast zakładać nową. Autozapis chodzi po ~3 s
-     * przerwy w pisaniu; bez sklejania poprawka jednego kroku dawałaby
-     * dziesiątki wersji. Okno liczone od `created_at`, nie od ostatniego
-     * zapisu — długa edycja daje więc najwyżej jedną wersję na pół godziny,
-     * a nie jedną na zawsze.
-     */
-    public const OKNO_SKLEJANIA_MINUT = 30;
 
     public function handle(Recipe $recipe, User $editor, ?string $changeNote = null): RecipeVersion
     {
@@ -70,24 +59,23 @@ final class SnapshotRecipeVersion
     }
 
     /**
-     * Historia dla zapisu BEZ publikacji na przepisie, który JEST publiczny
-     * (issue #1316): autozapis kreatora, „Zapisz zmiany", `action=draft`
-     * w formularzu bez JavaScriptu. Czytelnik widzi zapisaną treść od razu,
-     * więc ostatnia wersja w historii ma być tą treścią.
+     * Historia dla ŚWIADOMEGO zapisu BEZ publikacji na przepisie, który JEST
+     * publiczny (issue #1316): „Zapisz zmiany" i wyjście z kreatora,
+     * `action=draft` w formularzu bez JavaScriptu. Autozapis tu nie trafia.
      *
-     * - treść równa ostatniej wersji → nic (autozapis bez zmian nie mnoży wersji);
-     * - ostatnia wersja to poprawka tej samej osoby założona mniej niż
-     *   `OKNO_SKLEJANIA_MINUT` temu → jej migawka dostaje dzisiejszą treść;
-     * - w każdym innym przypadku → nowa wersja z opisem `OPIS_POPRAWKI`.
+     * - treść równa ostatniej wersji → nic (drugie „Zapisz zmiany" bez zmian
+     *   nie mnoży wersji);
+     * - inaczej → NOWA wersja z opisem `OPIS_POPRAWKI`.
      *
-     * Wersji z publikacji („Pierwsza publikacja", „Aktualizacja przepisu")
-     * nigdy nie nadpisujemy — to są punkty, które autor świadomie zatwierdził.
+     * ISTNIEJĄCEJ WERSJI NIGDY NIE ZMIENIAMY (decyzja właściciela z 24.09.2026).
+     * Wersja jest zamrożonym obrazem tego, co ktoś kiedyś widział i z czego
+     * gotował — także wersja-poprawka tej samej osoby sprzed minuty.
      */
     public function poprawka(Recipe $recipe, User $editor): ?RecipeVersion
     {
         return DB::transaction(function () use ($recipe, $editor): ?RecipeVersion {
             // Ta sama blokada co w `handle()`: ostatnia wersja przeczytana
-            // pod nią nie zmieni się, zanim ją porównamy albo nadpiszemy.
+            // pod nią nie zmieni się, zanim ją porównamy.
             Recipe::query()->whereKey($recipe->getKey())->lockForUpdate()->first([$recipe->getKeyName()]);
 
             $recipe->loadMissing(['ingredients.unit', 'steps']);
@@ -98,15 +86,6 @@ final class SnapshotRecipeVersion
             // `==`, nie `===`: jsonb nie zachowuje kolejności kluczy obiektu.
             if ($ostatnia !== null && $ostatnia->snapshot == $migawka) {
                 return null;
-            }
-
-            if ($ostatnia !== null
-                && $ostatnia->change_note === self::OPIS_POPRAWKI
-                && $ostatnia->editor_id === $editor->getKey()
-                && $ostatnia->created_at->greaterThan(now()->subMinutes(self::OKNO_SKLEJANIA_MINUT))) {
-                $ostatnia->update(['snapshot' => $migawka]);
-
-                return $ostatnia;
             }
 
             return RecipeVersion::create([

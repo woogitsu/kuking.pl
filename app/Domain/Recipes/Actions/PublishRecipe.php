@@ -100,6 +100,9 @@ final class PublishRecipe
      * należy do `StepTimer` i dzieje się TU, raz, dla obu dróg zapisu.
      * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
      *                                      „nie wiemy, zapisuj normalnie" (ADR §4.3)
+     * @param  bool  $wersjaPoprawki  czy zapis BEZ publikacji na opublikowanym przepisie zostawia
+     *                                wersję (issue #1316). `false` wyłącznie dla autozapisu
+     *                                kreatora; świadome „Zapisz zmiany" i formularz bez JS — `true`
      */
     public function handle(
         User $author,
@@ -110,6 +113,7 @@ final class PublishRecipe
         ?Recipe $existing = null,
         ?string $ip = null,
         ?string $kluczWyslania = null,
+        bool $wersjaPoprawki = true,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -197,7 +201,7 @@ final class PublishRecipe
         $klucz = $existing === null ? $kluczWyslania : null;
 
         $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip, $wersjaPoprawki
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -474,15 +478,16 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
-            } elseif ($recipe->isPublished()) {
+            } elseif ($wersjaPoprawki && $recipe->isPublished()) {
                 /*
-                 * ZAPIS BEZ PUBLIKACJI NA PUBLICZNYM PRZEPISIE TEŻ ZOSTAWIA
-                 * HISTORIĘ (issue #1316). Macierz przejść nie pozwala wrócić
-                 * z `published` do szkicu, więc autozapis kreatora i „Zapisz
-                 * zmiany" zmieniają treść, którą czytelnik widzi od razu —
-                 * a wersja powstawała tylko przy `$publish`. Warunek to stan
-                 * PO zapisie, nie flaga wywołania: `publish = false` nie znaczy
-                 * „szkic". Sklejanie autozapisów opisuje `SnapshotRecipeVersion::poprawka()`.
+                 * ŚWIADOMY ZAPIS BEZ PUBLIKACJI NA PUBLICZNYM PRZEPISIE TEŻ
+                 * ZOSTAWIA HISTORIĘ (issue #1316). Macierz przejść nie pozwala
+                 * wrócić z `published` do szkicu, więc „Zapisz zmiany" zmienia
+                 * treść, którą czytelnik widzi od razu. Warunek to stan PO
+                 * zapisie, nie flaga wywołania: `publish = false` nie znaczy
+                 * „szkic". Autozapis kreatora (`$wersjaPoprawki = false`)
+                 * wersji nie tworzy — decyzja właściciela z 24.09.2026:
+                 * wersji nigdy nie nadpisujemy, więc nie ma czego „sklejać".
                  */
                 $this->snapshots->poprawka($recipe, $author);
             }
