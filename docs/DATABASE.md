@@ -1635,7 +1635,13 @@ Snapshot po istotnych zmianach.
   numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
 - `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
   przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
-  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+  czasy, wszystkie cztery kolumny pochodzenia i `family_since_year`,
+  składniki z `no_amount`, kroki). `source_url` i `ingredients[].no_amount` są
+  w migawce od issue #896 — **w starszych migawkach tych kluczy nie ma
+  i brak znaczy „nieznane"**; nie uzupełniamy ich dzisiejszą wartością
+  z przepisu. Numer wersji i migawka powstają w transakcji zapisu treści,
+  pod blokadą wiersza `recipes` (issue #895). Zmiana kształtu JSON, nie
+  schematu — bez migracji;
 - `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
@@ -2226,6 +2232,10 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
 o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
+(następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
+liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
+w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
@@ -2464,6 +2474,66 @@ duplikaty — dokładnie jak `2026_09_06_190000_one_decision_per_report` i z teg
 samego powodu: ciche skasowanie „nadmiarowego" zgłoszenia byłoby skasowaniem
 sprawy DSA, na którą ktoś mógł się powołać. Który wiersz obowiązuje,
 rozstrzyga człowiek.
+
+**`reports_resolution_complete_check` — status związany z datą rozstrzygnięcia**
+(issue #997, migracja `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`).
+
+```sql
+CHECK (
+  (status IN ('open','triage','reviewing')
+     AND resolved_at IS NULL AND resolved_by IS NULL AND resolution_note IS NULL)
+  OR (status IN ('resolved','rejected') AND resolved_at IS NOT NULL)
+)
+```
+
+Retencja liczy od `resolved_at` i bierze tylko `resolved`/`rejected`, więc
+zamknięta sprawa bez daty nie zostałaby skasowana **nigdy**, a otwarta z datą
+wisiałaby w kolejce z fałszywym śladem rozstrzygnięcia. To trzeci przypadek
+tego samego niezmiennika co `appeals_decision_complete_check`
+i `contact_messages_handled_complete`.
+
+- **`resolved_by` w stanie końcowym nie jest wymagane** — klucz ma świadome
+  `nullOnDelete()`; fizyczne usunięcie konta operatora nie może unieważnić
+  historycznej sprawy. Kto rozstrzygnął, zapisuje też niemutowalny
+  `moderation_actions.moderator_id`.
+- **`resolution_note` w stanie końcowym nie jest wymagane** — wewnętrzna
+  notatka, formularz decyzji i odrzucenie oznaczeń automatu pozwalają ją
+  pominąć (uzasadnienie dla człowieka: `moderation_actions.user_message`).
+- **Lista statusów wypisana wprost** — nowy status w `reports_status_check`
+  bez przemyślenia tej reguły odbije się o bazę. Celowo.
+- Status zmieniają dziś dwie ścieżki i obie zapisują status, datę
+  i moderatora jednym `update()`: `ModerationController::decide()`
+  i `SygnalyController::odrzucGrupe()` (`StatusZgloszeniaZwiazanyZRozstrzygnieciemTest`).
+
+**`up()` najpierw liczy niespójne wiersze i ODMAWIA**, gdy jakiekolwiek są —
+z liczbami w komunikacie. Nie zgaduje: `created_at` jako data zamknięcia
+przyspieszyłoby retencję i skasowało sprawę przed czasem. Potem
+`ADD CONSTRAINT … NOT VALID` i osobno `VALIDATE CONSTRAINT`
+(`$withinTransaction = false`, więc walidacja nie blokuje zapisów). Gdy
+`VALIDATE` padnie (niespójny zapis w trakcie wdrożenia), CHECK jest zdejmowany,
+żeby ponowne `migrate` zaczęło od czystego stanu.
+
+**Zapytanie kontrolne przed wdrożeniem (tylko odczyt, dla właściciela):**
+
+```sql
+SELECT id, numer_sprawy, source, status, resolved_at, resolved_by,
+       resolution_note IS NOT NULL AS ma_notatke, created_at,
+       (SELECT min(ma.created_at) FROM moderation_actions ma WHERE ma.report_id = r.id) AS data_decyzji
+FROM reports r
+WHERE (status IN ('resolved','rejected') AND resolved_at IS NULL)
+   OR (status IN ('open','triage','reviewing')
+       AND (resolved_at IS NOT NULL OR resolved_by IS NOT NULL OR resolution_note IS NOT NULL))
+ORDER BY created_at;
+```
+
+Pusty wynik = migracja przejdzie. Wiersze w wyniku poprawia człowiek: datę
+zamknięcia bierze z `data_decyzji`, a nie z `created_at`; otwarta sprawa
+z polami rozstrzygnięcia jest albo zamknięta (popraw status), albo otwarta
+(wyczyść trzy pola).
+
+**Rollback:** `DROP CONSTRAINT IF EXISTS reports_resolution_complete_check`.
+Bezstratnie — poluzowanie reguły nie dotyka żadnego wiersza, więc nie ma
+czego odmawiać (inaczej niż w przypadkach z D-088).
 
 ### moderation_actions
 Decyzje moderatorów.
@@ -3282,8 +3352,10 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
   `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
 - Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
-  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
-  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport.u<uid>`
+  katalogu tymczasowego systemu — osobny dla użytkownika systemu procesu, albo
+  `KUKING_EXPORT_TEMP_DIR` / `kuking.exports.temp_dir` — tworzony z prawami
+  0700, a w nim katalog nazwany identyfikatorem eksportu) na dysku **workera** i znikają
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
@@ -3291,7 +3363,11 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
   pierwszego eksportu po upływie godziny albo do restartu kontenera
   (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
-  z identyfikatorem eksportu, bez ścieżek. Sprzątanie stoi na samym
+  z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
+  (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
+  jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
+  dalej. Stary wspólny podkatalog `kuking-eksport` (sprzed #1436) nie jest już
+  czytany — znika z restartem kontenera. Sprzątanie stoi na samym
   początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
   eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
   wymazanego konta czekałaby na cudzy eksport.
@@ -3660,7 +3736,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
-| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. Konto jest anonimizowane, nie kasowane (D-022), więc `nullOnDelete()` się nie uruchamia — `user_id` zeruje jawnie `EraseAccountData` w tej samej transakcji co wymazanie (#995, pilnuje `WymazanieKontaOdlaczaWiadomosciDoNasTest`). |
 | `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |

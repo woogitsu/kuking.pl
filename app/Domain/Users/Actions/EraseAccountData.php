@@ -7,6 +7,7 @@ namespace App\Domain\Users\Actions;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
@@ -253,6 +254,8 @@ final class EraseAccountData
              * tu nie zadziałało.
              */
             $fresh->tozsamosciZewnetrzne()->delete();
+
+            $this->odlaczWiadomosciDoOperatora($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -576,6 +579,30 @@ final class EraseAccountData
         }
 
         return $skasowane;
+    }
+
+    /**
+     * WIADOMOŚCI „NAPISZ DO NAS" ZOSTAJĄ, ALE TRACĄ POWIĄZANIE Z KONTEM (#995).
+     *
+     * `resources/legal/polityka-prywatnosci.md`, tabela w §2, wiersz
+     * „Wiadomości do nas przez formularz »Napisz do nas«": „Jeśli usuniesz
+     * konto, wiadomość zostaje, ale przestaje być z nim powiązana". Robimy
+     * dokładnie to i nic więcej: `user_id → NULL`. Treść, odpowiedzi,
+     * `status` i `handled_at` zostają, bo od `handled_at` liczy się
+     * 12-miesięczna retencja, której ta akcja nie skraca.
+     *
+     * Jawnie, a nie kaskadą klucza obcego — ten sam powód co przy
+     * `pending_email_changes`: kont z Kuking się NIE KASUJE, tylko
+     * anonimizuje (D-022), więc `nullOnDelete()` nigdy by się nie uruchomił.
+     *
+     * `handled_by` (operator, który sprawę załatwił) celowo zostaje: obietnica
+     * dotyczy nadawcy wiadomości, nie osoby obsługującej panel.
+     */
+    private function odlaczWiadomosciDoOperatora(User $user): void
+    {
+        ContactMessage::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
     }
 
     /**

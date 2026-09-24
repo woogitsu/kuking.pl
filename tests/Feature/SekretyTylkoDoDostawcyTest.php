@@ -9,6 +9,7 @@ use App\Moderacja\KlientOpenAI;
 use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Providers\PocztaServiceProvider;
 use App\Support\DozwolonyHostApi;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -290,12 +291,18 @@ class SekretyTylkoDoDostawcyTest extends TestCase
         Http::fake();
         $this->poczta('https://api.emaillabs.io/v2.1/email?token=wklejony-sekret-991');
 
-        $this->artisan('kuking:sprawdz-poczte', ['adres' => 'ty@wp.pl'])
-            ->expectsOutputToContain('api.emaillabs.io')
-            ->expectsOutputToContain('EMAILLABS_ENDPOINT')
-            ->doesntExpectOutputToContain('wklejony-sekret-991')
-            ->doesntExpectOutputToContain(self::KLUCZ)
-            ->assertFailed();
+        // Całe wyjście naraz, nie `expectsOutputToContain()`: przy mocku
+        // wyjścia pierwsze pasujące oczekiwanie „zjada” linię, a zdanie
+        // z powodem niesie i host, i nazwę zmiennej — drugie nigdy by się
+        // nie odhaczyło, choć stoi w wyjściu.
+        $kod = Artisan::call('kuking:sprawdz-poczte', ['adres' => 'ty@wp.pl']);
+        $wyjscie = Artisan::output();
+
+        $this->assertSame(1, $kod);
+        $this->assertMatchesRegularExpression('/Adres API \(host\)\s*\|\s*api\.emaillabs\.io\s*\|/', $wyjscie);
+        $this->assertStringContainsString('EMAILLABS_ENDPOINT', $wyjscie);
+        $this->assertStringNotContainsString('wklejony-sekret-991', $wyjscie);
+        $this->assertStringNotContainsString(self::KLUCZ, $wyjscie);
 
         Http::assertNothingSent();
     }
