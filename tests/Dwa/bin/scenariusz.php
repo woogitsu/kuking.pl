@@ -26,9 +26,12 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
@@ -202,6 +205,23 @@ try {
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+        )->getKey(),
+
+        // Obserwowanie tagu kontra scalenie (#853). Prawdziwe akcje: test
+        // ma pęknąć, gdy `UpdateTagFollows` przestanie sprawdzać świeży
+        // status pod `TagMutationLock`.
+        'obserwuj-tag' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->follow(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+            );
+
+            return true;
+        })(),
+
+        'scal-tagi' => (string) app(MergeTags::class)->handle(
+            Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
+            Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
         )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),

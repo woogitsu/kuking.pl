@@ -6,8 +6,10 @@ namespace App\Domain\Feed;
 
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Feed tagów — wpisy z tagów, które ta osoba obserwuje (D-021, zastępuje
@@ -131,9 +133,31 @@ final class TagFeed
             ->exists();
     }
 
-    /** @return list<string> */
+    /**
+     * Tylko tagi AKTYWNE (#853). Wiersz `tag_follows` do tagu ukrytego albo
+     * scalonego może zostać z czasów sprzed bramki w `UpdateTagFollows` —
+     * i nie może zasilać feedu: ukryty tag ma 404 na własnej stronie, a jego
+     * chip karta i tak chowa, więc widz nie miałby jak zobaczyć, skąd wpis.
+     *
+     * Scalony tag prowadzi do CELU, jeśli ten jest aktywny — ta sama
+     * semantyka co w `MergeTags::przepnijObserwacje()`: kto obserwował
+     * źródło, obserwuje cel. Wpisy źródła są już przepięte na cel, więc sam
+     * identyfikator źródła i tak nic by nie znalazł.
+     *
+     * @return list<string>
+     */
     private function obserwowaneTagi(User $viewer): array
     {
-        return $viewer->followedTags()->pluck('tags.id')->all();
+        $obserwowane = DB::table('tag_follows')->select('tag_id')->where('user_id', $viewer->getKey());
+
+        return Tag::query()->aktywne()
+            ->where(fn ($q) => $q->whereIn('id', $obserwowane)->orWhereIn(
+                'id',
+                Tag::query()->select('merged_into_tag_id')
+                    ->where('status', Tag::STATUS_MERGED)
+                    ->whereIn('id', $obserwowane),
+            ))
+            ->pluck('id')
+            ->all();
     }
 }

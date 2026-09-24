@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Feed\TagFeed;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\TagFollowForm;
 use App\Models\Post;
@@ -296,5 +297,96 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $form = $this->form($user, 251);
         $this->put(route('settings.tags.update'), $form + ['tags' => $tags->pluck('id')->all()])->assertSessionHasNoErrors();
         $this->assertSame(251, $user->followedTags()->count());
+    }
+
+    private function wpisZTagiem(Tag $tag): Post
+    {
+        $post = Post::factory()->create(['author_id' => $this->user()->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()]);
+        $post->tags()->attach($tag->id, ['position' => 0]);
+
+        return $post;
+    }
+
+    public function test_853_feed_nie_bierze_wpisow_z_obserwowanego_ukrytego_tagu(): void
+    {
+        $ukryty = Tag::factory()->create();
+        $aktywny = Tag::factory()->create();
+        $zUkrytego = $this->wpisZTagiem($ukryty);
+        $user = $this->user();
+        // Wiersz sprzed bramki w `UpdateTagFollows` — dziś nie da się go dodać.
+        $user->followedTags()->attach($ukryty->id, ['created_at' => now()]);
+        $ukryty->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
+
+        $feed = app(TagFeed::class);
+        $this->assertFalse($feed->maTresci($user), 'Ukryty tag zasilił źródło „tagi”.');
+        $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
+        $this->actingAs($user)->get(route('home'))->assertViewHas('zrodloFeedu', 'odkrywanie');
+
+        // Kontrola dodatnia: ten sam układ z aktywnym tagiem daje feed tagów.
+        $zAktywnego = $this->wpisZTagiem($aktywny);
+        $user->followedTags()->attach($aktywny->id, ['created_at' => now()]);
+        $this->assertTrue($feed->maTresci($user));
+        $this->assertSame([$zAktywnego->id], $feed->paginate($user)->pluck('id')->all());
+        $this->assertNotContains($zUkrytego->id, $feed->paginate($user)->pluck('id')->all());
+        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'tagi');
+    }
+
+    public function test_853_obserwowane_scalone_zrodlo_prowadzi_do_wpisow_celu(): void
+    {
+        $zrodlo = Tag::factory()->create();
+        $cel = Tag::factory()->create();
+        $wpis = $this->wpisZTagiem($cel);
+        $user = $this->user();
+        // Historyczny wiersz do źródła, którego `MergeTags` nie przepiął.
+        $user->followedTags()->attach($zrodlo->id, ['created_at' => now()]);
+        $zrodlo->forceFill(['status' => Tag::STATUS_MERGED, 'merged_into_tag_id' => $cel->id])->save();
+
+        $feed = app(TagFeed::class);
+        $this->assertTrue($feed->maTresci($user));
+        $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
+
+        // Cel ukryty — scalenie nie jest furtką do ukrytego tagu.
+        $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
+        $this->assertFalse($feed->maTresci($user));
+        $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
+    }
+
+    public function test_853_stary_formularz_rezygnacji_po_scaleniu_mowi_prawde_i_nie_zdejmuje_celu(): void
+    {
+        $zrodlo = Tag::factory()->create(['name' => 'Serniki']);
+        $cel = Tag::factory()->create(['name' => 'Sernik']);
+        $user = $this->user();
+        $user->followedTags()->attach($zrodlo->id, ['created_at' => now()]);
+        app(MergeTags::class)->handle($zrodlo, $cel);
+        $this->assertTrue($user->isFollowingTag($cel), 'Scalenie nie przepięło obserwowania — test nic by nie mierzył.');
+
+        foreach ([1, 2] as $raz) {
+            $this->actingAs($user)->delete(route('tags.unfollow', $zrodlo))
+                ->assertRedirect(route('tags.show', $cel))
+                ->assertSessionHas('status', 'Tag „Serniki” połączyliśmy z tagiem „Sernik”. Obserwujesz „Sernik”. Jeśli nie chcesz, naciśnij „Przestań obserwować ten tag”.');
+            $this->assertTrue($user->isFollowingTag($cel), "Wysłanie {$raz}: rezygnacja ze źródła zdjęła cel.");
+        }
+
+        // Na stronie celu rezygnacja działa zwyczajnie (kontrola dodatnia).
+        $this->delete(route('tags.unfollow', $cel))->assertSessionHas('status', 'Nie obserwujesz już tagu „Sernik”.');
+        $this->assertFalse($user->isFollowingTag($cel));
+        $this->delete(route('tags.unfollow', $zrodlo))
+            ->assertRedirect(route('tags.show', $cel))
+            ->assertSessionHas('status', 'Tag „Serniki” połączyliśmy z tagiem „Sernik”. Nie obserwujesz „Sernik”.');
+    }
+
+    public function test_853_rezygnacja_po_scaleniu_gdy_obserwowane_byly_oba_tagi(): void
+    {
+        $zrodlo = Tag::factory()->create(['name' => 'Serniki']);
+        $cel = Tag::factory()->create(['name' => 'Sernik']);
+        $user = $this->user();
+        $user->followedTags()->attach([$zrodlo->id => ['created_at' => now()], $cel->id => ['created_at' => now()]]);
+        app(MergeTags::class)->handle($zrodlo, $cel);
+
+        $this->actingAs($user)->delete(route('tags.unfollow', $zrodlo))
+            ->assertRedirect(route('tags.show', $cel))
+            ->assertSessionHas('status', fn (string $s): bool => str_contains($s, 'Obserwujesz „Sernik”.'));
+        $this->assertSame(1, DB::table('tag_follows')->where('user_id', $user->id)->count());
+        $this->assertTrue($user->isFollowingTag($cel));
     }
 }
