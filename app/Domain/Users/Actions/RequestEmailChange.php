@@ -115,11 +115,19 @@ final class RequestEmailChange
             $user->profile?->display_name,
         ));
 
-        // Na STARY adres — zwykłe `notify()`, bo `users.email` jest wciąż
-        // stary i taki ma pozostać do potwierdzenia.
-        $user->notify(new ZgloszonaZmianaAdresu(
+        // Na STARY adres — TEŻ „na adres", nie `$user->notify()` (issue #888).
+        //
+        // List idzie kolejką, a zakolejkowane `notify()` zapisuje w zadaniu
+        // tylko identyfikator konta: adres odczytuje worker, z bazy, w chwili
+        // wysyłki. Jeśli ten list poczeka (kilka workerów, opóźnienie,
+        // ponowienie), a w tym czasie ktoś potwierdzi nowy adres, ostrzeżenie
+        // trafiłoby na NOWĄ skrzynkę — czyli do tego, przed kim ma ostrzegać.
+        // Dlatego adres utrwalamy teraz, a nie w chwili wysyłki. Nie zakładamy,
+        // że zadania wykonają się w kolejności dodania.
+        Notification::route('mail', $user->email)->notify(new ZgloszonaZmianaAdresu(
             AdresEmail::maska($nowyAdres),
             $zmiana->expires_at,
+            $user->profile?->display_name,
         ));
 
         return $zmiana;

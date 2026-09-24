@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Models\User;
 use App\Support\Czas;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
@@ -28,8 +27,11 @@ use Illuminate\Notifications\Notification;
  *
  * Dlatego mówi trzy rzeczy w tej kolejności:
  *
- *  1. NIC SIĘ JESZCZE NIE ZMIENIŁO — konto nadal działa na tym adresie.
- *     To zdejmuje panikę i jest prawdą (`users.email` jest nietknięty);
+ *  1. ADRES ZMIENI SIĘ DOPIERO PO KLIKNIĘCIU w link wysłany na nowy adres;
+ *     do tego czasu konto działa na tym. To zdejmuje panikę i jest prawdą
+ *     także wtedy, gdy list przyjdzie z opóźnieniem — dlatego NIE piszemy
+ *     „nic się jeszcze nie zmieniło": list idzie kolejką i w chwili
+ *     doręczenia ktoś mógł już kliknąć (issue #888);
  *  2. jeśli to Ty — nie musisz nic robić, list poszedł też na tamten adres;
  *  3. jeśli to NIE Ty — zmień hasło. Zmiana hasła unieważnia to żądanie
  *     (`App\Domain\Users\Actions\CancelEmailChange`), więc ta rada
@@ -54,6 +56,7 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
     public function __construct(
         private readonly string $nowyAdresSkrot,
         private readonly CarbonInterface $waznyDo,
+        private readonly ?string $displayName = null,
     ) {}
 
     /** @return list<string> */
@@ -63,16 +66,18 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
     }
 
     /**
-     * @param  User  $notifiable
+     * Adresatem jest ADRES (`Notification::route`), nie konto — patrz
+     * `RequestEmailChange`, issue #888. Dlatego nic tu nie sięga do `User`:
+     * imię przychodzi w konstruktorze, utrwalone w chwili prośby.
      */
-    public function toMail($notifiable): MailMessage
+    public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject('Ktoś prosi o zmianę adresu e-mail Twojego konta w Kuking')
             ->view('mail.zgloszona-zmiana-adresu', [
                 'nowyAdresSkrot' => $this->nowyAdresSkrot,
                 'waznyDo' => Czas::data($this->waznyDo, 'j F Y, H:i'),
-                'displayName' => $notifiable->profile?->display_name,
+                'displayName' => $this->displayName,
                 'linkHaslo' => route('settings.security'),
             ]);
     }

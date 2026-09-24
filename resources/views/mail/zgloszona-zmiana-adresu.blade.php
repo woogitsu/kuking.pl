@@ -6,7 +6,9 @@
     właśnie próbuje przejąć. Ton: poziom „poważny" z docs/brand/COPY_STYLE.md
     — zero żartów, zero gry słowem kuKING, zero emoji.
 
-    Kolejność zdań jest przemyślana: najpierw „nic się nie zmieniło", potem
+    Kolejność zdań jest przemyślana: najpierw „adres zmieni się dopiero po
+    kliknięciu" (nie „nic się nie zmieniło" — list idzie kolejką i może
+    przyjść już po kliknięciu, issue #888), potem
     „jeśli to Ty", na końcu „jeśli to nie Ty". Odwrotna kolejność zaczynałaby
     list od straszenia kogoś, kto po prostu sam poprosił o zmianę.
 --}}
@@ -40,9 +42,10 @@
                         </p>
 
                         <p style="margin:0 0 24px;">
-                            <strong>Na razie nic się nie zmieniło.</strong> Twoje konto nadal
-                            działa na tym adresie: tu przychodzą wiadomości, tym adresem się
-                            logujesz i tym odzyskujesz hasło.
+                            <strong>Adres zmieni się dopiero wtedy, gdy ktoś kliknie w odnośnik
+                            wysłany na ten nowy adres.</strong> Do tego czasu Twoje konto działa
+                            na tym adresie: tu przychodzą wiadomości, tym adresem się logujesz
+                            i tym odzyskujesz hasło.
                         </p>
 
                         <p style="margin:0 0 12px;font-size:18px;color:#555E53;">

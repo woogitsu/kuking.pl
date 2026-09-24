@@ -279,9 +279,14 @@ class ZmianaAdresuEmailTest extends TestCase
             static fn ($powiadomienie, array $kanaly, AnonymousNotifiable $adresat): bool => $adresat->routes['mail'] === 'nowa.basia@example.test',
         );
 
-        // Ostrzeżenie idzie zwykłym `notify()`, czyli na `users.email` —
-        // a ten jest wciąż STARY i taki ma zostać.
-        Notification::assertSentTo($basia, ZgloszonaZmianaAdresu::class);
+        // Ostrzeżenie też idzie „na adres" — STARY, utrwalony w chwili
+        // prośby, a nie czytany z konta przy wysyłce (issue #888; pełna
+        // droga przez kolejkę: `OstrzezenieOZmianieAdresuWKolejceTest`).
+        Notification::assertSentOnDemand(
+            ZgloszonaZmianaAdresu::class,
+            static fn ($powiadomienie, array $kanaly, AnonymousNotifiable $adresat): bool => $adresat->routes['mail'] === 'basia@example.test',
+        );
+        Notification::assertNotSentTo($basia, ZgloszonaZmianaAdresu::class);
     }
 
     public function test_ostrzezenie_pokazuje_nowy_adres_w_skrocie(): void
