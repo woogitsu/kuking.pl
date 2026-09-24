@@ -69,10 +69,15 @@ final class NotifyReporterReceipt
      * tego samego zgłoszenia dokończy potwierdzenie
      * (`ReportContent::dokonczPotwierdzenie()`).
      *
-     * CZEGO TU NIE MA: komendy, która sama obchodzi zaległe potwierdzenia.
-     * Sprawa bez `receipt_sent_at`, do której nikt nie wróci, zostanie
-     * niepotwierdzona — to jest do decyzji właściciela, nie do dołożenia
-     * przy okazji.
+     * A SPRAWA, DO KTÓREJ NIKT NIE WRÓCI, ma własną drogę (D-252, decyzja
+     * właściciela z 23.09.2026): komenda
+     * `kuking:dosylaj-potwierdzenia-zgloszen` co godzinę dosyła zaległe
+     * potwierdzenia, partiami (`--ile`). Woła ona `handle()` niżej, a nie
+     * własną kopię tej logiki — zamek na `receipt_sent_at` rozstrzyga więc
+     * zbieg dosyłki z powrotem człowieka tak samo, jak rozstrzyga dwa
+     * równoległe ponowienia albo dwa przebiegi dosyłki naraz. Czego dosyłka
+     * nie rusza (zgłoszenia bez konta, konta wymazane, sprawy z doręczoną
+     * już decyzją) — w nagłówku `DosylajPotwierdzeniaZgloszen`.
      */
     public function potwierdzBezWywracaniaSprawy(Report $zgloszenie): ?Notification
     {
@@ -128,10 +133,20 @@ final class NotifyReporterReceipt
                 // pocztą (`ZglosNielegalnaTresc`). Kolumna odpowiada na
                 // pytanie „czy potwierdziliśmy odbiór", a nie „czy wysłaliśmy
                 // list" — przy audycie liczy się to pierwsze.
+                //
+                // Po doręczonym rozstrzygnięciu (art. 16 ust. 5) potwierdzenie
+                // „sprawdzimy i napiszemy" byłoby nieprawdą (D-252). Warunek
+                // stoi W ZAMKU, a nie tylko w zapytaniu dosyłki: decyzja
+                // zapisana między odczytem partii a tym `UPDATE` też wygrywa,
+                // bo PostgreSQL sprawdza `WHERE` na wersji wiersza po jej
+                // zatwierdzeniu.
+                ->whereNull('decision_sent_at')
                 ->update(['receipt_sent_at' => now()]);
 
             if ($zajete === 0) {
-                // Sprawa jest już potwierdzona. To NIE znaczy, że
+                // Sprawa jest już potwierdzona (albo zgłaszający dostał już
+                // rozstrzygnięcie — wtedy potwierdzenie przyjęcia nie ma
+                // sensu, D-252). To NIE znaczy, że
                 // powiadomienie nadal istnieje: `RetencjaPowiadomien` kasuje
                 // je po ogólnym okresie, a trwałym zapisem sprawy jest sam
                 // wiersz w `reports` i ekran `/zgloszenia`. Ponowienie nie ma
