@@ -151,9 +151,17 @@ class CollectionController extends Controller
             ->orderByDesc('posts.id')
             ->limit($ile)
             ->get()
-            ->map(fn (Post $wpis) => [
+            ->map(fn (Post $wpis) => $wpis->kind === Post::KIND_QUESTION ? [
                 'href' => $wpis->url(),
-                // Wpis nie ma tytułu. Pierwsze słowa są tym, po czym człowiek
+                // Pytanie ma własny tytuł i często nic poza nim — to on
+                // jest nazwą, nie opis i nie „Zdjęcie bez opisu" (#869).
+                'nazwa' => (string) $wpis->title,
+                'podpis' => 'Pytanie · '.$wpis->author->displayName(),
+                'media' => $wpis->media->first(),
+                'zapisano_at' => $wpis->zapisano_at,
+            ] : [
+                'href' => $wpis->url(),
+                // Danie nie ma tytułu. Pierwsze słowa są tym, po czym człowiek
                 // go rozpozna; wpis bez opisu dostaje uczciwe „Zdjęcie bez
                 // opisu", a nie pustą linijkę udającą nazwę.
                 'nazwa' => $wpis->body !== null && trim($wpis->body) !== ''

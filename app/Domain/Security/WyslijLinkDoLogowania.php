@@ -360,8 +360,8 @@ final class WyslijLinkDoLogowania
             return false;
         }
 
-        // `isModerator()` jest prawdziwe także dla roli `admin` — jedno
+        // `hasStaffRole()` jest prawdziwe także dla roli `admin` — jedno
         // pytanie zamyka obie role naraz.
-        return ! $user->isModerator();
+        return ! $user->hasStaffRole();
     }
 }

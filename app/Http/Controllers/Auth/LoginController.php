@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
@@ -140,12 +141,12 @@ class LoginController extends Controller
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
         // na osobnym ekranie. Zapisujemy w sesji WYŁĄCZNIE identyfikator
-        // konta, nie loginujemy go: sesja nieuwierzytelniona nie daje dostępu
-        // do niczego, a `TwoFactorChallengeController` sam sprawdza, czy ten
-        // klucz w ogóle istnieje.
+        // konta i odcisk jego stanu (#931), nie loginujemy go: sesja
+        // nieuwierzytelniona nie daje dostępu do niczego, a
+        // `TwoFactorChallengeController` sam sprawdza ten klucz i odcisk.
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }
