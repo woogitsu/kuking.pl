@@ -341,7 +341,7 @@ class CookingModeTest extends TestCase
         $this->assertMatchesRegularExpression(
             '#<form method="POST" action="'.$akcja.'">\s*<input type="hidden" name="_token"#',
             $html,
-            'Reset musi być formularzem POST z tokenem CSRF — działa bez JavaScriptu.'
+            'Reset musi być formularzem POST z tokenem CSRF — działa bez JavaScriptu.',
         );
     }
 
