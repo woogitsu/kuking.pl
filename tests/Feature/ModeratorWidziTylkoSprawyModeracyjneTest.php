@@ -107,7 +107,12 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
         foreach (['hero', 'skan', 'krok'] as $rodzaj) {
             $przypadki["{$rodzaj} szkicu"] = [$rodzaj, Recipe::STATUS_DRAFT, false];
             $przypadki["{$rodzaj} ukrytego"] = [$rodzaj, Recipe::STATUS_HIDDEN, true];
-            $przypadki["{$rodzaj} zdjetego"] = [$rodzaj, Recipe::STATUS_REMOVED, true];
+            // Zdjęty = miękko usunięty, jak na produkcji (`$target->delete()`
+            // w `ModerationController::applyAction()` i `ZdejmijZUrzedu`).
+            // Taki przepis nie jest już rodzicem zdjęcia (`rodzice()` idzie
+            // przez scope `SoftDeletes`), więc moderator zdjęcia nie dostaje
+            // — właściciel tak, skrótem właściciela.
+            $przypadki["{$rodzaj} zdjetego"] = [$rodzaj, Recipe::STATUS_REMOVED, false];
             $przypadki["{$rodzaj} opublikowanego"] = [$rodzaj, Recipe::STATUS_PUBLISHED, true];
         }
 
@@ -205,6 +210,82 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
         $this->assertDostep($zgloszone, $this->moderator->refresh(), false, 'cel zgłoszenia, zawieszony moderator');
     }
 
+    /**
+     * Automat oznacza też wpisy „tylko dla obserwujących", a kolejka
+     * `/admin/sygnaly` pokazuje ich miniaturę. Moderator zwykle autora nie
+     * obserwuje — bez wyjątku sprawy dostawał 404 na zdjęciu, które ma ocenić.
+     */
+    public function test_zdjecie_zgloszonego_wpisu_dla_obserwujacych_widzi_obsluga_z_2fa(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $wpis = $this->wpis(Post::VISIBILITY_FOLLOWERS, $zdjecie);
+
+        // Kontrola ujemna: bez sprawy wpis followers zostaje zamknięty.
+        $this->assertDostep($zdjecie, $this->moderator, false, 'wpis followers bez zgłoszenia');
+
+        $this->zglosWpis($wpis);
+
+        $this->assertDostep($zdjecie, $this->moderator, true, 'zgłoszony wpis followers, moderator z 2FA');
+        $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
+
+        $this->assertDostep($zdjecie, $this->obcy, false, 'zgłoszony wpis followers, obcy');
+        $this->assertDostep($zdjecie, null, false, 'zgłoszony wpis followers, gość');
+
+        $bez2fa = $this->user('moderator_bez_2fa_wpis', ['role' => User::ROLE_MODERATOR]);
+        $this->assertDostep($zdjecie, $bez2fa, false, 'zgłoszony wpis followers, moderator bez 2FA');
+
+        // Inne zdjęcie tej samej osoby, z innego (niezgłoszonego) wpisu.
+        $inne = $this->zdjecie();
+        $this->wpis(Post::VISIBILITY_FOLLOWERS, $inne);
+        $this->assertDostep($inne, $this->moderator, false, 'inny wpis tej samej osoby');
+    }
+
+    /**
+     * Sprawa zamknięta nie jest już sprawą. Wpis zostawiony w spokoju wraca
+     * do zwykłej reguły kręgu odbiorców — kolejka i tak pokazuje wyłącznie
+     * otwarte sygnały.
+     */
+    public function test_zamkniete_zgloszenie_wpisu_nie_otwiera_zdjecia(): void
+    {
+        foreach ([Report::STATUS_RESOLVED, Report::STATUS_REJECTED] as $status) {
+            $zdjecie = $this->zdjecie();
+            $this->zglosWpis($this->wpis(Post::VISIBILITY_FOLLOWERS, $zdjecie), $status);
+
+            $this->assertDostep($zdjecie, $this->moderator, false, "zgłoszenie {$status}");
+        }
+
+        // Kontrola dodatnia: te same statusy co kolejka (`isOpen()`).
+        foreach ([Report::STATUS_TRIAGE, Report::STATUS_REVIEWING] as $status) {
+            $zdjecie = $this->zdjecie();
+            $this->zglosWpis($this->wpis(Post::VISIBILITY_FOLLOWERS, $zdjecie), $status);
+
+            $this->assertDostep($zdjecie, $this->moderator, true, "zgłoszenie {$status}");
+        }
+    }
+
+    /**
+     * Zgłoszenie nie jest wytrychem do treści, której automat w ogóle nie
+     * ogląda: prywatny wpis, szkic i wpis już zdjęty zostają zamknięte.
+     */
+    public function test_zgloszenie_nie_otwiera_zdjecia_prywatnego_szkicu_ani_zdjetego_wpisu(): void
+    {
+        $prywatne = $this->zdjecie();
+        $this->zglosWpis($this->wpis(Post::VISIBILITY_PRIVATE, $prywatne));
+        $this->assertDostep($prywatne, $this->moderator, false, 'zgłoszony wpis prywatny');
+
+        $szkicu = $this->zdjecie();
+        $szkic = Post::factory()->draft()->create(['author_id' => $this->autor->getKey()]);
+        $szkic->media()->attach($szkicu->getKey(), ['position' => 0]);
+        $this->zglosWpis($szkic);
+        $this->assertDostep($szkicu, $this->moderator, false, 'zgłoszony szkic wpisu');
+
+        $zdjetego = $this->zdjecie();
+        $zdjety = $this->wpis(Post::VISIBILITY_FOLLOWERS, $zdjetego);
+        $this->zglosWpis($zdjety);
+        $zdjety->delete();
+        $this->assertDostep($zdjetego, $this->moderator, false, 'zgłoszony wpis zdjęty (deleted_at)');
+    }
+
     public function test_trasa_zdjecia_szkicu_odmawia_moderatorowi_a_ukrytego_nie(): void
     {
         $zdjecieSzkicu = $this->zdjecie();
@@ -292,6 +373,13 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
             'published_at' => $opublikowany ? now() : null,
         ])->save();
 
+        // Zdejmowanie treści na produkcji to miękkie usunięcie — sam status
+        // `removed` bez `deleted_at` byłby stanem, którego nikt nie tworzy,
+        // a test na nim mierzyłby inną ścieżkę niż prawdziwa.
+        if ($status === Recipe::STATUS_REMOVED) {
+            $przepis->delete();
+        }
+
         return $przepis->refresh();
     }
 
@@ -309,6 +397,31 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
         }
 
         return $zdjecie;
+    }
+
+    private function wpis(string $widocznosc, Media $zdjecie): Post
+    {
+        $wpis = Post::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'visibility' => $widocznosc,
+        ]);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        return $wpis;
+    }
+
+    private function zglosWpis(Post $wpis, string $status = Report::STATUS_OPEN): void
+    {
+        Report::create([
+            'reporter_id' => null,
+            'autor_tresci_id' => $wpis->author_id,
+            'source' => Report::SOURCE_AUTOMAT,
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'reason' => 'automat_model',
+            'details' => 'Wpis: znany wzorzec spamu.',
+            'status' => $status,
+        ]);
     }
 
     private function zglos(Media $zdjecie): void

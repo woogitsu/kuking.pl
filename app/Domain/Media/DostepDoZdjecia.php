@@ -270,8 +270,10 @@ final class DostepDoZdjecia
     }
 
     /**
-     * Zdjęcie, które SAMO jest celem zgłoszenia (`reports.target_type =
-     * media` — dziś zdjęcie profilowe oznaczone przez automat, issue #237).
+     * Zdjęcie, które jest sprawą moderacyjną: SAMO jest celem zgłoszenia
+     * (`reports.target_type = media` — dziś zdjęcie profilowe oznaczone przez
+     * automat, issue #237) ALBO należy do wpisu, który jest celem OTWARTEGO
+     * zgłoszenia lub oznaczenia automatu (`target_type = post`).
      *
      * Po co wyjątek: osoba może podmienić awatar zaraz po oznaczeniu. Stary
      * plik traci wtedy rodzica, a sprawa w `/admin/sygnaly` dalej czeka —
@@ -281,17 +283,47 @@ final class DostepDoZdjecia
      * co grupa `/admin` (`moderator.2fa`), jedyne miejsce, gdzie ta
      * miniatura się pokazuje.
      *
+     * WPIS „TYLKO DLA OBSERWUJĄCYCH" (przegląd #1360). Automat oznacza wpisy
+     * `public` i `followers` (`PrzeanalizujTresc::tresc()`), a
+     * `/admin/sygnaly` pokazuje przy nich miniaturę. `PostPolicy::view()`
+     * wpuszcza do wpisu `followers` tylko obserwujących, więc moderator,
+     * który nie obserwuje autora, dostawał 404 na zdjęciu sprawy, którą ma
+     * ocenić. Zakres jest węższy niż przy pliku z punktu wyżej:
+     *  - tylko zgłoszenie OTWARTE (`Report::isOpen()`) — kolejka pokazuje
+     *    wyłącznie takie; po rozstrzygnięciu wpis zostawiony w spokoju nie
+     *    jest już niczyją sprawą, a wpis ukryty moderator i tak widzi przez
+     *    `PostPolicy`,
+     *  - tylko wpis opublikowany, nieskasowany i `public`/`followers` —
+     *    dokładnie to, co automat w ogóle ogląda. Szkic ani wpis prywatny
+     *    nie otworzą się przez zgłoszenie, które ktoś do nich przypiął,
+     *  - te same warunki osoby co wyżej: czynny moderator z 2FA.
+     *
      * Pytamy na KOŃCU, gdy żaden rodzic nie przepuścił — zwykły widz nie
      * płaci za to ani jednego zapytania.
      */
     private function celemZgloszeniaDlaObslugi(?User $widz, Media $zdjecie): bool
     {
-        return $widz !== null
-            && $widz->isModerator()
-            && $widz->hasTwoFactorConfirmed()
-            && Report::query()
-                ->where('target_type', ModeratedContent::TYPY[Media::class])
-                ->where('target_id', (string) $zdjecie->getKey())
+        if ($widz === null || ! $widz->isModerator() || ! $widz->hasTwoFactorConfirmed()) {
+            return false;
+        }
+
+        $id = (string) $zdjecie->getKey();
+
+        return Report::query()
+            ->where('target_type', ModeratedContent::TYPY[Media::class])
+            ->where('target_id', $id)
+            ->exists()
+            || Report::query()
+                ->where('target_type', ModeratedContent::TYPY[Post::class])
+                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->whereIn('target_id', fn ($wpisy) => $wpisy
+                    ->selectRaw('posts.id::text')
+                    ->from('post_media')
+                    ->join('posts', 'posts.id', '=', 'post_media.post_id')
+                    ->where('post_media.media_id', $id)
+                    ->whereNull('posts.deleted_at')
+                    ->where('posts.status', Post::STATUS_PUBLISHED)
+                    ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))
                 ->exists();
     }
 
