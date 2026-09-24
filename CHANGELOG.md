@@ -4,6 +4,7 @@
 
 - Zgłoszenie konta do moderacji trafia zawsze do osoby, której profil był widoczny przy otwarciu formularza — nawet jeśli ta osoba w międzyczasie zmieniła nazwę użytkownika, a zwolnioną nazwę zajął ktoś inny. Stare odnośniki z nazwą nadal otwierają formularz (#1599).
 - Na kroku „Kogo chcesz obserwować?” wybór mieszczący się w limicie 20 osób daje się zapisać także po kilku wyszukiwaniach z zachowanymi wcześniejszymi zaznaczeniami. Niezaznaczone propozycje nie powodują już błędu (#1600).
+- List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
 
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
