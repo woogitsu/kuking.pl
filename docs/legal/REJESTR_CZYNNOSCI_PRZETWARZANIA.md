@@ -371,10 +371,18 @@ egzekwuje.
   `stdout`/`stderr` do własnego narzędzia dzienników — wpisy **przeżywają**
   restart i wymianę instancji.
 - **Termin usunięcia:** okres przechowywania dzienników u Railway, zależny
-  od planu konta. **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** aktywny plan
-  i liczba dni odczytane z panelu Railway (#994). Procedura po zmianie
-  planu albo odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera
-  i polityka prywatności”.
+  od planu konta. **Plan Hobby — 7 dni** (decyzja właściciela 24.09.2026;
+  liczba wg dokumentacji Railway: Hobby 7, Pro 30). Przy publicznym starcie
+  produkcji — przejście na Pro, 30 dni. Procedura po zmianie planu albo
+  odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera i polityka
+  prywatności”.
+- **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA (#994):**
+  - fizyczna lokalizacja (kraj/region) przechowywania logów przez Railway —
+    polityka mówi dziś, że tego nie potwierdziliśmy;
+  - czy na produkcji ustawiono `LOG_BLAD_WEBHOOK_URL` (Slack/Discord) — jeśli
+    tak, ten kanał jest kolejnym odbiorcą zapisu błędu i musi trafić do
+    polityki i do §4;
+  - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
 
 ---
 
@@ -392,7 +400,7 @@ brakuje.
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
 | Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
-| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
+| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |

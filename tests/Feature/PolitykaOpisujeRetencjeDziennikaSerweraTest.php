@@ -20,7 +20,11 @@ use Tests\TestCase;
  * opisywała go zgodnie z nim. Zmiana `LOG_CHANNEL` zapali ten test — to jest
  * moment, w którym ktoś musi poprawić tekst polityki (`docs/DEPLOYMENT.md`).
  *
- * Liczby dni test nie sprawdza: nikt w repozytorium jej nie potwierdził.
+ * Liczba dni pochodzi z decyzji właściciela (24.09.2026): plan Hobby, a według
+ * dokumentacji Railway retencja dzienników na nim to 7 dni (Pro: 30). Kodem
+ * tego nie odczytamy, więc test pilnuje tylko, żeby polityka podawała liczbę
+ * i nie wracała do „nie podajemy liczby dni”. Zmiana planu = procedura
+ * z `docs/DEPLOYMENT.md` → „Dziennik serwera i polityka prywatności”.
  */
 final class PolitykaOpisujeRetencjeDziennikaSerweraTest extends TestCase
 {
@@ -75,6 +79,41 @@ final class PolitykaOpisujeRetencjeDziennikaSerweraTest extends TestCase
             '/^\| Railway \|[^|\n]*dziennik[^|\n]*\|/mu',
             $this->polityka(),
             'Tabela dostawców nie mówi, że Railway przechowuje dziennik serwera (#994).',
+        );
+    }
+
+    public function test_polityka_podaje_liczbe_dni_dziennika(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/\*\*do \d+ dni\*\*/u',
+            $this->wierszBledow(),
+            'Wiersz o błędach technicznych nie podaje, ile dni Railway trzyma dziennik serwera (#994). '
+            .'Plan Hobby: 7 dni, Pro: 30 dni — procedura w docs/DEPLOYMENT.md.',
+        );
+    }
+
+    /**
+     * Zdanie „stan serwisu na <data>” w nagłówku i `kuking.zgody.wersja_polityki`
+     * to jedna wersja dokumentu (D-072). Rozjazd znaczy, że dziennik zgód
+     * zapisuje ludziom inne brzmienie niż to, które czytają.
+     */
+    public function test_wersja_polityki_w_konfiguracji_to_data_z_naglowka(): void
+    {
+        $miesiace = [
+            'stycznia' => 1, 'lutego' => 2, 'marca' => 3, 'kwietnia' => 4, 'maja' => 5, 'czerwca' => 6,
+            'lipca' => 7, 'sierpnia' => 8, 'września' => 9, 'października' => 10, 'listopada' => 11, 'grudnia' => 12,
+        ];
+
+        preg_match('/opisuje stan serwisu na (\d{1,2}) (\p{L}+) (\d{4})/u', $this->polityka(), $data);
+
+        $this->assertNotEmpty($data, 'Kontrola: nagłówek polityki nie ma zdania „opisuje stan serwisu na <data>”.');
+        $this->assertArrayHasKey($data[2], $miesiace, "Kontrola: nieznany miesiąc w nagłówku polityki: {$data[2]}.");
+
+        $this->assertSame(
+            sprintf('%04d-%02d-%02d', (int) $data[3], $miesiace[$data[2]], (int) $data[1]),
+            (string) config('kuking.zgody.wersja_polityki'),
+            'Data w nagłówku polityki prywatności i `kuking.zgody.wersja_polityki` (config/kuking.php) '
+            .'muszą być tą samą wersją — podbij obie naraz.',
         );
     }
 }

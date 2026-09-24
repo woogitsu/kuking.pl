@@ -2310,7 +2310,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-24',
     ],
 
     'analytics' => [
