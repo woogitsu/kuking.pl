@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Comments\Actions;
 
 use App\Domain\Comments\LockCommentContext;
+use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -142,19 +144,24 @@ final class PublishComment
              * ISSUE #1094: POWTÓRKA KOMENTARZA, KTÓREGO JUŻ NIE WIDAĆ, TO NIE
              * „DODANO".
              *
-             * Wyszukanie wyżej celowo NIE filtruje po `status`: komentarz
-             * ukryty lub usunięty przez moderację w oknie powtórzenia nadal
-             * jest „tym samym wysłaniem". Gdyby filtrował, druga kopia
-             * powstałaby obok ukrytej i ominęła decyzję moderacji. Ale bez tego
-             * sprawdzenia kontroler dostawał ukryty wiersz i pokazywał
-             * „Komentarz dodany.", choć lista (`widoczneDla()`) go nie pokaże.
+             * Wyszukanie celowo NIE filtruje po `status` i widzi też wiersze
+             * miękko usunięte PRZEZ MODERACJĘ (`komentarzZTegoSamegoWyslania()`):
+             * komentarz ukryty albo usunięty decyzją moderatora w oknie
+             * powtórzenia nadal jest „tym samym wysłaniem". Gdyby go nie
+             * widziało, druga kopia powstałaby obok i ominęła decyzję.
+             *
+             * „Usuń” moderacji to soft delete (`ModerationController::
+             * applyAction()`, `ZdejmijZUrzedu`), a nie `status = removed` —
+             * tego statusu dla komentarza nie ustawia nic w `app/`. Dlatego
+             * pierwsza wersja tej poprawki, sprawdzająca sam `status`, dawała
+             * po „Usuń” nowy opublikowany duplikat z „Komentarz dodany.".
              *
              * Neutralny komunikat, bez słowa o moderacji i jej powodach — ten
-             * sam tekst przy `hidden` i `removed`. Po upływie okna obowiązuje
+             * sam tekst przy ukryciu i usunięciu. Po upływie okna obowiązuje
              * zwykła reguła: to samo zdanie jest nową wypowiedzią i przechodzi
              * tę samą analizę (`PrzeanalizujTresc`) co każdy nowy komentarz.
              */
-            if ($juzJest !== null && $juzJest->status !== Comment::STATUS_PUBLISHED) {
+            if ($juzJest !== null && ($juzJest->trashed() || $juzJest->status !== Comment::STATUS_PUBLISHED)) {
                 throw new BladDlaCzlowieka(self::NIEWIDOCZNY);
             }
 
@@ -296,15 +303,64 @@ final class PublishComment
             $subject instanceof CookedEvent => 'cooked_event_id',
         };
 
+        /*
+         * Które wiersze są „tym samym wysłaniem" (issue #1094):
+         *
+         *  - opublikowane i ukryte — tak (ukryty daje neutralny błąd wyżej);
+         *  - miękko usunięte przez MODERACJĘ — tak, stąd `withTrashed()`;
+         *  - miękko usunięte przez AUTORA (albo przez właściciela treści,
+         *    `DeleteComment`) — NIE. Autor świadomie wycofał słowa i może
+         *    napisać je od nowa; właściciel treści nie jest moderacją, a po
+         *    upływie okna to samo zdanie i tak byłoby nowym komentarzem.
+         *    Odróżnia je dziennik decyzji, nie kolumna w `comments`.
+         *  - z `body_removed_at` (autor usunął komentarz, który miał
+         *    odpowiedzi) — NIE. Treść jest już zastąpiona napisem, wiersz nie
+         *    jest wypowiedzią autora, więc powtórka tworzy nowy komentarz,
+         *    tak samo jak po zwykłym usunięciu przez autora. Warunek jawny,
+         *    bo inaczej zdanie równe napisowi zastępczemu trafiłoby na ten
+         *    wiersz i dostało fałszywe „Komentarz dodany.".
+         *
+         * Pomijanie idzie PRZED wyborem pierwszego wiersza, nie po nim:
+         * gdyby autor usunął komentarz i napisał go od nowa, kolejne kliknięcie
+         * musi trafić na nowy wiersz, a nie na usunięty — inaczej powstałby
+         * trzeci.
+         */
         return Comment::query()
+            ->withTrashed()
             ->where('author_id', $author->getKey())
             ->where($kolumna, $subject->getKey())
             ->where('body', $body)
+            ->whereNull('body_removed_at')
             ->where('created_at', '>=', now()->subSeconds($okno))
             ->when($parentId === null, fn ($q) => $q->whereNull('parent_id'))
             ->when($parentId !== null, fn ($q) => $q->where('parent_id', $parentId))
             ->orderBy('created_at')
-            ->first();
+            ->orderBy('id')
+            ->get()
+            ->first(fn (Comment $c): bool => ! $c->trashed() || $this->schowanyPrzezModeracje($c));
+    }
+
+    /**
+     * Czy miękkie usunięcie komentarza jest decyzją moderacji.
+     *
+     * Rozstrzyga OSTATNI wpis dziennika o ukryciu, usunięciu albo
+     * przywróceniu tego komentarza: `hide`/`remove` — moderacja schowała go
+     * i nie cofnęła (autor mógł potem usunąć ukryty komentarz — to nadal nie
+     * zdejmuje decyzji); `unhide` albo brak wpisu — usunął go autor.
+     * Kolejność jak w `RestoreContent::statusSprzedUkrycia()`: `created_at`
+     * ma sekundową dokładność, remis rozstrzyga UUIDv7 w `id`.
+     */
+    private function schowanyPrzezModeracje(Comment $comment): bool
+    {
+        $ostatnia = ModerationAction::query()
+            ->where('target_type', ModeratedContent::TYPY[Comment::class])
+            ->where('target_id', $comment->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE, ModerationAction::ACTION_UNHIDE])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->value('action');
+
+        return in_array($ostatnia, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true);
     }
 
     private function oknoSekund(): int
