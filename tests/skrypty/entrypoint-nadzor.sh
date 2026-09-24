@@ -514,6 +514,20 @@ else
   sprawdz "brak prawa zapisu do zdjęć nie zabija startu" "tak" "nie"
 fi
 
+# Rola `worker` przez PRAWDZIWE start_worker, nie przez bezpośrednie wywołanie
+# nadzorcy (#1030). Wcześniej start_worker wołał nadzoruj_kolejki bez argumentu
+# i domyślne `all` dawało jeden proces — test nadzorcy tego nie widział.
+if bez_komentarzy "${ENTRYPOINT}" \
+  | sed -n '/^start_worker() {/,/^}/p' | grep -qE '^[[:space:]]*nadzoruj_kolejki worker[[:space:]]*$'; then
+  sprawdz "start_worker uruchamia nadzorcę w roli worker" "tak" "tak"
+else
+  sprawdz "start_worker uruchamia nadzorcę w roli worker" "tak" "nie"
+fi
+wynik_bez_roli="$(timeout 5 bash -c "$(wczytaj_funkcje)
+$(funkcje_kolejek)
+nadzoruj_kolejki" 2>&1 && echo URUCHOMIONO || echo ODMOWA)"
+sprawdz "nadzorca bez roli odmawia zamiast brać po cichu all" "tak" "$(grep -q ODMOWA <<< "$wynik_bez_roli" && grep -q 'podaj rolę' <<< "$wynik_bez_roli" && echo tak || echo nie)"
+
 echo
 if (( oblane > 0 )); then
   printf '\033[0;31mOblane: %d, zdane: %d\033[0m\n' "${oblane}" "${zdane}"

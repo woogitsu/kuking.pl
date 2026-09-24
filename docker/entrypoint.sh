@@ -375,8 +375,9 @@ start_worker() {
   # workera wychodzi co godzinę z kodem 0 i jego powrót zależy od tego, jak
   # ustawiona jest polityka restartu w panelu — czyli od czegoś, czego nie ma
   # w repozytorium i o czym nikt nie pamięta. Kolejka ma działać niezależnie
-  # od tego ustawienia.
-  nadzoruj_kolejki
+  # od tego ustawienia. Rola podana JAWNIE: bez niej nadzorca odmawia, zamiast
+  # po cichu wziąć jeden proces jak w `all` (#1030).
+  nadzoruj_kolejki worker
 }
 
 # -----------------------------------------------------------------------------
@@ -445,7 +446,8 @@ listy_kolejek() {
 nadzoruj_kolejki() {
   local -a listy pidy=()
   local lista pid
-  read -r -a listy <<< "$(listy_kolejek "${1:-all}")"
+  local rola="${1:?nadzoruj_kolejki: podaj rolę (worker albo all)}"
+  read -r -a listy <<< "$(listy_kolejek "${rola}")"
 
   trap 'kill -TERM $(jobs -p) 2>/dev/null || true; wait || true; exit 0' TERM INT
 
