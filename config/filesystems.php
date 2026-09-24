@@ -348,7 +348,7 @@ return [
         ],
 
         /*
-         * KOPIA ZDJĘĆ — DYSK TYLKO DO CZYTANIA (#617, D-256).
+         * KOPIA ZDJĘĆ — DYSK TYLKO DO CZYTANIA (#617, D-257).
          *
          * Migawki zdjęć robi proces POZA aplikacją (właściciel, z własnym
          * tokenem zapisu — `docs/infra/DR_ZDJEC_R2.md`). Aplikacja dostaje

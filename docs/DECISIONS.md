@@ -16666,7 +16666,7 @@ Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
-## D-256 — Zdjęcia w R2: token per bucket w aplikacji, kopia jako datowane migawki poza jej zasięgiem (#617, 24 września 2026)
+## D-257 — Zdjęcia w R2: token per bucket w aplikacji, kopia jako datowane migawki poza jej zasięgiem (#617, 24 września 2026)
 
 **Data:** 24 września 2026 · Status: **część w kodzie obowiązuje po scaleniu; strategia kopii czeka na decyzję właściciela** (runbook: `docs/infra/DR_ZDJEC_R2.md`)
 

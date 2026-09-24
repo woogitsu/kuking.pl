@@ -8,7 +8,7 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Osobny token R2 dla każdego bucketu (#617, D-256).
+ * Osobny token R2 dla każdego bucketu (#617, D-257).
  *
  * Aplikacja musi kasować w bucketach zdjęć i paczek (usuwanie danych jest
  * natychmiastowe), więc prawa DeleteObject odebrać jej nie można. Można

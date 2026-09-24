@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
- * Porównuje wiersze `media` z jedną migawką kopii zdjęć (#617, D-256).
+ * Porównuje wiersze `media` z jedną migawką kopii zdjęć (#617, D-257).
  *
  * PO CO TO ISTNIEJE
  * Kopia, której nikt nie porównał z bazą, jest zamiarem, a nie kopią. Ta

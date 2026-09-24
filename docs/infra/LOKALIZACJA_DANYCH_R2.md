@@ -239,7 +239,7 @@ faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
 
 ## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
 
-> **SPROSTOWANIE Z 24 IX 2026 (D-256).** Kroki 1–2a niżej zakładały jeden
+> **SPROSTOWANIE Z 24 IX 2026 (D-257).** Kroki 1–2a niżej zakładały jeden
 > bucket kopii z kopią **lustrzaną** i lifecycle „usuń po 31 dniach od
 > zapisu”. W kopii lustrzanej wiek obiektu liczy się od jego zapisu do
 > kopii, więc lifecycle kasowałby **każde zdjęcie starsze niż 31 dni**,

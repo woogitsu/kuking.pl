@@ -7,7 +7,7 @@ Trwałość R2 („jedenaście dziewiątek”) chroni przed awarią nośnika, ni
 przed poprawnie wykonanym `DELETE`, i **nie jest kopią zapasową**.
 
 Ten dokument to runbook dla **właściciela**. Kod po stronie aplikacji
-(D-256) jest gotowy. Wszystko, co wymaga panelu Cloudflare, tokenów albo
+(D-257) jest gotowy. Wszystko, co wymaga panelu Cloudflare, tokenów albo
 dotknięcia produkcji, jest opisane jako krok do wykonania, a nie jako
 fakt. Tło i porównanie wariantów: `LOKALIZACJA_DANYCH_R2.md` §6a
 oraz komentarze w #617.
@@ -44,7 +44,7 @@ oraz komentarze w #617.
   `LOKALIZACJA_DANYCH_R2.md` §6a: rygiel na `incoming/` wyjmuje usuwanie
   danych z automatu.
 
-**Co zawęża zasięg (D-256, zrobione w kodzie):** każdy bucket może dostać
+**Co zawęża zasięg (D-257, zrobione w kodzie):** każdy bucket może dostać
 **własną parę** tokenu — `AWS_ORIGINALS_*`, `AWS_PUBLIC_*`, `AWS_LEGACY_*`,
 `AWS_EXPORTS_*` (`.env.example`). Bez tych zmiennych działa jak dotąd,
 na wspólnym `AWS_ACCESS_KEY_ID`. Połowa pary zatrzymuje start aplikacji
@@ -285,6 +285,6 @@ nie dostaje ani aplikacja, ani proces kopiujący.
 
 ## 10. Wariant C, jeśli właściciel odłoży decyzję
 
-Wolno — ale **zapisany wprost** w D-256: data, zdanie „skasowane zdjęcie
+Wolno — ale **zapisany wprost** w D-257: data, zdanie „skasowane zdjęcie
 jest dziś stracone bezpowrotnie” i data powrotu do decyzji. Obecny stan
 jest akceptacją ryzyka **niezapisaną**. Wygląda jak decyzja, a nią nie jest.
