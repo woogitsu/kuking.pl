@@ -188,6 +188,10 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
      * Treść każdego joba z `ci.yml`, po nazwie. Podział po wcięciu dwóch
      * spacji — tak samo, jak robią to pozostali strażnicy tego pliku.
      *
+     * Nazwa joba może mieć myślnik (`docker-build`, `dwa-polaczenia`). Do
+     * 24.09.2026 wzorzec go nie dopuszczał i oba te joby doklejały się do
+     * bloku poprzednika — niewidoczne dla kontroli, które tu po nich chodzą.
+     *
      * @return array<string, string>
      */
     private function blokiJobow(): array
@@ -196,7 +200,7 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
         $granice = [];
 
         foreach ($wiersze as $i => $w) {
-            if (preg_match('/^  ([a-z0-9_]+):$/', $w, $m) === 1) {
+            if (preg_match('/^  ([a-z0-9_-]+):$/', $w, $m) === 1) {
                 $granice[$i] = $m[1];
             }
         }
@@ -249,6 +253,289 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
             'Bramka uruchamia job dostępności przy zmianie samego `docs/PRODUCT.md`. Ten job niczego '
             .'stamtąd nie czyta, więc albo bramka przestała rozróżniać, albo przyrząd zawsze mówi „rusza".',
         );
+    }
+
+    // -----------------------------------------------------------------
+    //  Ciężkie joby wąskiego obszaru — zawężane tylko na PR-ach (24.09.2026)
+    // -----------------------------------------------------------------
+
+    /**
+     * Joby, które od 24.09.2026 na PR-ze chodzą tylko przy zmianie SWOJEGO
+     * obszaru (decyzja właściciela: 138 otwartych PR-ów dławiło runnery).
+     */
+    private const JOBY_WASKIE = ['docker-build', 'przyrzad_605', 'dwa-polaczenia', 'port_panelu'];
+
+    /**
+     * JOB WĄSKIEGO OBSZARU RUSZA PRZY ZMIANIE KAŻDEGO PLIKU, KTÓRY CZYTA.
+     *
+     * Wejścia joba są czytane Z DYSKU, nie wypisane tutaj: skrypty z jego
+     * kroków `run:` (razem z modułami, które te skrypty wczytują), lokalne
+     * akcje, Dockerfile'e z plikami kopiowanymi przez `COPY`, testy JS
+     * z polecenia `npm run build` (obraz je uruchamia) i pliki grupy
+     * PHPUnit wołanej przez `--group=`. Dopisanie do joba nowego wejścia,
+     * którego wzorzec bramki nie obejmuje, zapala ten test.
+     */
+    public function test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta(): void
+    {
+        foreach (self::JOBY_WASKIE as $job) {
+            $wejscia = $this->wejsciaJoba($job);
+
+            // Kontrola dodatnia przyrządu: pusta lista wejść nic nie sprawdza.
+            $this->assertNotSame([], $wejscia, "Nie odczytano żadnego wejścia joba `{$job}` — przyrząd jest ślepy.");
+
+            foreach ($wejscia as $plik) {
+                $this->assertTrue(
+                    $this->jobRusza($job, [$plik]),
+                    "Bramka pomija job `{$job}` na PR-ze przy zmianie `{$plik}`, a ten job ten plik CZYTA. "
+                    .'Zawężenie ma pomijać joby przy zmianie obok, nie przy zmianie ich wejścia.',
+                );
+            }
+        }
+    }
+
+    /**
+     * Lista właściciela dla builda obrazu — wypisana wprost, bo część tych
+     * plików (manifesty, `.railway/`) nie wynika z samego `ci.yml`.
+     */
+    public function test_build_obrazu_rusza_przy_zmianie_tego_co_buduje_obraz(): void
+    {
+        foreach ([
+            'Dockerfile', 'docker/entrypoint.sh', 'docker/kopia/Dockerfile', '.dockerignore',
+            'composer.json', 'composer.lock', 'package.json', 'package-lock.json',
+            '.railway/railway.ts', 'vite.config.js', 'bootstrap/app.php', 'config/app.php',
+            'app/Providers/AppServiceProvider.php', '.github/workflows/ci.yml',
+        ] as $plik) {
+            $this->assertTrue($this->jobRusza('docker-build', [$plik]),
+                "Bramka pomija build obrazu przy zmianie `{$plik}`.");
+        }
+    }
+
+    /**
+     * KONTROLA UJEMNA ZAWĘŻENIA: na PR-ze zmiana obok obszaru joba go POMIJA.
+     *
+     * Bez tej kontroli dwa testy wyżej przechodziłyby także przy wzorcu
+     * „wszystko", czyli bez żadnej oszczędności. Kontrola dodatnia w tym
+     * samym przebiegu: zestaw testów przy tej samej zmianie RUSZA.
+     */
+    public function test_na_pull_requescie_zmiana_obok_pomija_ciezkie_joby(): void
+    {
+        $obok = [
+            'tests/Feature/ZmianaObokTest.php' => self::JOBY_WASKIE,
+            'resources/css/app.css' => ['docker-build', 'przyrzad_605', 'dwa-polaczenia'],
+            'app/Models/Recipe.php' => ['docker-build', 'przyrzad_605'],
+            // `port_panelu` dzieli filtr widoku z pozostałymi jobami
+            // przeglądarkowymi, więc skrypt pomiarowy dostępności go uruchamia.
+            'scripts/dostepnosc.mjs' => ['docker-build', 'przyrzad_605', 'dwa-polaczenia'],
+            'scripts/testy-dwa-polaczenia.sh' => ['docker-build', 'przyrzad_605', 'port_panelu'],
+        ];
+
+        foreach ($obok as $plik => $joby) {
+            $this->assertTrue($this->jobRusza(self::JOB_TESTOW, [$plik]),
+                "Przyrząd: zestaw testów nie rusza przy zmianie `{$plik}` — bramka albo przyrząd są zepsute.");
+
+            foreach ($joby as $job) {
+                $this->assertFalse($this->jobRusza($job, [$plik]),
+                    "Bramka uruchamia `{$job}` na PR-ze przy zmianie `{$plik}`, której ten job nie mierzy.");
+            }
+        }
+    }
+
+    /**
+     * POZA PR-EM NIC NIE JEST ZAWĘŻANE.
+     *
+     * Push na `main`/`staging` i uruchomienie ręczne mierzą jak dotąd: każdy
+     * job ruszający przy zmianie kodu rusza, niezależnie od tego, czego
+     * zmiana dotyczy. Brak zmiennej `ZDARZENIE` też daje pełny zestaw.
+     * Kontrolą ujemną jest test wyżej — ta sama zmiana na PR-ze pomija joby.
+     */
+    public function test_poza_pull_requestem_kazdy_job_rusza_przy_zmianie_kodu(): void
+    {
+        $joby = array_keys(array_filter(
+            $this->blokiJobow(),
+            fn (string $blok): bool => preg_match('/^    if: .*needs\.zakres\.outputs\./m', $blok) === 1,
+        ));
+
+        foreach (self::JOBY_WASKIE as $job) {
+            $this->assertContains($job, $joby, "Job `{$job}` nie stoi na bramce `zakres`.");
+        }
+
+        foreach (['push', 'workflow_dispatch', null] as $zdarzenie) {
+            foreach ($joby as $job) {
+                $this->assertTrue(
+                    $this->jobRusza($job, ['tests/Feature/ZmianaObokTest.php'], $zdarzenie),
+                    "Job `{$job}` jest pomijany poza PR-em (zdarzenie: ".($zdarzenie ?? 'brak').'). '
+                    .'Na `main` i przy uruchomieniu ręcznym ciężkie joby mają chodzić zawsze.',
+                );
+            }
+        }
+    }
+
+    /**
+     * Pliki, które job naprawdę czyta — zebrane z `ci.yml` i z dysku.
+     *
+     * @return list<string>
+     */
+    private function wejsciaJoba(string $job): array
+    {
+        $blok = implode("\n", array_filter(
+            $this->wiersze($this->blokiJobow()[$job] ?? ''),
+            fn (string $w): bool => ! str_starts_with(ltrim($w), '#'),
+        ));
+
+        $this->assertNotSame('', $blok, "Nie znaleziono joba `{$job}` w `ci.yml`.");
+
+        $pliki = array_fill_keys($this->lokalneAkcjeJoba($job), true);
+
+        foreach ($this->sciezkiWTekscie($blok, '') as $plik) {
+            $pliki[$plik] = true;
+        }
+
+        // Skrypty wczytują moduły i uruchamiają pliki — idziemy po nich
+        // wszerz, aż lista przestanie rosnąć.
+        $kolejka = array_keys($pliki);
+
+        while ($kolejka !== []) {
+            $plik = array_shift($kolejka);
+
+            if (preg_match('/\.(mjs|js|sh)$/', $plik) !== 1) {
+                continue;
+            }
+
+            $tresc = implode("\n", array_filter(
+                $this->wiersze((string) file_get_contents(base_path($plik))),
+                fn (string $w): bool => preg_match('~^\s*(#|//|\*|/\*)~', $w) !== 1,
+            ));
+
+            $nowe = $this->sciezkiWTekscie($tresc, dirname($plik));
+
+            // `--group=` w skrypcie: pliki testów tej grupy są wejściem joba.
+            preg_match_all('/--group=([a-z0-9-]+)/', $tresc, $grupy);
+
+            foreach ($grupy[1] as $grupa) {
+                foreach ($this->pliki('tests', '*.php') as $test) {
+                    // Sam atrybut na początku wiersza — nie wzmianka w komentarzu
+                    // ani w napisie (ten plik też wymienia nazwę grupy).
+                    $atrybut = '/^#\[Group\(\''.preg_quote($grupa, '/').'\'\)\]/m';
+
+                    if (preg_match($atrybut, (string) file_get_contents(base_path($test))) === 1) {
+                        $nowe[] = $test;
+                    }
+                }
+            }
+
+            foreach ($nowe as $sciezka) {
+                if (! isset($pliki[$sciezka])) {
+                    $pliki[$sciezka] = true;
+                    $kolejka[] = $sciezka;
+                }
+            }
+        }
+
+        // Build obrazu: Dockerfile'e i to, co z repozytorium kopiują jako
+        // POJEDYNCZE pliki. Całe katalogi (`COPY app ./app`) budują to samo,
+        // co mierzą `assets` i `test` na każdym PR-ze — nie są wejściem,
+        // którego nie sprawdza nic innego. Tu BEZ przejścia po modułach:
+        // wejściem swoistym dla obrazu jest lista testów z `npm run build`
+        // (tę samą listę sprawdza bramka w Dockerfile), a moduły, które te
+        // testy wczytują, mierzy tym samym poleceniem job `assets`.
+        if (str_contains($blok, 'docker/build-push-action')) {
+            preg_match_all('/^\s+file:\s*(\S+)/m', $blok, $m);
+            $dockerfile = str_contains($blok, 'context: .') ? ['Dockerfile'] : [];
+
+            foreach (array_merge($dockerfile, $m[1]) as $plik) {
+                $pliki[$plik] = true;
+
+                preg_match_all('/^COPY (?!--from)(.+)$/m', (string) file_get_contents(base_path($plik)), $kopie);
+
+                foreach ($kopie[1] as $linia) {
+                    $czesci = preg_split('/\s+/', trim($linia)) ?: [];
+                    array_pop($czesci);
+
+                    foreach ($czesci as $zrodlo) {
+                        if (is_file(base_path($zrodlo))) {
+                            $pliki[$zrodlo] = true;
+                        }
+                    }
+                }
+            }
+
+            // `npm run build` w obrazie uruchamia testy JS bez `tests/`,
+            // `docs/` i `*.md` — tego job Vite nie odtworzy.
+            $pakiet = json_decode((string) file_get_contents(base_path('package.json')), true);
+            $build = is_array($pakiet) ? (string) ($pakiet['scripts']['build'] ?? '') : '';
+
+            $this->assertNotSame('', $build, 'Nie odczytano polecenia `build` z `package.json`.');
+
+            foreach (preg_split('/\s+/', $build) ?: [] as $slowo) {
+                if (preg_match('~^[A-Za-z0-9_./-]+\.mjs$~', $slowo) === 1 && is_file(base_path($slowo))) {
+                    $pliki[$slowo] = true;
+                }
+            }
+        }
+
+
+        return array_keys($pliki);
+    }
+
+    /**
+     * Istniejące pliki wskazane w tekście: ścieżki od korzenia repozytorium
+     * (`scripts/…`, `tests/…`, `docker/…`) i nazwy w cudzysłowie względne
+     * wobec katalogu pliku (`'./moduł.mjs'`, `'generator-605.mjs'`).
+     *
+     * @return list<string>
+     */
+    private function sciezkiWTekscie(string $tekst, string $katalog): array
+    {
+        $znalezione = [];
+
+        // `./scripts/x.sh` to też ścieżka od korzenia; `inny/scripts/x` już nie.
+        preg_match_all('~(?:(?<=\./)|(?<![A-Za-z0-9_./-]))((?:scripts|tests|docker)/[A-Za-z0-9_./-]*[A-Za-z0-9_-])~', $tekst, $odKorzenia);
+
+        foreach ($odKorzenia[1] as $sciezka) {
+            if (is_file(base_path($sciezka))) {
+                $znalezione[] = $sciezka;
+            }
+        }
+
+        if ($katalog !== '') {
+            preg_match_all('~[\'"]((?:\.{1,2}/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:mjs|js|sh|php))[\'"]~', $tekst, $wzgledne);
+
+            foreach ($wzgledne[1] as $nazwa) {
+                $sciezka = $this->normalizuj($katalog.'/'.$nazwa);
+
+                if ($sciezka !== null && is_file(base_path($sciezka))) {
+                    $znalezione[] = $sciezka;
+                }
+            }
+        }
+
+        return $znalezione;
+    }
+
+    /** `scripts/./a/../b.mjs` → `scripts/b.mjs`; `null`, gdy wychodzi poza repozytorium. */
+    private function normalizuj(string $sciezka): ?string
+    {
+        $wynik = [];
+
+        foreach (explode('/', $sciezka) as $czesc) {
+            if ($czesc === '' || $czesc === '.') {
+                continue;
+            }
+
+            if ($czesc === '..') {
+                if ($wynik === []) {
+                    return null;
+                }
+
+                array_pop($wynik);
+
+                continue;
+            }
+
+            $wynik[] = $czesc;
+        }
+
+        return implode('/', $wynik);
     }
 
     // -----------------------------------------------------------------
@@ -411,13 +698,19 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
      *
      * @param  list<string>  $zmienione
      */
-    private function jobRusza(string $job, array $zmienione): bool
+    private function jobRusza(string $job, array $zmienione, ?string $zdarzenie = 'pull_request'): bool
     {
-        return $this->spelniony($this->warunekJoba($job), $this->wyjsciaBramki($zmienione));
+        return $this->spelniony($this->warunekJoba($job), $this->wyjsciaBramki($zmienione, $zdarzenie));
     }
 
-    /** @return array<string, string> */
-    private function wyjsciaBramki(array $zmienione): array
+    /**
+     * Domyślnie `pull_request`: tylko tam bramka zawęża, więc to jest
+     * NAJWĘŻSZY przypadek — kontrola „job rusza" musi przejść właśnie w nim.
+     * `null` usuwa zmienną ze środowiska (bramka ma wtedy dać pełny zestaw).
+     *
+     * @return array<string, string>
+     */
+    private function wyjsciaBramki(array $zmienione, ?string $zdarzenie = 'pull_request'): array
     {
         $skrypt = $this->skryptBramki();
         $wyjscie = tempnam(sys_get_temp_dir(), 'bramka');
@@ -426,6 +719,7 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
 
         $proces = new Process(['bash', '-c', $skrypt, 'bramka', ...$zmienione], base_path(), [
             'GITHUB_OUTPUT' => $wyjscie,
+            'ZDARZENIE' => $zdarzenie ?? false,
         ]);
         $proces->run();
 
