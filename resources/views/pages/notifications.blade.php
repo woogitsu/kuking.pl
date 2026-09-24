@@ -153,10 +153,16 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — {{ ($data['question_answer'] ?? false) ? 'odpowiedź na Twoje pytanie.' : 'nowy komentarz.' }}</strong>
+                                @if($questionTitle = ($questionTitles[$data['comment_id'] ?? ''] ?? null))
+                                    <span class="block">Pytanie: „{{ $questionTitle }}”</span>
+                                @endif
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowa odpowiedź.</strong>
+                                @if($questionTitle = ($questionTitles[$data['comment_id'] ?? ''] ?? null))
+                                    <span class="block">Pytanie: „{{ $questionTitle }}”</span>
+                                @endif
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
