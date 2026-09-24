@@ -395,7 +395,18 @@ class CollectionController extends Controller
 
         $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
 
-        $collection->update($data);
+        try {
+            // `DB::transaction()` — ten sam powód co łapanie w `store()`, plus
+            // jeden: na PostgreSQL odrzucony UPDATE psuje całą bieżącą
+            // transakcję. Własna (w testach: savepoint) wycofuje tylko jego,
+            // więc reszta żądania dalej może rozmawiać z bazą (issue #1339).
+            DB::transaction(fn () => $collection->update($data));
+        } catch (UniqueConstraintViolationException) {
+            // Druga karta zajęła tę nazwę między walidacją a zapisem.
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
+        }
 
         $jestPubliczna = $collection->isPublic();
 
