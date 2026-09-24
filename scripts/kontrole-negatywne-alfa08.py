@@ -197,6 +197,12 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Jeden kontrakt danych karty wpisu (#1037). Test jest behawioralny: renderuje
+# siedem list i liczy zapytania. Mutacje zdejmują ze wspólnej listy zdjęcie
+# przepisu i tematy — każda ma zapalić test na wszystkich zależnych
+# powierzchniach, czyli dowieść, że listy naprawdę idą przez `dlaKarty()`.
+KONTRAKT_KARTY = "app/Models/Post.php"
+KONTRAKT_KARTY_TEST = "KartaWpisuJednymKontraktemTest"
 
 
 def digest(path):
@@ -474,6 +480,10 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'recipe.heroMedia',\n    ];", "    ];")),
+    ("Kontrakt karty bez tematów", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'tags:id,slug,name,status',\n    ];", "    ];")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +507,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(KONTRAKT_KARTY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

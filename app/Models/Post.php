@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Collections\ZapisyWpisu;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -61,6 +62,40 @@ class Post extends Model
 
     /** Siatka: wszystkie zdjęcia na jednym ekranie. */
     public const DISPLAY_COLLAGE = 'collage';
+
+    /**
+     * Relacje, które czyta każdy kafelek wpisu — `<x-post-card>` i kafelek
+     * tablicy dnia (`kuking-board/posts`): autor z awatarem, własne zdjęcia
+     * i przepis, na który wpis wskazuje (#1037).
+     *
+     * `visibility` i `hero_media_id` MUSZĄ być w selekcie przepisu (#368,
+     * #447): kolumna pominięta w selekcie nie jest błędem, tylko cichym
+     * `null`. Bez `hero_media_id` relacja `heroMedia` nie ma po czym trafić
+     * i karta nie rysuje zdjęcia; bez `visibility` plakietka schodzi przez
+     * `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
+     *
+     * Do 24.09.2026 ta lista stała ręcznie przepisana w siedmiu zapytaniach
+     * (trzy strumienie, dwa miejsca tablicy dnia, profil, strona tagu,
+     * zeszyt) i już się rozjechała: zeszyt nie ładował tagów, więc ta sama
+     * karta była tam bez tematów. Teraz każda lista bierze ją przez
+     * `scopeDlaKarty()`, a pilnuje tego `KartaWpisuJednymKontraktemTest`.
+     */
+    public const RELACJE_KAFELKA = [
+        'author.profile.avatar',
+        'media',
+        'recipe:id,title,slug,visibility,hero_media_id',
+        'recipe.heroMedia',
+    ];
+
+    /**
+     * Pełna karta (`<x-post-card>`) dokłada tematy. Karta pokazuje je TYLKO
+     * przy `relationLoaded('tags')` — celowo nie dociąga ich sama, żeby nie
+     * odpalić zapytania per wpis — więc lista bez tej relacji nie ma chipów.
+     */
+    public const RELACJE_KARTY = [
+        ...self::RELACJE_KAFELKA,
+        'tags:id,slug,name,status',
+    ];
 
     /**
      * `kind` NIE JEST TU CELOWO — patrz `oznaczJakoPytanie()` niżej.
@@ -168,6 +203,38 @@ class Post extends Model
             ->where(fn (Builder $counted) => $counted
                 ->whereNull('comments.body_removed_at')
                 ->orWhere('posts.kind', self::KIND_DISH))]);
+    }
+
+    /**
+     * Kontrakt danych karty wpisu na LIŚCIE (#1037): relacje czytane przez
+     * kartę, licznik widocznych komentarzy i — dla pełnej karty — liczba
+     * zapisów ze stanem „mam to w zeszycie" (`ZapisyWpisu::dolicz()`, D-081),
+     * wszystko w TYM SAMYM zapytaniu, co lista.
+     *
+     * Czego tu CELOWO nie ma: wyboru źródła, kolejności, paginacji ani bramki
+     * widoczności przepisu. Bramka to bezpieczeństwo, nie prezentacja, i ma
+     * własny scope — `zWidocznymPrzepisem()` — który każda lista wywołuje
+     * jawnie (tablica dnia musi go mieć w podzapytaniu `DISTINCT ON`, nie
+     * w zapytaniu po modele).
+     *
+     * `kafelek: true` — wariant tablicy dnia: jej kafelek nie pokazuje ani
+     * tematów, ani liczby zapisów, więc nie ładuje tagów i nie dolicza zapisów.
+     *
+     * Wariant rozszerzony: strona jednego wpisu (`PostController::show()`)
+     * dostaje model z wiązania trasy i ładuje `recipe` w CAŁOŚCI plus
+     * `recipe.author`, bo nad kartą stoi `RecipePolicy::view()`. Relacje
+     * karty są tam te same; licznik zapisów dolicza `doliczDoWpisu()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeDlaKarty(Builder $query, ?User $widz, bool $kafelek = false): void
+    {
+        $query->with($kafelek ? self::RELACJE_KAFELKA : self::RELACJE_KARTY)
+            ->withVisibleCommentCount($widz);
+
+        if (! $kafelek) {
+            app(ZapisyWpisu::class)->dolicz($query, $widz);
+        }
     }
 
     /** @param  Builder<Post>  $query */

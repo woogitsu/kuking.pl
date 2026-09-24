@@ -186,17 +186,10 @@ final class DailyBoard
             // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
             // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
             ->zWidocznymPrzepisem($viewer)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->get();
 
         $peopleById = $people->keyBy('id');
@@ -400,17 +393,10 @@ final class DailyBoard
         // przebiegu, a kolejność i tak trzeba narzucić na zewnątrz.
         return Post::query()
             ->whereIn('id', $wybrane)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->get();

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -34,14 +33,6 @@ use Illuminate\Contracts\Pagination\CursorPaginator;
  */
 final class TagFeed
 {
-    /**
-     * `new ZapisyWpisu` jako domyślna wartość — tak samo jak
-     * `LiczbaKukingow` bierze `CookEligibility`. Kontener i tak wstrzyknie
-     * tę klasę (nie ma zależności), a domyślna wartość sprawia, że test
-     * wołający `new TagFeed` wprost nie musi o niej wiedzieć.
-     */
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     /** @return CursorPaginator<int, Post> */
     public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
     {
@@ -68,38 +59,9 @@ final class TagFeed
             // między widzem a autorem.
             ->zWidocznymPrzepisem($viewer)
             ->tylkoOdAktywnychAutorow()
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
-                // doładowane — dokładnie jak w `FollowingFeed`, `DiscoverFeed`
-                // i `DailyBoard` (issue #368). Ten feed jako jedyny z czterech
-                // został przy samym `recipe:id,title,slug`, a karta wpisu
-                // (`post-card.blade.php`) czyta z tej relacji OBIE brakujące
-                // kolumny: `visibility` na plakietkę widoczności i
-                // `hero_media_id` na zdjęcie przepisu.
-                //
-                // Kolumna pominięta w selekcie NIE JEST BŁĘDEM — wraca `null`.
-                // Skutek był więc podwójnie cichy: `heroMedia` bez klucza
-                // obcego oddawało `null`, czyli wpis wskazujący przepis stał
-                // w strumieniu bez zdjęcia, a `visibility` jako `null` schodziło
-                // przez `?? $post->visibility` do widoczności WPISU — a ta przy
-                // wpisie wskazującym przepis jest na stałe `public`. Karta
-                // pisała więc autorowi „publicznie" pod przepisem widocznym
-                // tylko dla obserwujących.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
-            // (kto się liczy, od ilu osób widać liczbę) siedzą w
-            // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
-            // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
-            // wyżej.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
