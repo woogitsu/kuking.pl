@@ -657,7 +657,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
 | `R2_PUBLIC_BUCKET` | `kuking-media` | nie | Bucket **wariantów** WebP. `railway.ts` → `AWS_PUBLIC_BUCKET` → dysk `r2_publiczne`. **Bez tej zmiennej `AWS_PUBLIC_BUCKET` wraca domyślnie do `AWS_BUCKET`** (`config/filesystems.php`), czyli oba dyski wskazują jeden bucket i rozdział oryginałów od wariantów istnieje tylko na papierze — pilnuje tego `RozdzialMagazynowTest` |
 | `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
-| `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
+| `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
@@ -822,7 +822,7 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_DEFAULT_REGION=auto
 AWS_USE_PATH_STYLE_ENDPOINT=false
-AWS_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+AWS_ENDPOINT=https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com   # D-255: tylko ten kształt
 AWS_BUCKET=kuking-oryginaly          # oryginały, dysk `r2`
 AWS_PUBLIC_BUCKET=kuking-media       # warianty, dysk `r2_publiczne`
 AWS_EXPORTS_BUCKET=kuking-eksporty   # paczki RODO, dysk `r2_eksporty`
@@ -1865,11 +1865,17 @@ to jest oczekiwane.
 **Reguła 1 — „Assety Vite"** (kolejność: pierwsza)
 
 ```text
-Gdy:   starts_with(http.request.uri.path, "/build/")
+Gdy:   starts_with(http.request.uri.path, "/build/assets/")
 Wtedy: Cache eligibility     = Eligible for cache
        Edge TTL              = 1 rok
        Browser TTL           = 1 rok
 ```
+
+Manifest `/build/manifest.json` nie należy do reguły rocznej. Caddy wysyła
+`Cache-Control: no-cache`: plik nie ma hasha w nazwie, więc nie może być
+„immutable”. Przeglądarka go nie pobiera — czyta go Laravel z dysku (`@vite`).
+Jeśli istnieje starsza reguła `/build/*`, zawęź ją do `/build/assets/*`
+i usuń stary manifest z cache Cloudflare przy wdrożeniu poprawki #809.
 
 **Reguła 2 — „Statyka PWA"**
 
@@ -2043,9 +2049,15 @@ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://www.kuking.p
 curl -sI https://kuking.pl/ | grep -i "^\(cf-ray\|server\)"
 # Oczekiwane: cf-ray oraz server: cloudflare
 
-# 6. Assety Vite cache'owane na rok
-curl -sI https://kuking.pl/build/manifest.json | grep -i cache-control
-# Oczekiwane: public, max-age=31536000, immutable
+# 6. CSS i JS wskazane przez bieżącą stronę: HTTP 200, typ treści, roczny cache
+./scripts/sprawdz-wdrozenie.sh kuking.pl
+# Sonda wypisuje zbadane ścieżki; nie potwierdza całego buildu.
+# /build/manifest.json nie ma hasha: no-cache, bez rocznego immutable.
+# Brak odnośników /build/assets/ na stronie to teraz BŁĄD, nie ostrzeżenie:
+# gdy sonda failuje „Nie znaleziono własnego hashowanego CSS i JS”, zajrzyj
+# do źródła strony — odnośniki @vite muszą zaczynać się od /build/assets/
+# albo https://kuking.pl/build/assets/; popraw APP_URL (https, właściwy host)
+# i usuń/popraw ASSET_URL w Railway, potem wdrożenie i ponowna sonda.
 
 # 7. Endpoint Livewire NIE jest cache'owany
 curl -sI https://kuking.pl/livewire/update | grep -i "cache-control\|cf-cache-status"
@@ -2287,8 +2299,19 @@ railway logs --service web --environment production | tail -50
 
 Powtórz dla `worker` i `scheduler`. Czas: 2–5 minut.
 
-Albo z GitHuba: **Actions** → **Deploy** → **Run workflow** →
-environment `production`, action `redeploy`.
+**Z GitHuba rollbacku NIE zrobisz.** Action `redeploy` wdraża ponownie
+BIEŻĄCĄ wersję, a action `instrukcja-cofniecia` (do 23.09.2026: `rollback`)
+tylko wypisuje listę wdrożeń i tę instrukcję — niczego nie zmienia, wystawia
+ostrzeżenie i mówi to w podsumowaniu (issue #974). Railway CLI nie potrafi
+wskrzesić wybranego starszego wdrożenia; robi się to w panelu, jak wyżej.
+
+**Przed kliknięciem:** sprawdź, czy wdrożenia, które cofasz, nie niosły
+migracji `DROP`/`RENAME` (ścieżka C niżej) — stary kod musi pasować do
+schematu, który zostaje w bazie.
+
+**Po kliknięciu:** **Actions** → **Deploy** → **Run workflow** → action
+`smoke`, a pod `https://kuking.pl/wydanie` sprawdź, że pole `commit` wskazuje
+commit, do którego wracałeś.
 
 ### Ścieżka B — deploy Z migracją NIEDESTRUKCYJNĄ (dodanie kolumny/tabeli)
 
@@ -2600,6 +2623,48 @@ wygoda (stare linki z maili i ciasteczka).
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
 | **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
+| **Jedno zadanie harmonogramu milczy** (np. liczniki panelu moderacji stoją), a pętla harmonogramu żyje | stara blokada `withoutOverlapping` po procesie zabitym bez sygnału (SIGKILL, OOM, ubity kontener) | sekcja „Stara blokada harmonogramu" niżej |
+
+### Stara blokada harmonogramu (#1002)
+
+Każde zadanie w `routes/console.php` ma jawny czas wygaśnięcia blokady,
+krótszy niż odstęp do następnego terminu (co 5 min → 4, co 15 min → 10,
+co godzinę → 50, codziennie → 120 minut). Po zabiciu procesu blokada
+**sama zniknie** w tym czasie — zwykle wystarczy poczekać jeden termin.
+Ręczne czyszczenie jest działaniem awaryjnym, nie podstawowym mechanizmem.
+
+**Rozpoznanie.** Blokady leżą w tabeli `cache_locks`. Klucz blokady
+`withoutOverlapping` kończy się na `framework/schedule-` + 40 znaków
+`sha1(nazwa zadania)`; klucze `onOneServer` mają na końcu jeszcze godzinę
+i minutę (`HHMM`) i nie wstrzymują kolejnych terminów.
+
+```sql
+SELECT key, owner, to_timestamp(expiration) AS wygasa
+FROM cache_locks
+WHERE key ~ 'framework/schedule-[0-9a-f]{40}$'
+ORDER BY expiration;
+```
+
+Nazwę zadania dopasujesz lokalnie: `php -r "echo sha1('kuking:policz-kolejki'), PHP_EOL;"`.
+Blokada jest podejrzana, gdy `wygasa` wypada **dalej niż** czas z tabelki
+wyżej od teraz — to ślad sprzed zmiany z #1002 (wtedy 1440 minut). Po
+pierwszym wdrożeniu #1002 sprawdź to raz: stara blokada zachowuje swój
+dawny termin wygaśnięcia, nowy kod go nie skraca.
+
+**Bezpieczne czyszczenie.**
+
+1. Upewnij się, że zadanie **naprawdę nie trwa**: w logach serwisu z
+   harmonogramem nie ma rozpoczętego, niezakończonego przebiegu tego
+   zadania. Zadania idą w procesie `schedule:run`, więc trwający przebieg
+   to żywy `schedule:run` ze startem sprzed ponad minuty.
+2. Najwęższe działanie: usuń jeden wiersz tej blokady
+   (`DELETE FROM cache_locks WHERE key = '…';`).
+3. `php artisan schedule:clear-cache` zdejmuje blokady **wszystkich** zadań
+   naraz — także tych, które właśnie się wykonują, więc dopuszcza drugi,
+   równoległy przebieg. Używaj go tylko wtedy, gdy krok 1 wykluczył
+   trwające przebiegi dla całego harmonogramu.
+4. Po następnym terminie sprawdź, że zadanie ruszyło (log albo świeże
+   dane, np. liczniki panelu moderacji).
 
 ## Kontakty awaryjne
 

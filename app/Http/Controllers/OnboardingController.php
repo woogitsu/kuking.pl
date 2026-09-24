@@ -14,6 +14,7 @@ use App\Models\Profile;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -86,7 +87,7 @@ class OnboardingController extends Controller
      * cofnięciu się przeglądarką — zgodnie z AGENTS.md §5 (ważne rzeczy
      * bez JavaScriptu).
      *
-     * NIC Z TEGO NIE ZAPISUJEMY. W przeciwieństwie do `/szukaj`, ten krok
+     * NIE ZAPISUJEMY SYGNAŁU ANALITYCZNEGO. W przeciwieństwie do `/szukaj`, ten krok
      * świadomie NIE woła `ZapiszSygnal` — nie ma dziś decyzji produktowej,
      * że warto mierzyć to osobno, a `docs/research/MIGRACJA_Z_GARNKA.md`
      * §3.1 wprost preferuje rozwiązanie bez nowego zapisu.
@@ -98,8 +99,36 @@ class OnboardingController extends Controller
         // zgłasza wtedy „Array to string conversion”, a ekran kończy na 500.
         // Nietekstowe `q` znaczy dokładnie to samo co brak frazy.
         $qSurowe = $request->query('q', '');
-        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
+        $phrase = $request->boolean('clear') ? '' : trim(is_string($qSurowe) ? $qSurowe : '');
         $searchErrors = SearchQuery::phraseValidator($phrase, 'Imię lub nazwa użytkownika')->errors();
+        $context = $request->session()->get('onboarding.selection');
+        $contextValid = is_array($context)
+            && ($context['user'] ?? null) === $request->user()->getKey()
+            && ($context['expires'] ?? 0) > now()->getTimestamp();
+        $selectionValid = $contextValid && old('selection', $request->input('selection')) === $context['token'];
+        if (! $contextValid) {
+            $context = ['user' => $request->user()->getKey(), 'token' => (string) Str::uuid(), 'expires' => now()->addMinutes(30)->getTimestamp()];
+            $request->session()->put('onboarding.selection', $context);
+        }
+        $input = old('follow', $request->input('follow', []));
+        // Para nazwa–identyfikator (#793) z TEGO SAMEGO źródła co `follow`:
+        // po błędzie walidacji z `old()`, inaczej z adresu (#1340).
+        $oczekiwaniSurowi = $request->session()->hasOldInput('follow')
+            ? old('oczekiwani', [])
+            : $request->input('oczekiwani', []);
+        $oczekiwani = [];
+
+        foreach (is_array($oczekiwaniSurowi) ? $oczekiwaniSurowi : [] as $nazwa => $id) {
+            if (is_string($id)) {
+                $oczekiwani[mb_strtolower((string) $nazwa)] = $id;
+            }
+        }
+        $selected = $selectionValid && is_array($input)
+            ? array_values(array_unique(array_filter($input, fn ($name) => is_string($name) && strlen($name) <= 40)))
+            : [];
+        // Nadmiar pozostaje widoczny po błędzie POST, aby można go odznaczyć.
+        // GET również ma granicę kosztu, niezależną od walidacji zapisu.
+        $selected = array_slice($selected, 0, 50);
 
         // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
@@ -121,12 +150,33 @@ class OnboardingController extends Controller
                 ->values();
         }
 
+        $results = $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA);
+        // Wyniki wyszukiwania wykluczamy PRZED limitem SQL (#1299) — odsiane
+        // po fakcie zjadałyby miejsca na liście polecanych.
+        $people = $this->board->peopleToFollow($request->user(), 8, $results?->pluck('user_id')->all() ?? []);
+        $visibleNames = $people->pluck('profile.username')->merge($results?->pluck('username') ?? []);
+        $selectedProfiles = Profile::query()->whereIn('username', $selected)->with('user')->get()
+            ->filter(fn (Profile $profile) => $profile->user !== null && $request->user()->can('follow', $profile->user));
+        // Nazwa, która od wyrenderowania zmieniła właściciela, nie wraca
+        // zaznaczona przy nowej osobie — tak samo jak w `saveFollows()`.
+        [$selectedProfiles, $zmienionePrzyWyborze] = $selectedProfiles->partition(function (Profile $profile) use ($oczekiwani) {
+            $oczekiwanyId = $oczekiwani[mb_strtolower($profile->username)] ?? null;
+
+            return $oczekiwanyId === null || (string) $profile->user_id === $oczekiwanyId;
+        });
+        $selected = $selectedProfiles->pluck('username')->all();
+
         return view('pages.onboarding.people', [
-            'people' => $this->board->peopleToFollow($request->user(), 8),
+            'people' => $people,
+            'selectedFollows' => $selected,
+            'selectionContext' => $context['token'],
+            'selectedProfiles' => $selectedProfiles->reject(fn ($profile) => $visibleNames->contains($profile->username)),
+            'selectionExpired' => ! $selectionValid && $request->has('selection'),
+            'zmienionePrzyWyborze' => $zmienionePrzyWyborze->pluck('username')->values()->all(),
             'phrase' => $phrase,
             'searchErrors' => $searchErrors,
             'zaKrotka' => $zaKrotka,
-            'wynikiWyszukiwania' => $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA),
+            'wynikiWyszukiwania' => $results,
             'jestWiecejWynikow' => ($wynikiWyszukiwania?->count() ?? 0) > self::WYNIKI_WYSZUKIWANIA,
         ]);
     }
@@ -143,16 +193,29 @@ class OnboardingController extends Controller
         //
         // Ekran proponuje osiem osób (`people()` niżej). Dwadzieścia daje
         // zapas na zmianę tej liczby i nadal odcina nadużycie.
-        $request->validate([
+        $data = $request->validate([
             'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
             // `oczekiwani[nazwa] => id` — patrz niżej. Ten sam sufit co na
             // `follow`: to lista sparowana z tamtą, nie osobne wejście.
             'oczekiwani' => ['nullable', 'array', 'max:20'],
             'oczekiwani.*' => ['string'],
+        ], [
+            'follow.max' => 'Zaznacz najwyżej :max osób. Odznacz pozostałe i kliknij „Dalej”.',
         ]);
 
         $user = $request->user();
+        // Bez powtórzeń, bez rozróżniania wielkości liter (`Profile::poNazwie()`
+        // też jej nie rozróżnia), ale z zachowaniem pisowni widzianej
+        // na ekranie — komunikat niżej cytuje nazwę człowiekowi.
+        $selected = [];
+
+        foreach ($data['follow'] ?? [] as $nazwa) {
+            $selected[mb_strtolower((string) $nazwa)] ??= (string) $nazwa;
+        }
+
+        $completed = 0;
+        $skipped = 0;
 
         // NAZWA UŻYTKOWNIKA W FORMULARZU TO NIE AUTORYZACJA (#793).
         //
@@ -186,12 +249,14 @@ class OnboardingController extends Controller
         // zaznaczenie wygląda dokładnie jak zaznaczenie, którego nie było.
         $zmieniloWlasciciela = [];
 
-        foreach ($request->input('follow', []) as $username) {
+        foreach ($selected as $username) {
             // Bez rozróżniania wielkości liter, tak samo jak profil
             // i listy obserwujących — patrz `Profile::poNazwie()`.
             $target = Profile::poNazwie($username)?->user;
 
             if ($target === null) {
+                $skipped++;
+
                 continue;
             }
 
@@ -205,6 +270,8 @@ class OnboardingController extends Controller
 
             try {
                 $this->followUser->handle($user, $target);
+                // Już istniejąca relacja także spełnia wybór człowieka.
+                $completed++;
             } catch (BladDlaCzlowieka) {
                 // Pojedyncza nieudana próba (np. konto w międzyczasie
                 // zablokowane) nie może przerwać całego onboardingu.
@@ -214,28 +281,46 @@ class OnboardingController extends Controller
                 // `PDOException`), więc awaria bazy udawała „konto
                 // niedostępne" i onboarding kończył się bez ani jednego
                 // obserwowania, nie mówiąc o tym nikomu.
+                $skipped++;
+
                 continue;
             }
         }
 
         $dalej = redirect()->route('onboarding.done');
 
-        if ($zmieniloWlasciciela === []) {
+        // DWIE RÓŻNE RZECZY MOGŁY PÓJŚĆ NIE TAK NARAZ, więc komunikaty
+        // zbieramy, zamiast wybierać jeden. Pominięte konto (`$skipped`)
+        // i nazwa, która zmieniła właściciela, to osobne przypadki i każdy
+        // ma własne „co zrobić".
+        $komunikaty = [];
+
+        if ($skipped > 0) {
+            $komunikaty[] = ($completed > 0 ? 'Nie udało się dodać wszystkich wybranych osób. ' : 'Nie udało się dodać wybranych osób. ')
+                .'Możesz teraz wejść do serwisu i wybrać inne później.';
+        }
+
+        if ($zmieniloWlasciciela !== []) {
+            // Komunikat mówi, CO ZROBIĆ, a nie tylko że coś poszło nie tak
+            // (docs/UX_50_PLUS.md). Onboarding się NIE cofa i nie gubi reszty
+            // zaznaczeń — pozostałe osoby są już zaobserwowane, a ta jedna
+            // wymaga świadomego powtórzenia wyboru, bo to już ktoś inny.
+            $komunikaty[] = count($zmieniloWlasciciela) === 1
+                ? 'Nazwa „'.$zmieniloWlasciciela[0].'” należy teraz do innej osoby, więc jej nie zaobserwowaliśmy. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować tę osobę, znajdź ją w wyszukiwarce i kliknij „Obserwuj” na jej profilu.'
+                : 'Te nazwy należą teraz do innych osób, więc ich nie zaobserwowaliśmy: '.implode(', ', $zmieniloWlasciciela).'. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować te osoby, znajdź je w wyszukiwarce i kliknij „Obserwuj” na ich profilach.';
+        }
+
+        if ($komunikaty === []) {
             return $dalej;
         }
 
-        // Komunikat mówi, CO ZROBIĆ, a nie tylko że coś poszło nie tak
-        // (docs/UX_50_PLUS.md). Onboarding się NIE cofa i nie gubi reszty
-        // zaznaczeń — pozostałe osoby są już zaobserwowane, a ta jedna
-        // wymaga świadomego powtórzenia wyboru, bo to już ktoś inny.
-        return $dalej->with('status', count($zmieniloWlasciciela) === 1
-            ? 'Nazwa „'.$zmieniloWlasciciela[0].'” należy teraz do innej osoby, więc jej nie zaobserwowaliśmy. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować tę osobę, znajdź ją w wyszukiwarce i kliknij „Obserwuj” na jej profilu.'
-            : 'Te nazwy należą teraz do innych osób, więc ich nie zaobserwowaliśmy: '.implode(', ', $zmieniloWlasciciela).'. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować te osoby, znajdź je w wyszukiwarce i kliknij „Obserwuj” na ich profilach.',
-        );
+        return $dalej->with('status', implode(' ', $komunikaty));
     }
 
     public function done(Request $request): View
     {
+        $request->session()->forget('onboarding.selection');
+
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
         ]);

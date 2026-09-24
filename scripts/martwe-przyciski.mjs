@@ -502,7 +502,7 @@ async function podniesSerwer() {
   /* Strona wciąga zbudowany arkusz przez manifest Vite. Bez przebudowania
      chodzilibyśmy po POPRZEDNIEJ wersji strony. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Podłączam storage (php artisan storage:link)...');
   execFileSync('php', ['artisan', 'storage:link'], { stdio: 'ignore', env: env() });
@@ -975,6 +975,8 @@ async function stanModeratora(przegladarka) {
   const sekret = (await strona.locator('.sekret-do-przepisania').innerText()).trim();
 
   await strona.fill('input[name="code"]', kodTotp(sekret));
+  // Włączenie 2FA prosi też o obecne hasło (#1376, D-245).
+  await strona.fill('form[action$="/ustawienia/2fa/wlacz"] input[name="password"]', HASLO);
   await Promise.all([
     strona.waitForURL((u) => ! u.pathname.endsWith('/wlacz'), { timeout: 15000 }),
     strona.getByRole('button', { name: 'Potwierdź i włącz' }).click(),

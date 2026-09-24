@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\DziennyBudzetListow;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Security\WyslijLinkDoLogowania;
 use App\Domain\Users\ZamekKonta;
 use App\Http\Controllers\Controller;
@@ -173,7 +174,11 @@ class LoginLinkController extends Controller
         // nieistniejące adresy — miejsce, z którego nic nie wyszło, wraca
         // niżej przez `zwolnij()`.
         if (! $budzet->sprobujZarezerwowac()) {
-            return back()->with('status',
+            // WPISANY ADRES ZOSTAJE W POLU (#890). Komunikat mówi „kliknij
+            // jeszcze raz" — bez `withInput` to kliknięcie trafiałoby
+            // w puste, wymagane pole. Tylko `email`: tokenu Turnstile nie
+            // odtwarzamy, bo jest jednorazowy i nie jest daną człowieka.
+            return back()->withInput($request->only('email'))->with('status',
                 // DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA. Rezerwacja mówi
                 // tylko „nie", a te dwa „nie" znaczą dla człowieka coś
                 // zupełnie innego: przy wyczerpanym budżecie czekanie na
@@ -415,7 +420,7 @@ class LoginLinkController extends Controller
         // drugi składnik.
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }

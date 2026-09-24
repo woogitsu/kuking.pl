@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
+use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
+use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
@@ -13,6 +15,7 @@ use App\Http\Middleware\NormalizeForwardedFor;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
+use App\Logging\QueueCorrelation;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -33,6 +37,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // który sprawdza bazę. Frameworkowy /up zostaje jako najprostszy sygnał
         // "proces żyje" — przydaje się, gdy baza jest w trakcie restartu.
         health: '/up',
+        // `/wydanie` (#1012) — POZA grupą `web`, jak `/up`. Sonda testu
+        // dymnego pyta co kilka sekund, a w grupie `web` każde pytanie
+        // zakładało nową sesję i odsyłało `Set-Cookie` z sesją i tokenem
+        // CSRF. Punkt jest tylko GET-em i niczego od klienta nie przyjmuje.
+        // Nagłówki bezpieczeństwa i zakaz cache daje stos globalny.
+        then: function (): void {
+            Route::get('/wydanie', WydanieController::class)->name('wydanie');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // PIERWSZY W CAŁYM STOSIE GLOBALNYM, przed `TrustProxies` — i to jest
@@ -122,6 +134,7 @@ return Application::configure(basePath: dirname(__DIR__))
             NormalizeForwardedFor::class,
             ApplySecurityHeaders::class,
             PreventSharedSessionCache::class,
+            CorrelateRequest::class,
         ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
@@ -535,7 +548,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // z komunikatem, który przy `QueryException` niesie e-mail i hash
             // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
             // go tu wkładać.
-            Log::channel('blad_webhook')->error($e::class, ['exception' => $e]);
+            Log::channel('blad_webhook')->error($e::class, [
+                'exception' => $e,
+                ...app(QueueCorrelation::class)->forException($e),
+            ]);
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go

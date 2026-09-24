@@ -3207,6 +3207,7 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
+Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -15314,6 +15315,59 @@ zapisanie z góry.
 strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
 „18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
 
+## D-229 — Powiadomienie śledzi treść komentarza (#758, 20 września 2026)
+
+**Przenumerowane z D-223.** Ta decyzja nosiła pierwotnie numer D-223 — pod tym
+samym numerem stała też rodzina strażnika martwej kaskady CSS (`flota/kaskada`
+/ `flota/martwe-kaskady` / `flota/scal-915`). Rozstrzygnięcie właściciela
+21 września 2026: numer D-223 zostaje przy rodzinie kaskady, ta decyzja
+przechodzi na D-229 (pierwszy naprawdę wolny numer, sprawdzony przeglądem
+wszystkich gałęzi repozytorium). **Kryterium: koszt przeniesienia.** Rodzina
+kaskady miała w kodzie **16 odwołań** do D-223, ta decyzja tylko **13** —
+przenosi się ta strona, po której trzeba poprawić mniej miejsc.
+
+Decyzja właściciela. Wycinek treści komentarza w powiadomieniu jest **liczony
+przy wyświetlaniu, z aktualnej treści** — jedno źródło prawdy, nie zamrożona
+kopia w `notifications.data`. Do tej zmiany `PublishComment` wpisywał do
+`data.excerpt` 120 znaków z chwili publikacji i nikt tego nigdy nie odświeżał:
+autor poprawiał „dodaję dwie łyżki masła" na „dwie łyżeczki" w dozwolonym
+oknie 15 minut, wątek pokazywał poprawkę, a powiadomienie dalej mówiło „łyżki".
+
+**Eksport RODO zmienia się tak samo**, i to jest część decyzji, a nie jej
+skutek uboczny: paczka z danymi ma pokazywać, co o kimś trzymamy **dziś**,
+a nie historyczną wersję. Zamrożony wycinek opisywałby stan, którego w bazie
+już nie ma.
+
+Ta decyzja **uchyla dawne zdanie o powiadomieniu jako migawce zdarzenia
+z przeszłości — ale wyłącznie dla wycinka treści**. D-052 w części
+o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
+komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
+powiadomienia i nie przywraca `read_at` do `null`.
+
+Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
+komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
+komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
+odbiorcy **nadal nie pokazuje treści** — ani na ekranie, ani w paczce.
+Brak żywego wycinka **nigdy** nie sięga po starą kopię z `data` jako plan
+zapasowy; dla tych typów powiadomień `data.excerpt` w ogóle nie jest już
+czytany, a nowe wiersze przestają go zapisywać.
+
+Koszt liczymy zbiorczo (D-196): `Notification::zyweWycinkiKomentarzy()`
+dociąga wycinki **jednym zapytaniem** na całą stronę listy i jednym na cały
+eksport, wzorem `NotificationController::decyzje()`. Zmierzone:
+lista powiadomień 16 → 17 zapytań przy 2 wierszach i 66 → 67 przy 12
+(koszt wiersza bez zmiany, 5 zapytań — to oś #759, nie ta zmiana);
+eksport 25 → 26 zapytań, niezależnie od liczby powiadomień.
+
+**Stare kopie znikają z bazy, nie tylko z ekranu.** Migracja danych
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` zdejmuje `excerpt`
+z `notifications.data` wyłącznie w `comment.created` i `comment.replied` —
+„nie trzymamy", a nie tylko „nie czytamy". Decyzja właściciela z 23 września
+2026: wchodzi **bez kopii bazy** („to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników"), więc skasowanych wycinków nic już nie odtworzy.
+`down()` jest świadomie pusty i nie odmawia — uzasadnienie według D-088
+w `docs/DATABASE.md`, w sekcji tej migracji.
+
 ## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
 
 Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
@@ -15389,6 +15443,22 @@ wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął
 jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
 `gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
 D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
+
+> **Sprostowane 22 września 2026 — patrz D-242.** Dwa rozstrzygnięcia poniżej
+> przestały obowiązywać, bo przestała być prawdziwa przesłanka, na której obie
+> stały: że „`detach()` kasuje notatkę i żadna droga powrotu jej nie odtwarza".
+> Rdzeń z #1110 dołożył `restore()`, które przywraca zdjęte wiersze RAZEM
+> z notatką i pierwotną datą zapisu. Dlatego:
+>
+> - **pytanie przed akcją na stronie przepisu (`<x-confirm-button>`) zostało
+>   zdjęte** — wyjęcie jest teraz odwracalne w całości, więc wraca reguła
+>   D-224 (nie pytamy przed czynnością, którą da się cofnąć), a zakres stoi
+>   napisany NAD przyciskiem zamiast w pytaniu;
+> - **zdanie „notatka przy nim już nie wróci" zostało zastąpione** zdaniem,
+>   które obiecuje przywrócenie — bo notatka wraca.
+>
+> Reszta tej decyzji — droga wyjęcia na każdym ekranie ze stanem zapisu, jeden
+> przycisk na ekran (D-231), liczba zeszytów w komunikacie — obowiązuje dalej.
 
 Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
 w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
@@ -15795,6 +15865,8 @@ na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
 niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
 cofać: zmiana niczego nie zapisuje w bazie.
 
+---
+
 ## D-241 — Lokalne wzorce spamu sprawdzają także treść niepubliczną; wysyłka do OpenAI bez zmian (22 września 2026)
 
 **Data:** 22 września 2026 · **Decyzja właściciela** (22.09, doprecyzowana
@@ -15866,6 +15938,64 @@ Po odwróceniu wracają tylko luki w lokalnych oznaczeniach opisane wyżej.
 
 ---
 
+## D-242 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
+
+**Decyzja właściciela: rdzeń z #1110, ekrany z #1168.** #1168 weszło na
+`main` samo, z rdzeniem, który przy wyjęciu nadal kasował notatkę
+bezpowrotnie. Tabela `collection_items` nie ma miękkiego kasowania ani
+historii, więc po `detach()` notatki własnej („mniej soli", „dla Ani bez
+orzechów") nie ma skąd odtworzyć. Utrata cudzej notatki jest nieodwracalna,
+a brak ekranu da się naprawić później — dlatego cofanie ma pierwszeństwo,
+a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
+
+### Co się zmienia wobec stanu po #1168
+
+1. **`remove()` oddaje zdjęte wiersze, nie liczbę.**
+   `SaveRecipeToCollection::remove()` i `SavePostToCollection::remove()`
+   zwracają listę `{collection_id, note, created_at}` zamiast `int`. Liczba
+   w komunikacie to `count()` tej listy, więc nadal jest faktyczna, nie
+   deklarowana (D-230, D-231).
+2. **Nowe `restore()`** odkłada zdjęte wiersze tam, skąd zeszły — z notatką
+   i z pierwotnym `created_at`, więc zeszyt nie przestawia się na górę listy.
+   Nie nadpisuje świeższego wiersza (ktoś zdążył zapisać ponownie), nie sięga
+   zeszytu, który zniknął albo nigdy nie był tej osoby.
+3. **Droga powrotu czeka w sesji, nie we flashu.** Flash żyje jedno żądanie,
+   a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po kliknięciu).
+   `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to nie jest powrót
+   po wyjęciu; gdyby zadziałały jak zwykły zapis, rzecz wróciłaby do zeszytu
+   DOMYŚLNEGO z pustą notatką. Powrót jest jednorazowy. Przycisk brzmi
+   **„Przywróć do zeszytu"**, nie „Zapisz ponownie", bo to jest teraz prawda.
+4. **Pytanie przed akcją na stronie przepisu zdjęte** (sprostowanie D-230).
+   Zakres ujawnia zdanie NAD przyciskiem, związane z nim przez
+   `aria-describedby`: przy jednym zeszycie formularz niesie `collection_id`
+   i nazywa ten zeszyt, przy kilku stoi ostrzeżenie z liczbą zeszytów
+   i zapowiedzią przycisku powrotu.
+5. **Jedna reguła własnego zeszytu** (`regulyWlasnegoZeszytu()`) dla zapisu
+   i dla wyjęcia — dwie kopie granicy „nie wyjmiesz z cudzego zeszytu"
+   rozjechałyby się przy pierwszej poprawce, a kontrola ujemna
+   `scripts/kontrole-negatywne-alfa08.py` wymaga, żeby ta lista stała w kodzie
+   dokładnie raz.
+
+**Bez zmian:** jedna droga wyjęcia na ekran i napisy „Usuń z tego zeszytu" /
+„Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
+
+**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
+D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
+strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
+D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
+`pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza
+opublikowała `flota/scal-786`, więc ta decyzja wraca na D-242, który tamta
+gałąź jej zostawiła. Cudzej gałęzi nie przenumerowano.
+
+Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
+
+---
+
 ## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
 
 **Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
@@ -15916,6 +16046,72 @@ z komunikatem, co zrobić.
 📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
 `app/Http/Controllers/Admin/ModerationController.php`,
 `tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
+## D-245 — Włączenie 2FA prosi o obecne hasło, jak jej wyłączenie (#1376, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`POST /ustawienia/2fa/wlacz` (`TwoFactorSettingsController::confirm()`)
+sprawdzał wyłącznie sześciocyfrowy kod z sekretu wygenerowanego chwilę
+wcześniej na tym samym ekranie. Kod dowodzi, że **nowy** telefon jest dobrze
+ustawiony — nie tego, że sesję obsługuje właściciel konta. Kto przejął ważną
+sesję (30 dni), podpinał własny telefon, zabierał kody zapasowe, a właściciel
+przy następnym logowaniu stawał przed kodem, którego nie ma. Wyłączenie 2FA
+i nowe kody zapasowe o hasło już prosiły; włączenie — nie.
+
+### Reguła
+
+Włączenie 2FA wymaga **obecnego hasła do Kuking** obok kodu z aplikacji.
+Zmiana telefonu idzie przez wyłączenie (hasło) i ponowne włączenie (hasło),
+więc obejmuje ją ta sama reguła. Hasło jest sprawdzane **przed** kodem: przy
+złym haśle kod nie jest ani weryfikowany, ani zużywany, a 2FA zostaje
+wyłączona. Trasa dostaje oba limity: `two_factor` (kod) i `confirm_password`
+(`Hash::check()` to ta sama wyrocznia co przy wyłączeniu, więc nie ma prawa
+mieć luźniejszego limitu).
+
+**Dlaczego pole hasła, a nie middleware `password.confirm` z Laravela.**
+Repozytorium nigdzie go nie używa. Każda wrażliwa akcja w ustawieniach
+(zmiana hasła i adresu, wyłączenie 2FA, nowe kody, usunięcie konta) prosi
+o hasło w tym samym formularzu i sprawdza je `Hash::check()` pod limitem
+`confirm_password`. Włączenie idzie tą samą drogą: jedno pole więcej na
+ekranie, który człowiek i tak wypełnia, zamiast osobnego ekranu z własnym
+oknem ważności.
+
+### Konta bez własnego hasła (Google, #876)
+
+Nie wymyślamy dla nich drugiej drogi: tak samo jak przy wyłączaniu, ekran
+mówi, jak ustawić hasło do Kuking przez „Nie pamiętam hasła"
+(`two_factor/_password-help`), i ostrzega, żeby nie wpisywać hasła do Google.
+Świadomy koszt: dopóki serwis nie wysyła poczty (`Poczta::dziala()`), konto
+założone wyłącznie przez Google nie włączy 2FA samo — ekran mówi to wprost
+i kieruje do „Napisz do nas". Świeże ponowne logowanie przez Google jako
+dowód tożsamości to osobna decyzja, tu niepodjęta.
+
+### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
+
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
+istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
+inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
+mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
+Wszystkie te poświadczenia powstały bez drugiego składnika; zostawione,
+otwierałyby konto bez kodu, a konto moderatora od tej chwili także `/admin`,
+bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
+zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
+się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
+bieżącej przeglądarki nie jest wystawiane — jak w #584.
+
+📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
+`routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
+`resources/views/pages/settings/two_factor/_password-help.blade.php`,
+`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`,
+`tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php`,
+`docs/security/ZAPAMIETANE_LOGOWANIE_584.md`
 
 ---
 
@@ -15992,6 +16188,32 @@ Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
 
 ---
 
+## D-254 — Adres źródła przepisu: tylko HTTP/HTTPS, dawny adres może zostać (#900, 20 września 2026)
+
+**Data:** 20 września 2026 · Decyzja właściciela
+
+Pole „Adres strony, z której jest przepis” przyjmuje **nowy lub zmieniony**
+adres tylko z protokołem HTTP albo HTTPS (`url:http,https`) — w formularzu
+jednostronicowym (`RecipeController`) i w kreatorze (`recipe-wizard`), z tym
+samym komunikatem. Pomoc pola od zawsze mówiła o stronie internetowej; ogólna
+reguła `url` przepuszczała też `ftp://` i `ssh://`.
+
+**Niezmieniony dawny adres** z bazy (np. FTP zapisany przed tą zmianą) nie
+blokuje edycji innych pól — nie zmuszamy autora do poprawiania go przy okazji
+i nie migrujemy cudzych danych automatycznie. Kreator porównuje wartość z
+**bazą**, nie ze stanem komponentu, więc autozapis nie zrobi z dopiero
+wpisanego FTP „historycznego wyjątku”: taki adres jest odrzucany przed
+zapisem szkicu.
+
+Strona przepisu linkuje wyłącznie adresy HTTP/HTTPS; inne zachowane wartości
+pokazuje zwykłym tekstem, bez `href`.
+
+### Wycofanie
+Powrót do ogólnego `url` w obu regułach i do bezwarunkowego linku w
+`show.blade.php`. Danych nie trzeba cofać — zmiana niczego nie zapisuje.
+
+---
+
 ## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
 
 22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
@@ -16040,3 +16262,529 @@ wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
 komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
+
+---
+
+## D-252 — Aplikacja sama dosyła zaległe potwierdzenia przyjęcia zgłoszeń, co godzinę (#797, DSA art. 16 ust. 4, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+### Problem
+
+Potwierdzenie przyjęcia zgłoszenia (powiadomienie w serwisie
+`report.received` + znacznik `reports.receipt_sent_at`) powstaje POZA
+transakcją zapisu sprawy — celowo, żeby awaria powiadomienia nie zabrała
+człowiekowi przyjętego zgłoszenia. Awaria zostawia sprawę z pustym
+znacznikiem. Dokańczał ją tylko powrót człowieka do tej samej sprawy;
+sprawa, do której nikt nie wraca, zostawała bez potwierdzenia na zawsze,
+a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
+
+### Decyzja
+
+**TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
+wcześniej nie wyszły.** Robi to komenda
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`).
+
+- **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
+  akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
+  warunkowy `UPDATE ... WHERE receipt_sent_at IS NULL` w jednej transakcji
+  z utworzeniem powiadomienia. Gdy dosyłka zbiegnie się z człowiekiem
+  wracającym do tej samej sprawy, wiersz dostaje dokładnie jedno
+  potwierdzenie — ten jeden przeplot mierzy
+  `tests/Dwa/DosylkaNieDublujePotwierdzeniaTest` na dwóch połączeniach.
+  Dwóch przebiegów dosyłki naraz nikt nie mierzy osobno: nie dopuszczają
+  ich `onOneServer()` i `withoutOverlapping(50)`, a gdyby do nich doszło,
+  chroni ten sam warunkowy `UPDATE`.
+- **Partiami.** `--ile` (domyślnie 200) ogranicza jeden przebieg,
+  najstarsze sprawy idą pierwsze, reszta czeka na następną godzinę.
+- **Sprawa, która pada stale, nie zatyka kolejki.** Porażki są liczone
+  per sprawa (cache, klucz `kuking:dosylka-potwierdzen:porazki`, 30 dni);
+  po 3 porażkach z rzędu sprawa idzie na koniec kolejki i dostaje próbę
+  dopiero, gdy w partii zostaje miejsce po sprawach zdrowych. Nie przepada:
+  dalej liczy się jako zaległość, a jej porażka dalej daje kod ≠ 0. Udana
+  próba albo zniknięcie zaległości zeruje licznik. Licznik nie jest
+  w kolumnie, bo to stan roboczy dosyłki, nie fakt o sprawie — jego utrata
+  kosztuje tylko kilka dodatkowych prób.
+- **Nie jest zaległością** (i nie wchodzi do licznika): zgłoszenie bez
+  konta (droga prawna ma własne potwierdzenie mailowe), zgłaszający
+  z kontem wymazanym (brak czytelnika), sprawa, której rozstrzygnięcie
+  (art. 16 ust. 5, `decision_sent_at`) już doszło — potwierdzenie mówi
+  „sprawdzimy i napiszemy, co postanowiliśmy", więc po decyzji byłoby
+  nieprawdą, a informacja o decyzji niesie ten sam numer sprawy. Warunek
+  decyzji stoi także w samym zamku, więc decyzja doręczona w trakcie
+  przebiegu wygrywa. Sprawa rozstrzygnięta BEZ doręczonej decyzji
+  potwierdzenie dostaje — to wtedy jedyny ślad, że zgłoszenie doszło.
+- **Ping skasowany przez retencję nie jest zaległością** — komenda pyta
+  o znacznik, nigdy o istnienie powiadomienia.
+- **Porażka widoczna.** Awaria jednej sprawy nie zatrzymuje partii, ale
+  komenda kończy się kodem ≠ 0, a wspólny adapter
+  `App\Support\Harmonogram::artisan()` zamienia go w wyjątek (#835). Zadanie ma `onOneServer()` (#595)
+  i `withoutOverlapping(50)` (#1002).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Górnej granicy wieku sprawy: komenda dośle potwierdzenie także do
+zgłoszenia sprzed roku. „Od kiedy jest za późno" wymaga osobnej decyzji.
+Nie dotyczy też informacji o rozstrzygnięciu, która nie doszła —
+to osobna zaległość bez własnej dosyłki.
+
+### Dowód
+
+`tests/Feature/DosylkaZaleglychPotwierdzenTest.php`,
+`tests/Dwa/DosylkaNieDublujePotwierdzeniaTest.php`.
+
+### Wycofanie
+
+Usunąć zadanie z `routes/console.php` (komenda może zostać do ręcznego
+użycia). Schemat się nie zmienia; wysłanych powiadomień nie trzeba cofać.
+
+---
+
+## D-253 — Decyzja właściciela #926: prywatne czynności podczas zawieszenia (20 września 2026)
+
+Właściciel wybrał wariant 2: zeszyt, odhaczanie i reset (`cooking.restart`) pozostają dostępne;
+komentarze i obserwowanie pozostają zablokowane. Wyjątek obejmuje zapis
+do własnych prywatnych zeszytów, bez powiadamiania autora przepisu,
+oraz porządkowanie własnych zapisów. Nie otwiera publikacji w publicznym
+zeszycie ani dostępu do cudzych prywatnych treści. Formularze komentarza
+i obserwowania pytają politykę przed wyświetleniem. Pełny zakres,
+koszt wariantów, testy i wycofanie: [ZAWIESZENIE_926.md](product/ZAWIESZENIE_926.md).
+
+---
+
+## D-251 — „Zdejmij z urzędu”: decyzja bez zgłoszenia w tym samym rejestrze, z `report_id = NULL` (G31, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (dodać akcję z urzędu),
+projekt zapisu — decyzja zespołu · Status: **obowiązuje**
+
+### Co było
+
+Od #1446 (issue #932) moderator usuwa cudzą treść wyłącznie z panelu, a panel
+usuwał wyłącznie rozstrzygnięciem zgłoszenia. Własnego zgłoszenia moderator
+nie rozstrzyga (D-244). Spamu, którego nikt nie zgłosił, nie dało się więc
+zdjąć wcale — przy jednoosobowej moderacji nawet przez „zgłoszę sam i poproszę
+drugą osobę”.
+
+### Decyzja
+
+1. **Akcja „Zdejmij z urzędu”** dla wpisu, przepisu i komentarza: przycisk
+   przy treści → ekran `/admin/z-urzedu/{typ}/{id}` → decyzja `remove`.
+   Podstawa z zamkniętej listy `PodstawaDecyzji` i uzasadnienie dla autora
+   są obowiązkowe.
+2. **Zapis w tym samym rejestrze:** wiersz `moderation_actions` z
+   `report_id = NULL`. **Bez „zgłoszenia z urzędu”** i bez nowej kolumny
+   źródła. Powody:
+   - decyzja z urzędu nie jest „własną sprawą” z D-244 — nie ma zgłaszającego,
+     któremu moderator mógłby rozstrzygnąć na korzyść, ani nikogo, komu
+     DSA art. 16 każe odpisać. Sztuczne zgłoszenie wstawiłoby moderatora
+     w rolę zgłaszającego, czyli dokładnie w sytuację, której
+     `ReportPolicy::decide()` zabrania, i wymagałoby wyjątku od tej reguły;
+   - fikcyjny wiersz w `reports` zasiliłby kolejkę, liczniki, statystyki
+     zgłoszeń i terminy z art. 16 czymś, czego nikt nie zgłosił;
+   - schemat był na to gotowy: `report_id` jest `NULL`-owalne, a
+     `UzasadnienieDecyzji::skadSprawa()` od początku miało gałąź „Nikt tego
+     nie zgłosił — sprawę znaleźliśmy sami” (DSA art. 17 ust. 3 lit. b).
+     Pusty `report_id` przy decyzji odwoływalnej znaczy odtąd decyzję z urzędu;
+     przy `unhide` — przywrócenie, jak dotąd.
+3. **Kto:** czynny moderator albo administrator z potwierdzonym 2FA
+   (`removeExOfficio` → `UserPolicy::takeDownContentOf()`), i tylko wobec
+   konta o **niższej** roli. To świadomie ostrzej niż D-244 pkt 3 („ocena
+   treści nie zależy od roli autora”). Przy zgłoszeniu sprawę wnosi ktoś
+   drugi. Z urzędu jedna osoba jest naraz tą, która sprawę znalazła, i tą,
+   która ją rozstrzyga. Treść równej albo wyższej rangi idzie zwykłym „Zgłoś”.
+   Ta sama reguła wyklucza zdejmowanie własnej treści.
+4. **Odwołanie** — ta sama ścieżka co od decyzji ze zgłoszenia (`FileAppeal`,
+   `ResolveAppeal`); „cofam” przywraca treść.
+5. **Otwarte zgłoszenie wygrywa:** z urzędu nie zdejmuje się treści, przy
+   której czeka zgłoszenie. Decyzja zapada w kolejce, a zgłaszający dostaje
+   odpowiedź.
+6. **Zdjęcie z urzędu działa tym samym mechanizmem co „Usuń” ze
+   zgłoszenia** — miękkie usunięcie (`$cel->delete()`), także komentarza
+   z odpowiedziami; „cofam” po odwołaniu przywraca je tym samym
+   `RestoreContent` co decyzję ze zgłoszenia. Moderacja nie zostawia napisu
+   „Komentarz usunięty.”. „Usuń” działa jak dotąd — decyzja właściciela
+   24.09.2026.
+7. **Zakres: tylko treść widoczna dla innych.** Wpis i przepis opublikowane,
+   publiczne albo dla obserwujących; komentarz opublikowany pod taką treścią
+   (`ZdejmijZUrzedu::widocznaDlaInnych()`). Szkic, treść prywatna i ukryta
+   dają **404** już na ekranie (`ZUrzeduController::cel()`), także przy
+   wysyłce formularza — moderator nie ogląda prywatnych treści po samym UUID
+   i nie dowiaduje się nawet, że istnieją. Powody:
+   - „z urzędu” znaczy „znaleźliśmy, przeglądając serwis” — a treści, której
+     nie widzi nikt poza autorem, przy przeglądzie serwisu znaleźć nie
+     można. Gdyby ekran ją pokazywał, UUID w adresie stawałby się drogą do
+     cudzego szkicu i prywatnych notatek (AGENTS.md §7: UUID to nie
+     autoryzacja);
+   - brak ogólnego obowiązku monitorowania (DSA art. 8) — nie ma powodu
+     przeglądać treści prywatnych „na wszelki wypadek”.
+   Treść prywatna, która mimo to jest nielegalna, trafia do moderacji innymi
+   drogami, każdą z własnym śladem: formularzem zgłoszenia nielegalnej
+   treści (DSA art. 16 — przyjmuje wklejony adres), nakazem organu (art. 9,
+   przez właściciela serwisu) albo kolejką automatu (D-052; lokalne wzorce
+   spamu sprawdzają także treść niepubliczną, D-241). Tam decyzja zapada
+   przy zgłoszeniu — `decide()` widoczności nie ogranicza.
+8. **Treść już zdjęta:** ekran od razu mówi „już zdjęta” zamiast formularza
+   (także komentarz, który autor sam usunął i po którym stoi napis
+   „Komentarz usunięty.” z `DeleteComment`), przycisk przy treści się nie
+   rysuje, a drugie
+   wysłanie (druga karta) kończy się błędem bez drugiej decyzji — blokada
+   wiersza w `ZdejmijZUrzedu`. Treść miękko usunięta → 404.
+9. **Przywrócenie treści to jedna transakcja z blokadą wiersza celu**
+   (przegląd G31, `RestoreContent`). Decyzja `unhide` i zapis treści
+   przechodzą razem albo wcale; stan czytany pod blokadą, więc drugie
+   równoległe przywrócenie (dwie karty, „Przywróć” i „cofam” naraz) widzi
+   „już widoczna” i nie zapisuje drugiej decyzji ani powiadomienia.
+10. **„Najnowsza decyzja” = `created_at`, potem `id`** (status sprzed
+    ukrycia w `RestoreContent`). `created_at` ma pełne sekundy
+    (`timestamptz(0)`), więc remis w jednej sekundzie rozstrzyga `id`:
+    UUIDv7 z `HasUuids` (milisekundy + licznik rosnący w procesie).
+    Kolumny sekwencyjnej w `moderation_actions` nie ma. **Ryzyko, które
+    zostaje:** wiersz wstawiony z pominięciem modelu (surowy SQL, ręczna
+    naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
+    remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
+    wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
+
+### Czego ta decyzja nie robi
+
+- **„Ugotowałem” nie ma „Zdejmij z urzędu”.** `cooked_events` nie ma soft
+  delete: `remove` kasuje wiersz na stałe razem z komentarzami, a „cofam”
+  nie ma czego przywrócić. Ten sam powód, dla którego `media` nie ma
+  `remove`. Ta sama luka istnieje dziś przy decyzji `remove` **ze
+  zgłoszenia** na wykonaniu (komentarz w `ModerationAction::DOZWOLONE`
+  twierdził „soft delete” — poprawiony). Domknięcie wymaga soft delete
+  `cooked_events` — osobna praca.
+- Nie dodaje ukrywania ani ostrzeżeń z urzędu — tylko zdjęcie.
+
+📄 `app/Domain/Moderation/Actions/ZdejmijZUrzedu.php`,
+`app/Http/Controllers/Admin/ZUrzeduController.php`,
+`app/Policies/UserPolicy.php` (`takeDownContentOf`),
+`app/Domain/Moderation/Actions/RestoreContent.php`,
+`tests/Feature/ZdejmijZUrzeduTest.php`,
+`tests/Feature/ZdejmijZUrzeduPoPrzegladzieTest.php`,
+`tests/Feature/PrzywrocenieWTransakcjiTest.php`
+
+### Wycofanie
+
+Odwrócić commit. Bez migracji — schemat się nie zmienia.
+Decyzje z urzędu już zapisane zostają w rejestrze jako zwykłe `remove`
+z pustym `report_id`.
+
+---
+
+## D-246 — Ponowne wysłanie potwierdzenia adresu ma sufit na konto i własną klasę w puli (audyt 23.09, znalezisko 2; 23 września 2026)
+
+> Numer: D-239..D-245 są zajęte na `main`, na gałęziach zdalnych albo
+> w otwartych stanowiskach floty w dniu tej decyzji. D-246 to pierwszy wolny.
+
+D-239 zostawiło to wprost jako „osobną decyzję, tutaj świadomie niepodjętą".
+Audyt bezpieczeństwa scaleń z 23 września zmierzył, ile to kosztuje:
+„Wyślij wiadomość jeszcze raz" stało w klasie `wejscie` (próg 0), a jedynym
+limitem było `limits.verification_resend` = 6 na minutę, bez sufitu dobowego.
+**Jedno niepotwierdzone konto zużywa całą dobową pulę (300 listów) w około
+50 minut.** Po D-239 odmawia wtedy już sama aplikacja: do końca doby nikt nie
+dostaje linku do logowania ani potwierdzenia rejestracji. Komentarz przy
+`DziennyBudzetListow::dlaPotwierdzeniaAdresu()` twierdził przy tym, że wspólny
+licznik „pilnuje, żeby jedno niepotwierdzone konto nie wypaliło puli całemu
+serwisowi" — nie pilnował.
+
+**Decyzja właściciela (23.09): osobny sufit dla ponowienia. Rejestracja
+i logowanie linkiem zostają jak są.**
+
+Dwie granice, bo są dwa różne zagrożenia:
+
+- **Sufit dobowy na konto — 5 ponowień na dobę kalendarzową**
+  (`kuking.poczta.ponowienie_potwierdzenia_na_dobe`,
+  `KUKING_PONOWIENIE_POTWIERDZENIA_NA_DOBE`). Broni przed jednym kontem.
+  Ten sam rząd co `login_link.limit_na_adres` (3 na godzinę), tylko na dobę, bo
+  ten list nie jest drogą na konto: z konta korzysta się normalnie bez
+  potwierdzonego adresu. Pierwszy list przy rejestracji się nie liczy. Licznik
+  chodzi po identyfikatorze konta i dacie (bez adresu e-mail w `cache`), rusza
+  atomowo (`RateLimiter::increment`) i oddaje miejsce, gdy list nie wyszedł.
+- **Własna klasa `ponowienie` we wspólnej puli, próg 100**
+  (`kuking.poczta.progi_wygaszania.ponowienie`, `KUKING_POCZTA_PROG_PONOWIENIE`).
+  Broni przed wieloma kontami naraz: ponowienia razem gasną, gdy w puli zostaje
+  100 listów, więc nie ruszą rezerwy dla pierwszego potwierdzenia rejestracji
+  i logowania linkiem. 100 to znowu `rezerwa_transakcyjna` — ta sama obietnica
+  co przy klasie `zwykla`, a nie nowa liczba. Osobna klasa zamiast dopisania do
+  `zwykla`, bo właściciel może ją przesunąć bez ruszania przypomnienia hasła.
+  `PodzialLimituPocztyTest` pilnuje, że `ponowienie` > `wejscie`.
+
+Obie wartości mają wartość domyślną w `config/kuking.php`, więc **produkcja nie
+potrzebuje żadnej nowej zmiennej środowiskowej**.
+
+Do wyczerpania klasy `ponowienie` (200 listów) trzeba teraz 40 kont, a każde
+z nich to osobna rejestracja pod `limits.register`.
+
+**Komunikaty.** Po przekroczeniu sufitu konta ekran mówi, ile dodatkowych
+wiadomości już wysłaliśmy, że kolejną można zamówić jutro po północy, że
+z konta korzysta się normalnie bez potwierdzenia i gdzie odpisuje człowiek.
+Po wygaszeniu klasy mówi, że skończyły się e-maile przeznaczone na ponowne
+wysyłki (a nie „wszystkie e-maile" — rezerwa dla wejścia jeszcze jest).
+
+### Czego ta zmiana nie robi
+
+Nie zmienia rejestracji ani logowania linkiem: pierwsze potwierdzenie i link
+nadal są w klasie `wejscie` i dzielą ostatnie 100 listów między siebie. Kto
+zakłada dziesiątki kont, dalej może zjeść tę rezerwę samymi rejestracjami —
+to jest granica `limits.register`, nie tej decyzji. Nie rusza też
+`/nie-pamietam-hasla` (sufit na adres to nadal osobna decyzja z D-239).
+
+📄 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
+`app/Domain/Security/WynikPonowieniaPotwierdzenia.php`,
+`app/Domain/Security/DziennyBudzetListow.php`,
+`app/Http/Controllers/Auth/EmailVerificationController.php`,
+`config/kuking.php`,
+`tests/Feature/SufitPonowieniaPotwierdzeniaTest.php`,
+`tests/Feature/PodzialLimituPocztyTest.php`,
+`tests/Feature/WspolnyLicznikPocztyTest.php`
+
+---
+
+## D-236 — Kolejka moderacji czyta się od rzeczy, która nie może czekać (22 września 2026)
+
+Kolejka `/admin/zgloszenia` sortowała `created_at DESC, id DESC`. Zmierzone:
+zgłoszenie „Dotyczy dziecka" sprzed dwóch dni leży pod trzydziestoma
+zgłoszeniami spamu z ostatniej godziny, czyli na DRUGIEJ stronie — a spam
+jest jedyną kategorią przychodzącą falami, więc im gorszy dzień, tym głębiej
+schodzi rzecz najcięższa. Osobno: alarm mailowy istniał WYŁĄCZNIE po stronie
+automatu (D-055), więc model podejrzewający treść seksualną z udziałem
+dziecka budził moderatora listem, a człowiek, który to samo zgłosił
+przyciskiem, nie budził nikogo. Cichsza była droga, na której ktoś to już
+zobaczył.
+
+**Priorytet liczy się z danych, nie jest wpisywany.** `PriorytetSprawy`
+czyta `reason` (kategoria wybrana przez zgłaszającego) i `source`
+(zgłoszenie prawne ma podłogę na P1, bo niesie termin z DSA art. 16 ust. 5).
+Lista P0 to DOKŁADNIE ta sama para, którą za pilną uznaje automat
+(`KategorieModeracji::PILNE`): treść seksualna i wszystko, co dotyczy
+dziecka. Jedna definicja „pilnego" na cały serwis.
+
+**Bez kolumny i bez migracji.** Wartość idzie do `ORDER BY CASE`, tak samo
+jak `Report::WAGA` w kolejce automatu: to jest reguła produktu, nie fakt
+o wierszu. Zmiana listy kategorii ma być jedną linijką i jednym czerwonym
+testem, a nie migracją przepisującą historyczne wiersze na nową skalę.
+
+**Sprzeczność z `KolejkiModeracjiMajaStabilnyPorzadekTest` rozstrzygnięta
+świadomie.** Gwarancja „najnowsze na górze" upada W CAŁEJ KOLEJCE, bo
+obiecywała porządek nie do obronienia przy falach spamu. Zastępują ją dwie
+węższe: wewnątrz jednego priorytetu porządek jest NIETKNIĘTY (najnowsze na
+górze, remis po `id`), a stabilne stronicowanie zostaje bez osłabienia —
+mierzy to dopisany test przy mieszanych priorytetach. Kierunku wewnątrz wagi
+NIE odwracamy, choć odrzucona gałąź `claude/priorytet-w-kolejce-moderacji`
+to proponowała: to osobna decyzja, bez dowodu i z ceną (góra kolejki
+przestaje się odświeżać). Kolejki odwołań zmiana nie dotyczy.
+
+**Alarm zostaje pocztą i nie dokłada kanału.** `AlarmujOPilnymZgloszeniu`
+woła obie drogi zgłoszenia (społecznościową i prawną, bo ta druga działa bez
+konta) i wysyła list tylko przy P0, na ten sam `alarm_email` co alarm
+automatu; pusty adres znaczy „bez poczty" i jest normalnym stanem lokalnie.
+List NIE niesie treści zgłoszonej ani pola `details` — to niesprawdzony tekst
+od dowolnej osoby, a poczta idzie przez zewnętrznego dostawcę.
+
+**Czego świadomie NIE zbudowano.** Kolumny `priorytet` z ręczną zmianą przez
+moderatora, oznaczenia „P0 nieprzejrzane" w pasku panelu i historii sankcji
+autora — wszystkie trzy były w odrzuconej gałęzi. Historia sankcji nie wchodzi
+do priorytetu, bo na pytanie „czy to może poczekać do jutra" odpowiada rodzaj
+szkody, a nie kartoteka osoby; recydywa jest argumentem przy DECYZJI.
+Kosztowałaby przy tym dwa zapytania na pozycję ekranu, bo `reports` nie ma
+kolumny z autorem zgłoszonej treści.
+
+**Czego priorytet nie twierdzi.** Że sprawa jest tym, czym nazwał ją
+zgłaszający — nikt tej treści jeszcze nie obejrzał. Zmienia wyłącznie
+kolejność czytania i wysyła jeden list: nie ukrywa treści, nie ogranicza jej
+zasięgu i nie powiadamia autora.
+
+**Uzgodnione z podręcznikiem moderacji, nie obok niego.**
+`docs/legal/MODERATION_PLAYBOOK.md` ma własną tabelę SLA P0–P3 i wchodziła na
+`main` równolegle z tą pracą. Zdanie „priorytetu nie ma w narzędziu… sprawa P0
+sprzed dwóch dni leży niżej niż spam sprzed godziny" przestało być prawdziwe
+i zostało w podręczniku poprawione razem z mapowaniem kategorii na to, co robi
+kod. Jedna rzecz zmieniła się PO MOJEJ STRONIE: `dangerous_advice` miał u mnie
+P1, a podręcznik stawia „niebezpieczne porady" w P2 — zostaje P2, bo podręcznik
+jest dokumentem operacyjnym właściciela, a mój argument („zła rada o weku
+kończy się szpitalem") jest opinią, nie pomiarem. `scam` nie ma pozycji
+w tabeli SLA i kładę go w P1 własnym osądem; to jedna linijka do zmiany.
+
+Dwie rzeczy, których z samej kategorii odczytać się NIE DA i które zostają
+przy człowieku: „groźby zagrażające życiu" (P0 w tabeli) wchodzą jako
+`harassment`, czyli P1, bo formularz nie ma takiej pozycji; „aktywny doxxing"
+(P0) wchodzi jako `personal_data`, czyli P1, z tego samego powodu. Oba są
+nazwane wprost w podręczniku, zamiast udawać, że kod je rozpoznaje.
+
+**Obok D-244, D-249 i #1446 (scalenie 23 września).** Priorytet zmienia
+wyłącznie kolejność czytania, więc nie dotyka reguł, KTO rozstrzyga i CO się
+wtedy zapisuje: własnej sprawy nadal nie rozstrzyga nikt (D-244), decyzja
+i jej wpis w dzienniku audytu powstają razem albo wcale (D-249), a usunięcie
+treści idzie wyłącznie przez formularz decyzji w panelu (#1446). Alarm nie
+zapisuje niczego do audytu i nie prowadzi do żadnej akcji poza kolejką.
+Jedno zdanie listu trzeba było zmienić: „Decyzja należy do Ciebie" byłoby
+nieprawdą, gdy zgłosił sam moderator, a list trafia na wspólny adres
+alarmowy — list mówi teraz, że rozstrzyga moderator, który zgłoszenia nie
+wniósł.
+
+### Poprawki z przeglądu PR #1284 (23 września 2026)
+
+**Ryzyko: zalanie alarmu.** Pierwsza wersja wysyłała list na KAŻDE
+zgłoszenie P0 i zakładała, że nadużyciu wystarczy `reports_one_open_per_pair`.
+Nie wystarczało: ten indeks pilnuje pary osoba–treść, a kategorię wybiera
+zgłaszający — także w formularzu DSA bez konta. 40 zgłoszeń jednego wpisu
+dawało 40 listów, jedno konto zaznaczające „Dotyczy dziecka" przy kolejnych
+celach — do 60 listów na godzinę. Listy szły poza wspólnym licznikiem poczty
+(wbrew D-239: jeden licznik dla wszystkich dróg) i zjadały pulę EmailLabs
+300/dobę, wypychając listy logowania i rejestracji.
+
+**Rozwiązanie — trzy zamki.** (1) Najwyżej jeden list o danym celu
+(`target_type` + `target_id`, a przy zgłoszeniu prawnym bez rozpoznanego celu —
+`target_url` bez `?`/`#` i końcowego ukośnika) w oknie
+`moderation.alarm_czlowieka.okno_celu_godzin` (6 h), atomowo przez
+`Cache::add()`; kolejne zgłoszenia tego celu i tak stoją na górze kolejki.
+(2) Dobowy sufit `moderation.alarm_czlowieka.dzienny_sufit` (10) dla
+wszystkich celów razem; ostatni list doby mówi wprost, że kolejnych nie
+będzie, powyżej zostaje wpis w dzienniku i sprawa w kolejce z plakietką.
+(3) Sufit jest licznikiem `DziennyBudzetListow::dlaAlarmuModeracji()`
+zagnieżdżonym we wspólnym liczniku — jedna atomowa rezerwacja na oba, tak
+jak przy podsumowaniu. Gdy list nie wychodzi po zajęciu klucza celu, klucz
+wraca.
+
+**Klasa `wejscie`, nie `zwykla` — i dlatego własny sufit.** Klasę `zwykla`
+wypala zalanie `/nie-pamietam-hasla` z jednego łącza (D-239); alarm w tej
+klasie dawałby sprawcy przepis na to, żeby zgłoszenie o dziecku przeleżało
+noc bez listu. W klasie `wejscie` alarm sięga po ostatnie listy doby, a sufit
+ogranicza, ile z nich może zabrać: najwyżej 10 ze 100 zostawianych wejściu.
+Suma z `PodzialLimituPocztyTest` się nie zmienia, bo te listy leżą w rezerwie.
+
+**Plakietka i priorytet tylko dla spraw otwartych.** Rozstrzygnięte P0
+z napisem „Nie może czekać" było nieprawdą, a sortowanie po priorytecie
+obejmowało wszystkie stany — w „Wszystkie" archiwum P0/P1 stało nad
+dzisiejszym otwartym P2. Teraz karta czyta `PriorytetSprawy::wKolejce()`
+(`null` poza `open`), a `ORDER BY` — `wyrazenieSqlKolejki()`: sprawy
+nieotwarte dostają `NIE_CZEKA` i idą za otwartymi, po dacie. Test pilnuje,
+że PHP i SQL liczą to samo dla każdego stanu.
+
+**Wydajność.** `ORDER BY CASE` nie ma indeksu i liczy się na każdym wierszu
+po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
+`open` od ludzi, czyli dziesiątki wierszy, a priorytet dotyczy tylko
+otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
+urośnie do tysięcy.
+
+**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
+w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
+kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
+w `PriorytetSprawy::MAPOWANIE`.
+
+Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
+i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
+
+---
+
+## D-255 — Adres magazynu R2 za strażnikiem hostów: tylko `<konto>.eu.r2.cloudflarestorage.com` (24 września 2026)
+
+**Data:** 24 września 2026 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+
+**Co.** `AWS_ENDPOINT` — adres, pod który dyski R2/S3 wysyłają żądania
+podpisane kluczami z `AWS_*` (zdjęcia `r2`/`r2_publiczne`/`r2_legacy`,
+eksporty RODO `r2_eksporty`, kopie bazy `r2_kopie`, ogólny `s3`) — podlega
+strażnikowi hostów, tak jak adresy API z kluczami (#991). Dozwolony jest
+wyłącznie adres:
+
+```text
+https://<32 znaki hex>.eu.r2.cloudflarestorage.com
+```
+
+— wzór `^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$`, schemat `https`,
+bez portu (także bez wpisanego `:443`), bez danych logowania, bez ścieżki
+poza „/”, bez `?` i `#`.
+
+**Dlaczego.** (1) Adres niósł sekrety i dane ludzi (oryginały z EXIF-em, paczki
+RODO, zrzuty bazy), a nikt go nie sprawdzał: literówka albo podmieniona
+zmienna wysyłała podpisane żądania pod obcy host, a pusty adres — do Amazona
+(domyślny endpoint AWS SDK). (2) Segment `eu` przypina dane do jurysdykcji
+UE: bucket z jurysdykcją jest osiągalny wyłącznie przez endpoint
+jurysdykcyjny, a endpoint `eu` nie sięga bucketów spoza niej
+(`docs/infra/LOKALIZACJA_DANYCH_R2.md` §2). Polityka prywatności składa
+obietnicę o UE — strażnik sprawia, że aplikacja nie zapisze zdjęcia nigdzie
+indziej.
+
+**Co robi strażnik** (`App\Support\Storage\DozwolonyHostR2`):
+
+- `DyskR2::utworz()` (sterownik `r2`) i `DyskR2::utworzS3()` (wbudowany `s3`,
+  przepięty w `AppServiceProvider`) sprawdzają adres **przed** zbudowaniem
+  `S3Client`. Zły adres → dysk się nie buduje, wyjątek po polsku nazywa
+  zmienną i SAM host (bez klucza, userinfo i ścieżki); żadne żądanie nie
+  wychodzi.
+- `/health` ma sondę `magazyn`: zły adres któregoś dysku R2/S3 → `ok:false`,
+  kod `magazyn_r2_zly_host`; host (z identyfikatorem konta) idzie tylko do
+  logu. Dysk bez klucza i bez adresu (produkcja bez R2) jest pomijany.
+- W `local`/`testing` dopuszczone są też adresy, które nie wychodzą z maszyny:
+  pętla zwrotna (`localhost`, `127.0.0.1`, `::1` — MinIO z
+  `PomiarOdcieciaDostepuDoPlikuTest`) i zarezerwowane domeny `.test`,
+  `.invalid`, `.example`, `.localhost` (RFC 2606/6761), oraz pusty adres.
+  Na każdym innym środowisku — wyłącznie wzór.
+- Wzór jest w kodzie, nie w `.env`: kto może podmienić adres, nie może też
+  dopisać wyjątku.
+
+**Jak wymienić konto albo region.**
+
+- *Inne konto Cloudflare, dalej jurysdykcja UE:* wystarczy nowa wartość
+  `R2_ENDPOINT` na Railway (`https://<nowe konto>.eu.r2.cloudflarestorage.com`)
+  — identyfikator konta pasuje do wzoru. Buckety na nowym koncie muszą być
+  utworzone z jurysdykcją `eu` (inaczej endpoint `eu` ich nie zobaczy).
+- *Inna jurysdykcja albo inny dostawca:* to jest zmiana tej decyzji —
+  nowa decyzja właściciela, zmiana `DozwolonyHostR2::WZOR_HOSTA`,
+  `BramkaR2::JURYSDYKCJA_Z_POLITYKI` i polityki prywatności w jednym PR,
+  z testem. Jurysdykcji istniejącego bucketu nie da się zmienić — dane
+  trzeba przenieść do nowego bucketu (`kuking:przenies-zdjecia`).
+
+**Co musiałoby się stać, żeby to zmienić:** właściciel zmienia obietnicę
+o lokalizacji danych albo dostawcę magazynu.
+
+Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
+„Strażnik R2 bez segmentu eu” w `scripts/kontrole-negatywne-alfa08.py`.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
+
+## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
+(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+
+**Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
+opublikowanego komentarza, `CommentController::update()` zleca
+`PrzeanalizujTresc::dlaKomentarza()` — to samo zadanie, w tej samej kolejce
+`low`, co po publikacji. Zapis bez zmiany (`wasChanged('body')` fałszywe)
+nic nie zleca. Wpisy i przepisy zostają bez zmian.
+
+**Dlaczego.** D-052 odłożył ponowną analizę po edycji „ze świadomą luką”,
+z dwóch powodów. Oba przy komentarzu nie trzymają:
+
+1. *Obietnica „odrzucone nie wraca”* — nienaruszona. Zadanie kończy się
+   w `OznaczDoPrzegladu`, a tam `juzOgladane()` i indeks
+   `reports_jeden_automat_na_tresc` przepuszczają jedno oznaczenie na
+   komentarz, na zawsze. Edycja NIE otwiera sprawy odrzuconej i nie stawia
+   drugiej pozycji przy otwartej (moderator i tak ogląda aktualny tekst).
+2. *Koszt zadania za każdą literówkę* — ograniczony: okno 15 minut, limit
+   trasy `comment`, tylko rzeczywista zmiana. Kilka szybkich poprawek daje
+   kilka zadań, ale każde czyta komentarz po ID, więc każde ocenia
+   najnowszy tekst, a wynik to najwyżej jedna pozycja w kolejce.
+
+Luka była najtańszym obejściem wykrywacza: neutralny komentarz → zakończona
+analiza → dopisany spam.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+treść zostaje opublikowana, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji — zadanie ogląda tylko opublikowany komentarz.
+
+**Znana granica.** Komentarz, którego oznaczenie moderator już odrzucił,
+po edycji nie wraca do kolejki automatu — to cena obietnicy z D-052.
+Zostaje zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiKomentarzaTest.php` (zakończona
+pierwsza analiza, pierwsze zadanie wciąż w kolejce, zapis bez zmiany,
+wyłącznik, odrzucone nie wraca).
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.

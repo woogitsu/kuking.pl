@@ -41,8 +41,9 @@ use Tests\TestCase;
  * w `GenerateUserExport` oblewa `test_wymazanie_miedzy_zapisem_a_gotowoscia_…`
  * i `test_nieudane_usuniecie_…` — paczka wraca jako `ready` z terminem
  * w przyszłości. Usunięcie sprawdzenia na starcie oblewa
- * `test_eksport_zamowiony_przed_wymazaniem_…`. Przywrócenie
- * `notifyOwner($export->refresh())` bez świeżego sprawdzenia oblewa
+ * `test_eksport_zamowiony_przed_wymazaniem_…`. List wysyła od issue #820
+ * `NotifyUserExportReady`; zdjęcie z niego świeżego sprawdzenia wymazania
+ * i pobieralności (odczyt w `handle()` i warunki w `zajmij()`) oblewa
  * `test_wymazanie_tuz_po_gotowosci_…` — list idzie na zanonimizowany adres.
  * Wysyłanie zwykłego `DataExportReady` także w karencji oblewa oba testy
  * karencji; podawanie zawsze końca karencji (zamiast WCZEŚNIEJSZEJ z dat)

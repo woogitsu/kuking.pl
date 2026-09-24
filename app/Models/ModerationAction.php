@@ -90,8 +90,13 @@ class ModerationAction extends Model
         // treść", a wykonanie stało w serwisie dalej. Moderator był
         // przekonany, że coś zrobił (znalezione przy #65).
         //
-        // Wykonanie zdejmuje się z widoku przez `remove` (soft delete) —
-        // i ono działa naprawdę.
+        // Wykonanie zdejmuje się z widoku przez `remove` — ale UWAGA
+        // (G31, D-251): `cooked_events` NIE MA soft delete, więc to jest
+        // skasowanie na stałe, razem z komentarzami pod wykonaniem. Stało
+        // tu „(soft delete)”, co nie było prawdą. „Cofam” po odwołaniu nie
+        // ma wtedy czego przywrócić — dlatego „Zdejmij z urzędu” nie obejmuje
+        // wykonań (`CookedEventPolicy::removeExOfficio()`), a luka przy
+        // decyzji ze zgłoszenia czeka na soft delete tej tabeli.
         'cooked_event' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
 
         // ZDJĘCIE (dziś: zdjęcie profilowe, issue #237). ŚWIADOMIE BEZ `hide`

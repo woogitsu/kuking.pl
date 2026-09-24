@@ -17,11 +17,10 @@
     {{--
         „ZNASZ JUŻ KOGOŚ TUTAJ?" (docs/research/MIGRACJA_Z_GARNKA.md §3.1).
 
-        Osobny, ZWYKŁY formularz GET — nie POST i nie jeden wspólny formularz
-        z listą niżej, bo wyszukiwanie nie obserwuje nikogo samo z siebie,
-        tylko odświeża tę stronę z dopasowaniami. Adres z `?q=` da się zapisać,
-        wysłać i otworzyć ponownie bez JavaScriptu (AGENTS.md §5) — skrypt
-        mógłby to później tylko przyspieszyć, nie jest warunkiem działania.
+        Wspólny formularz przenosi wybór przy wyszukiwaniu i czyszczeniu.
+        GET nikogo nie obserwuje. Tylko przycisk Dalej wysyła POST z CSRF.
+        Wybór jest związany z kontem i sesją przez 30 minut; samą frazę
+        można udostępnić, ale cudzy adres nie odtwarza zaznaczeń.
 
         Ta sama wyszukiwarka, co na `/szukaj` (`SearchQuery::people()`,
         wołane w `OnboardingController::people()`) — nie osobny mechanizm.
@@ -37,13 +36,33 @@
          kogo już znasz, a nie kolejny obowiązkowy krok". Zdjęte w grupie C4:
          opcjonalność niesie przycisk „Pomiń ten krok" niżej, a nie zdanie
          o tym, czym ten krok nie jest (`docs/brand/GLOS_MARKI.md` §5). --}}
-    <div class="ramka-pomocnicza mb-6">
-        <h2>Znasz już kogoś w <x-kuking-word />?</h2>
-        <p class="mb-4">
-            Czasem ważniejsza od ośmiu nieznajomych jest jedna znajoma osoba.
-            Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć.
-        </p>
-        <form method="GET" action="{{ route('onboarding.people') }}">
+    <x-error-summary />
+    <form method="GET" action="{{ route('onboarding.people') }}" id="f-follow"
+          @if($errors->has('follow')) tabindex="-1" aria-invalid="true" aria-describedby="f-follow-error" @endif>
+        <x-blad-grupy name="follow" />
+        <input type="hidden" name="selection" value="{{ $selectionContext }}">
+        @if($selectionExpired)
+            <p role="status">Wybór osób wygasł. Zaznacz je ponownie albo pomiń ten krok.</p>
+        @endif
+        @if($zmienionePrzyWyborze !== [])
+            {{-- #1340: jak komunikat po zapisie w `saveFollows()` — cicho
+                 odznaczona osoba wygląda jak zaznaczenie, którego nie było. --}}
+            <p role="status">
+                @if(count($zmienionePrzyWyborze) === 1)
+                    Nazwa „{{ $zmienionePrzyWyborze[0] }}” należy teraz do innej osoby, więc jej nie zaznaczyliśmy.
+                    Jeśli nadal chcesz ją obserwować, sprawdź, czy to właściwa osoba, i zaznacz ją ponownie.
+                @else
+                    Te nazwy należą teraz do innych osób, więc ich nie zaznaczyliśmy: {{ implode(', ', $zmienionePrzyWyborze) }}.
+                    Jeśli nadal chcesz je obserwować, sprawdź, czy to właściwe osoby, i zaznacz je ponownie.
+                @endif
+            </p>
+        @endif
+        <div class="ramka-pomocnicza mb-6">
+            <h2>Znasz już kogoś w <x-kuking-word />?</h2>
+            <p class="mb-4">
+                Czasem ważniejsza od ośmiu nieznajomych jest jedna znajoma osoba.
+                Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć.
+            </p>
             @include('components.error-summary', ['errors' => $searchErrors])
             <div class="field @if($searchErrors->has('q')) has-error @endif">
                 <label for="f-q">Imię lub nazwa użytkownika</label>
@@ -55,11 +74,24 @@
                 @endif
             </div>
             <button class="btn btn-secondary mt-3" type="submit">Szukaj</button>
-        </form>
-    </div>
+        </div>
 
-    <form method="POST" action="{{ route('onboarding.people') }}">
-        @csrf
+        @if($selectedProfiles->isNotEmpty())
+            <h2>Wcześniej wybrane osoby</h2>
+            <div class="stack-tight mb-4">
+                @foreach($selectedProfiles as $profile)
+                    <label class="choice">
+                        <input type="checkbox" name="follow[]" value="{{ $profile->username }}" checked>
+                        {{-- Jak niżej (#793 rozszerzone na relacje) — zaznaczenie
+                             przeniesione z poprzedniego żądania jest jeszcze
+                             starsze, więc para nazwa–identyfikator jest tu
+                             potrzebna tym bardziej. --}}
+                        <input type="hidden" name="oczekiwani[{{ $profile->username }}]" value="{{ $profile->user_id }}">
+                        <span class="choice-label">{{ $profile->display_name }} (&#64;{{ $profile->username }})</span>
+                    </label>
+                @endforeach
+            </div>
+        @endif
 
         @if($phrase !== '' && $searchErrors->isEmpty())
             {{--
@@ -89,7 +121,7 @@
                 <div class="stack-tight mb-4">
                     @foreach($wynikiWyszukiwania as $profil)
                         <label class="choice">
-                            <input type="checkbox" name="follow[]" value="{{ $profil->username }}">
+                            <input type="checkbox" name="follow[]" value="{{ $profil->username }}" @checked(in_array($profil->username, $selectedFollows, true))>
                             {{-- #793 rozszerzone na relacje: ten ekran ludzie
                                  przerywają i wracają do niego, więc nazwa
                                  zaznaczona teraz może przy wysłaniu należeć
@@ -122,7 +154,7 @@
             @endif
 
             <p class="mb-6">
-                <a class="btn btn-quiet" href="{{ route('onboarding.people') }}">Wyczyść wyszukiwanie</a>
+                <button class="btn btn-quiet" type="submit" name="clear" value="1">Wyczyść wyszukiwanie</button>
             </p>
 
             <h2>Osoby, które polecamy</h2>
@@ -137,7 +169,7 @@
             <div class="stack-tight">
                 @foreach($people as $person)
                     <label class="choice">
-                        <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}">
+                        <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}" @checked(in_array($person->profile->username, $selectedFollows, true))>
                         {{-- Jak wyżej (#793 rozszerzone na relacje). --}}
                         <input type="hidden" name="oczekiwani[{{ $person->profile->username }}]" value="{{ $person->getKey() }}">
                         <span class="flex gap-3 items-center flex-1">
@@ -160,7 +192,8 @@
         @endif
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Dalej</button>
+            {{-- CSRF wyłącznie przy POST; wyszukiwanie nie wysyła tokenu w adresie. --}}
+            <button class="btn btn-primary" type="submit" formmethod="POST" name="_token" value="{{ csrf_token() }}">Dalej</button>
             <a class="btn btn-quiet" href="{{ route('onboarding.done') }}">Pomiń ten krok</a>
         </div>
     </form>

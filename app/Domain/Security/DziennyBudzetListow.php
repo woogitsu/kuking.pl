@@ -51,6 +51,14 @@ use Illuminate\Support\Facades\Log;
  * było POTWIERDZENIE REJESTRACJI i LOGOWANIE LINKIEM — czyli wejście dla
  * nowych ludzi. Patrz `wspolny()` niżej.
  *
+ * DOMKNIĘTE 23 WRZEŚNIA 2026 (D-246). Sam wspólny licznik tej drugiej drogi
+ * nie zatrzymywał: ponowienie stało w klasie `wejscie` z progiem zero, więc
+ * jedno konto nadal wypalało pulę w te same 50 minut — tyle że odmawiała
+ * już aplikacja, a nie dostawca. Od D-246 ponowienie ma sufit dobowy na
+ * konto (`poczta.ponowienie_potwierdzenia_na_dobe`, pilnuje go
+ * `WyslijPotwierdzenieAdresu::ponow()`) i własną klasę `ponowienie`, która
+ * gaśnie, zanim dotknie ostatnich listów klasy `wejscie`.
+ *
  * CACHE, NIE BAZA: to jest licznik, nie dowód. Jego zgubienie (restart
  * kontenera z pamięciowym sterownikiem cache) kosztuje najwyżej tyle, że
  * budżet zaczyna się liczyć od nowa — czyli awaria wychodzi w stronę
@@ -144,7 +152,7 @@ final class DziennyBudzetListow
      * listów z całej puli ta klasa ma zostawić NIETKNIĘTYCH. Wyższy próg =
      * gaśnie wcześniej. Pełne wyprowadzenie liczb stoi w `config/kuking.php`,
      * sekcja `poczta` — tutaj są tylko nazwy, żeby literówka w łańcuchu nie
-     * tworzyła po cichu czwartej klasy z progiem zero (czyli klasy, która
+     * tworzyła po cichu kolejnej klasy z progiem zero (czyli klasy, która
      * gasłaby OSTATNIA, bo nieznany klucz czyta się jako 0).
      */
     public const KLASA_PODSUMOWANIE = 'podsumowanie';
@@ -153,8 +161,19 @@ final class DziennyBudzetListow
 
     public const KLASA_WEJSCIE = 'wejscie';
 
+    /**
+     * Ponowne wysłanie potwierdzenia adresu (D-246) — OSOBNO od `wejscie`.
+     *
+     * Pierwsze potwierdzenie przy rejestracji zostaje w `wejscie`, bo bez
+     * niego nowa osoba nie wchodzi. Ponowienie klika ktoś, kto już ma konto
+     * i korzysta z niego normalnie także bez potwierdzonego adresu — więc
+     * nie ma prawa dzielić z rejestracją i logowaniem linkiem ostatnich
+     * listów doby.
+     */
+    public const KLASA_PONOWIENIE = 'ponowienie';
+
     /** @var list<string> */
-    public const KLASY = [self::KLASA_PODSUMOWANIE, self::KLASA_ZWYKLA, self::KLASA_WEJSCIE];
+    public const KLASY = [self::KLASA_PODSUMOWANIE, self::KLASA_ZWYKLA, self::KLASA_PONOWIENIE, self::KLASA_WEJSCIE];
 
     /** Nazwa funkcji wspólnego licznika — JEDEN klucz w cache na cały serwis. */
     private const FUNKCJA_WSPOLNA = 'cala-poczta';
@@ -232,8 +251,8 @@ final class DziennyBudzetListow
      *
      * KAŻDA KLASA MA WŁASNY PRÓG, ALE WSZYSTKIE JEDEN LICZNIK. Nazwa
      * funkcji jest dla wszystkich ta sama (`cala-poczta`), więc klucz
-     * w cache i klucz blokady są jedne — inaczej trzy klasy liczyłyby trzy
-     * różne „całe poczty" i żadna nie widziałaby pozostałych.
+     * w cache i klucz blokady są jedne — inaczej każda klasa liczyłaby własną
+     * „całą pocztę" i żadna nie widziałaby pozostałych.
      */
     public static function wspolny(string $klasa): self
     {
@@ -260,19 +279,45 @@ final class DziennyBudzetListow
     }
 
     /**
-     * Potwierdzenie adresu e-mail — przy rejestracji i przy ponowieniu
-     * (`App\Domain\Security\WyslijPotwierdzenieAdresu`).
+     * PIERWSZE potwierdzenie adresu e-mail — list wysłany przy rejestracji
+     * (`App\Domain\Security\WyslijPotwierdzenieAdresu::handle()`).
      *
-     * WŁASNEGO SUFITU NIE MA I MIEĆ NIE BĘDZIE: to jest list, bez którego
-     * nowe konto nie potwierdzi adresu, więc jego jedynym ograniczeniem jest
-     * wspólna pula — i w niej stoi na samym końcu kolejki do wygaszenia.
-     * Przed zalewaniem tej drogi broni `limits.verification_resend` i to, że
-     * trzeba mieć konto; wspólny licznik pilnuje tylko tego, żeby jedno
-     * niepotwierdzone konto nie wypaliło puli całemu serwisowi.
+     * WŁASNEGO SUFITU NIE MA: to jest list, bez którego nowe konto nie
+     * potwierdzi adresu, więc jego jedynym ograniczeniem jest wspólna pula —
+     * i w niej stoi na samym końcu kolejki do wygaszenia (klasa `wejscie`).
+     * Przed zalewaniem tej drogi broni `limits.register`: jeden list na
+     * jedno założone konto.
+     *
+     * PONOWIENIE („Wyślij wiadomość jeszcze raz") NIE IDZIE TĘDY — idzie
+     * przez `dlaPonowieniaPotwierdzenia()` niżej. Do 23 września 2026 szło
+     * tędy i ten komentarz twierdził, że wspólny licznik „pilnuje, żeby jedno
+     * niepotwierdzone konto nie wypaliło puli całemu serwisowi". Nie
+     * pilnował: próg zero i `limits.verification_resend` = 6 na minutę bez
+     * sufitu dobowego pozwalały jednemu kontu zużyć całe 300 listów w około
+     * 50 minut, a potem aplikacja odmawiała wszystkim linków logowania
+     * i potwierdzeń rejestracji do końca doby (audyt 23.09, znalezisko 2;
+     * D-246).
      */
     public static function dlaPotwierdzeniaAdresu(): self
     {
         return self::wspolny(self::KLASA_WEJSCIE);
+    }
+
+    /**
+     * PONOWNE wysłanie potwierdzenia adresu — przycisk „Wyślij wiadomość
+     * jeszcze raz" (D-246).
+     *
+     * Klasa `ponowienie`: gaśnie, gdy w puli zostaje
+     * `poczta.progi_wygaszania.ponowienie` listów, więc ponowienia z WIELU
+     * kont razem nie zabiorą ostatnich listów logowania linkiem i pierwszego
+     * potwierdzenia rejestracji. Przed JEDNYM kontem broni osobno sufit
+     * dobowy na konto (`poczta.ponowienie_potwierdzenia_na_dobe`), liczony
+     * w `WyslijPotwierdzenieAdresu::ponow()` — ta klasa o kontach nie wie
+     * nic i wiedzieć nie powinna.
+     */
+    public static function dlaPonowieniaPotwierdzenia(): self
+    {
+        return self::wspolny(self::KLASA_PONOWIENIE);
     }
 
     /**
@@ -302,6 +347,32 @@ final class DziennyBudzetListow
     public static function dlaListuObslugi(): self
     {
         return self::wspolny(self::KLASA_ZWYKLA);
+    }
+
+    /**
+     * Alarm o pilnym zgłoszeniu od CZŁOWIEKA (`AlarmujOPilnymZgloszeniu`, D-236).
+     *
+     * WŁASNY SUFIT DOBOWY I KLASA `wejscie` — JEDNO BEZ DRUGIEGO BYŁOBY BŁĘDEM.
+     *
+     * Klasa `zwykla` wyglądała na oczywistą (to list moderacyjny), ale ją
+     * wypala zalanie `/nie-pamietam-hasla` z jednego łącza (D-239). Wtedy
+     * sprawca, który chce, żeby zgłoszenie „dotyczy dziecka" przeleżało noc
+     * bez listu, miałby na to gotowy przepis. Alarm sięga więc po ostatnie
+     * listy doby razem z wejściem na konto.
+     *
+     * Za to własny sufit (`moderation.alarm_czlowieka.dzienny_sufit`) mówi,
+     * ILE najwyżej z tych ostatnich listów może zabrać: kategorię wybiera
+     * zgłaszający, więc bez sufitu to on decydowałby, ile listów logowania
+     * dziś nie wyjdzie. Konstrukcja jest ta sama co przy podsumowaniu —
+     * licznik w liczniku, jedna atomowa rezerwacja na oba.
+     */
+    public static function dlaAlarmuModeracji(): self
+    {
+        return new self(
+            'alarm-pilnego-zgloszenia',
+            'kuking.moderation.alarm_czlowieka.dzienny_sufit',
+            self::wspolny(self::KLASA_WEJSCIE),
+        );
     }
 
     /**
@@ -524,7 +595,13 @@ final class DziennyBudzetListow
             // ODMOWA, NIE WYSYŁKA „NA WSZELKI WYPADEK" — uzasadnienie przy
             // `CZEKANIE_SEKUND`. Wołający ma powiedzieć człowiekowi, co
             // zrobić, a nie wypuścić list poza sufitem.
-            return false;
+            //
+            // BEZ `return` (#1393): odmowa idzie tą samą ścieżką co odmowa
+            // własnego sufitu, bo miejsce u rodzica JUŻ jest zajęte i musi
+            // wrócić do wspólnej puli. Wcześniejszy `return false` pomijał
+            // ten zwrot — każdy ścisk na blokadzie funkcji zjadał jedno
+            // miejsce wspólnej puli do końca doby, nie wysławszy listu.
+            $zajete = false;
         }
 
         // OSTRZEŻENIE O KOŃCZĄCEJ SIĘ PULI STOI TUTAJ, PO ODDANIU BLOKADY,
@@ -543,7 +620,8 @@ final class DziennyBudzetListow
         // opisuje komentarz przy `BLOKADA_SEKUND`: pod blokadą mają być
         // dwie operacje na cache i nic więcej.
         if (! $zajete) {
-            // WŁASNY SUFIT ODMÓWIŁ, WIĘC LIST NIE WYJDZIE — a miejsce zajęte
+            // WŁASNY SUFIT ODMÓWIŁ (albo nie zdobyliśmy jego blokady), WIĘC
+            // LIST NIE WYJDZIE — a miejsce zajęte
             // u rodzica musi wrócić do wspólnej puli. Bez tego wyczerpany
             // sufit jednej funkcji (albo ścisk na jej blokadzie) zjadałby
             // listy wszystkim pozostałym, nie wysławszy ani jednego.
