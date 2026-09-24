@@ -6,11 +6,13 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Exceptions\TekstUsunietyPrzezAutora;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Cofnięcie ukrycia albo usunięcia treści (issue #65).
@@ -69,6 +71,46 @@ final class RestoreContent
             throw new BladDlaCzlowieka('Tej treści nie da się przywrócić.');
         }
 
+        // JEDNA TRANSAKCJA, BLOKADA WIERSZA NA POCZĄTKU (przegląd G31, B1).
+        //
+        // Wcześniej kroki szły bez transakcji: INSERT `unhide` → wyzerowanie
+        // `tresc_sprzed_zdjecia` (zatwierdzone) → dopiero zapis komentarza.
+        // Awaria między nimi kasowała jedyną kopię tekstu, a autor miał już
+        // decyzję „przywrócone”. Dwa równoległe przywrócenia (dwie karty,
+        // „Przywróć” i „cofam” naraz) czytały ten sam stary stan i dawały
+        // dwie decyzje `unhide` i dwa powiadomienia.
+        //
+        // Stan czytamy POD blokadą, z bazy, a nie z modelu wołającego —
+        // drugi w kolejce widzi „już widoczna” i nie zapisuje nic.
+        // `ResolveAppeal::cofnij()` łapie ten wyjątek; zagnieżdżone
+        // `DB::transaction` cofa wtedy tylko swój punkt zapisu.
+        return DB::transaction(function () use ($moderator, $target, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem): ModerationAction {
+            $zapytanie = $target::query();
+
+            if (method_exists($target, 'trashed')) {
+                $zapytanie->withTrashed();
+            }
+
+            $cel = $zapytanie->whereKey($target->getKey())->lockForUpdate()->first();
+
+            if ($cel === null) {
+                throw new BladDlaCzlowieka('Tej treści już nie ma w bazie — nie da się jej przywrócić.');
+            }
+
+            return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);
+        });
+    }
+
+    private function przywrocPodBlokada(
+        User $moderator,
+        Model $target,
+        string $typ,
+        string $reasonCode,
+        ?string $note,
+        ?string $userMessage,
+        ?string $ip,
+        bool $zPowiadomieniem,
+    ): ModerationAction {
         $bylaUkryta = ModeratedContent::jestUkryta($target);
         $bylaUsunieta = method_exists($target, 'trashed') && $target->trashed();
 
@@ -87,7 +129,7 @@ final class RestoreContent
             // (`DeleteComment`) — tekst skasowali sami. Także wtedy, gdy
             // WCZEŚNIEJ zdjęła go moderacja, a po cofnięciu tamtej decyzji
             // autor sam go usunął: stara kopia nie jest zgodą na powrót.
-            throw new BladDlaCzlowieka('Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
+            throw new TekstUsunietyPrzezAutora('Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
                 .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.');
         }
 
@@ -183,6 +225,17 @@ final class RestoreContent
      * odwołaniu) autor mógł sam usunąć komentarz. Napis stoi wtedy znowu,
      * a stara kopia wyglądałaby jak materiał do przywrócenia — i moderator
      * przywróciłby tekst, który autor świadomie skasował.
+     *
+     * KOLEJNOŚĆ: `created_at`, potem `id`. `created_at` to `timestamptz(0)`
+     * — pełne sekundy, więc „zdjęte” i „cofnięte” w tej samej sekundzie
+     * remisują. Drugim kluczem jest `id`: `ModerationAction` używa
+     * `HasUuids`, czyli UUIDv7 (`Str::uuid7()`) — znacznik czasu
+     * w milisekundach na początku i licznik rosnący w obrębie milisekundy
+     * w jednym procesie. Zdjęcie z napisem i przywrócenie biorą blokadę
+     * wiersza komentarza (`ZdejmijTresc`, tu), więc ich `id` powstają jedno
+     * po drugim, nie równolegle. Ryzyko, które zostaje: wiersz
+     * wstawiony z pominięciem modelu dostałby `id` z domyślnego
+     * `gen_random_uuid()` (v4, losowe) — patrz D-251 pkt 10.
      */
     private function trescSprzedZdjecia(string $id): ?string
     {
@@ -215,6 +268,8 @@ final class RestoreContent
             ->where('target_id', $id)
             ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE])
             ->orderByDesc('created_at')
+            // Remis w tej samej sekundzie — patrz `trescSprzedZdjecia()`.
+            ->orderByDesc('id')
             ->first();
 
         $status = $ostatnie?->previous_status;

@@ -129,7 +129,11 @@ delete i wątek się rozsypywał. Tekst komentarza zostaje przy decyzji
 przywraca go w całości (`RestoreContent`), a kopia jest wtedy zerowana.
 Jeśli po cofnięciu decyzji autor sam usunął komentarz, „Przywróć treść” przy
 starym zgłoszeniu **odmawia** — stara kopia nie jest zgodą na powrót tekstu,
-który autor skasował. Komentarz bez odpowiedzi znika jak dotąd (soft delete).
+który autor skasował. Tak samo „cofam” po odwołaniu: odwołanie zostaje
+zamknięte, ale komentarz nie wraca, a autor odwołania dostaje pod
+uzasadnieniem zdanie, że komentarz nie wrócił i dlaczego (D-251 pkt 10).
+Samego komentarza z napisem autor już nie usunie (`CommentPolicy::delete()`).
+Komentarz bez odpowiedzi znika jak dotąd (soft delete).
 
 ### Przywracanie treści (issue #65)
 
@@ -140,6 +144,9 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
 
 - Przywrócenie zapisuje wiersz w `moderation_actions` (akcja `unhide`)
   i wymaga powodu — cofnięcie kary też zostawia ślad.
+- Przywrócenie to jedna transakcja z blokadą wiersza treści: dwa kliknięcia
+  naraz (dwie karty, „Przywróć” i „cofam”) dają jedną decyzję `unhide`
+  i jedno powiadomienie, a awaria w środku nie gubi kopii tekstu.
 - Treść wraca do statusu **sprzed ukrycia**, nie na sztywno do `published`.
   Ukryty szkic po przywróceniu jest dalej szkicem (`moderation_actions.previous_status`,
   patrz `docs/DATABASE.md`).

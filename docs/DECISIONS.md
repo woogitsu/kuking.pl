@@ -16196,6 +16196,35 @@ drugą osobę”.
     (np. „cofam”) autor mógł sam usunąć komentarz — stara kopia nie jest
     wtedy zgodą na powrót, a przywrócenie odmawia z komunikatem, że komentarz
     usunęła osoba, która go napisała (`RestoreContent`).
+    - **„Cofam” po odwołaniu też może nie przywrócić komentarza.**
+      `ResolveAppeal::cofnij()` woła to samo `RestoreContent`: gdy po decyzji
+      komentarz przywrócono „Przywróć”, a potem autor (albo autor treści pod
+      nim) sam go usunął, tekstu nie ma i komentarz nie wraca. Odwołanie
+      i tak zostaje zamknięte jako „cofamy decyzję” — ale uzasadnienie
+      administratora mogło obiecać powrót. Dlatego pod uzasadnieniem
+      w powiadomieniu autor odwołania dostaje zdanie: „Komentarz nie wrócił
+      na stronę. Po naszej decyzji usunęła go osoba, która go napisała, albo
+      autor treści, pod którą stał — dlatego nie mamy już jego tekstu.”
+      (osobny wyjątek `TekstUsunietyPrzezAutora`; w dzienniku audytu
+      `appeal.resolved` ma `content_restored: false`). Administrator na
+      ekranie widzi zwykłe „Odpowiedź zapisana i wysłana.”.
+    - **Autor nie usunie komentarza zdjętego z napisem.**
+      `CommentPolicy::delete()` odmawia przy `body_removed_at` — inaczej
+      spreparowany `DELETE` kasował wiersz, a „Przywróć”/„cofam” wskrzeszały
+      go potem z kopią tekstu. Autor dostaje komunikat, że komentarz już jest
+      usunięty.
+    - **Przywrócenie to jedna transakcja z blokadą wiersza celu.** Decyzja
+      `unhide`, zerowanie kopii i zapis komentarza przechodzą razem albo
+      wcale; stan czytany pod blokadą, więc drugie równoległe przywrócenie
+      widzi „już widoczna” i nie zapisuje drugiej decyzji ani powiadomienia.
+    - **„Najnowsza” = `created_at`, potem `id`.** `created_at` ma pełne
+      sekundy (`timestamptz(0)`), więc remis w jednej sekundzie rozstrzyga
+      `id`: UUIDv7 z `HasUuids` (milisekundy + licznik rosnący w procesie).
+      Kolumny sekwencyjnej w `moderation_actions` nie ma. **Ryzyko, które
+      zostaje:** wiersz wstawiony z pominięciem modelu (surowy SQL, ręczna
+      naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
+      remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
+      wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
 
 ### Czego ta decyzja nie robi
 
