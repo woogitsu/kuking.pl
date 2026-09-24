@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\HeroKolazController;
+use App\Http\Controllers\Admin\KolejkaController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
@@ -1183,6 +1184,23 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['search']},admin_uzytkownicy")
         ->name('admin.users');
     Route::get('/uzytkownicy/{user}', [UzytkownicyController::class, 'show'])->name('admin.users.show');
+
+    /*
+     * Nieudane zadania kolejki — DLACZEGO `/health` mówi `degraded`.
+     *
+     * Trasa stoi w tej grupie, więc przechodzi przez `auth`, `moderator`
+     * i obowiązkowe 2FA — ale to NIE jest jej autoryzacja. Bramką jest
+     * `UserPolicy::diagnozujKolejke()` w kontrolerze, a ona pyta o rolę
+     * `admin`. Moderator wchodzi więc na `/admin`, ale tutaj dostaje 403:
+     * ekran mówi, co się psuje w infrastrukturze, a to jest praca osoby
+     * prowadzącej wdrożenie, nie osoby moderującej treści (D-039).
+     *
+     * Bez `{parametru}` w adresie i bez żadnej metody `POST`: ten ekran
+     * wyłącznie CZYTA. Ponawianie i kasowanie zostało w
+     * `kuking:martwe-zadania`, gdzie decyzję podejmuje człowiek po
+     * zobaczeniu, kogo dotyczy.
+     */
+    Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
 });
 
 // --------------------------------------------------------------------------
