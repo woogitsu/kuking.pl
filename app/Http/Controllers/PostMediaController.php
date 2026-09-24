@@ -77,6 +77,7 @@ class PostMediaController extends Controller
         );
 
         $this->arrange->handle(
+            actor: $request->user(),
             post: $post,
             orderedMediaIds: $przesuniete['kolejnosc'],
             displayMode: $dane['display_mode'] ?? $post->display_mode ?? Post::DISPLAY_NORMAL,
@@ -102,12 +103,29 @@ class PostMediaController extends Controller
         if ($prostoZPublikacji) {
             return redirect()
                 ->to($post->url())
-                ->with('status', 'Układ zdjęć zapisany.');
+                ->with('status', 'Opublikowane. '.$this->ktoZobaczy($post));
         }
 
         return redirect()
             ->route('posts.media.edit', $post)
-            ->with('status', 'Układ zdjęć zapisany.');
+            ->with('status', 'Zapisane. '.$this->ktoZobaczy($post));
+    }
+
+    /**
+     * Drugie zdanie potwierdzenia — MÓWI PRAWDĘ O ODBIORCACH (#882).
+     *
+     * Stało tu na sztywno „Tak zobaczą ten wpis inni." także przy wpisie
+     * prywatnym, którego nikt poza autorem nie widzi. Osoba, która tylko
+     * poukładała zdjęcia, mogła się przestraszyć, że właśnie je upubliczniła.
+     * Zdanie idzie za `visibility` wpisu i niczego w niej nie zmienia.
+     */
+    private function ktoZobaczy(Post $post): string
+    {
+        return match ($post->visibility) {
+            Post::VISIBILITY_PRIVATE => 'Ten wpis widzisz tylko Ty.',
+            Post::VISIBILITY_FOLLOWERS => 'Tak zobaczą ten wpis osoby, które Cię obserwują.',
+            default => 'Tak zobaczą ten wpis inni.',
+        };
     }
 
     /**

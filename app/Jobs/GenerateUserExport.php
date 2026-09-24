@@ -7,18 +7,19 @@ namespace App\Jobs;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
-use App\Mail\DataExportReady;
+use App\Exceptions\DataExportTempFailure;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -56,6 +57,17 @@ use ZipArchive;
  * Rekord NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
  * w `handle()`, jak i hook `failed()` (ten łapie także timeout, po którym
  * nie ma już wyjątku do przechwycenia).
+ *
+ * Paczka NIE powstaje dla konta wymazanego ani dla eksportu unieważnionego
+ * przez `EraseAccountData` (issue #1307) — sprawdzamy to na starcie i drugi
+ * raz pod blokadą wiersza konta tuż przed `ready`, patrz `finalize()`.
+ *
+ * List „paczka gotowa" wysyła osobne zadanie `NotifyUserExportReady`, zlecane
+ * w tej samej transakcji co `ready` (issue #820) — awaria poczty nie dotyka
+ * paczki, a list ma własne ponowienia.
+ *
+ * Pliki pośrednie żyją w katalogu tego jednego eksportu (issue #993), patrz
+ * `App\Domain\Users\Exports\ExportTempDirectory`.
  *
  * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
  * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
@@ -105,7 +117,28 @@ class GenerateUserExport implements ShouldQueue
 
     public function handle(): void
     {
+        // Pozostałości po twardo przerwanych eksportach (issue #993) — także
+        // po poprzedniej próbie TEGO eksportu, której `finally` nie zdążyło.
+        // PRZED każdym wczesnym powrotem niżej: przerwana próba mogła zostawić
+        // tu pełną kopię konta, a konto wymazane w międzyczasie (albo eksport
+        // już gotowy) kończy handle() od razu — i ta kopia czekałaby godzinę
+        // na `sweepStale()` innego eksportu, o ile jakiś w ogóle przyjdzie.
+        ExportTempDirectory::sweepStale();
+
         $export = DataExport::with('user.profile')->find($this->dataExportId);
+
+        // Duplikat zlecenia przy ŻYWYM przebiegu tego samego eksportu —
+        // katalogu nie ruszamy, bo to są JEGO pliki w trakcie pakowania.
+        // Patrz `anotherRunInProgress()`.
+        if ($export !== null && $this->anotherRunInProgress($export)) {
+            Log::info('Eksport danych już się buduje w innym przebiegu — duplikat zlecenia pominięty', [
+                'data_export_id' => $export->getKey(),
+            ]);
+
+            return;
+        }
+
+        ExportTempDirectory::remove($this->dataExportId);
 
         if ($export === null) {
             return;
@@ -120,6 +153,14 @@ class GenerateUserExport implements ShouldQueue
         $user = $export->user;
 
         if ($user === null) {
+            $this->markFailed($export, DataExport::REASON_ACCOUNT_MISSING);
+
+            return;
+        }
+
+        // Wymazanie konta mogło wejść między zamówieniem a startem joba
+        // (issue #1307). Nie budujemy wtedy kopii danych, których już nie ma.
+        if ($this->revoked($export, $user)) {
             $this->markFailed($export, DataExport::REASON_ACCOUNT_MISSING);
 
             return;
@@ -168,17 +209,9 @@ class GenerateUserExport implements ShouldQueue
 
             $bytes = (int) filesize($this->tempZip);
 
-            $export->update([
-                'status' => DataExport::STATUS_READY,
-                'disk' => $disk,
-                'object_key' => $objectKey,
-                'bytes' => $bytes,
-                'completed_at' => $generatedAt,
-                'expires_at' => $generatedAt->copy()->addDays((int) config('kuking.exports.ttl_days')),
-                'failure_reason' => null,
-            ]);
-
-            $this->notifyOwner($export->refresh());
+            if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt) && $this->kolejkaSynchroniczna()) {
+                $this->powiadomBezKolejki();
+            }
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
@@ -195,6 +228,170 @@ class GenerateUserExport implements ShouldQueue
             throw $e;
         } finally {
             $this->cleanUpTempFiles();
+            ExportTempDirectory::remove($this->dataExportId);
+        }
+    }
+
+    /**
+     * Przejście w `ready` — WARUNKOWE, pod blokadą wiersza konta (issue #1307).
+     *
+     * Paczka buduje się do 15 minut z danych odczytanych na starcie. W tym
+     * czasie `EraseAccountData` mogło wymazać konto i przestawić `expires_at`
+     * tego eksportu w przeszłość. Bezwarunkowy `update()` na modelu
+     * pobranym na starcie nadpisywał to unieważnienie świeżym terminem —
+     * i w magazynie zostawała pełna kopia konta po wymazaniu, z terminem,
+     * przed którym nocne sprzątanie jej nie ruszy.
+     *
+     * DLACZEGO BLOKADA NA `users`, A NIE TYLKO NA `data_exports`:
+     * `EraseAccountData` bierze `lockForUpdate()` na wierszu konta jako
+     * pierwsze. Ta sama kolejność tutaj szereguje oba zapisy: albo wymazanie
+     * zatwierdziło się wcześniej i widzimy je pod blokadą, albo czeka na nasz
+     * commit — a wtedy jego `UPDATE ... expires_at` trafia już w `ready`
+     * i paczkę sprząta `kuking:sprzataj-eksporty`. Transakcja obejmuje
+     * wyłącznie ten odczyt i zapis, nie budowanie ZIP-a.
+     *
+     * Przegrany wyścig: plik jest już w magazynie. Wiersz dostaje `expired`
+     * z ZACHOWANYM adresem i terminem w przeszłości, a dopiero potem kasujemy
+     * plik. Gdy kasowanie się nie uda, adres nie ginie — tą samą drogą co
+     * każdą wygasłą paczkę dokończy to `kuking:sprzataj-eksporty`.
+     *
+     * @return bool czy paczka jest gotowa
+     */
+    private function finalize(DataExport $export, string $disk, string $objectKey, int $bytes, Carbon $generatedAt): bool
+    {
+        $ready = DB::transaction(function () use ($export, $disk, $objectKey, $bytes, $generatedAt): ?bool {
+            $owner = User::query()->whereKey($export->user_id)->lockForUpdate()->first();
+            $current = DataExport::query()->whereKey($export->getKey())->lockForUpdate()->first();
+
+            if ($current === null) {
+                return null;
+            }
+
+            if ($this->revoked($current, $owner)) {
+                $current->update([
+                    'status' => DataExport::STATUS_EXPIRED,
+                    'disk' => $disk,
+                    'object_key' => $objectKey,
+                    'bytes' => $bytes,
+                    'expires_at' => $current->expires_at !== null && $current->expires_at->isPast()
+                        ? $current->expires_at
+                        : now()->subSecond(),
+                ]);
+
+                return false;
+            }
+
+            $current->update([
+                'status' => DataExport::STATUS_READY,
+                'disk' => $disk,
+                'object_key' => $objectKey,
+                'bytes' => $bytes,
+                'completed_at' => $generatedAt,
+                'expires_at' => $generatedAt->copy()->addDays((int) config('kuking.exports.ttl_days')),
+                'failure_reason' => null,
+            ]);
+
+            // List ma własne zadanie z ponowieniami (issue #820) i wchodzi
+            // do TEJ transakcji: kolejka jest bazodanowa na tym samym
+            // połączeniu (`DataSettingsController::zlecWykonanie()`), więc
+            // wiersz w `jobs` i `ready` zatwierdzają się razem albo wcale.
+            // Po commicie, a przed zleceniem, nie ma okna, w którym paczka
+            // jest gotowa, a listu nie wyśle nikt. Kolejka `sync` wykonałaby
+            // zadanie W ŚRODKU tej transakcji, pod blokadą konta, a jego
+            // wyjątek cofnąłby `ready` — patrz `powiadomBezKolejki()`.
+            if (! $this->kolejkaSynchroniczna()) {
+                NotifyUserExportReady::dispatch((string) $current->getKey());
+            }
+
+            return true;
+        });
+
+        if ($ready === true) {
+            return true;
+        }
+
+        $this->discardRevokedPackage($export, $disk, $objectKey, recordKept: $ready === false);
+
+        return false;
+    }
+
+    /**
+     * Czy ten sam eksport buduje właśnie INNY przebieg (przegląd kodu
+     * 23 września 2026).
+     *
+     * Dwa zadania na jednym rekordzie to nie teoria: „ponów” w ustawieniach
+     * (`DataSettingsController::odpowiedzNaTrwajacy`) wysyła drugie zadanie
+     * dla `queued` stojącego 15 minut — a pierwsze mogło po prostu czekać
+     * w kolejce i ruszyć chwilę później. Bez tego strażnika drugie zaczynało
+     * od `ExportTempDirectory::remove()` i kasowało pliki pierwszego
+     * w połowie pakowania.
+     *
+     * Żywy przebieg = `processing` ustawione (albo dotknięte) nie dawniej niż
+     * limit jednej próby (`$timeout`). Starsze `processing` to próba zabita
+     * twardo: ponowienie z kolejki przychodzi po `retry_after` = 960 s, czyli
+     * PO tym progu (`config/queue.php`, `UmowaKolejkiTest`), więc strażnik
+     * go nie zatrzyma i katalog po przerwanej próbie zostanie sprzątnięty.
+     *
+     * Wymazane konto NIE jest chronione: żywy przebieg i tak skończy się
+     * odrzuceniem w `finalize()`, a kopia wymazanego konta ma zniknąć od
+     * razu (issue #993, `test_wczesny_powrot_…`).
+     */
+    private function anotherRunInProgress(DataExport $export): bool
+    {
+        return $export->status === DataExport::STATUS_PROCESSING
+            && $export->updated_at !== null
+            && $export->updated_at->gt(now()->subSeconds($this->timeout))
+            && ! $this->revoked($export, $export->user);
+    }
+
+    /**
+     * Konto wymazane albo eksport unieważniony przez `EraseAccountData`,
+     * które przestawia `expires_at` w przeszłość także na `queued`
+     * i `processing`. Karencja (`pending_delete`) NIE unieważnia — paczkę
+     * wolno zamówić i pobrać do dnia egzekucji.
+     */
+    private function revoked(DataExport $export, ?User $user): bool
+    {
+        if ($user === null || $user->isErased() || $user->data_erased_at !== null) {
+            return true;
+        }
+
+        return $export->status !== DataExport::STATUS_READY
+            && $export->expires_at !== null
+            && $export->expires_at->isPast();
+    }
+
+    /** Kasuje plik z przegranego wyścigu i sprawdza, czy naprawdę zniknął (jak `CleanUpDataExports`). */
+    private function discardRevokedPackage(DataExport $export, string $disk, string $objectKey, bool $recordKept): void
+    {
+        try {
+            $storage = Storage::disk($disk);
+            $storage->delete($objectKey);
+            $gone = ! $storage->exists($objectKey);
+        } catch (Throwable $e) {
+            $gone = false;
+        }
+
+        if (! $gone) {
+            // Adres zostaje w wierszu (`expired`, termin w przeszłości), więc
+            // nocne `kuking:sprzataj-eksporty` spróbuje ponownie. Gdy wiersza
+            // już nie ma, ten wpis jest jedynym śladem — stąd `error`.
+            Log::error('Nie udało się usunąć paczki z danymi zbudowanej po wymazaniu konta', [
+                'data_export_id' => $export->getKey(),
+                'disk' => $disk,
+                'object_key' => $objectKey,
+                'wiersz_zachowany' => $recordKept,
+            ]);
+
+            return;
+        }
+
+        if ($recordKept) {
+            DataExport::query()->whereKey($export->getKey())->update([
+                'disk' => null,
+                'object_key' => null,
+                'bytes' => null,
+            ]);
         }
     }
 
@@ -216,6 +413,9 @@ class GenerateUserExport implements ShouldQueue
         );
 
         $this->cleanUpTempFiles();
+        // Ta instancja jest odtworzona z ładunku kolejki i nie zna listy
+        // plików z `handle()` — katalog po identyfikatorze zna (issue #993).
+        ExportTempDirectory::remove($this->dataExportId);
     }
 
     // -----------------------------------------------------------------
@@ -279,6 +479,7 @@ class GenerateUserExport implements ShouldQueue
     private function addPostsPage(ZipArchive $zip, array $data): void
     {
         $posts = array_map(fn (array $post): array => [
+            'tytul' => $post['tytul'],
             'tresc' => $post['tresc'],
             'data' => $post['opublikowano'] ?? $post['utworzono']
                 ? Carbon::parse($post['opublikowano'] ?? $post['utworzono'])->translatedFormat('j F Y')
@@ -413,10 +614,6 @@ class GenerateUserExport implements ShouldQueue
 
             $localPath = $this->copyToTemp($photo);
 
-            if ($localPath === null) {
-                continue;
-            }
-
             $zip->addFile($localPath, 'zdjecia/'.$name);
             $sinceFlush++;
 
@@ -436,44 +633,135 @@ class GenerateUserExport implements ShouldQueue
     /**
      * Kopia zdjęcia na dysk tymczasowy, strumieniowo.
      *
-     * Brak jednego pliku w storage nie może wywalić całego eksportu —
-     * lepiej wydać paczkę bez jednego zdjęcia niż nie wydać żadnej.
+     * Nieodczytane zdjęcie `ready` PRZERYWA eksport (issue #1388). Plan zdjęć
+     * powstaje przed kopiowaniem, więc `dane.json`, strony przepisów, spis
+     * treści i README już je liczą i do niego odsyłają. Pominięcie dawało
+     * paczkę `ready` z martwymi odnośnikami i fałszywą liczbą zdjęć — bez
+     * słowa dla człowieka. Kolejka ponawia (`$backoff`), a po ostatniej
+     * próbie ekran mówi, co zrobić (`DataExport::REASON_PHOTO_UNREADABLE`).
+     *
+     * DWIE RÓŻNE AWARIE, DWA RÓŻNE WYJĄTKI. Do 23 września 2026 cała metoda
+     * siedziała w jednym `catch`, więc brak miejsca na NASZYM dysku
+     * tymczasowym (albo nieudany `fopen`) szedł na ekran jako „nie udało się
+     * pobrać jednego z Twoich zdjęć" — zdanie o czymś, co się nie stało.
+     * A wynik `stream_copy_to_stream()` nie był sprawdzany wcale: odczyt
+     * urwany w połowie kończy się zwykłym końcem strumienia, więc ucięta
+     * kopia wchodziła do paczki `ready` jako zepsuty plik (ta sama wada co
+     * #1388, tylko po cichu — zmierzone testem). Teraz:
+     *
+     *  - magazyn nie oddał pliku albo oddał go krótszego, niż sam deklaruje
+     *    (`size()`) → `DataExportPhotoUnreadable`;
+     *  - nie udało się utworzyć, zapisać albo domknąć kopii lokalnej, albo
+     *    na dysku leży mniej bajtów, niż przeczytaliśmy → `DataExportTempFailure`.
+     *
+     * W obu przypadkach paczka NIE jest `ready`.
      */
-    private function copyToTemp(Media $photo): ?string
+    private function copyToTemp(Media $photo): string
     {
+        [$source, $expectedBytes] = $this->openPhotoSource($photo);
+
+        $target = false;
+
         try {
-            $source = Storage::disk($photo->disk)->readStream($photo->object_key);
-
-            if ($source === null || $source === false) {
-                throw new \RuntimeException('Brak pliku w storage.');
-            }
-
             $path = $this->tempPath('bin');
-            $target = fopen($path, 'wb');
+            $target = $this->openTempTarget($path);
 
             if ($target === false) {
-                throw new \RuntimeException('Nie udało się utworzyć pliku tymczasowego.');
+                throw new DataExportTempFailure('Nie udało się utworzyć kopii zdjęcia '.$photo->getKey().' na dysku tymczasowym.');
             }
 
-            try {
-                stream_copy_to_stream($source, $target);
-            } finally {
-                fclose($target);
+            $copied = 0;
 
-                if (is_resource($source)) {
-                    fclose($source);
+            while (! feof($source)) {
+                $chunk = @fread($source, 1024 * 1024);
+
+                if ($chunk === false || ($chunk === '' && ! feof($source))) {
+                    throw $this->photoUnreadable($photo, 'przerwany odczyt');
                 }
+
+                if ($chunk === '') {
+                    break;
+                }
+
+                if (@fwrite($target, $chunk) !== strlen($chunk)) {
+                    throw new DataExportTempFailure('Nie udało się zapisać kopii zdjęcia '.$photo->getKey().' na dysku tymczasowym.');
+                }
+
+                $copied += strlen($chunk);
+            }
+
+            $flushed = @fflush($target);
+            $closed = @fclose($target);
+            $target = false;
+
+            clearstatcache(true, $path);
+
+            if (! $flushed || ! $closed || @filesize($path) !== $copied) {
+                throw new DataExportTempFailure('Kopia zdjęcia '.$photo->getKey().' na dysku tymczasowym jest niepełna.');
+            }
+
+            if ($copied !== $expectedBytes) {
+                throw $this->photoUnreadable($photo, "odczytano {$copied} z {$expectedBytes} bajtów");
             }
 
             return $path;
-        } catch (Throwable $e) {
-            Log::warning('Pominięto zdjęcie w paczce z danymi', [
-                'media_id' => $photo->getKey(),
-                'error' => $e->getMessage(),
-            ]);
+        } finally {
+            if (is_resource($target)) {
+                @fclose($target);
+            }
 
-            return null;
+            if (is_resource($source)) {
+                fclose($source);
+            }
         }
+    }
+
+    /**
+     * Strumień zdjęcia z magazynu razem z rozmiarem, jaki magazyn podaje.
+     * Rozmiar to jedyna miara, po której da się poznać odczyt urwany w połowie:
+     * strumień sieciowy kończy się wtedy zwykłym końcem pliku.
+     *
+     * @return array{0: resource, 1: int}
+     */
+    private function openPhotoSource(Media $photo): array
+    {
+        try {
+            $disk = Storage::disk($photo->disk);
+            $expectedBytes = $disk->size($photo->object_key);
+            $source = $disk->readStream($photo->object_key);
+        } catch (Throwable $e) {
+            throw $this->photoUnreadable($photo, $e::class);
+        }
+
+        if (! is_resource($source)) {
+            throw $this->photoUnreadable($photo, 'brak pliku w storage');
+        }
+
+        return [$source, $expectedBytes];
+    }
+
+    /**
+     * Otwarcie kopii lokalnej. Osobna metoda, żeby test mógł podstawić
+     * `/dev/full` — prawdziwy „brak miejsca na dysku" z jądra, bez
+     * zapełniania dysku maszyny, na której chodzą testy.
+     *
+     * @return resource|false
+     */
+    protected function openTempTarget(string $path)
+    {
+        return @fopen($path, 'wb');
+    }
+
+    /**
+     * Bez `previous`: `handle()` logowałby wtedy surowy komunikat magazynu
+     * (ścieżka, szczegół dostawcy). Identyfikator zdjęcia i krótka przyczyna
+     * wystarczą do diagnozy.
+     */
+    private function photoUnreadable(Media $photo, string $cause): DataExportPhotoUnreadable
+    {
+        return new DataExportPhotoUnreadable(
+            'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$cause.').',
+        );
     }
 
     // -----------------------------------------------------------------
@@ -494,7 +782,7 @@ class GenerateUserExport implements ShouldQueue
 
     private function tempPath(string $extension): string
     {
-        $path = sys_get_temp_dir().'/kuking-eksport-'.Str::uuid()->toString().'.'.$extension;
+        $path = ExportTempDirectory::newFile($this->dataExportId, $extension);
 
         $this->tempFiles[] = $path;
 
@@ -516,34 +804,25 @@ class GenerateUserExport implements ShouldQueue
         }
     }
 
-    private function notifyOwner(DataExport $export): void
+    private function kolejkaSynchroniczna(): bool
     {
-        $email = $export->user?->email;
+        $nazwa = (string) config('queue.default');
 
-        if ($email === null) {
-            return;
-        }
+        return config("queue.connections.{$nazwa}.driver") === 'sync';
+    }
 
+    /**
+     * Kolejka `sync` (testy, lokalnie bez workera): list PO commicie `ready`
+     * i bez ponowień — bez kolejki nie ma kto ponawiać. Awaria poczty nie
+     * może tu zamienić gotowej paczki w `failed` przez `catch` w `handle()`;
+     * `NotifyUserExportReady` sam zapisuje ją w dzienniku, z redakcją adresu.
+     */
+    private function powiadomBezKolejki(): void
+    {
         try {
-            Mail::to($email)->send(new DataExportReady($export));
-        } catch (Throwable $e) {
-            // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
-            // tylko dlatego, że poczta chwilowo nie działa.
-            // KOMUNIKAT PRZECHODZI PRZEZ REDAKCJĘ, NIE SUROWY.
-            //
-            // To jest wyjątek z WYSYŁKI LISTU, więc jego komunikat buduje
-            // transport, a nie my — a transport przy odrzuconym odbiorcy
-            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: Recipient
-            // address rejected"). Dziennik aplikacji nie jest miejscem na
-            // adresy (AGENTS.md §7); ta sama redakcja, którą robi
-            // `ZapiszNieudanyList` na tym samym rodzaju tekstu, a `Wyslij…`
-            // z `App\Domain\Security` rozwiązuje jeszcze ostrzej — samą
-            // nazwą klasy.
-            Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
-                'data_export_id' => $export->getKey(),
-                'wyjatek' => $e::class,
-                'error' => BezpiecznyKomunikat::z($e->getMessage()),
-            ]);
+            (new NotifyUserExportReady($this->dataExportId))->handle();
+        } catch (Throwable) {
+            // Zapisane w dzienniku przez NotifyUserExportReady::handle().
         }
     }
 
@@ -568,8 +847,13 @@ class GenerateUserExport implements ShouldQueue
      */
     private function reasonFor(Throwable $e): string
     {
-        return $e instanceof DataExportStorageFailure
-            ? DataExport::REASON_STORAGE
-            : DataExport::REASON_UNKNOWN;
+        return match (true) {
+            $e instanceof DataExportStorageFailure => DataExport::REASON_STORAGE,
+            $e instanceof DataExportPhotoUnreadable => DataExport::REASON_PHOTO_UNREADABLE,
+            // Awaria NASZEGO dysku tymczasowego: nie magazyn i nie zdjęcie
+            // człowieka, więc ekran nie może mówić o żadnym z nich.
+            $e instanceof DataExportTempFailure => DataExport::REASON_UNKNOWN,
+            default => DataExport::REASON_UNKNOWN,
+        };
     }
 }
