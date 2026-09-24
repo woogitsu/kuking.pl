@@ -347,8 +347,14 @@
 
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
+                    Przy WŁASNEJ treści patrzącego zamiast przycisku stoi
+                    informacja (#1479): akcja i tak by odmówiła.
                 --}}
-                @if($przywracalne[$report->id] ?? false)
+                @if(($przywracalne[$report->id] ?? null) === 'wlasna')
+                    <p class="mt-4">
+                        To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.
+                    </p>
+                @elseif(($przywracalne[$report->id] ?? null) === 'przywroc')
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
                         {{-- Ten sam identyfikator wiersza co w formularzu decyzji

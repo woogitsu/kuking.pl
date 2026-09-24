@@ -103,6 +103,39 @@ class NiktNiePrzywracaWlasnejTresciTest extends TestCase
     }
 
     /**
+     * Bez martwego przycisku (AGENTS.md §5): autor-moderator nie widzi
+     * „Przywróć treść", który skończyłby się odmową — widzi, kto może.
+     */
+    public function test_autor_moderator_nie_widzi_przycisku_przywrocenia_tylko_informacje(): void
+    {
+        $autor = $this->moderator();
+        $post = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $report = $this->ukryte($post, 'post', $autor);
+
+        $this->actingAs($autor)
+            ->get(route('admin.reports', ['status' => 'resolved']))
+            ->assertOk()
+            ->assertDontSee(route('admin.reports.restore', $report))
+            ->assertSee('To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.');
+    }
+
+    /** Kontrola dodatnia: inny moderator widzi przycisk przy tej samej treści. */
+    public function test_inny_moderator_widzi_przycisk_przywrocenia(): void
+    {
+        $autor = $this->moderator();
+        $inny = $this->moderator();
+        $post = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $report = $this->ukryte($post, 'post', $autor);
+
+        $this->actingAs($inny)
+            ->get(route('admin.reports', ['status' => 'resolved']))
+            ->assertOk()
+            ->assertSee(route('admin.reports.restore', $report))
+            ->assertSee('Przywróć treść')
+            ->assertDontSee('To Twoja treść — przywrócić może inny moderator');
+    }
+
+    /**
      * Druga droga do tej samej akcji: „cofam" po odwołaniu. Odmowy nie wolno
      * tu połknąć — odwołanie zamknięte jako cofnięte przy treści, która dalej
      * jest schowana, mówiłoby autorowi nieprawdę.

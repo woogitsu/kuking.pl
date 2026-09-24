@@ -137,8 +137,9 @@ class ModerationController extends Controller
             'status' => $status,
             'zrodlo' => $zrodlo,
             'reports' => $reports,
-            // Które zgłoszenia da się dziś cofnąć (issue #65).
-            'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Które zgłoszenia da się dziś cofnąć (issue #65) — i przy
+            // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
+            'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi. Bez tego samego warunku o źródle „Nowe (14)" oznaczałoby
             // czternaście spraw, z których widać cztery — a moderator nie ma
@@ -580,10 +581,15 @@ class ModerationController extends Controller
      * a strona kolejki ma 25 pozycji obsługiwanych przez jedną osobę.
      * Optymalizacja tego miejsca kosztowałaby więcej czytelności niż daje.
      *
+     * Treść, której autorem jest patrzący moderator, dostaje `wlasna`
+     * zamiast `przywroc` (#1479): `RestoreContent` i tak by odmówił, więc
+     * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
+     * co reguła w akcji — `ModeratedContent::osoba()`.
+     *
      * @param  list<Report>  $reports
-     * @return array<string, true> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'> klucz: id zgłoszenia
      */
-    private function przywracalne(array $reports): array
+    private function przywracalne(array $reports, User $moderator): array
     {
         if ($reports === []) {
             return [];
@@ -608,7 +614,9 @@ class ModerationController extends Controller
                 || (method_exists($cel, 'trashed') && $cel->trashed());
 
             if ($schowana) {
-                $wynik[(string) $decyzja->report_id] = true;
+                $wynik[(string) $decyzja->report_id] = ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()
+                    ? 'wlasna'
+                    : 'przywroc';
             }
         }
 
