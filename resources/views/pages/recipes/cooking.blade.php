@@ -111,7 +111,10 @@
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
-                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo" />
+                    {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752). --}}
+                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo"
+                             tresc="przepis"
+                             :wymien-url="auth()->user()?->isActive() && auth()->user()->can('update', $recipe) ? route('recipes.edit', $recipe->slug).'#f-steps-'.($krok - 1).'-photo' : null" />
                 </div>
             @endif
 
