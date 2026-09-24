@@ -21,6 +21,7 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Zapis przepisu — szkicu albo publikacji.
@@ -128,6 +129,14 @@ final class PublishRecipe
         // BLOKADĄ wiersza, w transakcji niżej (D-079 §2).
         if ($existing !== null && ! RecipeStatusTransitions::authorMayEdit($existing->status)) {
             throw new BladDlaCzlowieka(self::PRZEPIS_ZAMROZONY_PRZEZ_MODERACJE.$this->kontakt());
+        }
+
+        // Policy nie może być wyłącznie ochroną kontrolera. Tę akcję woła
+        // także kreator Livewire, a w przyszłości mogą wołać ją zadania lub
+        // importy. Jawny aktor pilnuje konkretnego istniejącego przepisu,
+        // zanim odczytamy jego relacje albo zaczniemy transakcję zapisu.
+        if ($existing !== null) {
+            Gate::forUser($author)->authorize('update', $existing);
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -286,7 +295,6 @@ final class PublishRecipe
             DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
 
             $payload = [
-                'author_id' => $author->getKey(),
                 'title' => $title,
                 'summary' => $this->nullIfBlank($attributes['summary'] ?? null),
                 'servings' => $attributes['servings'] ?? null,
@@ -304,6 +312,7 @@ final class PublishRecipe
             ];
 
             if ($existing === null) {
+                $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;
                 $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;

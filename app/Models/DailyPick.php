@@ -51,6 +51,6 @@ class DailyPick extends Model
         // `Czas::dzisiajData()`, nie `now()`: `shown_on` jest zwykłą kolumną
         // `date`, a „dziś" na tablicy dnia to dzień, który widzi człowiek.
         // Przez `now()` (UTC) tablica zmieniała się o 02:00 czasu polskiego.
-        $query->whereDate('shown_on', $date ?? Czas::dzisiajData())->orderBy('position');
+        $query->whereDate('shown_on', $date ?? Czas::dzisiajData())->orderBy('position')->orderBy('id');
     }
 }

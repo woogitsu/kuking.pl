@@ -139,6 +139,12 @@ pusty wpis z datą — a odpowiedzi innych osób zostają, bez pytania, którego
 dotyczyły. To nie jest brak etykiety: to utrata tekstu, który ten człowiek
 sam napisał.
 
+**Stan po poprawce #832.** Wpis w `dane.json` niesie teraz `rodzaj` i `tytul`
+obok `tresc` (bez sklejania pól), zapisane w zeszycie wpisy — `tytul`,
+a `wpisy.html` pokazuje tytuł pytania. Pilnuje tego
+`tests/Feature/PytanieZSamymTytulemTest.php` (pytanie z samym tytułem).
+Już wygenerowanych paczek nie przepisujemy.
+
 ---
 
 ### R-03 · Polityka obiecuje, że do OpenAI idzie *pomniejszone* zdjęcie; kod tego nie gwarantuje
