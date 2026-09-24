@@ -34,6 +34,14 @@ use LogicException;
  *     edytowany).
  *  2. `handle()` — wykonanie.
  *
+ * STAN „JUŻ ZDJĘTA” CZYTANY POD TĄ SAMĄ BLOKADĄ (przegląd G31)
+ * `decide()` sprawdzał `jestZdjeta()` na modelu wczytanym BEZ blokady
+ * komentarza. Autor, który w tym oknie sam usunął komentarz, zostawiał
+ * w `body` napis — a `tekstDoZachowania()` zapisywał ten napis jako „kopię
+ * tekstu”, którą późniejsze „Przywróć” wstawiało jak zwykły komentarz.
+ * Dlatego wołający najpierw bierze `zablokuj()`, a oba kroki niżej jeszcze
+ * raz odmawiają na komentarzu z `body_removed_at`.
+ *
  * Oba WEWNĄTRZ jednej transakcji — blokada komentarza jest ta sama co
  * w `DeleteComment` (wspólna z publikacją odpowiedzi), więc odpowiedź nie
  * wejdzie między sprawdzeniem a usunięciem, a wynik kroku 1 zostaje prawdą
@@ -41,6 +49,20 @@ use LogicException;
  */
 final class ZdejmijTresc
 {
+    /**
+     * Cel decyzji wczytany na nowo pod blokadą komentarza (tą samą co
+     * w `DeleteComment`) — `jestZdjeta()` na wyniku jest prawdą aż do końca
+     * transakcji. Wpis i przepis wracają bez zmian. NULL: wiersza już nie ma.
+     */
+    public function zablokuj(Model $target): ?Model
+    {
+        if (! $target instanceof Comment) {
+            return $target;
+        }
+
+        return Comment::query()->withTrashed()->whereKey($target->getKey())->lock('FOR NO KEY UPDATE')->first();
+    }
+
     /**
      * Tekst komentarza, który trzeba zachować przy decyzji — albo NULL, gdy
      * treść zniknie zwykłym soft delete (nie komentarz albo bez odpowiedzi).
@@ -52,6 +74,7 @@ final class ZdejmijTresc
         }
 
         $komentarz = Comment::query()->whereKey($target->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        self::odmowGdyNapis($komentarz);
 
         return $komentarz->replies()->exists() ? $komentarz->body : null;
     }
@@ -65,9 +88,11 @@ final class ZdejmijTresc
         }
 
         $komentarz = Comment::query()->whereKey($target->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        self::odmowGdyNapis($komentarz);
 
         if (! $komentarz->replies()->exists()) {
             $komentarz->delete();
+            DeleteComment::usunPustyNapisRodzica($komentarz);
 
             return;
         }
@@ -83,5 +108,19 @@ final class ZdejmijTresc
             'body' => DeleteComment::DELETED_PLACEHOLDER,
             'body_removed_at' => now(),
         ])->save();
+    }
+
+    /**
+     * Napis „Komentarz usunięty.” to nie tekst komentarza — zapisany jako
+     * kopia wróciłby przy „Przywróć” jako zwykła treść. Wołający sprawdza
+     * `jestZdjeta()` na wyniku `zablokuj()`; tu tylko ostatnia zapora, która
+     * wycofuje całą transakcję.
+     */
+    private static function odmowGdyNapis(Comment $komentarz): void
+    {
+        if ($komentarz->body_removed_at !== null) {
+            throw new LogicException('Komentarz jest już zastąpiony napisem — sprawdź ModeratedContent::jestZdjeta() '
+                .'na wyniku ZdejmijTresc::zablokuj(), zanim zapiszesz decyzję.');
+        }
     }
 }

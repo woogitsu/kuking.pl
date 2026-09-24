@@ -116,7 +116,10 @@ final class RestoreContent
 
         // Komentarz z odpowiedziami zdjęty przez moderację: wiersz żyje, ale
         // w `body` stoi napis „Komentarz usunięty.” (G31, `ZdejmijTresc`).
-        $bylZastapiony = ! $bylaUsunieta && $target instanceof Comment && $target->body_removed_at !== null;
+        // Także gdy napis jest miękko usunięty, bo zniknęła ostatnia
+        // odpowiedź (`DeleteComment::usunPustyNapisRodzica()`) — wtedy wraca
+        // i wiersz, i tekst.
+        $bylZastapiony = $target instanceof Comment && $target->body_removed_at !== null;
 
         if (! $bylaUkryta && ! $bylaUsunieta && ! $bylZastapiony) {
             throw new BladDlaCzlowieka('Ta treść jest już widoczna — nie ma czego przywracać.');
@@ -167,6 +170,17 @@ final class RestoreContent
 
         if ($bylaUsunieta) {
             $target->restore();
+
+            // Odpowiedź wraca pod napis, który zniknął razem z nią
+            // (`DeleteComment::usunPustyNapisRodzica()`) — napis wraca też,
+            // inaczej odpowiedź nie miałaby pod czym stać.
+            if ($target instanceof Comment && $target->parent_id !== null) {
+                Comment::onlyTrashed()
+                    ->whereKey($target->parent_id)
+                    ->whereNotNull('body_removed_at')
+                    ->first()
+                    ?->restore();
+            }
         }
 
         if ($tekst !== null) {

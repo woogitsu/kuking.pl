@@ -16278,6 +16278,26 @@ drugą osobę”.
       naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
       remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
       wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
+11. **Napis bez odpowiedzi znika sam** (przegląd G31). `CommentPolicy::delete()`
+    odmawia przy `body_removed_at` (pkt 10), więc napis „Komentarz usunięty.”,
+    pod którym zniknęły wszystkie odpowiedzi, nie dał się usunąć przez nikogo.
+    Zamiast przycisku dla moderatora — prostsze i bez decyzji do uzasadniania,
+    bo tekstu tam już nie ma — napis dostaje miękkie usunięcie w tej samej
+    transakcji, w której znika jego ostatnia opublikowana odpowiedź: przez
+    autora (`DeleteComment`) albo decyzją `remove` (`ZdejmijTresc`), pod
+    blokadą rodzica wspólną z publikacją odpowiedzi
+    (`DeleteComment::usunPustyNapisRodzica()`). Kopia tekstu przy decyzji
+    zostaje: „cofam”/„Przywróć” komentarza z napisem przywraca wiersz
+    **i** tekst (`RestoreContent` traktuje miękko usunięty napis jak
+    zastąpiony). Przywrócenie odpowiedzi przywraca też napis nad nią. Ukrycie
+    odpowiedzi (`hide`) napisu nie usuwa — jest odwracalne jednym kliknięciem.
+12. **Stan „już zdjęta” przy decyzji ze zgłoszenia czytany pod blokadą
+    komentarza** (przegląd G31). `decide()` sprawdzał `jestZdjeta()` na
+    modelu sprzed blokady: gdy autor usunął komentarz w tym oknie, do decyzji
+    trafiał napis jako „kopia tekstu”, a „Przywróć” wstawiało go potem jak
+    zwykłą treść. Teraz cel jest czytany na nowo pod blokadą
+    (`ZdejmijTresc::zablokuj()`), a `tekstDoZachowania()`/`handle()` odmawiają
+    (wyjątek, wycofanie transakcji) na komentarzu z `body_removed_at`.
 
 ### Czego ta decyzja nie robi
 
@@ -16295,7 +16315,8 @@ drugą osobę”.
 `app/Http/Controllers/Admin/ZUrzeduController.php`,
 `app/Policies/UserPolicy.php` (`takeDownContentOf`),
 `database/migrations/2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions.php`,
-`tests/Feature/ZdejmijZUrzeduTest.php`
+`tests/Feature/ZdejmijZUrzeduTest.php`,
+`tests/Feature/ZdejmijZUrzeduPoPrzegladzieTest.php`
 
 ### Wycofanie
 

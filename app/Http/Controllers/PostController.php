@@ -641,6 +641,11 @@ class PostController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // Ten sam powód co `recipe`/`replies.recipe` w
+                // `RecipeController`: `Comment::subject()` pytany przy każdym
+                // komentarzu (`notifiableUserId()`, „Zdejmij z urzędu”).
+                'post',
+                'replies.post',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 

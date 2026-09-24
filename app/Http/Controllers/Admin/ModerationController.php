@@ -365,6 +365,10 @@ class ModerationController extends Controller
             //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
             //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
             $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+            // Komentarz czytany jeszcze raz POD blokadą: autor mógł go usunąć
+            // po odczycie wyżej, a napis nie może trafić do decyzji jako
+            // „kopia tekstu” (przegląd G31, `ZdejmijTresc::zablokuj()`).
+            $cel = $cel === null ? null : $this->zdejmij->zablokuj($cel);
             // `jestZdjeta()`, nie samo `trashed()`: komentarz z odpowiedziami
             // zdjęty wcześniej ma już tylko napis „Komentarz usunięty.” (G31).
             $celNiedostepny = $cel === null || ModeratedContent::jestZdjeta($cel);

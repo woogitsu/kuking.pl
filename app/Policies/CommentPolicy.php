@@ -125,6 +125,8 @@ class CommentPolicy
         // autora kasował wiersz, a „Przywróć”/„cofam” wskrzeszały potem
         // kopię tekstu z decyzji (przegląd G31). Przycisk się nie rysuje;
         // komunikat dla człowieka daje `CommentController::destroy()`.
+        // Napis bez odpowiedzi nie zostaje na zawsze: znika sam razem
+        // z ostatnią odpowiedzią (`DeleteComment::usunPustyNapisRodzica()`).
         if ($comment->getAttribute('body_removed_at') !== null) {
             return false;
         }
