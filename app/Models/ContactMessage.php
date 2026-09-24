@@ -91,6 +91,7 @@ class ContactMessage extends Model
     protected function casts(): array
     {
         return [
+            'version' => 'integer',
             'handled_at' => 'datetime',
         ];
     }
@@ -159,13 +160,19 @@ class ContactMessage extends Model
      */
     public function oznaczJako(string $status, User $operator): void
     {
-        $nowa = $status === self::STATUS_NOWA;
+        if ($status !== $this->status) {
+            $nowa = $status === self::STATUS_NOWA;
+            $this->forceFill([
+                'status' => $status,
+                'handled_by' => $nowa ? null : $operator->getKey(),
+                'handled_at' => $nowa ? null : now(),
+            ]);
+        }
 
-        $this->forceFill([
-            'status' => $status,
-            'handled_by' => $nowa ? null : $operator->getKey(),
-            'handled_at' => $nowa ? null : now(),
-        ])->save();
+        if ($this->isDirty(['status', 'handler_note'])) {
+            $this->forceFill(['version' => $this->version + 1]);
+        }
+        $this->save();
     }
 
     /**

@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
 - Powiadomienie o pierwszym wpisie nowej osoby widzi tylko ktoś, kto teraz ma prawo moderacji. Po odebraniu roli albo przy zawieszeniu znika z listy i z licznika (wraca po przywróceniu), zamiast prowadzić na stronę bez dostępu (#1351).
 - Komenda `kuking:przenies-zdjecia` przyjmuje `--po=<id>` i po każdej partii podpowiada, od czego zacząć następną. Zdjęcia z brakującym plikiem nie blokują już przenoszenia późniejszych; przebieg bez `--po` wraca do nich od początku (#1031).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
