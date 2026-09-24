@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Kopie;
 
-use App\Logging\WebhookBleduHandler;
-use Illuminate\Support\Facades\Log;
-use Throwable;
+use App\Domain\Monitoring\KanalAlarmowy;
 
 /**
  * „Kopia bazy przestała powstawać" na webhook właściciela.
@@ -50,6 +48,13 @@ final class AlarmKopii
     ];
 
     /**
+     * Wspólny transport z `AlarmKolejki` i `AlarmPolaczen` (#972). Bez maszyny
+     * epizodu: ta czujka chodzi raz na dobę i nie ma wyciszania ani odwołań.
+     * Domyślny egzemplarz, bo testy #690 budują klasę przez `new`.
+     */
+    public function __construct(private readonly KanalAlarmowy $kanal = new KanalAlarmowy) {}
+
+    /**
      * @param  array{stan: string, wiek_godzin: int|null, liczba: int, prog_godzin: int}  $wynik
      */
     public function zadzwonJesliTrzeba(array $wynik): bool
@@ -58,63 +63,15 @@ final class AlarmKopii
             return false;
         }
 
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! $this->kanal->wlaczony()) {
             // Kanał wyłączony — tak jest dziś na produkcji. Ten sam warunek
             // stoi w `bootstrap/app.php` i w `DzwonekOperatora`.
             return false;
         }
 
-        return $this->kanalPrzyjal($this->tresc($wynik));
-    }
-
-    /**
-     * Czy kanał PRZYJĄŁ wiadomość — czyli czy odpowiedział 2xx.
-     *
-     * NAZWA JEST DOSŁOWNA I TAKA MA ZOSTAĆ, dokładnie jak w `AlarmKolejki`
-     * i `AlarmPolaczen`: „przyjął" znaczy, że usługa po drugiej stronie
-     * potwierdziła odbiór żądania. NIE znaczy „człowiek to zobaczył" — kto
-     * patrzy na kanał Discorda albo Slacka, jest poza zasięgiem tego kodu.
-     *
-     * CO BYŁO NIE TAK (issue #690)
-     * Do 19 września 2026 ta metoda nie istniała, a `zadzwonJesliTrzeba()`
-     * oddawało `true` na SAM BRAK WYJĄTKU. `WebhookBleduHandler::write()`
-     * z zasady nigdy nie rzuca (jego własny docblock), a klient HTTP Laravela
-     * bez `throw()` oddaje 404 z odwołanego webhooka i 500 z zepsutego jako
-     * ZWYKŁĄ ODPOWIEDŹ. `catch` niżej był więc kodem nieosiągalnym dla każdej
-     * realnej awarii kanału: metoda meldowała sukces, nie dodzwoniwszy się.
-     *
-     * To ta sama klasa błędu, którą `docs/PULAPKI_TESTOW.md` §5 opisuje jako
-     * „narzędzie melduje sukces, nie robiąc nic", i w tym repozytorium
-     * wystąpiła już czwarty raz (`HealthController::powiadomWebhook()`,
-     * `kuking:sprawdz-alarm` w #682, `AlarmPolaczen` i `AlarmKolejki` w #687).
-     *
-     * DLACZEGO WARTO BYŁO TO ZAMKNĄĆ, CHOĆ NIC NIE BOLAŁO
-     * `AlarmKopii` nie ma pamięci wyciszania, a `SprawdzKopieBazy` odrzucało
-     * wartość zwracaną — więc usterka nie kupowała niczyjej ciszy i nie gubiła
-     * alarmu. Była LATENTNA: wystarczyłoby dołożyć wyciszanie duplikatów albo
-     * zacząć czytać wynik, żeby stała się czynna BEZ ŻADNEJ zmiany w tej
-     * metodzie. Po #687 kontrakt był też po prostu niespójny — dwie klasy
-     * alarmowe pytały handler o wynik, trzecia nie.
-     */
-    private function kanalPrzyjal(string $tresc): bool
-    {
-        // CZYSTA KARTKA PRZED PRÓBĄ. Pamięć wyniku w handlerze jest STATYCZNA,
-        // czyli wspólna dla całego procesu — a w jednym przebiegu harmonogramu
-        // idą po sobie czujki kopii, połączeń i kolejki. Bez wyzerowania cudzy
-        // sukces sprzed chwili zostałby odczytany jako nasz.
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
-
-        try {
-            Log::channel('blad_webhook')->error($tresc);
-        } catch (Throwable) {
-            // Nieudane powiadomienie nie ma prawa przewrócić zadania
-            // harmonogramu — w roli `all` błąd harmonogramu kładł kiedyś
-            // cały kontener (`docker/entrypoint.sh`).
-            return false;
-        }
-
-        // `null` znaczy „nie było próby" i też nie jest przyjęciem.
-        return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+        // Kontrakt 2xx i historia #690 („brak wyjątku to nie przyjęcie"):
+        // `KanalAlarmowy::przyjal()`.
+        return $this->kanal->przyjal($this->tresc($wynik));
     }
 
     /**
