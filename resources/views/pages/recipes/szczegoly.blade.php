@@ -161,13 +161,13 @@
                 <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
-                       aria-describedby="f-hero_photo-help">
+                       @error('hero_photo') aria-invalid="true" aria-describedby="f-hero_photo-help f-hero_photo-error" @else aria-describedby="f-hero_photo-help" @enderror>
                 <label class="pole-zdjecia" for="f-hero_photo">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                     <span class="pole-zdjecia-tytul" id="f-hero_photo-tytul">Dodaj zdjęcie</span>
                     <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
                 </label>
-                @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
+                @error('hero_photo')<span class="field-error" id="f-hero_photo-error">{{ $message }}</span>@enderror
             </div>
 
             <x-field name="summary" label="Krótko o przepisie" type="textarea" :rows="3"
@@ -289,7 +289,7 @@
                 <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
-                       aria-describedby="f-source_scan-help">
+                       @error('source_scan') aria-invalid="true" aria-describedby="f-source_scan-help f-source_scan-error" @else aria-describedby="f-source_scan-help" @enderror>
                 <label class="pole-zdjecia" for="f-source_scan">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                     <span class="pole-zdjecia-tytul" id="f-source_scan-tytul">Dodaj zdjęcie</span>
@@ -297,7 +297,7 @@
                         Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
                     </span>
                 </label>
-                @error('source_scan')<span class="field-error">{{ $message }}</span>@enderror
+                @error('source_scan')<span class="field-error" id="f-source_scan-error">{{ $message }}</span>@enderror
             </div>
 
             <x-field name="source_url" label="Adres strony, z której jest przepis" type="url"
@@ -488,7 +488,7 @@
                                name="steps[{{ $i }}][photo]"
                                accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                                aria-labelledby="f-steps-{{ $i }}-photo-etykieta f-steps-{{ $i }}-photo-tytul"
-                               aria-describedby="f-steps-{{ $i }}-photo-help">
+                               @error("steps.$i.photo") aria-invalid="true" aria-describedby="f-steps-{{ $i }}-photo-help f-steps-{{ $i }}-photo-error" @else aria-describedby="f-steps-{{ $i }}-photo-help" @enderror>
                         <label class="pole-zdjecia" for="f-steps-{{ $i }}-photo">
                             <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                             <span class="pole-zdjecia-tytul" id="f-steps-{{ $i }}-photo-tytul">{{ $zdjecieKroku ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
@@ -502,7 +502,7 @@
                                 do kroków.
                             </span>
                         </label>
-                        @error("steps.$i.photo")<span class="field-error">{{ $message }}</span>@enderror
+                        @error("steps.$i.photo")<span class="field-error" id="f-steps-{{ $i }}-photo-error">{{ $message }}</span>@enderror
                     </div>
                 </fieldset>
             @endforeach

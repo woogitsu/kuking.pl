@@ -28,17 +28,27 @@
             </div>
         @endforeach
         @if($zachowane->isEmpty())
+            {{-- Przy błędzie opis pola rośnie o TREŚĆ BŁĘDU (issue #1572). --}}
+            @php
+                $opisZdjec = implode(' ', array_keys(array_filter([
+                    'f-photos-help' => true,
+                    'f-photos-error' => $errors->has('photos'),
+                    'f-photos-plik-error' => $errors->has('photos.*'),
+                ])));
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*');
+            @endphp
             <div class="field">
                 <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}">
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       aria-describedby="{{ $opisZdjec }}" @if($bladZdjec) aria-invalid="true" @endif>
                 <label class="pole-zdjecia" for="f-photos">
                     <span class="pole-zdjecia-tytul">Dodaj zdjęcie, jeśli pomoże</span>
-                    <span class="field-help">Jedno zdjęcie, do {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.</span>
+                    <span class="field-help" id="f-photos-help">Jedno zdjęcie, do {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.</span>
                 </label>
             </div>
         @endif
-        @error('photos')<p class="field-error">{{ $message }}</p>@enderror
-        @error('photos.*')<p class="field-error">{{ $message }}</p>@enderror
+        @error('photos')<p class="field-error" id="f-photos-error">{{ $message }}</p>@enderror
+        @error('photos.*')<p class="field-error" id="f-photos-plik-error">{{ $message }}</p>@enderror
 
         <button class="btn btn-primary" type="submit">Opublikuj pytanie</button>
     </form>

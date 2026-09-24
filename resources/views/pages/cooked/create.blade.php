@@ -38,11 +38,22 @@
              obwódkę fokusu rysuje reguła sąsiedztwa. --}}
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie tego, co Ci wyszło</span>
+            {{-- Przy błędzie opis pola rośnie o TREŚĆ BŁĘDU (issue #1572),
+                 żeby czytnik ekranu po przejściu z podsumowania do pola
+                 przeczytał, co jest nie tak. Pomoc zostaje pierwsza. --}}
+            @php
+                $opisZdjec = implode(' ', array_keys(array_filter([
+                    'f-photos-help' => true,
+                    'f-photos-error' => $errors->has('photos'),
+                    'f-photos-plik-error' => $errors->has('photos.*'),
+                ])));
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*');
+            @endphp
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
-                   aria-describedby="f-photos-help">
+                   aria-describedby="{{ $opisZdjec }}" @if($bladZdjec) aria-invalid="true" @endif>
             <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
@@ -50,8 +61,8 @@
                     To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
                 </span>
             </label>
-            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
-            @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+            @error('photos')<span class="field-error" id="f-photos-error">{{ $message }}</span>@enderror
+            @error('photos.*')<span class="field-error" id="f-photos-plik-error">{{ $message }}</span>@enderror
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"

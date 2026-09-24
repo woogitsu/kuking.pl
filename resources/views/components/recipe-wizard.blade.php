@@ -1209,13 +1209,13 @@ new class extends Component
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
                        aria-labelledby="f-heroPhoto-etykieta f-heroPhoto-tytul"
-                       aria-describedby="f-heroPhoto-help">
+                       @error('heroPhoto') aria-invalid="true" aria-describedby="f-heroPhoto-help f-heroPhoto-error" @else aria-describedby="f-heroPhoto-help" @enderror>
                 <label class="pole-zdjecia" for="f-heroPhoto">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                     <span class="pole-zdjecia-tytul" id="f-heroPhoto-tytul">{{ $heroMediaId !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
                     <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
                 </label>
-                @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
+                @error('heroPhoto')<span class="field-error" id="f-heroPhoto-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
                     <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
                 @endif
@@ -1443,7 +1443,7 @@ new class extends Component
                                accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                                data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
                                aria-labelledby="f-steps-{{ $index }}-photo-etykieta f-steps-{{ $index }}-photo-tytul"
-                               aria-describedby="f-steps-{{ $index }}-photo-help">
+                               @error("steps.{$index}.photo") aria-invalid="true" aria-describedby="f-steps-{{ $index }}-photo-help f-steps-{{ $index }}-photo-error" @else aria-describedby="f-steps-{{ $index }}-photo-help" @enderror>
                         <label class="pole-zdjecia" for="f-steps-{{ $index }}-photo">
                             <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                             <span class="pole-zdjecia-tytul" id="f-steps-{{ $index }}-photo-tytul">{{ ($row['mediaId'] ?? null) !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
@@ -1452,7 +1452,7 @@ new class extends Component
                                 jak gęsty ma być sos.
                             </span>
                         </label>
-                        @error("steps.{$index}.photo")<span class="field-error">{{ $message }}</span>@enderror
+                        @error("steps.{$index}.photo")<span class="field-error" id="f-steps-{{ $index }}-photo-error">{{ $message }}</span>@enderror
 
                         @if(($row['mediaId'] ?? null) !== null)
                             <p class="meta mt-2">

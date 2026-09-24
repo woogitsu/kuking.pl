@@ -71,13 +71,13 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
-                   aria-describedby="f-hero_photo-help">
+                   @error('hero_photo') aria-invalid="true" aria-describedby="f-hero_photo-help f-hero_photo-error" @else aria-describedby="f-hero_photo-help" @enderror>
             <label class="pole-zdjecia" for="f-hero_photo">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-hero_photo-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
             </label>
-            @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
+            @error('hero_photo')<span class="field-error" id="f-hero_photo-error">{{ $message }}</span>@enderror
         </div>
 
         {{-- 2. TYTUŁ --}}
