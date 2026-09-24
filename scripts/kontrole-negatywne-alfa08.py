@@ -131,6 +131,14 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+# Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
+# i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
+# bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
+PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
+IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+IAC_RAILWAY_TS = ".railway/railway.ts"
+PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
+IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
 # `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
 # pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
 WYDANIE_TRASY = "bootstrap/app.php"
@@ -396,6 +404,18 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def apply_bez_bramki_ci(source):
+    """KONTROLA DODATNIA: zdejmij mapowanie `KUKING_WAIT_FOR_CI` z joba apply.
+
+    Plan i apply mają je po razie; mutacja zdejmuje drugie (apply), czyli
+    dokładnie ścieżkę, która po scaleniu wyłączała „Wait for CI” (#1390).
+    """
+    if source.count(IAC_BRAMKA_ENV) != 2:
+        raise RuntimeError("Kontrola nie znalazła dokładnie dwóch mapowań bramki CI.")
+    poczatek = source.rindex(IAC_BRAMKA_ENV)
+    return source[:poczatek] + source[poczatek + len(IAC_BRAMKA_ENV):]
+
+
 def akcje_poza_filtrem_widoku(source):
     """KONTROLA DODATNIA: wyjmij `.github/actions/` z filtra warstwy widoku.
 
@@ -445,6 +465,14 @@ checks = [
      koncowa_sonda_jedna_proba),
     ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      akcja_rollback_wraca),
+    ("Preview gotowe po samym adresie", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
+    ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
+     apply_bez_bramki_ci),
+    ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if (bramkaCI !== "true" && bramkaCI !== "false") {', 'if (false) {')),
     ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
      lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
@@ -482,6 +510,7 @@ run_test(BRAMKA_AKCJE_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
+run_test(PREVIEW_IAC_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)

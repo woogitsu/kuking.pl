@@ -114,6 +114,10 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
+elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
+    # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
+    # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
+    zle "Czekanie na preview oblewa — uruchom: bash tests/skrypty/kontrola-czekania-preview.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi

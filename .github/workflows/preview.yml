@@ -144,11 +144,25 @@ jobs:
 
     steps:
       # -----------------------------------------------------------------------
-      #  Railway raportuje gotowe środowisko przez Deployments API GitHuba.
-      #  Odpytujemy je, aż pojawi się URL dla tego PR-a. Nie da się tego
-      #  zrobić prościej: nie wiemy z góry, jaką domenę Railway wylosuje.
+      #  Railway raportuje środowisko PR przez Deployments API GitHuba. Nie
+      #  wiemy z góry, jaką domenę wylosuje, więc adres bierzemy stamtąd.
+      #
+      #  GOTOWOŚĆ TO STATUS `success`, NIE SAM ADRES (issue #1389). Obiekt
+      #  deploymentu i jego adres pojawiają się, zanim obraz się zbuduje
+      #  i kontener wstanie. Do 24.09.2026 ten krok kończył czekanie na
+      #  pierwszym adresie, więc test dymny potrafił trafić w budujące się
+      #  środowisko i wpisać do PR-a czerwony komentarz. Teraz czeka na
+      #  najnowszy status deploymentu DOKŁADNIE tego SHA; failure/error, brak
+      #  deploymentu i upływ limitu kończą job porażką, a nie zielonym
+      #  pominięciem testu. Logika: scripts/czekaj-na-preview.sh, sprawdzana
+      #  na atrapie `gh` w tests/skrypty/kontrola-czekania-preview.sh.
+      #
+      #  40 prób co 15 s = 10 minut. Build obrazu PHP + npm zajmuje typowo
+      #  3-6 minut, więc to zapas z marginesem.
       # -----------------------------------------------------------------------
-      - name: Poczekaj na adres środowiska preview
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Poczekaj na gotowe środowisko preview
         id: wait
         env:
           GH_TOKEN: ${{ github.token }}
@@ -156,43 +170,25 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          url=""
-          # 40 prób co 15 s = 10 minut. Build obrazu PHP + npm zajmuje
-          # typowo 3-6 minut, więc to zapas z marginesem.
-          for i in $(seq 1 40); do
-            url=$(gh api "repos/${REPO}/deployments?sha=${SHA}&per_page=20" \
-                    --jq '[.[] | select(.environment | test("^pr-|preview"))][0].payload.web_url // empty' \
-                    2>/dev/null || true)
+          source scripts/czekaj-na-preview.sh
 
-            if [ -z "$url" ]; then
-              url=$(gh api "repos/${REPO}/deployments?sha=${SHA}&per_page=20" \
-                      --jq '[.[] | select(.environment | test("^pr-|preview"))][0].environment_url // empty' \
-                      2>/dev/null || true)
-            fi
-
-            if [ -n "$url" ]; then
-              echo "Znaleziono adres: $url"
-              break
-            fi
-            echo "Próba $i/40 — środowisko preview jeszcze nie gotowe, czekam 15 s..."
-            sleep 15
-          done
-
-          if [ -z "$url" ]; then
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nie znaleziono środowiska preview. Sprawdź, czy PR Environments są włączone w Railway."
-          else
-            echo "found=true"    >> "$GITHUB_OUTPUT"
-            echo "url=${url%/}"  >> "$GITHUB_OUTPUT"
+          if ! czekaj_na_preview "$REPO" "$SHA"; then
+            echo "::error title=Preview nie jest gotowe::Stan: ${PREVIEW_STAN:-nieznany}. Test dymny nie sprawdza niegotowego środowiska."
+            exit 1
           fi
+
+          echo "found=true"          >> "$GITHUB_OUTPUT"
+          echo "url=${PREVIEW_URL}"  >> "$GITHUB_OUTPUT"
 
       - name: Test dymny
         id: smoke
         if: steps.wait.outputs.found == 'true'
         env:
           BASE_URL: ${{ steps.wait.outputs.url }}
+          OCZEKIWANY_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          source scripts/sonda-wdrozenia.sh
           fail=0
           check() {
             local path="$1" expected="$2"
@@ -207,6 +203,16 @@ jobs:
               fail=1
             fi
           }
+
+          # Status `success` mówi, że Railway skończył. Czy pod adresem
+          # odpowiada APLIKACJA z tym commitem, mówi dopiero `/wydanie`
+          # (#1389, ta sama sonda co w deploy.yml, #1012). Sonda ponawia,
+          # więc przy okazji budzi uśpiony serwis.
+          echo "=== Które wydanie działa pod ${BASE_URL} ==="
+          if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then
+            echo "::error title=Pod adresem preview działa inne wydanie::Oczekiwano ${OCZEKIWANY_SHA}, otrzymano ${SONDA_OTRZYMANY:-nic}."
+            exit 1
+          fi
 
           echo "=== Preview: ${BASE_URL} ==="
           # Pierwszy request budzi uśpiony serwis (Serverless jest włączony

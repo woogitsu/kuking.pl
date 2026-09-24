@@ -597,7 +597,26 @@ export default defineRailway((ctx) => {
   //  decyzji D-010, nie preferencją.
   //  Do tego czasu bramką jakości jest lokalny hook pre-push
   //  (scripts/install-hooks.sh). Szczegóły: docs/infra/CI_BEZ_ACTIONS.md
-  const czekajNaCI = process.env.KUKING_WAIT_FOR_CI === "true";
+  //
+  //  WARTOŚĆ MUSI BYĆ JAWNA: "true" albo "false" (issue #1390). Do 24.09.2026
+  //  stało tu `=== "true"`, więc BRAK zmiennej dawał `checkSuites: false`.
+  //  Automatyczny apply w .github/workflows/railway-iac.yml nie przekazywał
+  //  jej wcale, więc scalenie zmiany w .railway/** po cichu wyłączało bramkę,
+  //  którą operator włączył ręcznie. To jest zmienna PROCESU, który wykonuje
+  //  ten plik (lokalny `railway config plan/apply` albo job GitHub Actions
+  //  z `vars.KUKING_WAIT_FOR_CI`) — NIE zmienna usługi w panelu Railway, bo
+  //  tej kontener aplikacji widzi, a IaC nie.
+  const bramkaCI = process.env.KUKING_WAIT_FOR_CI;
+  if (bramkaCI !== "true" && bramkaCI !== "false") {
+    throw new Error(
+      `KUKING_WAIT_FOR_CI musi być jawnie "true" albo "false", jest: ${
+        bramkaCI === undefined ? "brak" : JSON.stringify(bramkaCI)
+      }. Lokalnie: KUKING_WAIT_FOR_CI=true railway config plan. ` +
+        "W GitHub Actions: zmienna repozytorium KUKING_WAIT_FOR_CI " +
+        "(docs/infra/CI_BEZ_ACTIONS.md).",
+    );
+  }
+  const czekajNaCI = bramkaCI === "true";
 
   const source = github(REPO, {
     branch: isStaging ? "staging" : "main",
