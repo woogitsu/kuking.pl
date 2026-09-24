@@ -1573,7 +1573,7 @@ deklaracją pochodzenia (`docs/MODERATION.md`).
 | `source_type` | `varchar(20) NOT NULL DEFAULT 'own'` | Zamknięta lista, CHECK `recipes_source_type_check`: `own` \| `family` \| `adaptation` \| `external`. Etykiety dla człowieka trzyma `Recipe::SOURCE_LABELS`. |
 | `source_person` | `varchar(120) NULL` | **Wolny tekst od człowieka.** Patrz niżej — to nie jest osoba. |
 | `source_note` | `varchar(2000) NULL` | Historia przepisu, wspomnienie. Pokazywane pod nagłówkiem „Skąd ten przepis", PRZED składnikami, z zachowaniem łamań wierszy (`whitespace-pre-line`). |
-| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**, jako `rel="nofollow noopener"`. W bazie bez limitu długości; formularz przyjmuje najwyżej 2000 znaków i wymaga poprawnego adresu (`'url'` w regułach `RecipeController`). |
+| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**; link z `rel="nofollow noopener"` powstaje tylko dla HTTP/HTTPS, inne zachowane adresy są zwykłym tekstem. W bazie bez limitu długości; formularz i kreator przyjmują najwyżej 2000 znaków. Nowy lub zmieniony adres musi być HTTP/HTTPS (`url:http,https`), niezmieniony dawny adres z bazy może zostać (#900, D-254). |
 
 Puste i złożone z samych spacji wartości `PublishRecipe` zamienia na `NULL`
 **przed** zapisem (`nullIfBlank`), więc „pole wyczyszczone" i „pole nigdy nie
