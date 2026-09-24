@@ -273,6 +273,12 @@ class NotificationController extends Controller
 
         $odeslanie = redirect()->to($cel);
 
+        // ISSUE #1371: wpis z alertu zniknął albo nie ma już do niego dostępu —
+        // mówimy to wprost, zamiast udawać, że kolejka go pokazuje.
+        if ($powiadomienie->pierwszyWpisNiedostepny()) {
+            $odeslanie->with('status', 'Tego wpisu nie da się już otworzyć — mógł zostać usunięty albo ukryty. Poniżej są wpisy, które nadal czekają na odpowiedź.');
+        }
+
         // ISSUE #770: PIERWSZE „Zobacz" przy ugotowaniu ma pokazać ekran
         // „Komuś wyszło". `celebrate()` rozpoznaje „już pokazano" po `read_at`,
         // a ten właśnie ustawiliśmy wyżej — bez tej informacji pierwsze

@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Paczka z danymi konta nie zawiera już komentarzy, których nie widać na ekranie: od osób zablokowanych (w obie strony) oraz od kont zablokowanych przez moderację albo zamykanych. Dotyczy komentarzy i odpowiedzi pod przepisami, wpisami i wykonaniami; Twoje własne komentarze zostają w paczce jak dotąd (#1245).
+- „Zobacz” przy powiadomieniu o pierwszym wpisie nowej osoby otwiera ten właśnie wpis, a nie ogólną listę „Bez odpowiedzi”. Gdy wpisu nie da się już otworzyć, lista mówi to wprost (#1371).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
