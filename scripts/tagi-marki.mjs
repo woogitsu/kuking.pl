@@ -132,8 +132,8 @@ export async function sprawdzTagi({ browser, adres, sesja, phpEnv = process.env,
       const hash=p=>createHash('md5').update(readFileSync(p)).digest('hex');
       const before=hash(source),mtime=statSync(source).mtimeMs;
       execFileSync('cp',['-p',source,copy]);let failure;
-      try { appendFileSync(source,'\n'+css);execFileSync('npm',['run','build'],{stdio:'pipe'});try{await measure(width,dark,100,false,keyboard);}catch(e){failure=e;} }
-      finally { execFileSync('cp',['-p',copy,source]);if(hash(source)!==before||statSync(source).mtimeMs!==mtime)throw new Error('K515_RESTORE');execFileSync('npm',['run','build'],{stdio:'pipe'}); }
+      try { appendFileSync(source,'\n'+css);execFileSync('npm',['run','build:assets'],{stdio:'pipe'});try{await measure(width,dark,100,false,keyboard);}catch(e){failure=e;} }
+      finally { execFileSync('cp',['-p',copy,source]);if(hash(source)!==before||statSync(source).mtimeMs!==mtime)throw new Error('K515_RESTORE');execFileSync('npm',['run','build:assets'],{stdio:'pipe'}); }
       await measure(width,dark,100,false,keyboard);
       if(!failure?.message.startsWith(code+' '))throw new Error('K515_NEGATIVE '+name+' '+failure?.message);
       console.log(`K515_NEGATIVE_OK ${name} ${code} MD5=${before} mtime=${mtime} restored`);

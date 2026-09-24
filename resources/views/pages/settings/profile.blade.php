@@ -41,6 +41,8 @@
             <p class="mb-4">
                 @if($hasPhoto)
                     Możesz zmienić lub usunąć swoje zdjęcie profilowe.
+                @elseif($profile->zdjecieNieUdaloSiePrzygotowac())
+                    Nie udało się przygotować Twojego zdjęcia. Wybierz inne w ustawieniach zdjęcia profilowego.
                 @elseif($profile->maZdjecieNieDoPokazania())
                     Nie możemy teraz pokazać zdjęcia. Sprawdź je w ustawieniach zdjęcia profilowego.
                 @else

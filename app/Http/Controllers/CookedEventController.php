@@ -265,6 +265,10 @@ class CookedEventController extends Controller
             'comments.author.profile.avatar',
             'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.replies.author.profile.avatar',
+            // `Comment::subject()` przy każdym komentarzu — jak `recipe`
+            // w `RecipeController`.
+            'comments.cookedEvent.recipe',
+            'comments.replies.cookedEvent.recipe',
         ]);
 
         return view('pages.cooked.show', ['event' => $cookedEvent]);

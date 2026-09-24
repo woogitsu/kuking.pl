@@ -9,6 +9,7 @@ use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
 use App\Notifications\OdpowiedzNaOdwolanieZglaszajacego;
+use App\Notifications\PilneZgloszenieOdCzlowieka;
 use App\Notifications\PilnyAlarmModeracyjny;
 use App\Notifications\PodsumowanieKolejkiAutomatu;
 use App\Notifications\PotwierdzenieOdwolaniaZglaszajacego;
@@ -27,7 +28,7 @@ class StandardoweWiadomosciMarkiTest extends TestCase
     public static function wiadomosci(): array
     {
         return array_combine(
-            $nazwy = ['zgloszenie', 'decyzja', 'odwolanie', 'odpowiedz', 'alarm', 'podsumowanie', 'termin'],
+            $nazwy = ['zgloszenie', 'decyzja', 'odwolanie', 'odpowiedz', 'alarm', 'alarm-od-czlowieka', 'podsumowanie', 'termin'],
             array_map(fn ($nazwa) => [$nazwa], $nazwy),
         );
     }
@@ -40,6 +41,7 @@ class StandardoweWiadomosciMarkiTest extends TestCase
             'numer_sprawy' => 'KUK-2026-TEST',
             'target_url' => 'https://kuking.test/wpisy/testowy-wpis',
             'details' => 'Powód testowy oznaczenia.',
+            'reason' => 'minor',
         ]);
         $decyzja = (new ModerationAction)->forceFill([
             'report_id' => $zgloszenie->getKey(),
@@ -57,6 +59,10 @@ class StandardoweWiadomosciMarkiTest extends TestCase
             'odwolanie' => [new PotwierdzenieOdwolaniaZglaszajacego($zgloszenie), 'Dostaliśmy Twoje odwołanie'],
             'odpowiedz' => [new OdpowiedzNaOdwolanieZglaszajacego($odwolanie), 'Uzasadnienie testowe rozstrzygnięcia.'],
             'alarm' => [new PilnyAlarmModeracyjny($zgloszenie), 'Powód testowy oznaczenia.'],
+            // Alarm o zgłoszeniu OD CZŁOWIEKA świadomie nie niesie `details`
+            // (to niesprawdzony tekst od dowolnej osoby z internetu), więc
+            // kotwicą jest kategoria z zamkniętej listy `Report::REASONS`.
+            'alarm-od-czlowieka' => [new PilneZgloszenieOdCzlowieka($zgloszenie), 'Dotyczy dziecka'],
             'podsumowanie' => [new PodsumowanieKolejkiAutomatu(2, 3, ['Powód testowy' => 2]), 'Powód testowy'],
             'termin' => [new TerminOdwolaniaBlisko(1, 2, '14 września 2026'), '14 września 2026'],
         };
