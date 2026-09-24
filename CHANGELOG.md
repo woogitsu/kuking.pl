@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Mapa strony dla wyszukiwarek podaje teraz wszystkie publiczne strony wejściowe: Poradźcie (gdy dział pytań jest włączony), Tagi, O Kuking, Regulamin, Prywatność i „Napisz do nas” (#1032). Data zmiany profilu w mapie uwzględnia też publikację, edycję, ukrycie i usunięcie publicznych wpisów i przepisów autora (#1280).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Pytanie ma teraz jeden adres — stronę w dziale pytań. Stary odnośnik do pytania jako zwykłego wpisu przenosi na właściwą stronę, a mapa strony dla wyszukiwarek podaje pytania pod ich własnym adresem — także te, które mają sam tytuł (#968).

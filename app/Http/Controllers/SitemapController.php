@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 
 /**
  * Sitemapa i robots.txt.
@@ -17,7 +18,7 @@ use Illuminate\Http\Response;
  * wchodzą dopiero przy dziesiątkach tysięcy adresów (docs/seo/SEO_TECHNICAL.md).
  *
  * Do mapy trafia TYLKO to, co realnie ma wartość dla czytelnika:
- * publiczne przepisy, publiczne wpisy z treścią oraz profile, które mają
+ * jawna lista publicznych hubów (`publiczneWejscia()`), publiczne przepisy, publiczne wpisy z treścią oraz profile, które mają
  * co najmniej jedną publiczną treść. Puste profile to cienka treść.
  */
 class SitemapController extends Controller
@@ -25,12 +26,7 @@ class SitemapController extends Controller
     public function index(): Response
     {
         $urls = cache()->remember('sitemap.urls', now()->addHours(6), function (): array {
-            $urls = [
-                ['loc' => route('landing'), 'priority' => '1.0', 'changefreq' => 'daily'],
-                ['loc' => route('discover'), 'priority' => '0.8', 'changefreq' => 'daily'],
-                ['loc' => route('help'), 'priority' => '0.3', 'changefreq' => 'monthly'],
-                ['loc' => route('rules'), 'priority' => '0.3', 'changefreq' => 'monthly'],
-            ];
+            $urls = self::publiczneWejscia();
 
             // `dostepnyJakoAutor()` OBOK `publiclyVisible()` — to są dwie
             // różne granice (audyt W5-09). `publiclyVisible` koduje status
@@ -118,10 +114,16 @@ class SitemapController extends Controller
                 })
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {
+                    $zmianyTresci = self::zmianyTresciAutorow($profiles->pluck('user_id')->all());
+
                     foreach ($profiles as $profile) {
+                        $lastmod = collect([$profile->updated_at, $zmianyTresci[$profile->user_id] ?? null])
+                            ->filter()
+                            ->max();
+
                         $urls[] = [
                             'loc' => route('profile.show', $profile->username),
-                            'lastmod' => $profile->updated_at?->toAtomString(),
+                            'lastmod' => $lastmod?->toAtomString(),
                             'priority' => '0.6',
                             'changefreq' => 'weekly',
                         ];
@@ -134,6 +136,95 @@ class SitemapController extends Controller
         return response()
             ->view('sitemap', ['urls' => $urls])
             ->header('Content-Type', 'application/xml; charset=utf-8');
+    }
+
+    /**
+     * Publiczne punkty wejścia, które mapa ogłasza z nazwy (#1032).
+     *
+     * Lista jest JAWNA i zamknięta, a nie „wszystkie trasy GET": kryterium
+     * wejścia to strona publiczna (bez logowania), bez `noindex`, pod jednym
+     * adresem bez parametrów. Wcześniej stały tu cztery adresy dobrane
+     * przypadkiem — Pomoc i Zasady były, a Poradźcie, Tagi i O Kuking nie.
+     *
+     * - `questions.index` tylko przy włączonej fladze pytań: przy wyłączonej
+     *   `/pytania` oddaje 404, więc mapa nie może go ogłaszać.
+     * - Regulamin i Prywatność wchodzą, bo są indeksowane (własny opis,
+     *   brak `noindex`) i ludzie ich szukają z zewnątrz.
+     * - „Napisz do nas" wchodzi ŚWIADOMIE — komentarz przy trasie i w widoku:
+     *   kto nie może się zalogować, szuka kontaktu w wyszukiwarce.
+     *   `/napisz-do-nas/dziekujemy` nie: to potwierdzenie, nie wejście.
+     * - Pojedyncze `/tag/{tag}` NIE wchodzą — to osobny próg jakości (#1007).
+     *
+     * @return list<array{loc: string, priority: string, changefreq: string}>
+     */
+    public static function publiczneWejscia(): array
+    {
+        $wejscia = [
+            ['loc' => route('landing'), 'priority' => '1.0', 'changefreq' => 'daily'],
+            ['loc' => route('discover'), 'priority' => '0.8', 'changefreq' => 'daily'],
+        ];
+
+        if (config('kuking.questions.enabled')) {
+            $wejscia[] = ['loc' => route('questions.index'), 'priority' => '0.8', 'changefreq' => 'daily'];
+        }
+
+        return [
+            ...$wejscia,
+            ['loc' => route('tags.index'), 'priority' => '0.6', 'changefreq' => 'weekly'],
+            ['loc' => route('about'), 'priority' => '0.5', 'changefreq' => 'monthly'],
+            ['loc' => route('help'), 'priority' => '0.3', 'changefreq' => 'monthly'],
+            ['loc' => route('rules'), 'priority' => '0.3', 'changefreq' => 'monthly'],
+            ['loc' => route('kontakt'), 'priority' => '0.3', 'changefreq' => 'monthly'],
+            ['loc' => route('terms'), 'priority' => '0.2', 'changefreq' => 'yearly'],
+            ['loc' => route('privacy'), 'priority' => '0.2', 'changefreq' => 'yearly'],
+        ];
+    }
+
+    /**
+     * Ostatnia zmiana treści, którą profil pokazuje publicznie (#1280).
+     *
+     * Profil to głównie lista wpisów i przepisów autora, więc sama data
+     * `profiles.updated_at` zaniżała `lastmod`: nowy przepis zmieniał stronę,
+     * a mapa podawała datę zmiany opisu sprzed miesięcy.
+     *
+     * KONTRAKT: maksimum `updated_at` z treści, które KIEDYŚ BYŁY publiczne
+     * i opublikowane — `visibility = public` i `published_at` ustawione —
+     * WŁĄCZNIE z ukrytymi przez moderację i usuniętymi. Publikacja i edycja
+     * przesuwają `updated_at` treści; ukrycie i usunięcie też (zmiana statusu,
+     * `deleted_at`), a właśnie wtedy z profilu coś znika. Szkice, treści
+     * prywatne i dla obserwujących nie wpływają na datę, więc mapa nie zdradza,
+     * że autor pracuje nad czymś niepublicznym. Komentarze i „Ugotowałem" nie
+     * dotykają `posts.updated_at` ani `recipes.updated_at`, więc też nie.
+     *
+     * ZNANA GRANICA: zmiana widoczności z publicznej na prywatną zostawia
+     * treść poza tym zbiorem, więc tego jednego zdarzenia data nie pokaże —
+     * inaczej trzeba by liczyć także zmiany treści prywatnych.
+     *
+     * DWA zapytania na partię 500 profili, nie po jednym na profil (bez N+1).
+     *
+     * @param  list<string>  $autorzy
+     * @return array<string, Carbon>
+     */
+    private static function zmianyTresciAutorow(array $autorzy): array
+    {
+        $zmiany = [];
+
+        foreach ([Post::withTrashed()->enabledKinds(), Recipe::withTrashed()] as $zapytanie) {
+            $zapytanie->toBase()
+                ->whereIn('author_id', $autorzy)
+                ->where('visibility', 'public')
+                ->whereNotNull('published_at')
+                ->groupBy('author_id')
+                ->selectRaw('author_id, max(updated_at) as zmiana')
+                ->get()
+                ->each(function ($wiersz) use (&$zmiany): void {
+                    $zmiana = Carbon::parse($wiersz->zmiana);
+                    $obecna = $zmiany[$wiersz->author_id] ?? null;
+                    $zmiany[$wiersz->author_id] = $obecna?->greaterThan($zmiana) ? $obecna : $zmiana;
+                });
+        }
+
+        return $zmiany;
     }
 
     public function robots(): Response
