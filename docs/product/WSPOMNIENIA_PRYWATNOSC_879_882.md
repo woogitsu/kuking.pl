@@ -1,4 +1,4 @@
-# Wspomnienia, zgoda na list i komunikaty prywatności — #879–882
+# Zgoda na list i wspomnienia — #880 (oraz stan #881)
 
 ## Zakres i punkt wyjścia
 
@@ -30,37 +30,29 @@ nie historię wszystkich zmian: cykl A→B→A kończący się stanem początkow
 nie jest konfliktem. Testy HTTP wykonują żądania kolejno. Osobny pomiar
 dwóch procesów PHP potwierdził blokowanie w PostgreSQL (opis poniżej).
 
-## #881 — flaga Poradźcie
+## #881 — flaga Poradźcie (już na main)
 
-Przed poprawką własne pytanie z rocznicy zostało wybrane przy wyłączonej
-fladze. Zapytanie wspomnień korzysta teraz z `enabledKinds()`. Zachowuje
-własne prywatne wpisy, `hide_as_memory` i wyłącznik wszystkich wspomnień.
-Nie zastępujemy go zapytaniem treści publicznych.
+Filtr `enabledKinds()` w `Wspomnienia::dlaOsoby()` i jego regresja
+(`QuestionMemoryGateTest`: wyłączone pytanie nie jest wybierane ani
+renderowane, własny prywatny wpis zostaje, `hide_as_memory` działa) weszły
+na main wcześniej (#1171). Ta gałąź nie dokłada już własnej kopii testu —
+dwa testy tego samego zachowania rozjeżdżają się przy pierwszej zmianie.
 
 **Decyzja właściciela pozostaje otwarta:** czy przy włączonym Poradźcie
 pytania mają być wspomnieniami? Wariant A: pozostawić dotychczasowy wybór
-wszystkich włączonych rodzajów — bez zmiany mechaniki, z możliwością
-powrotu dawnego pytania. Wariant B: przypominać tylko gotowanie — jeden
-filtr rodzaju, ale świadoma utrata wspomnień o dawnych pytaniach.
-Poprawka respektuje wyłączenie modułu i nie utrwala wariantu A ani B
-asercją na pytaniu przy włączonej fladze.
+wszystkich włączonych rodzajów. Wariant B: przypominać tylko gotowanie.
+Żaden test nie utrwala wariantu A ani B.
 
-## #882 i #879 — tekst opisuje czynność
+## #882 i #879 — poza tą gałęzią
 
-Przed zmianą 6 wariantów potwierdzenia układu zdjęć i 4 warianty zdjęcia
-blokady oblały regresję na rzeczywistej treści odpowiedzi po przekierowaniu.
-
-„Układ zdjęć zapisany.” opisuje wyłącznie wykonaną czynność. Jest prawdziwe
-dla public/private/followers, także po zmianie widoczności w innej karcie.
-Obie końcowe ścieżki korzystają z tego zdania. Testy sprawdzają też
-zachowanie widoczności i kolejności oraz działanie przycisków przesunięcia.
-
-„Blokada zdjęta. Zdjęcie blokady nie przywraca obserwowania. Jeśli na profilu
-tej osoby jest przycisk «Obserwuj», użyj go, aby zacząć ją obserwować.”
-Nie zakłada wcześniejszego obserwowania ani dostępności konta, nie ujawnia
-cudzej blokady. Nie dodajemy linku ani bramki profilu przed odblokowaniem.
-Regresja obejmuje wzajemne obserwowanie, brak obserwowania, wzajemną blokadę
-i konta zbanowane oraz zawieszone; oba kierunki follow pozostają usunięte.
+Pierwotnie gałąź zmieniała też potwierdzenie układu zdjęć na „Układ zdjęć
+zapisany.” (#882) i zdanie po zdjęciu blokady (#879). Na main weszło #1454,
+w którym potwierdzenie zdjęć mówi prawdę o odbiorcach wpisu
+(`PostMediaController::ktoZobaczy()`), więc zmiana z tej gałęzi była z nim
+sprzeczna i została usunięta razem z testem. Zmiana zdania o blokadzie
+(#879, zamknięte, zdanie z main ma strażnika
+`OdblokowanieNieWznawiaObserwowaniaTest`) również wypadła — nie należy
+do zakresu #880/#881.
 
 ## Pomiary końcowe — własne, 20 września 2026
 
@@ -98,9 +90,10 @@ produktowo włączone pytania):
 - Końcowy pełny przebieg: **4413 poprawnych, 83 961 asercji, 337,23 s**,
   kod zakończenia 0. Filtr pomija wyłącznie `ProbaOdtworzeniaTest`.
 - Testy celowane przed ostatnim rozszerzeniem: 91 poprawnych, 513 asercji.
-- Cztery kontrole ujemne przez `scripts/kontrola-ujemna.sh`: usunięcie
-  ochrony konfliktu, filtra rodzaju, prawdziwego komunikatu zdjęć oraz
-  objaśnienia odblokowania. Każda: PASS → FAIL z właściwej przyczyny → PASS;
+- Cztery kontrole ujemne przez `scripts/kontrola-ujemna.sh` (pomiar sprzed
+  zawężenia zakresu; dziś w gałęzi zostaje z nich ochrona konfliktu):
+  usunięcie ochrony konfliktu, filtra rodzaju, prawdziwego komunikatu zdjęć
+  oraz objaśnienia odblokowania. Każda: PASS → FAIL z właściwej przyczyny → PASS;
   skrypt potwierdził przywrócenie MD5 i mtime źródła.
 - Pierwszy pełny przebieg: 4412 poprawnych, 1 porażka. Porażka
   `KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest` została odtworzona osobno:

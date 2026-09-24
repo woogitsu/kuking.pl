@@ -111,13 +111,8 @@ class SocialController extends Controller
         // człowiek klika „Zdejmij blokadę”, oczekuje powrotu do stanu sprzed
         // konfliktu i dowiaduje się o różnicy dopiero wtedy, gdy zauważy,
         // że w swoim feedzie znów nie widzi tej osoby.
-        //
-        // #879 doprecyzowuje samo zdanie: „jeśli na profilu jest przycisk”,
-        // a nie „wejdź na profil i kliknij”. Na profilu konta zamkniętego
-        // albo zawieszonego tego przycisku nie ma, więc bezwarunkowa
-        // instrukcja wysyłałaby człowieka po coś, czego tam nie zastanie.
         return back()->with('status',
-            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo. Jeśli na profilu tej osoby jest przycisk „Obserwuj”, użyj go, aby zacząć ją obserwować.',
+            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
         );
     }
 
