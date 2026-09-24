@@ -156,7 +156,7 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
       // Punkt odniesienia musi przejść w dokładnie tym samym wariancie.
       await pomiar(await newPage(context), path, wariant);
       appendFileSync(source, '\n' + css + '\n');
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       let detected = false;
       try { await pomiar(await newPage(context), path, wariant); }
       catch (e) { if (e.message.split(' ')[0] !== code) throw e; detected = true; }
@@ -165,7 +165,7 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
     } finally {
       execFileSync('cp', ['-p', copy, source]);
       if (hash() !== before) throw new Error('Nie odtworzono ' + source);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       await context.close();
     }
     const restored = await browser.newContext(options);

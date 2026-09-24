@@ -176,6 +176,7 @@ App:
 
 Admin:
 - `/admin/zgloszenia`
+- `/admin/z-urzedu/{typ}/{id}` — „Zdejmij z urzędu”: treść bez zgłoszenia (wpis, przepis, komentarz; G31, D-251). Wejście przyciskiem przy treści.
 - `/admin/odwolania`
 - `/admin/bez-odpowiedzi`
 - `/admin/kuking-na-dzis`

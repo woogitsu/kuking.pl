@@ -17,7 +17,7 @@ export async function sprawdzNegatywyDetails({ browser, adres, sesja, fixture, o
   const cases = przypadkiDetails(message[0]);
   const backup = mkdtempSync(join(tmpdir(), 'kuking-details-negative-'));
   const md5 = path => createHash('md5').update(readFileSync(path)).digest('hex');
-  const rebuild = () => execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+  const rebuild = () => execFileSync('npm', ['run', 'build:assets'], { stdio: 'pipe' });
   const clearViews = () => execFileSync(process.env.PHP_BINARY || 'php', ['artisan', 'view:clear'], {
     cwd: process.cwd(), env: { ...process.env, APP_BASE_PATH: process.cwd() }, stdio: 'pipe',
   });
