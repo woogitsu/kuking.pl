@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,17 @@ class QuestionNotificationContextTest extends TestCase
             $this->assertStringContainsString('Dodaj trochę mąki.', reset($matching));
         }
         $this->assertDatabaseCount('notifications', 2);
+        // D-229 (#1180): wycinek nie ma kopii w JSON — liczy się z żywego
+        // komentarza. Poprawiona treść odpowiedzi musi być widoczna obok tytułu.
+        foreach (Notification::all() as $notification) {
+            $this->assertArrayNotHasKey('excerpt', $notification->data);
+        }
+        $edited = Comment::query()->where('author_id', $actor->id)->oldest('created_at')->firstOrFail();
+        $edited->forceFill(['body' => 'Dodaj łyżkę skrobi.'])->save();
+        $rows = $this->rows($this->get(route('notifications.index'))->assertOk()->getContent());
+        $row = array_values(array_filter($rows, fn ($row) => str_contains($row, 'Dodaj łyżkę skrobi.')));
+        $this->assertCount(1, $row, 'Wycinek idzie z aktualnej treści komentarza.');
+        $this->assertTrue(str_contains($row[0], $titles[0]) || str_contains($row[0], $titles[1]), 'Wycinek i tytuł pytania stoją w tym samym wierszu.');
     }
 
     public function test_thread_reply_and_old_record_use_live_escaped_title_without_json_copy(): void
@@ -60,7 +72,13 @@ class QuestionNotificationContextTest extends TestCase
             $this->assertStringNotContainsString('<em>ciasto</em>', $html);
             $this->assertStringContainsString(e($title), $html);
         }
-        // Rekord bez comment_id nadal odcina istniejący filtr dostępności.
+        // Tytuł pytania nie wypiera wycinka: obie odpowiedzi mają swój żywy wycinek.
+        $ownerRows = implode(' ', $this->rows($this->actingAs($owner)->get(route('notifications.index'))->getContent()));
+        $this->assertStringContainsString('Zostaw na godzinę.', $ownerRows);
+        $actorRows = implode(' ', $this->rows($this->actingAs($actor)->get(route('notifications.index'))->getContent()));
+        $this->assertStringContainsString('Czy w lodówce?', $actorRows);
+        // Rekord bez comment_id: ani tytułu, ani dawnej kopii `data.excerpt`
+        // (D-229 — wycinek wyłącznie z żywego komentarza).
         Notification::create(['user_id' => $owner->id, 'actor_id' => $actor->id,
             'type' => Notification::TYPE_REPLY, 'data' => ['excerpt' => 'Dawna odpowiedź bez kontekstu.']]);
         $this->actingAs($owner)->get(route('notifications.index'))->assertOk()->assertDontSee('Dawna odpowiedź bez kontekstu.')->assertSee(e($title), false);
@@ -92,12 +110,11 @@ class QuestionNotificationContextTest extends TestCase
         $owner = $this->user();
         $actor = $this->user();
         $this->actingAs($owner);
-        // Mierzymy koszt SAMYCH TYTUŁÓW — `QuestionNotificationContext::titles()`
-        // na tych powiadomieniach, które dostaje kontroler — a nie całej odpowiedzi:
-        // pełna strona rośnie z liczbą wierszy niezależnie od tej zmiany, bo
-        // `Notification::adresDocelowy()` liczy adres komentarza per wiersz
-        // (#759; zbiorcza wersja była w zamkniętym #1257).
+        // Mierzymy koszt SAMYCH TYTUŁÓW i WYCINKÓW — `QuestionNotificationContext::titles()`
+        // oraz `Notification::zyweWycinkiKomentarzy()` (D-229) na tych powiadomieniach,
+        // które dostaje kontroler — a nie całej odpowiedzi, która ma własne strażniki N+1.
         $counts = [];
+        $excerptCounts = [];
         foreach ([2, 18] as $amount) {
             for ($i = 0; $i < $amount; $i++) {
                 $question = Post::factory()->question()->create(['author_id' => $owner->id]);
@@ -108,15 +125,20 @@ class QuestionNotificationContextTest extends TestCase
             DB::flushQueryLog();
             $titles = app(QuestionNotificationContext::class)->titles($page, $owner);
             $counts[] = count(DB::getQueryLog());
+            DB::flushQueryLog();
+            $excerpts = Notification::zyweWycinkiKomentarzy($page);
+            $excerptCounts[] = count(DB::getQueryLog());
             DB::disableQueryLog();
             $expected = array_sum(array_slice([2, 18], 0, count($counts)));
             $this->assertCount($expected, $titles);
+            $this->assertCount($expected, $excerpts);
             $response = $this->get(route('notifications.index'))->assertOk();
             $this->assertCount($expected, $this->rows($response->getContent()));
             $response->assertSee($question->title);
         }
         $this->assertSame($counts[0], $counts[1], 'Tytuły pytań nie mogą dokładać zapytania na wiersz: '.json_encode($counts));
         $this->assertLessThanOrEqual(2, $counts[1], 'Tytuły pytań to najwyżej dwa zbiorcze odczyty: '.json_encode($counts));
+        $this->assertSame([1, 1], $excerptCounts, 'Wycinki komentarzy to jeden zbiorczy odczyt na stronę: '.json_encode($excerptCounts));
     }
 
     private function rows(string $html): array

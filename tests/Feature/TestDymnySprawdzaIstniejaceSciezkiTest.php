@@ -60,7 +60,7 @@ class TestDymnySprawdzaIstniejaceSciezkiTest extends TestCase
     {
         $sciezki = [];
 
-        foreach (preg_split('/\R/', $workflow) ?: [] as $wiersz) {
+        foreach (preg_split('/\r\n|\n|\r/', $workflow) ?: [] as $wiersz) {
             $bezKomentarza = (string) preg_replace('/#.*$/', '', $wiersz);
 
             if (preg_match('/^\s*check\s+(\S+)\s+(\d{3})\s/', $bezKomentarza, $dopasowanie) !== 1) {

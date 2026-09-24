@@ -361,3 +361,43 @@
     outline-offset: -2px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PILNOŚĆ SPRAWY W KOLEJCE ZGŁOSZEŃ (`PriorytetSprawy`).
+
+   NAPIS JEST NOŚNIKIEM, KOLOR DODATKIEM. Plakietka niesie całe zdanie
+   („Nie może czekać"), więc czyta się ją tak samo w trybie ciemnym,
+   w trybie wysokiego kontrastu i przy nierozróżnianiu barw — a kolor
+   dokłada tylko to, żeby dało się ją zauważyć bez czytania.
+
+   Dlatego NIE MA tu `priorytet-2`: zwykła sprawa nie dostaje plakietki
+   w ogóle. „Zwykłe" pięćdziesiąt razy na ekranie nie mówi nic, a odbiera
+   uwagę dokładnie tym dwóm pozycjom, dla których ta plakietka powstała.
+   ───────────────────────────────────────────────────────────────────────── */
+.priorytet {
+  display: inline-block;
+  padding: 0.15em 0.6em;
+  border-radius: var(--radius-sm, 0.25rem);
+  /* Bez `text-transform: uppercase` — wersaliki czyta się wolniej,
+     a `docs/UX_50_PLUS.md` stawia czytelność nad wyrazistością. */
+  font-weight: 700;
+}
+
+.priorytet-0 {
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger-tint-ink);
+}
+
+.priorytet-1 {
+  background-color: var(--color-surface-sunken);
+  color: var(--color-ink);
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+@media (forced-colors: active) {
+  .priorytet {
+    /* W trybie wymuszonych kolorów tła znikają — ramka zostaje jedynym
+       sygnałem, że to plakietka, a nie zwykły pogrubiony wyraz. */
+    border: 2px solid CanvasText;
+  }
+}
