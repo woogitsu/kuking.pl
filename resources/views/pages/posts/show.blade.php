@@ -10,6 +10,8 @@
     :image="$isPublic ? $post->media->first() : null"
     ogType="article">
 
+    <x-wpis-ukryty-przez-moderacje :post="$post" />
+
     <x-post-card :post="$post" />
 
     @if($poprzedniWpis || $nastepnyWpis)

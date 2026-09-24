@@ -81,3 +81,19 @@ na: ->whereNotIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
 oczekuj: Failed asserting|licznik
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomieniaWidocznoscTest.php
 ocena:
+---
+nazwa: ukryty wpis otwiera moderator z 2FA (#1018)
+plik: app/Policies/PostPolicy.php
+zamien: return $post->status === Post::STATUS_HIDDEN
+na: return $post->status === Post::STATUS_DRAFT
+oczekuj: Failed asserting|moderator
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:
+---
+nazwa: ukryty wpis nie otwiera moderatorowi bez 2FA (#1018)
+plik: app/Policies/PostPolicy.php
+zamien: return $user->isModerator() && $user->hasTwoFactorConfirmed();
+na: return $user->isModerator();
+oczekuj: Failed asserting|bez 2FA
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:

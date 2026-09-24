@@ -23,7 +23,25 @@ class PostPolicy
         }
 
         if (! $post->isPublished()) {
-            return $user !== null && $user->getKey() === $post->author_id;
+            if ($user === null) {
+                return false;
+            }
+
+            if ($user->getKey() === $post->author_id) {
+                return true;
+            }
+
+            // Wpis ukryty przez moderację otwiera jeszcze obsługa, która
+            // rozpatruje sprawę albo odwołanie (#1018) — inaczej przywrócenie
+            // szło „w ciemno", bez zdjęć, wątku i skutku edycji autora.
+            // Ta sama bramka co panel `/admin` (`moderator` + `moderator.2fa`):
+            // czynna rola ORAZ potwierdzone 2FA. Szkic zostaje wyłącznie
+            // autora. Blokada działa w obie strony także tutaj (AGENTS.md §4).
+            // `removed` nie wchodzi: jest miękko usunięty, więc wiązanie trasy
+            // i tak go nie znajdzie — przywraca się go z panelu (#65).
+            return $post->status === Post::STATUS_HIDDEN
+                && self::obslugaZDwomaSkladnikami($user)
+                && ! $user->hasBlockRelationWith($post->author);
         }
 
         $isOwnerOrModerator = $user !== null
@@ -119,6 +137,23 @@ class PostPolicy
 
     public function comment(User $user, Post $post): bool
     {
+        // Podgląd ukrytego wpisu dla moderatora (#1018) to odczyt, nie
+        // rozmowa: pod cudzym nieopublikowanym wpisem nie komentuje nikt.
+        if (! $post->isPublished() && $user->getKey() !== $post->author_id) {
+            return false;
+        }
+
         return $this->view($user, $post) && $user->isActive();
+    }
+
+    /**
+     * Czynny moderator albo administrator z potwierdzonym 2FA — ten sam
+     * warunek, który stawia grupa `/admin` (`EnsureUserIsModerator`
+     * + `EnsureModeratorHasTwoFactor`), tylko zadany tu, bo strona wpisu
+     * leży poza tą grupą.
+     */
+    public static function obslugaZDwomaSkladnikami(User $user): bool
+    {
+        return $user->isModerator() && $user->hasTwoFactorConfirmed();
     }
 }
