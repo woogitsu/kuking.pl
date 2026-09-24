@@ -59,3 +59,13 @@ na: if ($jestKucharzem && false) {
 oczekuj: Failed asserting|403|blokad
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
 ocena:
+---
+# D-259 (#1394): furtka dla kucharza NIE obejmuje moderatora. Moderator
+# z blokada z autorem przepisu dalej nie wchodzi w cudze wykonanie.
+nazwa: moderator z blokada z autorem przepisu nie wchodzi w cudze wykonanie
+plik: app/Policies/CookedEventPolicy.php
+zamien: if ($event->recipe !== null && $user->hasBlockRelationWith($event->recipe->author)) {
+na: if (false) {
+oczekuj: Failed asserting|403
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
+ocena:

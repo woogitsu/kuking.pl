@@ -42,6 +42,14 @@ class WykonaniePoBlokadzieAutoraPrzepisuTest extends TestCase
         ];
     }
 
+    public static function kierunkiBlokadyModeratora(): array
+    {
+        return [
+            'moderator blokuje autora' => [true],
+            'autor blokuje moderatora' => [false],
+        ];
+    }
+
     #[DataProvider('kierunkiBlokady')]
     public function test_lista_szczegol_i_zdjecie_odpowiadaja_kucharzowi_tak_samo(bool $kucharzBlokuje): void
     {
@@ -91,6 +99,28 @@ class WykonaniePoBlokadzieAutoraPrzepisuTest extends TestCase
 
         $this->actingAs($autor)->get(route('cooked.show', $wykonanie))->assertForbidden();
         $this->assertFalse(app(DostepDoZdjecia::class)->moze($autor, $zdjecie->fresh()));
+    }
+
+    /**
+     * Gałąź moderatora jest osobna od gałęzi kucharza: furtka D-259 dotyczy
+     * wyłącznie kucharza, a moderatora blokada z autorem przepisu dalej
+     * zatrzymuje na wejściu — w obie strony.
+     */
+    #[DataProvider('kierunkiBlokadyModeratora')]
+    public function test_moderator_z_blokada_z_autorem_przepisu_nie_widzi_cudzego_wykonania(bool $moderatorBlokuje): void
+    {
+        [$autor, , $wykonanie] = $this->scenariusz();
+        $moderator = $this->moderator();
+
+        // KONTROLA DODATNIA: bez blokady moderator zagląda z urzędu.
+        $this->actingAs($moderator)->get(route('cooked.show', $wykonanie))->assertOk();
+
+        $moderatorBlokuje
+            ? app(BlockUser::class)->handle($moderator, $autor)
+            : app(BlockUser::class)->handle($autor, $moderator);
+        $moderator->refresh();
+
+        $this->actingAs($moderator)->get(route('cooked.show', $wykonanie))->assertForbidden();
     }
 
     /** Bez blokady zakładka nie pokazuje komunikatu o niedostępnym przepisie. */
