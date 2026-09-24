@@ -116,6 +116,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # Odczyt deploymentów i ich statusów przez `gh api` w czekaj-na-preview.sh —
+  # w prywatnym repo bez tego API odmawia i smoke pada po limicie (#1389).
+  deployments: read
 
 concurrency:
   group: preview-${{ github.event.pull_request.number || github.event.inputs.pr_number }}

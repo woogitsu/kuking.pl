@@ -54,6 +54,18 @@ class PreviewIIacNieZgadujaStanuTest extends TestCase
     }
 
     #[Test]
+    public function preview_ma_prawo_odczytu_deploymentow(): void
+    {
+        // Bez `deployments: read` token w prywatnym repo nie odczyta statusów
+        // deploymentu, a czekanie na `success` zawsze kończy się limitem.
+        $this->assertMatchesRegularExpression(
+            '/^permissions:\n(?:(?:  .*)?\n)*?  deployments: read$/m',
+            $this->bezKomentarzy($this->plik('.github/workflows/preview.yml')),
+            'preview.yml nie ma `deployments: read` — czekanie na status deploymentu nie zadziała w prywatnym repo.',
+        );
+    }
+
+    #[Test]
     public function preview_czeka_na_status_success_a_nie_na_sam_adres(): void
     {
         $smoke = $this->bezKomentarzy($this->job($this->plik('.github/workflows/preview.yml'), 'smoke'));
