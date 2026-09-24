@@ -118,6 +118,12 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Polityka nie obiecuje „pełnej kopii" danych (R1, wariant A z 20.09.2026).
+# Strażnik czyta dokument prawny; mutacja przywraca dawne sformułowanie
+# i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
+POLITYKA = "resources/legal/polityka-prywatnosci.md"
+POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -303,6 +309,8 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
+     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -315,6 +323,7 @@ run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(POLITYKA_KOPIA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
