@@ -60,4 +60,24 @@ class WydanieWystawiaPelnyShaTest extends TestCase
             );
         }
     }
+
+    #[Test]
+    public function nie_startuje_sesji_i_nie_stawia_ciasteczek(): void
+    {
+        // Sonda odpytuje `/wydanie` co kilka sekund. Grupa `web` przy każdym
+        // takim pytaniu zakładała nową sesję (wiersz w bazie sesji) i odsyłała
+        // `Set-Cookie` z sesją i tokenem CSRF — dla punktu, który zwraca
+        // jeden SHA i niczego od klienta nie przyjmuje.
+        config(['kuking.wersja.commit' => self::SHA]);
+
+        $odpowiedz = $this->get('/wydanie');
+
+        // Kontrola dodatnia: to jest właściwa odpowiedź, nie 404 czy
+        // przekierowanie, które też nie miałyby ciasteczek.
+        $odpowiedz->assertOk()->assertExactJson(['commit' => self::SHA]);
+
+        $this->assertSame([], $odpowiedz->headers->getCookies(), '`/wydanie` stawia ciasteczka.');
+        $this->assertFalse($odpowiedz->headers->has('Set-Cookie'), '`/wydanie` wysyła Set-Cookie.');
+        $this->assertFalse($this->app['session']->isStarted(), '`/wydanie` wystartował sesję.');
+    }
 }

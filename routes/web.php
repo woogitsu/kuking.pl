@@ -101,7 +101,11 @@ Route::get('/szukaj', [SearchController::class, 'index'])
 
 Route::get('/health', HealthController::class)->name('health');
 // Pełny SHA działającego wydania dla testu dymnego po wdrożeniu (#1012).
-Route::get('/wydanie', WydanieController::class)->name('wydanie');
+// Bez grupy `web`: sonda pyta co kilka sekund, a każde pytanie zakładało
+// nową sesję i odsyłało `Set-Cookie` z sesją i tokenem CSRF. Punkt niczego
+// od klienta nie przyjmuje, więc ani sesji, ani CSRF nie potrzebuje.
+// Nagłówki bezpieczeństwa i zakaz cache stoją w stosie globalnym.
+Route::get('/wydanie', WydanieController::class)->withoutMiddleware('web')->name('wydanie');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
 
