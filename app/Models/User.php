@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Notifications\UstawienieNowegoHasla;
+use App\Support\Sesja\GeneracjaSesji;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -329,6 +330,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
+            // #1046: poza `$fillable` — pisze ją wyłącznie `invalidateSessions()`.
+            'session_generation' => 'integer',
             'memories_enabled' => 'boolean',
             'is_seeded' => 'boolean',
 
@@ -1343,7 +1346,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Token należy do konta, więc wyjątek dla bieżącej SESJI nie jest
         // wyjątkiem dla starego ciasteczka: po utracie tej sesji trzeba się
         // zalogować ponownie. Nie dotykamy guarda moderatora ani jego cookies.
-        $this->forceFill(['remember_token' => Str::random(60)])->save();
+        //
+        // W TYM SAMYM `UPDATE` rośnie generacja sesji (#1046). Skasowanie
+        // wierszy niżej nie wystarcza: żądanie rozpoczęte wcześniej potrafi
+        // zapisać sesję z powrotem, a `SprawdzGeneracjeSesji` odrzuci ją
+        // po starej generacji. Jedno zapytanie, bo logowanie z recallera
+        // czyta token i generację jednym odczytem wiersza — nie może trafić
+        // na nowy token ze starą generacją ani odwrotnie.
+        $wiersz = DB::selectOne(
+            'UPDATE users SET remember_token = ?, session_generation = session_generation + 1, updated_at = ? '
+            .'WHERE id = ? RETURNING remember_token, session_generation, updated_at',
+            [Str::random(60), $this->fromDateTime($this->freshTimestamp()), $this->getKey()],
+        );
+        $this->forceFill((array) $wiersz)->syncOriginalAttributes(array_keys((array) $wiersz));
+
+        // Bieżąca przeglądarka zostaje ważna tylko wtedy, gdy dostanie nową
+        // generację — inaczej wyjątek `$exceptSessionId` wylogowałby ją
+        // przy następnym żądaniu.
+        $biezaca = request()->hasSession() ? request()->session() : null;
+        if ($exceptSessionId !== null && $biezaca?->getId() === $exceptSessionId && auth('web')->id() === $this->getKey()) {
+            GeneracjaSesji::zapamietaj($biezaca, $this);
+        }
 
         // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
         //

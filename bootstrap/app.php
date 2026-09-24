@@ -13,6 +13,7 @@ use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
+use App\Http\Middleware\SprawdzGeneracjeSesji;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Logging\QueueCorrelation;
 use App\Support\ZaufaneHosty;
@@ -218,6 +219,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // które miało być odcięte. Middleware sam sprawdza, czy ktoś jest
             // zalogowany, więc na trasach gościa nie robi nic.
             EnsureAccountIsActive::class,
+
+            // #1046: sesja odtworzona przez żądanie, które skończyło się PO
+            // „wyloguj wszędzie”/resecie hasła, niesie starą generację i tu
+            // odpada. Po `EnsureAccountIsActive`, żeby zbanowane konto dostało
+            // tamten komunikat. Uzasadnienie: `App\Support\Sesja\GeneracjaSesji`.
+            SprawdzGeneracjeSesji::class,
 
             // PO `EnsureAccountIsActive`, CELOWO (issue #114/#115, bramka V1
             // z `docs/ROADMAP.md`). Konto właśnie wylogowane przez middleware

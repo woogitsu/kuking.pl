@@ -8,14 +8,20 @@ use App\Domain\Moderation\KolejkiPanelu;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
+use App\Models\User;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
+use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -50,6 +56,17 @@ class AppServiceProvider extends ServiceProvider
         // dostawcy zdążą się zarejestrować. `boot()` jest właściwym miejscem
         // i to zaleca dokumentacja Laravela.
         Storage::extend('r2', fn ($app, array $konfiguracja) => DyskR2::utworz($konfiguracja));
+
+        // #1046: każde logowanie (hasło, link, Google, Facebook, 2FA,
+        // rejestracja, recaller „zapamiętaj mnie”) zapisuje w sesji generację
+        // konta. Zdarzenie, a nie wywołanie w każdym kontrolerze: kolejna
+        // droga logowania dostaje to sama. Sprawdza `SprawdzGeneracjeSesji`.
+        Event::listen(Login::class, function (Login $zdarzenie): void {
+            $guard = Auth::guard($zdarzenie->guard);
+            if ($zdarzenie->guard === 'web' && $guard instanceof SessionGuard && $zdarzenie->user instanceof User) {
+                GeneracjaSesji::zapamietaj($guard->getSession(), $zdarzenie->user);
+            }
+        });
 
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,

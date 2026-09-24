@@ -1006,6 +1006,31 @@ D-022). Sama zmiana adresu na koncie idzie przez
 `pending_email_changes` — patrz niżej. Pilnuje tego
 `AdresEmailPozaMasowymPrzypisaniemTest`.
 
+#### `session_generation` — generacja sesji konta (issue #1046)
+
+`integer NOT NULL DEFAULT 0`, CHECK `users_session_generation_check`
+(`session_generation >= 0`). Migracja
+`2026_09_24_100000_add_session_generation_to_users`. Poza `$fillable`: pisze ją
+wyłącznie `User::invalidateSessions()`, jednym `UPDATE` razem z rotacją
+`remember_token` (`session_generation = session_generation + 1`).
+
+Po co: skasowanie wierszy w `sessions` nie jest trwałym unieważnieniem.
+Żądanie rozpoczęte przed „wyloguj wszędzie”, resetem/zmianą hasła, blokadą,
+zawieszeniem albo zgłoszeniem usunięcia, które w trakcie nadaje sesji nowy
+identyfikator (logowanie z ciasteczka „zapamiętaj mnie”, hasłem, linkiem,
+2FA), zapisuje wiersz z powrotem `INSERT`-em na końcu odpowiedzi. Każde
+logowanie zapisuje w sesji generację konta (listener `Login`
+w `AppServiceProvider`), a `App\Http\Middleware\SprawdzGeneracjeSesji`
+w grupie `web` wylogowuje sesję z generacją inną niż bieżąca. Brak klucza
+w sesji znaczy `0`, więc wdrożenie nikogo nie wylogowuje. Pomiar na dwóch
+procesach: `tests/Feature/SesjaPoUniewaznieniuNieWracaTest.php`.
+
+Rollback: `down()` kasuje wiersze `sessions` kont z `session_generation > 0`
+i usuwa kolumnę. Bez tego cykl down/up wyzerowałby licznik i sesja odrzucona
+przed rollbackiem znów byłaby zgodna. Skutek to tylko ponowne logowanie tych
+kont; nie ginie żadna treść ani decyzja. Licznik żyje w `users`, nie
+w magazynie sesji, więc zmiana sterownika sesji (#603) go nie dotyczy.
+
 #### `is_seeded` — treść zalążkowa na produkcji, ale jawnie oznaczona (D-025)
 
 Migracja `2026_09_07_700000_add_is_seeded_to_users`. Boolean, domyślnie
@@ -4036,7 +4061,7 @@ człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ś
 | Kolumna | Uwagi |
 |---|---|
 | `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
-| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. Samo skasowanie nie jest trwałym unieważnieniem — wolne żądanie potrafi wiersz odtworzyć; odrzuca go dopiero generacja sesji (`users.session_generation`, #1046). |
 | `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
 | `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
 | `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |

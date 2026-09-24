@@ -71,3 +71,29 @@ sesja działa; zły kod nie zmienia `remember_token`; stary recaller
 moderatora nie wchodzi do `/admin/zgloszenia` (przed poprawką 403 → 200).
 Kontrola ujemna (usunięte wywołanie w kontrolerze): dwa testy oblewają
 na 200 zamiast 302, po przywróceniu przechodzą.
+
+## Wolne żądanie po unieważnieniu — #1046
+
+Skasowanie wierszy w `sessions` nie wystarcza jako unieważnienie. Żądanie,
+które wczytało sesję przed „Wyloguj inne urządzenia”, resetem/zmianą hasła,
+blokadą, zawieszeniem albo zgłoszeniem usunięcia i w trakcie nadaje nowy
+identyfikator (najprościej: logowanie z samego ciasteczka „zapamiętaj mnie”,
+zanim token został obrócony), zapisuje sesję z powrotem `INSERT`-em. Zwykły
+GET z istniejącą sesją zapisuje się `UPDATE`-em i po skasowaniu wiersza
+trafia w zero wierszy — tego przypadku wyścig nie dotyczy.
+
+Poprawka: `users.session_generation` rośnie w tym samym `UPDATE` co rotacja
+`remember_token`; logowanie zapisuje generację w sesji, a
+`SprawdzGeneracjeSesji` wylogowuje sesję ze starszą. Bieżąca sesja osoby,
+która nacisnęła przycisk, dostaje nową generację w tym samym żądaniu.
+
+`SesjaPoUniewaznieniuNieWracaTest`: dwa procesy PHP, wolne żądanie stoi na
+barierze po kontrolerze, a przed zapisem sesji. Przed poprawką wszystkie
+sześć operacji: 200 zamiast przekierowania. Po poprawce: przekierowanie,
+bieżąca sesja zostaje jako jedyna, rotacja tokena działa. Kontrola dodatnia:
+bez odwołania dwa żądania tego samego konta idą równolegle (brak blokady
+sesji). Kontrola ujemna: strażnik podmieniony na przepust — sesja wraca.
+
+Granica: równoległe żądanie Z TEJ SAMEJ przeglądarki, która nacisnęła
+przycisk, zapisując starą generację po nowej, wyloguje tę przeglądarkę —
+błąd w bezpieczną stronę, ponowne logowanie.
