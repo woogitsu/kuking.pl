@@ -2,8 +2,11 @@
 
 ## Nieopublikowane
 
+- Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
+- Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
 - Wpis z własnym tekstem albo zdjęciem, który wskazuje przepis, nie znika już z odkrywania, feedu obserwowanych, profilu, strony tagu i feedu obserwowanych tagów, tablicy „kuKINGi na dziś” ani z nawigacji „poprzedni / następny wpis”, a liczba wpisów przy tagu znowu go liczy, gdy autor przepisu zmieni go na prywatny albo tylko dla obserwujących, gdy przepis zostanie ukryty lub usunięty. Wpis zostaje według własnej widoczności, a na karcie nie ma wtedy tytułu, zdjęcia ani odnośnika do przepisu — tak samo jak na stronie samego wpisu. Sama zapowiedź przepisu, bez własnej treści, dalej znika razem z przepisem (#1377).
 - Powiadomienie o odpowiedzi znika z listy i z licznika, gdy nie widać już komentarza, pod którym ta odpowiedź stoi — na przykład po zablokowaniu jego autora albo ukryciu go przez moderację. Po zdjęciu blokady rozmowa i powiadomienie wracają (#1378).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
