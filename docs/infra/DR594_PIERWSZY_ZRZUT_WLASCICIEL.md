@@ -24,7 +24,7 @@ starszej kopii (komentarz z 21.09 w #594). Tych pól nie odhaczaj.
 - Hasła i adresy baz podajesz przez `read -s`, nie w wierszu polecenia:
   argument widać w `ps` i zostaje w historii powłoki. Żaden krok nie wypisuje
   hasła — skrypty maskują je jako `***`.
-- Wszystko powstaje w katalogu `~/dr594` (prawa 700), **poza repozytorium**.
+- Wszystko powstaje w katalogu `$DR` (domyślnie `dr594` w katalogu domowym, prawa 700), **poza repozytorium**.
   Skrypt kopii odmawia zapisu w repozytorium (kod 20), a zrzut i `.meta`
   dostają prawa 600 niezależnie od Twojego `umask`.
 - Kopia z tej karty jest **od razu szyfrowana**. Para kluczy to i tak krok 5
