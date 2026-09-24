@@ -34,6 +34,20 @@ class PanelModeracjiWMenuTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Ekrany panelu, których zwykły moderator NIE widzi — przemiatane jako
+     * admin. Każdy wpis musi mieć powód; „bo test padał" nie jest powodem.
+     *
+     * @var array<string, string>
+     */
+    private const EKRANY_TYLKO_DLA_ADMINA = [
+        // Issue #599: nazwy zadań i klas wyjątków to obraz infrastruktury
+        // (dostawca poczty, baza, worker), a moderator jest od treści i ludzi
+        // — bramka `UserPolicy::diagnozujKolejke`, różnicę ról mierzy
+        // `PanelKolejkiZadanTest`.
+        'admin/kolejka' => 'UserPolicy::diagnozujKolejke',
+    ];
+
     private const POZYCJE_PANELU = [
         'Bez odpowiedzi',
         'Zgłoszenia',
@@ -299,7 +313,11 @@ class PanelModeracjiWMenuTest extends TestCase
      */
     public function test_kazdy_ekran_panelu_ma_pasek_i_dopisek_w_tytule(): void
     {
+        // Przemiatamy jako MODERATOR — to jego konto najczęściej ogląda panel,
+        // więc to na nim pasek i menu muszą się zgadzać. Wyjątki idą jako
+        // admin i każdy ma jawne uzasadnienie w `EKRANY_TYLKO_DLA_ADMINA`.
         $moderator = $this->moderator();
+        $admin = $this->admin();
 
         $trasy = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($trasa): bool => in_array('GET', $trasa->methods(), true))
@@ -314,8 +332,21 @@ class PanelModeracjiWMenuTest extends TestCase
             'Router oddał mniej niż sześć bezparametrowych ekranów panelu — czytam złe trasy.',
         );
 
+        foreach (array_keys(self::EKRANY_TYLKO_DLA_ADMINA) as $wyjatek) {
+            $this->assertContains(
+                $wyjatek,
+                $trasy->all(),
+                "Wyjątek „{$wyjatek}” nie odpowiada już żadnej trasie — usuń go z listy.",
+            );
+
+            // Wyjątek jest uzasadniony tylko dopóty, dopóki moderator
+            // NAPRAWDĘ dostaje odmowę. Gdy bramka zniknie, wyjątek ma zniknąć.
+            $this->actingAs($moderator)->get('/'.$wyjatek)->assertForbidden();
+        }
+
         foreach ($trasy as $uri) {
-            $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
+            $konto = array_key_exists($uri, self::EKRANY_TYLKO_DLA_ADMINA) ? $admin : $moderator;
+            $html = $this->actingAs($konto)->get('/'.$uri)->assertOk()->getContent();
 
             $dom = new DOMDocument;
             @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);

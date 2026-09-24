@@ -71,7 +71,10 @@ final class ReportContent
         User::class => 'viewProfile',
     ];
 
-    public function __construct(private readonly NotifyReporterReceipt $potwierdzenie) {}
+    public function __construct(
+        private readonly NotifyReporterReceipt $potwierdzenie,
+        private readonly AlarmujOPilnymZgloszeniu $alarm,
+    ) {}
 
     /**
      * Bramka widoczności celu (audyt W7-05).
@@ -203,6 +206,20 @@ final class ReportContent
          * sprawy jest najgorszym z możliwych skutków.
          */
         $this->potwierdzenie->potwierdzBezWywracaniaSprawy($report);
+
+        /*
+         * ALARM DO MODERATORA — tylko przy kategoriach, które nie mogą czekać.
+         *
+         * STOI OBOK POTWIERDZENIA, A NIE ZAMIAST NIEGO: tamten list idzie do
+         * ZGŁASZAJĄCEGO (DSA art. 16 ust. 4), ten do moderacji. Oba poza
+         * transakcją zapisu, z tego samego powodu — zgłoszenie nie może
+         * zniknąć dlatego, że nie udało się wysłać listu o nim.
+         *
+         * PO OBU DROGACH POWROTU WYŻEJ (istniejąca sprawa, wyścig o indeks)
+         * nie alarmujemy, tak samo jak nie potwierdzamy drugi raz: to jest
+         * jedna sprawa, a alarm ma znaczyć „jest coś nowego".
+         */
+        $this->alarm->handle($report);
 
         return $report;
     }

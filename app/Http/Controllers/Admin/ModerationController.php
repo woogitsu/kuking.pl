@@ -10,6 +10,7 @@ use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\PriorytetSprawy;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -72,6 +73,10 @@ class ModerationController extends Controller
          */
         $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
 
+        // Priorytet TYLKO dla otwartych: archiwum P0 nie stoi w „Wszystkie"
+        // nad dzisiejszym otwartym P2 (`PriorytetSprawy::wyrazenieSqlKolejki`).
+        [$wyrazenieSql, $parametrySql] = PriorytetSprawy::wyrazenieSqlKolejki();
+
         $reports = Report::query()
             ->when(
                 $zrodlo === Report::SOURCE_AUTOMAT,
@@ -102,6 +107,25 @@ class ModerationController extends Controller
             // `id` jest UUID-em v7, więc rozstrzyga remis w tę samą stronę co
             // czas: nowsze na górze. Nie zmienia to kolejności ANI JEDNEJ pary
             // wierszy o różnym `created_at`.
+            //
+            // PRZED CZASEM STOI PRIORYTET (`PriorytetSprawy`) i to jest
+            // ZMIANA WOBEC POPRZEDNIEJ GWARANCJI „najnowsze na górze".
+            //
+            // Sama data nie wystarczała: spam przychodzi falami, więc im
+            // gorszy dzień, tym głębiej pod nim leży rzecz, która nie może
+            // czekać. ZMIERZONE (`KolejkaModeracjiStawiaPilneNaGorzeTest`):
+            // zgłoszenie „Dotyczy dziecka" sprzed dwóch dni leży pod
+            // trzydziestoma zgłoszeniami spamu z ostatniej godziny, czyli na
+            // DRUGIEJ stronie kolejki stronicowanej po 25.
+            //
+            // Wewnątrz jednego priorytetu porządek zostaje DOKŁADNIE taki,
+            // jaki był — najnowsze na górze, remis po `id`. Zmieniamy jedną
+            // rzecz naraz: kolejność MIĘDZY wagami. Odwrócenie kierunku
+            // wewnątrz wagi (jak proponowała odrzucona gałąź) jest osobną
+            // decyzją, bez dowodu i z własną ceną: góra kolejki przestałaby
+            // się odświeżać, a moderator patrzyłby codziennie na te same
+            // sprawy, których z jakiegoś powodu nie rozstrzygnął.
+            ->orderByRaw($wyrazenieSql.' ASC', $parametrySql)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(25)

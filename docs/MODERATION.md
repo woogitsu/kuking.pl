@@ -32,6 +32,49 @@ open
 → resolved / rejected
 ```
 
+## Kolejność w kolejce — priorytet (D-236)
+
+`/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`.
+Priorytet **liczy się z danych** (`App\Domain\Moderation\PriorytetSprawy`),
+nie ma kolumny w bazie i nie da się go wpisać ręcznie.
+
+| Priorytet | Skąd | Napis na karcie |
+|---|---|---|
+| **P0** — nie może czekać | `reason` ∈ `minor`, `sexual` — ta sama para, co `KategorieModeracji::PILNE` | „Nie może czekać" |
+| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
+| **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `dangerous_advice`, `other`) | bez plakietki |
+
+Wewnątrz jednego priorytetu porządek jest ten sam co zawsze: najnowsze na
+górze, remis rozstrzygany po `id` (stabilne stronicowanie —
+`KolejkiModeracjiMajaStabilnyPorzadekTest`).
+
+Podział zgodny z tabelą SLA w `docs/legal/MODERATION_PLAYBOOK.md`, gdzie
+opisane są też dwie granice: „groźby zagrażające życiu" i „aktywny doxxing"
+są tam P0, ale formularz nie ma takich pozycji, więc wchodzą jako P1.
+
+**Kategorię wybiera zgłaszający i nikt jej jeszcze nie sprawdził.** Priorytet
+zmienia WYŁĄCZNIE kolejność czytania i wysyła jeden list — nie ukrywa treści,
+nie ogranicza jej zasięgu i nie powiadamia autora.
+
+**Alarm pocztą przy P0.** `AlarmujOPilnymZgloszeniu` woła obie drogi
+zgłoszenia (społecznościową i prawną, bo ta druga działa bez konta) i wysyła
+`PilneZgloszenieOdCzlowieka` na `kuking.moderation.model.alarm_email` — ten
+sam adres, co alarm automatu (D-055). Pusty adres znaczy „bez poczty" i jest
+normalnym stanem lokalnie oraz w testach. List nie niesie treści zgłoszonej
+ani pola `details`.
+
+**Alarm nie daje się zalać (D-236).** Najwyżej jeden list o danym celu
+w oknie `moderation.alarm_czlowieka.okno_celu_godzin` (6 h), najwyżej
+`moderation.alarm_czlowieka.dzienny_sufit` (10) listów na dobę dla wszystkich
+celów — ostatni mówi, że kolejnych dziś nie będzie — i każdy list zajmuje
+miejsce we wspólnym liczniku poczty (D-239, klasa `wejscie`). Powyżej sufitu
+sprawa stoi w kolejce z plakietką, a dziennik mówi, dlaczego bez listu.
+
+**Plakietka i priorytet tylko dla otwartych.** Sprawa w innym stanie nie ma
+napisu „Nie może czekać"/„Na dziś", a w zakładce „Wszystkie" stoi za
+wszystkimi otwartymi, po dacie (`PriorytetSprawy::wKolejce`,
+`wyrazenieSqlKolejki`).
+
 ## Akcje
 
 - no action;
@@ -57,9 +100,71 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
   do właściciela serwisu, rolę odbiera `kuking:nadaj-role`.
 - Ukrycie, usunięcie i ostrzeżenie treści nie zależą od roli autora.
+- **Cudzą treść moderator usuwa wyłącznie z panelu** (issue #932). Zwykły
+  `DELETE` ze strony wpisu, przepisu, komentarza i „Ugotowałem” należy do
+  autora (przy komentarzu także do autora treści, pod którą stoi) — moderator
+  i administrator dostają tam 403, także z 2FA. Tamta droga omijała 2FA
+  panelu, uzasadnienie, wiersz w `moderation_actions` i odwołanie. Pilnuje
+  tego `tests/Feature/ModeratorUsuwaCudzaTrescTylkoZPaneluTest.php`.
+  Treść bez zgłoszenia zdejmuje się z panelu akcją „Zdejmij z urzędu”
+  (niżej, D-251).
 
 Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
 w dzienniku.
+
+### Zdjęcie z urzędu — treść, której nikt nie zgłosił (G31, D-251)
+
+Panel usuwa cudzą treść rozstrzygnięciem zgłoszenia, a własnego zgłoszenia
+moderator nie rozstrzyga (D-244). Spamu, którego nikt nie zgłosił, nie dało
+się więc zdjąć wcale. Stąd akcja **„Zdejmij z urzędu”**.
+
+- **Gdzie:** przycisk „Zdejmij z urzędu” przy wpisie, przepisie i komentarzu
+  (także odpowiedzi), w `.danger-zone`. Prowadzi na ekran panelu
+  `/admin/z-urzedu/{typ}/{id}` z formularzem; usuwa dopiero przycisk
+  „Zdejmij tę treść” na tamtym ekranie. Działa bez JavaScriptu.
+- **Kto:** czynny moderator albo administrator z potwierdzonym 2FA — ta
+  sama reguła wejścia co panel (`moderator.2fa`), sprawdzana też w Policy
+  (`removeExOfficio` → `UserPolicy::takeDownContentOf()`). Przycisk widzi
+  tylko ten, komu Policy pozwala.
+- **Czyją treść:** wyłącznie konta o **niższej** roli. Moderator nie zdejmie
+  tą drogą treści moderatora ani administratora, administrator — innego
+  administratora, nikt — własnej. Inaczej niż przy zgłoszeniu (tam ocena
+  treści od roli autora nie zależy, D-244 pkt 3): z urzędu jedna osoba jest
+  naraz tą, która sprawę znalazła, i tą, która ją rozstrzyga. Treść
+  równej albo wyższej rangi idzie zwykłym „Zgłoś” do kogoś innego.
+- **Co trzeba podać:** podstawę z zamkniętej listy (`PodstawaDecyzji`, jak
+  przy decyzjach) i **obowiązkowe** uzasadnienie dla autora.
+- **Co zostaje:** wiersz w `moderation_actions` — tym samym rejestrze co
+  decyzje ze zgłoszeń — z `action = 'remove'` i **pustym `report_id`**.
+  Bez sztucznego zgłoszenia. Wpis w dzienniku: `moderation.ex_officio`.
+- **Autor** dostaje powiadomienie z uzasadnieniem. Pouczenie mówi
+  „Nikt tego nie zgłosił — sprawę znaleźliśmy sami, przeglądając serwis”
+  (DSA art. 17 ust. 3 lit. b). Odwołanie idzie **tą samą ścieżką** co od
+  decyzji ze zgłoszenia (`/odwolanie/{decyzja}`, rozstrzyga administrator),
+  a „cofam” przywraca treść.
+- **Jak zdejmuje:** tym samym mechanizmem co „Usuń” ze zgłoszenia — miękkie
+  usunięcie, także komentarza z odpowiedziami. Moderacja nie zostawia napisu
+  „Komentarz usunięty.” (ten zostawia tylko autor, `DeleteComment`).
+  Przywrócenie — ten sam `RestoreContent` co przy decyzji ze zgłoszenia.
+  Decyzja właściciela z 24.09.2026 (D-251).
+- **Tylko treść widoczna dla innych:** opublikowana, publiczna albo dla
+  obserwujących (komentarz — pod taką treścią). Szkic, treść prywatna
+  i ukryta dają **404** — moderator nie ogląda prywatnych treści po UUID.
+  Nielegalna treść prywatna trafia do moderacji zgłoszeniem nielegalnej
+  treści (DSA art. 16, wklejony adres), nakazem organu albo kolejką
+  automatu — i tam się ją rozstrzyga (D-251 pkt 7).
+- **Kiedy nie:** treść już zdjęta (ekran mówi to od razu, przycisk się nie
+  rysuje, druga karta dostaje błąd bez drugiej decyzji) albo z **otwartym
+  zgłoszeniem** — wtedy decyzja zapada w kolejce zgłoszeń, żeby zgłaszający
+  dostał odpowiedź (art. 16 ust. 5) i żeby o jedną treść nie toczyły się
+  dwie sprawy.
+- **Po decyzji** panel przechodzi do historii konta autora
+  (`/admin/uzytkownicy/{id}`) — tam decyzja z urzędu jest widoczna; w kolejce
+  zgłoszeń jej nie ma, bo zgłoszenia nie było.
+- **„Ugotowałem” — nie.** `cooked_events` nie ma soft delete, więc zdjęcie
+  kasowałoby wpis na stałe, a „cofam” po odwołaniu nie miałoby czego
+  przywrócić. Ten sam powód, dla którego zdjęcie (`media`) nie ma `remove`.
+  Wraca po dodaniu soft delete do tej tabeli.
 
 ### Przywracanie treści (issue #65)
 
@@ -70,6 +175,10 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
 
 - Przywrócenie zapisuje wiersz w `moderation_actions` (akcja `unhide`)
   i wymaga powodu — cofnięcie kary też zostawia ślad.
+- Przywrócenie to jedna transakcja z blokadą wiersza treści: dwa kliknięcia
+  naraz (dwie karty, „Przywróć” i „cofam”) dają jedną decyzję `unhide`
+  i jedno powiadomienie, a awaria w środku nie zostawia decyzji „przywrócone”
+  przy treści, która nie wróciła.
 - Treść wraca do statusu **sprzed ukrycia**, nie na sztywno do `published`.
   Ukryty szkic po przywróceniu jest dalej szkicem (`moderation_actions.previous_status`,
   patrz `docs/DATABASE.md`).
