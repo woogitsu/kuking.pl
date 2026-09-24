@@ -57,6 +57,12 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
   do właściciela serwisu, rolę odbiera `kuking:nadaj-role`.
 - Ukrycie, usunięcie i ostrzeżenie treści nie zależą od roli autora.
+- **Cudzą treść moderator usuwa wyłącznie z panelu** (issue #932). Zwykły
+  `DELETE` ze strony wpisu, przepisu, komentarza i „Ugotowałem” należy do
+  autora (przy komentarzu także do autora treści, pod którą stoi) — moderator
+  i administrator dostają tam 403, także z 2FA. Tamta droga omijała 2FA
+  panelu, uzasadnienie, wiersz w `moderation_actions` i odwołanie. Pilnuje
+  tego `tests/Feature/ModeratorUsuwaCudzaTrescTylkoZPaneluTest.php`.
 
 Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
 w dzienniku.
