@@ -84,7 +84,7 @@ class LandingPodgladNieOdsylaDoLogowaniaTest extends TestCase
         $xpath = new DOMXPath($dom);
 
         $wezly = $xpath->query(
-            '//section[@id="jak-dziala" or @id="ugotowalem" or @aria-labelledby="wlasne-tresci-tytul"]//a[@href]'
+            '//section[@id="jak-dziala" or @id="ugotowalem" or @aria-labelledby="wlasne-tresci-tytul"]//a[@href]',
         );
 
         $wynik = [];
