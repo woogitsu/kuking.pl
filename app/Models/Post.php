@@ -353,6 +353,34 @@ class Post extends Model
     }
 
     /**
+     * Zapisane wpisy, które widz może OTWORZYĆ — jedna reguła dla wnętrza
+     * zeszytu, licznika na jego karcie i szyny „Ostatnio zapisane" (#1319).
+     *
+     * Cztery granice, wszystkie obowiązkowe: widoczność wpisu, bramka
+     * przepisu (`zWidocznymPrzepisem()`, #368), status konta autora wpisu
+     * i status konta autora PRZEPISU (W5-08) — ten ostatni osobno, bo
+     * zapowiedź przepisu może należeć do kogo innego niż przepis.
+     *
+     * Wcześniej tylko `CollectionController::show()` miał komplet; karta
+     * zeszytu i „Ostatnio zapisane" miały tylko pierwszą i trzecią.
+     * Zapowiedź schowanego przepisu znikała z wnętrza
+     * zeszytu, a karta dalej mówiła „1 wpis", szyna zaś dawała odnośnik,
+     * który `PostPolicy::view()` kończy odmową.
+     *
+     * Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeWidoczneWZeszycieDla(Builder $query, ?User $widz): void
+    {
+        $query->widoczneDla($widz)
+            ->zWidocznymPrzepisem($widz)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
+    }
+
+    /**
      * Tryby wyświetlania zdjęć, które baza w ogóle przyjmie (issue #92).
      *
      * Ta lista jest ODBICIEM ograniczenia CHECK z migracji

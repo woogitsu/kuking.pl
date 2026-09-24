@@ -60,8 +60,9 @@ class CollectionController extends Controller
                     // jest dostępnych" — i te dwie liczby razem dają całość.
                     'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
                         ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
-                    'posts as posts_count' => fn ($q) => $q->widoczneDla($user)
-                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    // Wpisy — ta sama reguła co wnętrze zeszytu, łącznie
+                    // z bramką przepisu i statusem jego autora (#1319).
+                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
                     // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
                     // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
                     // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
@@ -140,9 +141,11 @@ class CollectionController extends Controller
                 'zapisano_at' => $przepis->zapisano_at,
             ]);
 
+        // Wpisy przez pełną regułę wnętrza zeszytu (#1319): zapowiedź
+        // schowanego przepisu nie może zająć miejsca w pięciu pozycjach
+        // ani dać odnośnika, który Policy kończy odmową.
         $wpisy = Post::query()
-            ->widoczneDla($user)
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->widoczneWZeszycieDla($user)
             ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
             ->addSelect(['zapisano_at' => $zapisano('post_id', 'posts')])
             ->with(['media', 'author.profile'])
@@ -191,40 +194,14 @@ class CollectionController extends Controller
             ->paginate(12);
 
         $posts = $collection->posts()
-            ->widoczneDla($request->user())
-            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
-            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
-            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
-            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
-            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
-            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
-            // którym slug niesie ten sam tytuł.
-            //
-            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
-            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
-            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
-            // treść nie znika sama — a osoba, która ją zapisała, nie ma
-            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
-            // całkowicie legalnie.
-            ->zWidocznymPrzepisem($request->user())
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            // TRZECIA GRANICA: AUTOR PRZEPISU, A NIE AUTOR WPISU (W5-08).
-            //
-            // Warunek linijkę wyżej pyta o autora WPISU. Wpis zapowiadający
-            // przepis może jednak należeć do kogo innego niż przepis: A odkłada
-            // sobie do zeszytu zapowiedź przepisu B. Gdy B zostanie zbanowany
-            // albo oznaczony do usunięcia, jego przepis daje 403 pod własnym
-            // adresem i znika z listy przepisów tego zeszytu (warunek wyżej przy
-            // `$recipes`) — ale wpis A dalej stał tu z tytułem, zdjęciem głównym
-            // i odnośnikiem, bo `zWidocznymPrzepisem()` liczy widoczność
-            // i publikację przepisu, a statusu konta jego autora celowo nie zna
-            // (patrz `User::scopeDostepnyJakoAutor()`).
-            //
-            // Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu —
-            // bez niej zeszyt straciłby całą zawartość. Ten sam idiom liczy
-            // `App\Domain\Tags\PodpowiedziTagow`.
-            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
-                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            // Cztery granice w jednym zakresie (`Post::scopeWidoczneWZeszycieDla()`):
+            // widoczność wpisu, bramka przepisu (#368 — zapowiedź ma
+            // `visibility = 'public'` na stałe, bramką jest PRZEPIS), autor
+            // wpisu i autor PRZEPISU (W5-08). W zeszycie wyciek dojrzewa
+            // w czasie: zapowiedź zostaje wskazana na stałe, a przepis można
+            // potem zawęzić, schować albo stracić konto autora. Ta sama
+            // reguła liczy kartę zeszytu i „Ostatnio zapisane" (#1319).
+            ->widoczneWZeszycieDla($request->user())
             // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
             // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
             // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
@@ -313,8 +290,17 @@ class CollectionController extends Controller
             // Paginatory policzyły już wszystkie widoczne pozycje. Liczymy
             // także przepisy i treści usunięte miękko: ich zapisy nadal istnieją.
             // withTrashed dotyczy wyłącznie COUNT, nigdy listy ani treści.
-            'niewidoczne' => max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
-                + max(0, $collection->posts()->withTrashed()->count() - $posts->total()),
+            //
+            // TYLKO WŁAŚCICIELOWI (#1297). Liczba ukrytych zapisów to metadana
+            // o cudzej, prywatnej aktywności: gość publicznego zeszytu mógłby
+            // z wizyty na wizytę śledzić, ile prywatnych rzeczy właściciel
+            // odkłada. Obcy widzi wyłącznie to, co może otworzyć — a gdy nie
+            // może nic, ten sam pusty stan co w naprawdę pustym zeszycie,
+            // żeby sam wygląd strony nie potwierdzał istnienia ukrytych zapisów.
+            'niewidoczne' => $request->user()?->getKey() === $collection->owner_id
+                ? max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
+                    + max(0, $collection->posts()->withTrashed()->count() - $posts->total())
+                : 0,
             // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
             //
             // Zeszyt jest jednym z kilku pojemników i wejście do drugiego

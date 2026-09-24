@@ -93,7 +93,9 @@ final class ZeszytNiedostepneZapisyTest extends TestCase
         $public = $this->recipe($book, $author);
         $this->assertStringContainsString($private->title, $this->page($owner, $book));
         $text = $this->page($visitor, $book);
-        $this->assertHidden($text, 1, [$private->title]);
+        // Obcy nie dostaje liczby ukrytych zapisów (#1297) — ani tytułu.
+        $this->assertStringNotContainsString($private->title, $text);
+        $this->assertStringNotContainsString('dla Ciebie dostępn', $text);
         $this->assertStringContainsString($public->title, $text);
         $this->assertStringNotContainsString('Twojego zeszytu', $text);
         $this->assertStringNotContainsString('już dla Ciebie', $text);
