@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
 const manifest = JSON.parse(readFileSync('public/build/manifest.json', 'utf8'));
 const entry = manifest['resources/css/app.css'];
@@ -14,7 +15,8 @@ const out = 'output/skala589';
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const rows = [];
-const near = (actual, expected, name) => assert(Math.abs(actual - expected) < .2, `${name}: ${actual} zamiast ${expected}`);
+let kontekst = '';
+const near = (actual, expected, name) => assert(Math.abs(actual - expected) < .2, `${name}: ${actual} zamiast ${expected} (${kontekst})`);
 try {
   for (const width of [320, 360, 390, 414, 768, 1440]) for (const theme of ['light', 'dark']) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
@@ -41,11 +43,28 @@ try {
     const group = [];
     for (const scale of [100, 70, 80, 90, 140, 100]) {
       await page.evaluate(scale => { document.documentElement.dataset.textScale = String(scale); }, scale);
-      await page.evaluate(async () => { for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame); });
+      /* Stan zamiast trzech klatek (24 września 2026). Arkusz wchodzi przez
+         `addStyleTag` na stronę już wyrenderowaną w 16 px, a przy
+         `reducedMotion: 'reduce'` każda zmiana rozmiaru pisma jest przejściem
+         0.01ms (`tokens.css`, `transition-property: all`). „Trzy klatki”
+         bywały za krótkie i CI mierzyło jeszcze stan sprzed arkusza:
+         „tekst: 16 zamiast 18”. Czekamy na oczekiwany rozmiar pisma, fonty
+         i koniec wszystkich przejść; porażka podaje zmierzone wartości. */
+      const oczekiwane = { font: 18 * scale / 100, skala: String(scale), motyw: theme };
+      const stan = await poczekajNaStan(page, {
+        arg: oczekiwane,
+        limitMs: 10_000,
+        warunek: (o, przejscia) => document.fonts.status === 'loaded'
+          && Math.abs(parseFloat(getComputedStyle(document.body).fontSize) - o.font) < .2
+          && przejscia().length === 0,
+        pomiar: (o, przejscia) => ({ oczekiwane: o, font: parseFloat(getComputedStyle(document.body).fontSize), color: getComputedStyle(document.body).color, skala: document.documentElement.dataset.textScale, motyw: document.documentElement.dataset.theme, fonty: document.fonts.status, przejscia: przejscia() }),
+      });
+      assert(stan.ustalony, `tekst: stan skali nie ustalił się w 10000 ms (${width} px, ${theme}, skala ${scale}). Zmierzone: ${JSON.stringify(stan.zmierzone)}`);
       const geo = await page.evaluate(() => {
         const style = selector => getComputedStyle(document.querySelector(selector));
         return {
           font: parseFloat(style('body').fontSize),
+          color: style('body').color,
           padding: parseFloat(style('#button').paddingTop),
           button: document.querySelector('#button').getBoundingClientRect().height,
           field: document.querySelector('#field').getBoundingClientRect().height,
@@ -63,6 +82,7 @@ try {
           overflow: document.documentElement.scrollWidth > innerWidth + 1,
         };
       });
+      kontekst = `${width} px, ${theme}, skala ${scale}, kolor ${geo.color}`;
       const density = Math.min(1, scale / 100);
       near(geo.font, 18 * scale / 100, 'tekst');
       near(geo.padding, 12 * density, 'padding przycisku');
