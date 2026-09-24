@@ -10,11 +10,14 @@
      Rozdzielenie formularzy jest jedyną rzeczą, która to wyklucza bez
      JavaScriptu (AGENTS.md §5 pkt 3).
 
-     CENĄ jest to, że zapis stanu nie niesie już szkicu odpowiedzi w tym samym
-     żądaniu. `withInput()` w kontrolerze zostaje — działa, gdy oba komplety
-     pól przyjdą razem — ale przeglądarka wysyła teraz tylko pola tego
-     formularza, który został zatwierdzony. Nieodwracalna wysyłka listu przez
-     pomyłkę jest gorsza niż przepisanie szkicu. --}}
+     SZKIC SĄSIADA NIE GINIE (issue #845). Przeglądarka wysyła tylko pola
+     zatwierdzonego formularza, więc każdy z nich niesie UKRYTE KOPIE pól
+     drugiego (`data-kopia-z`, wyłączone w znaczniku). Skrypt
+     `resources/js/kopia-sasiedniego-pola.js` wypełnia je w chwili wysłania,
+     a kontroler tylko odsyła je w `withInput()` — nigdy ich nie wykonuje.
+     Bez skryptu kopie nie lecą i szkic sąsiada przepada jak dawniej
+     (D-053: to wygoda, nie ochrona serwisu); list przez pomyłkę nie
+     wychodzi w żadnym wariancie. --}}
 <x-layout title="Wiadomość do nas — Panel moderacji" :noindex="true">
     <x-panel-moderacji ekran="Wiadomości do nas" />
 
@@ -194,8 +197,13 @@
         @endif
 
         @if($wiadomosc->adresDoOdpowiedzi())
-            <form method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
+            <form id="odpowiedz-formularz" method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
                 @csrf
+                {{-- Kopie niezapisanego stanu i notatki (issue #845) — patrz
+                     komentarz na górze pliku. Wysyłka ich nie zapisuje. --}}
+                <input type="hidden" name="status" data-kopia-z="#stan-wiadomosci [name=status]:checked" disabled>
+                <input type="hidden" name="handler_note" data-kopia-z="#stan-wiadomosci [name=handler_note]" disabled>
+                <input type="hidden" name="version" data-kopia-z="#stan-wiadomosci [name=version]" disabled>
                 @php($attempt = $wiadomosc->odpowiedzi->firstWhere('reply_key', old('reply_key', '')))
                 <input type="hidden" name="reply_key" value="{{ old('reply_key', (string) \Illuminate\Support\Str::uuid()) }}">
                 @error('reply_key')<p class="field-error" id="f-reply_key" tabindex="-1">{{ $message }}</p>@enderror
@@ -261,6 +269,12 @@
 
     <form id="stan-wiadomosci" class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
         @csrf
+        @if($wiadomosc->adresDoOdpowiedzi())
+            {{-- Kopia szkicu odpowiedzi (issue #845). Zapis stanu NIE wysyła
+                 listu — kontroler tylko odda ten tekst z powrotem do pola. --}}
+            <input type="hidden" name="odpowiedz" data-kopia-z="#odpowiedz-formularz [name=odpowiedz]" disabled>
+            <input type="hidden" name="reply_key" data-kopia-z="#odpowiedz-formularz input[type=hidden][name=reply_key]" disabled>
+        @endif
         <input type="hidden" name="version" value="{{ $errors->has('version') ? $wiadomosc->version : old('version', $wiadomosc->version) }}">
         <div id="f-version" tabindex="-1">
             @error('version')

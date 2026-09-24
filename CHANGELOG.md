@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Panel wiadomości do nas: zapis stanu sprawy nie gubi już rozpoczętej, niewysłanej odpowiedzi — po kliknięciu „Zapisz” tekst wraca w polu „Treść odpowiedzi”, a list nie wychodzi. Tak samo wysłanie odpowiedzi zostawia w polu niezapisaną notatkę i zaznaczony stan, niczego z nich nie zapisując. Działa w przeglądarce z JavaScriptem (#845).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
