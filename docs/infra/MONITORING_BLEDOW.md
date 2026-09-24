@@ -276,16 +276,20 @@ i `daily` mają tap `App\Logging\FiltrDanychOsobowych`, który podpina procesor
   i nie wychodzi w oryginale.
 
 **Logi operacyjne nie niosą komunikatu obcego wyjątku (#973).** Sprzątanie
-eksportów, kasowanie i przetwarzanie zdjęć, eksport danych, retencja
-moderacji, czyszczenie CDN i `/health` zapisują w polu `error` wynik
+eksportów, kasowanie i przetwarzanie zdjęć, eksport danych, list „paczka
+gotowa", ślad nieudanego listu (`ZapiszNieudanyList`), retencja moderacji,
+czyszczenie CDN i `/health` zapisują w polu `error` wynik
 `App\Logging\BezpiecznyBlad::kontekst($e)`: klasę, kod o zamkniętym kształcie
 (SQLSTATE, kod błędu R2 z HTTP), klasy przyczyn i ośmioznakowy odcisk — ten
 sam, który niesie dzwonek webhooka. Etap nazywa treść wpisu, encję jego
 identyfikator (`media_id`, `data_export_id`, własny klucz obiektu z modelu).
 Komunikatu nie ma, bo buduje go biblioteka (SQL z wartościami, adres żądania
-z tokenem, CR/LF), a filtr wyżej rozpoznaje tylko e-mail, hash i SQL. Nowe
-`Log::…(…$e->getMessage()…)` w `app/` oblewa
-`tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php`.
+z tokenem, CR/LF), a filtr wyżej rozpoznaje tylko e-mail, hash i SQL.
+`App\Poczta\BezpiecznyKomunikat::z()` też nie wystarcza — maskuje adres, ale
+zostawia SQL, hash i token; w logu go nie używamy. Nowe surowe
+`$e->getMessage()` w `app/` — w `Log::…`, `Log::channel(…)->…`, `logger()`,
+`app('log')`, wstrzykniętym `$this->logger` albo `report(new …($e->getMessage()))`
+— oblewa `tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php`.
 
 Szukając błędu bazy w logach Railway, szukaj po SQLSTATE, nazwie ograniczenia
 albo pliku:linii — nie po adresie e-mail osoby, bo go tam nie ma. Pilnuje tego

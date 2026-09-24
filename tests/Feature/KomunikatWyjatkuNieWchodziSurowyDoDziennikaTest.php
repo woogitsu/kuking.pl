@@ -106,7 +106,7 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
         $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
 
         $dziennik->shouldHaveReceived('warning')
-            ->withArgs(function (string $wiadomosc, array $kontekst) use ($basia): bool {
+            ->withArgs(function (string $wiadomosc, array $kontekst) use ($basia, $export): bool {
                 if (! str_contains($wiadomosc, 'e-mail nie wyszedł')) {
                     return false;
                 }
@@ -116,9 +116,12 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
                 $this->assertStringNotContainsString($basia->email, $caly);
                 $this->assertStringNotContainsString('@example.com', $caly);
 
-                // …a jednocześnie wpis dalej mówi, CO się stało — inaczej
-                // byłaby to cisza, nie redakcja.
-                $this->assertStringContainsString('550 5.1.1', $caly);
+                // …a jednocześnie wpis dalej mówi, CO się stało i KTÓREJ
+                // paczki dotyczy — inaczej byłaby to cisza, nie redakcja.
+                // Komunikatu dostawcy (nawet przyciętego) już nie ma: #973.
+                $this->assertSame((string) $export->getKey(), (string) $kontekst['data_export_id']);
+                $this->assertSame(RuntimeException::class, $kontekst['error']['wyjatek']);
+                $this->assertStringNotContainsString('Recipient address rejected', $caly);
 
                 return true;
             })->once();
