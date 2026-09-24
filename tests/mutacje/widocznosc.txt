@@ -97,3 +97,19 @@ na: return $user->isModerator();
 oczekuj: Failed asserting|bez 2FA
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
 ocena:
+---
+nazwa: moderator nie zapisuje ukrytego wpisu do zeszytu (#1018)
+plik: app/Http/Controllers/CollectionController.php
+zamien: $this->authorize('save', $post);
+na: $this->authorize('view', $post);
+oczekuj: Failed asserting|zeszytu
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:
+---
+nazwa: moderator nie zglasza ukrytego wpisu (#1018)
+plik: app/Domain/Moderation/Actions/ReportContent.php
+zamien: Post::class => 'report',
+na: Post::class => 'view',
+oczekuj: Failed asserting|zglasza
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:

@@ -2706,7 +2706,8 @@ Wysokiego znaczenia zmiany.
   zanonimizowane;
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
-  `user.role_changed`, `admin.user_viewed`). **Bez CHECK-a w bazie** i to jest
+  `user.role_changed`, `admin.user_viewed`,
+  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -2763,6 +2764,22 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis ukryty przez
+moderację (#1018): strona wpisu (`PostController::show()`), gdy otwiera ją
+ktoś inny niż autor. `PostPolicy::view()` wpuszcza tam poza autorem wyłącznie
+czynnego moderatora albo administratora z potwierdzonym 2FA, więc każde takie
+wejście to wgląd z urzędu — ta sama zasada 3.2 co przy `admin.user_viewed`.
+`actor_id` to moderator, `subject_type = 'Post'`, `subject_id` — obejrzany
+wpis, `ip_hash` z żądania. **Bez metadanych i bez treści wpisu**: identyfikator
+wystarcza, a treść ukrytego wpisu nie ma trafiać do drugiej tabeli, gdzie
+przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
+nie zostawia. Podgląd jest tylko do odczytu — zapis do zeszytu, zgłoszenie
+i komentarz odmawia `PostPolicy` (`save`, `report`, `comment`), więc innych
+wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
+NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
+żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
+ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało

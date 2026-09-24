@@ -25,6 +25,10 @@ use Tests\TestCase;
  * Kontrola ujemna: usunięcie wyjątku `STATUS_HIDDEN` w `PostPolicy::view()`
  * oblewa `test_macierz_statusu_i_widza` (moderator z 2FA / administrator
  * przy `hidden`) i testy zdjęć oraz komentarzy niżej.
+ *
+ * Podgląd jest tylko do odczytu: przywrócenie samego `view` w `savePost`
+ * albo `ReportContent` (zamiast `save`/`report`) oblewa testy zapisu
+ * i zgłoszenia ukrytego wpisu — patrz `tests/mutacje/widocznosc.txt`.
  */
 class ModeratorWidziUkrytyWpisTest extends TestCase
 {
@@ -136,6 +140,82 @@ class ModeratorWidziUkrytyWpisTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseMissing('comments', ['body' => 'Komentarz moderatora']);
+    }
+
+    /**
+     * Podgląd jest TYLKO do odczytu: `savePost` pytał wyłącznie o `view`,
+     * więc moderator z 2FA odkładał cudzy ukryty wpis do własnego zeszytu.
+     */
+    public function test_moderator_nie_zapisuje_ukrytego_wpisu_do_zeszytu(): void
+    {
+        $autor = $this->user('autor');
+        $wpis = $this->wpis($autor, Post::STATUS_HIDDEN);
+
+        $this->actingAs($this->moderator())
+            ->post(route('collections.save-post', $wpis->getKey()))
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('collection_items', ['post_id' => $wpis->getKey()]);
+    }
+
+    /** `ReportContent` pytał o `view`, więc moderator zgłaszał ukryty wpis. */
+    public function test_moderator_nie_zglasza_ukrytego_wpisu(): void
+    {
+        $autor = $this->user('autor');
+        $wpis = $this->wpis($autor, Post::STATUS_HIDDEN);
+        $moderator = $this->moderator();
+
+        $this->actingAs($moderator)
+            ->get(route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]))
+            ->assertNotFound();
+
+        $this->actingAs($moderator)
+            ->post(route('reports.store', ['type' => 'post', 'id' => $wpis->getKey()]), ['reason' => 'spam'])
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('reports', ['target_id' => $wpis->getKey()]);
+    }
+
+    /** Bez martwych przycisków (AGENTS.md §5): na podglądzie nie ma ani zapisu, ani zgłoszenia. */
+    public function test_podglad_ukrytego_wpisu_nie_pokazuje_zapisu_ani_zgloszenia(): void
+    {
+        $autor = $this->user('autor');
+        $wpis = $this->wpis($autor, Post::STATUS_HIDDEN);
+
+        $this->actingAs($this->moderator())
+            ->get(route('posts.show', $wpis->getKey()))
+            ->assertOk()
+            ->assertSee('Otwórz wpis')
+            ->assertDontSee(route('collections.save-post', $wpis), false)
+            ->assertDontSee('Zapisuję')
+            ->assertDontSee(route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]), false)
+            ->assertDontSee('Zgłoś ten wpis');
+    }
+
+    /** Kontrola dodatnia: opublikowany wpis moderator dalej zapisze i zgłosi. */
+    public function test_opublikowany_wpis_moderator_zapisuje_i_zglasza(): void
+    {
+        $autor = $this->user('autor');
+        $wpis = $this->wpis($autor, Post::STATUS_PUBLISHED);
+        $moderator = $this->moderator();
+
+        $this->actingAs($moderator)
+            ->get(route('posts.show', $wpis->getKey()))
+            ->assertOk()
+            ->assertSee(route('collections.save-post', $wpis), false)
+            ->assertSee('Zapisuję')
+            ->assertSee(route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]), false)
+            ->assertSee('Zgłoś ten wpis');
+
+        $this->actingAs($moderator)
+            ->post(route('collections.save-post', $wpis->getKey()))
+            ->assertRedirect();
+        $this->assertDatabaseHas('collection_items', ['post_id' => $wpis->getKey()]);
+
+        $this->actingAs($moderator)
+            ->post(route('reports.store', ['type' => 'post', 'id' => $wpis->getKey()]), ['reason' => 'spam'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('reports', ['target_id' => $wpis->getKey()]);
     }
 
     public function test_wglad_moderatora_zostawia_slad_w_dzienniku_a_autora_nie(): void

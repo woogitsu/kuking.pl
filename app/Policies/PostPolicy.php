@@ -139,11 +139,62 @@ class PostPolicy
     {
         // Podgląd ukrytego wpisu dla moderatora (#1018) to odczyt, nie
         // rozmowa: pod cudzym nieopublikowanym wpisem nie komentuje nikt.
-        if (! $post->isPublished() && $user->getKey() !== $post->author_id) {
+        if (self::tylkoPodgladObslugi($user, $post)) {
             return false;
         }
 
         return $this->view($user, $post) && $user->isActive();
+    }
+
+    /**
+     * „Zapisuję" — odłożenie wpisu do własnego zeszytu.
+     *
+     * Podgląd ukrytego wpisu dla moderatora (#1018) jest TYLKO do odczytu.
+     * Samo `view` wpuszczało tu moderatora z 2FA, więc mógł włożyć cudzy
+     * ukryty wpis do własnego zeszytu — zapis, którego żaden zwykły
+     * człowiek nie zrobi, i ślad sprawy moderacyjnej w prywatnej kolekcji.
+     */
+    public function save(User $user, Post $post): bool
+    {
+        if (self::tylkoPodgladObslugi($user, $post)) {
+            return false;
+        }
+
+        return $this->view($user, $post);
+    }
+
+    /**
+     * Zgłoszenie wpisu (`ReportContent::authorize()`).
+     *
+     * Ten sam powód co `save()`: moderator na podglądzie ukrytego wpisu
+     * (#1018) nie otwiera zgłoszenia — sprawa już jest w panelu, a drugie
+     * zgłoszenie od obsługi zaśmiecałoby kolejkę. Autor dalej może zgłosić
+     * własny wpis (np. przejęte konto) — `view` go wpuszcza.
+     */
+    public function report(?User $user, Post $post): bool
+    {
+        if (self::tylkoPodgladObslugi($user, $post)) {
+            return false;
+        }
+
+        return $this->view($user, $post);
+    }
+
+    /**
+     * Cudzy nieopublikowany wpis. Jedyną drogą, którą `view` do takiego
+     * wpuszcza, jest podgląd obsługi (#1018) — a on niczego nie zmienia.
+     *
+     * Publiczna, bo pyta o nią też karta wpisu (`components/post-card`),
+     * żeby schować „Zapisuję" i „Zgłoś ten wpis". Karta NIE woła tam
+     * `@can('save')`: `view()` sprawdza blokadę zapytaniem, czyli jedno
+     * zapytanie na kartę w feedzie. Ten warunek nie pyta bazy, a kartę
+     * i tak widać dopiero po `view`.
+     */
+    public static function tylkoPodgladObslugi(?User $user, Post $post): bool
+    {
+        return $user !== null
+            && ! $post->isPublished()
+            && $user->getKey() !== $post->author_id;
     }
 
     /**

@@ -528,10 +528,13 @@ class CollectionController extends Controller
      * Policy `view` PRZED zapisem, nie po. Bez tego dałoby się odłożyć
      * do zeszytu cudzy wpis prywatny, znając sam jego identyfikator —
      * a UUID w adresie to nie autoryzacja (AGENTS.md §7).
+     *
+     * `save`, a nie samo `view`: podgląd ukrytego wpisu dla moderatora
+     * (#1018) przechodzi `view`, ale jest tylko do odczytu.
      */
     public function savePost(Request $request, Post $post): RedirectResponse
     {
-        $this->authorize('view', $post);
+        $this->authorize('save', $post);
 
         $collection = $this->selectedCollection($request);
 
