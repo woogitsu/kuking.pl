@@ -10,14 +10,19 @@ use App\Google\KlientGoogle;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Support\Google;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
@@ -648,6 +653,46 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertDatabaseHas('audit_log', ['action' => 'account.registered']);
     }
 
+    /**
+     * Awaria po zatwierdzeniu konta z Google (#1373): `Registered` i
+     * obserwowanie gospodarza padają oba — konto istnieje, człowiek wchodzi,
+     * a odpowiedź nie jest 500. Listu i tak nie miało być (adres potwierdzony),
+     * więc komunikat zostaje zwykły.
+     */
+    #[Test]
+    public function test_awaria_po_zalozeniu_konta_z_google_nie_daje_500(): void
+    {
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle();
+        Exceptions::fake();
+        $gospodarz = $this->user('gospodarz');
+        config(['kuking.community.host_username' => 'gospodarz']);
+        Event::listen(Registered::class, function (): void {
+            throw new RuntimeException('Wstrzyknięta awaria zdarzenia');
+        });
+        DB::listen(function ($zapytanie): void {
+            if (str_contains($zapytanie->sql, 'insert into "follows"')) {
+                throw new RuntimeException('Wstrzyknięta awaria obserwowania');
+            }
+        });
+
+        $this->post(route('google.finish.store'), [
+            'display_name' => 'Basia',
+            'username' => 'basia',
+            'age_confirmed' => '1',
+            'terms_accepted' => '1',
+        ])
+            ->assertRedirect(route('onboarding.interests'))
+            ->assertSessionHas('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
+
+        $basia = User::where('email', 'basia@example.test')->firstOrFail();
+        $this->assertAuthenticatedAs($basia);
+        $this->assertFalse($basia->isFollowing($gospodarz));
+        $this->assertDatabaseHas('audit_log', ['action' => 'account.registered']);
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'nie wyszło zdarzenie Registered'));
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'nie zaczęło obserwować gospodarza'));
+    }
+
     #[Test]
     public function test_zamknieta_rejestracja_zamyka_takze_droge_przez_google(): void
     {
@@ -1082,5 +1127,56 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->assertGuest();
         $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_wygasniecie_domkniecia_zachowuje_imie_i_nazwe_po_powrocie_tym_samym_kontem(): void
+    {
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle()->assertRedirect(route('google.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('google.finish'), [
+            'display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa',
+            'age_confirmed' => '1', 'terms_accepted' => '1',
+        ])->assertRedirect(route('login'));
+        $this->assertDatabaseCount('users', 0);
+        $this->get(route('login'))->assertOk();
+        Http::swap(new Factory);
+        $this->wracamyZGoogle()->assertRedirect(route('google.finish'));
+        $html = $this->get(route('google.finish'))->assertOk()->getContent();
+        $this->assertStringContainsString('Własne imię', $this->element($html, 'f-display_name'));
+        $this->assertStringContainsString('moja_wlasna_nazwa', $this->element($html, 'f-username'));
+        $this->assertStringNotContainsString('checked', $this->element($html, 'f-age_confirmed'));
+        $this->assertStringNotContainsString('checked', $this->element($html, 'f-terms_accepted'));
+    }
+
+    public function test_szkic_domkniecia_nie_przechodzi_na_inne_konto_dostawcy(): void
+    {
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle()->assertRedirect(route('google.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('google.finish'), ['display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa'])
+            ->assertRedirect(route('login'));
+        Http::swap(new Factory);
+        $this->wracamyZGoogle(['sub' => '99999999999999999'])->assertRedirect(route('google.finish'));
+        $html = $this->get(route('google.finish'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Własne imię', $html);
+        $this->assertStringNotContainsString('moja_wlasna_nazwa', $html);
+        $this->assertStringContainsString('Basia', $this->element($html, 'f-display_name'));
+        $this->assertNull(session('registration_draft.google'));
+    }
+
+    public function test_szkic_domkniecia_wygasa_i_prosi_o_ponowne_wpisanie(): void
+    {
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle()->assertRedirect(route('google.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('google.finish'), ['display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa'])
+            ->assertRedirect(route('login'));
+        $this->travel(31)->minutes();
+        Http::swap(new Factory);
+        $this->wracamyZGoogle(['exp' => now()->addHour()->timestamp])->assertRedirect(route('google.finish'));
+        $response = $this->get(route('google.finish'))->assertOk();
+        $response->assertSee('Wpisz je ponownie')->assertDontSee('moja_wlasna_nazwa');
+        $this->assertNull(session('registration_draft.google'));
     }
 }

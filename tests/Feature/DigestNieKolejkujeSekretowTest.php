@@ -21,7 +21,7 @@ class DigestNieKolejkujeSekretowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_pelny_payload_kolejki_nie_zawiera_sekretow_a_list_zachowuje_tresc_bez_odczytow_bazy(): void
+    public function test_pelny_payload_kolejki_nie_zawiera_sekretow_ani_tresci_tylko_identyfikatory(): void
     {
         config()->set('queue.default', 'database');
         config()->set('mail.default', 'array');
@@ -54,8 +54,6 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         $tresc = new TrescDigestu($odbiorca, [$wykonanie], [$obserwujacy], 3, [$wpis], 'Pytanie migawki?');
         $list = new PodsumowanieTygodnia($tresc);
         $html = $list->render();
-        $tekst = view('mail.podsumowanie-tygodnia-tekst', $list->content()->with)->render();
-        $temat = $list->envelope()->subject;
         $naglowki = $list->headers()->text;
 
         // Prawdziwe Mail::queue -> DatabaseQueue -> jobs.payload, bez Mail::fake.
@@ -72,11 +70,14 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         foreach ([$kucharz, $obserwujacy, $autor] as $osoba) {
             $this->assertStringNotContainsString($osoba->email, $command);
         }
-        $this->assertStringContainsString('Notatka migawki', $command);
+        // #1383: do kolejki idą same identyfikatory. Żadnej treści cudzych
+        // osób (notatka, wpis, imiona, tytuł przepisu) w zadaniu nie ma —
+        // czyta ją świeżo `ZbierzTresciDigestu::odswiez()` w chwili wysyłki.
+        foreach (['Notatka migawki', 'Treść migawki', 'Kucharz migawki', 'Obserwujący migawki', 'Autor migawki', 'Rosół migawki', 'Odbiorca migawki'] as $tresc583) {
+            $this->assertStringNotContainsString($tresc583, $command);
+        }
         $this->assertStringContainsString('Pytanie migawki?', $command);
 
-        // Zmiany po zakolejkowaniu nie mogą zmienić wcześniej dobranego listu.
-        DB::table('profiles')->where('user_id', $kucharz->getKey())->update(['display_name' => 'Późniejsza nazwa']);
         $zapytania = [];
         DB::listen(static function ($query) use (&$zapytania): void {
             $zapytania[] = $query->sql;
@@ -85,41 +86,41 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         $this->assertInstanceOf(SendQueuedMailable::class, $odczytany);
         $mail = $odczytany->mailable;
         $this->assertInstanceOf(PodsumowanieTygodnia::class, $mail);
-        foreach ([$mail->tresc->odbiorca, $mail->tresc->wykonania[0]->user,
-            $mail->tresc->nowiObserwujacy[0], $mail->tresc->wpisyObserwowanych[0]->author] as $osoba) {
+        foreach ([$mail->tresc->odbiorca, $mail->tresc->nowiObserwujacy[0]] as $osoba) {
             $this->assertSame(['id'], array_keys($osoba->getAttributes()));
-            $this->assertSame(['profile'], array_keys($osoba->getRelations()));
-            $this->assertSame(['display_name'], array_keys($osoba->profile->getAttributes()));
-            $this->assertSame([], $osoba->profile->getRelations());
+            $this->assertSame(['profile' => null], $osoba->getRelations());
         }
-        $this->assertSame(['id', 'note'], array_keys($mail->tresc->wykonania[0]->getAttributes()));
-        $this->assertSame(['user', 'recipe'], array_keys($mail->tresc->wykonania[0]->getRelations()));
-        $this->assertSame(['id', 'body'], array_keys($mail->tresc->wpisyObserwowanych[0]->getAttributes()));
-        $this->assertSame(['author', 'recipe'], array_keys($mail->tresc->wpisyObserwowanych[0]->getRelations()));
-        foreach ([$mail->tresc->wykonania[0]->recipe, $mail->tresc->wpisyObserwowanych[0]->recipe] as $przepis) {
-            $this->assertSame(['title'], array_keys($przepis->getAttributes()));
-            $this->assertSame([], $przepis->getRelations());
-        }
+        $this->assertSame(['id'], array_keys($mail->tresc->wykonania[0]->getAttributes()));
+        $this->assertSame(['user' => null, 'recipe' => null], $mail->tresc->wykonania[0]->getRelations());
+        $this->assertSame(['id'], array_keys($mail->tresc->wpisyObserwowanych[0]->getAttributes()));
+        $this->assertSame(['author' => null, 'recipe' => null], $mail->tresc->wpisyObserwowanych[0]->getRelations());
+        $this->assertSame((string) $odbiorca->getKey(), (string) $mail->tresc->odbiorca->getKey());
+        $this->assertSame('00000000-0000-4000-8000-000000000583', (string) $mail->tresc->wykonania[0]->getKey());
+        $this->assertSame('00000000-0000-4000-8000-000000000584', (string) $mail->tresc->wpisyObserwowanych[0]->getKey());
         $this->assertTrue($mail->hasTo($odbiorca->email));
-        $this->assertSame($html, $mail->render());
-        $this->assertSame($tekst, view('mail.podsumowanie-tygodnia-tekst', $mail->content()->with)->render());
-        $this->assertSame($temat, $mail->envelope()->subject);
-        $this->assertSame($naglowki, $mail->headers()->text);
-        $this->assertSame([], $zapytania);
         $this->assertSame(3, $mail->tresc->ileNowychObserwujacych);
+        $this->assertFalse($mail->tresc->jestPusty());
+        $this->assertSame([], $zapytania, 'Odczyt zapisu z kolejki nie może sięgać do bazy przed wysyłką.');
         // Bez mutowania oryginalnych modeli dla pozostałych odbiorców paczki.
         $this->assertSame('FAKE_SECRET_583_1_password', $kucharz->getAttributes()['password']);
+        $this->assertSame('Notatka migawki', $wykonanie->note);
 
-        // Producent jest tym procesem PHPUnit. Każdy czytnik to osobny PHP,
-        // bez załadowanej nowej klasy DTO w przypadku starego workera.
+        // ROLLING DEPLOY: stary worker (DTO sprzed #583) i obecny czytnik
+        // w osobnych procesach PHP odczytują ten zapis bez błędu i bez bazy —
+        // a list, który stary worker zdążyłby wysłać, nie niesie migawki.
+        $odczyty = [];
         foreach (['old', 'current'] as $reader) {
             $odpowiedz = $this->odczytajWOsobnymProcesie($command, $reader);
-            $this->assertSame($html, $odpowiedz['html']);
-            $this->assertSame($tekst, $odpowiedz['text']);
-            $this->assertSame($temat, $odpowiedz['subject']);
-            $this->assertSame($naglowki, $odpowiedz['headers']);
             $this->assertSame(0, $odpowiedz['queries']);
+            foreach (['Notatka migawki', 'Treść migawki', 'Kucharz migawki', 'Autor migawki', 'Rosół migawki'] as $tresc583) {
+                $this->assertStringNotContainsString($tresc583, $odpowiedz['html']);
+                $this->assertStringNotContainsString($tresc583, $odpowiedz['text']);
+            }
+            $this->assertSame($naglowki, $odpowiedz['headers']);
+            $odczyty[$reader] = $odpowiedz;
         }
+        $this->assertSame($odczyty['current']['html'], $odczyty['old']['html']);
+        $this->assertStringContainsString('Kucharz migawki', $html, 'Kontrola dodatnia: przed kolejką treść była w liście.');
     }
 
     /** @return array{html: string, text: string, subject: string, headers: array<string, string>, queries: int} */
@@ -169,11 +170,13 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         // Osobny test: nie ma wcześniejszej asercji typów/allowlisty, która
         // mogłaby ukryć TypeError rzeczywistego starego czytnika.
         $command = serialize(new SendQueuedMailable($list));
-        $wynik = $this->odczytajWOsobnymProcesie($command, 'old');
-        $this->assertSame($list->render(), $wynik['html']);
-        $this->assertSame($list->envelope()->subject, $wynik['subject']);
-        $this->assertSame($list->headers()->text, $wynik['headers']);
-        $this->assertSame(0, $wynik['queries']);
+        $stary = $this->odczytajWOsobnymProcesie($command, 'old');
+        $obecny = $this->odczytajWOsobnymProcesie($command, 'current');
+        $this->assertSame($obecny['html'], $stary['html']);
+        $this->assertSame($obecny['subject'], $stary['subject']);
+        $this->assertSame($list->headers()->text, $stary['headers']);
+        $this->assertSame(0, $stary['queries']);
+        $this->assertStringContainsString('Pytanie rolling deploy?', $stary['html']);
     }
 
     public function test_odczytuje_stary_format_a_kolejny_zapis_usuwa_modele_i_sekrety(): void
@@ -194,7 +197,7 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         $this->assertStringNotContainsString('FAKE_LEGACY_SECRET_583', serialize($tresc));
     }
 
-    public function test_migawka_zachowuje_brak_relacji_i_wpis_z_samym_przepisem(): void
+    public function test_zapis_zachowuje_brak_relacji_i_identyfikator_wpisu(): void
     {
         $osoba = (new User)->setRawAttributes(['id' => '00000000-0000-4000-8000-000000000585']);
         $osoba->setRelation('profile', null);
@@ -205,10 +208,10 @@ class DigestNieKolejkujeSekretowTest extends TestCase
         $list = new PodsumowanieTygodnia($tresc);
         $odczytany = unserialize(serialize($list));
         $this->assertInstanceOf(PodsumowanieTygodnia::class, $odczytany);
-        $this->assertSame($list->render(), $odczytany->render());
         $this->assertSame('Użytkownik Kuking', $odczytany->tresc->odbiorca->displayName());
         $this->assertNull($odczytany->tresc->wpisyObserwowanych[0]->author);
-        $this->assertSame('Sam przepis', $odczytany->tresc->wpisyObserwowanych[0]->recipe->title);
+        $this->assertNull($odczytany->tresc->wpisyObserwowanych[0]->recipe);
+        $this->assertSame('00000000-0000-4000-8000-000000000586', (string) $odczytany->tresc->wpisyObserwowanych[0]->getKey());
         $this->assertFalse($odczytany->tresc->jestPusty());
         $this->assertTrue(unserialize(serialize(TrescDigestu::pusta($osoba)))->jestPusty());
     }

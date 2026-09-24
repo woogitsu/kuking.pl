@@ -120,7 +120,7 @@ class AwarieOdpowiedziKontaktuTest extends TestCase
         Mail::fake();
         $message = ContactMessage::factory()->create(['contact_email' => 'test@example.test']);
         app(WyslijOdpowiedz::class)->handle($message, $this->moderator(), 'Odpowiedź.', replyKey: (string) Str::uuid());
-        $migration = require database_path('migrations/2026_09_20_160000_add_contact_reply_delivery_markers.php');
+        $migration = require database_path('migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php');
         $this->expectException(RuntimeException::class);
         $migration->down();
     }
@@ -147,7 +147,7 @@ class AwarieOdpowiedziKontaktuTest extends TestCase
 
     public function test_wycofanie_i_ponowienie_migracji_na_pustej_bazie(): void
     {
-        foreach (['2026_09_20_160000_add_contact_reply_delivery_markers.php', '2026_09_20_150000_add_contact_message_version.php'] as $file) {
+        foreach (['2026_09_24_120000_add_contact_reply_delivery_markers.php', '2026_09_24_110000_add_contact_message_version.php'] as $file) {
             $migration = require database_path('migrations/'.$file);
             $migration->down();
             $migration->up();

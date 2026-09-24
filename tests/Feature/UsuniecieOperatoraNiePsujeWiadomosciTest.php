@@ -27,7 +27,7 @@ class UsuniecieOperatoraNiePsujeWiadomosciTest extends TestCase
     private function migracja(): object
     {
         return require database_path(
-            'migrations/2026_09_20_140000_allow_null_handled_by_on_contact_messages.php',
+            'migrations/2026_09_24_100000_allow_null_handled_by_on_contact_messages.php',
         );
     }
 

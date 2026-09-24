@@ -131,7 +131,7 @@ uruchom() {
     echo $?
 }
 
-printf '\n── Przyrząd do kontroli ujemnych: dziewięć prób ──\n\n'
+printf '\n── Przyrząd do kontroli ujemnych: czternaście prób ──\n\n'
 
 # --- 1. SEDNO: mutacja, która NIE TRAFIA ------------------------------------
 # Szukamy łańcucha, którego w pliku nie ma. Przyrząd ma ODMÓWIĆ (kod 2),
@@ -329,6 +329,17 @@ fi
 # poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-duze-wyjscie.sh zrodlo.txt)"
 sprawdz 'wzorzec na poczatku duzego wyjscia -> POTWIERDZONA (0), nie ZLA_PRZYCZYNA' 0 "$kod"
+
+# --- 14. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
+# Do 20 września 2026 przyrząd twierdził „MD5 i mtime zgodne", nie porównując
+# mtime w ogóle, a `touch -d` dodatkowo UCINAŁ część podsekundową, którą
+# `cp -p` już poprawnie przywróciło. Ten przypadek by to złapał: przed
+# poprawką mtime po przebiegu różnił się od mtime sprzed ułamkiem sekundy.
+mtime_przed="$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA' -- ./test-dobry.sh zrodlo.txt >/dev/null
+sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
+        "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
 
 printf '\n'
 if [ "$oblane" -eq 0 ]; then

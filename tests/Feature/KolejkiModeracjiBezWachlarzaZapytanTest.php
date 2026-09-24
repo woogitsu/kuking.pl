@@ -275,6 +275,7 @@ class KolejkiModeracjiBezWachlarzaZapytanTest extends TestCase
                 'reporter_id' => $this->user()->getKey(),
                 'source' => Report::SOURCE_COMMUNITY,
                 'status' => Report::STATUS_RESOLVED,
+                'resolved_at' => now(),
                 'reason' => 'spam',
             ]);
 

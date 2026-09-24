@@ -1,0 +1,16 @@
+{
+  "nazwa": "804 nawigacja",
+  "plik": "resources/js/szybki-wyglad.js",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "3a908c2f1857aac7612221b3b1e86820",
+  "md5_po_mutacji": "3b49252b9f5ef5ccf8eea2a67f63b092",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "BLAD_ZNIKA_PRZEZ_NAWIGACJE",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:57:17Z"
+}

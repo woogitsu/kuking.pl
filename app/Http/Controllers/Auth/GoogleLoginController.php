@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\ZalozKonto;
 use App\Domain\Users\ZamekKonta;
 use App\Google\KlientGoogle;
@@ -14,6 +15,7 @@ use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\ExternalRegistrationDraft;
 use App\Support\Google;
 use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
@@ -341,13 +343,15 @@ class GoogleLoginController extends Controller
             return $this->trzebaZaczacOdNowa();
         }
 
+        $draft = ExternalRegistrationDraft::restore($request, 'google', $tozsamosc->sub);
+
         return view('auth.google-finish', [
             'email' => $tozsamosc->email,
             // PODPOWIEDŹ, NIE NADANIE. Nazwa stoi w polu, które człowiek
             // widzi i może zmienić — decyzja właściciela z 10 września
             // (dwa pola przy rejestracji, nazwa podpowiadana z imienia).
-            'proponowanaNazwa' => $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $tozsamosc->imie,
+            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
+            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
         ]);
     }
 
@@ -365,9 +369,12 @@ class GoogleLoginController extends Controller
         // samego skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
+        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.sub');
         $tozsamosc = $this->tozsamoscZSesji($request);
 
         if ($tozsamosc === null) {
+            ExternalRegistrationDraft::remember($request, 'google', $previousIdentity);
+
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -434,6 +441,7 @@ class GoogleLoginController extends Controller
          */
         if (User::findByGoogleSub($tozsamosc->sub) !== null
             || User::where('email', $tozsamosc->email)->exists()) {
+            ExternalRegistrationDraft::forget($request, 'google');
             $this->zapomnijTozsamosc($request);
 
             return redirect()->route('login')->with('status',
@@ -442,6 +450,10 @@ class GoogleLoginController extends Controller
             );
         }
 
+        // Listu z potwierdzeniem tu nie ma (adres potwierdziło Google), więc
+        // `listPotwierdzajacyNieWyszedl` jest zawsze `false` — nie ma o czym
+        // mówić człowiekowi. Awarie po zatwierdzeniu konta idą do `report()`
+        // w `ZalozKonto` i nie dają 500 (#1373).
         $user = $zalozKonto->handle(
             email: $tozsamosc->email,
             displayName: $dane['display_name'],
@@ -457,8 +469,9 @@ class GoogleLoginController extends Controller
             googleSub: $tozsamosc->sub,
             ip: $request->ip(),
             dziennik: ['droga' => 'google'],
-        );
+        )->user;
 
+        ExternalRegistrationDraft::forget($request, 'google');
         $this->zapomnijTozsamosc($request);
 
         Auth::login($user, remember: true);
@@ -579,7 +592,7 @@ class GoogleLoginController extends Controller
         // KONTA OBSŁUGI SERWISU TĄ DROGĄ NIE WCHODZĄ (ten sam zakres co
         // D-056). Rolę sprawdzamy przy KAŻDYM wejściu, więc powiązanie
         // zrobione przed awansem przestaje działać z chwilą nadania roli.
-        if ($user->isModerator()) {
+        if ($user->hasStaffRole()) {
             return redirect()->route('login')->with('status',
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Google. '
                 .'Zaloguj się poniżej.',
@@ -595,7 +608,7 @@ class GoogleLoginController extends Controller
          */
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }
@@ -616,7 +629,7 @@ class GoogleLoginController extends Controller
     {
         // Konto zamknięte i obsługa serwisu — odpowiedź jak przy wejściu,
         // żeby te dwa przypadki miały JEDNO miejsce prawdy.
-        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true) || $user->isModerator()) {
+        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true) || $user->hasStaffRole()) {
             return $this->wpusc($request, $user, 'account.login_google');
         }
 
@@ -660,7 +673,7 @@ class GoogleLoginController extends Controller
         return $user->email === $tozsamosc->email
             && $user->email_verified_at !== null
             && ! $user->hasGoogleConnected()
-            && ! $user->isModerator()
+            && ! $user->hasStaffRole()
             && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
             // To konto Google nie może być w międzyczasie powiązane z KIMŚ
             // INNYM — inaczej zapis wpadłby na unikalny indeks bazy.
@@ -773,7 +786,7 @@ class GoogleLoginController extends Controller
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
         return redirect()->route('login')->with('status',
-            'Wejście kontem Google trwało zbyt długo i musimy zacząć od nowa — nic się nie stało. '
+            'Wejście kontem Google wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Google" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
         );
