@@ -16283,11 +16283,10 @@ drugą osobę”.
     napis „Komentarz usunięty.”, pod którym zniknęły wszystkie odpowiedzi,
     zostaje na stronie i nikt go nie usunie. Próba sprzątania napisu razem
     z ostatnią odpowiedzią (miękkie usunięcie w `DeleteComment`) została
-    **wycofana**: zmieniała regułę odpowiadania z main — pod napisem da się
-    dziś odpowiedzieć (`PublishComment`), a po sprzątaniu już nie. Ten PR
-    reguł odpowiadania nie zmienia (decyzja sesji głównej). Domknięcie, jeśli
-    będzie potrzebne, osobno: np. przycisk moderatora w panelu, który nie
-    dotyka `PublishComment`. Test: `ZdejmijZUrzeduPoPrzegladzieTest`, sekcja 2.
+    **wycofana** (decyzja sesji głównej) — zmieniała zachowanie istniejących
+    wątków poza zakresem G31. Domknięcie, jeśli będzie potrzebne, osobno:
+    np. przycisk moderatora w panelu. Test:
+    `ZdejmijZUrzeduPoPrzegladzieTest`, sekcja 2.
 12. **Stan „już zdjęta” przy decyzji ze zgłoszenia czytany pod blokadą
     komentarza** (przegląd G31). `decide()` sprawdzał `jestZdjeta()` na
     modelu sprzed blokady: gdy autor usunął komentarz w tym oknie, do decyzji
@@ -16295,6 +16294,18 @@ drugą osobę”.
     zwykłą treść. Teraz cel jest czytany na nowo pod blokadą
     (`ZdejmijTresc::zablokuj()`), a `tekstDoZachowania()`/`handle()` odmawiają
     (wyjątek, wycofanie transakcji) na komentarzu z `body_removed_at`.
+13. **Pod napisem „Komentarz usunięty.” nie da się dodać nowej odpowiedzi**
+    — ani pod napisem po decyzji moderacji, ani po usunięciu przez autora,
+    ani pod odpowiedzią w wątku, którego korzeń jest napisem; napis istnieje
+    tylko po to, by istniejące odpowiedzi nie straciły kontekstu (decyzja
+    sesji głównej). `LockCommentContext` odmawia zwykłym komunikatem
+    „Tu nie da się teraz dodać komentarza…”, sprawdzając `body_removed_at`
+    wskazanego komentarza i korzenia pod tymi samymi zamkami
+    `FOR NO KEY UPDATE` — wyścig z decyzją moderatora rozstrzyga się jak
+    na main przy usunięciu (`tests/Dwa/KomentarzBiezacyStanTest`,
+    `root_remove`). Przycisk „Odpowiedz” pod napisem się nie rysuje.
+    Zmiana wobec main: odpowiedź pod napisem autora wcześniej przechodziła.
+    Test: `OdpowiedzPodNapisemTest`.
 
 ### Czego ta decyzja nie robi
 

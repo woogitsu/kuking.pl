@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Comments\LockCommentContext;
 use App\Domain\Moderation\Actions\ZdejmijTresc;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -102,10 +104,10 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
     // ── 2. Napis bez odpowiedzi zostaje — jak na main ───────────────────
     //
     // Przegląd G31 próbował sprzątać napis razem z ostatnią odpowiedzią.
-    // Wycofane: zmieniało regułę odpowiadania (pod napisem da się odpowiedzieć,
-    // `PublishComment`), a ten PR reguł odpowiadania nie zmienia. D-251 pkt 11.
+    // Wycofane decyzją sesji głównej (D-251 pkt 11). Nowej odpowiedzi pod
+    // napisem i tak nie ma (D-251 pkt 13, `OdpowiedzPodNapisemTest`).
 
-    public function test_napis_autora_zostaje_gdy_znika_ostatnia_odpowiedz_i_da_sie_pod_nim_odpowiedziec(): void
+    public function test_napis_autora_zostaje_gdy_znika_ostatnia_odpowiedz_ale_nie_przyjmuje_nowej(): void
     {
         $autor = $this->user('autor');
         $komentarz = $this->komentarzZOdpowiedzia($autor);
@@ -117,8 +119,13 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
         $this->assertNotSoftDeleted($komentarz);
         $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
 
-        $nowa = app(PublishComment::class)->handle($this->user('czytelnik'), $komentarz->post, 'Odpowiedź pod napisem.', $komentarz->fresh());
-        $this->assertSame($komentarz->getKey(), $nowa->parent_id);
+        try {
+            app(PublishComment::class)->handle($this->user('czytelnik'), $komentarz->post, 'Odpowiedź pod napisem.', $komentarz->fresh());
+            $this->fail('Odpowiedź pod napisem przeszła (D-251 pkt 13).');
+        } catch (BladDlaCzlowieka $e) {
+            $this->assertSame(LockCommentContext::UNAVAILABLE, $e->getMessage());
+        }
+        $this->assertFalse(Comment::withTrashed()->where('body', 'Odpowiedź pod napisem.')->exists());
     }
 
     public function test_zwykly_komentarz_bez_odpowiedzi_zostaje_gdy_znika_odpowiedz_obok(): void

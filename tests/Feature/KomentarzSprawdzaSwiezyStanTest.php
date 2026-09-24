@@ -144,7 +144,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
     }
 
     #[DataProvider('types')]
-    public function test_wlasna_tresc_i_placeholder_zachowuja_dotychczasowe_reguly(string $type): void
+    public function test_wlasna_tresc_i_placeholder_bez_nowych_odpowiedzi(string $type): void
     {
         Queue::fake();
         [$subject, $owner, $recipe] = $this->subject($type);
@@ -155,8 +155,14 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         app(DeleteComment::class)->handle($owner, $root);
         $this->assertSame('Komentarz usunięty.', $root->fresh()->body);
         $this->assertNotNull($root->fresh()->body_removed_at);
-        $next = app(PublishComment::class)->handle($writer, $subject, 'Pod śladem.', $root);
-        $this->assertSame($root->id, $next->parent_id);
+        // D-251 pkt 13 (G31): napis trzyma kontekst istniejących odpowiedzi,
+        // ale nowej nie przyjmuje.
+        try {
+            app(PublishComment::class)->handle($writer, $subject, 'Pod śladem.', $root);
+            $this->fail('Odpowiedź pod napisem przeszła.');
+        } catch (BladDlaCzlowieka) {
+        }
+        $this->assertFalse(Comment::withTrashed()->where('body', 'Pod śladem.')->exists());
         ($subject instanceof CookedEvent ? $recipe : $subject)->update(['visibility' => 'private']);
         $own = app(PublishComment::class)->handle($owner, $subject, 'Nadal własna treść.');
         $this->assertNotNull($own->id);
