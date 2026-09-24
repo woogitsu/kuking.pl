@@ -232,20 +232,37 @@
                         <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
-                @elseif(! $isFollowing && $owner->isActive() && auth()->user()->can('follow', $owner))
+                @elseif(! $isFollowing && auth()->user()->can('follow', $owner))
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
                         <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-primary" type="submit">Obserwuj</button>
                     </form>
-                @else
-                    {{-- #780: konto zawieszone przechodzi `jestWidocznyJakoOsoba()`
-                         (zawieszenie jest tymczasowe, karta osoby ma zostać),
-                         ale `UserPolicy::follow()` wymaga `isActive()` i zawsze
-                         odmawia. Przycisk „Obserwuj", który zawsze kończy się
-                         błędem, jest martwym przyciskiem (D-053) — widok
-                         i Policy mówiłyby co innego, a człowiek dowiadywałby
-                         się dopiero po kliknięciu. --}}
+                {{--
+                    BRAK PRZYCISKU MA JEDEN Z TRZECH POWODÓW I KAŻDY MÓWI CO INNEGO.
+
+                    `UserPolicy::follow()`/`unfollow()` odmawiają, gdy zawieszony
+                    jest OGLĄDAJĄCY (#926, D-253), gdy zawieszony jest WŁAŚCICIEL
+                    profilu (#780), albo przy blokadzie między nimi. Jedno zdanie
+                    „to konto jest zawieszone" na wszystkie trzy mówiło zawieszonej
+                    osobie nieprawdę o cudzym, aktywnym koncie. Kolejność ma
+                    znaczenie: przy zawieszeniu obu stron człowiek ma najpierw
+                    usłyszeć o własnym koncie — to jedyne, na co może coś poradzić
+                    (odwołanie). Innych stanów oglądającego tu nie ma:
+                    `EnsureAccountIsActive` wylogowuje konta zamknięte.
+
+                    Blokada nie dostaje zdania: profil w relacji blokady daje 403
+                    (`UserPolicy::viewProfile`), a stronę blokującego obsługuje
+                    „Zdejmij blokadę" niżej — drugi komunikat by go dublował.
+                    Przycisk, który zawsze kończy się błędem, byłby martwy (D-053).
+                --}}
+                @elseif(auth()->user()->isSuspended())
+                    @if($isFollowing)
+                        <p class="mb-0">Obserwujesz tę osobę. Twoje konto jest zawieszone — do czasu zdjęcia zawieszenia nie możesz przestać obserwować.</p>
+                    @else
+                        <p class="mb-0">Twoje konto jest zawieszone — do czasu zdjęcia zawieszenia nie możesz obserwować.</p>
+                    @endif
+                @elseif(! $owner->isActive())
                     <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
                 <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>

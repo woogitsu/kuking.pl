@@ -69,7 +69,11 @@
                             @if(! $naPowitalnej || auth()->check())
                             <div class="kuking-board-akcja">
                                 @auth
-                                    @can('follow', $person)
+                                    {{-- Warunek `UserPolicy::follow()` bez zapytania na kartę:
+                                         `DailyBoard::peopleToFollow()` wycina już blokady
+                                         i osoby obserwowane, więc zostaje stan konta widza
+                                         (#926, D-253). Zapis pyta Policy na świeżo. --}}
+                                    @if(auth()->user()->isActive())
                                     <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
                                         @csrf
                                         {{-- #793 rozszerzone na relacje: tablica
@@ -81,7 +85,7 @@
                                         <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                         <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                     </form>
-                                    @endcan
+                                    @endif
                                 @else
                                     {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
 

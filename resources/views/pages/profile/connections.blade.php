@@ -63,19 +63,36 @@
                                 <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
-                        @elseif(! $isFollowingPerson && $person->isActive() && $viewer->can('follow', $person))
+                        {{--
+                            WARUNKI `UserPolicy::follow()`, ALE BEZ ZAPYTANIA NA WIERSZ.
+
+                            Blokadę w obie strony wycina już zapytanie listy
+                            (`SocialController::connections()`), więc tu zostaje
+                            wyłącznie stan obu kont — pole w modelu, bez bazy
+                            (`ListyIWyszukiwarkaTest` pilnuje, że lista nie
+                            rośnie o zapytanie na osobę). Zapis i tak pyta
+                            Policy na świeżo w `SocialController::follow()`.
+                        --}}
+                        @elseif(! $isFollowingPerson && $viewer->isActive() && $person->isActive())
                             <form method="POST" action="{{ route('social.follow', $personUsername) }}">
                                 @csrf
                                 <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                 <button class="btn btn-primary" type="submit">Obserwuj</button>
                             </form>
-                        @else
-                            {{-- #780: `widocznyJakoOsoba()` w kontrolerze zostawia
-                                 konta zawieszone na liście (zawieszenie jest
-                                 tymczasowe), ale `UserPolicy::follow()` wymaga
-                                 `isActive()` i zawsze odmawia. Bez tej gałęzi
-                                 przycisk „Obserwuj" byłby martwy (D-053):
-                                 zawsze kończyłby się błędem po kliknięciu. --}}
+                        {{-- Brak przycisku mówi, CZYJE konto jest zawieszone.
+                             Wcześniej jedno zdanie „Konto zawieszone" stało też
+                             przy każdej aktywnej osobie, gdy zawieszony był
+                             oglądający (#926, D-253) — nieprawda o cudzym koncie.
+                             Własne konto najpierw: tylko na nie człowiek może
+                             coś poradzić. Przycisk, który zawsze kończy się
+                             błędem, byłby martwy (D-053, #780). --}}
+                        @elseif($viewer->isSuspended())
+                            @if($isFollowingPerson)
+                                <span class="meta">Obserwujesz. Twoje konto jest zawieszone — do czasu zdjęcia zawieszenia nie możesz przestać obserwować.</span>
+                            @else
+                                <span class="meta">Twoje konto jest zawieszone — do czasu zdjęcia zawieszenia nie możesz obserwować.</span>
+                            @endif
+                        @elseif(! $person->isActive())
                             <span class="meta">Konto zawieszone — nie można teraz obserwować.</span>
                         @endif
                     @endif
