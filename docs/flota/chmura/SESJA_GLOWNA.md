@@ -44,6 +44,10 @@ była ciągła”.**
   i kończą raportem. PR otwiera sesja główna po przeglądzie kodu.
 - Sesja robocza nie odbierze wiadomości zwrotnej. Gdy utknie na decyzji,
   zarchiwizuj ją i załóż nową z decyzją wpisaną w prompt.
+- Decyzja właściciela z 24.09: push własnej gałęzi sesji roboczej jest z góry
+  zatwierdzony, a testy i `check.sh` idą w pierwszym planie. Sesje czekały na
+  „go” albo puszczały `check.sh` w tle i kończyły turę bez pusha. Sesję, która
+  mimo to utknęła bez pusha, archiwizujesz i zakładasz od nowa.
 
 ## 3. Kontrola sesji — pełna lista, nie ostatnie 30
 
