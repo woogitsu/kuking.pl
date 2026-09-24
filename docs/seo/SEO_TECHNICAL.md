@@ -62,6 +62,7 @@ Listy (profil — zakładki „Wszystko/Przepisy/Ugotowane”, `/odkryj`, wyniki
 
 - Jeśli mimo to publiczne strony 2+ mają URL-e (np. `/@basia?page=2`), oznacz je `rel="next"`/`rel="prev"` **nie jest już wspierane przez Google od 2019** — zamiast tego po prostu upewnij się, że strona 1 (kanoniczna, indeksowalna) linkuje do kolejnych stron zwykłymi linkami `<a href>`, żeby crawler mógł je odkryć, i że każda strona ma unikalny, opisowy `<title>`.
 - Strony 2+ list nie potrzebują unikalnej wartości SEO — mogą zostać `index,follow` (są prawdziwą treścią, tylko podzieloną), ale **nie kanonikalizuj ich do strony 1** (to ukryłoby treść stron 2+ przed Google, czyli realne przepisy autora by „zniknęły”).
+- Implementacja: `App\Support\KanonicznyAdresStrony` (issue #963) buduje `canonical` i `og:url` z białej listy parametrów danej trasy (`page`, `cursor`, `zakladka`, `rok`, `filtr`, `tag`) w stałej kolejności; wartości ignorowane przez kontroler, `utm_*` i parametry nieznane odpadają. Nowa publiczna lista z paginacją lub zakładkami musi dopisać tam swoją trasę.
 
 ### 1.3 Filtry wyszukiwania → `noindex`
 
