@@ -128,6 +128,7 @@ final class InwentarzDanychKonta
         'two_factor_secret' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_backup_codes' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_last_used_at' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'session_generation' => [self::NIE_DOTYCZY, 'Znacznik techniczny bezpieczeństwa sesji (#1046): licznik unieważnień zalogowanych urządzeń, nie dana o osobie.'],
     ];
 
     /**

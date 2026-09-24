@@ -8,7 +8,7 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Sesja\GeneracjaSesji;
-use Illuminate\Contracts\Auth\Authenticatable as UserContract;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -51,7 +51,7 @@ abstract class TestCase extends BaseTestCase
      * zapytania. Zapis tylko wtedy, gdy coś zmienia: brak klucza znaczy 0,
      * a zbędny zapis do sesji między żądaniami potrafi zgubić dane flash.
      */
-    public function be(UserContract $user, $guard = null)
+    public function be(Authenticatable $user, $guard = null)
     {
         parent::be($user, $guard);
 
@@ -144,6 +144,30 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         return $user->refresh();
+    }
+
+    /**
+     * `actingAs()` udaje PEŁNE logowanie — więc dla konta z potwierdzoną 2FA
+     * także przebyty drugi składnik (#930). Bez tego każdy test panelu
+     * wołający `actingAs($this->moderator())` padałby na
+     * `EnsureModeratorHasTwoFactor`, zanim dotarłby do sprawdzanej logiki.
+     * Testy sesji BEZ dowodu kodu wołają gołe `be()`.
+     */
+    public function actingAs(Authenticatable $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        // Tylko gdy dowodu jeszcze nie ma: ponowne `withSession()` między
+        // żądaniami gubiło flash z poprzedniego (zmierzone na
+        // TerminZawieszeniaTest, który po nieudanej walidacji czyta `old()`).
+        if ($user instanceof User && $user->hasTwoFactorConfirmed() && ! TwoFactorAuthenticator::sesjaMaDowod(
+            $user,
+            $this->app['session']->get(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI),
+        )) {
+            $this->withSession(TwoFactorAuthenticator::dowodSesji($user));
+        }
+
+        return $this;
     }
 
     /**
