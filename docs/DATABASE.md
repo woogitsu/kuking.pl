@@ -4339,7 +4339,7 @@ istnieją, nie że zdjęcie naprawdę wisi przy wskazanym wpisie. To ważne tak�
 dla autoryzacji bajtów zdjęcia — `DostepDoZdjecia` pyta Policy właśnie tego
 wpisu i wskazanie w kolażu nie może nadać zdjęciu obcego, publicznego rodzica.
 
-Migracja `2026_09_22_100000_powiaz_hero_picks_z_post_media` przed dodaniem
+Migracja `2026_09_24_100000_powiaz_hero_picks_z_post_media` przed dodaniem
 constraintu blokuje zapisy do `hero_picks` i sprawdza wszystkie istniejące
 pary. Jeżeli znajdzie niespójność, **odmawia przed zmianą schematu**, podaje
 liczbę oraz zapytanie do ręcznego przeglądu. Niczego nie przepina ani nie

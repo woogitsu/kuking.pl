@@ -29,7 +29,7 @@ class HeroPicksNalezaDoWpisuTest extends TestCase
 
     private const CONSTRAINT = 'hero_picks_post_media_foreign';
 
-    private const MIGRACJA = 'database/migrations/2026_09_22_100000_powiaz_hero_picks_z_post_media.php';
+    private const MIGRACJA = 'database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php';
 
     #[Test]
     public function test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada(): void
