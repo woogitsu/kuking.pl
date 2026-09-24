@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Paczka z Twoimi danymi zawiera teraz także wcześniejsze wersje Twoich przepisów, obserwowane tagi, historię zgód, połączone konta Google i Facebooka, zalogowane urządzenia (adres IP i przeglądarka), Twoje wiadomości do nas, zgłoszenia, odwołania, decyzje moderacji i pozostałe ustawienia konta. Czego w niej nie ma — na przykład dziennika bezpieczeństwa konta — paczka wymienia z powodami i mówi, jak dostać te dane na prośbę. Hasła ani kodów do logowania nie wydajemy nikomu.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

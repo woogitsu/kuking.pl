@@ -6,12 +6,14 @@ namespace App\Domain\Users\Exports;
 
 use App\Models\Collection;
 use App\Models\Comment;
+use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -66,13 +68,12 @@ final class CollectUserExportData
                 // „WSZYSTKIE" BYŁO O JEDNO SŁOWO ZA DUŻO (#492).
                 //
                 // Zdanie obiecywało komplet, a paczka kompletem nie jest i nie
-                // udaje nim być w żadnym innym miejscu: poza nią zostają m.in.
-                // wcześniejsze wersje własnych przepisów (`recipe_versions`,
-                // zapisywane przez `SnapshotRecipeVersion` przy każdej
-                // publikacji), obserwowane tagi, dziennik zgód i tożsamości
-                // zewnętrzne. Żadnej z tych rzeczy nie dokładamy tu do paczki —
-                // zakres danych zostaje bez zmian. Zmienia się tylko zdanie,
-                // żeby nie obiecywało więcej, niż paczka niesie. Granicę
+                // udaje nim być w żadnym innym miejscu. Wersje przepisów,
+                // obserwowane tagi, dziennik zgód i połączone konta, które
+                // #492 wymieniał tu jako pominięte, weszły do paczki w #953.
+                // Poza nią zostaje to, co `InwentarzDanychKonta` oznacza
+                // jako `NA_ZADANIE` (wypisane w `kategorie_poza_paczka`),
+                // więc słowo „wszystkie" dalej byłoby nieprawdą. Granicę
                 // dotyczącą cudzych treści nazywa `czego_nie_zawiera` niżej.
                 'co_zawiera' => 'Treści tego konta — także wpisy prywatne i szkice przepisów.',
                 // Dwie granice, obie mierzone, obie nazwane wprost. Druga
@@ -116,10 +117,14 @@ final class CollectUserExportData
                 // Zakresu danych to nie rusza: nie dokładamy ani jednego
                 // zdjęcia, ani powodu odrzucenia, ani identyfikatora.
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
+                    // #953: poświadczenia i dane wydawane tylko na żądanie.
+                    // Lista tych drugich, z powodami, stoi w `kategorie_poza_paczka`.
+                    .'Nie ma tu hasła, kodów weryfikacji dwuetapowej ani żadnych kluczy do logowania — nie wydajemy ich nikomu. Nie ma też danych wymienionych w „kategorie_poza_paczka”: każda ma tam powód, a wydajemy je na Twoją prośbę (patrz „jak_uzyskac_pozostale”). Tak samo na prośbę wydajemy wewnętrzne notatki moderacji i obsługi Twoich wiadomości. '
                     .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
                     .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
-                'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
+                // Paczka realizuje art. 15 RAZEM z drogą na żądanie, nie sama (#953).
+                'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych). Kopię z art. 15 dopełniają dane z „kategorie_poza_paczka”, wydawane na prośbę.',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do
                 // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
@@ -135,6 +140,15 @@ final class CollectUserExportData
                 // program, który dostałby sumę, nie rozdzieli jej nigdy.
                 'zdjec_odrzuconych_przy_przygotowaniu' => $photos->rejectedCount(),
                 'zdjec_skasowanych' => $photos->deletedCount(),
+                // #953 — rozstrzygnięcia z `InwentarzDanychKonta`, nie lista
+                // przepisana z palca: nowa pozycja `NA_ZADANIE` pojawi się tu
+                // sama. Pole jest ZAWSZE, bo opisuje regułę, nie to konto.
+                'kategorie_poza_paczka' => InwentarzDanychKonta::kategoriePozaPaczka(),
+                'jak_uzyskac_pozostale' => 'Napisz do nas przez formularz '.route('kontakt').' albo na adres '.config('kuking.community.contact_email').' z adresu przypisanego do konta. Odpowiemy najpóźniej w ciągu miesiąca.',
+                // Art. 15 ust. 1 lit. a–h i ust. 2: cele, odbiorcy, okresy,
+                // prawa. To są informacje o przetwarzaniu, nie dane — mają
+                // jedno aktualne miejsce, więc paczka do niego odsyła.
+                'informacje_o_przetwarzaniu' => 'Cele i podstawy przetwarzania, odbiorców, okresy przechowywania, źródła danych i Twoje prawa opisuje polityka prywatności: '.route('privacy'),
             ],
             'konto' => $this->account($user),
             'profil' => $this->profile($user, $photos),
@@ -148,6 +162,21 @@ final class CollectUserExportData
             'zablokowane_osoby' => $this->people($user->blocking()->with('profile')->get()),
             'powiadomienia' => $this->notifications($user),
             'zdjecia' => $this->photos($photos),
+            // Kategorie dopisane w #953 — każda odpowiada wpisowi `EKSPORT`
+            // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
+            'wersje_przepisow' => $this->recipeVersions($user),
+            'obserwowane_tagi' => $this->followedTags($user),
+            'dziennik_zgod' => $this->consentLog($user),
+            'polaczone_konta' => $this->externalIdentities($user),
+            'aktywne_sesje' => $this->activeSessions($user),
+            'zmiana_adresu_email' => $this->pendingEmailChanges($user),
+            'wyslane_podsumowania_tygodnia' => $this->digestSends($user),
+            'zamowione_paczki' => $this->dataExports($user),
+            'zdarzenia_w_serwisie' => $this->productSignals($user),
+            'wiadomosci_do_serwisu' => $this->contactMessages($user),
+            'moje_zgloszenia' => $this->ownReports($user),
+            'decyzje_moderacji' => $this->moderationDecisions($user),
+            'odwolania' => $this->appeals($user),
         ];
     }
 
@@ -172,6 +201,17 @@ final class CollectUserExportData
             // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
             'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
             'stan_zachety_instalacji' => $user->pwa_prompt_state,
+            // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
+            'rola' => $user->role,
+            'status_konta_do' => $this->date($user->status_expires_at),
+            'motyw' => $user->theme,
+            'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
+            'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
+            'zakres_usuniecia' => $user->delete_scope,
+            'dane_wymazane' => $this->date($user->data_erased_at),
+            // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
+            'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+            'konto_zmienione' => $this->date($user->updated_at),
         ];
     }
 
@@ -601,6 +641,283 @@ final class CollectUserExportData
             'rozmiar_bajty' => $photo->bytes,
             'typ' => $photo->mime_type,
         ])->all();
+    }
+
+    /*
+     * KATEGORIE DOPISANE W #953.
+     *
+     * Każda metoda niżej czyta WYMIENIONE kolumny (`select`), a nie cały
+     * wiersz. To jest ta sama zasada co lista dozwolonych kluczy przy
+     * powiadomieniach: kolumna dołożona kiedyś do tabeli — choćby token —
+     * nie wyjdzie do paczki przez to, że ktoś zrobił `SELECT *`.
+     */
+
+    /**
+     * Wcześniejsze wersje własnych przepisów (`SnapshotRecipeVersion`).
+     *
+     * Migawka to treść, którą ta osoba sama napisała, więc wychodzi cała.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeVersions(User $user): array
+    {
+        return DB::table('recipe_versions')
+            ->join('recipes', 'recipes.id', '=', 'recipe_versions.recipe_id')
+            ->where('recipe_versions.editor_id', $user->getKey())
+            ->orderBy('recipe_versions.created_at')
+            ->orderBy('recipe_versions.version_number')
+            ->get(['recipes.title', 'recipe_versions.version_number', 'recipe_versions.change_note', 'recipe_versions.created_at', 'recipe_versions.snapshot'])
+            ->map(fn (object $wersja): array => [
+                'przepis' => $wersja->title,
+                'numer_wersji' => (int) $wersja->version_number,
+                'notatka_o_zmianie' => $wersja->change_note,
+                'zapisano' => $this->date($wersja->created_at),
+                'tresc_wersji' => json_decode((string) $wersja->snapshot, true),
+            ])->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function followedTags(User $user): array
+    {
+        return DB::table('tag_follows')
+            ->join('tags', 'tags.id', '=', 'tag_follows.tag_id')
+            ->where('tag_follows.user_id', $user->getKey())
+            ->orderBy('tag_follows.created_at')
+            ->get(['tags.name', 'tags.slug', 'tag_follows.created_at'])
+            ->map(fn (object $tag): array => [
+                'nazwa' => $tag->name,
+                'slug' => $tag->slug,
+                'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Dziennik zgód (D-072) — każda decyzja osobno, także wycofania.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function consentLog(User $user): array
+    {
+        return DB::table('dziennik_zgod')
+            ->where('user_id', $user->getKey())
+            ->orderBy('wystapilo_at')
+            ->orderBy('id')
+            ->get(['cel', 'czynnosc', 'zrodlo', 'wersja_polityki', 'wystapilo_at'])
+            ->map(fn (object $wpis): array => [
+                'cel' => $wpis->cel,
+                'czynnosc' => $wpis->czynnosc,
+                'skad' => $wpis->zrodlo,
+                'wersja_polityki' => $wpis->wersja_polityki,
+                'kiedy' => $this->date($wpis->wystapilo_at),
+            ])->all();
+    }
+
+    /**
+     * Połączenia z kontem Google/Facebooka. Tabela nie trzyma tokenów
+     * (polityka prywatności, sekcja o logowaniu), a `select` pilnuje, żeby
+     * kolumna dołożona kiedyś obok nie wyszła tu sama.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function externalIdentities(User $user): array
+    {
+        return DB::table('tozsamosci_zewnetrzne')
+            ->where('user_id', $user->getKey())
+            ->orderBy('connected_at')
+            ->get(['dostawca', 'identyfikator', 'connected_at', 'dostep_odebrany_at'])
+            ->map(fn (object $polaczenie): array => [
+                'dostawca' => $polaczenie->dostawca,
+                'identyfikator_u_dostawcy' => $polaczenie->identyfikator,
+                'polaczono' => $this->date($polaczenie->connected_at),
+                'dostep_odebrany' => $this->date($polaczenie->dostep_odebrany_at),
+            ])->all();
+    }
+
+    /**
+     * Sesje w bazie: adres IP, przeglądarka i ostatnia aktywność.
+     *
+     * Bez identyfikatora sesji i bez `payload` — identyfikator JEST kluczem
+     * do zalogowanej sesji, a payload to jej wewnętrzny stan (w tym token
+     * CSRF). Adres IP i przeglądarka to dane tej osoby i pozwalają jej
+     * zauważyć logowanie, którego nie rozpoznaje.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function activeSessions(User $user): array
+    {
+        return DB::table('sessions')
+            ->where('user_id', $user->getKey())
+            ->orderBy('last_activity')
+            ->get(['ip_address', 'user_agent', 'last_activity'])
+            ->map(fn (object $sesja): array => [
+                'adres_ip' => $sesja->ip_address,
+                'przegladarka' => $sesja->user_agent,
+                'ostatnia_aktywnosc' => Carbon::createFromTimestamp((int) $sesja->last_activity)->toIso8601String(),
+            ])->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function pendingEmailChanges(User $user): array
+    {
+        return DB::table('pending_email_changes')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['new_email', 'created_at', 'expires_at'])
+            ->map(fn (object $zmiana): array => [
+                'nowy_adres' => $zmiana->new_email,
+                'zgloszono' => $this->date($zmiana->created_at),
+                'wazne_do' => $this->date($zmiana->expires_at),
+            ])->all();
+    }
+
+    /** @return list<string|null> */
+    private function digestSends(User $user): array
+    {
+        return DB::table('weekly_digest_sends')
+            ->where('user_id', $user->getKey())
+            ->orderBy('week_start')
+            ->pluck('week_start')
+            ->map(fn ($tydzien): ?string => $tydzien === null ? null : (string) $tydzien)
+            ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function dataExports(User $user): array
+    {
+        return DB::table('data_exports')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['status', 'created_at', 'completed_at', 'expires_at'])
+            ->map(fn (object $paczka): array => [
+                'status' => $paczka->status,
+                'zamowiono' => $this->date($paczka->created_at),
+                'gotowa' => $this->date($paczka->completed_at),
+                'do_pobrania_do' => $this->date($paczka->expires_at),
+            ])->all();
+    }
+
+    /**
+     * Zdarzenia z zamkniętego słownika `product_signals` (retencja 90 dni).
+     * `properties` z definicji nie niesie treści ani adresów (`ProductSignal`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function productSignals(User $user): array
+    {
+        return DB::table('product_signals')
+            ->where('user_id', $user->getKey())
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->get(['signal_name', 'properties', 'occurred_at'])
+            ->map(fn (object $sygnal): array => [
+                'rodzaj' => $sygnal->signal_name,
+                'szczegoly' => json_decode((string) $sygnal->properties, true) ?: [],
+                'kiedy' => $this->date($sygnal->occurred_at),
+            ])->all();
+    }
+
+    /**
+     * Wiadomości z „Napisz do nas" i nasze odpowiedzi, które naprawdę wyszły.
+     * Bez notatki obsługującego i bez tego, kto obsługiwał (`NA_ZADANIE`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function contactMessages(User $user): array
+    {
+        $wiadomosci = DB::table('contact_messages')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['id', 'kind', 'message', 'contact_email', 'page_path', 'status', 'created_at']);
+
+        $odpowiedzi = DB::table('contact_message_replies')
+            ->whereIn('contact_message_id', $wiadomosci->pluck('id'))
+            ->where('status', ContactMessageReply::STATUS_WYSLANA)
+            ->orderBy('sent_at')
+            ->get(['contact_message_id', 'body', 'sent_at'])
+            ->groupBy('contact_message_id');
+
+        return $wiadomosci->map(fn (object $wiadomosc): array => [
+            'rodzaj' => $wiadomosc->kind,
+            'tresc' => $wiadomosc->message,
+            'adres_do_odpowiedzi' => $wiadomosc->contact_email,
+            'ze_strony' => $wiadomosc->page_path,
+            'status' => $wiadomosc->status,
+            'wyslano' => $this->date($wiadomosc->created_at),
+            'nasze_odpowiedzi' => ($odpowiedzi[$wiadomosc->id] ?? collect())
+                ->map(fn (object $odpowiedz): array => [
+                    'tresc' => $odpowiedz->body,
+                    'wyslano' => $this->date($odpowiedz->sent_at),
+                ])->values()->all(),
+        ])->all();
+    }
+
+    /**
+     * Zgłoszenia, które ta osoba wysłała. Bez identyfikatora zgłoszonej
+     * treści (to cudza treść) i bez notatki moderatora.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function ownReports(User $user): array
+    {
+        return DB::table('reports')
+            ->where('reporter_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['numer_sprawy', 'target_type', 'reason', 'details', 'illegality_explanation', 'notifier_name', 'notifier_email', 'status', 'created_at', 'resolved_at'])
+            ->map(fn (object $zgloszenie): array => [
+                'numer_sprawy' => $zgloszenie->numer_sprawy,
+                'co_zgloszono' => $zgloszenie->target_type,
+                'powod' => $zgloszenie->reason,
+                'szczegoly' => $zgloszenie->details,
+                'wyjasnienie_bezprawnosci' => $zgloszenie->illegality_explanation,
+                'podpis_zglaszajacego' => $zgloszenie->notifier_name,
+                'adres_zglaszajacego' => $zgloszenie->notifier_email,
+                'status' => $zgloszenie->status,
+                'wyslano' => $this->date($zgloszenie->created_at),
+                'rozpatrzono' => $this->date($zgloszenie->resolved_at),
+            ])->all();
+    }
+
+    /**
+     * Decyzje moderacji dotyczące tej osoby — z treścią, którą jej pokazano
+     * (`user_message`). Bez moderatora i bez jego notatki (`NA_ZADANIE`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function moderationDecisions(User $user): array
+    {
+        return DB::table('moderation_actions')
+            ->where('subject_user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['target_type', 'action', 'reason_code', 'user_message', 'created_at'])
+            ->map(fn (object $decyzja): array => [
+                'czego_dotyczy' => $decyzja->target_type,
+                'decyzja' => $decyzja->action,
+                'powod' => $decyzja->reason_code,
+                'wiadomosc_dla_mnie' => $decyzja->user_message,
+                'kiedy' => $this->date($decyzja->created_at),
+            ])->all();
+    }
+
+    /**
+     * Odwołania tej osoby. `decision_note` to uzasadnienie, które jej
+     * wysłaliśmy (`NotifyAppealOutcome`), więc wychodzi; kto decydował — nie.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function appeals(User $user): array
+    {
+        return DB::table('appeals')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['appellant', 'body', 'status', 'decision_note', 'decided_at', 'created_at'])
+            ->map(fn (object $odwolanie): array => [
+                'jako' => $odwolanie->appellant,
+                'tresc' => $odwolanie->body,
+                'status' => $odwolanie->status,
+                'uzasadnienie_decyzji' => $odwolanie->decision_note,
+                'wyslano' => $this->date($odwolanie->created_at),
+                'rozpatrzono' => $this->date($odwolanie->decided_at),
+            ])->all();
     }
 
     private function subjectOwnerName(Post|Recipe|CookedEvent|null $subject, User $user): ?string
