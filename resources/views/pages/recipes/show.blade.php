@@ -125,9 +125,14 @@
                  *
                  * `?:` jak przy `citation`: `array_filter` na końcu bloku
                  * odrzuca `null` i `[]`, ale PUSTY NAPIS BY PRZEPUŚCIŁ.
+                 *
+                 * #900 (D-254): dawny adres FTP/SSH może zostać w bazie, ale
+                 * nie jest ani linkiem, ani adresem strony — tu ten sam
+                 * warunek HTTP/HTTPS co przy linku niżej.
                  */
                 'isBasedOn' => $recipe->source_type === \App\Models\Recipe::SOURCE_EXTERNAL
-                    ? ($recipe->source_url ?: null)
+                        && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
+                    ? $recipe->source_url
                     : null,
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
                 'recipeYield' => $porcje,
@@ -449,7 +454,13 @@
             @endif
 
             @if($recipe->source_type === 'external' && $recipe->source_url)
-                <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+                <p class="meta m-0">Przepis pochodzi ze strony:
+                    @if(\Illuminate\Support\Str::isUrl($recipe->source_url, ['http', 'https']))
+                        <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a>
+                    @else
+                        {{ $recipe->source_url }}
+                    @endif
+                </p>
             @endif
         </div>
 
