@@ -144,6 +144,19 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
+        // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
+        // który sprawdził hasło, zanim moderator zdążył zbanować.
+        'stan-konta-980' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            match ($argumenty['przejscie']) {
+                'zbanuj' => $konto->ban(),
+                'usun' => $konto->markForDeletion(),
+            };
+
+            return (string) $konto->status;
+        })(),
+
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
