@@ -519,6 +519,9 @@ class DemoSeeder extends Seeder
             $user->forceFill([
                 'status' => User::STATUS_ACTIVE,
                 'role' => $role,
+                // Konto demo (także moderator z `db:seed`) nie przechodziło
+                // pierwszych kroków i nie ma dostać przypomnienia z #985.
+                'onboarding_zakonczony_at' => now(),
             ])->save();
         }
 

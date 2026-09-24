@@ -324,8 +324,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Masowe przypisanie z żądania nadpisywałoby cudzy znacznik
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
-            // Poza `$fillable`: ustawia to wyłącznie `OnboardingController`
-            // (koniec albo „Nie przypominaj”), nigdy formularz ustawień (#985).
+            // Poza `$fillable`: ustawiają to wyłącznie żądania POST
+            // `OnboardingController` (koniec, „Pomiń ten krok”, „Nie przypominaj”)
+            // i `DemoSeeder`, nigdy formularz ustawień (#985).
             'onboarding_zakonczony_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).

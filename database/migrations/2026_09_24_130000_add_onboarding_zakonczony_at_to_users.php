@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Schema;
  * Znacznik „pierwsze kroki zakończone albo świadomie pominięte" (#985).
  *
  * `null` = konto może dostać na Starcie spokojny odnośnik „Dokończ pierwsze
- * kroki". Wartość ustawiają WYŁĄCZNIE `OnboardingController::done()`
- * i `::dismiss()`; nic jej nie zeruje.
+ * kroki". Wartość ustawiają WYŁĄCZNIE żądania POST `OnboardingController`
+ * (`saveFollows()`, `skip()`, `dismiss()`) oraz `DemoSeeder`; nic jej nie zeruje.
  *
  * Backfill: konta istniejące przed tą migracją dostają znacznik — nie wiemy,
  * czy skończyły onboarding, a przypomnienie wyświetlone nagle wszystkim byłoby

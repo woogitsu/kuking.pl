@@ -332,7 +332,7 @@ class OnboardingZnajdzZnajomychTest extends TestCase
             ->getContent();
 
         $this->assertMatchesRegularExpression(
-            '~<a class="btn btn-quiet" href="'.preg_quote(route('onboarding.done'), '~').'">Pomiń ten krok</a>~',
+            '~<button class="btn btn-quiet" type="submit" formmethod="POST" formaction="'.preg_quote(route('onboarding.skip'), '~').'" formnovalidate name="_token" value="[^"]+">Pomiń ten krok</button>~',
             $html,
         );
 

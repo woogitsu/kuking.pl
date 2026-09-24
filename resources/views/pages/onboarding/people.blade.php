@@ -181,7 +181,9 @@
         <div class="form-actions">
             {{-- CSRF wyłącznie przy POST; wyszukiwanie nie wysyła tokenu w adresie. --}}
             <button class="btn btn-primary" type="submit" formmethod="POST" name="_token" value="{{ csrf_token() }}">Dalej</button>
-            <a class="btn btn-quiet" href="{{ route('onboarding.done') }}">Pomiń ten krok</a>
+            {{-- POST, nie odnośnik: pominięcie kończy pierwsze kroki na stałe,
+                 a GET mógłby wykonać prefetch przeglądarki (#985). --}}
+            <button class="btn btn-quiet" type="submit" formmethod="POST" formaction="{{ route('onboarding.skip') }}" formnovalidate name="_token" value="{{ csrf_token() }}">Pomiń ten krok</button>
         </div>
     </form>
 </x-layout>
