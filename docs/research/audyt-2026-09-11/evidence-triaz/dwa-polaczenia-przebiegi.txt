@@ -1,0 +1,65 @@
+Wyniki joba "Wyścigi na dwóch połączeniach (nie blokuje)" — warunek D-105
+=========================================================================
+Zebrane 11.09.2026 przez API GitHub Actions, dla repozytorium woogitsu/kuking.pl.
+Job powstał w PR #322 (gałąź claude/testy-na-dwoch-polaczeniach), więc pierwszym
+przebiegiem, w którym w ogóle istnieje, jest 34547641832 z 11.09 o 00:42 UTC.
+
+Jak to odtworzyć (potrzebny token z dostępem do prywatnego repozytorium):
+
+  for id in <lista przebiegów ci.yml>; do
+    curl -s -H "Authorization: Bearer $GH_TOKEN" \
+      "https://api.github.com/repos/woogitsu/kuking.pl/actions/runs/$id/jobs?per_page=100" \
+    | python3 -c "import json,sys
+d=json.load(sys.stdin)
+for j in d.get('jobs',[]):
+    if 'dwóch połączeniach' in j['name']: print(j['status'],j['conclusion'])"
+  done
+
+Listę przebiegów ci.yml daje:
+  GET /repos/woogitsu/kuking.pl/actions/workflows/ci.yml/runs?per_page=40
+
+WYNIK, przebieg po przebiegu, od najstarszego:
+
+  przebieg      utworzony (UTC)        gałąź                                     wynik joba
+  ----------------------------------------------------------------------------------------
+  34547641832   2026-09-11T00:42:36Z   claude/testy-na-dwoch-polaczeniach        success
+  34547770151   2026-09-11T00:44:25Z   claude/testy-na-dwoch-polaczeniach        success
+  34548223232   2026-09-11T00:50:55Z   main (push, scalenie #322)                success
+  34555385759   2026-09-11T02:38:21Z   claude/siedem-stron-do-pomiaru            success
+  34555814168   2026-09-11T02:45:03Z   claude/siedem-stron-do-pomiaru            success
+  34556293488   2026-09-11T02:52:33Z   main (push)                               success
+  34563725230   2026-09-11T04:50:46Z   claude/przekazanie-sekcja-15              SKIPPED (brak zmian w kodzie)
+  34563813689   2026-09-11T04:52:16Z   main (push)                               SKIPPED (brak zmian w kodzie)
+  34568992225   2026-09-11T06:12:55Z   claude/przycisk-po-nazwie-nie-po-kolorze  success
+  34569819251   2026-09-11T06:24:57Z   main (push, commit audytu 8fa3cc9)        success
+  34571527441   2026-09-11T06:48:39Z   claude/plakietka-gasnie-po-przeczytaniu   success
+  34572489540   2026-09-11T07:01:40Z   claude/mig01-rollback-nie-gubi-wyboru     success
+  34572598970   2026-09-11T07:03:07Z   claude/ci-bez-text-file-busy              success
+  34572753969   2026-09-11T07:05:06Z   claude/media03-autoryzacja-zdjecia        success
+  34574805699   2026-09-11T07:31:46Z   claude/zamek-w-zamku-nie-przechodzi       success
+  34576157748   2026-09-11T07:48:58Z   main (push)                               CANCELLED (wyparty nowszym pushem)
+  34576195501   2026-09-11T07:49:27Z   main (push)                               CANCELLED (wyparty nowszym pushem)
+  34576234857   2026-09-11T07:49:57Z   main (push)                               CANCELLED (wyparty nowszym pushem)
+  34576279778   2026-09-11T07:50:30Z   main (push)                               success
+  34576415256   2026-09-11T07:52:13Z   claude/bramka-r2-dowod                    success
+  34576467805   2026-09-11T07:52:54Z   claude/kopia-bazy-i-proba-odtworzenia     success
+  34576526608   2026-09-11T07:53:38Z   claude/piksel-sledzacy-i-pulapka-osma     success
+  34576584442   2026-09-11T07:54:22Z   claude/belka-przy-200-procent             success
+  34576641771   2026-09-11T07:55:06Z   claude/pre-hijacking-pomiar               success
+
+PODSUMOWANIE
+  success    : 19
+  failure    :  0
+  skipped    :  2   (job ma `if: needs.zakres.outputs.kod == 'true'`)
+  cancelled  :  3   (przebieg main wyparty kolejnym pushem)
+
+WARUNEK D-105: dwadzieścia kolejnych przebiegów bez ani jednej czerwieni.
+STAN: 19 zielonych, 0 czerwonych — brakuje JEDNEGO przebiegu.
+
+Uwaga do liczenia: `skipped` i `cancelled` NIE są policzone jako zielone.
+`docs/PULAPKI_TESTOW.md` §5 mówi wprost, że brak wyniku to „nie wiemy",
+a nie „w porządku" — job pominięty nie zmierzył ani jednego wyścigu.
+Uwaga 34576467805: przebieg CAŁY jest `failure`, ale oblał się na innym
+jobie (gałąź claude/kopia-bazy-i-proba-odtworzenia); job wyścigów w nim
+jest zielony. Dlatego liczy się wynik JOBA, nie przebiegu — ta sama zasada
+co w pułapce 5.

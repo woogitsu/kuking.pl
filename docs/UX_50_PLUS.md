@@ -157,6 +157,15 @@ Ochrona CSRF zostaje nietknięta — ponowne wysłanie idzie przez nią normalni
 a żądanie bez tokenu dalej kończy się na 419. Hasła i pola wrażliwe nie wracają.
 Uzasadnienie wyboru (i odrzucenia `back()->withInput()`): `App\Exceptions\OdzyskanyFormularz`.
 
+### Poprawka komentarza po upływie 15 minut (#910)
+
+Nie przedłużamy czasu edycji. Własna poprawka odrzucona wyłącznie z powodu
+czasu wraca w polu tylko do odczytu, z instrukcją skopiowania tekstu i drogą
+powrotu do rozmowy. Działa bez JavaScriptu. Gdy błąd walidacji wystąpi przed
+terminem, a przekierowanie dotrze po nim, ten sam blok odzyskiwania stoi
+nad wątkiem, niezależnie od strony paginacji. Treść jest escapowana.
+Odmowy dotyczące cudzego lub usuniętego komentarza nie korzystają z tej drogi.
+
 ## Autosave
 
 Użytkownik widzi:

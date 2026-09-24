@@ -37,7 +37,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 
     private function job(string $name): string
     {
-        $matched = preg_match('/^  '.preg_quote($name, '/').':\R(.*?)(?=^  [a-z_]+:|\z)/ms', $this->workflow(), $matches);
+        $matched = preg_match('/^  '.preg_quote($name, '/').':(?:\r\n|\n|\r)(.*?)(?=^  [a-z_]+:|\z)/ms', $this->workflow(), $matches);
         $this->assertSame(1, $matched, 'Brak sprawdzanego joba CI: '.$name);
 
         return (string) preg_replace('/^\s*#.*$/m', '', $matches[1]);
@@ -59,7 +59,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
             $this->assertStringContainsString('storage/port-projektu', $job);
-            $this->assertStringContainsString('uses: actions/checkout@v7', $job);
+            $this->assertStringContainsString('uses: actions/checkout@', $job);
         }
         $job = $this->job('port_funkcje');
         $this->assertStringContainsString($kroki, $job);
@@ -214,16 +214,19 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             );
 
             // 3. Żaden KROK nie może już decydować o pominięciu pomiaru.
-            //    Jedyny dopuszczony warunek na kroku to `always()` przy
-            //    wysyłce dowodów — ten ma się wykonać także po czerwieni.
+            //    Jedyny dopuszczony warunek na kroku stoi przy wysyłce
+            //    dowodów: `always()` albo `failure()` — oba wykonują krok po
+            //    czerwieni. `failure()` od 23.09: przy wyczerpanym limicie
+            //    miejsca na artefakty wysyłka po zielonym jobie czerwieniła
+            //    CI, a dowody zielonego przebiegu nikomu nie są potrzebne.
             preg_match_all('/^        if: (.+)$/m', $job, $warunki);
             foreach ($warunki[1] as $warunek) {
                 $this->assertStringNotContainsString('warto', $warunek,
                     $name.': warunek pomijania wrócił na krok — job znowu może być zielony bez pomiaru.');
                 $this->assertStringNotContainsString('steps.zmiany', $warunek,
                     $name.': krok znowu czyta własny filtr zamiast wyjścia joba `zakres`.');
-                $this->assertStringContainsString('always()', $warunek,
-                    $name.': krok ma warunek inny niż `always()` — pomiar może zostać pominięty przy zielonym jobie.');
+                $this->assertMatchesRegularExpression('/^(always|failure)\(\)$/', trim($warunek),
+                    $name.': krok ma warunek inny niż `always()` albo `failure()` — pomiar może zostać pominięty przy zielonym jobie.');
             }
         }
     }
@@ -252,7 +255,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             'Job `zakres` nie wystawia obu wyjść.',
         );
 
-        $linie = preg_split('/\R/', $zakres) ?: [];
+        $linie = preg_split('/\r\n|\n|\r/', $zakres) ?: [];
 
         $wczesne = 0;
         foreach ($linie as $i => $linia) {

@@ -91,7 +91,7 @@ class EksportDanychRaceTest extends TestCase
         $odpowiedz->assertSessionHasNoErrors();
         $odpowiedz->assertSessionHas(
             'status',
-            'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.',
+            'Przygotowanie paczki z Twoimi danymi już trwa. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.',
         );
 
         // JEDEN wiersz — ten, który wyścig wygrał. Wstawka przegranego

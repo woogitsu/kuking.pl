@@ -461,7 +461,7 @@
                             {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
                                  samo — nie trzeba go wybierać drugi raz. --}}
                             <span class="krok-zdjecie">
-                                <x-photo :media="$zdjecieKroku" variant="thumb" :zoom="false"
+                                <x-photo :media="$zdjecieKroku" variant="thumb" :zoom="false" tresc="przepis"
                                          class="krok-zdjecie-obraz"
                                          :alt="'Zdjęcie przy kroku '.$loop->iteration"
                                          sizes="160px" />
