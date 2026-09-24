@@ -102,6 +102,9 @@ class DataExport extends Model
         return [
             'completed_at' => 'datetime',
             'expires_at' => 'datetime',
+            // Poza `$fillable`: wpisuje wyłącznie `NotifyUserExportReady`
+            // warunkowym `UPDATE` (zajęcie listu, issue #820).
+            'notified_at' => 'datetime',
             'bytes' => 'integer',
         ];
     }
