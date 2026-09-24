@@ -110,6 +110,10 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # GitHub Actions nie da się uruchomić z testu. Mutacja przywraca starą sondę
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
+# Regresja #892 w przeglądarce: krok CI musi istnieć, inaczej skrypt znowu
+# leży w repozytorium bez jednego przebiegu.
+CI_WORKFLOW = ".github/workflows/ci.yml"
+AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 
 # Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
@@ -352,6 +356,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
+     lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -369,6 +375,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(AUTOZAPIS_892_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

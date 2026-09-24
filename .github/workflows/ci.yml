@@ -330,7 +330,7 @@ jobs:
           # i modele. Konserwatywnie obejmujemy całe app/, konfigurację,
           # start aplikacji, tłumaczenia, bazę oraz zależności PHP (#1039).
           # Here-string nie gubi trafienia przez SIGPIPE przy dużym diffie.
-          if grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)' <<< "${ZMIENIONE}"; then
+          if grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|kreator-zachowanie|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -1319,6 +1319,17 @@ jobs:
         env:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
+
+      # Jedyny test regresji #892: po zmianie tekstu plakietka nie może dalej
+      # mówić „Szkic zapisany.” / „Zmiany zapisane.” o poprzedniej wersji —
+      # ani przed wysłaniem, ani w trakcie żądania, ani po starszej odpowiedzi.
+      # Skrypt czeka na stan DOM, nie na zegar (debounce 3000 ms).
+      - name: Autozapis kreatora — plakietka nie obiecuje zapisu starszej wersji
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: |
+          node scripts/kreator-zachowanie.mjs autosave
+          node scripts/kreator-zachowanie.mjs published
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
         run: |

@@ -73,6 +73,34 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     }
 
     /**
+     * Regresja #892 (plakietka autozapisu kreatora) ma test tylko w przeglądarce.
+     *
+     * Do 24 września 2026 `scripts/kreator-zachowanie.mjs` istniał, ale nic go
+     * nie uruchamiało — kontrola ujemna z `docs/design/dowody-kreatora/892.json`
+     * była jednorazowym pomiarem, a nie bramką. Skrypt tworzy konto i szkice,
+     * więc stoi w `port_funkcje` PO `port-projektu.mjs`, na tej samej bazie
+     * pomiarowej co `kroki-kreatora.mjs`. Kontrola dodatnia:
+     * `scripts/kontrole-negatywne-alfa08.py`.
+     */
+    public function test_autozapis_kreatora_892_chodzi_w_ci(): void
+    {
+        $job = $this->job('port_funkcje');
+        $port = 'run: node scripts/port-projektu.mjs';
+
+        foreach (['autosave', 'published'] as $tryb) {
+            $krok = 'node scripts/kreator-zachowanie.mjs '.$tryb;
+            $this->assertSame(1, substr_count($this->workflow(), $krok), 'Autozapis #892 nie chodzi w CI: '.$tryb);
+            $this->assertStringContainsString($krok, $job);
+            $this->assertLessThan(strpos($job, $krok), strpos($job, $port), 'Kreator wymaga bazy przygotowanej przez port.');
+        }
+        $this->assertMatchesRegularExpression('/DB_DATABASE: kuking_port_pomiar\s+run: \|\s+node scripts\/kreator-zachowanie\.mjs autosave/', $job);
+
+        $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $this->job('zakres'), $matches));
+        $this->assertSame(1, preg_match('~'.str_replace('~', '\\~', $matches[1]).'~', 'scripts/kreator-zachowanie.mjs'),
+            'zakres: zmiana samego przyrządu #892 nie uruchamia pomiaru.');
+    }
+
+    /**
      * Filtr warstwy widoku stoi w JEDNYM miejscu i obejmuje sam przyrząd.
      *
      * Do 19 września 2026 ten sam filtr był skopiowany trzy razy — osobno
