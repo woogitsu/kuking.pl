@@ -488,6 +488,21 @@ class RecipeController extends Controller
                 ->widoczneDla($request->user())
                 ->whereNotNull('would_make_again')
                 ->count(),
+            // ZESZYTY, W KTÓRYCH TEN PRZEPIS LEŻY — nie samo „tak/nie" (issue #775).
+            //
+            // Sam `isSaved` nie wystarczał ekranowi do niczego poza podmianą
+            // napisu na przycisku. Wyjęcie potrzebuje wiedzieć WIĘCEJ: gdy
+            // zeszyt jest jeden, formularz może wskazać go wprost (`collection_id`)
+            // i wtedy nic poza nim nie zostanie ruszone; gdy jest ich kilka,
+            // przycisk musi napisać, że zdejmuje ze wszystkich, zanim ktoś
+            // w niego kliknie. Jedno zapytanie, dwie nazwane kolumny.
+            'zeszytyZPrzepisem' => $request->user() === null
+                ? collect()
+                : $request->user()
+                    ->collections()
+                    ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
+                    ->orderBy('name')
+                    ->get(['collections.id', 'collections.name']),
             'isSaved' => $request->user() !== null && $request->user()
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))

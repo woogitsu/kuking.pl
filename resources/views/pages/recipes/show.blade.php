@@ -332,39 +332,50 @@
                     @endcan
                     @if($isSaved)
                         {{--
-                            OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
-                            ZAKRES PO NIEJ (issue #775 + D-224/D-231 = D-230).
+                            WYJĘCIE MÓWI, SKĄD WYJMUJE (issue #775).
 
-                            Ten przycisk nie wie, w którym zeszycie stoi
-                            człowiek — przepis mógł być zapisany w kilku naraz
-                            przez „Wybierz zeszyt" niżej. Zarzut z #775 był
-                            podwójny: „Usunięte z zeszytu" po fakcie ani nie
-                            mówiło, że zniknęło z KAŻDEGO zeszytu, ani nie
-                            pytało przed usunięciem notatek, których żadna
-                            droga powrotu nie odtwarza (`detach()` kasuje
-                            wiersz pivotu razem z `note`, D-230). D-224
-                            rozstrzygnęło, że pytanie przed KAŻDĄ odwracalną
-                            czynnością uczy odklikiwania — ale to rozstrzygnięcie
-                            liczyło z odwracalnością całej akcji, nie z tym, że
-                            część jej skutku (notatki) nie wraca. Stąd pytanie
-                            wraca tu, na jedynym ekranie o zasięgu globalnym.
+                            Ten formularz wysyłał samo DELETE, bez wskazania
+                            zeszytu — a akcja po drugiej stronie kasowała
+                            przepis ze WSZYSTKICH zeszytów tej osoby. Człowiek
+                            z pięcioma zeszytami klikał „Usuń z zeszytu”
+                            i tracił pięć wierszy razem z notatkami własnymi,
+                            nie widząc nigdzie, że tak się stanie.
 
-                            Po potwierdzeniu komunikat nazywa zakres LICZBĄ
-                            („Przepis wyjęty z 3 Twoich zeszytów") i daje
-                            przycisk „Zapisz ponownie"
-                            (`CollectionController::komunikatPoWyjeciu()`) —
-                            ale mówi też wprost, że wraca sam zapis, nie
-                            notatka przy nim.
+                            Są dwa przypadki i różni je to, czy w ogóle jest
+                            co ujawniać:
 
-                            Usunięcie z JEDNEGO, wybranego zeszytu robi się
-                            w widoku tego zeszytu, bez pytania — tam przycisk
-                            nazywa się „Usuń z tego zeszytu" i notatki innych
-                            zeszytów w ogóle nie dotyczy (D-231).
+                             • JEDEN ZESZYT — wiadomo, z którego wyjmujemy,
+                               więc mówimy to wprost i wysyłamy `collection_id`.
+                               Nic poza tym zeszytem nie zostanie ruszone,
+                               nawet gdyby przepis trafił do kolejnego między
+                               narysowaniem strony a kliknięciem;
+
+                             • KILKA ZESZYTÓW — nie wiadomo, o który chodzi,
+                               więc zakres zostaje szeroki, ale STOI NAPISANY
+                               NAD PRZYCISKIEM, a nie dopiero w komunikacie po
+                               fakcie. `aria-describedby` wiąże to zdanie
+                               z przyciskiem, żeby czytnik ekranu przeczytał
+                               je razem z nim, a nie osobno gdzieś wyżej.
+
+                            Napis na przycisku zostaje ten sam w obu gałęziach.
+                            Zakres niosą `collection_id` i zdanie obok, nie
+                            etykieta — dzięki temu ekran zeszytu może nazwać
+                            swój przycisk po swojemu, a ta strona nie musi się
+                            o to spierać.
                         --}}
-                        <x-confirm-button
-                            :action="route('collections.unsave', $recipe->slug)"
-                            label="Usuń z zeszytu"
-                            question="Usunąć ten przepis ze wszystkich Twoich zeszytów, w których go zapisano? Notatki przy nim znikną razem z zapisem." />
+                        @php $zeszytyTegoPrzepisu = $zeszytyZPrzepisem ?? collect(); @endphp
+                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
+                            @csrf @method('DELETE')
+                            @if($zeszytyTegoPrzepisu->count() === 1)
+                                <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
+                                <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
+                            @elseif($zeszytyTegoPrzepisu->count() > 1)
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit"
+                                @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
+                            ><x-ikona nazwa="save" /> Usuń z zeszytu</button>
+                        </form>
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
