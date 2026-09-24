@@ -96,7 +96,7 @@ class PanelWiadomosciDoOperatoraTest extends TestCase
 
         $this->actingAs($moderator)
             ->post(route('admin.contact.update', $wiadomosc), [
-                'status' => ContactMessage::STATUS_ZALATWIONA,
+                'version' => 0, 'status' => ContactMessage::STATUS_ZALATWIONA,
                 'handler_note' => 'Odpisane, poprawka w issue #200.',
             ])
             ->assertRedirect(route('admin.contact.show', $wiadomosc));
@@ -125,7 +125,7 @@ class PanelWiadomosciDoOperatoraTest extends TestCase
 
         $this->actingAs($moderator)
             ->post(route('admin.contact.update', $wiadomosc), [
-                'status' => ContactMessage::STATUS_NOWA,
+                'version' => 0, 'status' => ContactMessage::STATUS_NOWA,
                 'handler_note' => 'Jednak nie załatwione.',
             ])
             ->assertRedirect(route('admin.contact.show', $wiadomosc));
@@ -144,7 +144,7 @@ class PanelWiadomosciDoOperatoraTest extends TestCase
 
         $this->actingAs($this->user('basia'))
             ->post(route('admin.contact.update', $wiadomosc), [
-                'status' => ContactMessage::STATUS_ZALATWIONA,
+                'version' => 0, 'status' => ContactMessage::STATUS_ZALATWIONA,
             ])
             ->assertNotFound();
 

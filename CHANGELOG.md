@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
 - Ustawienia danych nie pokazują już „Pobierz” przy paczce, której zapis jest niepełny (brak pliku, rozmiaru albo daty przygotowania) — takie kliknięcie kończyło się błędem „nie znaleziono”. Baza nie przyjmie już gotowej paczki bez kompletu tych informacji (#1365).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
