@@ -13,6 +13,7 @@ use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
 use App\Support\Poczta;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -208,6 +209,21 @@ class DataSettingsController extends Controller
             }
 
             return $this->odpowiedzNaTrwajacy($aktywny);
+        } catch (QueryException $e) {
+            // Baza nie przyjęła rekordu albo zadania (issue #824). Transakcja
+            // wyżej cofnęła OBA, więc nie zostaje `queued` bez wykonawcy —
+            // ale człowiek nie może dostać ekranu 500, tylko zdanie, co
+            // zrobić. Konflikt unikalności łapie gałąź wyżej; `LogicException`
+            // z `zlecWykonanie()` (zła kolejka) celowo przelatuje — to błąd
+            // wdrożenia, nie chwilowa awaria.
+            report($e);
+
+            // `status`, bo to jedyny komunikat, który układ strony pokazuje
+            // po przekierowaniu na „Twoje dane".
+            return back()->with('status',
+                'Nie udało się teraz przyjąć prośby o paczkę z Twoimi danymi — nic nie zostało zapisane. '
+                .'Spróbuj jeszcze raz za kilka minut przyciskiem „Przygotuj paczkę z moimi danymi”.',
+            );
         }
 
         AuditLogEntry::record('data.export_requested', $user, $user, ip: $request->ip());

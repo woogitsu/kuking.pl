@@ -223,7 +223,19 @@ class GenerateUserExport implements ShouldQueue
                 'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
             ]);
 
-            $this->markFailed($export, $this->reasonFor($e));
+            // `failed` DOPIERO wtedy, gdy kolejnej próby nie będzie (issue #823).
+            // Wcześniej każda nieudana próba od razu dawała `failed` — a to
+            // stan poza indeksem `data_exports_one_active_per_user`, więc
+            // w czasie backoffu człowiek widział „spróbuj jeszcze raz" i mógł
+            // zamówić DRUGĄ paczkę, z którą zderzało się potem ponowienie
+            // pierwszej. Między próbami rekord wraca do `queued`: nadal jest
+            // aktywny, ekran mówi „w kolejce", a nowe zgłoszenie dostaje
+            // „już trwa". Ostatnią próbę domyka `failed()`.
+            if ($this->bedzieKolejnaProba()) {
+                $export->update(['status' => DataExport::STATUS_QUEUED]);
+            } else {
+                $this->markFailed($export, $this->reasonFor($e));
+            }
 
             throw $e;
         } finally {
@@ -397,7 +409,8 @@ class GenerateUserExport implements ShouldQueue
 
     /**
      * Ostatnia linia obrony: po wyczerpaniu prób (albo po timeoucie, po którym
-     * nie ma wyjątku w `handle()`) rekord nie może zostać w `processing`.
+     * nie ma wyjątku w `handle()`) rekord nie może zostać w `processing` ani
+     * w `queued`, do którego `handle()` odkłada go między próbami (issue #823).
      */
     public function failed(?Throwable $e): void
     {
@@ -838,6 +851,18 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable) {
             // Zapisane w dzienniku przez NotifyUserExportReady::handle().
         }
+    }
+
+    /**
+     * Czy kolejka jeszcze raz uruchomi to zadanie po wyjątku z `handle()`.
+     *
+     * Bez zadania kolejki (`handle()` wołane wprost) nikt niczego nie ponowi,
+     * więc porażka jest od razu ostateczna. `$tries` liczy WSZYSTKIE próby
+     * razem z bieżącą — przy trzeciej kolejka woła już `failed()`.
+     */
+    private function bedzieKolejnaProba(): bool
+    {
+        return $this->job !== null && $this->attempts() < $this->tries;
     }
 
     private function markFailed(DataExport $export, string $reason): void

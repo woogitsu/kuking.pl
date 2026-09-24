@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Chwilowa awaria przy przygotowaniu paczki z danymi nie pokazuje już od razu „nie udało się przygotować”. Paczka czeka w kolejce na ponowienie, a ponowne kliknięcie „Przygotuj paczkę z moimi danymi” nie zamawia drugiej. Porażkę widać dopiero wtedy, gdy wszystkie próby zawiodą — i wtedy można od razu zamówić nową paczkę. Gdy nie uda się nawet przyjąć prośby o paczkę, zamiast strony błędu jest zdanie, że nic nie zostało zapisane i że można spróbować za kilka minut.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
