@@ -27,6 +27,10 @@
 #                                             z blokadą (D-080)
 #      dziennik_zgod_bez_zmian                dziennik zgód jest append-only
 #      dziennik_zgod_bez_czyszczenia          (D-072) — dowód zgody RODO
+#      tags_scalenie_jednym_skokiem_trg       scalenie tagu wskazuje jeden
+#                                             aktywny tag — bez łańcuchów
+#                                             i cykli (#996); tylko obecność,
+#                                             bez sondy zapisu
 #
 #  Zrzut, który gubi te wyzwalacze, wygląda w `pg_restore --list` identycznie
 #  jak dobry: te same tabele, te same wiersze. Odtworzona z niego baza
@@ -141,7 +145,7 @@ MIN_WIERSZY="${PROBA_MIN_WIERSZY:-1}"
 TABELE_DO_POLICZENIA="${PROBA_TABELE:-users,posts,recipes,cooked_events}"
 
 # Wyzwalacze, które niosą część gwarancji danych (patrz nagłówek).
-WYZWALACZE_WYMAGANE='follows_blokada_ma_pierwszenstwo_trg dziennik_zgod_bez_zmian dziennik_zgod_bez_czyszczenia'
+WYZWALACZE_WYMAGANE='follows_blokada_ma_pierwszenstwo_trg dziennik_zgod_bez_zmian dziennik_zgod_bez_czyszczenia tags_scalenie_jednym_skokiem_trg'
 
 SERWER="${PROBA_SERWER:-}"
 # Katalog repozytorium — stąd bierze się `.env` (adres lokalnej bazy),
@@ -1351,7 +1355,7 @@ sprawdz_wyzwalacze() {
     fi
   done
 
-  ok "wyzwalacze: ${ile}, wszystkie trzy nazwane obecne i włączone"
+  ok "wyzwalacze: ${ile}, wszystkie nazwane obecne i włączone"
 }
 
 sprawdz_ograniczenia() {

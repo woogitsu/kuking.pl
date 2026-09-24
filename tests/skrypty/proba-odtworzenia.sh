@@ -209,7 +209,7 @@ WYZWALACZY_FIKSTURY="$("${PSQL[@]}" -d "${BAZA_ZRODLOWA}" -Atc \
   "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
      JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE NOT t.tgisinternal AND n.nspname='public'")"
-sprawdz "fikstura niesie trzy wyzwalacze gwarancji (D-072, D-080)" "3" "${WYZWALACZY_FIKSTURY}"
+sprawdz "fikstura niesie cztery wyzwalacze gwarancji (D-072, D-080, #996)" "4" "${WYZWALACZY_FIKSTURY}"
 
 # =============================================================================
 echo
