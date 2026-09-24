@@ -1,0 +1,16 @@
+{
+  "nazwa": "840",
+  "plik": "app/Domain/Contact/Actions/WyslijOdpowiedz.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "6055a5cb5ebc89d1ba073b86127b33bd",
+  "md5_po_mutacji": "3eb378dbcfbaa17f5b038ed955d6e2b9",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Failed asserting|Session has unexpected errors|The following errors occurred",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:13:46Z"
+}

@@ -49,3 +49,24 @@ na:         'illegality_explanation',\n        'resolved_by',\n        'resolved
 oczekuj: Failed asserting|wrazliw|resolved
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
 ocena: MUTACJA BEZ ZNACZENIA — kolumny sa w jawnym REJESTRZE wyjatkow testu
+---
+# Issue #1353. Proba masowego przypisania dowodzi czegos tylko wtedy, gdy
+# formularz PRZYJAL dane. Obie mutacje nizej zamieniaja poprawne zadanie
+# w 302 z bledem walidacji — stara petla (sam kod odpowiedzi + „konto
+# nietkniete") przechodzila; teraz kazda proba ma assertSessionHasNoErrors
+# i wlasny skutek w bazie.
+nazwa: proba na ustawieniach prywatnosci naprawde dochodzi do zapisu
+plik: app/Http/Controllers/Settings/PrivacySettingsController.php
+zamien: 'wants_weekly_digest' => ['nullable', 'boolean'],
+na: 'wants_weekly_digest' => ['required', 'in:tak'],
+oczekuj: Session has unexpected errors|unexpected errors
+polecenie: vendor/bin/phpunit --no-coverage --filter test_zadna_trasa_profilu_i_ustawien_nie_podnosi_roli_ani_stanu_konta tests/Feature/PodniesienieRoliZadaniemHttpTest.php
+ocena:
+---
+nazwa: proba na formularzu kontaktowym naprawde dochodzi do zapisu
+plik: app/Http/Controllers/NapiszDoNasController.php
+zamien: 'message' => ['required', 'string', 'min:10', 'max:5000'],
+na: 'message' => ['required', 'string', 'min:500', 'max:5000'],
+oczekuj: Session has unexpected errors|unexpected errors
+polecenie: vendor/bin/phpunit --no-coverage --filter test_zadna_trasa_profilu_i_ustawien_nie_podnosi_roli_ani_stanu_konta tests/Feature/PodniesienieRoliZadaniemHttpTest.php
+ocena:
