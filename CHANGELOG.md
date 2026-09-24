@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
 - Gdy dwie osoby w tej samej chwili zmieniają nazwę użytkownika na tę samą wolną nazwę, osoba, która zapisze drugą, nie widzi już błędu serwera. Wraca do formularza z komunikatem „Ta nazwa jest już zajęta — wybierz inną”, a imię, opis, region i specjalność zostają tak, jak je wpisała (#887).
 
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
