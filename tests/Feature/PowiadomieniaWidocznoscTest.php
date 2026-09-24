@@ -17,9 +17,20 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Powiadomienie jest migawką zdarzenia z przeszłości — a treść, której
+ * Powiadomienie jest wierszem o zdarzeniu z przeszłości — a treść, której
  * dotyczy, mogła w międzyczasie zniknąć, zostać ukryta albo zmienić
- * właściciela statusu konta. `Notification::scopeVisibleTo()` filtrował
+ * właściciela statusu konta.
+ *
+ * UWAGA NA DAWNE ZDANIE W TYM MIEJSCU. Stało tu „powiadomienie jest MIGAWKĄ
+ * zdarzenia z przeszłości" i od 20 września 2026 (#758, D-229) nie jest to
+ * już prawda o WYCINKU TREŚCI: wycinek liczy się przy wyświetlaniu,
+ * z aktualnego komentarza (`Notification::zyweWycinkiKomentarzy()`), bo
+ * powiadomienie ma cytować to, co w wątku stoi dziś, a nie zdanie sprzed
+ * poprawki autora. Migawką pozostaje reszta wiersza: typ, sprawca, data
+ * i `read_at`. Granice sprawdzane w tej klasie tamta decyzja uchyla
+ * w ŻADNYM stopniu — usunięty, ukryty i niedostępny komentarz nadal nie
+ * pokazuje treści, tylko teraz pilnują tego DWA miejsca (`scopeVisibleTo()`
+ * i samo dociągnięcie wycinków). `Notification::scopeVisibleTo()` filtrował
  * dotąd WYŁĄCZNIE blokadę; ta klasa testów sprawdza, czy filtruje też
  * resztę granic, które w innych warstwach (Policy, `scopeWidoczneDla`)
  * już obowiązują.
@@ -213,8 +224,8 @@ class PowiadomieniaWidocznoscTest extends TestCase
     /**
      * Scenariusz 4: komentarz, o którym mówi powiadomienie, zostaje
      * skasowany (soft delete) albo ukryty przez moderację PO utworzeniu
-     * powiadomienia. `data.excerpt` jest własną kopią treści, więc sam
-     * z siebie nie zauważa zniknięcia oryginału.
+     * powiadomienia. Wiersz powiadomienia istnieje niezależnie od komentarza,
+     * więc sam z siebie nie zauważa zniknięcia oryginału.
      */
     public function test_powiadomienie_o_skasowanym_komentarzu_nie_pokazuje_juz_fragmentu(): void
     {
@@ -297,9 +308,9 @@ class PowiadomieniaWidocznoscTest extends TestCase
      * `body_removed_at`. Status zostaje `published`, `deleted_at` zostaje
      * `null` — czyli DOKŁADNIE te dwa pola, które scenariusz 4 wyżej sprawdza
      * jako "komentarz nadal istnieje". `scopeVisibleTo()` o `body_removed_at`
-     * nie wiedział, więc zamrożony `excerpt` sprzed usunięcia (do 120 znaków
-     * oryginalnej treści) dalej wychodził w powiadomieniu, mimo że w samym
-     * wątku widać już tylko "Komentarz usunięty.".
+     * nie wiedział, więc wycinek sprzed usunięcia (do 120 znaków oryginalnej
+     * treści) dalej wychodził w powiadomieniu, mimo że w samym wątku widać
+     * już tylko "Komentarz usunięty.".
      *
      * Kontrola dodatnia: komentarz B z odpowiedziami, którego NIKT nie
      * usunął, nadal pokazuje swój fragment — a odpowiedź C zostaje.

@@ -93,7 +93,18 @@ class CookingModeController extends Controller
             'total' => $total,
             'aktualnyKrok' => $aktualny,
             'krokZrobiony' => in_array($aktualny->getKey(), $zrobione, true),
+            'hasProgress' => $steps->contains(fn ($step) => in_array($step->getKey(), $zrobione, true)),
         ]);
+    }
+
+    public function restart(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+        $request->session()->forget($this->sessionKey($model));
+
+        return redirect()->route('cooking.show', $model->slug)
+            ->with('status', 'Odhaczenia usunięte. Możesz zacząć od pierwszego kroku.');
     }
 
     public function zaznacz(Request $request, string $recipe): RedirectResponse

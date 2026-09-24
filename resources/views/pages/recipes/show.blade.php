@@ -4,6 +4,13 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
+    // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
+    // Konto zawieszone edycję otworzy, ale jej nie zapisze
+    // (`EnsureAccountIsActive`), więc link byłby martwym przyciskiem.
+    $edycjaZdjecPrzepisu = auth()->user()?->isActive() && auth()->user()->can('update', $recipe)
+        ? route('recipes.edit', $recipe->slug)
+        : null;
 @endphp
 <x-layout
     :title="$recipe->title"
@@ -119,7 +126,7 @@
                  * `?:` jak przy `citation`: `array_filter` na końcu bloku
                  * odrzuca `null` i `[]`, ale PUSTY NAPIS BY PRZEPUŚCIŁ.
                  *
-                 * #900 (D-250): dawny adres FTP/SSH może zostać w bazie, ale
+                 * #900 (D-254): dawny adres FTP/SSH może zostać w bazie, ale
                  * nie jest ani linkiem, ani adresem strony — tu ten sam
                  * warunek HTTP/HTTPS co przy linku niżej.
                  */
@@ -298,7 +305,8 @@
             </div>
             @if($recipe->heroMedia)
                 <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
-                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo"
+                             tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-hero_photo' : null" />
                 </div>
             @endif
         </header>
@@ -324,7 +332,9 @@
                         białego tła — czyli plamę bez uśmiechu. Znak,
                         którego nie widać, jest gorszy niż jego brak.
                     --}}
-                    <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    @can('cook', $recipe)
+                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    @endcan
                     @if($isSaved)
                         {{--
                             OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
@@ -424,7 +434,8 @@
                     @endif
                     @if($recipe->sourceScan)
                         <div class="mt-4">
-                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo"
+                                     tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-source_scan' : null" />
                             <p class="meta">Kartka, z której jest ten przepis.</p>
                         </div>
                     @endif
@@ -550,7 +561,8 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
-                                            <x-photo :media="$step->media" variant="feed" class="post-photo" />
+                                            <x-photo :media="$step->media" variant="feed" class="post-photo"
+                                                     tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$loop->index.'-photo' : null" />
                                         </div>
                                     @endif
                                 </div>
