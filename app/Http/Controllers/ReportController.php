@@ -50,7 +50,10 @@ class ReportController extends Controller
 
         return view('pages.report', [
             'targetType' => $type,
-            'targetId' => $id,
+            // Konto: formularz wysyłamy ZAWSZE pod UUID, nawet gdy wejście
+            // przyszło starym odnośnikiem po nazwie — patrz `resolveTarget()`
+            // (issue #1599).
+            'targetId' => $target instanceof User ? $target->getKey() : $id,
             'target' => $target,
             'cel' => CelZgloszenia::dla($target),
             'reasons' => Report::REASONS,
@@ -61,6 +64,21 @@ class ReportController extends Controller
 
     public function store(Request $request, string $type, string $id): RedirectResponse
     {
+        // ZAPIS ZGŁOSZENIA KONTA TYLKO PO UUID (issue #1599).
+        //
+        // Nazwa użytkownika może się zmienić, a zwolnioną może zająć ktoś
+        // inny. Formularz wyrenderowany przed tą zmianą (albo stara wersja
+        // strony, która wysyłała nazwę) zgłosiłby wtedy nowego właściciela
+        // nazwy, nie osobę, którą człowiek widział. Nazwę przyjmujemy więc
+        // wyłącznie jako WEJŚCIE do formularza (`create()`); wysłanie pod
+        // nazwą odsyła na formularz, który pokazuje, kogo dotyczy, i niesie
+        // już UUID. Tekst człowieka zostaje (`withInput()`).
+        if ($type === 'user' && ! Str::isUuid($id)) {
+            return redirect()->route('reports.create', ['type' => 'user', 'id' => $id])
+                ->withInput()
+                ->withErrors(['reason' => 'Sprawdź, czy to na pewno ta osoba, i wyślij zgłoszenie jeszcze raz. Wpisany tekst nie zginął.']);
+        }
+
         $data = $request->validate([
             'reason' => ['required', 'string'],
             'details' => ['nullable', 'string', 'max:2000'],
@@ -318,7 +336,13 @@ class ReportController extends Controller
                 : Recipe::where('slug', $id)->firstOrFail(),
             'comment' => Comment::findOrFail($id),
             'cooked_event' => CookedEvent::findOrFail($id),
-            'user' => Profile::where('username', $id)->firstOrFail()->user,
+            // Konto po UUID — stabilnym identyfikatorze, który nie przechodzi
+            // na nikogo innego (issue #1599). Nazwa zostaje tylko jako wejście
+            // ze starych odnośników do formularza; `store()` jej nie przyjmuje.
+            // Widoczność i tak rozstrzyga Policy w `ReportContent::authorize()`.
+            'user' => Str::isUuid($id)
+                ? User::whereKey($id)->whereHas('profile')->firstOrFail()
+                : (Profile::poNazwie($id)?->user ?? abort(404)),
             default => abort(404),
         };
     }

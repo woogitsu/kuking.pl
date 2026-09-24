@@ -45,7 +45,7 @@ class KompozycjaProfiluMarkiTest extends TestCase
         $this->assertSame(0, $xpath->query($header.'//a[@href="'.route('settings.avatar').'"]')->length);
         $this->assertSame(0, $xpath->query($header.'//a[@href="'.route('settings.profile').'"]')->length);
         $this->assertSame(1, $xpath->query($header.'//form[@action="'.route('social.follow', 'profilkompozycja').'"]')->length);
-        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('reports.create', ['type' => 'user', 'id' => 'profilkompozycja']).'"]')->length);
+        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('reports.create', ['type' => 'user', 'id' => $owner->getKey()]).'"]')->length);
     }
 
     public function test_gosc_ma_te_same_pola_liczb_i_zaproszenie_bez_akcji_wlasciciela(): void

@@ -2,6 +2,9 @@
 
 ## Nieopublikowane
 
+- Zgłoszenie konta do moderacji trafia zawsze do osoby, której profil był widoczny przy otwarciu formularza — nawet jeśli ta osoba w międzyczasie zmieniła nazwę użytkownika, a zwolnioną nazwę zajął ktoś inny. Stare odnośniki z nazwą nadal otwierają formularz (#1599).
+- Na kroku „Kogo chcesz obserwować?” wybór mieszczący się w limicie 20 osób daje się zapisać także po kilku wyszukiwaniach z zachowanymi wcześniejszymi zaznaczeniami. Niezaznaczone propozycje nie powodują już błędu (#1600).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
