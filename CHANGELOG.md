@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Kreator przepisu przyjmuje liczbę porcji z dokładnością do setnych, tak samo jak formularz „Dopisz szczegóły”: szkic z 1,25 porcji otwiera się i zapisuje bez błędu. Liczba z trzema miejscami po przecinku, na przykład 1,255, nie jest już po cichu zaokrąglana — pod polem pojawia się prośba o wpisanie 1,25 albo 1,26 (#750).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).

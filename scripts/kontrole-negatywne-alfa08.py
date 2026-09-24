@@ -197,6 +197,11 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Opisy przeliczania porcji mówią, że to plan V2 (#741). Mutacja wraca do
+# zdania sprzed poprawki — „przeliczanie porcji działa dalej” bez słowa o V2 —
+# i strażnik ma je znaleźć.
+TEKST_NA_WIERSZE = "app/Domain/Recipes/TekstNaWiersze.php"
+OPISY_PORCJI_TEST = "OpisySkalowaniaPorcjiMowiaOPlanieV2Test"
 
 
 def digest(path):
@@ -474,6 +479,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Opis obiecuje działające przeliczanie porcji", TEKST_NA_WIERSZE, OPISY_PORCJI_TEST,
+     lambda s: replace_once(s, "Skalowanie porcji pozostaje niewdrożonym planem V2.", "Dzięki temu przeliczanie porcji działa dalej.")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +504,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(OPISY_PORCJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

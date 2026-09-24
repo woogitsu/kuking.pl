@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * `ingredient_text` to dokładnie to, co wpisał człowiek — i to jest wersja
  * pokazywana użytkownikowi. `ingredient_id`, `quantity`, `unit_id` to wynik
- * normalizacji: przydają się do wyszukiwania i przyszłego skalowania porcji,
- * ale nigdy nie nadpisują tekstu autora.
+ * normalizacji: dziś przydają się do wyszukiwania, a są też przygotowane pod
+ * skalowanie porcji (plan V2, dziś niewdrożone). Nigdy nie nadpisują tekstu autora.
  */
 class RecipeIngredient extends Model
 {
@@ -42,8 +42,8 @@ class RecipeIngredient extends Model
         'note',
         'position',
         // „Ten składnik nie ma wymiernej ilości" — sól do smaku, mleko ile
-        // weźmie (issue #44). Przy skalowaniu porcji (V2) takiego składnika
-        // się NIE mnoży: trzy szczypty soli są śmieszne, a trzy razy
+        // weźmie (issue #44). Gdy powstanie skalowanie porcji (plan V2, dziś
+        // niewdrożone), takiego składnika NIE WOLNO mnożyć: trzy szczypty soli są śmieszne, a trzy razy
         // „ile weźmie" nie znaczy nic.
         'no_amount',
     ];

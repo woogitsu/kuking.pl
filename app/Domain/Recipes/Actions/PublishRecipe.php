@@ -582,8 +582,9 @@ final class PublishRecipe
      *
      * Autor piszący dziesięć składników wpisze „Farsz" i „farsz", i będzie
      * miał rację: dla niego to jedno słowo. Bez tego przejścia byłyby to dwie
-     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do przyszłego
-     * przeliczania porcji jako dwie różne części przepisu.
+     * grupy w bazie — a stamtąd trafiłyby do eksportu danych, a gdyby kiedyś
+     * powstało przeliczanie porcji (plan V2, dziś niewdrożone), także do niego
+     * jako dwie różne części przepisu.
      *
      * WYGRYWA PIERWSZA PISOWNIA, nie „ładniejsza". To słowo autora, więc
      * poprawiamy powtórzenie, a nie człowieka — i nie ma tu żadnej reguły
