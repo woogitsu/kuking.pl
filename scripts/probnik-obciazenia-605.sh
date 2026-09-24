@@ -23,6 +23,12 @@
 # =============================================================================
 set -u
 
+# Liczby z `awk printf "%.3f"` trafiają do JSON-a i do porównań progów, więc
+# separator dziesiętny MUSI być kropką. Przy polskich ustawieniach regionalnych
+# (pl_PL) awk wypisuje „1,000” i wynik przestaje być poprawnym JSON-em
+# (23.09: porażki przyrządu #605 na runnerach Ubuntu 26).
+export LC_ALL=C
+
 WYJSCIE="${1:?Podaj plik wyjściowy .jsonl}"
 KONTENER="${2:-kuking-b605-app}"
 BAZA="${3:-kuking_b605_obciazenie}"

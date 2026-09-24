@@ -138,6 +138,10 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
 elif ! bash tests/skrypty/check-postgres.sh >/dev/null 2>&1; then
     zle "Izolacja sondy PostgreSQL oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
+elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
+    # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
+    # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
+    zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
