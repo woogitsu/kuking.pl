@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
+use League\Flysystem\UnableToWriteFile;
 
 /**
  * Przetworzenie wgranego zdjęcia.
@@ -187,7 +188,18 @@ class ProcessUploadedImage implements ShouldQueue
                 // (`App\Support\Storage\R2Adapter`), który nie wysyła ACL
                 // wcale — podanie tu widoczności byłoby dziś błędem, nie
                 // pustym gestem, i padnie od razu.
-                $publiczny->put($variantKey, (string) $encoded);
+                //
+                // `false` Z `put()` TO BŁĄD, NIE SUKCES (issue #961). Dysk
+                // z `throw => false` nie rzuca — bez tego sprawdzenia wariant
+                // trafiał do `variants`, a zdjęcie dostawało `ready` z adresem
+                // pliku, którego nie ma: trwale martwy obrazek, bez ponowienia
+                // i bez śladu w `failed_jobs`. Wyjątek idzie do `catch` niżej,
+                // czyli tą samą drogą co awaria dysku `throw => true`:
+                // `rejected` i ponowienie.
+                if ($publiczny->put($variantKey, (string) $encoded) === false) {
+                    throw UnableToWriteFile::atLocation($variantKey, 'Dysk zwrócił false z put() dla wariantu zdjęcia.');
+                }
+
                 $zapisane[] = $variantKey;
 
                 $variants[$name] = [
