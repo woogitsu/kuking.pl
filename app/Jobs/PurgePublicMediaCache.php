@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Domain\Media\ZalegleCzyszczeniaCdn;
 use App\Logging\BezpiecznyBlad;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -61,28 +62,32 @@ class PurgePublicMediaCache implements ShouldQueue
         $token = (string) config('kuking.media.cdn_purge.token');
 
         if ($zona === '' || $token === '') {
-            // TEN WPIS SAM NIE WYSTARCZA I TRZEBA TO POWIEDZIEĆ WPROST.
+            // NA PRODUKCJI ADRESY NIE MOGĄ PRZEPAŚĆ (#959).
             //
-            // Brak konfiguracji jest normalny lokalnie i w testach, ale na
-            // produkcji znaczy, że skasowane zdjęcia dalej się otwierają —
-            // a wygląda to identycznie jak działające czyszczenie. Sam
-            // `Log::warning` tego nie zamyka z dwóch powodów:
+            // Do tego issue był tu sam `Log::warning` i `return`: zadanie
+            // kończyło się sukcesem, nie trafiało do `failed_jobs`, a po
+            // uzupełnieniu konfiguracji nikt już nie wiedział, które skasowane
+            // zdjęcia dalej siedzą w cache. Teraz adresy idą do tabeli
+            // `zalegle_czyszczenia_cdn`, skąd `kuking:wyczysc-zalegle-cdn`
+            // (co kwadrans) wyśle je, gdy konfiguracja wróci. Świeci to
+            // w `/health` dwa razy: `cdn` (brak konfiguracji) i `cdn_zalegle`
+            // (są adresy do dokończenia).
             //
-            //   * kanał alarmowy `blad_webhook` ma w `config/logging.php`
-            //     poziom `error` USTAWIONY NA SZTYWNO, więc ostrzeżenia nie
-            //     przyjmuje w ogóle — wpis ląduje wyłącznie na stderr, wśród
-            //     wszystkiego innego;
-            //   * zadanie kończy się SUKCESEM, więc nie ma go w `failed_jobs`
-            //     i żadna czujka go nie widzi.
+            // Sukces zadania, nie wyjątek: kasowanie zdjęcia i wymazanie
+            // konta nie mają prawa się wywrócić dlatego, że nie ma czym
+            // wyczyścić cudzego cache — wystarczy, że niczego nie gubimy.
             //
-            // Trwałym sygnałem jest sonda `cdn` w `/health`
-            // (`HealthController::sprawdzCzyszczenieCdn()`): jedno zdanie,
-            // które nie gaśnie samo, dzwoni na webhook z odstępem i nie
-            // wywraca ANI JEDNEGO kasowania zdjęcia. Ten wpis zostaje jako
-            // ślad w dzienniku: mówi, ILU adresów dotyczyła konkretna,
-            // pominięta próba — czego `/health` nie wie.
+            // Poza produkcją nie ma CDN-u i pusta konfiguracja jest stanem
+            // poprawnym — tam zostaje sam wpis w logu, bez tabeli.
+            $odlozone = app()->environment('production');
+
+            if ($odlozone) {
+                ZalegleCzyszczeniaCdn::odloz($adresy);
+            }
+
             Log::warning('Czyszczenie cache CDN pominięte — brak konfiguracji', [
                 'adresow' => count($adresy),
+                'odlozone' => $odlozone,
             ]);
 
             return;
@@ -108,6 +113,15 @@ class PurgePublicMediaCache implements ShouldQueue
                     'Cloudflare odmówił czyszczenia cache: HTTP '.$odpowiedz->status(),
                 );
             }
+
+            // 2xx to jeszcze nie zgoda: Cloudflare mówi o powodzeniu polem
+            // `success` (#959). `false` albo brak pola = ponowienie, bez
+            // przepisywania treści odpowiedzi do logu.
+            if ($odpowiedz->json('success') !== true) {
+                throw new \RuntimeException(
+                    'Cloudflare nie potwierdził czyszczenia cache (brak `success: true`): HTTP '.$odpowiedz->status(),
+                );
+            }
         }
     }
 
@@ -120,5 +134,24 @@ class PurgePublicMediaCache implements ShouldQueue
             'adresy' => $this->adresy,
             'error' => $e !== null ? BezpiecznyBlad::kontekst($e) : 'brak wyjątku (przekroczony limit czasu)',
         ]);
+
+        // Log to ślad, nie naprawa (#959). Tabela zaległych daje ponowienie
+        // bez człowieka: `kuking:wyczysc-zalegle-cdn` spróbuje znowu za
+        // kwadrans, a `/health` świeci, dopóki się nie uda. Własna awaria
+        // zapisu nie może zasłonić wpisu wyżej.
+        try {
+            ZalegleCzyszczeniaCdn::odloz($this->adresy);
+        } catch (\Throwable $blad) {
+            Log::error('Nie udało się odłożyć adresów do ponownego czyszczenia cache CDN', [
+                'wyjatek' => $blad::class,
+            ]);
+        }
+    }
+
+    /** Czy są OBIE wartości potrzebne do rozmowy z Cloudflare. */
+    public static function skonfigurowane(): bool
+    {
+        return (string) config('kuking.media.cdn_purge.zone_id') !== ''
+            && (string) config('kuking.media.cdn_purge.token') !== '';
     }
 }

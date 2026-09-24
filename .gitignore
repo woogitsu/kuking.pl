@@ -58,3 +58,6 @@ Thumbs.db
 # Bajtkod Pythona (skrypty w scripts/)
 __pycache__/
 *.pyc
+
+# Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
+docs/flota/chmura/czuwanie-stan.json
