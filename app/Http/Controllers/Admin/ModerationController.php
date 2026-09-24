@@ -140,13 +140,15 @@ class ModerationController extends Controller
             // Które zgłoszenia da się dziś cofnąć (issue #65).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
-            // nimi. Bez tego samego warunku o źródle „Nowe (14)" oznaczałoby
-            // czternaście spraw, z których widać cztery — a moderator nie ma
-            // jak się dowiedzieć, że reszta jest na innym ekranie.
+            // nimi — z tym samym warunkiem o źródle, także przy
+            // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
+            // `zrodlo`, więc jej liczba ma mówić, ile pozycji otworzy.
+            // Liczone od ludzi przy widoku automatu dawały „Nowe (0)" nad
+            // trzema oznaczeniami albo „Nowe (14)" nad czterema.
             'counts' => [
-                'open' => $this->odLudzi(Report::STATUS_OPEN),
-                'reviewing' => $this->odLudzi(Report::STATUS_REVIEWING),
-                'resolved' => $this->odLudzi(Report::STATUS_RESOLVED),
+                'open' => $this->zeZrodla($zrodlo, Report::STATUS_OPEN),
+                'reviewing' => $this->zeZrodla($zrodlo, Report::STATUS_REVIEWING),
+                'resolved' => $this->zeZrodla($zrodlo, Report::STATUS_RESOLVED),
             ],
             // Ile czeka po drugiej stronie — odnośnik na ekranie zgłoszeń
             // ma powiedzieć, ile tam jest, zanim człowiek tam kliknie.
@@ -157,11 +159,15 @@ class ModerationController extends Controller
         ]);
     }
 
-    /** Zgłoszenia OD LUDZI w danym stanie — bez oznaczeń automatu, tak jak lista wyżej. */
-    private function odLudzi(string $status): int
+    /** Sprawy z bieżącego źródła (ludzie albo automat) w danym stanie — ten sam warunek, co lista wyżej. */
+    private function zeZrodla(string $zrodlo, string $status): int
     {
         return Report::query()
-            ->where('source', '!=', Report::SOURCE_AUTOMAT)
+            ->when(
+                $zrodlo === Report::SOURCE_AUTOMAT,
+                fn ($query) => $query->where('source', Report::SOURCE_AUTOMAT),
+                fn ($query) => $query->where('source', '!=', Report::SOURCE_AUTOMAT),
+            )
             ->where('status', $status)
             ->count();
     }
