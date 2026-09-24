@@ -176,4 +176,14 @@ class Comment extends Model
             default => null,
         };
     }
+
+    /**
+     * Wersja treści, którą widzi formularz poprawki (issue #982). Odcisk
+     * `body`, a nie `updated_at`: sekundowy znacznik czasu remisuje przy
+     * dwóch szybkich zapisach, a poprawka zmienia tylko treść.
+     */
+    public function wersjaTresci(): string
+    {
+        return hash('sha256', (string) $this->body);
+    }
 }

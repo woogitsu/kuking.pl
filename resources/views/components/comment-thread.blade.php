@@ -35,7 +35,7 @@
             @endcan
         @endif
     @endif
-    @if($errors->has('body') || $errors->has('reason'))
+    @if($errors->has('body') || $errors->has('reason') || $errors->has('wersja'))
         <x-error-summary />
     @endif
 
@@ -126,6 +126,9 @@
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
+                                                {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
+                                                <input type="hidden" name="wersja" value="{{ $reply->wersjaTresci() }}">
+                                                <x-konflikt-poprawki-komentarza :comment="$reply" :wiersz="'popraw-'.$reply->id" />
                                                 <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required />
                                                 <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                             </form>
@@ -221,6 +224,9 @@
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
+                                        {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
+                                        <input type="hidden" name="wersja" value="{{ $comment->wersjaTresci() }}">
+                                        <x-konflikt-poprawki-komentarza :comment="$comment" :wiersz="'popraw-'.$comment->id" />
                                         <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required />
                                         <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                     </form>

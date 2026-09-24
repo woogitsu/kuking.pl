@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
+use App\Domain\Comments\Actions\EditComment;
+use App\Domain\Comments\KonfliktPoprawkiKomentarza;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +26,10 @@ use Illuminate\Http\Response;
  */
 class CommentController extends Controller
 {
-    public function __construct(private readonly DeleteComment $deleteComment) {}
+    public function __construct(
+        private readonly DeleteComment $deleteComment,
+        private readonly EditComment $editComment,
+    ) {}
 
     public function update(Request $request, Comment $comment): RedirectResponse|Response
     {
@@ -60,7 +65,19 @@ class CommentController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
-        $comment->update(['body' => trim($data['body'])]);
+        try {
+            $this->editComment->handle(
+                $comment,
+                trim($data['body']),
+                is_string($request->input('wersja')) ? $request->input('wersja') : null,
+            );
+        } catch (KonfliktPoprawkiKomentarza $e) {
+            // Issue #982: nic nie zapisano. Tekst wraca do pola (`withInput`),
+            // a wątek pokazuje nad nim zapisaną treść. Osobny klucz `wersja`,
+            // nie `body`: tekst jest poprawny, więc pole nie dostaje
+            // `aria-invalid`.
+            return back()->withInput()->withErrors(['wersja' => $e->getMessage()]);
+        }
         $request->session()->forget('comment_edit_recovery');
 
         return back()->with('status', 'Komentarz poprawiony.');
