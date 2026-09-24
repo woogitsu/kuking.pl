@@ -10,57 +10,20 @@ use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
 use App\Models\User;
+use App\Poczta\OdmowaEmailLabs;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Wysłanie odpowiedzi na wiadomość z „Napisz do nas" (D-058).
- *
- * ══════════════════════════════════════════════════════════════════════════
- *  KOLEJNOŚĆ JEST TU CAŁĄ TREŚCIĄ TEJ KLASY — I JEST INNA NIŻ W
- *  `PrzyjmijWiadomosc`
- * ══════════════════════════════════════════════════════════════════════════
- *
- *   1. ZAPIS wiersza odpowiedzi ze stanem „wysyłka w toku",
- *   2. wysyłka SYNCHRONICZNA, w tym samym żądaniu,
- *   3. zapis PRAWDZIWEGO wyniku: „wysłana" albo „nie udało się" z powodem,
- *   4. wpis do `audit_log` — tak samo przy sukcesie, jak przy porażce.
- *
- * KROK 1 PRZED KROKIEM 2, I TO NIE JEST DROBIAZG. Gdyby wiersz powstawał
- * dopiero po udanej wysyłce, przerwanie procesu w środku (koniec limitu czasu
- * PHP, restart kontenera na Railway, zamknięta karta) zostawiłoby stan
- * najgorszy z możliwych: list w drodze albo już dostarczony i ZERO śladu
- * w serwisie. Moderator zobaczyłby pustą historię i napisałby to samo drugi
- * raz. Przy zapisie „w toku" na pierwszym miejscu ten sam wypadek zostawia
- * na ekranie zdanie „Wysyłka w toku — nie wiadomo, czy list wyszedł",
- * czyli prawdę.
- *
- * DLACZEGO WYSYŁKA JEST SYNCHRONICZNA — pełne uzasadnienie w nagłówku
- * `App\Mail\OdpowiedzNaWiadomosc`. W skrócie: kolejka przy issue #234 znaczy
- * „moderator widzi »wysłano«, list po ~6 minutach ląduje w `failed_jobs`
- * i nikt się o tym nie dowiaduje". Nie piszemy „wysłano", jeśli tego nie
- * wiemy.
- *
- * TA KLASA NIE RZUCA WYJĄTKIEM PRZY NIEUDANEJ WYSYŁCE. Oddaje wiersz
- * odpowiedzi z jego prawdziwym stanem, a decyzję o tym, co pokazać
- * człowiekowi, podejmuje kontroler. Wyjątek wyleciałby na stronę błędu 500
- * i zabrał ze sobą wpisaną treść — czyli złamał regułę „poprawnie wpisane
- * dane nigdy nie znikają" (docs/UX_50_PLUS.md) w najgorszym momencie, bo
- * przy tekście, który ktoś właśnie napisał własnymi słowami.
- *
- * WPIS W `audit_log` PRZY OBU WYNIKACH (poz. 3.2 z INSPIRATION_DECISIONS).
- * Wysłanie listu na czyjś adres jest DZIAŁANIEM na cudzych danych, nie tylko
- * wglądem — więc tym bardziej ma zostawić ślad niż otwarcie karty konta
- * (`admin.user_viewed`). Nieudana próba też: „ktoś próbował odpisać tej
- * osobie i nie wyszło" jest odpowiedzią na pytanie, które kiedyś padnie
- * („dlaczego nikt mi nie odpisał").
- *
- * CZEGO W DZIENNIKU NIE MA: TREŚCI ODPOWIEDZI ANI ADRESU. `AuditLogEntry`
- * zapisuje FAKT i AKTORA, nigdy treści — a i bez tej zasady byłoby to
- * przepisywanie tych samych danych osobowych do drugiej tabeli, która ma
- * własną, dłuższą retencję niż wiadomość. `subject_id` wskazuje wiadomość,
- * `metadata.reply_id` — konkretny list; obie te wartości znikają razem
- * z wiadomością, a wpis zostaje jako sam fakt.
+ * Jedno wysłanie formularza ma jeden wiersz i najwyżej jedną próbę wysyłki.
+ * Rezerwacja jest zatwierdzona przed pocztą. Wynik i audyt nie powodują
+ * powtórzenia efektu zewnętrznego, także gdy proces nie poznał wyniku.
+ * Znacznik audytu i wpis są atomowe; zaległość dokańcza POST lub wejście
+ * na kartę. Nie obiecujemy dokładnie jednego doręczenia przez dostawcę.
  */
 final class WyslijOdpowiedz
 {
@@ -76,6 +39,7 @@ final class WyslijOdpowiedz
         User $moderator,
         string $tresc,
         ?string $ip = null,
+        ?string $replyKey = null,
     ): ContactMessageReply {
         $adres = $wiadomosc->adresDoOdpowiedzi();
 
@@ -89,11 +53,43 @@ final class WyslijOdpowiedz
             );
         }
 
-        $odpowiedz = ContactMessageReply::create([
-            'contact_message_id' => $wiadomosc->getKey(),
-            'author_id' => $moderator->getKey(),
-            'body' => $tresc,
-        ]);
+        if ($replyKey === null || ! Str::isUuid($replyKey)) {
+            throw ValidationException::withMessages(['reply_key' => 'Otwórz ponownie kartę wiadomości przed wysłaniem. Zachowaj tekst odpowiedzi.']);
+        }
+
+        $odpowiedz = DB::transaction(function () use ($wiadomosc, $moderator, $tresc, $replyKey): ContactMessageReply {
+            // Blokada rodzica serializuje tworzenie, UNIQUE chroni także inne drogi zapisu.
+            ContactMessage::query()->whereKey($wiadomosc->getKey())->lockForUpdate()->firstOrFail();
+            $existing = $wiadomosc->odpowiedzi()->where('reply_key', $replyKey)->first();
+            if ($existing !== null) {
+                if ($existing->body !== $tresc || $existing->author_id !== $moderator->getKey()) {
+                    throw ValidationException::withMessages(['reply_key' => 'Ten formularz był już użyty do innej odpowiedzi. Zachowaj tekst i otwórz nową odpowiedź.']);
+                }
+
+                return $existing;
+            }
+            $reply = new ContactMessageReply;
+            $reply->forceFill([
+                'contact_message_id' => $wiadomosc->getKey(),
+                'author_id' => $moderator->getKey(),
+                'body' => $tresc,
+                'reply_key' => $replyKey,
+            ])->save();
+
+            return $reply->refresh();
+        });
+
+        // Zamek jest w bazie, przed efektem zewnętrznym. Po rozpoczęciu wysyłki
+        // ponowiony POST nigdy nie wysyła ponownie, także po utracie odpowiedzi.
+        $claimed = DB::transaction(fn () => ContactMessageReply::query()
+            ->whereKey($odpowiedz->getKey())->whereNull('sending_started_at')
+            ->where('status', ContactMessageReply::STATUS_W_TOKU)
+            ->update(['sending_started_at' => now()]));
+        if ($claimed === 0) {
+            $this->finishAudit($odpowiedz->refresh(), $wiadomosc, $ip);
+
+            return $odpowiedz;
+        }
 
         /*
          |------------------------------------------------------------------
@@ -113,26 +109,21 @@ final class WyslijOdpowiedz
          | wychodzące na zewnątrz z naszej puli. Rezerwa transakcyjna (100
          | listów) zostaje wtedy nietknięta dla potwierdzeń rejestracji.
          |
+         | REZERWACJA DOPIERO PO ZAMKU `sending_started_at`: ponowiony POST
+         | tego samego formularza wraca wyżej i nie zajmuje drugiego miejsca.
+         |
          | ODMOWA IDZIE TĄ SAMĄ DROGĄ CO NIEUDANA WYSYŁKA. Odpowiedź jest już
-         | zapisana wierszem wyżej i ZOSTAJE — treść napisana przez człowieka
-         | nie przepada, a panel pokazuje ją jako niewysłaną, z powodem
-         | mówiącym, co zrobić.
+         | zapisana i ZOSTAJE — treść napisana przez człowieka nie przepada,
+         | a panel pokazuje ją jako niewysłaną, z powodem mówiącym, co zrobić.
          */
         $budzet = DziennyBudzetListow::dlaListuObslugi();
 
         if (! $budzet->sprobujZarezerwowac()) {
-            $odpowiedz->oznaczNieudana(
+            DB::transaction(fn () => $odpowiedz->oznaczNieudana(
                 'Dobowa pula listów jest na dziś wyczerpana, więc ta odpowiedź nie wyszła. '
-                .'Treść jest zapisana — wyślij ją jutro tym samym przyciskiem.',
-            );
-
-            AuditLogEntry::record(
-                action: 'admin.contact_reply_failed',
-                actor: $moderator,
-                subject: $wiadomosc,
-                metadata: ['reply_id' => $odpowiedz->getKey()],
-                ip: $ip,
-            );
+                .'Treść jest zapisana — wyślij ją jutro przyciskiem „Wyślij jako nową odpowiedź”.',
+            ));
+            $this->finishAudit($odpowiedz->refresh(), $wiadomosc, $ip);
 
             return $odpowiedz;
         }
@@ -140,33 +131,63 @@ final class WyslijOdpowiedz
         try {
             Mail::to($adres)->send(new OdpowiedzNaWiadomosc($wiadomosc, $tresc));
         } catch (Throwable $e) {
-            // List nie wyszedł, więc miejsce wraca do wspólnej puli.
-            $budzet->zwolnij();
-
-            $odpowiedz->oznaczNieudana($this->bezpiecznyPowod($e));
-
-            AuditLogEntry::record(
-                action: 'admin.contact_reply_failed',
-                actor: $moderator,
-                subject: $wiadomosc,
-                metadata: ['reply_id' => $odpowiedz->getKey()],
-                ip: $ip,
-            );
+            DB::transaction(function () use ($odpowiedz, $e, $budzet): void {
+                if ($e instanceof OdmowaEmailLabs && $e->isConfirmedRejection()) {
+                    // List na pewno nie wyszedł, więc miejsce wraca do wspólnej
+                    // puli. Przy nieustalonym wyniku miejsca NIE oddajemy: list
+                    // mógł wyjść, a pula ma liczyć ostrożnie.
+                    $budzet->zwolnij();
+                    $odpowiedz->oznaczNieudana($this->bezpiecznyPowod($e));
+                } else {
+                    // Nieznany wyjątek nie jest dowodem odmowy. Zachowujemy
+                    // także zredagowany powód, bez automatycznego ponowienia.
+                    $odpowiedz->forceFill(['error' => $this->bezpiecznyPowod($e)])->save();
+                }
+            });
+            $this->finishAudit($odpowiedz->refresh(), $wiadomosc, $ip);
 
             return $odpowiedz;
         }
 
-        $odpowiedz->oznaczWyslana();
-
-        AuditLogEntry::record(
-            action: 'admin.contact_reply_sent',
-            actor: $moderator,
-            subject: $wiadomosc,
-            metadata: ['reply_id' => $odpowiedz->getKey()],
-            ip: $ip,
-        );
+        DB::transaction(fn () => $odpowiedz->oznaczWyslana());
+        $this->finishAudit($odpowiedz, $wiadomosc, $ip);
 
         return $odpowiedz;
+    }
+
+    /** Znacznik i audyt są jedną transakcją — idiom z e89f28a5. */
+    public function finishAudit(ContactMessageReply $reply, ContactMessage $message, ?string $ip = null): void
+    {
+        if ($reply->sending_started_at === null) {
+            $reply->refresh();
+        }
+        // Aktywnej/nieustalonej wysyłki bez wyniku nie nazywamy porażką.
+        if ($reply->status === ContactMessageReply::STATUS_W_TOKU && $reply->error === null) {
+            return;
+        }
+        try {
+            DB::transaction(function () use ($reply, $message, $ip): void {
+                $claimed = ContactMessageReply::query()->whereKey($reply->getKey())
+                    ->whereNull('audit_recorded_at')->update(['audit_recorded_at' => now()]);
+                if ($claimed === 0) {
+                    return;
+                }
+                AuditLogEntry::record(
+                    action: match ($reply->status) {
+                        ContactMessageReply::STATUS_WYSLANA => 'admin.contact_reply_sent',
+                        ContactMessageReply::STATUS_NIEUDANA => 'admin.contact_reply_failed',
+                        default => 'admin.contact_reply_unknown',
+                    },
+                    actor: $reply->author,
+                    subject: $message,
+                    metadata: ['reply_id' => $reply->getKey()],
+                    ip: $ip,
+                );
+            });
+        } catch (Throwable) {
+            // Wyjątek SQL może zawierać dane listu: zapisujemy tylko identyfikator.
+            Log::warning('Dokończ zapis audytu odpowiedzi przy kolejnym wejściu na wiadomość.', ['reply_id' => $reply->getKey()]);
+        }
     }
 
     /**
