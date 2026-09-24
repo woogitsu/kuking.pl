@@ -145,6 +145,13 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Wybór kolażu należy do wpisu (#955). Strażnik ładuje migrację przez
+# `base_path(...)` i sprawdza definicję złożonego FK w `pg_constraint`.
+# Mutacja zdejmuje z migracji `ON DELETE CASCADE` — FK nadal istnieje, więc
+# sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
+MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
+HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -338,6 +345,8 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
+     lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -354,6 +363,7 @@ run_test(XMP_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(HERO_PICKS_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
