@@ -44,20 +44,26 @@ abstract class TestCase extends BaseTestCase
      * `actingAs()` omija zdarzenie `Login`, więc bez tego konto po
      * `suspend()`/`ban()` (generacja > 0) byłoby w teście wylogowywane przy
      * pierwszym żądaniu — czego na produkcji nie widać, bo po odcięciu sesji
-     * ta osoba loguje się od nowa i dostaje bieżącą generację. Odczyt
-     * z bazy, nie z modelu: test mógł zawiesić konto na innej instancji.
+     * ta osoba loguje się od nowa i dostaje bieżącą generację.
+     *
+     * Wartość z TEGO modelu, bo to z nim middleware porównuje (guard trzyma
+     * dokładnie tę instancję) — i bez zapytania, które psułoby testy liczące
+     * zapytania. Zapis tylko wtedy, gdy coś zmienia: brak klucza znaczy 0,
+     * a zbędny zapis do sesji między żądaniami potrafi zgubić dane flash.
      */
     public function be(UserContract $user, $guard = null)
     {
         parent::be($user, $guard);
 
-        // Tylko dla generacji > 0: brak klucza znaczy 0, a zbędny zapis do
-        // sesji między żądaniami testu potrafi zgubić dane flash.
-        $generacja = $user instanceof User && ($guard ?? 'web') === 'web' && $user->exists
-            ? (int) User::query()->whereKey($user->getKey())->value('session_generation')
-            : 0;
+        if (! $user instanceof User || ($guard ?? 'web') !== 'web') {
+            return $this;
+        }
 
-        if ($generacja > 0) {
+        $generacja = array_key_exists('session_generation', $user->getAttributes())
+            ? (int) $user->session_generation
+            : (int) User::query()->whereKey($user->getKey())->value('session_generation');
+
+        if ($generacja > 0 || $this->app['session']->has(GeneracjaSesji::KLUCZ)) {
             $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
         }
 
