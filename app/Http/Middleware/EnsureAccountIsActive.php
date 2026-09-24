@@ -71,6 +71,13 @@ class EnsureAccountIsActive
         'logout',
         'settings.data',
         'settings.data.export',
+        // #1364: żądanie usunięcia konta (RODO art. 17). Formularz stoi na
+        // „Twoich danych", które zawieszone konto widzi — bez tej trasy
+        // wysyłka odbijała się tu przed kontrolerem, a przy zawieszeniu
+        // bez terminu samoobsługowa droga była zamknięta na zawsze. Kara
+        // nie ginie: `markForDeletion()` odkłada ją do `punishment_status`
+        // (#980) i wraca po cofnięciu usunięcia.
+        'settings.data.delete',
         'settings.email.request',
         'settings.email.cancel',
         'appeals.store',

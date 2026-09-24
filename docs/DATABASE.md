@@ -2929,6 +2929,23 @@ migracji i bez recenzji schematu.
 `..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
 oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
 
+**Jedna otwarta sprawa na konto (#1346):** UNIKALNY
+`potwierdzenia_zadan_rodo_jedna_w_toku_na_konto (konto_id) WHERE wynik = 'w_toku'
+AND konto_id IS NOT NULL` (migracja `2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto`).
+`RejestrPotwierdzenRodo::domknij()` zamyka jedną sprawę `w_toku` konta — druga
+zostałaby otwarta na zawsze przy żądaniu już wykonanym albo cofniętym.
+Aplikacja nie zakłada drugiej (świeży wiersz konta pod `ZamekKonta`
+w `User::markForDeletion()`, #980; drugie równoległe żądanie dostaje komunikat
+„już oznaczone" i nie nadpisuje zakresu ani daty pierwszego); indeks pilnuje
+tego dla każdej innej drogi zapisu. Oznaczenie konta, sprawa `w_toku`
+i wpis `account.delete_requested` powstają w jednej transakcji
+(`PrzyjmijZadanieUsunieciaKonta`, #1347, D-249 klasa 1): awaria dziennika
+cofa całe żądanie, konto zostaje czynne i zalogowane.
+**Migracja odmawia** założenia indeksu, gdy w bazie są już konta z więcej niż
+jedną sprawą `w_toku` — podaje ich identyfikatory i każe domknąć nadmiarowe
+ręcznie (nie kasować: to dowody). **Rollback:** `DROP INDEX` — nie usuwa
+żadnego wiersza, więc nie odmawia (D-088).
+
 **Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
 D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
 

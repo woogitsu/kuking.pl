@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
-use App\Domain\Compliance\RejestrPotwierdzenRodo;
+use App\Domain\Users\Actions\PrzyjmijZadanieUsunieciaKonta;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 use LogicException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * "Twoje dane" — eksport i usunięcie konta.
@@ -360,7 +361,7 @@ class DataSettingsController extends Controller
      * Wybór idzie do KOLUMNY, nie do sesji ani do zadania w kolejce —
      * egzekucja jest 30 dni później (D-022, punkt 2).
      */
-    public function requestDeletion(Request $request, RejestrPotwierdzenRodo $rejestr): RedirectResponse
+    public function requestDeletion(Request $request, PrzyjmijZadanieUsunieciaKonta $przyjmij): RedirectResponse
     {
         $data = $request->validate([
             'password' => ['required', 'string'],
@@ -383,46 +384,13 @@ class DataSettingsController extends Controller
             ? User::DELETE_SCOPE_EVERYTHING
             : User::DELETE_SCOPE_MINIMUM;
 
-        // OZNACZENIE KONTA I OTWARCIE SPRAWY W REJESTRZE RODO — JEDNA
-        // TRANSAKCJA, nie dwie instrukcje obok siebie.
-        //
-        // `potwierdzenia_zadan_rodo` ma jedną sprawę na jedno żądanie
-        // (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`). Gdyby te dwa zapisy
-        // szły osobno, zostawałby stan pośredni: konto oznaczone do usunięcia
-        // BEZ sprawy w rejestrze (żądanie, którego nie ma jak potwierdzić —
-        // i którego egzekutor karencji za 30 dni nie będzie miał czym
-        // domknąć) albo sprawa w rejestrze bez oznaczonego konta (rejestr
-        // twierdzący, że coś przyjęliśmy, choć nic się nie dzieje).
-        //
-        // Ta sama zasada, z tego samego powodu, wiąże domknięcie sprawy
-        // z `EraseAccountData` i `CancelAccountDeletion`.
-        // TRANSAKCJA Z POŁĄCZENIA MODELU, NIE Z FASADY `DB` — ŚWIADOMIE.
-        //
-        // KOLIZJA, KTÓREJ GIT NIE ZGŁASZA. Ten sam plik przepisuje #1259
-        // („awaria poczty nie niszczy paczki eksportu"), zdejmując
-        // `use Illuminate\Support\Facades\DB` — słusznie, bo po jego zmianie
-        // jedyne pozostałe użycie fasady w tym pliku (transakcja w metodzie
-        // eksportu) znika razem z nim. Ta metoda i tamta to RÓŻNE metody, więc
-        // scalenie przechodzi BEZ KONFLIKTU, a wynik jest zepsuty: zostaje
-        // wywołanie `DB::` bez importu, czyli
-        //
-        //     Class "App\Http\Controllers\Settings\DB" not found
-        //
-        // przy KAŻDYM zgłoszeniu usunięcia konta. Żadna z gałęzi osobno tego
-        // nie pokazuje i żadne CI nie złapie tego przed scaleniem.
-        //
-        // Pełna nazwa `\Illuminate\…\DB` NIE jest tu rozwiązaniem: `pint`
-        // (reguła `fully_qualified_strict_types`) skraca ją z powrotem do
-        // `DB::`, dopóki import istnieje — sprawdzone, nie przypuszczane.
-        // Połączenie wzięte z modelu nie zależy od żadnego importu, więc działa
-        // niezależnie od kolejności scalania. To ta sama transakcja i to samo
-        // połączenie.
+        // OZNACZENIE KONTA, SPRAWA W REJESTRZE RODO I WPIS W DZIENNIKU —
+        // JEDNA TRANSAKCJA w `PrzyjmijZadanieUsunieciaKonta` (#1347). Wpis
+        // audytu stał tu za zatwierdzeniem: jego awaria zostawiała konto
+        // w `pending_delete` z odpowiedzią 500, bez wylogowania i bez
+        // wiadomości o karencji.
         try {
-            $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
-                $user->markForDeletion($zakres);
-
-                $rejestr->przyjmijZadanieUsunieciaKonta($user);
-            });
+            $przyjmij->handle($user, $zakres, $request->ip());
         } catch (OdmowaOstatniegoAdministratora) {
             // Ostatni czynny administrator (#1016). Transakcja wycofana:
             // konto czynne, bez sprawy w rejestrze i bez wpisu w audycie.
@@ -432,21 +400,22 @@ class DataSettingsController extends Controller
             ])->withInput($request->only('usun_tresci'));
         } catch (BladDlaCzlowieka $blad) {
             // Świeży stan pod blokadą mówi, że konto już jest w usuwaniu
-            // (drugie kliknięcie, druga karta — #980). Nic nie zapisano.
+            // (drugie kliknięcie, druga karta — #980, #1346). Nic nie
+            // zapisano; zakres i data pierwszego żądania zostają.
             return back()->withErrors(['confirm' => $blad->getMessage()]);
-        }
+        } catch (Throwable $awaria) {
+            // Awaria któregoś z trzech zapisów (np. dziennika). Transakcja
+            // wycofana w całości: konto działa jak dotąd, sesja zostaje, więc
+            // człowiek może po prostu kliknąć jeszcze raz. Nie połykamy —
+            // `report()` idzie do monitoringu.
+            report($awaria);
 
-        // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
-        // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy
-        // zniknęły" (albo „dlaczego NIE zniknęły"), odpowiedź musi dać się
-        // znaleźć bez zgadywania.
-        AuditLogEntry::record(
-            'account.delete_requested',
-            $user,
-            $user,
-            metadata: ['zakres' => $zakres],
-            ip: $request->ip(),
-        );
+            return back()->withErrors([
+                'confirm' => 'Nie udało się przyjąć żądania usunięcia konta i nic się nie zmieniło — konto działa '
+                    .'jak dotąd. Spróbuj jeszcze raz za chwilę. Jeśli to się powtórzy, napisz do nas: '
+                    .config('kuking.community.contact_email'),
+            ])->withInput($request->only('usun_tresci'));
+        }
 
         $days = (int) config('kuking.account.delete_grace_days');
 
