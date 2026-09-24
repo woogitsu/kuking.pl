@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
@@ -415,11 +416,20 @@ class DataSettingsController extends Controller
         // Połączenie wzięte z modelu nie zależy od żadnego importu, więc działa
         // niezależnie od kolejności scalania. To ta sama transakcja i to samo
         // połączenie.
-        $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
-            $user->markForDeletion($zakres);
+        try {
+            $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
+                $user->markForDeletion($zakres);
 
-            $rejestr->przyjmijZadanieUsunieciaKonta($user);
-        });
+                $rejestr->przyjmijZadanieUsunieciaKonta($user);
+            });
+        } catch (OdmowaOstatniegoAdministratora) {
+            // Ostatni czynny administrator (#1016). Transakcja wycofana:
+            // konto czynne, bez sprawy w rejestrze i bez wpisu w audycie.
+            return back()->withErrors([
+                'confirm' => 'Jesteś ostatnim czynnym administratorem serwisu. Zanim usuniesz konto, '
+                    .'nadaj rolę administratora innemu czynnemu kontu — bez tego nikt nie rozpatrzy odwołań.',
+            ])->withInput($request->only('usun_tresci'));
+        }
 
         // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
         // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy

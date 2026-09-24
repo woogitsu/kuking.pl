@@ -14,6 +14,7 @@ use App\Support\Facebook;
 use App\Support\Google;
 use App\Support\Odmiana;
 use App\Support\Poczta;
+use App\Support\Storage\DozwolonyHostR2;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -140,6 +141,7 @@ class HealthController extends Controller
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
         self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
+        self::POWOD_MAGAZYN_ZLY_HOST,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -263,6 +265,15 @@ class HealthController extends Controller
     private const POWOD_CZYSZCZENIE_CDN_WYLACZONE = 'czyszczenie_cdn_wylaczone';
 
     /**
+     * `AWS_ENDPOINT` któregoś dysku R2/S3 nie ma postaci
+     * `https://<konto>.eu.r2.cloudflarestorage.com` (D-255). Dysk odmawia
+     * wtedy budowy, więc zdjęcia, eksporty albo czujka kopii nie działają —
+     * a tu widać DLACZEGO, zanim ktoś zacznie czytać ślady wyjątków. Kod bez
+     * hosta: host niesie identyfikator konta Cloudflare, a `/health` czyta każdy.
+     */
+    private const POWOD_MAGAZYN_ZLY_HOST = 'magazyn_r2_zly_host';
+
+    /**
      * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
      * wyślemy kolejne powiadomienie. Bez tego zewnętrzny monitoring odpytujący
      * `/health` co kilka minut zamieniłby jedną trwającą awarię w dzwonek
@@ -296,6 +307,7 @@ class HealthController extends Controller
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
             'cdn' => $this->check('cdn', self::POWOD_CZYSZCZENIE_CDN_WYLACZONE, fn () => $this->sprawdzCzyszczenieCdn()),
             'cdn_zalegle' => $this->check('cdn_zalegle', self::POWOD_CZYSZCZENIE_CDN_ZALEGLE, fn () => $this->sprawdzZalegleCzyszczenieCdn()),
+            'magazyn' => $this->check('magazyn', self::POWOD_MAGAZYN_ZLY_HOST, fn () => $this->sprawdzHostMagazynu()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -840,6 +852,49 @@ class HealthController extends Controller
         }
 
         $this->sprawdzDrogePubliczna($nazwaDysku);
+    }
+
+    /**
+     * Czy każdy dysk R2/S3 z konfiguracji ma adres, pod który wolno wysłać
+     * klucz (D-255). Ta sama kontrola, którą `DyskR2` robi przy budowie —
+     * tu bez budowania, więc sonda niczego nie wysyła.
+     */
+    private function sprawdzHostMagazynu(): void
+    {
+        $zle = [];
+
+        foreach ((array) config('filesystems.disks') as $nazwa => $dysk) {
+            if (! is_array($dysk) || ! in_array($dysk['driver'] ?? null, ['r2', 's3'], true)) {
+                continue;
+            }
+
+            $adres = (string) ($dysk['endpoint'] ?? '');
+
+            // Dysk bez adresu i bez klucza nie ma czego wysłać — to produkcja
+            // na dysku lokalnym, bez R2. Pusty adres Z kluczem to już awaria
+            // (AWS SDK poszedłby do Amazona) i tę łapie kontrola niżej.
+            if ($adres === '' && blank($dysk['key'] ?? null)) {
+                continue;
+            }
+
+            $powod = DozwolonyHostR2::powod($adres);
+
+            if ($powod !== null) {
+                $zle[] = "`{$nazwa}` (".DozwolonyHostR2::opisHosta($adres).", {$powod})";
+            }
+        }
+
+        if ($zle === []) {
+            return;
+        }
+
+        // Host (z identyfikatorem konta) idzie wyłącznie do logu; publicznie
+        // i na webhook — sam kod.
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_MAGAZYN_ZLY_HOST,
+            'AWS_ENDPOINT nie ma postaci https://<identyfikator konta>.eu.r2.cloudflarestorage.com '
+            .'dla dysków: '.implode(', ', $zle).'. Te dyski się nie zbudują (D-255).',
+        );
     }
 
     /**

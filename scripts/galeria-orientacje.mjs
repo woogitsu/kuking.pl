@@ -349,7 +349,7 @@ async function podniesSerwer() {
      pokazywałby te same liczby co przed nią i wyglądałoby to na nieskuteczną
      zmianę. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   console.log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {

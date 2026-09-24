@@ -38,6 +38,23 @@ use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
 
+/**
+ * Bariera #1016: uczestnik staje PO rzeczywistym zapytaniu o innych czynnych
+ * administratorów. Należy wyłącznie do przyrządu — mierzymy zapytanie
+ * aplikacji, nie przepisujemy jej warunku do drugiego SQL-a.
+ */
+function barieraPoLiczeniuAdministratorow(): void
+{
+    DB::listen(static function (QueryExecuted $query): void {
+        if (str_contains($query->sql, 'from "users"')
+            && str_contains($query->sql, '"role" =')
+            && str_contains($query->sql, '"status" =')
+            && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
+            DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
 $scenariusz = $argv[1] ?? '';
 
 /** @var array<string, string> $argumenty */
@@ -84,20 +101,27 @@ try {
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
-            DB::listen(static function (QueryExecuted $query): void {
-                if (str_contains($query->sql, 'from "users"')
-                    && str_contains($query->sql, '"role" =')
-                    && str_contains($query->sql, '"status" =')
-                    && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
-                    DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
-                }
-            });
+            barieraPoLiczeniuAdministratorow();
             $output = new BufferedOutput;
             $code = app(Kernel::class)->call('kuking:nadaj-role', [
                 'login' => $argumenty['login'], 'rola' => $argumenty['rola'], '--tak' => true,
             ], $output);
 
             return ['code' => $code, 'output' => $output->fetch()];
+        })(),
+
+        // Zmiana statusu konta, która odbiera aktywność (#1016, etap B).
+        // Zewnętrzna transakcja jak w kontrolerach: odmowa ma ją wycofać.
+        'status-konta' => (function () use ($argumenty): string {
+            barieraPoLiczeniuAdministratorow();
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            DB::transaction(static fn () => match ($argumenty['przejscie']) {
+                'zawies' => $konto->suspend(),
+                'zbanuj' => $konto->ban(),
+                'usun' => $konto->markForDeletion(),
+            });
+
+            return (string) $konto->fresh()?->status;
         })(),
 
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
