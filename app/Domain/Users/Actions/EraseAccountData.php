@@ -10,7 +10,6 @@ use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\Media;
-use App\Models\ModerationAction;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -635,16 +634,6 @@ final class EraseAccountData
     private function usunTresci(User $user): void
     {
         $user->comments()->withTrashed()->forceDelete();
-
-        // Tekst komentarza zdjętego przez moderację leży też przy decyzji
-        // (`moderation_actions.tresc_sprzed_zdjecia`, G31) — „usuń wszystko”
-        // obejmuje i tę kopię. Sama decyzja zostaje: to zapis sprawy, nie
-        // treść tej osoby.
-        ModerationAction::query()
-            ->where('subject_user_id', $user->getKey())
-            ->whereNotNull('tresc_sprzed_zdjecia')
-            ->update(['tresc_sprzed_zdjecia' => null]);
-
         $user->cookedEvents()->delete();
         $user->posts()->withTrashed()->forceDelete();
         $user->recipes()->withTrashed()->forceDelete();

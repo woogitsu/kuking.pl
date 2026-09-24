@@ -119,16 +119,6 @@ class CommentPolicy
      */
     public function delete(User $user, Comment $comment): bool
     {
-        // Komentarz już zastąpiony napisem „Komentarz usunięty.” (przez
-        // moderację albo przez człowieka) nie ma czego usuwać. Przy decyzji
-        // moderacji ta bramka jest wręcz konieczna: spreparowany DELETE od
-        // autora kasował wiersz, a „Przywróć”/„cofam” wskrzeszały potem
-        // kopię tekstu z decyzji (przegląd G31). Przycisk się nie rysuje;
-        // komunikat dla człowieka daje `CommentController::destroy()`.
-        if ($comment->getAttribute('body_removed_at') !== null) {
-            return false;
-        }
-
         if ($user->getKey() === $comment->author_id) {
             return true;
         }

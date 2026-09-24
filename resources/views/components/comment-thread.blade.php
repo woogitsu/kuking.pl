@@ -196,21 +196,16 @@
                      akcji, i blok „Usuń" niżej, a liczenie ich w dwóch miejscach
                      byłoby dwoma miejscami do poprawienia. --}}
                 <div class="akcje-komentarza">
-                    {{-- D-251: pod napisem „Komentarz usunięty.” nie ma nowych
-                         odpowiedzi — `LockCommentContext` i tak by odmówił,
-                         więc przycisk byłby martwy. --}}
-                    @unless($commentIsRemoved)
-                        <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
-                            <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
-                            <form class="mt-3" method="POST" action="{{ $action }}">
-                                @csrf
-                                <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
-                                <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
-                                <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required />
-                                <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
-                            </form>
-                        </details>
-                    @endunless
+                    <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
+                        <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
+                        <form class="mt-3" method="POST" action="{{ $action }}">
+                            @csrf
+                            <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
+                            <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
+                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required />
+                            <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                        </form>
+                    </details>
 
                     @unless($commentIsRemoved)
                         @can('update', $comment)

@@ -6,9 +6,7 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
-use App\Exceptions\TekstUsunietyPrzezAutora;
 use App\Models\AuditLogEntry;
-use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -73,12 +71,11 @@ final class RestoreContent
 
         // JEDNA TRANSAKCJA, BLOKADA WIERSZA NA POCZĄTKU (przegląd G31, B1).
         //
-        // Wcześniej kroki szły bez transakcji: INSERT `unhide` → wyzerowanie
-        // `tresc_sprzed_zdjecia` (zatwierdzone) → dopiero zapis komentarza.
-        // Awaria między nimi kasowała jedyną kopię tekstu, a autor miał już
-        // decyzję „przywrócone”. Dwa równoległe przywrócenia (dwie karty,
-        // „Przywróć” i „cofam” naraz) czytały ten sam stary stan i dawały
-        // dwie decyzje `unhide` i dwa powiadomienia.
+        // Wcześniej kroki szły bez transakcji: INSERT `unhide`, potem zapis
+        // treści. Awaria między nimi zostawiała decyzję „przywrócone” przy
+        // treści, która nadal była schowana. Dwa równoległe przywrócenia
+        // (dwie karty, „Przywróć” i „cofam” naraz) czytały ten sam stary
+        // stan i dawały dwie decyzje `unhide` i dwa powiadomienia.
         //
         // Stan czytamy POD blokadą, z bazy, a nie z modelu wołającego —
         // drugi w kolejce widzi „już widoczna” i nie zapisuje nic.
@@ -114,23 +111,8 @@ final class RestoreContent
         $bylaUkryta = ModeratedContent::jestUkryta($target);
         $bylaUsunieta = method_exists($target, 'trashed') && $target->trashed();
 
-        // Komentarz z odpowiedziami zdjęty przez moderację: wiersz żyje, ale
-        // w `body` stoi napis „Komentarz usunięty.” (G31, `ZdejmijTresc`).
-        $bylZastapiony = ! $bylaUsunieta && $target instanceof Comment && $target->body_removed_at !== null;
-
-        if (! $bylaUkryta && ! $bylaUsunieta && ! $bylZastapiony) {
+        if (! $bylaUkryta && ! $bylaUsunieta) {
             throw new BladDlaCzlowieka('Ta treść jest już widoczna — nie ma czego przywracać.');
-        }
-
-        $tekst = $bylZastapiony ? $this->trescSprzedZdjecia((string) $target->getKey()) : null;
-
-        if ($bylZastapiony && $tekst === null) {
-            // Napis postawił autor komentarza albo autor treści pod nim
-            // (`DeleteComment`) — tekst skasowali sami. Także wtedy, gdy
-            // WCZEŚNIEJ zdjęła go moderacja, a po cofnięciu tamtej decyzji
-            // autor sam go usunął: stara kopia nie jest zgodą na powrót.
-            throw new TekstUsunietyPrzezAutora('Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
-                .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.');
         }
 
         $poprzedni = $this->statusSprzedUkrycia($typ, (string) $target->getKey());
@@ -169,20 +151,6 @@ final class RestoreContent
             $target->restore();
         }
 
-        if ($tekst !== null) {
-            $target->forceFill(['body' => $tekst, 'body_removed_at' => null]);
-
-            // Tekst wrócił do komentarza — kopia przy decyzji nie ma już
-            // celu (minimalizacja danych, RODO art. 5 ust. 1 lit. c). Jedyna
-            // zmiana istniejącego wiersza rejestru, na jaką pozwala D-251:
-            // zerowanie materiału sprawy, nigdy przepisanie decyzji.
-            ModerationAction::query()
-                ->where('target_type', 'comment')
-                ->where('target_id', $target->getKey())
-                ->whereNotNull('tresc_sprzed_zdjecia')
-                ->update(['tresc_sprzed_zdjecia' => null]);
-        }
-
         $target->forceFill(['status' => $docelowy])->save();
 
         $osoba = ModeratedContent::osoba($target);
@@ -217,44 +185,6 @@ final class RestoreContent
     }
 
     /**
-     * Tekst komentarza do przywrócenia — tylko wtedy, gdy NAJNOWSZA decyzja
-     * `hide`/`remove`/`unhide` o nim to `remove`, która zastąpiła go napisem
-     * i zachowała kopię (`ZdejmijTresc`, G31).
-     *
-     * Nie „ostatnia decyzja `remove` z kopią”: po `unhide` (np. „cofam” po
-     * odwołaniu) autor mógł sam usunąć komentarz. Napis stoi wtedy znowu,
-     * a stara kopia wyglądałaby jak materiał do przywrócenia — i moderator
-     * przywróciłby tekst, który autor świadomie skasował.
-     *
-     * KOLEJNOŚĆ: `created_at`, potem `id`. `created_at` to `timestamptz(0)`
-     * — pełne sekundy, więc „zdjęte” i „cofnięte” w tej samej sekundzie
-     * remisują. Drugim kluczem jest `id`: `ModerationAction` używa
-     * `HasUuids`, czyli UUIDv7 (`Str::uuid7()`) — znacznik czasu
-     * w milisekundach na początku i licznik rosnący w obrębie milisekundy
-     * w jednym procesie. Zdjęcie z napisem i przywrócenie biorą blokadę
-     * wiersza komentarza (`ZdejmijTresc`, tu), więc ich `id` powstają jedno
-     * po drugim, nie równolegle. Ryzyko, które zostaje: wiersz
-     * wstawiony z pominięciem modelu dostałby `id` z domyślnego
-     * `gen_random_uuid()` (v4, losowe) — patrz D-251 pkt 10.
-     */
-    private function trescSprzedZdjecia(string $id): ?string
-    {
-        $ostatnia = ModerationAction::query()
-            ->where('target_type', 'comment')
-            ->where('target_id', $id)
-            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE, ModerationAction::ACTION_UNHIDE])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($ostatnia?->action !== ModerationAction::ACTION_REMOVE) {
-            return null;
-        }
-
-        return is_string($ostatnia->tresc_sprzed_zdjecia) ? $ostatnia->tresc_sprzed_zdjecia : null;
-    }
-
-    /**
      * Status treści sprzed OSTATNIEGO ukrycia albo usunięcia.
      *
      * Indeks `moderation_actions_target_idx (target_type, target_id,
@@ -268,7 +198,10 @@ final class RestoreContent
             ->where('target_id', $id)
             ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE])
             ->orderByDesc('created_at')
-            // Remis w tej samej sekundzie — patrz `trescSprzedZdjecia()`.
+            // Remis w tej samej sekundzie: `created_at` to `timestamptz(0)`,
+            // więc „zdjęte” i „cofnięte” w jednej sekundzie remisują. `id`
+            // to UUIDv7 (`HasUuids`) — rośnie z czasem w milisekundach
+            // (przegląd G31).
             ->orderByDesc('id')
             ->first();
 

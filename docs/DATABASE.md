@@ -2611,42 +2611,6 @@ zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
 znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
 decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
-#### `tresc_sprzed_zdjecia text NULL` (migracja `2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions`, G31, D-251)
-
-Tekst komentarza, który decyzja `remove` zastąpiła napisem „Komentarz
-usunięty.”. Tak moderacja zdejmuje komentarz **z odpowiedziami** — tą samą
-regułą co `DeleteComment`, żeby odpowiedzi innych osób nie znikały razem
-z nim (`ZdejmijTresc`). Napis nadpisuje `comments.body`, a od decyzji
-przysługuje odwołanie, które po „cofam” ma przywrócić treść od razu — stąd
-kopia przy decyzji, czytana przez `RestoreContent`.
-
-- `moderation_actions_tresc_sprzed_zdjecia_check`:
-  `tresc_sprzed_zdjecia IS NULL OR (target_type = 'comment' AND action = 'remove')`.
-- Wypełniana w **tym samym `INSERT`-cie** co wiersz decyzji
-  (`ZdejmijTresc::tekstDoZachowania()` przed `ModerationAction::create()`).
-  Po `INSERT` kolumna tylko się **zeruje**, nigdy nie zmienia na inny tekst:
-  przy przywróceniu tekstu (`RestoreContent` — tekst wrócił do komentarza,
-  kopia nie ma celu) i przy czyszczeniu RODO niżej. `UPDATE … SET
-  tresc_sprzed_zdjecia = NULL` CHECK przepuszcza (`IS NULL`).
-- `RestoreContent` bierze kopię tylko z **najnowszej** decyzji
-  `hide`/`remove`/`unhide` o komentarzu i tylko gdy to `remove`. Napis
-  postawiony przez autora po „cofam” nie wyciąga starej kopii.
-- **RODO:** usunięcie konta z zakresem „wszystko” (`EraseAccountData::usunTresci()`)
-  ustawia ją na `NULL` dla decyzji dotyczących tej osoby — razem
-  z `forceDelete()` jej komentarzy. Sama decyzja zostaje. Przy zakresie
-  `minimum` komentarz i tak zostaje w bazie, więc kopia niczego nie dokłada.
-- Retencja: razem z wierszem decyzji (niżej).
-
-**Rollback:** `down()` **odmawia**, gdy kolumna ma choć jedną niepustą
-wartość (D-088) — bez niej „cofam” po odwołaniu zostawiłoby napis zamiast
-tekstu. Po zerowaniu przy przywróceniu niepusta wartość zostaje tylko przy
-komentarzu, który nadal stoi z napisem po decyzji moderacji — więc odmowa
-dotyczy dokładnie tekstów, które odwołanie może jeszcze przywrócić. Na
-świeżej bazie przechodzi. Świadome wymuszenie (najpierw kopia
-wierszy z niepustą kolumną):
-`KUKING_ROLLBACK_KASUJE_TRESC_ZDJETYCH_KOMENTARZY=1`. Test:
-`tests/Feature/ZdejmijZUrzeduTest.php`.
-
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem

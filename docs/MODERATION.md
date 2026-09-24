@@ -142,6 +142,11 @@ się więc zdjąć wcale. Stąd akcja **„Zdejmij z urzędu”**.
   (DSA art. 17 ust. 3 lit. b). Odwołanie idzie **tą samą ścieżką** co od
   decyzji ze zgłoszenia (`/odwolanie/{decyzja}`, rozstrzyga administrator),
   a „cofam” przywraca treść.
+- **Jak zdejmuje:** tym samym mechanizmem co „Usuń” ze zgłoszenia — miękkie
+  usunięcie, także komentarza z odpowiedziami. Moderacja nie zostawia napisu
+  „Komentarz usunięty.” (ten zostawia tylko autor, `DeleteComment`).
+  Przywrócenie — ten sam `RestoreContent` co przy decyzji ze zgłoszenia.
+  Decyzja właściciela z 24.09.2026 (D-251).
 - **Tylko treść widoczna dla innych:** opublikowana, publiczna albo dla
   obserwujących (komentarz — pod taką treścią). Szkic, treść prywatna
   i ukryta dają **404** — moderator nie ogląda prywatnych treści po UUID.
@@ -161,23 +166,6 @@ się więc zdjąć wcale. Stąd akcja **„Zdejmij z urzędu”**.
   przywrócić. Ten sam powód, dla którego zdjęcie (`media`) nie ma `remove`.
   Wraca po dodaniu soft delete do tej tabeli.
 
-### Komentarz z odpowiedziami: „Komentarz usunięty.” także przy moderacji (G31)
-
-Decyzja „Usuń” (ze zgłoszenia i z urzędu) na komentarzu, na który ktoś już
-odpowiedział, nie kasuje wiersza. Zostawia napis „Komentarz usunięty.”
-(`body_removed_at`), a odpowiedzi innych osób zostają na miejscu. To ta sama
-reguła co w `DeleteComment`. Wcześniej `applyAction()` robił zwykły soft
-delete i wątek się rozsypywał. Tekst komentarza zostaje przy decyzji
-(`moderation_actions.tresc_sprzed_zdjecia`), więc „cofam” po odwołaniu
-przywraca go w całości (`RestoreContent`), a kopia jest wtedy zerowana.
-Jeśli po cofnięciu decyzji autor sam usunął komentarz, „Przywróć treść” przy
-starym zgłoszeniu **odmawia** — stara kopia nie jest zgodą na powrót tekstu,
-który autor skasował. Tak samo „cofam” po odwołaniu: odwołanie zostaje
-zamknięte, ale komentarz nie wraca, a autor odwołania dostaje pod
-uzasadnieniem zdanie, że komentarz nie wrócił i dlaczego (D-251 pkt 10).
-Samego komentarza z napisem autor już nie usunie (`CommentPolicy::delete()`).
-Komentarz bez odpowiedzi znika jak dotąd (soft delete).
-
 ### Przywracanie treści (issue #65)
 
 Ukrycie **musi** dać się cofnąć z poziomu serwisu. Podręcznik moderacji sam
@@ -189,7 +177,8 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   i wymaga powodu — cofnięcie kary też zostawia ślad.
 - Przywrócenie to jedna transakcja z blokadą wiersza treści: dwa kliknięcia
   naraz (dwie karty, „Przywróć” i „cofam”) dają jedną decyzję `unhide`
-  i jedno powiadomienie, a awaria w środku nie gubi kopii tekstu.
+  i jedno powiadomienie, a awaria w środku nie zostawia decyzji „przywrócone”
+  przy treści, która nie wróciła.
 - Treść wraca do statusu **sprzed ukrycia**, nie na sztywno do `published`.
   Ukryty szkic po przywróceniu jest dalej szkicem (`moderation_actions.previous_status`,
   patrz `docs/DATABASE.md`).

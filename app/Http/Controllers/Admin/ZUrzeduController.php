@@ -37,7 +37,7 @@ class ZUrzeduController extends Controller
         return view('pages.admin.z-urzedu', [
             'typ' => $typ,
             'cel' => $cel,
-            // Już zdjęta (także komentarz z napisem) — ekran mówi to od razu,
+            // Już zdjęta (także komentarz usunięty przez autora) — ekran mówi to od razu,
             // zamiast dawać formularz, który po wysłaniu i tak odmówi.
             'zdjeta' => ModeratedContent::jestZdjeta($cel),
             'opis' => CelZgloszenia::dla($cel),

@@ -16208,12 +16208,12 @@ drugą osobę”.
 5. **Otwarte zgłoszenie wygrywa:** z urzędu nie zdejmuje się treści, przy
    której czeka zgłoszenie. Decyzja zapada w kolejce, a zgłaszający dostaje
    odpowiedź.
-6. **Komentarz z odpowiedziami → „Komentarz usunięty.”** przy każdej decyzji
-   `remove` (także ze zgłoszenia — `applyAction()` robił tu zwykły soft
-   delete i wątek się rozsypywał). Tekst zostaje przy decyzji w nowej
-   kolumnie `moderation_actions.tresc_sprzed_zdjecia`, bo napis go
-   nadpisuje, a „cofam” ma go przywrócić. Kolumnę czyści „usuń wszystko”
-   przy usuwaniu konta (RODO).
+6. **Zdjęcie z urzędu działa tym samym mechanizmem co „Usuń” ze
+   zgłoszenia** — miękkie usunięcie (`$cel->delete()`), także komentarza
+   z odpowiedziami; „cofam” po odwołaniu przywraca je tym samym
+   `RestoreContent` co decyzję ze zgłoszenia. Moderacja nie zostawia napisu
+   „Komentarz usunięty.”. „Usuń” działa jak dotąd — decyzja właściciela
+   24.09.2026.
 7. **Zakres: tylko treść widoczna dla innych.** Wpis i przepis opublikowane,
    publiczne albo dla obserwujących; komentarz opublikowany pod taką treścią
    (`ZdejmijZUrzedu::widocznaDlaInnych()`). Szkic, treść prywatna i ukryta
@@ -16234,78 +16234,25 @@ drugą osobę”.
    spamu sprawdzają także treść niepubliczną, D-241). Tam decyzja zapada
    przy zgłoszeniu — `decide()` widoczności nie ogranicza.
 8. **Treść już zdjęta:** ekran od razu mówi „już zdjęta” zamiast formularza
-   (komentarz z napisem też), przycisk przy treści się nie rysuje, a drugie
+   (także komentarz, który autor sam usunął i po którym stoi napis
+   „Komentarz usunięty.” z `DeleteComment`), przycisk przy treści się nie
+   rysuje, a drugie
    wysłanie (druga karta) kończy się błędem bez drugiej decyzji — blokada
    wiersza w `ZdejmijZUrzedu`. Treść miękko usunięta → 404.
-9. **Rejestr decyzji jest dopisywany, nie edytowany.** Kopia tekstu idzie
-   w TYM SAMYM `INSERT`-cie co decyzja (`ZdejmijTresc::tekstDoZachowania()`
-   przed `ModerationAction::create()`), a nie osobnym `UPDATE`-em na świeżym
-   wierszu. Jedyne zmiany istniejących wierszy to **zerowanie**
-   `tresc_sprzed_zdjecia`: przy „usuń wszystko” i przy przywróceniu tekstu
-   (tekst wrócił do komentarza, kopia nie ma celu — RODO art. 5 ust. 1
-   lit. c). Samej decyzji nic nie przepisuje.
-10. **Przywrócenie bierze kopię tylko z NAJNOWSZEJ decyzji** `hide`/`remove`/
-    `unhide` o komentarzu, i tylko gdy to `remove` z kopią. Po `unhide`
-    (np. „cofam”) autor mógł sam usunąć komentarz — stara kopia nie jest
-    wtedy zgodą na powrót, a przywrócenie odmawia z komunikatem, że komentarz
-    usunęła osoba, która go napisała (`RestoreContent`).
-    - **„Cofam” po odwołaniu też może nie przywrócić komentarza.**
-      `ResolveAppeal::cofnij()` woła to samo `RestoreContent`: gdy po decyzji
-      komentarz przywrócono „Przywróć”, a potem autor (albo autor treści pod
-      nim) sam go usunął, tekstu nie ma i komentarz nie wraca. Odwołanie
-      i tak zostaje zamknięte jako „cofamy decyzję” — ale uzasadnienie
-      administratora mogło obiecać powrót. Dlatego pod uzasadnieniem
-      w powiadomieniu autor odwołania dostaje zdanie: „Komentarz nie wrócił
-      na stronę. Po naszej decyzji usunęła go osoba, która go napisała, albo
-      autor treści, pod którą stał — dlatego nie mamy już jego tekstu.”
-      (osobny wyjątek `TekstUsunietyPrzezAutora`; w dzienniku audytu
-      `appeal.resolved` ma `content_restored: false`). Administrator na
-      ekranie widzi zwykłe „Odpowiedź zapisana i wysłana.”.
-    - **Autor nie usunie komentarza zdjętego z napisem.**
-      `CommentPolicy::delete()` odmawia przy `body_removed_at` — inaczej
-      spreparowany `DELETE` kasował wiersz, a „Przywróć”/„cofam” wskrzeszały
-      go potem z kopią tekstu. Autor dostaje komunikat, że komentarz już jest
-      usunięty.
-    - **Przywrócenie to jedna transakcja z blokadą wiersza celu.** Decyzja
-      `unhide`, zerowanie kopii i zapis komentarza przechodzą razem albo
-      wcale; stan czytany pod blokadą, więc drugie równoległe przywrócenie
-      widzi „już widoczna” i nie zapisuje drugiej decyzji ani powiadomienia.
-    - **„Najnowsza” = `created_at`, potem `id`.** `created_at` ma pełne
-      sekundy (`timestamptz(0)`), więc remis w jednej sekundzie rozstrzyga
-      `id`: UUIDv7 z `HasUuids` (milisekundy + licznik rosnący w procesie).
-      Kolumny sekwencyjnej w `moderation_actions` nie ma. **Ryzyko, które
-      zostaje:** wiersz wstawiony z pominięciem modelu (surowy SQL, ręczna
-      naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
-      remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
-      wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
-11. **Napis bez odpowiedzi zostaje — znane ograniczenie** (przegląd G31).
-    `CommentPolicy::delete()` odmawia przy `body_removed_at` (pkt 10), więc
-    napis „Komentarz usunięty.”, pod którym zniknęły wszystkie odpowiedzi,
-    zostaje na stronie i nikt go nie usunie. Próba sprzątania napisu razem
-    z ostatnią odpowiedzią (miękkie usunięcie w `DeleteComment`) została
-    **wycofana** (decyzja sesji głównej) — zmieniała zachowanie istniejących
-    wątków poza zakresem G31. Domknięcie, jeśli będzie potrzebne, osobno:
-    np. przycisk moderatora w panelu. Test:
-    `ZdejmijZUrzeduPoPrzegladzieTest`, sekcja 2.
-12. **Stan „już zdjęta” przy decyzji ze zgłoszenia czytany pod blokadą
-    komentarza** (przegląd G31). `decide()` sprawdzał `jestZdjeta()` na
-    modelu sprzed blokady: gdy autor usunął komentarz w tym oknie, do decyzji
-    trafiał napis jako „kopia tekstu”, a „Przywróć” wstawiało go potem jak
-    zwykłą treść. Teraz cel jest czytany na nowo pod blokadą
-    (`ZdejmijTresc::zablokuj()`), a `tekstDoZachowania()`/`handle()` odmawiają
-    (wyjątek, wycofanie transakcji) na komentarzu z `body_removed_at`.
-13. **Pod napisem „Komentarz usunięty.” nie da się dodać nowej odpowiedzi**
-    — ani pod napisem po decyzji moderacji, ani po usunięciu przez autora,
-    ani pod odpowiedzią w wątku, którego korzeń jest napisem; napis istnieje
-    tylko po to, by istniejące odpowiedzi nie straciły kontekstu (decyzja
-    sesji głównej). `LockCommentContext` odmawia zwykłym komunikatem
-    „Tu nie da się teraz dodać komentarza…”, sprawdzając `body_removed_at`
-    wskazanego komentarza i korzenia pod tymi samymi zamkami
-    `FOR NO KEY UPDATE` — wyścig z decyzją moderatora rozstrzyga się jak
-    na main przy usunięciu (`tests/Dwa/KomentarzBiezacyStanTest`,
-    `root_remove`). Przycisk „Odpowiedz” pod napisem się nie rysuje.
-    Zmiana wobec main: odpowiedź pod napisem autora wcześniej przechodziła.
-    Test: `OdpowiedzPodNapisemTest`.
+9. **Przywrócenie treści to jedna transakcja z blokadą wiersza celu**
+   (przegląd G31, `RestoreContent`). Decyzja `unhide` i zapis treści
+   przechodzą razem albo wcale; stan czytany pod blokadą, więc drugie
+   równoległe przywrócenie (dwie karty, „Przywróć” i „cofam” naraz) widzi
+   „już widoczna” i nie zapisuje drugiej decyzji ani powiadomienia.
+10. **„Najnowsza decyzja” = `created_at`, potem `id`** (status sprzed
+    ukrycia w `RestoreContent`). `created_at` ma pełne sekundy
+    (`timestamptz(0)`), więc remis w jednej sekundzie rozstrzyga `id`:
+    UUIDv7 z `HasUuids` (milisekundy + licznik rosnący w procesie).
+    Kolumny sekwencyjnej w `moderation_actions` nie ma. **Ryzyko, które
+    zostaje:** wiersz wstawiony z pominięciem modelu (surowy SQL, ręczna
+    naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
+    remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
+    wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
 
 ### Czego ta decyzja nie robi
 
@@ -16319,20 +16266,16 @@ drugą osobę”.
 - Nie dodaje ukrywania ani ostrzeżeń z urzędu — tylko zdjęcie.
 
 📄 `app/Domain/Moderation/Actions/ZdejmijZUrzedu.php`,
-`app/Domain/Moderation/Actions/ZdejmijTresc.php`,
 `app/Http/Controllers/Admin/ZUrzeduController.php`,
 `app/Policies/UserPolicy.php` (`takeDownContentOf`),
-`database/migrations/2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions.php`,
+`app/Domain/Moderation/Actions/RestoreContent.php`,
 `tests/Feature/ZdejmijZUrzeduTest.php`,
-`tests/Feature/ZdejmijZUrzeduPoPrzegladzieTest.php`
+`tests/Feature/ZdejmijZUrzeduPoPrzegladzieTest.php`,
+`tests/Feature/PrzywrocenieWTransakcjiTest.php`
 
 ### Wycofanie
 
-Odwrócić commit. Migracja cofa się sama, dopóki nie ma zapisanych tekstów
-zdjętych komentarzy. Gdy są — odmawia (D-088, opis w `docs/DATABASE.md`).
-Odmowa ma sens także po pkt 9: kopia zostaje tylko przy komentarzu, który
-NADAL stoi z napisem po decyzji moderacji (przywrócone mają kopię wyzerowaną)
-— czyli dokładnie tam, gdzie odwołanie jeszcze może ją przywrócić.
+Odwrócić commit. Bez migracji — schemat się nie zmienia.
 Decyzje z urzędu już zapisane zostają w rejestrze jako zwykłe `remove`
 z pustym `report_id`.
 

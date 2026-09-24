@@ -127,9 +127,9 @@ XMP_TEST = "OryginalTraciGpsZXmpTest"
 # Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
 # Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
 # z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
-# (`ZdejmijTresc`, sąsiad nowego `ZdejmijZUrzedu`) — strażnik ma zapalić, czyli
+# (`NotifyModerationDecision`, sąsiad nowego `ZdejmijZUrzedu`) — strażnik ma zapalić, czyli
 # naprawdę widzi nowe pliki, a nie tylko potwierdza listę, którą już zna.
-ZDEJMIJ_TRESC = "app/Domain/Moderation/Actions/ZdejmijTresc.php"
+POWIADOM_O_DECYZJI = "app/Domain/Moderation/Actions/NotifyModerationDecision.php"
 DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -326,8 +326,8 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
-    ("Decyzja moderacyjna tworzona poza listą", ZDEJMIJ_TRESC, DECYZJA_Z_CZLOWIEKIEM_TEST,
-     lambda s: replace_once(s, "final class ZdejmijTresc\n{\n", "final class ZdejmijTresc\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
+    ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
+     lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
 ]

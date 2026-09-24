@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\NotifyReporterDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
-use App\Domain\Moderation\Actions\ZdejmijTresc;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
@@ -45,7 +44,6 @@ class ModerationController extends Controller
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
         private readonly RestoreContent $przywroc,
-        private readonly ZdejmijTresc $zdejmij,
     ) {}
 
     public function reports(Request $request): View
@@ -365,13 +363,8 @@ class ModerationController extends Controller
             //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
             //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
             $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
-            // Komentarz czytany jeszcze raz POD blokadą: autor mógł go usunąć
-            // po odczycie wyżej, a napis nie może trafić do decyzji jako
-            // „kopia tekstu” (przegląd G31, `ZdejmijTresc::zablokuj()`).
-            $cel = $cel === null ? null : $this->zdejmij->zablokuj($cel);
-            // `jestZdjeta()`, nie samo `trashed()`: komentarz z odpowiedziami
-            // zdjęty wcześniej ma już tylko napis „Komentarz usunięty.” (G31).
-            $celNiedostepny = $cel === null || ModeratedContent::jestZdjeta($cel);
+            $celNiedostepny = $cel === null
+                || (method_exists($cel, 'trashed') && $cel->trashed());
 
             if ($celNiedostepny && $data['action'] !== ModerationAction::ACTION_NONE) {
                 throw ValidationException::withMessages([
@@ -408,12 +401,6 @@ class ModerationController extends Controller
                 ]);
             }
 
-            // Kopia tekstu komentarza, który zostanie zastąpiony napisem —
-            // w tym samym INSERT-cie co decyzja (`ZdejmijTresc`, D-251).
-            $kopia = $wykonanaAkcja === ModerationAction::ACTION_REMOVE && $aktywnyCel !== null
-                ? $this->zdejmij->tekstDoZachowania($aktywnyCel)
-                : null;
-
             $akcja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),
                 'report_id' => $report->getKey(),
@@ -425,10 +412,9 @@ class ModerationController extends Controller
                 'reason_code' => $data['reason_code'],
                 'note' => $data['note'] ?? null,
                 'user_message' => $data['user_message'] ?? null,
-                'tresc_sprzed_zdjecia' => $kopia,
             ]);
 
-            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $akcja, $termin);
+            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
             // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora
@@ -602,7 +588,8 @@ class ModerationController extends Controller
                 continue;
             }
 
-            $schowana = ModeratedContent::jestUkryta($cel) || ModeratedContent::jestZdjeta($cel);
+            $schowana = ModeratedContent::jestUkryta($cel)
+                || (method_exists($cel, 'trashed') && $cel->trashed());
 
             if ($schowana) {
                 $wynik[(string) $decyzja->report_id] = true;
@@ -652,7 +639,7 @@ class ModerationController extends Controller
      *                        zgłoszonym wpisie tylko ukrywało wpis, a konto
      *                        zostawało aktywne.
      */
-    private function applyAction(?object $target, ?User $osoba, string $action, ModerationAction $decyzja, ?CarbonInterface $do = null): void
+    private function applyAction(?object $target, ?User $osoba, string $action, ?CarbonInterface $do = null): void
     {
         if ($action === ModerationAction::ACTION_NONE || $target === null) {
             return;
@@ -664,11 +651,7 @@ class ModerationController extends Controller
             // `remove` nie jest dozwolone dla celu `user` (macierz
             // ModerationAction::DOZWOLONE), więc tu nigdy nie trafi konto.
             // Wcześniej trafiało i kasowało je bezpowrotnie.
-            //
-            // `ZdejmijTresc`, nie gołe `$target->delete()` (G31): komentarz
-            // z odpowiedziami dostaje napis „Komentarz usunięty.” jak
-            // w `DeleteComment`, zamiast zabierać ze sobą odpowiedzi innych.
-            ModerationAction::ACTION_REMOVE => $this->zdejmij->handle($target, $decyzja),
+            ModerationAction::ACTION_REMOVE => $target->delete(),
 
             ModerationAction::ACTION_SUSPEND => $osoba?->suspend($do),
             ModerationAction::ACTION_BAN => $osoba?->ban(),

@@ -68,18 +68,6 @@ class CommentController extends Controller
 
     public function destroy(Request $request, Comment $comment): RedirectResponse
     {
-        // Przed `authorize()`, i tylko dla osób, które zwykle mogą ten
-        // komentarz usunąć: goła strona 403 nie powiedziałaby im, co się
-        // stało. Odmowa zostaje w `CommentPolicy::delete()` — także pod
-        // blokadą w `DeleteComment` (wyścig dwóch kart).
-        $mogloby = in_array($request->user()->getKey(), [$comment->author_id, $comment->notifiableUserId()], true);
-
-        if ($comment->body_removed_at !== null && $mogloby) {
-            return back()->withErrors([
-                'reason' => 'Ten komentarz jest już usunięty — w wątku stoi napis „Komentarz usunięty.”. Nie trzeba robić nic więcej.',
-            ]);
-        }
-
         $this->authorize('delete', $comment);
 
         $actor = $request->user();

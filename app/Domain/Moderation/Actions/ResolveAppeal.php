@@ -6,7 +6,6 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
-use App\Exceptions\TekstUsunietyPrzezAutora;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -127,10 +126,8 @@ final class ResolveAppeal
             $this->sprawdzKarencje($moderator, $decyzja);
         }
 
-        $czegoNieCofnieto = null;
-
         if ($wynik === Appeal::STATUS_OVERTURNED) {
-            $czegoNieCofnieto = $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
+            $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
         }
 
         $odwolanie->update([
@@ -145,7 +142,7 @@ final class ResolveAppeal
         if ($odwolanie->isFromReporter()) {
             $this->powiadomZglaszajacego->handle($odwolanie);
         } else {
-            $this->powiadom->handle($odwolanie, $czegoNieCofnieto);
+            $this->powiadom->handle($odwolanie);
         }
 
         AuditLogEntry::record(
@@ -157,9 +154,6 @@ final class ResolveAppeal
                 'appellant' => $odwolanie->appellant,
                 'original_decision' => $decyzja->action,
                 'original_moderator_id' => (string) $decyzja->moderator_id,
-                // `false` = decyzję cofnięto, ale komentarz nie wrócił, bo
-                // jego tekst skasował człowiek (D-251 pkt 10).
-                'content_restored' => $czegoNieCofnieto === null,
             ],
             ip: $ip,
         );
@@ -193,30 +187,25 @@ final class ResolveAppeal
      * przywrócona ręcznie, konto już odwieszone po upływie terminu). Odwołanie
      * ma zostać zamknięte i odpowiedź ma dojść — brak roboty technicznej nie
      * jest powodem, żeby człowiek nie dostał odpowiedzi.
-     *
-     * @return string|null zdanie dla autora odwołania, gdy cofnięcie NIE
-     *                     przywróciło treści, choć odpowiedź „cofamy decyzję”
-     *                     brzmi jak obietnica powrotu; `null`, gdy nie ma czego
-     *                     prostować
      */
-    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): ?string
+    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): void
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
             $decyzja->subject?->reinstate();
 
-            return null;
+            return;
         }
 
         if (! in_array($decyzja->action, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true)) {
             // `warn` nie zrobiło nic z treścią ani z kontem — cofnięcie jest
             // w całości treścią odpowiedzi.
-            return null;
+            return;
         }
 
         $tresc = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($tresc === null || ! ModeratedContent::daSieUkryc($tresc)) {
-            return null;
+            return;
         }
 
         try {
@@ -230,20 +219,11 @@ final class ResolveAppeal
                 // Odpowiedź na odwołanie idzie osobno i mówi to samo lepiej.
                 zPowiadomieniem: false,
             );
-        } catch (TekstUsunietyPrzezAutora) {
-            // Komentarz zdjęty z napisem, potem przywrócony, a potem autor
-            // sam go usunął (D-251 pkt 10). Moderacja nie ma już jego tekstu
-            // — a uzasadnienie administratora mogło obiecać, że komentarz
-            // wróci. Autor odwołania dostaje zdanie, że nie wrócił i dlaczego.
-            return 'Komentarz nie wrócił na stronę. Po naszej decyzji usunęła go osoba, która go napisała, '
-                .'albo autor treści, pod którą stał — dlatego nie mamy już jego tekstu.';
         } catch (BladDlaCzlowieka) {
             // „Ta treść jest już widoczna" — nie ma czego cofać. Patrz wyżej.
             // Tylko to: `RuntimeException` połykałby tu także `QueryException`
             // (dziedziczy po nim przez `PDOException`), czyli awaria bazy
             // w środku cofania decyzji zniknęłaby bez śladu.
         }
-
-        return null;
     }
 }

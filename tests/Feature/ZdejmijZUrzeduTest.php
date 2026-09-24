@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Moderation\UzasadnienieDecyzji;
-use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Appeal;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -17,10 +16,8 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\DataProvider;
-use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -31,8 +28,9 @@ use Tests\TestCase;
  *    test bez 2FA widzi przycisk (`test_przycisk_przy_tresci…`);
  *  - `>` zamienione na `>=` w porównaniu rang — oblewa test treści
  *    administratora i drugiego moderatora;
- *  - `ZdejmijTresc` z powrotem na gołe `delete()` — oblewają oba testy
- *    komentarza z odpowiedziami (także droga ze zgłoszenia).
+ *  - napis „Komentarz usunięty.” zamiast `$cel->delete()` w `ZdejmijZUrzedu`
+ *    — oblewa test porównujący z „Usuń” ze zgłoszenia (D-251, decyzja
+ *    właściciela 24.09.2026).
  */
 class ZdejmijZUrzeduTest extends TestCase
 {
@@ -279,61 +277,28 @@ class ZdejmijZUrzeduTest extends TestCase
         $this->assertSame(Post::STATUS_PUBLISHED, $post->fresh()->status);
     }
 
-    public function test_komentarz_z_odpowiedziami_zostawia_napis_a_odwolanie_przywraca_tekst(): void
+    public function test_komentarz_z_odpowiedziami_znika_tak_samo_jak_po_usun_ze_zgloszenia(): void
     {
-        $autor = $this->user('autor');
-        $komentarz = $this->tresc('comment', $autor);
-        $tekst = $komentarz->body;
-        $odpowiedz = Comment::factory()->create([
-            'post_id' => $komentarz->post_id,
-            'parent_id' => $komentarz->getKey(),
-        ]);
+        // Decyzja właściciela 24.09.2026 (D-251): „Zdejmij z urzędu” na
+        // komentarzu działa tym samym mechanizmem co „Usuń” ze zgłoszenia
+        // — bez napisu „Komentarz usunięty.” zostawianego przez moderację.
+        // Obie drogi obok siebie: stan po nich ma być identyczny.
+        $moderator = $this->moderator();
 
-        $this->actingAs($this->moderator())
-            ->post($this->adres('comment', $komentarz), $this->dane())
-            ->assertSessionHasNoErrors();
+        $zUrzedu = $this->tresc('comment', $this->user('autor'));
+        $odpowiedzZUrzedu = Comment::factory()->create(['post_id' => $zUrzedu->post_id, 'parent_id' => $zUrzedu->getKey()]);
 
-        $swiezy = $komentarz->fresh();
-        $this->assertNotNull($swiezy, 'Komentarz z odpowiedziami zniknął — wątek się rozsypał.');
-        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $swiezy->body);
-        $this->assertNotNull($swiezy->body_removed_at);
-        $this->assertNotSoftDeleted($odpowiedz);
-
-        $decyzja = ModerationAction::sole();
-        $this->assertSame($tekst, $decyzja->tresc_sprzed_zdjecia);
-
-        $this->actingAs($autor)->post(route('appeals.store', $decyzja), ['body' => 'To nie był spam, tylko pytanie o przepis.']);
-        $this->actingAs($this->admin())
-            ->post(route('admin.appeals.resolve', Appeal::sole()), [
-                'outcome' => Appeal::STATUS_OVERTURNED,
-                'decision_note' => 'Masz rację, komentarz wraca.',
-            ])
-            ->assertSessionHasNoErrors();
-
-        $przywrocony = $komentarz->fresh();
-        $this->assertSame($tekst, $przywrocony->body);
-        $this->assertNull($przywrocony->body_removed_at);
-        $this->assertNull($decyzja->fresh()->tresc_sprzed_zdjecia, 'Kopia tekstu przetrwała przywrócenie (RODO: minimalizacja).');
-    }
-
-    public function test_komentarz_usuniety_przez_autora_po_cofnieciu_decyzji_nie_wraca_ze_starej_kopii(): void
-    {
-        // Regresja z przeglądu G31: R1 → „Usuń” (napis, kopia) → odwołanie
-        // „cofam” (tekst wraca) → autor SAM usuwa komentarz (napis bez kopii)
-        // → „Przywróć treść” przy R1 wyciągało starą kopię i przywracało
-        // tekst, który autor świadomie skasował.
-        $autor = $this->user('autor');
-        $komentarz = $this->tresc('comment', $autor);
-        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
+        $zeZgloszenia = $this->tresc('comment', $this->user('autorka'));
+        $odpowiedzZeZgloszenia = Comment::factory()->create(['post_id' => $zeZgloszenia->post_id, 'parent_id' => $zeZgloszenia->getKey()]);
         $report = Report::create([
             'reporter_id' => $this->user('zglasza')->getKey(),
             'target_type' => 'comment',
-            'target_id' => $komentarz->getKey(),
+            'target_id' => $zeZgloszenia->getKey(),
             'reason' => 'spam',
             'status' => Report::STATUS_OPEN,
         ]);
-        $moderator = $this->moderator();
 
+        $this->actingAs($moderator)->post($this->adres('comment', $zUrzedu), $this->dane())->assertSessionHasNoErrors();
         $this->actingAs($moderator)
             ->post(route('admin.reports.decide', $report), [
                 'action' => ModerationAction::ACTION_REMOVE,
@@ -341,34 +306,39 @@ class ZdejmijZUrzeduTest extends TestCase
                 'user_message' => 'Komentarz był reklamą.',
             ])
             ->assertSessionHasNoErrors();
-        $decyzja = ModerationAction::sole();
 
-        $this->travel(1)->minutes();
-        $this->actingAs($autor)->post(route('appeals.store', $decyzja), ['body' => 'To nie była reklama, tylko pytanie.']);
+        foreach ([[$zUrzedu, $odpowiedzZUrzedu], [$zeZgloszenia, $odpowiedzZeZgloszenia]] as [$komentarz, $odpowiedz]) {
+            $this->assertSoftDeleted($komentarz);
+            $swiezy = Comment::withTrashed()->findOrFail($komentarz->getKey());
+            $this->assertSame($komentarz->body, $swiezy->body, 'Moderacja zostawiła napis zamiast usunąć komentarz.');
+            $this->assertNull($swiezy->body_removed_at);
+            $this->assertNotSoftDeleted($odpowiedz);
+        }
+    }
+
+    public function test_odwolanie_przywraca_komentarz_zdjety_z_urzedu(): void
+    {
+        $autor = $this->user('autor');
+        $komentarz = $this->tresc('comment', $autor);
+        $tekst = $komentarz->body;
+        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
+
+        $this->actingAs($this->moderator())
+            ->post($this->adres('comment', $komentarz), $this->dane())
+            ->assertSessionHasNoErrors();
+        $this->assertSoftDeleted($komentarz);
+
+        $this->actingAs($autor)->post(route('appeals.store', ModerationAction::sole()), ['body' => 'To nie był spam, tylko pytanie o przepis.']);
         $this->actingAs($this->admin())
             ->post(route('admin.appeals.resolve', Appeal::sole()), [
                 'outcome' => Appeal::STATUS_OVERTURNED,
                 'decision_note' => 'Masz rację, komentarz wraca.',
             ])
             ->assertSessionHasNoErrors();
-        $this->assertNull($komentarz->fresh()->body_removed_at);
 
-        $this->travel(1)->minutes();
-        app(DeleteComment::class)->handle($autor, $komentarz->fresh());
-        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
-
-        $decyzjiPrzed = ModerationAction::count();
-
-        $this->travel(1)->minutes();
-        $this->actingAs($moderator)
-            ->from(route('admin.reports'))
-            ->post(route('admin.reports.restore', $report), ['reason_code' => 'odwolanie-uwzglednione'])
-            ->assertSessionHasErrors(['reason_code' => 'Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
-                .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.']);
-
-        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
-        $this->assertNotNull($komentarz->fresh()->body_removed_at);
-        $this->assertSame($decyzjiPrzed, ModerationAction::count());
+        $this->assertNotSoftDeleted($komentarz);
+        $this->assertSame($tekst, $komentarz->fresh()->body);
+        $this->assertSame(1, ModerationAction::where('action', ModerationAction::ACTION_UNHIDE)->count());
     }
 
     /** @return array<string, array{0: string}> */
@@ -440,14 +410,18 @@ class ZdejmijZUrzeduTest extends TestCase
         $this->assertSame(1, Notification::query()->where('type', Notification::TYPE_MODERATION)->count());
     }
 
-    public function test_komentarz_juz_zastapiony_napisem_ekran_odmawia_od_razu_a_drugie_wyslanie_nic_nie_zapisuje(): void
+    public function test_komentarz_usuniety_przez_autora_ekran_odmawia_od_razu_a_wyslanie_nic_nie_zapisuje(): void
     {
+        // Komentarz z odpowiedzią, który autor sam usunął: w wątku stoi po
+        // nim napis „Komentarz usunięty.” (`DeleteComment`, jak na main).
+        // Nie ma już treści do zdjęcia — decyzja byłaby decyzją o napisie.
         $moderator = $this->moderator();
-        $komentarz = $this->tresc('comment', $this->user('autor'));
+        $autor = $this->user('autor');
+        $komentarz = $this->tresc('comment', $autor);
         Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
+        app(DeleteComment::class)->handle($autor, $komentarz);
+        $this->assertNotNull($komentarz->fresh()->body_removed_at);
         $formularz = route('admin.z-urzedu.create', ['typ' => 'comment', 'id' => $komentarz->getKey()]);
-
-        $this->actingAs($moderator)->post($this->adres('comment', $komentarz), $this->dane())->assertSessionHasNoErrors();
 
         $this->actingAs($moderator)
             ->get($formularz)
@@ -462,44 +436,14 @@ class ZdejmijZUrzeduTest extends TestCase
             ->assertRedirect($formularz)
             ->assertSessionHasErrors(['reason_code' => 'Ta treść jest już zdjęta. Odśwież stronę, żeby zobaczyć jej stan.']);
 
-        $this->assertSame(1, ModerationAction::count());
+        $this->assertSame(0, ModerationAction::count());
+        $this->assertNotSoftDeleted($komentarz);
 
         // Przycisk przy treści też znika — nie prowadzi na ekran odmowy.
         $this->actingAs($moderator)
             ->get(route('posts.show', $komentarz->post_id))
             ->assertOk()
             ->assertDontSee($formularz, false);
-    }
-
-    public function test_decyzja_usun_ze_zgloszenia_tez_nie_rozsypuje_watku(): void
-    {
-        // Regresja: `ModerationController::applyAction()` robił na
-        // komentarzu z odpowiedziami zwykły soft delete.
-        $komentarz = $this->tresc('comment', $this->user('autor'));
-        $odpowiedz = Comment::factory()->create([
-            'post_id' => $komentarz->post_id,
-            'parent_id' => $komentarz->getKey(),
-        ]);
-        $report = Report::create([
-            'reporter_id' => $this->user('zglasza')->getKey(),
-            'target_type' => 'comment',
-            'target_id' => $komentarz->getKey(),
-            'reason' => 'spam',
-            'status' => Report::STATUS_OPEN,
-        ]);
-
-        $this->actingAs($this->moderator())
-            ->post(route('admin.reports.decide', $report), [
-                'action' => ModerationAction::ACTION_REMOVE,
-                'reason_code' => 'spam-reklama',
-                'user_message' => 'Komentarz był reklamą.',
-            ])
-            ->assertSessionHasNoErrors();
-
-        $swiezy = $komentarz->fresh();
-        $this->assertNotNull($swiezy);
-        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $swiezy->body);
-        $this->assertNotSoftDeleted($odpowiedz);
     }
 
     public function test_przycisk_przy_tresci_widza_tylko_uprawnieni(): void
@@ -547,49 +491,6 @@ class ZdejmijZUrzeduTest extends TestCase
             ->get(route('posts.show', $komentarz->post_id))
             ->assertOk()
             ->assertSee(route('admin.z-urzedu.create', ['typ' => 'comment', 'id' => $komentarz->getKey()]), false);
-    }
-
-    public function test_usuniecie_konta_z_zakresem_wszystko_czysci_kopie_tekstu(): void
-    {
-        $autor = $this->user('odchodzi');
-        $komentarz = $this->tresc('comment', $autor);
-        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
-
-        $this->actingAs($this->moderator())->post($this->adres('comment', $komentarz), $this->dane());
-        $this->assertNotNull(ModerationAction::sole()->tresc_sprzed_zdjecia);
-
-        $autor->forceFill([
-            'status' => User::STATUS_PENDING_DELETE,
-            'delete_requested_at' => now()->subDays(31),
-            'delete_scope' => User::DELETE_SCOPE_EVERYTHING,
-        ])->save();
-
-        $this->assertTrue(app(EraseAccountData::class)->handle($autor->fresh()));
-
-        $this->assertNull(ModerationAction::sole()->tresc_sprzed_zdjecia, 'Kopia tekstu przetrwała „usuń wszystko”.');
-    }
-
-    public function test_cofniecie_migracji_odmawia_przy_zapisanym_tekscie_a_bez_niego_przechodzi(): void
-    {
-        $sciezka = 'database/migrations/2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions.php';
-
-        // Kontrola dodatnia: bez zapisanych tekstów rollback przechodzi.
-        Artisan::call('migrate:rollback', ['--path' => $sciezka, '--realpath' => false]);
-        $this->assertFalse(\Schema::hasColumn('moderation_actions', 'tresc_sprzed_zdjecia'));
-        Artisan::call('migrate', ['--path' => $sciezka, '--realpath' => false]);
-
-        $komentarz = $this->tresc('comment', $this->user('autor'));
-        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
-        $this->actingAs($this->moderator())->post($this->adres('comment', $komentarz), $this->dane());
-
-        try {
-            Artisan::call('migrate:rollback', ['--path' => $sciezka, '--realpath' => false]);
-            $this->fail('Rollback przeszedł mimo zapisanego tekstu zdjętego komentarza.');
-        } catch (RuntimeException $e) {
-            $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_TRESC_ZDJETYCH_KOMENTARZY', $e->getMessage());
-        }
-
-        $this->assertNotNull(ModerationAction::sole()->tresc_sprzed_zdjecia);
     }
 
     /** @return array<string, string> */

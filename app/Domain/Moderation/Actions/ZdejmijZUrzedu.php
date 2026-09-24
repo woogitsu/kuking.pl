@@ -88,10 +88,7 @@ final class ZdejmijZUrzedu
         return self::widocznaDlaInnych($tresc) && ! ModeratedContent::jestZdjeta($tresc);
     }
 
-    public function __construct(
-        private readonly ZdejmijTresc $zdejmij,
-        private readonly NotifyModerationDecision $powiadom,
-    ) {}
+    public function __construct(private readonly NotifyModerationDecision $powiadom) {}
 
     /**
      * @throws BladDlaCzlowieka gdy treść jest już zdjęta albo ma otwarte zgłoszenie
@@ -142,7 +139,6 @@ final class ZdejmijZUrzedu
             }
 
             $osoba = ModeratedContent::osoba($cel);
-            $kopia = $this->zdejmij->tekstDoZachowania($cel);
 
             $decyzja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),
@@ -156,10 +152,13 @@ final class ZdejmijZUrzedu
                 'reason_code' => $reasonCode,
                 'note' => $note,
                 'user_message' => $userMessage,
-                'tresc_sprzed_zdjecia' => $kopia,
             ]);
 
-            $this->zdejmij->handle($cel, $decyzja);
+            // Ten sam mechanizm co „Usuń” ze zgłoszenia
+            // (`ModerationController::applyAction()`): miękkie usunięcie.
+            // „Cofam” po odwołaniu przywraca je przez `RestoreContent`
+            // — też tak samo jak decyzję ze zgłoszenia.
+            $cel->delete();
 
             if ($osoba !== null) {
                 $this->powiadom->handle(
@@ -178,7 +177,6 @@ final class ZdejmijZUrzedu
                     'target_type' => $typ,
                     'target_id' => (string) $cel->getKey(),
                     'reason_code' => $reasonCode,
-                    'placeholder' => $decyzja->tresc_sprzed_zdjecia !== null,
                 ],
                 ip: $ip,
             );

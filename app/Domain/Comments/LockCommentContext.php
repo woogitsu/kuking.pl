@@ -90,14 +90,6 @@ final class LockCommentContext
                         if ($comment === null || ! $this->belongsTo($comment, $freshSubject)) {
                             $this->deny();
                         }
-                        // D-251: napis „Komentarz usunięty.” (autor albo decyzja
-                        // moderacji) trzyma kontekst istniejących odpowiedzi,
-                        // ale nie przyjmuje nowych — wskazany komentarz ani
-                        // korzeń. Czytane pod zamkiem wyżej, więc wyścig
-                        // z decyzją rozstrzyga kolejność zamków.
-                        if ($comment->body_removed_at !== null) {
-                            $this->deny();
-                        }
                         $comment->setRelation('author', $users[$comment->author_id]);
                         if ($id === $parent?->getKey()) {
                             $freshParent = $comment;

@@ -23,13 +23,7 @@ use App\Models\Notification;
  */
 final class NotifyAppealOutcome
 {
-    /**
-     * @param  string|null  $czegoNieCofnieto  zdanie od `ResolveAppeal`, gdy
-     *                                         cofnięcie decyzji nie przywróciło treści (D-251 pkt 10).
-     *                                         Doklejone POD uzasadnieniem administratora — to ono mogło
-     *                                         obiecać powrót, którego nie było.
-     */
-    public function handle(Appeal $odwolanie, ?string $czegoNieCofnieto = null): Notification
+    public function handle(Appeal $odwolanie): Notification
     {
         $utrzymana = $odwolanie->status === Appeal::STATUS_UPHELD;
 
@@ -45,9 +39,7 @@ final class NotifyAppealOutcome
                 // Uzasadnienie napisane przez moderatora. DSA art. 20 wymaga
                 // odpowiedzi z uzasadnieniem, nie samego wyniku — dlatego
                 // pole jest w formularzu obowiązkowe i dlatego jest tutaj.
-                'message' => $czegoNieCofnieto === null
-                    ? $odwolanie->decision_note
-                    : $odwolanie->decision_note."\n\n".$czegoNieCofnieto,
+                'message' => $odwolanie->decision_note,
                 'decision' => 'appeal.'.$odwolanie->status,
                 // Odwołanie od odwołania nie istnieje: wynik jest ostateczny
                 // w ramach Kuking (MODERATION_PLAYBOOK §3 punkt 5).

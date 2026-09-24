@@ -34,8 +34,8 @@
         </p>
         @if($typ === 'comment')
             <p class="meta">
-                Jeśli ktoś już odpowiedział na ten komentarz, w jego miejscu zostanie napis
-                „Komentarz usunięty.”, a odpowiedzi innych osób zostaną na swoim miejscu.
+                Komentarz zniknie tak samo jak po decyzji „Usuń” ze zgłoszenia.
+                Jeśli autor wygra odwołanie, komentarz wróci na swoje miejsce.
             </p>
         @endif
 
