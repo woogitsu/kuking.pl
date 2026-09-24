@@ -109,8 +109,8 @@ class StronaWpisuMaWlasnyTytulIPriorytetZdjeciaTest extends TestCase
 
         $dokument = $this->strona($wpis);
 
-        $this->assertSame('Zdjęcie od Zenek, 12 września 2026 — Kuking', $this->tytul($dokument));
-        $this->assertSame('Zdjęcie od Zenek, 12 września 2026', trim($dokument->querySelector('h1')->textContent));
+        $this->assertSame('Zenek — zdjęcie z 12 września 2026 — Kuking', $this->tytul($dokument));
+        $this->assertSame('Zenek — zdjęcie z 12 września 2026', trim($dokument->querySelector('h1')->textContent));
         $this->assertNotSame('Zdjęcie z Kuking', $this->meta($dokument, 'description'));
         $this->assertStringContainsString('Zenek', $this->meta($dokument, 'description'));
     }

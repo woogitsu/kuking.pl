@@ -22,10 +22,10 @@ use App\Models\Post;
  *
  * WPIS BEZ TEKSTU NIE DOSTAJE WYMYŚLONEJ NAZWY
  * Z samego zdjęcia nie wiemy, co jest na talerzu. Zostaje uczciwe zdanie:
- * kto i kiedy („Zdjęcie od Basi, 12 września 2026"). Pełna data z rokiem,
+ * kto i kiedy („Basia — zdjęcie z 12 września 2026"). Pełna data z rokiem,
  * nie „12 września" jak na karcie: tytuł ma być STAŁY — ten sam dziś
- * i za rok — a nie zmieniać się pierwszego stycznia. Forma „od {imię}"
- * i „Zdjęcie" nie zakłada płci autora.
+ * i za rok — a nie zmieniać się pierwszego stycznia. Imię w mianowniku
+ * przed myślnikiem nie wymaga odmiany i nie zakłada płci autora.
  *
  * ESCAPOWANIE ROBI BLADE
  * Zwracamy zwykły tekst; `<title>` i `<meta>` w layoucie wypisują go
@@ -80,11 +80,15 @@ final class TytulStronyWpisu
             return 'Z przepisu „'.$post->recipe->title.'” — '.$kto.$kiedy;
         }
 
+        // Imię zostaje w mianowniku, bo nie odmieniamy imion („od Zenek” byłoby
+        // niegramatyczne), a rzeczownik bez czasownika nie zakłada płci.
+        $zKiedy = $moment !== null ? ' z '.Czas::data($moment) : '';
+
         if ($post->media->isNotEmpty()) {
-            return 'Zdjęcie od '.$kto.$kiedy;
+            return $kto.' — zdjęcie'.$zKiedy;
         }
 
-        return 'Wpis od '.$kto.$kiedy;
+        return $kto.' — wpis'.$zKiedy;
     }
 
     private static function pierwszyWiersz(?string $tresc): string
