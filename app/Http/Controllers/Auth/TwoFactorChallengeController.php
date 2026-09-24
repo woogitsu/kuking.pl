@@ -129,6 +129,9 @@ class TwoFactorChallengeController extends Controller
         // zapamiętywane normalnie (LoginController::store()).
         Auth::login($user, remember: false);
 
+        // Dowód kodu w TEJ sesji — tylko z nim `moderator.2fa` wpuszcza do panelu (#930).
+        $request->session()->put(TwoFactorAuthenticator::dowodSesji($user));
+
         return redirect()->intended(route('home'));
     }
 
