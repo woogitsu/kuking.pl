@@ -582,7 +582,7 @@ Bez tabeli stacku.
 
         $trafienia = [];
         preg_match_all(
-            '/^  ([a-z0-9_-]+):\R(.*?)(?=^  [a-z0-9_-]+:|\z)/ms',
+            '/^  ([a-z0-9_-]+):(?:\r\n|\n|\r)(.*?)(?=^  [a-z0-9_-]+:|\z)/ms',
             $bezKomentarzy,
             $trafienia,
             PREG_SET_ORDER,

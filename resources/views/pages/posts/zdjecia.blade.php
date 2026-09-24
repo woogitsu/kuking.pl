@@ -45,7 +45,12 @@
             @else
                 Ten wpis ma {{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć') }}.
                 Ustaw kolejność i wybierz, jak mają się wyświetlić.
-                Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.
+                {{-- Prywatnego wpisu nie ogląda nikt poza autorem (#882). --}}
+                @if($post->visibility === \App\Models\Post::VISIBILITY_PRIVATE)
+                    Ten wpis widzisz tylko Ty.
+                @else
+                    Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.
+                @endif
             @endif
         </p>
 

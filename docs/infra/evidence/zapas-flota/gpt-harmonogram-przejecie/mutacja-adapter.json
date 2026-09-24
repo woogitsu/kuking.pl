@@ -1,6 +1,6 @@
 {
-  "nazwa": "app/Support/ScheduledArtisanCommand.php",
-  "plik": "app/Support/ScheduledArtisanCommand.php",
+  "nazwa": "app/Support/Harmonogram.php",
+  "plik": "app/Support/Harmonogram.php",
   "werdykt": "POTWIERDZONA",
   "md5_przed": "4ad7ebdb93d6f98a0c6253b3251952bf",
   "md5_po_mutacji": "11c885f625b6ba52db609a2dd1e33ee5",
@@ -12,5 +12,6 @@
   "przyczyna_potwierdzona": true,
   "kontrola_dodatnia_po_przywroceniu": "PASS",
   "przywrocenie": "nie wykonane",
-  "data": "2026-09-20T16:33:58Z"
+  "data": "2026-09-20T16:33:58Z",
+  "uwaga": "Pomiar wykonano na wcześniejszej, osobnej klasie adaptera (inna nazwa pliku); po przeglądzie PR #1281 scalono ją z App\\Support\\Harmonogram. Sumy MD5 dotyczą tamtej wersji pliku."
 }

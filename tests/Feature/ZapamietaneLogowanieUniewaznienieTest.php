@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use PragmaRX\Google2FA\Google2FA;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -22,6 +23,15 @@ use Tests\TestCase;
 class ZapamietaneLogowanieUniewaznienieTest extends TestCase
 {
     use DatabaseMigrations;
+
+    protected function tearDown(): void
+    {
+        // DatabaseMigrations cofa migracje, a cofnięcie migracji 2FA odmawia,
+        // dopóki jakieś konto ma ją potwierdzoną (D-238). Testy #930 ją włączają.
+        User::query()->whereNotNull('two_factor_confirmed_at')->get()->each->disableTwoFactor();
+
+        parent::tearDown();
+    }
 
     private function request(array &$jar, string $method, string $path, array $data = []): array
     {
@@ -174,5 +184,65 @@ class ZapamietaneLogowanieUniewaznienieTest extends TestCase
         $this->assertDatabaseMissing('login_link_tokens', ['id' => $link->getKey()]);
         $this->assertSame(User::STATUS_ACTIVE, $user->fresh()->status);
         $this->assertTrue(Hash::check('haslo-testowe-123', $user->fresh()->password));
+    }
+
+    /**
+     * #930: włączenie 2FA gasi poświadczenia sprzed niego. Zwraca kod
+     * odpowiedzi POST-a potwierdzenia wysłanego z klienta `$jar`.
+     */
+    private function enableTwoFactor(array &$jar, User $user, ?string $code = null): int
+    {
+        $token = $this->token($this->request($jar, 'GET', '/ustawienia/2fa/wlacz'));
+        $code ??= (new Google2FA)->getCurrentOtp($user->fresh()->two_factor_secret);
+
+        return $this->request($jar, 'POST', '/ustawienia/2fa/wlacz', ['_token' => $token, 'code' => $code, 'password' => 'haslo-testowe-123'])['status'];
+    }
+
+    public function test_wlaczenie_2fa_odcina_stare_sesje_i_recaller_a_biezaca_zostaje(): void
+    {
+        $user = $this->user();
+        $a = $this->login($user);
+        $b = $this->login($user);
+        $oldB = $this->remembered($b);
+        $probe = $oldB;
+        $this->assertSame(200, $this->request($probe, 'GET', '/ustawienia/bezpieczenstwo')['status']);
+
+        $this->assertSame(302, $this->enableTwoFactor($a, $user));
+        $this->assertTrue($user->fresh()->hasTwoFactorConfirmed());
+
+        $this->denied($oldB);
+        $this->denied($b); // Pełna sesja sprzed włączenia też gaśnie.
+        $this->assertSame(200, $this->request($a, 'GET', '/ustawienia/bezpieczenstwo')['status']);
+        $this->assertSame(1, DB::table('sessions')->where('user_id', $user->getKey())->count());
+    }
+
+    public function test_zly_kod_przy_wlaczaniu_2fa_niczego_nie_odwoluje(): void
+    {
+        $user = $this->user();
+        $a = $this->login($user);
+        $b = $this->remembered($this->login($user));
+        $old = $user->fresh()->getRememberToken();
+
+        $this->assertSame(302, $this->enableTwoFactor($a, $user, '000000'));
+
+        $this->assertFalse($user->fresh()->hasTwoFactorConfirmed());
+        $this->assertTrue(hash_equals($old, $user->fresh()->getRememberToken()));
+        $this->assertSame(200, $this->request($b, 'GET', '/ustawienia/bezpieczenstwo')['status']);
+    }
+
+    public function test_wlaczenie_2fa_nie_otwiera_panelu_staremu_recallerowi_moderatora(): void
+    {
+        $moderator = $this->user(null, ['role' => User::ROLE_MODERATOR]);
+        $a = $this->login($moderator);
+        $b = $this->remembered($this->login($moderator));
+        $probe = $b;
+        $this->assertSame(403, $this->request($probe, 'GET', '/admin/zgloszenia')['status']);
+
+        $this->assertSame(302, $this->enableTwoFactor($a, $moderator));
+
+        $response = $this->request($b, 'GET', '/admin/zgloszenia');
+        $this->assertSame(302, $response['status'], 'Stary recaller moderatora wszedł do panelu bez kodu.');
+        $this->assertSame('http://localhost/login', $response['location']);
+        $this->assertSame(200, $this->request($a, 'GET', '/admin/zgloszenia')['status']);
     }
 }

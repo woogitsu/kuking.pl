@@ -9,6 +9,7 @@ use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\User;
 use App\Models\WpisZgody;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
@@ -36,11 +37,18 @@ use Illuminate\View\View;
  * Wybieramy odwrotnie, bo to człowiek jest tu stroną, która nie może
  * przegrać.
  *
- * DROGA POWROTNA NIE JEST NARAŻONA NA TEN SAM SKANER, choć też działa na
- * `GET`: jej odnośnik nie istnieje w żadnym liście, tylko na ekranie
- * potwierdzenia. Skaner poczty nie ma go skąd wziąć.
+ * DROGA POWROTNA WŁĄCZA ZGODĘ WYŁĄCZNIE METODĄ `POST` (#1403). Do 23 września
+ * 2026 stało tu, że skaner jej nie dosięgnie, bo odnośnik nie istnieje
+ * w żadnym liście — ale `GET` na ten adres też włączał wysyłkę, a podpisany
+ * adres ląduje w historii przeglądarki, w podglądzie linku i w pamięci
+ * podręcznej przeglądarki, która sama pobiera strony „na zapas". Udzielenie
+ * zgody musi być czynnością człowieka, więc `GET` pokazuje tylko pytanie
+ * z jednym dużym przyciskiem, a zapis robi `POST` z tokenem CSRF (ta trasa
+ * NIE jest wyjęta spod CSRF — patrz `bootstrap/app.php`). Asymetria z
+ * wypisaniem jest zamierzona: wycofanie zgody jednym wejściem działa na
+ * korzyść właściciela skrzynki, udzielenie jej bez kliknięcia — nie.
  *
- * OBIE TRASY PRZYJMUJĄ TAKŻE `POST` (patrz `routes/web.php`) po to, żeby list
+ * OBIE TRASY PRZYJMUJĄ `POST` (patrz `routes/web.php`) po to, żeby list
  * mógł nieść nagłówki `List-Unsubscribe` i `List-Unsubscribe-Post`
  * (RFC 8058). Wtedy Gmail i Outlook pokazują własny przycisk „wypisz się"
  * przy nadawcy i wołają ten adres metodą POST, bez otwierania przeglądarki.
@@ -83,8 +91,16 @@ class PodsumowanieTygodniaController extends Controller
         ]);
     }
 
-    public function wracam(User $user, PrzestawZgodeNaDigest $zgoda): View
+    public function wracam(Request $request, User $user, PrzestawZgodeNaDigest $zgoda): View
     {
+        // `GET` NICZEGO NIE ZAPISUJE (#1403) — tylko pyta. Ten sam adres,
+        // ten sam podpis; formularz na tej stronie wysyła `POST` z tokenem.
+        if (! $request->isMethod('POST')) {
+            return view('pages.podsumowanie-wracam', [
+                'powrot' => OdnosnikWypisania::powrotDla($user),
+            ]);
+        }
+
         // Powrót jest UDZIELENIEM zgody, więc idzie tą samą drogą co haczyk
         // w ustawieniach — z własnym źródłem `link_powrotny`, żeby w dzienniku
         // było widać, że człowiek naprawiał wypisanie z ekranu potwierdzenia
