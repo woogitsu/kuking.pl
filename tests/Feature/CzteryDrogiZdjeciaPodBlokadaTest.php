@@ -199,8 +199,8 @@ class CzteryDrogiZdjeciaPodBlokadaTest extends TestCase
         );
         $this->assertNull(Profile::query()->where('user_id', $basia->getKey())->value('avatar_media_id'));
 
-        // Teraz przeplot dwóch kart: karta A trzyma model zdjęcia `stare`,
-        // karta B w międzyczasie wgrywa `nowe`.
+        // Stary model przekazany do domeny, nie formularz z poprzedniego GET.
+        // Granicę formularza HTTP mierzy StaryFormularzAwataraTest (#803).
         $przypinanie->handle($basia, $stare);
         $nowe = $this->zdrowe($basia);
         $przypinanie->handle($basia, $nowe);
