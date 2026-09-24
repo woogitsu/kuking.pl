@@ -167,6 +167,8 @@
                                     @endif
                                 </div>
                             @endcan
+
+                            <x-zdejmij-z-urzedu :tresc="$reply" typ="comment" />
                         @endauth
                     @endif
                 </div>
@@ -259,6 +261,8 @@
                             @endif
                         </div>
                     @endcan
+
+                    <x-zdejmij-z-urzedu :tresc="$comment" typ="comment" />
                 @endauth
             @endunless
         </article>
