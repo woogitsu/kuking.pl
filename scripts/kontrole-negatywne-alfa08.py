@@ -201,16 +201,19 @@ def akcja_php_na_ruchomym_tagu(source):
 
 
 def bez_kopii_testu_assetow(source):
-    """KONTROLA DODATNIA: zabierz etapowi `assets` jeden z plików `node --test`.
+    """KONTROLA DODATNIA: zabierz etapowi `assets` pliki `node --test` z `scripts/`.
 
-    `package.json` nadal podaje `scripts/pwa-install.test.mjs` do `node --test`,
-    więc po tej mutacji Dockerfile obiecuje mniej, niż wymaga budowanie. Test
-    ma to zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
+    Etap kopiuje dziś cały katalog (`COPY scripts ./scripts`). Mutacja cofa go
+    do wyliczanki z jednym plikiem — samym `kontrast-marki.mjs`, którego
+    potrzebuje pierwszy człon `build` — czyli do dokładnie tej regresji, przed
+    którą chroni ten test: `package.json` nadal podaje do `node --test` pliki
+    `scripts/*.test.mjs`, a Dockerfile przestaje je obiecywać. Test ma to
+    zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
     """
     return replace_once(
         source,
-        "COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs\n",
-        "",
+        "COPY scripts ./scripts\n",
+        "COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs\n",
     )
 
 
