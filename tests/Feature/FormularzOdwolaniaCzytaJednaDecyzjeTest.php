@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -148,7 +149,7 @@ class FormularzOdwolaniaCzytaJednaDecyzjeTest extends TestCase
         return $decyzja;
     }
 
-    private function wyslij(): \Illuminate\Testing\TestResponse
+    private function wyslij(): TestResponse
     {
         return $this->from(route('appeals.guest'))->post(route('appeals.guest.store'), [
             'login' => 'basia',
