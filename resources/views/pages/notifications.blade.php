@@ -39,6 +39,19 @@
         @php
             $actor = $notification->actor;
             $data = $notification->data ?? [];
+            /*
+             * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
+             *
+             * Bierzemy go z mapy policzonej JEDNYM zapytaniem na całą stronę
+             * (`Notification::zyweWycinkiKomentarzy()`), a nie z `data.excerpt`.
+             * Zamrożona kopia z chwili publikacji cytowała treść sprzed
+             * poprawki autora; stare wiersze dalej ją mają w bazie i właśnie
+             * dlatego NIE MA tu planu zapasowego „weź `data.excerpt`, gdy mapa
+             * milczy". Brak wpisu w mapie znaczy „komentarza nie ma, jest
+             * usunięty albo ukryty" — czyli dokładnie ten przypadek, w którym
+             * treści pokazać nie wolno (bramka z #757).
+             */
+            $wycinekKomentarza = $wycinkiKomentarzy[$notification->getKey()] ?? null;
             $zwykleZdarzenie = in_array($notification->type, [
                 \App\Models\Notification::TYPE_COOKED,
                 \App\Models\Notification::TYPE_COMMENT,
@@ -140,11 +153,11 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — {{ ($data['question_answer'] ?? false) ? 'odpowiedź na Twoje pytanie.' : 'nowy komentarz.' }}</strong>
-                                @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
+                                @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowa odpowiedź.</strong>
-                                @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
+                                @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
@@ -253,12 +266,9 @@
                     </p>
 
                     @php
-                        // Adres liczy model (`Notification::adresDocelowy()`),
-                        // a nie ten widok. Ten sam `match` potrzebny jest
-                        // w kontrolerze, który po oznaczeniu przeczytania
-                        // musi odesłać w to samo miejsce — dwie kopie
-                        // rozjechałyby się przy pierwszym nowym typie.
-                        $link = $notification->adresDocelowy();
+                        // Model rozwiązuje adresy zbiorczo przed renderowaniem.
+                        // Kliknięcie liczy je ponownie dla aktualnej widoczności.
+                        $link = $destinationUrls[(string) $notification->getKey()] ?? null;
                     @endphp
                     @if($link)
                         {{--
