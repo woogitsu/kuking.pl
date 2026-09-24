@@ -114,6 +114,12 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+
+# Jedna sprawa RODO `w_toku` na konto (#1346). Test wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę w `up()`, więc przy
+# duplikatach nie ma komunikatu „co zrobić" — test odmowy ma oblać.
+RODO_W_TOKU_MIGRACJA = "database/migrations/2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto.php"
+RODO_W_TOKU_MIGRACJA_TEST = "JednaSprawaRodoWTokuMigracjaTest"
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
 # Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
@@ -433,6 +439,8 @@ checks = [
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
+    ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
