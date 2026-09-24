@@ -10,6 +10,7 @@ use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\PriorytetSprawy;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -36,6 +37,9 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
+    private const WLASNA_SPRAWA = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
+        .'Nikt nie decyduje we własnej sprawie.';
+
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
@@ -69,6 +73,10 @@ class ModerationController extends Controller
          */
         $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
 
+        // Priorytet TYLKO dla otwartych: archiwum P0 nie stoi w „Wszystkie"
+        // nad dzisiejszym otwartym P2 (`PriorytetSprawy::wyrazenieSqlKolejki`).
+        [$wyrazenieSql, $parametrySql] = PriorytetSprawy::wyrazenieSqlKolejki();
+
         $reports = Report::query()
             ->when(
                 $zrodlo === Report::SOURCE_AUTOMAT,
@@ -99,6 +107,25 @@ class ModerationController extends Controller
             // `id` jest UUID-em v7, więc rozstrzyga remis w tę samą stronę co
             // czas: nowsze na górze. Nie zmienia to kolejności ANI JEDNEJ pary
             // wierszy o różnym `created_at`.
+            //
+            // PRZED CZASEM STOI PRIORYTET (`PriorytetSprawy`) i to jest
+            // ZMIANA WOBEC POPRZEDNIEJ GWARANCJI „najnowsze na górze".
+            //
+            // Sama data nie wystarczała: spam przychodzi falami, więc im
+            // gorszy dzień, tym głębiej pod nim leży rzecz, która nie może
+            // czekać. ZMIERZONE (`KolejkaModeracjiStawiaPilneNaGorzeTest`):
+            // zgłoszenie „Dotyczy dziecka" sprzed dwóch dni leży pod
+            // trzydziestoma zgłoszeniami spamu z ostatniej godziny, czyli na
+            // DRUGIEJ stronie kolejki stronicowanej po 25.
+            //
+            // Wewnątrz jednego priorytetu porządek zostaje DOKŁADNIE taki,
+            // jaki był — najnowsze na górze, remis po `id`. Zmieniamy jedną
+            // rzecz naraz: kolejność MIĘDZY wagami. Odwrócenie kierunku
+            // wewnątrz wagi (jak proponowała odrzucona gałąź) jest osobną
+            // decyzją, bez dowodu i z własną ceną: góra kolejki przestałaby
+            // się odświeżać, a moderator patrzyłby codziennie na te same
+            // sprawy, których z jakiegoś powodu nie rozstrzygnął.
+            ->orderByRaw($wyrazenieSql.' ASC', $parametrySql)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(25)
@@ -144,6 +171,10 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
+        if ($request->user()->cannot('decide', $report)) {
+            return back()->withInput()->withErrors(['action' => self::WLASNA_SPRAWA]);
+        }
+
         if ($report->status !== Report::STATUS_OPEN) {
             return back()->withErrors([
                 'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
@@ -319,6 +350,12 @@ class ModerationController extends Controller
                 return null;
             }
 
+            // Ta sama reguła co na wejściu, ale już na zablokowanym wierszu:
+            // wynik ma zależeć od stanu, pod którym zapada decyzja (#1408).
+            if ($moderator->cannot('decide', $zablokowane)) {
+                throw ValidationException::withMessages(['action' => self::WLASNA_SPRAWA]);
+            }
+
             // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
             // wykonaniem. Powodów są teraz dwa:
             //  - `remove` kasuje cel, a wtedy nie ma już kogo zapytać o autora;
@@ -344,6 +381,25 @@ class ModerationController extends Controller
                 : $data['action'];
             $aktywnyCel = $celNiedostepny ? null : $cel;
             $osoba = $aktywnyCel === null ? null : ModeratedContent::osoba($aktywnyCel);
+
+            // KARA NA KONCIE TYLKO WOBEC NIŻSZEJ ROLI (#1408, D-244).
+            //
+            // Sprawdzane TU, przed `ModerationAction::create()`: odmowa
+            // wycofuje transakcję, więc nie zostaje decyzja, powiadomienie
+            // ani wpis w dzienniku sugerujący wykonaną sankcję. Cel kary
+            // bywa autorem zgłoszonej treści, nie tylko zgłoszonym profilem —
+            // dlatego pytamy o `$osoba`, a nie o `target_type === 'user'`.
+            if (in_array($wykonanaAkcja, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)
+                && $osoba !== null
+                && $moderator->cannot('sanctionAccount', $osoba)) {
+                throw ValidationException::withMessages([
+                    'action' => $osoba->isAdmin()
+                        ? 'Konta administratora nie da się zawiesić ani zablokować z panelu moderacji. '
+                            .'Jeśli sprawa jest poważna, przekaż ją właścicielowi serwisu.'
+                        : 'Konto moderatora może zawiesić albo zablokować tylko administrator. '
+                            .'Wybierz inną decyzję albo przekaż sprawę administratorowi.',
+                ]);
+            }
 
             $akcja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),

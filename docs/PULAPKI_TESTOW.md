@@ -230,6 +230,22 @@ innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
 
 ### 5c. …a `printf | grep -q` pod `set -o pipefail` kłamie przy dużym wyjściu
 
+**Projekt nauczył się tego raz, drogo — i zapisał lekcję w złym miejscu.**
+
+W `tests/skrypty/entrypoint-nadzor.sh` (linie 182–189) stoi dziesięciowierszowy
+komentarz opisujący dokładnie ten mechanizm, łącznie z tym, że kosztował
+**pół godziny szukania nieistniejącej regresji w trakcie awarii produkcji**.
+Kończy się zdaniem: „Dlatego niżej jest `grep … >/dev/null`, a nie `grep -q`."
+
+Przyrząd kontroli ujemnej powstał później i wpadł w tę samą pułapkę — bo nikt
+nie zagląda do komentarza w skrypcie nadzoru entrypointu, szukając rady
+o kontroli ujemnej. Stąd reguła, którą wtedy zrobiono odwrotnie:
+
+> **Gdy lekcja kosztowała awarię, jej miejscem jest `PULAPKI_TESTOW.md`,
+> a przy pliku zostaje wskaźnik.** Komentarz przy jednym pliku chroni ten plik.
+> Nie chroni następnego skryptu, który napisze ktoś inny za pół roku.
+
+
 **Złapało: sprawdzenie „czy test oblał z WŁAŚCIWEGO powodu" w samym przyrządzie
 kontroli ujemnych.**
 
@@ -286,6 +302,27 @@ stoi atrapa, która wypisuje wzorzec na początku, a potem ~200 kB szumu.
 Bez niej ta pułapka wraca przy pierwszym refaktorze.
 
 ---
+
+#### Gdzie to jeszcze może uderzyć: GitHub Actions
+
+**W GitHub Actions `shell: bash` włącza `pipefail`, a domyślny `run:` go nie ma.**
+Domyślna powłoka to `bash -e {0}` — bez `-o pipefail`.
+
+Trzy kroki w `.github/workflows/ci.yml` robią `echo "$ZMIENIONE" | grep -qE …`
+i decydują, **czy w ogóle uruchomić zadania przeglądarkowe**. Gdyby zadziałał
+tam SIGPIPE, PR zmieniający widoki po cichu pomijałby zadania, które miały go
+sprawdzić — czyli fałszywa zieleń najgorszego rodzaju. Dziś nie zadziała,
+bo żaden z tych kroków nie deklaruje `shell: bash`.
+
+To jest **zabezpieczenie przez przeoczenie**, nie przez zamysł. Ktokolwiek
+dopisze tym krokom `shell: bash` — z najlepszych pobudek, bo tak jest porządniej —
+wprowadzi tę usterkę. Przy takiej zmianie zamień `grep -qE` na `grep -E … >/dev/null`
+albo na `grep -qE … <<< "$ZMIENIONE"`.
+
+Ustalenie z przeglądu repozytorium przez sesję `codex-45`, 20.09.2026;
+sprawdzone niezależnie: jedyne `shell: bash` w tym pliku (linia 1246) grepuje
+plik, nie rurę. `tests/skrypty/kopia-bazy.sh:238` ma wrażliwą postać, ale
+kierunek prowadzi do czerwieni i wyjście jest krótkie — ryzyko uśpione.
 
 ## 6. Test na jednym połączeniu nie dowodzi zachowania przy dwóch
 

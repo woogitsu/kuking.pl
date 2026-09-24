@@ -45,6 +45,8 @@ sprawdz() {
 wczytaj_funkcje() {
   # shellcheck disable=SC2016
   sed -n '/^nadzoruj() {/,/^}/p' "${ENTRYPOINT}"
+  sed -n '/^sekundy_do_pelnej_minuty() {/,/^}/p' "${ENTRYPOINT}"
+  sed -n '/^petla_harmonogramu() {/,/^}/p' "${ENTRYPOINT}"
   echo 'log() { printf "[test] %s\n" "$*" >&2; }'
 }
 
@@ -219,6 +221,47 @@ esac" 2>&1)"
 done
 
 # ---------------------------------------------------------------------------
+# 3b. PĘTLA HARMONOGRAMU NIE DRYFUJE (#1355). `schedule:run` patrzy na minutę,
+#     w której wystartował. Stara pętla „przebieg + sleep 60” przesuwała start
+#     o czas przebiegu, aż przeskoczyła całą minutę — i zadanie dzienne z tej
+#     minuty nie wykonało się wcale. Zegar jest atrapą, pętla jest prawdziwa.
+# ---------------------------------------------------------------------------
+for sekunda in 00:60 08:52 09:51 59:1; do
+  wynik="$(bash -c "$(wczytaj_funkcje)
+date() { echo '${sekunda%%:*}'; }
+sekundy_do_pelnej_minuty" 2>&1)"
+  sprawdz "sen do pełnej minuty przy sekundzie ${sekunda%%:*}" "${sekunda##*:}" "${wynik}"
+done
+
+# 90 obrotów po 7 s pracy: stara pętla zgubiłaby w tym czasie 10 minut.
+wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
+$(cat <<'PROBA'
+set -Eeuo pipefail
+czas=$(( 1000 * 60 + 13 )) obroty=0 starty=() pominiete=0
+date() { printf '%02d\n' $(( czas % 60 )); }
+sleep() { czas=$(( czas + $1 )); }
+harmonogram_raz() {
+  starty+=( "$(( czas / 60 )):$(( czas % 60 ))" )
+  czas=$(( czas + 7 ))
+  obroty=$(( obroty + 1 ))
+  if (( obroty == 90 )); then
+    local poprzednia="" s m
+    for s in "${starty[@]:1}"; do
+      m="${s%%:*}"
+      [[ "${s##*:}" == 0 ]] || { echo "start nie na pełnej minucie: ${s}"; exit 0; }
+      [[ -z "$poprzednia" ]] || (( m == poprzednia + 1 )) || pominiete=$(( pominiete + 1 ))
+      poprzednia="$m"
+    done
+    echo "obroty=${obroty} pominiete=${pominiete}"
+    exit 0
+  fi
+}
+petla_harmonogramu
+PROBA
+)" 2>&1)"
+sprawdz "pętla harmonogramu startuje na każdej pełnej minucie, bez przeskoków" "obroty=90 pominiete=0" "${wynik}"
+
+# ---------------------------------------------------------------------------
 # 4. Kod wyjścia. Railway restartuje kontener po KODZIE NIEZEROWYM; przy
 #    zerze uznaje, że praca się skończyła. Awaria musi więc wychodzić 1.
 # ---------------------------------------------------------------------------
@@ -262,6 +305,9 @@ fi
 # więc ten sam test raz przechodzi, a raz nie. Kosztowało to pół godziny
 # szukania nieistniejącej regresji w entrypoincie, w trakcie awarii
 # produkcji. Dlatego niżej jest `grep ... >/dev/null`, a nie `grep -q`.
+#
+# Ta sama pulapka zlapala pozniej przyrzad kontroli ujemnej, bo lekcja siedziala
+# wylacznie tutaj. Pelny opis i kierunek bledu: docs/PULAPKI_TESTOW.md 5c.
 bez_komentarzy() { sed 's/[[:space:]]*#.*$//' "$1"; }
 
 if bez_komentarzy "${ENTRYPOINT}" | grep 'exec setpriv --reuid=www-data' >/dev/null; then

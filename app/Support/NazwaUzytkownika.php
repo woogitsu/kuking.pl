@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\Profile;
+use App\Rules\ReservedUsername;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
@@ -107,7 +109,7 @@ final class NazwaUzytkownika
             return null;
         }
 
-        if (! self::zajeta($baza)) {
+        if (self::dopuszczalna($baza) && ! self::zajeta($baza)) {
             return $baza;
         }
 
@@ -115,12 +117,17 @@ final class NazwaUzytkownika
             $sufiks = '_'.$i;
             $propozycja = mb_substr($baza, 0, self::MAX - mb_strlen($sufiks)).$sufiks;
 
-            if (! self::zajeta($propozycja)) {
+            if (self::dopuszczalna($propozycja) && ! self::zajeta($propozycja)) {
                 return $propozycja;
             }
         }
 
         return null;
+    }
+
+    private static function dopuszczalna(string $nazwa): bool
+    {
+        return Validator::make(['username' => $nazwa], ['username' => [new ReservedUsername]])->passes();
     }
 
     private static function zajeta(string $nazwa): bool

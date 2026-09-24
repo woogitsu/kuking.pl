@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Cofnięcie ukrycia albo usunięcia treści (issue #65).
@@ -68,6 +69,45 @@ final class RestoreContent
             throw new BladDlaCzlowieka('Tej treści nie da się przywrócić.');
         }
 
+        // JEDNA TRANSAKCJA, BLOKADA WIERSZA NA POCZĄTKU (przegląd G31, B1).
+        //
+        // Wcześniej kroki szły bez transakcji: INSERT `unhide`, potem zapis
+        // treści. Awaria między nimi zostawiała decyzję „przywrócone” przy
+        // treści, która nadal była schowana. Dwa równoległe przywrócenia
+        // (dwie karty, „Przywróć” i „cofam” naraz) czytały ten sam stary
+        // stan i dawały dwie decyzje `unhide` i dwa powiadomienia.
+        //
+        // Stan czytamy POD blokadą, z bazy, a nie z modelu wołającego —
+        // drugi w kolejce widzi „już widoczna” i nie zapisuje nic.
+        // `ResolveAppeal::cofnij()` łapie ten wyjątek; zagnieżdżone
+        // `DB::transaction` cofa wtedy tylko swój punkt zapisu.
+        return DB::transaction(function () use ($moderator, $target, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem): ModerationAction {
+            $zapytanie = $target::query();
+
+            if (method_exists($target, 'trashed')) {
+                $zapytanie->withTrashed();
+            }
+
+            $cel = $zapytanie->whereKey($target->getKey())->lockForUpdate()->first();
+
+            if ($cel === null) {
+                throw new BladDlaCzlowieka('Tej treści już nie ma w bazie — nie da się jej przywrócić.');
+            }
+
+            return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);
+        });
+    }
+
+    private function przywrocPodBlokada(
+        User $moderator,
+        Model $target,
+        string $typ,
+        string $reasonCode,
+        ?string $note,
+        ?string $userMessage,
+        ?string $ip,
+        bool $zPowiadomieniem,
+    ): ModerationAction {
         $bylaUkryta = ModeratedContent::jestUkryta($target);
         $bylaUsunieta = method_exists($target, 'trashed') && $target->trashed();
 
@@ -158,6 +198,11 @@ final class RestoreContent
             ->where('target_id', $id)
             ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE])
             ->orderByDesc('created_at')
+            // Remis w tej samej sekundzie: `created_at` to `timestamptz(0)`,
+            // więc „zdjęte” i „cofnięte” w jednej sekundzie remisują. `id`
+            // to UUIDv7 (`HasUuids`) — rośnie z czasem w milisekundach
+            // (przegląd G31).
+            ->orderByDesc('id')
             ->first();
 
         $status = $ostatnie?->previous_status;

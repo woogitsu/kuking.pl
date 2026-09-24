@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Notifications\PotwierdzenieAdresu;
+use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -636,7 +637,42 @@ class User extends Authenticatable implements MustVerifyEmailContract
             && $this->status_expires_at->isPast();
     }
 
+    /**
+     * Czy ta osoba MA TERAZ uprawnienia moderatora — rola ORAZ czynne konto
+     * (issue #1336).
+     *
+     * `suspend()` nie zmienia roli, a `EnsureAccountIsActive` przepuszcza
+     * zawieszonym odczyt (GET). Dopóki to pytanie patrzyło tylko na rolę,
+     * zawieszony moderator czytał kolejkę zgłoszeń, wiadomości „Napisz do
+     * nas", cudze szkice i prywatne zdjęcia — zawieszenie odbierało mu
+     * pisanie, ale nie wgląd w cudze dane. Odczyt własnych treści i droga
+     * odwoławcza zostają mu jak każdemu zawieszonemu; uprawnienia wracają
+     * same z `reinstate()`, bez ponownego nadawania roli.
+     *
+     * Status jest tu, a nie w każdej Policy osobno, bo Policy, middleware
+     * panelu i widoki pytają właśnie o to — następna Policy dostanie tę
+     * regułę bez pamiętania o niej.
+     *
+     * Tam, gdzie liczy się sama ROLA niezależnie od kary (zakaz wejścia
+     * kontem obsługi linkiem, przez Google albo Facebooka), jest
+     * `hasStaffRole()`.
+     */
     public function isModerator(): bool
+    {
+        return $this->hasStaffRole() && $this->isActive();
+    }
+
+    /**
+     * Czy konto ma rolę obsługi serwisu (`moderator` albo `admin`) — BEZ
+     * względu na stan konta i NIE jako uprawnienie.
+     *
+     * Do zabezpieczeń wejścia: konto obsługi wchodzi wyłącznie hasłem i 2FA
+     * (issue #25, D-056). Zawieszenie nie może tego zdejmować — inaczej
+     * zawieszony moderator wszedłby linkiem bez drugiego składnika, a po
+     * końcu kary (`reinstate()` przy pierwszym żądaniu) miałby w tej sesji
+     * pełne uprawnienia.
+     */
+    public function hasStaffRole(): bool
     {
         return in_array($this->role, [self::ROLE_MODERATOR, self::ROLE_ADMIN], true);
     }
@@ -656,9 +692,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
+    /** Uprawnienia administratora: rola ORAZ czynne konto — jak `isModerator()` (issue #1336). */
     public function isAdmin(): bool
     {
-        return $this->role === self::ROLE_ADMIN;
+        return $this->role === self::ROLE_ADMIN && $this->isActive();
     }
 
     /**
@@ -852,9 +889,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
         ))));
     }
 
+    /**
+     * LIST POTWIERDZAJĄCY ADRES IDZIE PRZEZ AKCJĘ, NIE WPROST (20.09.2026).
+     *
+     * Framework woła tę metodę przy zdarzeniu `Registered`, a kontroler
+     * „Wyślij wiadomość jeszcze raz" wołał ją drugi raz — czyli ten sam list
+     * powstawał dwiema drogami. Od czasu, gdy jest liczony we wspólnej puli
+     * poczty (`DziennyBudzetListow::wspolny()`), obie muszą przechodzić przez
+     * to samo miejsce; inaczej licznik pokazywałby mniej listów, niż serwis
+     * naprawdę wysłał, i pula kończyłaby się bez ostrzeżenia.
+     *
+     * Wynik jest tu świadomie ignorowany: kontrakt frameworka to `void`,
+     * a listener po rejestracji nie ma komu przekazać odmowy. Droga, na
+     * której człowiek CZEKA na odpowiedź, woła akcję wprost i czyta `bool`.
+     */
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new PotwierdzenieAdresu);
+        app(WyslijPotwierdzenieAdresu::class)->handle($this);
     }
 
     // ---------------------------------------------------------------------
@@ -1176,6 +1227,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Od kiedy karencja się kończy — czyli do kiedy wolno jeszcze cofnąć
+     * usunięcie konta. `null`, gdy konto nie czeka na usunięcie.
+     *
+     * To jest TA SAMA granica, którą liczy `kuking:usun-wygasle-konta`
+     * (`PurgeExpiredAccountDeletions`: `delete_requested_at <= now() - dni`).
+     * Komenda chodzi z harmonogramu, więc wymazanie przychodzi przy jej
+     * pierwszym przebiegu PO tej chwili — nigdy przed nią. Data podana
+     * człowiekowi jest więc bezpieczna: do niej cofnięcie na pewno działa.
+     */
+    public function deletionGraceEndsAt(): ?Carbon
+    {
+        if ($this->status !== self::STATUS_PENDING_DELETE || $this->delete_requested_at === null) {
+            return null;
+        }
+
+        return $this->delete_requested_at->copy()->addDays((int) config('kuking.account.delete_grace_days'));
+    }
+
+    /**
      * STAN KOŃCOWY: karencja wykonana, dane wymazane (D-022).
      *
      * Osobna, nazwana metoda — a nie kolejne pole w `forceFill` gdzieś
@@ -1294,8 +1364,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Trzy wywołania w trzech kontrolerach dawałyby ten sam skutek do
         // czasu, gdy ktoś dopisze czwarte miejsce i o jednym z nich zapomni.
         // Objęte tą drogą jest więc wszystko naraz: zmiana hasła, reset hasła,
-        // „wyloguj mnie z innych urządzeń", blokada, zawieszenie i zgłoszenie
-        // usunięcia konta.
+        // „wyloguj mnie z innych urządzeń", włączenie 2FA (#930), blokada,
+        // zawieszenie i zgłoszenie usunięcia konta.
         //
         // `$exceptSessionId` NIE MA TU ODPOWIEDNIKA i mieć nie powinien:
         // wyjątek istnieje dla BIEŻĄCEJ przeglądarki osoby, która właśnie

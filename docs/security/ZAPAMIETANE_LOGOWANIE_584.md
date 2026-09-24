@@ -59,3 +59,15 @@ dla tej bazy i powtórzono testy. Nie zmieniono innych baz ani produkcji.
 Rollback kodu przywróci lukę dla przyszłych operacji wylogowania; już
 odwołane tokeny nie odzyskają ważności. Nie ma migracji ani nowej zależności.
 Pełny hook, niezależne review, CI i odbiór wdrożenia pozostają do wykonania.
+
+## Włączenie 2FA — #930 (D-245)
+
+Ta sama ścieżka obejmuje teraz potwierdzenie 2FA: po dobrym haśle i dobrym
+kodzie `TwoFactorSettingsController::confirm()` woła
+`invalidateSessions()` z wyjątkiem bieżącej sesji. Trzy testy w tym samym
+pliku (osobne procesy, database sessions, CSRF): stary remembered cookie
+i pełna sesja sprzed włączenia dostają przekierowanie na logowanie, bieżąca
+sesja działa; zły kod nie zmienia `remember_token`; stary recaller
+moderatora nie wchodzi do `/admin/zgloszenia` (przed poprawką 403 → 200).
+Kontrola ujemna (usunięte wywołanie w kontrolerze): dwa testy oblewają
+na 200 zamiast 302, po przywróceniu przechodzą.

@@ -1,6 +1,6 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 11 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 24 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
@@ -52,7 +52,7 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 | EmailLabs (Vercom S.A.) | Wysyłka poczty: potwierdzenie adresu, przypomnienie hasła, powiadomienia. Rejestruje też otwarcia listów — patrz akapit niżej | Unia Europejska (Polska) |
 | Cloudflare Turnstile | Sprawdzenie, czy formularz wypełnia człowiek, a nie automat | Cloudflare, Inc. (USA) — patrz akapit o przekazywaniu poza EOG |
 | Cloudflare Web Analytics | Statystyka odwiedzin: ile osób weszło na stronę, które strony oglądały i z jakiego miejsca w internecie do nas trafiły | Cloudflare, Inc. (USA) — **ta sama spółka co wyżej**, patrz akapit o przekazywaniu poza EOG |
-| OpenAI | Automatyczne sprawdzenie publikowanej treści, zdjęć oraz zdjęcia profilowego pod kątem przemocy, nienawiści, treści seksualnych i samookaleczenia — po to, żeby moderator zobaczył takie treści szybciej | OpenAI, L.L.C. (USA) — patrz akapit o przekazywaniu poza EOG |
+| OpenAI | Automatyczne sprawdzenie publicznie widocznych wpisów, komentarzy i zdjęć do wpisów pod kątem przemocy, nienawiści, treści seksualnych i samookaleczenia — po to, żeby moderator zobaczył takie treści szybciej | OpenAI, L.L.C. (USA) — patrz akapit o przekazywaniu poza EOG |
 | Google (logowanie kontem Google) | Sprawdzenie, że konto Google należy do Ciebie, gdy wybierasz „Wejdź kontem Google" — dobrowolna, dodatkowa droga wejścia obok hasła i wiadomości z linkiem | Google Ireland Limited (Irlandia) i Google LLC (USA) — patrz akapit o przekazywaniu poza EOG |
 | Facebook (logowanie kontem Facebooka) | Sprawdzenie, że konto Facebooka należy do Ciebie, gdy wybierasz „Wejdź kontem Facebooka" — dobrowolna, dodatkowa droga wejścia obok hasła i wiadomości z linkiem | Meta Platforms Ireland Limited (Irlandia, Unia Europejska). Meta przetwarza dane także poza EOG, w obrębie własnej grupy spółek — patrz akapit o przekazywaniu poza EOG |
 
@@ -70,7 +70,7 @@ Część statystyk liczymy sami, w naszej własnej bazie — ile osób opublikow
 
 Powiązanie z Facebookiem możesz zawsze zostawić bez użytku, wchodząc hasłem albo linkiem; jeśli chcesz je rozłączyć, napisz do nas na **kontakt@kuking.pl** — sprawdzimy przy tym, czy zostaje Ci inna droga wejścia na konto. Jeśli usuniesz naszą aplikację w ustawieniach swojego Facebooka, Facebook nam to zgłasza i przekazuje przy tym sam identyfikator Twojego konta; odnotowujemy wtedy przy powiązaniu, że jest uśpione, i **nie usuwamy przez to ani Twojego konta w Kuking, ani niczego, co w nim leży**. Wejście kontem Facebooka odzyskasz, klikając „Wejdź kontem Facebooka" jeszcze raz.
 
-**Co wysyłamy do OpenAI i czego NIE wysyłamy.** Gdy publikujesz wpis albo komentarz, wysyłamy do OpenAI **sam tekst tej treści**, a przy wpisie ze zdjęciem także **pomniejszone zdjęcie** (miniaturę przekodowaną u nas, więc bez danych z aparatu — bez daty i bez współrzędnych miejsca, w którym zdjęcie zrobiono). Tą samą drogą i w tej samej pomniejszonej formie idzie **zdjęcie profilowe**, gdy je ustawiasz albo zmieniasz. **Nie wysyłamy Twojego adresu e-mail, nazwy konta, adresu IP ani niczego, co pozwoliłoby Cię wskazać** — OpenAI dostaje treść bez informacji, czyja ona jest. Nie wysyłamy też treści prywatnych: wpis oznaczony jako prywatny w ogóle tędy nie przechodzi.
+**Co wysyłamy do OpenAI i czego NIE wysyłamy.** Gdy publikujesz wpis albo komentarz, wysyłamy do OpenAI **sam tekst tej treści**, a przy wpisie ze zdjęciem także **pomniejszone zdjęcie** (miniaturę przekodowaną u nas, więc bez danych z aparatu — bez daty i bez współrzędnych miejsca, w którym zdjęcie zrobiono). Wysyłamy tylko miniaturę o dłuższym boku najwyżej 320 pikseli — nigdy zdjęcie w pełnym rozmiarze. **Zdjęcia profilowego nie wysyłamy.** **Nie wysyłamy Twojego adresu e-mail, nazwy konta, adresu IP ani niczego, co pozwoliłoby Cię wskazać** — OpenAI dostaje treść bez informacji, czyja ona jest. Wysyłamy wyłącznie treść **publiczną**, czyli taką, którą w serwisie zobaczyłby każdy, także ktoś bez konta. Nie wychodzi wpis prywatny ani widoczny tylko dla obserwujących, komentarz pod takim wpisem albo przepisem, treść usunięta ani ukryta przez moderatora.
 
 **Co się dzieje z wynikiem.** Wynik trafia wyłącznie do kolejki naszego moderatora, jako pozycja do przeczytania. **Żadna ocena maszynowa nie ukrywa Twojej treści, nie ogranicza jej zasięgu i nie blokuje konta** — decyzję zawsze podejmuje człowiek, który tę treść przeczytał, i zawsze piszemy Ci, jeśli coś z niej wynika. Podstawą jest nasz uzasadniony interes w tym, żeby serwis nie stał się miejscem, w którym krzywdzące treści wiszą tygodniami, zanim ktoś je zgłosi.
 
@@ -98,7 +98,7 @@ Masz też prawo złożyć skargę do **Prezesa Urzędu Ochrony Danych Osobowych 
 
 ## 5. Pliki cookies i podobne technologie
 
-- Używamy technicznie niezbędnych plików cookies (np. do utrzymania sesji logowania) — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać.
+- Używamy technicznie niezbędnych plików cookies — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać albo nie pamiętałby Twoich ustawień. Stawiamy je w trzech celach: **utrzymanie sesji logowania**, **ochrona formularzy** przed nadużyciem oraz **zapamiętanie Twoich ustawień wyglądu** — wielkości tekstu (`kuking_text_scale`) i jasnego albo ciemnego motywu (`motyw`). Dwa ostatnie powstają dopiero przy zmianie ustawienia, są ważne rok i nie służą ani statystyce, ani reklamie.
 - **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma na co jej udzielać.
 - **Dlaczego banera nie ma, chociaż mamy zewnętrzną statystykę odwiedzin.** Zgody wymaga zapisanie czegoś na Twoim urządzeniu albo sięgnięcie po to, co już tam leży — a nie sam fakt, że coś liczymy. Narzędzie, którego używamy (Cloudflare Web Analytics, sekcja 3), nie robi ani jednego, ani drugiego: nie stawia pliku cookie, nie zapisuje nic w pamięci przeglądarki i nie zostawia na Twoim sprzęcie żadnego znaku rozpoznawczego. To, co zbiera, jest liczbą odsłon, a nie profilem osoby. Gdybyśmy kiedykolwiek sięgnęli po narzędzie, które cokolwiek na Twoim urządzeniu zapisuje, zapytamy Cię o zgodę — zanim to się stanie, a nie potem.
 - Nie używamy plików cookies do reklam ukierunkowanych ani nie sprzedajemy danych o Twoim zachowaniu reklamodawcom.
