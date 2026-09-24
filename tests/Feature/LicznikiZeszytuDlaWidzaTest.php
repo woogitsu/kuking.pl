@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -184,7 +185,7 @@ final class LicznikiZeszytuDlaWidzaTest extends TestCase
         return $wpis;
     }
 
-    private function zeszytOczami(User $widz, Collection $zeszyt): \Illuminate\Testing\TestResponse
+    private function zeszytOczami(User $widz, Collection $zeszyt): TestResponse
     {
         return $this->actingAs($widz)->get(route('collections.show', $zeszyt))->assertOk();
     }
