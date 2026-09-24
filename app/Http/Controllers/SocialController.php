@@ -166,13 +166,13 @@ class SocialController extends Controller
     }
 
     /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */
-    public function followers(Request $request, string $username): Response|RedirectResponse
+    public function followers(Request $request, string $username): Response
     {
         return $this->connections($request, $username, 'followers', 'Obserwujący');
     }
 
     /** Lista osób, które dany profil obserwuje: /@{username}/obserwowani */
-    public function following(Request $request, string $username): Response|RedirectResponse
+    public function following(Request $request, string $username): Response
     {
         return $this->connections($request, $username, 'following', 'Obserwowani');
     }
@@ -187,7 +187,7 @@ class SocialController extends Controller
      * znaleźć ktoś, kogo zablokował akurat OSOBA OGLĄDAJĄCA listę, a nie
      * właściciel profilu.
      */
-    private function connections(Request $request, string $username, string $relation, string $title): Response|RedirectResponse
+    private function connections(Request $request, string $username, string $relation, string $title): Response
     {
         $target = $this->findUser($username);
         $this->authorize('viewProfile', $target);
@@ -293,14 +293,6 @@ class SocialController extends Controller
             ->orderByDesc('users.id')
             ->paginate(20)
             ->withQueryString();
-
-        // Liczymy wyłącznie osoby widoczne dla tego widza. Usunięcie ostatniej
-        // karty strony nie oznacza usunięcia wszystkich relacji (#748).
-        if ($paginator->currentPage() > $paginator->lastPage()) {
-            $request->session()->reflash();
-
-            return redirect($paginator->url($paginator->lastPage()));
-        }
 
         $profile = $target->profile;
 

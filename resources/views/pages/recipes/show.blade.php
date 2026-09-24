@@ -294,7 +294,7 @@
             </div>
             @if($recipe->heroMedia)
                 <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
-                    <x-photo :recipe="$recipe" :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
                 </div>
             @endif
         </header>
@@ -420,7 +420,7 @@
                     @endif
                     @if($recipe->sourceScan)
                         <div class="mt-4">
-                            <x-photo :recipe="$recipe" :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
                             <p class="meta">Kartka, z której jest ten przepis.</p>
                         </div>
                     @endif
@@ -540,7 +540,7 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
-                                            <x-photo :recipe="$recipe" :media="$step->media" variant="feed" class="post-photo" />
+                                            <x-photo :media="$step->media" variant="feed" class="post-photo" />
                                         </div>
                                     @endif
                                 </div>

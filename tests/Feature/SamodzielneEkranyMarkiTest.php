@@ -35,7 +35,7 @@ class SamodzielneEkranyMarkiTest extends TestCase
     {
         $dom = $this->document(file_get_contents(public_path('offline.html')));
         $this->assertSame('Nie ma teraz połączenia z internetem', trim($dom->query('//main/h1')->item(0)->textContent));
-        $this->assertSame('', $dom->query('//main//a')->item(0)->getAttribute('href'));
+        $this->assertSame('/home', $dom->query('//main//a')->item(0)->getAttribute('href'));
         $this->assertSame(0, $dom->query('//script | //link')->length);
         $css = $dom->query('//style')->item(0)->textContent;
         $this->assertBrand($css);

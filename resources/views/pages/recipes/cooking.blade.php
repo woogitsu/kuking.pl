@@ -111,7 +111,7 @@
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
-                    <x-photo :recipe="$recipe" :media="$aktualnyKrok->media" variant="feed" class="post-photo" />
+                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo" />
                 </div>
             @endif
 
