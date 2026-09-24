@@ -193,6 +193,17 @@ ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
+# #957: pierwszy kafel kolażu hero (prawdopodobny LCP) bez `lazy`, z wysokim
+# priorytetem. Mutacja przywraca bezwarunkowe `loading="lazy"` na każdym kaflu.
+LANDING = "resources/views/pages/landing.blade.php"
+KOLAZ_LCP_TEST = "KolazPowitalnyPriorytetLcpTest"
+KOLAZ_PRIORYTET = """                                 @if($loop->first)
+                                 fetchpriority="high"
+                                 @else
+                                 loading="lazy"
+                                 @endif
+"""
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -467,6 +478,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Kolaż hero z lazy na pierwszym kaflu", LANDING, KOLAZ_LCP_TEST,
+     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                 loading="lazy"\n')),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -490,6 +503,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(KOLAZ_LCP_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

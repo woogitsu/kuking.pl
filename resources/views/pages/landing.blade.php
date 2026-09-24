@@ -112,6 +112,21 @@
                  oszczędza na tej stronie — nie zmierzono; dopóki nie zostanie
                  zmierzone, nie należy pisać, że oszczędza cokolwiek.
 
+                 PIERWSZY KAFEL JEST WYJĄTKIEM (#957): bez `loading="lazy"`,
+                 z `fetchpriority="high"`. Na ekranie od 64rem kolaż stoi
+                 w pierwszym paśmie obok H1, a pierwszy kafel jest w KAŻDYM
+                 układzie kolażu największy (cztery kafle: wysoki lewy na dwa
+                 rzędy; trzy: pełna szerokość 2:1; dwa i jeden: równy albo
+                 jedyny) — to jest prawdopodobny obraz LCP. `lazy` kazałoby
+                 przeglądarce czekać z jego pobraniem na arkusz i układ,
+                 a `fetchpriority="high"` przy `lazy` nic by nie dało, bo
+                 lazy opóźnia samo odkrycie. Pozostałe kafle zostają `lazy`
+                 i bez priorytetu — nie konkurują z pierwszym o łącze.
+                 Telefon nie płaci za to ani jednego bajtu więcej: jak
+                 zmierzono wyżej, już dziś pobiera wszystkie cztery kafle przy
+                 pierwszym wczytaniu. Kontrakt pilnuje
+                 `KolazPowitalnyPriorytetLcpTest`.
+
                  `decoding="async"` zdejmuje dekodowanie z wątku układu. --}}
             @if($kolaz->isNotEmpty())
                 @php
@@ -133,7 +148,11 @@
                                  alt=""
                                  width="{{ $kafel['media']->width('thumb') ?? 320 }}"
                                  height="{{ $kafel['media']->height('thumb') ?? 320 }}"
+                                 @if($loop->first)
+                                 fetchpriority="high"
+                                 @else
                                  loading="lazy"
+                                 @endif
                                  decoding="async">
                         @endforeach
                     </div>

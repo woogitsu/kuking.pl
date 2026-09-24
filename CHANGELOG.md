@@ -2,6 +2,9 @@
 
 ## Nieopublikowane
 
+- Na szerokim ekranie pierwsze, największe zdjęcie kolażu na stronie powitalnej zaczyna się wczytywać od razu, a nie dopiero po ułożeniu strony. Pozostałe zdjęcia kolażu wczytują się jak dotąd (#957).
+- Automat wydajności oblewa ekran, na którym największy element wczytuje się dłużej niż 4 sekundy, nawet gdy łączny wynik wydajności jest wysoki. Raport pokazuje przy każdym ekranie także odległość do celu 2,5 s (#1029).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
