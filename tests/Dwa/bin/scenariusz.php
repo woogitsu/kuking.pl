@@ -23,6 +23,7 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -33,10 +34,28 @@ use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
+
+/**
+ * Bariera #1016: uczestnik staje PO rzeczywistym zapytaniu o innych czynnych
+ * administratorów. Należy wyłącznie do przyrządu — mierzymy zapytanie
+ * aplikacji, nie przepisujemy jej warunku do drugiego SQL-a.
+ */
+function barieraPoLiczeniuAdministratorow(): void
+{
+    DB::listen(static function (QueryExecuted $query): void {
+        if (str_contains($query->sql, 'from "users"')
+            && str_contains($query->sql, '"role" =')
+            && str_contains($query->sql, '"status" =')
+            && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
+            DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
 
 $scenariusz = $argv[1] ?? '';
 
@@ -84,20 +103,27 @@ try {
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
-            DB::listen(static function (QueryExecuted $query): void {
-                if (str_contains($query->sql, 'from "users"')
-                    && str_contains($query->sql, '"role" =')
-                    && str_contains($query->sql, '"status" =')
-                    && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
-                    DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
-                }
-            });
+            barieraPoLiczeniuAdministratorow();
             $output = new BufferedOutput;
             $code = app(Kernel::class)->call('kuking:nadaj-role', [
                 'login' => $argumenty['login'], 'rola' => $argumenty['rola'], '--tak' => true,
             ], $output);
 
             return ['code' => $code, 'output' => $output->fetch()];
+        })(),
+
+        // Zmiana statusu konta, która odbiera aktywność (#1016, etap B).
+        // Zewnętrzna transakcja jak w kontrolerach: odmowa ma ją wycofać.
+        'status-konta' => (function () use ($argumenty): string {
+            barieraPoLiczeniuAdministratorow();
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            DB::transaction(static fn () => match ($argumenty['przejscie']) {
+                'zawies' => $konto->suspend(),
+                'zbanuj' => $konto->ban(),
+                'usun' => $konto->markForDeletion(),
+            });
+
+            return (string) $konto->fresh()?->status;
         })(),
 
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
@@ -119,6 +145,19 @@ try {
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
+
+        // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
+        // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
+        // który sprawdził hasło, zanim moderator zdążył zbanować.
+        'stan-konta-980' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            match ($argumenty['przejscie']) {
+                'zbanuj' => $konto->ban(),
+                'usun' => $konto->markForDeletion(),
+            };
+
+            return (string) $konto->status;
+        })(),
 
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
@@ -178,6 +217,23 @@ try {
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+        )->getKey(),
+
+        // Komenda obchodząca zaległe potwierdzenia zgłoszeń (issue #797).
+        // Wołamy PRAWDZIWĄ komendę przez Artisana, nie jej wnętrzności —
+        // razem z jej kodem wyjścia, bo to na nim stoi wpięcie
+        // w harmonogram.
+        'dosylka-potwierdzen' => Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen'),
+
+        // Człowiek wracający do tej samej sprawy: ponowne kliknięcie „Zgłoś"
+        // na tej samej treści. `ReportContent` oddaje istniejące zgłoszenie
+        // i po drodze dokańcza zaległe potwierdzenie — to jest DRUGA droga
+        // do tego samego znacznika i to z nią ma się ścigać dosyłka.
+        'powrot-do-sprawy' => (string) app(ReportContent::class)->handle(
+            reporter: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reason: 'spam',
+            details: 'To jest reklama.',
         )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
