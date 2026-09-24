@@ -430,6 +430,25 @@ class Post extends Model
         ]);
     }
 
+    /**
+     * Cała treść, którą autor napisał — do lokalnych sygnałów i oceny modelem (#831).
+     *
+     * PYTANIE MOŻE NIE MIEĆ OPISU: tytuł jest wtedy jedyną wypowiedzią,
+     * więc analiza samego `body` przepuszczałaby je bez żadnego spojrzenia.
+     * Dla dania zostaje `body`, jak dotąd. Niczego nie zapisuje — `body`
+     * i `title` zostają osobnymi danymi.
+     */
+    public function tekstDoOceny(): string
+    {
+        $body = trim((string) $this->body);
+
+        if ($this->kind !== self::KIND_QUESTION) {
+            return $body;
+        }
+
+        return trim(trim((string) $this->title)."\n\n".$body);
+    }
+
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;

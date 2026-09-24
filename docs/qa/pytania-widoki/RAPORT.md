@@ -54,8 +54,9 @@ od zwykłego wpisu; ostatni prowadzi do edycji. Nie uruchamiano modelu AI.
 ## #847 — wynik pomiaru i decyzja właściciela
 
 To korespondencja z operatorem, nie odpowiedzi w Poradźcie. Bez zmiany zachowania.
-Próbnik `ContactRetentionProbeTest.php` jest **poza katalogiem testów CI**:
-zapisuje obserwacje, nie dodaje asercji ustanawiającej regułę retencji. Sprawdza
+Jednorazowy próbnik (`ContactRetentionProbeTest.php`, usunięty przy scaleniu
+z main — nie był uruchamiany w CI, zależał od bazy stanowiska floty) zapisywał
+obserwacje, nie dodawał asercji ustanawiającej regułę retencji. Sprawdzał
 izolację bazy i wykonanie żądań. Poczta jest atrapą `Mail::fake()`; nie wysłano
 żadnej wiadomości do ludzi ani usług.
 
@@ -112,10 +113,11 @@ Poprawiono jedynie przestarzały komentarz mówiący, że nic nie wskazuje na
 Z PowerShell: ustawić `MSYS_NO_PATHCONV=1`, następnie wywołać przez `wsl -d Ubuntu -- bash`
 `_wspolne/przygotuj-runtime.sh gpt-pytania-widoki`, a później
 `_wspolne/testuj.sh gpt-pytania-widoki --filter Question`.
-Próbnik #847: ten sam `testuj.sh` z argumentem
-`docs/qa/pytania-widoki/ContactRetentionProbeTest.php`.
-Próbnik renderowania: po budowie assetów w runtime ten sam skrypt z argumentem
-`docs/qa/pytania-widoki/NotificationRenderProbeTest.php`.
+Próbniki #847 i renderowania (`*ProbeTest.php`) usunięto przy scaleniu z main:
+nie należały do zestawu CI, wpisywały na sztywno bazę stanowiska floty, a render
+zapisywał plik do `public/`. Zachowanie tytułu pytania pilnuje
+`tests/Feature/QuestionNotificationContextTest.php`; wyniki pomiaru #847 zostają
+w tym raporcie.
 
 ## Końcowa kontrola lokalna
 
