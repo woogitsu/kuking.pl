@@ -87,6 +87,39 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
     /** Poniżej tego sprawdzonych pojedynczych referencji być nie powinno — dziś ok. 780. */
     private const MIN_SPRAWDZONYCH = 500;
 
+    public function test_skaner_czyta_wszystkie_pliki_testow_z_katalogu_feature(): void
+    {
+        $katalog = base_path('tests/Feature');
+        $nazwy = scandir($katalog);
+        $this->assertIsArray($nazwy);
+
+        $oczekiwane = [];
+        foreach ($nazwy as $nazwa) {
+            $sciezka = $katalog.DIRECTORY_SEPARATOR.$nazwa;
+            if (is_file($sciezka)) {
+                $oczekiwane[] = $sciezka;
+            }
+        }
+
+        $this->assertGreaterThan(500, count($oczekiwane), 'Katalog testów nie może być pustą kontrolą skanera.');
+
+        $odczytane = $this->wczytajTresciPlikow($katalog);
+        $brakujace = array_values(array_diff($oczekiwane, array_keys($odczytane)));
+
+        $this->assertSame(
+            0,
+            count($brakujace),
+            'Skaner pominął pliki testowe, choć istnieją na dysku. Pierwsze: '
+            .implode(', ', array_slice($brakujace, 0, 3)),
+        );
+    }
+
+    public function test_skaner_odroznia_istniejaca_klase_od_nieistniejacej(): void
+    {
+        $this->assertTrue($this->klasaTestowaIstnieje('DataWpisuGubiRokTylkoWTymRokuTest', null));
+        $this->assertFalse($this->klasaTestowaIstnieje('KlasaKtorejNieMaWRepozytoriumTest', null));
+    }
+
     public function test_referencje_z_dziennika_decyzji_wskazuja_na_istniejace_cele(): void
     {
         $sciezka = base_path('docs/DECISIONS.md');
@@ -593,26 +626,52 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
     /** @return array<string, string> ścieżka => treść */
     private function wczytajTresciPlikow(string $katalog): array
     {
+        // Jeden przebieg strażnika sprawdza setki odnośników do tych samych
+        // katalogów. Nie czytaj całego drzewa ponownie dla każdego tokenu.
+        static $pamiec = [];
+
+        if (array_key_exists($katalog, $pamiec)) {
+            return $pamiec[$katalog];
+        }
+
         $wynik = [];
 
         if (! is_dir($katalog)) {
-            return $wynik;
+            return $pamiec[$katalog] = $wynik;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($katalog, \FilesystemIterator::SKIP_DOTS),
-        );
+        // Na WSL/Windows DirectoryIterator potrafi oddać tylko fragment
+        // dużego katalogu. W pomiarze tests/Feature widział 143 z 696
+        // pozycji, a `scandir()` wszystkie 698 (wraz z `.` i `..`).
+        $pozycje = scandir($katalog);
+        if ($pozycje === false) {
+            return $pamiec[$katalog] = $wynik;
+        }
 
-        foreach ($iterator as $plik) {
-            if ($plik instanceof \SplFileInfo && $plik->isFile()) {
-                $tresc = @file_get_contents($plik->getPathname());
+        foreach ($pozycje as $nazwa) {
+            if ($nazwa === '.' || $nazwa === '..') {
+                continue;
+            }
+
+            $sciezka = $katalog.DIRECTORY_SEPARATOR.$nazwa;
+
+            if (is_dir($sciezka) && ! is_link($sciezka)) {
+                foreach ($this->wczytajTresciPlikow($sciezka) as $plik => $tresc) {
+                    $wynik[$plik] = $tresc;
+                }
+
+                continue;
+            }
+
+            if (is_file($sciezka)) {
+                $tresc = @file_get_contents($sciezka);
 
                 if ($tresc !== false) {
-                    $wynik[$plik->getPathname()] = $tresc;
+                    $wynik[$sciezka] = $tresc;
                 }
             }
         }
 
-        return $wynik;
+        return $pamiec[$katalog] = $wynik;
     }
 }
