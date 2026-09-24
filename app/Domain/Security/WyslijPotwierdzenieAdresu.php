@@ -6,6 +6,7 @@ namespace App\Domain\Security;
 
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * List potwierdzający adres e-mail — JEDNA droga dla obu miejsc, w których
@@ -30,13 +31,27 @@ use App\Notifications\PotwierdzenieAdresu;
  * metoda modelu korzysta, ignorując wynik.
  *
  * ────────────────────────────────────────────────────────────────────────
- *  DLACZEGO TEN LIST GAŚNIE OSTATNI (klasa `wejscie`, próg 0)
+ *  PIERWSZY LIST GAŚNIE OSTATNI, PONOWIENIE — WCZEŚNIEJ (D-246)
  * ────────────────────────────────────────────────────────────────────────
  *
- * Bo bez niego nowe konto nie potwierdzi adresu, a fala migracyjna
- * z Garnek.pl to setki kont zakładanych w kilka dni. Własnego sufitu
- * dobowego ten list nie ma i mieć nie będzie — jedynym jego ograniczeniem
- * jest wspólna pula, w której stoi na samym końcu kolejki do wygaszenia.
+ * `handle()` — list przy rejestracji. Bez niego nowe konto nie potwierdzi
+ * adresu, a fala migracyjna z Garnek.pl to setki kont zakładanych w kilka
+ * dni. Własnego sufitu dobowego nie ma — jedynym jego ograniczeniem jest
+ * wspólna pula, w której stoi na samym końcu kolejki do wygaszenia (klasa
+ * `wejscie`, próg 0).
+ *
+ * `ponow()` — przycisk „Wyślij wiadomość jeszcze raz". Do 23 września 2026
+ * szedł przez `handle()`, czyli też w klasie `wejscie`, a jedynym jego
+ * limitem było 6 na minutę. Jedno niepotwierdzone konto opróżniało więc
+ * całą pulę 300 listów w około 50 minut i do końca doby aplikacja odmawiała
+ * wszystkim linków logowania i potwierdzeń rejestracji (audyt 23.09,
+ * znalezisko 2). Od D-246 ponowienie ma DWIE granice, bo broni przed dwoma
+ * różnymi rzeczami:
+ *
+ *  1. sufit dobowy NA KONTO (`poczta.ponowienie_potwierdzenia_na_dobe`) —
+ *     przed jednym kontem klikającym w kółko;
+ *  2. własną klasę we wspólnej puli (`ponowienie`) — przed wieloma kontami
+ *     naraz: gaśnie, zanim sięgnie po listy zostawione dla wejścia.
  *
  * CZEGO TA KLASA NIE SPRAWDZA: czy adres jest już potwierdzony i czy konto
  * jest otwarte. Robi to wołający (`EmailVerificationController::resend`
@@ -45,6 +60,13 @@ use App\Notifications\PotwierdzenieAdresu;
  */
 final class WyslijPotwierdzenieAdresu
 {
+    /**
+     * Dwie doby, choć przydział jest na jedną: klucz niesie datę, więc nowy
+     * dzień i tak zaczyna się od nowego klucza. Termin jest tylko po to, żeby
+     * stary klucz sprzątnął się sam.
+     */
+    private const WAZNOSC_LICZNIKA_SEKUND = 2 * 86400;
+
     /**
      * @return bool `true` = list poszedł. `false` = NIE poszedł, bo wspólna
      *              pula poczty jest na dziś wyczerpana (albo nie udało się
@@ -65,5 +87,59 @@ final class WyslijPotwierdzenieAdresu
         $user->notify(new PotwierdzenieAdresu);
 
         return true;
+    }
+
+    /**
+     * „Wyślij wiadomość jeszcze raz" — ponowienie z DWIEMA granicami (D-246).
+     *
+     * KOLEJNOŚĆ: najpierw sufit konta, potem pula. Odwrotna zajmowałaby
+     * miejsce we wspólnej puli także temu, komu sufit konta i tak odmówi.
+     *
+     * LICZNIK KONTA RUSZA ATOMOWO (`RateLimiter::increment` zwraca stan po
+     * zwiększeniu), a nie parą „sprawdź, a potem dolicz" — ta sama lekcja co
+     * D-076: dwa równoległe kliknięcia przy stanie 4 z 5 przeszłyby oba.
+     *
+     * LICZY SIĘ LIST, KTÓRY WYSZEDŁ. Gdy pula odmówi, miejsce w liczniku
+     * konta wraca — inaczej człowiek, któremu nic nie wysłaliśmy, miałby
+     * przydział zjedzony przez nasze własne odmowy.
+     */
+    public function ponow(User $user): WynikPonowieniaPotwierdzenia
+    {
+        $klucz = self::kluczLicznikaKonta($user);
+
+        if (RateLimiter::increment($klucz, self::WAZNOSC_LICZNIKA_SEKUND) > self::sufitPonowienNaDobe()) {
+            RateLimiter::decrement($klucz, self::WAZNOSC_LICZNIKA_SEKUND);
+
+            return WynikPonowieniaPotwierdzenia::SufitKonta;
+        }
+
+        if (! DziennyBudzetListow::dlaPonowieniaPotwierdzenia()->sprobujZarezerwowac()) {
+            RateLimiter::decrement($klucz, self::WAZNOSC_LICZNIKA_SEKUND);
+
+            return WynikPonowieniaPotwierdzenia::BrakMiejscaWPuli;
+        }
+
+        // Miejsca w puli nie oddajemy — powód jak w `handle()`.
+        $user->notify(new PotwierdzenieAdresu);
+
+        return WynikPonowieniaPotwierdzenia::Wyslano;
+    }
+
+    /** Ile ponowień na dobę wolno jednemu kontu — także do liczby w komunikacie. */
+    public static function sufitPonowienNaDobe(): int
+    {
+        return max(0, (int) config('kuking.poczta.ponowienie_potwierdzenia_na_dobe', 5));
+    }
+
+    /**
+     * Klucz po IDENTYFIKATORZE konta i DACIE, bez adresu e-mail — w tabeli
+     * `cache` nie ma leżeć cudzy adres (ta sama lekcja co
+     * `App\Support\KluczeLimitow`). Data w kluczu, bo liczymy dobę
+     * kalendarzową, tak jak cała pula (`DziennyBudzetListow`): o północy
+     * zaczyna się nowy klucz.
+     */
+    private static function kluczLicznikaKonta(User $user): string
+    {
+        return 'poczta:ponowienie-potwierdzenia:'.$user->getKey().':'.now()->format('Y-m-d');
     }
 }

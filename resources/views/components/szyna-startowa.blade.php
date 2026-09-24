@@ -35,7 +35,7 @@
                 <li class="szyna-pozycja">
                     <a class="szyna-pozycja-link" href="{{ route('recipes.show', $pozycja->slug) }}">
                         <span class="szyna-miniatura">
-                            <x-photo :media="$pozycja->heroMedia" variant="thumb" :zoom="false" sizes="72px" alt="" />
+                            <x-photo :media="$pozycja->heroMedia" variant="thumb" :zoom="false" sizes="72px" alt="" tresc="przepis" />
                         </span>
                         <span class="min-w-0">
                             <span class="szyna-nazwa">{{ $pozycja->title }}</span>

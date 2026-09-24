@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\AuditLogEntry;
+use App\Models\LoginLinkToken;
 use App\Models\PendingEmailChange;
 use App\Models\User;
 use App\Notifications\PotwierdzenieNowegoAdresu;
@@ -16,9 +17,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -185,6 +188,61 @@ class ZmianaAdresuEmailTest extends TestCase
         $this->assertSame('nowa.basia@example.test', $swiezy->email);
         $this->assertTrue($swiezy->hasVerifiedEmail(), 'Kliknięcie w link jest dowodem dostępu do skrzynki.');
         $this->assertSame(0, PendingEmailChange::count(), 'Żądanie ma zniknąć po potwierdzeniu.');
+    }
+
+    /**
+     * Regresja #979: potwierdzenie nowego adresu nie unieważniało niczego.
+     * Link logowania wysłany na STARY adres dalej otwierał konto, a sesja
+     * na obcym urządzeniu żyła dalej — choć adres zmienia się zwykle
+     * właśnie wtedy, gdy stara skrzynka przestała być tylko nasza.
+     */
+    public function test_potwierdzenie_nowego_adresu_uniewaznia_link_logowania_i_inne_sesje(): void
+    {
+        Notification::fake();
+        config(['session.driver' => 'database']);
+
+        $basia = $this->basia();
+
+        // Bieżąca przeglądarka — ta, w której Basia zamawia i klika link.
+        $biezaca = Str::random(40);
+        foreach ([$biezaca => 'biezace-urzadzenie', 'cudza-sesja' => 'cudze-urzadzenie'] as $id => $urzadzenie) {
+            DB::table('sessions')->insert([
+                'id' => $id,
+                'user_id' => $basia->getKey(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => $urzadzenie,
+                'payload' => '',
+                'last_activity' => time(),
+            ]);
+        }
+        $this->withCookie((string) config('session.cookie'), $biezaca);
+
+        $zmiana = $this->zamow($basia);
+
+        // Link logowania czekający w STAREJ skrzynce.
+        $link = new LoginLinkToken;
+        $link->user_id = $basia->getKey();
+        $link->token_hash = LoginLinkToken::skrot(Str::random(40));
+        $link->created_at = now();
+        $link->expires_at = now()->addMinutes(30);
+        $link->save();
+
+        $tokenPrzed = $basia->fresh()->remember_token;
+
+        $this->actingAs($basia)
+            ->get($this->link($zmiana))
+            ->assertRedirect(route('settings.email'));
+
+        $this->assertSame('nowa.basia@example.test', $basia->fresh()->email);
+        $this->assertSame(0, LoginLinkToken::query()->where('user_id', $basia->getKey())->count(),
+            'Link logowania wysłany na stary adres ma przestać działać.');
+        $this->assertDatabaseMissing('sessions', ['id' => 'cudza-sesja']);
+        $this->assertNotSame($tokenPrzed, $basia->fresh()->remember_token,
+            'Ciasteczko „zapamiętaj mnie" z innego urządzenia ma przestać działać.');
+
+        // Osoba, która właśnie potwierdziła adres, nie zostaje wylogowana.
+        $this->assertDatabaseHas('sessions', ['id' => $biezaca, 'user_id' => $basia->getKey()]);
+        $this->get(route('settings.email'))->assertOk();
     }
 
     public function test_link_dziala_dokladnie_raz(): void

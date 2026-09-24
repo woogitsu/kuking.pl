@@ -49,6 +49,12 @@ class UserPolicy
         return $viewer->isModerator();
     }
 
+    public function unfollow(User $viewer, User $target): bool
+    {
+        // Można wycofać relację także z osobą, której konto przestało być aktywne.
+        return $viewer->isActive() && $viewer->getKey() !== $target->getKey();
+    }
+
     /**
      * Rozstrzyganie odwołań od decyzji moderacyjnych (A-4).
      *
@@ -70,5 +76,93 @@ class UserPolicy
     public function resolveAppeals(User $viewer): bool
     {
         return $viewer->isAdmin();
+    }
+
+    /**
+     * Podgląd tego, co stoi w `failed_jobs` (ekran `/admin/kolejka`).
+     *
+     * ADMIN, NIE KAŻDY MODERATOR — i to nie jest ostrożność na zapas.
+     * Ten ekran jest jedynym miejscem w serwisie, które mówi, co dokładnie
+     * się psuje w kolejce: nazwa zadania plus nazwa klasy wyjątku. Z tego
+     * składa się obraz infrastruktury — który dostawca poczty odmawia, kiedy
+     * pada baza, o której godzinie chodzi worker. Moderator jest tu od treści
+     * i od ludzi (`moderate()`), nie od serwera, a rola `moderator` bywa
+     * nadawana komuś spoza kręgu osoby prowadzącej wdrożenie (D-039).
+     *
+     * To jest bramka NA ROLĘ i tylko na nią. Ekran nie ma żadnego
+     * identyfikatora w adresie, bo nie ma czego wskazywać — a gdyby kiedyś
+     * miał, sam UUID i tak nie byłby autoryzacją (AGENTS.md).
+     */
+    public function diagnozujKolejke(User $viewer): bool
+    {
+        return $viewer->isAdmin();
+    }
+
+    /**
+     * Zawieszenie albo blokada KONTA decyzją moderacyjną (#1408, D-244).
+     *
+     * Karać wolno wyłącznie konto o NIŻSZEJ roli niż własna:
+     *  - moderator zawiesza i blokuje zwykłe konta,
+     *  - administrator także konta moderatorów,
+     *  - konta administratora nie zawiesza ani nie blokuje nikt z panelu
+     *    (równa ranga) — sprawa administratora idzie do właściciela serwisu,
+     *    a rolę odbiera się komendą `kuking:nadaj-role`, która pilnuje
+     *    ostatniego czynnego administratora (#1016).
+     *
+     * Wcześniej wystarczało `moderate()`: przejęte albo złośliwe konto
+     * moderatora mogło zbanować administratora (ban unieważnia sesje), a przy
+     * kilku kolejnych decyzjach — odciąć od panelu wszystkich administratorów
+     * i tym samym całą drogę rozpatrywania odwołań.
+     *
+     * Reguła dotyczy KARY NA KONCIE. Ocena treści (ukrycie, usunięcie,
+     * ostrzeżenie) nie zależy od roli autora — wpis administratora łamiący
+     * zasady ukrywa się tak samo jak każdy inny.
+     *
+     * Własne konto jest równej rangi, więc tą samą regułą nikt nie zawiesza
+     * sam siebie.
+     */
+    public function sanctionAccount(User $actor, User $target): bool
+    {
+        return $actor->isModerator()
+            && self::ranga($actor) > self::ranga($target);
+    }
+
+    /**
+     * Zdjęcie treści Z URZĘDU — bez niczyjego zgłoszenia (G31, D-251).
+     *
+     * Wspólna reguła dla `removeExOfficio()` w politykach treści. Trzy
+     * warunki, wszystkie naraz:
+     *
+     *  - czynny moderator albo administrator (`isModerator()` patrzy też na
+     *    status konta, #1336);
+     *  - POTWIERDZONE 2FA — ta sama reguła wejścia co panel
+     *    (`moderator.2fa`). Stoi też tu, a nie tylko w middleware, bo przycisk
+     *    przy treści rysuje się poza panelem: bez 2FA prowadziłby na ekran
+     *    odmowy;
+     *  - autor ma NIŻSZĄ rolę. Inaczej niż przy decyzji ze zgłoszenia, gdzie
+     *    ocena treści od roli autora nie zależy (D-244 pkt 3). Tam sprawę
+     *    wnosi ktoś drugi, a rozstrzygający nie jest jej stroną. Z urzędu
+     *    jeden człowiek jest naraz tym, kto sprawę znalazł, i tym, kto ją
+     *    rozstrzyga — więc wobec równych i wyższych rangą nie rozstrzyga
+     *    sam. Wpis administratora (albo drugiego moderatora) łamiący zasady
+     *    idzie zwykłym „Zgłoś” i trafia do kogoś innego (`ReportPolicy::decide()`).
+     *    Ta sama reguła rangi wyklucza zdejmowanie własnej treści tą drogą —
+     *    własną usuwa się zwykłym „Usuń”.
+     */
+    public function takeDownContentOf(User $actor, ?User $author): bool
+    {
+        return $actor->isModerator()
+            && $actor->hasTwoFactorConfirmed()
+            && $author !== null
+            && self::ranga($actor) > self::ranga($author);
+    }
+
+    private static function ranga(User $user): int
+    {
+        return match ($user->role) {
+            User::ROLE_ADMIN => 2,
+            User::ROLE_MODERATOR => 1,
+            default => 0,
+        };
     }
 }
