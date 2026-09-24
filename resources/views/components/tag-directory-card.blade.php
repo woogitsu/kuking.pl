@@ -2,7 +2,12 @@
 
 <a class="tag-directory-card {{ $photo ? 'tag-directory-card--photo' : '' }}" href="{{ route('tags.show', $tag) }}">
     @if($photo)
-        <img class="tag-directory-photo" src="{{ $photo->url('feed') }}" alt="" loading="lazy" decoding="async">
+        {{-- Karta ma ~320–380 px (`minmax(20rem, 1fr)`, marka-tagi.css), a stron
+             bywa 100 kart — `srcset` z prawdziwych szerokości pozwala nie brać
+             `feed` 960 px tam, gdzie wystarcza mniejszy wariant (#1326). --}}
+        <img class="tag-directory-photo" src="{{ $photo->url('feed') }}"
+             srcset="{{ $photo->srcset() }}" sizes="(min-width: 48rem) 24rem, 100vw"
+             alt="" loading="lazy" decoding="async">
     @else
         <span class="tag-directory-mark" aria-hidden="true"><x-kuking-mark /></span>
     @endif

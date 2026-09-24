@@ -288,6 +288,43 @@ class Media extends Model
     }
 
     /**
+     * Wartość atrybutu `srcset` z PRAWDZIWYCH szerokości istniejących
+     * wariantów (audyt T30, issue #430; wspólne od #1310 i #1326).
+     *
+     * Wcześniej ta pętla żyła tylko w `<x-photo>`, a miniatury tablicy
+     * i katalogu tagów pisały gołe `<img src=feed>` — przeglądarka nie miała
+     * z czego wybrać i do pola ~120–350 px pobierała wariant 960 px.
+     *
+     * `maWariant()`, nie `width()`: `width()` podstawia wariant zastępczy,
+     * więc przed zadaniem w tle cztery nazwy wskazywałyby na jeden `podglad`.
+     * Jeden kandydat na szerokość (od najmniejszego pliku), bo `scaleDown()`
+     * nie powiększa i przy małym zdjęciu `feed` i `large` mają równą
+     * szerokość. Oryginał nie jest wariantem i tu nie trafia nigdy.
+     */
+    public function srcset(): string
+    {
+        $kandydaci = [];
+
+        foreach (['thumb', 'podglad', 'feed', 'large'] as $nazwaWariantu) {
+            if (! $this->maWariant($nazwaWariantu)) {
+                continue;
+            }
+
+            $szerokosc = $this->width($nazwaWariantu);
+
+            if ($szerokosc === null || isset($kandydaci[$szerokosc])) {
+                continue;
+            }
+
+            $kandydaci[$szerokosc] = $this->url($nazwaWariantu).' '.$szerokosc.'w';
+        }
+
+        ksort($kandydaci);
+
+        return implode(', ', $kandydaci);
+    }
+
+    /**
      * Zapis JEDNEGO wariantu z metadanych, albo `null`.
      *
      * Istnieje po to, żeby `ProcessUploadedImage` mógł przenieść `podglad`

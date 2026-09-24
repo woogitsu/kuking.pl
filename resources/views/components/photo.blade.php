@@ -100,41 +100,14 @@
          * mają tę samą szerokość, a dwa kandydaty o identycznym deskryptorze
          * nie dają przeglądarce żadnego wyboru — zostaje pierwszy, mniejszy
          * plik. Bierzemy więc jeden wariant na szerokość, od najmniejszego.
-         */
-        $kandydaci = [];
-
-        /*
-         * `podglad` NA LIŚCIE, I TO NIE TYLKO NA CZAS CZEKANIA (issue #430).
-         * Wariant 640 px zostaje w metadanych na stałe, więc jest uczciwym
-         * kandydatem między `thumb` (320) a `feed` (960) — na telefonie
-         * o zwykłej gęstości pikseli przeglądarka pobierze 61,5 kB zamiast
-         * 173,2 kB. Kolejność w tej pętli nie ustala niczego poza tym, który
-         * plik wygrywa przy równej szerokości: sortuje niżej `ksort`.
          *
-         * `maWariant()`, NIE samo `width()` — pytanie musi być DOSŁOWNE.
-         * `width()` (jak `url()`) podstawia wariant zastępczy, więc zanim
-         * zadanie w tle policzy resztę, wszystkie cztery nazwy wskazywałyby
-         * na jeden plik `podglad`. Przeglądarka dostałaby cztery kandydatury
-         * bez żadnego wyboru, a deskryptory kłamałyby o szerokości —
-         * dokładnie ta usterka, którą naprawił audyt T30 niżej.
+         * `podglad` jest na liście kandydatów na stałe (issue #430): 640 px
+         * między `thumb` (320) a `feed` (960) — na telefonie o zwykłej
+         * gęstości 61,5 kB zamiast 173,2 kB. Pętla mieszka w
+         * `Media::srcset()`, bo te same kandydatury potrzebują miniatury
+         * tablicy i katalogu tagów (#1310, #1326).
          */
-        foreach (['thumb', 'podglad', 'feed', 'large'] as $nazwaWariantu) {
-            if (! $media->maWariant($nazwaWariantu)) {
-                continue;
-            }
-
-            $szerokoscWariantu = $media->width($nazwaWariantu);
-
-            if ($szerokoscWariantu === null || isset($kandydaci[$szerokoscWariantu])) {
-                continue;
-            }
-
-            $kandydaci[$szerokoscWariantu] = $media->url($nazwaWariantu).' '.$szerokoscWariantu.'w';
-        }
-
-        ksort($kandydaci);
-
-        $srcset = implode(', ', $kandydaci);
+        $srcset = $media->srcset();
 
         /*
          * JEDEN EFEKTYWNY OPIS DLA MINIATURY, LINKU I POWIĘKSZENIA (#744).
