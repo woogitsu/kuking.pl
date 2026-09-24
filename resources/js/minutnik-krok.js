@@ -83,6 +83,39 @@ export function zapiszStan(sekundyCalkiem, terminEpoka) {
  * minutnika, nie zero.
  */
 export function odczytajStan(zapisany, terazEpoka, terazMonotoniczny) {
+    const stan = odczytajTermin(zapisany, terazEpoka, terazMonotoniczny);
+
+    if (!stan || stan.terminMonotoniczny <= terazMonotoniczny) {
+        return null;
+    }
+
+    return stan;
+}
+
+/**
+ * Jak długo po terminie zapis minutnika wciąż zasługuje na alarm.
+ *
+ * Minutnik, który skończył się podczas przeładowania albo gdy karta była
+ * w tle, ma zadzwonić — to jego sens. Ale zapis sprzed godzin to minutnik
+ * porzucony: człowiek kliknął „Zakończ gotowanie” bez „Anuluj”, a potem
+ * wrócił do trybu gotowania tego samego przepisu w tej samej karcie.
+ * Alarm „Minutnik kroku 3 skończył odliczanie.” byłby wtedy fałszywy —
+ * garnka dawno nie ma na ogniu (przegląd #1301). 15 minut to dużo więcej
+ * niż jakiekolwiek przeładowanie i mniej niż powrót do przepisu „na
+ * później”.
+ */
+export const PRZETERMINOWANIE_NAJWYZEJ_MS = 15 * 60 * 1000;
+
+/**
+ * Jak `odczytajStan`, ale termin, który JUŻ minął, nie znika — wraca
+ * z terminem w przeszłości. Potrzebne minutnikowi INNEGO kroku niż
+ * widoczny (issue #1301): jeśli skończył się akurat w trakcie
+ * przeładowania strony, alarm i tak musi zabrzmieć, a nie przepaść.
+ * `null` dla zapisu pustego, uszkodzonego albo przeterminowanego o więcej
+ * niż `PRZETERMINOWANIE_NAJWYZEJ_MS` — taki minutnik jest porzucony,
+ * nie spóźniony.
+ */
+export function odczytajTermin(zapisany, terazEpoka, terazMonotoniczny) {
     if (!zapisany) return null;
 
     let dane;
@@ -99,14 +132,30 @@ export function odczytajStan(zapisany, terazEpoka, terazMonotoniczny) {
         return null;
     }
 
-    const pozostaleMs = terminEpoka - terazEpoka;
-
-    if (pozostaleMs <= 0) {
+    if (terazEpoka - terminEpoka > PRZETERMINOWANIE_NAJWYZEJ_MS) {
         return null;
     }
 
     return {
         sekundyCalkiem,
-        terminMonotoniczny: terazMonotoniczny + pozostaleMs,
+        terminMonotoniczny: terazMonotoniczny + (terminEpoka - terazEpoka),
     };
+}
+
+/**
+ * Numer kroku z klucza `kluczStanu(recipeSlug, krok)` albo `null`, gdy
+ * klucz należy do innego przepisu (albo w ogóle nie jest kluczem
+ * minutnika). Odwrotność `kluczStanu` — po niej tryb gotowania znajduje
+ * minutniki uruchomione w krokach, których teraz nie widać (issue #1301).
+ */
+export function krokZKlucza(klucz, recipeSlug) {
+    const przedrostek = kluczStanu(recipeSlug, '');
+
+    if (typeof klucz !== 'string' || !klucz.startsWith(przedrostek)) {
+        return null;
+    }
+
+    const krok = klucz.slice(przedrostek.length);
+
+    return /^[1-9]\d*$/.test(krok) ? krok : null;
 }
