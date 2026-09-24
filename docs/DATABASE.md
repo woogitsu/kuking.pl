@@ -1635,7 +1635,13 @@ Snapshot po istotnych zmianach.
   numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
 - `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
   przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
-  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+  czasy, wszystkie cztery kolumny pochodzenia i `family_since_year`,
+  składniki z `no_amount`, kroki). `source_url` i `ingredients[].no_amount` są
+  w migawce od issue #896 — **w starszych migawkach tych kluczy nie ma
+  i brak znaczy „nieznane"**; nie uzupełniamy ich dzisiejszą wartością
+  z przepisu. Numer wersji i migawka powstają w transakcji zapisu treści,
+  pod blokadą wiersza `recipes` (issue #895). Zmiana kształtu JSON, nie
+  schematu — bez migracji;
 - `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
