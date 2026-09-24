@@ -139,6 +139,12 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
 
     public function test_martwa_droga_publiczna_nie_pokazuje_katalogu_dysku(): void
     {
+        // `public/storage` ma istnieć i wskazywać na domyślny dysk — dopiero
+        // wtedy dysk `bez_linku` jest „gdzie indziej”. Bez tego wynik zależał od
+        // tego, czy wcześniej w tym samym procesie inny test wywołał
+        // `storage:link` (po podziale testów na części — nie wywołał).
+        Artisan::call('storage:link');
+
         $katalog = storage_path('framework/testing/zdjecia-bez-linku-kody');
         File::ensureDirectoryExists($katalog);
 
