@@ -92,7 +92,13 @@ class PostPolicy
 
     public function update(User $user, Post $post): bool
     {
-        return $user->getKey() === $post->author_id;
+        // Issue #936 (jak #937 dla komentarzy): wpis ukryty albo zdjęty przez
+        // moderację nie jest edytowalny — ani tekst, ani tagi, ani zdjęcia.
+        // Inaczej przy odwołaniu (DSA art. 20) albo przywróceniu
+        // (`RestoreContent`) moderator oglądałby i publikował inną treść niż
+        // ta, o której zdecydował.
+        return $user->getKey() === $post->author_id
+            && ! $post->jestPodDecyzjaModeracji();
     }
 
     /**

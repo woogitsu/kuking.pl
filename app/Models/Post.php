@@ -449,6 +449,16 @@ class Post extends Model
         return trim(trim((string) $this->title)."\n\n".$body);
     }
 
+    /**
+     * Wpis ukryty albo zdjęty decyzją moderatora (issue #936). Taki wpis
+     * zostaje w stanie, o którym moderator zdecydował — patrz
+     * `PostPolicy::update()`.
+     */
+    public function jestPodDecyzjaModeracji(): bool
+    {
+        return in_array($this->status, [self::STATUS_HIDDEN, self::STATUS_REMOVED], true);
+    }
+
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
