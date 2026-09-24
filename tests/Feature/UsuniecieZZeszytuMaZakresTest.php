@@ -110,43 +110,45 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     }
 
     /**
-     * ZMIENIONY ŚWIADOMIE PRZY UJEDNOLICANIU (D-231).
+     * PRZEPISANY ŚWIADOMIE PRZY SKŁADANIU DWÓCH DRÓG (#775, D-242).
      *
-     * W pierwotnej postaci #776/D-224/D-231 ta scena wymagała, żeby strona
-     * przepisu NIE MIAŁA `<details class="confirm">` — pytanie „czy na
-     * pewno" miało zniknąć na rzecz komunikatu PO akcji. Właściciel
-     * rozstrzygnął to inaczej (D-230), łącząc obie prace zamiast wybierać
-     * jedną: pytanie WRACA na tym jedynym ekranie o zasięgu globalnym,
-     * bo `detach()` kasuje notatkę przy zapisie razem z nim, a „Zapisz
-     * ponownie" po akcji tej notatki nie odzyskuje — to uzasadnia pytanie
-     * przed czymś, co jest tylko CZĘŚCIOWO odwracalne.
+     * W postaci z gałęzi `flota/scal-zeszyt-775` ta scena wymagała na stronie
+     * przepisu `<details class="confirm">` — pytania „czy na pewno ze
+     * wszystkich zeszytów". Argumentem było, że wyjęcie jest tylko CZĘŚCIOWO
+     * odwracalne: `detach()` kasuje wiersz pivotu razem z `note`, a „Zapisz
+     * ponownie" notatki nie odzyskuje.
+     *
+     * TEN ARGUMENT PRZESTAŁ BYĆ PRAWDZIWY. Rdzeń z `naprawa/775-zakres-usuwania-z-zeszytu`
+     * dokłada `restore()`, które przywraca zdjęte wiersze RAZEM z notatką
+     * i pierwotną datą zapisu. Wyjęcie jest więc odwracalne w całości, a wtedy
+     * wraca reguła D-224: pytanie przed każdą odwracalną czynnością uczy
+     * odklikiwania i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych.
      *
      * PRAWDZIWY ZARZUT Z #775 NIE ZNIKA — brzmiał „usuwa ze wszystkich
-     * zeszytów BEZ UJAWNIENIA ZAKRESU". Scena pilnuje więc TERAZ obu rzeczy
-     * naraz: pytania przed akcją (z jawnym ostrzeżeniem o notatkach) I zdania
-     * po akcji, które nazywa zakres liczbą i nie obiecuje więcej, niż „Zapisz
-     * ponownie" naprawdę oddaje.
+     * zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Scena pilnuje
+     * więc obu rzeczy naraz: zakres stoi NAPISANY NAD PRZYCISKIEM, zanim ktoś
+     * kliknie, a zdanie po akcji nazywa go liczbą i daje drogę powrotu, która
+     * naprawdę wraca — z notatkami.
      */
-    public function test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji(): void
+    public function test_strona_przepisu_ujawnia_zakres_przed_akcja_i_nazywa_go_po_niej(): void
     {
         $basia = $this->user('basia');
         $przepis = Recipe::factory()->create();
 
         $a = Collection::create(['owner_id' => $basia->getKey(), 'name' => 'A', 'visibility' => 'private']);
         $b = Collection::create(['owner_id' => $basia->getKey(), 'name' => 'B', 'visibility' => 'private']);
-        $a->recipes()->attach($przepis->getKey());
-        $b->recipes()->attach($przepis->getKey());
+        $a->recipes()->attach($przepis->getKey(), ['note' => 'bez cukru', 'created_at' => now()->subDay()]);
+        $b->recipes()->attach($przepis->getKey(), ['note' => 'mniej soli', 'created_at' => now()->subHours(3)]);
 
         $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        // POTWIERDZENIE PRZED AKCJĄ, BEZ JavaScriptu (D-230): `<details>`
-        // zwykłego HTML-a, a nie `onsubmit="return confirm(...)"`. Pytanie
-        // nazywa zakres (WSZYSTKICH zeszytów) i ostrzega wprost, że notatki
-        // przy zapisie znikną razem z nim.
+        // ZAKRES PRZED AKCJĄ, bez JavaScriptu — zwykły akapit przy przycisku,
+        // związany z nim przez `aria-describedby`, więc czytnik ekranu czyta
+        // zdanie razem z przyciskiem, a nie osobno gdzieś wyżej.
         $this->assertStringContainsString('Usuń z zeszytu', $tresc);
-        $this->assertStringContainsString('<details class="confirm">', $tresc);
-        $this->assertStringContainsString('wszystkich', $tresc);
-        $this->assertStringContainsString('Notatki przy nim znikną razem z zapisem', $tresc);
+        $this->assertStringContainsString('ze wszystkich Twoich zeszytów', $tresc);
+        $this->assertStringContainsString('aria-describedby="zakres-wyjecia-', $tresc);
+        $this->assertStringContainsString('Przywróć do zeszytu', $tresc);
 
         $odpowiedz = $this->actingAs($basia)
             ->from($przepis->url())
@@ -155,66 +157,87 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $odpowiedz->assertRedirect();
 
         // ZAKRES NAZWANY LICZBĄ, KTÓRA JEST PRAWDZIWA — dwa zeszyty, więc
-        // zdanie mówi „z 2", a nie ogólnikowe „ze wszystkich". Komunikat NIE
-        // obiecuje pełnej odwracalności: „Zapisz ponownie" przywraca zapis,
-        // nie notatkę przy nim.
-        $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'z 2 Twoich zeszytów')
-            && str_contains($tekst, 'notatka przy nim już nie wróci'));
+        // zdanie mówi „było ich 2", a nie samo ogólnikowe „ze wszystkich".
+        $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'ze wszystkich Twoich zeszytów')
+            && str_contains($tekst, '2')
+            && str_contains($tekst, 'przywrócić'));
 
-        $odpowiedz->assertSessionHas('status_powrot', fn (array $powrot) => $powrot['etykieta'] === 'Zapisz ponownie'
+        $odpowiedz->assertSessionHas('status_powrot', fn (array $powrot) => $powrot['etykieta'] === 'Przywróć do zeszytu'
             && $powrot['akcja'] === route('collections.save', $przepis->slug));
 
         $this->assertFalse($a->recipes()->whereKey($przepis->getKey())->exists());
         $this->assertFalse($b->recipes()->whereKey($przepis->getKey())->exists());
+
+        // I DROGA POWROTU NAPRAWDĘ WRACA — do obu zeszytów, z notatkami.
+        // To jest ta różnica, dla której właściciel wybrał rdzeń z #1110:
+        // bez tego notatki znikałyby bezpowrotnie, a pytanie przed akcją
+        // byłoby jedyną obroną.
+        $this->actingAs($basia)->post(route('collections.save', $przepis->slug))->assertRedirect();
+
+        $this->assertSame('bez cukru', $a->recipes()->whereKey($przepis->getKey())->first()?->pivot->note);
+        $this->assertSame('mniej soli', $b->recipes()->whereKey($przepis->getKey())->first()?->pivot->note);
     }
 
     /**
-     * KONTROLA DODATNIA (D-230): gdyby ktoś kiedyś wrócił do zwykłego
-     * formularza DELETE bez `<x-confirm-button>`, ta scena ma to złapać —
-     * inaczej strażnik wyżej mierzyłby przypadkiem coś, co akurat przeszło.
+     * KONTROLA DODATNIA (D-242): gdyby ktoś kiedyś wrócił do formularza bez
+     * ujawnionego zakresu, ta scena ma to złapać — inaczej strażnik wyżej
+     * mierzyłby przypadkiem coś, co akurat przeszło.
      *
      * Adres `collections.unsave` NIE nadaje się do szukania po samym stringu
      * (`/przepisy/{slug}/zapisz` obsługuje i zapis, i wyjęcie — różni je
      * wyłącznie metoda HTTP), więc scena liczy formularze DELETE po DOM-ie:
-     * ile stoi w całym dokumencie i ile z nich stoi wewnątrz
-     * `<details class="confirm">`. Liczby muszą się zgadzać.
+     * ile stoi w całym dokumencie i ile z nich NIESIE ZAKRES. Zakres niesie
+     * albo ukryty `collection_id` (jeden zeszyt — wyjmujemy dokładnie z niego),
+     * albo akapit ostrzegawczy związany `aria-describedby` (kilka zeszytów).
+     * Liczby muszą się zgadzać.
      */
-    public function test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia(): void
+    public function test_kazdy_formularz_wyjecia_na_stronie_przepisu_niesie_zakres(): void
     {
         $basia = $this->user('basia');
-        $przepis = Recipe::factory()->create();
-        $basia->defaultCollection()->recipes()->attach($przepis->getKey());
 
-        $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
+        foreach ([1, 3] as $ileZeszytow) {
+            $przepis = Recipe::factory()->create();
 
-        $dokument = new \DOMDocument;
-        $poprzednie = libxml_use_internal_errors(true);
-        $dokument->loadHTML('<?xml encoding="utf-8" ?>'.$tresc);
-        libxml_clear_errors();
-        libxml_use_internal_errors($poprzednie);
+            for ($i = 0; $i < $ileZeszytow; $i++) {
+                $zeszyt = Collection::create([
+                    'owner_id' => $basia->getKey(),
+                    'name' => "Zeszyt {$i} dla {$przepis->slug}",
+                    'visibility' => 'private',
+                ]);
+                $zeszyt->recipes()->attach($przepis->getKey(), ['note' => null, 'created_at' => now()]);
+            }
 
-        $xpath = new \DOMXPath($dokument);
-        $adres = route('collections.unsave', $przepis->slug);
+            $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        $wyrazenie = sprintf(
-            '//form[@action="%s"][.//input[@name="_method"][translate(@value, "delete", "DELETE")="DELETE"]]',
-            $adres,
-        );
+            $dokument = new \DOMDocument;
+            $poprzednie = libxml_use_internal_errors(true);
+            $dokument->loadHTML('<?xml encoding="utf-8" ?>'.$tresc);
+            libxml_clear_errors();
+            libxml_use_internal_errors($poprzednie);
 
-        $wszystkie = $xpath->query($wyrazenie);
-        $wewnatrzPotwierdzenia = $xpath->query($wyrazenie.'[ancestor::details[@class="confirm"]]');
+            $xpath = new \DOMXPath($dokument);
+            $adres = route('collections.unsave', $przepis->slug);
 
-        $this->assertGreaterThan(0, $wszystkie->length, 'Strona przepisu nie ma żadnego formularza wyjęcia.');
-        $this->assertSame(
-            $wszystkie->length,
-            $wewnatrzPotwierdzenia->length,
-            'Na stronie przepisu stoi formularz wyjęcia POZA `<details class="confirm">` — usuwa bez potwierdzenia.',
-        );
+            $wyrazenie = sprintf(
+                '//form[@action="%s"][.//input[@name="_method"][translate(@value, "delete", "DELETE")="DELETE"]]',
+                $adres,
+            );
+
+            $wszystkie = $xpath->query($wyrazenie);
+            $zZakresem = $xpath->query($wyrazenie.'[.//input[@name="collection_id"] or .//button[@aria-describedby]]');
+
+            $this->assertGreaterThan(0, $wszystkie->length, 'Strona przepisu nie ma żadnego formularza wyjęcia.');
+            $this->assertSame(
+                $wszystkie->length,
+                $zZakresem->length,
+                "Przy {$ileZeszytow} zeszytach na stronie przepisu stoi formularz wyjęcia BEZ ujawnionego zakresu — to jest dokładnie #775.",
+            );
+        }
     }
 
     /**
-     * Zakres lokalny nazywa zeszyt po imieniu, a „Zapisz ponownie" wraca
-     * DOKŁADNIE TAM, skąd wyjęto — nie do zeszytu domyślnego (D-231).
+     * Zakres lokalny nazywa zeszyt po imieniu, a droga powrotu wraca DOKŁADNIE
+     * TAM, skąd wyjęto — nie do zeszytu domyślnego — i to razem z notatką.
      */
     public function test_powrot_po_usunieciu_lokalnym_wraca_do_tego_samego_zeszytu(): void
     {
@@ -222,7 +245,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $wpis = Post::factory()->create(['author_id' => $this->user('autor')->getKey()]);
 
         $zeszyt = Collection::create(['owner_id' => $basia->getKey(), 'name' => 'Obiady', 'visibility' => 'private']);
-        $zeszyt->posts()->attach($wpis->getKey());
+        $zeszyt->posts()->attach($wpis->getKey(), ['note' => 'dla Ani bez orzechów', 'created_at' => now()->subWeek()]);
 
         $odpowiedz = $this->actingAs($basia)
             ->from(route('collections.show', $zeszyt))
@@ -230,17 +253,23 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
         $odpowiedz->assertRedirect();
         $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'Obiady'));
-        $odpowiedz->assertSessionHas('status_powrot', fn (array $powrot) => ($powrot['pola']['collection_id'] ?? null) === (string) $zeszyt->getKey());
+        $odpowiedz->assertSessionHas('status_powrot', fn (array $powrot) => $powrot['etykieta'] === 'Przywróć do zeszytu'
+            && $powrot['akcja'] === route('collections.save-post', $wpis));
 
         $html = $this->actingAs($basia)->get(route('collections.show', $zeszyt))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Zapisz ponownie', $html);
+        $this->assertStringContainsString('Przywróć do zeszytu', $html);
 
+        // Przycisk powrotu wysyła SAM ADRES ZAPISU, bez `collection_id` —
+        // zeszyt i notatkę zna zapamiętane wyjęcie, nie formularz. Gdyby to
+        // było zwykłe „zapisz ponownie", wpis wylądowałby w zeszycie DOMYŚLNYM
+        // z pustą notatką i dzisiejszą datą.
         $this->actingAs($basia)
-            ->post(route('collections.save-post', $wpis), ['collection_id' => $zeszyt->getKey()])
+            ->post(route('collections.save-post', $wpis))
             ->assertRedirect();
 
         $this->assertSame(1, $zeszyt->posts()->whereKey($wpis->getKey())->count());
         $this->assertSame(0, $basia->defaultCollection()->posts()->whereKey($wpis->getKey())->count());
+        $this->assertSame('dla Ani bez orzechów', $zeszyt->posts()->whereKey($wpis->getKey())->first()?->pivot->note);
     }
 }
