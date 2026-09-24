@@ -174,11 +174,14 @@ class UznaneOdwolanieOdBezDzialaniaWykonujeDecyzjeTest extends TestCase
         $this->assertNull($konto->status_expires_at);
         $this->assertSame(User::STATUS_SUSPENDED, $konto->punishment_status);
         $this->assertNotNull($konto->punishment_expires_at, 'Zawieszenie z terminem zgubiło termin w karze odłożonej.');
+        // Termin zapamiętany PRZED cofnięciem: `cancelDeletion()` przenosi
+        // karę do `status` i zeruje `punishment_*` na tym samym obiekcie.
+        $termin = $konto->punishment_expires_at->copy();
 
         $konto->cancelDeletion();
         $wrocone = $zgloszony->fresh();
         $this->assertSame(User::STATUS_SUSPENDED, $wrocone->status);
-        $this->assertTrue($konto->punishment_expires_at->equalTo($wrocone->status_expires_at));
+        $this->assertTrue($termin->equalTo($wrocone->status_expires_at), 'Cofnięcie usunięcia zgubiło termin odłożonego zawieszenia.');
     }
 
     public function test_uznanie_bez_nowej_decyzji_nie_przechodzi_i_nic_nie_zmienia(): void
