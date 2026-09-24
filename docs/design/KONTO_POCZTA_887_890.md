@@ -128,7 +128,19 @@ Zmiana #888 chroni zadania utworzone nowym kodem. W starym payloadzie
 z odbiorcą `User` nie zapisano historycznego adresu, więc nie da się go
 wiarygodnie odtworzyć samą aktualizacją klasy. Przed wdrożeniem operator
 powinien rozstrzygnąć obsługę już oczekujących starych ostrzeżeń; tutaj
-nie odczytywano ani nie zmieniano kolejki produkcyjnej.
+nie odczytywano ani nie zmieniano kolejki produkcyjnej. Wprost: ostrzeżenie
+zakolejkowane PRZED wdrożeniem, a wykonane PO potwierdzeniu zmiany, może
+nadal trafić na NOWY adres — nowy kod tego nie naprawi wstecz.
+
+Ślad nieudanego ostrzeżenia (`App\Poczta\ZapiszNieudanyList`, sprawdzone
+w kodzie i testem `test_list_na_adres_zostawia_slad_bez_konta`): wiersz
+w `mail_failures` powstaje jak dotąd, z `rodzaj = ZgloszonaZmianaAdresu`,
+ale z `user_id = NULL`. Odbiorcą jest teraz `AnonymousNotifiable`, a
+`ktoCzekal()` rozpoznaje wyłącznie `User` i niczego nie zgaduje.
+`kuking:kto-nie-dostal-listu` pokaże „— (odbiorca spoza kont)". Właściciel
+nie dowie się ze śladu, czyje to konto; adres zostaje w `failed_jobs`
+(`php artisan queue:failed`). Tak samo działało to już wcześniej dla
+`PotwierdzenieNowegoAdresu`, więc nie jest to nowa klasa luki.
 
 Kontrola przed wysyłką #889 nie gwarantuje ważności przy czytaniu:
 link może później wygasnąć albo zostać zastąpiony. Sprawdzenie przy wejściu

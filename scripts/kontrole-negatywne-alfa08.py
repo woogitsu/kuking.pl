@@ -150,6 +150,11 @@ CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_asset
 # końca, więc przechodzi host podszywający się sufiksem.
 STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+# Ostrzeżenie o zmianie adresu utrwala STARY adres przy prośbie (#888).
+# Mutacja wraca do `$user->notify()` — adres czytany przy wysyłce, po
+# potwierdzeniu już nowy — i test przechodzący przez kolejkę ma zapalić.
+OSTRZEZENIE_888 = "app/Domain/Users/Actions/RequestEmailChange.php"
+OSTRZEZENIE_888_TEST = "OstrzezenieZmianyAdresuWKolejceTest"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
 
@@ -352,6 +357,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Ostrzeżenie o zmianie adresu czyta adres przy wysyłce", OSTRZEZENIE_888, OSTRZEZENIE_888_TEST,
+     lambda s: replace_once(s, "Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(", "$user->notify(new ZgloszonaZmianaAdresu(")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -369,6 +376,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(OSTRZEZENIE_888_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

@@ -60,6 +60,9 @@ class OstrzezenieZmianyAdresuWKolejceTest extends TestCase
         $this->assertSame('stary@example.test', $mail->getTo()[0]->getAddress(), 'Ostrzeżenie musi trafić do starej skrzynki także po potwierdzeniu zmiany.');
         $this->assertStringContainsString('n***@example.test', $mail->getHtmlBody());
         $this->assertStringNotContainsString('nowy@example.test', $mail->getHtmlBody());
+        // Imię też jest utrwalone w chwili prośby — worker nie sięga do profilu,
+        // więc powitanie przeżywa także usunięcie profilu przed wysyłką.
+        $this->assertStringContainsString('Testowa osoba,', $mail->getHtmlBody());
     }
 
     public function test_tresc_nie_obiecuje_stanu_konta_w_chwili_czytania(): void
