@@ -131,9 +131,11 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'powod' => 'Job `PrzeanalizujTresc` → `KlientOpenAI` (#1014).',
         ],
         'KUKING_MODEL_ALARM_EMAIL' => [
-            'role' => ['worker', 'scheduler'],
-            'powod' => 'Worker: `AlarmujModeratora` z `PrzeanalizujTresc`. Scheduler: '
-                .'`kuking:podsumowanie-automatu` i `kuking:pilnuj-terminow-odwolan` (#1014).',
+            'role' => ['web', 'worker', 'scheduler'],
+            'powod' => 'Web: `AlarmujOPilnymZgloszeniu` synchronicznie w żądaniu zgłoszenia od człowieka '
+                .'(`ReportContent`, `ZglosNielegalnaTresc`, D-236). Worker: `AlarmujModeratora` '
+                .'z `PrzeanalizujTresc`. Scheduler: `kuking:podsumowanie-automatu` '
+                .'i `kuking:pilnuj-terminow-odwolan` (#1014).',
         ],
         'AWS_KOPIE_BUCKET' => [
             'role' => ['scheduler'],
@@ -201,6 +203,16 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'SLACK_BOT_USER_OAUTH_TOKEN' => 'Powiadomienia Slack nieużywane.',
         'SLACK_BOT_USER_DEFAULT_CHANNEL' => 'Powiadomienia Slack nieużywane.',
     ];
+
+    /**
+     * Sekrety przekazywane WYŁĄCZNIE na produkcji: `isProduction ? ctx.shared.X : ""`.
+     * Środowisko PR jest kopią bazowego, więc bez warunku preview wysyłałby
+     * treści pod produkcyjnym kluczem modelu, a alarmy do prawdziwego moderatora.
+     */
+    private const TYLKO_PRODUKCJA = ['OPENAI_MODERATION_KEY', 'KUKING_MODEL_ALARM_EMAIL'];
+
+    /** Warunek „tylko produkcja” w `railway.ts`; `%s` = nazwa zmiennej. */
+    private const WZOR_TYLKO_PRODUKCJA = '/^isProduction\s*\?\s*ctx\.shared\.%s\s*:\s*""$/';
 
     /** Role, które mają własne usługi po rozdzieleniu (#595). */
     private const ROLE_ROZDZIELONE = ['web', 'worker', 'scheduler'];
@@ -339,6 +351,46 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             $role['scheduler']['KUKING_MODEL_ALARM_EMAIL'] ?? null,
             'Scheduler uruchamia podsumowanie automatu i pilnowanie terminów odwołań — bez adresu listy nie wyjdą (#1014).',
         );
+        $this->assertSame(
+            'ctx.shared.KUKING_MODEL_ALARM_EMAIL',
+            $role['web']['KUKING_MODEL_ALARM_EMAIL'] ?? null,
+            'Web woła `AlarmujOPilnymZgloszeniu` synchronicznie w żądaniu zgłoszenia od człowieka — bez adresu '
+            .'pilne zgłoszenie (D-236) po cichu przestanie budzić moderatora po rozdzieleniu usług.',
+        );
+    }
+
+    /**
+     * Klucz modelu i adres alarmu tylko na produkcji. Staging i każde
+     * środowisko PR (ani `production`, ani `staging`) dostają pusty napis —
+     * dlatego warunek musi brzmieć `isProduction`, a nie `!isStaging`.
+     */
+    #[Test]
+    public function klucz_modelu_i_adres_alarmu_tylko_na_produkcji(): void
+    {
+        $widziane = [];
+        foreach ($this->zmienneRol(surowe: true) as $rola => $zmienne) {
+            foreach (self::TYLKO_PRODUKCJA as $zmienna) {
+                if (! isset($zmienne[$zmienna])) {
+                    continue;
+                }
+                $widziane[$zmienna] = true;
+                $this->assertMatchesRegularExpression(
+                    sprintf(self::WZOR_TYLKO_PRODUKCJA, $zmienna),
+                    $zmienne[$zmienna],
+                    "Rola `{$rola}` dostaje {$zmienna} bez warunku `isProduction ? ctx.shared.{$zmienna} : \"\"`. "
+                    .'Środowisko PR jest kopią bazowego — podgląd wysyłałby treści pod produkcyjnym kluczem '
+                    .'albo alarmy do prawdziwego moderatora.',
+                );
+            }
+        }
+
+        // Kontrola niepustości: pętla nad rolami bez tych zmiennych
+        // przeszłaby nad niczym.
+        $this->assertEqualsCanonicalizing(
+            self::TYLKO_PRODUKCJA,
+            array_keys($widziane),
+            'Nie znalazłem w żadnej roli którejś ze zmiennych TYLKO_PRODUKCJA — parser zgubił blok albo zmienną.',
+        );
     }
 
     #[Test]
@@ -474,7 +526,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
      *
      * @return array{web: array<string, string>, worker: array<string, string>, scheduler: array<string, string>, all: array<string, string>}
      */
-    private function zmienneRol(): array
+    private function zmienneRol(bool $surowe = false): array
     {
         $kod = $this->kodBezKomentarzy();
         $stale = $this->staleEnv($kod);
@@ -494,6 +546,21 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'worker' => $this->rozwin($this->envUslugi($kod, 'worker'), $stale),
             'scheduler' => $this->rozwin($this->envUslugi($kod, 'scheduler'), $stale),
         ];
+
+        if (! $surowe) {
+            // `isProduction ? ctx.shared.X : ""` to wciąż referencja do X —
+            // warunek sprawdza osobno `klucz_modelu_i_adres_alarmu_tylko_na_produkcji`.
+            foreach ($wynik as $rola => $zmienne) {
+                $wynik[$rola] = array_map(
+                    static fn (string $wartosc): string => (string) preg_replace(
+                        '/^isProduction\s*\?\s*(ctx\.shared\.\w+)\s*:\s*""$/',
+                        '$1',
+                        $wartosc,
+                    ),
+                    $zmienne,
+                );
+            }
+        }
 
         foreach ($wynik as $rola => $zmienne) {
             // Kontrola niepustości: parser, który zgubi blok, zwróciłby pusty

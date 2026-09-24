@@ -625,25 +625,42 @@ export default defineRailway((ctx) => {
   };
 
   //  --- Moderacja modelem: TYLKO worker (#1014) -----------------------------
-  //  Ocenę treści robi job `App\Jobs\PrzeanalizujTresc` przez
-  //  `App\Moderacja\KlientOpenAI`. PUSTE = moderacja modelem WYŁĄCZONA bez
-  //  błędu (świadomy fail-open, D-055) — dlatego zielony `/health` NIE
-  //  dowodzi, że działa. Sprawdzenie: `php artisan kuking:sprawdz-model`
-  //  w konsoli serwisu `worker` (DEPLOYMENT_RUNBOOK.md, KROK 8B).
-  //  Staging i preview biorą wartość z WŁASNYCH Shared Variables — pusto
-  //  albo osobny klucz testowy, nigdy klucz produkcji. „Sealed".
+  //  Ocenę treści robi wyłącznie job `App\Jobs\PrzeanalizujTresc` przez
+  //  `App\Moderacja\KlientOpenAI`, czyli kolejka: worker po rozdzieleniu
+  //  usług, `web` w roli `all` przed nim. Web w roli `web` i scheduler modelu
+  //  nie wołają. PUSTE = moderacja modelem WYŁĄCZONA bez błędu (świadomy
+  //  fail-open, D-055) — dlatego zielony `/health` NIE dowodzi, że działa.
+  //  Sprawdzenie: `php artisan kuking:sprawdz-model` w konsoli serwisu
+  //  z kolejką (DEPLOYMENT_RUNBOOK.md, KROK 8B). „Sealed".
+  //
+  //  TYLKO PRODUKCJA (`isProduction ? … : ""`). Środowisko PR powstaje jako
+  //  kopia środowiska bazowego, więc `ctx.shared` na preview może znaczyć
+  //  wartość PRODUKCYJNĄ — a staging i preview nie mogą wysyłać treści pod
+  //  produkcyjnym kluczem (rachunek, limity, rejestr powierzenia). Poza
+  //  produkcją funkcja jest JAWNIE wyłączona, niezależnie od panelu.
+  //  Pilnuje `ZmienneRailwayaPerRolaTest::klucz_modelu_i_adres_alarmu_tylko_na_produkcji`.
   const modelEnv = {
-    OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,
+    OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",
   };
 
-  //  --- Adres alarmów moderacji: worker + scheduler (#1014) -----------------
-  //  Worker: pilny alarm z `PrzeanalizujTresc` (`AlarmujModeratora`).
-  //  Scheduler: `kuking:podsumowanie-automatu` i `kuking:pilnuj-terminow-odwolan`.
-  //  To adres skrzynki, nie klucz, ale jest daną osobową i różni się między
-  //  środowiskami, dlatego idzie przez `ctx.shared`. PUSTE = te listy nie
-  //  wychodzą (komendy mówią, że nie ma dokąd wysłać).
+  //  --- Adres alarmów moderacji: web + worker + scheduler (#1014) -----------
+  //  Czytają go TRZY role:
+  //    web       — `AlarmujOPilnymZgloszeniu`, wołany SYNCHRONICZNIE w żądaniu
+  //                zgłoszenia od człowieka (`ReportContent`,
+  //                `ZglosNielegalnaTresc`, D-236). Adres jest czytany w web,
+  //                zanim powiadomienie trafi do kolejki — bez niego pilne
+  //                zgłoszenie po cichu przestaje budzić moderatora;
+  //    worker    — `AlarmujModeratora` z `PrzeanalizujTresc`;
+  //    scheduler — `kuking:podsumowanie-automatu`
+  //                i `kuking:pilnuj-terminow-odwolan`.
+  //  PUSTE = te listy nie wychodzą, zostaje sama kolejka w panelu (D-055).
+  //
+  //  TYLKO PRODUKCJA, z tego samego powodu co klucz modelu wyżej: moderator
+  //  nie może dostawać alarmów ze stagingu ani z PR-ów i brać ich za
+  //  prawdziwe. Adres nie jest sekretem, ale to dana osoby — nie wpisuj go
+  //  w tym pliku.
   const alarmModeratoraEnv = {
-    KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,
+    KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",
   };
 
   //  --- Odczyt bucketu kopii bazy: TYLKO scheduler --------------------------
@@ -665,7 +682,7 @@ export default defineRailway((ctx) => {
     AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
   };
 
-  const webEnv = { ...appEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv };
+  const webEnv = { ...appEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
@@ -1251,7 +1268,9 @@ export default defineRailway((ctx) => {
 //      to jedyna rzecz, która NIE MA prawa mieszkać w Railwayu.
 //   3. Shared variables — wartości sekretów (ten plik je tylko referencuje).
 //   3b. Zmienne sharedowe dopisane w #1013/#1014 — do założenia w KAŻDYM
-//      środowisku (staging: puste albo testowe, nigdy wartości produkcji):
+//      środowisku (staging: puste albo testowe, nigdy wartości produkcji;
+//      OPENAI_MODERATION_KEY i KUKING_MODEL_ALARM_EMAIL ten plik i tak
+//      przekazuje TYLKO na produkcji):
 //      OPENAI_MODERATION_KEY (Sealed), KUKING_MODEL_ALARM_EMAIL,
 //      CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN (Sealed),
 //      APP_PREVIOUS_KEYS (Sealed; puste poza rotacją APP_KEY).

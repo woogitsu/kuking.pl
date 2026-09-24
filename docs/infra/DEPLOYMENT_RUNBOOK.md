@@ -676,8 +676,8 @@ sekretów.
 | ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
-| `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko worker** (`PrzeanalizujTresc`). Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
-| `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. Worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą |
+| `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. **Tylko serwis z kolejką** (`PrzeanalizujTresc`): `worker` po rozdzieleniu usług, `kuking.pl` w roli `all` dziś. Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
+| `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. Web (`AlarmujOPilnymZgloszeniu` — synchronicznie przy pilnym zgłoszeniu od człowieka, D-236), worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą, zostaje sama kolejka w panelu |
 | `CLOUDFLARE_ZONE_ID` | Cloudflare → strefa `kuking.pl` → Overview → Zone ID | nie | Czyszczenie cache CDN po skasowaniu zdjęcia (#959). Worker (`PurgePublicMediaCache`) i web (`/health` sprawdza obecność) |
 | `CLOUDFLARE_PURGE_TOKEN` | token API z jedynym uprawnieniem **Zone → Cache Purge** dla tej jednej strefy | **TAK** | jw. |
 | ~~`SENTRY_LARAVEL_DSN`~~ | — | — | **Nieprzekazywane** (#1013). Sentry'ego nie ma w `composer.json` i nic tej zmiennej nie czyta (D-041). Gdy integracja powstanie, zmienną dopisuje się w `railway.ts` do ról, które ją wykonują |
@@ -712,15 +712,21 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `CLOUDFLARE_ANALYTICS_TOKEN` | ✔ | — | — | formularze, trasy OAuth, HTML strony, `/health` |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | ✔ | ✔ | — | worker: `PurgePublicMediaCache`; web: tylko `/health` (sprawdzenie obecności) |
 | `OPENAI_MODERATION_KEY` | — | ✔ | — | `PrzeanalizujTresc` → `KlientOpenAI` |
-| `KUKING_MODEL_ALARM_EMAIL` | — | ✔ | ✔ | worker: `AlarmujModeratora`; scheduler: `kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan` |
+| `KUKING_MODEL_ALARM_EMAIL` | ✔ | ✔ | ✔ | web: `AlarmujOPilnymZgloszeniu` w żądaniu zgłoszenia (`ReportContent`, `ZglosNielegalnaTresc`); worker: `AlarmujModeratora`; scheduler: `kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan` |
 | `AWS_KOPIE_BUCKET`, `AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie` z harmonogramu |
 
 Serwis `kopia-bazy` ma własną, zamkniętą listę bez żadnego zestawu aplikacji
 (`KopiaBazyPozaRailwayemTest`).
 
 **Staging i preview** biorą wartości z Shared Variables **własnego**
-środowiska. Klucz modelu i adres alarmów zostaw tam puste albo wpisz osobne,
-testowe — nigdy wartości produkcji.
+środowiska — a środowisko PR powstaje jako **kopia bazowego**, więc może
+odziedziczyć wartości produkcji. Dlatego `OPENAI_MODERATION_KEY`
+i `KUKING_MODEL_ALARM_EMAIL` `railway.ts` przekazuje **tylko na `production`**
+(`isProduction ? … : ""`): poza nią moderacja modelem i listy alarmowe są
+jawnie wyłączone, cokolwiek stoi w panelu. Pilnuje tego
+`ZmienneRailwayaPerRolaTest::klucz_modelu_i_adres_alarmu_tylko_na_produkcji`.
+Pozostałe sekrety zostaw na stagingu puste albo testowe — nigdy wartości
+produkcji.
 
 ### Zmienne ustawiane automatycznie przez `railway.ts`
 
@@ -876,7 +882,8 @@ MAIL_FROM_ADDRESS=kontakt@kuking.pl
 ```
 
 oraz — jeśli moderacja modelem ma działać — `OPENAI_MODERATION_KEY`
-i `KUKING_MODEL_ALARM_EMAIL`, a na czas rotacji klucza `APP_PREVIOUS_KEYS`.
+i `KUKING_MODEL_ALARM_EMAIL` (**tylko** na produkcji, nigdy na stagingu ani
+w PR), a na czas rotacji klucza `APP_PREVIOUS_KEYS`.
 
 > **Trzy pułapki w tym bloku, każda już raz zapłacona:**
 >
@@ -1028,8 +1035,10 @@ tylko wtedy, gdy konfiguracja nadal obiecuje ochronę.
 
 ## KROK 8B. Moderacja modelem — sprawdzenie, czy klucz naprawdę działa
 
-**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do zmiennych Railway.
-**Ile zajmuje:** jedno polecenie.
+**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do Shared Variables środowiska
+`production` (zaznacz „Sealed") i po każdym `railway config apply`, które
+zmienia usługi — w tym przy odbiorze rozdzielenia usług (#595).
+**Ile zajmuje:** jedno polecenie na usługę.
 
 ```
 php artisan kuking:sprawdz-model
@@ -1039,18 +1048,29 @@ W konsoli Railway (zakładka *Console* przy serwisie `kuking.pl`) — jesteś ju
 wtedy w kontenerze, więc bez `railway ssh`.
 
 **Po rozdzieleniu usług (#595) — w konsoli serwisu `worker`, nie `web`.**
-Klucz dostaje wyłącznie worker (#1013), więc na `web` komenda uczciwie powie
-`WYŁĄCZONA — nie ma klucza`, choć moderacja działa. Obecność adresu alarmów
-sprawdź w konsoli serwisów `worker` **i** `scheduler`, bez wypisywania wartości
-i bez wysyłania listu:
+Klucz dostaje wyłącznie worker (#1013), więc na `web` i `scheduler` komenda
+**ma** odpowiedzieć `WYŁĄCZONA — nie ma klucza`, choć moderacja działa. Na
+stagingu i w środowisku PR odpowie tak samo na każdej usłudze — `railway.ts`
+przekazuje klucz tylko na produkcji.
+
+**Sama wartość w Shared Variables nie wystarczy.** Railway udostępnia ją tylko
+usługom, które ją referencują; referencje trzyma `.railway/railway.ts`
+(`modelEnv`, `alarmModeratoraEnv`), a pilnuje `ZmienneRailwayaPerRolaTest`.
+
+**Adres alarmów — sprawdzenie bez wypisywania wartości i bez wysyłania listu.**
+W konsoli **każdego** z serwisów `web`, `worker` i `scheduler` (albo jednego
+`kuking.pl` w roli `all`). `web` też, bo pilne zgłoszenie od człowieka
+(D-236) alarmuje moderatora z żądania HTTP, nie z kolejki:
 
 ```
 [ -n "$KUKING_MODEL_ALARM_EMAIL" ] && echo ustawiony || echo PUSTY
 ```
 
-(`kuking:podsumowanie-automatu` też to powie, ale gdy są nowe oznaczenia —
-naprawdę wyśle list.) Zielony `/health` **nie dowodzi**, że moderacja modelem
-działa.
+Nie używaj `printenv` ani `php artisan config:show` — wypiszą adres do
+historii konsoli. (`kuking:podsumowanie-automatu` też powie, czy adres jest,
+ale gdy są nowe oznaczenia — naprawdę wyśle list.) Zielony `/health` **nie
+dowodzi**, że moderacja modelem działa: brak klucza albo adresu to świadomy
+fail-open (D-055).
 
 **Dlaczego to jest osobny krok, a nie sprawdzenie w `/health`.** Klient modelu
 (`App\Moderacja\KlientOpenAI`) celowo zwraca `null` przy KAŻDEJ porażce: brak

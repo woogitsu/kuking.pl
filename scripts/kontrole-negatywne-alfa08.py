@@ -132,6 +132,9 @@ RAILWAY_IAC = ".railway/railway.ts"
 ZMIENNE_ROL_TEST = "ZmienneRailwayaPerRolaTest"
 # Scheduler budujący mailer w digeście musi mieć klucze EmailLabs (przegląd #1013).
 HARMONOGRAM_POCZTA_TEST = "harmonogram_budujacy_mailer_ma_klucze_poczty"
+# Klucz modelu i adres alarmu tylko na produkcji — środowisko PR jest kopią
+# bazowego, więc bez warunku preview dostałby wartości produkcji (#1014).
+TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
 # Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
 # Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
 # z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
@@ -359,6 +362,13 @@ checks = [
     # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
     # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
+    # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
+    ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv };", "...czyszczenieCdnEnv };")),
+    ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
+    ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",', "KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,")),
     ("Scheduler bez kluczy poczty przy digeście", RAILWAY_IAC, HARMONOGRAM_POCZTA_TEST,
      lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
