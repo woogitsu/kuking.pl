@@ -49,6 +49,12 @@ class UserPolicy
         return $viewer->isModerator();
     }
 
+    public function unfollow(User $viewer, User $target): bool
+    {
+        // Można wycofać relację także z osobą, której konto przestało być aktywne.
+        return $viewer->isActive() && $viewer->getKey() !== $target->getKey();
+    }
+
     /**
      * Rozstrzyganie odwołań od decyzji moderacyjnych (A-4).
      *
@@ -68,6 +74,26 @@ class UserPolicy
      * naciskać „Podtrzymuję"/„Cofam" pod konkretnym odwołaniem.
      */
     public function resolveAppeals(User $viewer): bool
+    {
+        return $viewer->isAdmin();
+    }
+
+    /**
+     * Podgląd tego, co stoi w `failed_jobs` (ekran `/admin/kolejka`).
+     *
+     * ADMIN, NIE KAŻDY MODERATOR — i to nie jest ostrożność na zapas.
+     * Ten ekran jest jedynym miejscem w serwisie, które mówi, co dokładnie
+     * się psuje w kolejce: nazwa zadania plus nazwa klasy wyjątku. Z tego
+     * składa się obraz infrastruktury — który dostawca poczty odmawia, kiedy
+     * pada baza, o której godzinie chodzi worker. Moderator jest tu od treści
+     * i od ludzi (`moderate()`), nie od serwera, a rola `moderator` bywa
+     * nadawana komuś spoza kręgu osoby prowadzącej wdrożenie (D-039).
+     *
+     * To jest bramka NA ROLĘ i tylko na nią. Ekran nie ma żadnego
+     * identyfikatora w adresie, bo nie ma czego wskazywać — a gdyby kiedyś
+     * miał, sam UUID i tak nie byłby autoryzacją (AGENTS.md).
+     */
+    public function diagnozujKolejke(User $viewer): bool
     {
         return $viewer->isAdmin();
     }
@@ -99,6 +125,36 @@ class UserPolicy
     {
         return $actor->isModerator()
             && self::ranga($actor) > self::ranga($target);
+    }
+
+    /**
+     * Zdjęcie treści Z URZĘDU — bez niczyjego zgłoszenia (G31, D-251).
+     *
+     * Wspólna reguła dla `removeExOfficio()` w politykach treści. Trzy
+     * warunki, wszystkie naraz:
+     *
+     *  - czynny moderator albo administrator (`isModerator()` patrzy też na
+     *    status konta, #1336);
+     *  - POTWIERDZONE 2FA — ta sama reguła wejścia co panel
+     *    (`moderator.2fa`). Stoi też tu, a nie tylko w middleware, bo przycisk
+     *    przy treści rysuje się poza panelem: bez 2FA prowadziłby na ekran
+     *    odmowy;
+     *  - autor ma NIŻSZĄ rolę. Inaczej niż przy decyzji ze zgłoszenia, gdzie
+     *    ocena treści od roli autora nie zależy (D-244 pkt 3). Tam sprawę
+     *    wnosi ktoś drugi, a rozstrzygający nie jest jej stroną. Z urzędu
+     *    jeden człowiek jest naraz tym, kto sprawę znalazł, i tym, kto ją
+     *    rozstrzyga — więc wobec równych i wyższych rangą nie rozstrzyga
+     *    sam. Wpis administratora (albo drugiego moderatora) łamiący zasady
+     *    idzie zwykłym „Zgłoś” i trafia do kogoś innego (`ReportPolicy::decide()`).
+     *    Ta sama reguła rangi wyklucza zdejmowanie własnej treści tą drogą —
+     *    własną usuwa się zwykłym „Usuń”.
+     */
+    public function takeDownContentOf(User $actor, ?User $author): bool
+    {
+        return $actor->isModerator()
+            && $actor->hasTwoFactorConfirmed()
+            && $author !== null
+            && self::ranga($actor) > self::ranga($author);
     }
 
     private static function ranga(User $user): int

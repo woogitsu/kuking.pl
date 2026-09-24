@@ -220,7 +220,7 @@ class ZbiorczePowiadomienieOZapisieTest extends TestCase
         $save->handle($osoba, $przepis, $zeszytA);
         $save->handle($osoba, $przepis, $zeszytB);
 
-        $this->assertSame(1, $save->remove($osoba, $przepis, $zeszytA));
+        $this->assertCount(1, $save->remove($osoba, $przepis, $zeszytA));
 
         $zapytanie = fn () => Notification::query()
             ->where('user_id', $autor->getKey())
@@ -228,9 +228,75 @@ class ZbiorczePowiadomienieOZapisieTest extends TestCase
 
         $this->assertSame(1, $zapytanie()->count(), 'Przepis leży jeszcze w drugim zeszycie — powiadomienie zostaje.');
 
-        $this->assertSame(1, $save->remove($osoba, $przepis, $zeszytB));
+        $this->assertCount(1, $save->remove($osoba, $przepis, $zeszytB));
 
         $this->assertSame(0, $zapytanie()->count(), 'Po wyjęciu z ostatniego zeszytu zapis jest wycofany przed przeczytaniem.');
+    }
+
+    public function test_powrot_po_wyjeciu_ze_wszystkich_zeszytow_przywraca_udzial_w_partii(): void
+    {
+        // Styk #906 z #775: `remove()` wycofuje udział osoby z partii, gdy
+        // przepisu nie ma już w żadnym jej zeszycie, a `restore()` („Cofnij”)
+        // oddaje go do zeszytu. Bez dopisania z powrotem przepis leżałby
+        // u niej, a autor straciłby powiadomienie o tym zapisie (D-070).
+        $autor = $this->user('autor_powrot');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+        $pierwsza = $this->user('powrot_pierwsza');
+        $druga = $this->user('powrot_druga');
+
+        $save = app(SaveRecipeToCollection::class);
+        $save->handle($pierwsza, $przepis);
+        $save->handle($druga, $przepis);
+
+        $partia = fn () => Notification::query()
+            ->where('user_id', $autor->getKey())
+            ->where('type', Notification::TYPE_SAVED)
+            ->sole();
+
+        $zdjete = $save->remove($druga, $przepis);
+        $this->assertCount(1, $zdjete);
+        $this->assertSame([$pierwsza->getKey()], $partia()->data['savers']);
+
+        $this->assertSame(1, $save->restore($druga, $przepis, $zdjete));
+        $this->assertSame(
+            [$pierwsza->getKey(), $druga->getKey()],
+            $partia()->data['savers'],
+            'Po „Cofnij” przepis znów leży u tej osoby — jej zapis wraca do partii.',
+        );
+
+        // Drugi powrót nie ma czego oddać i niczego nie dokłada.
+        $this->assertSame(0, $save->restore($druga, $przepis, $zdjete));
+        $this->assertSame([$pierwsza->getKey(), $druga->getKey()], $partia()->data['savers']);
+    }
+
+    public function test_powrot_do_jednego_z_dwoch_zeszytow_nie_dubluje_powiadomienia(): void
+    {
+        $autor = $this->user('autor_powrot_dwa');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+        $osoba = $this->user('powrot_dwa_zeszyty');
+
+        $zeszytA = $osoba->defaultCollection();
+        $zeszytB = $osoba->collections()->create(['name' => 'Na obiad', 'visibility' => 'private']);
+
+        $save = app(SaveRecipeToCollection::class);
+        $save->handle($osoba, $przepis, $zeszytA);
+        $save->handle($osoba, $przepis, $zeszytB);
+
+        // Autor przeczytał — powrót do jednego z dwóch zeszytów to nie nowy
+        // zapis, więc nie ma prawa otworzyć nowej wiadomości.
+        Notification::query()->where('user_id', $autor->getKey())->update(['read_at' => now()]);
+
+        $zdjete = $save->remove($osoba, $przepis, $zeszytA);
+        $this->assertSame(1, $save->restore($osoba, $przepis, $zdjete));
+
+        $this->assertSame(
+            1,
+            Notification::query()
+                ->where('user_id', $autor->getKey())
+                ->where('type', Notification::TYPE_SAVED)
+                ->count(),
+            'Przepis cały czas leżał w drugim zeszycie — powrót niczego autorowi nie zgłasza.',
+        );
     }
 
     public function test_po_przeczytaniu_kolejny_zapis_zaczyna_nowa_partie(): void

@@ -125,9 +125,14 @@
                  *
                  * `?:` jak przy `citation`: `array_filter` na końcu bloku
                  * odrzuca `null` i `[]`, ale PUSTY NAPIS BY PRZEPUŚCIŁ.
+                 *
+                 * #900 (D-254): dawny adres FTP/SSH może zostać w bazie, ale
+                 * nie jest ani linkiem, ani adresem strony — tu ten sam
+                 * warunek HTTP/HTTPS co przy linku niżej.
                  */
                 'isBasedOn' => $recipe->source_type === \App\Models\Recipe::SOURCE_EXTERNAL
-                    ? ($recipe->source_url ?: null)
+                        && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
+                    ? $recipe->source_url
                     : null,
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
                 'recipeYield' => $porcje,
@@ -247,7 +252,7 @@
                             warunku: kto zaczął obserwować przed wymazaniem
                             konta, musi mieć jak przestać.
                         --}}
-                        @if($obserwuje ?? false)
+                        @if(($obserwuje ?? false) && auth()->user()->can('unfollow', $recipe->author))
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
                                 {{-- #793 rozszerzone na relacje: strona przepisu
@@ -332,39 +337,50 @@
                     @endcan
                     @if($isSaved)
                         {{--
-                            OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
-                            ZAKRES PO NIEJ (issue #775 + D-224/D-231 = D-230).
+                            WYJĘCIE MÓWI, SKĄD WYJMUJE (issue #775).
 
-                            Ten przycisk nie wie, w którym zeszycie stoi
-                            człowiek — przepis mógł być zapisany w kilku naraz
-                            przez „Wybierz zeszyt" niżej. Zarzut z #775 był
-                            podwójny: „Usunięte z zeszytu" po fakcie ani nie
-                            mówiło, że zniknęło z KAŻDEGO zeszytu, ani nie
-                            pytało przed usunięciem notatek, których żadna
-                            droga powrotu nie odtwarza (`detach()` kasuje
-                            wiersz pivotu razem z `note`, D-230). D-224
-                            rozstrzygnęło, że pytanie przed KAŻDĄ odwracalną
-                            czynnością uczy odklikiwania — ale to rozstrzygnięcie
-                            liczyło z odwracalnością całej akcji, nie z tym, że
-                            część jej skutku (notatki) nie wraca. Stąd pytanie
-                            wraca tu, na jedynym ekranie o zasięgu globalnym.
+                            Ten formularz wysyłał samo DELETE, bez wskazania
+                            zeszytu — a akcja po drugiej stronie kasowała
+                            przepis ze WSZYSTKICH zeszytów tej osoby. Człowiek
+                            z pięcioma zeszytami klikał „Usuń z zeszytu”
+                            i tracił pięć wierszy razem z notatkami własnymi,
+                            nie widząc nigdzie, że tak się stanie.
 
-                            Po potwierdzeniu komunikat nazywa zakres LICZBĄ
-                            („Przepis wyjęty z 3 Twoich zeszytów") i daje
-                            przycisk „Zapisz ponownie"
-                            (`CollectionController::komunikatPoWyjeciu()`) —
-                            ale mówi też wprost, że wraca sam zapis, nie
-                            notatka przy nim.
+                            Są dwa przypadki i różni je to, czy w ogóle jest
+                            co ujawniać:
 
-                            Usunięcie z JEDNEGO, wybranego zeszytu robi się
-                            w widoku tego zeszytu, bez pytania — tam przycisk
-                            nazywa się „Usuń z tego zeszytu" i notatki innych
-                            zeszytów w ogóle nie dotyczy (D-231).
+                             • JEDEN ZESZYT — wiadomo, z którego wyjmujemy,
+                               więc mówimy to wprost i wysyłamy `collection_id`.
+                               Nic poza tym zeszytem nie zostanie ruszone,
+                               nawet gdyby przepis trafił do kolejnego między
+                               narysowaniem strony a kliknięciem;
+
+                             • KILKA ZESZYTÓW — nie wiadomo, o który chodzi,
+                               więc zakres zostaje szeroki, ale STOI NAPISANY
+                               NAD PRZYCISKIEM, a nie dopiero w komunikacie po
+                               fakcie. `aria-describedby` wiąże to zdanie
+                               z przyciskiem, żeby czytnik ekranu przeczytał
+                               je razem z nim, a nie osobno gdzieś wyżej.
+
+                            Napis na przycisku zostaje ten sam w obu gałęziach.
+                            Zakres niosą `collection_id` i zdanie obok, nie
+                            etykieta — dzięki temu ekran zeszytu może nazwać
+                            swój przycisk po swojemu, a ta strona nie musi się
+                            o to spierać.
                         --}}
-                        <x-confirm-button
-                            :action="route('collections.unsave', $recipe->slug)"
-                            label="Usuń z zeszytu"
-                            question="Usunąć ten przepis ze wszystkich Twoich zeszytów, w których go zapisano? Notatki przy nim znikną razem z zapisem." />
+                        @php $zeszytyTegoPrzepisu = $zeszytyZPrzepisem ?? collect(); @endphp
+                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
+                            @csrf @method('DELETE')
+                            @if($zeszytyTegoPrzepisu->count() === 1)
+                                <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
+                                <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
+                            @elseif($zeszytyTegoPrzepisu->count() > 1)
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit"
+                                @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
+                            ><x-ikona nazwa="save" /> Usuń z zeszytu</button>
+                        </form>
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
@@ -438,7 +454,13 @@
             @endif
 
             @if($recipe->source_type === 'external' && $recipe->source_url)
-                <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+                <p class="meta m-0">Przepis pochodzi ze strony:
+                    @if(\Illuminate\Support\Str::isUrl($recipe->source_url, ['http', 'https']))
+                        <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a>
+                    @else
+                        {{ $recipe->source_url }}
+                    @endif
+                </p>
             @endif
         </div>
 
@@ -674,6 +696,8 @@
         @endif
 
         <div class="kolumna-czytania">
+            <x-zdejmij-z-urzedu :tresc="$recipe" typ="recipe" />
+
             <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" />
         </div>
     </article>
