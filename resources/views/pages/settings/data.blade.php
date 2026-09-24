@@ -46,7 +46,10 @@
                     <li class="mb-4">
                         {{ \App\Support\Czas::data($export->created_at, 'j F Y, H:i') }} —
                         @switch($export->status)
-                            @case('ready') gotowa @break
+                            {{-- `ready` po terminie (albo unieważnione przez wymazanie
+                                 konta) nie jest „gotowe" — przycisku pobrania już nie ma,
+                                 więc słowo „gotowa" obiecywałoby coś, czego ekran nie da. --}}
+                            @case('ready') {{ isset($downloadUrls[$export->getKey()]) ? 'gotowa' : 'wygasła' }} @break
                             @case('queued') w kolejce @break
                             @case('processing') przygotowujemy @break
                             @case('failed') nie udało się przygotować @break
@@ -59,11 +62,21 @@
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
                             <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
+                            {{-- PACZKA GOTOWA, LIST JESZCZE NIE (issue #820). List wysyła
+                                 osobne zadanie z ponowieniami i przy awarii poczty może
+                                 przyjść godzinę później — albo wcale. Ekran nie każe na
+                                 niego czekać: paczka jest tutaj, teraz. `notified_at`
+                                 wpisuje `NotifyUserExportReady` dopiero, gdy bierze list. --}}
+                            @if($export->notified_at === null)
+                                <br><span class="field-help">E-mail o tej paczce jeszcze nie wyszedł. Nie musisz na niego czekać — paczkę pobierzesz tutaj.</span>
+                            @endif
                         @elseif($export->status === 'failed')
                             {{-- Nigdy surowa kolumna: failureReasonLabel() zamienia kod
                                  (App\Models\DataExport::REASONS) na tekst po polsku,
                                  nawet gdy kod jest nieznany albo pusty (audyt W7-07). --}}
                             <br><span class="field-help">{{ $export->failureReasonLabel() }}</span>
+                        @elseif(in_array($export->status, ['ready', 'expired'], true))
+                            <br><span class="field-help">Tej paczki nie można już pobrać. Nową przygotujesz przyciskiem „Przygotuj paczkę z moimi danymi”.</span>
                         @endif
                     </li>
                 @endforeach

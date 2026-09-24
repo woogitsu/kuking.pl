@@ -1,8 +1,7 @@
 # Zaległości #732 i #765 — odbiór lokalny
 
 Stan początkowy: czysty `gpt/zalegle`, `534e0a51ed3a2b7dab4f7ba88ec536f4c411ad24`.
-Worktree: `C:\Users\matma\Documents\kuking-flota\gpt-zalegle`.
-Runtime: `/home/mateusz/flota/gpt-zalegle-run`, skopiowane zależności.
+Worktree i runtime: osobne katalogi stanowiska, skopiowane zależności.
 Baza: `kuking_flota_gpt-zalegle`, właściciel `kuking`, `127.0.0.1:55439`.
 Nazwa runtime odpowiada istniejącemu katalogowi; podany w przekazaniu katalog
 `zalegle` nie istnieje. Wspólne skrypty floty pozostały bez zmian.

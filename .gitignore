@@ -54,3 +54,6 @@ Thumbs.db
 # wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
 .pint.cache
 .php-cs-fixer.cache
+
+# Lokalne wyniki narzędzi (np. PRINT_FIXTURES=1 w WydrukPrzepisuFixtureTest).
+/output/

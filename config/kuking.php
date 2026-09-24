@@ -2942,6 +2942,27 @@ return [
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
         ],
+
+        /*
+         * ALARM O PILNYM ZGŁOSZENIU OD CZŁOWIEKA (`AlarmujOPilnymZgloszeniu`,
+         * D-236). Kategorię wybiera zgłaszający — także w formularzu DSA bez
+         * konta — więc bez tych dwóch liczb 40 zgłoszeń jednego wpisu dawało
+         * 40 listów, a jedno konto przy kolejnych celach do 60 listów na
+         * godzinę, i to z puli dzielonej z logowaniem i rejestracją.
+         *
+         * `okno_celu_godzin` — najwyżej JEDEN list o danym celu w tym oknie.
+         * Kolejne zgłoszenia tego samego wpisu stoją w kolejce z plakietką,
+         * list o nich nic by nie dodał.
+         *
+         * `dzienny_sufit` — ile listów alarmowych od ludzi na dobę, dla
+         * wszystkich celów razem. Ostatni list doby mówi wprost, że kolejnych
+         * dziś nie będzie. Leży WEWNĄTRZ wspólnego licznika poczty (D-239),
+         * więc zabiera z puli najwyżej tyle listów.
+         */
+        'alarm_czlowieka' => [
+            'okno_celu_godzin' => (int) env('KUKING_ALARM_CZLOWIEKA_OKNO_GODZIN', 6),
+            'dzienny_sufit' => (int) env('KUKING_ALARM_CZLOWIEKA_SUFIT', 10),
+        ],
     ],
 
     'wersja' => [

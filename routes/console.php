@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -47,8 +47,11 @@ Artisan::command('inspire', function () {
 // losowymi 502 w trakcie zwykłej pracy.
 //
 // `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
-// `proc_open` nie jest potrzebny. `Artisan::call()` uruchamia tę samą komendę
-// co wcześniej i zwraca jej kod wyjścia.
+// `proc_open` nie jest potrzebny. KAŻDE zadanie idzie przez jeden adapter,
+// `Harmonogram::artisan()`: kod ≠ 0 zamienia on w wyjątek z nazwą
+// komendy i kodem, bo `CallbackEvent` nie rozpoznaje liczby 1 jako błędu (#835).
+// Nie pisz tu gołego `Schedule::call(fn () => Artisan::call(...))` — pilnuje
+// tego `HarmonogramSprawdzaKodWyjsciaTest`.
 //
 // Kosztem jest utrata `runInBackground()`: sprzątanie eksportów blokuje pętlę
 // harmonogramu na czas swojego działania. Przy jednym uruchomieniu na dobę
@@ -57,13 +60,13 @@ Artisan::command('inspire', function () {
 // Zdjęcia wgrane, ale do niczego nieprzypięte (audyt C1). Powstają, gdy ktoś
 // wybierze zdjęcia, dostanie błąd walidacji i zamknie kartę zamiast poprawić.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu niżej.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-osierocone-zdjecia'))
+Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->dailyAt('03:40')
     ->name('sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
+Harmonogram::artisan('kuking:sprzataj-eksporty')
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
     ->onOneServer()
@@ -102,7 +105,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
 // Blokady leżą we wspólnym cache PostgreSQL (`CACHE_STORE=database`, tabela
 // `cache_locks`) — sterownik `database` implementuje `LockProvider`, więc to
 // działa bez Redisa, którego AGENTS.md zabrania.
-Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
+Harmonogram::artisan('kuking:zdejmij-wygasle-kary')
     ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()
     ->onOneServer()
@@ -117,7 +120,7 @@ Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
 // godziną wygaśnięcia jak zawieszenie, tylko okno na zmianę zdania liczone
 // w dniach — dobowa dokładność wystarcza.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
+Harmonogram::artisan('kuking:usun-wygasle-konta')
     ->name('kuking:usun-wygasle-konta')
     ->dailyAt('03:50')
     ->onOneServer()
@@ -129,7 +132,7 @@ Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
 // §7) jest zasadą domyślną. Codziennie w nocy, nie co godzinę — to nie jest
 // termin z konkretną godziną jak zawieszenie, dobowa dokładność wystarcza.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
+Harmonogram::artisan('kuking:sprzataj-sygnaly')
     ->name('kuking:sprzataj-sygnaly')
     ->dailyAt('04:00')
     ->onOneServer()
@@ -142,7 +145,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
 // Codziennie w nocy, po sygnałach produktowych — dobowa dokładność
 // wystarcza, liczymy w miesiącach, nie w konkretnej godzinie wygaśnięcia.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
+Harmonogram::artisan('kuking:sprzataj-audyt')
     ->name('kuking:sprzataj-audyt')
     ->dailyAt('04:10')
     ->onOneServer()
@@ -153,17 +156,10 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
 // `created_at`, niezależnie od `read_at`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 //
-// KOD WYJŚCIA ZAMIENIAMY W WYJĄTEK (#1342). `CallbackEvent` uznaje za porażkę
-// tylko wyjątek albo `false` — liczba zwrócona przez `Artisan::call()`,
-// także 1, przechodziłaby jako sukces. Wyjątek oznacza przebieg jako nieudany
-// (`ScheduledTaskFailed`) i trafia do zgłaszania błędów.
-Schedule::call(function (): void {
-    $kod = Artisan::call('kuking:sprzataj-powiadomienia');
-
-    if ($kod !== 0) {
-        throw new RuntimeException("kuking:sprzataj-powiadomienia zakończone kodem {$kod} — część przedawnionych powiadomień nie została skasowana, szczegóły w logu.");
-    }
-})
+// KOD WYJŚCIA ZAMIENIAMY W WYJĄTEK (#1342, #835) — robi to wspólny adapter
+// `Harmonogram::artisan()`, tak jak przy każdym innym zadaniu.
+// Komenda sama raportuje w logu, których powiadomień nie skasowała.
+Harmonogram::artisan('kuking:sprzataj-powiadomienia')
     ->name('kuking:sprzataj-powiadomienia')
     ->dailyAt('04:20')
     ->onOneServer()
@@ -177,7 +173,7 @@ Schedule::call(function (): void {
 // zabrałoby odwołanie kaskadą, zanim minął jego własny czas — patrz
 // `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
+Harmonogram::artisan('kuking:sprzataj-sprawy-moderacyjne')
     ->name('kuking:sprzataj-sprawy-moderacyjne')
     ->dailyAt('04:30')
     ->onOneServer()
@@ -190,7 +186,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
 // jest sprawa: nie ma tu decyzji, od której da się odwołać, ani sporu, do
 // którego można by wrócić — uzasadnienie przy kluczu w `config/kuking.php`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
+Harmonogram::artisan('kuking:sprzataj-wiadomosci')
     ->name('kuking:sprzataj-wiadomosci')
     ->dailyAt('04:40')
     ->onOneServer()
@@ -213,7 +209,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
 // jeden po drugim, w tej samej minucie. Rozsuwamy je o dziesięć minut, tak jak
 // rozsunięta jest cała reszta tej listy.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
+Harmonogram::artisan('kuking:sprzataj-zmiany-adresu')
     ->name('kuking:sprzataj-zmiany-adresu')
     ->dailyAt('04:50')
     ->onOneServer()
@@ -226,7 +222,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
 // okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
 // i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+Harmonogram::artisan('kuking:sprzataj-zaproszenia')
     ->name('kuking:sprzataj-zaproszenia')
     ->dailyAt('05:00')
     ->onOneServer()
@@ -249,7 +245,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
 // różne tryby awarii: loteria czyści przy ruchu nawet po śmierci
 // harmonogramu, zadanie czyści co noc nawet bez ruchu.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
+Harmonogram::artisan('kuking:sprzataj-sesje')
     ->name('kuking:sprzataj-sesje')
     ->dailyAt('05:10')
     ->onOneServer()
@@ -277,7 +273,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
 // nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
 // `LOG_BLAD_WEBHOOK_URL`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
+Harmonogram::artisan('kuking:sprawdz-kopie')
     ->name('kuking:sprawdz-kopie')
     ->dailyAt('06:15')
     ->onOneServer()
@@ -298,7 +294,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
 // i zdejmowanie kar. Pomiar liczby połączeń wykonany dokładnie wtedy, gdy
 // harmonogram sam otwiera swoje, mierzyłby po części własny hałas.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
+Harmonogram::artisan('kuking:budzet-polaczen')
     ->name('kuking:budzet-polaczen')
     ->hourlyAt(25)
     ->onOneServer()
@@ -315,7 +311,7 @@ Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
 // i przetwarzanie zdjęć. Godzina ciszy przy rejestracji nowej osoby jest
 // różnicą między „wolno" a „nie działa". Powtórzeń pilnuje `AlarmKolejki`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
+Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->name('kuking:sprawdz-kolejke')
     ->everyFifteenMinutes()
     ->onOneServer()
@@ -326,7 +322,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
 // Uzasadnienie pełne w `App\Domain\Analytics\LiczbaKukingow`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
+Harmonogram::artisan('kuking:policz-kukingow')
     ->name('kuking:policz-kukingow')
     ->hourly()
     ->onOneServer()
@@ -342,7 +338,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
 // to zadanie jest siatką bezpieczeństwa na świeże wdrożenie z pustym cache
 // i na kolejkę „Bez odpowiedzi", która haka przy zapisie świadomie nie ma.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
+Harmonogram::artisan('kuking:policz-kolejki')
     ->name('kuking:policz-kolejki')
     ->everyFiveMinutes()
     ->onOneServer()
@@ -359,7 +355,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
 // alarm. Poza tym trzyma się z dala od pasma 03:20–04:50, w którym chodzi
 // całe sprzątanie — w roli `all` harmonogram jest jednym procesem.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
+Harmonogram::artisan('kuking:podsumowanie-automatu')
     ->name('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->onOneServer()
@@ -376,7 +372,7 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
 // O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
 // „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-060.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
+Harmonogram::artisan('kuking:pilnuj-terminow-odwolan')
     ->name('kuking:pilnuj-terminow-odwolan')
     ->dailyAt('07:10')
     ->onOneServer()
@@ -420,7 +416,7 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
 // harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
 //
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
+Harmonogram::artisan('kuking:wyslij-podsumowania')
     ->name('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->onOneServer()

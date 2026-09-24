@@ -58,10 +58,11 @@ i robi to, czego inaczej każdy agent szuka po omacku: startuje PostgreSQL,
 tworzy bazy `kuking` i `kuking_test`, dociąga zależności, tworzy `.env`
 i puszcza migracje.
 
-Dla innych narzędzi to samo ręcznie:
+Dla innych narzędzi to samo ręcznie. PostgreSQL podnosisz sam — własną
+instancję testową, jak opisuje sekcja „Kontrola lokalna” w
+[`docs/infra/CI_BEZ_ACTIONS.md`](infra/CI_BEZ_ACTIONS.md):
 
 ```bash
-pg_ctlcluster 16 main start
 createdb kuking && createdb kuking_test
 composer install && npm install
 cp .env.example .env && php artisan key:generate

@@ -66,14 +66,12 @@ done
 # wartościami zapasowymi, co `tests/skrypty/proba-odtworzenia.sh`
 # (`BAZA_PORT="${DB_PORT:-5432}"`), `.env.example` i `phpunit.xml`.
 #
-# Stał tu pin `DB_PORT != 55439`. Nie był kaprysem: chodziło o to, żeby
-# kontrola nie szła po cichu na zastany, współdzielony serwer — bo krok 6
-# robi `migrate:refresh` i kasuje to, w co trafi. Ta intencja zostaje w całości
-# (host musi być pętlą zwrotną, sonda pyta dokładnie o wskazany endpoint,
-# klastra nie podnosimy, `DB_URL` jest zakazane, nazwa bazy obowiązkowa),
-# ale sama LICZBA zaszyta być nie może: to port klastra jednego stanowiska.
-# CI dostaje port losowy (`job.services.postgres.ports[5432]` w `ci.yml`),
-# a świeży klon ma 5432 — dla obu ten pin znaczył `exit 1` zamiast kontroli.
+# Portu nie zaszywamy: przychodzi ze zmiennej DB_PORT, a zapasem jest 5432.
+# CI dostaje port losowy (`job.services.postgres.ports[5432]` w `ci.yml`).
+# Bezpieczeństwo nie wisi na liczbie, bo krok 6 robi `migrate:refresh`
+# i kasuje to, w co trafi: host musi być pętlą zwrotną, sonda pyta dokładnie
+# o wskazany endpoint, klastra nie podnosimy, `DB_URL` jest zakazane,
+# a nazwa bazy jest obowiązkowa.
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
 if [ "$DB_HOST" != 127.0.0.1 ]; then
@@ -129,6 +127,8 @@ elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
     # kopia bazy — Railway na Free/Hobby nie robi żadnych.
     zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
+elif ! bash tests/skrypty/cache-assetow.sh >/dev/null 2>&1; then
+    zle "Sonda cache oblewa — uruchom: bash tests/skrypty/cache-assetow.sh"
 elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
     # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
