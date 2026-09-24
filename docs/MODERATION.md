@@ -407,11 +407,22 @@ wobec tej osoby, której nie cofnięto po odwołaniu. Jeśli później zapadła 
 kara (np. ban po zawieszeniu, drugie zawieszenie z innym terminem), zostaje
 w mocy z jej terminem, a odpowiedź na odwołanie mówi wprost: „Tę decyzję
 cofnęliśmy. Twoje konto pozostaje jednak zablokowane (zawieszone)…”. Konto
-w trakcie usuwania (`pending_delete`) ani wymazane (`erased`) nie wraca.
+w trakcie usuwania (`pending_delete`) ani wymazane (`erased`) nie wraca —
+tam obowiązująca kara to kara odłożona w `punishment_status` (#980). Jeśli
+uchylana decyzja jest tą obowiązującą, `reinstate()` czyści karę odłożoną,
+a żądanie usunięcia i karencja zostają; dzięki temu uchylony ban nie wraca
+przy „Cofnij usunięcie konta”. Późniejsza, niezależna kara odłożona zostaje.
 Odczyt obowiązującej kary idzie pod blokadą wiersza konta, więc nowa kara
 zatwierdzona w trakcie rozpatrzenia też zostaje. Granica: cofnięcie
 PÓŹNIEJSZEJ kary nie przywraca wcześniejszego zawieszenia, które jeszcze by
 trwało — konto wraca do `active`, jak przed tą zmianą.
+Druga granica: „uchylona” to decyzja z odwołaniem `overturned` w tabeli
+`appeals`, a odwołania znikają po okresie retencji sprawy
+(`moderation.case_retention_months`, domyślnie 36 miesięcy, liczone od
+`appeals.decided_at`). Gdyby po tym czasie decyzja `suspend`/`ban` jeszcze
+leżała w `moderation_actions` (np. trzyma ją żywe odwołanie drugiej strony),
+reguła nie zobaczy już jej uchylenia i może uznać ją za obowiązującą — przy
+starszych sprawach rozstrzyga wtedy człowiek, nie ta reguła.
 
 **Uznanie odwołania zgłaszającego od „Bez działania” to nowa decyzja**
 (#989, DSA art. 20 ust. 4). Cofnięcie `no_action` nie ma czego przywrócić,

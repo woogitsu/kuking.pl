@@ -40,8 +40,12 @@ use Illuminate\Database\Eloquent\Model;
  *    okazało się zasadne. Data i autor pierwszego rozstrzygnięcia zostają.
  *
  * Czego się nie da, to się nie zapisuje: akcja spoza macierzy dla typu celu,
- * cel, którego już nie ma, treść już zdjęta, kara na koncie równej albo
- * wyższej rangi. Każdy z tych przypadków to `BladDlaCzlowieka` — transakcja
+ * cel, którego już nie ma, treść już zdjęta, zawieszenie albo blokada konta,
+ * którego ROLA ma rangę równą albo wyższą niż rola rozpatrującego (policy
+ * `sanctionAccount`, #1408). Ranga to rola, nie obecna kara: konto już
+ * zawieszone, zablokowane albo w cyklu usuwania da się ukarać, a kara
+ * idzie przez przejścia `User::suspend()`/`ban()` (#980 — w cyklu usuwania
+ * do `punishment_status`). Każdy z tych przypadków to `BladDlaCzlowieka` — transakcja
  * się wycofuje, odwołanie zostaje otwarte i można je podtrzymać.
  */
 final class DecyzjaPoOdwolaniu

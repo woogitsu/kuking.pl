@@ -302,8 +302,9 @@ final class ResolveAppeal
      * nikt nie rozpatrywał — a `reinstate()` na koncie `pending_delete`
      * albo `erased` przywracałoby do życia konto w trakcie usuwania.
      *
-     * Reguła: konto wraca do `active` tylko wtedy, gdy jest dziś zawieszone
-     * albo zablokowane I obowiązująca kara to właśnie ta decyzja — czyli
+     * Reguła: kara schodzi tylko wtedy, gdy konto jest dziś zawieszone
+     * albo zablokowane — w `status`, a w cyklu usuwania w `punishment_status`
+     * (#980) — I obowiązująca kara to właśnie ta decyzja — czyli
      * najnowsza decyzja `suspend`/`ban` wobec tej osoby, której nikt dotąd
      * nie cofnął po odwołaniu. Kary nie zapisanej w `moderation_actions`
      * nie ma: zawieszenie i blokadę nakłada wyłącznie decyzja moderacyjna.
@@ -325,9 +326,21 @@ final class ResolveAppeal
 
         $osoba = User::query()->whereKey($decyzja->subject_user_id)->lockForUpdate()->first();
 
-        if ($osoba === null || ! in_array($osoba->status, [User::STATUS_SUSPENDED, User::STATUS_BANNED], true)) {
+        if ($osoba === null) {
+            return null;
+        }
+
+        // Kara, która dziś trzyma konto. W cyklu usuwania (`pending_delete`,
+        // `erased`) status mówi o usuwaniu, a kara czeka odłożona
+        // w `punishment_status` (#980) — i to ją trzeba zdjąć, bo inaczej
+        // uchylony ban wróciłby przy „Cofnij usunięcie konta”.
+        $kara = in_array($osoba->status, [User::STATUS_PENDING_DELETE, User::STATUS_ERASED], true)
+            ? $osoba->punishment_status
+            : $osoba->status;
+
+        if (! in_array($kara, [User::STATUS_SUSPENDED, User::STATUS_BANNED], true)) {
             // Konto już czynne (termin minął, kara zdjęta wcześniej) albo
-            // w trakcie usuwania — nic tu nie przywracamy.
+            // w trakcie usuwania bez odłożonej kary — nie ma czego zdejmować.
             return null;
         }
 
@@ -342,11 +355,13 @@ final class ResolveAppeal
             ->first();
 
         if ($obowiazujaca !== null && ! $obowiazujaca->is($decyzja)) {
-            return $osoba->status === User::STATUS_BANNED
+            return $kara === User::STATUS_BANNED
                 ? self::KONTO_ZOSTAJE_ZABLOKOWANE
                 : self::KONTO_ZOSTAJE_ZAWIESZONE;
         }
 
+        // Na koncie w cyklu usuwania `reinstate()` zdejmuje tylko karę
+        // odłożoną — samo żądanie usunięcia i karencja zostają (#980).
         $osoba->reinstate();
 
         return null;

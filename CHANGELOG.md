@@ -3,7 +3,7 @@
 ## Nieopublikowane
 
 - Gdy przyznajemy rację osobie, która odwołała się od decyzji o pozostawieniu zgłoszonej treści, od razu podejmujemy nową decyzję — na przykład usuwamy treść albo blokujemy konto. Odpowiedź „Zmieniamy naszą decyzję” mówi też, co stało się ze zgłoszoną treścią, a autor dostaje uzasadnienie i może się od tej decyzji odwołać.
-- Cofnięcie starego zawieszenia po odwołaniu nie zdejmuje już późniejszej, osobnej blokady konta. Osoba dostaje w odpowiedzi jasne zdanie, że decyzję cofnęliśmy, ale konto pozostaje zablokowane na podstawie innej decyzji, od której może się odwołać osobno.
+- Cofnięcie starego zawieszenia po odwołaniu nie zdejmuje już późniejszej, osobnej blokady konta. Osoba dostaje w odpowiedzi jasne zdanie, że decyzję cofnęliśmy, ale konto pozostaje zablokowane na podstawie innej decyzji, od której może się odwołać osobno. Cofnięta blokada nie wraca też, gdy osoba zgłosiła usunięcie konta, a potem z niego zrezygnowała.
 - Dwie osoby rozpatrujące to samo odwołanie w tej samej chwili nie wydadzą już dwóch sprzecznych odpowiedzi. Druga dostaje komunikat, że sprawa jest już rozpatrzona, a skutek i odpowiedź zapisują się razem albo wcale.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.

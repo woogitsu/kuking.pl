@@ -127,6 +127,60 @@ class UznaneOdwolanieOdBezDzialaniaWykonujeDecyzjeTest extends TestCase
         $this->assertSame(ModerationAction::ACTION_BAN, $odwolanie->fresh()->decisionAfterAppeal?->action);
     }
 
+    public function test_ban_po_odwolaniu_na_koncie_w_trakcie_usuwania_trafia_do_kary_odlozonej(): void
+    {
+        // Nowa decyzja idzie przez przejścia #980: konto zostaje pod
+        // egzekucją karencji, a kara czeka w `punishment_status`.
+        $zgloszony = $this->user('marek');
+        [, , $odwolanie] = $this->odwolanieOdBezDzialania('user', (string) $zgloszony->getKey());
+        $zgloszony->fresh()->markForDeletion();
+        $zgloszone = $zgloszony->fresh()->delete_requested_at;
+
+        $this->rozpatrz($odwolanie, [
+            'outcome' => Appeal::STATUS_OVERTURNED,
+            'decision_note' => 'Profil rzeczywiście służył do oszustw.',
+            'nowa_decyzja' => ModerationAction::ACTION_BAN,
+            'reason_code' => 'niezgodne-z-prawem',
+            'user_message' => 'Profil podszywał się pod sklep i zbierał wpłaty.',
+        ])->assertSessionHasNoErrors();
+
+        $konto = $zgloszony->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $konto->status, 'Ban po odwołaniu zatrzymał usuwanie konta.');
+        $this->assertTrue($zgloszone->equalTo($konto->delete_requested_at), 'Ban po odwołaniu przesunął karencję.');
+        $this->assertSame(User::STATUS_BANNED, $konto->punishment_status);
+        $this->assertNull($konto->punishment_expires_at);
+
+        $konto->cancelDeletion();
+        $this->assertSame(User::STATUS_BANNED, $zgloszony->fresh()->status);
+    }
+
+    public function test_zawieszenie_po_odwolaniu_na_koncie_w_trakcie_usuwania_odklada_kare_z_terminem(): void
+    {
+        $zgloszony = $this->user('marek');
+        [, , $odwolanie] = $this->odwolanieOdBezDzialania('user', (string) $zgloszony->getKey());
+        $zgloszony->fresh()->markForDeletion();
+
+        $this->rozpatrz($odwolanie, [
+            'outcome' => Appeal::STATUS_OVERTURNED,
+            'decision_note' => 'Profil rzeczywiście nękał innych.',
+            'nowa_decyzja' => ModerationAction::ACTION_SUSPEND,
+            'suspend_days' => '7',
+            'reason_code' => 'obrazanie-nekanie',
+            'user_message' => 'Komentarze naruszały zasadę szacunku.',
+        ])->assertSessionHasNoErrors();
+
+        $konto = $zgloszony->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $konto->status);
+        $this->assertNull($konto->status_expires_at);
+        $this->assertSame(User::STATUS_SUSPENDED, $konto->punishment_status);
+        $this->assertNotNull($konto->punishment_expires_at, 'Zawieszenie z terminem zgubiło termin w karze odłożonej.');
+
+        $konto->cancelDeletion();
+        $wrocone = $zgloszony->fresh();
+        $this->assertSame(User::STATUS_SUSPENDED, $wrocone->status);
+        $this->assertTrue($konto->punishment_expires_at->equalTo($wrocone->status_expires_at));
+    }
+
     public function test_uznanie_bez_nowej_decyzji_nie_przechodzi_i_nic_nie_zmienia(): void
     {
         $autor = $this->user('basia');

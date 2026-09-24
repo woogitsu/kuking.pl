@@ -26,6 +26,15 @@ use Tests\TestCase;
  * Kontrola ujemna (24.09.2026): po przywróceniu w `ResolveAppeal::cofnij()`
  * bezwarunkowego `$decyzja->subject?->reinstate()` oblewa sześć z siedmiu
  * testów — przechodzi tylko kontrola dodatnia (jedyna kara wraca).
+ *
+ * Konto w cyklu usuwania (#980): obowiązująca kara siedzi wtedy
+ * w `punishment_status`. Przed poprawką `zdejmijKareKonta()` wychodziła
+ * przy `pending_delete` bez `reinstate()`, więc uchylony ban wracał przy
+ * „Cofnij usunięcie konta”. Kontrola ujemna tej części NIEZMIERZONA
+ * (24.09.2026 sesja bez `vendor/`): przywrócenie warunku
+ * `in_array($osoba->status, [suspended, banned])` powinno oblać test
+ * „nie wskrzesza konta w trakcie usuwania” na `punishment_status`;
+ * przypadek odwrotny ma przechodzić i jest jego kontrolą dodatnią.
  * Równoległą nową decyzję mierzy
  * `tests/Dwa/UchylenieKaryPrzyRownoleglejNowejKarzeTest.php`.
  */
@@ -133,7 +142,45 @@ class UchylenieKaryNieZdejmujePozniejszejTest extends TestCase
         $this->uznaj($odwolanie);
 
         $this->assertSame(Appeal::STATUS_OVERTURNED, $odwolanie->fresh()->status);
-        $this->assertSame(User::STATUS_PENDING_DELETE, $this->autor->fresh()->status);
+        $konto = $this->autor->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $konto->status);
+        // Uchylony ban nie może czekać odłożony na „Cofnij usunięcie konta” (#980).
+        $this->assertNull($konto->punishment_status, 'Uchylony ban został odłożony i wróci po cofnięciu usunięcia.');
+        $this->assertNull($konto->punishment_expires_at);
+        $this->assertNotNull($konto->delete_requested_at, 'Uchylenie bana anulowało żądanie usunięcia.');
+
+        $konto->cancelDeletion();
+
+        $this->assertSame(User::STATUS_ACTIVE, $this->autor->fresh()->status, 'Po cofnięciu usunięcia wrócił uchylony ban.');
+    }
+
+    public function test_uchylenie_starej_kary_w_trakcie_usuwania_zostawia_pozniejsza_odlozona(): void
+    {
+        // Przypadek odwrotny: zawieszenie A, zgłoszenie usunięcia, ban B
+        // nałożony w karencji (odłożony do `punishment_status`), uchylenie A.
+        // Ban B jest niezależny i ma wrócić po „Cofnij usunięcie konta”.
+        $zawieszenie = $this->kara(ModerationAction::ACTION_SUSPEND, '7');
+        $odwolanie = $this->odwolanie($zawieszenie);
+        $this->autor->fresh()->markForDeletion();
+        $this->kara(ModerationAction::ACTION_BAN);
+
+        $this->assertSame(User::STATUS_BANNED, $this->autor->fresh()->punishment_status);
+
+        $this->uznaj($odwolanie);
+
+        $konto = $this->autor->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $konto->status);
+        $this->assertSame(User::STATUS_BANNED, $konto->punishment_status, 'Uchylenie zawieszenia zdjęło późniejszy, odłożony ban.');
+
+        $odpowiedz = Notification::query()
+            ->where('user_id', $this->autor->getKey())
+            ->where('data->decision', 'appeal.overturned')
+            ->sole();
+        $this->assertStringContainsString(ResolveAppeal::KONTO_ZOSTAJE_ZABLOKOWANE, (string) $odpowiedz->data['message']);
+
+        $konto->cancelDeletion();
+
+        $this->assertSame(User::STATUS_BANNED, $this->autor->fresh()->status);
     }
 
     public function test_uchylenie_bana_nie_wskrzesza_konta_wymazanego(): void
