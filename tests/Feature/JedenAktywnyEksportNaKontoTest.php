@@ -39,7 +39,7 @@ class JedenAktywnyEksportNaKontoTest extends TestCase
 
     private const SCIEZKA_MIGRACJI = 'database/migrations/2026_09_10_400100_one_active_data_export_per_user.php';
 
-    private const SPOKOJNY_KOMUNIKAT = 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.';
+    private const SPOKOJNY_KOMUNIKAT = 'Przygotowanie paczki z Twoimi danymi już trwa. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.';
 
     #[Test]
     public function test_dwa_zadania_pod_rzad_daja_jeden_wiersz_i_spokojny_komunikat(): void

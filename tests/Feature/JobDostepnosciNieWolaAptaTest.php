@@ -69,7 +69,7 @@ class JobDostepnosciNieWolaAptaTest extends TestCase
         // wyjaśnić następnemu czytającemu, po co to usunięcie.
         $polecenia = implode("\n", array_map(
             static fn (string $wiersz): string => (string) preg_replace('/#.*$/', '', $wiersz),
-            preg_split('/\R/', $job) ?: [],
+            preg_split('/\r\n|\n|\r/', $job) ?: [],
         ));
 
         foreach (['--with-deps', 'install-deps', 'apt-get', 'apt install'] as $wzorzec) {
