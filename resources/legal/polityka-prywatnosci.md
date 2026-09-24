@@ -1,6 +1,6 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 11 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 24 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
