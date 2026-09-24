@@ -218,19 +218,33 @@ class CookedEventController extends Controller
             'user.profile.avatar',
             'recipe.author.profile',
             'media',
-            // Komentarze filtrowane przez blokady (issue #41). Bez tego
-            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
-            'comments' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.author.profile.avatar',
-            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.replies.author.profile.avatar',
-            // `Comment::subject()` przy każdym komentarzu — jak `recipe`
-            // w `RecipeController`.
-            'comments.cookedEvent.recipe',
-            'comments.replies.cookedEvent.recipe',
         ]);
 
-        return view('pages.cooked.show', ['event' => $cookedEvent]);
+        // Komentarze osobnym, PAGINOWANYM zapytaniem (issue #938), jak pod
+        // wpisem i przepisem — ten sam limit i ta sama nazwa strony
+        // `komentarze`, bo `Notification::destinationUrls()` liczy numer
+        // strony jednym wzorem dla wszystkich trzech treści. `->load()`
+        // wciągał całą historię rozmowy naraz. Blokady (issue #41) na
+        // wątkach i odpowiedziach; odpowiedzi jednego wątku w całości
+        // (uzasadnienie w `KomentarzeStronamiTest`).
+        $komentarze = $cookedEvent->comments()
+            ->widoczneDla($request->user())
+            ->with([
+                'author.profile.avatar',
+                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies.author.profile.avatar',
+                // `Comment::subject()` przy każdym komentarzu — jak `recipe`
+                // w `RecipeController`.
+                'cookedEvent.recipe',
+                'replies.cookedEvent.recipe',
+            ])
+            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+
+        return view('pages.cooked.show', [
+            'event' => $cookedEvent,
+            'komentarze' => $komentarze,
+            'komentarzyRazem' => $komentarze->total(),
+        ]);
     }
 
     /**

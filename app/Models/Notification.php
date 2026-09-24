@@ -510,18 +510,17 @@ class Notification extends Model
 
         $pageSize = (int) config('kuking.comments.page_size');
         foreach ($comments as $comment) {
-            if ($comment->cooked_event_id !== null) {
-                $subject = (new CookedEvent)->forceFill(['id' => $comment->cooked_event_id]);
-                $page = 1;
-            } else {
-                if ($pageSize < 1) {
-                    continue;
-                }
-                $subject = $comment->post_id !== null
-                    ? (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind])
-                    : (new Recipe)->forceFill(['slug' => $comment->slug]);
-                $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
+            if ($pageSize < 1) {
+                continue;
             }
+            // Wykonanie też paginuje komentarze (issue #938) — dawniej
+            // zawsze strona 1, bo ekran ładował całą rozmowę naraz.
+            $subject = match (true) {
+                $comment->cooked_event_id !== null => (new CookedEvent)->forceFill(['id' => $comment->cooked_event_id]),
+                $comment->post_id !== null => (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind]),
+                default => (new Recipe)->forceFill(['slug' => $comment->slug]),
+            };
+            $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
 
             $url = $subject->url();
             if ($page > 1) {

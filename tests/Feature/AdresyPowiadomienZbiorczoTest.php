@@ -56,8 +56,7 @@ class AdresyPowiadomienZbiorczoTest extends TestCase
             foreach ([$root, $reply, $reply, $reply] as $comment) {
                 $notification = $this->notification($viewer, $comment);
                 $notifications[] = $notification;
-                $expected[$notification->id] = $subject->url()
-                    .($subject instanceof CookedEvent ? '' : '?komentarze=2').'#komentarz-'.$comment->id;
+                $expected[$notification->id] = $subject->url().'?komentarze=2#komentarz-'.$comment->id;
             }
         }
 

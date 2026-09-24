@@ -18,5 +18,5 @@
         </div>
     @endif
 
-    <x-comment-thread :comments="$event->comments" :action="route('cooked.comment', $event)" />
+    <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('cooked.comment', $event)" />
 </x-layout>
