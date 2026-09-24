@@ -129,7 +129,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
      * czyli wzorzec sprzed #835, przy kodzie 1 kończy się jako SUKCES. Gdyby
      * ta asercja kiedyś padła, test wyżej przestałby odróżniać adapter od
      * gołego domknięcia. Działa na zdarzeniach, nie na tekście pliku, więc
-     * nie potrzebuje wpisu w `scripts/kontrole-negatywne-alfa08.py`.
+     * nie potrzebuje pliku w `scripts/kontrole_negatywne/`.
      */
     public function test_kontrola_dodatnia_gole_domkniecie_przepuszcza_kod_bledu(): void
     {

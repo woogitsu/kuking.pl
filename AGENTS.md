@@ -576,6 +576,13 @@ przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — są zebran
 w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
 napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 
+**Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI.** Dodaj JEDEN
+nowy plik `scripts/kontrole_negatywne/<nazwa>.py` według wzoru z
+[`scripts/kontrole_negatywne/README.md`](scripts/kontrole_negatywne/README.md):
+mutacja, test, który ma po niej oblać, kontrola dodatnia. Wspólnych plików
+nie ruszasz. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
+klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
+
 ### Issues
 
 Praca idzie **po kolei, z issues**. Etykiety priorytetu: `P0` → `P1` → `P2`,
