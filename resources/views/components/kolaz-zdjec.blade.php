@@ -15,7 +15,7 @@
     droga do dużego widoku musi być oczywista — to zwykły link z `x-photo`,
     działający bez skryptu.
 --}}
-@props(['post'])
+@props(['post', 'priority' => false])
 @php
     $zdjecia = $post->media;
     $ile = $zdjecia->count();
@@ -24,6 +24,7 @@
     @foreach($zdjecia as $index => $media)
         <li class="kolaz-pole">
             <x-photo :media="$media"
+                     :priority="$priority && $loop->first"
                      variant="thumb"
                      sizes="(min-width: 64rem) 360px, 50vw"
                      :alt="$media->alt_text ?: 'Zdjęcie '.($index + 1).' z '.$ile.' w tym wpisie'" />

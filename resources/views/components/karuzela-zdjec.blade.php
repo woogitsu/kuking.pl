@@ -30,7 +30,7 @@
     kiedy zmieni się widoczny slajd. Wpisany na stałe tekst „Zdjęcie 1 z 4"
     kłamałby po pierwszym przewinięciu u każdego, kto nie ma JavaScriptu.
 --}}
-@props(['post'])
+@props(['post', 'priority' => false])
 @php
     $zdjecia = $post->media;
     $ile = $zdjecia->count();
@@ -48,6 +48,7 @@
             @php $numer = $index + 1; @endphp
             <li class="karuzela-slajd" id="{{ $slajd($numer) }}" data-karuzela-numer="{{ $numer }}">
                 <x-photo :media="$media"
+                         :priority="$priority && $loop->first"
                          :alt="$media->alt_text ?: 'Zdjęcie '.$numer.' z '.$ile.' w tym wpisie'" />
 
                 <div class="karuzela-pasek">

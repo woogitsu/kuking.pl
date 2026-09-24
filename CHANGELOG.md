@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Strona wpisu ma własny tytuł z początku jego treści — w karcie przeglądarki, w wynikach wyszukiwania i w linku wysłanym w komunikatorze widać, czego dotyczy wpis, a nie tylko imię autora. Wpis bez tekstu nazywa się uczciwie: od kogo i z którego dnia jest zdjęcie. Główne zdjęcie wpisu wczytuje się od razu, bez czekania na resztę strony.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
