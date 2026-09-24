@@ -103,6 +103,19 @@ class CookedEventController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('cook', $model);
 
+        // PONOWIENIE JUŻ ZAPISANEGO WYSŁANIA — PRZED ZDJĘCIAMI (issue #873).
+        //
+        // Deduplikacja w `RecordCookedEvent` działała dopiero PO zapisaniu
+        // plików z żądania, więc drugie kliknięcie ponownie wgrywało,
+        // przetwarzało i osieracało te same zdjęcia. Stoi ZA autoryzacją:
+        // odrzucone żądanie nie dowie się niczego o wykonaniu. Wyścig dwóch
+        // jednoczesnych żądań rozstrzyga dalej indeks UNIQUE w akcji.
+        $zapisane = $this->record->wykonanieZTegoWyslania($request->user(), $this->kluczZZadania($request));
+
+        if ($zapisane !== null) {
+            return $this->odpowiedzNaPonowienie($zapisane);
+        }
+
         $data = $request->validate([
             // BYŁO "max:4" wpisane tu na sztywno, niezależnie od
             // `config('kuking.media.max_per_post')` — dokładnie ten rozjazd
@@ -198,15 +211,20 @@ class CookedEventController extends Controller
         // gotowania (D-005). Nie obiecuje powiadomienia: własne wykonanie
         // i autor, który nie może czytać, mają świadome wyjątki (AGENTS §1).
         if (! $event->wasRecentlyCreated) {
-            return redirect()->route('cooked.show', $event)->with(
-                'status',
-                'To wykonanie już zapisaliśmy. '
-                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
-            );
+            return $this->odpowiedzNaPonowienie($event);
         }
 
         return redirect()->route('cooked.show', $event)->with('status',
             'Wykonanie zapisane.',
+        );
+    }
+
+    private function odpowiedzNaPonowienie(CookedEvent $event): RedirectResponse
+    {
+        return redirect()->route('cooked.show', $event)->with(
+            'status',
+            'To wykonanie już zapisaliśmy. '
+            .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
         );
     }
 

@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Drugie kliknięcie „Opublikuj”, „Zadaj pytanie” albo „Wyślij” przy „Ugotowałem” (albo ponowione wysłanie po słabym zasięgu) nie wgrywa i nie przetwarza zdjęć jeszcze raz, gdy wpis, pytanie lub wykonanie już się zapisało — od razu otwiera zapisany wpis. Nowe gotowanie z nowego formularza nadal zapisuje się osobno (#873).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).

@@ -244,8 +244,13 @@ final class PublishPost
      * autoryzacją (`AGENTS.md` §7). Klucz podstawiony z cudzego formularza
      * nie może więc pokazać cudzego wpisu — indeks jest na parze
      * (autor, klucz), więc nawet nie zablokuje własnego wysłania.
+     *
+     * Publiczne, bo kontroler pyta o to PRZED zapisem zdjęć (issue #873):
+     * ponowione, już zakończone wysłanie nie przetwarza plików drugi raz.
+     * Rozstrzyga nadal indeks UNIQUE — dwa współbieżne żądania mogą oba
+     * minąć to pytanie, a wtedy drugie zatrzyma się na indeksie jak dotąd.
      */
-    private function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
+    public function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
     {
         if ($kluczWyslania === null) {
             return null;

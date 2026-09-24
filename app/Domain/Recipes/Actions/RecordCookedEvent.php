@@ -258,8 +258,11 @@ final class RecordCookedEvent
      * Zawężone do osoby, która gotowała, a nie zadane samemu kluczowi:
      * `klucz_wyslania` przychodzi z żądania, a UUID w żądaniu nie jest
      * autoryzacją (`AGENTS.md` §7).
+     *
+     * Publiczne, bo kontroler pyta o to PRZED zapisem zdjęć (issue #873).
+     * Współbieżne żądania nadal rozstrzyga indeks UNIQUE, nie to pytanie.
      */
-    private function wykonanieZTegoWyslania(User $cook, ?string $kluczWyslania): ?CookedEvent
+    public function wykonanieZTegoWyslania(User $cook, ?string $kluczWyslania): ?CookedEvent
     {
         if ($kluczWyslania === null) {
             return null;

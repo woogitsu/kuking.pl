@@ -166,6 +166,22 @@ class PostController extends Controller
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $this->tagiZFormularza($request)));
         }
 
+        // PONOWIENIE JUŻ OPUBLIKOWANEGO WYSŁANIA — PRZED ZDJĘCIAMI (issue #873).
+        //
+        // `PublishPost` rozpoznaje drugie kliknięcie dopiero po zapisaniu
+        // plików, więc wcześniej ponowiony multipart wgrywał i przetwarzał
+        // zdjęcia drugi raz, a potem je osieracał. Pytamy tylko przy
+        // „Opublikuj" — przyciski tagów to praca nad formularzem, nie
+        // wysłanie. Wyścig dwóch jednoczesnych żądań rozstrzyga dalej
+        // indeks UNIQUE w akcji.
+        if (! $this->toAkcjaTagow($request)) {
+            $zapisany = $this->publishPost->wpisZTegoWyslania($user, $this->kluczZZadania($request));
+
+            if ($zapisany !== null) {
+                return $this->odpowiedzNaPonowienie($zapisany, $question);
+            }
+        }
+
         try {
             $mediaIds = $this->zebranZdjecia($request, $user);
         } catch (BladDlaCzlowieka $e) {
@@ -263,16 +279,11 @@ class PostController extends Controller
         // drugie kliknięcie nie jest pomyłką człowieka. Komunikat mówi wprost,
         // że nic się nie zepsuło, i pokazuje drogę do wpisu OSOBNEGO, gdyby
         // ktoś naprawdę chciał dodać drugi.
-        if ($question) {
-            return redirect()->route('questions.show', $post)->with('status',
-                $post->wasRecentlyCreated ? 'Pytanie opublikowane.' : 'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.');
-        }
         if (! $post->wasRecentlyCreated) {
-            return redirect()->route('posts.show', $post)->with(
-                'status',
-                'Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
-                .'Chcesz dodać osobny wpis? Otwórz „Dodaj zdjęcie” jeszcze raz — wtedy powstanie nowy.',
-            );
+            return $this->odpowiedzNaPonowienie($post, $question);
+        }
+        if ($question) {
+            return redirect()->route('questions.show', $post)->with('status', 'Pytanie opublikowane.');
         }
 
         $isFirstPost = $user->posts()->published()->count() === 1;
@@ -381,6 +392,20 @@ class PostController extends Controller
      * wprost, ale formularz bez JS potrzebuje go, żeby kliknięcie „Dodaj"
      * nie próbowało jednocześnie opublikować niedokończonego wpisu).
      */
+    private function odpowiedzNaPonowienie(Post $post, bool $question): RedirectResponse
+    {
+        if ($question) {
+            return redirect()->route('questions.show', $post)->with('status',
+                'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.');
+        }
+
+        return redirect()->route('posts.show', $post)->with(
+            'status',
+            'Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
+            .'Chcesz dodać osobny wpis? Otwórz „Dodaj zdjęcie” jeszcze raz — wtedy powstanie nowy.',
+        );
+    }
+
     private function toAkcjaTagow(Request $request): bool
     {
         return $request->has('szukaj_tagu') || $request->filled('dodaj_tag') || $request->filled('usun_tag');
