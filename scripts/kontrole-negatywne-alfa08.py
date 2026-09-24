@@ -170,6 +170,15 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
+# akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
+# `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
+# osobno z akcji przepisu i z akcji wpisu — każda ma zapalić ten sam test.
+ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -436,6 +445,10 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -456,6 +469,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
