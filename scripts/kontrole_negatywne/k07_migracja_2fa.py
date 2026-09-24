@@ -38,5 +38,6 @@ KONTROLE_DODATNIE = [MIGRACJA_2FA_TEST]
 
 KONTROLE = [
     Kontrola("Zdjęcie CHECK-a 2FA przed strażnikiem cofnięcia", MIGRACJA_2FA, MIGRACJA_2FA_TEST,
-             zdjecie_checku_przed_straznikiem_2fa),
+             zdjecie_checku_przed_straznikiem_2fa,
+             oczekuj=r"Sprawdzenie stoi PO zdjęciu CHECK-a"),
 ]

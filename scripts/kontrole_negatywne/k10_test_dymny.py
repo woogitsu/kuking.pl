@@ -32,5 +32,6 @@ KONTROLE_DODATNIE = [WDROZENIE_TEST]
 
 KONTROLE = [
     Kontrola("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
-             stara_sonda_https),
+             stara_sonda_https,
+             oczekuj=r'contains "sonda_https "\$\{BASE_URL#https://\}" \|\| fail=1"'),
 ]

@@ -15,5 +15,6 @@ KONTROLE_DODATNIE = [POLITYKA_CIASTECZKA_TEST]
 
 KONTROLE = [
     Kontrola("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
-             lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
+             lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu"),
+             oczekuj=r"polityka nie podaje jego NAZWY"),
 ]

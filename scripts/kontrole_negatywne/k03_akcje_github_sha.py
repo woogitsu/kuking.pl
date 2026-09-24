@@ -29,5 +29,6 @@ def akcja_php_na_ruchomym_tagu(source):
 KONTROLE_DODATNIE = [AKCJE_SHA_TEST]
 
 KONTROLE = [
-    Kontrola("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
+    Kontrola("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu,
+             oczekuj=r"Zewnętrzna akcja bez pełnego SHA.*setup-php@v2"),
 ]

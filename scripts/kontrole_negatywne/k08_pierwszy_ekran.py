@@ -29,5 +29,6 @@ KONTROLE_DODATNIE = [PIERWSZY_EKRAN_TEST]
 
 KONTROLE = [
     Kontrola("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
-             mniejsze_pismo_na_pierwszym_ekranie),
+             mniejsze_pismo_na_pierwszym_ekranie,
+             oczekuj=r"Blok pierwszego ekranu rusza `font-size`"),
 ]

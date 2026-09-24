@@ -21,5 +21,6 @@ KONTROLE = [
                  s,
                  "final class NotifyModerationDecision\n{\n",
                  "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n",
-             )),
+             ),
+             oczekuj=r"Powstało nowe miejsce tworzące decyzję moderacyjną.*NotifyModerationDecision\.php"),
 ]

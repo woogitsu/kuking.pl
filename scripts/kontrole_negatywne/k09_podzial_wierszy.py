@@ -15,5 +15,6 @@ KONTROLE_DODATNIE = [PODZIAL_WIERSZY_TEST]
 
 KONTROLE = [
     Kontrola("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
-             lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
+             lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)"),
+             oczekuj=r"Wzorzec z `\\R` bez modyfikatora `u`.*PoswiadczeniaPozaRepozytoriumTest\.php"),
 ]

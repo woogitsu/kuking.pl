@@ -17,5 +17,6 @@ def smaller_help(source):
 KONTROLE_DODATNIE = [COMPOSER_TEST]
 
 KONTROLE = [
-    Kontrola("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    Kontrola("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help,
+             oczekuj=r"Podpis kafla zszedł z minimum 18 px"),
 ]

@@ -16,5 +16,6 @@ KONTROLE_DODATNIE = [CACHE_MANIFESTU_TEST]
 
 KONTROLE = [
     Kontrola("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
-             lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+             lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*"),
+             oczekuj=r'contains "@viteAssets path /build/assets/\*"'),
 ]

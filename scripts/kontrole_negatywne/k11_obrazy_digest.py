@@ -28,5 +28,6 @@ KONTROLE_DODATNIE = [OBRAZY_DIGEST_TEST]
 
 KONTROLE = [
     Kontrola("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
-             bez_digestu_obrazu_kopii),
+             bez_digestu_obrazu_kopii,
+             oczekuj=r"Obraz bazowy bez digestu.*docker/kopia/Dockerfile:\d+ — postgres:18\b"),
 ]

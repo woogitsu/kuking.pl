@@ -53,7 +53,10 @@ KONTROLE_DODATNIE = [STRAZNIK_TEKSTU_TEST]
 
 KONTROLE = [
     Kontrola("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_PLIK, STRAZNIK_TEKSTU_TEST,
-             bez_wpisu_dla_straznika),
+             bez_wpisu_dla_straznika,
+             # Sama nazwa klasy byłaby drugim wystąpieniem w tym pliku — składamy.
+             oczekuj=r"Bez pokrycia:.*" + STRAZNIK_TEKSTU_TEST + r"\.php — brak kontroli"),
     Kontrola("Odstępstwo bez znacznika", STRAZNIK_PLIK_ODSTEPSTWA, STRAZNIK_TEKSTU_TEST,
-             bez_znacznika_odstepstwa),
+             bez_znacznika_odstepstwa,
+             oczekuj=r"Bez pokrycia:.*PlikKontrolnyZOdstepstwemTest\.php — brak kontroli"),
 ]

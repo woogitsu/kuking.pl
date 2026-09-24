@@ -35,5 +35,6 @@ KONTROLE_DODATNIE = [OBRAZ_ASSETOW_TEST]
 
 KONTROLE = [
     Kontrola("Plik z node --test nieskopiowany do etapu assets", OBRAZ_ASSETOW, OBRAZ_ASSETOW_TEST,
-             bez_kopii_testu_assetow),
+             bez_kopii_testu_assetow,
+             oczekuj=r"Etap `assets` w Dockerfile nie kopiuje `scripts/.*\.test\.mjs`"),
 ]

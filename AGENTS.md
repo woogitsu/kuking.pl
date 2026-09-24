@@ -579,7 +579,8 @@ napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 **Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI.** Dodaj JEDEN
 nowy plik `scripts/kontrole_negatywne/<nazwa>.py` według wzoru z
 [`scripts/kontrole_negatywne/README.md`](scripts/kontrole_negatywne/README.md):
-mutacja, test, który ma po niej oblać, kontrola dodatnia. Wspólnych plików
+mutacja, test, który ma po niej oblać, **oczekiwany komunikat porażki**
+(`oczekuj` — czerwień z innego powodu nie jest dowodem), kontrola dodatnia. Wspólnych plików
 nie ruszasz. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
 klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
 
