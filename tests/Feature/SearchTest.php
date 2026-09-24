@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -191,7 +192,7 @@ class SearchTest extends TestCase
      * stan nie może mówić wyłącznie o przepisie. Sprawdzamy tekst WEWNĄTRZ
      * pustego stanu, nie echo frazy w polu formularza.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('frazyBezTrafienWeWszystkim')]
+    #[DataProvider('frazyBezTrafienWeWszystkim')]
     public function test_pusty_stan_wszystko_mowi_o_przepisach_i_ludziach(string $fraza): void
     {
         $response = $this->get(route('search', ['q' => $fraza]))->assertOk();
