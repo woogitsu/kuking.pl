@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Ustawienia danych nie pokazują już „Pobierz” przy paczce, której zapis jest niepełny (brak pliku, rozmiaru albo daty przygotowania) — takie kliknięcie kończyło się błędem „nie znaleziono”. Baza nie przyjmie już gotowej paczki bez kompletu tych informacji (#1365).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.

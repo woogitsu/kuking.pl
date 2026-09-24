@@ -3349,13 +3349,38 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | Kolumna | Uwagi |
 |---|---|
 | `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
-| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`); komplet metadanych przy `ready` — CHECK `data_exports_ready_complete_check`, niżej. |
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
 | `notified_at` | Nullable `timestamptz`: kiedy `App\Jobs\NotifyUserExportReady` zajął list „paczka gotowa" (issue #820). Poza `$fillable`. CHECK `data_exports_notified_after_completed_check`: bez `completed_at` nie ma listu. Szczegóły niżej. Migracja `2026_09_23_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `data_exports_ready_complete_check` — gotowa paczka ma komplet metadanych (issue #1365)
+
+Migracja `2026_09_24_200000_require_complete_ready_data_exports`. Przy
+`status = 'ready'` wymagane są: niepusty `disk` i `object_key`, `bytes > 0`,
+`completed_at` i `expires_at`. Wcześniej baza przyjmowała `ready` bez tych
+pól, a `DataExport::isDownloadable()` pokazywał taki wiersz jako gotową
+paczkę — „Pobierz” kończyło się 404. `isDownloadable()` sprawdza teraz ten
+sam komplet (obrona dla modelu w pamięci).
+
+Celowo **bez** warunku na czas: `EraseAccountData` unieważnia gotową paczkę,
+przestawiając `expires_at` w przeszłość (także przed `completed_at`),
+a `expires_at > now()` nie jest wyrażeniem niezmiennym, jakiego PostgreSQL
+wymaga od CHECK. `expired` nie ma wymagań — `CleanUpDataExports` zostawia
+adres po nieudanym kasowaniu, żeby ponowić.
+
+**Audyt przed CHECK:** migracja liczy `ready` bez kompletu i **odmawia**
+(`RuntimeException` z zapytaniem `SELECT` i instrukcją), zamiast zgadywać
+dysk, klucz albo rozmiar. Naprawa ręczna: uzupełnić prawdziwe wartości, gdy
+plik istnieje, albo `status = 'failed'`, `failure_reason = 'unknown'`, gdy
+go nie ma — człowiek zamówi paczkę ponownie.
+
+**Rollback:** `down()` zdejmuje CHECK bez odmowy. Ograniczenie nie przechowuje
+żadnej wartości (niczyjej decyzji, zgody ani zakresu w rozumieniu D-088) — po
+cofnięciu wraca poprzednia, luźniejsza granica, dane zostają bez zmian.
 
 #### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
 

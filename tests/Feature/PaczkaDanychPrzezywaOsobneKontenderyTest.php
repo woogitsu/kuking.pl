@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\DataExport;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -103,6 +104,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
             'disk' => 'local',
             'object_key' => 'eksporty/basia.zip',
             'bytes' => 1234,
+            'completed_at' => now()->subDays(8),
             'expires_at' => now()->subDay(),
         ]);
 
@@ -139,6 +141,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
             'disk' => 'local',
             'object_key' => 'eksporty/do-ponowienia.zip',
             'bytes' => 1234,
+            'completed_at' => now()->subDays(8),
             'expires_at' => now()->subDay(),
         ]);
 
@@ -159,6 +162,12 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
     public function test_niepelny_adres_nie_jest_uznawany_za_udane_kasowanie(): void
     {
         $log = Log::spy();
+
+        // Stan sprzed CHECK `data_exports_ready_complete_check` (issue #1365):
+        // baza takiego `ready` już nie przyjmie, ale sprzątanie nadal ma
+        // domknąć wiersz, który powstał wcześniej. DDL w PostgreSQL jest
+        // transakcyjny — `RefreshDatabase` przywraca CHECK po teście.
+        DB::statement('ALTER TABLE data_exports DROP CONSTRAINT data_exports_ready_complete_check');
 
         $export = DataExport::create([
             'user_id' => $this->user('basia')->getKey(),
@@ -201,6 +210,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
             'disk' => 'local',
             'object_key' => 'eksporty/basia.zip',
             'bytes' => 1234,
+            'completed_at' => now()->subDays(8),
             'expires_at' => now()->subDay(),
         ]);
 

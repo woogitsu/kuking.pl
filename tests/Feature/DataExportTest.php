@@ -737,6 +737,7 @@ class DataExportTest extends TestCase
                 'disk' => 'local',
                 'object_key' => $key,
                 'bytes' => 8,
+                'completed_at' => now()->subDays(8),
                 // Kolejność terminów celowo nie odpowiada UUID-om.
                 'expires_at' => now()->subMinutes(($i * 37) % 101 + 1),
             ]);
@@ -770,6 +771,12 @@ class DataExportTest extends TestCase
 
     public function test_gotowy_rekord_bez_pliku_jest_domykany_tylko_raz(): void
     {
+        // Stan sprzed CHECK `data_exports_ready_complete_check` (issue #1365):
+        // baza takiego `ready` już nie przyjmie, ale sprzątanie nadal ma
+        // domknąć wiersz, który powstał wcześniej. DDL w PostgreSQL jest
+        // transakcyjny — `RefreshDatabase` przywraca CHECK po teście.
+        DB::statement('ALTER TABLE data_exports DROP CONSTRAINT data_exports_ready_complete_check');
+
         $export = DataExport::create([
             'user_id' => $this->user('basia')->getKey(),
             'status' => DataExport::STATUS_READY,
