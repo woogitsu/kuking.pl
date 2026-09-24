@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Auth\Events\PasswordReset;
@@ -71,7 +72,7 @@ class PasswordResetController extends Controller
         // tutaj. Bez tego człowiek, który trafił tu ze starego adresu albo
         // z zakładki, dostawał „wysłaliśmy wiadomość" i czekał.
         if (! Poczta::dziala()) {
-            return back()->with('status', Poczta::komunikatBrakuPoczty());
+            return back()->with(Komunikat::blad(Poczta::komunikatBrakuPoczty()));
         }
 
         /*

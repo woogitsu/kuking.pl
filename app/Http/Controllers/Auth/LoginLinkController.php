@@ -14,6 +14,7 @@ use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\AdresEmail;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\Skrot;
 use App\Support\Turnstile;
@@ -117,9 +118,9 @@ class LoginLinkController extends Controller
         $budzet = DziennyBudzetListow::dlaLinkuLogowania();
 
         if (! self::wlaczone()) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Logowanie linkiem jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa normalnie.',
-            );
+            ));
         }
 
         $request->validate([
@@ -148,7 +149,7 @@ class LoginLinkController extends Controller
         // odpowiedź musi mówić prawdę także tutaj. Ten sam powód co
         // w `PasswordResetController`.
         if (! Poczta::dziala()) {
-            return back()->with('status', Poczta::komunikatBrakuPoczty('link do zalogowania'));
+            return back()->with(Komunikat::blad(Poczta::komunikatBrakuPoczty('link do zalogowania')));
         }
 
         // LICZNIK PO ADRESIE E-MAIL RUSZA PRZED CZYMKOLWIEK INNYM i dla
@@ -174,7 +175,7 @@ class LoginLinkController extends Controller
         // nieistniejące adresy — miejsce, z którego nic nie wyszło, wraca
         // niżej przez `zwolnij()`.
         if (! $budzet->sprobujZarezerwowac()) {
-            return back()->with('status',
+            return back()->with(Komunikat::blad(
                 // DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA. Rezerwacja mówi
                 // tylko „nie", a te dwa „nie" znaczą dla człowieka coś
                 // zupełnie innego: przy wyczerpanym budżecie czekanie na
@@ -192,7 +193,7 @@ class LoginLinkController extends Controller
                         .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
                         .(string) config('kuking.community.contact_email')
                         .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
-            );
+            ));
         }
 
         if (! $wyslij->handle($adres, $request->ip())) {
@@ -207,7 +208,7 @@ class LoginLinkController extends Controller
         // JEDEN KOMUNIKAT, ZAWSZE TEN SAM. Skrót adresu bierze się z tego, co
         // człowiek WPISAŁ — nie z bazy — więc wygląda identycznie dla adresu
         // z kontem i bez konta.
-        return back()->with('status',
+        return back()->with(Komunikat::informacja(
             // KOMUNIKAT NIE MOŻE OBIECYWAĆ CZEGOŚ, CO SIĘ NIE STAŁO.
             //
             // Poprzedni mówił „Wysłaliśmy list na adres…" ZAWSZE — także dla
@@ -230,7 +231,7 @@ class LoginLinkController extends Controller
             .'wiadomość z jednym przyciskiem — możesz ją otworzyć także na innym telefonie albo komputerze. '
             .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
             .'załóż je: '.route('register'),
-        );
+        ));
     }
 
     /**
@@ -271,9 +272,9 @@ class LoginLinkController extends Controller
     public function store(Request $request): RedirectResponse
     {
         if (! self::wlaczone()) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Logowanie linkiem jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa normalnie.',
-            );
+            ));
         }
 
         $token = (string) $request->input('token', '');
@@ -471,10 +472,10 @@ class LoginLinkController extends Controller
      */
     private function odeslijZNieaktualnymLinkiem(): RedirectResponse
     {
-        return redirect()->route('login.link')->with('status',
+        return redirect()->route('login.link')->with(Komunikat::blad(
             'Ten link do logowania już nie działa — mógł wygasnąć albo zostać użyty. '
             .'Poproś o nowy: wpisz adres e-mail poniżej.',
-        );
+        ));
     }
 
     private function ekranNieaktualnegoLinku(): View

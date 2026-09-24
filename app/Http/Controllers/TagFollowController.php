@@ -9,6 +9,7 @@ use App\Domain\Tags\TagFollowForm;
 use App\Domain\Tags\TagFollowWindow;
 use App\Http\Requests\TagSelection;
 use App\Models\Tag;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +23,7 @@ class TagFollowController extends Controller
         try {
             $follows->follow($request->user(), [$tag->getKey()]);
         } catch (ValidationException) {
-            return back()->with('status', 'Tego tagu nie da się już obserwować. Wybierz inny tag.');
+            return back()->with(Komunikat::blad('Tego tagu nie da się już obserwować. Wybierz inny tag.'));
         }
 
         return back()->with('status', "Obserwujesz tag „{$tag->name}”.");

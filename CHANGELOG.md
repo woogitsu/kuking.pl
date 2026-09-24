@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Menu nie podpowiada już, że cudza rzecz jest Wasza. „Mój zeszyt” i „Moje” świecą tylko przy Waszych zeszytach, a „Profil” — na Waszym profilu i na liście Waszych obserwujących i obserwowanych. Cudzy publiczny zeszyt i cudzy profil nie podświetlają żadnej z tych pozycji.
+- Komunikat po akcji mówi od razu, czy się udało. Potwierdzenie ma zieloną ramkę i napis „Gotowe”, zwykła informacja — żółtą i napis „Informacja”, a odmowa albo błąd — czerwoną ramkę i napis „Nie udało się”. Dotyczy to na początek wejścia kontem Google i Facebooka, logowania linkiem, zmiany adresu e-mail, usuwania zdjęcia profilowego i obserwowania tagu.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

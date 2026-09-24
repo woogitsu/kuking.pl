@@ -78,6 +78,10 @@
     // dopasowuje się przez wzorzec. Bez tego menu przestawało pokazywać,
     // gdzie jest użytkownik, w chwili gdy naprawdę coś dodawał.
     $naDodaj = request()->routeIs(['add', 'posts.create', 'recipes.create*']);
+    // „Moje"/„Mój zeszyt" i „Profil" są bieżące tylko wtedy, gdy oglądana
+    // treść należy do zalogowanej osoby — nie po samej nazwie trasy (#946).
+    $wMoimZeszycie = \App\Support\NawigacjaOsobista::mojZeszyt(request(), $user);
+    $naMoimProfilu = \App\Support\NawigacjaOsobista::mojProfil(request(), $user);
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
     // ------------------------------------------------------------------
@@ -435,7 +439,7 @@
                     <nav class="marka-nawigacja" aria-label="Nawigacja główna — komputer">
                         <a href="{{ route('home') }}" @if(request()->routeIs('home', 'landing')) aria-current="page" @endif>Start</a>
                         <a href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif>Odkrywaj</a>
-                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Mój zeszyt</a>
+                        <a href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif>Mój zeszyt</a>
                     </nav>
                 @endunless
             @endauth
@@ -678,8 +682,8 @@
                             <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                             <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
                             <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
-                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
+                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if($naMoimProfilu) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
                         </ul>
                     @endif
 
@@ -931,8 +935,24 @@
                      powitalna) miał co wyśrodkować — jego `<main>` nie ma
                      żadnego wcięcia, bo wcięcia robią same pasy. --}}
                 <div class="komunikaty" aria-live="polite">
+                    {{-- RODZAJ KOMUNIKATU (#988): sukces, informacja albo błąd —
+                         każdy z własnym kolorem, WIDOCZNĄ etykietą słowną (nie
+                         sam kolor, WCAG 1.4.1) i rolą. Błąd to `alert`, żeby
+                         odmowa nie brzmiała jak zwykłe potwierdzenie; sukces
+                         i informacja zostają w `aria-live="polite"` kontenera
+                         (bez drugiego, zagnieżdżonego `role="status"`). Sama
+                         treść zostaje w `<p class="flash">` — kilka testów
+                         i skryptów czyta ją dokładnie w tym kształcie.
+                         Rodzaj wybiera kontroler (`App\Support\Komunikat`),
+                         nie zgadujemy go po słowach. --}}
                     @if(session('status'))
-                        <p class="flash">{{ session('status') }}</p>
+                        @php $rodzajKomunikatu = \App\Support\Komunikat::rodzajZSesji(); @endphp
+                        <div class="flash-ramka flash-ramka-{{ $rodzajKomunikatu }}"
+                             data-rodzaj-komunikatu="{{ $rodzajKomunikatu }}"
+                             @if($rodzajKomunikatu === \App\Support\Komunikat::BLAD) role="alert" @endif>
+                            <p class="flash-etykieta">{{ \App\Support\Komunikat::ETYKIETY[$rodzajKomunikatu] }}</p>
+                            <p class="flash">{{ session('status') }}</p>
+                        </div>
                     @endif
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
@@ -1383,10 +1403,10 @@
             <a class="bottom-nav-item bottom-nav-item-glowna" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif>
                 <span class="bottom-nav-kolko"><x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /></span> Dodaj
             </a>
-            <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
+            <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif>
                 <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Moje
             </a>
-            <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>
+            <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if($naMoimProfilu) aria-current="page" @endif>
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil
             </a>
         </nav>
