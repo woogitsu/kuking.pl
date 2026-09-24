@@ -216,7 +216,7 @@ final class SearchQuery
             // (link pod wynikiem) dawał 403.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
-            ->with(['author.profile', 'heroMedia'])
+            ->with(Recipe::RELACJE_KARTY)
             // `widoczneDla($widz)` W LICZNIKU, nie gołe `withCount`.
             //
             // Karta wyniku pokazuje „Ugotowane N ×" tą samą etykietą, którą
