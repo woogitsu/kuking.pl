@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -52,6 +53,7 @@ final class RestoreContent
      *                                 — a dwa powiadomienia o jednym zdarzeniu wyglądają jak
      *                                 usterka.
      *
+     * @throws WlasnejTresciNiePrzywracasz gdy `$moderator` jest autorem tej treści (#1479)
      * @throws BladDlaCzlowieka gdy tej treści nie da się przywrócić
      */
     public function handle(
@@ -92,6 +94,16 @@ final class RestoreContent
 
             if ($cel === null) {
                 throw new BladDlaCzlowieka('Tej treści już nie ma w bazie — nie da się jej przywrócić.');
+            }
+
+            // NIKT NIE PRZYWRACA WŁASNEJ TREŚCI (#1479). Wcześniej sprawdzana
+            // była tylko rola: moderator, którego wpis ukrył ktoś inny
+            // z zespołu, zdejmował ukrycie sam, z pominięciem odwołania.
+            // Reguła stoi tu, pod blokadą, a nie w kontrolerze — tą akcją
+            // przywraca też „cofam" po odwołaniu (`ResolveAppeal`). Autora
+            // czytamy z zablokowanego wiersza, przed jakimkolwiek zapisem.
+            if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
+                throw new WlasnejTresciNiePrzywracasz;
             }
 
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);

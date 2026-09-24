@@ -1,0 +1,18 @@
+# Przywracanie treści ukrytej przez moderację. Nikt nie przywraca własnej
+# treści (#1479) — drogą autora jest odwołanie.
+# Cena przeoczenia: moderator zdejmuje karę sam sobie, z pominięciem odwołania.
+nazwa: moderator nie przywraca wlasnej tresci
+plik: app/Domain/Moderation/Actions/RestoreContent.php
+zamien: if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
+na: if (false) {
+oczekuj: nie_przywraca_wlasnego|nie_cofa_przez_odwolanie|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/NiktNiePrzywracaWlasnejTresciTest.php
+ocena:
+---
+nazwa: odwolanie nie polyka odmowy przywrocenia wlasnej tresci
+plik: app/Domain/Moderation/Actions/ResolveAppeal.php
+zamien: throw $odmowa;
+na: unset($odmowa);
+oczekuj: nie_cofa_przez_odwolanie|Autor cofn
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/NiktNiePrzywracaWlasnejTresciTest.php
+ocena:

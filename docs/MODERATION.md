@@ -183,6 +183,10 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   Ukryty szkic po przywróceniu jest dalej szkicem (`moderation_actions.previous_status`,
   patrz `docs/DATABASE.md`).
 - Autor dostaje powiadomienie tym samym mechanizmem co przy każdej innej decyzji.
+- **Nikt nie przywraca własnej treści** (#1479) — ani przyciskiem przy
+  zgłoszeniu, ani „cofam” po odwołaniu. Wpis albo komentarz moderatora
+  przywraca ktoś inny z zespołu; drogą autora jest odwołanie. Reguła stoi
+  w `RestoreContent`, pod blokadą wiersza, a odmowa niczego nie zapisuje.
 
 ## Co dostaje ZGŁASZAJĄCY (issue #10, DSA art. 16 ust. 4 i 5)
 
