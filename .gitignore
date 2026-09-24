@@ -54,3 +54,7 @@ Thumbs.db
 # wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
 .pint.cache
 .php-cs-fixer.cache
+
+# Bajtkod Pythona (skrypty w scripts/)
+__pycache__/
+*.pyc
