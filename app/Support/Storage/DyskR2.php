@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Support\Storage;
 
 use Aws\S3\S3Client;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\AwsS3V3Adapter as DyskLaravela;
+use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Support\Arr;
 use League\Flysystem\Filesystem as SystemPlikow;
 
@@ -41,6 +43,10 @@ final class DyskR2
      */
     public static function utworz(array $konfiguracja): DyskLaravela
     {
+        // Przed `S3Client`: zły adres nie może dostać ani jednego żądania
+        // podpisanego naszym kluczem (D-255).
+        DozwolonyHostR2::wymus((string) ($konfiguracja['endpoint'] ?? ''));
+
         foreach (self::NIEOBSLUGIWANE as $klucz) {
             if (! empty($konfiguracja[$klucz])) {
                 throw new \InvalidArgumentException(
@@ -73,6 +79,31 @@ final class DyskR2
             $konfiguracjaKlienta,
             $klient,
         );
+    }
+
+    /**
+     * Wbudowany sterownik `s3` (`r2_kopie`, `s3`) za TĄ SAMĄ kontrolą adresu
+     * (D-255). Te dyski niosą sekrety R2 — `r2_kopie` nawet bez własnego
+     * klucza, bo AWS SDK sięga wtedy po `AWS_ACCESS_KEY_ID` ze środowiska.
+     * Poza kontrolą adresu nic się nie zmienia: dysk buduje framework.
+     *
+     * @param  array<string, mixed>  $konfiguracja
+     */
+    public static function utworzS3(Application $app, array $konfiguracja): DyskLaravela
+    {
+        DozwolonyHostR2::wymus((string) ($konfiguracja['endpoint'] ?? ''));
+
+        // `createS3Driver()` jest `protected`; podklasa tylko go odsłania.
+        $menedzer = new class($app) extends FilesystemManager
+        {
+            /** @param  array<string, mixed>  $konfiguracja */
+            public function zbudujS3(array $konfiguracja): DyskLaravela
+            {
+                return $this->createS3Driver($konfiguracja);
+            }
+        };
+
+        return $menedzer->zbudujS3($konfiguracja);
     }
 
     /**

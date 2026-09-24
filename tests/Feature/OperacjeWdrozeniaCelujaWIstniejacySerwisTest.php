@@ -76,7 +76,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
 
         // Sprawdzamy tylko WYWOŁANIA CLI, nie komentarze — komentarze mają
         // prawo (i obowiązek) tłumaczyć, dlaczego tych nazw tu nie ma.
-        $wiersze = preg_split('/\R/', $workflow) ?: [];
+        $wiersze = preg_split('/\r\n|\n|\r/', $workflow) ?: [];
 
         foreach ($wiersze as $numer => $wiersz) {
             $bezKomentarza = preg_replace('/#.*$/', '', $wiersz) ?? '';
@@ -118,7 +118,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
         // wycięcia test wywracałby się o własne uzasadnienie.
         $komendy = implode("\n", array_map(
             static fn (string $wiersz): string => (string) preg_replace('/#.*$/', '', $wiersz),
-            preg_split('/\R/', $krok) ?: [],
+            preg_split('/\r\n|\n|\r/', $krok) ?: [],
         ));
 
         // Kontrola metody pomiaru: jeśli nie widzimy tu wywołania redeploya,

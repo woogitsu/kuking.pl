@@ -1,0 +1,16 @@
+{
+  "nazwa": "902 koniec gotowania",
+  "plik": "resources/views/pages/recipes/cooking.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "66b34d27f4ccce7e5c77a1ae265f89e1",
+  "md5_po_mutacji": "b243dfdc7fefc97608ca4f599b2e1032",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "does not contain.*ugotowalem",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:55:52Z"
+}

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
 use App\Models\User;
@@ -27,9 +29,9 @@ final class ChangeUserRole
         }
 
         return DB::transaction(static function () use ($user, $role): array {
-            // Własna przestrzeń, odrębna od komentarzy i słownika tagów.
+            // Wspólny z zawieszeniem, banem i usunięciem konta (#1016).
             // Sam zamek konta nie serializuje degradacji DWÓCH różnych kont.
-            DB::select('SELECT pg_advisory_xact_lock(1016, 1)');
+            OstatniAdministrator::zablokuj();
 
             $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
             if ($fresh === null) {
@@ -44,10 +46,8 @@ final class ChangeUserRole
                 return ['user' => $fresh, 'previous' => $previous, 'changed' => false];
             }
 
-            if ($previous === User::ROLE_ADMIN && $role !== User::ROLE_ADMIN
-                && ! User::query()->where('role', User::ROLE_ADMIN)
-                    ->where('status', User::STATUS_ACTIVE)->whereKeyNot($fresh->getKey())->exists()) {
-                throw new DomainException('To jest ostatnie czynne konto administratora. Odebranie mu roli zostawi serwis bez nikogo, kto może rozstrzygnąć odwołanie (DSA art. 20). Najpierw nadaj rolę komuś innemu.');
+            if ($role !== User::ROLE_ADMIN && OstatniAdministrator::jestJedynym($fresh)) {
+                throw new OdmowaOstatniegoAdministratora;
             }
 
             $fresh->promoteTo($role);

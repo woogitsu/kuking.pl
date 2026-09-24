@@ -194,7 +194,7 @@ class RetencjaPowiadomienCzesciowaPorazkaTest extends TestCase
             $zadanie->run(app());
             $this->fail('Zadanie z częściową porażką zakończyło się jak udane.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('zakończone kodem 1', $e->getMessage());
+            $this->assertStringContainsString('(kod wyjścia: 1)', $e->getMessage());
             $this->assertStringNotContainsString(self::TRESC, $e->getMessage());
         }
     }

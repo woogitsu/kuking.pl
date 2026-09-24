@@ -1,0 +1,16 @@
+{
+  "nazwa": "Pomoc rozroznia nowe pytanie #860",
+  "plik": "resources/views/pages/static/help.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "259adcbe2fcbffae5d018a748a169c86",
+  "md5_po_mutacji": "9eb7d770114832b8719aab171f52c508",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Pytanie w Poradźcie publikujesz dla wszystkich",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:32:23Z"
+}
