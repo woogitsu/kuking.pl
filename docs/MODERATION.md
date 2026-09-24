@@ -390,6 +390,14 @@ odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, kt
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać
 uzasadnienie. Cofnięcie realnie przywraca treść albo odblokowuje konto.
 
+Rozpatrzenie to jedna transakcja pod blokadą wiersza odwołania (#950):
+skutek, wynik, odpowiedź w serwisie i wpis `appeal.resolved` zapisują się
+razem albo wcale. Drugie, równoległe rozpatrzenie tego samego odwołania
+(druga karta, drugi administrator) czeka na pierwsze i dostaje „To odwołanie
+zostało już rozpatrzone” — bez skutku i bez drugiej odpowiedzi. List do
+zgłaszającego wychodzi z kolejki po zatwierdzeniu. Pomiar:
+`tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+
 **Jak odpowiedź dociera** — powiadomieniem typu moderacyjnego. Osoba
 zablokowana czyta je na ekranie logowania (`LoginController`), bo do serwisu
 nie wejdzie.

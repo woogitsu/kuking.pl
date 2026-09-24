@@ -23,10 +23,12 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\Appeal;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -179,6 +181,16 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak
+        // jak zrobiłoby to wiązanie trasy w dwóch równoległych żądaniach —
+        // oba procesy trzymają w pamięci `open`.
+        'rozpatrz-odwolanie' => (string) app(ResolveAppeal::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            odwolanie: Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
+            wynik: $argumenty['wynik'],
+            uzasadnienie: $argumenty['uzasadnienie'],
+        )->status,
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

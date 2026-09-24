@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dwie osoby rozpatrujące to samo odwołanie w tej samej chwili nie wydadzą już dwóch sprzecznych odpowiedzi. Druga dostaje komunikat, że sprawa jest już rozpatrzona, a skutek i odpowiedź zapisują się razem albo wcale.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.

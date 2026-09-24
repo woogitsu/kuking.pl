@@ -11,6 +11,7 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -59,6 +60,8 @@ use Illuminate\Support\Facades\Gate;
  */
 final class ResolveAppeal
 {
+    public const JUZ_ROZPATRZONE = 'To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.';
+
     public function __construct(
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
@@ -106,8 +109,11 @@ final class ResolveAppeal
         // uruchamia. Ta jest ostatnią linią, nie jedyną.
         Gate::forUser($moderator)->authorize('resolveAppeals', User::class);
 
+        // Tanie sprawdzenie na wejściu — ten sam komunikat co pod blokadą
+        // niżej. Rozstrzyga WYŁĄCZNIE sprawdzenie pod blokadą; to tutaj
+        // oszczędza tylko transakcję, gdy strona była dawno nieodświeżona.
         if (! $odwolanie->isOpen()) {
-            throw new BladDlaCzlowieka('To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.');
+            throw new BladDlaCzlowieka(self::JUZ_ROZPATRZONE);
         }
 
         if (! in_array($wynik, [Appeal::STATUS_UPHELD, Appeal::STATUS_OVERTURNED], true)) {
@@ -120,45 +126,77 @@ final class ResolveAppeal
             throw new BladDlaCzlowieka('Napisz, dlaczego tak decydujesz. Bez tego nie da się wysłać odpowiedzi.');
         }
 
-        $decyzja = $odwolanie->moderationAction;
+        // JEDNA TRANSAKCJA, POD BLOKADĄ WIERSZA ODWOŁANIA (#950).
+        //
+        // Do 24.09.2026 sprawdzenie `isOpen()` stało na obiekcie z wiązania
+        // trasy, a skutek, wynik, odpowiedź i wpis w dzienniku szły osobnymi
+        // zapisami bez transakcji. Dwa równoległe rozpatrzenia (dwie karty,
+        // dwóch administratorów) oba widziały `open`: jedno cofało decyzję
+        // i odblokowywało konto, drugie „podtrzymywało" i nadpisywało wynik —
+        // człowiek dostawał dwie sprzeczne odpowiedzi, a konto zostawało
+        // odblokowane przy odwołaniu zapisanym jako podtrzymane. Awaria
+        // w połowie zostawiała treść przywróconą przy odwołaniu dalej
+        // otwartym.
+        //
+        // Teraz: `lockForUpdate()` wstrzymuje drugie rozpatrzenie do końca
+        // pierwszego, a ponowne sprawdzenie stanu JUŻ POD BLOKADĄ daje mu
+        // „już rozpatrzone" bez żadnego skutku. Skutek, wynik, powiadomienie
+        // w serwisie i wpis w dzienniku zatwierdzają się razem albo wcale.
+        // List do zgłaszającego to zadanie w kolejce `database`, więc jego
+        // wiersz w `jobs` też jest częścią tej transakcji — po wycofaniu nie
+        // wyjdzie, a po zatwierdzeniu ponawia go kolejka, nie człowiek.
+        //
+        // Kolejność blokad: najpierw odwołanie, potem treść (`RestoreContent`)
+        // albo konto. Nikt inny nie bierze blokady odwołania, więc ta
+        // kolejność nie ma z kim się odwrócić. Pomiar na dwóch połączeniach:
+        // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+        return DB::transaction(function () use ($moderator, $odwolanie, $wynik, $uzasadnienie, $ip): Appeal {
+            $zablokowane = Appeal::query()->whereKey($odwolanie->getKey())->lockForUpdate()->first();
 
-        if ($wynik === Appeal::STATUS_UPHELD) {
-            $this->sprawdzKarencje($moderator, $decyzja);
-        }
+            if ($zablokowane === null || ! $zablokowane->isOpen()) {
+                throw new BladDlaCzlowieka(self::JUZ_ROZPATRZONE);
+            }
 
-        if ($wynik === Appeal::STATUS_OVERTURNED) {
-            $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
-        }
+            $decyzja = $zablokowane->moderationAction;
 
-        $odwolanie->update([
-            'status' => $wynik,
-            'decided_by' => $moderator->getKey(),
-            'decision_note' => $uzasadnienie,
-            'decided_at' => now(),
-        ]);
+            if ($wynik === Appeal::STATUS_UPHELD) {
+                $this->sprawdzKarencje($moderator, $decyzja);
+            }
 
-        $odwolanie->refresh();
+            if ($wynik === Appeal::STATUS_OVERTURNED) {
+                $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
+            }
 
-        if ($odwolanie->isFromReporter()) {
-            $this->powiadomZglaszajacego->handle($odwolanie);
-        } else {
-            $this->powiadom->handle($odwolanie);
-        }
+            $zablokowane->update([
+                'status' => $wynik,
+                'decided_by' => $moderator->getKey(),
+                'decision_note' => $uzasadnienie,
+                'decided_at' => now(),
+            ]);
 
-        AuditLogEntry::record(
-            action: 'appeal.resolved',
-            actor: $moderator,
-            subject: $odwolanie,
-            metadata: [
-                'outcome' => $wynik,
-                'appellant' => $odwolanie->appellant,
-                'original_decision' => $decyzja->action,
-                'original_moderator_id' => (string) $decyzja->moderator_id,
-            ],
-            ip: $ip,
-        );
+            $zablokowane->refresh();
 
-        return $odwolanie;
+            if ($zablokowane->isFromReporter()) {
+                $this->powiadomZglaszajacego->handle($zablokowane);
+            } else {
+                $this->powiadom->handle($zablokowane);
+            }
+
+            AuditLogEntry::record(
+                action: 'appeal.resolved',
+                actor: $moderator,
+                subject: $zablokowane,
+                metadata: [
+                    'outcome' => $wynik,
+                    'appellant' => $zablokowane->appellant,
+                    'original_decision' => $decyzja->action,
+                    'original_moderator_id' => (string) $decyzja->moderator_id,
+                ],
+                ip: $ip,
+            );
+
+            return $zablokowane;
+        });
     }
 
     private function sprawdzKarencje(User $moderator, ModerationAction $decyzja): void
