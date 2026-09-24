@@ -280,7 +280,7 @@ export async function sprawdzPodpowiedzi({
                 let error;
                 try {
                     writeFileSync(source, mutation(original));
-                    execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+                    execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
                     try {
                         await measure(320, true, 100, kind);
                     } catch (e) {
@@ -293,7 +293,7 @@ export async function sprawdzPodpowiedzi({
                         statSync(source).mtimeMs !== mtime
                     )
                         throw Error("NOTICE_RESTORE");
-                    execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+                    execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
                 }
                 await measure(320, true, 100, kind);
                 // JSON macierzy opisuje 24 właściwe konfiguracje, nie częściowe

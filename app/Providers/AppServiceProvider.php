@@ -57,6 +57,10 @@ class AppServiceProvider extends ServiceProvider
         // i to zaleca dokumentacja Laravela.
         Storage::extend('r2', fn ($app, array $konfiguracja) => DyskR2::utworz($konfiguracja));
 
+        // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
+        // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
+        Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
         // #1046: każde logowanie (hasło, link, Google, Facebook, 2FA,
         // rejestracja, recaller „zapamiętaj mnie”) zapisuje w sesji generację
         // konta. Zdarzenie, a nie wywołanie w każdym kontrolerze: kolejna

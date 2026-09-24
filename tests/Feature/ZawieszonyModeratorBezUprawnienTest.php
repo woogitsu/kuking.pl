@@ -70,6 +70,8 @@ class ZawieszonyModeratorBezUprawnienTest extends TestCase
     public function test_zawieszony_administrator_nie_czyta_odwolan(): void
     {
         $admin = $this->admin();
+        // Drugi czynny administrator: ostatniego nie da się zawiesić (#1016).
+        $this->admin();
 
         $this->actingAs($admin)->get(route('admin.appeals'))->assertOk();
 

@@ -565,7 +565,7 @@ export async function sprawdzNawigacje492({
                     if (changed === original)
                         throw Error("N492_MUTACJA_NIE_ZMIENIA");
                     writeFileSync(source, changed);
-                    execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+                    execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
                     try {
                         await probe();
                     } catch (failure) {
@@ -578,7 +578,7 @@ export async function sprawdzNawigacje492({
                         statSync(source).mtimeMs !== mtime
                     )
                         throw Error("N492_PRZYWROCENIE");
-                    execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+                    execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
                 }
                 await probe();
                 if (!error?.message.startsWith(code))

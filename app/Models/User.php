@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
+use App\Domain\Users\OstatniAdministrator;
 use App\Notifications\UstawienieNowegoHasla;
 use App\Support\Sesja\GeneracjaSesji;
 use Database\Factories\UserFactory;
@@ -1195,11 +1196,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
             throw new \InvalidArgumentException("Nieznany zakres usunięcia konta: {$scope}");
         }
 
-        $this->forceFill([
+        // Ostatni czynny administrator nie może odejść, zanim nie przekaże
+        // roli (#1016) — ten sam wspólny zamek co degradacja i kary.
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->forceFill([
             'status' => self::STATUS_PENDING_DELETE,
             'delete_requested_at' => now(),
             'delete_scope' => $scope,
-        ])->save();
+        ])->save());
 
         // Ta sama zasada co przy `ban()`/`suspend()`: zmiana stanu konta, która
         // ma odciąć dostęp, musi kasować sesje z INNYCH przeglądarek, nie tylko
@@ -1275,13 +1278,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `$until` to termin, po którym konto wraca do `active` samo. Bez niego
      * zawieszenie trwa do decyzji człowieka. CHECK w bazie pilnuje, że termin
      * może istnieć wyłącznie przy statusie `suspended` (issue #40).
+     *
+     * Ostatniego czynnego administratora nie zawiesi ani nie zablokuje nikt
+     * (#1016): `OstatniAdministrator` odmawia wyjątkiem pod wspólnym zamkiem.
      */
     public function suspend(?DateTimeInterface $until = null): void
     {
-        $this->forceFill([
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->forceFill([
             'status' => self::STATUS_SUSPENDED,
             'status_expires_at' => $until,
-        ])->save();
+        ])->save());
 
         $this->invalidateSessions();
     }
@@ -1295,10 +1301,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function ban(): void
     {
-        $this->forceFill([
+        OstatniAdministrator::odbierzAktywnosc($this, fn () => $this->forceFill([
             'status' => self::STATUS_BANNED,
             'status_expires_at' => null,
-        ])->save();
+        ])->save());
 
         $this->invalidateSessions();
     }
