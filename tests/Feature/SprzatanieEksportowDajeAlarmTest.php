@@ -177,6 +177,8 @@ class SprzatanieEksportowDajeAlarmTest extends TestCase
             'disk' => 'local',
             'object_key' => self::KLUCZ,
             'bytes' => 1234,
+            // Komplet metadanych gotowej paczki — CHECK `data_exports_ready_complete_check` (#1365).
+            'completed_at' => \Illuminate\Support\Carbon::parse($wygasla)->subDays(7),
             'expires_at' => $wygasla,
         ]);
     }
