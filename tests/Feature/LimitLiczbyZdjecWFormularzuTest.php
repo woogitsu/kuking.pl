@@ -85,7 +85,7 @@ class LimitLiczbyZdjecWFormularzuTest extends TestCase
             ->withSession(['_old_input' => ['media_ids' => $zachowane->pluck('id')->all()]])
             ->get(route('posts.create'))->assertOk()->getContent());
 
-        $this->assertStringContainsString('Masz już tyle zdjęć, ile można dodać. Nowych nie wybieraj.', $pomoc);
+        $this->assertStringContainsString('Masz już komplet zdjęć. Jeśli chcesz dodać inne, najpierw usuń któreś z zachowanych.', $pomoc);
     }
 
     public function test_formularz_ugotowalem_podaje_limit_liczby_i_rozmiaru(): void

@@ -213,7 +213,7 @@ final class LimityZdjec
         $wolne = max(0, $limit - $juzZachowanych);
 
         if ($juzZachowanych > 0 && $wolne === 0) {
-            return 'Masz już tyle zdjęć, ile można dodać. Nowych nie wybieraj.';
+            return 'Masz już komplet zdjęć. Jeśli chcesz dodać inne, najpierw usuń któreś z zachowanych.';
         }
 
         if ($juzZachowanych > 0) {
