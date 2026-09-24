@@ -68,6 +68,16 @@ class CommentController extends Controller
 
     public function destroy(Request $request, Comment $comment): RedirectResponse
     {
+        // Issue #937: jak przy edycji — autor wie o swoim ukrytym komentarzu,
+        // więc zamiast gołego 403 mówimy mu, co może zrobić.
+        if ($request->user()->getKey() === $comment->author_id
+            && $comment->status !== Comment::STATUS_PUBLISHED) {
+            return back()->withErrors([
+                'comment' => 'Moderacja ukryła ten komentarz, więc nie da się go już usunąć. '
+                    .'Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.',
+            ]);
+        }
+
         $this->authorize('delete', $comment);
 
         $actor = $request->user();

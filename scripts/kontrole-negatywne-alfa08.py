@@ -111,6 +111,10 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+# `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
+# pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
+WYDANIE_TRASY = "bootstrap/app.php"
+WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 
 # Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
@@ -123,6 +127,14 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 # wyłącza samo czyszczenie XMP i test ma wtedy oblać.
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
+
+# Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
+# `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
+# skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
+# wywołanie kompensacji — test ma oblać na oryginale i podglądzie, które
+# zostały w `Storage::fake()`.
+KOMPENSACJA_UPLOADU = "app/Domain/Media/Actions/StoreUploadedImage.php"
+KOMPENSACJA_UPLOADU_TEST = "NieudanyZapisZdjeciaNieZostawiaPlikowTest"
 
 # Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
 # Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
@@ -288,6 +300,47 @@ def stara_sonda_https(source):
     )
 
 
+def test_dymny_bez_sondy_wydania(source):
+    """KONTROLA DODATNIA: zdejmij sondę wydania sprzed sprawdzeń.
+
+    `test_dymny_najpierw_potwierdza_pelny_sha_zdarzenia` ma zapalić (#1012):
+    bez niej test dymny zdarzenia A znów sprawdza wydanie B.
+    """
+    return replace_once(
+        source,
+        '          if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then\n'
+        '            echo "::error title=Pod adresem działa inne wydanie::Oczekiwano ${OCZEKIWANY_SHA}, otrzymano ${SONDA_OTRZYMANY:-nic}. Test dymny nie sprawdza cudzego wydania."\n'
+        '            exit 1\n'
+        '          fi\n',
+        "",
+    )
+
+
+def koncowa_sonda_jedna_proba(source):
+    """KONTROLA DODATNIA: końcowa sonda wydania znów z jedną próbą.
+
+    Ten sam test (#1012, przegląd #1439) ma zapalić: jedna chwilowa porażka
+    sieci po testach oblewała całe wdrożenie.
+    """
+    return replace_once(
+        source,
+        '          sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+        '          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+    )
+
+
+def akcja_rollback_wraca(source):
+    """KONTROLA DODATNIA: przywróć akcję `rollback`, która niczego nie cofa.
+
+    `zadna_akcja_nie_nazywa_sie_rollback_skoro_nic_nie_cofa` ma zapalić (#974).
+    """
+    return replace_once(
+        source,
+        "options: [smoke, migrate, redeploy, instrukcja-cofniecia]",
+        "options: [smoke, migrate, redeploy, rollback]",
+    )
+
+
 def bez_digestu_obrazu_kopii(source):
     """KONTROLA DODATNIA: wróć w obrazie kopii do gołego, ruchomego tagu.
 
@@ -338,10 +391,20 @@ checks = [
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      stara_sonda_https),
+    ("Test dymny bez sondy wydania przed sprawdzeniami", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     test_dymny_bez_sondy_wydania),
+    ("Końcowa sonda wydania z jedną próbą", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     koncowa_sonda_jedna_proba),
+    ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     akcja_rollback_wraca),
+    ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
+     lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
+     lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
@@ -363,8 +426,10 @@ run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
+run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)

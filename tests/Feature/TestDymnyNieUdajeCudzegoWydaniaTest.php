@@ -82,10 +82,22 @@ class TestDymnyNieUdajeCudzegoWydaniaTest extends TestCase
             $krok,
             'Niezgodny SHA ma kończyć krok od razu, a nie tylko ustawiać `fail`.',
         );
-        $this->assertStringContainsString(
-            'SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1',
-            $krok,
+        $koncowa = strrpos($krok, 'sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1');
+        $this->assertNotFalse(
+            $koncowa,
             'Po sprawdzeniach wydanie trzeba potwierdzić jeszcze raz — mogło się zmienić w trakcie.',
+        );
+        $this->assertGreaterThan(
+            (int) strrpos($krok, 'check '),
+            $koncowa,
+            'Końcowa sonda wydania ma iść PO sprawdzeniach, inaczej nie wykryje podmiany w trakcie.',
+        );
+        // Jedna próba na końcu robiła z chwilowej porażki sieci „nieudane
+        // wdrożenie". Ponawianie (3 próby) siedzi w sonda_wydanie_koncowa.
+        $this->assertStringNotContainsString(
+            'SONDA_PROBY=1',
+            $krok,
+            'Końcowa sonda wróciła do jednej próby — chwilowa porażka znów obleje wdrożenie.',
         );
     }
 
