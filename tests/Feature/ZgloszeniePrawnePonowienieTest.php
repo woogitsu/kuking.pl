@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Support\Testing\Fakes\NotificationFake;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -222,7 +223,7 @@ class ZgloszeniePrawnePonowienieTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('daneKontaktowe')]
+    #[DataProvider('daneKontaktowe')]
     public function test_ten_sam_klucz_z_innymi_danymi_kontaktowymi_to_nowa_sprawa(string $pole, string $wartosc): void
     {
         Notification::fake();
