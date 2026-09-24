@@ -1,0 +1,34 @@
+  ✓ pusty adres nie zostawia pustego is based on                         0.07s
+  ✓ adres przy innym zrodle niz zewnetrzne nie idzie do danych           0.09s
+  ✓ przepis prywatny nie oddaje zadnych danych strukturalnych            0.08s
+  ✓ adres nie wchodzi do autora                                          0.11s
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.11s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\KazdaTrasaZIdentyfikatoremPodPolicyTest > spis przy…
+  Trasa bierze coś z adresu i nikt nie zmierzył, kto przez nią wchodzi.
+AGENTS.md §7: UUID w adresie NIE JEST autoryzacją.
+Dopisz ją do tabeli przypadków w tym pliku razem z oczekiwaniami dla pięciu ról, albo — jeśli parametr nie jest identyfikatorem obiektu — na listę BEZ_IDENTYFIKATORA_OBIEKTU razem z POWODEM.
+Trasy bez pomiaru: cooking.restart (App\Http\Controllers\CookingModeController@restart)
+Failed asserting that two arrays are identical.
+  -Array &0 []
+  +Array &0 [
+  +    0 => 'cooking.restart (App\Http\Controllers\CookingModeController@restart)',
+  +]
+
+
+  at tests/Feature/KazdaTrasaZIdentyfikatoremPodPolicyTest.php:224
+    220▕         $this->assertGreaterThanOrEqual(64, count($pokryte),
+    221▕             'Tabela przypadków zmalała poniżej stanu z 12.09.2026 (64 trasy). Skasowana trasa to zgoda, '
+    222▕             .'która nie została nigdzie zapisana. Pokrytych: '.count($pokryte));
+    223▕
+  ➜ 224▕         $this->assertSame([], $niepokryte,
+    225▕             "Trasa bierze coś z adresu i nikt nie zmierzył, kto przez nią wchodzi.\n"
+    226▕             ."AGENTS.md §7: UUID w adresie NIE JEST autoryzacją.\n"
+    227▕             .'Dopisz ją do tabeli przypadków w tym pliku razem z oczekiwaniami dla pięciu ról, albo — jeśli '
+    228▕             ."parametr nie jest identyfikatorem obiektu — na listę BEZ_IDENTYFIKATORA_OBIEKTU razem z POWODEM.\n"
+
+  1   tests/Feature/KazdaTrasaZIdentyfikatoremPodPolicyTest.php:224
+
+
+  Tests:    1 failed, 4402 passed (83767 assertions)
+  Duration: 481.39s

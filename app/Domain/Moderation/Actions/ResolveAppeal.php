@@ -10,6 +10,8 @@ use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Rozpatrzenie odwołania (issue #10, DSA art. 20).
@@ -66,6 +68,8 @@ final class ResolveAppeal
     /**
      * @param  string  $wynik  Appeal::STATUS_UPHELD albo Appeal::STATUS_OVERTURNED
      *
+     * @throws AuthorizationException gdy `$moderator`
+     *                                nie ma roli uprawniającej do rozstrzygania odwołań (issue #1087)
      * @throws BladDlaCzlowieka gdy odwołania nie wolno teraz zamknąć
      */
     public function handle(
@@ -75,6 +79,33 @@ final class ResolveAppeal
         string $uzasadnienie,
         ?string $ip = null,
     ): Appeal {
+        // KTO ROZSTRZYGA — PYTANIE DOMENY, NIE KONTROLERA (issue #1087).
+        //
+        // Reguła „odwołanie zamyka administrator, nie każdy moderator"
+        // (`UserPolicy::resolveAppeals`, A-4) była egzekwowana WYŁĄCZNIE
+        // w `AppealController::resolve()`. Czyli obowiązywała dokładnie na
+        // jednej drodze do tej akcji — każde inne wywołanie (komenda
+        // artisan, zadanie w kolejce, test, przyszły endpoint albo webhook)
+        // zamykało cudze odwołanie, cofało decyzję moderacyjną
+        // i odwieszało konto bez żadnej bramki. Nazwa parametru
+        // `$moderator` była jedyną „kontrolą" roli, jaka tu stała.
+        //
+        // Bramka stoi TUTAJ, a nie w kontrolerze, bo to ta klasa robi
+        // skutki: `cofnij()` woła `reinstate()` na koncie i `RestoreContent`
+        // na treści. Bramka pilnująca skutków musi stać przy skutkach —
+        // inaczej chroni jedną drogę, a nie czynność.
+        //
+        // `AuthorizationException`, a nie `BladDlaCzlowieka`: to nie jest
+        // komunikat do formularza. `AppealController` łapie
+        // `BladDlaCzlowieka` i zamienia go na błąd pola — brak uprawnień
+        // zamieniony na „popraw formularz" byłby odmową, która wygląda jak
+        // literówka. Tu ma wyjść 403.
+        //
+        // Kontroler NIE traci swojego `authorize()`: tam bramka odpowiada
+        // za kod HTTP i za to, że walidacja formularza w ogóle się nie
+        // uruchamia. Ta jest ostatnią linią, nie jedyną.
+        Gate::forUser($moderator)->authorize('resolveAppeals', User::class);
+
         if (! $odwolanie->isOpen()) {
             throw new BladDlaCzlowieka('To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.');
         }
