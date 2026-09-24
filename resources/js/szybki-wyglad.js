@@ -52,6 +52,23 @@ function initialize() {
         const limit = Math.max(0, innerHeight - summaryHeight - margin - 4);
         const bottom = visible ? Math.min(limit, Math.max(0, innerHeight - rect.top)) : 0;
         document.documentElement.style.setProperty('--wyglad-dol', bottom + 'px');
+        // Przy dużym tekście (czcionka przeglądarki 32 px) przycisk jest szerszy
+        // niż boczna rezerwa paska stopki (sufit 50%, marka-rama.css) i na
+        // końcu strony przykrywałby motyw i wersję. Wtedy miejsce na niego
+        // idzie POD pasek — tylko w tym wypadku, więc przy zwykłym piśmie
+        // pod stopką nadal nie ma pustego pasa (#1525). Porównujemy z prawą
+        // krawędzią treści paska, której to przełączenie nie przesuwa.
+        const bar = document.querySelector('.site-footer-pasek');
+        let underBar = false;
+        if (bar && !widget.open) {
+            const barRect = bar.getBoundingClientRect();
+            const contentRight = barRect.right - (parseFloat(getComputedStyle(bar).paddingRight) || 0);
+            underBar = barRect.width > 0 && summary.getBoundingClientRect().left < contentRight + 8;
+        } else if (bar) {
+            underBar = document.documentElement.hasAttribute('data-wyglad-pod-paskiem');
+        }
+        document.documentElement.toggleAttribute('data-wyglad-pod-paskiem', underBar);
+        document.documentElement.style.setProperty('--wyglad-wysokosc', Math.ceil(summaryHeight + margin) + 'px');
         // Sprawdzamy także rzeczywisty panel: duża czcionka może zajmować
         // więcej niż stała rezerwa arkusza nawet przy 240 px nad przyciskiem.
         widget.removeAttribute('data-wyglad-malo-miejsca');
@@ -236,11 +253,12 @@ function initialize() {
     const observer = new ResizeObserver(geometry);
     const nav = document.querySelector('.bottom-nav');
     if (nav) observer.observe(nav);
+    observer.observe(summary);
     listen(window, 'resize', geometry);
     listen(window, 'scroll', geometry);
     widget.dataset.wygladGotowy = '1';
     geometry();
-    cleanup = () => { events.abort(); observer.disconnect(); hint.hidden = true; };
+    cleanup = () => { events.abort(); observer.disconnect(); hint.hidden = true; document.documentElement.removeAttribute('data-wyglad-pod-paskiem'); };
 }
 initialize();
 document.addEventListener('livewire:navigating', () => cleanup());

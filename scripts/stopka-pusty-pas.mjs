@@ -68,9 +68,12 @@ const SZEROKOSCI_ZALOGOWANEGO = [320, 390, 768, 1190, 1440];
 /* CZCIONKA PRZEGLĄDARKI 32 px (tekst 200%) — CI #1250, 24.09. Boczna rezerwa
    paska technicznego rośnie z `rem` i skalą, a szerokość okna nie: przy 414 px
    i skali 140% wypełnienie (382 px) było szersze od paska (350 px) i strona
-   przewijała się w poziomie o 16 px. Tu pilnujemy tylko minim UX 50+ (brak
-   przewijania w poziomie, cele, pismo) — progi pustki i przycisku „Wygląd"
-   dotyczą zwykłej czcionki. */
+   przewijała się w poziomie o 16 px. Tu pilnujemy minim UX 50+ (brak
+   przewijania w poziomie, cele, pismo) ORAZ tego, że przycisk „Wygląd" nie
+   leży na treści paska (#1525: do 24.09 to sprawdzenie było tu pomijane,
+   a przycisk szeroki na 220–336 px przykrywał motyw i wersję). Progi
+   pustki dotyczą zwykłej czcionki: przy 32 px pod paskiem MUSI zostać
+   miejsce na przycisk, bo z boku się nie mieści. */
 const DUZA_CZCIONKA = 32;
 const SZEROKOSCI_DUZEJ_CZCIONKI = [320, 360, 390, 414];
 
@@ -164,9 +167,8 @@ export function naruszenia(m, { kto, width, skala, czcionka }) {
   sprawdz(m.najnizszyCel >= MIN_CEL - 0.5, `cel dotykowy w stopce zszedł do ${m.najnizszyCel} px przy wymaganych ${MIN_CEL} px`);
   sprawdz(m.najmniejszePismo >= MIN_TEKST - 0.5, `tekst w stopce zszedł do ${m.najmniejszePismo} px przy wymaganych ${MIN_TEKST} px`);
   sprawdz(!m.przepelnieniePoziome, `strona przewija się w poziomie: ${m.scrollWidth} > ${m.clientWidth}`);
-  if (czcionka) return bledy;
-
   sprawdz(m.wygladNaTresci === 0, `przycisk „Wygląd" leży na ${m.wygladNaTresci} elementach treści stopki`);
+  if (czcionka) return bledy;
 
   if (kto === 'gość') sprawdz(!m.maBelke, 'gość nie powinien mieć przypiętej .bottom-nav');
 
@@ -328,6 +330,8 @@ const SABOTAZE = [
   ['rezerwa zdjęta także zalogowanemu z belką', '[data-marka] .site-footer{padding-bottom:16px !important}', { kto: 'zalogowany', width: 390, skala: 100 }],
   ['pasek techniczny bez miejsca na przycisk „Wygląd"', '[data-marka] .site-footer-pasek{padding-right:0 !important}.site-version{margin-left:auto !important}', { kto: 'gość', width: 1190, skala: 100 }],
   ['odnośniki ściśnięte poniżej 48 px', '.site-footer-grupa ul a{min-height:0 !important}', { kto: 'gość', width: 390, skala: 100 }],
+  ['czcionka 32 px bez miejsca pod paskiem, „Aa · Wygląd" (#1525)', ':root[data-wyglad-pod-paskiem] [data-marka] .site-footer{padding-bottom:16px !important}', { kto: 'gość', width: 414, skala: 100, czcionka: DUZA_CZCIONKA }],
+  ['czcionka 32 px bez miejsca pod paskiem, samo „Wygląd" (#1525)', ':root[data-wyglad-pod-paskiem] [data-marka] .site-footer{padding-bottom:16px !important}', { kto: 'zalogowany', width: 320, skala: 140, czcionka: DUZA_CZCIONKA }],
   ['rezerwa paska bez sufitu (jak w #1250 przed poprawką CI)', '[data-marka] .site-footer-pasek{padding-right:calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1)) !important}', { kto: 'gość', width: 414, skala: 140, czcionka: DUZA_CZCIONKA }],
 ];
 

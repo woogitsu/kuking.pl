@@ -184,6 +184,18 @@
 @media (max-width: 400px) {
   [data-marka] .site-footer-pasek { padding-right: min(calc(30px + 4.25rem * var(--user-text-scale, 1)), 50%); }
 }
+/* GDY Z BOKU SIĘ NIE MIEŚCI — POD PASKIEM (#1525). Przy czcionce
+   przeglądarki 32 px przycisk ma 220–336 px, więcej niż pół paska (sufit
+   wyżej), i na końcu strony leżał na motywie i wersji. `szybki-wyglad.js`
+   ustawia wtedy `data-wyglad-pod-paskiem` i zmierzoną wysokość przycisku
+   z odstępem od dołu okna (`--wyglad-wysokosc`); stopka dostaje tyle
+   miejsca pod paskiem plus 8 px luzu. Przy zwykłym piśmie atrybutu nie ma,
+   więc pusty pas pod stopką nie wraca. Bez skryptu przycisk stoi
+   w przepływie strony i niczego nie przykrywa — rezerwa nie jest potrzebna.
+   Pilnuje `scripts/stopka-pusty-pas.mjs` (czcionka 32 px, kontrola ujemna). */
+:root[data-wyglad-pod-paskiem] [data-marka] .site-footer {
+  padding-bottom: calc(var(--rezerwa-ukladu-dol, 0px) + var(--wyglad-wysokosc, 72px) + 8px);
+}
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {
   left: 8px;
