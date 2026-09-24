@@ -7,6 +7,7 @@ namespace App\Domain\Feed;
 use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -197,6 +198,22 @@ final class DailyBoard
             ])
             ->withVisibleCommentCount($viewer)
             ->get();
+
+        $peopleById = $people->keyBy('id');
+        $people = new EloquentCollection(
+            $picks->where('subject_type', DailyPick::TYPE_USER)
+                ->map(fn (DailyPick $pick) => $peopleById->get($pick->subject_id))
+                ->filter()
+                ->values(),
+        );
+
+        $postsById = $posts->keyBy('id');
+        $posts = new EloquentCollection(
+            $picks->where('subject_type', DailyPick::TYPE_POST)
+                ->map(fn (DailyPick $pick) => $postsById->get($pick->subject_id))
+                ->filter()
+                ->values(),
+        );
 
         return [
             'people' => $people,

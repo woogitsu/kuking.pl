@@ -470,6 +470,7 @@ class GenerateUserExport implements ShouldQueue
     private function addPostsPage(ZipArchive $zip, array $data): void
     {
         $posts = array_map(fn (array $post): array => [
+            'tytul' => $post['tytul'],
             'tresc' => $post['tresc'],
             'data' => $post['opublikowano'] ?? $post['utworzono']
                 ? Carbon::parse($post['opublikowano'] ?? $post['utworzono'])->translatedFormat('j F Y')
