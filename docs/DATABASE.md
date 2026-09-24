@@ -4018,6 +4018,35 @@ nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
 
+### zalegle_czyszczenia_cdn
+
+Adresy skasowanych zdjęć, których cache CDN **jeszcze nie wyczyszczono**,
+migracja `2026_09_24_100000_utworz_zalegle_czyszczenia_cdn` (issue #959).
+Do niej `PurgePublicMediaCache` bez `CLOUDFLARE_ZONE_ID` albo
+`CLOUDFLARE_PURGE_TOKEN` kończył się sukcesem z samym ostrzeżeniem w logu,
+a po uzupełnieniu zmiennych nikt nie wiedział, co dokończyć.
+
+| Kolumna | Opis |
+|---|---|
+| `id bigserial` | Kolejność odkładania — `kuking:wyczysc-zalegle-cdn` bierze najstarsze. |
+| `adres varchar(2048) NOT NULL` | Pełny publiczny adres wariantu. **UNIKALNY** (`zalegle_czyszczenia_cdn_adres_unique`): czyszczenie jest idempotentne, drugie odłożenie nic nie dodaje (`insertOrIgnore`). CHECK `zalegle_czyszczenia_cdn_adres_http_check`: `adres ~ '^https?://'` — adresu względnego Cloudflare nie wyczyści nigdy. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy odłożono. |
+
+Kto pisze: zadanie na **produkcji** bez konfiguracji oraz `failed()` po
+wyczerpaniu prób (wszędzie). Kto kasuje: wyłącznie
+`ZalegleCzyszczeniaCdn::wyczysc()` — **po** potwierdzeniu Cloudflare
+(`success: true` dla każdej partii). Porażka zostawia wiersze na następny
+przebieg (co kwadrans). `/health` → `cdn_zalegle` = `czyszczenie_cdn_zalegle`,
+dopóki tabela nie jest pusta.
+
+**Rollback odmawia przy niepustej tabeli (D-088):** każdy wiersz to zdjęcie,
+które może się jeszcze otwierać z cache — często po wymazaniu konta albo
+decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
+`php artisan kuking:wyczysc-zalegle-cdn`, potem wycofuj. Pusta tabela znika
+bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
+z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
+`tests/Feature/ZalegleCzyszczenieCdnTest.php`.
+
 ### sessions
 
 Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość

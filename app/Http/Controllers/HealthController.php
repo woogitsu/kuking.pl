@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Media\ZalegleCzyszczeniaCdn;
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
@@ -11,6 +12,7 @@ use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Facebook;
 use App\Support\Google;
+use App\Support\Odmiana;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
@@ -133,6 +135,7 @@ class HealthController extends Controller
         self::POWOD_ANALITYKA_BEZ_TOKENU,
         self::POWOD_POCZTA_NIE_WYSYLA,
         self::POWOD_ZADANIA_NIEUDANE,
+        self::POWOD_CZYSZCZENIE_CDN_ZALEGLE,
         self::POWOD_LISTY_PRZEPADAJA,
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
@@ -230,8 +233,17 @@ class HealthController extends Controller
     private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
 
     /**
+     * W `zalegle_czyszczenia_cdn` leżą adresy skasowanych zdjęć, których
+     * cache CDN jeszcze nie wyczyszczono (#959): odłożone bez konfiguracji
+     * Cloudflare albo po wyczerpaniu prób zadania. Każdy taki adres może się
+     * nadal otwierać. Gaśnie sam, gdy `kuking:wyczysc-zalegle-cdn` je wyśle.
+     */
+    private const POWOD_CZYSZCZENIE_CDN_ZALEGLE = 'czyszczenie_cdn_zalegle';
+
+    /**
      * `CLOUDFLARE_ZONE_ID` albo `CLOUDFLARE_PURGE_TOKEN` jest pusty, więc
-     * `App\Jobs\PurgePublicMediaCache` wychodzi na `return` i NIC nie czyści.
+     * `App\Jobs\PurgePublicMediaCache` NIC nie czyści (na produkcji odkłada
+     * adresy do `zalegle_czyszczenia_cdn`, #959 — patrz `cdn_zalegle`).
      *
      * DLACZEGO TO MUSI STAĆ TUTAJ, A NIE TYLKO W LOGU ZADANIA
      * Zadanie zapisuje wtedy `Log::warning` i kończy się SUKCESEM: nie ma
@@ -283,6 +295,7 @@ class HealthController extends Controller
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
             'cdn' => $this->check('cdn', self::POWOD_CZYSZCZENIE_CDN_WYLACZONE, fn () => $this->sprawdzCzyszczenieCdn()),
+            'cdn_zalegle' => $this->check('cdn_zalegle', self::POWOD_CZYSZCZENIE_CDN_ZALEGLE, fn () => $this->sprawdzZalegleCzyszczenieCdn()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -609,7 +622,7 @@ class HealthController extends Controller
             'Czyszczenie cache CDN po skasowaniu zdjęcia jest WYŁĄCZONE '
             .'(brak CLOUDFLARE_ZONE_ID albo CLOUDFLARE_PURGE_TOKEN). '
             .'Skasowane zdjęcia mogą się dalej otwierać z cache Cloudflare, '
-            .'a zadanie czyszczące kończy się sukcesem i nie zostawia śladu. '
+            .'a adresy do wyczyszczenia czekają w `zalegle_czyszczenia_cdn` (sonda `cdn_zalegle`). '
             .($staryBucketPubliczny
                 ? 'UWAGA: skonfigurowany jest jeszcze stary, PUBLICZNY bucket '
                   .'`r2_legacy` — tam adres pliku nie wygasa, więc okna narażenia '
@@ -620,6 +633,34 @@ class HealthController extends Controller
                   .'i ich `max-age`. ')
             .'Albo uzupełnij obie zmienne, albo świadomie zostaw wyłączone — '
             .'ale wtedy wiedz, że „skasowane" znaczy „skasowane z bucketu".',
+        );
+    }
+
+    /**
+     * Czy są adresy, których cache CDN jeszcze nie wyczyszczono (#959).
+     *
+     * WSZĘDZIE, NIE TYLKO NA PRODUKCJI. W przeciwieństwie do pustej
+     * konfiguracji niepusta tabela nie jest poprawnym stanem nigdzie: poza
+     * produkcją trafia tam tylko zadanie, które wyczerpało próby.
+     *
+     * Do publicznej odpowiedzi idzie sam kod, bez liczby — liczba i nazwa
+     * komendy zostają w logu i na webhooku.
+     */
+    private function sprawdzZalegleCzyszczenieCdn(): void
+    {
+        $ile = ZalegleCzyszczeniaCdn::ile();
+
+        if ($ile === 0) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_CZYSZCZENIE_CDN_ZALEGLE,
+            "W `zalegle_czyszczenia_cdn` czeka na wyczyszczenie z cache CDN {$ile} "
+            .Odmiana::rzeczownik($ile, 'adres', 'adresy', 'adresów').' skasowanych zdjęć — '
+            .'mogą się nadal otwierać. Gdy CLOUDFLARE_ZONE_ID i CLOUDFLARE_PURGE_TOKEN są ustawione, '
+            .'`kuking:wyczysc-zalegle-cdn` wysyła je co kwadrans; jeśli liczba nie maleje, Cloudflare '
+            .'odmawia — szukaj w logu „Nie udało się wyczyścić cache CDN".',
         );
     }
 
