@@ -640,8 +640,13 @@ APP_KEY (staging)    = base64:................
 
 ## KROK 8. Zmienne środowiskowe w Railway
 
-Wpisujemy je jako **Shared Variables na środowisku** — raz, a `railway.ts`
-rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów.
+Wpisujemy je jako **Shared Variables na środowisku** — raz. `railway.ts`
+przekazuje każdej usłudze **tylko te, których jej rola używa** (#1013):
+OAuth i Turnstile dostaje wyłącznie web, token odczytu kopii bazy wyłącznie
+scheduler, klucze EmailLabs web i worker. Rola `all` (staging, preview)
+dostaje sumę. Macierz „zmienna → rola → konsument” i instrukcja dla
+ręcznie zakładanych usług: `docs/security/SEKRETY_PER_USLUGA_1013.md`.
+To dlatego w `railway.ts` nie ma sekretów — są tylko referencje.
 
 → Railway → środowisko **production** → **Variables** → sekcja
 **Shared Variables** → **New Shared Variable**
