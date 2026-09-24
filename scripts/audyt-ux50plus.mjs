@@ -40,17 +40,25 @@ const PROG_TEKSTU = 18;
 const PROG_CELU = 48;
 
 /**
- * Ekrany. `zalogowany` znaczy „mierz w kontekście z ciasteczkiem sesji".
+ * Ekrany. `zalogowany` znaczy „mierz w kontekście z ciasteczkiem sesji";
+ * bez tej flagi ekran mierzymy jako GOŚĆ, w osobnym kontekście (#89).
  * `dynamiczny` znaczy „adres złóż w czasie przebiegu" (przepis, wpis).
+ * `znak` to selektor, który istnieje wyłącznie na tym ekranie — dowód, że
+ * mierzymy zamówiony formularz, a nie stronę, która pod tym samym adresem
+ * pokazuje coś innego (`/` dla zalogowanego renderuje tablicę bez
+ * przekierowania, więc porównanie ścieżek samo tego nie złapie).
+ * Przy „nie pamiętam hasła" znakiem jest nagłówek, nie formularz: formularz
+ * pokazuje się tylko przy działającej poczcie (`Poczta::dziala()`), a ekran
+ * bez niego to nadal ten sam ekran.
  */
 const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
   { nazwa: 'Poradźcie (pytania)', adres: '/pytania' },
   { nazwa: 'szukaj (wyniki)', adres: '/szukaj?q=zupa' },
-  { nazwa: 'logowanie', adres: '/login' },
-  { nazwa: 'rejestracja', adres: '/register' },
-  { nazwa: 'nie pamiętam hasła', adres: '/nie-pamietam-hasla' },
+  { nazwa: 'logowanie', adres: '/login', znak: 'form[action$="/login"] input[name="login"]' },
+  { nazwa: 'rejestracja', adres: '/register', znak: 'form[action$="/register"]' },
+  { nazwa: 'nie pamiętam hasła', adres: '/nie-pamietam-hasla', znak: 'h1:text-is("Nie pamiętam hasła")' },
   { nazwa: 'napisz do nas', adres: '/napisz-do-nas' },
   { nazwa: 'pomoc', adres: '/pomoc' },
   { nazwa: 'zasady', adres: '/zasady' },
@@ -250,21 +258,29 @@ async function main() {
   console.log(`Adresy dynamiczne: przepis=${dyn.przepis} wpis=${dyn.wpis}`);
 
   const wyniki = [];
+  const przekierowania = [];
   let przebiegi = 0;
 
   for (const szerokosc of SZEROKOSCI) {
     for (const motyw of MOTYWY) {
       for (const skala of SKALE) {
-        const kontekst = await przegladarka.newContext({
-          viewport: { width: szerokosc, height: 900 },
-          storageState: stan,
-          deviceScaleFactor: 1,
-        });
-        const strona = await kontekst.newPage();
+        /*
+         * DWA KONTEKSTY, JEDNO LOGOWANIE (#89). Wspólny kontekst z sesją
+         * mierzył `/login` i `/register` jako zalogowany — trasy `guest`
+         * odsyłały na `/home`, a wynik dostawał etykietę formularza. Oba
+         * konteksty biorą gotowy stan, więc limit pięciu logowań na minutę
+         * zostaje nietknięty bez względu na rozmiar macierzy.
+         */
+        const ustawienia = { viewport: { width: szerokosc, height: 900 }, deviceScaleFactor: 1 };
+        const kontekstGoscia = await przegladarka.newContext(ustawienia);
+        const kontekstZalogowanego = await przegladarka.newContext({ ...ustawienia, storageState: stan });
+        const stronaGoscia = await kontekstGoscia.newPage();
+        const stronaZalogowanego = await kontekstZalogowanego.newPage();
 
         for (const ekran of EKRANY) {
           const adres = ekran.dynamiczny ? dyn[ekran.dynamiczny] : ekran.adres;
           if (!adres) continue;
+          const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
           try {
             const odp = await strona.goto(ADRES + adres, {
               waitUntil: 'networkidle',
@@ -272,6 +288,22 @@ async function main() {
             });
             if (!odp || odp.status() >= 400) {
               wyniki.push({ ekran: ekran.nazwa, adres, szerokosc, motyw, skala, blad: `HTTP ${odp && odp.status()}` });
+              continue;
+            }
+            /*
+             * Przekierowanie to BŁĄD, nie pomiar innej strony pod cudzą
+             * etykietą. Kod 200 przychodzi już z celu przekierowania, więc
+             * sprawdzenie statusu wyżej tego nie widzi.
+             */
+            const zamowiona = new URL(ADRES + adres).pathname;
+            const otrzymana = new URL(strona.url()).pathname;
+            const bezZnaku = ekran.znak && !(await strona.$(ekran.znak));
+            if (otrzymana !== zamowiona || bezZnaku) {
+              const blad = otrzymana !== zamowiona
+                ? `odesłał na ${otrzymana}`
+                : `brak znaku ekranu (${ekran.znak})`;
+              przekierowania.push({ ekran: ekran.nazwa, zamowiona, otrzymana, szerokosc, motyw, skala, blad });
+              wyniki.push({ ekran: ekran.nazwa, adres, szerokosc, motyw, skala, blad });
               continue;
             }
             await strona.evaluate((m) => {
@@ -293,7 +325,8 @@ async function main() {
             wyniki.push({ ekran: ekran.nazwa, adres, szerokosc, motyw, skala, blad: String(e.message).slice(0, 200) });
           }
         }
-        await kontekst.close();
+        await kontekstGoscia.close();
+        await kontekstZalogowanego.close();
         console.log(`… ${szerokosc}px / ${motyw} / ${skala}% — zmierzone (${przebiegi} ekranów łącznie)`);
       }
     }
@@ -306,9 +339,23 @@ async function main() {
     adres: ADRES,
     macierz: { SZEROKOSCI, MOTYWY, SKALE },
     progi: { PROG_TEKSTU, PROG_CELU },
+    przekierowania,
     wyniki,
   }, null, 1));
   console.log(`Gotowe: ${wyniki.length} pomiarów → storage/audyt-ux50plus.json`);
+
+  if (przekierowania.length > 0) {
+    const ekrany = new Map();
+    for (const p of przekierowania) ekrany.set(p.ekran, p);
+    for (const p of ekrany.values()) {
+      console.error(
+        `BŁĄD: ekran „${p.ekran}" (${p.zamowiona}) — ${p.blad}. `
+        + 'Pomiar dotyczyłby innej strony niż zamówiona. Sprawdź flagę `zalogowany` '
+        + 'tego ekranu albo trasę w routes/web.php.',
+      );
+    }
+    process.exitCode = 1;
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
