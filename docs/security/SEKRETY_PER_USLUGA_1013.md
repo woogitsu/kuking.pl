@@ -30,7 +30,7 @@ Nazwa Shared Variable w panelu stoi w nawiasie, jeśli jest inna.
 | `AWS_ACCESS_KEY_ID` (`R2_ACCESS_KEY_ID`) | ✔ | ✔ | ✔ | dyski `r2`, `r2_publiczne`, `r2_eksporty` |
 | `AWS_SECRET_ACCESS_KEY` (`R2_SECRET_ACCESS_KEY`) | ✔ | ✔ | ✔ | jw. |
 | `AWS_BUCKET` (`R2_BUCKET`) | ✔ | ✔ | ✔ | oryginały: upload Livewire (web), `ProcessUploadedImage` (worker), sprzątanie (scheduler) |
-| `AWS_PUBLIC_BUCKET` (`R2_PUBLIC_BUCKET`) | ✔ | ✔ | ✔ | warianty: podpisane adresy `/zdjecia/…` (web), zapis (worker), kasowanie (scheduler) |
+| `AWS_PUBLIC_BUCKET` (`R2_PUBLIC_BUCKET`) | ✔ | ✔ | ✔ | warianty: podpisane adresy trasy `media.show` (web), zapis (worker), kasowanie (scheduler) |
 | `AWS_EXPORTS_BUCKET` (`R2_EXPORTS_BUCKET`) | ✔ | ✔ | ✔ | paczki RODO: pobranie (web), budowa (worker), `kuking:sprzataj-eksporty` (scheduler) |
 | `AWS_ENDPOINT` (`R2_ENDPOINT`) | ✔ | ✔ | ✔ | endpoint wszystkich dysków R2, także `r2_kopie` |
 | `AWS_KOPIE_BUCKET` (`R2_KOPIE_BUCKET`) | — | — | ✔ | `kuking:sprawdz-kopie` → `StanKopiiBazy`; uruchamia go tylko harmonogram |
