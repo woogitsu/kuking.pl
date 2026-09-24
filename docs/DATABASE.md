@@ -2627,6 +2627,15 @@ Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`
 wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
 zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
 
+#### `report_id IS NULL` przy decyzji odwoływalnej — decyzja z urzędu (G31, D-251)
+
+Pusty `report_id` przy `action = 'remove'` znaczy „nikt tego nie zgłosił”:
+moderator zdjął treść z własnego przeglądu („Zdejmij z urzędu”,
+`App\Domain\Moderation\Actions\ZdejmijZUrzedu`). Nie ma przy tym sztucznego
+zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
+znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
+decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
