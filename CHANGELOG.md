@@ -9,6 +9,8 @@
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- „Usuń ze wszystkich moich zeszytów” działa w całości albo wcale. Jeśli coś przerwie wyjmowanie w połowie, przepis albo wpis zostaje we wszystkich zeszytach razem z Waszymi notatkami — wystarczy spróbować jeszcze raz. Komunikat podaje liczbę zeszytów, z których naprawdę wyjęliśmy zapis (#1384).
+- Złożone odwołanie od decyzji moderacji zawsze trafia do administratorów. Jeśli zapis zawiadomienia albo zlecenia listu z potwierdzeniem się nie uda, odwołanie nie zostaje złożone w połowie i można je wysłać jeszcze raz — bez komunikatu „już do nas trafiło”. List z potwierdzeniem dla osoby zgłaszającej jest zapisywany razem z odwołaniem, więc chwilowa awaria poczty nie wymaga składania odwołania od nowa (#1305).
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 

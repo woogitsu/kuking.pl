@@ -170,6 +170,34 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
+# `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
+WYJECIE_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+WYJECIE_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+WYJECIE_ATOMOWE_TEST = "test_awaria_drugiego_odpiecia_zostawia_wszystkie_zapisy_z_notatkami"
+
+# Złożenie odwołania razem z zawiadomieniami administratorów (#1305). Mutacja
+# zamienia transakcję na zwykłe wywołanie domknięcia.
+ODWOLANIE_AUTORA = "app/Domain/Moderation/Actions/FileAppeal.php"
+ODWOLANIE_ZGLASZAJACEGO = "app/Domain/Moderation/Actions/FileReporterAppeal.php"
+ODWOLANIE_AUTORA_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_autora"
+ODWOLANIE_ZGLASZAJACEGO_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_zglaszajacego"
+
+
+def odwolanie_bez_transakcji(uzyte):
+    def mutacja(source):
+        source = replace_once(
+            source,
+            "$odwolanie = DB::transaction(function () use (" + uzyte + "): Appeal {",
+            "$odwolanie = (function () use (" + uzyte + "): Appeal {",
+        )
+        return replace_once(
+            source,
+            "            return $odwolanie;\n        });\n",
+            "            return $odwolanie;\n        })();\n",
+        )
+    return mutacja
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -436,6 +464,16 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
+                            "return $this->zdejmij($user, $recipe, $collection);")),
+    ("Wyjęcie wpisu ze wszystkich zeszytów bez transakcji", WYJECIE_WPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));",
+                            "return $this->zdejmij($user, $post, $collection);")),
+    ("Odwołanie autora bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_AUTORA, ODWOLANIE_AUTORA_TEST,
+     odwolanie_bez_transakcji("$osoba, $decyzja, $tresc")),
+    ("Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_ZGLASZAJACEGO,
+     ODWOLANIE_ZGLASZAJACEGO_TEST, odwolanie_bez_transakcji("$zgloszenie, $decyzja, $tresc")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -456,6 +494,9 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(WYJECIE_ATOMOWE_TEST, True)
+run_test(ODWOLANIE_AUTORA_TEST, True)
+run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

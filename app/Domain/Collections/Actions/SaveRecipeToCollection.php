@@ -125,6 +125,18 @@ final class SaveRecipeToCollection
      */
     public function remove(User $user, Recipe $recipe, ?Collection $collection = null): array
     {
+        // JEDNA TRANSAKCJA NA CAŁE WYJĘCIE (issue #1384). Bez niej każdy
+        // `detach()` zatwierdzał się osobno: awaria przy drugim zeszycie
+        // zostawiała pierwszy już pusty, a człowiek dostawał błąd zamiast
+        // zdania, co zniknęło — razem z notatką, której nie ma skąd odtworzyć.
+        // Teraz albo zeszły wszystkie wskazane wiersze, albo żaden, a lista
+        // zdjętych (i komunikat z ich liczbą) wraca dopiero po zatwierdzeniu.
+        return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));
+    }
+
+    /** @return list<array{collection_id: string, note: ?string, created_at: ?string}> */
+    private function zdejmij(User $user, Recipe $recipe, ?Collection $collection): array
+    {
         $zeszyty = $collection !== null
             // Przez `$user->collections()`, a nie prosto po `$collection` —
             // cudzy zeszyt ma tu wyjść jako brak zeszytu, a nie jako zeszyt.
