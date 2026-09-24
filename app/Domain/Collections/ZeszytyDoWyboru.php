@@ -22,6 +22,7 @@ final class ZeszytyDoWyboru
         $key = self::class.'.'.$user->getKey();
         if (! $request->attributes->has($key)) {
             $request->attributes->set($key, $user->collections()
+                ->when($user->isSuspended(), fn ($query) => $query->where('visibility', 'private'))
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->orderBy('id')

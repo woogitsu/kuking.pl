@@ -237,7 +237,7 @@ try {
         );
         if (changed === original) throw Error("434_MUTACJA_NIE_ZMIENIA");
         writeFileSync(source, changed);
-        execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+        execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
         for (const row of current) {
             const before = await kafel(row.width, row.dark, row.scale);
             wyniki.kafel.push({
@@ -255,7 +255,7 @@ try {
         execFileSync("cp", ["-p", backup, source]);
         if (hash(source) !== beforeHash || statSync(source).mtimeMs !== mtime)
             throw Error("434_RESTORE");
-        execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+        execFileSync("npm", ["run", "build:assets"], { stdio: "pipe" });
     }
     for (const row of current) {
         const restored = await kafel(row.width, row.dark, row.scale);

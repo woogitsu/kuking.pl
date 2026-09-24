@@ -78,27 +78,52 @@ COPY vite.config.js ./
 COPY resources ./resources
 COPY app ./app
 COPY routes ./routes
-# Pomiar palety jest częścią polecenia budowania assetów.
-COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
-COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
-# Testy z listy `node --test` w skrypcie `build` MUSZĄ tu dojechać — inaczej
-# `npm run build` w tym etapie pada na brakującym pliku.
-COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
-COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
-COPY scripts/kopiowanie-adresu.test.mjs ./scripts/kopiowanie-adresu.test.mjs
-# `wyglad-komunikat.test.mjs` importuje `wyglad-komunikat.mjs` ORAZ
-# `panel-komunikat.mjs` (sprawdza, że komunikat przechodzi przez granicę
-# poświadczeń nieskrócony) — więc w obrazie muszą stać oba pliki.
-COPY scripts/wyglad-komunikat.mjs ./scripts/wyglad-komunikat.mjs
-COPY scripts/wyglad-komunikat.test.mjs ./scripts/wyglad-komunikat.test.mjs
+# CAŁY `scripts/`, A NIE WYLICZANKA POJEDYNCZYCH PLIKÓW.
+#
+# Do 22 września stały tu cztery `COPY` na konkretne pliki. Ta gałąź dopisuje
+# do polecenia `build` dziesięć testów JS, których nic wcześniej nie
+# uruchamiało — i wyliczanka przestała wystarczać. Zmierzone w katalogu
+# odtwarzającym ten etap plik po pliku: `node --test` z listy `build`
+# kończył się ZIELONO na 33 testach, podczas gdy pełne drzewo daje 61.
+# Dwadzieścia osiem testów znikało bez jednego czerwonego wiersza, bo Node
+# pomija nieistniejącą ścieżkę zamiast zgłosić błąd — dokładnie regresja
+# #1085, dla której powstał `ObrazAssetowMaPlikiTestowTest`.
+#
+# Wyliczanki nie da się tu utrzymać, bo te testy ciągną też SWOJE moduły:
+# `port-grupy.test.mjs` → `port-grupy.mjs`, `korpus-605.test.mjs` →
+# `generator-obciazenia-605.mjs`, `probnik-605.test.mjs` →
+# `probnik-obciazenia-605.sh`, `przyrzad-605.test.mjs` →
+# `serwer-scenariuszy-605.mjs`, a `fixtures/*.test.mjs` → `dostepnosc.mjs`
+# i własne sąsiedztwo. Każdy przyszły test dokładałby kolejne dwa wiersze
+# i kolejną okazję, żeby o jednym zapomnieć — czyli żeby obraz znów zbudował
+# się zielono z mniejszym pokryciem.
+#
+# KOSZT JEST ŚWIADOMY: warstwa unieważnia się przy każdej zmianie w
+# `scripts/`, nie tylko w czterech plikach. To 2,1 MB kontekstu i etap
+# przejściowy — nic z niego nie trafia do obrazu końcowego, który bierze
+# z `assets` wyłącznie `/app/public/build`.
+COPY scripts ./scripts
+# `service-worker-marka.test.mjs` czyta `public/sw.js`. `.dockerignore`
+# wycina `public/build`, `public/hot` i `public/storage`, więc wchodzą tu
+# same źródła statyczne (452 KB), a nie wynik poprzedniego builda.
+COPY public ./public
 
 # Node pomija nieistniejący plik podany do `--test` zamiast kończyć błędem.
 # Bez tej bramki obraz budował się zielono, uruchamiając 21 zamiast 33 testów.
-RUN test -f scripts/panel-komunikat.mjs \
- && test -f scripts/panel-komunikat.test.mjs \
- && test -f scripts/wyglad-komunikat.mjs \
- && test -f scripts/wyglad-komunikat.test.mjs \
- && test -f scripts/kopiowanie-adresu.test.mjs
+#
+# Bramka NIE jest już listą nazw do ręcznego dopisywania: pyta wprost
+# `package.json`, czego zażąda `npm run build`, i sprawdza, że KAŻDY z tych
+# plików naprawdę leży w obrazie. Dzięki temu pilnuje także testów dodanych
+# po dzisiejszym dniu, bez ruszania tego pliku.
+RUN node --input-type=module -e "\
+import { readFileSync, existsSync } from 'node:fs';\
+const build = JSON.parse(readFileSync('package.json', 'utf8')).scripts.build;\
+const czlon = build.split('&&').map((s) => s.trim()).find((s) => s.startsWith('node --test '));\
+if (!czlon) { console.error('Polecenie build nie wola juz node --test.'); process.exit(1); }\
+const pliki = czlon.slice('node --test '.length).split(' ').filter((a) => a && !a.startsWith('-'));\
+const brak = pliki.filter((f) => !existsSync(f));\
+if (brak.length) { console.error('Etap assets nie ma plikow testowych: ' + brak.join(', ')); process.exit(1); }\
+console.log('Etap assets ma komplet ' + pliki.length + ' plikow testowych z polecenia build.');"
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
 

@@ -316,7 +316,7 @@ export default defineRailway((ctx) => {
     AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
     AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
     AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
-    AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+    AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com — jedyny dozwolony kształt (D-255)
     //  AWS_URL ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (audyt W7-02, P0).
     //
     //  Była to własna domena bucketa wariantów za CDN Cloudflare i to ona

@@ -24,10 +24,20 @@
                 nie kasuje. Dlatego to zwykły link, bez potwierdzenia —
                 potwierdzenie miałoby sens tylko, gdyby coś dało się stracić.
             --}}
-            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}">
+            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}" data-minutniki-koniec>
                 Zakończ gotowanie
             </a>
         </div>
+
+        {{--
+            Alarmy minutników z INNYCH kroków (issue #1301). Każdy krok to
+            osobne przeładowanie strony, więc minutnik uruchomiony w kroku 1
+            nie miał tu już żadnego kodu, który by go odliczał — po przejściu
+            do kroku 2 nikt nie dzwonił. Skrypt wypełnia ten pas tylko wtedy,
+            gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
+            i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
+        --}}
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ route('cooking.show', $recipe->slug) }}" hidden></div>
 
         <p class="meta m-0">{{ $recipe->title }}</p>
 
@@ -203,7 +213,7 @@
                 <h2 class="mt-0">To już ostatni krok.</h2>
                 @can('cook', $recipe)
                     <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}" data-minutniki-koniec>Ugotowałem</a>
                 @else
                     @guest
                         <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
@@ -212,7 +222,7 @@
                 @endcan
             </section>
         @endif
-        @if($hasProgress && ! auth()->user()?->isSuspended())
+        @if($hasProgress)
             <div class="danger-zone">
                 <details class="confirm">
                     <summary class="btn btn-secondary">Zacznij od początku</summary>

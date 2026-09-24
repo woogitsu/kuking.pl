@@ -663,6 +663,13 @@ new class extends Component
 
     private function validateAboutStep(): bool
     {
+        // #900: jak w RecipeController — nowy lub zmieniony adres musi być
+        // HTTP/HTTPS, niezmieniony dawny adres z bazy nie blokuje zapisu.
+        // Porównanie z bazą, nie ze stanem komponentu: autozapis nie może
+        // zrobić z dopiero wpisanego FTP „historycznego wyjątku”.
+        $dawnyAdres = $this->recipeId === null ? null : Recipe::whereKey($this->recipeId)->value('source_url');
+        $adres = $this->textOrNull($this->source_url);
+
         $validator = Validator::make([
             'title' => trim($this->title),
             'summary' => $this->textOrNull($this->summary),
@@ -687,7 +694,7 @@ new class extends Component
             'source_type' => ['required', 'in:own,family,adaptation,external'],
             'source_person' => ['nullable', 'string', 'max:120'],
             'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', 'url', 'max:2000'],
+            'source_url' => ['nullable', $dawnyAdres !== null && $adres === $dawnyAdres ? 'url' : 'url:http,https', 'max:2000'],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
@@ -709,7 +716,7 @@ new class extends Component
             'source_type.in' => 'Zaznacz, skąd jest ten przepis.',
             'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
+            'source_url.url' => 'Wklej adres strony zaczynający się od http:// lub https://.',
             'family_since_year.integer' => 'Rok wpisz czterema cyframi, na przykład 1974.',
             'family_since_year.min' => 'Ten rok jest za wczesny. Wpisz rok od 1850.',
             'family_since_year.max' => 'Ten rok jest za późny. Wpisz rok do 2100.',

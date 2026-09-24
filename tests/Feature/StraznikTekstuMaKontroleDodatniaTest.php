@@ -224,7 +224,8 @@ class StraznikTekstuMaKontroleDodatniaTest extends TestCase
         $wszystkie = 0;
 
         foreach ($this->plikiKontroli() as $sciezka) {
-            $tresc = $this->plik($sciezka);
+            // Docstring może opisywać `Kontrola(...)` słowami — to nie jest wpis.
+            $tresc = $this->bezDocstringow($this->plik($sciezka));
             $nazwy = $this->nazwyKontroli($tresc);
 
             // Kontrola z nazwą niebędącą napisem umknęłaby tej regule w ciszy.
@@ -300,6 +301,12 @@ class StraznikTekstuMaKontroleDodatniaTest extends TestCase
         preg_match_all('/Kontrola\(\s*(?:"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\')/', $tresc, $trafienia, PREG_SET_ORDER);
 
         return array_map(fn (array $t): string => ($t[1] ?? '') !== '' ? $t[1] : ($t[2] ?? ''), $trafienia);
+    }
+
+    /** Zdejmuje docstringi Pythona (napisy w `"""`), zostawia kod. */
+    private function bezDocstringow(string $tresc): string
+    {
+        return preg_replace('/"""[\s\S]*?"""/', '', $tresc) ?? $tresc;
     }
 
     private function jestStraznikiemTekstu(string $tresc): bool
