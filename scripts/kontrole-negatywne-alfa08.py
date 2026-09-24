@@ -129,12 +129,33 @@ XMP_TEST = "OryginalTraciGpsZXmpTest"
 # i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
 POLITYKA = "resources/legal/polityka-prywatnosci.md"
 POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
+
+# Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
+# Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
+# z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
+# (`NotifyModerationDecision`, sąsiad nowego `ZdejmijZUrzedu`) — strażnik ma zapalić, czyli
+# naprawdę widzi nowe pliki, a nie tylko potwierdza listę, którą już zna.
+POWIADOM_O_DECYZJI = "app/Domain/Moderation/Actions/NotifyModerationDecision.php"
+DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka"
+# Polityka nazywa każde ciasteczko ustawień (R6). Strażnik czyta dokument
+# prawny; mutacja zdejmuje NAZWĘ ciasteczka motywu w backtickach, a zwykłe
+# słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
+# a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
+POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
+
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
 # z hashem w `/build/assets/*` dostają rok `immutable`, manifest `no-cache`.
 # Mutacja wraca do dawnej, szerokiej reguły `/build/*` — tej, która dawała
 # manifestowi bez hasha roczny cache — i test ma zapalić.
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
+
+# Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
+# jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
+# końca, więc przechodzi host podszywający się sufiksem.
+STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
+STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
 
 def digest(path):
@@ -219,16 +240,19 @@ def akcja_php_na_ruchomym_tagu(source):
 
 
 def bez_kopii_testu_assetow(source):
-    """KONTROLA DODATNIA: zabierz etapowi `assets` jeden z plików `node --test`.
+    """KONTROLA DODATNIA: zabierz etapowi `assets` pliki `node --test` z `scripts/`.
 
-    `package.json` nadal podaje `scripts/pwa-install.test.mjs` do `node --test`,
-    więc po tej mutacji Dockerfile obiecuje mniej, niż wymaga budowanie. Test
-    ma to zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
+    Etap kopiuje dziś cały katalog (`COPY scripts ./scripts`). Mutacja cofa go
+    do wyliczanki z jednym plikiem — samym `kontrast-marki.mjs`, którego
+    potrzebuje pierwszy człon `build` — czyli do dokładnie tej regresji, przed
+    którą chroni ten test: `package.json` nadal podaje do `node --test` pliki
+    `scripts/*.test.mjs`, a Dockerfile przestaje je obiecywać. Test ma to
+    zauważyć; Node sam by nie zauważył, bo brakujący plik pomija bez błędu.
     """
     return replace_once(
         source,
-        "COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs\n",
-        "",
+        "COPY scripts ./scripts\n",
+        "COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs\n",
     )
 
 
@@ -325,8 +349,16 @@ checks = [
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
     ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
      lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
+    ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
+     lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
+    ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
+     lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -341,7 +373,10 @@ run_test(WDROZENIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(POLITYKA_KOPIA_TEST, True)
+run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
+run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(STRAZNIK_R2_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

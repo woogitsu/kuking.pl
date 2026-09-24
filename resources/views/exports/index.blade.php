@@ -79,6 +79,11 @@
                 Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł, autor,
                 Twoja notatka i data zapisania — bez składników, kroków i zdjęć.
             @endif
+            @if(($savedHiddenCount ?? 0) > 0)
+                {{-- #1017: sama liczba, bez tytułów i autorów — tak jak ekran zeszytu. --}}
+                Pozycje z Twoich zeszytów, których autorzy już Ci nie pokazują: {{ $savedHiddenCount }}.
+                Nie ma ich w tej paczce. Zostały w zeszycie i wrócą, jeśli autor znów je udostępni.
+            @endif
             Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
