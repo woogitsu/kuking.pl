@@ -11,6 +11,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -307,5 +308,189 @@ class RetencjaSprawModeracyjnychTest extends TestCase
         $this->assertDatabaseMissing('moderation_actions', ['id' => $decyzjaSama->getKey()]);
         $this->assertDatabaseMissing('appeals', ['id' => $odwolanie->getKey()]);
         $this->assertDatabaseMissing('moderation_actions', ['id' => $decyzjaZOdwolaniem->getKey()]);
+    }
+
+    // ------------------------------------------------------------------
+    // partie po kluczu (issue #998)
+    // ------------------------------------------------------------------
+
+    /**
+     * Zapytania SELECT kandydatów danej tabeli wykonane w trakcie $akcja —
+     * te, które hydratują modele (`select * from "tabela"`), nie COUNT/EXISTS.
+     *
+     * @return list<string>
+     */
+    private function selectyKandydatow(string $tabela, \Closure $akcja): array
+    {
+        $sql = [];
+        DB::listen(function ($zapytanie) use ($tabela, &$sql): void {
+            if (str_starts_with($zapytanie->sql, 'select * from "'.$tabela.'"')) {
+                $sql[] = $zapytanie->sql;
+            }
+        });
+
+        $akcja();
+
+        return $sql;
+    }
+
+    public function test_rozmiar_partii_jest_jawny(): void
+    {
+        $this->assertSame(500, PrzedawnioneSprawyModeracyjne::ROZMIAR_PARTII);
+    }
+
+    /**
+     * Backlog większy niż dwie partie w każdej z trzech tabel: każde zapytanie
+     * hydratujące ma `limit` równy rozmiarowi partii, a wynik jest kompletny —
+     * bez pominięć i bez duplikatów.
+     */
+    public function test_backlog_wiekszy_niz_dwie_partie_jest_przetworzony_partiami_w_calosci(): void
+    {
+        $moderator = $this->moderator();
+        $autor = $this->user('autor');
+
+        $odwolania = [];
+        $decyzje = [];
+        $zgloszenia = [];
+        for ($i = 0; $i < 5; $i++) {
+            $decyzja = $this->decyzja($moderator, now()->subMonths(40));
+            $decyzje[] = $decyzja->getKey();
+            $odwolania[] = $this->odwolanieAutora($decyzja, $autor, Appeal::STATUS_UPHELD, now()->subMonths(40))->getKey();
+            $decyzje[] = $this->decyzja($moderator, now()->subMonths(40))->getKey();
+            $zgloszenia[] = $this->zgloszenie(Report::STATUS_RESOLVED, now()->subMonths(40))->getKey();
+        }
+
+        $pobrane = [];
+        foreach ([Appeal::class, ModerationAction::class, Report::class] as $klasa) {
+            $klasa::retrieved(function ($model) use (&$pobrane): void {
+                $pobrane[] = $model->getTable().':'.$model->getKey();
+            });
+        }
+
+        $sql = ['appeals' => [], 'moderation_actions' => [], 'reports' => []];
+        DB::listen(function ($zapytanie) use (&$sql): void {
+            foreach (array_keys($sql) as $tabela) {
+                if (str_starts_with($zapytanie->sql, 'select * from "'.$tabela.'"')) {
+                    $sql[$tabela][] = $zapytanie->sql;
+                }
+            }
+        });
+
+        $raport = (new PrzedawnioneSprawyModeracyjne(rozmiarPartii: 2))->posprzataj(36);
+
+        $this->assertSame(5, $raport->usunieteOdwolania);
+        $this->assertSame(10, $raport->usunieteDecyzje);
+        $this->assertSame(5, $raport->usunieteZgloszenia);
+        $this->assertSame(0, $raport->bledyOdwolan + $raport->bledyDecyzji + $raport->bledyZgloszen);
+
+        foreach ($sql as $tabela => $zapytania) {
+            // 5 odwołań/zgłoszeń przy partii 2 → co najmniej 3 zapytania; 10 decyzji → co najmniej 5.
+            $this->assertGreaterThanOrEqual($tabela === 'moderation_actions' ? 5 : 3, count($zapytania), $tabela);
+            foreach ($zapytania as $zapytanie) {
+                $this->assertStringContainsString('limit 2', $zapytanie, $tabela);
+            }
+        }
+
+        // Bez duplikatów: każdy wiersz zhydratowany dokładnie raz.
+        $this->assertSame(count($pobrane), count(array_unique($pobrane)));
+        $this->assertCount(20, $pobrane);
+
+        $this->assertSame(0, Appeal::whereIn('id', $odwolania)->count());
+        $this->assertSame(0, ModerationAction::whereIn('id', $decyzje)->count());
+        $this->assertSame(0, Report::whereIn('id', $zgloszenia)->count());
+    }
+
+    /**
+     * Test ujemny: decyzje z żywym odwołaniem leżą w kolejności klucza tuż przy
+     * granicy partii (2. i 3. pozycja przy partii 2) — i nadal zostają.
+     */
+    public function test_zywe_odwolanie_chroni_decyzje_na_granicy_partii(): void
+    {
+        $moderator = $this->moderator();
+        $autor = $this->user('autor');
+
+        $decyzje = collect(range(1, 6))
+            ->map(fn () => $this->decyzja($moderator, now()->subMonths(40)))
+            ->sortBy(fn (ModerationAction $d) => $d->getKey())
+            ->values();
+
+        $chronione = [$decyzje[1], $decyzje[2]];
+        $this->odwolanieAutora($chronione[0], $autor, Appeal::STATUS_OPEN, null);
+        $this->odwolanieAutora($chronione[1], $autor, Appeal::STATUS_UPHELD, now()->subMonths(2));
+
+        $raport = (new PrzedawnioneSprawyModeracyjne(rozmiarPartii: 2))->posprzataj(36);
+
+        $this->assertSame(4, $raport->usunieteDecyzje);
+        $this->assertSame(2, $raport->pominieteDecyzjeZywymOdwolaniem);
+        foreach ($chronione as $decyzja) {
+            $this->assertDatabaseHas('moderation_actions', ['id' => $decyzja->getKey()]);
+        }
+        $this->assertSame(2, ModerationAction::count());
+        $this->assertSame(2, Appeal::count());
+    }
+
+    /**
+     * Awaria kasowania jednego odwołania w środku partii: kolejne odwołania są
+     * nadal kasowane, a decyzja nieudanie skasowanego odwołania zostaje.
+     */
+    public function test_awaria_odwolania_blokuje_jego_decyzje_i_nie_zatrzymuje_reszty_partii(): void
+    {
+        $moderator = $this->moderator();
+        $autor = $this->user('autor');
+
+        $odwolania = collect(range(1, 5))
+            ->map(fn () => $this->odwolanieAutora(
+                $this->decyzja($moderator, now()->subMonths(40)),
+                $autor,
+                Appeal::STATUS_UPHELD,
+                now()->subMonths(40),
+            ))
+            ->sortBy(fn (Appeal $a) => $a->getKey())
+            ->values();
+
+        $wadliwe = $odwolania[2];
+        Appeal::deleting(function (Appeal $a) use ($wadliwe): void {
+            if ($a->getKey() === $wadliwe->getKey()) {
+                throw new \RuntimeException('symulowana awaria');
+            }
+        });
+        Log::spy();
+
+        $raport = (new PrzedawnioneSprawyModeracyjne(rozmiarPartii: 2))->posprzataj(36);
+
+        $this->assertSame(4, $raport->usunieteOdwolania);
+        $this->assertSame(1, $raport->bledyOdwolan);
+        $this->assertSame(4, $raport->usunieteDecyzje);
+        $this->assertSame(1, $raport->pominieteDecyzjeZywymOdwolaniem);
+        $this->assertDatabaseHas('appeals', ['id' => $wadliwe->getKey()]);
+        $this->assertDatabaseHas('moderation_actions', ['id' => $wadliwe->moderation_action_id]);
+        $this->assertSame(1, ModerationAction::count());
+
+        Log::shouldHaveReceived('error')->once()->withArgs(
+            fn (string $komunikat, array $kontekst) => $kontekst['appeal_id'] === $wadliwe->getKey(),
+        );
+        Log::shouldHaveReceived('info')->withArgs(
+            fn (string $komunikat, array $kontekst) => str_starts_with($komunikat, 'Retencja spraw moderacyjnych')
+                && $kontekst['bledy_odwolan'] === 1 && $kontekst['rozmiar_partii'] === 2,
+        );
+    }
+
+    public function test_na_sucho_przy_malej_partii_tylko_liczy_i_niczego_nie_hydratuje(): void
+    {
+        $moderator = $this->moderator();
+        for ($i = 0; $i < 5; $i++) {
+            $this->decyzja($moderator, now()->subMonths(40));
+            $this->zgloszenie(Report::STATUS_RESOLVED, now()->subMonths(40));
+        }
+
+        $sql = $this->selectyKandydatow('moderation_actions', function () use (&$raport): void {
+            $raport = (new PrzedawnioneSprawyModeracyjne(rozmiarPartii: 2))->posprzataj(36, naSucho: true);
+        });
+
+        $this->assertSame(5, $raport->usunieteDecyzje);
+        $this->assertSame(5, $raport->usunieteZgloszenia);
+        $this->assertSame([], $sql);
+        $this->assertSame(5, ModerationAction::count());
+        $this->assertSame(5, Report::count());
     }
 }

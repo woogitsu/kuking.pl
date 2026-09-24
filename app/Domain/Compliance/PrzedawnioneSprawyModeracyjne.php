@@ -8,6 +8,8 @@ use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -73,9 +75,28 @@ use Throwable;
  * pytanie idzie wprost do `appeals` przez `moderation_action_id` —
  * odporne na to, że jutro dojdzie trzecia rola albo relacje zmienią nazwę
  * jeszcze raz.
+ *
+ * PARTIE PO KLUCZU, NIE `get()` NA CAŁYM BACKLOGU (issue #998)
+ * Każdy z trzech etapów czyta kandydatów przez `chunkById` po
+ * {@see self::ROZMIAR_PARTII} wierszy — pamięć jednego przebiegu jest
+ * ograniczona rozmiarem partii, nie liczbą rekordów z całej historii (pierwszy
+ * próg retencji, dłuższy przestój harmonogramu). `chunkById`, nie `chunk`:
+ * kolejna partia startuje od `id > ostatnie_id`, więc kasowanie w trakcie
+ * iteracji niczego nie przesuwa (bez pominięć i duplikatów), a wiersz, którego
+ * nie udało się skasować, nie wraca w tej samej pętli. Kolejność CAŁYCH
+ * etapów (appeals → moderation_actions → reports) i transakcja per wiersz
+ * zostają bez zmian; warunek "żywego odwołania" jest liczony w zapytaniu
+ * każdej partii, więc chroni decyzję także na granicy partii.
  */
 final class PrzedawnioneSprawyModeracyjne
 {
+    /** Maksymalna liczba modeli hydratowanych naraz w jednym etapie. */
+    public const ROZMIAR_PARTII = 500;
+
+    public function __construct(
+        private readonly int $rozmiarPartii = self::ROZMIAR_PARTII,
+    ) {}
+
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiSpraw
     {
         // `subMonthsNoOverflow`, NIE `subMonths` — ta sama pułapka co
@@ -90,7 +111,7 @@ final class PrzedawnioneSprawyModeracyjne
 
         [$usunieteZgloszenia, $bledyZgloszen] = $this->posprzatajZgloszenia($prog, $naSucho);
 
-        return new RaportRetencjiSpraw(
+        $raport = new RaportRetencjiSpraw(
             usunieteOdwolania: $usunieteOdwolania,
             bledyOdwolan: $bledyOdwolan,
             usunieteDecyzje: $usunieteDecyzje,
@@ -99,6 +120,56 @@ final class PrzedawnioneSprawyModeracyjne
             usunieteZgloszenia: $usunieteZgloszenia,
             bledyZgloszen: $bledyZgloszen,
         );
+
+        // Podsumowanie w logu aplikacji, nie tylko na wyjściu komendy —
+        // żeby nocny przebieg zostawiał ślad także poza logiem harmonogramu.
+        // W trybie normalnym kandydaci = usunięte + błędy.
+        Log::info('Retencja spraw moderacyjnych: podsumowanie przebiegu', [
+            'na_sucho' => $naSucho,
+            'rozmiar_partii' => $this->rozmiarPartii,
+            'kandydaci_odwolan' => $usunieteOdwolania + $bledyOdwolan,
+            'usuniete_odwolania' => $naSucho ? 0 : $usunieteOdwolania,
+            'bledy_odwolan' => $bledyOdwolan,
+            'kandydaci_decyzji' => $usunieteDecyzje + $bledyDecyzji,
+            'usuniete_decyzje' => $naSucho ? 0 : $usunieteDecyzje,
+            'bledy_decyzji' => $bledyDecyzji,
+            'pominiete_decyzje_zywym_odwolaniem' => $pominieteZywymOdwolaniem,
+            'kandydaci_zgloszen' => $usunieteZgloszenia + $bledyZgloszen,
+            'usuniete_zgloszenia' => $naSucho ? 0 : $usunieteZgloszenia,
+            'bledy_zgloszen' => $bledyZgloszen,
+        ]);
+
+        return $raport;
+    }
+
+    /**
+     * Kasuje kandydatów partiami po kluczu, każdy wiersz w osobnej transakcji.
+     * Błąd jednego wiersza trafia do logu i nie zatrzymuje reszty.
+     *
+     * @param  Builder<covariant Model>  $kandydaci
+     * @param  callable(Model): array<string, mixed>  $kontekstBledu
+     * @return array{0: int, 1: int} [usunięto, błędy]
+     */
+    private function skasujPartiami(Builder $kandydaci, string $komunikatBledu, callable $kontekstBledu): array
+    {
+        $usuniete = 0;
+        $bledy = 0;
+
+        $kandydaci->chunkById($this->rozmiarPartii, function ($partia) use (&$usuniete, &$bledy, $komunikatBledu, $kontekstBledu): void {
+            foreach ($partia as $wiersz) {
+                try {
+                    DB::transaction(static function () use ($wiersz): void {
+                        $wiersz->delete();
+                    });
+                    $usuniete++;
+                } catch (Throwable $e) {
+                    $bledy++;
+                    Log::error($komunikatBledu, [...$kontekstBledu($wiersz), 'error' => $e->getMessage()]);
+                }
+            }
+        });
+
+        return [$usuniete, $bledy];
     }
 
     /** @return array{0: int, 1: int} [usunięto, błędy] */
@@ -112,26 +183,14 @@ final class PrzedawnioneSprawyModeracyjne
             return [$kandydaci->count(), 0];
         }
 
-        $usuniete = 0;
-        $bledy = 0;
-
-        foreach ($kandydaci->get() as $odwolanie) {
-            try {
-                DB::transaction(static function () use ($odwolanie): void {
-                    $odwolanie->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionego odwołania', [
-                    'appeal_id' => $odwolanie->getKey(),
-                    'moderation_action_id' => $odwolanie->moderation_action_id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return [$usuniete, $bledy];
+        return $this->skasujPartiami(
+            $kandydaci,
+            'Nie udało się skasować przedawnionego odwołania',
+            static fn (Model $odwolanie): array => [
+                'appeal_id' => $odwolanie->getKey(),
+                'moderation_action_id' => $odwolanie->getAttribute('moderation_action_id'),
+            ],
+        );
     }
 
     /**
@@ -192,28 +251,17 @@ final class PrzedawnioneSprawyModeracyjne
             ->whereExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false))
             ->count();
 
+        // Warunek NOT EXISTS jest w zapytaniu KAŻDEJ partii — żywe albo
+        // nieudanie skasowane odwołanie chroni decyzję także na granicy partii.
         $kandydaci = ModerationAction::query()
             ->where('created_at', '<', $prog)
-            ->whereNotExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false))
-            ->get();
+            ->whereNotExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false));
 
-        $usuniete = 0;
-        $bledy = 0;
-
-        foreach ($kandydaci as $decyzja) {
-            try {
-                DB::transaction(static function () use ($decyzja): void {
-                    $decyzja->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionej decyzji moderacyjnej', [
-                    'moderation_action_id' => $decyzja->getKey(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        [$usuniete, $bledy] = $this->skasujPartiami(
+            $kandydaci,
+            'Nie udało się skasować przedawnionej decyzji moderacyjnej',
+            static fn (Model $decyzja): array => ['moderation_action_id' => $decyzja->getKey()],
+        );
 
         return [$usuniete, $bledy, $pominiete];
     }
@@ -229,24 +277,10 @@ final class PrzedawnioneSprawyModeracyjne
             return [$kandydaci->count(), 0];
         }
 
-        $usuniete = 0;
-        $bledy = 0;
-
-        foreach ($kandydaci->get() as $zgloszenie) {
-            try {
-                DB::transaction(static function () use ($zgloszenie): void {
-                    $zgloszenie->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionego zgłoszenia', [
-                    'report_id' => $zgloszenie->getKey(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return [$usuniete, $bledy];
+        return $this->skasujPartiami(
+            $kandydaci,
+            'Nie udało się skasować przedawnionego zgłoszenia',
+            static fn (Model $zgloszenie): array => ['report_id' => $zgloszenie->getKey()],
+        );
     }
 }
