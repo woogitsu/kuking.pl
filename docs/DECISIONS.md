@@ -16788,3 +16788,35 @@ wyłącznik, odrzucone nie wraca).
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
 edycji zostają w kolejce jak każde inne.
+
+## D-257 — Bezpieczny obszar: `viewport-fit=cover` i cztery tokeny `--safe-*` (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #987 · Status: **do odbioru na urządzeniu**
+
+**Co.** Wspólny meta viewport (`resources/views/components/layout.blade.php`)
+wybiera `viewport-fit=cover`. Insety czyta wyłącznie
+`resources/css/bezpieczny-obszar.css` — cztery tokeny `--safe-top`,
+`--safe-right`, `--safe-bottom`, `--safe-left`. Właściciele brzegów:
+pasek górny (`.topbar` przez `padding-top`, karta `.marka-topbar` przez
+`top` i margines), `<body>` (boki treści w przepływie, w tym stopka — bez
+zmian w jej CSS), dolna belka i szybki wygląd (`fixed`, więc dół i boki
+biorą same). Eksporty i poczta mają własne viewporty i zostają w `auto`.
+
+**Dlaczego `cover`, a nie `auto`.** Kuking instaluje się jako PWA
+`standalone`: przy `auto` iOS zostawia pasy wokół strony w kolorze tła
+dokumentu, a dotychczasowe `env(safe-area-inset-bottom)` sugerowało obsługę
+pełnego ekranu, której nie było (góra i boki nieobsłużone). `cover` daje ten
+sam wynik w Safari i w PWA pod warunkiem, że każdy brzeg ma właściciela —
+dlatego kontrakt obejmuje wszystkie cztery insety, nie tylko dół.
+
+**Czego to nie zmienia.** Bez wycięcia (komputer, większość Androidów)
+tokeny są równe 0 — układ co do piksela jak przed zmianą. Klawiatura
+ekranowa i visual viewport zostają w #947.
+
+**Znana granica.** Zmiana jest sprawdzona testem kontraktu i w Chromium;
+odbioru na fizycznym iPhonie (Safari i ekran główny, pion i poziom, tekst
+100/140/200%) wymaga #987 i nie da się go zastąpić emulacją.
+
+Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (meta
+viewport, jedyne źródło insetów, właściciel każdego brzegu) z trzema
+kontrolami dodatnimi w `scripts/kontrole-negatywne-alfa08.py`.

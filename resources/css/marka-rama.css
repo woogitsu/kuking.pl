@@ -7,8 +7,10 @@
 }
 [data-marka] .marka-topbar {
   width: min(1220px, calc(100% - 24px));
-  margin: calc(8px * var(--user-layout-scale, 1)) auto 0;
-  top: 8px;
+  margin: calc(calc(8px * var(--user-layout-scale, 1)) + var(--safe-top)) auto 0;
+  top: calc(8px + var(--safe-top));
+  /* Karta odsuwa się od paska stanu marginesem i `top` — wcięcie w środku byłoby podwójne. */
+  padding-top: 0;
   border: 0;
   border-radius: 20px;
   box-shadow: var(--marka-cien);
@@ -149,9 +151,9 @@
 [data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-pod-belka) + calc(24px * var(--user-layout-scale, 1))); }
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {
-  left: 8px;
-  right: 8px;
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  left: calc(8px + var(--safe-left));
+  right: calc(8px + var(--safe-right));
+  bottom: calc(8px + var(--safe-bottom));
   padding: calc(8px * var(--user-layout-scale, 1)) calc(4px * var(--user-layout-scale, 1));
   border: 1px solid var(--color-border);
   border-radius: 18px;
@@ -232,7 +234,7 @@
 }
 /* W niskim widoku i przy dużej czcionce także dolna nawigacja przewija się ze stroną. */
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
-  [data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + env(safe-area-inset-bottom, calc(0px * var(--user-layout-scale, 1)))); }
+  [data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + var(--safe-bottom)); }
   :root:has(body[data-marka]) { --rezerwa-pod-belka: 0rem; scroll-padding-bottom: .5rem; }
 }
 @media (min-width: 64rem) {

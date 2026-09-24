@@ -1,6 +1,6 @@
 /* Przycisk i panel zachowują wygodne cele dotykowe przy małej skali. */
 .szybki-wyglad {
-  position: fixed; right: var(--spacing-3); bottom: calc(var(--wyglad-dol, 0px) + env(safe-area-inset-bottom, 0px) + var(--spacing-3));
+  position: fixed; right: calc(var(--spacing-3) + var(--safe-right)); bottom: calc(var(--wyglad-dol, 0px) + var(--safe-bottom) + var(--spacing-3));
   z-index: 25; max-width: calc(100vw - 24px); font-size: max(16px, var(--text-body));
 }
 .szybki-wyglad summary {
@@ -58,7 +58,7 @@
 :root {
   --wyglad-zasieg: max(80px, calc(
       max(48px, calc(max(16px, var(--text-body)) * var(--leading-body) + 2 * var(--spacing-3) + 2px))
-    + var(--spacing-3) + env(safe-area-inset-bottom, 0px) + 1px));
+    + var(--spacing-3) + var(--safe-bottom) + 1px));
 }
 body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
 /*
@@ -130,7 +130,7 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
   .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }
 }
 
-.szybki-wyglad-podpowiedz { position: fixed; z-index: 26; right: var(--spacing-3); bottom: calc(var(--wyglad-dol, 0px) + 76px); }
+.szybki-wyglad-podpowiedz { position: fixed; z-index: 26; right: calc(var(--spacing-3) + var(--safe-right)); bottom: calc(var(--wyglad-dol, 0px) + 76px); }
 
 .szybki-wyglad select { border: 1px solid var(--color-border); border-radius: var(--spacing-2); padding: var(--spacing-2); background: var(--color-surface); color: var(--color-ink); }
 /* .btn ma własne display, więc jawnie zachowujemy wariant bez JavaScriptu. */
@@ -138,7 +138,7 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
 /* Przy dużym tekście panel potrzebuje całego okna, nie szczeliny nad przyciskiem. */
 .szybki-wyglad[open][data-wyglad-malo-miejsca] { z-index: 40; }
 .szybki-wyglad[open][data-wyglad-malo-miejsca] .szybki-wyglad-panel {
-  position: fixed; inset: 8px; width: auto; max-height: none; overflow-y: auto;
+  position: fixed; inset: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left)); width: auto; max-height: none; overflow-y: auto;
 }
 /* Bez załadowanego skryptu zwykły formularz pozostaje w przepływie strony. */
 .szybki-wyglad:not([data-wyglad-gotowy]) {

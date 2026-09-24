@@ -247,7 +247,7 @@
 <html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif @if($theme === 'dark') data-theme="dark" @endif>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 

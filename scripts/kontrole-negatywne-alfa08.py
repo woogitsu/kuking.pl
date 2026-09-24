@@ -409,6 +409,16 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+# Polskie litery w `unicode-range` Inter (#1000). Strażnik parsuje zakresy
+# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
+FONTY_CSS = "resources/css/fonts.css"
+FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
+# Kontrakt bezpiecznego obszaru (#987, D-257): meta viewport z `cover`
+# i boki dolnej belki przez tokeny `--safe-*`.
+BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
+MARKA_RAMA_CSS = "resources/css/marka-rama.css"
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -467,6 +477,12 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
+     lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
+    ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "initial-scale=1, viewport-fit=cover", "initial-scale=1")),
+    ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "left: calc(8px + var(--safe-left));", "left: 8px;")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -490,6 +506,8 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(FONTY_TEST, True)
+run_test(BEZPIECZNY_OBSZAR_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

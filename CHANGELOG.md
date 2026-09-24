@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Na telefonach z wycięciem ekranu (np. iPhone) i w aplikacji dodanej do ekranu głównego tło strony sięga do krawędzi, a górny pasek, dolna nawigacja i przycisk wyglądu nie wchodzą pod pasek stanu, wycięcie ani wskaźnik Home — także w poziomie (#987).
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).

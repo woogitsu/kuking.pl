@@ -17,6 +17,8 @@
 
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
+/* Tokeny --safe-* (viewport-fit=cover, #987) przed pierwszym użyciem. */
+@import "./bezpieczny-obszar.css";
 @import "./marka-rama.css";
 @import "./pasek-przewijany.css";
 @import "./szybki-wyglad.css";
@@ -460,6 +462,8 @@
     position: sticky;
     top: 0;
     z-index: 20;
+    /* viewport-fit=cover (#987): tło pod paskiem stanu, treść pod nim. */
+    padding-top: var(--safe-top);
   }
 
   /*
@@ -1193,7 +1197,10 @@
     flex-wrap: wrap;
     background-color: var(--color-surface-raised);
     border-top: 1px solid var(--color-border);
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: var(--safe-bottom);
+    /* `fixed` nie widzi wcięcia <body> — boki bierze sama (#987). */
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 
   .bottom-nav-item {
