@@ -26,8 +26,13 @@ była ciągła”.**
 
 ## 2. Obsada sesji
 
-- Stały limit to **15 aktywnych sesji roboczych**. Właściciel bywa, że dokłada
-  jednorazowo więcej (np. „dorzuć 5”). Taka dokładka nie zmienia stałego limitu.
+- Limit to **najwyżej 8 aktywnych sesji roboczych naraz**, łącznie z sesjami
+  poprawkowymi (decyzja właściciela z 24.09, ok. 12:05 — przy 15 sesjach groził
+  tygodniowy limit użycia). Wcześniej było 15; właściciel może jednorazowo
+  zmienić limit, a zmiana nie przestawia stałego.
+- **Nie przerywaj ani nie archiwizuj pracujących sesji, żeby zejść do limitu.**
+  Poczekaj, aż skończą, i nie dokładaj nowych, dopóki aktywnych jest 8 lub więcej.
+- Oszczędzaj też agentów: jeden recenzent może przejrzeć kilka gałęzi naraz.
 - Gdy aktywnych jest mniej niż limit, dokładaj nowe z kolejnych issues:
   najpierw P0, potem P1, potem P2. Przed wyborem sprawdź, czy issue nie ma już
   gałęzi albo otwartego PR-a (`git branch -r | grep <N>`, wyszukiwanie PR-ów).
@@ -102,7 +107,7 @@ koordynator przeglądał tylko 30 najnowszych sesji.
 2. CI na main: wynik; przy czerwieni kod czy runner (§5).
 3. Railway, **tylko odczyt**: stopka `kuking.pl` (`wydanie … · <sha>`) i `/health`.
    Wdrożenie wyłącznie za zgodą właściciela.
-4. Sesje: pełna lista (§3), obsługa zakończonych (§4), dokładanie do limitu (§2).
+4. Sesje: pełna lista (§3), obsługa zakończonych (§4), dokładanie do limitu 8 (§2).
 5. PR-y: paczka zielonych i czystych po zielonym main (§5).
 6. Jeśli nic się nie zmieniło, nie pisz do właściciela.
 
