@@ -152,6 +152,17 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Dalsze okna wyszukiwania za kursorem rankingu (#1023). Mutacja gubi kursor
+# obu list, czyli wraca do samego liczbowego `OFFSET`; test dopisania ma
+# zobaczyć duplikat, test ukrycia — pominięcie.
+SZUKAJ_KONTROLER = "app/Http/Controllers/SearchController.php"
+STABILNE_OKNA_TEST = "StabilneOknaWyszukiwaniaTest"
+
+
+def bez_kursora_wyszukiwania(source):
+    source = replace_once(source, "$poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;", "$poPrzepisie = null;")
+    return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -352,6 +363,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
+     bez_kursora_wyszukiwania),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -369,6 +382,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(STABILNE_OKNA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

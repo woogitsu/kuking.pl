@@ -97,16 +97,17 @@ class SearchController extends Controller
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
         $odPrzepisu = $szukaPrzepisow ? $this->offset($request, 'od_przepisu') : 0;
         $odOsoby = $szukaLudzi ? $this->offset($request, 'od_osoby') : 0;
-        $parametry = ['q' => $phrase, 'sekcja' => $section, 'ile' => $ile,
-            'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby];
-        $nastepnePrzepisy = $parametry;
-        $nastepneOsoby = $parametry;
-        if ($ile < self::MAKS) {
-            $nastepnePrzepisy['ile'] = $nastepneOsoby['ile'] = min($ile + self::NA_STRONIE, self::MAKS);
-        } else {
-            $nastepnePrzepisy['od_przepisu'] += $ile;
-            $nastepneOsoby['od_osoby'] += $ile;
-        }
+        // DALSZE OKNO ZACZYNA SIĘ ZA OSTATNIM POKAZANYM REKORDEM, NIE ZA NUMEREM
+        // (issue #1023). `od_*` zostaje do numeracji („przepisy 201–400")
+        // i drogi powrotu; o tym, CO jest w oknie, decyduje kursor `po_*`
+        // — klucz rankingu ostatniego rekordu poprzedniego okna. Uzasadnienie
+        // w SearchQuery przy KURSOR_PRZEPISU. Kursor bez `od_*` nie ma sensu
+        // (okno bez numeru i bez powrotu), więc wtedy jest ignorowany.
+        $poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;
+        $poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;
+        $parametry = array_filter(['q' => $phrase, 'sekcja' => $section, 'ile' => $ile,
+            'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby,
+            'po_przepisie' => $poPrzepisie, 'po_osobie' => $poOsobie], fn ($v) => $v !== null);
 
         // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
         //
@@ -125,7 +126,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
+            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu, $poPrzepisie)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -135,8 +136,25 @@ class SearchController extends Controller
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
         $ludzie = $szukaLudzi && $searchErrors->isEmpty()
-            ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby)
+            ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby, $poOsobie)
             : collect();
+
+        $nastepnePrzepisy = $parametry;
+        $nastepneOsoby = $parametry;
+        if ($ile < self::MAKS) {
+            // Rosnąca lista od tego samego początku (tego samego kursora,
+            // jeśli jest) — każde kliknięcie rysuje ją od nowa w całości.
+            $nastepnePrzepisy['ile'] = $nastepneOsoby['ile'] = min($ile + self::NA_STRONIE, self::MAKS);
+        } else {
+            $nastepnePrzepisy['od_przepisu'] += $ile;
+            $nastepneOsoby['od_osoby'] += $ile;
+            if ($przepisy->count() > $ile) {
+                $nastepnePrzepisy['po_przepisie'] = SearchQuery::kursorPrzepisu($przepisy[$ile - 1]);
+            }
+            if ($ludzie->count() > $ile) {
+                $nastepneOsoby['po_osobie'] = SearchQuery::kursorOsoby($ludzie[$ile - 1]);
+            }
+        }
 
         // SYGNAŁ `search_performed` (issue #115) — PO POLICZENIU WYNIKÓW,
         // NIE PRZED. `query_text` NIGDY nie trafia do właściwości: fraza
@@ -182,8 +200,8 @@ class SearchController extends Controller
             'odOsoby' => $odOsoby,
             'nastepnePrzepisy' => $nastepnePrzepisy,
             'nastepneOsoby' => $nastepneOsoby,
-            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0]),
-            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0]),
+            'poczatekPrzepisow' => array_diff_key(array_replace($parametry, ['od_przepisu' => 0]), ['po_przepisie' => true]),
+            'poczatekOsob' => array_diff_key(array_replace($parametry, ['od_osoby' => 0]), ['po_osobie' => true]),
         ]);
     }
 
@@ -194,5 +212,13 @@ class SearchController extends Controller
         ]);
 
         return $value === false ? 0 : $value;
+    }
+
+    /** Surowy tekst kursora; format sprawdza SearchQuery, zły kursor = zwykły offset. */
+    private function kursor(Request $request, string $key): ?string
+    {
+        $value = $request->query($key);
+
+        return is_string($value) && strlen($value) <= 100 ? $value : null;
     }
 }

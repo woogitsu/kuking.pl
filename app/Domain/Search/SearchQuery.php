@@ -159,10 +159,94 @@ final class SearchQuery
         SQL;
 
     /**
+     * KURSOR RANKINGU ZAMIAST SAMEGO `OFFSET` (issue #1023)
+     *
+     * Dalsze okno wyników (po 200) to osobne żądanie HTTP, a PostgreSQL
+     * w `Read Committed` widzi w nim NOWY obraz danych. Liczbowy `OFFSET`
+     * liczy pozycje od góry AKTUALNEGO rankingu: jedno świeże trafienie nad
+     * granicą okna przesuwało dawny wynik 200 na 201 i pokazywało go drugi
+     * raz, a jedno zniknięcie wyżej wciągało dawny 201 do już obejrzanych
+     * i gubiło go na zawsze.
+     *
+     * Kursor zapisuje KLUCZ SORTOWANIA ostatniego pokazanego rekordu, nie
+     * jego numer. Klucz rekordu zależy wyłącznie od niego samego i od frazy
+     * — nie od sąsiadów — więc dopisanie, zniknięcie czy zmiana rankingu
+     * INNEGO trafienia nie przesuwa granicy okna. Stan żyje w adresie
+     * (kilkadziesiąt znaków), nie w sesji ani w transakcji otwartej między
+     * żądaniami; nie ma też kolekcji w PHP — to zwykły `WHERE` na tym samym
+     * zapytaniu.
+     *
+     * `cursorPaginate()` Laravela tu nie pasuje: klucz sortowania to
+     * wyrażenia z parametrem (`word_similarity(?, …)`), a tamten mechanizm
+     * wymaga kolumn albo aliasów bez parametrów (issue #1023, źródła).
+     *
+     * Format przepisu: `ws_s_mikrosekundy_uuid`. Obie miary to `real`
+     * odczytany z bazy w najkrótszej dokładnej postaci tekstowej
+     * (`extra_float_digits` domyślne od PostgreSQL 12), więc `?::real`
+     * odtwarza DOKŁADNIE tę samą liczbę — remisy rozstrzygają się tak samo
+     * jak w `ORDER BY`. Czas publikacji w mikrosekundach, nie tekstem daty:
+     * liczbę da się sprawdzić wyrażeniem regularnym, a zły tekst daty
+     * wywróciłby zapytanie błędem 500.
+     */
+    private const KURSOR_PRZEPISU = '/\A([0-9][0-9.e+-]{0,15})_([0-9][0-9.e+-]{0,15})_(-?[0-9]{1,18})_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\z/';
+
+    /** Format osoby: `s_uuid` — ten sam porządek co `ORDER BY` w people(). */
+    private const KURSOR_OSOBY = '/\A([0-9][0-9.e+-]{0,15})_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\z/';
+
+    /** Klucz sortowania przepisu zwróconego przez recipes() — do adresu „Pokaż więcej". */
+    public static function kursorPrzepisu(Recipe $recipe): string
+    {
+        return implode('_', [
+            $recipe->getRawOriginal('kursor_ws'),
+            $recipe->getRawOriginal('kursor_s'),
+            $recipe->getRawOriginal('kursor_czas'),
+            $recipe->getKey(),
+        ]);
+    }
+
+    /** Klucz sortowania osoby zwróconej przez people(). */
+    public static function kursorOsoby(Profile $profile): string
+    {
+        return $profile->getRawOriginal('kursor_s').'_'.$profile->getKey();
+    }
+
+    /**
+     * Null, gdy kursor jest nieczytelny — wtedy obowiązuje `offset`.
+     *
+     * @return array{0: string, 1: string, 2: string, 3: string}|null
+     */
+    private static function czytajKursorPrzepisu(?string $kursor): ?array
+    {
+        if ($kursor === null || preg_match(self::KURSOR_PRZEPISU, $kursor, $m) !== 1
+            || ! self::miara($m[1]) || ! self::miara($m[2])) {
+            return null;
+        }
+
+        return [$m[1], $m[2], $m[3], $m[4]];
+    }
+
+    /** @return array{0: string, 1: string}|null */
+    private static function czytajKursorOsoby(?string $kursor): ?array
+    {
+        if ($kursor === null || preg_match(self::KURSOR_OSOBY, $kursor, $m) !== 1 || ! self::miara($m[1])) {
+            return null;
+        }
+
+        return [$m[1], $m[2]];
+    }
+
+    /** Podobieństwo trigramowe jest zawsze w [0, 1]; wszystko inne to nie nasz kursor. */
+    private static function miara(string $wartosc): bool
+    {
+        return is_numeric($wartosc) && (float) $wartosc >= 0.0 && (float) $wartosc <= 1.0;
+    }
+
+    /**
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @param  string|null  $po  kursor z kursorPrzepisu(); gdy czytelny, zastępuje `offset`
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?string $po = null): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -184,7 +268,14 @@ final class SearchQuery
         // komentarz przy zniesionej stałej wyżej.
         ProgPodobienstwa::ustaw();
 
+        $kursor = self::czytajKursorPrzepisu($po);
+        $ws = 'word_similarity(?, recipes.title_search)';
+        $s = 'similarity(recipes.title_search, ?)';
+        $czas = '(extract(epoch from recipes.published_at) * 1000000)::bigint';
+
         return Recipe::query()
+            ->select('recipes.*')
+            ->selectRaw("{$ws} AS kursor_ws, {$s} AS kursor_s, {$czas} AS kursor_czas", [$needle, $needle])
             ->publiclyVisible()
             // Konto autora aktywne (audyt A5) — bez tego wyszukiwarka
             // wypychała przepisy osoby zawieszonej albo zbanowanej na widok
@@ -245,12 +336,22 @@ final class SearchQuery
             // tytuł wraca na górę — zmierzone: dokładny tytuł zostaje na
             // pozycji 1 tak samo jak przed zmianą.
             ->orderByRaw(
-                'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC',
+                "{$ws} DESC, {$s} DESC",
                 [$needle, $needle],
             )
             ->orderByDesc('published_at')
             ->orderBy('recipes.id')
-            ->offset(max(0, $offset))
+            // Dokładnie ten sam porządek co wyżej, zapisany jako „za kursorem":
+            // trzy miary malejąco, `id` rosnąco. Zanegowane miary dają jeden
+            // kierunek, więc wystarcza JEDNO porównanie wierszy — każda miara
+            // liczy się raz na wiersz. Rozwinięte `a < x OR (a = x AND …)`
+            // liczyło `word_similarity` do czterech razy i było zmierzalnie
+            // wolniejsze od starego `OFFSET` (opis PR #1023).
+            ->when($kursor !== null, fn ($query) => $query->whereRaw(
+                "(-{$ws}, -{$s}, -{$czas}, recipes.id) > (-(?::real), -(?::real), -(?::bigint), ?::uuid)",
+                [$needle, $needle, $kursor[0], $kursor[1], $kursor[2], $kursor[3]],
+            ))
+            ->offset($kursor === null ? max(0, $offset) : 0)
             ->limit($limit)
             ->get();
     }
@@ -272,9 +373,10 @@ final class SearchQuery
      * a nie samo słowo `OR`.
      *
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @param  string|null  $po  kursor z kursorOsoby(); gdy czytelny, zastępuje `offset` (issue #1023)
      * @return Collection<int, Profile>
      */
-    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
+    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0, ?string $po = null): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -299,7 +401,12 @@ final class SearchQuery
         // zaoszczędzone `set_config` na zapytanie (issue #187, punkt 3).
         ProgPodobienstwa::ustaw();
 
+        $kursor = self::czytajKursorOsoby($po);
+        $s = 'similarity(profiles.display_name_search, ?)';
+
         return Profile::query()
+            ->select('profiles.*')
+            ->selectRaw("{$s} AS kursor_s", [$needle])
             // `user.profile.avatar`, A NIE SAMO `user` — I NIE JEST TO
             // POWTÓRNE ŁADOWANIE TEGO SAMEGO WIERSZA DLA OZDOBY.
             //
@@ -338,9 +445,14 @@ final class SearchQuery
             // „karanie za długość", które psuło kolejność przepisów, nie ma
             // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
             // zmianą kolejności wyników za darmo.
-            ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
+            ->orderByRaw("{$s} DESC", [$needle])
             ->orderBy('profiles.user_id')
-            ->offset(max(0, $offset))
+            // Kursor rankingu — uzasadnienie przy KURSOR_PRZEPISU wyżej.
+            ->when($kursor !== null, fn ($query) => $query->whereRaw(
+                "(-{$s}, profiles.user_id) > (-(?::real), ?::uuid)",
+                [$needle, $kursor[0], $kursor[1]],
+            ))
+            ->offset($kursor === null ? max(0, $offset) : 0)
             ->limit($limit)
             ->get();
     }
