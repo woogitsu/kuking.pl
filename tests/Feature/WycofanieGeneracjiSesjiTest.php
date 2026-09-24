@@ -45,7 +45,7 @@ class WycofanieGeneracjiSesjiTest extends TestCase
     {
         $odwolane = $this->user('odwolane');
         $nietkniete = $this->user('nietkniete');
-        DB::table('users')->whereKey($odwolane->getKey())->update(['session_generation' => 2]);
+        DB::table('users')->where('id', $odwolane->getKey())->update(['session_generation' => 2]);
 
         $this->sesja('stara-sesja-odwolanego', $odwolane->getKey());
         $this->sesja('sesja-nietknietego', $nietkniete->getKey());
@@ -59,7 +59,7 @@ class WycofanieGeneracjiSesjiTest extends TestCase
         $this->migracja()->up();
 
         $this->assertTrue(Schema::hasColumn('users', 'session_generation'));
-        $this->assertSame(0, (int) DB::table('users')->whereKey($odwolane->getKey())->value('session_generation'));
+        $this->assertSame(0, (int) DB::table('users')->where('id', $odwolane->getKey())->value('session_generation'));
     }
 
     public function test_down_jest_bezpieczny_przy_powtorzeniu(): void
