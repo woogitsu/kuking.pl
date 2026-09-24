@@ -568,8 +568,8 @@ class SygnalyAutomatuTest extends TestCase
      */
     private function oznaczeniaNaEkranie(): array
     {
-        return \App\Models\Report::query()
-            ->where('source', \App\Models\Report::SOURCE_AUTOMAT)
+        return Report::query()
+            ->where('source', Report::SOURCE_AUTOMAT)
             ->pluck('id')
             ->map(static fn ($id): string => (string) $id)
             ->all();
