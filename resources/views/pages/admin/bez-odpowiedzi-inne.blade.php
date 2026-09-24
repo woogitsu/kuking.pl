@@ -21,7 +21,7 @@
             <article class="card">
                 <h2>{{ $type === 'przepisy' ? $item->title : $item->recipe->title }}</h2>
                 <p><a href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
-                    · <time datetime="{{ $published->toIso8601String() }}">{{ $published->format('d.m.Y, H:i') }}</time></p>
+                    · <time datetime="{{ $published->toIso8601String() }}">{{ \App\Support\Czas::lokalnie($published)->format('d.m.Y, H:i') }}</time></p>
                 @if($type === 'ugotowane' && $item->note)
                     <p>{{ \Illuminate\Support\Str::limit($item->note, 400) }}</p>
                 @endif

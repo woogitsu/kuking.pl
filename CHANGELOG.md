@@ -2,6 +2,10 @@
 
 ## Nieopublikowane
 
+- Informacja o niedostarczonej wiadomości z potwierdzeniem adresu oraz daty w panelu „Przepisy bez odpowiedzi” i „Ugotowałem bez odpowiedzi” pokazują teraz czas polski, a nie o godzinę lub dwie wcześniejszy czas UTC — także gdy przez tę różnicę wypadała inna data (#746).
+
+- Na liście obserwowanych i obserwujących po kliknięciu „Przestań obserwować” przy ostatniej osobie na dalszej stronie wracacie na ostatnią stronę, na której są jeszcze osoby, zamiast widzieć fałszywe „Jeszcze nikogo nie obserwuje”. To samo dzieje się po wejściu na stronę, której już nie ma (#748).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
