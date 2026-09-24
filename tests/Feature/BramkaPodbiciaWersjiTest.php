@@ -234,6 +234,27 @@ class BramkaPodbiciaWersjiTest extends TestCase
             "Alternatywa w warunku może wpuścić push do main: {$warunek}");
     }
 
+    /**
+     * Job `zakres` chodzi TAKŻE przy pushu do main (w przeciwieństwie do
+     * bramki), więc jego baza musi mieć zapas `github.event.before`. Sam
+     * `pull_request.base.sha` jest na pushu pusty, a pusta baza znaczy
+     * „pełny zestaw" — ciężkie joby przeglądarkowe przy każdym scaleniu,
+     * nawet przy zmianie samej dokumentacji. Regresja z 7ec10963.
+     */
+    public function test_zakres_przy_pushu_do_main_porownuje_z_poprzednim_commitem(): void
+    {
+        $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
+
+        $this->assertSame(1, preg_match('/^  zakres:\R(.*?)(?=^  [a-z_]+:|\z)/ms', $workflow, $matches),
+            'Zniknął job CI `zakres`.');
+        $this->assertSame(1, preg_match('/^[ \t]+BAZA:[ \t]*(.+)$/m', (string) $matches[1], $baza),
+            'Job `zakres` nie ustawia zmiennej BAZA.');
+
+        $this->assertStringContainsString('|| github.event.before', trim($baza[1]),
+            'Job `zakres` bez zapasu `github.event.before` ma pustą bazę przy pushu do main '
+            .'i zawsze puszcza pełny zestaw. BAZA brzmi: '.trim($baza[1]));
+    }
+
     /** @return array{0: int, 1: string} */
     private function bramka(string $opisPr = ''): array
     {

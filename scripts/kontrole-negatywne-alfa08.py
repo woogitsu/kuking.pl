@@ -321,6 +321,8 @@ checks = [
      lambda s: replace_once(s, "if (linia > od && linia <= do_ && ", "if (")),
     ("Bramka CHANGELOG-u chodzi przy pushu do main", CI_WORKFLOW, BRAMKA_WERSJI_TEST,
      lambda s: replace_once(s, "    if: github.event_name == 'pull_request' && needs.zakres.outputs.kod == 'true'\n    runs-on:", "    if: needs.zakres.outputs.kod == 'true'\n    runs-on:")),
+    ("Zakres przy pushu do main traci poprzedni commit", CI_WORKFLOW, BRAMKA_WERSJI_TEST,
+     lambda s: replace_once(s, "        id: sprawdz\n        env:\n          BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}", "        id: sprawdz\n        env:\n          BAZA: ${{ github.event.pull_request.base.sha }}")),
     ("Bramka CHANGELOG-u bierze furtkę z cytatu", BRAMKA_WERSJI, BRAMKA_WERSJI_TEST,
      lambda s: replace_once(s, "tolower($0) ~ /^bez-podbicia-wersji:", "tolower($0) ~ /^[[:space:]>]*bez-podbicia-wersji:")),
 ]
