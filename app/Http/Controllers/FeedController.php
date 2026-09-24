@@ -12,6 +12,7 @@ use App\Domain\Feed\TagFeed;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -115,6 +116,18 @@ class FeedController extends Controller
             default => 'odkrywanie',
         };
 
+        // Własne wpisy w feedzie zastępczym (issue #1318, decyzja właściciela
+        // z 24.09). `FollowingFeed` zawsze je pokazywał, ale osoba bez
+        // obserwowanych dostawała tagi albo odkrywanie — i własnego wpisu
+        // „tylko dla obserwujących" nie widziała na Starcie wcale. Flaga
+        // widoku mówi tylko, czy nagłówek ma wspomnieć o jej wpisach:
+        // nie obiecujemy „samych cudzych", kiedy stoją tam też jej własne.
+        $wlasneWFeedzie = $zrodlo !== 'obserwowani' && $user->posts()
+            ->enabledKinds()
+            ->published()
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->exists();
+
         // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
         // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
         // człowiek wyłączył tę mechanikę; widok NIE ma pustego stanu, bo
@@ -171,10 +184,11 @@ class FeedController extends Controller
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => match ($zrodlo) {
                 'obserwowani' => $this->followingFeed->paginate($user),
-                'tagi' => $this->tagFeed->paginate($user),
-                default => $this->discoverFeed->paginate($user),
+                'tagi' => $this->tagFeed->paginate($user, zWlasnymi: true),
+                default => $this->discoverFeed->paginate($user, zWlasnymi: true),
             },
             'zrodloFeedu' => $zrodlo,
+            'wlasneWFeedzie' => $wlasneWFeedzie,
             'showingDiscover' => $zrodlo === 'odkrywanie',
         ]);
     }

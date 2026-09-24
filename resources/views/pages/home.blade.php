@@ -86,7 +86,11 @@
              pochodzenia nie da się wytłumaczyć, wygląda jak algorytm,
              a tego tu nie ma i nie będzie. --}}
         <div class="notice">
-            <strong>To wpisy z tagów, które obserwujesz.</strong>
+            @if($wlasneWFeedzie ?? false)
+                <strong>To wpisy z tagów, które obserwujesz, i Twoje własne.</strong>
+            @else
+                <strong>To wpisy z tagów, które obserwujesz.</strong>
+            @endif
             Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
             <a href="{{ route('settings.tags') }}">Zmień swoje tagi</a>.
         </div>
@@ -104,7 +108,14 @@
         przy samym odnośniku niżej.
     --}}
     <div class="start-feed-naglowek">
-        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : (($zrodloFeedu ?? 'obserwowani') === 'tagi' ? 'Najnowsze z Twoich tagów' : 'Najnowsze od obserwowanych') }}</h2>
+        {{-- Z własnymi wpisami w feedzie zastępczym (issue #1318) nagłówek
+             nie może obiecywać samych cudzych — człowiek widzi pod nim swój
+             wpis i ma wiedzieć, że to nie pomyłka. --}}
+        <h2>{{ $showingDiscover
+            ? (($wlasneWFeedzie ?? false) ? 'Twoje wpisy i najnowsze z innych kuchni' : 'Najnowsze z innych kuchni')
+            : (($zrodloFeedu ?? 'obserwowani') === 'tagi'
+                ? (($wlasneWFeedzie ?? false) ? 'Najnowsze z Twoich tagów i Twoje wpisy' : 'Najnowsze z Twoich tagów')
+                : 'Najnowsze od obserwowanych') }}</h2>
         <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
@@ -157,9 +168,15 @@
             użytkownik widzi biały ekran i nie wraca (docs/product/COLD_START.md).
         --}}
         <div class="notice">
-            <strong>Twoja strona główna jest jeszcze pusta.</strong>
-            Poniżej pokazujemy to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
-            obserwować, w tym miejscu będą pojawiać się jego wpisy.
+            @if($wlasneWFeedzie ?? false)
+                <strong>Nikogo jeszcze nie obserwujesz.</strong>
+                Poniżej są Twoje wpisy i to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
+                obserwować, w tym miejscu będą pojawiać się także jego wpisy.
+            @else
+                <strong>Twoja strona główna jest jeszcze pusta.</strong>
+                Poniżej pokazujemy to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
+                obserwować, w tym miejscu będą pojawiać się jego wpisy.
+            @endif
         </div>
     @endif
 

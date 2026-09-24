@@ -34,13 +34,42 @@ final class DiscoverFeed
      */
     public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
-    /** @return CursorPaginator<int, Post> */
-    public function paginate(?User $viewer, ?int $perPage = null): CursorPaginator
+    /**
+     * `$zWlasnymi` — tylko dla Startu osoby, która nikogo nie obserwuje
+     * (issue #1318, decyzja właściciela z 24.09). Wtedy to jest feed
+     * zastępczy JEJ strony głównej, a `FollowingFeed` celowo pokazuje
+     * własne wpisy, żeby po publikacji nie było wrażenia, że nic się nie
+     * zapisało. Bez tego własny wpis „tylko dla obserwujących" nie
+     * pojawiał się na Starcie w ogóle.
+     *
+     * JEDNO ZAPYTANIE Z `OR`, NIE DWA SKLEJANE W PHP: wpis albo spełnia
+     * warunek, albo nie — więc własny wpis publiczny nie wyjdzie dwa razy,
+     * kolejność zostaje chronologiczna, a kursor działa jak dotąd.
+     *
+     * `/discover` i strona dla gości wołają bez tej flagi: tam to jest
+     * „Świeżo z Kuking" dla wszystkich, a wpis „tylko dla obserwujących"
+     * nie ma prawa wyjść poza autora i obserwujących.
+     *
+     * @return CursorPaginator<int, Post>
+     */
+    public function paginate(?User $viewer, ?int $perPage = null, bool $zWlasnymi = false): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
+        $wlasne = $zWlasnymi && $viewer !== null;
+
         return Post::query()
-            ->publiclyVisible()
+            ->when(! $wlasne, fn ($query) => $query->publiclyVisible())
+            ->when($wlasne, fn ($query) => $query
+                ->enabledKinds()
+                ->published()
+                ->where(fn ($widocznosc) => $widocznosc
+                    ->where('visibility', Post::VISIBILITY_PUBLIC)
+                    // Te same dwie widoczności, które `FollowingFeed` bierze
+                    // z własnych wpisów — prywatne zostają w archiwum autora.
+                    ->orWhere(fn ($moje) => $moje
+                        ->where('author_id', $viewer->getKey())
+                        ->where('visibility', Post::VISIBILITY_FOLLOWERS))))
             // Konto autora musi być w pełni aktywne (audyt A5) — to jest
             // surowszy próg niż w Policy pojedynczego wpisu. Odkrywanie
             // aktywnie POLECA treść nieznajomym, więc zawieszenie (kara

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Jeśli jeszcze nikogo nie obserwujecie, na Starcie widzicie teraz także własne opublikowane wpisy — również te „tylko dla obserwujących” — razem z wpisami z Waszych tagów albo ze „Świeżo z Kuking”, w kolejności od najnowszych. Nagłówek mówi wtedy, że to Wasze wpisy i wpisy innych. Inne osoby nadal nie widzą wpisu „tylko dla obserwujących”, jeśli Was nie obserwują (#1318).
 - Na Starcie, wśród wpisów z obserwowanych tagów, nie pojawia się już Wasz własny wpis ukryty przez moderację ani szkic. Taki wpis nie zastępuje też bloku „Świeżo z Kuking”. Nadal znajdziecie go pod jego adresem i we własnym archiwum (#1338).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
