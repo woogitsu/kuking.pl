@@ -317,6 +317,18 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Zaległe czyszczenie cache CDN (issue #959). Adresy skasowanych zdjęć, których
+// `PurgePublicMediaCache` nie wyczyścił — bo nie było konfiguracji Cloudflare
+// albo zadanie wyczerpało próby — czekają w `zalegle_czyszczenia_cdn`. Bez
+// konfiguracji komenda nic nie wysyła i kończy się sukcesem (świeci `/health`).
+// Co kwadrans: każdy wiersz to zdjęcie, które może się jeszcze otwierać.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:wyczysc-zalegle-cdn')
+    ->name('kuking:wyczysc-zalegle-cdn')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
