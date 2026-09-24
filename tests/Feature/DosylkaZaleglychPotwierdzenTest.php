@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Console\Commands\DosylajPotwierdzeniaZgloszen;
 use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Models\Notification;
 use App\Models\Post;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use RuntimeException;
@@ -114,7 +116,7 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
      * NAJWAŻNIEJSZA GRANICA. `RetencjaPowiadomien` świadomie kasuje ping po
      * ogólnym okresie retencji, a sprawa żyje 36 miesięcy. Komenda, która
      * pytałaby „czy istnieje powiadomienie", wskrzeszałaby pingi sprzed
-     * kwartału przy każdym nocnym przebiegu.
+     * kwartału przy każdym cogodzinnym przebiegu.
      */
     public function test_ping_skasowany_przez_retencje_nie_jest_zalegloscia(): void
     {
@@ -283,6 +285,44 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
         $this->assertSame(2, $this->potwierdzenia());
     }
 
+    /**
+     * ZATOR NAJSTARSZYCH (D-252). Sprawa, która padła
+     * `ODLOZ_PO_PORAZKACH` razy, idzie na koniec kolejki — przy `--ile=1`
+     * bez tego nowsza zaległość nie doszłaby nigdy. Odłożona nie przepada:
+     * dalej się liczy i dostaje próbę, gdy w partii zostaje miejsce.
+     */
+    public function test_sprawa_padajaca_stale_idzie_na_koniec_kolejki_i_nie_zatyka_nowszych(): void
+    {
+        $zepsuta = $this->zalegleZgloszenie($this->user('zaleglyZ1'));
+        $zepsuta->forceFill(['created_at' => now()->subDay()])->save();
+
+        for ($proba = 1; $proba <= DosylajPotwierdzeniaZgloszen::ODLOZ_PO_PORAZKACH; $proba++) {
+            $wylacz = $this->zepsuj('insert into "notifications"');
+            $this->artisan(self::KOMENDA, ['--ile' => 1])->assertExitCode(1);
+            $wylacz();
+        }
+
+        $this->assertSame(
+            [$zepsuta->getKey() => DosylajPotwierdzeniaZgloszen::ODLOZ_PO_PORAZKACH],
+            Cache::get(DosylajPotwierdzeniaZgloszen::KLUCZ_PORAZEK),
+        );
+
+        $nowsza = $this->zalegleZgloszenie($this->user('zaleglyZ2'));
+
+        $this->artisan(self::KOMENDA, ['--ile' => 1])
+            ->expectsOutput('Zaległych potwierdzeń w bazie: 2.')
+            ->assertSuccessful();
+
+        $this->assertNotNull($nowsza->refresh()->receipt_sent_at, 'Stale padająca sprawa zatkała kolejkę nowszej.');
+        $this->assertNull($zepsuta->refresh()->receipt_sent_at);
+
+        // Miejsce w partii jest wolne — odłożona dostaje próbę i dochodzi.
+        $this->artisan(self::KOMENDA, ['--ile' => 1])->assertSuccessful();
+
+        $this->assertNotNull($zepsuta->refresh()->receipt_sent_at, 'Odłożona sprawa przepadła zamiast dostać próbę na końcu kolejki.');
+        $this->assertNull(Cache::get(DosylajPotwierdzeniaZgloszen::KLUCZ_PORAZEK), 'Licznik porażek dosłanej sprawy nie wygasł.');
+    }
+
     // ------------------------------------------------------------------
     // Kod wyjścia — to na nim stoi wpięcie w harmonogram
     // ------------------------------------------------------------------
@@ -337,7 +377,12 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
             $zadanie->run($this->app);
             $this->fail('Harmonogram uznał nieudany przebieg dosyłki za sukces — to jest wada z #835, powtórzona w nowym zadaniu.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('zakończone kodem 1', $e->getMessage());
+            // Komunikat wspólnego adaptera `Harmonogram::artisan()` (#835) —
+            // ten sam, który sprawdza `HarmonogramSprawdzaKodWyjsciaTest`.
+            $this->assertSame(
+                "Komenda harmonogramu 'kuking:dosylaj-potwierdzenia-zgloszen' zakończyła się niepowodzeniem (kod wyjścia: 1).",
+                $e->getMessage(),
+            );
         } finally {
             $wylacz();
         }
@@ -371,7 +416,7 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
     {
         $zadanie = $this->zadanieHarmonogramu();
 
-        $this->assertSame('25 * * * *', $zadanie->expression);
+        $this->assertSame('35 * * * *', $zadanie->expression);
         $this->assertTrue($zadanie->onOneServer, 'Dosyłka bez onOneServer() odpali się dwa razy przy wdrożeniu.');
         $this->assertTrue($zadanie->withoutOverlapping);
         $this->assertSame(50, $zadanie->expiresAt, 'Blokada zadania co godzinę ma wygasać przed następnym terminem (#1002).');

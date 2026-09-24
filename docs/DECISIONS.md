@@ -16127,17 +16127,29 @@ a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
 
 **TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
 wcześniej nie wyszły.** Robi to komenda
-`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 25 każdej
-godziny).
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`).
 
 - **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
   akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
   warunkowy `UPDATE ... WHERE receipt_sent_at IS NULL` w jednej transakcji
-  z utworzeniem powiadomienia. Dwa przebiegi naraz, przebieg i powrót
-  człowieka — wiersz dostaje dokładnie jedno z nich (mierzone na dwóch
-  połączeniach w `tests/Dwa/DosylkaNieDublujePotwierdzeniaTest`).
+  z utworzeniem powiadomienia. Gdy dosyłka zbiegnie się z człowiekiem
+  wracającym do tej samej sprawy, wiersz dostaje dokładnie jedno
+  potwierdzenie — ten jeden przeplot mierzy
+  `tests/Dwa/DosylkaNieDublujePotwierdzeniaTest` na dwóch połączeniach.
+  Dwóch przebiegów dosyłki naraz nikt nie mierzy osobno: nie dopuszczają
+  ich `onOneServer()` i `withoutOverlapping(50)`, a gdyby do nich doszło,
+  chroni ten sam warunkowy `UPDATE`.
 - **Partiami.** `--ile` (domyślnie 200) ogranicza jeden przebieg,
   najstarsze sprawy idą pierwsze, reszta czeka na następną godzinę.
+- **Sprawa, która pada stale, nie zatyka kolejki.** Porażki są liczone
+  per sprawa (cache, klucz `kuking:dosylka-potwierdzen:porazki`, 30 dni);
+  po 3 porażkach z rzędu sprawa idzie na koniec kolejki i dostaje próbę
+  dopiero, gdy w partii zostaje miejsce po sprawach zdrowych. Nie przepada:
+  dalej liczy się jako zaległość, a jej porażka dalej daje kod ≠ 0. Udana
+  próba albo zniknięcie zaległości zeruje licznik. Licznik nie jest
+  w kolumnie, bo to stan roboczy dosyłki, nie fakt o sprawie — jego utrata
+  kosztuje tylko kilka dodatkowych prób.
 - **Nie jest zaległością** (i nie wchodzi do licznika): zgłoszenie bez
   konta (droga prawna ma własne potwierdzenie mailowe), zgłaszający
   z kontem wymazanym (brak czytelnika), sprawa, której rozstrzygnięcie
@@ -16150,8 +16162,8 @@ godziny).
 - **Ping skasowany przez retencję nie jest zaległością** — komenda pyta
   o znacznik, nigdy o istnienie powiadomienia.
 - **Porażka widoczna.** Awaria jednej sprawy nie zatrzymuje partii, ale
-  komenda kończy się kodem ≠ 0, a zadanie harmonogramu zamienia go
-  w wyjątek (reguła #1342). Zadanie ma `onOneServer()` (#595)
+  komenda kończy się kodem ≠ 0, a wspólny adapter
+  `App\Support\Harmonogram::artisan()` zamienia go w wyjątek (#835). Zadanie ma `onOneServer()` (#595)
   i `withoutOverlapping(50)` (#1002).
 
 ### Czego ta decyzja NIE rozstrzyga

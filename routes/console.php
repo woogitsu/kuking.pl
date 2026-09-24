@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -437,11 +438,10 @@ Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
 // jest obowiązkiem, nie uprzejmością.
 //
 // CO GODZINĘ, nie raz na dobę: przepis mówi „bez zbędnej zwłoki", a zaległość
-// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 25,
-// żeby nie wpaść na `hourly()` innych zadań (minuta 00) ani na nocne pasmo
-// sprzątania — cała ta lista jest świadomie porozsuwana.
+// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 35:
+// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`; nocne
+// pasmo sprzątania też omijamy — cała ta lista jest świadomie porozsuwana.
 //
-// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 // `onOneServer()` — jak każde zadanie w tym pliku (#595): przy wdrożeniu dwa
 // kontenery nie odpalą tego samego terminu. Przed dublem potwierdzenia chroni
 // jednak nie harmonogram, tylko warunkowy `UPDATE ... WHERE receipt_sent_at
@@ -450,21 +450,15 @@ Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
 // wygasa przed następnym terminem, a jest dłuższa niż przebieg (partia
 // `--ile=200` to 200 krótkich transakcji).
 //
-// KOD WYJŚCIA ZAMIENIAMY W WYJĄTEK — ta sama reguła co przy
-// `kuking:sprzataj-powiadomienia` (#1342). `CallbackEvent` uznaje za porażkę
-// tylko wyjątek albo `false`; liczba zwrócona przez `Artisan::call()`, także 1,
-// przechodziłaby jako sukces. Wyjątek oznacza przebieg jako nieudany
-// (`ScheduledTaskFailed`) i trafia do zgłaszania błędów. Pilnują tego dwa
-// testy w `DosylkaZaleglychPotwierdzenTest`: jeden na nieudanym przebiegu,
-// drugi (kontrola dodatnia) na udanym.
-Schedule::call(function (): void {
-    $kod = Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen');
-
-    if ($kod !== 0) {
-        throw new RuntimeException("kuking:dosylaj-potwierdzenia-zgloszen zakończone kodem {$kod} — części zaległych potwierdzeń nie dosłano, szczegóły w logu.");
-    }
-})
+// KOD WYJŚCIA ZAMIENIA W WYJĄTEK wspólny adapter `Harmonogram::artisan()`
+// (#835): `CallbackEvent` uznaje za porażkę tylko wyjątek albo `false`,
+// a liczba zwrócona przez `Artisan::call()`, także 1, przechodziłaby jako
+// sukces. Wyjątek oznacza przebieg jako nieudany (`ScheduledTaskFailed`)
+// i trafia do zgłaszania błędów. Pilnują tego dwa testy
+// w `DosylkaZaleglychPotwierdzenTest`: jeden na nieudanym przebiegu, drugi
+// (kontrola dodatnia) na udanym.
+Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
     ->name('kuking:dosylaj-potwierdzenia-zgloszen')
-    ->hourlyAt(25)
+    ->hourlyAt(35)
     ->onOneServer()
     ->withoutOverlapping(50);

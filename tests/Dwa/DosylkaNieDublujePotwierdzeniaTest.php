@@ -63,7 +63,7 @@ use PHPUnit\Framework\Attributes\Group;
  * ── CZEGO TEN TEST NIE DOWODZI ──
  *
  * Że potwierdzenia są wolne od wyścigów w ogóle. Mierzy JEDEN przeplot — ten
- * z decyzji właściciela: nocna dosyłka trafiająca w moment, w którym człowiek
+ * z decyzji właściciela: cogodzinna dosyłka trafiająca w moment, w którym człowiek
  * właśnie klika „Zgłoś" drugi raz.
  */
 #[Group('dwa-polaczenia')]
