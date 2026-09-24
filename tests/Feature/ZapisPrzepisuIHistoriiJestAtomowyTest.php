@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -180,6 +181,99 @@ class ZapisPrzepisuIHistoriiJestAtomowyTest extends TestCase
         $this->assertSame('Rosół babci Zofii', $przepis->title);
         $this->assertSame(2, $przepis->ingredients()->count());
         $this->assertSame(1, $przepis->versions()->count());
+    }
+
+    /**
+     * Issue #895, drugi przypadek brzegowy: migawka POWIODŁA SIĘ, a zawiódł
+     * dopiero wpis audytu. Nie może zostać przepis z wersją, ale bez śladu
+     * w dzienniku — ani wersja bez przepisu.
+     */
+    public function test_awaria_audytu_cofa_takze_przepis_i_jego_wersje(): void
+    {
+        $this->actingAs($this->user('autorka'));
+        $this->withoutExceptionHandling();
+
+        $wersjaZapisana = false;
+
+        DB::beforeExecuting(function (string $zapytanie) use (&$wersjaZapisana): void {
+            if (str_contains($zapytanie, 'insert into "recipe_versions"')) {
+                $wersjaZapisana = true;
+            }
+
+            if (str_contains($zapytanie, 'insert into "audit_log"')) {
+                throw new RuntimeException('awaria zapisu audytu wymuszona testem');
+            }
+        });
+
+        $zlapany = null;
+
+        try {
+            $this->publikuj();
+        } catch (RuntimeException $e) {
+            $zlapany = $e;
+        }
+
+        $this->assertNotNull($zlapany, 'Awaria audytu nie przerwała publikacji — test nie zmierzył tego, co miał.');
+        $this->assertStringContainsString('awaria zapisu audytu', $zlapany->getMessage());
+        $this->assertTrue($wersjaZapisana, 'Migawka nie doszła do zapisu — test nie mierzy przypadku „wersja jest, audytu nie ma".');
+
+        $this->assertSame(0, Recipe::query()->count(), 'Przepis został zapisany, mimo że audyt nie powstał.');
+        $this->assertSame(0, RecipeVersion::query()->count(), 'Wersja została, choć cała publikacja się nie udała.');
+        $this->assertDatabaseMissing('audit_log', ['action' => 'recipe.published']);
+    }
+
+    /**
+     * Issue #895, ponowienie po awarii: to samo wysłanie formularza (ten sam
+     * `klucz_wyslania`) po nieudanej pierwszej próbie. Gdyby pierwsza próba
+     * zostawiła przepis bez historii, ponowienie odbiłoby się o indeks klucza
+     * i oddało ten niedokończony przepis jako sukces. Po cofnięciu całości
+     * ponowienie ma zrobić pełną publikację: jeden przepis, jedna wersja,
+     * jeden wpis audytu.
+     */
+    public function test_ponowienie_z_tym_samym_kluczem_po_awarii_domyka_wersje_i_audyt(): void
+    {
+        $autorka = $this->user('autorka');
+        $klucz = (string) Str::uuid();
+
+        $publikuj = fn (): Recipe => app(PublishRecipe::class)->handle(
+            author: $autorka,
+            attributes: ['title' => 'Rosół babci Zofii', 'visibility' => 'public', 'source_type' => 'own'],
+            ingredients: [['text' => '1 kurczak']],
+            steps: [['instruction' => 'Zalej wodą.']],
+            publish: true,
+            kluczWyslania: $klucz,
+        );
+
+        $awaria = true;
+
+        DB::beforeExecuting(function (string $zapytanie) use (&$awaria): void {
+            if ($awaria && str_contains($zapytanie, 'insert into "audit_log"')) {
+                throw new RuntimeException('awaria zapisu audytu wymuszona testem');
+            }
+        });
+
+        try {
+            $publikuj();
+            $this->fail('Pierwsza próba miała się nie udać.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('awaria zapisu audytu', $e->getMessage());
+        }
+
+        $this->assertSame(0, Recipe::query()->count());
+
+        $awaria = false;
+        $przepis = $publikuj();
+
+        $this->assertSame(1, Recipe::query()->count());
+        $this->assertSame($klucz, $przepis->klucz_wyslania);
+        $this->assertSame(1, $przepis->versions()->count(), 'Ponowienie nie domknęło wersji przepisu.');
+        $this->assertSame(1, DB::table('audit_log')->where('action', 'recipe.published')->count(), 'Ponowienie nie domknęło audytu.');
+
+        // I dopiero TERAZ trzecie wysłanie z tym samym kluczem jest
+        // prawdziwym duplikatem: oddaje ten sam przepis bez drugiej wersji.
+        $this->assertSame($przepis->getKey(), $publikuj()->getKey());
+        $this->assertSame(1, $przepis->versions()->count());
+        $this->assertSame(1, DB::table('audit_log')->where('action', 'recipe.published')->count());
     }
 
     /**

@@ -39,6 +39,10 @@
                 @endif
             </p>
 
+            @if($post['tytul'])
+                <h3>Pytanie: {{ $post['tytul'] }}</h3>
+            @endif
+
             @if($post['tresc'])
                 <p>{{ $post['tresc'] }}</p>
             @endif

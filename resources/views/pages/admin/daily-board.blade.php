@@ -1,14 +1,11 @@
 <x-layout title="Tablica na dziś — Panel moderacji" :noindex="true">
-    {{-- `ekran="Tablica na dziś"`, nie „kuKINGi na dziś": gra słowem `kuKING`
-         wolno użyć najwyżej raz na ekran (AGENTS.md §11), a `<h1>` niżej już
-         jej używa przez `<x-kuking-word>`. --}}
     <x-panel-moderacji ekran="Tablica na dziś" />
 
     <h1><x-kuking-word forma="i" /> na dziś</h1>
     <p class="mb-5">
-        Zaznacz kilka osób i kilka dań, które dziś warto pokazać.
+        Zaznacz kilka osób i kilka wpisów, które dziś warto pokazać.
         Jeśli nic nie zaznaczysz, tablica dobierze treści sama — chronologicznie,
-        maksymalnie jedno danie od osoby.
+        maksymalnie jeden wpis od osoby.
     </p>
 
     <p class="notice">
@@ -18,6 +15,10 @@
 
     <x-error-summary />
 
+    @if($niedostepne > 0)
+        <p class="notice">Niedostępne wyróżnienia zostaną pominięte przy zapisie.</p>
+    @endif
+
     {{-- Panel na `<form>`, nie na sekcjach — ten sam powód co w
          `pages/recipes/create.blade.php`. Tutaj dochodzi trzeci: obie sekcje
          mają gałąź `@empty` („w ostatnich 7 dniach nikt nic nie opublikował"),
@@ -26,10 +27,20 @@
     <form class="panel-formularza" method="POST" action="{{ route('admin.daily-board') }}">
         @csrf
         @method('PUT')
+        <input type="hidden" name="_board_form" value="1">
 
-        <section class="form-section">
+        <div class="field">
+            <label for="f-szukaj">Znajdź osobę po nazwie lub pseudonimie</label>
+            <input class="field-input" id="f-szukaj" name="szukaj" value="{{ $szukaj }}" maxlength="100">
+            <x-blad-grupy name="szukaj" />
+            <button class="btn btn-secondary" type="submit" name="przegladaj" value="1">Szukaj osób</button>
+            <p class="field-help">Pokazujemy do 40 osób. Zaznaczenia i notatki przy wybranych osobach zostają podczas szukania. Zatwierdź je przyciskiem „Zapisz tablicę na dziś”.</p>
+        </div>
+
+        <section class="form-section" id="f-osoby" tabindex="-1" @if($errors->has('osoby')) aria-invalid="true" aria-describedby="f-osoby-error" @endif>
             <h2 class="form-section-title">Osoby</h2>
             <p class="meta">Najwyżej 6. Przy każdej możesz dopisać jedno zdanie — pokaże się pod jej kartą.</p>
+            <x-blad-grupy name="osoby" />
 
             @forelse($osoby as $osoba)
                 <div class="wiersz-listy">
@@ -49,23 +60,27 @@
                     </label>
 
                     <div class="field mt-2">
-                        <label for="nota-{{ $osoba->getKey() }}" class="visually-hidden">
+                        <label for="f-notatki-{{ $osoba->getKey() }}">
                             Jedno zdanie o {{ $osoba->displayName() }}
                         </label>
-                        <input class="field-input" id="nota-{{ $osoba->getKey() }}"
+                        <input class="field-input" id="f-notatki-{{ $osoba->getKey() }}"
                                name="notatki[{{ $osoba->getKey() }}]" type="text" maxlength="300"
+                               @if($errors->has('notatki.'.$osoba->getKey())) aria-invalid="true" aria-describedby="f-notatki-{{ $osoba->getKey() }}-error" @endif
                                value="{{ $notatki[$osoba->getKey()] ?? '' }}"
                                placeholder="Halina pierwszy raz pokazała swój chleb">
+                        <x-blad-grupy :name="'notatki.'.$osoba->getKey()" />
                     </div>
                 </div>
             @empty
-                <p class="meta">Nie ma jeszcze nikogo, kto coś opublikował.</p>
+                <p class="meta">Nie znaleziono osób. Spróbuj wpisać inną nazwę lub pseudonim.</p>
             @endforelse
         </section>
 
-        <section class="form-section">
-            <h2 class="form-section-title">Dania z ostatnich 7 dni</h2>
+        <section class="form-section" id="f-wpisy" tabindex="-1" @if($errors->has('wpisy')) aria-invalid="true" aria-describedby="f-wpisy-error" @endif>
+            <h2 class="form-section-title">Wpisy z ostatnich 7 dni</h2>
+            <p class="meta">Dzisiejsze wyróżnienia są na początku, także te starsze niż tydzień.</p>
             <p class="meta">Najwyżej 6.</p>
+            <x-blad-grupy name="wpisy" />
 
             @forelse($wpisy as $wpis)
                 <div class="wiersz-listy">
@@ -84,18 +99,21 @@
                                 <span class="choice-label">{{ $wpis->author->displayName() }}</span>
                                 <span class="choice-help">
                                     {{ \App\Support\Czas::dataLubNic($wpis->published_at, 'j F, H:i') }}
-                                    @if($wpis->body) — {{ \Illuminate\Support\Str::limit($wpis->body, 80) }} @endif
+                                    @php $opis = $wpis->kind === \App\Models\Post::KIND_QUESTION ? $wpis->title : ($wpis->body ?: $wpis->recipe?->title); @endphp
+                                    @if($opis) — {{ $wpis->kind === \App\Models\Post::KIND_QUESTION ? $opis : \Illuminate\Support\Str::limit($opis, 80) }} @endif
                                 </span>
                             </span>
                         </span>
                     </label>
 
                     <div class="field mt-2">
-                        <label for="nota-{{ $wpis->getKey() }}" class="visually-hidden">Jedno zdanie o tym wpisie</label>
-                        <input class="field-input" id="nota-{{ $wpis->getKey() }}"
+                        <label for="f-notatki-{{ $wpis->getKey() }}">Jedno zdanie o tym wpisie</label>
+                        <input class="field-input" id="f-notatki-{{ $wpis->getKey() }}"
                                name="notatki[{{ $wpis->getKey() }}]" type="text" maxlength="300"
+                               @if($errors->has('notatki.'.$wpis->getKey())) aria-invalid="true" aria-describedby="f-notatki-{{ $wpis->getKey() }}-error" @endif
                                value="{{ $notatki[$wpis->getKey()] ?? '' }}"
                                placeholder="Chleb, nad którym Marek pracował dwa lata">
+                        <x-blad-grupy :name="'notatki.'.$wpis->getKey()" />
                     </div>
                 </div>
             @empty

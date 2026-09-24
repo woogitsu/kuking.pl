@@ -66,6 +66,61 @@ class TwoFactorAuthenticator
     }
 
     /**
+     * Sesja po PIERWSZYM składniku (hasło, link, Google, Facebook) — issue #931.
+     *
+     * Obok identyfikatora konta zapisujemy odcisk jego stanu z tej chwili.
+     * Sam identyfikator przeżywał reset hasła i „wyloguj inne urządzenia”:
+     * `User::invalidateSessions()` kasuje sesje po `user_id`, a oczekująca
+     * sesja jest jeszcze sesją gościa, więc stary pierwszy krok dało się
+     * dokończyć kodem zapasowym bez znajomości nowego hasła.
+     *
+     * @return array<string, mixed>
+     */
+    public static function oczekujaceLogowanie(User $user): array
+    {
+        return [
+            'logowanie.2fa.user_id' => $user->getKey(),
+            'logowanie.2fa.odcisk' => self::odciskOczekujacegoLogowania($user),
+        ];
+    }
+
+    /**
+     * Czy oczekujące logowanie nadal pasuje do stanu konta (issue #931).
+     *
+     * Brak odcisku (sesja sprzed tej poprawki) też jest odmową — zaczęcie
+     * logowania od nowa kosztuje chwilę, przepuszczenie kosztuje konto.
+     */
+    public static function oczekujaceLogowanieAktualne(User $user, mixed $odcisk): bool
+    {
+        return is_string($odcisk) && hash_equals(self::odciskOczekujacegoLogowania($user), $odcisk);
+    }
+
+    /**
+     * Odcisk zmienia się przy każdym zdarzeniu, które ma odwołać wcześniejsze
+     * potwierdzenie pierwszego składnika:
+     * - `password` — zmiana i reset hasła;
+     * - `remember_token` — rotuje go `invalidateSessions()`, czyli „wyloguj
+     *   inne urządzenia”, ban, zawieszenie, zgłoszenie usunięcia (a że token
+     *   nie wraca, stary krok nie odżywa po przywróceniu konta);
+     * - `status` — każda inna zmiana stanu konta;
+     * - `two_factor_confirmed_at` — wyłączenie i ponowne włączenie 2FA.
+     *
+     * HMAC z kluczem aplikacji, bo sesje leżą w bazie: odcisk nie może
+     * zdradzać hasha hasła ani tokenu.
+     */
+    private static function odciskOczekujacegoLogowania(User $user): string
+    {
+        return hash_hmac('sha256', implode("\0", [
+            'logowanie-2fa',
+            (string) $user->getKey(),
+            (string) $user->getAuthPassword(),
+            (string) $user->getRememberToken(),
+            (string) $user->status,
+            (string) $user->two_factor_confirmed_at?->toIso8601String(),
+        ]), (string) config('app.key'));
+    }
+
+    /**
      * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
      */
     public static function limitProb(): array
