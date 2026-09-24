@@ -61,6 +61,6 @@ nazwa: paczka niesie wylacznie sesje tego konta
 plik: app/Domain/Users/Exports/CollectUserExportData.php
 zamien: return DB::table('sessions')\n            ->where('user_id', $user->getKey())
 na: return DB::table('sessions')
-oczekuj: tylko JEJ sesje|198.51.100.9
+oczekuj: JEJ sesje|198.51.100.9
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportObejmujeKazdaTabeleKontaTest.php
 ocena:
