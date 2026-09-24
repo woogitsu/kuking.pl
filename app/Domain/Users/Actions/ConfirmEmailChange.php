@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
 use App\Support\AdresEmail;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Potwierdzenie nowego adresu e-mail — DOPIERO TU adres wchodzi w życie
@@ -93,7 +94,7 @@ final class ConfirmEmailChange
             );
         }
 
-        ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $zmiana, $nowyAdres, $biezacaSesja): void {
+        ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $zmiana, $nowyAdres, $staryAdres, $biezacaSesja): void {
             if ($swiezy === null) {
                 throw new BladDlaCzlowieka(
                     'Tego konta już nie ma, więc nie mamy czemu zmienić adresu.',
@@ -169,6 +170,15 @@ final class ConfirmEmailChange
             // zasada co przy zmianie hasła: bieżąca przeglądarka zostaje.
             // Pod blokadą, żeby adres i unieważnienie weszły razem albo wcale.
             $swiezy->invalidateSessions($biezacaSesja);
+
+            // ...I LINK DO USTAWIENIA HASŁA WYSŁANY NA STARY ADRES (#979).
+            // Tabela resetów jest kluczowana ADRESEM, nie kontem, więc sam
+            // wiersz przeżyłby zmianę — i ożyłby, gdyby stary adres wrócił
+            // na to konto przed upływem ważności linku. Kasujemy go razem
+            // z resztą starych dróg wejścia.
+            DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
+                ->whereRaw('lower(email) = ?', [User::normalizeEmail($staryAdres)])
+                ->delete();
 
             // Model przekazany z zewnątrz musi zobaczyć nową wartość —
             // inaczej kontroler wypisze na ekranie stary adres.

@@ -190,9 +190,10 @@ return [
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
          * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
-         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
-         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
-         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie i kończy się
+         * sukcesem; na produkcji odkłada przy tym adresy do tabeli
+         * `zalegle_czyszczenia_cdn`, skąd `kuking:wyczysc-zalegle-cdn`
+         * wyśle je po uzupełnieniu zmiennych (#959). Sygnałem, który dociera, jest
          * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
          * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
          * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
