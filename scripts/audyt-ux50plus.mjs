@@ -66,6 +66,15 @@ const EKRANY = [
   { nazwa: 'tryb gotowania', dynamiczny: 'gotowanie' },
   { nazwa: 'wpis', dynamiczny: 'wpis' },
   { nazwa: 'profil (cudzy)', adres: '/@basia' },
+  // Te same ekrany publiczne PO ZALOGOWANIU: bloki `@auth` („Ugotowałem",
+  // zeszyt, komentarz, obserwuj) istnieją tylko dla zalogowanego, a główna
+  // akcja produktu nie może wypaść z pomiaru ≥48 px / 18 px (#89).
+  { nazwa: 'Świeżo z Kuking (zalogowany)', adres: '/odkryj', zalogowany: true },
+  { nazwa: 'Poradźcie (zalogowany)', adres: '/pytania', zalogowany: true },
+  { nazwa: 'przepis (zalogowany)', dynamiczny: 'przepis', zalogowany: true },
+  { nazwa: 'tryb gotowania (zalogowany)', dynamiczny: 'gotowanie', zalogowany: true },
+  { nazwa: 'wpis (zalogowany)', dynamiczny: 'wpis', zalogowany: true },
+  { nazwa: 'profil (cudzy, zalogowany)', adres: '/@basia', zalogowany: true },
   { nazwa: 'tablica startowa', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj (rozdroże)', adres: '/dodaj', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
