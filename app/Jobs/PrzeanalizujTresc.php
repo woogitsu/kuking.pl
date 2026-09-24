@@ -6,11 +6,14 @@ namespace App\Jobs;
 
 use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
+use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Moderacja\BudzetCzasu;
 use App\Moderacja\ExceptionContext;
 use App\Moderacja\GranicaWysylki;
+use App\Moderacja\KlientOpenAI;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
@@ -58,6 +61,15 @@ class PrzeanalizujTresc implements ShouldQueue
 
     public int $timeout = 30;
 
+    /**
+     * Czas zadania, którego ocena modelem NIE dostaje (#829): sygnały
+     * lokalne, zapisy w bazie i przygotowanie ostatniego zdjęcia. Reszta
+     * `$timeout` to wspólny budżet wszystkich żądań do modelu — przy
+     * dowolnym `zdjec_na_wpis` i `limit_czasu` zadanie kończy się samo,
+     * zanim worker je ubije.
+     */
+    public const ZAPAS_SEKUND = 8;
+
     /** Za wszystkim, co robi człowiek — `docker/entrypoint.sh` uruchamia `--queue=high,default,media,low`. */
     private const KOLEJKA = 'low';
 
@@ -88,6 +100,57 @@ class PrzeanalizujTresc implements ShouldQueue
     }
 
     /**
+     * ZDJĘCIE GOTOWE PO PUBLIKACJI (#830).
+     *
+     * Wpis wolno opublikować ze zdjęciem, które jeszcze się przetwarza
+     * (`ZdjeciaDoPrzypiecia`), a `OcenaModelem` ocenia tylko `ready` —
+     * analiza, która ruszyła przed wariantami, pomijała zdjęcie i nikt do
+     * niego nie wracał. Woła to `ProcessUploadedImage` raz, w chwili
+     * przejścia do `ready`; spóźniona kopia tamtego zadania nic nie
+     * przejmuje, więc drugi raz tu nie trafia.
+     *
+     * OGRANICZONE: tylko opublikowane wpisy publiczne lub dla obserwujących,
+     * i tylko gdy to zdjęcie jest wśród `zdjec_na_wpis` pierwszych (limit
+     * D-055 — innych model i tak nie ogląda). Zdjęcie gotowe przed
+     * publikacją nie jest jeszcze do niczego przypięte, więc nie zleca nic.
+     *
+     * IDEMPOTENTNE: ponowna analiza stawia to samo jedno oznaczenie,
+     * a powody już obecne nie są dopisywane drugi raz (`OznaczDoPrzegladu::dolacz`).
+     * Granica prywatności jest sprawdzana od nowa w chwili wykonania —
+     * odpięte zdjęcie albo wpis przełączony na prywatny nie wychodzi.
+     *
+     * @return int ile analiz zlecono
+     */
+    public static function poPrzygotowaniuZdjecia(string $mediaId): int
+    {
+        $ile = (int) config('kuking.moderation.model.zdjec_na_wpis');
+
+        if ($ile <= 0 || ! config('kuking.moderation.model.ocenia_zdjecia') || ! KlientOpenAI::oceniamy()) {
+            return 0;
+        }
+
+        $wpisy = Post::query()
+            ->where('status', Post::STATUS_PUBLISHED)
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->whereHas('media', fn ($q) => $q->whereKey($mediaId))
+            ->limit(10)
+            ->get();
+
+        $zlecone = 0;
+
+        foreach ($wpisy as $wpis) {
+            $oceniane = $wpis->media()->limit($ile)->pluck('media.id')->map(fn ($id): string => (string) $id);
+
+            if ($oceniane->contains($mediaId)) {
+                self::dlaWpisu($wpis);
+                $zlecone++;
+            }
+        }
+
+        return $zlecone;
+    }
+
+    /**
      * DWA ŹRÓDŁA SYGNAŁÓW, JEDNA POZYCJA W KOLEJCE.
      *
      * Lokalne wzorce (`WykrywaczSygnalow`, D-052) szukają SPAMU; model
@@ -100,6 +163,11 @@ class PrzeanalizujTresc implements ShouldQueue
      * `reports_jeden_automat_na_tresc` przepuściłby tylko pierwsze — czyli
      * to, które akurat wygrało wyścig. Ocena modelu potrafiłaby wtedy
      * przepaść dlatego, że wpis zawierał numer telefonu.
+     *
+     * OD #829 ZAPISUJEMY JE W DWÓCH KROKACH tego samego zadania: najpierw
+     * lokalne, potem model — dołożony do TEGO SAMEGO oznaczenia
+     * (`OznaczDoPrzegladu::dolacz`), więc nadal nic nie przepada na
+     * deduplikacji, a wolny model nie zabiera lokalnych sygnałów ze sobą.
      */
     public function handle(
         WykrywaczSygnalow $wykrywacz,
@@ -112,6 +180,9 @@ class PrzeanalizujTresc implements ShouldQueue
             return;
         }
 
+        // Liczony od startu zadania, więc obejmuje też sygnały lokalne (#829).
+        $budzet = BudzetCzasu::naSekund($this->timeout - self::ZAPAS_SEKUND);
+
         try {
             $tresc = $this->tresc();
 
@@ -122,7 +193,12 @@ class PrzeanalizujTresc implements ShouldQueue
                 return;
             }
 
-            $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
+            // #829: SYGNAŁY LOKALNE ZAPISANE PRZED MODELEM. Wolny dostawca
+            // albo worker ubity w trakcie oceny nie może zabrać ze sobą
+            // wyniku, który mamy od razu i bez wychodzenia z serwera.
+            $this->zapisz($oznacz, $alarm, $tresc, $wykrywacz->dla($tresc));
+
+            $sygnalyModelu = $model->dla($tresc, $budzet);
 
             // Ocena modelem trwa sekundy. Treść, która w tym czasie stała się
             // prywatna, nie trafia też przed moderatora (D-240).
@@ -130,10 +206,10 @@ class PrzeanalizujTresc implements ShouldQueue
                 return;
             }
 
-            $oznaczenie = $oznacz->handle($tresc, $sygnaly);
+            $this->zapisz($oznacz, $alarm, $tresc, $sygnalyModelu);
 
-            if ($oznaczenie !== null) {
-                $alarm->handle($oznaczenie, $sygnaly);
+            if ($budzet->pominiete() > 0) {
+                $this->ocenaNiepelna($oznacz, $tresc, $budzet->pominiete());
             }
         } catch (Throwable $blad) {
             // Bez treści analizowanego wpisu w logu — to jest cudzy tekst,
@@ -145,6 +221,39 @@ class PrzeanalizujTresc implements ShouldQueue
                 ...ExceptionContext::forStage($blad, 'content_analysis'),
             ]);
         }
+    }
+
+    /**
+     * Jedno oznaczenie na treść, dopisywane (D-052, #829). List idzie tylko
+     * o sygnałach, które naprawdę trafiły do sprawy — ponowna analiza nie
+     * wysyła drugi raz alarmu o tym samym.
+     *
+     * @param  list<Sygnal>  $sygnaly
+     */
+    private function zapisz(OznaczDoPrzegladu $oznacz, AlarmujModeratora $alarm, Post|Comment $tresc, array $sygnaly): void
+    {
+        $wynik = $oznacz->dolacz($tresc, $sygnaly);
+
+        if ($wynik !== null) {
+            $alarm->handle($wynik[0], $wynik[1]);
+        }
+    }
+
+    /**
+     * Brak sygnału modelu po przekroczeniu budżetu to „nie wiemy", nie
+     * „czysto" (#829). Ślad w dzienniku zawsze; uwaga dla moderatora tylko
+     * przy istniejącym oznaczeniu — sama nie zakłada sprawy.
+     */
+    private function ocenaNiepelna(OznaczDoPrzegladu $oznacz, Post|Comment $tresc, int $pominiete): void
+    {
+        Log::warning('Ocena modelem niepełna: zabrakło czasu zadania na część ocen.', [
+            'typ' => $this->typ,
+            'id' => $this->id,
+            'pominiete' => $pominiete,
+            'stage' => 'model_budzet',
+        ]);
+
+        $oznacz->dopiszUwage($tresc, "Ocena modelem NIEPEŁNA: zabrakło czasu na {$pominiete} z ocen (tekst lub zdjęcia). Brak sygnału modelu nie znaczy, że ta część jest w porządku — obejrzyj całość.");
     }
 
     /**

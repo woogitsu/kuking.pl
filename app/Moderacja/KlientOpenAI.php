@@ -44,10 +44,27 @@ use Throwable;
  */
 final class KlientOpenAI
 {
+    /** Górna granica limitu jednego żądania, gdy ocena ma wspólny budżet (#829). */
+    private ?int $limitCzasu = null;
+
     public static function oceniamy(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
             && config('kuking.moderation.model.klucz') !== '';
+    }
+
+    /**
+     * Ten sam klient z limitem żądania przyciętym do `$sekund` (#829).
+     *
+     * Kopia, nie zmiana stanu: klient bywa współdzielony, a limit jednej
+     * oceny nie może przeciec do następnej.
+     */
+    public function zLimitemCzasu(int $sekund): self
+    {
+        $kopia = clone $this;
+        $kopia->limitCzasu = max(1, $sekund);
+
+        return $kopia;
     }
 
     /**
@@ -106,8 +123,9 @@ final class KlientOpenAI
             $odpowiedz = Http::withToken((string) config('kuking.moderation.model.klucz'))
                 // Limit z konfiguracji przycięty do 1–8 s: `0` w Guzzle znaczy
                 // „bez limitu", a zawieszony dostawca trzymałby worker kolejki.
+                // Przy wspólnym budżecie oceny (#829) — jeszcze do tego, co zostało.
                 ->connectTimeout(3)
-                ->timeout(max(1, min(8, (int) config('kuking.moderation.model.limit_czasu'))))
+                ->timeout(max(1, min(8, (int) config('kuking.moderation.model.limit_czasu'), $this->limitCzasu ?? 8)))
                 ->acceptJson()
                 ->post((string) config('kuking.moderation.model.endpoint'), [
                     'model' => (string) config('kuking.moderation.model.nazwa'),

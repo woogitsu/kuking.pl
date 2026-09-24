@@ -275,6 +275,29 @@ class ProcessUploadedImage implements ShouldQueue
 
             throw $e;
         }
+
+        if ($opublikowane) {
+            $this->zlecOceneWpisow();
+        }
+    }
+
+    /**
+     * Zdjęcie przypięte do wpisu przed gotowością wraca do oceny (#830).
+     *
+     * Poza `try` wyżej i z własnym `catch`: kłopot z kolejką analizy nie może
+     * cofnąć gotowego zdjęcia do `rejected` ani uruchomić ponowienia, które
+     * i tak nic by nie przejęło.
+     */
+    private function zlecOceneWpisow(): void
+    {
+        try {
+            PrzeanalizujTresc::poPrzygotowaniuZdjecia($this->mediaId);
+        } catch (\Throwable) {
+            Log::warning('Nie udało się zlecić oceny wpisu po przygotowaniu zdjęcia.', [
+                'media_id' => $this->mediaId,
+                'stage' => 'ocena_po_gotowosci',
+            ]);
+        }
     }
 
     /**

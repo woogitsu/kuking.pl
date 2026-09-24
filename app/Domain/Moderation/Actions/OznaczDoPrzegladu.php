@@ -13,6 +13,7 @@ use App\Models\Post;
 use App\Models\Report;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * POSTAWIENIE POZYCJI W KOLEJCE AUTOMATU (D-052).
@@ -109,6 +110,143 @@ final class OznaczDoPrzegladu
         );
 
         return $zgloszenie;
+    }
+
+    /**
+     * Sygnały DOŁOŻONE do jedynego oznaczenia tej treści (#829, #830).
+     *
+     * Od #829 zadanie zapisuje sygnały lokalne PRZED oceną modelem — wolny
+     * dostawca nie może ich zabrać ze sobą. Ocena modelem przychodzi więc
+     * do treści, która może już mieć oznaczenie, a `handle()` odbiłoby się
+     * od „jedno oznaczenie na treść" i wynik modelu przepadłby po cichu.
+     * To samo przy ocenie zdjęcia, które było gotowe dopiero po publikacji
+     * (#830).
+     *
+     * Obietnica D-052 zostaje nietknięta: dalej JEDEN wiersz na treść.
+     * Nowe powody dopisujemy do sprawy, która czeka na moderatora (`open`,
+     * `triage`, `reviewing`), a cięższy sygnał przesuwa ją wyżej w kolejce.
+     * Sprawy zamkniętej NIE otwieramy — „to nic takiego" nie wraca — ale
+     * nowy powód, którego moderator nie widział, zostawia wpis w dzienniku,
+     * a nie znika bez śladu.
+     *
+     * @param  list<Sygnal>  $sygnaly
+     * @return array{0: Report, 1: list<Sygnal>}|null oznaczenie i sygnały,
+     *                                                które naprawdę do niego trafiły
+     *                                                (do alarmu — bez ponownego listu
+     *                                                o tym samym)
+     */
+    public function dolacz(Post|Comment $tresc, array $sygnaly): ?array
+    {
+        if ($sygnaly === []) {
+            return null;
+        }
+
+        $nowe = $this->handle($tresc, $sygnaly);
+
+        if ($nowe !== null) {
+            return [$nowe, $sygnaly];
+        }
+
+        $typ = ModeratedContent::typ($tresc);
+
+        if ($typ === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($typ, $tresc, $sygnaly): ?array {
+            $zgloszenie = Report::query()
+                ->where('source', Report::SOURCE_AUTOMAT)
+                ->where('target_type', $typ)
+                ->where('target_id', $tresc->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($zgloszenie === null) {
+                return null;
+            }
+
+            $opis = (string) $zgloszenie->details;
+            $dolozone = [];
+
+            foreach ($sygnaly as $sygnal) {
+                if (! str_contains($opis, '— '.$sygnal->powod)) {
+                    $opis .= "\n— ".$sygnal->powod;
+                    $dolozone[] = $sygnal;
+                }
+            }
+
+            if ($dolozone === []) {
+                return null;
+            }
+
+            if (! in_array($zgloszenie->status, [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING], true)) {
+                // Bez treści powodu — to opis cudzej treści (AGENTS.md §7).
+                Log::warning('Nowy sygnał automatu nie trafił do kolejki: moderator już zamknął oznaczenie tej treści.', [
+                    'report_id' => $zgloszenie->getKey(),
+                    'sygnaly' => array_map(static fn (Sygnal $s): string => $s->kod, $dolozone),
+                    'stage' => 'automat_sprawa_zamknieta',
+                ]);
+
+                return null;
+            }
+
+            usort($dolozone, static fn (Sygnal $a, Sygnal $b): int => $b->waga() <=> $a->waga());
+
+            $zmiany = ['details' => mb_substr($opis, 0, 2000)];
+
+            if ($dolozone[0]->waga() > (Report::WAGA[$zgloszenie->reason] ?? 0)) {
+                $zmiany['reason'] = $dolozone[0]->kod;
+            }
+
+            $zgloszenie->update($zmiany);
+
+            AuditLogEntry::record(
+                action: 'content.flagged_by_automat',
+                actor: null,
+                subject: $zgloszenie,
+                metadata: [
+                    'target_type' => $typ,
+                    'sygnaly' => array_map(static fn (Sygnal $s): string => $s->kod, $dolozone),
+                    'dolozone' => true,
+                ],
+            );
+
+            return [$zgloszenie, $dolozone];
+        });
+    }
+
+    /**
+     * Uwaga dla moderatora przy ISTNIEJĄCYM oznaczeniu, np. „ocena modelem
+     * niepełna" (#829). Sama uwaga oznaczenia nie zakłada — brak czasu na
+     * ocenę nie jest powodem, żeby ktoś oglądał czyjś obiad.
+     */
+    public function dopiszUwage(Post|Comment $tresc, string $uwaga): bool
+    {
+        $typ = ModeratedContent::typ($tresc);
+
+        if ($typ === null) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($typ, $tresc, $uwaga): bool {
+            $zgloszenie = Report::query()
+                ->where('source', Report::SOURCE_AUTOMAT)
+                ->where('target_type', $typ)
+                ->where('target_id', $tresc->getKey())
+                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->lockForUpdate()
+                ->first();
+
+            if ($zgloszenie === null) {
+                return false;
+            }
+
+            $zgloszenie->update([
+                'details' => mb_substr($zgloszenie->details."\n— ".$uwaga, 0, 2000),
+            ]);
+
+            return true;
+        });
     }
 
     /**

@@ -69,9 +69,14 @@ final class OcenaModelem
      * nie raz na wejściu: ocena jednego zdjęcia trwa sekundy, a w tym czasie
      * autor może przełączyć wpis na prywatny.
      *
+     * BUDŻET (#829) jest pytany tak samo często: przed każdą oceną i jeszcze
+     * raz po przygotowaniu zdjęcia. Ocena, na którą zabrakło czasu, nie
+     * wychodzi i zostaje policzona w `$budzet->pominiete()` — wołający mówi
+     * moderatorowi, że ocena była niepełna. `null` = bez wspólnego budżetu.
+     *
      * @return list<Sygnal>
      */
-    public function dla(Post|Comment $tresc): array
+    public function dla(Post|Comment $tresc, ?BudzetCzasu $budzet = null): array
     {
         if (! KlientOpenAI::oceniamy()) {
             $this->sladBrakuKlucza();
@@ -85,12 +90,23 @@ final class OcenaModelem
         $tekst = $tresc instanceof Post ? $tresc->tekstDoOceny() : trim((string) $tresc->body);
 
         if ($tekst !== '' && $this->granica->publiczna($tresc)) {
-            $sygnaly = $this->zWyniku($this->klient->ocenTekst($tekst), $sygnaly);
+            $klient = $this->klientWBudzecie($budzet);
+
+            if ($klient !== null) {
+                $sygnaly = $this->zWyniku($klient->ocenTekst($tekst), $sygnaly);
+            }
         }
 
         if ($tresc instanceof Post && config('kuking.moderation.model.ocenia_zdjecia')) {
             foreach ($this->zdjeciaDoOceny($tresc) as $media) {
                 if (! $this->granica->zdjecieWpisu($tresc, $media)) {
+                    continue;
+                }
+
+                // Bez czasu na żądanie nie ma po co czytać i dekodować zdjęcia.
+                if ($budzet?->wyczerpany()) {
+                    $budzet->pomin();
+
                     continue;
                 }
 
@@ -100,11 +116,36 @@ final class OcenaModelem
                     continue;
                 }
 
-                $sygnaly = $this->zWyniku($this->klient->ocenObraz($dataUri), $sygnaly);
+                // Przygotowanie zdjęcia też kosztuje czas — liczymy od nowa.
+                $klient = $this->klientWBudzecie($budzet);
+
+                if ($klient !== null) {
+                    $sygnaly = $this->zWyniku($klient->ocenObraz($dataUri), $sygnaly);
+                }
             }
         }
 
         return $sygnaly;
+    }
+
+    /**
+     * Klient z limitem żądania mieszczącym się w budżecie — albo `null`,
+     * gdy na to żądanie czasu już nie ma (i ta ocena zostaje policzona
+     * jako pominięta).
+     */
+    private function klientWBudzecie(?BudzetCzasu $budzet): ?KlientOpenAI
+    {
+        if ($budzet === null) {
+            return $this->klient;
+        }
+
+        if ($budzet->wyczerpany()) {
+            $budzet->pomin();
+
+            return null;
+        }
+
+        return $this->klient->zLimitemCzasu($budzet->zostalo());
     }
 
     /**

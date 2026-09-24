@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Moderacja: automat nie gubi już własnych sygnałów, gdy zewnętrzny model odpowiada wolno. Sygnały wykryte na miejscu trafiają do kolejki od razu, wynik modelu dopisuje się do tego samego oznaczenia, a cała ocena mieści się w czasie zadania — gdy zabraknie czasu na część zdjęć, moderator widzi przy oznaczeniu, że ocena była niepełna. Zdjęcie, które było jeszcze przygotowywane w chwili publikacji wpisu, jest oceniane, gdy tylko będzie gotowe (o ile wpis nadal jest publiczny).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
