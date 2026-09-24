@@ -149,7 +149,15 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->notifications()->whereNull('read_at')->update(['read_at' => now()]);
+        // ISSUE #1401: TYLKO TO, CO CZŁOWIEK WIDZI NA LIŚCIE. Bez `visibleTo()`
+        // przycisk gasił też powiadomienia ukryte blokadą — po odblokowaniu
+        // wracały jako przeczytane, choć nikt ich nie przeczytał. Jedno
+        // zdanie `UPDATE`: właściciel, `read_at IS NULL` i widoczność razem.
+        $request->user()
+            ->notifications()
+            ->visibleTo($request->user())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
         return back()->with('status', 'Wszystkie powiadomienia oznaczone jako przeczytane.');
     }
@@ -205,7 +213,26 @@ class NotificationController extends Controller
             ->notifications()
             ->visibleTo($request->user())
             ->whereKey($notification)
-            ->firstOrFail();
+            ->first();
+
+        // ISSUE #759: komentarz mógł zniknąć (usunięty, ukryty przez
+        // moderację, treść nad nim schowana) między wyświetleniem listy
+        // a kliknięciem. Zamiast gołego 404 — zdanie, co się stało, bez
+        // żadnego fragmentu komentarza. Wiersz ukryty z INNEGO powodu
+        // (blokada, zbanowany sprawca, #1351) dalej kończy się na 404:
+        // `visibleTo(..., false)` pomija tylko warunek dostępności treści.
+        if ($powiadomienie === null) {
+            $bezTresci = $request->user()
+                ->notifications()
+                ->visibleTo($request->user(), false)
+                ->whereKey($notification)
+                ->whereIn('type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
+                ->exists();
+
+            abort_unless($bezTresci, 404);
+
+            return back()->with('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
+        }
 
         // TYLKO GDY NIEPRZECZYTANE — I ROZSTRZYGA TO BAZA, NIE PHP (D-079).
         //

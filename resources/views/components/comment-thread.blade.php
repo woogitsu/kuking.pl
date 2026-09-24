@@ -75,7 +75,8 @@
             @endif
 
             @foreach($comment->replies as $reply)
-                <div class="watek-odpowiedzi">
+                {{-- ISSUE #759: kotwica odpowiedzi — „Zobacz" z powiadomienia prowadzi tu wprost. --}}
+                <div class="watek-odpowiedzi" id="komentarz-{{ $reply->id }}">
                     <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Social\Actions\BlockUser;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
@@ -85,6 +86,80 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         $strona = $this->actingAs($korzenNaDrugiejStronie)->get($odpowiedzHttp->headers->get('Location'));
         $strona->assertOk();
         $strona->assertSee('ODPOWIEDZ-KTORA-MUSI-BYC-WIDOCZNA-759');
+        // Kotwica musi mieć cel w HTML — inaczej przeglądarka zostaje u góry
+        // strony, a odpowiedź trzeba szukać ręcznie.
+        $strona->assertSee('id="komentarz-'.$reply->getKey().'"', false);
+    }
+
+    public function test_komentarz_usuniety_miedzy_lista_a_kliknieciem_daje_uczciwy_komunikat(): void
+    {
+        $w = $this->user('wlascicielusuniety759');
+        $wpis = Post::factory()->for($w, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
+
+        app(PublishComment::class)->handle($this->user('komentujacy759'), $wpis, 'TRESC-KTORA-ZNIKNIE-759');
+
+        $powiadomienie = Notification::query()
+            ->where('user_id', $w->getKey())
+            ->where('type', Notification::TYPE_COMMENT)
+            ->firstOrFail();
+
+        Comment::where('body', 'TRESC-KTORA-ZNIKNIE-759')->firstOrFail()->delete();
+
+        $odpowiedzHttp = $this->actingAs($w)
+            ->from(route('notifications.index'))
+            ->post(route('notifications.open', $powiadomienie));
+
+        $odpowiedzHttp->assertRedirect(route('notifications.index'));
+        $odpowiedzHttp->assertSessionHas('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
+
+        $this->actingAs($w)->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('Tego komentarza już nie ma')
+            ->assertDontSee('TRESC-KTORA-ZNIKNIE-759');
+    }
+
+    /** Wiersz ukryty BLOKADĄ nie dostaje komunikatu o komentarzu — dalej 404 (#1351). */
+    public function test_powiadomienie_od_zablokowanej_osoby_dalej_404(): void
+    {
+        $w = $this->user('wlascicielblokada759');
+        $wpis = Post::factory()->for($w, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
+        $sprawca = $this->user('zablokowany759');
+
+        app(PublishComment::class)->handle($sprawca, $wpis, 'OD-ZABLOKOWANEGO-759');
+        $powiadomienie = Notification::query()->where('user_id', $w->getKey())->firstOrFail();
+        app(BlockUser::class)->handle($w, $sprawca);
+
+        $this->actingAs($w)
+            ->post(route('notifications.open', $powiadomienie))
+            ->assertNotFound();
+        $this->assertNull($powiadomienie->refresh()->read_at);
+    }
+
+    /** Kontrola: cudze powiadomienie o usuniętym komentarzu dalej kończy się na 404. */
+    public function test_cudze_powiadomienie_o_usunietym_komentarzu_to_404(): void
+    {
+        $w = $this->user('wlascicielcudzy759');
+        $wpis = Post::factory()->for($w, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
+
+        app(PublishComment::class)->handle($this->user('komentujacycudzy759'), $wpis, 'CUDZY-759');
+        $powiadomienie = Notification::query()->where('user_id', $w->getKey())->firstOrFail();
+        Comment::where('body', 'CUDZY-759')->firstOrFail()->delete();
+
+        $this->actingAs($this->user('obcy759'))
+            ->post(route('notifications.open', $powiadomienie))
+            ->assertNotFound();
     }
 
     /** Kontrola dodatnia: wątek na PIERWSZEJ stronie nie dostaje numeru strony w adresie. */

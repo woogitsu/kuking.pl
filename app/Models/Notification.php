@@ -607,10 +607,16 @@ class Notification extends Model
      * od moderacji) zostają zawsze: `NOT EXISTS` nie ma wtedy do czego
      * przyrównać `blocked_id` i nie znajduje żadnego wiersza.
      *
+     * `$zTrescia = false` pomija WYŁĄCZNIE ostatni warunek (czy komentarz
+     * i treść nad nim są jeszcze dostępne) — issue #759: `open()` odróżnia
+     * nim „komentarz zniknął między listą a kliknięciem" (uczciwy
+     * komunikat) od wiersza ukrytego blokadą (dalej 404). Lista, licznik
+     * i eksport wołają zawsze pełny filtr.
+     *
      * @param  Builder<Notification>  $query
      * @return Builder<Notification>
      */
-    public function scopeVisibleTo(Builder $query, User $viewer): Builder
+    public function scopeVisibleTo(Builder $query, User $viewer, bool $zTrescia = true): Builder
     {
         $query->whereNotExists(function (QueryBuilder $sub) use ($viewer): void {
             $sub->selectRaw('1')
@@ -711,6 +717,10 @@ class Notification extends Model
         // (`$this->model->newQueryWithoutRelationships()`), nie surowy
         // `Illuminate\Database\Query\Builder` — inaczej niż każde inne miejsce
         // w tym pliku. Zły typ tutaj to `TypeError` w runtime, nie błąd SQL.
+        if (! $zTrescia) {
+            return $query;
+        }
+
         $query->where(function (Builder $tylkoIstniejaceTresci) use ($viewer): void {
             $tylkoIstniejaceTresci
                 ->whereNotIn('notifications.type', [self::TYPE_COMMENT, self::TYPE_REPLY])
