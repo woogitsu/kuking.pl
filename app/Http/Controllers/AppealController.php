@@ -52,6 +52,19 @@ use Illuminate\View\View;
  */
 class AppealController extends Controller
 {
+    /**
+     * Górna granica sześciu miesięcy z `ModerationAction::appealDeadline()`
+     * w dniach: najdłuższe sześć kolejnych miesięcy ma 184 dni, a przepełnienie
+     * `addMonths()` (31 sierpnia → 3 marca) dokłada najwyżej 3.
+     */
+    private const NAJDLUZSZY_TERMIN_W_DNIACH = 187;
+
+    /**
+     * Ile decyzji czytamy naraz. Jedna, bo w zwykłym przypadku najnowsza
+     * decyzja JEST tą w terminie — i wtedy formularz hydratuje jeden model.
+     */
+    private const PORCJA_DECYZJI = 1;
+
     public function __construct(
         private readonly FileAppeal $zloz,
         private readonly LimitProbHasla $limit,
@@ -192,15 +205,39 @@ class AppealController extends Controller
      * z powiadomienia, którego nie może otworzyć, byłoby okrucieństwem.
      * Bierzemy najnowszą sprawę bez odwołania i w terminie — przy blokadzie
      * konta to praktycznie zawsze ta jedna, o którą chodzi.
+     *
+     * NIE CAŁA HISTORIA KONTA (issue #999). Wcześniej `get()` hydratowało
+     * każdą odwoływalną decyzję bez odwołania, żeby dopiero w PHP wybrać
+     * pierwszą w terminie — koszt ścieżki dostępnej przed logowaniem rósł
+     * z wiekiem konta i liczbą działań moderatorów.
+     *
+     * DLACZEGO NIE SAMO `first()`: termin NIE jest monotoniczny względem
+     * `created_at`. `appealDeadline()` liczy `addMonths(6)` z przepełnieniem
+     * miesiąca, więc decyzja z 31 sierpnia ma termin do 3 marca, a późniejsza
+     * z 1 września — do 1 marca. Gdyby brać tylko najnowszą, 2 marca
+     * osoba straciłaby prawo do odwołania od starszej decyzji, która wciąż
+     * jest w terminie.
+     *
+     * Dlatego dwa ograniczenia: SQL odcina decyzje starsze niż najdłuższy
+     * możliwy termin (`NAJDLUZSZY_TERMIN_W_DNIACH` albo `appeal_days`, jeśli
+     * dłuższe), a `lazy()` czyta resztę po jednej od najnowszej
+     * i kończy na pierwszej w terminie. Poza pierwszą porcją czyta się tylko
+     * decyzje z kilkudniowego pasa na granicy terminu. Ostatnie słowo ma
+     * `isAppealable()`; brak decyzji i decyzja przeterminowana dają ten sam
+     * `null` — i ten sam komunikat.
      */
     private function ostatniaDecyzjaDoOdwolania(User $osoba): ?ModerationAction
     {
+        $dni = max(self::NAJDLUZSZY_TERMIN_W_DNIACH, (int) config('kuking.moderation.appeal_days'));
+
         return ModerationAction::query()
             ->where('subject_user_id', $osoba->getKey())
             ->whereIn('action', ModerationAction::ODWOLYWALNE)
             ->whereDoesntHave('authorAppeal')
+            ->where('created_at', '>', now()->subDays($dni + 1))
             ->orderByDesc('created_at')
-            ->get()
+            ->orderByDesc('id')
+            ->lazy(self::PORCJA_DECYZJI)
             ->first(fn (ModerationAction $decyzja): bool => $decyzja->isAppealable());
     }
 

@@ -111,9 +111,9 @@
                 @endforeach
             </ul>
 
-            @if($wGrupie->count() > $pozycjiWGrupie)
+            @if($ile > $pozycjiWGrupie)
                 <p class="meta">
-                    …i jeszcze {{ $wGrupie->count() - $pozycjiWGrupie }} z tego samego konta.
+                    …i jeszcze {{ $ile - $pozycjiWGrupie }} z tego samego konta.
                 </p>
             @endif
 
