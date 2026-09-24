@@ -114,16 +114,16 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
-# Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
-# akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
-# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
-# mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 # Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
 # zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
 # wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
 REGULY_CF = "docs/infra/cloudflare-cache-rules-597-610.json"
 REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_cache"
 REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
+# Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
+# akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
+# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
+# mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 BRAMKA_CI = ".github/workflows/ci.yml"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
 # `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
