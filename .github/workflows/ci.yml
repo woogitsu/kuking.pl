@@ -584,7 +584,11 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 25
+    # 24.09.2026: pełny zestaw trwa 14 min na szybkich runnerach i do 24 min na
+    # wolniejszych (i5-6500T, WSL). Przy 25 min przebiegi #1081 i #1464 zostały
+    # ucięte w trakcie zielonych testów. 40 min daje zapas na wolny runner,
+    # a zawieszony test nadal zostanie przerwany.
+    timeout-minutes: 40
 
     services:
       postgres:
