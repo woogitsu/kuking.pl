@@ -6,6 +6,10 @@
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
+- Link do logowania, który przeleżał w kolejce dłużej, niż jest ważny, albo został zastąpiony nowszym, nie jest już wysyłany. List mówi, że link działa pół godziny od chwili zamówienia.
+- Gdy serwis chwilowo nie może wysłać linku do logowania, wpisany adres e-mail zostaje w polu — wystarczy kliknąć jeszcze raz.
+- Ostrzeżenie o prośbie zmiany adresu e-mail zawsze trafia na adres, który konto miało w chwili prośby, także gdy list wyjdzie już po potwierdzeniu zmiany.
+- Gdy ktoś w tej samej chwili zajmie wybraną nazwę profilu, formularz mówi, że nazwa jest zajęta, i zostawia wpisane dane — zamiast strony błędu.
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 

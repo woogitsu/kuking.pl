@@ -56,7 +56,7 @@ class OdmowaBudzetuZachowujeAdresTest extends TestCase
         $response->assertRedirect(route('login.link'))->assertSessionHasNoErrors();
         Notification::assertNothingSent();
         $this->assertDatabaseCount('login_link_tokens', 0);
-        $this->assertSame(0, app(DziennyBudzetListow::class)->zuzyte());
+        $this->assertSame(0, DziennyBudzetListow::dlaLinkuLogowania()->zuzyte());
         $response->assertSessionHas('_old_input', ['email' => $user->email]);
         $status = session('status');
         $this->assertStringContainsString($contention ? 'Kliknij „Wyślij mi link” jeszcze raz' : 'nie czekaj na niego', $status);
@@ -73,7 +73,7 @@ class OdmowaBudzetuZachowujeAdresTest extends TestCase
             ])
                 ->assertRedirect(route('login.link'))->assertSessionHasNoErrors();
             Notification::assertSentTo($user, LinkDoLogowania::class);
-            $this->assertSame(1, app(DziennyBudzetListow::class)->zuzyte());
+            $this->assertSame(1, DziennyBudzetListow::dlaLinkuLogowania()->zuzyte());
             Http::assertSentCount(2);
         }
     }
