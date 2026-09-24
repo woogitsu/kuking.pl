@@ -82,6 +82,12 @@ class OdzyskaniePoprawkiKomentarzaTest extends TestCase
         $this->actingAs($author)->put(route('comments.update', $comment), ['body' => 'nie pokazuj tego'])->assertForbidden()->assertDontSee('nie pokazuj tego')->assertDontSee('Czas na poprawienie');
         $post->update(['visibility' => 'public']);
         $comment->forceFill(['status' => 'hidden'])->save();
-        $this->put(route('comments.update', $comment), ['body' => 'nie pokazuj tego'])->assertForbidden()->assertDontSee('nie pokazuj tego');
+        // Kontrola moderacji (#937) idzie PRZED odzyskiem po czasie: autor
+        // słyszy, że komentarz ukryła moderacja, a nie że minął czas.
+        $this->put(route('comments.update', $comment), ['body' => 'nie pokazuj tego'])
+            ->assertRedirect()
+            ->assertSessionHasErrors(['body' => 'Moderacja ukryła ten komentarz, więc nie da się go już poprawić. Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.'])
+            ->assertSessionMissing('comment_edit_recovery');
+        $this->assertNotSame('nie pokazuj tego', $comment->fresh()->body);
     }
 }
