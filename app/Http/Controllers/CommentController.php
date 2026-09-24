@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
+use App\Domain\Comments\Actions\EditComment;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,8 +15,9 @@ use Illuminate\Http\Response;
  * Edycja i usunięcie komentarza.
  *
  * Reguły KTO MOŻE CO żyją w CommentPolicy (edycja — autor, 15 minut od
- * publikacji; usunięcie — autor komentarza albo autor treści; moderator
- * zdejmuje cudzy komentarz wyłącznie z panelu moderacji, issue #932).
+ * publikacji i tylko do pierwszej odpowiedzi, #1337; usunięcie — autor
+ * komentarza albo autor treści; moderator zdejmuje cudzy komentarz wyłącznie
+ * z panelu moderacji, issue #932).
  * Kontroler woła Policy i waliduje dane. Akcja DeleteComment pilnuje dwóch
  * rzeczy, których Policy świadomie nie robi:
  *  - wątek nie może się rozsypać, gdy usunięty komentarz ma odpowiedzi,
@@ -24,7 +26,10 @@ use Illuminate\Http\Response;
  */
 class CommentController extends Controller
 {
-    public function __construct(private readonly DeleteComment $deleteComment) {}
+    public function __construct(
+        private readonly DeleteComment $deleteComment,
+        private readonly EditComment $editComment,
+    ) {}
 
     public function update(Request $request, Comment $comment): RedirectResponse|Response
     {
@@ -39,13 +44,11 @@ class CommentController extends Controller
             ]);
         }
 
-        // Po 15 minutach autor nie poprawi komentarza, ale nie traci tekstu,
-        // który właśnie wpisał — dopiero PO kontroli moderacji wyżej.
-        if ($request->user()->can('recoverExpiredEdit', $comment)) {
-            return response()->view('pages.comments.expired-edit', [
-                'body' => is_string($request->input('body')) ? $request->input('body') : '',
-                'returnUrl' => $comment->subject()->url(),
-            ], 403);
+        // Po 15 minutach albo po pierwszej odpowiedzi (#1337) autor nie
+        // poprawi komentarza, ale nie traci tekstu, który właśnie wpisał —
+        // dopiero PO kontroli moderacji wyżej.
+        if ($odmowa = $this->odmowaZTekstem($request, $comment)) {
+            return $odmowa;
         }
 
         $this->authorize('update', $comment);
@@ -60,10 +63,35 @@ class CommentController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
-        $comment->update(['body' => trim($data['body'])]);
+        // Pod zamkiem korzenia `EditComment` pyta Policy jeszcze raz: odpowiedź
+        // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337).
+        if ($this->editComment->handle($request->user(), $comment, trim($data['body'])) === null) {
+            $request->session()->forget('comment_edit_recovery');
+
+            return $this->odmowaZTekstem($request, $comment->fresh() ?? $comment) ?? abort(403);
+        }
         $request->session()->forget('comment_edit_recovery');
 
         return back()->with('status', 'Komentarz poprawiony.');
+    }
+
+    private function odmowaZTekstem(Request $request, Comment $comment): ?Response
+    {
+        $powod = match (true) {
+            $request->user()->can('recoverExpiredEdit', $comment) => ['pages.comments.expired-edit', 403],
+            $request->user()->can('recoverAnsweredEdit', $comment) => ['pages.comments.answered-edit', 409],
+            default => null,
+        };
+
+        if ($powod === null) {
+            return null;
+        }
+
+        return response()->view($powod[0], [
+            'body' => is_string($request->input('body')) ? $request->input('body') : '',
+            'returnUrl' => $comment->subject()->url(),
+            'commentId' => $comment->getKey(),
+        ], $powod[1]);
     }
 
     public function destroy(Request $request, Comment $comment): RedirectResponse
