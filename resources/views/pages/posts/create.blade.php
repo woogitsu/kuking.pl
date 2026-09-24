@@ -50,10 +50,8 @@
                 // Wracają jako identyfikatory, bo przeglądarka nie pozwala
                 // wypełnić pola pliku z serwera — i dobrze robi, inaczej strona
                 // mogłaby podkraść plik z dysku.
-                $zachowane = \App\Models\Media::query()
-                    ->whereIn('id', (array) old('media_ids', []))
-                    ->where('owner_id', auth()->id())
-                    ->get();
+                // Kolejność z `media_ids[]`, nie z planu bazy (issue #934).
+                $zachowane = \App\Domain\Media\ZachowaneZdjecia::wKolejnosci(old('media_ids', []), auth()->id());
             @endphp
 
             @if($zachowane->isNotEmpty())

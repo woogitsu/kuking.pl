@@ -16,8 +16,7 @@
             <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
         </div>
         @php
-            $zachowane = \App\Models\Media::query()->whereIn('id', (array) old('media_ids', []))
-                ->where('owner_id', auth()->id())->whereDoesntHave('posts')->get();
+            $zachowane = \App\Domain\Media\ZachowaneZdjecia::wKolejnosci(old('media_ids', []), auth()->id());
         @endphp
         @foreach($zachowane as $zdjecie)
             <div class="notice">
