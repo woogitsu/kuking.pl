@@ -67,7 +67,7 @@ try {
         'publish' => app(PublishComment::class)->handle($actor, $subject, $args['body'], $parent)->getKey(),
         'block' => app(BlockUser::class)->handle($actor, User::query()->findOrFail($args['other'])),
         'unfollow' => app(UnfollowUser::class)->handle($actor, User::query()->findOrFail($args['other'])),
-        'edit_post' => app(EditPost::class)->handle($subject, 'Treść po zmianie.', 'private')->visibility,
+        'edit_post' => app(EditPost::class)->handle($actor, $subject, 'Treść po zmianie.', 'private')->visibility,
         'edit_recipe' => app(PublishRecipe::class)->handle(
             author: $actor,
             attributes: ['title' => 'Przepis po zmianie', 'visibility' => 'private', 'source_type' => 'own'],

@@ -14,7 +14,9 @@ PID_WEB=${pid}; PID_WORKER=${pid}; poprzedni_pid_web=${previousPid}; poprzedni_p
 WEB_T=${ticks}; WRK_T=${ticks}; poprzedni_web=${previousTicks}; poprzedni_worker=${previousTicks};
 HOST_T=100; poprzedni_host=0; GEN_T=0; poprzedni_gen=0; SAM_T=0; poprzedni_sam=0;`;
   const next = nextWindow ? `\nMONO=3; WEB_T=${ticks + 100}; WRK_T=${ticks + 100};\n${block}` : '';
-  const output = execFileSync('bash', ['-c', setup + '\n' + block + next + '\nprintf "[%s,%s]" "$RDZENIE_WEB" "$RDZENIE_WRK"'], { encoding: 'utf8' });
+  // Blok jest wyjęty ze skryptu, więc nie dziedziczy jego `export LC_ALL=C` —
+  // podajemy ten sam stan wprost, żeby wynik nie zależał od locale runnera.
+  const output = execFileSync('bash', ['-c', setup + '\n' + block + next + '\nprintf "[%s,%s]" "$RDZENIE_WEB" "$RDZENIE_WRK"'], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } });
   return JSON.parse(output);
 }
 assert.deepEqual(sample(100, 100, 150, 50), [1, 1], 'Dodatnia kontrola musi zmierzyć wzrost CPU tego samego procesu');
