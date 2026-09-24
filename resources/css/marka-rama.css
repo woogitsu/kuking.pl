@@ -146,11 +146,36 @@
 [data-marka] .marka-start-kroki a,
 [data-marka] .marka-start-zaufanie a { display: inline-flex; min-height: 48px; align-items: center; }
 [data-marka] .marka-start-zaufanie { margin-top: calc(32px * var(--user-layout-scale, 1)); padding: calc(24px * var(--user-layout-scale, 1)); background: var(--color-surface-raised); border-radius: 20px; }
-/* Dolne wypełnienie stopki: rezerwa na PRZYPIĘTĄ BELKĘ, ale ta, która
-   naprawdę stoi na ekranie (`--rezerwa-ukladu-dol`, wyprowadzenie niżej),
-   plus własny odstęp stopki. Nie `--rezerwa-pod-belka`: ten token opisuje
-   przewijanie (`scroll-padding-bottom`), a nie miejsce w przepływie. */
-[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-ukladu-dol, 0px) + calc(24px * var(--user-layout-scale, 1))); }
+/* Dolne wypełnienie stopki: rezerwa na PRZYPIĘTĄ BELKĘ — tylko wtedy, gdy
+   belka naprawdę stoi na ekranie (`--rezerwa-ukladu-dol`, wyprowadzenie
+   niżej) — plus 16 px oddechu. Bez belki koniec strony to koniec stopki.
+   Nie `--rezerwa-pod-belka`: ten token opisuje przewijanie
+   (`scroll-padding-bottom`), a nie miejsce w przepływie. */
+[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-ukladu-dol, 0px) + calc(16px * var(--user-layout-scale, 1))); }
+/* MIEJSCE NA PRZYCISK „WYGLĄD" JEST Z BOKU, NIE POD STOPKĄ (24.09).
+   Przycisk stoi `fixed` w prawym dolnym rogu, więc na samym końcu strony
+   wypada na wysokości paska technicznego. Do 24.09 zostawialiśmy mu 68 px
+   pod stopką na KAŻDEJ szerokości — to był biały pas, który właściciel
+   zgłosił jako „za duża stopka". Teraz pasek techniczny kończy się przed
+   przyciskiem: prawe wypełnienie = odstęp przycisku od krawędzi okna
+   (`--spacing-3`, ten sam co w `right` w `szybki-wyglad.css`) + jego
+   zmierzona szerokość (≈ 7,5rem z napisem „Aa · Wygląd" przy skali 100%,
+   rośnie ze skalą tekstu) + odstęp. Wersja stoi przy przycisku motywu,
+   a nie na prawym końcu paska, bo prawy koniec należy do przycisku.
+   Pilnuje tego `scripts/stopka-pusty-pas.mjs` (przycisk nie leży na treści). */
+[data-marka] .site-footer-pasek {
+  padding-right: calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1));
+}
+[data-marka] .site-footer-pasek .site-version { margin-left: 0; }
+/* Do 400px przycisk pokazuje samo „Wygląd" (bez „Aa · ", `szybki-wyglad.css`),
+   więc jest węższy, a pasek i tak kończy się 32 px przed krawędzią okna
+   (wypełnienie stopki + margines `.site-footer-inner`). Rezerwa = szerokość
+   przycisku (34 px ramki i wypełnienia + napis ≈ 4,25rem × skala) + 12 px
+   jego odstępu od krawędzi − te 32 px + 16 px luzu. Przy 390 px i skali
+   100% to 98 px zamiast 140 — tyle, że wersja mieści się obok motywu. */
+@media (max-width: 400px) {
+  [data-marka] .site-footer-pasek { padding-right: calc(30px + 4.25rem * var(--user-text-scale, 1)); }
+}
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {
   left: 8px;
@@ -234,55 +259,31 @@
 /*
  * REZERWA UKŁADU — JEDYNA, KTÓRA ZAJMUJE MIEJSCE W DOKUMENCIE.
  *
- * `--rezerwa-pod-belka` opisuje PRZEWIJANIE: ile przeglądarka ma zostawić
- * pod celem, gdy sama przewija fokus w widok. Wydaje ją `scroll-padding-bottom`
- * w `app.css` i nic nie rysuje. `--rezerwa-ukladu-dol` odpowiada na inne
- * pytanie: ile PUSTEGO MIEJSCA naprawdę dokładamy na końcu strony. To dwie
- * różne rzeczy i do 22 września stały pod jedną nazwą — stąd usterka.
+ * `--rezerwa-pod-belka` opisuje PRZEWIJANIE (`scroll-padding-bottom`
+ * w `app.css`) i nic nie rysuje. `--rezerwa-ukladu-dol` mówi, ile PUSTEGO
+ * MIEJSCA dokładamy na końcu strony — wydawana w jednym miejscu,
+ * w `padding-bottom` stopki, bo stopka jest ostatnia w dokumencie.
  *
- * CO BYŁO ZMIERZONE (Chromium, `/o-kuking`, gość, skala 100%):
- * pod ostatnią treścią stopki zostawało 484 px pustki przy 320 px i przy
- * 768 px — 200 px białego pasa wewnątrz stopki (`padding-bottom`
- * rezerwa 176 + 24) i 284 px szarego pod nią (`body` 176 + 80). Ta sama
- * rezerwa była więc policzona DWA RAZY, a gość nie ma jej po co: `.bottom-nav`
- * stoi w `layout.blade.php` pod `@auth`. Przy 1440 px, gdzie belki nie ma
- * także dla zalogowanego, pustki było 132 px — i to jest wartość docelowa
- * dla gościa na każdej szerokości.
+ * HISTORIA LICZB (Chromium, gość, skala 100%, `scripts/stopka-pusty-pas.mjs`):
+ *  - do 22.09: 456 px pustki pod stopką przy 320–768 px (rezerwa 176 px
+ *    policzona dwa razy: w stopce i w `body`), 104 px na desktopie
+ *    (80 px szarego `body` + 24 px białego w stopce);
+ *  - #1250 w pierwszej wersji: 92 px wszędzie — rezerwa na przycisk
+ *    „Wygląd" pod stopką. Właściciel 24.09: „za dużo";
+ *  - teraz: 16 px. Przycisk „Wygląd" ma miejsce z boku paska (wyżej).
  *
- * DLATEGO WARUNKIEM JEST OBECNOŚĆ BELKI, NIE SAM MOTYW MARKI. Rezerwa
- * istnieje po to, żeby przypięta nawigacja nie zasłoniła końca strony.
- * Nie ma nawigacji — nie ma czego zasłaniać. Gdy belka zniknie z szablonu,
- * rezerwa zniknie razem z nią, zamiast zostać liczbą, której nikt nie
- * umie wytłumaczyć.
+ * WARUNKIEM JEST OBECNOŚĆ BELKI. Gość belki nie ma (`@auth` w layoucie),
+ * od 64rem nie ma jej nikt — rezerwa wynosi wtedy 0.
  *
- * WYDAWANA JEST W JEDNYM MIEJSCU — w `padding-bottom` stopki, bo stopka
- * jest ostatnia w dokumencie. `szybki-wyglad.css` nie dokłada już nic;
- * miejsce na pływający przycisk „Wygląd" wchodzi do tego samego tokenu,
- * bo obie nakładki stoją jedna nad drugą, a nie obok siebie.
+ * WYSOKOŚĆ BELKI JEST ZMIERZONA, NIE ZGADNIĘTA. `szybki-wyglad.js` ustawia
+ * `--rezerwa-belki` na rzeczywistą wysokość przypiętej belki (94 px przy
+ * skali 100%, 162 px, gdy przy 320 px i tekście 140% zawija się na dwa
+ * wiersze) albo 0, gdy belki nie widać. Bez skryptu zostaje zapasowe
+ * `--rezerwa-pod-belka` (11rem × skala) — hojniej, ale nadal raz.
  */
-:root {
-  /* Pływający przycisk „Wygląd" jest ZAWSZE, także u gościa. Liczba jest
-     wyprowadzona, nie wpisana: `--spacing-3` to jego odstęp od dołu okna
-     (ta sama zmienna, co w `bottom` w `szybki-wyglad.css`), a 3.5rem to
-     zmierzona wysokość przycisku — 54 px przy skali 100%, czyli 48 px
-     `min-height` plus wypełnienie. Mnożnik `--user-text-scale` jest
-     konieczny, bo przycisk rośnie razem z tym ustawieniem, a `rem` nie. */
-  --rezerwa-widgetu: calc(var(--spacing-3) + 3.5rem * var(--user-text-scale, 1));
-  --rezerwa-ukladu-dol: var(--rezerwa-widgetu);
-}
-/* Baza stoi na gołym `:root`, nie pod `:has()`, świadomie: w przeglądarce bez
-   `:has()` cała ta reguła przepadłaby razem z warunkiem i stopka zostałaby
-   z samym 24-pikselowym odstępem, czyli z przyciskiem „Wygląd" na treści.
-   Warunku potrzebuje tylko stopień z belką — i to on jest niżej. */
-/* Z przypiętą belką nakładki stoją JEDNA NAD DRUGĄ — przycisk „Wygląd"
-   podnosi się o wysokość belki (`--wyglad-dol` w `szybki-wyglad.js`) — więc
-   rezerwą jest ta większa z dwóch, a nie ich suma. `max()` zamiast warunku
-   na szerokość, bo `.bottom-nav` zostaje w drzewie także wtedy, gdy od 64rem
-   znika z ekranu: tam `--rezerwa-pod-belka` jest zerowa i wygrywa rezerwa
-   samego przycisku. Zmierzone przy 320 px, zalogowany: nakładki zajmują
-   171 px dolnej krawędzi okna, rezerwa daje 176 px. */
+:root { --rezerwa-ukladu-dol: 0px; }
 :root:has(body[data-marka] .bottom-nav) {
-  --rezerwa-ukladu-dol: max(var(--rezerwa-widgetu), var(--rezerwa-pod-belka));
+  --rezerwa-ukladu-dol: var(--rezerwa-belki, var(--rezerwa-pod-belka));
 }
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
   /* Zostaje tylko miejsce na pierścień fokusu, nie wysokość przewiniętego nagłówka. */

@@ -32,6 +32,8 @@
 /storage/martwe-przyciski.json
 # Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
 /storage/kroki-kreatora/
+# Pomiar i zrzuty stopki (`scripts/stopka-pusty-pas.mjs --statycznie`).
+/storage/stopka-pusty-pas/
 /storage/pail
 /vendor
 _ide_helper.php

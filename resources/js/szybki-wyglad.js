@@ -39,6 +39,11 @@ function initialize() {
         if (wasInFlow) widget.removeAttribute('data-wyglad-w-przeplywie');
         const nav = document.querySelector('.bottom-nav');
         const rect = nav?.getBoundingClientRect();
+        // Rezerwa pod stopką = zmierzona wysokość PRZYPIĘTEJ belki, raz
+        // (`--rezerwa-ukladu-dol` w marka-rama.css). Belka ukryta albo
+        // przewijana ze stroną niczego nie zasłania, więc rezerwa to 0.
+        const pinned = rect && rect.height > 0 && getComputedStyle(nav).position === 'fixed';
+        document.documentElement.style.setProperty('--rezerwa-belki', pinned ? Math.ceil(innerHeight - rect.top) + 'px' : '0px');
         // Przy dużym piśmie nawigacja przewija się ze stroną. Nadal może
         // zasłonić przycisk: liczy się jej widoczny prostokąt, nie position.
         const margin = parseFloat(getComputedStyle(widget).right) || 0;
