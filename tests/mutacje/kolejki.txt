@@ -1,0 +1,10 @@
+# Umowa kolejek (issue #1312). Cena przeoczenia: zadanie lezy w bazie na
+# kolejce, ktorej worker nie odbiera — analiza moderacyjna po cichu nie
+# chodzi, a publikacja dziala jak gdyby nigdy nic.
+nazwa: analiza tresci idzie na kolejke obslugiwana przez workera
+plik: app/Jobs/PrzeanalizujTresc.php
+zamien: private const KOLEJKA = 'low';
+na: private const KOLEJKA = 'moderacja';
+oczekuj: Failed asserting|moderacja
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UmowaKolejkiTest.php
+ocena:
