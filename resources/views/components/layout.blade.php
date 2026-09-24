@@ -1249,7 +1249,13 @@
                         AccessibilitySettingsController).
                     --}}
                     <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
-                        @csrf
+                        {{-- #610: strona z brzegu Cloudflare jest wspólna dla
+                             wszystkich gości, więc nie może nieść tokenu CSRF.
+                             Zapis motywu przechodzi wtedy sprawdzeniem
+                             pochodzenia (PreventRequestForgeryExceptMediaCookie). --}}
+                        @unless (\App\Support\PublicznyHtmlGoscia::bezSesji())
+                            @csrf
+                        @endunless
                         <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
                         <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
                         @php
