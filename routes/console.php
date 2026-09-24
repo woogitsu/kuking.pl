@@ -49,7 +49,8 @@ Artisan::command('inspire', function () {
 // `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
 // `proc_open` nie jest potrzebny. KAŻDE zadanie idzie przez jeden adapter,
 // `Harmonogram::artisan()`: kod ≠ 0 zamienia on w wyjątek z nazwą
-// komendy i kodem, bo `CallbackEvent` nie rozpoznaje liczby 1 jako błędu (#835).
+// komendy, kodem i zamaskowanym ogonem jej wyjścia, bo `CallbackEvent`
+// nie rozpoznaje liczby 1 jako błędu (#835).
 // Nie pisz tu gołego `Schedule::call(fn () => Artisan::call(...))` — pilnuje
 // tego `HarmonogramSprawdzaKodWyjsciaTest`.
 //
