@@ -6,15 +6,21 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\ZachowaneZdjecia;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -53,6 +59,10 @@ class CookedEventController extends Controller
         return view('pages.cooked.create', [
             'recipe' => $model->load(['author.profile', 'heroMedia']),
             'kluczWyslania' => $this->kluczDlaFormularza(),
+            // Zdjęcia, które przetrwały błąd innego pola (issue #872). Lista
+            // z `old()` to dane od klienta — przechodzi tę samą bramkę co
+            // przy zapisie, zanim dotknie zapytania (issue #871).
+            'zachowane' => $this->zachowaneZdjecia(old('media_ids', []), $request->user()),
         ]);
     }
 
@@ -103,7 +113,23 @@ class CookedEventController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('cook', $model);
 
-        $data = $request->validate([
+        $user = $request->user();
+
+        // ZDJĘCIA NAJPIERW, RESZTA PÓŹNIEJ — TA SAMA ZASADA CO C1
+        // W `PostController::store` (issue #872).
+        //
+        // Wcześniej jedna walidacja obejmowała zdjęcia i notatki, a pliki
+        // trafiały na dysk dopiero po niej. „1h 30" w polu minut odsyłało
+        // formularz z tekstem, ale BEZ zdjęcia: `withInput()` nie przenosi
+        // plików. Zdjęcie jest opcjonalne, więc człowiek poprawiał czas,
+        // klikał „Wyślij" i autor przepisu dostawał wykonanie bez zdjęcia.
+        // AGENTS.md §5: poprawne dane nigdy nie znikają.
+        //
+        // Teraz poprawne zdjęcia zapisują się przed walidacją pozostałych
+        // pól i wracają jako identyfikatory w ukrytych polach. Zdjęcia
+        // porzucone po zamknięciu karty sprząta
+        // `kuking:sprzataj-osierocone-zdjecia` po dobie karencji.
+        $request->validate([
             // BYŁO "max:4" wpisane tu na sztywno, niezależnie od
             // `config('kuking.media.max_per_post')` — dokładnie ten rozjazd
             // (ta sama liczba w dwóch miejscach) pozwolił na wysyłkę do
@@ -112,11 +138,8 @@ class CookedEventController extends Controller
             // Teraz obowiązuje TEN SAM budżet co w PostController.
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-            'note' => ['nullable', 'string', 'max:2000'],
-            'changes_note' => ['nullable', 'string', 'max:1000'],
-            'would_make_again' => ['nullable', 'boolean'],
-            'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+            'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'media_ids.*' => ['uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             // Wcześniej nie było tu komunikatu — przy przekroczeniu rozmiaru
@@ -124,6 +147,36 @@ class CookedEventController extends Controller
             // komunikat Laravela. To łamie "błędy po polsku" z AGENTS.md.
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+            'media_ids.*.uuid' => LimityZdjec::komunikatZepsutegoZachowanegoZdjecia(),
+        ]);
+
+        try {
+            $mediaIds = $this->zbierzZdjecia($request, $user);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+        }
+
+        // „Usuń to zdjęcie" przy zachowanym zdjęciu — świadoma decyzja, nie
+        // wysłanie wykonania. Nowo wybrane w tym samym kliknięciu pliki już
+        // leżą na dysku i zostają na liście, żeby nie przepadły.
+        if ($request->filled('usun_zdjecie')) {
+            $usun = $request->input('usun_zdjecie');
+            $mediaIds = array_values(array_filter($mediaIds, fn (string $id): bool => $id !== $usun));
+
+            return redirect()->route('cooked.create', $model->slug)
+                ->withInput($this->wejscieBezPlikow($request, $mediaIds));
+        }
+
+        // `Validator::make`, nie `$request->validate()`: ten drugi sam
+        // odsyła stare dane i nadpisałby nimi `media_ids`, które właśnie
+        // chcemy przekazać — z nowo zapisanymi zdjęciami włącznie.
+        $walidator = Validator::make($request->all(), [
+            'note' => ['nullable', 'string', 'max:2000'],
+            'changes_note' => ['nullable', 'string', 'max:1000'],
+            'would_make_again' => ['nullable', 'boolean'],
+            'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
+            'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+        ], [
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
             'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
@@ -151,7 +204,11 @@ class CookedEventController extends Controller
             'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
 
-        $user = $request->user();
+        if ($walidator->fails()) {
+            return back()->withErrors($walidator)->withInput($this->wejscieBezPlikow($request, $mediaIds));
+        }
+
+        $data = $walidator->validated();
 
         // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
         //
@@ -171,12 +228,6 @@ class CookedEventController extends Controller
         $perceivedDifficulty = empty($data['perceived_difficulty']) ? null : $data['perceived_difficulty'];
 
         try {
-            $mediaIds = [];
-
-            foreach ($request->file('photos', []) as $photo) {
-                $mediaIds[] = $this->storeImage->handle($user, $photo)->getKey();
-            }
-
             $event = $this->record->handle(
                 cook: $user,
                 recipe: $model,
@@ -184,13 +235,16 @@ class CookedEventController extends Controller
                 mediaIds: $mediaIds,
                 wouldMakeAgain: $wouldMakeAgain,
                 perceivedDifficulty: $perceivedDifficulty,
-                actualMinutes: $data['actual_minutes'] ?? null,
+                // Walidacja `integer` przepuszcza napis „90", a akcja przyjmuje
+                // `?int` pod `strict_types` — bez rzutowania każdy wpisany
+                // czas kończył się ekranem 500 (zmierzone przy #872).
+                actualMinutes: isset($data['actual_minutes']) ? (int) $data['actual_minutes'] : null,
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['note' => $e->getMessage()]);
+            return back()->withInput($this->wejscieBezPlikow($request, $mediaIds))->withErrors(['note' => $e->getMessage()]);
         }
 
         // DRUGIE KLIKNIĘCIE „WYŚLIJ" — wykonanie jest to samo, co przy
@@ -208,6 +262,75 @@ class CookedEventController extends Controller
         return redirect()->route('cooked.show', $event)->with('status',
             'Wykonanie zapisane.',
         );
+    }
+
+    /**
+     * Zdjęcia do tego wykonania: zachowane po wcześniejszym błędzie plus
+     * nowo wgrane, w tej kolejności. Limit liczony na sumie — inaczej dałoby
+     * się go obejść, dzieląc zdjęcia między pliki i ukryte pola.
+     *
+     * @return list<string>
+     */
+    private function zbierzZdjecia(Request $request, User $user): array
+    {
+        $odzyskane = $this->zachowaneZdjecia($request->input('media_ids', []), $user)
+            ->map(fn (Media $media): string => (string) $media->getKey())
+            ->all();
+
+        $nowe = [];
+
+        foreach ($request->file('photos', []) as $photo) {
+            $nowe[] = $this->storeImage->handle($user, $photo)->getKey();
+        }
+
+        $wszystkie = array_values(array_unique([...$odzyskane, ...$nowe]));
+
+        if (count($wszystkie) > LimityZdjec::maksZdjecNaWysylke()) {
+            throw new BladDlaCzlowieka(LimityZdjec::komunikatZaDuzoZdjec());
+        }
+
+        return $wszystkie;
+    }
+
+    /**
+     * Własne, nieprzypięte zdjęcia z listy od klienta (issue #871, #872).
+     *
+     * UUID w formularzu to nie autoryzacja (AGENTS.md §7): bramka właściciela
+     * i „nieprzypięte do wpisu" stoi w `ZachowaneZdjecia`, a tu dochodzi
+     * „nieprzypięte do innego wykonania" — zdjęcie z wczorajszego
+     * „Ugotowałem" nie wskakuje do dzisiejszego.
+     *
+     * @return Collection<int, Media>
+     */
+    private function zachowaneZdjecia(mixed $mediaIds, ?User $user): Collection
+    {
+        $zdjecia = ZachowaneZdjecia::wKolejnosci($mediaIds, $user?->getKey());
+
+        if ($zdjecia->isEmpty()) {
+            return $zdjecia;
+        }
+
+        $przypiete = DB::table('cooked_event_media')
+            ->whereIn('media_id', $zdjecia->map(fn (Media $media): string => (string) $media->getKey())->all())
+            ->pluck('media_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all();
+
+        return $zdjecia
+            ->reject(fn (Media $media): bool => in_array((string) $media->getKey(), $przypiete, true))
+            ->values();
+    }
+
+    /**
+     * Stare dane do formularza bez plików, z listą zdjęć, które już leżą na
+     * serwerze. `usun_zdjecie` nie wraca — to był jednorazowy przycisk.
+     *
+     * @param  list<string>  $mediaIds
+     * @return array<string, mixed>
+     */
+    private function wejscieBezPlikow(Request $request, array $mediaIds): array
+    {
+        return $request->except('photos', 'media_ids', 'usun_zdjecie') + ['media_ids' => $mediaIds];
     }
 
     public function show(Request $request, CookedEvent $cookedEvent): View

@@ -197,6 +197,18 @@ final class LimityZdjec
             .self::maksMegabajtowDoKomunikatu().' MB, i spróbuj jeszcze raz.';
     }
 
+    /**
+     * Zepsuty identyfikator zachowanego zdjęcia w `media_ids[]` (issue #871).
+     *
+     * Zwykły formularz wysyła tam wyłącznie UUID-y zdjęć, które już leżą na
+     * serwerze — ten komunikat widzi ktoś z uszkodzonym albo spreparowanym
+     * formularzem. Mówi, co zrobić, zamiast „musi być poprawnym UUID".
+     */
+    public static function komunikatZepsutegoZachowanegoZdjecia(): string
+    {
+        return 'Nie udało się odczytać jednego z zachowanych zdjęć. Jeśli go nie widzisz, wybierz to zdjęcie jeszcze raz.';
+    }
+
     public static function komunikatZaDuzoZdjec(): string
     {
         $limit = self::maksZdjecNaWysylke();

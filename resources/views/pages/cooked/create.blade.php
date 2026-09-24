@@ -9,7 +9,9 @@
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
 
-    <x-error-summary />
+    {{-- Błąd pojedynczego pliku ma klucz `photos.0`, a pole plików jest jedno:
+         `f-photos` (issue #874). --}}
+    <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
@@ -38,6 +40,27 @@
              obwódkę fokusu rysuje reguła sąsiedztwa. --}}
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie tego, co Ci wyszło</span>
+
+            {{-- Zdjęcia, które przetrwały błąd innego pola (issue #872).
+                 Przeglądarka nie pozwala wypełnić pola pliku z serwera, więc
+                 wracają jako identyfikatory. Listę przygotowuje kontroler
+                 i przepuszcza przez bramkę właściciela (issue #871). --}}
+            @if(($zachowane ?? collect())->isNotEmpty())
+                <div class="notice">
+                    <strong>Twoje zdjęcia są zachowane.</strong>
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co wypisaliśmy na górze formularza.
+                    <ul class="stack-tight lista-naga mt-3">
+                        @foreach($zachowane as $zdjecie)
+                            <li>
+                                <input type="hidden" name="media_ids[]" value="{{ $zdjecie->getKey() }}">
+                                <x-photo :media="$zdjecie" variant="thumb" :zoom="false" />
+                                <button class="btn btn-quiet" type="submit" name="usun_zdjecie" value="{{ $zdjecie->getKey() }}" formnovalidate>Usuń to zdjęcie</button>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
@@ -52,6 +75,7 @@
             </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+            @error('media_ids.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
