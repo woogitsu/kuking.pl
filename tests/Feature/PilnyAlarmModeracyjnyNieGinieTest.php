@@ -343,22 +343,42 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $this->assertSame('kanal_alarmowy_wylaczony', $odpowiedz->json('checks.alarmy_moderacji.error'));
     }
 
-    public function test_po_wpisaniu_adresu_zalegly_alarm_da_sie_doslac(): void
+    /**
+     * Regresja z przeglądu: do dosłania nie wolno potrzebować DRUGIEJ ANALIZY.
+     * `PrzeanalizujTresc` jest zlecane tylko przy publikacji, więc w produkcji
+     * nikt tej treści drugi raz nie przeanalizuje. Dosyła komenda
+     * z harmonogramu — i to ją tu wołamy, a nie analizę.
+     */
+    public function test_po_wpisaniu_adresu_zalegly_alarm_dosyla_komenda_i_sonda_gasnie(): void
     {
         Notification::fake();
         config(['kuking.moderation.model.alarm_email' => null]);
         $this->modelWidziPilne();
 
-        $wpis = $this->wpis($this->osoba('doslanie'));
-        $this->analizuj($wpis);
+        $this->analizuj($this->wpis($this->osoba('doslanie')));
 
         $this->assertSame(Report::ALARM_BEZ_ADRESU, $this->oznaczenie()?->alarm_pilny_stan);
 
+        // Bez adresu komenda nie ma dokąd pisać — i nie jest to jej porażka.
+        $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
+        Notification::assertNothingSent();
+        $this->assertSame('kanal_alarmowy_wylaczony', $this->get('/health')->json('checks.alarmy_moderacji.error'));
+
+        // Właściciel wpisuje adres. Do najbliższego przebiegu sonda mówi już
+        // „nie dotarło", nie „kanał wyłączony" — ustawienia są poprawione.
         config(['kuking.moderation.model.alarm_email' => self::ALARM]);
-        $this->analizuj($wpis);
+        $this->assertSame('pilny_alarm_nie_dotarl', $this->get('/health')->json('checks.alarmy_moderacji.error'));
+
+        $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
         $this->assertSame(Report::ALARM_ZLECONY, $this->oznaczenie()?->alarm_pilny_stan);
+        $this->assertNotNull($this->oznaczenie()?->alarm_pilny_zlecony_at);
+        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+
+        // Następna godzina: nic do dosłania, drugiego listu nie ma.
+        $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
     }
 
     // ═══════════════════════════════════════════════════════════════════

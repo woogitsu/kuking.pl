@@ -335,12 +335,18 @@ Dziś sprawa pilna **albo dociera, albo zostawia ślad, że nie dotarła**:
 | `bez_adresu` | `KUKING_MODEL_ALARM_EMAIL` jest pusty, kanał alarmowy nie istnieje. Naprawia to wpisanie adresu, nie ponowienie |
 | `nieudany` | Zlecenie listu rzuciło wyjątkiem; wyjątek poszedł do `report()` |
 
-Sonda `alarmy_moderacji` w `/health` pyta o wiersze ze stanem ustawionym
-i pustym `alarm_pilny_zlecony_at` — **bez okna czasowego**, więc sprawa
-z nocy nie robi się niewidzialna o świcie. Gaśnie dopiero wtedy, gdy alarm
-zostanie zlecony naprawdę. Ponowna analiza tej samej treści **dosyła**
-zaległy alarm, bo `OznaczDoPrzegladu` oddaje teraz istniejący wiersz zamiast
-`null`.
+Zaległy alarm **dosyła komenda** `kuking:doslij-pilne-alarmy`, co godzinę
+z harmonogramu — tylko przy sprawach nadal otwartych, najwyżej jeden list na
+sprawę (zajęcie wiersza w bazie). Nie trzeba do tego drugiej analizy treści:
+ta jest zlecana tylko przy publikacji. Po wpisaniu brakującego adresu zaległe
+listy wychodzą same, najpóźniej w godzinę.
+
+Sonda `alarmy_moderacji` w `/health` świeci przy **otwartej** sprawie pilnej
+bez zleconego alarmu, młodszej niż 72 godziny — więc sprawa z nocy nie robi
+się niewidzialna o świcie, a zamknięcie sprawy w panelu sondę gasi. Pełna
+reguła i co zrobić przy każdym kodzie: `docs/infra/MONITORING_BLEDOW.md` §8.
+Sprawa już zamknięta nie dostaje alarmu także przy ponowionej analizie
+(`OznaczDoPrzegladu` oddaje wtedy `null`).
 
 **Limit poczty:** EmailLabs, plan darmowy, **300 listów dziennie**, dzielone
 z listami do użytkowników (potwierdzenia rejestracji, zmiany adresu,

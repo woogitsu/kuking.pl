@@ -44,9 +44,11 @@ final class OznaczDoPrzegladu
      * nie znaczy „pierwszy awatar tego konta i już nigdy więcej".
      *
      * @param  list<Sygnal>  $sygnaly  powody, dla których automat podniósł rękę
-     * @return ?Report `null` WYŁĄCZNIE wtedy, gdy nie ma czego oznaczać (brak
-     *                 sygnałów, nieznany typ celu). Gdy treść była już
-     *                 oglądana przez automat, wraca ISTNIEJĄCY wiersz — patrz
+     * @return ?Report `null`, gdy nie ma czego oznaczać (brak sygnałów,
+     *                 nieznany typ celu) albo gdy automat oznaczył tę treść
+     *                 wcześniej, a sprawa jest już zamknięta (`doAlarmu()`).
+     *                 Gdy treść była już oglądana przez automat, a sprawa
+     *                 jest otwarta, wraca ISTNIEJĄCY wiersz — patrz
      *                 „DLACZEGO NIE `null`" niżej (issue #1051).
      */
     public function handle(Post|Comment|Media $tresc, array $sygnaly): ?Report
@@ -98,7 +100,7 @@ final class OznaczDoPrzegladu
         $juz = $this->istniejace($typ, (string) $tresc->getKey());
 
         if ($juz !== null) {
-            return $juz;
+            return $this->doAlarmu($juz);
         }
 
         try {
@@ -145,7 +147,9 @@ final class OznaczDoPrzegladu
             // Drugie zadanie z kolejki zdążyło pierwsze. Dla kolejki
             // moderatora to jest ta sama, jedna pozycja — ale wiersz oddajemy,
             // żeby alarm miał na czym pracować (powód wyżej).
-            return $this->istniejace($typ, (string) $tresc->getKey());
+            $juz = $this->istniejace($typ, (string) $tresc->getKey());
+
+            return $juz === null ? null : $this->doAlarmu($juz);
         }
 
         /*
@@ -191,6 +195,27 @@ final class OznaczDoPrzegladu
             ->where('target_type', $typ)
             ->where('target_id', $id)
             ->first();
+    }
+
+    /**
+     * Istniejący wiersz oddany wołającemu — albo `null`, gdy sprawa jest już
+     * ROZSTRZYGNIĘTA albo ODRZUCONA.
+     *
+     * `istniejace()` celowo widzi wszystkie statusy (pamięć decyzji
+     * człowieka, niżej), ale wołający robi z oddanym wierszem jedno: woła
+     * `AlarmujModeratora`. Przy sprawie zamkniętej to byłby list „pilna
+     * pozycja w kolejce" o pozycji, której w kolejce nie ma — i zdarzało się
+     * to realnie przy `queue:retry` starego zadania o wierszu sprzed migracji
+     * #1051 (`alarm_pilny_stan IS NULL`), bo `handle()` alarmu dopisuje wtedy
+     * stan i wysyła. Zamknięta sprawa ma za sobą człowieka; alarm o niej
+     * niczego nie przyspiesza.
+     *
+     * Nowe oznaczenie i tak nie powstaje — `null` tutaj znaczy tylko „nie ma
+     * o czym alarmować", obietnica „odrzucone nie wraca" zostaje.
+     */
+    private function doAlarmu(Report $juz): ?Report
+    {
+        return $juz->jestRozstrzygniete() ? null : $juz;
     }
 
     /**

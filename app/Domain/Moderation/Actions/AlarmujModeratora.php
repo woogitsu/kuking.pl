@@ -7,6 +7,7 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Models\Report;
 use App\Notifications\PilnyAlarmModeracyjny;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
@@ -146,6 +147,78 @@ final class AlarmujModeratora
         }
 
         $this->zapisz($oznaczenie, Report::ALARM_ZLECONY, znacznik: true);
+
+        return Report::ALARM_ZLECONY;
+    }
+
+    /**
+     * DOSŁANIE ALARMU, KTÓRY NIE DOTARŁ (`kuking:doslij-pilne-alarmy`).
+     *
+     * Bez listy sygnałów, bo komenda jej nie ma i mieć nie może — pilność
+     * żyła w pamięci workera. Dowodem pilności jest tu SAM STAN na wierszu:
+     * `OznaczDoPrzegladu` stawia go wyłącznie przy sprawie pilnej.
+     *
+     * KOLEJNOŚĆ ODWROTNA NIŻ W `handle()` — ZAJMIJ, POTEM WYŚLIJ, W JEDNEJ
+     * TRANSAKCJI. Tu wolno, bo komenda chodzi co godzinę i może zdarzyć się
+     * wyścig dwóch przebiegów (wdrożenie: stary i nowy kontener,
+     * `onOneServer()` pilnuje tylko tej samej minuty). Warunkowy `UPDATE`
+     * rozstrzyga go w bazie: dokładnie jeden przebieg dostaje wiersz, drugi
+     * widzi zero i nie wysyła niczego — ten sam wzorzec co
+     * `NotifyReporterReceipt`. Powiadomienie jest kolejkowane
+     * (`ShouldQueue`), a kolejka to tabela `jobs` w tej samej bazie, więc
+     * zadanie wysyłki powstaje W TEJ SAMEJ transakcji: albo jest znacznik
+     * i zadanie, albo żadne. Awaria zlecenia cofa znacznik.
+     *
+     * @return string `Report::ALARM_ZLECONY`, `Report::ALARM_BEZ_ADRESU`,
+     *                `Report::ALARM_NIEUDANY` albo `self::JUZ_ZLECONY`, gdy
+     *                wiersz zajął ktoś inny albo sprawa przestała być do
+     *                dosłania (zamknięta w międzyczasie)
+     */
+    public function doslij(Report $oznaczenie): string
+    {
+        $adres = config('kuking.moderation.model.alarm_email');
+
+        if (! is_string($adres) || $adres === '') {
+            return Report::ALARM_BEZ_ADRESU;
+        }
+
+        try {
+            $zajete = DB::transaction(function () use ($oznaczenie, $adres): bool {
+                $zmiana = [
+                    'alarm_pilny_stan' => Report::ALARM_ZLECONY,
+                    'alarm_pilny_zlecony_at' => now(),
+                ];
+
+                $zajete = Report::query()
+                    ->whereKey($oznaczenie->getKey())
+                    ->pilneDoDoslania()
+                    ->update($zmiana);
+
+                if ($zajete === 0) {
+                    return false;
+                }
+
+                $oznaczenie->forceFill($zmiana);
+                Notification::route('mail', $adres)->notify(new PilnyAlarmModeracyjny($oznaczenie));
+
+                return true;
+            });
+        } catch (Throwable $awaria) {
+            // Transakcja cofnęła znacznik — wiersz wraca do „nie dotarł"
+            // i następny przebieg spróbuje znowu. Powód wyjątku jak w `handle()`.
+            report($awaria);
+            $oznaczenie->refresh();
+
+            return $this->zapisz($oznaczenie, Report::ALARM_NIEUDANY)
+                ? Report::ALARM_NIEUDANY
+                : self::JUZ_ZLECONY;
+        }
+
+        if (! $zajete) {
+            $oznaczenie->refresh();
+
+            return self::JUZ_ZLECONY;
+        }
 
         return Report::ALARM_ZLECONY;
     }

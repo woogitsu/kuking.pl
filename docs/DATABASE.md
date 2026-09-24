@@ -2288,8 +2288,9 @@ skoro powstał po to, żeby szczelinę zamknąć.
 
 Indeks częściowy `reports_pilny_alarm_bez_sladu` obejmuje dokładnie
 `alarm_pilny_stan IS NOT NULL AND alarm_pilny_zlecony_at IS NULL`, czyli
-wiersze, o które pyta sonda `alarmy_moderacji` w `/health`
-(`Report::scopePilneBezAlarmu()`). Wiersz **wychodzi** z indeksu w chwili,
+wiersze, z których biorą sonda `alarmy_moderacji` w `/health` i komenda
+`kuking:doslij-pilne-alarmy` (`Report::scopePilneBezAlarmu()`, zawężane
+w `scopePilneDoDoslania()` do spraw otwartych). Wiersz **wychodzi** z indeksu w chwili,
 w której alarm dochodzi do skutku, więc indeks zostaje mały na zawsze.
 
 CHECK `reports_alarm_pilny_spojny_check` pilnuje zamkniętego słownika

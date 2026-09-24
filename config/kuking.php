@@ -2934,6 +2934,24 @@ return [
              * podsumowaniem (`kuking:podsumowanie-automatu`).
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+
+            /*
+             * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
+             * `kuking:doslij-pilne-alarmy`, co godzinę).
+             *
+             * `alarm_partia` — ile spraw jeden przebieg bierze najwyżej. Pilnych
+             * spraw jest w normalnym tygodniu kilka; limit jest bezpiecznikiem
+             * na dzień, w którym kanał leżał długo, żeby jeden przebieg nie zjadł
+             * dobowego limitu poczty (300 listów, dzielone z rejestracją).
+             *
+             * `alarm_sonda_godzin` — jak długo zaległy alarm OTWARTEJ sprawy
+             * trzyma `/health` w stanie `degraded`. 72, nie 24: sprawa z piątku
+             * wieczorem ma być widoczna jeszcze w poniedziałek rano, a serwis
+             * prowadzi jedna osoba, nie dyżur. Pełna reguła
+             * w `docs/infra/MONITORING_BLEDOW.md`.
+             */
+            'alarm_partia' => 50,
+            'alarm_sonda_godzin' => 72,
         ],
     ],
 

@@ -30,6 +30,12 @@ class Report extends Model
     public const STATUS_REJECTED = 'rejected';
 
     /**
+     * Statusy sprawy, która nadal czeka na człowieka — ta sama lista co
+     * w `isOpen()`, jako stała dla zapytań.
+     */
+    public const STATUSY_OTWARTE = [self::STATUS_OPEN, self::STATUS_TRIAGE, self::STATUS_REVIEWING];
+
+    /**
      * Powody zgłoszenia w języku, który rozumie zgłaszający.
      * Klucz idzie do bazy, wartość na ekran.
      */
@@ -268,20 +274,46 @@ class Report extends Model
      * przepadło w ostatniej godzinie", tylko „czy cokolwiek pilnego nadal
      * nie dotarło". Alarm z oknem czasowym gaśnie sam, czyli sprawa z nocy
      * jest rano znowu niewidoczna — a to jest ta sama cicha porażka, tylko
-     * o kilka godzin późniejsza. Gaśnie dopiero wtedy, gdy alarm zostanie
-     * zlecony naprawdę.
+     * o kilka godzin późniejsza. Z wiersza w tym zakresie wychodzi się
+     * wyłącznie zleceniem alarmu. Sonda w `/health` bierze z niego tylko
+     * sprawy otwarte i ma własne, 72-godzinne okno (po przeglądzie #1268 —
+     * patrz `pilneDoDoslania()` i `HealthController::sprawdzPilneAlarmy()`);
+     * ten zakres zostaje bez okna, bo jest dowodem, nie dzwonkiem.
      *
      * STATUS SPRAWY TU NIE WCHODZI CELOWO. Moderator może zamknąć sprawę
      * w panelu, nigdy nie dostawszy o niej listu — i to jest prawdziwy,
-     * zdarzający się przebieg (wszedł do kolejki z innego powodu). Zaległy
-     * alarm zostaje wtedy zaległy: pytanie brzmi „czy kanał alarmowy
-     * zadziałał", a nie „czy ktoś się w końcu domyślił".
+     * zdarzający się przebieg (wszedł do kolejki z innego powodu). Ten zakres
+     * odpowiada więc na pytanie „czy kanał alarmowy zadziałał" i zostaje
+     * dowodem w bazie. Co da się jeszcze dosłać i o co pyta sonda — to
+     * `pilneDoDoslania()` niżej, już tylko dla spraw otwartych.
      */
     public function scopePilneBezAlarmu(Builder $zapytanie): Builder
     {
         return $zapytanie
             ->whereNotNull('alarm_pilny_stan')
             ->whereNull('alarm_pilny_zlecony_at');
+    }
+
+    /**
+     * Pilne sprawy bez alarmu, które da się jeszcze DOSŁAĆ (issue #1051).
+     *
+     * Węższe niż `pilneBezAlarmu()` o jedno: sprawa musi być nadal OTWARTA.
+     * Po rozstrzygnięciu albo odrzuceniu człowiek już ją obejrzał i podjął
+     * decyzję — list „pilna pozycja w kolejce" o sprawie, której w kolejce nie
+     * ma, uczy tylko, że alarmy od serwisu wolno przewijać.
+     *
+     * Z tego samego zbioru korzystają dwie rzeczy i to jest celowe: komenda
+     * `kuking:doslij-pilne-alarmy` (co dosłać) i sonda `alarmy_moderacji`
+     * w `/health` (z oknem czasu, patrz `HealthController::sprawdzPilneAlarmy()`).
+     * Sonda, która świeci przy sprawie, której komenda nie ruszy, świeciłaby
+     * wiecznie — a gasić ją dałoby się tylko ręcznym SQL-em.
+     */
+    public function scopePilneDoDoslania(Builder $zapytanie): Builder
+    {
+        return $zapytanie
+            ->pilneBezAlarmu()
+            ->whereIn('alarm_pilny_stan', [self::ALARM_ZALEGLY, self::ALARM_NIEUDANY, self::ALARM_BEZ_ADRESU])
+            ->whereIn('status', self::STATUSY_OTWARTE);
     }
 
     public function reporter(): BelongsTo
@@ -339,7 +371,7 @@ class Report extends Model
 
     public function isOpen(): bool
     {
-        return in_array($this->status, [self::STATUS_OPEN, self::STATUS_TRIAGE, self::STATUS_REVIEWING], true);
+        return in_array($this->status, self::STATUSY_OTWARTE, true);
     }
 
     public function jestZgloszeniemPrawnym(): bool
