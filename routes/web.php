@@ -63,7 +63,6 @@ use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
-use App\Http\Controllers\WydanieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
 
@@ -100,12 +99,8 @@ Route::get('/szukaj', [SearchController::class, 'index'])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
-// Pełny SHA działającego wydania dla testu dymnego po wdrożeniu (#1012).
-// Bez grupy `web`: sonda pyta co kilka sekund, a każde pytanie zakładało
-// nową sesję i odsyłało `Set-Cookie` z sesją i tokenem CSRF. Punkt niczego
-// od klienta nie przyjmuje, więc ani sesji, ani CSRF nie potrzebuje.
-// Nagłówki bezpieczeństwa i zakaz cache stoją w stosie globalnym.
-Route::get('/wydanie', WydanieController::class)->withoutMiddleware('web')->name('wydanie');
+// `/wydanie` (#1012) NIE stoi tutaj — jest w `bootstrap/app.php` (`then:`),
+// poza grupą `web`, żeby nie zakładać sesji ani nie stawiać ciasteczek.
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
 

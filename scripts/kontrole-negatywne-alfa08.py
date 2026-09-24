@@ -113,7 +113,7 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
 # pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
-WYDANIE_TRASY = "routes/web.php"
+WYDANIE_TRASY = "bootstrap/app.php"
 WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 
 # Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
@@ -366,7 +366,7 @@ checks = [
     ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      akcja_rollback_wraca),
     ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
-     lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->withoutMiddleware('web')", "Route::get('/wydanie', WydanieController::class)")),
+     lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,

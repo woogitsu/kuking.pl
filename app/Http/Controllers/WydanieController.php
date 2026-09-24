@@ -32,9 +32,10 @@ use Illuminate\Http\JsonResponse;
  * `PreventSharedSessionCache` zareaguje na ciasteczko sesji. Sonda dodatkowo
  * dokleja zmienny parametr zapytania, więc nie trafia w klucz cache brzegu.
  *
- * BEZ SESJI I BEZ CSRF (`withoutMiddleware('web')` w routes/web.php). Sonda
- * pyta co kilka sekund; w grupie `web` każde pytanie zakładało nową sesję
- * i odsyłało `Set-Cookie`. Pilnuje tego WydanieWystawiaPelnyShaTest.
+ * BEZ SESJI I BEZ CSRF — trasa stoi w `bootstrap/app.php` (`then:`), poza
+ * grupą `web`, nie w routes/web.php. Sonda pyta co kilka sekund; w grupie
+ * `web` każde pytanie zakładało nową sesję i odsyłało `Set-Cookie`.
+ * Pilnuje tego WydanieWystawiaPelnyShaTest.
  */
 final class WydanieController
 {
