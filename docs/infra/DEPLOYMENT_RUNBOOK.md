@@ -677,6 +677,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
 | `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania odebrania dostępu od Meta |
 | `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
+| `OPENAI_MODERATION_KEY` | z panelu OpenAI (krok 8B) | **TAK** | Klucz moderacji modelem (D-055). **Tylko `production`.** `railway.ts` przekazuje go **wyłącznie** usłudze obsługującej kolejkę: `worker` po rozdzieleniu usług, `web` w roli `all` — tam działa `PrzeanalizujTresc`. Brak = model po cichu nie ocenia treści, deploy i `/health` zostają zielone (#1014) |
+| `KUKING_MODEL_ALARM_EMAIL` | skrzynka moderatora, którą ktoś naprawdę czyta | nie | Adres alarmów moderacji — to dane osoby, nie sekret. **Tylko `production`.** Czytają go trzy role, więc `railway.ts` daje go `web` (pilne zgłoszenia od ludzi), `worker` (pilne oznaczenia modelu) i `scheduler` (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Brak = zostaje sama kolejka w panelu, bez listów |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -987,15 +989,42 @@ tylko wtedy, gdy konfiguracja nadal obiecuje ochronę.
 
 ## KROK 8B. Moderacja modelem — sprawdzenie, czy klucz naprawdę działa
 
-**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do zmiennych Railway.
-**Ile zajmuje:** jedno polecenie.
+**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do Shared Variables środowiska
+`production` (zaznacz „Sealed") i po każdym `railway config apply`, które
+zmienia usługi — w tym przy odbiorze rozdzielenia usług (#595).
+**Ile zajmuje:** jedno polecenie na usługę.
 
 ```
 php artisan kuking:sprawdz-model
 ```
 
-W konsoli Railway (zakładka *Console* przy serwisie `kuking.pl`) — jesteś już
-wtedy w kontenerze, więc bez `railway ssh`.
+W konsoli Railway (zakładka *Console*) — jesteś już wtedy w kontenerze, więc
+bez `railway ssh`. **Na której usłudze:** tej, która obsługuje kolejkę. Dziś
+to jeden serwis `kuking.pl` w roli `all`; po rozdzieleniu usług — `worker`.
+Na `web` w roli `web` i na `scheduler` komenda **ma** odpowiedzieć
+`WYŁĄCZONA — nie ma klucza`: `railway.ts` celowo nie daje im klucza (#1014).
+
+**Sama wartość w Shared Variables nie wystarczy.** Railway udostępnia ją tylko
+usługom, które ją referencują. Referencje trzyma `.railway/railway.ts`
+(`kluczModelu` i `KUKING_MODEL_ALARM_EMAIL` w `appEnv`); pilnuje ich
+`ModeracjaModelemDochodziDoWlasciwychRolTest`. Poza produkcją obie zmienne są
+jawnie puste — staging i preview nie wysyłają treści pod produkcyjnym kluczem
+ani alarmów do prawdziwego moderatora.
+
+**Adres alarmowy — sprawdzenie bez drukowania wartości.** Na każdej z usług
+`web`, `worker` i `scheduler` (albo na jednym serwisie w roli `all`):
+
+```
+sh -c 'test -n "$KUKING_MODEL_ALARM_EMAIL" && echo "adres alarmowy: ustawiony" || echo "adres alarmowy: BRAK"'
+```
+
+Komenda mówi tylko „jest / nie ma". Nie używaj `printenv` ani
+`php artisan config:show` — wypiszą adres do historii konsoli.
+
+**Zielony `/health` nie dowodzi, że moderacja modelem działa.** Brak klucza
+albo adresu jest świadomym fail-open (D-055), więc deploy, healthcheck
+i interfejs wyglądają tak samo z nimi i bez nich. Odbiór to wyłącznie wynik
+dwóch sprawdzeń wyżej na właściwych usługach.
 
 **Dlaczego to jest osobny krok, a nie sprawdzenie w `/health`.** Klient modelu
 (`App\Moderacja\KlientOpenAI`) celowo zwraca `null` przy KAŻDEJ porażce: brak

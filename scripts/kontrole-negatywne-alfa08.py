@@ -118,6 +118,13 @@ WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 OBRAZ_KOPII = "docker/kopia/Dockerfile"
 OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 
+# Referencje moderacji modelem w IaC (#1014). Strażnik czyta `railway.ts`,
+# bo bez `railway config apply` nie da się zobaczyć zmiennych usługi. Dwie
+# mutacje z kryteriów issue: klucz zdjęty z workera i adres zdjęty ze
+# wspólnego `appEnv` (a więc także ze schedulera).
+RAILWAY_IAC = ".railway/railway.ts"
+MODERACJA_ROL_TEST = "ModeracjaModelemDochodziDoWlasciwychRolTest"
+
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
 # niezależną biblioteką — strażnik widzi odczyt pliku, więc kontrola dodatnia
 # wyłącza samo czyszczenie XMP i test ma wtedy oblać.
@@ -352,6 +359,10 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Worker bez klucza modelu moderacji", RAILWAY_IAC, MODERACJA_ROL_TEST,
+     lambda s: replace_once(s, "      OPENAI_MODERATION_KEY: kluczModelu,\n", "")),
+    ("Scheduler bez adresu alarmowego", RAILWAY_IAC, MODERACJA_ROL_TEST,
+     lambda s: replace_once(s, "    KUKING_MODEL_ALARM_EMAIL: isProduction\n      ? ctx.shared.KUKING_MODEL_ALARM_EMAIL\n      : \"\",\n", "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -369,6 +380,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(MODERACJA_ROL_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

@@ -552,12 +552,51 @@ export default defineRailway((ctx) => {
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
 
+    // --- Adres alarmowy moderacji (#1014) -------------------------------------
+    // Czytają go TRZY role, nie jedna — dlatego stoi we wspólnym `appEnv`:
+    //   web       — `AlarmujOPilnymZgloszeniu` przy zgłoszeniu od człowieka
+    //               (`ReportContent`, `ZglosNielegalnaTresc`, D-236);
+    //   worker    — `AlarmujModeratora` w zadaniu `PrzeanalizujTresc`;
+    //   scheduler — `kuking:podsumowanie-automatu`
+    //               i `kuking:pilnuj-terminow-odwolan`.
+    // Pusty = „bez poczty", zostaje sama kolejka w panelu (D-055).
+    //
+    // TYLKO PRODUKCJA. Środowisko PR powstaje jako kopia środowiska bazowego,
+    // więc `ctx.shared` na preview może znaczyć wartość produkcyjną. Moderator nie może dostawać alarmów ze stagingu ani z PR-ów
+    // i brać ich za prawdziwe. Adres nie jest sekretem, ale to dane osoby —
+    // nie wpisuj go w tym pliku.
+    KUKING_MODEL_ALARM_EMAIL: isProduction
+      ? ctx.shared.KUKING_MODEL_ALARM_EMAIL
+      : "",
+
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
     // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
     // więc entrypoint podaje to flagą `php -d`.
     PHP_WORKER_MEMORY_LIMIT: "512M",
   };
+
+  // ---------------------------------------------------------------------------
+  //  KLUCZ MODELU MODERACJI (#1014) — CELOWO POZA `appEnv`.
+  //
+  //  Ocenę modelem wykonuje wyłącznie zadanie `PrzeanalizujTresc`
+  //  (`App\Moderacja\KlientOpenAI`), czyli kolejka. Klucz dostaje więc TYLKO
+  //  proces, który tę kolejkę obsługuje: `worker` po rozdzieleniu usług albo
+  //  `web` w roli `all`. Web w roli `web` i scheduler go nie potrzebują —
+  //  klucz tam to tylko szersza powierzchnia wycieku.
+  //
+  //  BEZ TEJ REFERENCJI MODERACJA MODELEM WYŁĄCZA SIĘ PO CICHU: klient zwraca
+  //  `null` (świadomy fail-open, D-055), deploy jest zielony, `/health` też.
+  //  Railway udostępnia Shared Variable tylko usługom, które ją referencują —
+  //  sama wartość w panelu nie wystarczy.
+  //
+  //  TYLKO PRODUKCJA, z tego samego powodu co adres alarmowy wyżej: staging
+  //  i preview nie mogą wysyłać treści pod produkcyjnym kluczem (rachunek,
+  //  limity, rejestr powierzenia). Poza produkcją funkcja jest JAWNIE
+  //  wyłączona. W Railwayu zaznacz „Sealed". Sprawdzenie po wdrożeniu:
+  //  `php artisan kuking:sprawdz-model` na usłudze z kluczem (runbook, KROK 8B).
+  // ---------------------------------------------------------------------------
+  const kluczModelu = isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "";
 
   // ---------------------------------------------------------------------------
   //  ŹRÓDŁO KODU
@@ -814,6 +853,9 @@ export default defineRailway((ctx) => {
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
       APP_ROLE: splitServices ? "web" : "all",
+      // Rola `all` obsługuje kolejkę, więc potrzebuje klucza modelu; rola
+      // `web` nie (patrz `kluczModelu`).
+      ...(splitServices ? {} : { OPENAI_MODERATION_KEY: kluczModelu }),
     },
   });
 
@@ -880,7 +922,12 @@ export default defineRailway((ctx) => {
       },
     },
 
-    env: { ...appEnv, APP_ROLE: "worker" },
+    env: {
+      ...appEnv,
+      APP_ROLE: "worker",
+      // Jedyny konsument klucza po rozdzieleniu usług (#1014).
+      OPENAI_MODERATION_KEY: kluczModelu,
+    },
   });
 
   // ===========================================================================
