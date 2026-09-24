@@ -87,7 +87,7 @@ class PowiadomienieOKomentarzuPodWlasnymWykonaniemTest extends TestCase
         $this->assertSame(0, $komentujaca->refresh()->unreadNotificationsCount());
     }
 
-    public function test_blokada_kucharza_z_autorem_przepisu_dalej_odcina_powiadomienie(): void
+    public function test_blokada_kucharza_z_autorem_przepisu_nie_odcina_powiadomienia(): void
     {
         [$autorka, $kucharz, $komentujaca, $przepis, $wykonanie] = $this->scenariusz();
 
@@ -99,9 +99,20 @@ class PowiadomienieOKomentarzuPodWlasnymWykonaniemTest extends TestCase
 
         app(BlockUser::class)->handle($kucharz, $autorka);
 
-        // Tak samo jak Policy: blokada z autorem przepisu zamyka kartę i powiadomienie.
-        $this->actingAs($kucharz->refresh())->get(route('cooked.show', $wykonanie))->assertForbidden();
-        $this->assertSame(0, $this->widoczneKomentarze($kucharz));
+        // D-259 (#1394): własne wykonanie otwiera się kucharzowi mimo blokady
+        // z autorem przepisu — więc powiadomienie o komentarzu pod nim zostaje.
+        // Lista i Policy odpowiadają tak samo.
+        $this->actingAs($kucharz->refresh())
+            ->get(route('cooked.show', $wykonanie))
+            ->assertOk()
+            ->assertDontSee($przepis->title);
+        $this->assertSame(1, $this->widoczneKomentarze($kucharz));
+        $this->assertSame(1, $kucharz->refresh()->unreadNotificationsCount());
+
+        // KONTROLA DODATNIA: wyjątek jest tylko dla właściciela wykonania.
+        // Autorka (w blokadzie z kucharzem) i obca osoba (przepis ukryty) nie widzą.
+        $this->actingAs($autorka->refresh())->get(route('cooked.show', $wykonanie))->assertForbidden();
+        $this->actingAs($this->user('obcaosoba'))->get(route('cooked.show', $wykonanie))->assertForbidden();
     }
 
     /**

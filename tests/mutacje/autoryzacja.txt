@@ -77,3 +77,15 @@ na: if (false) {
 oczekuj: Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
 ocena:
+---
+# #1385 + D-259: lista powiadomien odtwarza `CookedEventPolicy::view()` dla
+# wlasciciela wykonania — takze przy ukrytym przepisie i przy blokadzie
+# z autorem przepisu. Bez tej galezi karta sie otwiera, a powiadomienie
+# o komentarzu pod nia znika z listy i z licznika.
+nazwa: powiadomienie o komentarzu pod wlasnym wykonaniem zgodne z Policy
+plik: app/Models/Notification.php
+zamien: $w->where('ce.user_id', $widzId)
+na: $w->whereRaw('false')
+oczekuj: Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomienieOKomentarzuPodWlasnymWykonaniemTest.php
+ocena:
