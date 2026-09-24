@@ -138,6 +138,13 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
+# jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
+# końca, więc przechodzi host podszywający się sufiksem.
+STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
+STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -329,6 +336,10 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -344,6 +355,7 @@ run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(STRAZNIK_R2_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
