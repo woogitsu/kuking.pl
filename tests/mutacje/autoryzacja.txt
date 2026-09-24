@@ -24,6 +24,54 @@ oczekuj: zgloszen|Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ZglaszajacyDostajeOdpowiedzTest.php
 ocena:
 ---
+nazwa: moderator nie czyta cudzego szkicu przepisu (#1359)
+plik: app/Policies/RecipePolicy.php
+zamien: return in_array($recipe->status, [Recipe::STATUS_HIDDEN, Recipe::STATUS_REMOVED], true)
+na: return true
+oczekuj: szkic|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
+nazwa: moderator dalej widzi przepis ukryty przez moderacje (kontrola dodatnia #1359)
+plik: app/Policies/RecipePolicy.php
+zamien: [Recipe::STATUS_HIDDEN, Recipe::STATUS_REMOVED]
+na: []
+oczekuj: ukryt|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
+nazwa: sama rola moderatora nie otwiera kazdego zdjecia (#1360)
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: return $widz !== null && $widz->getKey() === $zdjecie->owner_id;
+na: return $widz !== null && ($widz->getKey() === $zdjecie->owner_id || $widz->isModerator());
+oczekuj: moderator|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
+nazwa: zdjecie z wlasnej sprawy wymaga 2FA obslugi (#1360)
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: && $widz->hasTwoFactorConfirmed()
+na: && true
+oczekuj: 2FA|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
+nazwa: wyjatek zgloszenia dotyczy tylko zgloszonego pliku (#1360)
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: ->where('target_id', (string) $zdjecie->getKey())
+na: ->whereNotNull('target_id')
+oczekuj: inne zdj|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
+nazwa: obsluga widzi zdjecie bedace celem zgloszenia (kontrola dodatnia #1360)
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: return $this->celemZgloszeniaDlaObslugi($widz, $zdjecie);
+na: return false;
+oczekuj: cel zg|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziTylkoSprawyModeracyjneTest.php
+ocena:
+---
 nazwa: publiczny zeszyt konta zbanowanego jest niedostepny
 plik: app/Policies/CollectionPolicy.php
 zamien: if (! $collection->owner->jestDostepnyJakoAutor()) {

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Domain\Moderation\ModeratedContent;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -150,7 +152,7 @@ final class DostepDoZdjecia
             return false;
         }
 
-        if ($this->wlascicielLubModerator($widz, $zdjecie)) {
+        if ($this->wlasciciel($widz, $zdjecie)) {
             return true;
         }
 
@@ -160,7 +162,7 @@ final class DostepDoZdjecia
             }
         }
 
-        return false;
+        return $this->celemZgloszeniaDlaObslugi($widz, $zdjecie);
     }
 
     /**
@@ -195,9 +197,9 @@ final class DostepDoZdjecia
             return new DecyzjaOZdjeciu(dlaWidza: $wynik, dlaAnonima: $wynik);
         }
 
-        // Anonim nie może być ani właścicielem, ani moderatorem, więc ta
-        // skrótowa ścieżka dotyczy wyłącznie odpowiedzi dla widza.
-        $dlaWidza = $this->wlascicielLubModerator($widz, $zdjecie);
+        // Anonim nie może być właścicielem, więc ta skrótowa ścieżka
+        // dotyczy wyłącznie odpowiedzi dla widza.
+        $dlaWidza = $this->wlasciciel($widz, $zdjecie);
         $dlaAnonima = false;
 
         foreach ($this->rodzice($zdjecie) as $rodzic) {
@@ -212,6 +214,10 @@ final class DostepDoZdjecia
             if ($dlaWidza && $dlaAnonima) {
                 break;
             }
+        }
+
+        if (! $dlaWidza) {
+            $dlaWidza = $this->celemZgloszeniaDlaObslugi($widz, $zdjecie);
         }
 
         return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima);
@@ -245,15 +251,48 @@ final class DostepDoZdjecia
     }
 
     /**
-     * Właściciel i moderator PRZED odpytaniem bazy o rodziców: zdjęcie
-     * osierocone (wgrane i nieprzypięte jeszcze do niczego — normalny stan
-     * w trakcie wypełniania formularza) musi być widoczne dla tego, kto je
-     * właśnie wgrał, inaczej podgląd w kreatorze byłby pustą ramką.
+     * Właściciel PRZED odpytaniem bazy o rodziców: zdjęcie osierocone
+     * (wgrane i nieprzypięte jeszcze do niczego — normalny stan w trakcie
+     * wypełniania formularza) musi być widoczne dla tego, kto je właśnie
+     * wgrał, inaczej podgląd w kreatorze byłby pustą ramką.
+     *
+     * MODERATORA TU JUŻ NIE MA (#1360, audyt AUTHZ-02). Sama rola dawała
+     * dostęp do KAŻDEGO gotowego zdjęcia — szkicu, prywatnego przepisu,
+     * skanu rodzinnej kartki i uploadu, którego autor nigdzie nie przypiął.
+     * Moderator widzi zdjęcie tak jak każdy: przez Policy rodzica, które same
+     * wiedzą, co jest sprawą moderacyjną (np. `RecipePolicy` dla przepisu
+     * ukrytego). Jedyny wyjątek jest przypięty do KONKRETNEJ sprawy —
+     * `celemZgloszeniaDlaObslugi()`.
      */
-    private function wlascicielLubModerator(?User $widz, Media $zdjecie): bool
+    private function wlasciciel(?User $widz, Media $zdjecie): bool
+    {
+        return $widz !== null && $widz->getKey() === $zdjecie->owner_id;
+    }
+
+    /**
+     * Zdjęcie, które SAMO jest celem zgłoszenia (`reports.target_type =
+     * media` — dziś zdjęcie profilowe oznaczone przez automat, issue #237).
+     *
+     * Po co wyjątek: osoba może podmienić awatar zaraz po oznaczeniu. Stary
+     * plik traci wtedy rodzica, a sprawa w `/admin/sygnaly` dalej czeka —
+     * bez tego moderator oceniałby pustą ramkę. Zakres jest wąski na trzy
+     * sposoby: tylko plik wskazany w zgłoszeniu (nie „zdjęcia tej osoby"),
+     * tylko czynny moderator, i tylko z potwierdzonym 2FA — ten sam warunek
+     * co grupa `/admin` (`moderator.2fa`), jedyne miejsce, gdzie ta
+     * miniatura się pokazuje.
+     *
+     * Pytamy na KOŃCU, gdy żaden rodzic nie przepuścił — zwykły widz nie
+     * płaci za to ani jednego zapytania.
+     */
+    private function celemZgloszeniaDlaObslugi(?User $widz, Media $zdjecie): bool
     {
         return $widz !== null
-            && ($widz->getKey() === $zdjecie->owner_id || $widz->isModerator());
+            && $widz->isModerator()
+            && $widz->hasTwoFactorConfirmed()
+            && Report::query()
+                ->where('target_type', ModeratedContent::TYPY[Media::class])
+                ->where('target_id', (string) $zdjecie->getKey())
+                ->exists();
     }
 
     /**
