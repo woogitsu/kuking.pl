@@ -84,7 +84,7 @@
                         czyta dwa razy (D-054).
                     --}}
                     <span class="btn btn-secondary profil-awatar-zmiana-akcja">
-                        {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                        {{ $p->zdjecieDoPokazania() !== null ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
                     </span>
                 </a>
             @else
@@ -375,7 +375,8 @@
         @else
             <div class="stack">
                 @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" :showRecipe="true" />
+                    <x-cooked-card :event="$event" :showRecipe="true"
+                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null" />
                 @endforeach
             </div>
             <x-show-more :paginator="$cookedEvents" czego="wykonań" />

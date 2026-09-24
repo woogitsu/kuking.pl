@@ -48,7 +48,7 @@
             ],
             [
                 'href' => route('settings.avatar'),
-                'nazwa' => $profile->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe',
+                'nazwa' => $profile->zdjecieDoPokazania() !== null ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe',
                 'podpis' => 'Po zdjęciu ludzie poznają, że po drugiej stronie jest człowiek.',
             ],
         ]" />

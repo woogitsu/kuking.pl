@@ -9,6 +9,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\Czas;
@@ -76,6 +77,10 @@ class ProfileController extends Controller
                 ->latest('published_at')->latest('id')->limit(3)->get()
             : collect();
 
+        $cookedEvents = $tab === 'ugotowane'
+            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
+            : null;
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -106,9 +111,8 @@ class ProfileController extends Controller
                     ->paginate(12)
                     ->withQueryString()
                 : null,
-            'cookedEvents' => $tab === 'ugotowane'
-                ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
-                : null,
+            'cookedEvents' => $cookedEvents,
+            'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
             'stats' => [
                 'posts' => $owner->posts()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
@@ -441,6 +445,47 @@ class ProfileController extends Controller
         });
 
         return $paginator;
+    }
+
+    /**
+     * Które przepisy z kart „Ugotowane” patrzący może otworzyć (issue #766).
+     *
+     * Karta wykonania pokazuje odnośnik do przepisu tylko wtedy, gdy
+     * `RecipePolicy::view` go wpuści — inaczej kucharz na własnym profilu
+     * klikał w przepis, który autor zrobił prywatnym albo moderacja ukryła,
+     * i dostawał 403. Pytanie polityki na każdej karcie osobno to jednak
+     * zapytanie o blokadę na kartę, a tego pilnuje
+     * `ProfilUgotowaneBezWachlarzaZapytanTest`.
+     *
+     * Stąd jedno zapytanie na stronę, tym samym zakresem co
+     * `tylkoZWidocznychPrzepisow()`:
+     *  - `null` — cudzy profil: lista jest już przefiltrowana tym zakresem,
+     *    więc każdy przepis na niej jest widoczny;
+     *  - lista id — własny profil (lista bez filtra): przepis spoza niej
+     *    karta sprawdza polityką sama, bo polityka bywa szersza od zakresu
+     *    (moderator). Tych kart jest mało i tylko one kosztują zapytanie.
+     *
+     * @return list<string>|null
+     */
+    private function przepisyWidoczneNaKartach(?LengthAwarePaginator $cookedEvents, ?User $viewer, bool $isOwner): ?array
+    {
+        if ($cookedEvents === null || ! $isOwner) {
+            return null;
+        }
+
+        $idPrzepisow = collect($cookedEvents->items())->pluck('recipe_id')->filter()->unique()->values();
+
+        if ($idPrzepisow->isEmpty()) {
+            return [];
+        }
+
+        return Recipe::query()
+            ->whereKey($idPrzepisow->all())
+            ->widoczneDla($viewer)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
     }
 
     /**

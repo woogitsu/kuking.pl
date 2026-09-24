@@ -4,7 +4,7 @@
     Zdjęcie cudzego wykonania jest tu najważniejszym elementem — to jest
     dowód, że przepis działa u zwykłego człowieka, a nie na sesji zdjęciowej.
 --}}
-@props(['event', 'showRecipe' => false])
+@props(['event', 'showRecipe' => false, 'przepisDostepny' => null])
 <article class="card">
     <div class="flex gap-3 items-center mb-3">
         <x-avatar :user="$event->user" :size="44" />
@@ -24,8 +24,29 @@
 
     @if($showRecipe)
         <p class="m-0 mb-3">
-            @if($event->recipe)
+            @if($event->recipe && ($przepisDostepny ?? \Illuminate\Support\Facades\Gate::allows('view', $event->recipe)))
                 z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
+            @elseif($event->recipe)
+                {{--
+                    Przepis istnieje, ale osoba, która patrzy, nie ma prawa go
+                    otworzyć (issue #766) — autor zmienił go na prywatny albo
+                    moderacja go ukryła. Własne wykonanie zostaje dostępne
+                    (`CookedEventPolicy::view`), ale odnośnik kończyłby się 403.
+                    Pytamy tę samą politykę co `RecipeController::show`,
+                    zamiast budować drugą regułę. Tytuł zostaje jako zwykły
+                    tekst — kucharz wie, co ugotował (tego samego pilnuje
+                    `ProfilZakladkaUgotowaneNieZdradzaTytuluTest`); „brak
+                    dostępu” to nie „przepis usunięty”, dlatego inne zdanie
+                    niż niżej.
+
+                    `przepisDostepny` podaje kontroler, gdy zna odpowiedź bez
+                    pytania o każdą kartę osobno (zakładka „Ugotowane”,
+                    `ProfileController::przepisyWidoczneNaKartach`).
+                --}}
+                z przepisu „{{ $event->recipe->title }}”. Ten przepis nie jest dla Ciebie dostępny.
+                @if(auth()->id() === $event->user_id)
+                    Twoje zdjęcie i notatka zostają.
+                @endif
             @else
                 {{--
                     Przepis został usunięty (audyt A23). Świadomie NIE sięgamy
