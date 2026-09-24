@@ -4,6 +4,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
 const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik'];
 const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik'].includes(r));
@@ -327,7 +328,29 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
       }
       if (s.stan === 'bramka') wymagaj(await page.locator('main .marka-panel-bramka[aria-labelledby="panel-wymaga-2fa"] #panel-wymaga-2fa').count() === 1, 'KARTA_BRAMKI');
       await sprawdzZwijaniePanelu(page);
-      const geo = await page.evaluate(() => {
+      /* Najpierw STAN, potem pomiar (24 września 2026). Motyw i skala wchodzą
+         na DOMContentLoaded, a przy `reducedMotion: 'reduce'` każda
+         właściwość dostaje przejście 0.01ms (`transition-property: all`
+         z `tokens.css`). Do tej pory mierzyliśmy po dwóch klatkach — na
+         DOM-NEW-02 to nie wystarczyło: `/admin/kuking-na-dzis` 1440/dark/100
+         miało tokeny już ciemne (sonda bez przejścia), a body i kartę
+         nawigacji jeszcze jasne, i padło z `P581_SKALA_MOTYW`, choć zrzut
+         chwilę później był poprawnie ciemny. Czekamy więc na oczekiwany
+         rozmiar pisma i kolor tekstu oraz na koniec wszystkich przejść.
+         Jeśli stan nie przyjdzie, NIE rzucamy tu: niżej ta sama asercja
+         SKALA_MOTYW oblewa z pełnym pomiarem, więc kod błędu zostaje ten sam. */
+      const oczekiwane = { font: 18 * scale / 100, ink: dark ? 'rgb(244, 245, 241)' : 'rgb(21, 23, 20)', motyw: dark ? 'dark' : 'light', skala: String(scale) };
+      const { ustalony } = await poczekajNaStan(page, {
+        arg: oczekiwane,
+        limitMs: 10_000,
+        warunek: (o, przejscia) => {
+          if (document.fonts.status !== 'loaded') return false;
+          const body = getComputedStyle(document.body);
+          return Math.abs(parseFloat(body.fontSize) - o.font) < .15 && body.color === o.ink && przejscia().length === 0;
+        },
+        pomiar: () => null,
+      });
+      const geo = await page.evaluate((oczekiwane) => {
         const box = selector => { const e = document.querySelector(selector); if (!e) return null; const b = e.getBoundingClientRect(), c = getComputedStyle(e); return { x: b.x, y: b.y, right: b.right, bottom: b.bottom, width: b.width, height: b.height, background: c.backgroundColor, color: c.color, radius: parseFloat(c.borderRadius), display: c.display, paddingLeft: parseFloat(c.paddingLeft), paddingRight: parseFloat(c.paddingRight), borderLeft: parseFloat(c.borderLeftWidth), borderRight: parseFloat(c.borderRightWidth), gap: parseFloat(c.columnGap) }; };
         const probe = document.createElement('i');
         probe.style.setProperty('transition', 'none', 'important');
@@ -335,11 +358,13 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
         document.body.append(probe);
         const kolor = token => { probe.style.color = `var(${token})`; return getComputedStyle(probe).color; };
         const tokens = { surface: kolor('--color-surface-raised'), active: kolor('--color-brand-tint'), activeInk: kolor('--color-brand-tint-ink') }; probe.remove();
-        return { viewport: innerWidth, scroll: document.documentElement.scrollWidth, font: parseFloat(getComputedStyle(document.body).fontSize), ink: getComputedStyle(document.body).color, desktop: matchMedia('(min-width:64rem)').matches, tokens, body: box('.app-body[data-marka-panel]'), nav: box('nav.side-nav[data-tryb-panelu]'), main: box('main'), content: box('main .marka-panel-tresc'), header: box('.marka-panel-naglowek'), active: box('nav.side-nav [aria-current=page]') };
-      });
+        const trwajace = document.getAnimations().filter(a => a instanceof CSSTransition && a.playState !== 'finished').map(a => a.transitionProperty);
+        return { oczekiwane, motyw: document.documentElement.dataset.theme ?? null, skala: document.documentElement.dataset.textScale ?? null, fonty: document.fonts.status, przejscia: trwajace, viewport: innerWidth, scroll: document.documentElement.scrollWidth, font: parseFloat(getComputedStyle(document.body).fontSize), ink: getComputedStyle(document.body).color, desktop: matchMedia('(min-width:64rem)').matches, tokens, body: box('.app-body[data-marka-panel]'), nav: box('nav.side-nav[data-tryb-panelu]'), main: box('main'), content: box('main .marka-panel-tresc'), header: box('.marka-panel-naglowek'), active: box('nav.side-nav [aria-current=page]') };
+      }, oczekiwane);
+      geo.ustalony = ustalony;
       wymagaj(geo.body && geo.header && geo.content && geo.nav, 'KOMPOZYCJA', geo);
       wymagaj(geo.scroll <= geo.viewport + 1, 'OVERFLOW', geo);
-      wymagaj(Math.abs(geo.font - 18 * scale / 100) < .15 && geo.ink === (dark ? 'rgb(244, 245, 241)' : 'rgb(21, 23, 20)'), 'SKALA_MOTYW', geo);
+      wymagaj(ustalony && Math.abs(geo.font - oczekiwane.font) < .15 && geo.ink === oczekiwane.ink && geo.motyw === oczekiwane.motyw && geo.skala === oczekiwane.skala, 'SKALA_MOTYW', geo);
       wymagaj(geo.nav.width > 0 && geo.nav.height > 0 && geo.nav.background === geo.tokens.surface && Math.abs(geo.nav.radius - 26) < .2, 'KARTA_NAWIGACJI', geo);
       await sprawdzCzytelnoscNawigacjiPanelu(page);
       wymagaj(geo.desktop ? geo.main.x >= geo.nav.right - 1 : geo.main.y >= geo.nav.bottom - 1, 'KOLEJNOSC', geo);

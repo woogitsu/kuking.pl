@@ -166,9 +166,20 @@ class CommentPolicy
      * Issue #932: moderator NIE usuwa tędy cudzego komentarza, nawet z 2FA.
      * Cudzy komentarz zdejmuje się decyzją „Usuń" w `/admin/zgloszenia`
      * — z uzasadnieniem, wpisem w `moderation_actions` i odwołaniem.
+     *
+     * Komentarza ukrytego albo zdjętego przez moderację nie usuwa nikt
+     * (issue #937) — autorowi zostaje odwołanie.
      */
     public function delete(User $user, Comment $comment): bool
     {
+        // Issue #937: po decyzji moderatora komentarz jest zamrożony także dla
+        // usunięcia. Przy odpowiedziach `DeleteComment` nadpisuje `body`
+        // placeholderem, więc autor albo autor wpisu kasowałby treść, którą
+        // moderator ocenił — a odwołanie (DSA art. 20) dotyczy właśnie jej.
+        if ($comment->status !== Comment::STATUS_PUBLISHED) {
+            return false;
+        }
+
         if ($user->getKey() === $comment->author_id) {
             return true;
         }
