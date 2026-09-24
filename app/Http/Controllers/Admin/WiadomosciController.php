@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -91,6 +92,9 @@ class WiadomosciController extends Controller
             // `null`, gdy sprawa jest otwarta — patrz
             // `PrzedawnioneWiadomosciDoOperatora::terminUsuniecia()` (#847).
             'terminUsuniecia' => $this->retencja->terminUsuniecia($wiadomosc),
+            // Zawsze z bazy, nigdy z `old()`: po konflikcie (#846) formularz
+            // ma nieść wersję, którą człowiek właśnie zobaczył nad nim.
+            'wersjaObslugi' => $wiadomosc->wersjaObslugi(),
         ]);
     }
 
@@ -101,18 +105,64 @@ class WiadomosciController extends Controller
         $dane = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', array_keys(ContactMessage::STATUSY))],
             'handler_note' => ['nullable', 'string', 'max:2000'],
+            'wersja' => ['nullable', 'string', 'max:64'],
         ], [
             'status.required' => 'Wybierz stan wiadomości.',
             'status.in' => 'Wybierz stan wiadomości.',
             'handler_note.max' => 'Notatka jest za długa — zmieść się w 2000 znakach.',
         ]);
 
-        // Notatka najpierw, stan potem. `oznaczJako()` zapisuje wiersz sam
-        // (musi, bo CHECK w bazie wymaga kompletu `status` + `handled_by` +
-        // `handled_at`), więc odwrotna kolejność gubiłaby notatkę przy
-        // przejściu na „Nowa", które czyści ślad obsługi.
-        $wiadomosc->forceFill(['handler_note' => $dane['handler_note'] ?? null])->save();
-        $wiadomosc->oznaczJako($dane['status'], $request->user());
+        $notatka = $dane['handler_note'] ?? null;
+        $wersjaFormularza = $dane['wersja'] ?? null;
+
+        $zapisana = DB::transaction(function () use ($wiadomosc, $dane, $notatka, $wersjaFormularza, $request): ?ContactMessage {
+            // Porównanie POD blokadą (issue #846): dwie karty otwarte na tej
+            // samej wersji szeregują się na `FOR UPDATE`, więc druga widzi
+            // już to, co zapisała pierwsza — także gdy żądania przychodzą
+            // kolejno, nie równocześnie. `null` = żądanie bez pola `wersja`
+            // (karta sprzed tej poprawki) — nie ma czego porównywać.
+            $locked = ContactMessage::query()->whereKey($wiadomosc->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($wersjaFormularza !== null && ! hash_equals($locked->wersjaObslugi(), $wersjaFormularza)) {
+                // Podwójne kliknięcie „Zapisz": drugie żądanie niesie starą
+                // wersję, ale chce dokładnie tego, co już jest w bazie. To
+                // nie konflikt — sukces bez zapisu (ten sam wyjątek co
+                // w `EditPost`, przegląd #981).
+                if (hash_equals($locked->wersjaObslugi(), ContactMessage::odciskObslugi($dane['status'], $notatka))) {
+                    return $locked;
+                }
+
+                return null;
+            }
+
+            // Notatka najpierw, stan potem. `oznaczJako()` zapisuje wiersz sam
+            // (musi, bo CHECK w bazie wymaga kompletu `status` + `handled_by` +
+            // `handled_at`), więc odwrotna kolejność gubiłaby notatkę przy
+            // przejściu na „Nowa", które czyści ślad obsługi.
+            $locked->forceFill(['handler_note' => $notatka])->save();
+            $locked->oznaczJako($dane['status'], $request->user());
+
+            return $locked;
+        }, 3);
+
+        if ($zapisana === null) {
+            // Nic nie zapisano. Notatka z formularza wraca do pola, a stan
+            // NIE — radio pokazuje stan z bazy, żeby ponowne „Zapisz" nie
+            // cofało go przez przypadek. Osobny klucz `wersja`, nie
+            // `handler_note`: notatka jest poprawna, więc pole nie dostaje
+            // `aria-invalid`; odnośnik w podsumowaniu prowadzi do sekcji
+            // z zapisanym stanem (`#stan-zapisany`).
+            return redirect()
+                ->route('admin.contact.show', $wiadomosc)
+                ->withInput($request->only('handler_note'))
+                ->withErrors(['wersja' => 'Ta wiadomość zmieniła się w innej karcie albo na innym '
+                    .'urządzeniu, więc nic nie zapisaliśmy. Nad formularzem widzisz, jak jest zapisana '
+                    .'teraz, a w polu „Notatka dla siebie” — Twój tekst. Popraw go, jeśli trzeba, '
+                    .'wybierz stan i naciśnij „Zapisz” jeszcze raz.'])
+                ->with('konflikt_stanu', true);
+        }
+
+        $wiadomosc = $zapisana;
 
         return redirect()
             ->route('admin.contact.show', $wiadomosc)

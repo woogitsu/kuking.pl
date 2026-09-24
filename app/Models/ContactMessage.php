@@ -169,6 +169,29 @@ class ContactMessage extends Model
     }
 
     /**
+     * Odcisk tego, co edytuje formularz „Stan wiadomości": stan i notatka
+     * (issue #846).
+     *
+     * Formularz niesie go z chwili otwarcia; `WiadomosciController::update()`
+     * porównuje go pod blokadą wiersza z bieżącym. Bez tego karta otwarta
+     * wcześniej nadpisywała po cichu nowszą notatkę i cofała stan.
+     *
+     * Odcisk, nie `updated_at` — ten sam powód co w `EditPost::wersja()`:
+     * sekundowa dokładność sklejałaby dwa zapisy z tej samej sekundy, a
+     * zmiana poza tym formularzem (np. wymazanie konta autora) dawałaby
+     * fałszywe ostrzeżenie. Nie potrzeba też nowej kolumny.
+     */
+    public function wersjaObslugi(): string
+    {
+        return self::odciskObslugi($this->status, $this->handler_note);
+    }
+
+    public static function odciskObslugi(?string $status, ?string $notatka): string
+    {
+        return hash('sha256', json_encode([$status, $notatka], JSON_THROW_ON_ERROR));
+    }
+
+    /**
      * Adres, pod którym da się tej osobie odpisać — albo `null`.
      *
      * Dla zalogowanego bierzemy adres Z KONTA, bo formularz go nie pyta

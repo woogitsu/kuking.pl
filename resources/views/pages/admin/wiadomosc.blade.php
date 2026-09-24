@@ -75,7 +75,9 @@
         </ul>
     </div>
 
-    <x-error-summary />
+    {{-- Konflikt wersji (#846) nie jest błędem żadnego pola — link prowadzi
+         do sekcji z zapisanym stanem tuż nad formularzem stanu. --}}
+    <x-error-summary :field-ids="['wersja' => 'stan-zapisany']" />
 
     {{--
         ═══════════════════════════════════════════════════════════════════
@@ -253,8 +255,21 @@
         @endif
     </section>
 
+    {{-- Issue #846: zapis odrzucony, bo wiadomość zmieniła się w innej
+         karcie. Zapisany stan tutaj, Twoja notatka w polu niżej. --}}
+    @if(session('konflikt_stanu') === true)
+        <section class="panel-formularza mt-5" aria-labelledby="stan-zapisany">
+            <h2 id="stan-zapisany" tabindex="-1">Tak ta wiadomość jest zapisana teraz</h2>
+            <p><strong>Stan:</strong> {{ $wiadomosc->statusLabel() }}</p>
+            <p><strong>Notatka:</strong></p>
+            <p class="whitespace-pre-line">{{ $wiadomosc->handler_note ?? '(bez notatki)' }}</p>
+            <p>Twoja notatka jest niżej, w formularzu — nic z niej nie zginęło.</p>
+        </section>
+    @endif
+
     <form id="stan-wiadomosci" class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
         @csrf
+        <input type="hidden" name="wersja" value="{{ $wersjaObslugi }}">
 
         <fieldset class="border-0 p-0">
             <legend class="font-bold mb-3">Stan wiadomości</legend>
