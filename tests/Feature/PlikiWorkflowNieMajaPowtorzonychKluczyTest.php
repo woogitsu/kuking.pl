@@ -57,7 +57,7 @@ class PlikiWorkflowNieMajaPowtorzonychKluczyTest extends TestCase
 
         $wciecieBloku = null;
 
-        foreach (preg_split('/\R/', $yaml) ?: [] as $numer => $wiersz) {
+        foreach (preg_split('/\r\n|\n|\r/', $yaml) ?: [] as $numer => $wiersz) {
             if (trim($wiersz) === '' || preg_match('/^\s*#/', $wiersz) === 1) {
                 continue;
             }

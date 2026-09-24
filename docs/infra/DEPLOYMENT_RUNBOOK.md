@@ -1865,11 +1865,17 @@ to jest oczekiwane.
 **Reguła 1 — „Assety Vite"** (kolejność: pierwsza)
 
 ```text
-Gdy:   starts_with(http.request.uri.path, "/build/")
+Gdy:   starts_with(http.request.uri.path, "/build/assets/")
 Wtedy: Cache eligibility     = Eligible for cache
        Edge TTL              = 1 rok
        Browser TTL           = 1 rok
 ```
+
+Manifest `/build/manifest.json` nie należy do reguły rocznej. Caddy wysyła
+`Cache-Control: no-cache`: plik nie ma hasha w nazwie, więc nie może być
+„immutable”. Przeglądarka go nie pobiera — czyta go Laravel z dysku (`@vite`).
+Jeśli istnieje starsza reguła `/build/*`, zawęź ją do `/build/assets/*`
+i usuń stary manifest z cache Cloudflare przy wdrożeniu poprawki #809.
 
 **Reguła 2 — „Statyka PWA"**
 
@@ -2043,9 +2049,15 @@ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://www.kuking.p
 curl -sI https://kuking.pl/ | grep -i "^\(cf-ray\|server\)"
 # Oczekiwane: cf-ray oraz server: cloudflare
 
-# 6. Assety Vite cache'owane na rok
-curl -sI https://kuking.pl/build/manifest.json | grep -i cache-control
-# Oczekiwane: public, max-age=31536000, immutable
+# 6. CSS i JS wskazane przez bieżącą stronę: HTTP 200, typ treści, roczny cache
+./scripts/sprawdz-wdrozenie.sh kuking.pl
+# Sonda wypisuje zbadane ścieżki; nie potwierdza całego buildu.
+# /build/manifest.json nie ma hasha: no-cache, bez rocznego immutable.
+# Brak odnośników /build/assets/ na stronie to teraz BŁĄD, nie ostrzeżenie:
+# gdy sonda failuje „Nie znaleziono własnego hashowanego CSS i JS”, zajrzyj
+# do źródła strony — odnośniki @vite muszą zaczynać się od /build/assets/
+# albo https://kuking.pl/build/assets/; popraw APP_URL (https, właściwy host)
+# i usuń/popraw ASSET_URL w Railway, potem wdrożenie i ponowna sonda.
 
 # 7. Endpoint Livewire NIE jest cache'owany
 curl -sI https://kuking.pl/livewire/update | grep -i "cache-control\|cf-cache-status"
@@ -2287,8 +2299,19 @@ railway logs --service web --environment production | tail -50
 
 Powtórz dla `worker` i `scheduler`. Czas: 2–5 minut.
 
-Albo z GitHuba: **Actions** → **Deploy** → **Run workflow** →
-environment `production`, action `redeploy`.
+**Z GitHuba rollbacku NIE zrobisz.** Action `redeploy` wdraża ponownie
+BIEŻĄCĄ wersję, a action `instrukcja-cofniecia` (do 23.09.2026: `rollback`)
+tylko wypisuje listę wdrożeń i tę instrukcję — niczego nie zmienia, wystawia
+ostrzeżenie i mówi to w podsumowaniu (issue #974). Railway CLI nie potrafi
+wskrzesić wybranego starszego wdrożenia; robi się to w panelu, jak wyżej.
+
+**Przed kliknięciem:** sprawdź, czy wdrożenia, które cofasz, nie niosły
+migracji `DROP`/`RENAME` (ścieżka C niżej) — stary kod musi pasować do
+schematu, który zostaje w bazie.
+
+**Po kliknięciu:** **Actions** → **Deploy** → **Run workflow** → action
+`smoke`, a pod `https://kuking.pl/wydanie` sprawdź, że pole `commit` wskazuje
+commit, do którego wracałeś.
 
 ### Ścieżka B — deploy Z migracją NIEDESTRUKCYJNĄ (dodanie kolumny/tabeli)
 

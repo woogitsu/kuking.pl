@@ -123,8 +123,8 @@ class BiuletynNieZabieraListowWejsciaTest extends TestCase
      *
      * To jest świadoma granica tej zmiany, nie przeoczenie: wspólny licznik
      * ustawia KOLEJNOŚĆ wygaszania, a nie dokłada listów ponad limit
-     * dostawcy. Klasa `wejscie` (potwierdzenie rejestracji, jego ponowienie,
-     * logowanie linkiem) dzieli ostatnie listy doby między siebie.
+     * dostawcy. Klasa `wejscie` (pierwsze potwierdzenie rejestracji,
+     * logowanie linkiem; ponowienie od D-246 ma własną klasę) dzieli ostatnie listy doby między siebie.
      */
     public function test_przy_pustej_puli_logowanie_linkiem_mowi_prawde_i_podaje_wyjscie(): void
     {

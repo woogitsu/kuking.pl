@@ -111,7 +111,7 @@ final class WykrywaczSygnalow
      */
     public function dla(Post|Comment $tresc): array
     {
-        $tekst = trim((string) $tresc->body);
+        $tekst = $this->tekst($tresc);
         $autor = $tresc->author;
 
         if ($tekst === '' || ! $autor instanceof User) {
@@ -127,6 +127,15 @@ final class WykrywaczSygnalow
         usort($sygnaly, static fn (Sygnal $a, Sygnal $b): int => $b->waga() <=> $a->waga());
 
         return $sygnaly;
+    }
+
+    /**
+     * Treść do sprawdzenia: przy pytaniu razem z tytułem, bo bez opisu to on
+     * jest całą wypowiedzią (#831). Wpis i komentarz — samo `body`.
+     */
+    private function tekst(Post|Comment $tresc): string
+    {
+        return $tresc instanceof Post ? $tresc->tekstDoOceny() : trim((string) $tresc->body);
     }
 
     /**
@@ -229,7 +238,7 @@ final class WykrywaczSygnalow
         );
 
         foreach ($this->wczesniejszeTresci($autor, $tresc, $od) as $poprzednia) {
-            $inny = $this->znormalizuj((string) $poprzednia->body);
+            $inny = $this->znormalizuj($this->tekst($poprzednia));
 
             if ($inny === '' || ! $this->podobne($znormalizowany, $inny)) {
                 continue;
