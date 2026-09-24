@@ -8,6 +8,7 @@ use App\Domain\Notifications\QuestionNotificationContext;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
+use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -31,6 +32,7 @@ class NotificationController extends Controller
             ->paginate(30);
 
         $this->sprawdzWykonania($notifications->items());
+        $this->sprawdzPrzepisy($notifications->items());
 
         return view('pages.notifications', [
             'notifications' => $notifications,
@@ -137,6 +139,42 @@ class NotificationController extends Controller
         foreach ($doSprawdzenia as $id => $grupa) {
             foreach ($grupa as $powiadomienie) {
                 $powiadomienie->zapamietajIstnienieWykonania($istniejace->has($id));
+            }
+        }
+    }
+
+    /**
+     * Aktualne slugi przepisów z powiadomień o zapisaniu do zeszytu
+     * (issue #1034) — JEDNYM zapytaniem, jak `sprawdzWykonania()`.
+     * Przepis usunięty miękko nie wraca (`SoftDeletes`), więc jego
+     * powiadomienie dostaje `null` i traci „Zobacz".
+     *
+     * @param  list<Notification>  $powiadomienia
+     */
+    private function sprawdzPrzepisy(array $powiadomienia): void
+    {
+        $doSprawdzenia = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            $id = $powiadomienie->data['recipe_id'] ?? null;
+
+            if ($powiadomienie->type === Notification::TYPE_SAVED && is_string($id) && Str::isUuid($id)) {
+                $doSprawdzenia[$id][] = $powiadomienie;
+            }
+        }
+
+        if ($doSprawdzenia === []) {
+            return;
+        }
+
+        $slugi = Recipe::query()
+            ->whereIn('id', array_keys($doSprawdzenia))
+            ->pluck('slug', 'id')
+            ->mapWithKeys(fn (mixed $slug, mixed $id): array => [(string) $id => (string) $slug]);
+
+        foreach ($doSprawdzenia as $id => $grupa) {
+            foreach ($grupa as $powiadomienie) {
+                $powiadomienie->zapamietajSlugPrzepisu($slugi->get($id));
             }
         }
     }
@@ -260,6 +298,11 @@ class NotificationController extends Controller
         // a kliknięciem. Zamiast 404 — zdanie, co się stało.
         if ($powiadomienie->wykonanieUsuniete()) {
             return back()->with('status', 'To ugotowanie zostało usunięte.');
+        }
+
+        // ISSUE #1034: to samo dla przepisu zapisanego do zeszytu.
+        if ($powiadomienie->przepisUsuniety()) {
+            return back()->with('status', 'Ten przepis został usunięty.');
         }
 
         $cel = $powiadomienie->adresDocelowy();

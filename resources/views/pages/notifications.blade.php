@@ -171,6 +171,10 @@
                             @case(\App\Models\Notification::TYPE_SAVED)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
                                 „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
+                                {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
+                                @if($notification->przepisUsuniety())
+                                    Ten przepis został usunięty.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
