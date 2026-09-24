@@ -330,7 +330,7 @@ class PoswiadczeniaPozaRepozytoriumTest extends TestCase
         $tresc = (string) file_get_contents(base_path('.gitignore'));
         $reguly = [];
 
-        foreach (preg_split('/\R/', $tresc) ?: [] as $wiersz) {
+        foreach (preg_split('/\r\n|\n|\r/', $tresc) ?: [] as $wiersz) {
             $wiersz = trim($wiersz);
 
             if ($wiersz === '' || str_starts_with($wiersz, '#')) {

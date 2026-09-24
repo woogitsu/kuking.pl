@@ -71,7 +71,7 @@ class EksportNieUtykaMiedzyCommitemAWyslaniemTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.';
+    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.';
 
     /**
      * Kolejka bazodanowa — tak jak na produkcji (`.env`: `QUEUE_CONNECTION=database`).

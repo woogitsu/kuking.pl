@@ -21,7 +21,7 @@ Akcja nie może być wywoływana po zdobyciu blokad kont ani innych zasobów.
 Wejście spod `ZamekKonta` jest jawnie odrzucane. Adapter konsolowy nie
 otwiera transakcji przed wywołaniem akcji. Blokada jest wspólna również dla
 awansów; blokady dwóch różnych kont nie zastępują wspólnej serializacji.
-Nie jest to ochrona przed ręcznym SQL-em lub równoległą zmianą statusu.
+Nie jest to ochrona przed ręcznym SQL-em. Zmianę statusu obejmuje etap B.
 
 ## Własny pomiar lokalny, 21.09.2026
 
@@ -54,8 +54,41 @@ Test dwóch procesów dowodzi opisanego przeplotu, nie wszystkich możliwych
 wyścigów. Nie wykonano pełnej suity, CI, publikacji ani testów produkcji.
 Te czynności pozostają po stronie sesji koordynującej publikację.
 
+## Etap B — zmiana statusu
+
+Invariant: po zatwierdzeniu każdej zmiany istnieje co najmniej jedno konto
+`role=admin AND status=active`. Pilnuje go `App\Domain\Users\OstatniAdministrator`:
+
+- `zablokuj()` — `pg_advisory_xact_lock(1016, 1)`, tylko w transakcji
+  i nigdy spod `ZamekKonta` (kolejność: zamek wspólny → wiersz konta);
+- `jestJedynym()` — odczyt roli i statusu z bazy, nie z modelu;
+- `odbierzAktywnosc()` — zamek, `FOR UPDATE` wiersza, sprawdzenie, zapis.
+
+Przez `odbierzAktywnosc()` idą `User::suspend()`, `User::ban()`
+i `User::markForDeletion()`, więc każda obecna i przyszła ścieżka (panel
+moderacji, formularz usunięcia konta, komendy) dziedziczy ochronę.
+`ChangeUserRole` używa tego samego zamka i tego samego sprawdzenia.
+`markDataErased()` nie jest objęte: wychodzi wyłącznie z `pending_delete`,
+czyli z konta już nieczynnego. Awans i przywrócenie konta nie zmniejszają
+liczby administratorów i działają także przy zerze administratorów.
+
+Odmowa to `OdmowaOstatniegoAdministratora`. Panel moderacji bierze zamek
+na początku transakcji decyzji (INSERT do `moderation_actions` trzyma
+`FOR KEY SHARE` na wierszu osoby; zamek wzięty po nim zakleszczyłby się ze
+zmianą roli) i zamienia odmowę na błąd pola `action`: transakcja się
+wycofuje, zgłoszenie zostaje otwarte, nie ma decyzji ani powiadomienia.
+Polityka `sanctionAccount` (#1408) i tak nie pozwala karać administratora;
+strażnik jest drugą warstwą. Formularz usunięcia konta pokazuje błąd przy
+haczyku potwierdzenia, bez sprawy w rejestrze RODO i bez wpisu audytu.
+
+Testy: `OstatniAdministratorZmianaStatusuTest` (sekwencyjne) oraz dwa nowe
+przeploty w `Tests\Dwa\OstatniAdministratorTest`: degradacja A ∥ zawieszenie
+B oraz usunięcie konta A ∥ ban B. Kontrola ujemna `scripts/kontrola-ujemna.sh`
+(usunięcie `pg_advisory_xact_lock(1016, 1)`): wszystkie trzy przeploty
+kończą się **0 zamiast 1** czynnych administratorów; PASS → FAIL → PASS.
+
 ## Wycofanie
 
-Brak migracji i zmian danych istniejących. Wycofanie kodu przywraca dawny
+Brak migracji i zmian danych istniejących (etap A i B). Wycofanie kodu przywraca dawny
 wyścig dwóch degradacji; przed wycofaniem należy zapewnić, że polecenia
 zmiany ról nie są wykonywane równolegle. Wycofanie nie usuwa audytu.
