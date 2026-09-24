@@ -2,13 +2,13 @@
 
 ## Nieopublikowane
 
-- Moderacja: automat nie gubi już własnych sygnałów, gdy zewnętrzny model odpowiada wolno. Sygnały wykryte na miejscu trafiają do kolejki od razu, wynik modelu dopisuje się do tego samego oznaczenia, a cała ocena mieści się w czasie zadania — gdy zabraknie czasu na część zdjęć, moderator widzi przy oznaczeniu, że ocena była niepełna. Zdjęcie, które było jeszcze przygotowywane w chwili publikacji wpisu, jest oceniane, gdy tylko będzie gotowe (o ile wpis nadal jest publiczny).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- Moderacja: automat nie gubi już własnych sygnałów, gdy zewnętrzny model odpowiada wolno. Sygnały wykryte na miejscu trafiają do kolejki od razu, wynik modelu dopisuje się do tego samego oznaczenia, a cała ocena mieści się w czasie zadania — gdy zabraknie czasu na część zdjęć, moderator widzi przy oznaczeniu, że ocena była niepełna. Zdjęcie, które było jeszcze przygotowywane w chwili publikacji wpisu, jest oceniane, gdy tylko będzie gotowe (o ile wpis nadal jest publiczny).
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 

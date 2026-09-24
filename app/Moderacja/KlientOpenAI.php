@@ -44,27 +44,10 @@ use Throwable;
  */
 final class KlientOpenAI
 {
-    /** Górna granica limitu jednego żądania, gdy ocena ma wspólny budżet (#829). */
-    private ?int $limitCzasu = null;
-
     public static function oceniamy(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
             && config('kuking.moderation.model.klucz') !== '';
-    }
-
-    /**
-     * Ten sam klient z limitem żądania przyciętym do `$sekund` (#829).
-     *
-     * Kopia, nie zmiana stanu: klient bywa współdzielony, a limit jednej
-     * oceny nie może przeciec do następnej.
-     */
-    public function zLimitemCzasu(int $sekund): self
-    {
-        $kopia = clone $this;
-        $kopia->limitCzasu = max(1, $sekund);
-
-        return $kopia;
     }
 
     /**
@@ -108,6 +91,23 @@ final class KlientOpenAI
             [['type' => 'image_url', 'image_url' => ['url' => $dataUri]]],
             'zdjęcie',
         );
+    }
+
+    /** Górna granica limitu jednego żądania, gdy ocena ma wspólny budżet (#829). */
+    private ?int $limitCzasu = null;
+
+    /**
+     * Ten sam klient z limitem żądania przyciętym do `$sekund` (#829).
+     *
+     * Kopia, nie zmiana stanu: klient bywa współdzielony, a limit jednej
+     * oceny nie może przeciec do następnej.
+     */
+    public function zLimitemCzasu(int $sekund): self
+    {
+        $kopia = clone $this;
+        $kopia->limitCzasu = max(1, $sekund);
+
+        return $kopia;
     }
 
     /**
