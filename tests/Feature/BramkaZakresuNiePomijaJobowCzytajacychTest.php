@@ -473,7 +473,6 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
             }
         }
 
-
         return array_keys($pliki);
     }
 
