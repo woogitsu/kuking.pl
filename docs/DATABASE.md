@@ -4098,6 +4098,37 @@ bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
+### przypomnienia_dobowe
+
+Znaczniki „ten list już dziś wyszedł", migracja
+`2026_09_24_140000_utworz_przypomnienia_dobowe` (issue #1333). Do niej
+`kuking:pilnuj-terminow-odwolan` obiecywał jeden list na dobę tylko
+w komentarzu: każde wywołanie z zaległym odwołaniem (ręczne ponowienie,
+restart, zdublowany harmonogram) kolejkowało kolejny. `withoutOverlapping()`
+chroni tylko przed przebiegami NARAZ, a `Cache::add()` nie wystarcza, bo
+`docker/entrypoint.sh` czyści cache przy każdym starcie kontenera.
+
+| Kolumna | Opis |
+|---|---|
+| `rodzaj varchar(64) NOT NULL` | Rodzaj listu (`termin-odwolania`). CHECK `przypomnienia_dobowe_rodzaj_niepusty_check`: niepusty. |
+| `doba date NOT NULL` | Doba **UTC** — ta sama co dobowy sufit poczty (`DziennyBudzetListow`). |
+| `odbiorca char(64) NOT NULL` | SHA-256 adresu (małe litery, bez spacji), **nie adres**. CHECK `przypomnienia_dobowe_odbiorca_sha256_check`: `^[0-9a-f]{64}$`. Nowy adres alarmowy = nowy klucz = list tego samego dnia. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy zarezerwowano. |
+
+**Klucz główny `(rodzaj, doba, odbiorca)` jest rezerwacją:**
+`PrzypomnienieDobowe::zarezerwuj()` robi `insertOrIgnore` PRZED kolejkowaniem
+listu, więc z dwóch równoległych przebiegów wysyła tylko ten, który wiersz
+wstawił. Nieudane wstawienie listu do kolejki usuwa wiersz (`zwolnij()`)
+i komenda kończy się błędem — kolejny przebieg tego samego dnia próbuje
+ponownie. Wiersze starsze niż 30 dni kasuje `zarezerwuj()` przy okazji.
+Pilnuje tego `tests/Feature/TerminOdwolaniaJedenListNaDobeTest.php`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` zrzuca tabelę **bez
+odmowy** — wiersz jest znacznikiem deduplikacji, nie decyzją człowieka
+(D-088 nie dotyczy). Kosztem jest najwyżej jeden powtórzony list tego dnia.
+**Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod z tej zmiany bez
+tabeli kończy komendę błędem i nie wysyła przypomnienia.
+
 ### sessions
 
 Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość

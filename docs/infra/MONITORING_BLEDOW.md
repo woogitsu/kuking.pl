@@ -605,6 +605,7 @@ a `NIE WIEMY` jest nieprzejściem bramki, nie sukcesem (`docs/OTWARCIE.md`).
 | martwe zadania (świeże `failed_jobs`) | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** (ten dokument) — dostarczenie sprawdzone lokalnie | §7.2 niżej |
 | opóźnienie kolejki / martwy worker | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** — wcześniej nie mierzyło tego NIC | §7.2 niżej |
 | wyczerpywanie połączeń PostgreSQL | `kuking:budzet-polaczen`, co godzinę | **NOWE** — progi i wyprowadzenie w `docs/DATABASE.md` | §7.2 niżej |
+| wygasłe paczki z danymi nadal w storage (nieudane albo niechodzące sprzątanie) | `kuking:sprawdz-sprzatanie-eksportow`, codziennie 06:25 UTC | **NOWE** (issue #1331, 24.09.2026) — dzwoni tylko przy ustawionym `LOG_BLAD_WEBHOOK_URL` | `tests/Feature/SprzatanieEksportowDajeAlarmTest.php` (atrapa HTTP, nie prawdziwy odbiornik) |
 | awaria całej aplikacji (strona nie odpowiada) | zewnętrzny monitor `/health` | **NIEZROBIONE** | §6 wyżej opisuje, jak to założyć; to jest czynność właściciela |
 
 ### 7.1. Dlaczego `/health` przestał odróżniać awarię od jej braku
@@ -645,6 +646,7 @@ miejsce do patrzenia jest drugim miejscem do niepatrzenia.
 | `kuking:sprawdz-kopie` | codziennie 06:15 | brak świeżej kopii (dziś: wyłączona brakiem bucketu) |
 | `kuking:budzet-polaczen` | co godzinę, minuta 25 | zajętych backendów powyżej progu (50 / 125) |
 | `kuking:sprawdz-kolejke` | co 15 minut | zaległość ≥ 600 s, zawieszona rezerwacja, albo zadanie, które padło w ostatnich 3 h |
+| `kuking:sprawdz-sprzatanie-eksportow` | codziennie 06:25 UTC | paczka `ready`/`expired` z adresem pliku ponad 36 h po `expires_at`; same liczby, bez kluczy obiektów; powrót do normy daje jedno odwołanie (#1331) |
 
 **Dostarczenie sprawdzone na prawdziwym odbiorniku HTTP**, nie na atrapie
 w teście — lokalny serwer zapisujący każde żądanie, baza `kuking_599_odbiornik`

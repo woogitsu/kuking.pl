@@ -72,6 +72,20 @@ Harmonogram::artisan('kuking:sprzataj-eksporty')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Czujka sprzątania paczek z danymi (issue #1331). Sprzątanie wyżej kończy się
+// błędem, gdy nie usunie którejś paczki — ale komenda, która w ogóle nie
+// chodzi, nie może o sobie donieść. Czujka patrzy na STAN w bazie: wygasła
+// paczka z adresem pliku ponad 36 h po terminie dzwoni na `blad_webhook`
+// (same liczby, bez kluczy obiektów i danych osób), powrót do normy daje
+// jedno odwołanie. 06:25 UTC — po nocnym sprzątaniu, przy porannej kawie
+// właściciela, obok czujki kopii (06:15) i nie na minucie innego zadania.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprawdz-sprzatanie-eksportow')
+    ->name('kuking:sprawdz-sprzatanie-eksportow')
+    ->dailyAt('06:25')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // Zdejmowanie kar, którym minął termin (issue #40).
 //
 // Co godzinę, nie raz na dobę: kara „do 12 września” ma się skończyć 12

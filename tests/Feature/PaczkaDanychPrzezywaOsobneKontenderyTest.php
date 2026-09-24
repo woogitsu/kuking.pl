@@ -117,7 +117,9 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $niekasujacy->shouldReceive('delete')->andReturn(false);
         $niekasujacy->shouldReceive('exists')->andReturn(true);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        // Kod błędu (#1331): nieudane kasowanie nie może wyglądać jak sukces
+        // w harmonogramie.
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
 
@@ -147,7 +149,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $dysk->shouldReceive('exists')->twice()->andReturn(true, false);
         Storage::shouldReceive('disk')->twice()->with('local')->andReturn($dysk);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
         $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
         $this->assertSame('eksporty/do-ponowienia.zip', $export->object_key);
 
@@ -169,7 +171,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
             'expires_at' => now()->subDay(),
         ]);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
         $this->assertSame(DataExport::STATUS_EXPIRED, $export->status);
