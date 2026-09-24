@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Notifications\PotwierdzenieAdresu;
 use App\Models\CookedEvent;
 use App\Models\MailFailure;
 use App\Models\Recipe;
+use App\Notifications\PotwierdzenieAdresu;
 use App\Poczta\PowodOdmowy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
