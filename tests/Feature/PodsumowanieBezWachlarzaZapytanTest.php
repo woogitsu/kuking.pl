@@ -222,4 +222,45 @@ class PodsumowanieBezWachlarzaZapytanTest extends TestCase
 
         $this->assertSame(6, $zhydratowane, 'Wspólny autor nie może wciągać pełnej historii do pamięci.');
     }
+
+    /**
+     * Styk z #1328: `odswiez()` czyta świeżo WYŁĄCZNIE pozycje wybrane przy
+     * kolejkowaniu. Limit w SQL nie może ich przyciąć, nawet gdy
+     * `max_pozycji` zmalało, zanim zadanie doszło do wysyłki.
+     */
+    public function test_odswiezenie_przy_wysylce_nie_tnie_wybranych_pozycji_nowym_limitem(): void
+    {
+        config()->set('kuking.digest.max_pozycji', 3);
+
+        $odbiorca = $this->user('limit_odswiez');
+        $przepis = Recipe::factory()->for($odbiorca, 'author')->create();
+        $autor = $this->user('limit_odswiez_autor');
+        $odbiorca->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
+
+        for ($i = 0; $i < 5; $i++) {
+            CookedEvent::factory()
+                ->for($this->user('limit_odswiez_kucharz_'.$i), 'user')
+                ->for($przepis, 'recipe')
+                ->create(['cooked_at' => now()->subMinutes($i)]);
+            $this->user('limit_odswiez_obs_'.$i)->following()
+                ->attach($odbiorca->getKey(), ['created_at' => now()->subMinutes($i)]);
+            Post::factory()->for($autor, 'author')->create(['published_at' => now()->subMinutes($i)]);
+        }
+
+        $zbieracz = app(ZbierzTresciDigestu::class);
+        $zapis = $zbieracz->dlaJednej($odbiorca);
+        $this->assertCount(3, $zapis->wykonania);
+        $this->assertCount(3, $zapis->nowiObserwujacy);
+        $this->assertCount(3, $zapis->wpisyObserwowanych);
+
+        config()->set('kuking.digest.max_pozycji', 1);
+        $swieza = $zbieracz->odswiez($zapis);
+
+        $klucze = fn (array $modele): array => array_map(fn ($m): string => (string) $m->getKey(), $modele);
+        $this->assertNotNull($swieza);
+        $this->assertSame($klucze($zapis->wykonania), $klucze($swieza->wykonania));
+        $this->assertSame($klucze($zapis->nowiObserwujacy), $klucze($swieza->nowiObserwujacy));
+        $this->assertSame($klucze($zapis->wpisyObserwowanych), $klucze($swieza->wpisyObserwowanych));
+        $this->assertSame(5, $swieza->ileNowychObserwujacych);
+    }
 }
