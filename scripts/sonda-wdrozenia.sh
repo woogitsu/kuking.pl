@@ -15,6 +15,15 @@
 #      Ustawia SONDA_POTWIERDZONY (SHA zgodny z oczekiwanym albo pusty)
 #      i SONDA_OTRZYMANY (ostatni odczytany opis sygnału).
 #
+#  sonda_wydanie_koncowa <base_url> <oczekiwany_sha>                (issue #1012)
+#      To samo pytanie PO wszystkich sprawdzeniach: wydanie mogło zostać
+#      podmienione w trakcie testu. Stała tu jedna próba (SONDA_PROBY=1),
+#      więc jeden zgubiony pakiet albo chwilowe 502 brzegu oznaczało
+#      „nieudane wdrożenie". Teraz SONDA_KONCOWA_PROBY próby (domyślnie 3)
+#      co SONDA_KONCOWA_ODSTEP sekund (domyślnie 5) — krótko, bo to nie jest
+#      czekanie na przełączenie ruchu, tylko odsianie chwilowej porażki.
+#      Każda nieudana próba mówi, która to była i dlaczego padła.
+#
 #  sonda_https <host>                                                (issue #1332)
 #      Czy `http://<host>/` przekierowuje JEDNYM skokiem 301/308 dokładnie na
 #      `https://<host>/` — kontrakt ręczny z docs/infra/DEPLOYMENT_RUNBOOK.md
@@ -29,6 +38,8 @@
 
 : "${SONDA_PROBY:=18}"
 : "${SONDA_ODSTEP:=10}"
+: "${SONDA_KONCOWA_PROBY:=3}"
+: "${SONDA_KONCOWA_ODSTEP:=5}"
 
 sonda_wydanie() {
     local base="${1%/}" oczekiwany="${2,,}"
@@ -63,17 +74,24 @@ sonda_wydanie() {
             return 0
         fi
 
-        echo "..    próba ${proba}/${SONDA_PROBY}: oczekiwano ${oczekiwany}, otrzymano ${otrzymany}"
+        echo "..    próba ${proba}/${SONDA_PROBY} nieudana: oczekiwano ${oczekiwany}, otrzymano ${otrzymany}"
         if [ "$proba" -lt "$SONDA_PROBY" ]; then
             sleep "$SONDA_ODSTEP"
         fi
     done
 
-    echo "BLAD  pod ${base} NIE działa wdrażany commit"
+    echo "BLAD  pod ${base} NIE działa wdrażany commit (nieudane wszystkie próby: ${SONDA_PROBY})"
     echo "      oczekiwano: ${oczekiwany}"
     echo "      otrzymano:  ${SONDA_OTRZYMANY}"
     echo "      Wynik testu dymnego opisywałby inne wydanie niż to ze zdarzenia wdrożenia."
     return 1
+}
+
+sonda_wydanie_koncowa() {
+    # `local` w bashu jest widoczne w wywoływanej funkcji, więc sonda_wydanie
+    # dostaje krótki limit, a globalne SONDA_PROBY/SONDA_ODSTEP zostają nietknięte.
+    local SONDA_PROBY="$SONDA_KONCOWA_PROBY" SONDA_ODSTEP="$SONDA_KONCOWA_ODSTEP"
+    sonda_wydanie "$@"
 }
 
 sonda_https() {
