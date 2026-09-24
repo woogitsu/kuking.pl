@@ -64,3 +64,11 @@ na: return DB::table('sessions')
 oczekuj: JEJ sesje|198.51.100.9
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportObejmujeKazdaTabeleKontaTest.php
 ocena:
+---
+nazwa: paczka nie niesie sekretu weryfikacji dwuetapowej
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: 'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+na: 'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),\n            'sekret' => $user->two_factor_secret,
+oczekuj: SEKRET-2FA-NIE-WYCHODZI
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportObejmujeKazdaTabeleKontaTest.php
+ocena:
