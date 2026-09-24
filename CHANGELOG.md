@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Zeszyt ustawiony na „Wszyscy” otwiera się teraz także bez konta — można wysłać link rodzinie. Osoba niezalogowana widzi w nim tylko publiczne przepisy i wpisy, a zamiast przycisków zapisu dostaje „Zaloguj się” albo „Załóż konto”. Zeszyt prywatny i domyślny nadal widzi tylko właściciel.
+- Zeszyt ustawiony na „Wszyscy” otwiera się teraz także bez konta — można wysłać link rodzinie. Osoba niezalogowana widzi w nim tylko publiczne przepisy i wpisy, a zamiast przycisków zapisu dostaje „Zaloguj się” albo „Załóż konto”. Zeszyt ustawiony na „Tylko ja” (także domyślny, dopóki nie zmienisz go na „Wszyscy”) nadal widzi tylko właściciel.
 - Wyniki wyszukiwania nie są już blokowane w robots.txt, dzięki czemu wyszukiwarka może odczytać, że nie należy ich indeksować.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
