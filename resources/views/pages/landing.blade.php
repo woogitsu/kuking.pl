@@ -154,13 +154,16 @@
                     <p class="landing-krok-numer" aria-label="Krok 1">01</p>
                     <h3>Robisz zdjęcie</h3>
                     <p>Telefonem, prosto z garnka. Nie musi być z okładki.</p>
-                    <a href="{{ route('posts.create') }}">Dodaj zdjęcie dania</a>
+                    {{-- #1289: landing widzi tylko gość, a `posts.create`, `recipes.create`
+                         i `collections.index` stoją za logowaniem. Odnośnik z opowieści
+                         o funkcji prowadzi więc do publicznej treści, nie do bramki. --}}
+                    <a href="{{ route('help') }}#dodawanie-zdjecia">Zobacz, jak dodać zdjęcie</a>
                 </li>
                 <li>
                     <p class="landing-krok-numer" aria-label="Krok 2">02</p>
                     <h3>Piszesz kilka słów</h3>
                     <p>Co to jest i z czego. A jeśli chcesz przekazać cały przepis — jest na niego miejsce.</p>
-                    <a href="{{ route('recipes.create') }}">Zobacz dodawanie przepisu</a>
+                    <a href="{{ route('search', ['sekcja' => 'przepisy']) }}">Zobacz przepisy innych</a>
                 </li>
                 <li>
                     <p class="landing-krok-numer" aria-label="Krok 3">03</p>
@@ -243,13 +246,12 @@
                     <p class="marka-wlasnosc-etykieta">Mój zeszyt</p>
                     <h3>Na następny obiad</h3>
                     <p>Zbieraj przepisy i inspiracje w jednym miejscu. Układaj je w zeszyty, do których łatwo wrócisz.</p>
-                    <a href="{{ route('collections.index') }}">Zajrzyj do zeszytu</a>
                 </article>
                 <article>
                     <p class="marka-wlasnosc-etykieta">Widoczność wpisu</p>
                     <h3>Ty wybierasz, kto zobaczy</h3>
                     <p>Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.</p>
-                    <a href="{{ route('posts.create') }}">Zobacz wybór widoczności</a>
+                    <a href="{{ route('help') }}#kto-widzi">Zobacz, kto może widzieć wpis</a>
                 </article>
                 <article>
                     <p class="marka-wlasnosc-etykieta">Własne treści</p>
