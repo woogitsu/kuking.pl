@@ -9,6 +9,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
@@ -640,6 +641,11 @@ class PostController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // Ten sam powód co `recipe`/`replies.recipe` w
+                // `RecipeController`: `Comment::subject()` pytany przy każdym
+                // komentarzu (`notifiableUserId()`, „Zdejmij z urzędu”).
+                'post',
+                'replies.post',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
@@ -741,6 +747,14 @@ class PostController extends Controller
                 ? (array) old('tag_names', [])
                 : $post->tags->filter(fn (Tag $tag): bool => $tag->pivot->dodany_recznie === true)->pluck('name')->all(),
             'sugestieTagow' => $this->sugestieDlaZapytania(),
+            // Issue #981: wersja, na której ten formularz został otwarty.
+            // Przy powrocie po błędzie albo akcji tagów zostaje ta z
+            // formularza (`old()`), żeby zmiana z innej karty w międzyczasie
+            // nadal była wykryta. Po samym konflikcie — bieżąca: człowiek
+            // widział już obie wersje i świadomie zapisuje swoją.
+            'wersjaEdycji' => session('konflikt_edycji') === true
+                ? $this->editPost->wersja($post)
+                : old('wersja_edycji', $this->editPost->wersja($post)),
         ]);
     }
 
@@ -791,7 +805,15 @@ class PostController extends Controller
                 visibility: $data['visibility'],
                 tagNames: $tagNames,
                 questionTitle: $question ? $data['title'] : null,
+                wersjaFormularza: $request->filled('wersja_edycji') ? (string) $request->input('wersja_edycji') : null,
             );
+        } catch (KonfliktEdycjiWpisu $e) {
+            // Nic nie zapisano; tekst z formularza wraca do pól (`withInput`),
+            // a widok pokazuje obok wersję zapisaną w bazie. Osobny klucz
+            // `wersja`, nie `body`: tekst jest poprawny, więc pole nie może
+            // dostać `aria-invalid`; odnośnik w podsumowaniu prowadzi do
+            // sekcji z zapisaną wersją (`#wersja-zapisana`).
+            return back()->withInput()->withErrors(['wersja' => $e->getMessage()])->with('konflikt_edycji', true);
         } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział

@@ -1,0 +1,16 @@
+{
+  "nazwa": "903 reset odhaczen",
+  "plik": "app/Http/Controllers/CookingModeController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "4b355dc835dd69089cb69d5918e92a65",
+  "md5_po_mutacji": "755f996c54d18e97e66f479bec59040a",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Session has unexpected key",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:56:01Z"
+}
