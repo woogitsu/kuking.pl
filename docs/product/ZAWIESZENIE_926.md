@@ -39,8 +39,10 @@ Nie zmieniamy widoczności istniejących zeszytów ani zapisów.
 
 Wyjątki nie przepuszczają kont zbanowanych, usuwanych ani wymazanych.
 Blokady między osobami i polityki widoczności treści nadal obowiązują.
-Limity zapytań oraz CSRF pozostają włączone. Reset korzysta z istniejącego
-limitu `cooking_krok` i `RecipePolicy::view`, tak jak odhaczanie.
+Limity zapytań oraz CSRF pozostają włączone. Reset to jedna trasa
+`cooking.restart` („Zacznij od początku”, wspólna z kontami aktywnymi);
+korzysta z limitu `cooking_krok` i `RecipePolicy::view`, tak jak odhaczanie.
+Kasuje tylko odhaczenia bieżącego przepisu w sesji tej osoby.
 
 Profil pyta `UserPolicy::follow` i `unfollow` wprost. Listy relacji
 i tablica nie pytają Policy dla każdej osoby: blokady wycina już ich
@@ -56,13 +58,16 @@ daje 403, a listy tej osoby nie pokazują.
 
 Nie zmieniono `RecipePolicy::cook`, zaproszenia „Ugotowałem”, składników
 ani minutnika. Zmiana `cooking.blade.php` dotyczy wyłącznie części
-odhaczania: dodaje potwierdzany reset. Baza `4c811cc7` nie zawiera
+odhaczania: przycisk „Zacznij od początku” (`cooking.restart`) nie jest
+już chowany przed zawieszonymi. Osobna trasa `cooking.reset` z wcześniejszej
+wersji tej gałęzi została usunięta przy scalaniu z main — ma być jeden
+reset, nie dwa. Baza `4c811cc7` nie zawiera
 poprawek gałęzi `flota/gotowanie`; należy je zachować przy scalaniu.
 
 ## Weryfikacja i wycofanie
 
 Testy decyzji: `tests/Feature/ZawieszoneKontoPrywatneCzynnosciTest.php`.
-Reset jest także w macierzy pięciu ról
+Reset (`cooking.restart`) jest także w macierzy pięciu ról
 `KazdaTrasaZIdentyfikatoremPodPolicyTest`.
 
 Brak migracji. Wycofanie to odwrócenie commitów tej poprawki. Nie usuwa

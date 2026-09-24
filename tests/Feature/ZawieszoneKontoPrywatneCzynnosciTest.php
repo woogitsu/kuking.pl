@@ -124,8 +124,11 @@ class ZawieszoneKontoPrywatneCzynnosciTest extends TestCase
             ->assertSessionHasNoErrors()->assertSessionHas($key, []);
         $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
         $html = $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
-        $this->assertSame(1, $this->forms($html, route('cooking.reset', $recipe->slug)));
-        $this->post(route('cooking.reset', $recipe->slug))->assertRedirect(route('cooking.show', $recipe->slug))
+        // Jeden reset (D-253): ten sam „Zacznij od początku” co dla aktywnych, bez drugiego przycisku.
+        $this->assertSame(1, $this->forms($html, route('cooking.restart', $recipe->slug)));
+        $this->assertStringContainsString('Zacznij od początku', $html);
+        $this->assertStringNotContainsString('Zacznij od nowa', $html);
+        $this->post(route('cooking.restart', $recipe->slug))->assertRedirect(route('cooking.show', $recipe->slug))
             ->assertSessionHasNoErrors()->assertSessionMissing($key)->assertSessionHas('gotowanie.inny.zrobione', ['inny-krok']);
     }
 
@@ -137,7 +140,7 @@ class ZawieszoneKontoPrywatneCzynnosciTest extends TestCase
         $this->actingAs($viewer);
         $this->post(route('collections.save', $recipe->slug))->assertForbidden();
         $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1])->assertForbidden();
-        $this->post(route('cooking.reset', $recipe->slug))->assertForbidden();
+        $this->post(route('cooking.restart', $recipe->slug))->assertForbidden();
         $this->post(route('posts.store'), ['body' => 'Nie publikuj.'])->assertSessionHasErrors('konto');
         $this->assertDatabaseMissing('posts', ['body' => 'Nie publikuj.']);
     }
@@ -212,13 +215,13 @@ class ZawieszoneKontoPrywatneCzynnosciTest extends TestCase
         $this->assertDatabaseMissing('collection_items', ['collection_id' => $public->id]);
     }
 
-    public function test_reset_works_for_guest_and_active_user_and_unknown_recipe_is_missing(): void
+    public function test_restart_works_for_guest_and_active_user_and_unknown_recipe_is_missing(): void
     {
         $recipe = Recipe::factory()->create();
         $key = 'gotowanie.'.$recipe->id.'.zrobione';
-        $this->withSession([$key => ['krok']])->post(route('cooking.reset', $recipe->slug))->assertSessionMissing($key);
-        $this->actingAs($this->user())->withSession([$key => ['krok']])->post(route('cooking.reset', $recipe->slug))->assertSessionMissing($key);
-        $this->post(route('cooking.reset', 'nie-ma-takiego-przepisu'))->assertNotFound();
+        $this->withSession([$key => ['krok']])->post(route('cooking.restart', $recipe->slug))->assertSessionMissing($key);
+        $this->actingAs($this->user())->withSession([$key => ['krok']])->post(route('cooking.restart', $recipe->slug))->assertSessionMissing($key);
+        $this->post(route('cooking.restart', 'nie-ma-takiego-przepisu'))->assertNotFound();
     }
 
     public function test_closed_account_cannot_use_private_write_exceptions(): void

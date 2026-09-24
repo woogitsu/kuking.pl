@@ -83,7 +83,7 @@ class EnsureAccountIsActive
         'collections.save-post',
         'collections.unsave-post',
         'cooking.zaznacz',
-        'cooking.reset',
+        'cooking.restart',
     ];
 
     public function handle(Request $request, Closure $next): Response

@@ -198,12 +198,12 @@ Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recip
 // bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
 // endpointów zmieniających stan.
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
+Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::class, 'restart'])
+    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+    ->name('cooking.restart');
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
-Route::post('/przepisy/{recipe}/gotuj/od-nowa', [CookingModeController::class, 'reset'])
-    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
-    ->name('cooking.reset');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');

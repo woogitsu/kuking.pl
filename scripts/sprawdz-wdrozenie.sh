@@ -271,12 +271,10 @@ fi
 naglowek "Cache i CDN"
 # -----------------------------------------------------------------------------
 
-manifest=$("${POBIERZ[@]}" -I "https://$HOST/build/manifest.json" 2>/dev/null)
-if grep -qi 'cache-control:.*immutable' <<< "$manifest"; then
-    ok "Assety Vite cache'owane na długo (immutable)"
-else
-    uwaga "Assety Vite bez „immutable” w Cache-Control"
-    rada "Cloudflare → Rules → Cache Rules dla /build/*"
+# Badamy zasoby wskazane przez bieżącą stronę, nie sam manifest (#809).
+source "$(dirname "$0")/sprawdz-cache-assetow.sh"
+if ! sprawdz_cache_assetow; then
+    blad "Kontrola cache CSS/JS nie przeszła. Popraw wskazane zasoby i ponów sondę."
 fi
 
 # Ten test jest ważniejszy, niż wygląda: zacache'owany endpoint Livewire

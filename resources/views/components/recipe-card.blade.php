@@ -13,7 +13,7 @@
                      powiększania i bez zagnieżdżonych odnośników. --}}
                 <x-photo :media="$recipe->heroMedia" :variant="$uklad === 'kafel' ? 'feed' : 'thumb'"
                          :sizes="$uklad === 'kafel' ? '(min-width: 768px) 360px, 100vw' : '120px'"
-                         class="post-photo" :zoom="false" />
+                         class="post-photo" :zoom="false" tresc="przepis" />
             @if($uklad === 'kafel')
                 </div>
             @else
