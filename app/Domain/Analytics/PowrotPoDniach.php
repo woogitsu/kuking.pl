@@ -64,13 +64,15 @@ final class PowrotPoDniach
     public function policz(int $dni, ?CarbonInterface $teraz = null): array
     {
         $teraz ??= now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
         $prog = $teraz->copy()->subDays($dni);
         $progSekund = $dni * 86400;
 
-        $kohorta = fn () => User::query()
-            ->where('created_at', '<=', $prog)
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni));
+        $kohorta = function () use ($prog) {
+            $zapytanie = User::query()->where('created_at', '<=', $prog);
+            $this->eligibility->tylkoLiczeni($zapytanie, 'users.id');
+
+            return $zapytanie;
+        };
 
         $kwalifikujacySie = $kohorta()->count();
 

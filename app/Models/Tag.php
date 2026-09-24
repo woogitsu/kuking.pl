@@ -224,6 +224,14 @@ class Tag extends Model
                 TagPromotion::query()
                     ->select('position')
                     ->whereColumn('tag_promotions.tag_id', 'tags.id'),
-            );
+            )
+            // Ten sam porządek przy remisie co `TagPromotion::scopeWKolejnosci()`
+            // (#1308) — `tag_promotions.tag_id` to `tags.id`.
+            ->orderBy(
+                TagPromotion::query()
+                    ->select('created_at')
+                    ->whereColumn('tag_promotions.tag_id', 'tags.id'),
+            )
+            ->orderBy('tags.id');
     }
 }

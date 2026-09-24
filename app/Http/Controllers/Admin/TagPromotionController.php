@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Tags\PromowaneTagi;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Tag;
-use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -54,6 +53,8 @@ use Illuminate\View\View;
  */
 class TagPromotionController extends Controller
 {
+    public function __construct(private readonly PromowaneTagi $promowane) {}
+
     public function edit(Request $request): View
     {
         $this->authorize('moderate', User::class);
@@ -91,13 +92,11 @@ class TagPromotionController extends Controller
             ]);
         }
 
-        if ($tag->promotion !== null) {
+        // Sprawdzenie „już promowany" i pozycja na końcu listy zapadają pod
+        // blokadą listy — patrz `PromowaneTagi` (#1308).
+        if (! $this->promowane->dodaj($tag)) {
             return back()->withInput()->withErrors(['nazwa_tagu' => 'Ten tag jest już promowany.']);
         }
-
-        $nastepnaPozycja = ((int) TagPromotion::query()->max('position')) + 1;
-
-        TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => $nastepnaPozycja]);
 
         AuditLogEntry::record(
             action: 'tag_promotion.added',
@@ -119,7 +118,11 @@ class TagPromotionController extends Controller
         abort_if($promocja === null, 404);
 
         if ($request->has('w_gore') || $request->has('w_dol')) {
-            $this->przesun($promocja, $request->has('w_gore') ? -1 : 1);
+            // Komunikat i dziennik tylko wtedy, gdy kolejność naprawdę się
+            // zmieniła (#1308).
+            if (! $this->promowane->przesun($tag, $request->has('w_gore') ? -1 : 1)) {
+                return back()->with('status', 'Kolejność bez zmian — ten tag jest już na skraju listy.');
+            }
 
             AuditLogEntry::record(
                 action: 'tag_promotion.reordered',
@@ -151,7 +154,9 @@ class TagPromotionController extends Controller
 
         // Usunięcie promocji NIE kasuje tagu — tag żyje dalej jako zwykły,
         // otwarty tag, dokładnie jak wycofanie Tematu nie kasowało wpisów.
-        $tag->promotion?->delete();
+        if (! $this->promowane->usun($tag)) {
+            return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” nie był już na liście promowanych.");
+        }
 
         AuditLogEntry::record(
             action: 'tag_promotion.removed',
@@ -161,32 +166,6 @@ class TagPromotionController extends Controller
         );
 
         return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” zdjęty z promowanych.");
-    }
-
-    /**
-     * Zamienia pozycję z sąsiadem — prosta zamiana miejscami, bez
-     * przenumerowywania całej listy. `$kierunek`: -1 w górę, +1 w dół.
-     */
-    private function przesun(TagPromotion $promocja, int $kierunek): void
-    {
-        $sasiad = TagPromotion::query()
-            ->when(
-                $kierunek < 0,
-                fn ($q) => $q->where('position', '<', $promocja->position)->orderByDesc('position'),
-                fn ($q) => $q->where('position', '>', $promocja->position)->orderBy('position'),
-            )
-            ->first();
-
-        if ($sasiad === null) {
-            // Już na końcu/początku listy — nie ma z kim zamienić.
-            return;
-        }
-
-        DB::transaction(function () use ($promocja, $sasiad): void {
-            $pozycjaPromocji = $promocja->position;
-            $promocja->forceFill(['position' => $sasiad->position])->save();
-            $sasiad->forceFill(['position' => $pozycjaPromocji])->save();
-        });
     }
 
     private function nullIfBlank(?string $value): ?string

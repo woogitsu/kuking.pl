@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
-use App\Models\Profile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Kto NIE liczy się do metryk North Star (issue #114).
@@ -45,41 +46,56 @@ use App\Models\User;
 final class CookEligibility
 {
     /**
-     * Identyfikatory użytkowników wykluczonych z liczenia do WAC/kohorty.
+     * Odcina od zapytania wiersze kont, które nie liczą się do WAC/kohorty.
      *
-     * @return list<string>
+     * `$kolumna` to KWALIFIKOWANA kolumna z identyfikatorem konta w zapytaniu
+     * zewnętrznym, np. `posts.author_id` albo `users.id`.
+     *
+     * FILTR W SQL, NIE LISTA UUID W PHP (#1309). Dawne `excludedUserIds()`
+     * pobierało do PHP identyfikatory WSZYSTKICH zamkniętych i zalążkowych
+     * kont i wstawiało je jako parametry `NOT IN` — w UNION trzy razy. Koszt
+     * rósł z całą historią zamkniętych kont, także gdy raport dotyczył małej
+     * bieżącej kohorty. `NOT EXISTS` ma stałą liczbę parametrów (statusy
+     * i krótka lista nazw), a PostgreSQL wykonuje go jako anti-join po kluczu
+     * głównym `users` / `profiles.user_id`.
+     *
+     * `NOT EXISTS`, a nie `IN (konta liczone)`, bo zachowuje dokładnie dawną
+     * semantykę „odetnij wykluczonych": wiersz bez pasującego konta nie znika.
+     *
+     * @param  EloquentBuilder<covariant \Illuminate\Database\Eloquent\Model>|QueryBuilder  $zapytanie
      */
-    public function excludedUserIds(): array
+    public function tylkoLiczeni(EloquentBuilder|QueryBuilder $zapytanie, string $kolumna): void
     {
-        $zStatusu = User::query()
-            // `STATUSY_ZAMKNIETEGO_KONTA`, czyli razem z `erased` (D-022):
-            // konto po wykonanej karencji już nie gotuje i nie ma zasilać
-            // liczby, która ma mierzyć żywą społeczność. Jego wykonania
-            // zostają widoczne w serwisie — to dwie różne rzeczy.
-            ->whereIn('status', User::STATUSY_ZAMKNIETEGO_KONTA)
-            ->pluck('id')
-            ->all();
-
-        $zZalazka = User::query()
-            ->where('is_seeded', true)
-            ->pluck('id')
-            ->all();
+        $zapytanie->whereNotExists(function (QueryBuilder $konto) use ($kolumna): void {
+            $konto->selectRaw('1')
+                ->from('users as wykluczone_konto')
+                ->whereColumn('wykluczone_konto.id', $kolumna)
+                ->where(function (QueryBuilder $powod): void {
+                    // `STATUSY_ZAMKNIETEGO_KONTA`, czyli razem z `erased`
+                    // (D-022): konto po wykonanej karencji już nie gotuje
+                    // i nie ma zasilać liczby, która ma mierzyć żywą
+                    // społeczność. Jego wykonania zostają widoczne
+                    // w serwisie — to dwie różne rzeczy.
+                    $powod->whereIn('wykluczone_konto.status', User::STATUSY_ZAMKNIETEGO_KONTA)
+                        ->orWhere('wykluczone_konto.is_seeded', true);
+                });
+        });
 
         $nazwy = $this->wykluczoneNazwy();
 
         if ($nazwy === []) {
-            return array_values(array_unique([...$zStatusu, ...$zZalazka]));
+            return;
         }
 
-        $zNazwy = Profile::query()
-            ->whereRaw(
-                'lower(username) IN ('.implode(',', array_fill(0, count($nazwy), '?')).')',
-                $nazwy,
-            )
-            ->pluck('user_id')
-            ->all();
-
-        return array_values(array_unique([...$zStatusu, ...$zZalazka, ...$zNazwy]));
+        $zapytanie->whereNotExists(function (QueryBuilder $profil) use ($kolumna, $nazwy): void {
+            $profil->selectRaw('1')
+                ->from('profiles as wykluczony_profil')
+                ->whereColumn('wykluczony_profil.user_id', $kolumna)
+                ->whereRaw(
+                    'lower(wykluczony_profil.username) IN ('.implode(',', array_fill(0, count($nazwy), '?')).')',
+                    $nazwy,
+                );
+        });
     }
 
     /**

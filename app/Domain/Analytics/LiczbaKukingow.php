@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Cache;
  * Zbanowane/`pending_delete`/`erased` konta już nie są częścią serwisu.
  *
  * Reguła „kto się nie liczy" żyje w JEDNYM miejscu
- * (`CookEligibility::excludedUserIds()`) — nie kopiujemy jej po raz trzeci
+ * (`CookEligibility::tylkoLiczeni()`) — nie kopiujemy jej po raz trzeci
  * (komentarz w `AktywniWTygodniu` już ostrzega, że dokładnie to jest
  * najczęściej wracająca usterka w tym repozytorium).
  *
@@ -105,12 +105,13 @@ final class LiczbaKukingow
      */
     public function przelicz(): int
     {
-        $wykluczeni = $this->eligibility->excludedUserIds();
+        // Zamknięte statusy odcina już `tylkoLiczeni()` — druga kopia tego
+        // warunku tutaj byłaby dokładnie tym rozjazdem, przed którym ostrzega
+        // komentarz klasy.
+        $liczeni = User::query();
+        $this->eligibility->tylkoLiczeni($liczeni, 'users.id');
 
-        $liczba = User::query()
-            ->whereNotIn('status', User::STATUSY_ZAMKNIETEGO_KONTA)
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni))
-            ->count();
+        $liczba = $liczeni->count();
 
         Cache::forever(self::KLUCZ_CACHE, $liczba);
 

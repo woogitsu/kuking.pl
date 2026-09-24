@@ -72,7 +72,7 @@ use Illuminate\Database\Eloquent\Builder;
  * Kont zalążkowych (`users.is_seeded`, D-025) NIE wykluczamy i nie ma po co:
  * sprawdzone w `database/seeders` — żaden seeder nie zapisuje wpisów do
  * zeszytów, więc nie ma tu czego zawyżać. Gdyby kiedyś zaczął, właściwym
- * miejscem jest `CookEligibility::excludedUserIds()`, tak jak w
+ * miejscem jest `CookEligibility::tylkoLiczeni()`, tak jak w
  * `LiczbaKukingow`, a nie kolejna kopia reguły tutaj.
  *
  * COUNT(DISTINCT), NIE COUNT(*)

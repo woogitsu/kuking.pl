@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -35,6 +36,18 @@ class TagPromotion extends Model
         return [
             'position' => 'integer',
         ];
+    }
+
+    /**
+     * Kolejność redakcyjna, deterministyczna także przy remisie pozycji
+     * (#1308): remis mógł powstać przed serializacją zmian listy, a samo
+     * `ORDER BY position` zostawia wtedy kolejność bazie.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeWKolejnosci(Builder $query): void
+    {
+        $query->orderBy('position')->orderBy('created_at')->orderBy('tag_id');
     }
 
     public function tag(): BelongsTo

@@ -27,9 +27,11 @@ use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
@@ -235,6 +237,15 @@ try {
             reason: 'spam',
             details: 'To jest reklama.',
         )->getKey(),
+
+        // Zmiany listy tagów promowanych (#1308) — ta sama klasa, której
+        // używa panel gospodarza (`TagPromotionController`).
+        'promuj-tag' => app(PromowaneTagi::class)->dodaj(Tag::query()->findOrFail($argumenty['tag'])),
+
+        'przesun-promowany' => app(PromowaneTagi::class)->przesun(
+            Tag::query()->findOrFail($argumenty['tag']),
+            (int) $argumenty['kierunek'],
+        ),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
