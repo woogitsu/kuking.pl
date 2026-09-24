@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\DeleteComment;
-use App\Domain\Moderation\Actions\RestoreContent;
+use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Moderation\Actions\ZdejmijTresc;
 use App\Models\Appeal;
 use App\Models\Comment;
@@ -28,8 +28,6 @@ use Tests\TestCase;
  *  - usunąć `zablokuj()` z `ModerationController::decide()` — oblewa test
  *    wyścigu (500 z zapory w `tekstDoZachowania()` zamiast błędu dla
  *    moderatora; bez zapory: napis zapisany jako kopia);
- *  - usunąć wywołanie `usunPustyNapisRodzica()` z `DeleteComment` — oblewa
- *    test pustego napisu;
  *  - usunąć `isModerator()` z komponentu i eager load `post` w
  *    `PostController` — oblewa test liczby zapytań.
  */
@@ -101,28 +99,26 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
         DB::transaction(fn () => app(ZdejmijTresc::class)->tekstDoZachowania($komentarz));
     }
 
-    // ── 2. Pusty napis znika razem z ostatnią odpowiedzią ────────────────
+    // ── 2. Napis bez odpowiedzi zostaje — jak na main ───────────────────
+    //
+    // Przegląd G31 próbował sprzątać napis razem z ostatnią odpowiedzią.
+    // Wycofane: zmieniało regułę odpowiadania (pod napisem da się odpowiedzieć,
+    // `PublishComment`), a ten PR reguł odpowiadania nie zmienia. D-251 pkt 11.
 
-    public function test_napis_autora_znika_gdy_znika_ostatnia_odpowiedz(): void
+    public function test_napis_autora_zostaje_gdy_znika_ostatnia_odpowiedz_i_da_sie_pod_nim_odpowiedziec(): void
     {
         $autor = $this->user('autor');
         $komentarz = $this->komentarzZOdpowiedzia($autor);
         $odpowiedz = $komentarz->replies()->sole();
-        $druga = Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
 
         app(DeleteComment::class)->handle($autor, $komentarz);
+        app(DeleteComment::class)->handle($odpowiedz->author, $odpowiedz);
+
+        $this->assertNotSoftDeleted($komentarz);
         $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
 
-        app(DeleteComment::class)->handle($odpowiedz->author, $odpowiedz);
-        $this->assertNotSoftDeleted($komentarz); // zostaje jeszcze jedna odpowiedź
-
-        app(DeleteComment::class)->handle($druga->author, $druga);
-        $this->assertSoftDeleted($komentarz);
-
-        $this->actingAs($this->user('czytelnik'))
-            ->get(route('posts.show', $komentarz->post_id))
-            ->assertOk()
-            ->assertDontSee(DeleteComment::DELETED_PLACEHOLDER);
+        $nowa = app(PublishComment::class)->handle($this->user('czytelnik'), $komentarz->post, 'Odpowiedź pod napisem.', $komentarz->fresh());
+        $this->assertSame($komentarz->getKey(), $nowa->parent_id);
     }
 
     public function test_zwykly_komentarz_bez_odpowiedzi_zostaje_gdy_znika_odpowiedz_obok(): void
@@ -136,7 +132,7 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
         $this->assertNull($komentarz->fresh()->body_removed_at);
     }
 
-    public function test_napis_moderacji_znika_z_ostatnia_odpowiedzia_a_cofniecie_przywraca_tekst(): void
+    public function test_napis_moderacji_zostaje_z_ostatnia_odpowiedzia_a_cofniecie_przywraca_tekst(): void
     {
         $autor = $this->user('autor');
         $komentarz = $this->komentarzZOdpowiedzia($autor);
@@ -151,10 +147,11 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
             ->assertSessionHasNoErrors();
 
         app(DeleteComment::class)->handle($odpowiedz->author, $odpowiedz);
-        $this->assertSoftDeleted($komentarz);
+        $this->assertNotSoftDeleted($komentarz);
+        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
 
         $decyzja = ModerationAction::sole();
-        $this->assertSame($tekst, $decyzja->tresc_sprzed_zdjecia, 'Kopia tekstu przepadła razem z napisem.');
+        $this->assertSame($tekst, $decyzja->tresc_sprzed_zdjecia);
 
         $this->actingAs($autor)->post(route('appeals.store', $decyzja), ['body' => 'To nie była reklama, tylko polecenie sklepu z przyprawami.']);
         $this->actingAs($this->admin())
@@ -164,36 +161,9 @@ class ZdejmijZUrzeduPoPrzegladzieTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $przywrocony = Comment::withTrashed()->find($komentarz->getKey());
-        $this->assertFalse($przywrocony->trashed());
+        $przywrocony = $komentarz->fresh();
         $this->assertSame($tekst, $przywrocony->body);
         $this->assertNull($przywrocony->body_removed_at);
-    }
-
-    public function test_odpowiedz_zdjeta_przez_moderacje_zabiera_napis_a_jej_przywrocenie_go_oddaje(): void
-    {
-        $autor = $this->user('autor');
-        $komentarz = $this->komentarzZOdpowiedzia($autor);
-        $odpowiedz = $komentarz->replies()->sole();
-        app(DeleteComment::class)->handle($autor, $komentarz);
-
-        $moderator = $this->moderator();
-        $this->actingAs($moderator)
-            ->post(route('admin.z-urzedu.store', ['typ' => 'comment', 'id' => $odpowiedz->getKey()]), [
-                'reason_code' => 'spam-reklama',
-                'user_message' => 'Odpowiedź reklamowała sklep.',
-            ])
-            ->assertSessionHasNoErrors();
-
-        $this->assertSoftDeleted($odpowiedz);
-        $this->assertSoftDeleted($komentarz);
-
-        app(RestoreContent::class)->handle($moderator, $odpowiedz->fresh(), 'autor_poprawil');
-
-        $this->assertNotSoftDeleted($odpowiedz);
-        $napis = $komentarz->fresh();
-        $this->assertNotNull($napis, 'Odpowiedź wróciła pod komentarz, którego nie ma.');
-        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $napis->body);
     }
 
     // ── 3. Przycisk „Zdejmij z urzędu” bez N+1 ───────────────────────────

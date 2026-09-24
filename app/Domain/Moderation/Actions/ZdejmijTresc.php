@@ -92,7 +92,6 @@ final class ZdejmijTresc
 
         if (! $komentarz->replies()->exists()) {
             $komentarz->delete();
-            DeleteComment::usunPustyNapisRodzica($komentarz);
 
             return;
         }

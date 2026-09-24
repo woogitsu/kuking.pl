@@ -16278,19 +16278,16 @@ drugą osobę”.
       naprawa) dostaje `id` z `gen_random_uuid()` — v4, losowe — i przy
       remisie sekundy kolejność byłaby przypadkowa. Kod aplikacji tak nie
       wstawia; ręczne wstawki do rejestru i tak wymagają zgody (AGENTS.md §6).
-11. **Napis bez odpowiedzi znika sam** (przegląd G31). `CommentPolicy::delete()`
-    odmawia przy `body_removed_at` (pkt 10), więc napis „Komentarz usunięty.”,
-    pod którym zniknęły wszystkie odpowiedzi, nie dał się usunąć przez nikogo.
-    Zamiast przycisku dla moderatora — prostsze i bez decyzji do uzasadniania,
-    bo tekstu tam już nie ma — napis dostaje miękkie usunięcie w tej samej
-    transakcji, w której znika jego ostatnia opublikowana odpowiedź: przez
-    autora (`DeleteComment`) albo decyzją `remove` (`ZdejmijTresc`), pod
-    blokadą rodzica wspólną z publikacją odpowiedzi
-    (`DeleteComment::usunPustyNapisRodzica()`). Kopia tekstu przy decyzji
-    zostaje: „cofam”/„Przywróć” komentarza z napisem przywraca wiersz
-    **i** tekst (`RestoreContent` traktuje miękko usunięty napis jak
-    zastąpiony). Przywrócenie odpowiedzi przywraca też napis nad nią. Ukrycie
-    odpowiedzi (`hide`) napisu nie usuwa — jest odwracalne jednym kliknięciem.
+11. **Napis bez odpowiedzi zostaje — znane ograniczenie** (przegląd G31).
+    `CommentPolicy::delete()` odmawia przy `body_removed_at` (pkt 10), więc
+    napis „Komentarz usunięty.”, pod którym zniknęły wszystkie odpowiedzi,
+    zostaje na stronie i nikt go nie usunie. Próba sprzątania napisu razem
+    z ostatnią odpowiedzią (miękkie usunięcie w `DeleteComment`) została
+    **wycofana**: zmieniała regułę odpowiadania z main — pod napisem da się
+    dziś odpowiedzieć (`PublishComment`), a po sprzątaniu już nie. Ten PR
+    reguł odpowiadania nie zmienia (decyzja sesji głównej). Domknięcie, jeśli
+    będzie potrzebne, osobno: np. przycisk moderatora w panelu, który nie
+    dotyka `PublishComment`. Test: `ZdejmijZUrzeduPoPrzegladzieTest`, sekcja 2.
 12. **Stan „już zdjęta” przy decyzji ze zgłoszenia czytany pod blokadą
     komentarza** (przegląd G31). `decide()` sprawdzał `jestZdjeta()` na
     modelu sprzed blokady: gdy autor usunął komentarz w tym oknie, do decyzji
