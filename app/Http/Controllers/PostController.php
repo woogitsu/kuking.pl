@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Comments\OdpowiedziWatku;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
@@ -639,7 +640,8 @@ class PostController extends Controller
             ->widoczneDla($request->user())
             ->with([
                 'author.profile.avatar',
-                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                // Odpowiedzi też porcjami (issue #939) — `OdpowiedziWatku`.
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
                 'replies.author.profile.avatar',
                 // Ten sam powód co `recipe`/`replies.recipe` w
                 // `RecipeController`: `Comment::subject()` pytany przy każdym
@@ -648,6 +650,7 @@ class PostController extends Controller
                 'replies.post',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'post']);
 
         if ($post->kind === Post::KIND_QUESTION) {
             $answerCount = $post->comments()->widoczneDla($request->user())->whereNull('comments.body_removed_at')->count();

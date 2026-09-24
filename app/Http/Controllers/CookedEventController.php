@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Comments\OdpowiedziWatku;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Exceptions\BladDlaCzlowieka;
@@ -222,13 +223,15 @@ class CookedEventController extends Controller
             // zablokowana osoba nadal była widoczna pod cudzymi treściami.
             'comments' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.author.profile.avatar',
-            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
+            // Odpowiedzi porcjami (issue #939) — `OdpowiedziWatku`.
+            'comments.replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
             'comments.replies.author.profile.avatar',
             // `Comment::subject()` przy każdym komentarzu — jak `recipe`
             // w `RecipeController`.
             'comments.cookedEvent.recipe',
             'comments.replies.cookedEvent.recipe',
         ]);
+        OdpowiedziWatku::uzupelnij($cookedEvent->comments, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
         return view('pages.cooked.show', ['event' => $cookedEvent]);
     }

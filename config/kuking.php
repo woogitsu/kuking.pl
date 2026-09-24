@@ -323,6 +323,14 @@ return [
         // ma być wszędzie podobny, żeby człowiek wiedział, czego się
         // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
         'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+
+        // Ile ODPOWIEDZI jednego wątku pokazuje strona naraz (issue #939).
+        // Nic nie ogranicza, ile razy ta sama osoba odpowie w wątku, więc bez
+        // tego limitu jeden gorący wątek ładował całą rozmowę mimo paginacji
+        // wątków. Dalsze porcje: link „Pokaż dalsze odpowiedzi (N)”, bez JS
+        // (`App\Domain\Comments\OdpowiedziWatku`). Ta sama liczba co
+        // `page_size` — jeden krok ma być wszędzie podobny.
+        'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
     'collections' => [
