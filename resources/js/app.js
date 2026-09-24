@@ -24,6 +24,7 @@ import './tagi-w-opisie.js';
 import './licznik-znakow.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -1381,6 +1382,26 @@ for (const menu of document.querySelectorAll('details.topbar-konto')) {
             });
         });
     };
+
+    if (window.Livewire) {
+        podlacz();
+    } else {
+        document.addEventListener('livewire:init', podlacz);
+    }
+})();
+
+/* ==========================================================================
+   STRONA NIEAKTUALNA: 419 Z LIVEWIRE PO POLSKU (issue #977)
+   ==========================================================================
+
+   Po wdrożeniu nowej wersji karta otwarta wcześniej dostaje 419. Zamiast
+   angielskiego `confirm()` Livewire'a — komunikat w treści strony z
+   przyciskiem „Odśwież stronę”. Treść i powody: `strona-nieaktualna.js`.
+   Podłączenie jak wyżej: po `livewire:init` albo od razu, gdy Livewire
+   już stoi.
+   ========================================================================== */
+(function stronaNieaktualna() {
+    const podlacz = () => podlaczStronaNieaktualna(window.Livewire);
 
     if (window.Livewire) {
         podlacz();

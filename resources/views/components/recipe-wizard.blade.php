@@ -1059,7 +1059,11 @@ new class extends Component
 };
 ?>
 
+{{-- `data-kreator-zapis` czyta `resources/js/strona-nieaktualna.js`, gdy
+     żądanie dostanie 419 (#977): komunikat nie może obiecać, że szkic jest
+     bezpieczny, jeśli żaden się jeszcze nie zapisał. --}}
 <div class="stack"
+     data-kreator-zapis="{{ $recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic') }}"
      x-data="{ revision: $wire.editRevision }"
      x-on:input="$wire.editRevision = ++revision">
     {{-- ------------------------------------------------------------------

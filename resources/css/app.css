@@ -1863,6 +1863,12 @@
     outline-color: var(--color-accent-tint-ink);
   }
 
+  /* #977: komunikat „Ta strona jest nieaktualna” składany w app.js.
+     Odstępy między nagłówkiem, akapitami i przyciskiem „Odśwież stronę”. */
+  .strona-nieaktualna > * + * {
+    margin-top: var(--spacing-3);
+  }
+
   @media (forced-colors: active) {
     .notice a:not(.btn):focus-visible {
       outline-color: Highlight;

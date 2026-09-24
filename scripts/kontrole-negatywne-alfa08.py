@@ -157,6 +157,13 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 LIVEWIRE_KONFIG = "config/livewire.php"
 LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
 
+# Stan zapisu kreatora dla komunikatu „Ta strona jest nieaktualna” (#977).
+# Mutacja każe kreatorowi mówić „szkic” przed pierwszym zapisem: komunikat po
+# 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
+KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
+KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -359,6 +366,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
+    ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
+     lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -377,6 +386,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
+run_test(KREATOR_ZAPIS_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

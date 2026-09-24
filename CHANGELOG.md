@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Kreator przepisu otwarty przed wdrożeniem nowej wersji nie wysyła już po cichu danych do kodu, który ich nie rozumie. Pierwszy ruch w takiej karcie kończy się prośbą o odświeżenie strony; szkic zapisany wcześniej przez kreator zostaje.
+- Kreator przepisu otwarty przed wdrożeniem nowej wersji nie wysyła już po cichu danych do kodu, który ich nie rozumie. Pierwsza czynność w takiej karcie nie zostaje wykonana, a na górze strony pojawia się po polsku „Ta strona jest nieaktualna” z przyciskiem „Odśwież stronę” — zamiast angielskiego okienka przeglądarki. Komunikat mówi wprost, co z danymi: szkic zapisany wcześniej zostaje, ale ostatnia zmiana w formularzu mogła się nie zapisać; przepis, który jeszcze się nie zapisał, po odświeżeniu będzie pusty; zdjęcie wybrane przed chwilą trzeba dodać jeszcze raz.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.

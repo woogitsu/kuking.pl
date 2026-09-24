@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Livewire\Component;
+use Livewire\Exceptions\LivewireReleaseTokenMismatchException;
 use Livewire\Features\SupportReleaseTokens\ReleaseToken;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -52,16 +55,36 @@ class LivewireReleaseTokenZWydaniaTest extends TestCase
     #[Test]
     public function migawka_ze_starego_wydania_jest_odrzucana(): void
     {
-        // Kontrola dodatnia na prawdziwym mechanizmie Livewire: token z konfiguracji
-        // faktycznie wchodzi do tego, co Livewire porównuje przy każdym żądaniu.
+        // Prawdziwy mechanizm Livewire 4.4.3: migawka z `memo.release` wydanego
+        // przez poprzednie wydanie trafia do `ReleaseToken::verify()` po
+        // wdrożeniu nowego — i musi dostać ten sam wyjątek (419), który
+        // Livewire rzuca przy każdym żądaniu karty sprzed wdrożenia.
+        Livewire::component('kuking-test-token-wydania', KomponentTokenuWydania::class);
+
         config(['livewire.release_token' => $this->tokenPrzy('1a4ab54c4141bccb6cce9e1947cbfb0a227e4894')]);
-        $stary = ReleaseToken::generate(self::class);
+        $migawka = $this->migawka(ReleaseToken::generate(KomponentTokenuWydania::class));
+
+        // Kontrola dodatnia: w tym samym wydaniu migawka przechodzi — inaczej
+        // wyjątek niżej mógłby brać się z czegokolwiek, nie z tokenu.
+        ReleaseToken::verify($migawka);
 
         config(['livewire.release_token' => $this->tokenPrzy('9f0e1d2c3b4a59687766554433221100ffeeddcc')]);
-        $nowy = ReleaseToken::generate(self::class);
 
-        $this->assertNotSame($stary, $nowy);
-        $this->assertStringContainsString('9f0e1d2c3b4a59687766554433221100ffeeddcc', $nowy);
+        try {
+            ReleaseToken::verify($migawka);
+            $this->fail('Migawka ze starego wydania przeszła weryfikację tokenu.');
+        } catch (LivewireReleaseTokenMismatchException $e) {
+            $this->assertSame(419, $e->getStatusCode());
+        }
+    }
+
+    /** @return array{memo: array<string, mixed>, data: array<string, mixed>} */
+    private function migawka(string $release): array
+    {
+        return [
+            'memo' => ['name' => 'kuking-test-token-wydania', 'id' => 'test-id', 'release' => $release],
+            'data' => [],
+        ];
     }
 
     private function tokenPrzy(?string $sha): mixed
@@ -91,5 +114,13 @@ class LivewireReleaseTokenZWydaniaTest extends TestCase
                 putenv(self::ZMIENNA.'='.$poprzednia);
             }
         }
+    }
+}
+
+class KomponentTokenuWydania extends Component
+{
+    public function render(): string
+    {
+        return '<div></div>';
     }
 }
