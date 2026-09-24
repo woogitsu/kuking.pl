@@ -13,9 +13,15 @@
 # Przy kilkunastu równoległych PR-ach każdy podbija tę samą linię na ten sam
 # numer — i każdy kolejny scala się z konfliktem w `config/kuking.php`
 # i w nagłówku CHANGELOG-u. Dlatego PR dopisuje tylko linię w sekcji
-# „Nieopublikowane" (linie dopisane w różnych miejscach listy git scala sam),
-# a numer rośnie RAZ, przy wydaniu: wtedy lista przechodzi pod nowy nagłówek
-# `## Alfa 0.N — …`.
+# „Nieopublikowane", a numer rośnie RAZ, przy wydaniu: wtedy lista przechodzi
+# pod nowy nagłówek `## Alfa 0.N — …`.
+#
+# UCZCIWIE O KONFLIKTACH. Wpis NIE znosi konfliktów — zmniejsza je. Dwa PR-y,
+# które dopiszą linię w TYM SAMYM miejscu listy (np. obie na końcu sekcji),
+# dalej scalą się z konfliktem; jest mały (zostaw obie linie), ale jest.
+# Git scala sam tylko wstawki rozdzielone co najmniej jedną nietkniętą linią.
+# Dlatego zasada z AGENTS.md: nowy wpis staje w liście w KOLEJNOŚCI
+# ALFABETYCZNEJ — wstawki rozchodzą się po liście zamiast tłoczyć na końcu.
 #
 # DLACZEGO TA BRAMKA W OGÓLE POWSTAŁA. Reguła istniała wyłącznie jako
 # komentarz: etykieta `Alfa 0.67` weszła 18.09.2026 (06c8c7e5) i stała przez
@@ -33,9 +39,14 @@
 #      NIE jest wpisem do nieopublikowanych);
 #   2. WYDANIE: `wersja.etykieta` urosła, a CHANGELOG ma nagłówek
 #      `## <nowa etykieta>` — PR wydania przenosi listę, nie dopisuje do niej;
-#   3. FURTKA: linia `Bez-podbicia-wersji: <powód>` w opisie PR-a
-#      (zmienna `KUKING_OPIS_PR`, podaje ją CI) albo w treści dowolnego
-#      commita z zakresu. Wymaga POWODU — sama nazwa nie wystarcza.
+#   3. FURTKA: linia `Bez-podbicia-wersji: <powód>` w treści dowolnego
+#      commita z zakresu albo w opisie PR-a (zmienna `KUKING_OPIS_PR`, podaje
+#      ją CI). Wymaga POWODU — sama nazwa nie wystarcza. Linia musi ZACZYNAĆ
+#      się od `Bez-podbicia-wersji:` (bez wcięcia) i stać poza blokiem kodu
+#      (```/~~~) — cytat reguły w opisie (`> Bez-podbicia-wersji: …`,
+#      przykład we wcięciu albo w bloku) nie jest decyzją i nie otwiera furtki.
+#      Zalecane miejsce to COMMIT: zostaje w historii i przeżywa scalenie;
+#      opis PR-a żyje tylko w zdarzeniu PR-a.
 #      Zmiana w `resources/` bywa czysto techniczna (a25c52b3 skreśla martwy
 #      CSS, 46ea92b5 usuwa martwą klasę z widoków); bez furtki bramka
 #      kazałaby dopisać wpis o niczym i zaśmiecić CHANGELOG, którego broni.
@@ -65,7 +76,16 @@ WZORZEC_WIDOCZNE='^(resources/(views|css|js)|lang|public)/'
 # Testy JS leżą obok kodu, który testują, ale śladu w interfejsie nie mają.
 WZORZEC_NIEWIDOCZNE='\.test\.m?js$'
 
-WZORZEC_FURTKI='^[[:space:]]*Bez-podbicia-wersji:[[:space:]]*[^[:space:]]'
+# Pierwsza linia furtki z tekstu na wejściu (opis PR-a albo treść commita).
+# Pomija linie w blokach kodu ``` / ~~~ i każdą z wcięciem albo `>` na
+# początku — wzorzec jest zakotwiczony w pierwszej kolumnie. Wielkość liter
+# bez znaczenia (`tolower`), CRLF z opisu PR-a zdjęty przed dopasowaniem.
+furtka_w() {
+    tr -d '\r' | awk '
+        /^[[:space:]]*(```|~~~)/ { w_bloku = !w_bloku; next }
+        !w_bloku && tolower($0) ~ /^bez-podbicia-wersji:[[:space:]]*[^[:space:]]/ { print; exit }
+    '
+}
 NAGLOWEK_NIEOPUBLIKOWANE='## Nieopublikowane'
 
 SZCZYT="${2:-HEAD}"
@@ -168,16 +188,16 @@ fi
 
 # --- 3. Furtka -------------------------------------------------------------
 FURTKA=""
-_z_opisu="$(printf '%s\n' "${KUKING_OPIS_PR:-}" | tr -d '\r' | grep -iE "$WZORZEC_FURTKI" | head -n 1 || true)"
+_z_opisu="$(printf '%s\n' "${KUKING_OPIS_PR:-}" | furtka_w || true)"
 if [ -n "$_z_opisu" ]; then
-    FURTKA="opis PR-a: $(printf '%s' "$_z_opisu" | sed 's/^[[:space:]]*//')"
+    FURTKA="opis PR-a: $_z_opisu"
 else
     # Commit po commicie, żeby dało się POWIEDZIEĆ, kto podjął decyzję.
     for _sha in $(git rev-list "$BAZA".."$SZCZYT"); do
-        _powod="$(git log -1 --format=%B "$_sha" | grep -iE "$WZORZEC_FURTKI" | head -n 1 || true)"
+        _powod="$(git log -1 --format=%B "$_sha" | furtka_w || true)"
         if [ -n "$_powod" ]; then
             FURTKA="$(git log -1 --format='%h %an: %s' "$_sha")
-    $(printf '%s' "$_powod" | sed 's/^[[:space:]]*//')"
+    $_powod"
             break
         fi
     done
@@ -202,15 +222,17 @@ cat >&2 <<'POMOC'
 Dwie drogi wyjścia — obie są poprawne, wybierz świadomie:
 
   1. Człowiek to zobaczy. Dopisz w `CHANGELOG.md`, w sekcji
-     `## Nieopublikowane` na górze pliku, linię językiem użytkownika:
+     `## Nieopublikowane` na górze pliku, linię językiem użytkownika —
+     w kolejności alfabetycznej listy, nie na jej końcu (mniej konfliktów):
 
          - Pole filtra mieści się w wąskim oknie także przy dużym piśmie.
 
      NIE podbijaj numeru w `config/kuking.php` — ten rośnie raz, przy wydaniu.
 
   2. Człowiek tego nie zobaczy (martwy CSS, komentarz w Blade, nagłówek
-     HTTP, przeniesienie pliku). Dopisz do opisu PR-a albo do treści
-     dowolnego commita z tej gałęzi linię z POWODEM:
+     HTTP, przeniesienie pliku). Dopisz do treści commita z tej gałęzi
+     (albo do opisu PR-a — wtedy potrzebny nowy push) linię z POWODEM,
+     od pierwszej kolumny, poza cytatem i blokiem kodu:
 
          Bez-podbicia-wersji: usunięcie reguł CSS bez nosiciela, render bez zmian
 POMOC

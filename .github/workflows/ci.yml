@@ -261,7 +261,7 @@ jobs:
       - name: Czy zmiana dotyka czegoś poza dokumentacją
         id: sprawdz
         env:
-          BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          BAZA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
 
@@ -352,13 +352,19 @@ jobs:
   #  opisu PR-a. Tutaj bramka zna dokładną bazę (`base.sha`), pełną historię
   #  i opis, czyli mierzy „to, co wchodzi do main".
   #
+  #  TYLKO NA PULL REQUEŚCIE, NIGDY NA PUSHU DO MAIN. Przy pushu nie ma opisu
+  #  PR-a, a merge commit niesie sam tytuł — PR zielony dzięki furtce
+  #  `Bez-podbicia-wersji:` w opisie po scaleniu oblałby na main, a Railway
+  #  („Wait for CI") wstrzymałby produkcję przez zmianę, którą przegląd już
+  #  przepuścił. Bramka jest pytaniem do PR-a; main nie ma już kogo zapytać.
+  #
   #  Logika siedzi w `scripts/bramka-wersji.sh`, nie w tym YAML-u — żeby dało
   #  się ją uruchomić ręcznie i odtworzyć czerwień bez pchania do CI.
   # ===========================================================================
   bramka_wersji:
     name: Wpis w CHANGELOG przy zmianie widocznej
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: github.event_name == 'pull_request' && needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
 
@@ -371,7 +377,7 @@ jobs:
 
       - name: Czy zmiana widoczna dla człowieka ma wpis w „Nieopublikowane"
         env:
-          BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          BAZA: ${{ github.event.pull_request.base.sha }}
           # Opis PR-a idzie ZMIENNĄ, nie wklejką w skrypt — to tekst od
           # dowolnego autora PR-a i nie może stać się kodem powłoki.
           KUKING_OPIS_PR: ${{ github.event.pull_request.body || '' }}

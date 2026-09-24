@@ -126,6 +126,7 @@ CHANGELOG = "CHANGELOG.md"
 CHANGELOG_TEST = "PodbicieWersjiWymagaWpisuWChangelogTest"
 BRAMKA_WERSJI = "scripts/bramka-wersji.sh"
 BRAMKA_WERSJI_TEST = "BramkaPodbiciaWersjiTest"
+CI_WORKFLOW = ".github/workflows/ci.yml"
 
 
 def digest(path):
@@ -318,6 +319,10 @@ checks = [
      lambda s: replace_once(s, "WZORZEC_WIDOCZNE='^(resources/(views|css|js)|lang|public)/'", "WZORZEC_WIDOCZNE='^(resources/(views|css|js)|public)/'")),
     ("Bramka CHANGELOG-u liczy wpis pod starą wersją", BRAMKA_WERSJI, BRAMKA_WERSJI_TEST,
      lambda s: replace_once(s, "if (linia > od && linia <= do_ && ", "if (")),
+    ("Bramka CHANGELOG-u chodzi przy pushu do main", CI_WORKFLOW, BRAMKA_WERSJI_TEST,
+     lambda s: replace_once(s, "    if: github.event_name == 'pull_request' && needs.zakres.outputs.kod == 'true'\n    runs-on:", "    if: needs.zakres.outputs.kod == 'true'\n    runs-on:")),
+    ("Bramka CHANGELOG-u bierze furtkę z cytatu", BRAMKA_WERSJI, BRAMKA_WERSJI_TEST,
+     lambda s: replace_once(s, "tolower($0) ~ /^bez-podbicia-wersji:", "tolower($0) ~ /^[[:space:]>]*bez-podbicia-wersji:")),
 ]
 
 run_test(COLLECTION_TEST, True)

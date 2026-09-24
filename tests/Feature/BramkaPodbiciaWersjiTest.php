@@ -145,6 +145,33 @@ class BramkaPodbiciaWersjiTest extends TestCase
         $this->assertSame(0, $kod, $wyjscie);
     }
 
+    /**
+     * Cytat reguły to nie decyzja. Opis PR-a, który przytacza AGENTS.md
+     * (`> Bez-podbicia-wersji: …`), pokazuje przykład we wcięciu albo w bloku
+     * kodu, nie może otwierać furtki. Bliźniak zielony — ta sama linia od
+     * pierwszej kolumny — dowodzi, że czerwień bierze się z miejsca linii.
+     */
+    public function test_furtka_w_cytacie_ani_w_bloku_kodu_nie_przepuszcza(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Stara</p>\n<!-- komentarz -->\n");
+        $this->commit('komentarz w widoku');
+
+        $linia = 'Bez-podbicia-wersji: sam komentarz w Blade';
+
+        foreach ([
+            'cytat' => "Reguła mówi:\n\n> {$linia}\n",
+            'wcięcie' => "Przykład:\n\n    {$linia}\n",
+            'blok kodu' => "Przykład:\n\n```\n{$linia}\n```\n",
+            'blok kodu ~~~' => "Przykład:\n\n~~~text\n{$linia}\n~~~\n",
+        ] as $gdzie => $opis) {
+            [$kod, $wyjscie] = $this->bramka($opis);
+            $this->assertSame(1, $kod, "Furtka w miejscu „{$gdzie}” przepuściła:\n{$wyjscie}");
+        }
+
+        [$kod, $wyjscie] = $this->bramka("Przykład:\n\n```\nkod\n```\n\n{$linia}\n");
+        $this->assertSame(0, $kod, 'Furtka od pierwszej kolumny, za zamkniętym blokiem, ma przepuszczać: '.$wyjscie);
+    }
+
     public function test_wydanie_z_nowym_naglowkiem_przechodzi(): void
     {
         $this->zapisz('resources/views/strona.blade.php', "<p>Nowa</p>\n");
@@ -182,6 +209,29 @@ class BramkaPodbiciaWersjiTest extends TestCase
 
         $this->assertStringContainsString('fetch-depth: 0', $job,
             'Bez pełnej historii bramka nie zobaczy ani zakresu, ani furtki w commitach.');
+    }
+
+    /**
+     * Bramka NIE chodzi przy pushu do main. Przy pushu nie ma opisu PR-a,
+     * a merge commit niesie sam tytuł — PR zielony dzięki furtce w opisie
+     * oblewałby po scaleniu, a Railway („Wait for CI") wstrzymywałby
+     * produkcję. Warunek `if:` joba ma więc wymagać zdarzenia `pull_request`
+     * i nie mieć alternatywy (`||`), która wpuściłaby push tylnymi drzwiami.
+     */
+    public function test_bramka_nie_chodzi_przy_pushu_do_main(): void
+    {
+        $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
+
+        $this->assertSame(1, preg_match('/^  bramka_wersji:\R(.*?)(?=^  [a-z_]+:|\z)/ms', $workflow, $matches));
+        $this->assertSame(1, preg_match('/^    if:[ \t]*(.+)$/m', (string) $matches[1], $warunek),
+            'Job `bramka_wersji` nie ma warunku `if:` — chodzi przy każdym zdarzeniu, także przy pushu do main.');
+
+        $warunek = trim($warunek[1]);
+
+        $this->assertStringStartsWith("github.event_name == 'pull_request' && ", $warunek,
+            "Job `bramka_wersji` ma chodzić tylko na PR-ze, a warunek brzmi: {$warunek}");
+        $this->assertStringNotContainsString('||', $warunek,
+            "Alternatywa w warunku może wpuścić push do main: {$warunek}");
     }
 
     /** @return array{0: int, 1: string} */

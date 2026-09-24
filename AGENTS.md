@@ -576,11 +576,25 @@ użytkowników produkcyjnych.
   „Nieopublikowane” przechodzi wtedy pod nowy nagłówek `## Alfa 0.N — …`.
   Powód: podbicie w każdym PR-ze dawało konflikty między równoległymi
   gałęziami (decyzja właściciela, 23.09.2026).
+- **Nowy wpis staje w liście w kolejności alfabetycznej**, nie na końcu
+  sekcji. Wpis zmniejsza konflikty, ale ich nie znosi: dwa PR-y dopisujące
+  linię w tym samym miejscu listy scalą się z konfliktem (małym — zostaw
+  obie linie). Kolejność alfabetyczna rozrzuca wstawki po liście.
 - Zmiana w tych katalogach bez śladu w interfejsie (martwy CSS, komentarz)
-  → linia `Bez-podbicia-wersji: <powód>` w opisie PR-a albo w commicie.
+  → linia `Bez-podbicia-wersji: <powód>` **w treści commita** (zostaje
+  w historii i przeżywa scalenie; opis PR-a to tylko uzupełnienie). Linia
+  zaczyna się od pierwszej kolumny — w cytacie, wcięciu albo bloku kodu
+  bramka jej nie liczy, żeby przytoczenie reguły nie otwierało furtki.
 - Pilnuje tego job CI `bramka_wersji` (`scripts/bramka-wersji.sh`, da się
-  uruchomić lokalnie). Opis PR-a bramka czyta ze zdarzenia — po jego edycji
-  trzeba nowego pushu, samo „Re-run” widzi stary opis.
+  uruchomić lokalnie) — **tylko na PR-ze**, nie przy pushu do `main` (tam nie
+  ma opisu PR-a, a czerwień wstrzymałaby wdrożenie). Opis PR-a bramka czyta
+  ze zdarzenia — po jego edycji trzeba nowego pushu, samo „Re-run” widzi
+  stary opis.
+- **Ograniczenie bramki:** polskie komunikaty zapisane w `app/` (walidacja,
+  powiadomienia, maile, teksty z Livewire) człowiek widzi, ale bramka ich
+  NIE liczy jako zmiany widocznej — `app/` jest poza listą, bo większość
+  zmian tam nie ma śladu w interfejsie. Zmieniasz taki tekst → dopisz wpis
+  w „Nieopublikowane” sam, bez przypomnienia z CI.
 
 ### Bugfix zawsze zawiera test regresyjny
 
