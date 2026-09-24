@@ -5,7 +5,7 @@
 #  Jeden obraz, cztery role. Rolę wybiera pierwszy argument albo APP_ROLE:
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
-#    worker     — php artisan queue:work (przetwarzanie zdjęć, maile, eksporty)
+#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty)
 #    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
@@ -358,8 +358,8 @@ start_worker() {
   # --tries=3         → 3 próby, potem failed_jobs; ProcessUploadedImage musi
   #                     być idempotentny (patrz docs/MEDIA_PIPELINE.md).
   # --backoff=10,60,300 → rosnące opóźnienie między próbami.
-  # --queue           → kolejność priorytetów: interakcje użytkownika przed
-  #                     ciężkim przetwarzaniem obrazów.
+  # --queue           → każdy proces ma JEDNĄ klasę pracy, patrz
+  #                     nadzoruj_kolejki() niżej (issue #1030).
   # Worker dostaje wyższy limit pamięci niż web. php.ini nie umie wartości
   # domyślnych, więc podajemy to flagą -d.
   #
@@ -375,12 +375,71 @@ start_worker() {
   # ustawiona jest polityka restartu w panelu — czyli od czegoś, czego nie ma
   # w repozytorium i o czym nikt nie pamięta. Kolejka ma działać niezależnie
   # od tego ustawienia.
-  nadzoruj "kolejka" jeden_przebieg_kolejki
+  nadzoruj_kolejki
+}
+
+# -----------------------------------------------------------------------------
+#  OSOBNY PROCES NA KAŻDĄ KLASĘ PRACY (issue #1030)
+#
+#  Był jeden `queue:work --queue=high,default,media,low`. Laravel czyta tę
+#  listę jako ŚCISŁY priorytet: dopóki `default` ma gotowe zadanie, worker
+#  nie zajrzy do `media`, a do `low` — dopóki czeka cokolwiek wyżej. Przy
+#  stałym napływie maili zdjęcia nie przetwarzały się wcale, a eksport RODO
+#  i analiza moderacyjna mogły czekać bez końca.
+#
+#  Teraz każda pozycja z QUEUE_WORKERS (rozdzielone spacją) to osobny proces
+#  pod własnym nadzorcą, więc żadna kolejka nie czeka na cudzą:
+#
+#    default → maile, powiadomienia, czyszczenie CDN (wszystko bez onQueue)
+#    media   → ProcessUploadedImage — JEDEN proces celowo: dekodowanie
+#              zdjęcia 50 Mpx to ~450 MB RSS, dwa naraz nie zmieszczą się
+#              w kontenerze 1024 MB (BudzetPamieciZdjecTest)
+#    low     → eksport danych, analiza treści
+#
+#  `high` zniknęła z listy: żaden kod jej nie używał, a pusta kolejka
+#  „pilna" dawała pozór ścieżki, której nie ma.
+#
+#  Koszt: dwa dodatkowe bezczynne procesy PHP (po kilkadziesiąt MB RSS).
+#  Powrót do starego zachowania bez wdrożenia: QUEUE_WORKERS="high,default,media,low".
+#
+#  Nadzorca któregokolwiek procesu, który się poddał (nadzoruj() zwraca 1),
+#  kończy całą grupę kodem 1 — tak samo jak dotąd jeden nadzorca kolejki.
+# -----------------------------------------------------------------------------
+nadzoruj_kolejki() {
+  local -a listy pidy=()
+  local lista pid
+  read -r -a listy <<< "${QUEUE_WORKERS:-default media low}"
+  if [[ -n "${QUEUE_NAMES:-}" ]]; then
+    log "OSTRZEŻENIE: QUEUE_NAMES jest ignorowane od issue #1030 — ustaw QUEUE_WORKERS"
+  fi
+
+  # SIGTERM (deploy, `shutdown` roli `all`) trafia do tej powłoki, nie do
+  # nadzorców w tle — bez przekazania zostaliby sierotami. `jobs -p`, nie
+  # `pidy`: sygnał może przyjść między `&` a dopisaniem PID-u do tablicy.
+  trap 'kill -TERM $(jobs -p) 2>/dev/null || true; exit 0' TERM INT
+
+  for lista in "${listy[@]}"; do
+    log "start queue:work --queue=${lista}"
+    nadzoruj "kolejka[${lista}]" jeden_przebieg_kolejki "${lista}" &
+    pidy+=("$!")
+  done
+
+  while true; do
+    for pid in "${pidy[@]}"; do
+      if ! kill -0 "${pid}" 2>/dev/null; then
+        log "BŁĄD: nadzorca kolejki PID ${pid} się poddał — zatrzymuję pozostałe"
+        kill -TERM "${pidy[@]}" 2>/dev/null || true
+        wait || true
+        return 1
+      fi
+    done
+    sleep 1
+  done
 }
 
 jeden_przebieg_kolejki() {
   php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
-    --queue="${QUEUE_NAMES:-high,default,media,low}" \
+    --queue="$1" \
     --tries="${QUEUE_TRIES:-3}" \
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \
     --max-time="${QUEUE_MAX_TIME:-3600}" \
@@ -478,7 +537,7 @@ case "${ROLE}" in
     # Kolejka i harmonogram idą pod NADZORCĄ, bo oba KOŃCZĄ SIĘ PLANOWO:
     # worker po --max-time, harmonogram po każdym przebiegu. Wcześniej ich
     # normalne zakończenie kładło cały serwis — patrz opis przy nadzoruj().
-    nadzoruj "kolejka" jeden_przebieg_kolejki &
+    nadzoruj_kolejki &
     PID_KOLEJKI="$!"
     CHILD_PIDS+=("${PID_KOLEJKI}")
 

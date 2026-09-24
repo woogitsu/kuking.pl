@@ -94,11 +94,11 @@ class UmowaKolejkiTest extends TestCase
 
         $this->assertSame(
             1,
-            preg_match('/QUEUE_NAMES:-([a-z,]+)/', $entrypoint, $trafienie),
+            preg_match('/QUEUE_WORKERS:-([a-z, ]+)\}/', $entrypoint, $trafienie),
             'Nie znalazłem listy kolejek w docker/entrypoint.sh.',
         );
 
-        $obslugiwane = explode(',', $trafienie[1]);
+        $obslugiwane = preg_split('/[, ]+/', $trafienie[1]);
 
         foreach (self::ZADANIA as $klasa => $kolejka) {
             if ($kolejka === null) {
@@ -114,21 +114,33 @@ class UmowaKolejkiTest extends TestCase
         }
     }
 
-    public function test_zdjecie_wyprzedza_eksport_w_kolejnosci_workera(): void
+    public function test_kazda_kolejka_z_producentem_ma_wlasny_proces_workera(): void
     {
-        // Kolejność w `--queue` decyduje, co worker weźmie NAJPIERW, gdy oba
-        // czekają. Zdjęcie z wpisu czeka człowiek, który właśnie kliknął
-        // „Opublikuj"; paczkę z danymi dostaje się e-mailem i nikt na nią
-        // nie patrzy.
+        // Issue #1030. Kolejność w jednym `--queue` to ścisły priorytet:
+        // przy stałym napływie `default` zdjęcie i eksport nie ruszyłyby
+        // nigdy. Dlatego każda kolejka z producentem stoi na PIERWSZYM
+        // miejscu jakiegoś procesu — wtedy ten proces bierze ją zawsze,
+        // bez względu na zaległość gdzie indziej.
         $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
 
-        preg_match('/QUEUE_NAMES:-([a-z,]+)/', $entrypoint, $trafienie);
-        $kolejnosc = explode(',', $trafienie[1]);
+        preg_match('/QUEUE_WORKERS:-([a-z, ]+)\}/', $entrypoint, $trafienie);
+        $pierwsze = array_map(
+            fn (string $lista) => explode(',', $lista)[0],
+            preg_split('/ +/', trim($trafienie[1] ?? '')),
+        );
 
-        $this->assertLessThan(
-            array_search('low', $kolejnosc, true),
-            array_search('media', $kolejnosc, true),
-            'Kolejka `low` stoi przed `media` — paczka z danymi wyprzedzi zdjęcie z wpisu.',
+        foreach (array_unique(array_map(fn ($k) => $k ?? 'default', self::ZADANIA)) as $kolejka) {
+            $this->assertContains(
+                $kolejka,
+                $pierwsze,
+                "Kolejka `{$kolejka}` nie ma procesu, który bierze ją jako pierwszą — przy zaległości wyżej czeka bez końca.",
+            );
+        }
+
+        $this->assertSame(
+            1,
+            count(array_filter(preg_split('/ +/', trim($trafienie[1] ?? '')), fn ($l) => in_array('media', explode(',', $l), true))),
+            'Kolejkę `media` ma brać dokładnie jeden proces — dwa zdjęcia 50 Mpx naraz nie mieszczą się w pamięci kontenera.',
         );
     }
 }

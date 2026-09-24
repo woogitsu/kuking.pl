@@ -188,12 +188,14 @@ final class AlarmKolejki
         // `exception`, nie ma prawa się tu znaleźć.
         $co = match ($stan) {
             StanKolejki::ZALEGLOSC => sprintf(
-                'najstarsze gotowe zadanie czeka %d s (próg %d s), oczekujących %d, zawieszonych %d. '
+                'najstarsze gotowe zadanie czeka %d s (próg %d s)%s, oczekujących %d, zawieszonych %d.%s '
                 .'To wygląda na workera, który NIE PRACUJE — a worker, który nie chodzi, nie zgłasza żadnego błędu.',
                 (int) ($wynik['zaleglosc_sekundy'] ?? 0),
                 (int) ($wynik['prog_zaleglosci_sekundy'] ?? 0),
+                is_string($wynik['najstarsza_kolejka'] ?? null) ? ' w kolejce `'.$wynik['najstarsza_kolejka'].'`' : '',
                 (int) ($wynik['oczekujace'] ?? 0),
                 (int) ($wynik['zawieszone'] ?? 0),
+                $this->wedlugKolejek($wynik['kolejki'] ?? []),
             ),
             StanKolejki::NOWE_NIEUDANE => sprintf(
                 'w ostatnich %d h padło %d zadań (w tabeli razem: %d).',
@@ -212,6 +214,29 @@ final class AlarmKolejki
             '(niczego nie kasuje bez `--skasuj`). NIE ponawiaj zbiorczo starych zadań —',
             'żeton resetu hasła wygasa i ponowienie wysyła człowiekowi martwy link.',
         ]);
+    }
+
+    /**
+     * „Według kolejek: default 3 (12 s), media 40 (900 s).” — nazwy
+     * przeszły już filtr w `StanKolejki::wedlugKolejek()`.
+     */
+    private function wedlugKolejek(mixed $kolejki): string
+    {
+        if (! is_array($kolejki) || $kolejki === []) {
+            return '';
+        }
+
+        $czesci = [];
+        foreach ($kolejki as $nazwa => $liczby) {
+            $czesci[] = sprintf(
+                '%s %d (%d s)',
+                (string) $nazwa,
+                (int) ($liczby['oczekujace'] ?? 0),
+                (int) ($liczby['zaleglosc_sekundy'] ?? 0),
+            );
+        }
+
+        return ' Według kolejek: '.implode(', ', $czesci).'.';
     }
 
     /** Zegar przez Carbona, nie `time()` — inaczej okien czasowych nie da się zmierzyć testem. */

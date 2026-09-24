@@ -102,7 +102,9 @@ class AktualizujOstatniaWizyte
                 }
             }
 
-            $this->zanotuj->handle($user);
+            // Sam zapis po odpowiedzi (#1044); `$previous` i kwalifikacja PWA
+            // są policzone wyżej, z wartości sprzed tego żądania.
+            $this->zanotuj->zaplanuj($user);
         } elseif ($request->hasSession()) {
             $request->session()->forget(self::PWA_RETURN_CANDIDATE);
         }

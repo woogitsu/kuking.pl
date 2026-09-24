@@ -54,11 +54,11 @@ class ProcessUploadedImage implements ShouldQueue
     /**
      * Kolejka `media`, nie `default` (audyt W3-05).
      *
-     * `docker/entrypoint.sh` uruchamia workera z `--queue=high,default,media,low`
-     * i komentarz mówi, że interakcje użytkownika mają wyprzedzać ciężkie
+     * `docker/entrypoint.sh` uruchamiał workera z `--queue=high,default,media,low`
+     * i komentarz mówił, że interakcje użytkownika mają wyprzedzać ciężkie
      * przetwarzanie obrazów. Żaden job nie przypisywał się jednak do kolejki,
      * więc wszystkie lądowały na `default` — a kolejność w tej fladze nie
-     * robiła nic.
+     * robiła nic. Dziś `media` ma własny, jedyny proces workera (#1030).
      */
     private const KOLEJKA = 'media';
 

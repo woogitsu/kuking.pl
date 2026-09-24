@@ -165,12 +165,52 @@ sprawdz "długie błędy zachowują rosnący backoff" $'przerwa=2\nprzerwa=4' "$
 sprawdz "log awarii podaje kod, czas i numer próby" "tak" "$(grep -q 'kolejka awaria (kod 23) po 31 s (3/3)' <<< "$wynik" && echo tak || echo nie)"
 sprawdz "niezerowy kod nigdy nie jest planowym recyklingiem" "brak" "$(grep -q 'planowy recykling' <<< "$wynik" && echo jest || echo brak)"
 
+# Issue #1030: każda kolejka ma własny proces pod własnym nadzorcą. Jeden
+# `--queue=high,default,media,low` to ścisły priorytet — `media` i `low`
+# czekały, dopóki `default` miał cokolwiek do zrobienia.
+wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
+$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
+$(cat <<'PROBA'
+set -Eeuo pipefail
+SLAD="$(mktemp)"
+trap 'rm -f "$SLAD"' EXIT
+sleep() { command sleep 0.05; }
+jeden_przebieg_kolejki() { echo "$1" >> "$SLAD"; while true; do command sleep 0.05; done; }
+nadzoruj_kolejki &
+grupa=$!
+for _ in $(seq 40); do (( $(wc -l < "$SLAD") >= 3 )) && break; command sleep 0.05; done
+kill "$grupa" 2>/dev/null
+sort "$SLAD" | tr '\n' ' '
+PROBA
+)" 2>/dev/null)"
+sprawdz "domyślnie osobny proces na default, media i low (bez high)" "default low media " "${wynik}"
+
+wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
+$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
+$(cat <<'PROBA'
+set -Eeuo pipefail
+NADZOR_LIMIT=2
+sleep() { command sleep 0.05; }
+jeden_przebieg_kolejki() {
+  if [[ "$1" == media ]]; then return 23; fi
+  trap 'echo "zatrzymany $1"; exit 0' TERM
+  while true; do command sleep 0.05; done
+}
+kod=0
+QUEUE_WORKERS="default media" nadzoruj_kolejki || kod=$?
+echo "grupa=${kod}"
+PROBA
+)" 2>&1)"
+sprawdz "poddany nadzorca jednej kolejki kończy grupę kodem 1" "tak" "$(grep -q 'grupa=1' <<< "$wynik" && echo tak || echo nie)"
+sprawdz "grupa zatrzymuje pozostałe procesy kolejek" "tak" "$(grep -q 'nadzorca kolejki PID .* się poddał' <<< "$wynik" && echo tak || echo nie)"
+
 # Wykonujemy prawdziwy blok all, nie jego odpis. Atrapy nie uruchamiają PHP,
 # WWW ani bazy. Prawdziwy shutdown ma zatrzymać pozostałe procesy. Trzy
 # scenariusze sprawdzają każdy obserwowany PID i set -e przy niezerowym wait.
 for cel in kolejka www harmonogram recykling; do
   wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
 $(sed -n '/^czekaj_na_uslugi() {/,/^}/p' "$ENTRYPOINT")
+$(sed -n '/^nadzoruj_kolejki() {/,/^}/p' "$ENTRYPOINT")
 $(sed -n '/^shutdown() {/,/^}/p' "$ENTRYPOINT")
 $(cat <<'PROBA'
 set -Eeuo pipefail
