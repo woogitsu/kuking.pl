@@ -9,6 +9,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\Czas;
@@ -100,7 +101,7 @@ class ProfileController extends Controller
                 ? $owner->recipes()
                     ->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-                    ->with('heroMedia')
+                    ->with(Recipe::RELACJE_KARTY)
                     ->latest('published_at')
                     ->latest('id')
                     ->paginate(12)

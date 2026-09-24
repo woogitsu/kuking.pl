@@ -140,7 +140,7 @@ async function podniesSerwer() {
   execFileSync('php', ['artisan', 'config:clear'], { stdio: 'ignore', env: env() });
 
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   /* Bez dowiązania `public/storage` wariant leży na dysku, ale nie ma spod
      jakiego adresu go wziąć — a pomiar pyta właśnie o to, czy obrazek się

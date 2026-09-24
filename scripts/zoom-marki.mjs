@@ -246,7 +246,7 @@ export async function sprawdzZoomMarki({ adres, sesja, przepis, zeszyt = null, s
       const md5 = path => createHash('md5').update(readFileSync(path)).digest('hex');
       execFileSync('cp', ['-p', source, backup]);
       const original = md5(source), modified = statSync(source).mtimeMs;
-      const build = () => execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+      const build = () => execFileSync('npm', ['run', 'build:assets'], { stdio: 'pipe' });
       const probe = async (dark, path = "/login") => {
         await context.clearCookies();
         if (path.startsWith('/@')) await context.addCookies(sesja.cookies);

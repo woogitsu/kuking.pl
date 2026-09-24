@@ -34,7 +34,7 @@ class StanWiadomosciCelBleduTest extends TestCase
         $m = ContactMessage::factory()->create();
         $before = $m->refresh()->getRawOriginal();
         $url = route('admin.contact.show', $m);
-        $html = $this->actingAs($this->moderator())->followingRedirects()->from($url)->post(route('admin.contact.update', $m), ['status' => $status, 'handler_note' => 'Lokalna notatka'])->assertOk()->assertSee('href="#f-status"', false)->getContent();
+        $html = $this->actingAs($this->moderator())->followingRedirects()->from($url)->post(route('admin.contact.update', $m), ['version' => 0, 'status' => $status, 'handler_note' => 'Lokalna notatka'])->assertOk()->assertSee('href="#f-status"', false)->getContent();
         $this->assertSame($before, $m->refresh()->getRawOriginal());
         $xp = $this->xpath($html);
         $this->assertSame(1, $xp->query('//input[@type="radio" and @name="status" and @id="f-status"]')->length);
@@ -62,7 +62,7 @@ class StanWiadomosciCelBleduTest extends TestCase
         $xp = $this->xpath($html);
         $this->assertSame(0, $xp->query('//input[@name="status"][@aria-invalid="true" or @aria-describedby]')->length);
         $this->assertSame(0, $xp->query('//*[@id="f-status-error"]')->length);
-        $this->post(route('admin.contact.update', $m), ['status' => ContactMessage::STATUS_W_TOKU, 'handler_note' => 'Sprawdzam'])->assertRedirect($url)->assertSessionHasNoErrors();
+        $this->post(route('admin.contact.update', $m), ['version' => 0, 'status' => ContactMessage::STATUS_W_TOKU, 'handler_note' => 'Sprawdzam'])->assertRedirect($url)->assertSessionHasNoErrors();
         $m->refresh();
         $this->assertSame(ContactMessage::STATUS_W_TOKU, $m->status);
         $this->assertSame('Sprawdzam', $m->handler_note);
