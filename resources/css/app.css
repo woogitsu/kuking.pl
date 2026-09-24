@@ -1869,6 +1869,11 @@
     margin-top: var(--spacing-3);
   }
 
+  /* Pusty dopisek (region aria-live na zdjęcie) nie robi podwójnej przerwy. */
+  .strona-nieaktualna > :empty {
+    margin-top: 0;
+  }
+
   @media (forced-colors: active) {
     .notice a:not(.btn):focus-visible {
       outline-color: Highlight;

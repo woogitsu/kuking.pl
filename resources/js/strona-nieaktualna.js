@@ -26,6 +26,8 @@
  *  PHP przy każdym udanym renderze kreatora.
  */
 
+const TEKST_ZDJECIA = 'Zdjęcie wybrane przed chwilą nie zostało przesłane. Po odświeżeniu dodaj je jeszcze raz.';
+
 /**
  * Treść komunikatu dla danej sytuacji. Czysta funkcja — testowana wprost
  * w `strona-nieaktualna.test.mjs`.
@@ -48,7 +50,7 @@ export function trescKomunikatu({ zapis, zdjecieWToku }) {
     }
 
     if (zdjecieWToku) {
-        akapity.push('Zdjęcie wybrane przed chwilą nie zostało przesłane. Po odświeżeniu dodaj je jeszcze raz.');
+        akapity.push(TEKST_ZDJECIA);
     }
 
     akapity.push(zapis === null
@@ -88,6 +90,9 @@ export function podlaczStronaNieaktualna(livewire, okno = window, dokument = doc
         okno.addEventListener(koniec, (e) => przesylania.delete(klucz(e)));
     }
 
+    // Komunikat już pokazany na tej stronie: `{ ramka, dopisek, zdjecie }`.
+    let pokazany = null;
+
     livewire.interceptRequest(({ request, onError }) => {
         onError(({ response, preventDefault }) => {
             if (response?.status !== 419) {
@@ -96,10 +101,17 @@ export function podlaczStronaNieaktualna(livewire, okno = window, dokument = doc
 
             // Bez tego Livewire otwiera angielskie `confirm()`.
             preventDefault();
-            pokazKomunikat(dokument, okno, {
+
+            const stan = {
                 zapis: stanZapisu(dokument),
                 zdjecieWToku: przesylania.size > 0 || niesiePrzesylanie(request),
-            });
+            };
+
+            if (pokazany && dokument.getElementById(ID) === pokazany.ramka) {
+                uzupelnijKomunikat(pokazany, stan);
+            } else {
+                pokazany = pokazKomunikat(dokument, okno, stan);
+            }
         });
     });
 }
@@ -118,26 +130,35 @@ function stanZapisu(dokument) {
 
 const ID = 'strona-nieaktualna';
 
+/**
+ * Pierwsze 419 na stronie: buduje komunikat i przenosi na niego fokus.
+ *
+ * Budowa:  ramka [role=alert] — ogłaszana raz, przy wstawieniu
+ *            ├─ nagłówek + akapity
+ *            ├─ dopisek [aria-live=polite] — pusty, chyba że zdjęcie dojdzie później
+ *            └─ przycisk „Odśwież stronę”
+ */
 function pokazKomunikat(dokument, okno, stan) {
     const { naglowek, akapity } = trescKomunikatu(stan);
-    let ramka = dokument.getElementById(ID);
 
-    if (!ramka) {
-        ramka = dokument.createElement('div');
-        ramka.id = ID;
-        ramka.className = 'notice strona-nieaktualna';
-        // `alert`: to odpowiedź na czynność wykonaną przed chwilą —
-        // czytnik ekranu ma to przeczytać od razu, nie „kiedyś”.
-        ramka.setAttribute('role', 'alert');
-
-        const miejsce = dokument.querySelector('main') ?? dokument.body;
-        miejsce.prepend(ramka);
-    }
+    const ramka = dokument.createElement('div');
+    ramka.id = ID;
+    ramka.className = 'notice strona-nieaktualna';
+    // `alert`: to odpowiedź na czynność wykonaną przed chwilą —
+    // czytnik ekranu ma to przeczytać od razu, nie „kiedyś”.
+    ramka.setAttribute('role', 'alert');
 
     const h = dokument.createElement('h2');
     h.id = `${ID}-naglowek`;
     h.tabIndex = -1;
     h.textContent = naglowek;
+
+    // Kolejne 419 przychodzą co ~3 s, dopóki człowiek pisze w kreatorze
+    // (`wire:model.live.debounce`). Nie wolno wtedy ani zabierać mu fokusu
+    // z pola, ani ogłaszać całości od nowa — jedyna nowa wiadomość, jaka może
+    // się pojawić, to zdjęcie, i ta idzie tu, grzecznie.
+    const dopisek = dokument.createElement('p');
+    dopisek.setAttribute('aria-live', 'polite');
 
     const przycisk = dokument.createElement('button');
     przycisk.type = 'button';
@@ -149,10 +170,27 @@ function pokazKomunikat(dokument, okno, stan) {
         const p = dokument.createElement('p');
         p.textContent = tekst;
         return p;
-    }), przycisk);
+    }), dopisek, przycisk);
+
+    const miejsce = dokument.querySelector('main') ?? dokument.body;
+    miejsce.prepend(ramka);
 
     // Komunikat stoi na górze treści — człowiek w połowie kreatora by go nie
     // zobaczył. Fokus na nagłówku przewija do niego i ustawia klawiaturę
-    // tuż przed przyciskiem.
+    // tuż przed przyciskiem. TYLKO za pierwszym razem.
     h.focus();
+
+    return { ramka, dopisek, zdjecie: stan.zdjecieWToku };
+}
+
+/**
+ * Kolejne 419: bez fokusu i bez przebudowy. Stan zapisu się nie zmieni
+ * (żaden render kreatora już nie przejdzie), więc jedyne, co może dojść,
+ * to zdjęcie wybrane po pierwszym komunikacie.
+ */
+function uzupelnijKomunikat(pokazany, stan) {
+    if (stan.zdjecieWToku && !pokazany.zdjecie) {
+        pokazany.zdjecie = true;
+        pokazany.dopisek.textContent = TEKST_ZDJECIA;
+    }
 }

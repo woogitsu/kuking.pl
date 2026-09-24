@@ -116,11 +116,15 @@ test('Zapisany szkic: polski komunikat, żadnego okienka, fokus i przycisk „Od
         // Tekst w formularzu zostaje nietknięty do chwili odświeżenia.
         assert.equal(await page.locator('textarea').inputValue(), 'Długi opis, który ktoś właśnie pisze');
 
-        // Drugie 419 nie dokłada okienka ani drugiej ramki.
-        await page.getByRole('button', { name: 'Dalej' }).click();
+        // Drugie 419 (jak z debounce kreatora, gdy ktoś pisze dalej) nie dokłada
+        // okienka ani drugiej ramki i NIE zabiera fokusu z pola. Klik z JS,
+        // żeby sam klik nie przeniósł fokusu na przycisk.
+        await page.locator('textarea').focus();
+        await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Dalej').click());
         await page.waitForTimeout(300);
         assert.equal(await page.getByRole('alert').count(), 1);
         assert.deepEqual(okienka, []);
+        assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA', 'drugie 419 nie zabiera fokusu');
 
         await Promise.all([page.waitForEvent('load'), odswiez.click()]);
     } finally {

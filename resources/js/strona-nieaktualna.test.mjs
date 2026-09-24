@@ -54,7 +54,7 @@ function atrapa({ zapis } = {}) {
             addEventListener(typ, fn) { this[`on${typ}`] = fn; },
             prepend(dziecko) { this.children.unshift(dziecko); elementy.push(dziecko); },
             replaceChildren(...d) { this.children = d; },
-            focus() { this.focused = true; },
+            focus() { this.focused = true; dokument.activeElement = this; },
         };
         return el;
     };
@@ -65,6 +65,7 @@ function atrapa({ zapis } = {}) {
         createElement: element,
         querySelector: (s) => (s === 'main' ? main : s === '[data-kreator-zapis]' ? kreator : null),
         getElementById: (id) => elementy.find((e) => e.id === id) ?? null,
+        activeElement: null,
     };
     const okno = {
         przeladowania: 0,
@@ -85,7 +86,12 @@ function atrapa({ zapis } = {}) {
             return { confirmLivewire: status === 419 && !zablokowane };
         },
     };
-    return { dokument, okno, livewire, main };
+    // Livewire morph albo nawigacja może wyrzucić ramkę z DOM-u.
+    const usunRamke = () => {
+        main.children = main.children.filter((e) => e.id !== 'strona-nieaktualna');
+        elementy.splice(0, elementy.length, ...elementy.filter((e) => e.id !== 'strona-nieaktualna'));
+    };
+    return { dokument, okno, livewire, main, element, usunRamke };
 }
 
 test('419: blokuje confirm() Livewire i wstawia polski komunikat z przyciskiem', () => {
@@ -111,6 +117,70 @@ test('419: blokuje confirm() Livewire i wstawia polski komunikat z przyciskiem',
     // Drugie 419 nie dokłada drugiej ramki.
     livewire.odpowiedz(419);
     assert.equal(main.children.length, 1);
+});
+
+test('Kolejne 419 (kreator co ~3 s): fokus zostaje w polu, ramka nie jest przebudowana ani dublowana', () => {
+    const { dokument, okno, livewire, main, element } = atrapa({ zapis: 'szkic' });
+    podlaczStronaNieaktualna(livewire, okno, dokument);
+    const pole = element('textarea');
+
+    pole.focus();
+    livewire.odpowiedz(419);
+    const ramka = main.children[0];
+    const [h] = ramka.children;
+    const dzieci = [...ramka.children];
+    const teksty = dzieci.map((e) => e.textContent);
+    // Kontrola dodatnia: atrapa widzi przeniesienie fokusu — pierwsze 419 go przenosi.
+    assert.equal(dokument.activeElement, h, 'pierwsze 419 przenosi fokus na nagłówek');
+
+    // Człowiek wraca do pola i pisze dalej; debounce wysyła kolejne żądania.
+    pole.focus();
+    livewire.odpowiedz(419);
+    livewire.odpowiedz(419);
+
+    assert.equal(dokument.activeElement, pole, 'kolejne 419 nie może zabrać fokusu z pola');
+    assert.equal(main.children.length, 1, 'bez drugiej ramki');
+    assert.equal(main.children[0], ramka, 'ta sama ramka');
+    assert.deepEqual(ramka.children, dzieci, 'bez przebudowy (role=alert nie ogłasza całości od nowa)');
+    assert.deepEqual(ramka.children.map((e) => e.textContent), teksty, 'treść bez zmian');
+});
+
+test('Zdjęcie wybrane po pierwszym komunikacie: tylko dopisek w regionie polite, bez fokusu', () => {
+    const { dokument, okno, livewire, main, element } = atrapa({ zapis: 'szkic' });
+    podlaczStronaNieaktualna(livewire, okno, dokument);
+    livewire.odpowiedz(419);
+    const ramka = main.children[0];
+    const dzieci = [...ramka.children];
+    const dopisek = dzieci.find((e) => e.attrs['aria-live'] === 'polite');
+    assert.ok(dopisek, 'jest region polite na dopisek');
+    assert.equal(dopisek.textContent, '');
+
+    const pole = element('input');
+    pole.focus();
+    livewire.odpowiedz(419, { messages: [{ actions: [{ name: '_startUpload' }] }] });
+
+    assert.equal(dokument.activeElement, pole);
+    assert.deepEqual(ramka.children, dzieci, 'reszta ramki nietknięta');
+    assert.match(dopisek.textContent, /Zdjęcie wybrane przed chwilą nie zostało przesłane/);
+    assert.equal(ramka.children.filter((e) => /Zdjęcie wybrane/.test(e.textContent)).length, 1);
+
+    // Kolejne przesyłanie nie dopisuje tego samego drugi raz.
+    livewire.odpowiedz(419, { messages: [{ actions: [{ name: '_finishUpload' }] }] });
+    assert.equal(ramka.children.filter((e) => /Zdjęcie wybrane/.test(e.textContent)).length, 1);
+});
+
+test('Ramka wyrzucona z DOM-u: następne 419 pokazuje ją od nowa z fokusem', () => {
+    const { dokument, okno, livewire, main, element, usunRamke } = atrapa();
+    podlaczStronaNieaktualna(livewire, okno, dokument);
+    livewire.odpowiedz(419);
+    usunRamke();
+    assert.equal(main.children.length, 0);
+
+    const pole = element('input');
+    pole.focus();
+    livewire.odpowiedz(419);
+    assert.equal(main.children.length, 1);
+    assert.equal(dokument.activeElement, main.children[0].children[0]);
 });
 
 test('Kontrola dodatnia: atrapa naprawdę zgłasza confirm(), gdy nikt nie woła preventDefault()', () => {

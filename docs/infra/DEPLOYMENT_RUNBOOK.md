@@ -700,6 +700,8 @@ wtedy pokazywać wartość w panelu i w CLI.
 
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
+Token wydania Livewire (`livewire.release_token`, #977) bierze się z
+`RAILWAY_GIT_COMMIT_SHA`; bez tej zmiennej (lokalnie, testy, wdrożenie bez gita) jest stały `lokalnie`.
 
 > **`AWS_URL` zniknęło z tej listy i nie wróci.** Była to własna domena bucketa
 > wariantów i to ona była adresem każdego zdjęcia — adres, który nikogo o nic
