@@ -122,6 +122,55 @@ class PowtorneUsuniecieKomentarzaTest extends TestCase
         $this->assertSame(1, Notification::query()->count());
     }
 
+    /**
+     * Komentarz bez odpowiedzi jest usuwany miękko. Przed poprawką wiązanie
+     * trasy pomijało miękko usunięte wiersze i drugie DELETE dawało 404
+     * zamiast komunikatu, który obiecuje CHANGELOG.
+     */
+    public function test_drugie_delete_komentarza_bez_odpowiedzi_daje_komunikat(): void
+    {
+        $wlascicielka = $this->user('wlascicielka');
+        $autor = $this->user('autorkomentarza');
+        $post = Post::factory()->create(['author_id' => $wlascicielka->getKey()]);
+        $komentarz = Comment::factory()->create(['author_id' => $autor->getKey(), 'post_id' => $post->getKey()]);
+
+        $this->actingAs($wlascicielka)
+            ->delete(route('comments.destroy', $komentarz), ['reason' => 'Pierwszy powód.'])
+            ->assertSessionHas('status', 'Komentarz usunięty.');
+
+        $poPierwszym = Comment::withTrashed()->findOrFail($komentarz->getKey());
+        $this->assertSoftDeleted($komentarz);
+
+        $this->travel(5)->minutes();
+
+        $this->actingAs($wlascicielka)
+            ->delete(route('comments.destroy', $komentarz), ['reason' => 'Drugi powód.'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Ten komentarz był już usunięty. Nic więcej nie trzeba robić.');
+
+        $poDrugim = Comment::withTrashed()->findOrFail($komentarz->getKey());
+        $this->assertSame($poPierwszym->getRawOriginal('deleted_at'), $poDrugim->getRawOriginal('deleted_at'));
+        $this->assertSame($poPierwszym->getRawOriginal('updated_at'), $poDrugim->getRawOriginal('updated_at'));
+        $this->assertSame(1, Notification::query()->where('user_id', $autor->getKey())->count());
+
+        // Autor komentarza też dostaje komunikat, a nie 404.
+        $this->actingAs($autor)
+            ->delete(route('comments.destroy', $komentarz))
+            ->assertSessionHas('status', 'Ten komentarz był już usunięty. Nic więcej nie trzeba robić.');
+
+        // Obcy nie dowiaduje się, że komentarz istniał — Policy idzie pierwsza.
+        $this->actingAs($this->user('obcy'))
+            ->delete(route('comments.destroy', $komentarz))
+            ->assertForbidden();
+
+        // withTrashed() jest tylko na trasie usunięcia — edycja nadal 404.
+        $this->actingAs($autor)
+            ->put(route('comments.update', $komentarz), ['body' => 'Wskrzeszam.'])
+            ->assertNotFound();
+        $this->assertSoftDeleted($komentarz);
+    }
+
     /** Obca osoba nadal dostaje odmowę — idempotencja nie omija Policy. */
     public function test_obca_osoba_nadal_dostaje_odmowe_na_usunietym(): void
     {
@@ -145,8 +194,9 @@ class PowtorneUsuniecieKomentarzaTest extends TestCase
         try {
             app(DeleteComment::class)->handle($wlascicielka, $korzen, 'Powód.');
             $this->fail('Awaria zapisu powiadomienia nie wyszła na zewnątrz akcji.');
-        } catch (RuntimeException) {
-            // Liczy się to, co zostało w bazie.
+        } catch (RuntimeException $e) {
+            // Dokładnie nasza awaria, nie inny RuntimeException po drodze.
+            $this->assertSame('Symulowana awaria zapisu powiadomienia.', $e->getMessage());
         } finally {
             Notification::flushEventListeners();
         }
@@ -159,5 +209,41 @@ class PowtorneUsuniecieKomentarzaTest extends TestCase
         // Kontrola dodatnia: ponowienie po awarii dowozi decyzję z pierwotnym tekstem.
         $this->assertTrue(app(DeleteComment::class)->handle($wlascicielka, $korzen, 'Powód.'));
         $this->assertStringContainsString('Moje pierwotne słowa.', Notification::query()->sole()->data['message']);
+    }
+
+    /** To samo bez odpowiedzi: awaria cofa miękkie usunięcie. */
+    public function test_awaria_zapisu_powiadomienia_bez_odpowiedzi_nie_usuwa(): void
+    {
+        $wlascicielka = $this->user('wlascicielka');
+        $autor = $this->user('autorkomentarza');
+        $post = Post::factory()->create(['author_id' => $wlascicielka->getKey()]);
+        $komentarz = Comment::factory()->create([
+            'author_id' => $autor->getKey(),
+            'post_id' => $post->getKey(),
+            'body' => 'Słowa bez odpowiedzi.',
+        ]);
+
+        Notification::creating(function (): void {
+            throw new RuntimeException('Symulowana awaria zapisu powiadomienia.');
+        });
+
+        try {
+            app(DeleteComment::class)->handle($wlascicielka, $komentarz, 'Powód.');
+            $this->fail('Awaria zapisu powiadomienia nie wyszła na zewnątrz akcji.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('Symulowana awaria zapisu powiadomienia.', $e->getMessage());
+        } finally {
+            Notification::flushEventListeners();
+        }
+
+        $poAwarii = Comment::withTrashed()->findOrFail($komentarz->getKey());
+        $this->assertNull($poAwarii->deleted_at);
+        $this->assertNotSoftDeleted($komentarz);
+        $this->assertSame('Słowa bez odpowiedzi.', $poAwarii->body);
+        $this->assertSame(0, Notification::query()->count());
+
+        $this->assertTrue(app(DeleteComment::class)->handle($wlascicielka, $komentarz->fresh(), 'Powód.'));
+        $this->assertSoftDeleted($komentarz);
+        $this->assertStringContainsString('Słowa bez odpowiedzi.', Notification::query()->sole()->data['message']);
     }
 }

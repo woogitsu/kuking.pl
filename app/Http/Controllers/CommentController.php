@@ -76,7 +76,8 @@ class CommentController extends Controller
 
         // Issue #911: stary formularz z drugiej karty albo ponowione wysłanie.
         // Przed walidacją powodu — nie każemy uzasadniać czegoś, co już się stało.
-        if ($comment->body_removed_at !== null) {
+        // Komentarz bez odpowiedzi jest miękko usunięty (trasa ma withTrashed).
+        if ($comment->trashed() || $comment->body_removed_at !== null) {
             return back()->with('status', self::ALREADY_DELETED);
         }
 
