@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Karty wpisów w zeszycie pokazują teraz tematy wpisu, tak jak w feedzie, na profilu i na stronie tagu. Wszystkie listy wpisów wczytują dane karty w jeden sposób, więc karta wygląda wszędzie tak samo, a strona nie wczytuje niczego osobno dla każdej karty (#1037).
+
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
