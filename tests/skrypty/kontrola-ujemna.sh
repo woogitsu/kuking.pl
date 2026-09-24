@@ -228,6 +228,17 @@ else
     [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
     oblane=$((oblane + 1))
 fi
+# --- 9b. Trafienie przed dużym wyjściem nie może zginąć przez SIGPIPE --------
+cat > "$PRACA/test-duze-wyjscie-1mib.sh" <<'EOF'
+#!/usr/bin/env bash
+if grep -q 'BRAMKA=wlaczona' "$1"; then exit 0; fi
+echo 'BRAMKA_ZDJETA'
+head -c 1048576 /dev/zero | tr '\0' x
+exit 1
+EOF
+kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA_ZDJETA' -- bash test-duze-wyjscie-1mib.sh zrodlo.txt)"
+sprawdz 'trafienie przed 1 MiB wyjścia → POTWIERDZONA, bez fałszywego SIGPIPE' 0 "$kod"
 
 # --- 10. Polecenia w ogole nie ma -> 127 --------------------------------------
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./polecenia-nie-ma.sh)"
