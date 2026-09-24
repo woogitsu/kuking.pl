@@ -92,6 +92,22 @@ class SygnalyController extends Controller
      * Odrzucone oznaczenie NIE WRACA: wiersz zostaje w tabeli, a indeks
      * `reports_jeden_automat_na_tresc` nie pozwoli automatowi postawić
      * drugiego dla tej samej treści.
+     *
+     * ZAKRES TO ZBIÓR Z EKRANU, NIE „WSZYSTKO, CO JEST OTWARTE TERAZ" (#1059)
+     * Przycisk mówi „zamknij wszystkie 3", bo moderator widział trzy. Gdy
+     * automat dopisze czwarte między odczytem strony a kliknięciem, stare
+     * zapytanie „wszystkie otwarte tego autora" zamykało także je — sprawę,
+     * której nikt nie oglądał, z decyzją człowieka w logu. A `juzOgladane()`
+     * nie pozwala automatowi postawić jej drugi raz, więc znikała na dobre.
+     *
+     * Formularz niesie więc identyfikatory oznaczeń, które były na ekranie.
+     * Serwer i tak wybiera wiersze SAM — źródło, autor, otwarty status, pod
+     * blokadą — a przysłana lista jedynie ogranicza, nigdy nie rozszerza:
+     * identyfikator z formularza nie jest autoryzacją. Gdy w grupie jest
+     * coś spoza listy, nie zamykamy niczego i każemy spojrzeć jeszcze raz —
+     * grupa to jedna decyzja, a połowa decyzji podjęta za kogoś nie jest
+     * decyzją. Oznaczenie z listy, które zamknął w międzyczasie ktoś inny,
+     * po prostu nie wraca z zapytania i nie dostaje drugiej decyzji.
      */
     public function odrzucGrupe(Request $request): RedirectResponse
     {
@@ -100,15 +116,22 @@ class SygnalyController extends Controller
         $dane = $request->validate([
             'autor' => ['required', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:2000'],
+            'oznaczenia' => ['required', 'array'],
+            'oznaczenia.*' => ['required', 'string', 'max:64'],
         ], [
             'autor.required' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            'oznaczenia.required' => 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            'oznaczenia.*' => 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
         ]);
+
+        /** @var list<string> $zEkranu */
+        $zEkranu = array_values(array_map('strval', $dane['oznaczenia']));
 
         $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
 
         try {
-            $ile = DB::transaction(function () use ($autorId, $moderator, $dane, $request): int {
+            [$ile, $nowych] = DB::transaction(function () use ($autorId, $moderator, $dane, $request, $zEkranu): array {
                 $oznaczenia = $this->otwarte()
                     ->when($autorId === null,
                         fn ($q) => $q->whereNull('autor_tresci_id'),
@@ -120,6 +143,17 @@ class SygnalyController extends Controller
                     // `report_id`).
                     ->lockForUpdate()
                     ->get();
+
+                // Dopisane po odczycie strony (#1059) — patrz komentarz
+                // metody. Nic jeszcze nie zapisaliśmy, więc wyjście tutaj
+                // zostawia grupę dokładnie taką, jaka była.
+                $nowych = $oznaczenia
+                    ->reject(static fn (Report $r): bool => in_array((string) $r->getKey(), $zEkranu, true))
+                    ->count();
+
+                if ($nowych > 0) {
+                    return [0, $nowych];
+                }
 
                 foreach ($oznaczenia as $oznaczenie) {
                     ModerationAction::create([
@@ -159,7 +193,7 @@ class SygnalyController extends Controller
                     );
                 }
 
-                return $ile;
+                return [$ile, 0];
             });
         } catch (Throwable $awaria) {
             // Transakcja jest wycofana w całości — grupa zostaje otwarta,
@@ -169,6 +203,14 @@ class SygnalyController extends Controller
 
             return back()->withErrors([
                 'autor' => 'Nie udało się zamknąć tej grupy i nic się w niej nie zmieniło. Spróbuj jeszcze raz za chwilę.',
+            ]);
+        }
+
+        if ($nowych > 0) {
+            return back()->withErrors([
+                'autor' => $nowych === 1
+                    ? 'Od otwarcia strony w tej grupie pojawiło się nowe oznaczenie. Nic nie zamknęliśmy — przejrzyj grupę jeszcze raz i dopiero wtedy ją zamknij.'
+                    : 'Od otwarcia strony w tej grupie pojawiły się nowe oznaczenia ('.$nowych.'). Nic nie zamknęliśmy — przejrzyj grupę jeszcze raz i dopiero wtedy ją zamknij.',
             ]);
         }
 

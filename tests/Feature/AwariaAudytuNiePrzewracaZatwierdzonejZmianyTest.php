@@ -303,7 +303,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasErrors(['autor' => 'Nie udało się zamknąć tej grupy i nic się w niej nie zmieniło. Spróbuj jeszcze raz za chwilę.'])
             ->assertSessionMissing('status');
@@ -320,7 +320,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status');
@@ -337,7 +337,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $autor = $this->oznaczonyAutor();
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, $this->wpisy('moderation.automat_dismissed'));
@@ -363,5 +363,21 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         });
 
         Exceptions::assertReported(RuntimeException::class);
+    }
+
+    /**
+     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
+     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
+     * oznaczenia innych grup w niej nie szkodzą.
+     *
+     * @return list<string>
+     */
+    private function oznaczeniaNaEkranie(): array
+    {
+        return \App\Models\Report::query()
+            ->where('source', \App\Models\Report::SOURCE_AUTOMAT)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
     }
 }

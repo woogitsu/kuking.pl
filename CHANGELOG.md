@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Gdy autor skutecznie odwoła się od zdjęcia treści i treść wraca do serwisu, osoba, która ją zgłosiła, dostaje nową wiadomość: „Po ponownym sprawdzeniu zmieniliśmy decyzję. Zgłoszona treść wróciła do serwisu.” Lista „Twoje zgłoszenia” pokazuje aktualny wynik, a karta sprawy — pierwszą decyzję i pod nią zmianę. Przy zgłoszeniu nielegalnej treści z adresem e-mail ta sama informacja idzie listem. Nie podajemy, kto się odwołał ani co napisał (#1024).
+- W kolejce sygnałów automatu „To nic takiego — zamknij wszystkie” zamyka tylko oznaczenia widoczne na ekranie. Jeśli po otwarciu strony w grupie pojawiło się nowe oznaczenie, nic nie zostaje zamknięte, a moderator dostaje prośbę, żeby przejrzał grupę jeszcze raz (#1059).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.

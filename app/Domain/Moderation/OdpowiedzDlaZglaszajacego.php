@@ -111,6 +111,26 @@ final class OdpowiedzDlaZglaszajacego
     }
 
     /**
+     * Skutek po cofnięciu zdjęcia treści w odwołaniu autora (#1024).
+     *
+     * Zdanie mówi o TREŚCI, nie o sprawie autora: nie zdradza, że ktoś się
+     * odwołał, co napisał ani czy jakakolwiek sankcja dotyczyła konta.
+     * „Wróciła do serwisu", a nie „jest dostępna": to zdanie zamrażamy
+     * w powiadomieniu, więc ma zostać prawdziwe także wtedy, gdy autor
+     * później sam tę treść usunie. Kiedy zdanie się stosuje, rozstrzyga
+     * `ZmianaDecyzjiPoOdwolaniu`.
+     *
+     * @return array{naglowek: string, reszta: string}
+     */
+    public static function skutekPoZmianie(): array
+    {
+        return [
+            'naglowek' => 'Po ponownym sprawdzeniu zmieniliśmy decyzję.',
+            'reszta' => 'Zgłoszona treść wróciła do serwisu.',
+        ];
+    }
+
+    /**
      * Nagłówek pouczenia — wspólny dla listu i dla ekranu, żeby oba kanały
      * zapowiadały tę samą rzecz tymi samymi słowami.
      */

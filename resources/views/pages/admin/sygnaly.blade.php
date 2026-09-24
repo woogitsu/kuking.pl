@@ -137,6 +137,13 @@
                      notatki i `old()` po nieudanej walidacji dubluje się na całą
                      stronę — patrz `App\Support\WierszFormularza`. --}}
                 <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $kluczGrupy }}">
+                {{-- Zbiór, który moderator ma przed oczami (#1059) — WSZYSTKIE
+                     pozycje grupy, także te poza pierwszymi dziesięcioma
+                     podglądami, bo przycisk obiecuje zamknąć wszystkie. Serwer
+                     zamyka tylko te z listy i odmawia, gdy grupa urosła. --}}
+                @foreach($wGrupie as $naEkranie)
+                    <input type="hidden" name="oznaczenia[]" value="{{ $naEkranie->getKey() }}">
+                @endforeach
 
                 <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />

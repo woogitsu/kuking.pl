@@ -63,6 +63,7 @@ final class ResolveAppeal
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
         private readonly NotifyReporterAppealOutcome $powiadomZglaszajacego,
+        private readonly NotifyReporterDecisionChanged $skorygujZglaszajacemu,
     ) {}
 
     /**
@@ -143,6 +144,10 @@ final class ResolveAppeal
             $this->powiadomZglaszajacego->handle($odwolanie);
         } else {
             $this->powiadom->handle($odwolanie);
+            // Druga strona sprawy (#1024): zgłaszający dostał „treści nie
+            // ma", a po cofnięciu treść wraca. Klasa sama sprawdza, czy
+            // skutek naprawdę się zmienił — przy `upheld` nic nie robi.
+            $this->skorygujZglaszajacemu->handle($odwolanie);
         }
 
         AuditLogEntry::record(

@@ -76,6 +76,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $druga->getKey(),
+                'oznaczenia' => $this->oznaczeniaNaEkranie(),
                 // `_wiersz` tak, jak wysyła go prawdziwy formularz (issue
                 // #243, `App\Support\WierszFormularza`).
                 WierszFormularza::POLE => (string) $druga->getKey(),
@@ -134,6 +135,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $jedyna->getKey(),
+                'oznaczenia' => $this->oznaczeniaNaEkranie(),
                 WierszFormularza::POLE => (string) $jedyna->getKey(),
                 'note' => $zaDluga,
             ])
@@ -217,5 +219,21 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
                 'Pole o id '.$oczekiwanyId.' występuje więcej niż raz.',
             );
         }
+    }
+
+    /**
+     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
+     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
+     * oznaczenia innych grup w niej nie szkodzą.
+     *
+     * @return list<string>
+     */
+    private function oznaczeniaNaEkranie(): array
+    {
+        return \App\Models\Report::query()
+            ->where('source', \App\Models\Report::SOURCE_AUTOMAT)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
     }
 }

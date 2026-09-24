@@ -396,7 +396,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(1, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
             ->assertSessionHasNoErrors();
 
         $oznaczenie = $this->oznaczenia()->first();
@@ -426,7 +426,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(3, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0, Report::query()
@@ -557,5 +557,21 @@ class SygnalyAutomatuTest extends TestCase
 
         // KONTROLA: powiadomienie naprawdę powstało, więc test nie sprawdza pustki.
         $this->assertSame(Notification::TYPE_MODERATION, $powiadomienie->type);
+    }
+
+    /**
+     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
+     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
+     * oznaczenia innych grup w niej nie szkodzą.
+     *
+     * @return list<string>
+     */
+    private function oznaczeniaNaEkranie(): array
+    {
+        return \App\Models\Report::query()
+            ->where('source', \App\Models\Report::SOURCE_AUTOMAT)
+            ->pluck('id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
     }
 }

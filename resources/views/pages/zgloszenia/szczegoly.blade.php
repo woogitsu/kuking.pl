@@ -73,6 +73,16 @@
                 @endphp
                 <p class="meta">{{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}</p>
                 <p><strong>{{ $skutek['naglowek'] }}</strong> {{ $skutek['reszta'] }}</p>
+
+                {{-- ZMIANA DECYZJI (#1024). Pierwsza decyzja zostaje wyżej, bo
+                     naprawdę zapadła; niżej to, co obowiązuje dziś. Bez słowa
+                     o tym, kto się odwołał i co napisał. --}}
+                @if($zmiana !== null)
+                    @php($poZmianie = \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutekPoZmianie())
+                    <h3 class="text-title-sm">Zmiana decyzji</h3>
+                    <p class="meta">{{ \App\Support\Czas::data($zmiana->decided_at, 'j F Y') }}</p>
+                    <p><strong>{{ $poZmianie['naglowek'] }}</strong> {{ $poZmianie['reszta'] }}</p>
+                @endif
             @else
                 {{-- Sprawa zamknięta bez wiersza w `moderation_actions`: wpis
                      z czasów sprzed kolejki moderacji albo porządkowanie
