@@ -85,6 +85,12 @@ name: Railway IaC
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    # TYLKO PR-y kierowane do `main` (#1313). Filtr `branches` przy
+    # `pull_request` dotyczy gałęzi DOCELOWEJ (base), nie gałęzi PR-a.
+    # Bez niego scalenie PR-a z `.railway/**` do `staging` kwalifikowało się
+    # do `Apply (production)` z tokenem produkcyjnym. Staging nie ma tu
+    # żadnego joba — patrz „ŚRODOWISKO STAGING” na końcu pliku.
+    branches: [main]
     # Uruchamiaj tylko, gdy faktycznie zmienia się infrastruktura.
     # Zmiana kontrolera nie ma powodu odpalać planu Railway.
     paths:
@@ -112,12 +118,32 @@ jobs:
     # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
     # dla PR-ów z forków. Bez tego obcy fork dostałby dostęp do tokenu Railway.
     # Bramka wdrożeniowa — patrz komentarz przy `apply` niżej.
+    #
+    # `base.ref == 'main'` powtarza filtr `branches` z bloku `on:` (#1313):
+    # token produkcyjny dostaje wyłącznie PR do `main`. Drugi zamek jest
+    # celowy — filtr ścieżek i gałęzi łatwo zgubić przy przeróbce `on:`.
     if: >-
       vars.KUKING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
+      # Trzeci zamek (#1313): jawna odmowa, gdyby warunek joba ktoś poluzował.
+      # Środowisko docelowe wynika WYŁĄCZNIE z gałęzi docelowej PR-a:
+      # `main` → production. Każda inna gałąź to błąd, nie cichy plan.
+      - name: Bramka gałęzi docelowej
+        env:
+          ZDARZENIE: ${{ github.event_name }}
+          GALAZ_DOCELOWA: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$ZDARZENIE" != "pull_request" ] || [ "$GALAZ_DOCELOWA" != "main" ]; then
+            echo "::error title=Zła gałąź docelowa dla produkcji::Plan production wolno liczyć tylko dla PR-a do main (zdarzenie: ${ZDARZENIE}, gałąź docelowa: ${GALAZ_DOCELOWA:-brak}). Staging planuj ręcznie z CLI (#1313)."
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # SDK `railway` musi być zainstalowane, żeby runner mógł wykonać
@@ -155,17 +181,41 @@ jobs:
     #
     # Włączenie: zmienna repozytorium KUKING_DEPLOY_ENABLED = `true`,
     # razem z zamknięciem #3.
+    #
+    # `base.ref == 'main'` (#1313): apply production stosuje WYŁĄCZNIE to,
+    # co weszło na `main`. Scalenie do `staging` albo innej gałęzi nie
+    # kwalifikuje się — tak samo jak filtr `branches` w bloku `on:`.
     if: >-
       vars.KUKING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged &&
       github.event.pull_request.head.repo.full_name == github.repository
 
     # Wymuś zatwierdzenie przez człowieka:
     # Settings → Environments → production → Required reviewers.
+    #
+    # Reguły gałęzi środowiska (Deployment branches) NIE zastępują warunku
+    # wyżej: przy `pull_request` GitHub liczy ref `refs/pull/N/merge`, więc
+    # polityka „tylko main” zablokowałaby także poprawny apply. Gałąź docelową
+    # sprawdza ten plik; środowisko dokłada człowieka.
     environment: production
 
     steps:
+      # Jawna odmowa (#1313) przed checkoutem i przed tokenem produkcyjnym.
+      - name: Bramka gałęzi docelowej
+        env:
+          ZDARZENIE: ${{ github.event_name }}
+          GALAZ_DOCELOWA: ${{ github.event.pull_request.base.ref }}
+          SCALONY: ${{ github.event.pull_request.merged }}
+        run: |
+          set -euo pipefail
+          if [ "$ZDARZENIE" != "pull_request" ] || [ "$GALAZ_DOCELOWA" != "main" ] || [ "$SCALONY" != "true" ]; then
+            echo "::error title=Zła gałąź docelowa dla produkcji::Apply production wolno wykonać tylko po scaleniu PR-a do main (zdarzenie: ${ZDARZENIE}, gałąź docelowa: ${GALAZ_DOCELOWA:-brak}, scalony: ${SCALONY:-brak}). Staging stosuj ręcznie z CLI (#1313)."
+            exit 1
+          fi
+
       # Wersja ZMERGOWANA, nie head PR-a — stosujemy to, co faktycznie
       # weszło na main.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -219,6 +269,8 @@ jobs:
 #      railway link --environment staging
 #      railway config plan
 #      railway config apply
-#  Gdy staging zacznie być krytyczny, skopiuj joby powyżej i podmień token
-#  na RAILWAY_TOKEN_STAGING.
+#  Gdy staging zacznie być krytyczny, NIE dopisuj jego jobów tutaj: ten plik
+#  zna tylko `main` → production (#1313). Staging dostaje OSOBNY workflow
+#  z `branches: [staging]`, własnym `environment: staging`, własnym tokenem
+#  RAILWAY_TOKEN_STAGING i warunkiem `base.ref == 'staging'`.
 # =============================================================================

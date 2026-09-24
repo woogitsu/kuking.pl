@@ -197,6 +197,24 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# IaC produkcji tylko z PR-a do `main` (#1313). Mutacje zdejmują po kolei
+# każdy z trzech zamków: filtr `branches`, `base.ref` w warunku apply
+# i odmowę gałęzi w kroku bramki apply.
+IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
+IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+
+
+def apply_bez_galezi_docelowej(source):
+    """KONTROLA DODATNIA: zdejmij `base.ref == 'main'` z warunku joba apply.
+
+    Plan i apply mają ten wiersz po razie; mutacja zdejmuje drugi (apply),
+    czyli ścieżkę, którą scalenie do `staging` trafiało na produkcję (#1313).
+    """
+    if source.count(IAC_GALAZ_W_WARUNKU) != 2:
+        raise RuntimeError("Kontrola nie znalazła dokładnie dwóch warunków gałęzi.")
+    poczatek = source.rindex(IAC_GALAZ_W_WARUNKU)
+    return source[:poczatek] + source[poczatek + len(IAC_GALAZ_W_WARUNKU):]
 
 
 def digest(path):
@@ -474,6 +492,12 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("IaC produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, "    branches: [main]\n", "")),
+    ("Apply produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     apply_bez_galezi_docelowej),
+    ("Bramka apply przepuszcza gałąź inną niż main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, '[ "$GALAZ_DOCELOWA" != "main" ] || [ "$SCALONY" != "true" ]', '[ "$SCALONY" != "true" ]')),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +521,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(IAC_PRODUKCJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
