@@ -23,7 +23,7 @@ class CloudflareCacheGateTest extends TestCase
         try {
             $process = new Process(['bash', $root.'/tests/skrypty/atrapa-cache-gate.sh', $root.'/scripts/sprawdz-wdrozenie.sh'], $root, [
                 'SCENARIO' => $scenario,
-                'CACHE_KIND' => $scenario === 'html-good' ? 'html' : 'media',
+                'CACHE_KIND' => str_starts_with($scenario, 'html-') ? 'html' : 'media',
                 'CACHE_COUNT_FILE' => $counterFile,
                 'CACHE_COOKIE_FILE' => $scenario === 'missing-file' ? '/brak-pliku' : $cookieFile,
                 'CACHE_PUBLIC_PATH' => '/public',
@@ -42,7 +42,12 @@ class CloudflareCacheGateTest extends TestCase
 
     public static function cases(): array
     {
-        $cases = ['kontrola dodatnia zdjęć' => ['good', true], 'kontrola dodatnia HTML' => ['html-good', true]];
+        $cases = ['kontrola dodatnia zdjęć' => ['good', true], 'kontrola dodatnia HTML' => ['html-good', true],
+            // #610: dokładny nagłówek aplikacji i 403 prywatnego przepisu.
+            'nagłówek HTML z aplikacji #610' => ['html-610', true],
+            'prywatny przepis 403 dla gościa' => ['html-610-403', true],
+            // 403 wolno tylko dla HTML; zdjęcie prywatne ma dawać 404.
+            'zdjęcie 403 zamiast 404' => ['media-403', false]];
         foreach (['expired', 'cookie', 'no-control', 'no-public', 'zero-ttl', 'private-public', 'no-hit', 'duplicate', 'timeout', 'truncated', 'auth-public', 'auth-private-only', 'auth-hit', 'auth-miss', 'auth-unknown', 'auth-cdn', 'auth-error', 'auth-after-hit', 'missing-file', 'unsigned', 'cache-longer-than-signature'] as $scenario) {
             $cases[$scenario] = [$scenario, false];
         }

@@ -40,7 +40,7 @@ cache_public() {
 }
 
 cache_gate() {
-    local path expected attempt
+    local path expected attempt denied
     CACHE_GATE_GET=1
     if [[ ! "$HOST" =~ ^[a-zA-Z0-9.-]+$ ]] \
         || [[ ! "${CACHE_KIND:-}" =~ ^(media|html)$ ]] \
@@ -75,8 +75,12 @@ cache_gate() {
             return 1
         fi
     done
+    # Przepis prywatny pod bieżącym adresem odmawia gościowi 403 (świadomie,
+    # RecipeController::show), zdjęcie — 404. Obie odmowy muszą być no-store.
+    denied='^404$'
+    [ "$CACHE_KIND" = html ] && denied='^40[34]$'
     if ! pobierz_naglowki "https://$HOST$CACHE_PRIVATE_PATH" \
-        || [ "$kod_odpowiedzi" != 404 ] || ! cache_private; then
+        || [[ ! "$kod_odpowiedzi" =~ $denied ]] || ! cache_private; then
         blad 'ODMOWA CACHE: anonim nie dostał bezpiecznej odmowy prywatnej treści.'
         return 1
     fi

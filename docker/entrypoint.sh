@@ -412,22 +412,35 @@ start_scheduler() {
 #  Wypadało wtedy całe `:SS` na granicy minuty — a jeśli wypadła 03:40, to
 #  `dailyAt('03:40')` nie wykonał się tego dnia wcale, bez żadnego śladu w logu.
 #
-#  Po każdym przebiegu śpimy do początku NASTĘPNEJ minuty, tak jak cron.
-#  Przebieg dłuższy niż minuta (zadania wykonują się sekwencyjnie w tym
-#  procesie) dalej gubi minuty, które przespał — to koszt braku `proc_open`,
-#  dlatego zadania w routes/console.php są rozsunięte o dziesięć minut.
+#  Po krótkim przebiegu śpimy do początku NASTĘPNEJ minuty, tak jak cron.
+#  Minutę liczymy z `date +%s`, więc sen kończy się na granicy zegara.
+#
+#  PRZEBIEG DŁUŻSZY NIŻ MINUTA. Zadania wykonują się sekwencyjnie w tym
+#  procesie (brak `proc_open`), więc drugi `schedule:run` nigdy nie rusza
+#  równolegle — pętla czeka na koniec poprzedniego. Jeśli skończył się już
+#  w NOWEJ minucie, ta minuta jeszcze nie była sprawdzona: ruszamy od razu,
+#  bez snu. `schedule:run` bierze godzinę startu, więc zadanie z tej minuty
+#  (np. `dailyAt('03:40')` po przebiegu 03:39:00–03:40:05) się wykona.
+#  Sen do kolejnej granicy przespałby ją i zadanie czekałoby dobę (#1355).
+#  Minuty CAŁE przespane przez długi przebieg są stracone; trafiają do logu
+#  jako OSTRZEŻENIE z liczbą, żeby było widać, co mogło się nie wykonać.
+#  Dwa starty w tej samej minucie są niemożliwe: każdy start wypada w minucie
+#  późniejszej niż poprzedni.
 # -----------------------------------------------------------------------------
-sekundy_do_pelnej_minuty() {
-  local sekunda
-  sekunda="$(date +%S)"
-  # 10# — „08” i „09” to dla basha błędne liczby ósemkowe.
-  echo $(( 60 - 10#${sekunda} ))
-}
-
 petla_harmonogramu() {
+  local start koniec pominiete
   while true; do
+    start="$(date +%s)"
     harmonogram_raz
-    sleep "$(sekundy_do_pelnej_minuty)"
+    koniec="$(date +%s)"
+    if (( koniec / 60 == start / 60 )); then
+      sleep "$(( 60 - koniec % 60 ))"
+      continue
+    fi
+    pominiete=$(( koniec / 60 - start / 60 - 1 ))
+    if (( pominiete > 0 )); then
+      log "OSTRZEŻENIE: przebieg harmonogramu trwał $(( koniec - start )) s — pominięte minuty: ${pominiete}. Zadania z tych minut nie wykonały się; sprawdź, które zadanie jest za długie."
+    fi
   done
 }
 
