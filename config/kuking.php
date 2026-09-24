@@ -445,6 +445,18 @@ return [
         'cookie' => 'motyw',
     ],
 
+    'html_cache' => [
+        // Ile sekund brzeg Cloudflare może trzymać HTML landingu, przepisu
+        // i profilu dla gościa BEZ żadnego ciasteczka (#610). 0 = wyłączone
+        // i to jest wartość domyślna: aplikacja zakłada wtedy sesję i wysyła
+        // `private, no-store` jak przed #610. Kod obcina wartość do 300 s
+        // (`PublicznyHtmlGoscia::MAKS_SEKUND`), bo tyle najwyżej trwa okno,
+        // w którym przepis przełączony na prywatny, ukryty przez moderację
+        // albo usunięty może być jeszcze widoczny z brzegu.
+        // Reguła brzegu i plan wycofania: docs/infra/CLOUDFLARE_CACHE_597_610.md.
+        'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
+    ],
+
     'account' => [
         'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
 
