@@ -766,17 +766,46 @@ jobs:
   #  pg_trgm, indeksów GIN, ILIKE, ograniczeń unikalności z NULL-ami.
   #  Wyszukiwanie w Kuking stoi na Postgres FTS (docs/ARCHITECTURE.md),
   #  więc testowanie na innym silniku byłoby testowaniem czegoś innego.
+  #
+  #  CZTERY RÓWNOLEGŁE CZĘŚCI + KONTROLE (decyzja właściciela z 24.09.2026).
+  #  Jeden job z pełnym zestawem trwał 25–40 min i wyznaczał czas całego
+  #  przebiegu, a runnerów jest 21. Macierz uruchamia:
+  #    - `czesc: 1..4` — każda część plików testów na WŁASNYM Postgresie
+  #      (usługa jest per job macierzy, więc części nie dzielą bazy);
+  #    - `czesc: kontrole` — odwracalność migracji i kontrole negatywne
+  #      (`scripts/kontrole-negatywne-alfa08.py`), czyli kroki, które szły
+  #      dotąd PRZED testami w tym samym jobie. To około stu przebiegów
+  #      `artisan test --filter`; w jednej z części wydłużałyby ją o tyle,
+  #      ile oszczędza podział.
+  #  Podział plików robi `scripts/podzial-testow.php`: deterministycznie,
+  #  z listy `<testsuites>` w `phpunit.xml`, każdy plik w dokładnie jednej
+  #  części. PHPUnit 12.5 nie ma `--shard`. Kompletności pilnuje sam skrypt
+  #  (przed wypisaniem listy) i `PodzialTestowJestKompletnyTest`, który
+  #  porównuje sumę części z listą samego PHPUnita.
+  #
+  #  Liczba części stoi w DWÓCH miejscach: w `matrix.czesc` i w wywołaniu
+  #  skryptu w kroku „Testy". Ich zgodności pilnuje ten sam strażnik.
+  #
+  #  WYMAGANY CHECK „Testy (PostgreSQL 18)" nosi teraz job zbiorczy `testy`
+  #  niżej — ochrona gałęzi i `scripts/stan-ci.sh` szukają tej nazwy.
   # ===========================================================================
   test:
-    name: Testy (PostgreSQL 18)
+    name: Testy (PostgreSQL 18) — ${{ matrix.czesc == 'kontrole' && 'kontrole negatywne i odwracalność migracji' || format('część {0}/4', matrix.czesc) }}
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    # 24.09.2026: pełny zestaw trwa 14 min na szybkich runnerach i do 24 min na
-    # wolniejszych (i5-6500T, WSL). Przy 25 min przebiegi #1081 i #1464 zostały
-    # ucięte w trakcie zielonych testów. 40 min daje zapas na wolny runner,
+    # 24.09.2026: pełny zestaw trwał 14 min na szybkich runnerach i do 24 min
+    # na wolniejszych (i5-6500T, WSL), a przy 25 min przebiegi #1081 i #1464
+    # zostały ucięte w trakcie zielonych testów — stąd było 40. Część ma
+    # ćwierć plików, więc 25 min zostawia ten sam zapas na wolny runner,
     # a zawieszony test nadal zostanie przerwany.
-    timeout-minutes: 40
+    timeout-minutes: 25
+    strategy:
+      # Bez tego pierwsza czerwona część anulowałaby pozostałe i raport
+      # pokazywałby jedną przyczynę zamiast wszystkich.
+      fail-fast: false
+      matrix:
+        czesc: [1, 2, 3, 4, kontrole]
 
     services:
       postgres:
@@ -941,15 +970,78 @@ jobs:
       # incydentu. `migrate:fresh` by tego nie wykrył, bo po prostu kasuje
       # wszystkie tabele, nie uruchamiając down().
       - name: Kontrola odwracalności migracji
+        if: matrix.czesc == 'kontrole'
         run: php artisan migrate:refresh --force --no-interaction
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
-      # przywraca kopię i ponawia test. Pełny zestaw idzie na końcu.
+      # przywraca kopię i ponawia test. Pełny zestaw idzie w częściach 1–4.
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
+        if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py
 
+      # Pliki tej części jako argumenty `artisan test`: PHPUnit bierze wtedy
+      # listę zamiast `<testsuites>`, ale resztę `phpunit.xml` (bootstrap,
+      # `<php>`, `<groups><exclude>`) stosuje jak zawsze. Skrypt pada, zanim
+      # cokolwiek wypisze, jeśli suma części nie jest pełną listą.
       - name: Testy
-        run: php artisan test
+        if: matrix.czesc != 'kontrole'
+        run: |
+          set -euo pipefail
+          php scripts/podzial-testow.php "${{ matrix.czesc }}" 4 > "$RUNNER_TEMP/pliki-czesci.txt"
+          mapfile -t pliki < "$RUNNER_TEMP/pliki-czesci.txt"
+          echo "Część ${{ matrix.czesc }}/4: ${#pliki[@]} plików testów."
+          {
+            echo "### Testy — część ${{ matrix.czesc }}/4"
+            echo ""
+            echo "Plików testów w tej części: **${#pliki[@]}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          php artisan test "${pliki[@]}"
+
+  # ===========================================================================
+  #  3a. Zbiorczy wynik testów — WYMAGANY CHECK „Testy (PostgreSQL 18)"
+  # ===========================================================================
+  #  Ochrona gałęzi wymaga checku o tej nazwie, a joby macierzy nazywają się
+  #  „… — część N/4". Ten job jest więc jedynym miejscem, z którego
+  #  rozstrzygnięcie testów czyta ochrona gałęzi i `scripts/stan-ci.sh`.
+  #
+  #  Zielony TYLKO gdy:
+  #    - wszystkie joby macierzy `test` są `success`, albo
+  #    - `test` jest `skipped`, bo bramka `zakres` świadomie uznała zmianę
+  #      za niewymagającą testów (kod i dokumenty różne od `true`). Dotąd
+  #      wymagany check stał wtedy jako `skipped`; teraz jest zielony z tym
+  #      samym uzasadnieniem w podsumowaniu.
+  #  Każdy inny stan — czerwona albo anulowana część, pominięcie z innego
+  #  powodu (np. padnięta bramka `zakres`) — jest czerwony. `!cancelled()`,
+  #  a nie `always()`: job rusza także po czerwieni części (o to chodzi),
+  #  ale anulowany przebieg nie zajmuje runnera na werdykt.
+  # ===========================================================================
+  testy:
+    name: Testy (PostgreSQL 18)
+    needs: [zakres, test]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - name: Wynik wszystkich części
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          DOKUMENTY: ${{ needs.zakres.outputs.dokumenty }}
+          WYNIK_TESTOW: ${{ needs.test.result }}
+        run: |
+          set -euo pipefail
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, dokumenty=${DOKUMENTY}), części testów=${WYNIK_TESTOW}"
+          if [ "${WYNIK_TESTOW}" = "success" ]; then
+            echo "### Testy (PostgreSQL 18): wszystkie części zielone" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "${WYNIK_TESTOW}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] \
+            && [ "${KOD}" != "true" ] && [ "${DOKUMENTY}" != "true" ]; then
+            echo "### Testy (PostgreSQL 18): pominięte przez bramkę zakresu (zmiana bez kodu i dokumentów)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Testy nie są zielone: części=${WYNIK_TESTOW}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobach „Testy (PostgreSQL 18) — …”."
+          exit 1
 
   # ===========================================================================
   #  3b. Grupa `dwa-polaczenia` — testy na DWÓCH połączeniach (D-105, #314)

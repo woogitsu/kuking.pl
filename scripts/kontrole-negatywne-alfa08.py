@@ -205,6 +205,13 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
+# nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
+# Pierwsza mutacja gubi plik w SAMYM ODKRYWANIU listy — własny sprawdzian
+# skryptu jej nie widzi (porównuje części ze swoją, też krótszą listą), więc
+# zapalić ma porównanie z listą PHPUnita. Druga skraca macierz w ci.yml.
+PODZIAL_TESTOW = "scripts/podzial-testow.php"
+PODZIAL_TESTOW_TEST = "PodzialTestowJestKompletnyTest"
 
 
 def digest(path):
@@ -462,6 +469,20 @@ def wzorzec_przyrzadu_lapie_wszystko(source):
     return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
 
 
+def podzial_gubi_plik(source):
+    """KONTROLA DODATNIA: odkrywanie plików testów gubi pierwszy plik listy."""
+    return replace_once(
+        source,
+        "    $pliki = array_values(array_unique(array_merge(...$pliki)));",
+        "    $pliki = array_slice(array_values(array_unique(array_merge(...$pliki))), 1);",
+    )
+
+
+def macierz_krotsza_niz_podzial(source):
+    """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
+    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
+
+
 def widok_zawezany_poza_pr(source):
     """KONTROLA DODATNIA: filtr widoku zawęża także na `main`."""
     return replace_once(
@@ -541,6 +562,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
+    ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -568,6 +591,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(PODZIAL_TESTOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
