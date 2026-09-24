@@ -454,7 +454,7 @@ class RetencjaSprawModeracyjnychTest extends TestCase
                 throw new \RuntimeException('symulowana awaria');
             }
         });
-        Log::spy();
+        $dziennik = Log::spy();
 
         $raport = (new PrzedawnioneSprawyModeracyjne(rozmiarPartii: 2))->posprzataj(36);
 
@@ -466,10 +466,10 @@ class RetencjaSprawModeracyjnychTest extends TestCase
         $this->assertDatabaseHas('moderation_actions', ['id' => $wadliwe->moderation_action_id]);
         $this->assertSame(1, ModerationAction::count());
 
-        Log::shouldHaveReceived('error')->once()->withArgs(
+        $dziennik->shouldHaveReceived('error')->once()->withArgs(
             fn (string $komunikat, array $kontekst) => $kontekst['appeal_id'] === $wadliwe->getKey(),
         );
-        Log::shouldHaveReceived('info')->withArgs(
+        $dziennik->shouldHaveReceived('info')->withArgs(
             fn (string $komunikat, array $kontekst) => str_starts_with($komunikat, 'Retencja spraw moderacyjnych')
                 && $kontekst['bledy_odwolan'] === 1 && $kontekst['rozmiar_partii'] === 2,
         );
