@@ -95,6 +95,19 @@ class CommentPolicy
             && $comment->created_at?->diffInMinutes(now()) < 15;
     }
 
+    /** Odzyskanie własnego tekstu nie otwiera ponownie okna edycji. */
+    public function recoverExpiredEdit(User $user, Comment $comment): bool
+    {
+        return $user->isActive()
+            && $user->getKey() === $comment->author_id
+            && $comment->body_removed_at === null
+            && $comment->status === Comment::STATUS_PUBLISHED
+            && ! $comment->trashed()
+            && $this->view($user, $comment)
+            && $comment->created_at !== null
+            && $comment->created_at->diffInMinutes(now()) >= 15;
+    }
+
     /**
      * Zwykłe usunięcie komentarza — autor komentarza albo autor treści,
      * pod którą stoi (to jego kuchnia; `DeleteComment` powiadamia wtedy
@@ -112,5 +125,14 @@ class CommentPolicy
 
         // Autor treści może usunąć komentarz pod swoim wpisem — to jego kuchnia.
         return $user->getKey() === $comment->notifiableUserId();
+    }
+
+    /**
+     * Zdjęcie komentarza Z URZĘDU, bez zgłoszenia, z panelu moderacji (G31, D-251).
+     * Reguła: `UserPolicy::takeDownContentOf()` — 2FA i niższa rola autora.
+     */
+    public function removeExOfficio(User $user, Comment $comment): bool
+    {
+        return app(UserPolicy::class)->takeDownContentOf($user, $comment->author);
     }
 }

@@ -24,10 +24,20 @@
                 nie kasuje. Dlatego to zwykły link, bez potwierdzenia —
                 potwierdzenie miałoby sens tylko, gdyby coś dało się stracić.
             --}}
-            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}">
+            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}" data-minutniki-koniec>
                 Zakończ gotowanie
             </a>
         </div>
+
+        {{--
+            Alarmy minutników z INNYCH kroków (issue #1301). Każdy krok to
+            osobne przeładowanie strony, więc minutnik uruchomiony w kroku 1
+            nie miał tu już żadnego kodu, który by go odliczał — po przejściu
+            do kroku 2 nikt nie dzwonił. Skrypt wypełnia ten pas tylko wtedy,
+            gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
+            i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
+        --}}
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ route('cooking.show', $recipe->slug) }}" hidden></div>
 
         <p class="meta m-0">{{ $recipe->title }}</p>
 
@@ -111,7 +121,10 @@
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
-                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo" />
+                    {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752). --}}
+                    <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo"
+                             tresc="przepis"
+                             :wymien-url="auth()->user()?->isActive() && auth()->user()->can('update', $recipe) ? route('recipes.edit', $recipe->slug).'#f-steps-'.($krok - 1).'-photo' : null" />
                 </div>
             @endif
 
@@ -194,20 +207,35 @@
             {{--
                 Ostatni krok — issue: „Ugotowałem" jako naturalne domknięcie,
                 najlepszy moment na zdjęcie efektu. Widoczne tylko
-                zalogowanym — dokładnie jak na stronie przepisu, ten sam
-                warunek, żeby nie obiecywać akcji, która i tak odbije się
-                o ekran logowania.
+                osobom dopuszczonym przez tę samą Policy co formularz.
             --}}
             <section class="cook-finish">
                 <h2 class="mt-0">To już ostatni krok.</h2>
-                @auth
+                @can('cook', $recipe)
                     <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}" data-minutniki-koniec>Ugotowałem</a>
                 @else
-                    <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
-                @endauth
+                    @guest
+                        <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
+                        <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
+                    @endguest
+                @endcan
             </section>
+        @endif
+        @if($hasProgress)
+            <div class="danger-zone">
+                <details class="confirm">
+                    <summary class="btn btn-secondary">Zacznij od początku</summary>
+                    <div class="confirm-body stack">
+                        <p>Usunąć odhaczenia wszystkich kroków tego przepisu? Pozostałe przepisy i zapisane wykonania zostaną bez zmian.</p>
+                        <a class="btn btn-secondary" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $krok]) }}">Zostaw odhaczenia</a>
+                        <form method="POST" action="{{ route('cooking.restart', $recipe->slug) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-danger">Usuń odhaczenia i zacznij od początku</button>
+                        </form>
+                    </div>
+                </details>
+            </div>
         @endif
     </article>
 </x-layout>

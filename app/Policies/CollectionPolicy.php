@@ -75,7 +75,13 @@ class CollectionPolicy
 
     public function update(User $user, Collection $collection): bool
     {
-        return $user->getKey() === $collection->owner_id;
+        return $user->getKey() === $collection->owner_id
+            && ($user->isActive() || ($user->isSuspended() && ! $collection->isPublic()));
+    }
+
+    public function create(User $user, string $visibility = 'private'): bool
+    {
+        return $user->isActive() || ($user->isSuspended() && $visibility === 'private');
     }
 
     public function delete(User $user, Collection $collection): bool

@@ -96,6 +96,7 @@ MVP:
 Jobs:
 - ProcessUploadedImage;
 - GenerateUserExport;
+- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki);
 - SendDigest;
 - RefreshSearchDocument;
 - GenerateSitemapChunk.

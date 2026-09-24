@@ -279,7 +279,7 @@ To była najpoważniejsza zaległość infrastrukturalna: harmonogram traktował
 czyli dziewiętnaście zadań cyklicznych (w tym **wszystkie komendy retencji
 danych**) mogło padać co noc, a panel i dziennik meldowały, że poszło.
 
-Rozwiązane **jednym wspólnym `app/Support/ScheduledArtisanCommand.php`**,
+Rozwiązane **jednym wspólnym `app/Support/Harmonogram.php`**,
 nie dziewiętnastoma osobnymi poprawkami. Strażnik wymaga co najmniej
 dziewiętnastu zarejestrowanych zdarzeń i **oblewa, gdy ktoś dopisze dwudziesty
 callback ignorujący kod wyjścia** — sprawdzone.

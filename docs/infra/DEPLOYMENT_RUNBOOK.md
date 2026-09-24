@@ -665,7 +665,7 @@ sekretów.
 | `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
 | `R2_PUBLIC_BUCKET` | `kuking-media` | nie | Bucket **wariantów** WebP. `railway.ts` → `AWS_PUBLIC_BUCKET` → dysk `r2_publiczne`. **Bez tej zmiennej `AWS_PUBLIC_BUCKET` wraca domyślnie do `AWS_BUCKET`** (`config/filesystems.php`), czyli oba dyski wskazują jeden bucket i rozdział oryginałów od wariantów istnieje tylko na papierze — pilnuje tego `RozdzialMagazynowTest` |
 | `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
-| `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
+| `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
@@ -862,7 +862,7 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_DEFAULT_REGION=auto
 AWS_USE_PATH_STYLE_ENDPOINT=false
-AWS_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+AWS_ENDPOINT=https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com   # D-255: tylko ten kształt
 AWS_BUCKET=kuking-oryginaly          # oryginały, dysk `r2`
 AWS_PUBLIC_BUCKET=kuking-media       # warianty, dysk `r2_publiczne`
 AWS_EXPORTS_BUCKET=kuking-eksporty   # paczki RODO, dysk `r2_eksporty`
@@ -1920,11 +1920,17 @@ to jest oczekiwane.
 **Reguła 1 — „Assety Vite"** (kolejność: pierwsza)
 
 ```text
-Gdy:   starts_with(http.request.uri.path, "/build/")
+Gdy:   starts_with(http.request.uri.path, "/build/assets/")
 Wtedy: Cache eligibility     = Eligible for cache
        Edge TTL              = 1 rok
        Browser TTL           = 1 rok
 ```
+
+Manifest `/build/manifest.json` nie należy do reguły rocznej. Caddy wysyła
+`Cache-Control: no-cache`: plik nie ma hasha w nazwie, więc nie może być
+„immutable”. Przeglądarka go nie pobiera — czyta go Laravel z dysku (`@vite`).
+Jeśli istnieje starsza reguła `/build/*`, zawęź ją do `/build/assets/*`
+i usuń stary manifest z cache Cloudflare przy wdrożeniu poprawki #809.
 
 **Reguła 2 — „Statyka PWA"**
 
@@ -2098,9 +2104,15 @@ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://www.kuking.p
 curl -sI https://kuking.pl/ | grep -i "^\(cf-ray\|server\)"
 # Oczekiwane: cf-ray oraz server: cloudflare
 
-# 6. Assety Vite cache'owane na rok
-curl -sI https://kuking.pl/build/manifest.json | grep -i cache-control
-# Oczekiwane: public, max-age=31536000, immutable
+# 6. CSS i JS wskazane przez bieżącą stronę: HTTP 200, typ treści, roczny cache
+./scripts/sprawdz-wdrozenie.sh kuking.pl
+# Sonda wypisuje zbadane ścieżki; nie potwierdza całego buildu.
+# /build/manifest.json nie ma hasha: no-cache, bez rocznego immutable.
+# Brak odnośników /build/assets/ na stronie to teraz BŁĄD, nie ostrzeżenie:
+# gdy sonda failuje „Nie znaleziono własnego hashowanego CSS i JS”, zajrzyj
+# do źródła strony — odnośniki @vite muszą zaczynać się od /build/assets/
+# albo https://kuking.pl/build/assets/; popraw APP_URL (https, właściwy host)
+# i usuń/popraw ASSET_URL w Railway, potem wdrożenie i ponowna sonda.
 
 # 7. Endpoint Livewire NIE jest cache'owany
 curl -sI https://kuking.pl/livewire/update | grep -i "cache-control\|cf-cache-status"

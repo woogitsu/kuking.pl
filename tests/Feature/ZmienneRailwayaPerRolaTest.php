@@ -427,9 +427,12 @@ class ZmienneRailwayaPerRolaTest extends TestCase
     private function komendyHarmonogramuBudujaceMailer(): array
     {
         $konsola = (string) file_get_contents(base_path('routes/console.php'));
-        preg_match_all("/Artisan::call\('([\w:-]+)'\)/", $konsola, $trafienia);
+        // Zadania idą przez adapter `Harmonogram::artisan()` (#835), który
+        // też wykonuje komendę W PROCESIE schedulera; goły `Artisan::call()`
+        // zostaje w wzorze, żeby strażnik nie oślepł, gdyby ktoś go przywrócił.
+        preg_match_all("/(?:Harmonogram::artisan|Artisan::call)\('([\w:-]+)'/", $konsola, $trafienia);
         $nazwy = array_values(array_unique($trafienia[1]));
-        $this->assertNotEmpty($nazwy, 'Nie znalazłem żadnego `Artisan::call()` w `routes/console.php`.');
+        $this->assertNotEmpty($nazwy, 'Nie znalazłem żadnego `Harmonogram::artisan()` ani `Artisan::call()` w `routes/console.php`.');
 
         $pliki = [];
         foreach (glob(app_path('Console/Commands/*.php')) ?: [] as $plik) {
