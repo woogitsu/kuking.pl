@@ -11,6 +11,8 @@ use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Domain\Users\OstatniAdministrator;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -344,6 +346,14 @@ class ModerationController extends Controller
          * wyjść, jeśli zapis się nie powiedzie.
          */
         $wynik = DB::transaction(function () use ($request, $report, $data, $moderator, $termin) {
+            // Kara na koncie idzie pod wspólny zamek ostatniego administratora
+            // (#1016) PRZED pierwszym zapisem: INSERT do `moderation_actions`
+            // bierze `FOR KEY SHARE` na wierszu osoby i zamek wzięty po nim
+            // zakleszczyłby się z równoległą zmianą roli.
+            if (in_array($data['action'], [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
+                OstatniAdministrator::zablokuj();
+            }
+
             $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
             if ($zablokowane === null || $zablokowane->status !== Report::STATUS_OPEN) {
@@ -416,7 +426,13 @@ class ModerationController extends Controller
                 'user_message' => $data['user_message'] ?? null,
             ]);
 
-            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            // Odmowa strażnika wycofuje decyzję razem z transakcją: nie
+            // zostaje ani wpis, ani powiadomienie o karze, której nie było.
+            try {
+                $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            } catch (OdmowaOstatniegoAdministratora $odmowa) {
+                throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+            }
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
             // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora

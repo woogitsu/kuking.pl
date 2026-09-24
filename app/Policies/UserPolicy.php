@@ -127,6 +127,36 @@ class UserPolicy
             && self::ranga($actor) > self::ranga($target);
     }
 
+    /**
+     * Zdjęcie treści Z URZĘDU — bez niczyjego zgłoszenia (G31, D-251).
+     *
+     * Wspólna reguła dla `removeExOfficio()` w politykach treści. Trzy
+     * warunki, wszystkie naraz:
+     *
+     *  - czynny moderator albo administrator (`isModerator()` patrzy też na
+     *    status konta, #1336);
+     *  - POTWIERDZONE 2FA — ta sama reguła wejścia co panel
+     *    (`moderator.2fa`). Stoi też tu, a nie tylko w middleware, bo przycisk
+     *    przy treści rysuje się poza panelem: bez 2FA prowadziłby na ekran
+     *    odmowy;
+     *  - autor ma NIŻSZĄ rolę. Inaczej niż przy decyzji ze zgłoszenia, gdzie
+     *    ocena treści od roli autora nie zależy (D-244 pkt 3). Tam sprawę
+     *    wnosi ktoś drugi, a rozstrzygający nie jest jej stroną. Z urzędu
+     *    jeden człowiek jest naraz tym, kto sprawę znalazł, i tym, kto ją
+     *    rozstrzyga — więc wobec równych i wyższych rangą nie rozstrzyga
+     *    sam. Wpis administratora (albo drugiego moderatora) łamiący zasady
+     *    idzie zwykłym „Zgłoś” i trafia do kogoś innego (`ReportPolicy::decide()`).
+     *    Ta sama reguła rangi wyklucza zdejmowanie własnej treści tą drogą —
+     *    własną usuwa się zwykłym „Usuń”.
+     */
+    public function takeDownContentOf(User $actor, ?User $author): bool
+    {
+        return $actor->isModerator()
+            && $actor->hasTwoFactorConfirmed()
+            && $author !== null
+            && self::ranga($actor) > self::ranga($author);
+    }
+
     private static function ranga(User $user): int
     {
         return match ($user->role) {

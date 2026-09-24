@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
+use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\FacebookDeauthorizeController;
@@ -1047,6 +1049,18 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/zgloszenia/{report}/przywroc', [ModerationController::class, 'restore'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
+
+    // „Zdejmij z urzędu” — treść bez zgłoszenia (G31, D-251). Wejście przyciskiem
+    // przy treści; Policy `removeExOfficio` pyta drugi raz, niezależnie od grupy.
+    Route::get('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'create'])
+        ->whereIn('typ', array_keys(ZdejmijZUrzedu::TYPY))
+        ->whereUuid('id')
+        ->name('admin.z-urzedu.create');
+    Route::post('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'store'])
+        ->whereIn('typ', array_keys(ZdejmijZUrzedu::TYPY))
+        ->whereUuid('id')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.z-urzedu.store');
 
     /*
      * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez
