@@ -327,7 +327,9 @@
                         białego tła — czyli plamę bez uśmiechu. Znak,
                         którego nie widać, jest gorszy niż jego brak.
                     --}}
-                    <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    @can('cook', $recipe)
+                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    @endcan
                     @if($isSaved)
                         {{--
                             OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA

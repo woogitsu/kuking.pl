@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\DeleteComment;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * Edycja i usunięcie komentarza.
@@ -25,7 +26,7 @@ class CommentController extends Controller
 {
     public function __construct(private readonly DeleteComment $deleteComment) {}
 
-    public function update(Request $request, Comment $comment): RedirectResponse
+    public function update(Request $request, Comment $comment): RedirectResponse|Response
     {
         // Issue #937: autor widzi własny ukryty komentarz, ale nie może go
         // poprawić (CommentPolicy::update). Zamiast gołego 403 mówimy mu,
@@ -38,8 +39,20 @@ class CommentController extends Controller
             ]);
         }
 
+        // Po 15 minutach autor nie poprawi komentarza, ale nie traci tekstu,
+        // który właśnie wpisał — dopiero PO kontroli moderacji wyżej.
+        if ($request->user()->can('recoverExpiredEdit', $comment)) {
+            return response()->view('pages.comments.expired-edit', [
+                'body' => is_string($request->input('body')) ? $request->input('body') : '',
+                'returnUrl' => $comment->subject()->url(),
+            ], 403);
+        }
+
         $this->authorize('update', $comment);
 
+        // Po walidacji przekierowanie może dotrzeć już po zamknięciu okna.
+        // Identyfikator pochodzi z autoryzowanego modelu, nie z pola formularza.
+        $request->session()->flash('comment_edit_recovery', $comment->getKey());
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4000'],
         ], [
@@ -48,6 +61,7 @@ class CommentController extends Controller
         ]);
 
         $comment->update(['body' => trim($data['body'])]);
+        $request->session()->forget('comment_edit_recovery');
 
         return back()->with('status', 'Komentarz poprawiony.');
     }

@@ -56,6 +56,10 @@ Tryb gotowania: `/przepisy/{przepis}/gotuj`, wielkie kroki na cały ekran,
 odhaczanie kroków, minutnik kroku. Ekran nie gaśnie (Wake Lock, z degradacją
 tam, gdzie przeglądarka go nie ma).
 
+Przy odhaczonych krokach można wybrać „Zacznij od początku”. Dopiero
+potwierdzenie usuwa odhaczenia bieżącego przepisu; wyjście i anulowanie
+zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#903).
+
 ### Ugotowałem
 - zdjęcie;
 - uwaga;
