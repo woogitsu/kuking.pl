@@ -73,20 +73,56 @@ Reguły:
 
 ## Granice
 
+`app/Domain` ma dziś 26 modułów (stan z 24.09.2026):
+
 ```text
-app/Domain/
-├── Users
-├── Social
-├── Posts
-├── Recipes
-├── Media
-├── Collections
-├── Search
-├── Notifications
-└── Moderation
+Analytics · Collections · Comments · Compliance · Contact · Digest · Feed ·
+Kolejka · Kopie · Media · Moderation · Monitoring · Notifications ·
+Polaczenia · Posts · Pwa · Questions · Recipes · Search · Security ·
+Sharing · Social · Tags · Users · Wspomnienia · Zgody
 ```
 
 Nie robimy z nich osobnych serwisów ani pakietów.
+
+### Kierunek zależności (issue #971)
+
+Zależność między modułami to użycie nazwy `App\Domain\<Inny>\…` w kodzie
+modułu (`use`, `new`, `::class`, typ). Zasada jest jedna: **graf zależności
+modułów nie ma cykli.** Jeśli A używa B, to B nie używa A — ani wprost, ani
+przez trzeci moduł. Wtedy granica modułu mówi, co może zepsuć zmiana w nim.
+
+Gdy moduł niżej musi wywołać coś z modułu wyżej, odwracamy krawędź:
+kontrakt mieszka u wołającego, implementacja w module, który ją dostarcza,
+a łączy je `AppServiceProvider`. Wzorzec: rejestracja (`Users\Actions\ZalozKonto`)
+woła `Users\ObserwowanieGospodarza`, a implementację daje
+`Social\Actions\ObserwujGospodarza` — bo `Social` już zależy od `Users`
+(`ZamekPary` → `ZamekKonta`, D-079/D-080).
+
+Krawędzie w chwili wprowadzenia zasady (skrót, nie lista dozwolonych —
+nowa krawędź jest w porządku, dopóki nie zamyka cyklu):
+
+```text
+Users        → Compliance, Media, Zgody
+Social       → Notifications, Users
+Comments     → Notifications, Users
+Posts        → Media, Moderation, Notifications, Tags
+Recipes      → Media, Notifications
+Feed         → Collections
+Wspomnienia  → Collections
+Collections  → Notifications
+Moderation   → Notifications, Security
+Security     → Moderation            ← znany cykl, do rozcięcia
+Contact      → Security
+Media, Pwa   → Analytics
+Kolejka, Polaczenia → Monitoring
+```
+
+Pilnuje tego `tests/Unit/GrafModulowDomenyBezCykliTest.php` (tokenizer PHP,
+bez nowych bibliotek). Lista zastanych cykli w teście jest dokładna w obie
+strony: nowy cykl oblewa test, a rozcięty znany też — żeby wpis nie został
+furtką. Jedyny zastany cykl to `Moderation ↔ Security`
+(`AlarmujOPilnymZgloszeniu` → `DziennyBudzetListow`,
+`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`).
 
 ## Queue
 

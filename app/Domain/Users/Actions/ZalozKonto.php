@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
-use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Users\ObserwowanieGospodarza;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
@@ -66,7 +66,7 @@ use Throwable;
  */
 final class ZalozKonto
 {
-    public function __construct(private readonly FollowUser $followUser) {}
+    public function __construct(private readonly ObserwowanieGospodarza $obserwowanieGospodarza) {}
 
     /**
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
@@ -251,7 +251,8 @@ final class ZalozKonto
      * wielkości niż rejestracja, która się nie udała.
      *
      * DWA RODZAJE AWARII, DWIE DROGI
-     * `BladDlaCzlowieka` rzuca `FollowUser` świadomie (konto niedostępne,
+     * `BladDlaCzlowieka` rzuca `FollowUser` (za kontraktem
+     * `ObserwowanieGospodarza`) świadomie (konto niedostępne,
      * blokada, próba obserwowania samego siebie) — to stan konfiguracji,
      * nie usterka, i przechodzi po cichu jak dotąd.
      *
@@ -276,15 +277,10 @@ final class ZalozKonto
         }
 
         try {
-            DB::transaction(function () use ($nazwa, $user): void {
-                $gospodarz = Profile::where('username', $nazwa)->first()?->user;
-
-                if ($gospodarz === null || $gospodarz->getKey() === $user->getKey()) {
-                    return;
-                }
-
-                $this->followUser->handle($user, $gospodarz);
-            });
+            // Samo obserwowanie (i odszukanie gospodarza) mieszka w `Social`
+            // za kontraktem `ObserwowanieGospodarza` — bez importu `Social`
+            // tutaj, żeby nie zamknąć cyklu `Users ↔ Social` (#971).
+            DB::transaction(fn () => $this->obserwowanieGospodarza->zacznij($user, $nazwa));
         } catch (BladDlaCzlowieka) {
             // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
             // idzie dalej; feed ratują tematy z onboardingu (#31).

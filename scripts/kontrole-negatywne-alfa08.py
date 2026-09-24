@@ -197,6 +197,11 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Graf modułów app/Domain bez cykli (#971). Strażnik czyta tokeny PHP
+# w `app/Domain`; mutacja przywraca import `Social` w `ZalozKonto`, czyli
+# dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
+ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
+GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 
 
 def digest(path):
@@ -474,6 +479,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -497,6 +504,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(GRAF_MODULOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

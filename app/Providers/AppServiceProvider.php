@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Social\Actions\ObserwujGospodarza;
+use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
@@ -28,7 +30,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Rejestracja (`Users`) woła obserwowanie gospodarza przez kontrakt,
+        // a implementację dostarcza `Social` (issue #971). To wiązanie jest
+        // jedynym miejscem, które zna oba moduły — dzięki temu graf
+        // `app/Domain` nie ma cyklu `Users ↔ Social`.
+        $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
     }
 
     /**
