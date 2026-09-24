@@ -23,11 +23,12 @@ use Carbon\CarbonInterface;
  * nie sprzątaczką dowodów.
  *
  * WZORZEC B — MASOWY `DELETE`, NIE TRANSAKCJA PER WIERSZ.
- * Ta tabela nie ma ŻADNEJ zależności, która wymagałaby ostrożności:
- * `user_id` i `handled_by` mają `nullOnDelete()` w swoją stronę, a nic nie
- * wskazuje na `contact_messages` — więc nie da się kaskadą zabrać czegoś,
- * czego własny czas jeszcze nie minął (pułapka z ADR §4). Nie ma tu też
- * pliku w storage, jak przy eksportach. Jeden `DELETE` po indeksie
+ * Odpowiedzi `contact_message_replies` wskazują na wiadomość kluczem
+ * `ON DELETE CASCADE`: znikają razem z nią i nie mają własnej retencji.
+ * Nowa odpowiedź nie przesuwa `handled_at`, także przy zamkniętej sprawie.
+ * Skutek dla operatora i warianty decyzji opisuje #847. `user_id` oraz
+ * `handled_by` mają `nullOnDelete()` w swoją stronę. Nie ma tu pliku
+ * w storage, jak przy eksportach. Jeden `DELETE` po indeksie
  * `contact_messages_handled_at_idx`.
  *
  * `subMonthsNoOverflow`, NIE `subMonths` — A6-04. Pełne uzasadnienie

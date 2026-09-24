@@ -188,7 +188,7 @@ export async function sprawdzZeszyty({ browser, adres, sesja, zeszyt, negatywy =
     const md5 = file => createHash('md5').update(readFileSync(file)).digest('hex');
     execFileSync('cp', ['-p', source, backup]);
     const hash = md5(source), mtime = statSync(source).mtimeMs;
-    const build = () => execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+    const build = () => execFileSync('npm', ['run', 'build:assets'], { stdio: 'pipe' });
     for (const [name, code, css, path, interaction] of [
       ['jasne-karty', 'K511_CIEMNE_KARTY', '.marka-zeszyt-karta { background: white !important; }', '/zeszyt', false],
       ['jedna-kolumna', 'K511_GRID', '.marka-zeszyt-przepisy { grid-template-columns: 1fr !important; }', zeszyt, false],
