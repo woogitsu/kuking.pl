@@ -130,12 +130,13 @@ class OnboardingController extends Controller
             $user = $request->user();
 
             $wynikiWyszukiwania = $this->search
-                ->people($phrase, $user, self::WYNIKI_WYSZUKIWANIA + 1)
                 // Szukającego samego siebie nie ma sensu proponować mu
                 // do zaobserwowania — `FollowUser` i tak by to odrzucił,
-                // ale checkbox przy własnym koncie byłby mylący.
-                ->reject(fn (Profile $profil) => $profil->user_id === $user->getKey())
-                ->values();
+                // ale checkbox przy własnym koncie byłby mylący. Wykluczenie
+                // idzie W ZAPYTANIU (`bezWidza`), nie przez `reject()` po
+                // `LIMIT`: własny profil zajmował wtedy jedno z sześciu miejsc,
+                // ekran gubił poprawną osobę i kłamał, że więcej nie ma (#945).
+                ->people($phrase, $user, self::WYNIKI_WYSZUKIWANIA + 1, bezWidza: true);
         }
 
         $results = $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA);
