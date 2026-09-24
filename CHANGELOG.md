@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+
 - Lista zablokowanych osób w ustawieniach prywatności pokazuje po 20 osób, a dalsze wyświetla przycisk „Pokaż więcej osób”. Strona otwiera się szybko także przy długiej liście, a zgody na e-mail i wspomnienia są na miejscu jak dotąd (#1366).
 - Listy „Obserwujący” i „Obserwowani” nie przewijają się już w bok na wąskim telefonie przy powiększonej czcionce przeglądarki. Długa nazwa łamie się w karcie zamiast wychodzić poza ekran; pismo i przyciski mają ten sam rozmiar co wcześniej (#1341).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
