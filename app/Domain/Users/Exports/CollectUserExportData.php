@@ -253,6 +253,10 @@ final class CollectUserExportData
             ->get();
 
         return $posts->map(fn (Post $post): array => [
+            // Pytanie może nie mieć opisu — wtedy tytuł jest całą wypowiedzią
+            // autora (#832). Oba pola osobno, bez sklejania w `tresc`.
+            'rodzaj' => $post->kind,
+            'tytul' => $post->title,
             'tresc' => $post->body,
             'widocznosc' => $post->visibility,
             'status' => $post->status,
@@ -406,11 +410,13 @@ final class CollectUserExportData
                 'zapisano' => $this->date($recipe->pivot->created_at ?? null),
             ])->all(),
             'wpisy' => $collection->posts->map(fn (Post $post): array => [
-                // Wpis nie ma tytułu — jego treść JEST jego tożsamością,
+                // Danie nie ma tytułu — jego treść JEST jego tożsamością,
                 // więc skrócenie jej zostawiłoby pozycję nie do rozpoznania.
-                // Zakres jest ten sam co przy cudzych komentarzach niżej:
-                // treść, data i nazwa wyświetlana. Nigdy e-mail, nigdy
-                // identyfikator konta.
+                // Pytanie ma tytuł i może nie mieć opisu, więc idzie też
+                // tytuł (#832). Zakres jest ten sam co przy cudzych
+                // komentarzach niżej: treść, data i nazwa wyświetlana.
+                // Nigdy e-mail, nigdy identyfikator konta.
+                'tytul' => $post->title,
                 'tresc' => $post->body,
                 'autor' => $post->author?->displayName() ?? 'Konto usunięte',
                 'opublikowano' => $this->date($post->published_at),

@@ -21,6 +21,8 @@ use Illuminate\View\View;
  * zalogowaniem. Klucz `logowanie.2fa.user_id` w sesji to jedyny ślad
  * pierwszego kroku — bez niego (wejście na ten adres wprost) trasa odsyła
  * do zwykłego logowania, żeby nie dało się tu trafić z pominięciem hasła.
+ * Obok leży `logowanie.2fa.odcisk` — stan konta z chwili pierwszego kroku
+ * (issue #931); gdy się nie zgadza, pierwszy krok trzeba powtórzyć.
  */
 class TwoFactorChallengeController extends Controller
 {
@@ -32,18 +34,25 @@ class TwoFactorChallengeController extends Controller
             return redirect()->route('login');
         }
 
+        if ($this->oczekujacyUzytkownik($request) === null) {
+            return $this->odeslijDoPierwszegoKroku($request);
+        }
+
         return view('auth.two_factor_challenge');
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $userId = $request->session()->get('logowanie.2fa.user_id');
-        $user = $userId === null ? null : User::find($userId);
-
-        if ($user === null || ! $user->hasTwoFactorConfirmed()) {
-            $request->session()->forget('logowanie.2fa.user_id');
-
+        if (! $request->session()->has('logowanie.2fa.user_id')) {
             return redirect()->route('login');
+        }
+
+        // Sprawdzenie PRZED weryfikacją kodu (issue #931): odmowa z powodu
+        // zmienionego stanu konta nie może zużyć ważnego kodu zapasowego.
+        $user = $this->oczekujacyUzytkownik($request);
+
+        if ($user === null) {
+            return $this->odeslijDoPierwszegoKroku($request);
         }
 
         $field = $request->has('backup_code') ? 'backup_code' : 'code';
@@ -109,7 +118,7 @@ class TwoFactorChallengeController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
-        $request->session()->forget('logowanie.2fa.user_id');
+        $request->session()->forget(['logowanie.2fa.user_id', 'logowanie.2fa.odcisk']);
         $request->session()->regenerate();
 
         // `remember: false` CELOWO, na stałe — nie jest to opcja do wyłączenia
@@ -121,5 +130,33 @@ class TwoFactorChallengeController extends Controller
         Auth::login($user, remember: false);
 
         return redirect()->intended(route('home'));
+    }
+
+    /**
+     * Konto z pierwszego kroku — o ile od tamtej chwili nic go nie odwołało
+     * (issue #931): zmiana lub reset hasła, „wyloguj inne urządzenia”, ban,
+     * zawieszenie, zgłoszenie usunięcia, wyłączenie 2FA.
+     */
+    private function oczekujacyUzytkownik(Request $request): ?User
+    {
+        $userId = $request->session()->get('logowanie.2fa.user_id');
+        $user = $userId === null ? null : User::find($userId);
+
+        if ($user === null || ! $user->hasTwoFactorConfirmed()) {
+            return null;
+        }
+
+        $odcisk = $request->session()->get('logowanie.2fa.odcisk');
+
+        return TwoFactorAuthenticator::oczekujaceLogowanieAktualne($user, $odcisk) ? $user : null;
+    }
+
+    private function odeslijDoPierwszegoKroku(Request $request): RedirectResponse
+    {
+        $request->session()->forget(['logowanie.2fa.user_id', 'logowanie.2fa.odcisk']);
+
+        return redirect()->route('login')->withErrors([
+            'login' => 'Zaloguj się jeszcze raz: od rozpoczęcia logowania zmieniło się coś na koncie (na przykład hasło). Wpisz adres e-mail i aktualne hasło.',
+        ]);
     }
 }
