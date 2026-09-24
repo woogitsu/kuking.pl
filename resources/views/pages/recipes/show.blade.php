@@ -384,7 +384,12 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @if($publicznyCel)
+                                {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
+                                <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
