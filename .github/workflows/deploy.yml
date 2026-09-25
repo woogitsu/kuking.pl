@@ -155,7 +155,8 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # 15, nie 10: sonda wydania (#1012) czeka na przełączenie ruchu najwyżej
     # SONDA_PROBY × (SONDA_ODSTEP + limit curl) ≈ 7,5 minuty, a reszta testu
-    # dymnego potrzebuje swoich dwóch-trzech.
+    # dymnego potrzebuje swoich dwóch-trzech (z końcową sondą: najwyżej
+    # 3 × (15 s curl + 5 s) = minuta).
     timeout-minutes: 15
 
     # -----------------------------------------------------------------------
@@ -396,9 +397,11 @@ jobs:
           fi
 
           # Wydanie mogło zostać podmienione W TRAKCIE sprawdzeń — wtedy część
-          # z nich opisuje cudzy commit. Jedna próba, bez czekania.
+          # z nich opisuje cudzy commit. Stała tu JEDNA próba: chwilowe 502
+          # brzegu albo zgubiony pakiet oblewały całe wdrożenie. Teraz 3 próby
+          # co 5 s; każda nieudana mówi, która i dlaczego padła.
           echo "--- Wydanie po testach ---"
-          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1
+          sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1
           echo "potwierdzony=${SONDA_POTWIERDZONY}" >> "$GITHUB_OUTPUT"
 
           exit $fail

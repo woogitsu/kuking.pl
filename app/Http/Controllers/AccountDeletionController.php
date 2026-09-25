@@ -200,10 +200,18 @@ class AccountDeletionController extends Controller
             $this->odmow($request, ['login' => $blad->getMessage()]);
         }
 
-        AuditLogEntry::record('account.delete_cancelled', $osoba, $osoba, ip: $request->ip());
+        // Kara sprzed zgłoszenia (albo nałożona w karencji) wraca razem
+        // z kontem (#980). Audyt zapisuje stan, do którego konto wróciło —
+        // decyzja o danych i decyzja o prawie do konta to dwie różne rzeczy.
+        $przywrocony = (string) $osoba->fresh()?->status;
 
-        return redirect()->route('login')->with('status',
-            'Usunięcie konta zostało cofnięte. Możesz się teraz zalogować jak wcześniej.',
+        AuditLogEntry::record('account.delete_cancelled', $osoba, $osoba,
+            metadata: ['status' => $przywrocony], ip: $request->ip());
+
+        return redirect()->route('login')->with('status', $przywrocony === User::STATUS_ACTIVE
+            ? 'Usunięcie konta zostało cofnięte. Możesz się teraz zalogować jak wcześniej.'
+            : 'Usunięcie konta zostało cofnięte. Konto wraca do stanu sprzed zgłoszenia — '
+                .'nadal obowiązuje decyzja moderacji, o której pisaliśmy. Szczegóły zobaczysz przy logowaniu.',
         );
     }
 
