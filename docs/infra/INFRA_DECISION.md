@@ -627,8 +627,11 @@ dla obu — inaczej `www` dałoby błąd TLS **przed** wykonaniem przekierowania
 
 **Aktualizacja #597/#610, 20.09.2026:** instrukcja i wyłączone projekty reguł
 są w [CLOUDFLARE_CACHE_597_610.md](CLOUDFLARE_CACHE_597_610.md).
-To nie jest potwierdzenie stanu panelu. HTML gościa pozostaje niegotowy do
-cache (sesja i CSRF). Reguły zdjęć wymagają odbioru stagingu.
+To nie jest potwierdzenie stanu panelu. HTML gościa (landing, przepis,
+profil) jest od 24.09.2026 gotowy w aplikacji za flagą
+`KUKING_HTML_EDGE_CACHE_SECONDS` (domyślnie 0 = wyłączone); reguła brzegu,
+TTL i plan wycofania — tamże, rozdział #610. Reguły zdjęć i HTML wymagają
+odbioru stagingu.
 
 **Co cache'ować:**
 
