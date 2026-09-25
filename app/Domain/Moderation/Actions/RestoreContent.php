@@ -144,7 +144,7 @@ final class RestoreContent
 
         // Reguła rangi, ta sama co przy zdejmowaniu (`UserPolicy`): decyzję
         // administratora cofa administrator, nie moderator.
-        if ($zdjecie->moderator?->role === User::ROLE_ADMIN && ! $moderator->isAdmin()) {
+        if (self::tylkoAdministratorCofa($zdjecie, $moderator)) {
             throw new BladDlaCzlowieka('Tę treść schował administrator. Cofnąć tę decyzję może tylko administrator — przekaż mu sprawę.');
         }
 
@@ -234,6 +234,16 @@ final class RestoreContent
      * Nie porównujemy czasów (`deleted_at` z `created_at` decyzji): obie
      * kolumny mają dokładność sekundy, a kolejność zdarzeń daje sam log.
      */
+    /**
+     * Reguła rangi (B2-01): decyzję administratora cofa tylko administrator.
+     * Jedno miejsce dla akcji i dla kolejki zgłoszeń — kolejka nie może
+     * pokazać przycisku, którego akcja i tak odmówi (AGENTS.md §5).
+     */
+    public static function tylkoAdministratorCofa(ModerationAction $zdjecie, User $moderator): bool
+    {
+        return $zdjecie->moderator?->role === User::ROLE_ADMIN && ! $moderator->isAdmin();
+    }
+
     public static function zdjeciePrzezModeracje(string $typ, string $id, bool $usunieta): ?ModerationAction
     {
         $ostatnia = ModerationAction::query()

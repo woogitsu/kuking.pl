@@ -152,6 +152,33 @@ class PrzywrocenieTylkoPoDecyzjiModeracjiTest extends TestCase
         $this->assertSame(Comment::STATUS_PUBLISHED, $komentarz->refresh()->status);
     }
 
+    /**
+     * Regresja po scaleniu #1479 z B2-01: kolejka pokazywała moderatorowi
+     * formularz „Przywróć treść” przy decyzji administratora, a akcja
+     * zawsze odmawiała — martwy przycisk (AGENTS.md §5).
+     */
+    public function test_moderator_nie_widzi_przycisku_przy_decyzji_administratora(): void
+    {
+        [, , $komentarz] = $this->komentarzPodWpisemBasi();
+        $report = $this->zgloszenie($this->user(), 'comment', (string) $komentarz->getKey());
+        $admin = $this->admin();
+
+        $this->rozstrzygnij($admin, $report, ModerationAction::ACTION_HIDE);
+
+        $this->actingAs($this->moderator())
+            ->get(route('admin.reports', ['status' => 'resolved']))
+            ->assertOk()
+            ->assertDontSee(route('admin.reports.restore', $report), false)
+            ->assertSee('Tę treść schował administrator — przywrócić może tylko administrator.', false);
+
+        // Kontrola dodatnia: administrator ma przycisk przy tej samej sprawie.
+        $this->actingAs($admin)
+            ->get(route('admin.reports', ['status' => 'resolved']))
+            ->assertOk()
+            ->assertSee(route('admin.reports.restore', $report), false)
+            ->assertDontSee('Tę treść schował administrator — przywrócić może tylko administrator.', false);
+    }
+
     public function test_po_cofnieciu_kary_usuniecie_przez_autora_nie_jest_juz_decyzja_moderacji(): void
     {
         // Ukrycie → przywrócenie → autor sam usuwa wpis. Ostatnie słowo

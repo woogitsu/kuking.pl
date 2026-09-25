@@ -348,11 +348,17 @@
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
                     Przy WŁASNEJ treści patrzącego zamiast przycisku stoi
-                    informacja (#1479): akcja i tak by odmówiła.
+                    informacja (#1479): akcja i tak by odmówiła. Tak samo
+                    przy treści schowanej przez administratora, gdy patrzy
+                    moderator (reguła rangi B2-01).
                 --}}
                 @if(($przywracalne[$report->id] ?? null) === 'wlasna')
                     <p class="mt-4">
                         To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.
+                    </p>
+                @elseif(($przywracalne[$report->id] ?? null) === 'administrator')
+                    <p class="mt-4">
+                        Tę treść schował administrator — przywrócić może tylko administrator. Jeśli trzeba, przekaż mu sprawę.
                     </p>
                 @elseif(($przywracalne[$report->id] ?? null) === 'przywroc')
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">

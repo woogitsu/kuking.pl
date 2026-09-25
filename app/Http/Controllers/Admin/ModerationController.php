@@ -266,8 +266,13 @@ class ModerationController extends Controller
      * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
      * co reguła w akcji — `ModeratedContent::osoba()`.
      *
+     * Tak samo `administrator`, gdy treść schował administrator, a patrzy
+     * moderator (reguła rangi B2-01, `RestoreContent::tylkoAdministratorCofa()`).
+     * Scalenie #1479 z B2-01 przeniosło do kolejki tylko pierwszą z dwóch
+     * odmów akcji — przy drugiej formularz był martwy.
+     *
      * @param  list<Report>  $reports
-     * @return array<string, 'przywroc'|'wlasna'> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'|'administrator'> klucz: id zgłoszenia
      */
     private function przywracalne(array $reports, User $moderator): array
     {
@@ -295,10 +300,18 @@ class ModerationController extends Controller
 
             // Treść schowana przez autora albo właściciela wpisu nie dostaje
             // przycisku — `RestoreContent` i tak by odmówił (B2-01).
-            if ($schowana && RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta) !== null) {
-                $wynik[(string) $decyzja->report_id] = ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()
-                    ? 'wlasna'
-                    : 'przywroc';
+            $zdjecie = $schowana
+                ? RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta)
+                : null;
+
+            if ($zdjecie !== null) {
+                // Kolejność jak w `RestoreContent`: najpierw własna treść,
+                // potem ranga.
+                $wynik[(string) $decyzja->report_id] = match (true) {
+                    ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey() => 'wlasna',
+                    RestoreContent::tylkoAdministratorCofa($zdjecie, $moderator) => 'administrator',
+                    default => 'przywroc',
+                };
             }
         }
 
