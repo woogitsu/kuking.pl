@@ -144,6 +144,61 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
             ->assertFailed();
     }
 
+    /**
+     * Uszkodzony najstarszy wiersz nie może zablokować zdrowych nowszych
+     * (#1031, uzupełnienie). Przy „najstarsze N" wracał na początek każdej
+     * partii, więc przy `--limit=1` kolejne przebiegi nie dochodziły dalej.
+     */
+    public function test_uszkodzony_wiersz_nie_blokuje_kolejnych_przy_malym_limicie(): void
+    {
+        // Jawne identyfikatory: uszkodzony jest PIERWSZY w kolejności kursora,
+        // jak w opisie usterki — bez zgadywania kolejności losowych UUID.
+        $uszkodzone = $this->stareZdjecie();
+        $uszkodzone->forceFill(['id' => '00000000-0000-4000-8000-000000000001'])->save();
+        Storage::disk('r2_legacy')->delete($uszkodzone->object_key);
+
+        $zdrowe = Media::factory()->create([
+            'id' => '00000000-0000-4000-8000-000000000002',
+            'disk' => 'r2_legacy',
+            'variants_disk' => null,
+            'object_key' => 'incoming/basia/2026/09/pierogi.jpg',
+            'metadata' => ['variants' => []],
+        ]);
+        Storage::disk('r2_legacy')->put($zdrowe->object_key, 'pierogi');
+
+        // Kontrola: bez kursora ten sam uszkodzony wiersz wraca w kółko.
+        foreach ([1, 2] as $przebieg) {
+            $this->artisan('kuking:przenies-zdjecia', ['--limit' => 1])
+                ->expectsOutputToContain('POMINIĘTE')
+                ->expectsOutputToContain('Następna partia: uruchom z --po='.$uszkodzone->id)
+                ->assertFailed();
+            $this->assertSame('r2_legacy', $zdrowe->refresh()->disk);
+        }
+
+        // Z kursorem przebieg dochodzi do zdrowego zdjęcia.
+        $this->artisan('kuking:przenies-zdjecia', ['--limit' => 1, '--po' => (string) $uszkodzone->id])
+            ->expectsOutputToContain('Przeniesione: '.$zdrowe->id)
+            ->assertSuccessful();
+
+        $this->assertSame('nowe_oryginaly', $zdrowe->refresh()->disk);
+        Storage::disk('nowe_oryginaly')->assertExists($zdrowe->object_key);
+
+        // Uszkodzony NIE jest oznaczony jako przeniesiony i wraca bez --po.
+        $this->assertSame('r2_legacy', $uszkodzone->refresh()->disk);
+        $this->artisan('kuking:przenies-zdjecia', ['--limit' => 1])
+            ->expectsOutputToContain('POMINIĘTE')
+            ->assertFailed();
+    }
+
+    public function test_kursor_odmawia_czegos_co_nie_jest_identyfikatorem(): void
+    {
+        $this->stareZdjecie();
+
+        $this->artisan('kuking:przenies-zdjecia', ['--po' => 'wczoraj'])
+            ->expectsOutputToContain('Opcja --po przyjmuje identyfikator zdjęcia')
+            ->assertFailed();
+    }
+
     public function test_brak_jednego_wariantu_zatrzymuje_przenosiny_w_polowie(): void
     {
         // Oryginał jest, wariantu nie ma. Kopiowanie zatrzymuje się w połowie
