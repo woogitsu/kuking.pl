@@ -1948,6 +1948,11 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
 
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.

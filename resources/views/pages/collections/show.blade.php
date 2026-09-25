@@ -99,6 +99,21 @@
                 {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapis nie jest dla Ciebie dostępny', 'zapisy nie są dla Ciebie dostępne', 'zapisów nie jest dla Ciebie dostępnych') }}.
                 Te zapisy nadal są w tym zeszycie.
             </p>
+            @error('zakres')
+                <p class="notice mt-4" role="alert">{{ $message }}</p>
+            @enderror
+            {{-- Porządkowanie bez kasowania całego zeszytu (#773). Tylko
+                 właściciel; formularz niesie odcisk zbioru z tej chwili, więc
+                 serwer nie wyjmie innej grupy niż ta, którą tu policzono. --}}
+            @if($odciskNiedostepnych ?? null)
+                <div class="mt-4">
+                    <x-confirm-button
+                        :action="route('collections.unavailable.destroy', $collection)"
+                        label="Wyjmij niedostępne zapisy"
+                        :fields="['zakres' => $odciskNiedostepnych]"
+                        :question="'Wyjąć z tego zeszytu '.$niewidoczne.' '.\App\Support\Odmiana::rzeczownik($niewidoczne, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów').'? Nie wrócą same, nawet gdy autor znowu je udostępni. Widoczne zapisy i inne zeszyty zostaną bez zmian.'" />
+                </div>
+            @endif
         @endif
     @endif
 

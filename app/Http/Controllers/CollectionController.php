@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
+use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\ZapisyWpisu;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\Odmiana;
 use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +36,7 @@ class CollectionController extends Controller
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
         private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
+        private readonly WidocznaZawartoscZeszytu $zawartosc = new WidocznaZawartoscZeszytu,
     ) {}
 
     public function index(Request $request): View
@@ -184,47 +189,14 @@ class CollectionController extends Controller
     {
         $this->authorize('view', $collection);
 
-        $recipes = $collection->recipes()
-            ->widoczneDla($request->user())
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+        // Filtry widoczności żyją w `WidocznaZawartoscZeszytu` — te same
+        // liczą niżej niedostępne zapisy i wyznaczają, co wyjmuje
+        // porządkowanie (#773).
+        $recipes = $this->zawartosc->przepisy($collection, $request->user())
             ->with(Recipe::RELACJE_KARTY)
             ->paginate(12);
 
-        $posts = $collection->posts()
-            ->widoczneDla($request->user())
-            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
-            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
-            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
-            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
-            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
-            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
-            // którym slug niesie ten sam tytuł.
-            //
-            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
-            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
-            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
-            // treść nie znika sama — a osoba, która ją zapisała, nie ma
-            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
-            // całkowicie legalnie.
-            ->zWidocznymPrzepisem($request->user())
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            // TRZECIA GRANICA: AUTOR PRZEPISU, A NIE AUTOR WPISU (W5-08).
-            //
-            // Warunek linijkę wyżej pyta o autora WPISU. Wpis zapowiadający
-            // przepis może jednak należeć do kogo innego niż przepis: A odkłada
-            // sobie do zeszytu zapowiedź przepisu B. Gdy B zostanie zbanowany
-            // albo oznaczony do usunięcia, jego przepis daje 403 pod własnym
-            // adresem i znika z listy przepisów tego zeszytu (warunek wyżej przy
-            // `$recipes`) — ale wpis A dalej stał tu z tytułem, zdjęciem głównym
-            // i odnośnikiem, bo `zWidocznymPrzepisem()` liczy widoczność
-            // i publikację przepisu, a statusu konta jego autora celowo nie zna
-            // (patrz `User::scopeDostepnyJakoAutor()`).
-            //
-            // Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu —
-            // bez niej zeszyt straciłby całą zawartość. Ten sam idiom liczy
-            // `App\Domain\Tags\PodpowiedziTagow`.
-            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
-                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()))
+        $posts = $this->zawartosc->wpisy($collection, $request->user())
             // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
             // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
             // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
@@ -265,6 +237,9 @@ class CollectionController extends Controller
         // Każdy przycisk przesuwa swoją listę i zachowuje pozycję drugiej.
         PaginationLinks::preserveOtherPage($recipes, $posts);
         PaginationLinks::preserveOtherPage($posts, $recipes);
+
+        $niewidoczne = max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
+            + max(0, $collection->posts()->withTrashed()->count() - $posts->total());
 
         return view('pages.collections.show', [
             'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
@@ -313,8 +288,10 @@ class CollectionController extends Controller
             // Paginatory policzyły już wszystkie widoczne pozycje. Liczymy
             // także przepisy i treści usunięte miękko: ich zapisy nadal istnieją.
             // withTrashed dotyczy wyłącznie COUNT, nigdy listy ani treści.
-            'niewidoczne' => max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
-                + max(0, $collection->posts()->withTrashed()->count() - $posts->total()),
+            'niewidoczne' => $niewidoczne,
+            // Odcisk dla przycisku „Wyjmij niedostępne zapisy" (#773) — tylko
+            // właścicielowi i tylko wtedy, gdy jest co wyjmować.
+            'odciskNiedostepnych' => $niewidoczne > 0 ? $this->odciskNiedostepnych($request, $collection) : null,
             // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
             //
             // Zeszyt jest jednym z kilku pojemników i wejście do drugiego
@@ -754,6 +731,43 @@ class CollectionController extends Controller
         return $wrocilo === 1
             ? "{$co} wrócił do zeszytu razem z notatką."
             : "{$co} wrócił do wszystkich {$wrocilo} zeszytów razem z notatkami.";
+    }
+
+    private function odciskNiedostepnych(Request $request, Collection $collection): ?string
+    {
+        if ($request->user()?->getKey() !== $collection->owner_id) {
+            return null;
+        }
+
+        $niedostepne = $this->zawartosc->niedostepne($collection, $request->user());
+
+        if ($niedostepne['przepisy'] === [] && $niedostepne['wpisy'] === []) {
+            return null;
+        }
+
+        return $this->zawartosc->odcisk($collection, $niedostepne);
+    }
+
+    /**
+     * Wyjęcie niedostępnych zapisów z tego jednego zeszytu (#773).
+     */
+    public function removeUnavailable(Request $request, Collection $collection, RemoveUnavailableFromCollection $action): RedirectResponse
+    {
+        $this->authorize('update', $collection);
+
+        $odcisk = $request->input('zakres');
+
+        try {
+            $ile = $action->handle($request->user(), $collection, is_string($odcisk) ? $odcisk : '');
+        } catch (BladDlaCzlowieka $e) {
+            return redirect()->route('collections.show', $collection)->withErrors(['zakres' => $e->getMessage()]);
+        }
+
+        return redirect()->route('collections.show', $collection)->with('status', $ile === 0
+            ? 'W tym zeszycie nie ma już niedostępnych zapisów. Niczego nie wyjęliśmy.'
+            : 'Wyjęliśmy z tego zeszytu '.$ile.' '
+                .Odmiana::rzeczownik($ile, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów')
+                .'. Reszta zeszytu została bez zmian.');
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

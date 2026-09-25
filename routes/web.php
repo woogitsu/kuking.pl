@@ -747,6 +747,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/zeszyt/{collection}', [CollectionController::class, 'update'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.update');
+    // Wyjęcie z zeszytu samych niedostępnych zapisów (#773). Kasuje powiązania,
+    // nie treść — ale bez drogi powrotu, więc budżet `usuwanie`.
+    Route::delete('/zeszyt/{collection}/niedostepne', [CollectionController::class, 'removeUnavailable'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.unavailable.destroy');
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
