@@ -12,9 +12,12 @@ use App\Models\ContactMessageReply;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
+use ReflectionClass;
 use Tests\TestCase;
 
 /**
@@ -76,6 +79,20 @@ class WspolnyLicznikPocztyTest extends TestCase
         for ($i = 0; $i < $ile; $i++) {
             DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zajmij();
         }
+    }
+
+    /**
+     * Klucz blokady czytany z klasy przez refleksję (wzór:
+     * `SufitPocztyOstrzegaZawczasuTest::kluczBlokady()`). Zmieniony prefiks
+     * ma oblać asercję, a nie po cichu trzymać nieistniejącą blokadę.
+     */
+    private function kluczBlokady(string $funkcja): string
+    {
+        $prefiks = (new ReflectionClass(DziennyBudzetListow::class))->getConstant('PREFIKS_BLOKADY');
+
+        $this->assertIsString($prefiks, 'Zniknął `PREFIKS_BLOKADY` — ten test przestał mierzyć blokadę.');
+
+        return $prefiks.$funkcja;
     }
 
     // -----------------------------------------------------------------
@@ -154,6 +171,77 @@ class WspolnyLicznikPocztyTest extends TestCase
             0,
             DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(),
             'Wyczerpany sufit jednej funkcji zjada listy wszystkim pozostałym, nie wysławszy ani jednego.',
+        );
+    }
+
+    /**
+     * TIMEOUT WŁASNEJ BLOKADY PO UDANEJ REZERWACJI U RODZICA (#1393).
+     *
+     * Kolejność rezerwacji to „najpierw wspólna pula, potem własny sufit”.
+     * Gdy własnej blokady nie da się zdobyć w `CZEKANIE_SEKUND`, list nie
+     * wychodzi — więc miejsce zajęte już we wspólnej puli musi wrócić.
+     * Przed poprawką `catch (LockTimeoutException)` robił `return false`
+     * i każdy taki ścisk zjadał jedno miejsce puli do końca doby; przy
+     * powtórce wyczerpywał nawet klasę `wejscie`.
+     *
+     * Blokadę funkcji trzyma tu „inne żądanie” (inny właściciel blokady),
+     * blokada wspólnej puli jest wolna. `Sleep::fake(syncWithCarbon: true)`
+     * przesuwa zegar zamiast czekać naprawdę dwie sekundy.
+     */
+    public function test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli(): void
+    {
+        $this->malaPula(limit: 100);
+        $this->travelTo(now()->setTime(12, 0));
+        Sleep::fake(syncWithCarbon: true);
+
+        $cudza = Cache::lock($this->kluczBlokady('link-logowania'), 10);
+        $this->assertTrue($cudza->get(), 'Bez trzymanej blokady ten test nie zmierzyłby timeoutu.');
+
+        try {
+            $this->assertFalse(
+                DziennyBudzetListow::dlaLinkuLogowania()->sprobujZarezerwowac(),
+                'Brak blokady własnego sufitu ma odmówić wysyłki, a nie wypuścić list.',
+            );
+        } finally {
+            $cudza->release();
+        }
+
+        $this->assertSame(0, DziennyBudzetListow::dlaLinkuLogowania()->zuzyte());
+        $this->assertSame(
+            0,
+            DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(),
+            'Timeout blokady funkcji zostawił zajęte miejsce we wspólnej puli — list nie wyszedł, '
+            .'a pula straciła jedno miejsce do końca doby.',
+        );
+    }
+
+    /**
+     * Timeout już NA RODZICU: nic nie zajęto w żadnym liczniku, więc nie ma
+     * czego oddawać — i własny sufit nie może zostać ruszony.
+     */
+    public function test_timeout_blokady_wspolnej_puli_nie_rusza_zadnego_licznika(): void
+    {
+        $this->malaPula(limit: 100);
+        $this->travelTo(now()->setTime(12, 0));
+        Sleep::fake(syncWithCarbon: true);
+
+        // Jedno miejsce zajęte wcześniej prawdziwym listem — nie może zniknąć.
+        $this->zajmijWspolne(1);
+
+        $cudza = Cache::lock($this->kluczBlokady('cala-poczta'), 10);
+        $this->assertTrue($cudza->get(), 'Bez trzymanej blokady ten test nie zmierzyłby timeoutu.');
+
+        try {
+            $this->assertFalse(DziennyBudzetListow::dlaLinkuLogowania()->sprobujZarezerwowac());
+        } finally {
+            $cudza->release();
+        }
+
+        $this->assertSame(0, DziennyBudzetListow::dlaLinkuLogowania()->zuzyte());
+        $this->assertSame(
+            1,
+            DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(),
+            'Odmowa po timeoucie na rodzicu zwolniła cudze miejsce we wspólnej puli.',
         );
     }
 

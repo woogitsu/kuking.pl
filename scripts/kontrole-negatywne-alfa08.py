@@ -120,6 +120,14 @@ KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
 # mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 BRAMKA_CI = ".github/workflows/ci.yml"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
+# Ciężkie joby wąskiego obszaru zawężane TYLKO na PR-ach (decyzja 24.09.2026).
+# Strażnicy pytają prawdziwy skrypt bramki z `ci.yml`; mutacje dowodzą, że
+# zapalają się w obie strony: gdy job wypada przy zmianie własnego wejścia,
+# gdy zawężenie przecieka poza PR i gdy wzorzec przestaje cokolwiek zawężać.
+BRAMKA_WEJSCIA_TEST = "test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta"
+BRAMKA_POZA_PR_TEST = "test_poza_pull_requestem_kazdy_job_rusza_przy_zmianie_kodu"
+BRAMKA_OBOK_TEST = "test_na_pull_requescie_zmiana_obok_pomija_ciezkie_joby"
+WIDOK_POZA_PR_TEST = "test_poza_pull_requestem_filtr_widoku_nie_zaweza"
 # `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
 # w `tests/`, `scripts/` i `app/`; mutacja przywraca stary podział w skanerze
 # poświadczeń — tym miejscu, gdzie strzępy wierszy kosztowały najwięcej.
@@ -184,6 +192,11 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
+# behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
+# zwrot miejsca do wspólnej puli poczty.
+BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
 # Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
 # akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
 # `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
@@ -409,6 +422,55 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+def dockerfile_poza_wzorcem_obrazu(source):
+    """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
+
+    Build obrazu byłby pomijany na PR-ze zmieniającym sam Dockerfile, a ten
+    plik strażnik czyta z `ci.yml` jako wejście joba — ma zapalić.
+    """
+    return replace_once(source, "ciezki obraz '^(Dockerfile$|", "ciezki obraz '^(")
+
+
+def grupa_wyscigow_poza_wzorcem(source):
+    """KONTROLA DODATNIA: `tests/Dwa/` wypada ze wzorca `wyscigi`.
+
+    Pliki grupy strażnik zbiera z dysku (atrybut `#[Group(...)]` grupy
+    wołanej przez `--group=` w skrypcie joba) — ma zapalić.
+    """
+    return replace_once(source, "tests/(Dwa/|Support/|", "tests/(Support/|")
+
+
+def zawezanie_takze_poza_pr(source):
+    """KONTROLA DODATNIA: ciężkie joby zawężane także na `main`.
+
+    Bez warunku na zdarzenie push na `main` pomijałby build obrazu, przyrząd
+    #605 i wyścigi przy zmianie obok ich obszaru — wbrew decyzji właściciela.
+    """
+    return replace_once(
+        source,
+        'if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+        'if grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+    )
+
+
+def wzorzec_przyrzadu_lapie_wszystko(source):
+    """KONTROLA UJEMNA ZAWĘŻENIA: wzorzec `obciazenie` pasuje do każdej ścieżki.
+
+    Kontrole „job rusza" przeszłyby wtedy śpiewająco, a oszczędności nie ma.
+    Strażnik zmiany obok ma zapalić.
+    """
+    return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
+
+
+def widok_zawezany_poza_pr(source):
+    """KONTROLA DODATNIA: filtr widoku zawęża także na `main`."""
+    return replace_once(
+        source,
+        """if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '""",
+        """if grep -qE '""",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -435,6 +497,16 @@ checks = [
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     dockerfile_poza_wzorcem_obrazu),
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     grupa_wyscigow_poza_wzorcem),
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_CI, BRAMKA_POZA_PR_TEST,
+     zawezanie_takze_poza_pr),
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_CI, BRAMKA_OBOK_TEST,
+     wzorzec_przyrzadu_lapie_wszystko),
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_CI, WIDOK_POZA_PR_TEST,
+     widok_zawezany_poza_pr),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
@@ -463,6 +535,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
     ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
@@ -479,6 +553,10 @@ run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
 run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
+run_test(BRAMKA_WEJSCIA_TEST, True)
+run_test(BRAMKA_POZA_PR_TEST, True)
+run_test(BRAMKA_OBOK_TEST, True)
+run_test(WIDOK_POZA_PR_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
