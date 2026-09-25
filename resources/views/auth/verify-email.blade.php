@@ -23,12 +23,24 @@
 <x-layout title="Potwierdź adres e-mail" :noindex="true">
     <h1>Potwierdź swój adres e-mail</h1>
 
-    <p>
-        Wysłaliśmy wiadomość na <strong>{{ auth()->user()->email }}</strong>.
-        Kliknij w niej link, żeby potwierdzić, że ten adres należy do Ciebie.
-    </p>
+    @if (! $pocztaDziala)
+        {{-- Issue #1335: poczta nie wysyła, więc żadnej obietnicy listu,
+             żadnego przycisku ponowienia i żadnej rady o „Spamie”. --}}
+        <p class="notice">
+            <strong>Wiadomość z potwierdzeniem nie przyjdzie.</strong>
+            Nie wysyłamy teraz wiadomości e-mail, więc nie czekaj na nią i nie szukaj jej w skrzynce.
+            Jeśli potwierdzenie adresu <strong>{{ auth()->user()->email }}</strong> jest Ci potrzebne,
+            napisz na <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>
+            — odpisuje człowiek i potwierdzimy adres inaczej.
+        </p>
+    @else
+        <p>
+            Wysłaliśmy wiadomość na <strong>{{ auth()->user()->email }}</strong>.
+            Kliknij w niej link, żeby potwierdzić, że ten adres należy do Ciebie.
+        </p>
+    @endif
 
-    @if ($nieudanaWysylka !== null)
+    @if ($pocztaDziala && $nieudanaWysylka !== null)
         <p class="notice">
             <strong>Ostatnia wiadomość nie dotarła.</strong>
             Wysłaliśmy ją {{ \App\Support\Czas::lokalnie($nieudanaWysylka->failed_at)->format('j.m.Y') }}
@@ -48,13 +60,15 @@
 
     <div class="flex gap-3 flex-wrap mt-6">
         <a class="btn btn-primary" href="{{ route('home') }}"><span class="btn-napis">Przejdź do <x-kuking-word /></span></a>
-        <form method="POST" action="{{ route('verification.send') }}">
-            @csrf
-            <button class="btn btn-secondary" type="submit">Wyślij wiadomość jeszcze raz</button>
-        </form>
+        @if ($pocztaDziala)
+            <form method="POST" action="{{ route('verification.send') }}">
+                @csrf
+                <button class="btn btn-secondary" type="submit">Wyślij wiadomość jeszcze raz</button>
+            </form>
+        @endif
     </div>
 
-    @if ($nieudanaWysylka === null)
+    @if ($pocztaDziala && $nieudanaWysylka === null)
         <p class="meta mt-5">Wiadomość nie przyszła? Zajrzyj do folderu „Spam”.</p>
     @endif
 </x-layout>
