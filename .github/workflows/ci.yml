@@ -629,8 +629,19 @@ jobs:
             *" 18."*|*" 18") ;;
             *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
           esac
-      - name: Testy skryptu kopii bazy
-        run: bash tests/skrypty/kopia-bazy.sh
+      # =====================================================================
+      #  CAŁY ZESTAW Z `scripts/check.sh`, NIE TYLKO KOPIA BAZY (audyt A4 5.1)
+      #
+      #  Do 25.09.2026 stał tu sam `kopia-bazy.sh`, a `check.sh` uruchamiał
+      #  jeszcze `bash -n` na skryptach, testy entrypointu kontenera, przyrząd
+      #  kontroli ujemnych i sondy testu dymnego wdrożenia. Regresja w
+      #  entrypoincie przechodziła więc przez zielone CI. Lista żyje teraz
+      #  w JEDNYM pliku, `scripts/kontrole-powloki.sh`, który wołają oba
+      #  miejsca. Krok klienta PostgreSQL 18 wyżej zostaje — potrzebuje go
+      #  `kopia-bazy.sh` z tej listy.
+      # =====================================================================
+      - name: Skrypty powłoki (składnia i testy, jak w check.sh)
+        run: bash scripts/kontrole-powloki.sh
 
   # ===========================================================================
   #  1b. Przyrząd do testu obciążeniowego (#605)

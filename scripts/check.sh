@@ -81,41 +81,14 @@ else
 fi
 
 # --- 3b. Skrypty powłoki ---------------------------------------------------
-# Entrypoint kontenera to kod, który decyduje o tym, czy serwis w ogóle żyje —
-# a żaden test PHPUnit go nie dotknie. Awaria z 5–6 września 2026 (3,5 godziny
-# niedostępności) siedziała dokładnie tam: w tym, jak skrypt powłoki odróżnia
-# „proces się skończył" od „proces padł".
+# Lista składni i testów powłoki żyje w `scripts/kontrole-powloki.sh` — ten
+# sam plik woła job `lint` w CI (audyt A4 5.1), więc lokalnie i w CI chodzi
+# dokładnie to samo. Uzasadnienia poszczególnych testów stoją tam.
 krok "Skrypty powłoki"
-_bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
-    [ -f "$_skrypt" ] || continue
-    bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
-done
-
-if [ -n "$_bledy_bash" ]; then
-    zle "Błąd składni w:$_bledy_bash"
-elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
-    zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
-elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
-    # Kopia bazy to też skrypt powłoki, w obrazie bez PHP (decyzja D-043),
-    # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
-    # kopia bazy — Railway na Free/Hobby nie robi żadnych.
-    zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
-elif ! bash tests/skrypty/cache-assetow.sh >/dev/null 2>&1; then
-    zle "Sonda cache oblewa — uruchom: bash tests/skrypty/cache-assetow.sh"
-elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
-    # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
-    # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
-    # kontroli ujemnej byłby tym, co naprawia: narzędziem meldującym sukces bez
-    # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
-    # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
-    zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
-elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
-    # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
-    # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
-    zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
-else
+if _wynik_powloki=$(bash scripts/kontrole-powloki.sh 2>&1); then
     ok "Składnia i testy skryptów powłoki przechodzą"
+else
+    zle "$(printf '%s\n' "$_wynik_powloki" | tail -n 1)"
 fi
 
 # --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
