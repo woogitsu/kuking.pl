@@ -96,6 +96,24 @@ class PostPolicy
     }
 
     /**
+     * „Dopisz przepis” do własnego wpisu ze zdjęciem (issue #1334).
+     *
+     * Tylko autor i tylko zwykły, opublikowany wpis z daniem, który ma gotowe
+     * zdjęcie. Nie: pytanie (to nie jest danie), zapowiedź przepisu
+     * (`recipe_id` — przepis już jest), szkic, wpis ukryty albo zdjęty przez
+     * moderację i wpis bez zdjęcia (formularz przepisu jest wtedy zwykłym
+     * „Dodaj przepis” i nie ma czego ponownie używać).
+     */
+    public function dopiszPrzepis(User $user, Post $post): bool
+    {
+        return $user->getKey() === $post->author_id
+            && $post->kind === Post::KIND_DISH
+            && $post->recipe_id === null
+            && $post->status === Post::STATUS_PUBLISHED
+            && $post->zdjecieDoPrzepisu() !== null;
+    }
+
+    /**
      * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
      *
      * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.

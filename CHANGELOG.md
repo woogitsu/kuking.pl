@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Do własnego wpisu ze zdjęciem dania można dopisać przepis: w menu „…” przy wpisie jest „Dopisz przepis”. Otwiera się zwykły formularz przepisu ze zdjęciem z wpisu, więc nie trzeba go wgrywać drugi raz. Sam wpis zostaje taki, jaki był — z treścią, komentarzami i tym, kto go widzi. Kto ma widzieć przepis, wybieracie osobno; gdy wpis nie był publiczny, formularz proponuje „Tylko ja” (#1334).
+
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).

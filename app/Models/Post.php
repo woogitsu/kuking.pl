@@ -124,6 +124,27 @@ class Post extends Model
     }
 
     /**
+     * Zdjęcie, które „Dopisz przepis” (issue #1334) podstawia jako zdjęcie
+     * główne przepisu: pierwsze GOTOWE zdjęcie wpisu tego samego autora.
+     * Zdjęcie odrzucone, w obróbce albo cudze nie przechodzi — wtedy akcji
+     * nie ma wcale.
+     */
+    public function zdjecieDoPrzepisu(): ?Media
+    {
+        // Karta wpisu ma zdjęcia już załadowane — bez tego `@can` w menu
+        // karty dokładałby jedno zapytanie na każdy własny wpis w strumieniu.
+        if ($this->relationLoaded('media')) {
+            return $this->media->first(fn (Media $zdjecie): bool => $zdjecie->owner_id === $this->author_id
+                && $zdjecie->status === Media::STATUS_READY);
+        }
+
+        return $this->media()
+            ->where('media.owner_id', $this->author_id)
+            ->where('media.status', Media::STATUS_READY)
+            ->first();
+    }
+
+    /**
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.

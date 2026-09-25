@@ -39,6 +39,7 @@ final class ZapiszPrzepisZFormularza
      *
      * @param  array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}  $dane
      * @param  array<array-key, UploadedFile>  $zdjeciaKrokow  pliki pod TYMI SAMYMI kluczami, co `$dane['steps']`
+     * @param  string|null  $zdjecieGlowneZWpisu  `media.id` zdjęcia z własnego wpisu (#1334), już po Policy
      *
      * @throws BladDlaCzlowieka
      * @throws ValidationException
@@ -53,8 +54,13 @@ final class ZapiszPrzepisZFormularza
         ?string $ip,
         ?Recipe $existing = null,
         ?string $kluczWyslania = null,
+        ?string $zdjecieGlowneZWpisu = null,
     ): Recipe {
-        $heroMediaId = $existing?->hero_media_id;
+        // Zdjęcie już wgrane — z własnego wpisu (#1334). Tylko przy NOWYM
+        // przepisie i tylko wtedy, gdy formularz nie przysłał własnego pliku.
+        // Czy to zdjęcie wolno przypiąć, sprawdza jeszcze `PublishRecipe`
+        // pod blokadą (`ZdjeciaDoPrzypiecia`: właściciel = autor, nieusunięte).
+        $heroMediaId = $existing?->hero_media_id ?? $zdjecieGlowneZWpisu;
 
         if ($zdjecieGlowne !== null) {
             $heroMediaId = $this->storeImage->handle($author, $zdjecieGlowne)->getKey();
