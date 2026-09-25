@@ -8,8 +8,10 @@ use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\Cursor;
+use Illuminate\Pagination\CursorPaginator;
 
 /**
  * "Świeżo z Kuking" — to, co widzi ktoś, kto nikogo jeszcze nie obserwuje.
@@ -45,9 +47,9 @@ final class DiscoverFeed
     /**
      * @param  string|null  $stan  wartość parametru `stan` z adresu DALSZEJ
      *                             strony (patrz niżej); pierwsza strona podaje `null`
-     * @return CursorPaginator<int, Post>
+     * @return CursorPaginatorContract<int, Post>
      */
-    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginator
+    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginatorContract
     {
         $perPage ??= (int) config('kuking.feed.page_size');
         $chwila = $this->chwilaListy($stan);
@@ -134,9 +136,35 @@ final class DiscoverFeed
             ->orderBy('rotacja.runda')
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id')
-            ->cursorPaginate($perPage);
+            // Pusty napis, nie `null`: na `null` Laravel sięga po kursor z adresu
+            // jeszcze raz — ten sam, który właśnie odrzuciliśmy.
+            ->cursorPaginate($perPage, ['*'], 'cursor', $this->kursorRotacji() ?? '');
 
         return $strona->appends('stan', (string) $chwila->getTimestamp());
+    }
+
+    /**
+     * Kursor z adresu — tylko jeśli opisuje pozycję W ROTACJI.
+     *
+     * Kursor sprzed rotacji (#940: `published_at` + `id`, np. z zakładki albo
+     * z otwartej karty w chwili wdrożenia) nie ma `rotacja.runda`, a Laravel
+     * na brakujący parametr rzuca wyjątkiem — czyli 500 na `/odkryj`. Taki
+     * kursor nie mówi, gdzie w rundach jesteśmy, więc zaczynamy od początku.
+     */
+    private function kursorRotacji(): ?Cursor
+    {
+        $kursor = CursorPaginator::resolveCurrentCursor();
+
+        if ($kursor === null) {
+            return null;
+        }
+
+        $parametry = $kursor->toArray();
+        unset($parametry['_pointsToNextItems']);
+        $klucze = array_keys($parametry);
+        sort($klucze);
+
+        return $klucze === ['posts.id', 'posts.published_at', 'rotacja.runda'] ? $kursor : null;
     }
 
     /**

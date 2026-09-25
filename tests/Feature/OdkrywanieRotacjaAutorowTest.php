@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -192,6 +193,39 @@ class OdkrywanieRotacjaAutorowTest extends TestCase
         foreach ([(string) now()->addDay()->timestamp, 'nie-liczba', '1.5', (string) now()->subDays(3)->timestamp] as $stan) {
             $this->assertSame(['A1'], (new DiscoverFeed)->paginate(null, 20, $stan)->getCollection()->pluck('body')->all(), $stan);
         }
+    }
+
+    /**
+     * Regresja: kursor sprzed rotacji (#940 — `published_at` + `id`) z zakładki
+     * albo z karty otwartej w chwili wdrożenia dawał 500 („Unable to find
+     * parameter [rotacja.runda]"). Teraz zaczyna od pierwszej strony.
+     */
+    public function test_kursor_sprzed_rotacji_zaczyna_od_poczatku_zamiast_bledu(): void
+    {
+        $a = $this->user('aktywna');
+        $this->wpis($a, 'Pierogi ruskie najnowsze', 1);
+        $this->wpis($a, 'Bigos starszy', 2);
+        $stary = (new Cursor(['published_at' => now()->toDateTimeString(), 'id' => $a->id]))->encode();
+
+        foreach ([$stary, 'nieczytelny'] as $kursor) {
+            $this->assertSame(
+                ['Pierogi ruskie najnowsze', 'Bigos starszy'],
+                $this->get(route('discover').'?cursor='.$kursor)->assertOk()->viewData('posts')->getCollection()->pluck('body')->all(),
+            );
+        }
+
+        // Kontrola dodatnia: kursor rotacji dalej działa.
+        $pierwsza = (new DiscoverFeed)->paginate(null, 1);
+        $this->assertSame(
+            ['posts.id', 'posts.published_at', 'rotacja.runda'],
+            collect($pierwsza->nextCursor()->toArray())->except('_pointsToNextItems')->keys()->sort()->values()->all(),
+        );
+        // viewData, nie HTML: tablica „kuKINGi na dziś" w szynie pokazuje
+        // dzisiejsze wpisy niezależnie od strony listy.
+        $this->assertSame(
+            ['Bigos starszy'],
+            $this->get((string) $pierwsza->nextPageUrl())->assertOk()->viewData('posts')->getCollection()->pluck('body')->all(),
+        );
     }
 
     public function test_remis_czasu_rozstrzyga_id_w_rundzie_i_w_kolejnosci(): void
