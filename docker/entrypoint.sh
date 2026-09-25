@@ -129,32 +129,30 @@ php /app/artisan view:clear   --no-interaction >/dev/null
 php /app/artisan event:clear  --no-interaction >/dev/null
 
 # -----------------------------------------------------------------------------
-#  `cache:clear` JEST INNY: przy CACHE_STORE=database uderza w tabelę `cache`.
+#  `cache:clear` CELOWO NIE WYSTĘPUJE — ani samo, ani w `optimize:clear`.
 #
-#  Wcześniej stało tu `optimize:clear`, które woła cache:clear w środku.
-#  Przy `set -Eeuo pipefail` wyjątek z bazy kończył cały skrypt, więc kontener
-#  padał — i wstawał, i padał, w pętli. Zaobserwowane na produkcji przy
-#  pierwszym wdrożeniu, zanim wykonały się migracje:
+#  Przy CACHE_STORE=database tabela `cache` NIE jest odtwarzalną kopią
+#  czegokolwiek. Leży w niej stan, który ma przeżyć restart:
+#    - liczniki `RateLimiter` (próby hasła, kodu 2FA, linki logowania,
+#      ponowienia potwierdzeń, formularz zgłoszenia DSA),
+#    - dobowy sufit listów `DziennyBudzetListow` (D-076),
+#    - okna deduplikacji alarmów i listów o próbie wejścia kontem Facebooka.
+#  Do 25 września 2026 stało tu `cache:clear` przy KAŻDYM starcie web, workera
+#  i schedulera, a wdrożeń jest kilkadziesiąt na dobę. Każdy deploy dawał
+#  zgadującemu kod 2FA nową pulę prób i zerował dobowy licznik poczty
+#  (audyt B10-03 = B8-01).
 #
-#      SQLSTATE[42P01]: Undefined table: relation "cache" does not exist
-#
-#  Aplikacja nie wstawała nawet po to, żeby pokazać, co jest nie tak.
-#  Healthcheck nie miał czego odpytać, a w panelu było samo „CRASHED".
-#
-#  Niedostępny cache NIE JEST powodem, żeby nie uruchomić serwisu. Cache jest
-#  z definicji odtwarzalny — najgorsze, co się stanie, to wolniejsze pierwsze
-#  żądania. Dlatego to jedno polecenie ma prawo się nie udać, ale musi
-#  o tym GŁOŚNO powiedzieć w logu.
+#  Czyszczenie nie jest też potrzebne po deployu: pliki konfiguracji, tras,
+#  zdarzeń i widoków czyszczą `*:clear` wyżej i przebudowuje `optimize` niżej.
+#  Wpisy treści w cache (`LiczbaKukingow`, `KolejkiPanelu`) przelicza
+#  harmonogram, a ich odczyt znosi wpis ze starszego wdrożenia. Gdyby kiedyś
+#  wpis z poprzedniej wersji kodu naprawdę szkodził — usuń NAZWANY klucz
+#  (`Cache::forget('...')`) albo zmień jego nazwę, nigdy całą tabelę.
+#  Pilnuje tego `tests/Feature/StartKonteneraNieCzysciCacheTest.php`.
 # -----------------------------------------------------------------------------
-if ! php /app/artisan cache:clear --no-interaction >/dev/null 2>&1; then
-  log "OSTRZEŻENIE: nie udało się wyczyścić cache aplikacji."
-  log "  Najczęstsza przyczyna: brak tabeli 'cache', czyli niewykonane migracje."
-  log "  Startuję dalej — cache jest odtwarzalny, a serwis ma wstać i dać się zdiagnozować."
-fi
 
-# `optimize` zostaje BEZ tolerancji na błąd. Tu jest odwrotnie niż wyżej:
-# nieudane zapieczenie konfiguracji, tras i widoków znaczy, że aplikacja
-# naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
+# `optimize` jest BEZ tolerancji na błąd: nieudane zapieczenie konfiguracji,
+# tras i widoków znaczy, że aplikacja naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
 # deploy, zamiast wpuszczać ruch na coś zepsutego.
 php /app/artisan optimize --no-interaction
 
