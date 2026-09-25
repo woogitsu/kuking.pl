@@ -399,6 +399,30 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Dosyłanie pilnych alarmów moderacyjnych, które nie dotarły (issue #1051).
+//
+// Alarm o sprawie pilnej (treść seksualna, cokolwiek dotyczącego dziecka)
+// wychodzi z `PrzeanalizujTresc`, zlecanego TYLKO przy publikacji. Gdy nie
+// dotarł — pusty `KUKING_MODEL_ALARM_EMAIL`, awaria poczty, ubity worker —
+// nie było drugiej drogi, a `/health` świecił bez końca. Ta komenda nią jest.
+//
+// CO GODZINĘ, nie raz na dobę jak podsumowanie: to jest spóźniony alarm,
+// a nie raport. Po wpisaniu adresu zaległe sprawy dochodzą najpóźniej
+// w godzinę, bez niczyjej ręki.
+//
+// Minuta 35: o 00 tykają zdejmowanie kar i licznik społeczności, o 25 budżet
+// połączeń (uzasadnienie rozsunięcia przy sprzątaniu zmian adresu).
+// Blokada 50 minut — reguła „co godzinę → 50" z nagłówka tego pliku.
+// Wyścigu dwóch przebiegów i tak pilnuje baza (`AlarmujModeratora::doslij()`).
+//
+// `Harmonogram::artisan()` zamiast gołego `Schedule::call()` — kod wyjścia 1
+// (padło zlecenie listu) ma być porażką przebiegu, nie cichym sukcesem
+// (`App\Support\Harmonogram`, #835).
+Harmonogram::artisan('kuking:doslij-pilne-alarmy')
+    ->hourlyAt(35)
+    ->onOneServer()
+    ->withoutOverlapping(50);
+
 // Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //
 // 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią

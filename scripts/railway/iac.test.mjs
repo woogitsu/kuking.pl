@@ -270,3 +270,91 @@ for (const [opis, zepsuj] of MUTACJE_WORKFLOW) {
     assert.notDeepEqual(bledyWorkflow(zepsuty), [], `strażnik nie zauważył: ${opis}`);
   });
 }
+
+// ---------------------------------------------------------------------------
+//  watchPatterns OBEJMUJE WSZYSTKO, CO WCHODZI DO OBRAZU (audyt B10-05)
+//
+//  `Dockerfile` robi `COPY . .`, więc do obrazu wchodzi każdy śledzony
+//  katalog i plik z korzenia, którego nie wycina `.dockerignore`. Do
+//  25.09.2026 `watchPatterns` pomijał `lang/**`: PR zmieniający same
+//  komunikaty (błędy walidacji, hasła) nie uruchamiał wdrożenia i wisiał
+//  zielony na `main` do następnego commita w innym katalogu.
+//
+//  Porównanie idzie na poziomie korzenia repozytorium. Wpis z obrazu, który
+//  NIE wpływa na działanie aplikacji, musi stać w rejestrze niżej z powodem.
+// ---------------------------------------------------------------------------
+const W_OBRAZIE_BEZ_WPLYWU = {
+  scripts: "narzędzia i testy JS; etap `assets` tylko je uruchamia, obraz końcowy bierze z niego samo public/build, a runtime ich nie woła",
+  storage: "same .gitignore — katalogi robocze zakłada entrypoint",
+  "README.md": "dokumentacja",
+  LICENSE: "dokumentacja",
+  ".env.example": "wzór zmiennych; obraz nie czyta .env",
+  "pint.json": "konfiguracja formatera, nieużywana w runtime",
+  "phpstan.neon": "konfiguracja analizy statycznej",
+  "phpstan-bootstrap.php": "konfiguracja analizy statycznej",
+  ".windsurfrules": "wskaźnik instrukcji dla agentów",
+  ".codex": "instrukcje dla agentów (porządki: audyt A4)",
+  evidence: "pliki robocze audytów (porządki: audyt A4 1.x)",
+  object_key: "plik roboczy (A5-17)",
+};
+
+function wpisyKorzenia() {
+  const pliki = execFileSync("git", ["ls-files", "-z"], { cwd: KORZEN, encoding: "utf8" }).split("\0").filter(Boolean);
+  return [...new Set(pliki.map((p) => p.split("/")[0]))].sort();
+}
+
+/** Minimalny odczyt `.dockerignore` dla wpisów z korzenia: ostatnia pasująca reguła wygrywa. */
+function wycinaDockerignore(nazwa, dockerignore) {
+  let wyciety = false;
+  for (const surowa of dockerignore.split("\n")) {
+    const linia = surowa.trim();
+    if (!linia || linia.startsWith("#")) continue;
+    const negacja = linia.startsWith("!");
+    const wzor = (negacja ? linia.slice(1) : linia).replace(/\/(\*\*)?$/, "");
+    if (wzor.includes("/")) continue; // reguła dotyczy wnętrza katalogu, nie całego wpisu
+    const regex = new RegExp(`^${wzor.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]")}$`);
+    if (regex.test(nazwa)) wyciety = !negacja;
+  }
+  return wyciety;
+}
+
+function nieobserwowaneWObrazie(wpisy, dockerignore, wzorce, rejestr) {
+  return wpisy
+    .filter((w) => !wycinaDockerignore(w, dockerignore))
+    .filter((w) => !wzorce.includes(w) && !wzorce.includes(`${w}/**`))
+    .filter((w) => !(w in rejestr));
+}
+
+const DOCKERIGNORE = readFileSync(resolve(KORZEN, ".dockerignore"), "utf8");
+const WZORCE_WWW = usluga(PROD, "kuking.pl").build.watchPatterns;
+
+test("watchPatterns serwisu WWW obejmuje każdy wpis korzenia, który wchodzi do obrazu", () => {
+  assert.deepEqual(nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE, WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU), []);
+});
+
+test("watchPatterns jest ten sam we wszystkich serwisach aplikacji i środowiskach", () => {
+  for (const g of [PROD, STAGING, graf("pr-123")]) {
+    for (const s of g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja")) {
+      assert.deepEqual(s.build.watchPatterns, WZORCE_WWW, s.name);
+    }
+  }
+});
+
+test("rejestr wpisów bez wpływu nie zasłania niczego, co obserwujemy albo co wycina .dockerignore", () => {
+  for (const w of Object.keys(W_OBRAZIE_BEZ_WPLYWU)) {
+    assert.ok(!WZORCE_WWW.includes(w) && !WZORCE_WWW.includes(`${w}/**`), `${w} jest w watchPatterns — zbędny wpis w rejestrze`);
+    assert.ok(!wycinaDockerignore(w, DOCKERIGNORE), `${w} wycina .dockerignore — zbędny wpis w rejestrze`);
+  }
+});
+
+const MUTACJE_OBRAZU = [
+  ["watchPatterns bez lang/**", () => nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE, WZORCE_WWW.filter((w) => w !== "lang/**"), W_OBRAZIE_BEZ_WPLYWU)],
+  ["nowy katalog w obrazie", () => nieobserwowaneWObrazie([...wpisyKorzenia(), "nowy-katalog"], DOCKERIGNORE, WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU)],
+  ["docs zdjęte z .dockerignore", () => nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE.replace(/^docs$/m, ""), WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU)],
+];
+
+for (const [opis, policz] of MUTACJE_OBRAZU) {
+  test(`kontrola ujemna obrazu: ${opis}`, () => {
+    assert.notDeepEqual(policz(), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
