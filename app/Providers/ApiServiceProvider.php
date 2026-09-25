@@ -6,8 +6,8 @@ namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Cache\RateLimiter as Limiter;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 
@@ -39,17 +39,26 @@ class ApiServiceProvider extends ServiceProvider
          * w komentarzu tamtej klasy (framework sortuje `throttle:` za
          * `auth:sanctum`, więc fałszywy token nie byłby tu nigdy policzony).
          * Żądanie bez ważnego tokenu nie ma więc w tym limiterze koszyka.
+         *
+         * REJESTRACJA DOPIERO PRZY PIERWSZYM UŻYCIU LIMITERA, nie w `boot()`.
+         * Fasada `RateLimiter::for()` tworzy singleton od razu, z magazynem
+         * cache wybranym W CHWILI STARTU — do końca procesu. Test, który
+         * potem przełącza `cache.default` (StartKonteneraNieCzysciCacheTest),
+         * liczyłby próby w innym magazynie niż ten, który czyści, i żaden
+         * provider z `main` tak wcześnie limitera nie tworzy.
          */
-        RateLimiter::for('api', function (Request $request): Limit {
-            $token = $request->user('sanctum')?->currentAccessToken();
+        $this->callAfterResolving(Limiter::class, function (Limiter $limiter): void {
+            $limiter->for('api', function (Request $request): Limit {
+                $token = $request->user('sanctum')?->currentAccessToken();
 
-            if (! $token instanceof PersonalAccessToken) {
-                return Limit::none();
-            }
+                if (! $token instanceof PersonalAccessToken) {
+                    return Limit::none();
+                }
 
-            [$proby, $minuty] = self::limit('na_token');
+                [$proby, $minuty] = self::limit('na_token');
 
-            return Limit::perMinutes($minuty, $proby)->by(self::PREFIKS_TOKENU.$token->getKey());
+                return Limit::perMinutes($minuty, $proby)->by(self::PREFIKS_TOKENU.$token->getKey());
+            });
         });
     }
 
