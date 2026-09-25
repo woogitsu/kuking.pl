@@ -1,4 +1,4 @@
-@props(['recipe', 'uklad' => 'wiersz'])
+@props(['recipe', 'uklad' => 'wiersz', 'pokazWidocznosc' => false])
 <article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel']) data-klucz="przepis-{{ $recipe->getKey() }}">
     <div class="flex gap-4 items-start recipe-card-uklad">
         @if($recipe->heroMedia)
@@ -34,6 +34,16 @@
                      w tym samym wierszu metadanych — kropkę rysuje sam
                      komponent. --}}
                 <x-konto-przykladowe :user="$recipe->author" />
+                {{-- Widoczność ograniczona (issue #1320): wyszukiwarka pokazuje
+                     też przepisy „dla obserwujących" i „tylko dla mnie", więc
+                     karta musi to powiedzieć — inaczej autor weźmie własny
+                     wynik za dowód, że przepis widzą wszyscy. Te same słowa
+                     co na karcie wpisu. Publiczny zostaje bez plakietki. --}}
+                @if($pokazWidocznosc && $recipe->visibility === 'followers')
+                    · <span class="badge">Tylko dla obserwujących</span>
+                @elseif($pokazWidocznosc && $recipe->visibility === 'private')
+                    · <span class="badge">Tylko dla mnie</span>
+                @endif
             </p>
             @if(($recipe->cooked_events_count ?? 0) > 0)
                 <p class="m-0"><span class="badge badge-cooked">Ugotowane {{ $recipe->cooked_events_count }} ×</span></p>
