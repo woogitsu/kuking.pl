@@ -11,6 +11,11 @@ use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
 use App\Jobs\PurgePublicMediaCache;
 use App\Models\Post;
+use App\Notifications\LinkDoLogowania;
+use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\UstawienieHaslaZamiastLinku;
+use App\Notifications\UstawienieNowegoHasla;
+use App\Notifications\ZaproszenieDoZalozeniaKonta;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -266,6 +271,31 @@ class UmowaKolejkiTest extends TestCase
                 'Zadanie zostanie w bazie na zawsze.',
             );
         }
+    }
+
+    /**
+     * Listy wpuszczające na konto idą na `high` (audyt B8-06) — nie stoją
+     * w FIFO na `default` za sześćdziesięcioma podsumowaniami tygodnia.
+     * Kolejka musi być odbierana przez workera I stać w nim pierwsza;
+     * nazwa, której worker nie czyta, zostawia list w bazie na zawsze.
+     */
+    public function test_listy_wejscia_na_konto_ida_na_high_czytana_pierwsza(): void
+    {
+        $listy = [
+            new LinkDoLogowania('token', now()->addMinutes(30)),
+            new PotwierdzenieAdresu,
+            new UstawienieNowegoHasla('token', now()->addHour()),
+            new UstawienieHaslaZamiastLinku('token'),
+            new ZaproszenieDoZalozeniaKonta('token', now()->addHour()),
+        ];
+
+        foreach ($listy as $list) {
+            $this->assertSame(['mail' => 'high'], $list->viaQueues(), class_basename($list).' nie idzie na kolejkę `high`.');
+        }
+
+        $kolejnosc = $this->kolejkiWorkera();
+        $this->assertContains('high', $kolejnosc, 'Worker nie odbiera `high` — listy logowania zostałyby w bazie na zawsze.');
+        $this->assertSame('high', $kolejnosc[0], 'Kolejka `high` nie stoi pierwsza w `--queue` workera.');
     }
 
     public function test_zdjecie_wyprzedza_eksport_w_kolejnosci_workera(): void
