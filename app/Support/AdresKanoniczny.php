@@ -66,12 +66,13 @@ final class AdresKanoniczny
      */
     public static function zbuduj(callable $generator): string
     {
-        $korzen = rtrim((string) config('app.url'), '/');
-        $schemat = parse_url($korzen, PHP_URL_SCHEME);
+        $korzen = self::korzen();
 
-        if ($korzen === '' || ! is_string($schemat) || $schemat === '') {
+        if ($korzen === null) {
             return (string) $generator();
         }
+
+        $schemat = (string) parse_url($korzen, PHP_URL_SCHEME);
 
         URL::useOrigin($korzen);
         URL::forceScheme($schemat);
@@ -82,5 +83,18 @@ final class AdresKanoniczny
             URL::useOrigin(null);
             URL::forceScheme(null);
         }
+    }
+
+    /**
+     * Kanoniczny korzeń z `APP_URL` (bez końcowego ukośnika) albo `null`,
+     * gdy `APP_URL` nie ma schematu. Jedyne miejsce tej reguły — korzysta
+     * z niego też `KanonicznyAdresStrony` (canonical, `og:url`).
+     */
+    public static function korzen(): ?string
+    {
+        $korzen = rtrim((string) config('app.url'), '/');
+        $schemat = parse_url($korzen, PHP_URL_SCHEME);
+
+        return is_string($schemat) && $schemat !== '' ? $korzen : null;
     }
 }
