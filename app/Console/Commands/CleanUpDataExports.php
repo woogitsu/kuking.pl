@@ -110,11 +110,15 @@ class CleanUpDataExports extends Command
         }
 
         if ($nieudane > 0) {
-            // `warn`, nie `line`: to musi być widoczne w logu harmonogramu.
-            // Paczka, której nie udało się usunąć, leży dalej w storage
-            // i wraca do kolejki przy następnym uruchomieniu.
-            $this->warn('Nie udało się usunąć '.$this->paczki($nieudane)
-                .'. Adresy zachowane — następne uruchomienie spróbuje ponownie.');
+            // CZĘŚCIOWA PORAŻKA TO PORAŻKA (#1534, wzorem #1342). Paczka,
+            // której nie udało się usunąć, leży dalej w storage — to kopia
+            // całego konta. Kod ≠ 0 jest jedynym sygnałem, który widzi
+            // harmonogram: `Harmonogram::artisan()` zamienia go w wyjątek.
+            $this->error('Nie udało się usunąć '.$this->paczki($nieudane)
+                .' (kandydatów: '.$znalezione.', usunięto: '.$removed.', błędy: '.$nieudane.').'
+                .' Adresy zachowane — następne uruchomienie spróbuje ponownie. Szczegóły w logu.');
+
+            return self::FAILURE;
         }
 
         $this->info($dryRun
