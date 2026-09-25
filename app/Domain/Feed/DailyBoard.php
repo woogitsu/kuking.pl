@@ -7,8 +7,10 @@ namespace App\Domain\Feed;
 use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -73,6 +75,39 @@ final class DailyBoard
     private const PEOPLE = 6;
 
     private const POSTS = 6;
+
+    /**
+     * KANDYDACI NIEZALEŻNI OD WIDZA, W CACHE (audyt B4 W1).
+     *
+     * `peopleToFollow()` i `automaticPosts()` agregowały CAŁE publiczne
+     * `posts` (GROUP BY i DISTINCT ON) przy każdej odsłonie Startu, Odkrywaj,
+     * Szukaj i strony powitalnej — także dla gości i robotów. `LIMIT` działał
+     * dopiero po agregacji, więc koszt rósł z całą historią (zmierzone
+     * lokalnie: ok. 225 ms przy 200 tys. wpisów).
+     *
+     * Wynik KOŃCOWY zależy od widza (blokady, obserwowani, wybór gospodarza),
+     * ale KANDYDACI nie: „kto ostatnio coś publicznie pokazał" i „najnowszy
+     * publiczny wpis każdego autora" są tacy sami dla wszystkich. Liczymy ich
+     * więc raz na `KANDYDACI_SEKUND` dla widza anonimowego — najwęższego, bo
+     * `zWidocznymPrzepisem(null)` przepuszcza tylko przepisy publiczne — a
+     * wykluczenia konkretnego widza odsiewamy w PHP. Pełne modele dociąga
+     * potem zapytanie po kluczach, z tymi samymi bramkami co zawsze (status
+     * konta, widoczność wpisu i przepisu dla TEGO widza), więc treść schowana
+     * po zapisaniu cache nie wraca na tablicę.
+     *
+     * Gdy po odsianiu zabraknie pozycji, a lista kandydatów była pełna (czyli
+     * dalej mogą być następni), wracamy do pełnego zapytania — rezerwa dla
+     * widza z wieloma blokadami albo obserwowanymi. Ceną jest świeżość:
+     * nowa osoba albo nowe danie pojawia się na tablicy do pięciu minut
+     * później.
+     */
+    private const KANDYDACI = 60;
+
+    private const KANDYDACI_SEKUND = 300;
+
+    private const KLUCZ_KANDYDACI_OSOB = 'tablica-dnia:kandydaci-osob';
+
+    private const KLUCZ_KANDYDACI_DAN = 'tablica-dnia:kandydaci-dan';
 
     /**
      * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
@@ -235,6 +270,56 @@ final class DailyBoard
      */
     public function peopleToFollow(?User $viewer, int $limit = self::PEOPLE, array $pomin = []): Collection
     {
+        $excluded = $this->wykluczeniOsob($viewer, $pomin);
+
+        /** @var list<string> $kandydaci */
+        $kandydaci = Cache::remember(
+            self::KLUCZ_KANDYDACI_OSOB,
+            self::KANDYDACI_SEKUND,
+            fn (): array => $this->ostatnioAktywni([], self::KANDYDACI)->pluck('users.id')->all(),
+        );
+
+        $wybrani = array_values(array_diff($kandydaci, $excluded));
+
+        if ($wybrani !== []) {
+            // Kolejność kandydatów to kolejność z cache (ostatnia publikacja);
+            // przechodzimy po niej, zamiast sortować od nowa.
+            $poId = User::query()
+                ->whereIn('id', $wybrani)
+                ->where('status', User::STATUS_ACTIVE)
+                ->with($this->relacjeOsoby($viewer))
+                ->get()
+                ->keyBy('id');
+            $osoby = new EloquentCollection(
+                collect($wybrani)->map(fn (string $id): ?User => $poId->get($id))->filter()->take($limit)->values()->all(),
+            );
+            $odrzuceni = count($wybrani) - $poId->count();
+        } else {
+            $osoby = new EloquentCollection;
+            $odrzuceni = 0;
+        }
+
+        // Kandydat z cache, którego nie przepuściły bramki (konto zawieszone
+        // albo usunięte po zapisaniu cache, baza postawiona od nowa), znaczy,
+        // że lista w cache jest nieaktualna — niepełna lista przestaje wtedy
+        // dowodzić, że dalej nikogo nie ma.
+        $nieaktualni = $odrzuceni > 0;
+
+        if ($osoby->count() >= $limit || (count($kandydaci) < self::KANDYDACI && ! $nieaktualni)) {
+            return $osoby;
+        }
+
+        if ($nieaktualni) {
+            Cache::forget(self::KLUCZ_KANDYDACI_OSOB);
+        }
+
+        // Rezerwa: kandydatów zabrakło po odsianiu, a mogą być następni.
+        return $this->ostatnioAktywni($excluded, $limit)->with($this->relacjeOsoby($viewer))->get();
+    }
+
+    /** @return list<string> */
+    private function wykluczeniOsob(?User $viewer, array $pomin): array
+    {
         // `$pomin` — konta, które na tej tablicy już stoją z wyboru gospodarza.
         // Parametr, a nie odsiewanie po pobraniu: limit jest narzucany w SQL,
         // więc odsianie „po fakcie" zwracałoby MNIEJ pozycji niż proszono
@@ -249,8 +334,17 @@ final class DailyBoard
             ];
         }
 
-        $excluded = array_values(array_unique($excluded));
+        return array_values(array_unique($excluded));
+    }
 
+    /**
+     * Konta aktywne, posortowane po ostatniej publicznej publikacji.
+     *
+     * @param  list<string>  $excluded
+     * @return Builder<User>
+     */
+    private function ostatnioAktywni(array $excluded, int $limit): Builder
+    {
         // JEDNA AGREGACJA NA CAŁE `posts`, A NIE JEDNA NA KAŻDE KONTO.
         //
         // Wcześniej sortowanie szło skorelowanym podzapytaniem: baza liczyła
@@ -275,12 +369,12 @@ final class DailyBoard
         // Gdyby ktoś kiedyś wrócił do skorelowanego podzapytania, ta różnica
         // przestałaby być obojętna — dlatego stoi tu, a nie w opisie zmiany.
         //
-        // DLACZEGO NIE CACHE
-        // Bo ta lista zależy od widza: wyklucza osoby już obserwowane
-        // i zablokowane. Cache musiałby być per widz, czyli byłby to nie tyle
-        // cache, co osobna kopia danych dla każdego konta. Pomiar zmienił tu
-        // decyzję — pierwotny pomysł z raportu (`cache()->remember` na 10 minut)
-        // nie dałby się pogodzić z tym filtrem.
+        // CACHE — ALE KANDYDATÓW, NIE WYNIKU
+        // Wynik zależy od widza (obserwowani, blokady), więc cache całej
+        // listy musiałby być per widz. Od audytu B4 W1 cache trzyma
+        // kandydatów liczonych bez widza, a wykluczenia widza odsiewa PHP
+        // (komentarz przy `KANDYDACI`). To zapytanie chodzi raz na pięć
+        // minut i w rezerwie, gdy odsianie zostawi za mało pozycji.
         $ostatniePublikacje = Post::query()
             ->selectRaw('author_id, max(published_at) as ostatnia_publikacja')
             ->publiclyVisible()
@@ -317,9 +411,13 @@ final class DailyBoard
             // ile ma obserwujących. Obserwowanie osoby, która nic nie wrzuca,
             // nie zapełnia feedu.
             ->orderByDesc('ostatnie.ostatnia_publikacja')
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')])
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+    }
+
+    /** @return array<int|string, mixed> */
+    private function relacjeOsoby(?User $viewer): array
+    {
+        return ['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')];
     }
 
     /**
@@ -367,10 +465,56 @@ final class DailyBoard
         // tego wymaga Postgres od `DISTINCT ON`. Dalsze kolumny wybierają,
         // KTÓRY wpis danego autora wygrywa: najnowszy, a przy równej
         // sekundzie większe `id`.
+        $ukryci = array_flip($hidden);
+
+        /** @var list<array{0: string, 1: string}> $kandydaci */
+        $kandydaci = Cache::remember(
+            self::KLUCZ_KANDYDACI_DAN,
+            self::KANDYDACI_SEKUND,
+            fn (): array => $this->najnowszyKazdegoAutora(null, [], self::KANDYDACI)
+                ->map(fn (object $wiersz): array => [(string) $wiersz->id, (string) $wiersz->author_id])
+                ->all(),
+        );
+
+        $wybrane = [];
+        foreach ($kandydaci as [$wpis, $autor]) {
+            if (! isset($ukryci[$autor])) {
+                $wybrane[] = $wpis;
+            }
+        }
+
+        $wpisy = $wybrane === [] ? new Collection : $this->pelneWpisy($viewer, $wybrane, $limit);
+
+        // Jak przy osobach: kandydat odrzucony przez bramki (wpis schowany,
+        // konto zawieszone, baza postawiona od nowa) znaczy nieaktualny cache.
+        $nieaktualne = $wpisy->count() < min($limit, count($wybrane));
+
+        if ($wpisy->count() >= $limit || (count($kandydaci) < self::KANDYDACI && ! $nieaktualne)) {
+            return $wpisy;
+        }
+
+        if ($nieaktualne) {
+            Cache::forget(self::KLUCZ_KANDYDACI_DAN);
+        }
+
+        // Rezerwa: kandydatów zabrakło po odsianiu, a mogą być następni.
+        $wybrane = $this->najnowszyKazdegoAutora($viewer, $hidden, $limit)->pluck('id')->all();
+
+        return $wybrane === [] ? new Collection : $this->pelneWpisy($viewer, $wybrane, $limit);
+    }
+
+    /**
+     * Najnowszy publiczny wpis każdego autora, najświeższe najpierw.
+     *
+     * @param  list<string>  $hidden
+     * @return Collection<int, object{id: string, author_id: string, published_at: string}>
+     */
+    private function najnowszyKazdegoAutora(?User $viewer, array $hidden, int $limit): Collection
+    {
         $najnowszyKazdegoAutora = Post::query()
-            ->selectRaw('DISTINCT ON (posts.author_id) posts.id, posts.published_at')
+            ->selectRaw('DISTINCT ON (posts.author_id) posts.id, posts.author_id, posts.published_at')
             ->publiclyVisible()
-            ->when($hidden !== [], fn ($query) => $query->whereNotIn('author_id', $hidden))
+            ->when($hidden !== [], fn ($query) => $query->whereNotIn('posts.author_id', $hidden))
             // Konto autora aktywne (audyt A5) — patrz uzasadnienie przy
             // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
             // jest surowszy niż zwykłe wejście na adres wpisu.
@@ -384,22 +528,30 @@ final class DailyBoard
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id');
 
-        $wybrane = DB::query()
+        return DB::query()
             ->fromSub($najnowszyKazdegoAutora, 'najnowsze')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)
-            ->pluck('id');
+            ->get();
+    }
 
-        if ($wybrane->isEmpty()) {
-            return new Collection;
-        }
-
+    /**
+     * @param  list<string>  $wybrane
+     * @return Collection<int, Post>
+     */
+    private function pelneWpisy(?User $viewer, array $wybrane, int $limit): Collection
+    {
         // Drugie zapytanie po pełne modele z relacjami. Osobno, bo
         // `DISTINCT ON` nie znosi `with()`/`withCount()` w tym samym
         // przebiegu, a kolejność i tak trzeba narzucić na zewnątrz.
         return Post::query()
             ->whereIn('id', $wybrane)
+            // Te same bramki co przy wyborze kandydatów, liczone dla TEGO
+            // widza: kandydaci z cache mogli zostać schowani po zapisaniu.
+            ->publiclyVisible()
+            ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
+            ->zWidocznymPrzepisem($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -413,6 +565,7 @@ final class DailyBoard
             ->withVisibleCommentCount($viewer)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
+            ->limit($limit)
             ->get();
     }
 
