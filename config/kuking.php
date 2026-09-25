@@ -2592,6 +2592,24 @@ return [
         'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
     ],
 
+    // RETENCJA PROSTYCH TABEL PARTIAMI (#1657).
+    //
+    // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
+    // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
+    // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
+    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
+    // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
+    // (`stage=retention_budget_exhausted`).
+    //
+    // 50 000 na noc to ok. 18 mln wierszy rocznie na tabelę — rząd wielkości
+    // ponad dzisiejszy dobowy przyrost każdej z nich, więc codzienna retencja
+    // mieści się w budżecie z zapasem, a jednorazowy zator schodzi w kilka nocy.
+    'retencja' => [
+        'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
+        'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
