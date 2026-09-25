@@ -369,6 +369,17 @@ egzekwuje.
   `DECYZJE_WLASCICIELA_R1_R6_DPA.md` §R1. To jest **otwarta decyzja
   właściciela**, nie stan docelowy.
 
+### 3.18 Urodziny — życzenia od gospodarza (issue #1755)
+
+- **Cel:** życzenia urodzinowe od gospodarza serwisu.
+- **Dane:** dzień i miesiąc urodzin, **bez roku** (`users.birthday_day`,
+  `users.birthday_month`).
+- **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda wyrażona dobrowolnym
+  podaniem daty; wycofanie przyciskiem „Usuń datę” w `/ustawienia/urodziny`.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** do usunięcia daty przez osobę albo do wymazania
+  konta (`EraseAccountData` zeruje obie kolumny). W eksporcie: `konto.urodziny`.
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)

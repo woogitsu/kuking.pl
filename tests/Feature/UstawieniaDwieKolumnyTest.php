@@ -45,6 +45,7 @@ class UstawieniaDwieKolumnyTest extends TestCase
             'settings.security',
             'settings.two_factor.edit',
             'settings.privacy',
+            'settings.birthday',
             'settings.data',
         ];
     }

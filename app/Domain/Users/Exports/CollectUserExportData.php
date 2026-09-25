@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Rocznice\Urodziny;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -163,6 +164,9 @@ final class CollectUserExportData
             'jezyk' => $user->locale,
             'rozmiar_tekstu_procent' => $user->text_scale,
             'chce_podsumowania_tygodnia' => (bool) $user->wants_weekly_digest,
+            // Urodziny (issue #1755): sam dzień i miesiąc jako DD-MM. Roku nie
+            // zbieramy, więc nie ma go i tutaj. `null`, gdy daty nie podano.
+            'urodziny' => Urodziny::doEksportu($user),
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
             // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO

@@ -337,6 +337,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
+            // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
+            // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
+            'birthday_day' => 'integer',
+            'birthday_month' => 'integer',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko

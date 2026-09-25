@@ -1889,6 +1889,33 @@ pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
 sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
 rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
 
+### Urodziny bez roku (issue #1755)
+
+Kolumny na `users`, bo to prywatne ustawienie konta, a nie dana profilu
+publicznego (`profiles`). Decyzja właściciela z 25.09.2026, research
+`docs/research/PROFIL_FORMA_I_URODZINY.md`.
+
+**Etap a** — migracja `2026_09_25_200000_add_birthday_to_users`:
+
+- **`users.birthday_day`** (`smallint NULL`) i **`users.birthday_month`**
+  (`smallint NULL`) — dzień i miesiąc urodzin. **Roku nie ma i nie będzie**:
+  do życzeń nie jest potrzebny, a pełna data urodzenia stoi na liście danych,
+  których nie zbieramy (`docs/SECURITY_PRIVACY_LEGAL.md`).
+- CHECK `users_birthday_pair_check`: oba pola `NULL` albo oba wypełnione.
+- CHECK `users_birthday_range_check`: miesiąc 1–12, dzień istnieje w danym
+  miesiącu (29.02 dozwolone, 30.02 i 31.04 nie). Życzenia dla 29.02 wypadają
+  28.02 w latach nieprzestępnych — to reguła wyświetlania
+  (`App\Domain\Rocznice\Urodziny`), nie zapisu.
+- Zapis wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny` (kolumny
+  poza `$fillable`), ekran `/ustawienia/urodziny` z przyciskiem „Usuń datę”.
+- Eksport: `konto.urodziny` jako `DD-MM` albo `null`. Wymazanie konta
+  (`EraseAccountData`) zeruje obie kolumny.
+
+**Rollback:** `down()` **odmawia**, gdy choć jedno konto ma wpisaną datę
+(D-088) — po cyklu `rollback` → `migrate` kolumny wróciłyby puste i życzenia
+przestałyby przychodzić bez śladu błędu. Przy samych `NULL` i na świeżej bazie
+przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
+
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
