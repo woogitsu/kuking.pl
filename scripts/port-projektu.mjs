@@ -22,6 +22,7 @@ import { sprawdzHeroNadZgieciem } from './hero-nad-zgieciem.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
 import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
 import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
+import { sprawdzStopke } from './stopka-pusty-pas.mjs';
 import { wymagajStanu } from './lib/stan-ustalony.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
@@ -500,6 +501,7 @@ try {
   await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
+  await sprawdzStopke({ browser: przegladarka, adres, sesja });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });

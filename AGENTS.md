@@ -82,7 +82,8 @@ Przeczytaj w tej kolejności:
 4. `docs/UX_50_PLUS.md` — twardy standard interfejsu,
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
-7. `docs/ROADMAP.md` — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
+   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
