@@ -17,7 +17,7 @@ use Tests\TestCase;
  * wygasać PRZED następnym planowym terminem swojego zadania.
  *
  * Test czyta zdarzenia z `Schedule::events()`, nie tekst `routes/console.php`,
- * więc nie potrzebuje wpisu w `scripts/kontrole-negatywne-alfa08.py`.
+ * więc nie potrzebuje pliku w `scripts/kontrole_negatywne/`.
  * Kontrolę dodatnią robi drugi test: ta sama reguła na gołym zdarzeniu.
  */
 class HarmonogramWygasaniaBlokadTest extends TestCase

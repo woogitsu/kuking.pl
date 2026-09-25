@@ -116,6 +116,10 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
     # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
+elif ! python3 tests/skrypty/kontrole-negatywne-przyczyna.py >/dev/null 2>&1; then
+    # To samo dla kontroli negatywnych z `scripts/kontrole_negatywne/` (#1011):
+    # czerwień zalicza się tylko z oczekiwanej przyczyny, nie z fatalu. Bez bazy.
+    zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
 elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.

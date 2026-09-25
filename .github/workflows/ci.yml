@@ -1014,6 +1014,11 @@ jobs:
       - name: Kontrola odwracalności migracji
         run: php artisan migrate:refresh --force --no-interaction
 
+      # Najpierw sam werdykt, bez bazy i w sekundę (#1011): przyrząd, który
+      # zalicza czerwień z niewłaściwego powodu, dałby fałszywy dowód niżej.
+      - name: Test werdyktu kontroli negatywnych
+        run: python3 tests/skrypty/kontrole-negatywne-przyczyna.py
+
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie na końcu.
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki

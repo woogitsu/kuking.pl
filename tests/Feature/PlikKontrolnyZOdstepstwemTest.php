@@ -11,11 +11,11 @@ use Tests\TestCase;
  * `StraznikTekstuMaKontroleDodatniaTest`.
  *
  * Ten plik JEST strażnikiem tekstu: czyta źródło i asertuje na jego treści.
- * Nie ma wpisu w `scripts/kontrole-negatywne-alfa08.py` i mieć go nie będzie —
+ * Nie ma pliku w `scripts/kontrole_negatywne/` i mieć go nie będzie —
  * przechodzi furtką odstępstwa. Usunięcie poniższego znacznika ma zapalić
  * strażnika; to jest jedna z trzech jego kontroli dodatnich.
  *
- * @bez-kontroli-dodatniej Przyrząd kontrolny furtki odstępstwa: mutacja tego znacznika jest kontrolą dodatnią strażnika, więc własny wpis w `checks` byłby kółkiem.
+ * @bez-kontroli-dodatniej Przyrząd kontrolny furtki odstępstwa: mutacja tego znacznika jest kontrolą dodatnią strażnika, więc własna kontrola w `scripts/kontrole_negatywne/` byłaby kółkiem.
  */
 class PlikKontrolnyZOdstepstwemTest extends TestCase
 {

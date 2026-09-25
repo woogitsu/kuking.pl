@@ -1,33 +1,21 @@
 #!/usr/bin/env python3
 """Kontrole regresji Alfa 0.8 i portu marki: w CI albo lokalnie na własnej bazie.
 
-DLACZEGO TEN SKRYPT WOLNO URUCHOMIĆ LOKALNIE.
-Do 20 września 2026 stał tu bezwarunkowy `if os.environ.get("CI") != "true"`.
-Skutek był odwrotny do zamierzonego: stanowisko, które dopisywało nowy wpis do
-`checks`, NIE MIAŁO JAK go sprawdzić przed commitem — a błąd w mutacji wywraca
-cały krok CI, nie tylko nowy wpis. Racjonalną reakcją było nie dotykać tego pliku
-i opisać kontrolę dodatnią słowami w commicie. Audyt z 20.09.2026 policzył skutek:
-na 170 testów czytających źródła (strażników tekstu) wpisem w `checks` objęte
-były TRZY. Blokada nie chroniła bazy — chroniła przed używaniem mechanizmu.
+Cienki punkt wejścia. Kontrole żyją po jednej na plik w `scripts/kontrole_negatywne/`
+(wzór w tamtejszym README.md), narzędzia i bramka lokalnego uruchomienia —
+w `scripts/kontrole_negatywne/_narzedzia.py`. Ta ścieżka zostaje, bo woła ją CI,
+dokumentacja i komunikaty strażnika.
 
-CO ZOSTAJE Z OCHRONY. Skrypt PISZE PO ŹRÓDŁACH i URUCHAMIA TESTY, które kasują
-i odtwarzają bazę. Uruchomiony na cudzej albo współdzielonej bazie niszczy pracę
-innych stanowisk. Dlatego lokalne uruchomienie wymaga JAWNEJ zgody
-(`KUKING_KONTROLE_LOKALNIE=1`) i przechodzi przez kontrolę celu połączenia:
-host musi być lokalny, port NIE MOŻE być domyślnym 5432 (tam stoi klaster
-współdzielony), a nazwa bazy musi być nazwana i różna od `kuking`.
-W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
+  python3 scripts/kontrole-negatywne-alfa08.py           pełne kontrole (CI albo zgoda lokalna)
+  python3 scripts/kontrole-negatywne-alfa08.py --lista   tryb suchy: lista, bez testów i bez mutacji
 """
 
-import hashlib
-import os
-from pathlib import Path
-import subprocess
-import tempfile
+import sys
 
+# Bez `__pycache__/` w katalogu kontroli — ani w CI, ani na stanowiskach.
+sys.dont_write_bytecode = True
 
-ROOT = Path(__file__).resolve().parent.parent
-os.chdir(ROOT)
+from kontrole_negatywne import _narzedzia  # noqa: E402
 
 
 def odmow(powod):
@@ -702,3 +690,9 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
 print(f"{len(checks)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+if sys.argv[1:] == ["--lista"]:
+    _narzedzia.lista()
+elif sys.argv[1:]:
+    raise SystemExit("Nieznane argumenty: " + " ".join(sys.argv[1:]) + ". Dozwolone: --lista.")
+else:
+    _narzedzia.uruchom()
