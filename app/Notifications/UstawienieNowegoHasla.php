@@ -11,8 +11,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 
 /**
  * „Ustaw nowe hasło" — jedyna droga powrotu dla kogoś, kto wypadł z konta.
@@ -52,22 +50,17 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
      * nie dokładamy.
      */
     use Queueable;
+    use SwiezyTokenResetuHasla;
 
     public function __construct(string $token, private readonly ?Carbon $wygasa = null)
     {
         parent::__construct($token);
     }
 
-    /** Broker sprawdza także zużycie i zastąpienie tokenu; sama data nie wystarcza. */
-    public function shouldSend(object $notifiable, string $channel): bool
+    /** Termin z zadania; `??`, bo stare zadanie z kolejki nie ma tego pola. */
+    protected function terminZZadania(): ?Carbon
     {
-        if (! $notifiable instanceof User || ! Password::tokenExists($notifiable, $this->token)) {
-            return false;
-        }
-
-        $created = $this->createdAt($notifiable);
-
-        return $created !== null && $this->expiresAt($created)->isFuture();
+        return $this->wygasa ?? null;
     }
 
     /**
@@ -115,27 +108,5 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
         $minutes = max(0, (int) $created->diffInMinutes($this->expiresAt($created)));
 
         return ($minutes === 60 ? 'przez godzinę' : "przez {$minutes} min.").' od chwili zamówienia';
-    }
-
-    private function createdAt(User $notifiable): ?Carbon
-    {
-        $broker = config('auth.passwords.'.config('auth.defaults.passwords'));
-        $created = DB::connection($broker['connection'] ?? null)
-            ->table($broker['table'])
-            ->where('email', $notifiable->getEmailForPasswordReset())
-            ->value('created_at');
-
-        return $created === null ? null : Carbon::parse($created);
-    }
-
-    private function expiresAt(Carbon $created): Carbon
-    {
-        $expiry = $created->copy()->addMinutes((int) config(
-            'auth.passwords.'.config('auth.defaults.passwords').'.expire', 60,
-        ));
-
-        // Starsze zadanie nie ma daty: odtwarzamy ją z wystawienia w bazie,
-        // nigdy z czasu wykonania kolejki. Nowe zachowuje także własny termin.
-        return ($this->wygasa ?? null) === null ? $expiry : $expiry->min($this->wygasa);
     }
 }

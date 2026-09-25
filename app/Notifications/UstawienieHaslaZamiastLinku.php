@@ -90,6 +90,9 @@ final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldQ
 {
     use Queueable;
 
+    // Martwy link po zastąpionym tokenie nie wychodzi (audyt B8-04).
+    use SwiezyTokenResetuHasla;
+
     /**
      * @param  User  $notifiable
      */
