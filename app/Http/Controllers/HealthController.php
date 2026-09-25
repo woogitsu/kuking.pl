@@ -9,6 +9,7 @@ use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Jobs\PurgePublicMediaCache;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
+use App\Models\Report;
 use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Facebook;
@@ -143,6 +144,9 @@ class HealthController extends Controller
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
         self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
         self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
+        self::POWOD_PILNY_ALARM_NIE_DOTARL,
+        self::POWOD_KANAL_ALARMOWY_WYLACZONY,
+        self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY,
         self::POWOD_MAGAZYN_ZLY_HOST,
     ];
 
@@ -276,6 +280,30 @@ class HealthController extends Controller
     private const POWOD_CZYSZCZENIE_CDN_ZLY_ADRES = 'czyszczenie_cdn_zly_adres';
 
     /**
+     * W `reports` leży sprawa PILNA (treść seksualna albo cokolwiek
+     * dotyczącego dziecka), o której nie poszedł alarm — issue #1051.
+     * Kod nie mówi ani którą, ani czego dotyczy: ta odpowiedź jest publiczna.
+     */
+    private const POWOD_PILNY_ALARM_NIE_DOTARL = 'pilny_alarm_nie_dotarl';
+
+    /**
+     * To samo, ale z powodu pustego `KUKING_MODEL_ALARM_EMAIL` — osobny kod,
+     * bo osobna czynność człowieka: nie ma czego naprawiać w kodzie i nie
+     * pomoże ponowienie, trzeba wpisać adres. Ten sam podział, co między
+     * `listy_przepadaja` a `limit_poczty_wyczerpany`.
+     */
+    private const POWOD_KANAL_ALARMOWY_WYLACZONY = 'kanal_alarmowy_wylaczony';
+
+    /**
+     * Nie dało się sprawdzić śladu alarmów — najczęściej kolumn
+     * `reports.alarm_pilny_*` jeszcze nie ma, bo kod wdrożył się przed
+     * migracją. Osobny kod z tego samego powodu co
+     * `slad_listow_niesprawdzalny`: brak kolumny nie ma prawa meldować się
+     * jako „pilna sprawa nie dotarła".
+     */
+    private const POWOD_SLAD_ALARMOW_NIESPRAWDZALNY = 'slad_alarmow_niesprawdzalny';
+
+    /**
      * `AWS_ENDPOINT` któregoś dysku R2/S3 nie ma postaci
      * `https://<konto>.eu.r2.cloudflarestorage.com` (D-255). Dysk odmawia
      * wtedy budowy, więc zdjęcia, eksporty albo czujka kopii nie działają —
@@ -317,6 +345,7 @@ class HealthController extends Controller
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
             'cdn' => $this->check('cdn', self::POWOD_CZYSZCZENIE_CDN_WYLACZONE, fn () => $this->sprawdzCzyszczenieCdn()),
+            'alarmy_moderacji' => $this->check('alarmy_moderacji', self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY, fn () => $this->sprawdzPilneAlarmy()),
             'cdn_zalegle' => $this->check('cdn_zalegle', self::POWOD_CZYSZCZENIE_CDN_ZALEGLE, fn () => $this->sprawdzZalegleCzyszczenieCdn()),
             'magazyn' => $this->check('magazyn', self::POWOD_MAGAZYN_ZLY_HOST, fn () => $this->sprawdzHostMagazynu()),
         ];
@@ -393,6 +422,80 @@ class HealthController extends Controller
             'Nieodhaczonych nieudanych listów: '.$nieodhaczone.'. '
             .'Najświeższy powód: '.($najswiezszy?->powod->value ?? 'nieznany').'. '
             .'Przeczytaj: php artisan kuking:nieudane-listy',
+        );
+    }
+
+    /**
+     * Czy jakaś PILNA sprawa moderacyjna nie dotarła do nikogo (issue #1051).
+     *
+     * PO CO TO TU JEST
+     * Bo do 22 września 2026 zgubiony alarm nie zostawiał ŻADNEGO śladu.
+     * Oznaczenie automatu powstawało we własnej, zamkniętej transakcji,
+     * a list do moderatora szedł linijkę później, poza nią; worker ubity
+     * w tej szczelinie (`timeout = 30`, `tries = 1`, restart przy wdrożeniu)
+     * zostawiał sprawę zapisaną i alarm niewysłany. Każda kolejna analiza
+     * tej samej treści zatrzymywała się na `OznaczDoPrzegladu` i milczała,
+     * więc zgubione zostawało zgubione — a dotyczy to JEDYNYCH dwóch
+     * kategorii, przy których doba zwłoki jest realną szkodą: treści
+     * seksualnych i wszystkiego, co dotyczy dziecka.
+     *
+     * Dochodzi do tego stan, który nie jest awarią kodu i którego żadne
+     * ponowienie nie naprawi: pusty `KUKING_MODEL_ALARM_EMAIL`. Dziś na
+     * produkcji kanał alarmowy jest z tego powodu wyłączony, a rejestracja
+     * stoi otworem — więc sprawa, która tu przepadnie, nie dotrze NIGDZIE.
+     * Ma własny kod powodu, bo operator naprawia to wpisaniem adresu,
+     * a nie szukaniem błędu.
+     *
+     * KIEDY SONDA GAŚNIE — REGUŁA (issue #1051, po przeglądzie)
+     * Liczy się sprawa z `Report::pilneDoDoslania()`, czyli:
+     *
+     *  1. OTWARTA. Sprawa rozstrzygnięta albo odrzucona ma za sobą decyzję
+     *     człowieka — pytanie „czy ktoś o niej wie" ma już odpowiedź. Ślad
+     *     w bazie zostaje (`pilneBezAlarmu()`), sonda nie. Dzięki temu
+     *     zamknięcie sprawy w panelu gasi sondę bez SQL-a.
+     *  2. MŁODSZA NIŻ `kuking.moderation.model.alarm_sonda_godzin` (72 h)
+     *     od powstania. Komenda `kuking:doslij-pilne-alarmy` próbuje co
+     *     godzinę; sprawa, której przez trzy doby nie udało się dosłać,
+     *     i tak leży w kolejce panelu i w porannym podsumowaniu automatu.
+     *     72, a nie 24: sprawa z piątku wieczorem ma świecić jeszcze
+     *     w poniedziałek rano. Stałego czerwonego światła, którego nie da
+     *     się zgasić inaczej niż ręką w bazie, operator uczy się nie widzieć.
+     *
+     * KOD POWODU WYNIKA Z KONFIGURACJI, NIE Z ZAPISANEGO STANU. Po wpisaniu
+     * adresu sprawy mają jeszcze przez chwilę stan `bez_adresu` — do
+     * najbliższego przebiegu komendy. Meldowanie wtedy
+     * `kanal_alarmowy_wylaczony` wysłałoby operatora do ustawień, które już
+     * poprawił. Pusty adres → `kanal_alarmowy_wylaczony`; adres jest, a sprawa
+     * nadal bez alarmu → `pilny_alarm_nie_dotarl`.
+     *
+     * `alarmy_moderacji` NIE JEST na liście `KRYTYCZNE` — to samo, co przy
+     * `listy`. Sprawa, o której nikt nie wie, nie jest powodem, żeby Railway
+     * restartował serwis; jest powodem, żeby monitoring zapalił się na
+     * czerwono i został taki, dopóki ktoś nie zajrzy.
+     */
+    private function sprawdzPilneAlarmy(): void
+    {
+        $okno = max(1, (int) config('kuking.moderation.model.alarm_sonda_godzin', 72));
+
+        $bezAlarmu = Report::query()
+            ->pilneDoDoslania()
+            ->where('created_at', '>=', now()->subHours($okno))
+            ->count();
+
+        if ($bezAlarmu === 0) {
+            return;
+        }
+
+        $adres = config('kuking.moderation.model.alarm_email');
+        $wylaczony = ! is_string($adres) || $adres === '';
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            $wylaczony ? self::POWOD_KANAL_ALARMOWY_WYLACZONY : self::POWOD_PILNY_ALARM_NIE_DOTARL,
+            'Pilnych spraw moderacyjnych bez alarmu: '.$bezAlarmu.'. '
+            .($wylaczony
+                ? 'KUKING_MODEL_ALARM_EMAIL jest pusty — po wpisaniu adresu kuking:doslij-pilne-alarmy dośle je w ciągu godziny. '
+                : 'kuking:doslij-pilne-alarmy ponawia co godzinę. ')
+            .'Obejrzyj w panelu: /admin/sygnaly',
         );
     }
 
