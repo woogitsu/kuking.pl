@@ -59,7 +59,7 @@
         <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
         <nav class="tag-featured" aria-label="Polecane tagi">
             @foreach($polecane as $tag)
-                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}">
+                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}" @if($tag->posts_count === 0) rel="nofollow" @endif>
                     <x-tag-collage :photos="$collages[$tag->getKey()]" :linked="false" />
                     <span class="tag-featured-copy">
                     <strong>{{ $tag->name }}</strong>
