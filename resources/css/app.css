@@ -1508,6 +1508,9 @@
     border-top: 1px solid var(--color-border);
   }
 
+  /* Samodzielny nagłówek sekcji, 16 px zamiast 18 px z §5 — świadomy
+     wyjątek D-260 (napis pomocniczy w panelu moderacji, widoczny wyłącznie
+     dla moderatorów). */
   .side-nav-moderacja-naglowek {
     margin: 0 0 var(--spacing-2);
     padding: 0 var(--spacing-3);
@@ -1626,8 +1629,8 @@
      `--text-help` (16 px) zamiast 18 px z §5 — to jest CYTAT z cudzej treści
      w narzędziu roboczym dla jednej osoby, nie tekst produktu czytany przez
      użytkowników 50+. Pełna treść stoi o jedno kliknięcie dalej, w normalnym
-     rozmiarze. Ten sam wyjątek co metryczka wersji w stopce (D-051): panel
-     moderacji nie jest ekranem, na którym mierzymy próg czytelności. */
+     rozmiarze. Wyjątek D-260 (napis pomocniczy w panelu moderacji) —
+     NIE D-051, który obejmuje wyłącznie dwa elementy stopki. */
   .sygnal-podglad-cytat {
     margin: 0 0 var(--spacing-2);
     font-size: var(--text-help);
