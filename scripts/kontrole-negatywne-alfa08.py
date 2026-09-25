@@ -207,6 +207,13 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Limit ciała żądania w Caddy (audyt A5-16). Strażnik czyta `docker/Caddyfile`:
+# każda trasa ze zdjęciem stoi poza progiem 2 MB. Mutacja zdejmuje
+# `/ustawienia/zdjecie` z listy odmowy 413 — zdjęcie profilowe powyżej 2 MB
+# dostałoby wtedy „Za duże żądanie", a test ma zapalić.
+CADDY_LIMIT_TEST = "CaddyLimitCialaZadaniaTest"
+CADDY_LIMIT_WYJATKI = "@zaDuzeBezPlikow {\n\t\tnot path /dodaj/* /pytania /przepisy/* /wpisy/* /ustawienia/zdjecie "
+
 # Rejestr wyjątków nazywa tylko istniejące symbole (audyt A5-18). Strażnik
 # czyta własną stałą REJESTR; mutacje wracają do nazw sprzed poprawki —
 # klasy, której nie ma, i stałej, której model nie definiuje.
@@ -610,6 +617,8 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Trasa ze zdjęciem pod progiem 2 MB w Caddy", CADDYFILE, CADDY_LIMIT_TEST,
+     lambda s: replace_once(s, CADDY_LIMIT_WYJATKI, CADDY_LIMIT_WYJATKI.replace("/ustawienia/zdjecie ", ""))),
     ("Rejestr wyjątków z nieistniejącą klasą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
      lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
     ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
@@ -678,6 +687,7 @@ run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
