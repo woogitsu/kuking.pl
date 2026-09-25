@@ -68,9 +68,9 @@ class SzukajWidocznoscTest extends TestCase
     {
         $this->przepis('followers', 'Bigos dla swoich');
 
-        // Nawet obserwujący go tu nie zobaczy: wyszukiwarka pokazuje wyłącznie
-        // treści publiczne. To jest świadome zawężenie, nie błąd — lepiej nie
-        // pokazać za mało niż za dużo.
+        // Obca osoba i gość go nie zobaczą. Obserwująca — tak, od issue #1320
+        // (wyszukiwarka pokazuje to, co widz może otworzyć): patrz
+        // SzukajZgodnieZPolicyTest.
         $this->szukaj($this->user('obca'), 'bigos')->assertOk()->assertDontSee('Bigos dla swoich');
         $this->szukaj(null, 'bigos')->assertOk()->assertDontSee('Bigos dla swoich');
     }
