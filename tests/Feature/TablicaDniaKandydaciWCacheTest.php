@@ -86,6 +86,35 @@ class TablicaDniaKandydaciWCacheTest extends TestCase
         $this->assertNotContains($zawieszony->getKey(), $wynik['posts']->pluck('author_id')->all());
     }
 
+    /**
+     * TEST REGRESYJNY: nieaktualny cache nie zostawia pustej tablicy.
+     *
+     * Dostępność axe (skrypt `fokus-karty-dania.mjs`) stawia dane
+     * demonstracyjne od nowa w tej samej bazie, a cache plikowy zostaje —
+     * kandydaci wskazywali konta i wpisy, których już nie było, lista
+     * kandydatów była „niepełna”, więc rezerwa się nie uruchamiała i Start
+     * pokazywał pustą tablicę mimo świeżych wpisów. Ten sam mechanizm
+     * w produkcji: usunięte konto chowało nową osobę na pięć minut.
+     */
+    public function test_kandydaci_ktorych_juz_nie_ma_nie_zostawiaja_pustej_tablicy(): void
+    {
+        $stary = $this->autorZWpisem('starykandydat', 1);
+
+        $tablica = app(DailyBoard::class);
+        $this->assertContains($stary->getKey(), $tablica->forViewer(null)['people']->modelKeys());
+
+        // Baza „od nowa”: kandydata z cache już nie ma, jest ktoś nowy.
+        Post::query()->where('author_id', $stary->getKey())->forceDelete();
+        $stary->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+        $nowy = $this->autorZWpisem('nowykandydat', 0);
+
+        $wynik = $tablica->forViewer(null);
+
+        $this->assertContains($nowy->getKey(), $wynik['people']->modelKeys(), 'Nieaktualny cache schował nową osobę.');
+        $this->assertContains($nowy->getKey(), $wynik['posts']->pluck('author_id')->all(), 'Nieaktualny cache schował nowe danie.');
+        $this->assertNotContains($stary->getKey(), $wynik['people']->modelKeys());
+    }
+
     private function autorZWpisem(string $nazwa, int $godzinTemu): User
     {
         $user = $this->user($nazwa);

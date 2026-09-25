@@ -293,12 +293,24 @@ final class DailyBoard
             $osoby = new EloquentCollection(
                 collect($wybrani)->map(fn (string $id): ?User => $poId->get($id))->filter()->take($limit)->values()->all(),
             );
+            $odrzuceni = count($wybrani) - $poId->count();
         } else {
             $osoby = new EloquentCollection;
+            $odrzuceni = 0;
         }
 
-        if ($osoby->count() >= $limit || count($kandydaci) < self::KANDYDACI) {
+        // Kandydat z cache, którego nie przepuściły bramki (konto zawieszone
+        // albo usunięte po zapisaniu cache, baza postawiona od nowa), znaczy,
+        // że lista w cache jest nieaktualna — niepełna lista przestaje wtedy
+        // dowodzić, że dalej nikogo nie ma.
+        $nieaktualni = $odrzuceni > 0;
+
+        if ($osoby->count() >= $limit || (count($kandydaci) < self::KANDYDACI && ! $nieaktualni)) {
             return $osoby;
+        }
+
+        if ($nieaktualni) {
+            Cache::forget(self::KLUCZ_KANDYDACI_OSOB);
         }
 
         // Rezerwa: kandydatów zabrakło po odsianiu, a mogą być następni.
@@ -473,8 +485,16 @@ final class DailyBoard
 
         $wpisy = $wybrane === [] ? new Collection : $this->pelneWpisy($viewer, $wybrane, $limit);
 
-        if ($wpisy->count() >= $limit || count($kandydaci) < self::KANDYDACI) {
+        // Jak przy osobach: kandydat odrzucony przez bramki (wpis schowany,
+        // konto zawieszone, baza postawiona od nowa) znaczy nieaktualny cache.
+        $nieaktualne = $wpisy->count() < min($limit, count($wybrane));
+
+        if ($wpisy->count() >= $limit || (count($kandydaci) < self::KANDYDACI && ! $nieaktualne)) {
             return $wpisy;
+        }
+
+        if ($nieaktualne) {
+            Cache::forget(self::KLUCZ_KANDYDACI_DAN);
         }
 
         // Rezerwa: kandydatów zabrakło po odsianiu, a mogą być następni.
