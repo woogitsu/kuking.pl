@@ -761,6 +761,61 @@ i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
 tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
 (`tokens.css` daje 70/80/90/112/125/140).
 
+## 14. Stałe oczekiwanie mierzy szybkość maszyny, nie stronę
+
+`waitForTimeout(300)`, „dwie klatki `requestAnimationFrame`” albo „trzy klatki”
+przed pomiarem przechodzą na szybkiej maszynie i oblewają na zajętej —
+a ponowienie na innym runnerze znów przechodzi. 24 września 2026 w ten sposób
+padały trzy różne kontrole (pasek przewijany, `P581_SKALA_MOTYW`,
+`skala-proporcje` z „tekst: 16 zamiast 18”), każda raz na kilkadziesiąt
+przebiegów.
+
+**Przy `reducedMotion: 'reduce'` przejście ma KAŻDA właściwość.** `tokens.css`
+skraca w `prefers-reduced-motion` czas przejść do `0.01ms` na `*`, a domyślne
+`transition-property` to `all`. Zmiana `data-theme` albo `data-text-scale`
+startuje więc przejście koloru, tła i rozmiaru pisma na każdym elemencie.
+Zmierzone lokalnie (Chromium 141): sześć przejść, po pierwszej klatce
+`getComputedStyle` oddaje jeszcze STARE wartości, ostatnie przejście znika
+w czwartej. Sonda z `transition: none` widzi wartość docelową od razu —
+dlatego w artefakcie porażki P581 tokeny były już ciemne, a body i karta
+nawigacji jeszcze jasne.
+
+Dławienie CPU przez CDP (`Emulation.setCPUThrottlingRate` 4–6) tego NIE
+odtwarza: spowalnia wątek główny równo, razem z klatkami. Odtwarza to
+dopiero wydłużenie samych przejść — stara wersja `skala-proporcje` oblewa
+wtedy dokładnie tym komunikatem, który widziało CI.
+
+### Co robić
+
+Czekaj na **stan**, nie na zegar: `scripts/lib/stan-ustalony.mjs`
+(`poczekajNaStan`, `wymagajStanu`) czeka co klatkę, aż strona osiągnie
+oczekiwaną wartość i nie ma w niej trwającego przejścia CSS
+(`getAnimations()` + `CSSTransition`). Limit czasu jest bezpiecznikiem,
+a porażka niesie zmierzone wartości. Gdy sprawdzasz BRAK zmiany (pasek NIE
+chowa się przy otwartym menu), najpierw upewnij się, że strona obsłużyła
+zdarzenie — w `pasek-przewijany.mjs` dwie klatki po `scroll` — dopiero potem
+czekaj na koniec przejść i mierz.
+
+**Warunek przekazuj jako funkcję, nie łańcuch.** `waitForFunction('…')`
+strona wykonuje jak `eval`, a CSP aplikacji (bez `unsafe-eval`) to odrzuca.
+Wstrzyknięty `<style>` też odrzuca (`style-src` z nonce) — próba z sabotażem
+CSS bez `bypassCSP: true` „przechodzi”, bo sabotażu w ogóle nie było.
+
+## 15. Porównanie odsetków milknie na krańcu przedziału
+
+Kontrola „porzucone żądania są w mianowniku” (`przyrzad-605.test.mjs`)
+porównywała `blad_procent` z porzuconymi i bez nich. Przy zerze poprawnych
+odpowiedzi oba ułamki wynoszą 100% — i kontrola dodatnia oblała poprawny
+przyrząd, a kontrola ujemna uznała zepsuty za dobry. Seria losuje mieszankę
+scenariuszy, a na wolnym runnerze wysyła mniej żądań, więc taki przebieg
+się zdarza.
+
+Gdy wielkość może utknąć na granicy (0% albo 100%), rozstrzygaj na
+**liczbach bezwzględnych**, z których odsetek powstaje (`nieudanych ===
+wysłane + porzucone − poprawne`), a porównanie odsetków zostaw tam, gdzie
+matematycznie coś znaczy. Krańcowy przypadek sprawdź wprost na liczbach,
+skoro losowa seria nie trafi w niego na żądanie.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026

@@ -170,7 +170,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         $this->assertStringContainsString('DB_DATABASE: kuking_port_referrer', $referrerJob);
         $this->assertStringNotContainsString('continue-on-error:', $referrerJob);
 
-        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/kaskada-martwe-reguly.mjs', 'scripts/kaskada-kontrola-polecenie.sh', 'scripts/kaskada-kontrola-ujemna.sh'] as $path) {
+        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/lib/stan-ustalony.mjs', 'scripts/kaskada-martwe-reguly.mjs', 'scripts/kaskada-kontrola-polecenie.sh', 'scripts/kaskada-kontrola-ujemna.sh'] as $path) {
             $this->assertSame(1, preg_match($pattern, $path), 'zakres: pominięto '.$path);
         }
 
@@ -213,6 +213,30 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     #[DataProvider('screenPaths')]
     public function test_php_sterujace_ekranem_uruchamia_pomiar(string $paths, bool $expected): void
     {
+        // Filtr zawęża WYŁĄCZNIE na PR-ach — tu sprawdzamy właśnie tę gałąź.
+        $this->assertSame('widok='.($expected ? 'true' : 'false')."\n", $this->filtrWidoku($paths, 'pull_request'),
+            'zakres: błędna decyzja dla '.strtok($paths, "\n"));
+    }
+
+    /**
+     * POZA PR-EM FILTR WIDOKU NIE ZAWĘŻA (decyzja właściciela 24.09.2026).
+     *
+     * Push na `main`/`staging` i uruchomienie ręczne mierzą pełny zestaw.
+     * Brak `ZDARZENIE` (np. ktoś usunie zmienną z kroku) też ma dać pełny
+     * zestaw — pomyłka w konfiguracji ma kosztować minuty, nie pomiar.
+     * Kontrola ujemna to `docs/PRODUCT.md` na PR-ze w teście wyżej (`false`).
+     */
+    public function test_poza_pull_requestem_filtr_widoku_nie_zaweza(): void
+    {
+        foreach (['push', 'workflow_dispatch', null] as $zdarzenie) {
+            $this->assertSame("widok=true\n", $this->filtrWidoku('docs/PRODUCT.md', $zdarzenie),
+                'zakres: filtr widoku zawęża poza PR-em (zdarzenie: '.($zdarzenie ?? 'brak').').');
+        }
+    }
+
+    /** Uruchamia rzeczywisty blok filtra widoku z `ci.yml` w Bashu. */
+    private function filtrWidoku(string $paths, ?string $zdarzenie): string
+    {
         $this->assertSame(1, preg_match('/^\s*(if [^\n]*grep -qE .*?^\s*fi)/ms', $this->job('zakres'), $matches));
         $output = tempnam(sys_get_temp_dir(), 'kuking-zakres-');
         $this->assertNotFalse($output);
@@ -220,12 +244,14 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         try {
             $process = new Process(['bash', '-c', "set -euo pipefail\nZMIENIONE=\"$(cat)\"\n".$matches[1]], base_path(), [
                 'GITHUB_OUTPUT' => $output,
+                // `false` usuwa zmienną odziedziczoną ze środowiska.
+                'ZDARZENIE' => $zdarzenie ?? false,
             ]);
             $process->setInput($paths);
             $process->run();
             $this->assertSame(0, $process->getExitCode(), $process->getErrorOutput());
-            $this->assertSame('widok='.($expected ? 'true' : 'false')."\n", file_get_contents($output),
-                'zakres: błędna decyzja dla '.strtok($paths, "\n"));
+
+            return (string) file_get_contents($output);
         } finally {
             unlink($output);
         }

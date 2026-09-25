@@ -16137,6 +16137,12 @@ odwołania.
    Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
    i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
    bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+   **Uzupełnienie (#1408, 24 września 2026):** stroną sprawy jest też ten,
+   KOGO ona dotyczy. Zgłoszenia własnej treści albo własnego profilu nie
+   rozstrzyga ani moderator, ani administrator — reguła rangi blokowała
+   tylko karę na sobie, a „Bez działania” pozwalało oddalić skargę na siebie.
+   Autora wyznacza `ModeratedContent::osoba()`, cel szukany razem z miękko
+   usuniętymi.
 2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
    `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
    administrator także moderatorów. **Konta administratora nie zawiesza ani
