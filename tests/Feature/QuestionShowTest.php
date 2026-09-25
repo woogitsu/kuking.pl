@@ -185,7 +185,8 @@ class QuestionShowTest extends TestCase
 
         $pytanie = Post::factory()->question()->create();
         Comment::factory()->create(['post_id' => $pytanie->id, 'body' => 'Dolej bulionu.']);
-        $this->assertContains('QAPage', $typySchematu($this->get(route('posts.show', $pytanie))->assertOk()->getContent()));
+        // Pytanie ma jeden adres (#968): `/wpisy/{id}` odpowiada 301 na `/pytania/{id}`.
+        $this->assertContains('QAPage', $typySchematu($this->get($pytanie->url())->assertOk()->getContent()));
     }
 
     public function test_question_renders_title_and_counts_only_top_level_answers(): void
