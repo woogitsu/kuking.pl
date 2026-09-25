@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
@@ -106,7 +107,8 @@ use Throwable;
  *
  * W `failed_jobs.payload` klucz `data.command` to zserializowane
  * `SendQueuedNotifications`, a w nim obiekt powiadomienia z polem `token`
- * W JAWNEJ POSTACI (zmierzone przy `kuking:kto-nie-dostal-listu`; przy
+ * — od audytu A5-10 zaszyfrowane kluczem aplikacji, ale PO odszyfrowaniu
+ * (`PolecenieZadania`) znów jawne (zmierzone przy `kuking:kto-nie-dostal-listu`; przy
  * `LinkDoLogowania` ten token daje od razu SESJĘ, nie tylko formularz
  * hasła). Kto go ma, ten wchodzi na cudze konto. Dlatego:
  *
@@ -526,7 +528,8 @@ class MartweZadania extends Command
      */
     private function osoby(string $serializowane): array
     {
-        $polecenie = @unserialize($serializowane, ['allowed_classes' => self::WOLNO_ODTWORZYC]);
+        // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
+        $polecenie = @unserialize(PolecenieZadania::zserializowane($serializowane), ['allowed_classes' => self::WOLNO_ODTWORZYC]);
 
         if (! $polecenie instanceof SendQueuedNotifications) {
             return [];

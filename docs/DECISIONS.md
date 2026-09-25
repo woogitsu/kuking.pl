@@ -3697,6 +3697,16 @@ co przy resecie hasła, gdzie Laravel serializuje token tak samo. Wiersz `jobs`
 żyje sekundy; token z `failed_jobs` i tak przestaje działać po 30 minutach,
 a listu, którego wysyłka padła, nikt nie dostał.
 
+**Zmienione 25 września 2026 (audyt A5-10):** ta własność już nie obowiązuje.
+`LinkDoLogowania`, `UstawienieNowegoHasla`, `UstawienieHaslaZamiastLinku`
+i `ZaproszenieDoZalozeniaKonta` mają `ShouldBeEncrypted`, więc w `jobs`
+i `failed_jobs` leży szyfrogram kluczem aplikacji. Komendy czytające odbiorców
+z `failed_jobs` odszyfrowują go przez `App\Domain\Kolejka\PolecenieZadania`.
+Automatycznego `queue:prune-failed` świadomie NIE dodano — `failed_jobs` to
+jedyny ślad po awarii, a o jego skasowaniu decyduje człowiek
+(`kuking:martwe-zadania`, uzasadnienie w nagłówku tej komendy). Pilnuje tego
+`tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+
 ### RACHUNEK LISTÓW — I CO SIĘ DZIEJE, GDY PULA PADNIE W ŚRODKU DNIA
 
 EmailLabs na planie darmowym daje **300 listów na dobę na cały serwis**

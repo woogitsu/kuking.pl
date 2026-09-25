@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Poczta;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Models\MailFailure;
 use App\Models\User;
 use Illuminate\Contracts\Queue\Job;
@@ -285,7 +286,8 @@ final class ZapiszNieudanyList
                 return null;
             }
 
-            $obiekt = unserialize($polecenie);
+            // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
+            $obiekt = unserialize(PolecenieZadania::zserializowane($polecenie));
 
             if (! $obiekt instanceof SendQueuedNotifications) {
                 return null;

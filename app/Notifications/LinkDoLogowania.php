@@ -8,6 +8,7 @@ use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Support\AdresKanoniczny;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -36,16 +37,16 @@ use Illuminate\Support\Carbon;
  * że przy niedziałającej poczcie tylko jedna z tych dwóch dróg się wywraca,
  * a to jest gotowa wyrocznia „kto ma konto w Kuking".
  *
- * Kosztem jest to, że token W POSTACI JAWNEJ przechodzi przez payload
- * zadania w tabeli `jobs` (a przy nieudanej wysyłce zostaje w `failed_jobs`).
- * Jest to ta sama, świadomie przyjęta własność co przy resecie hasła, gdzie
- * Laravel serializuje token dokładnie tak samo. Wiersz `jobs` żyje sekundy;
- * wpis w `failed_jobs` przeżywa dłużej, ale niesie token, który i tak
- * przestaje działać po `login_link.waznosc_minut` (30 minut) — a listu,
- * którego wysyłka padła, nikt nie dostał. Bramką pozostaje to, że
- * `login_link_tokens` trzyma WYŁĄCZNIE skrót.
+ * Token przechodzi przez payload zadania w tabeli `jobs` (a przy nieudanej
+ * wysyłce zostaje w `failed_jobs`) — od audytu A5-10 ZASZYFROWANY kluczem
+ * aplikacji (`ShouldBeEncrypted`), a nie w postaci jawnej. Zrzut bazy albo
+ * odczyt `failed_jobs` nie daje już gotowego wejścia na konto. Komendy, które
+ * z tego ładunku czytają odbiorców, odszyfrowują go przez
+ * `App\Domain\Kolejka\PolecenieZadania`. Bramką pozostaje też to, że
+ * `login_link_tokens` trzyma WYŁĄCZNIE skrót, a token wygasa po
+ * `login_link.waznosc_minut`.
  */
-final class LinkDoLogowania extends Notification implements ShouldQueue
+final class LinkDoLogowania extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 

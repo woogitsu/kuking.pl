@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\RegistrationInvite;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -43,14 +44,15 @@ use Illuminate\Support\Carbon;
  * niedziałającej poczcie wywraca się tylko jedna z dwóch dróg, czyli sam kod
  * odpowiedzi mówi, czy konto istnieje.
  *
- * Kosztem jest to, że token W POSTACI JAWNEJ przechodzi przez payload zadania
- * w tabeli `jobs` (a przy nieudanej wysyłce zostaje w `failed_jobs`). Ta sama,
- * świadomie przyjęta własność co przy resecie hasła i przy linku do logowania.
- * Bramką pozostaje to, że `registration_invites` trzyma WYŁĄCZNIE skrót.
+ * Token przechodzi przez payload zadania w tabeli `jobs` (a przy nieudanej
+ * wysyłce zostaje w `failed_jobs`) — od audytu A5-10 ZASZYFROWANY kluczem
+ * aplikacji (`ShouldBeEncrypted`), tak samo jak przy resecie hasła i przy
+ * linku do logowania. Bramką pozostaje też to, że `registration_invites`
+ * trzyma WYŁĄCZNIE skrót.
  *
  * Bez gry słowem „kuKING" — D-009 zabrania jej w komunikatach technicznych.
  */
-final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldQueue
+final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 
