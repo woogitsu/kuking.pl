@@ -125,10 +125,14 @@ po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
 otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
 urośnie do tysięcy.
 
-**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
-w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
-kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
-w `PriorytetSprawy::MAPOWANIE`.
+**`scam` jako P1 — POTWIERDZONE PRZEZ WŁAŚCICIELA 25 września 2026.** Tabela
+SLA w podręczniku nie miała tej pozycji; P1 był moim osądem (oszustwo trwa
+i dotyka kolejnych ludzi, dopóki wisi), nie decyzją. Właściciel potwierdził
+`scam` → P1 bez zmian w kodzie: `PriorytetSprawy::MAPOWANIE` już miało
+`'scam' => self::P1`, więc to potwierdzenie istniejącego zachowania, nie
+nowa linijka. Wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` §3 dopisano
+o „oszustwo (scam)", a komentarz przy `MAPOWANIE`, mówiący że `scam` nie ma
+pozycji w podręczniku, przestał być prawdziwy i został poprawiony.
 
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
