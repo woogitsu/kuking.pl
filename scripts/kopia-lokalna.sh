@@ -67,7 +67,8 @@
 #    22  klucz publiczny zawiera KLUCZ PRYWATNY — odmowa
 #    30  pg_dump zakończył się błędem
 #    40  zrzut nie powstał albo jest za mały (PUSTA KOPIA)
-#    41  pg_restore nie potrafi odczytać powstałego zrzutu
+#    41  pg_restore nie potrafi odczytać powstałego zrzutu (spisu albo
+#        całości) — plik zostaje skasowany
 #    42  w zrzucie jest za mało tabel (zrzut nie tej bazy?)
 #    50  szyfrowanie nie udało się
 # =============================================================================
@@ -361,9 +362,25 @@ weryfikuj() {
   local spis
   if ! spis="$(pg_restore --list "${PLIK}" 2>"${PLIK_BLEDU}")"; then
     sed 's/^/  pg_restore: /' "${PLIK_BLEDU}" >&2
+    rm -f "${PLIK}"
     padnij 41 \
       'pg_restore nie potrafi odczytać zrzutu, który właśnie powstał.' \
-      'Archiwum jest uszkodzone — nie zostawiaj go jako kopii.'
+      'Archiwum jest uszkodzone — plik został SKASOWANY, zrób kopię od nowa.'
+  fi
+
+  # PEŁNY ODCZYT, NIE SAM SPIS (#594, 24.09.2026). `--list` czyta katalog
+  # z początku pliku; zrzut obcięty do 99% przechodzi go z kodem 0 i pełną
+  # listą tabel. Rozpakowanie każdego bloku do /dev/null — to samo robi
+  # `weryfikuj_zrzut()` w `docker/kopia/kopia-bazy.sh`. Nie dowodzi, że SQL
+  # wykona się na świeżym serwerze (to jest `proba-odtworzenia.sh`), ale
+  # dowodzi, że każdy blok danych jest w pliku i się rozpakowuje.
+  if ! pg_restore --file=/dev/null "${PLIK}" 2>"${PLIK_BLEDU}"; then
+    sed 's/^/  pg_restore: /' "${PLIK_BLEDU}" >&2
+    rm -f "${PLIK}"
+    padnij 41 \
+      'Spis zrzutu jest cały, ale bloków danych nie da się odczytać do końca.' \
+      'Zrzut jest obcięty albo uszkodzony (pełny dysk? zerwany tunel?).' \
+      'Plik został SKASOWANY — kopia, której nie da się odtworzyć, usypia.'
   fi
 
   LICZBA_TABEL="$(grep -c 'TABLE DATA' <<<"${spis}" || true)"
@@ -506,6 +523,12 @@ sprzataj() {
 }
 
 main() {
+  # Zrzut to komplet danych osobowych wszystkich kont. Bez tej linii plik
+  # dziedziczył umask powłoki i powstawał z prawami 0644 — zmierzone
+  # 24.09.2026: czytelny dla każdego użytkownika maszyny. Od teraz zrzut,
+  # szyfrogram i `.meta` mają 0600 niezależnie od ustawień konta.
+  umask 077
+
   sprawdz_narzedzia
   sprawdz_katalog
   sprawdz_klucz
