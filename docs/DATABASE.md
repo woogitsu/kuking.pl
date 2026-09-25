@@ -3403,6 +3403,23 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
 
+**Plik bez wiersza (audyt B5 pkt 4, 25.09.2026).** `GenerateUserExport` wgrywa
+ZIP przed `finalize()`, więc próba, która padła pomiędzy, zostawiała w magazynie
+paczkę pod kluczem nieznanym wierszowi (`failed`, `object_key IS NULL`). Teraz:
+catch i `failed()` kasują `ExportFileNames::objectKey($export)` (klucz da się
+policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
+7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
+`eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
+Bez zmiany schematu.
+
+### password_reset_tokens (tabela Laravela)
+
+Kluczowana **adresem e-mail zapisanym jawnie** (`email`, `token` — bcrypt,
+`created_at`). Retencja (audyt B5 pkt 6): `kuking:sprzataj-resety-hasel` (to samo co `auth:clear-resets`) codziennie
+o 05:40 kasuje żetony starsze niż `auth.passwords.users.expire`; wymazanie
+konta (`EraseAccountData`) kasuje wiersz po `lower(email)` sprzed
+anonimizacji, zmiana adresu (`ConfirmEmailChange`) — po starym adresie.
+
 #### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
 
 List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
