@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- W dniu urodzin na stronie głównej pojawia się jedno zdanie z życzeniami od gospodarza. Widzi je tylko solenizant, bez maila i bez powiadomienia. Urodziny 29 lutego obchodzimy 28 lutego w latach nieprzestępnych. Życzenia można wyłączyć przy dacie, w Ustawieniach → Urodziny (#1755).
+
 - W ustawieniach jest nowy ekran „Urodziny”: można podać dzień i miesiąc urodzin — bez roku — i w każdej chwili usunąć datę przyciskiem „Usuń datę”. Data jest prywatna: nie ma jej na profilu. Trafia do paczki z danymi (jako DD-MM) i znika przy usunięciu konta. Polityka prywatności opisuje to w nowym wierszu (#1755).
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).

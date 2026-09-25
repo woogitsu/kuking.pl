@@ -35,6 +35,10 @@ roku lub więcej, z cichym podpisem („Rok temu, 6 września"). Blok pojawia si
 tylko wtedy, gdy jest co pokazać. Całość wyłącza jeden przełącznik
 w `/ustawienia/prywatnosc`, a pojedyncze wspomnienie chowa przycisk przy nim.
 
+Urodziny (#1755): opcjonalny dzień i miesiąc bez roku w `/ustawienia/urodziny`.
+W dniu urodzin (strefa Europe/Warsaw, 29.02 → 28.02 w latach nieprzestępnych)
+na `/home` jedno zdanie z życzeniami od gospodarza, z wyłącznikiem przy dacie.
+
 ### Wpis
 - zdjęcie lub kilka zdjęć;
 - tekst;

@@ -64,6 +64,39 @@
     </form>
 
     @if($dataSlownie)
+        {{--
+            WYBORY PRZY DACIE — w tym samym miejscu co pole (research §5,
+            zasada żałoby). Osobny formularz: przestawienie wyłącznika nie
+            wymaga ponownego wybierania daty. Stan po błędzie z old() — ale tylko
+            gdy wrócił TEN formularz (`_formularz`), bo błąd formularza daty
+            też zostawia old() w sesji, a brak pola znaczyłby wtedy „odznaczone”.
+        --}}
+        <form class="panel-formularza mt-8" method="POST" action="{{ route('settings.birthday.preferences') }}">
+            @csrf @method('PUT')
+            <input type="hidden" name="_formularz" value="wybory">
+            <h2>Co ma się dziać w dniu urodzin</h2>
+            @php($poBledzieWyborow = old('_formularz') === 'wybory')
+
+            <div class="field @error('birthday_wishes_enabled') has-error @enderror">
+                <label class="choice" for="f-birthday_wishes_enabled">
+                    <input id="f-birthday_wishes_enabled" type="checkbox" name="birthday_wishes_enabled" value="1"
+                           @error('birthday_wishes_enabled') aria-invalid="true" aria-describedby="f-birthday_wishes_enabled-error" @enderror
+                           @checked($poBledzieWyborow ? old('birthday_wishes_enabled', false) : $user->birthday_wishes_enabled)>
+                    <span>
+                        <span class="choice-label">Pokazuj mi życzenia od nas na stronie głównej</span>
+                        <span class="choice-help">W dniu urodzin zobaczysz tam jedno zdanie z życzeniami od nas. Jeśli ten dzień jest dla Ciebie trudny, odznacz to pole.</span>
+                    </span>
+                </label>
+                @error('birthday_wishes_enabled')
+                    <span class="field-error" id="f-birthday_wishes_enabled-error">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <button class="btn btn-primary mt-4" type="submit">Zapisz wybory</button>
+        </form>
+    @endif
+
+    @if($dataSlownie)
         {{-- „Usuń datę" odsunięte od zapisu i z potwierdzeniem bez JavaScriptu
              (AGENTS.md §5). Usunięcie wyłącza też wszystko, co od daty zależy. --}}
         <div class="danger-zone mt-8">

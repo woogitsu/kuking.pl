@@ -910,6 +910,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ustawienia/urodziny', [BirthdaySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.birthday.update');
+    Route::put('/ustawienia/urodziny/wybory', [BirthdaySettingsController::class, 'preferences'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.birthday.preferences');
     Route::delete('/ustawienia/urodziny', [BirthdaySettingsController::class, 'destroy'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.birthday.destroy');

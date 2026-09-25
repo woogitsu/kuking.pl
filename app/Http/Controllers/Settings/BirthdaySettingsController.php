@@ -60,6 +60,26 @@ class BirthdaySettingsController extends Controller
         return back()->with('status', 'Zapisane.');
     }
 
+    /**
+     * Wybory przy dacie: dziś wyłącznik życzeń na stronie głównej (etap b).
+     * Osobny formularz, żeby przestawienie wyłącznika nie wymagało ponownego
+     * wybierania daty.
+     */
+    public function preferences(Request $request, UstawUrodziny $urodziny): RedirectResponse
+    {
+        // Odznaczony checkbox nie przychodzi w żądaniu — brak pola znaczy „nie".
+        $request->mergeIfMissing(['birthday_wishes_enabled' => '0']);
+        $request->validate([
+            'birthday_wishes_enabled' => ['boolean'],
+        ], [
+            'birthday_wishes_enabled.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
+        ]);
+
+        $urodziny->ustawZyczenia($request->user(), $request->boolean('birthday_wishes_enabled'));
+
+        return back()->with('status', 'Zapisane.');
+    }
+
     public function destroy(Request $request, UstawUrodziny $urodziny): RedirectResponse
     {
         $urodziny->usun($request->user());

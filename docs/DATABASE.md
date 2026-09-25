@@ -1911,10 +1911,21 @@ publicznego (`profiles`). Decyzja właściciela z 25.09.2026, research
 - Eksport: `konto.urodziny` jako `DD-MM` albo `null`. Wymazanie konta
   (`EraseAccountData`) zeruje obie kolumny.
 
-**Rollback:** `down()` **odmawia**, gdy choć jedno konto ma wpisaną datę
+**Rollback etapu a:** `down()` **odmawia**, gdy choć jedno konto ma wpisaną datę
 (D-088) — po cyklu `rollback` → `migrate` kolumny wróciłyby puste i życzenia
 przestałyby przychodzić bez śladu błędu. Przy samych `NULL` i na świeżej bazie
 przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
+
+**Etap b** — migracja `2026_09_25_200100_add_birthday_wishes_enabled_to_users`:
+
+- **`users.birthday_wishes_enabled`** (`boolean NOT NULL DEFAULT true`) —
+  wyłącznik życzeń od gospodarza na `/home`. Domyślnie włączony, bo podanie
+  daty już jest wyborem „chcę życzeń”; istnieje od pierwszego dnia z powodu
+  zasady żałoby (jak `memories_enabled`). Przełącznik stoi przy dacie
+  w `/ustawienia/urodziny`. Eksport: `konto.pokazuj_zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `false` (D-088) —
+  `DEFAULT true` włączyłby życzenia osobie, która je wyłączyła. Test:
+  `tests/Feature/ZyczeniaUrodzinoweNaStronieTest.php`.
 
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.

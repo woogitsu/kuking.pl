@@ -94,6 +94,41 @@ final class Urodziny
         return $pary;
     }
 
+    /**
+     * Życzenia od gospodarza na `/home` (etap b) — albo `null`, gdy dziś nie
+     * ma urodzin, daty nie podano albo człowiek wyłączył życzenia.
+     *
+     * Blok u samego zainteresowanego, jak Wspomnienia: bez powiadomienia,
+     * bez wstawki do feedu, bez pustego stanu.
+     */
+    public static function zyczeniaNaDzis(User $user, ?CarbonInterface $teraz = null): ?string
+    {
+        if (! $user->birthday_wishes_enabled || ! self::czyDzis($user, $teraz)) {
+            return null;
+        }
+
+        return self::tekstZyczen($user);
+    }
+
+    /**
+     * JEDYNE MIEJSCE, W KTÓRYM POWSTAJE TEKST ŻYCZEŃ — na stronie i w mailu.
+     *
+     * Dziś bez rodzaju. Forma gramatyczna z ustawienia „Jak mamy do Ciebie
+     * pisać?" (#1752/#1753) wejdzie TUTAJ, przez wspólny helper formy.
+     * Imienia nie odmieniamy (D-153) — stoi po przecinku, w mianowniku,
+     * tak jak w powitaniu „Dzień dobry, {imię}".
+     */
+    public static function tekstZyczen(User $user): string
+    {
+        return 'Wszystkiego dobrego z okazji urodzin, '.$user->displayName().'. Dużo zdrowia i smacznego gotowania.';
+    }
+
+    /** Podpis: imię gospodarza z jednego miejsca w konfiguracji. */
+    public static function podpis(): string
+    {
+        return (string) config('kuking.community.host_name');
+    }
+
     /** Zapis do paczki RODO: „DD-MM", bez roku — albo `null`. */
     public static function doEksportu(User $user): ?string
     {

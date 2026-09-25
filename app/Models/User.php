@@ -341,6 +341,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
             'birthday_day' => 'integer',
             'birthday_month' => 'integer',
+            'birthday_wishes_enabled' => 'boolean',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko

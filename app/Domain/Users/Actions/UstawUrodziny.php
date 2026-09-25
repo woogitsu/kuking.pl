@@ -31,6 +31,15 @@ final class UstawUrodziny
         ])->save();
     }
 
+    /**
+     * Wyłącznik życzeń na stronie głównej (etap b). Poza `$fillable` jak
+     * data — jedyna droga zapisu to ta metoda.
+     */
+    public function ustawZyczenia(User $user, bool $wlaczone): void
+    {
+        $user->forceFill(['birthday_wishes_enabled' => $wlaczone])->save();
+    }
+
     public function usun(User $user): void
     {
         $user->forceFill([
