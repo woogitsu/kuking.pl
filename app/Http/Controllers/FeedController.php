@@ -8,7 +8,6 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
-use App\Domain\Feed\TagFeed;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
@@ -49,7 +48,6 @@ class FeedController extends Controller
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
-        private readonly TagFeed $tagFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
         private readonly HeroKolaz $heroKolaz,
@@ -89,25 +87,17 @@ class FeedController extends Controller
     }
 
     /**
-     * /home — feed obserwowanych, a gdy go nie ma, feed tagów (D-021,
-     * zastępuje usunięty już feed tematów z issue #31).
+     * /home — obserwowane osoby i tematy w jednej liście, a gdy tam pusto,
+     * „Świeżo z Kuking".
      *
-     * TRZY STOPNIE
-     * Do niedawna były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
-     * — czyli wszystko jak leci, identyczne dla każdego. Nowe konto dostawało
-     * więc ekran, który nie należał do niego.
-     *
-     * Między nie wchodzi feed TAGÓW wybranych w onboardingu
-     * (`Tag::promowane()` — lista gospodarza, D-021). To jedyna rzecz,
-     * którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który jest
-     * jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
-     * onboarding albo w jego tagach nikt jeszcze nic nie ugotował —
-     * pokazujemy „Świeżo z Kuking".
-     *
-     * Kolejność jest ważna w drugą stronę też: człowiek, który KOGOŚ
-     * obserwuje, dostaje wpisy tych osób, nawet jeśli obserwuje też tagi.
-     * Ludzie są ważniejsi od kategorii — to jest serwis o ludziach,
-     * którzy gotują (AGENTS.md).
+     * DWA STOPNIE (issue #1808, D-277 — zmienia D-021)
+     * Do 25 września 2026 były trzy: obserwowani → feed tagów → Odkrywanie.
+     * Kto obserwował choć jedną aktywną osobę, nie zobaczył nigdy wpisów
+     * z obserwowanych tematów. Teraz `FollowingFeed` łączy osoby i tematy
+     * (tematy wybrane w onboardingu — `Tag::promowane()`, lista gospodarza —
+     * dalej dają nowemu kontu pierwszy ekran, który jest jego). Karta z tematu
+     * jest podpisana „Z tagu: …", więc pochodzenie każdego wpisu da się
+     * wytłumaczyć. Dopiero gdy i to jest puste, pokazujemy „Świeżo z Kuking".
      */
     public function home(Request $request): View|RedirectResponse
     {
@@ -117,10 +107,11 @@ class FeedController extends Controller
         $maKursor = $request->query->has('cursor');
         $podaneZrodlo = $request->query('zrodlo');
 
-        // Kursor opisuje pozycję, ale nie mówi, z którego z trzech zapytań
+        // Kursor opisuje pozycję, ale nie mówi, z którego z dwóch zapytań
         // pochodzi. Bez tej drugiej informacji poprawny technicznie kursor
-        // feedu obserwowanych mógłby zostać zastosowany do tagów albo
-        // odkrywania i uciąć ich najnowsze wpisy (#1021).
+        // feedu obserwowanych mógłby zostać zastosowany do odkrywania i uciąć
+        // jego najnowsze wpisy (#1021). Stare odnośniki `zrodlo=tagi` (feed
+        // tagów przed #1808) wracają tą samą drogą do pierwszej strony.
         //
         // Nazwa z adresu nie wybiera feedu. Serwer najpierw ponownie
         // rozstrzyga właściwe źródło z aktualnych relacji i widoczności,
@@ -129,7 +120,7 @@ class FeedController extends Controller
         // do kanonicznej pierwszej strony zamiast użyć kursora w innym SQL-u.
         if ($maKursor) {
             if (! is_string($podaneZrodlo)
-                || ! in_array($podaneZrodlo, ['obserwowani', 'tagi', 'odkrywanie'], true)
+                || ! in_array($podaneZrodlo, ['obserwowani', 'odkrywanie'], true)
                 || $podaneZrodlo !== $zrodlo) {
                 return redirect()->route('home');
             }
@@ -211,24 +202,19 @@ class FeedController extends Controller
 
     private function aktualneZrodloFeedu(User $user): string
     {
-        return match (true) {
-            ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
-            $this->tagFeed->maTresci($user) => 'tagi',
-            default => 'odkrywanie',
-        };
+        return $this->followingFeed->isEmptyFor($user) ? 'odkrywanie' : 'obserwowani';
     }
 
     /**
-     * Strona z wybranego źródła — a gdy to źródło okazało się puste, z
-     * następnego w kolejności obserwowani → tagi → odkrywanie (issue #983).
+     * Strona z wybranego źródła — a gdy obserwowani (osoby i tematy) okazali
+     * się pusti, z Odkrywania (issue #983).
      *
-     * Wybór źródła (`isEmptyFor()` / `maTresci()`) i paginacja to osobne
-     * zapytania, a przy Read Committed każde widzi inny zatwierdzony stan.
-     * Cofnięcie obserwowania, blokada albo ukrycie ostatniego wpisu między
-     * nimi zostawiało pusty Start, choć następne źródło miało treść. Dlatego
-     * o źródle rozstrzyga dopiero to, co paginacja faktycznie oddała —
-     * i `zrodloFeedu` opisuje źródło zwróconych wpisów, nie wcześniejszą
-     * prognozę.
+     * Wybór źródła (`isEmptyFor()`) i paginacja to osobne zapytania, a przy
+     * Read Committed każde widzi inny zatwierdzony stan. Cofnięcie
+     * obserwowania, blokada albo ukrycie ostatniego wpisu między nimi
+     * zostawiało pusty Start, choć Odkrywanie miało treść. Dlatego o źródle
+     * rozstrzyga dopiero to, co paginacja faktycznie oddała — i `zrodloFeedu`
+     * opisuje źródło zwróconych wpisów, nie wcześniejszą prognozę.
      *
      * Feed obserwowanych zawiera też własne wpisy, a `isEmptyFor()` celowo
      * ich nie liczy. Strona złożona z samych własnych wpisów zostaje więc
@@ -249,16 +235,6 @@ class FeedController extends Controller
                 || $posts->getCollection()->contains(fn (Post $post) => $post->author_id !== $user->getKey())
                 || ($posts->isNotEmpty() && ! $this->followingFeed->isEmptyFor($user))) {
                 return ['obserwowani', $posts];
-            }
-
-            $zrodlo = 'tagi';
-        }
-
-        if ($zrodlo === 'tagi') {
-            $posts = $this->tagFeed->paginate($user);
-
-            if ($zKursorem || $posts->isNotEmpty()) {
-                return ['tagi', $posts];
             }
         }
 

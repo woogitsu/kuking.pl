@@ -500,7 +500,6 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             'app/Domain/Feed/DailyBoard.php',
             'app/Domain/Feed/DiscoverFeed.php',
             'app/Domain/Feed/FollowingFeed.php',
-            'app/Domain/Feed/TagFeed.php',
             'app/Domain/Feed/HeroKolaz.php',
             'app/Domain/Search/SearchQuery.php',
             'app/Domain/Digest/ZbierzTresciDigestu.php',
