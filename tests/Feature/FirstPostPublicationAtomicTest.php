@@ -33,7 +33,10 @@ class FirstPostPublicationAtomicTest extends TestCase
     private function host(): User
     {
         $host = $this->moderator();
-        config(['kuking.community.host_username' => $host->profile->username]);
+        config([
+            'kuking.community.host_user_id' => $host->getKey(),
+            'kuking.community.host_username' => $host->profile->username,
+        ]);
 
         return $host;
     }
@@ -75,6 +78,36 @@ class FirstPostPublicationAtomicTest extends TestCase
         $this->assertSame($second->id, $items->where('author_id', $author->id)->sole()->id);
         $this->assertFalse($items->where('author_id', $author->id)->sole()->toPierwszyWpis);
         $this->assertSame(1, Notification::where('actor_id', $author->id)->count());
+    }
+
+    public function test_alert_po_zmianie_nazwy_trafia_do_tego_samego_gospodarza(): void
+    {
+        $host = $this->host();
+        $staraNazwa = $host->profile->username;
+        $host->profile->update(['username' => 'gospodarz_po_zmianie']);
+        $podszywajacy = $this->user($staraNazwa);
+        $author = User::factory()->create();
+
+        $post = app(PublishPost::class)->handle($author, 'Mój pierwszy publiczny wpis.');
+
+        $this->assertSame($post->id, DB::table('first_post_events')->where('author_id', $author->id)->sole()->post_id);
+        $this->assertSame(1, Notification::where('user_id', $host->id)->where('actor_id', $author->id)->count());
+        $this->assertSame(0, Notification::where('user_id', $podszywajacy->id)->where('actor_id', $author->id)->count());
+    }
+
+    public function test_niepoprawny_format_uuid_nie_przerywa_publikacji_i_nie_wysyla_alertu_po_nazwie(): void
+    {
+        $podszywajacy = $this->user('woogitsu');
+        config([
+            'kuking.community.host_user_id' => 'to-nie-jest-uuid',
+            'kuking.community.host_username' => $podszywajacy->profile->username,
+        ]);
+        $author = User::factory()->create();
+
+        $post = app(PublishPost::class)->handle($author, 'Pierwszy wpis przy błędnej konfiguracji.');
+
+        $this->assertDatabaseHas('posts', ['id' => $post->id, 'author_id' => $author->id]);
+        $this->assertSame(0, Notification::where('user_id', $podszywajacy->id)->where('actor_id', $author->id)->count());
     }
 
     public function test_followers_first_is_relative_to_the_recipient(): void

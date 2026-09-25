@@ -115,6 +115,9 @@ class WspomnieniaTest extends TestCase
         $this->wpisSprzed($basia, 1, 'Rosół na urodziny Zosi.');
 
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => (int) $basia->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $basia->fresh()->memories_enabled,
+
             // Brak `memories_enabled` w żądaniu = odznaczone pole. Tak działa
             // checkbox w HTML-u i tak wraca z formularza.
             'wants_weekly_digest' => '1',
@@ -134,6 +137,9 @@ class WspomnieniaTest extends TestCase
         $this->wpisSprzed($basia, 1, 'Rosół na urodziny Zosi.');
 
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => (int) $basia->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $basia->fresh()->memories_enabled,
+
             'memories_enabled' => '1',
         ])->assertRedirect();
 
@@ -249,6 +255,80 @@ class WspomnieniaTest extends TestCase
             ->get(route('profile.show', ['username' => 'basia', 'rok' => 'w-zeszlym-tygodniu']))
             ->assertOk()
             ->assertSee('Rosół sprzed roku.', escape: false);
+    }
+
+    /**
+     * Pusty ROK to nie puste ARCHIWUM (issue #1380).
+     *
+     * Stary link do roku, z którego wpisy zniknęły, mówił „Ta osoba jeszcze
+     * nic nie pokazała" — nieprawdę o całej osobie — i chował drogę powrotu,
+     * bo nawigacja po latach siedziała w gałęzi „są wpisy".
+     */
+    public function test_pusty_rok_nie_udaje_pustego_archiwum_u_siebie_i_u_obcej_osoby(): void
+    {
+        $basia = $this->user('basia');
+        $halina = $this->user('halina');
+        $this->wpisSprzed($basia, 1, 'Rosół sprzed roku.');
+        $this->wpisSprzed($basia, 3, 'Pierogi sprzed trzech lat.');
+        $prywatny = $this->wpisSprzed($basia, 5, 'Tylko dla mnie.');
+        $prywatny->forceFill(['visibility' => Post::VISIBILITY_PRIVATE])->save();
+
+        $rokPusty = Czas::lokalnie(Carbon::now())->subYears(2)->year;
+        $rokPrywatnego = Czas::lokalnie(Carbon::now())->subYears(5)->year;
+        $rokRosolu = Czas::lokalnie(Carbon::now())->subYears(1)->year;
+        $calosc = route('profile.show', 'basia');
+
+        foreach ([[$basia, 'Twoje archiwum jest jeszcze puste'], [$halina, 'Ta osoba jeszcze nic nie pokazała']] as [$widz, $falszywyPustyStan]) {
+            $html = (string) $this->actingAs($widz)
+                ->get(route('profile.show', ['username' => 'basia', 'rok' => $rokPusty]))
+                ->assertOk()
+                ->assertSee('Nie ma wpisów z '.$rokPusty.' roku', escape: false)
+                ->assertSee('Pokaż całe archiwum', escape: false)
+                ->assertDontSee($falszywyPustyStan, escape: false)
+                ->assertDontSee('Rosół sprzed roku.', escape: false)
+                ->getContent();
+
+            // Droga powrotna i lata z wpisami są na stronie.
+            $this->assertStringContainsString('href="'.$calosc.'"', $html);
+            $this->assertStringContainsString('lata-archiwum', $html);
+            $this->assertStringContainsString('rok='.$rokRosolu, $html);
+        }
+
+        // Obcej osobie lista lat nie zdradza roku z samym prywatnym wpisem.
+        $obcy = (string) $this->actingAs($halina)
+            ->get(route('profile.show', ['username' => 'basia', 'rok' => $rokPusty]))
+            ->getContent();
+        $this->assertStringNotContainsString('rok='.$rokPrywatnego, $obcy);
+
+        // Rok z samym prywatnym wpisem dla obcej osoby to też pusty rok,
+        // nie puste archiwum — tak jak stary link po zawężeniu widoczności.
+        $this->actingAs($halina)
+            ->get(route('profile.show', ['username' => 'basia', 'rok' => $rokPrywatnego]))
+            ->assertOk()
+            ->assertSee('Nie ma wpisów z '.$rokPrywatnego.' roku', escape: false)
+            ->assertDontSee('Tylko dla mnie.', escape: false);
+    }
+
+    public function test_naprawde_puste_archiwum_z_rokiem_w_adresie_zostaje_pustym_archiwum(): void
+    {
+        // Kontrola dodatnia: rozróżnienie nie może zjeść prawdziwego pustego stanu.
+        $basia = $this->user('basia');
+        $halina = $this->user('halina');
+        $prywatny = $this->wpisSprzed($basia, 1, 'Tylko dla mnie.');
+        $prywatny->forceFill(['visibility' => Post::VISIBILITY_PRIVATE])->save();
+        $rok = Czas::lokalnie(Carbon::now())->subYears(1)->year;
+
+        $this->actingAs($halina)
+            ->get(route('profile.show', ['username' => 'basia', 'rok' => $rok]))
+            ->assertOk()
+            ->assertSee('Ta osoba jeszcze nic nie pokazała', escape: false)
+            ->assertDontSee('Pokaż całe archiwum', escape: false);
+
+        $this->actingAs($halina)
+            ->get(route('profile.show', ['username' => 'halina', 'rok' => $rok]))
+            ->assertOk()
+            ->assertSee('Twoje archiwum jest jeszcze puste', escape: false)
+            ->assertDontSee('Pokaż całe archiwum', escape: false);
     }
 
     public function test_rok_z_samymi_prywatnymi_wpisami_nie_pojawia_sie_obcej_osobie(): void
