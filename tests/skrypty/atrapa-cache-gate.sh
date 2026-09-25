@@ -10,7 +10,9 @@ curl() {
             [ "$SCENARIO" != expired ] || code=302 ;;
         https://example.invalid/private)
             code=302; [ "$CACHE_KIND" != html ] || code=200
-            [ "$auth" = 1 ] || code=404 ;;
+            [ "$auth" = 1 ] || code=404
+            # Prywatny przepis odmawia gościowi 403 (#610); zdjęcie — 404.
+            [ "$auth" = 1 ] || [[ "$SCENARIO" != *-403 ]] || code=403 ;;
         https://example.invalid/public)
             code=302
             [ "$CACHE_KIND" != html ] || code=200
@@ -18,6 +20,7 @@ curl() {
                 printf x >> "$CACHE_COUNT_FILE"
                 control='public, max-age=1800'; cf=HIT
                 case "$SCENARIO" in
+                    html-610*) control='public, max-age=0, s-maxage=120' ;;
                     cookie) cookie=$'Set-Cookie: fixture=TAJNA_WARTOSC\r\n' ;;
                     no-control) control='' ;;
                     no-public) control='max-age=1800' ;;
