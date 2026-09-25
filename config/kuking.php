@@ -848,6 +848,34 @@ return [
          */
         'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
 
+        /*
+         * POWIADOMIENIA POZA SERWISEM — etap 1 issue #35: reguły przed kanałem.
+         *
+         * Egzekwuje je `App\Domain\Notifications\TerminPowiadomieniaZewnetrznego`.
+         * Żaden kanał (Web Push, e-mail o zdarzeniu) jeszcze z nich nie korzysta
+         * — reguły mają istnieć i być przetestowane, ZANIM powstanie kanał, żeby
+         * nie zaszyć ich w jednym dostawcy (`docs/product/RETENTION_LOOPS.md` §3.2).
+         *
+         * DOMYŚLNIE WYŁĄCZONE. Przy wyłączonej fladze rozstrzygnięcie zawsze
+         * brzmi „kanał wyłączony" — nic nie wychodzi. Powiadomień w serwisie
+         * (`NotifyUser`) to nie dotyczy i nigdy nie ma dotyczyć: in-app jest
+         * bez limitu i bez ciszy nocnej.
+         */
+        'zewnetrzne' => [
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+
+            // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
+            // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
+            'cisza_od_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_OD', 21),
+            'cisza_do_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_DO', 8),
+
+            // Ile powiadomień poza serwisem na lokalną dobę odbiorcy. Jedno,
+            // jak e-mail transakcyjny w §3.2 — nadmiar czeka do rana następnej
+            // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
+            // konfiguracja awaryjna), nie „odkładaj bez końca".
+            'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+        ],
+
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
         //
         // DECYZJA WŁAŚCICIELA, 2026-09-07 (druga tura, po zewnętrznej ocenie
