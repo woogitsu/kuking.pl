@@ -10,8 +10,8 @@ use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -700,64 +700,15 @@ new class extends Component
 
     private function validateAboutStep(): bool
     {
-        // #900: jak w RecipeController — nowy lub zmieniony adres musi być
-        // HTTP/HTTPS, niezmieniony dawny adres z bazy nie blokuje zapisu.
-        // Porównanie z bazą, nie ze stanem komponentu: autozapis nie może
-        // zrobić z dopiero wpisanego FTP „historycznego wyjątku”.
+        // Reguły, komunikaty i normalizacja pól tego kroku mają jedno nazwane
+        // źródło: `KrokOPrzepisie` (issue #1387). Tu zostaje orkiestracja.
+        //
+        // #900: dawny adres porównujemy z BAZĄ, nie ze stanem komponentu:
+        // autozapis nie może zrobić z dopiero wpisanego FTP „historycznego
+        // wyjątku”.
         $dawnyAdres = $this->recipeId === null ? null : Recipe::whereKey($this->recipeId)->value('source_url');
-        $adres = $this->textOrNull($this->source_url);
 
-        $validator = Validator::make([
-            'title' => trim($this->title),
-            'summary' => $this->textOrNull($this->summary),
-            'servings' => $this->textOrNull($this->servings),
-            'prep_minutes' => $this->textOrNull($this->prep_minutes),
-            'cook_minutes' => $this->textOrNull($this->cook_minutes),
-            'difficulty' => $this->textOrNull($this->difficulty),
-            'visibility' => $this->visibility,
-            'source_type' => $this->source_type,
-            'source_person' => $this->textOrNull($this->source_person),
-            'source_note' => $this->textOrNull($this->source_note),
-            'source_url' => $this->textOrNull($this->source_url),
-            'family_since_year' => $this->textOrNull($this->family_since_year),
-        ], [
-            'title' => ['required', 'string', 'min:3', 'max:180'],
-            'summary' => ['nullable', 'string', 'max:2000'],
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
-            'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
-            'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
-            'difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'visibility' => ['required', 'in:public,followers,private'],
-            'source_type' => ['required', 'in:own,family,adaptation,external'],
-            'source_person' => ['nullable', 'string', 'max:120'],
-            'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', $dawnyAdres !== null && $adres === $dawnyAdres ? 'url' : 'url:http,https', 'max:2000'],
-            'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
-        ], [
-            'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
-            'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
-            'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
-            'summary.max' => 'Krótki opis jest za długi. Zostaw najwyżej 2000 znaków — resztę wpisz w historii przepisu.',
-            'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
-            'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
-            'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
-            'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
-            'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
-            'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
-            'cook_minutes.integer' => 'Czas gotowania podaj w pełnych minutach, na przykład 90.',
-            'cook_minutes.min' => 'Czas gotowania nie może być ujemny. Wpisz na przykład 90.',
-            'cook_minutes.max' => 'Czas gotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten przepis.',
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis.',
-            'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
-            'source_type.in' => 'Zaznacz, skąd jest ten przepis.',
-            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
-            'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Wklej adres strony zaczynający się od http:// lub https://.',
-            'family_since_year.integer' => 'Rok wpisz czterema cyframi, na przykład 1974.',
-            'family_since_year.min' => 'Ten rok jest za wczesny. Wpisz rok od 1850.',
-            'family_since_year.max' => 'Ten rok jest za późny. Wpisz rok do 2100.',
-        ]);
+        $validator = KrokOPrzepisie::walidator($this->only(KrokOPrzepisie::POLA), $dawnyAdres);
 
         // Ponowna walidacja usuwa stare błędy tylko tych pól. Nie kasuje
         // komunikatu zdjęcia ani innego etapu; poprawka pola odblokowuje zapis.
