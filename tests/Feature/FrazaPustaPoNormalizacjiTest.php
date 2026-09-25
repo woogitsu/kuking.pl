@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -56,7 +57,7 @@ class FrazaPustaPoNormalizacjiTest extends TestCase
         return [['recipes'], ['people']];
     }
 
-    /** @dataProvider metodyDomeny */
+    #[DataProvider('metodyDomeny')]
     public function test_pusta_po_normalizacji_fraza_nie_daje_zadnego_wyniku_i_nic_nie_pyta(string $metoda): void
     {
         $autor = $this->user('autor');
@@ -162,7 +163,7 @@ class FrazaPustaPoNormalizacjiTest extends TestCase
         ];
     }
 
-    /** @dataProvider frazyUzyteczne */
+    #[DataProvider('frazyUzyteczne')]
     public function test_zwykle_frazy_nadal_sa_przeszukiwalne(string $fraza): void
     {
         $this->assertTrue(SearchQuery::jestPrzeszukiwalna($fraza));
