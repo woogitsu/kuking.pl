@@ -24,9 +24,9 @@ use Tests\TestCase;
  * notatkę, zdjęcie i nazwę. Potwierdziłem to czytaniem kodu przed poprawką.
  *
  * DLACZEGO TO NIE JEST DROBIAZG — RÓŻNICA MIĘDZY BANEM A KARENCJĄ
- * `CookedEventPolicy::view()` CELOWO nie patrzy na status kucharza i dla
- * konta ZBANOWANEGO jest to przemyślana decyzja (D-018/D-022: treść zostaje,
- * znika tylko wyróżnienie). Ale ta sama cisza obejmowała po drodze
+ * `CookedEventPolicy::view()` nie patrzyła wtedy na status kucharza — dla
+ * konta ZBANOWANEGO świadomie, do czasu decyzji produktowej (zapadła w D-261,
+ * audyt A5-07). Ale ta sama cisza obejmowała po drodze
  * `pending_delete`, gdzie serwis obiecuje coś dokładnie przeciwnego —
  * `settings/data.blade.php` mówi człowiekowi: „Konto zniknie ze strony
  * OD RAZU". Ban jest karą wymierzoną przez nas; karencja jest decyzją tej
@@ -36,7 +36,8 @@ use Tests\TestCase;
  * Sama asercja „obcy dostaje odmowę" jest bezwartościowa bez kontroli, że
  * przed zgłoszeniem usunięcia dostawał 200: inaczej test byłby zielony także
  * wtedy, gdyby trasa była zepsuta dla wszystkich i zawsze. Dlatego są tu
- * cztery testy, w tym jeden, który celowo NIE POZWALA naprawić za dużo.
+ * kilka testów. Od D-261 (audyt A5-07) tę samą granicę ma konto
+ * ZBANOWANE — patrz test na końcu pliku.
  */
 class KarencjaUsunieciaChowaWykonanieTest extends TestCase
 {
@@ -140,19 +141,42 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
     }
 
     /**
-     * GRANICA POPRAWKI — TEN TEST MA PILNOWAĆ, ŻEBY NIE NAPRAWIĆ ZA DUŻO.
+     * ZBANOWANY KUCHARZ — TA SAMA GRANICA (audyt A5-07, D-261).
      *
-     * Kuszące jest zamienić warunek na `dostepnyJakoAutor()` i „załatwić
-     * wszystkie statusy naraz". To byłaby cicha zmiana D-018/D-022:
-     * rozstrzygnięcie, ile z historii ZBANOWANEGO konta zostaje publiczne,
-     * jest decyzją produktową, której nikt jeszcze nie podjął. Dopóki nie
-     * zapadnie, zbanowany kucharz ma przechodzić tędy tak samo jak przedtem.
+     * Do D-261 ten test pilnował czegoś odwrotnego: że zbanowany kucharz
+     * przechodzi pod bezpośrednim adresem „tak samo jak przedtem", dopóki
+     * decyzja produktowa nie zapadnie. Zapadła w wariancie bezpieczniejszym:
+     * wykonanie zbanowanej osoby znika pod adresem tak samo jak z galerii,
+     * a jej profil i przepisy — 403. Zdjęcie osobno, bo to osobna ścieżka.
      */
-    public function test_zbanowany_kucharz_przechodzi_tak_samo_jak_przedtem(): void
+    public function test_zbanowany_kucharz_znika_takze_pod_bezposrednim_adresem(): void
+    {
+        [$kucharz, $wykonanie, $zdjecie] = $this->wykonanieZeZdjeciem();
+
+        $kucharz->ban();
+
+        $this->get(route('cooked.show', $wykonanie))
+            ->assertForbidden();
+        $this->actingAs($this->user('ktosobcy'))->get(route('cooked.show', $wykonanie))
+            ->assertForbidden();
+        $this->assertFalse(
+            app(DostepDoZdjecia::class)->moze(null, $zdjecie),
+            'Zdjęcie z wykonania zbanowanej osoby nadal przechodzi kontrolę dostępu dla gościa.',
+        );
+    }
+
+    /** Kontrola dodatnia: moderator zagląda z urzędu, a po zdjęciu bana wykonanie wraca. */
+    public function test_zbanowane_wykonanie_widzi_moderator_a_po_zdjeciu_bana_wszyscy(): void
     {
         [$kucharz, $wykonanie] = $this->wykonanieZeZdjeciem();
 
         $kucharz->ban();
+
+        $this->actingAs($this->moderator())->get(route('cooked.show', $wykonanie))
+            ->assertOk();
+
+        $kucharz->fresh()->reinstate();
+        auth()->logout();
 
         $this->get(route('cooked.show', $wykonanie))
             ->assertOk();

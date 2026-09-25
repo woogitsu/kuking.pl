@@ -126,9 +126,9 @@ class KomusWyszloWidocznoscTest extends TestCase
 
     public function test_wykonanie_zbanowanego_kucharza_nie_dostaje_celebracji(): void
     {
-        // Kucharz ugotował, ZANIM go zbanowano — treść zostaje (AGENTS.md:
-        // "poprawne dane nigdy nie znikają"), ale ekran, który AKTYWNIE
-        // podsuwa to jako powód do radości, przestaje się pokazywać.
+        // Kucharz ugotował, ZANIM go zbanowano — dane zostają w bazie
+        // (AGENTS.md: "poprawne dane nigdy nie znikają"), ale ekran, który
+        // AKTYWNIE podsuwa to jako powód do radości, przestaje się pokazywać.
         $autor = $this->user('autorka');
         $kucharz = $this->user('kucharzdobanowania');
         $recipe = Recipe::factory()->create(['author_id' => $autor->getKey()]);
@@ -138,9 +138,10 @@ class KomusWyszloWidocznoscTest extends TestCase
 
         $this->actingAs($autor)->get(route('cooked.celebrate', $event))->assertForbidden();
 
-        // Zwykły wpis pod tym samym wykonaniem zostaje dostępny — treść
-        // nie znika, znika tylko wyróżnienie.
-        $this->actingAs($autor)->get(route('cooked.show', $event))->assertOk();
+        // Od D-261 (audyt A5-07) znika też sam wpis pod bezpośrednim
+        // adresem — tak jak profil i galeria tej osoby. Dane zostają w bazie
+        // i wracają po zdjęciu bana (KarencjaUsunieciaChowaWykonanieTest).
+        $this->actingAs($autor)->get(route('cooked.show', $event))->assertForbidden();
     }
 
     public function test_wykonanie_aktywnego_kucharza_dostaje_celebracje_mimo_ze_inny_jest_zbanowany(): void

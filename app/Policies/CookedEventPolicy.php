@@ -25,27 +25,15 @@ class CookedEventPolicy
         $jestKucharzem = $user !== null && $user->getKey() === $event->user_id;
         $jestKucharzemLubModeratorem = $jestKucharzem || ($user !== null && $user->isModerator());
 
-        // 2. STATUSU KONTA KUCHARZA TA METODA CELOWO NIE SPRAWDZA.
+        // 2. STATUS KONTA KUCHARZA — patrz punkt 3a niżej (D-261).
         //
-        // To jedyne miejsce w serwisie, gdzie treść osoby ZBANOWANEJ zostaje
-        // dostępna pod bezpośrednim adresem — `RecipePolicy::view()` (audyt A5),
+        // Do audytu A5 (znalezisko A5-07, dawniej B-03) ta metoda celowo NIE
+        // patrzyła na status kucharza: wykonanie osoby ZBANOWANEJ zostawało
+        // publiczne pod bezpośrednim adresem, choć `RecipePolicy::view()`,
         // `UserPolicy::viewProfile()` i `Notification::widoczneDla()` w tym
-        // stanie odmawiają. Wygląda to na przeoczenie, ale nie jest: taką
-        // decyzję zapisuje wprost `KomusWyszloWidocznoscTest::
-        // test_wykonanie_zbanowanego_kucharza_nie_dostaje_celebracji`, razem
-        // z uzasadnieniem („treść zostaje, znika tylko wyróżnienie").
-        //
-        // Doktryna z tamtego testu jest taka: powierzchnie, na których serwis
-        // AKTYWNIE podsuwa treść, zbanowanych wycinają — bezpośredni adres nie.
-        // Dlatego granicę ma `celebrate()` niżej i `scopeWidoczneDla()`
-        // (galeria „Komu wyszło" pod cudzym przepisem), a `view()` jej nie ma.
-        //
-        // Zmierzone i ZGŁOSZONE właścicielowi jako pytanie produktowe, nie
-        // naprawione tutaj: `cooked.show` wykonania zbanowanej osoby zwraca
-        // 200 ze zdjęciem, notatką, nazwą i awatarem, a jej profil — 403.
-        // Rozstrzygnięcie, ile z historii zbanowanego konta ma zostać
-        // publiczne, jest decyzją produktową i wymaga zmiany w teście, który
-        // ją dziś przypina — a nie cichej zmiany polityki obok niego.
+        // stanie odmawiają. Gość dostawał 200 z notatką, nazwą i awatarem,
+        // a profil tej samej osoby — 403. D-261 rozstrzyga to w wariancie
+        // bezpieczniejszym: bezpośredni adres odpowiada tak samo jak lista.
 
         // 3. WŁASNE WYKONANIE WIDAĆ ZAWSZE, NIEZALEŻNIE OD STANU PRZEPISU.
         //
@@ -84,53 +72,19 @@ class CookedEventPolicy
             return true;
         }
 
-        // 3a. KONTO W KARENCJI USUNIĘCIA — TU DOKTRYNA Z PUNKTU 2 SIĘ KOŃCZY.
+        // 3a. KUCHARZ, KTÓREGO TREŚCI SERWIS NIE POKAZUJE (D-261).
         //
-        // Punkt 2 wyżej mówi, że ta metoda CELOWO nie patrzy na status
-        // kucharza, i dla konta ZBANOWANEGO to jest przemyślana decyzja
-        // (D-018/D-022: treść zostaje, znika tylko wyróżnienie). Ale ta sama
-        // cisza obejmowała po drodze `pending_delete` — a to jest zupełnie
-        // inny przypadek i serwis obiecuje w nim coś przeciwnego.
+        // Ten sam warunek co `CookedEvent::scopeWidoczneDla()` (galeria
+        // „Komu wyszło" i listy): `jestDostepnyJakoAutor()`, czyli ani
+        // `banned`, ani `pending_delete`. Wcześniej stał tu tylko
+        // `pending_delete` (G01) — lista i polityka odpowiadały na to samo
+        // pytanie inaczej i bezpośredni adres zbanowanego zostawał otwarty.
         //
-        // CO OBIECUJEMY CZŁOWIEKOWI, SŁOWO W SŁOWO
-        // `resources/views/pages/settings/data.blade.php`: „Konto zniknie ze
-        // strony OD RAZU — razem z Twoimi wpisami, przepisami i komentarzami.
-        // Przez N dni możesz jeszcze zmienić zdanie". Ban jest karą wymierzoną
-        // przez nas; karencja jest decyzją tej osoby, podjętą na podstawie
-        // tego zdania.
-        //
-        // CO BYŁO NAPRAWDĘ (znalezisko G01 z audytu zewnętrznego, zmierzone
-        // uruchomieniem, potwierdzone tutaj czytaniem)
-        // `CookedEvent::scopeWidoczneDla()` wycina te konta, więc z galerii
-        // „Komu wyszło" i z list wykonanie znikało — zgodnie z obietnicą.
-        // Ale `cooked.show` pod bezpośrednim adresem oddawał je anonimowo:
-        // notatkę, zdjęcie, nazwę. Kto miał stary odnośnik, czytał dalej.
-        // Lista i polityka odpowiadały na to samo pytanie inaczej — dokładnie
-        // ten sam kształt usterki, który punkt 3 wyżej naprawia w drugą
-        // stronę.
-        //
-        // DLACZEGO TO NIE JEST ZMIANA D-018/D-022. Warunek pyta wprost
-        // o JEDEN status, nie o `dostepnyJakoAutor()`. Zbanowany kucharz
-        // przechodzi tędy tak samo jak przedtem, `suspended` też —
-        // rozstrzygnięcie, ile z historii zbanowanego konta zostaje
-        // publiczne, dalej czeka na decyzję produktową i dalej pilnuje go
-        // `KomusWyszloWidocznoscTest`.
-        //
-        // CO Z SAMYM KUCHARZEM — SPRAWDZONE URUCHOMIENIEM, BO ZAŁOŻYŁEM ŹLE.
-        //
-        // Pierwsza wersja tego komentarza twierdziła, że punkt 3 wyżej
-        // przepuszcza kucharza, „bo w karencji musi widzieć, co odzyskuje".
-        // To nieprawda i test to pokazał: człowiek w `pending_delete` NIE
-        // CHODZI po serwisie. `EnsureAccountIsActive` wylogowuje go przy
-        // pierwszym żądaniu i odsyła na stronę logowania z instrukcją, jak
-        // cofnąć usunięcie — czyli do tej Policy w ogóle nie dociera.
-        //
-        // Punkt 3 zostaje więc nietknięty nie dla kucharza, tylko dla
-        // MODERATORA, który ma zaglądać z urzędu. A po cofnięciu usunięcia
-        // status wraca do `active` i wykonanie wraca dla wszystkich samo,
-        // bo nic w danych nie zostało zmienione — i to akurat było prawdą
-        // od początku.
-        if ($event->user->status === User::STATUS_PENDING_DELETE) {
+        // Dane nie są zmieniane: po zdjęciu bana wykonanie wraca dla
+        // wszystkich samo. Kucharz i moderator przeszli już punktem 3 —
+        // moderator ma zaglądać z urzędu, a człowiek w `pending_delete`
+        // do tej Policy nie dociera (`EnsureAccountIsActive` go wylogowuje).
+        if (! $event->user->jestDostepnyJakoAutor()) {
             return false;
         }
 

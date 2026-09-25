@@ -127,20 +127,12 @@ class CookedEvent extends Model
      * `banned` i `pending_delete` odpadają, `suspended` ZOSTAJE — ta sama
      * granica co `User::jestDostepnyJakoAutor()`.
      *
-     * DLACZEGO TUTAJ, A NIE W `CookedEventPolicy::view()`
-     * Bo to są dwa różne pytania i tak też są rozstrzygnięte w tym repo.
-     * `view()` odpowiada „czy wolno mi wejść na TO wykonanie pod jego
-     * adresem" i statusu kucharza CELOWO nie liczy — decyzja jest przypięta
-     * testem (`KomusWyszloWidocznoscTest::
-     * test_wykonanie_zbanowanego_kucharza_nie_dostaje_celebracji`, wprost:
-     * „treść zostaje, znika tylko wyróżnienie"). Ten zakres odpowiada na
-     * pytanie „czy serwis ma SAM Z SIEBIE podsunąć to wykonanie komuś, kto
-     * przyszedł pod cudzy przepis" — a tam zbanowanych nie podsuwamy, tym
-     * samym wzorcem co `Post::scopeTylkoOdAktywnychAutorow` dla treści
-     * polecanych nieznajomym i co `CookedEventPolicy::celebrate()`.
-     * Rozjazd jest więc świadomy i w OSTRZEJSZĄ stronę: lista pokazuje
-     * mniej niż bezpośredni adres, nigdy odwrotnie.
-     *
+     * TA SAMA GRANICA CO `CookedEventPolicy::view()` (D-261, audyt A5-07).
+     * Do D-261 polityka statusu kucharza celowo nie liczyła i bezpośredni
+     * adres pokazywał więcej niż lista. Dziś oba miejsca pytają o
+     * `jestDostepnyJakoAutor()`; moderator i sam kucharz mają w polityce
+     * własną furtkę, której ten zakres nie potrzebuje.
+
      * Reguła NIE zależy od tego, kto patrzy, więc obowiązuje także gościa —
      * dlatego jest poza gałęzią `$widz !== null`. Wcześniej metoda kończyła
      * się na `return` dla gościa i galeria pokazywała mu wszystko.
