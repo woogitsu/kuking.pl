@@ -80,8 +80,9 @@ Przed wdrożeniem kodu z #1089:
 
    Oczekiwany wynik: dokładnie jeden wiersz. Zero albo więcej wierszy —
    zatrzymaj się i wyjaśnij, zanim cokolwiek ustawisz.
-2. Wpisz wartość `id` do zmiennej `KUKING_HOST_USER_ID` w zmiennych serwisu
-   (sekrety tylko w platformie, nie w repozytorium).
+2. Wpisz wartość `id` do **Shared Variable** `KUKING_HOST_USER_ID` środowiska
+   (wartość tylko w platformie, nie w repozytorium). `railway.ts` przekazuje
+   ją web i schedulerowi; każde środowisko ma własny UUID.
 3. Wdróż kod. Dopiero potem gospodarz może zmienić nazwę profilu.
 
 Zachowanie konfiguracji:
