@@ -43,6 +43,9 @@ class ZalegleCzyszczenieCdnTest extends TestCase
     private function produkcja(): void
     {
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
     }
 
     private function konfiguracja(?string $zona, ?string $token): void
