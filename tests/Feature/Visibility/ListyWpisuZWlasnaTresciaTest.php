@@ -9,6 +9,7 @@ use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\LiczbyTagowWCache;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -132,6 +133,9 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
 
     private function licznikTagu(?User $widz = null): int
     {
+        // Liczby spisu siedzą w cache (audyt B4 W2), a zmiana PRZEPISU go nie
+        // czyści — świeżość `CACHE_SEKUND` ma własne testy. Tu liczymy zakres.
+        LiczbyTagowWCache::zapomnij([(string) $this->tag->getKey()]);
         $odp = $widz === null ? $this->get(route('tags.index')) : $this->actingAs($widz)->get(route('tags.index'));
 
         return (int) $odp->assertOk()->viewData('tagi')->getCollection()->firstWhere('id', $this->tag->getKey())->posts_count;
@@ -200,10 +204,12 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
     {
         $this->przygotuj();
 
+        // „Świeżo z Kuking" pokazuje jeden wpis na autora (#940) — najnowszy,
+        // czyli zapowiedź. Wpis z własną treścią sprawdzają tag i profil niżej.
         $odkrywanie = $this->get(route('discover'))->assertOk();
-        $this->assertWpisZPrzepisem($odkrywanie->getContent(), 'Odkrywanie');
         $this->assertNotNull($this->zapowiedz);
         $this->assertContains((string) $this->zapowiedz->getKey(), $this->idWpisow($odkrywanie));
+        $this->assertStringContainsString($this->przepis->title, $odkrywanie->getContent(), 'Odkrywanie: brak tytułu dostępnego przepisu.');
 
         $tag = $this->get(route('tags.show', $this->tag))->assertOk();
         $this->assertWpisZPrzepisem($tag->getContent(), 'Strona tagu');
