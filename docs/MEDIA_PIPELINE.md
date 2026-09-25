@@ -388,9 +388,33 @@ konfiguracją `/health` oddaje `degraded` z powodem `czyszczenie_cdn_wylaczone`
 i dzwoni na webhook z odstępem. Świadomie **nie** jest to porażka zadania —
 kasowanie zdjęcia nie ma prawa się nie udać dlatego, że nie ma czym wyczyścić
 cudzego cache'u. Pilnuje tego `SondaCzyszczeniaCacheCdnTest`, z kontrolą
-dodatnią i ujemną. Po wyczerpaniu prób w logu zostają konkretne adresy — bez
-nich nie da się tego dokończyć ręcznie, a przy wymazaniu konta ktoś dokończyć
-musi.
+dodatnią i ujemną.
+
+**Adresy nie przepadają (#959).** Na produkcji zadanie bez konfiguracji
+odkłada adresy do tabeli `zalegle_czyszczenia_cdn`; tam trafiają też adresy
+zadania, które wyczerpało próby (obok wpisu z adresami w logu). Komenda
+`kuking:wyczysc-zalegle-cdn` z harmonogramu (co kwadrans) wysyła je, gdy
+konfiguracja jest na miejscu, i kasuje wiersze dopiero po potwierdzeniu.
+Dopóki coś czeka, `/health` ma `cdn_zalegle` = `czyszczenie_cdn_zalegle`.
+Poza produkcją brak konfiguracji to jawne wyłączenie: bez sieci, bez tabeli.
+
+Cloudflare potwierdza czyszczenie polem `success`. Odpowiedź 2xx z
+`success: false` albo bez tego pola to porażka i ponowienie — tak samo jak
+4xx/5xx, dla każdej partii po 30 adresów osobno.
+
+### Procedura: konfiguracja i zaległe czyszczenia
+
+1. Token API Cloudflare z jednym uprawnieniem: **Zone → Cache Purge → Purge**,
+   ograniczony do strefy serwisu. Nic więcej.
+2. W zmiennych serwisu: `CLOUDFLARE_ZONE_ID` (sam identyfikator strefy)
+   i `CLOUDFLARE_PURGE_TOKEN`. `CLOUDFLARE_PURGE_ENDPOINT` zostaw pusty.
+3. Po wdrożeniu `/health` → `cdn` przestaje świecić od razu, a `cdn_zalegle`
+   gaśnie po najbliższym przebiegu `kuking:wyczysc-zalegle-cdn` (≤ 15 min).
+   Bez czekania: `php artisan kuking:wyczysc-zalegle-cdn`.
+4. Jeśli `cdn_zalegle` nie gaśnie, Cloudflare odmawia — w logu stoi
+   „Nie udało się wyczyścić cache CDN" albo porażka komendy z harmonogramu.
+   Token nigdy nie trafia do logu ani do `failed_jobs` (zadanie czyta go
+   z konfiguracji w `handle()`).
 
 ## Storage
 
