@@ -1982,6 +1982,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puls harmonogramu do zewnętrznego monitora — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | Adres monitora typu „dead man's switch" (np. Healthchecks.io, Better
+    | Stack Heartbeat, UptimeRobot Heartbeat). `kuking:puls-harmonogramu`
+    | woła go co 5 minut; monitor alarmuje, gdy znak życia nie przyjdzie.
+    | Pusty = wyłączone: nic nie jest wysyłane. Adres jest sekretem (zawiera
+    | token), więc trzymaj go w zmiennych Railway, nie w repozytorium.
+    | Kroki: docs/infra/MONITORING_599_KROKI.md.
+    */
+    'monitoring' => [
+        'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
