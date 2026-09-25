@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
+use App\Domain\Community\HostUserResolver;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -66,11 +67,15 @@ final class CookEligibility
      */
     public function tylkoLiczeni(EloquentBuilder|QueryBuilder $zapytanie, string $kolumna): void
     {
-        $zapytanie->whereNotExists(function (QueryBuilder $konto) use ($kolumna): void {
+        // Gospodarz po stabilnym identyfikatorze (#1089), nie po nazwie —
+        // w tym samym anti-joinie, żeby wiersz bez konta nie znikał.
+        $gospodarzId = (new HostUserResolver)->resolve()?->getKey();
+
+        $zapytanie->whereNotExists(function (QueryBuilder $konto) use ($kolumna, $gospodarzId): void {
             $konto->selectRaw('1')
                 ->from('users as wykluczone_konto')
                 ->whereColumn('wykluczone_konto.id', $kolumna)
-                ->where(function (QueryBuilder $powod): void {
+                ->where(function (QueryBuilder $powod) use ($gospodarzId): void {
                     // `STATUSY_ZAMKNIETEGO_KONTA`, czyli razem z `erased`
                     // (D-022): konto po wykonanej karencji już nie gotuje
                     // i nie ma zasilać liczby, która ma mierzyć żywą
@@ -78,6 +83,10 @@ final class CookEligibility
                     // w serwisie — to dwie różne rzeczy.
                     $powod->whereIn('wykluczone_konto.status', User::STATUSY_ZAMKNIETEGO_KONTA)
                         ->orWhere('wykluczone_konto.is_seeded', true);
+
+                    if ($gospodarzId !== null) {
+                        $powod->orWhere('wykluczone_konto.id', $gospodarzId);
+                    }
                 });
         });
 
@@ -99,9 +108,9 @@ final class CookEligibility
     }
 
     /**
-     * Gospodarz (`kuking.community.host_username`) i konta testowe
-     * (`kuking.account.test_usernames`), znormalizowane do porównania
-     * bez rozróżniania wielkości liter — tak jak `Profile::poNazwie()`.
+     * Konta testowe znormalizowane do porównania bez rozróżniania wielkości
+     * liter — tak jak `Profile::poNazwie()`. Gospodarz jest wykluczany wyżej
+     * po stabilnym identyfikatorze zwróconym przez `HostUserResolver`.
      *
      * @return list<string>
      */
@@ -110,10 +119,7 @@ final class CookEligibility
         /** @var array<int, string> $testowe */
         $testowe = config('kuking.account.test_usernames', []);
 
-        $wszystkie = [
-            (string) config('kuking.community.host_username'),
-            ...$testowe,
-        ];
+        $wszystkie = $testowe;
 
         $znormalizowane = array_map(
             static fn (string $nazwa): string => mb_strtolower(trim($nazwa)),

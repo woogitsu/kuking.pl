@@ -8,6 +8,7 @@ use App\Domain\Tags\PromowaneTagi;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Tag;
+use App\Models\TagHighlight;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,6 +62,10 @@ class TagPromotionController extends Controller
 
         return view('pages.admin.tag-promotions', [
             'promowane' => Tag::promowane()->get(),
+            // Plan i archiwum tagu tygodnia (issue #18) — tylko przy włączonej fladze.
+            'wyroznienia' => config('kuking.tag_tygodnia.wlaczony', false)
+                ? TagHighlight::query()->with('tag')->orderByDesc('starts_on')->limit(20)->get()
+                : null,
         ]);
     }
 
