@@ -191,7 +191,7 @@ class ModeracjaPonowienieModeluTest extends TestCase
 
     public function test_trzy_porazki_zapisuja_lokalny_sygnal_i_zostawiaja_slad_operacyjny(): void
     {
-        Log::spy();
+        $log = Log::spy();
         $this->dostawcaOdpowiada([Http::response('', 503), Http::response('', 503), Http::response('', 503)]);
         $wpis = $this->wpis('Ciasta na zamówienie, tel. 600 100 200.');
 
@@ -211,7 +211,7 @@ class ModeracjaPonowienieModeluTest extends TestCase
         $this->assertCount(1, $oznaczenia, 'Lokalny sygnał przepadł razem z oceną modelu.');
         $this->assertSame(WykrywaczSygnalow::KOD_WZORZEC, $oznaczenia->first()->reason);
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $log->shouldHaveReceived('warning')->withArgs(
             fn (string $komunikat, array $kontekst = []): bool => ($kontekst['stage'] ?? null) === 'openai_retries_exhausted'
                 && $kontekst['id'] === (string) $wpis->getKey()
                 && ! str_contains(json_encode($kontekst), '600 100 200'),
