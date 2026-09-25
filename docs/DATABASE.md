@@ -2320,7 +2320,9 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
-o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+o 04:20. Zwykłe powiadomienia: `DELETE` partiami z budżetem na przebieg
+(`UsuwanieWPartiach`, #1657, opis przy `product_signals`) — wiersz nie ma
+odpowiednika w storage.
 Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
 (następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
 liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
@@ -3816,9 +3818,23 @@ filtruje po `signal_name`.
 **Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
 90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
 (`App\Domain\Analytics\PrzedawnioneSygnaly`), harmonogram codziennie o 04:00
-(`routes/console.php`). Zwykły masowy `DELETE ... WHERE occurred_at < ?` —
-bez `chunkById`, bo wiersz nie ma odpowiednika po stronie storage (w
-odróżnieniu od `OsieroconeZdjecia`).
+(`routes/console.php`). `DELETE ... WHERE occurred_at < ? AND id IN (...)`
+partiami — bez `chunkById` po modelach, bo wiersz nie ma odpowiednika po
+stronie storage (w odróżnieniu od `OsieroconeZdjecia`).
+
+**Retencja prostych tabel partiami (#1657)** — `product_signals`, `audit_log`,
+zwykłe `notifications`, `sessions` i `potwierdzenia_zadan_rodo` kasuje
+`App\Domain\Compliance\UsuwanieWPartiach`: partia identyfikatorów w stałym
+porządku po kluczu głównym, potem `DELETE` z tym samym predykatem wieku
+(i wyjątków: `NIGDY_NIE_KASUJ`, typy odwoławcze, wstrzymanie RODO, próg
+`SESSION_LIFETIME`) we własnej krótkiej transakcji. Najwyżej
+`kuking.retencja.budzet` wierszy z jednej tabeli na przebieg (domyślnie
+50 000, partia `kuking.retencja.partia` = 1000); reszta schodzi w kolejne
+noce, z ostrzeżeniem `stage=retention_budget_exhausted` (tabela i liczby,
+bez identyfikatorów). Przerwany przebieg zachowuje zatwierdzone partie.
+Wcześniej był tu jeden `DELETE` na cały backlog — przerwany cofał się
+w całości. Schemat ani indeksy się nie zmieniają; pomiaru `EXPLAIN` na
+danych produkcyjnych nie wykonano. Testy: `RetencjaPartiamiTest`.
 
 **Zapis sygnału nigdy nie wywraca operacji, którą opisuje:**
 `ZapiszSygnal::handle()` łapie każdy wyjątek i tylko go loguje
@@ -4237,7 +4253,7 @@ wskazuje na nią kolumną `failed_job_uuid`.
 | `rodzaj` | `displayName` z payloadu, czyli **klasa powiadomienia** (`App\Notifications\PotwierdzenieAdresu`). To ona mówi, CO przepadło. |
 | `kolejka` | `high` \| `default` \| `low`. |
 | `prob` | Ile prób wykonał worker (na produkcji 3, w trybie `sync` 1), CHECK `mail_failures_prob_check`. |
-| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. |
+| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. Wymazanie konta (`EraseAccountData`) jawnie ustawia `NULL` — kaskada klucza nie zadziała, bo kont się nie kasuje (D-022; audyt B5 pkt 9). |
 | `komunikat` | Powód po redakcji (`App\Poczta\BezpiecznyKomunikat`): jedna linia, bez adresów e-mail, przycięta. |
 | `failed_at` | Kiedy list przepadł. Zapisane wprost, nie jako `created_at` — wiersz opisuje zdarzenie, nie encję (stąd brak `timestampsTz()`). |
 | `zauwazony_at` | „Właściciel to przeczytał" (`kuking:nieudane-listy --odhacz`). Dopóki `NULL`, `/health` zgłasza `degraded`. Jedyna kolumna, którą się tu aktualizuje. CHECK `mail_failures_zauwazony_po_awarii_check`: nie może być wcześniejsze niż `failed_at`. |
@@ -4592,6 +4608,10 @@ CREATE TABLE hero_picks (
 );
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_media_id_unique UNIQUE (media_id);
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_position_check CHECK (position >= 0);
+ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_post_media_foreign
+  FOREIGN KEY (post_id, media_id)
+  REFERENCES post_media (post_id, media_id)
+  ON DELETE CASCADE;
 CREATE INDEX hero_picks_position_index ON hero_picks (position);
 ```
 
@@ -4605,6 +4625,19 @@ ono wisi (`posts.visibility`, `posts.status`, stan konta autora). To samo
 zdjęcie bywa przypięte do kilku wpisów (`post_media` jest wiele-do-wielu),
 więc bez zapisania, którego wpisu dotyczy wskazanie, nie da się później
 sprawdzić, czy wciąż jest publiczny.
+
+**Para `(post_id, media_id)` musi istnieć w `post_media`.** Dwa osobne klucze
+obce do `posts` i `media` nie wystarczają: dowodzą tylko, że oba wiersze
+istnieją, nie że zdjęcie naprawdę wisi przy wskazanym wpisie. To ważne także
+dla autoryzacji bajtów zdjęcia — `DostepDoZdjecia` pyta Policy właśnie tego
+wpisu i wskazanie w kolażu nie może nadać zdjęciu obcego, publicznego rodzica.
+
+Migracja `2026_09_24_100000_powiaz_hero_picks_z_post_media` przed dodaniem
+constraintu blokuje zapisy do `hero_picks` i sprawdza wszystkie istniejące
+pary. Jeżeli znajdzie niespójność, **odmawia przed zmianą schematu**, podaje
+liczbę oraz zapytanie do ręcznego przeglądu. Niczego nie przepina ani nie
+kasuje. Usunięcie relacji zdjęcia z wpisem kasuje tylko odpowiadający wybór
+kolażu (`ON DELETE CASCADE`); wpis i zdjęcie zostają.
 
 **Kaskada nie jest zabezpieczeniem prywatności.** `ON DELETE CASCADE` sprząta
 wiersz po skasowanym wpisie albo zdjęciu — i tyle. Wpis przełączony na
@@ -4640,6 +4673,12 @@ TO 'hero_picks.csv' CSV HEADER
 
 Strażnika i obie kontrole dodatnie sprawdza
 `CofniecieMigracjiNieKasujeKolazuTest`.
+
+**Rollback migracji złożonego klucza (#955):** `down()` usuwa wyłącznie
+constraint `hero_picks_post_media_foreign`. Wszystkie wiersze `hero_picks`,
+`post_media`, `posts` i `media` pozostają bez zmian. Po cofnięciu baza ponownie
+dopuszcza niespójne pary, więc rollback osłabia ochronę, lecz nie traci ani
+nie zgaduje żadnej wartości semantycznej.
 
 ## Dwie reguły, które obowiązują CAŁY schemat
 
