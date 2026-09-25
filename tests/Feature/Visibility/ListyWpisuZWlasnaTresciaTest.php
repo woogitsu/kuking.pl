@@ -32,6 +32,9 @@ use Tests\TestCase;
  * Kontrola dodatnia: `test_kontrola_dodatnia_*` dowodzi, że te same asercje
  * „brak tytułu / sluga / zdjęcia przepisu” widzą każde z nich, gdy przepis
  * jest dostępny — inaczej przechodziłyby na karcie, która nigdy ich nie ma.
+ *
+ * Limit „jeden wpis na autora” (#940) jest nadrzędny: wpis z własną treścią
+ * zostaje na liście, ale zajmuje miejsce autora jak każdy inny (D-274).
  */
 class ListyWpisuZWlasnaTresciaTest extends TestCase
 {
@@ -198,6 +201,33 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
 
         $profil = $this->actingAs($widz)->get(route('profile.show', $this->autorWpisu->profile->username))->assertOk()->getContent();
         $this->assertWpisBezPrzepisu($profil, 'Profil po blokadzie');
+    }
+
+    /**
+     * D-274 (decyzja właściciela 25.09): reguła #940 „jeden wpis na autora”
+     * jest nadrzędna. Wpis z własną treścią zostaje na „Świeżo z Kuking” po
+     * ukryciu przepisu, ale zajmuje to samo jedno miejsce autora — nowszy
+     * wpis tej osoby go wypiera, a nie staje obok.
+     */
+    public function test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_limitu_jednego_wpisu_na_autora(): void
+    {
+        $this->przygotuj();
+        $this->ukryjPrzepis('private');
+
+        $przed = $this->idWpisow($this->get(route('discover'))->assertOk());
+        $this->assertContains((string) $this->wpis->getKey(), $przed, 'Kontrola sceny: bez nowszego wpisu autora wpis z własną treścią jest na liście.');
+
+        $nowszy = Post::factory()->create([
+            'author_id' => $this->autorWpisu->getKey(),
+            'body' => 'Kolacja po obiedzie.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subMinutes(10),
+        ]);
+
+        $ids = $this->idWpisow($this->get(route('discover'))->assertOk());
+        $this->assertContains((string) $nowszy->getKey(), $ids, 'Odkrywanie: brak najnowszego wpisu autora.');
+        $this->assertNotContains((string) $this->wpis->getKey(), $ids, 'Wpis z własną treścią ominął limit jednego wpisu na autora (#940, D-274).');
+        $this->assertNotContains((string) $this->zapowiedz?->getKey(), $ids, 'Zapowiedź niedostępnego przepisu wróciła na listę.');
     }
 
     public function test_kontrola_dodatnia_dostepny_przepis_jest_na_karcie_i_zapowiedz_na_liscie(): void
