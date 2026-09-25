@@ -1,0 +1,32 @@
+[
+    {
+        "plik":  "app/Domain/Contact/Actions/UpdateContactMessage.php",
+        "md5_worktree":  "B7710612265FEDDFD9C32E83B4D0FEC2",
+        "md5_runtime":  "B7710612265FEDDFD9C32E83B4D0FEC2",
+        "zgodne":  true
+    },
+    {
+        "plik":  "app/Domain/Contact/Actions/WyslijOdpowiedz.php",
+        "md5_worktree":  "6055A5CB5EBC89D1BA073B86127B33BD",
+        "md5_runtime":  "6055A5CB5EBC89D1BA073B86127B33BD",
+        "zgodne":  true
+    },
+    {
+        "plik":  "app/Http/Controllers/Admin/WiadomosciController.php",
+        "md5_worktree":  "826B147AC8C6497CE83AA63F5466CE9E",
+        "md5_runtime":  "826B147AC8C6497CE83AA63F5466CE9E",
+        "zgodne":  true
+    },
+    {
+        "plik":  "app/Models/ContactMessage.php",
+        "md5_worktree":  "DE754DF2E08865A8ADA62877CB14269A",
+        "md5_runtime":  "DE754DF2E08865A8ADA62877CB14269A",
+        "zgodne":  true
+    },
+    {
+        "plik":  "database/migrations/2026_09_20_140000_allow_null_handled_by_on_contact_messages.php",
+        "md5_worktree":  "8576B950DEB07102436C1F379DCA3114",
+        "md5_runtime":  "8576B950DEB07102436C1F379DCA3114",
+        "zgodne":  true
+    }
+]

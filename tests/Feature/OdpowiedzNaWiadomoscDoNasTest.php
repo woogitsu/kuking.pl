@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
@@ -52,7 +53,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertRedirect(route('admin.contact.show', $wiadomosc))
             ->assertSessionHas('status');
 
@@ -81,7 +82,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($moderator)
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertRedirect(route('admin.contact.show', $wiadomosc));
 
         Mail::assertSent(OdpowiedzNaWiadomosc::class, function (OdpowiedzNaWiadomosc $list) use ($moderator): bool {
@@ -114,7 +115,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($moderator)
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $odpowiedz = $wiadomosc->odpowiedzi()->sole();
 
@@ -152,7 +153,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
 
         $odpowiedzHttp = $this->actingAs($moderator)
             ->from(route('admin.contact.show', $wiadomosc))
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => $key = (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $odpowiedzHttp
             ->assertRedirect(route('admin.contact.show', $wiadomosc))
@@ -180,6 +181,15 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
             ->assertOk()
             ->assertSee('Ta wiadomość NIE wyszła', false)
             ->assertDontSee('Poczta przyjęła ten list', false);
+
+        $this->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => $key, 'odpowiedz' => self::TRESC])
+            ->assertSessionHasErrors('odpowiedz');
+        Http::assertSentCount(1);
+        $this->assertSame(1, $wiadomosc->odpowiedzi()->count());
+        $this->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
+            ->assertSessionHasErrors('odpowiedz');
+        Http::assertSentCount(2);
+        $this->assertSame(2, $wiadomosc->odpowiedzi()->count());
     }
 
     /**
@@ -204,7 +214,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertSessionHasErrors('odpowiedz');
 
         $powod = (string) $wiadomosc->odpowiedzi()->sole()->error;
@@ -222,7 +232,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($moderator)
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $wpis = AuditLogEntry::query()->where('action', 'admin.contact_reply_sent')->sole();
 
@@ -244,7 +254,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $this->assertDatabaseHas('audit_log', ['action' => 'admin.contact_reply_failed']);
         $this->assertDatabaseMissing('audit_log', ['action' => 'admin.contact_reply_sent']);
@@ -261,7 +271,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         ]);
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertSessionHas('status');
 
         Mail::assertSent(OdpowiedzNaWiadomosc::class, fn (OdpowiedzNaWiadomosc $list): bool => $list->hasTo('ktos@onet.pl'));
@@ -276,7 +286,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->odZalogowanego($basia)->create();
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertSessionHas('status');
 
         Mail::assertSent(OdpowiedzNaWiadomosc::class, fn (OdpowiedzNaWiadomosc $list): bool => $list->hasTo('basia.z.konta@wp.pl'));
@@ -307,7 +317,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
 
         $this->actingAs($this->moderator())
             ->from(route('admin.contact.show', $wiadomosc))
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertSessionHasErrors('odpowiedz')
             ->assertSessionHasInput('odpowiedz', self::TRESC);
 
@@ -339,7 +349,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
 
         $this->actingAs($this->moderator())
             ->from(route('admin.contact.show', $wiadomosc))
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => '   '])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => '   '])
             ->assertSessionHasErrors(['odpowiedz' => 'Napisz odpowiedź, zanim ją wyślesz.']);
 
         Mail::assertNothingSent();
@@ -359,8 +369,8 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $moderator = $this->moderator();
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
-        $this->actingAs($moderator)->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => 'Sprawdzamy, damy znać.']);
-        $this->actingAs($moderator)->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => 'Poprawione, dziękujemy za sygnał.']);
+        $this->actingAs($moderator)->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => 'Sprawdzamy, damy znać.']);
+        $this->actingAs($moderator)->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => 'Poprawione, dziękujemy za sygnał.']);
 
         $this->assertSame(2, $wiadomosc->odpowiedzi()->count());
 
@@ -379,7 +389,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($this->moderator())
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $wiadomosc->refresh();
 
@@ -393,7 +403,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
 
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
-        $this->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+        $this->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertRedirect(route('login'));
 
         Mail::assertNothingSent();
@@ -407,7 +417,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
 
         // 404, nie 403 — panel moderacji nie potwierdza nikomu, że istnieje.
         $this->actingAs($this->user('basia'))
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC])
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC])
             ->assertNotFound();
 
         Mail::assertNothingSent();
@@ -444,7 +454,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
 
         $this->actingAs($moderator)
-            ->post(route('admin.contact.reply', $wiadomosc), ['odpowiedz' => self::TRESC]);
+            ->post(route('admin.contact.reply', $wiadomosc), ['reply_key' => (string) Str::uuid(), 'odpowiedz' => self::TRESC]);
 
         $wiadomosc->oznaczJako(ContactMessage::STATUS_ZALATWIONA, $moderator);
         $wiadomosc->forceFill(['handled_at' => now()->subMonths(13)])->save();

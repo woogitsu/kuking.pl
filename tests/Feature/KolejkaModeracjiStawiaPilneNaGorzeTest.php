@@ -457,7 +457,10 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
             ->map(static fn ($p): int => (int) $p)
             ->all();
 
-        $this->assertSame($oczekiwane, array_intersect_key($zBazy, $oczekiwane));
+        $this->assertSame(
+            $this->wedlugId($oczekiwane),
+            $this->wedlugId(array_intersect_key($zBazy, $oczekiwane)),
+        );
     }
 
     // ---------------------------------------------------------------
@@ -499,8 +502,8 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
             ->all();
 
         $this->assertSame(
-            $oczekiwane,
-            array_intersect_key($zBazy, $oczekiwane),
+            $this->wedlugId($oczekiwane),
+            $this->wedlugId(array_intersect_key($zBazy, $oczekiwane)),
             'Priorytet policzony w PHP różni się od tego, którym sortuje baza. '
             .'Karta pokazywałaby wtedy co innego, niż mówi pozycja w kolejce.',
         );
@@ -509,6 +512,23 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
     // ---------------------------------------------------------------
     // Pomocnicze
     // ---------------------------------------------------------------
+
+    /**
+     * Pary id → priorytet ułożone po id, żeby porównanie nie zależało od
+     * kolejności wierszy. `pluck()` bez ORDER BY oddaje je w kolejności,
+     * jaką wybierze PostgreSQL — i ta potrafi się różnić między runnerami.
+     * `assertSame` na tablicy asocjacyjnej porównuje też kolejność kluczy,
+     * więc bez tego test oblewał przy identycznych wartościach.
+     *
+     * @param  array<string, int>  $pary
+     * @return array<string, int>
+     */
+    private function wedlugId(array $pary): array
+    {
+        ksort($pary, SORT_STRING);
+
+        return $pary;
+    }
 
     private function zgloszenie(
         string $powod,
