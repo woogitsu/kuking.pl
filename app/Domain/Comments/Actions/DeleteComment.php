@@ -6,7 +6,9 @@ namespace App\Domain\Comments\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Notification;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -38,11 +40,25 @@ final class DeleteComment
                     type: Notification::TYPE_MODERATION,
                     actor: $actor,
                     data: [
+                        // BEZ `title` widok pokazywał „Wiadomość od moderacji
+                        // Kuking.” — przypisywał moderacji decyzję, której ona
+                        // nie podjęła (audyt B9). Nagłówek mówi, KTO usunął,
+                        // bez formy zakładającej rodzaj.
+                        'title' => self::naglowek($fresh),
                         'message' => 'Twój komentarz „'.mb_substr($originalBody, 0, 120).'” został usunięty przez autora treści. Powód: '.$reason,
                         'url' => $fresh->subject()?->url(),
                     ],
                 );
             }
         });
+    }
+
+    private static function naglowek(Comment $comment): string
+    {
+        return match (true) {
+            $comment->subject() instanceof Recipe => 'Twój komentarz usunęła osoba, która dodała ten przepis.',
+            $comment->subject() instanceof CookedEvent => 'Twój komentarz usunęła osoba, która dodała to wykonanie.',
+            default => 'Twój komentarz usunęła osoba, która dodała ten wpis.',
+        };
     }
 }

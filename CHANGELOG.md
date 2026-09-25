@@ -2,6 +2,10 @@
 
 ## Nieopublikowane
 
+- Gdy autor wpisu, przepisu albo wykonania usunie Wasz komentarz, powiadomienie mówi to wprost — zamiast „Wiadomość od moderacji Kuking”, która przypisywała tę decyzję moderacji.
+- Poprawione wskazówki, które prowadziły do nieistniejących przycisków albo obiecywały coś, czego serwis nie robi: szkic przepisu wskazuje przycisk, który naprawdę stoi na stronie („Dopisz szczegóły” albo „Edytuj przepis”); pomoc i strony zgłoszeń mówią, że przy wpisie „Zgłoś ten wpis” jest w menu z trzema kropkami; pomoc nie obiecuje już autorowi przepisu wiadomości, tylko powiadomienie; kreator przepisu mówi, że szkic zapisuje się dopiero po podaniu nazwy; instrukcja hasła przy weryfikacji dwuetapowej obejmuje też osoby logujące się przez Facebooka.
+- Na ekranach awarii (500 i 503) przycisk, który prowadzi na stronę główną, nazywa się „Strona główna”, a nie „Spróbuj jeszcze raz”. W pliku „Czytaj to najpierw” w paczce danych poprawiona literówka „weszedł”.
+- Ekran „Czytelność” pokazuje podsumowanie błędów na górze, tak jak pozostałe ustawienia. Linki do poprzedniego i następnego wpisu rosną razem z wybranym rozmiarem tekstu.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 

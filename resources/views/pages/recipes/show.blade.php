@@ -221,7 +221,7 @@
                     {{ config('kuking.community.contact_email') }}
                 </p>
             @elseif(! $recipe->isPublished())
-                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
+                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}”, żeby dokończyć i opublikować.</p>
             @endif
 
             <div class="przepis-autor">

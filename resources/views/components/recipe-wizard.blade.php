@@ -1639,8 +1639,10 @@ new class extends Component
         @if($juzOpublikowany)
             Zapisane zmiany widać od razu w przepisie. Do edycji wrócisz ze strony przepisu.
         @else
-            Możesz w każdej chwili zamknąć tę stronę. Szkic zostaje na Twoim koncie
-            i wrócisz do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
+            {{-- Bez nazwy (co najmniej 3 znaki) `saveDraft()` nic nie zapisuje,
+                 więc zdanie nie obiecuje szkicu „w każdej chwili” (audyt B9). --}}
+            Kiedy podasz nazwę przepisu, szkic zapisuje się na Twoim koncie. Możesz wtedy
+            zamknąć tę stronę i wrócić do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
         @endif
     </p>
 </div>

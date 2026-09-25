@@ -37,7 +37,9 @@
     background: var(--color-surface-raised);
     color: var(--color-ink);
     text-decoration: none;
-    font-size: 1.125rem;
+    /* Token, nie `1.125rem`: sam rem ignorował ustawiony rozmiar tekstu
+       (przy 140% reszta strony miała 25 px, a te linki 18 px; audyt B1). */
+    font-size: var(--text-body);
     line-height: 1.4;
   }
 

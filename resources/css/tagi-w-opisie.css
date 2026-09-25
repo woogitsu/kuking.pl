@@ -7,7 +7,9 @@
         border: 2px solid var(--color-border);
         border-radius: var(--radius-lg);
         background: var(--color-surface);
-        color: var(--color-text);
+        /* `--color-text` nie istnieje — deklaracja była nieważna i kolor
+           dziedziczył się przypadkiem po `body` (audyt B1, znalezisko 9). */
+        color: var(--color-ink);
         box-shadow: var(--shadow-popover);
         padding: var(--spacing-2);
     }
