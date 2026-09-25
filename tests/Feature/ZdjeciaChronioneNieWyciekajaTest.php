@@ -262,10 +262,13 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
 
     /**
      * Szkic to treść, której autor jeszcze nie opublikował. Zdjęcie szkicu
-     * widzi wyłącznie on i moderator — także wtedy, gdy `visibility` stoi na
-     * `public`, bo widoczność opublikowanej treści nie ma tu jeszcze zastosowania.
+     * widzi wyłącznie on — także wtedy, gdy `visibility` stoi na `public`, bo
+     * widoczność opublikowanej treści nie ma tu jeszcze zastosowania.
+     *
+     * Moderator też NIE (#1359, #1360): szkic nie jest sprawą moderacyjną.
+     * Do 24.09.2026 ten test utrwalał odwrotną regułę.
      */
-    public function test_zdjecie_szkicu_widzi_tylko_autor_i_moderator(): void
+    public function test_zdjecie_szkicu_widzi_tylko_autor(): void
     {
         $zdjecie = $this->zdjecie();
 
@@ -280,7 +283,7 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
         $adres = $zdjecie->url('feed');
 
         $this->actingAs($this->autor)->get($adres)->assertStatus(302);
-        $this->actingAs($this->moderator())->get($adres)->assertStatus(302);
+        $this->actingAs($this->moderator())->get($adres)->assertNotFound();
 
         $this->actingAs($this->obcy)->get($adres)->assertNotFound();
         $this->actingAs($this->obserwujacy)->get($adres)->assertNotFound();
@@ -545,16 +548,17 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
     //  Zdjęcie osierocone i zdjęcie w trakcie przetwarzania
     // =================================================================
 
-    public function test_zdjecie_bez_rodzica_widzi_tylko_wlasciciel_i_moderator(): void
+    public function test_zdjecie_bez_rodzica_widzi_tylko_wlasciciel(): void
     {
         // Normalny stan w trakcie wypełniania formularza: plik już wgrany,
         // treści jeszcze nie ma. Podgląd w kreatorze musi działać.
+        // Moderator bez sprawy o TO zdjęcie go nie widzi (#1360).
         $zdjecie = $this->zdjecie();
 
         $adres = $zdjecie->url('feed');
 
         $this->actingAs($this->autor)->get($adres)->assertStatus(302);
-        $this->actingAs($this->moderator())->get($adres)->assertStatus(302);
+        $this->actingAs($this->moderator())->get($adres)->assertNotFound();
         $this->actingAs($this->obcy)->get($adres)->assertNotFound();
 
         Auth::logout();

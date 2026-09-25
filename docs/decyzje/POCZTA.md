@@ -227,8 +227,11 @@ wejścia kontem Facebooka) ani alarmu automatu o pilnym oznaczeniu. Teraz:
 - alarm automatu (`AlarmujModeratora`) idzie spod
   `DziennyBudzetListow::dlaAlarmuAutomatu()`: klasa `wejscie` i własny sufit
   `moderation.model.alarm_dzienny_sufit` (domyślnie 10, `KUKING_MODEL_ALARM_SUFIT`),
-  osobny od sufitu alarmu o zgłoszeniu człowieka. Po wyczerpaniu oznaczenie
-  czeka w `/admin/sygnaly`, a dziennik mówi, dlaczego bez listu.
+  osobny od sufitu alarmu o zgłoszeniu człowieka. Ten sam sufit obejmuje
+  dosyłanie zaległych alarmów (`kuking:doslij-pilne-alarmy`, #1051). Po
+  wyczerpaniu oznaczenie czeka w `/admin/sygnaly`, stan alarmu na sprawie
+  zostaje „nie dotarł" (sonda `/health` go widzi, komenda dośle list, gdy
+  sufit się odnowi), a dziennik mówi, dlaczego bez listu.
 
 Ponowienie zadania po błędzie transportu liczy się przy liście bez rezerwacji
 tyle razy, ile razy list poszedł do transportu — tak samo liczy dostawca.

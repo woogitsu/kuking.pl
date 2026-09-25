@@ -368,8 +368,10 @@ Rozdziel, gdy zajdzie **którykolwiek** z warunków:
    zdjęć po weekendzie.
 3. **Izolacja awarii.** Worker może paść na OOM przy patologicznym pliku;
    razem z web zabrałby całą stronę.
-4. **Graceful shutdown.** Worker dostaje 120 s na dokończenie zadania
-   (`drainingSeconds`), web tylko 30 s. W jednym kontenerze nie da się mieć obu.
+4. **Graceful shutdown.** Worker dostaje 130 s na dokończenie zadania
+   (`drainingSeconds`), web tylko 30 s. W jednym kontenerze nie da się mieć obu —
+   rola `all` dostaje więc okno workera (130 s, audyt B8-03), a wdrożenie czeka
+   dłużej na zamknięcie starego kontenera.
 
 **Scheduler jest zawsze osobny w topologii rozdzielonej i ma dokładnie 1 replikę.**
 Dwie repliki = dwa razy ten sam digest w skrzynce użytkownika.
@@ -466,7 +468,7 @@ a w kontenerze nie ma kto odpowiedzieć — komenda zawisłaby do timeoutu.
 - Requesty healthchecku idą z hosta **`healthcheck.railway.app`**. Jeśli włączysz
   middleware `TrustHosts`, **musisz** dopisać ten host, inaczej deploy będzie
   padał na 400.
-- **Graceful shutdown:** `drainingSeconds` = 30 s (web) / 120 s (worker).
+- **Graceful shutdown:** `drainingSeconds` = 30 s (web) / 130 s (worker i rola `all`; `ZAMKNIECIE_Z_KOLEJKA_S` w `.railway/railway.ts`).
   `tini` jako PID 1 przekazuje `SIGTERM`; `queue:work` z rozszerzeniem `pcntl`
   dokańcza bieżące zadanie zamiast porzucić je w połowie przetwarzania zdjęcia.
 - **`APP_KEY`** generujesz **raz na środowisko** i traktujesz jak sekret

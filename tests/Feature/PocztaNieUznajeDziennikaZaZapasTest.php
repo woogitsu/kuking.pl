@@ -128,6 +128,9 @@ class PocztaNieUznajeDziennikaZaZapasTest extends TestCase
             'mail.mailers.zapas' => ['transport' => 'failover', 'mailers' => ['smtp', 'dziennik']],
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $this->get('/health')
             ->assertOk()
