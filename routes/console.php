@@ -252,6 +252,18 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
+// jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
+// prośby, z której nikt nie skorzystał, zostaje bez terminu — także w kopiach.
+// Żeton przestaje działać po `auth.passwords.users.expire` minutach sam; to
+// zadanie zabiera już tylko dane osobowe bez zastosowania.
+Harmonogram::artisan('kuking:sprzataj-resety-hasel')
+    ->name('kuking:sprzataj-resety-hasel')
+    ->dailyAt('05:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
@@ -318,6 +330,19 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
+// stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak
+// spokój. Dlatego co 5 minut znak życia do ZEWNĘTRZNEGO monitora, który
+// alarmuje, gdy znak nie przyjdzie. Bez `KUKING_PULS_HARMONOGRAMU_URL` nie
+// wysyła nic (zero efektu). Co 5 minut: monitor z oknem 15 minut dostaje
+// trzy szanse, więc jedno zgubione żądanie nie budzi nikogo w nocy.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:puls-harmonogramu')
+    ->name('kuking:puls-harmonogramu')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
 // Zaległe czyszczenie cache CDN (issue #959). Adresy skasowanych zdjęć, których
 // `PurgePublicMediaCache` nie wyczyścił — bo nie było konfiguracji Cloudflare
 // albo zadanie wyczerpało próby — czekają w `zalegle_czyszczenia_cdn`. Bez
@@ -373,6 +398,30 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->onOneServer()
     ->withoutOverlapping(120);
+
+// Dosyłanie pilnych alarmów moderacyjnych, które nie dotarły (issue #1051).
+//
+// Alarm o sprawie pilnej (treść seksualna, cokolwiek dotyczącego dziecka)
+// wychodzi z `PrzeanalizujTresc`, zlecanego TYLKO przy publikacji. Gdy nie
+// dotarł — pusty `KUKING_MODEL_ALARM_EMAIL`, awaria poczty, ubity worker —
+// nie było drugiej drogi, a `/health` świecił bez końca. Ta komenda nią jest.
+//
+// CO GODZINĘ, nie raz na dobę jak podsumowanie: to jest spóźniony alarm,
+// a nie raport. Po wpisaniu adresu zaległe sprawy dochodzą najpóźniej
+// w godzinę, bez niczyjej ręki.
+//
+// Minuta 35: o 00 tykają zdejmowanie kar i licznik społeczności, o 25 budżet
+// połączeń (uzasadnienie rozsunięcia przy sprzątaniu zmian adresu).
+// Blokada 50 minut — reguła „co godzinę → 50" z nagłówka tego pliku.
+// Wyścigu dwóch przebiegów i tak pilnuje baza (`AlarmujModeratora::doslij()`).
+//
+// `Harmonogram::artisan()` zamiast gołego `Schedule::call()` — kod wyjścia 1
+// (padło zlecenie listu) ma być porażką przebiegu, nie cichym sukcesem
+// (`App\Support\Harmonogram`, #835).
+Harmonogram::artisan('kuking:doslij-pilne-alarmy')
+    ->hourlyAt(35)
+    ->onOneServer()
+    ->withoutOverlapping(50);
 
 // Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //
