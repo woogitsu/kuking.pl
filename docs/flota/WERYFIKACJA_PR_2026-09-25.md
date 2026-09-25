@@ -44,6 +44,34 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 | #1542 | #819, #892 | #819 TAK (po dopisku), #892 CZĘŚCIOWO | #819: brakowało testu kryt. 2 (ekran po nocnym `ready → expired`, pozostałe stany zachowują komunikat) — dopisany; #892: brak stanu offline (`wire:offline`, komentarz 23.09), `kreator-zachowanie.mjs` nieuruchomiony | `ba1c26a7` (2 testy w `TerminPaczkiDanychTest`) |
 | #1213 | #906 | CZĘŚCIOWO | brak testu głównej reguły w wariancie „zapis w A → autor czyta → ta sama osoba zapisuje w B”; kontrola ujemna: usunięcie strażnika `$wlasneZeszytyZTymPrzepisem > 1` → 27/27 dalej zielone (deduplikacja `savers` maskuje) | — (gałąź `naprawa/*`) |
 | #1608 | #987, #1000 | #987 CZĘŚCIOWO, #1000 NIE | #987: brak odbioru na fizycznym iPhonie (Safari/PWA, pion/poziom, 100/140/200%); D-260 wybiera `cover` „do odbioru”, bez decyzji właściciela. #1000: podzbioru fontu nie ma (transfer nadal 133 kB), brak pomiaru przed/po, testu grubości 100–900, fallbacku, CLS — jest tylko strażnik polskich znaków w `unicode-range` | `fc29b903` (usunięty wgrany `.pyc`, pusty wiersz przed D-260) |
+| #1500 | #1046 | CZĘŚCIOWO; KONFLIKT z `main` (`CHANGELOG.md`) | kryteria z opisu issue spełnione; brak testów współbieżnych dla trzech przypadków dopisanych w komentarzach 25.09: potwierdzenie zmiany e-maila, włączenie 2FA (stara sesja na `auth` i `/admin/**`), awans roli | — (konflikt) |
+| #1501 | #1034 | TAK | — | — |
+| #1503 | #1394 | TAK | — | — |
+| #1505 | #1289 | TAK | — | — |
+| #1508 | #961 | TAK | — | — |
+| #1510 | #1023 | CZĘŚCIOWO; KONFLIKT z `main` (`kontrole-negatywne-alfa08.py`) | brak pomiaru kosztu zapytania i rozmiaru stanu przed/po (PR przyznaje); ręczny `od_przepisu`/`od_osoby` bez kursora dalej idzie nieograniczonym `OFFSET`, bez limitu i testu (komentarz w issue) | — (konflikt) |
+| #1513 | #936 | CZĘŚCIOWO | kryterium „wynik starego zadania nie jest przedstawiany jako ocena nowszej wersji”: brak wersji/migawki w jobie i testu kolejności „job czyta A → edycja na B → zapis zgłoszenia” (D-258 nazywa to „znaną granicą”) | `63409a31` (H1 na ekranie `edit-pod-decyzja`, test przekierowania z edycji, D-258 → „obowiązuje”) |
+| #1475 | #953 | CZĘŚCIOWO | kryt. 6 (polityka, COMPLIANCE.md i ekran mówią o tym samym zakresie): `resources/legal/polityka-prywatnosci.md:88` dalej mówi, że „historii zgłoszeń albo korespondencji z nami” nie ma w paczce, a PR dodaje `moje_zgloszenia` i `wiadomosci_do_serwisu`. Tekst prawny z `wersja_polityki` — zmiana dla właściciela | — |
+| #1476 | #930 | TAK (issue już zamknięte przez #1428; PR domyka resztę); KONFLIKT z `main` (`CHANGELOG.md`) | — | — (konflikt) |
+| #1485 | #950, #933, #989 | #950 TAK, #933 TAK, #989 CZĘŚCIOWO; KONFLIKT z `main` (`CHANGELOG.md`, `tests/Dwa/bin/scenariusz.php`) | #989: brak zestawienia „raportowanie przejrzystości liczy odwrócenie decyzji i rodzaj nowego działania” (dane są: `appeal_id`, `new_decision` w `audit_log`) | — (konflikt) |
+| #1491 | #1479 | TAK; KONFLIKT z `main` (`CHANGELOG.md`) | — | — (konflikt) |
+| #1493 | #1400 | TAK; KONFLIKT z `main` (`CHANGELOG.md`, `kontrole-negatywne-alfa08.py`) | — (w commicie śmieciowy `scripts/__pycache__/*.pyc`) | — (konflikt) |
+| #1496 | #1395 | TAK (po dopisku) | test nie sprawdzał „wpis z własnym zdjęciem zostaje” (zielony po usunięciu `orWhereHas('media')`) — dopisany | `640d609f` |
+| #1498 | #992 | TAK; KONFLIKT z `main` (`kontrole-negatywne-alfa08.py`) | — (brak testu „APP_URL bez hosta → przepuszczenie”, PR przyznaje; śmieciowy `.pyc`) | — (konflikt) |
+| #1527 | #769 | TAK | — (odczyt czytnikiem ekranu to krok ręczny, niewykonany) | — |
+| #1528 | #823, #824 | TAK (×2) | — (wspólna transakcja z #824 jest już na `main` z `56f83886`; PR dokłada polski komunikat zamiast 500) | — |
+| #1531 | #875 (Refs) | TAK — usprawnienie; kryteria #875 już na `main` | — (tolerancja spacji, braku myślnika, małych liter; bez zamiany 0↔O, zgodnie z issue) | — |
+| #1533 | #964, #965 | #964 TAK, #965 CZĘŚCIOWO | #965 kryt. 5: sitemapa nie obejmuje niepustych publicznych zeszytów (`SitemapController` zmienia tylko robots.txt) | — (zmiana nie jest mała) |
+| #1537 | #766, #802 (Refs) | TAK — usprawnienie; oba issues zamknięte na `main` | — | — |
+| #1539 | #939 | TAK | — (opis: scalać po #1520; drugi scalający nakłada porcje na zapytanie z #1520) | — |
+| #1540 | #853 (Refs) | CZĘŚCIOWO — usprawnienie (#853 zamknięte); KONFLIKT z `main` (`CHANGELOG.md`, `scenariusz.php`) | z komentarzy w issue: brak kontroli danych wykrywającej obserwowania ukrytych/scalonych tagów i testu dwóch połączeń dla ukrycia tagu i onboardingu | — (konflikt) |
+| #1514 | #1435 | TAK | — | — |
+| #1516 | #1018 | TAK; KONFLIKT z `main` (`posts/show.blade.php`: okruszki i JSON-LD z `main` + znacznik „Ukryte przez moderację”) | — (PR sam odkłada: moderator może zgłosić komentarz spod ukrytego wpisu) | — (konflikt) |
+| #1519 | #1461 | TAK | — (baza PR-a to gałąź #1494, więc diff zawiera też jej zmiany) | `2317abcb` (usunięty wgrany `.pyc`) |
+| #1520 | #938 | TAK | — | — |
+| #1521 | #982 | TAK (po dopisku) | kryt. „druga poprawka nie zleca skutków ubocznych edycji” bez własnej asercji — dopisany test | `1da2c561` (`test_konflikt_nie_zleca_ponownej_analizy`) |
+| #1522 | #996 | TAK | — | — |
+| #1524 | #836 | TAK (kod) | uruchomienie komendy czyszczącej z `--wykonaj` na produkcji — decyzja właściciela (triaż issue) | — |
 
 ### Uwagi
 
@@ -83,3 +111,29 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 - **#1608.** Merge czysty, 17/17, `npm run build` PASS; trzy kontrole ujemne oblewają.
   #1000 praktycznie nieruszone — nie zamykać.
 - **#1653.** Merge czysty, testy przeglądarkowe 8/8; kontrola ujemna (`zakrywaCel`) oblewa.
+- **#1500.** Na stanie połączonym (CHANGELOG rozwiązany lokalnie) 321 PASS;
+  kontrola ujemna (`GeneracjaSesji::zgodna()` → `true`) oblewa wszystkie 6 operacji.
+  Gałąź niesie commity #1475 i #1476 — scalać po nich.
+- **#1501 / #1503 / #1505 / #1508.** Merge czysty; kontrole ujemne oblewają
+  (odpowiednio: zamrożony `recipe_slug`; trzy strażniki Policy/karta/tytuł;
+  dwa odnośniki powitania; `=== false` w każdym z trzech miejsc potoku).
+- **#1510.** Na rozwiązanym lokalnie stanie 194 PASS; bez kursora kontrola wykrywa
+  duplikat i pominięcie.
+- **#1513.** Zmiana statusu D-258 oparta na komentarzu w PR „Decyzja właściciela
+  (24.09.2026): D-258 zaakceptowane”.
+- **#1475–#1498.** Konflikty tylko mechaniczne (CHANGELOG, lista w
+  `kontrole-negatywne-alfa08.py`, `scenariusz.php` — obie strony zostają);
+  na lokalnie rozwiązanych stanach wszystkie celowane testy PASS, a kontrole
+  ujemne oblewają. #1485: grupa `tests/Dwa` nieuruchomiona; otwarte ryzyko —
+  kolejność blokad appeals→users odwrotna niż reguła `ZamekKonta` (kontrprzykładu
+  nie znaleziono).
+- **#1498 — do sprawdzenia przez właściciela:** testowe klucze Cloudflare
+  zwracają obcy `hostname`, więc lokalnie i na stagingu z kluczami testowymi
+  formularze z Turnstile będą odrzucane.
+- **#1527–#1540.** Celowane testy zielone na stanie połączonym (#1540 — na
+  lokalnie rozwiązanym), każda kontrola ujemna oblewa. Jedyny czerwony
+  `KursorStartuPamietaZrodloTest::test_odkrywanie_zmienione_na_tagi…` oblewa
+  też na czystym `main` (patrz #1405) — nie pochodzi z PR-ów.
+- **#1514–#1524.** Celowane testy zielone (w tym grupy na dwóch połączeniach dla
+  #1514, #1521, #1522 na własnych bazach `kuking_race_wt_*`), każda kontrola
+  ujemna oblewa. #1516 po lokalnym połączeniu obu stron konfliktu: 69 PASS.
