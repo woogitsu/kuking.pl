@@ -43,7 +43,8 @@
         </p>
         <p>
             Wszystkie urządzenia zalogowane na to konto, <strong>oprócz tego, na którym
-            teraz jesteś</strong>, zostaną wylogowane od razu.
+            teraz jesteś</strong>, zostaną wylogowane od razu — także telefony i tablety
+            z aplikacją Kuking (<a href="{{ route('settings.devices') }}">Urządzenia z dostępem</a>).
         </p>
 
         <form method="POST" action="{{ route('settings.security.logout-others') }}">
