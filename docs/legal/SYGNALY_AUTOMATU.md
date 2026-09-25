@@ -317,6 +317,37 @@ alarm przestanie działać dokładnie wtedy, gdy będzie potrzebny.
 | **Podsumowanie zbiorcze** | raz dziennie o 07:00, jeden list: „5 nowych pozycji w kolejce", z rozbiciem na sygnały. `kuking:podsumowanie-automatu` | Kolejka nie jest awarią. Codzienny rytm wystarcza, żeby nic nie zaległo, i nie uczy nikogo ignorowania listów. **List nie wychodzi, gdy nie ma o czym pisać** — „0 nowych pozycji" przez trzy tygodnie to najlepszy sposób, żeby czwarty list przeszedł niezauważony |
 | **List natychmiastowy** | wyłącznie `KategorieModeracji::PILNE`: treści seksualne i wszystko, co dotyczy dzieci | Te dwie kategorie mają w `resources/legal/zasady.md` własną sekcję „Czego nie tolerujemy w ogóle" i są jedynymi, przy których zwłoka jednego dnia jest realną szkodą, a nie niedogodnością. Mają też **niższy próg** (`prog_pilny`, 0,2 zamiast 0,5): tu wolimy fałszywy alarm od przeoczenia |
 
+#### Co się dzieje, gdy list natychmiastowy NIE dojdzie (issue #1051)
+
+Do 22 września 2026: nic. Sprawa zostawała w `reports`, alarm nie wychodził,
+a ponowna analiza tej samej treści zatrzymywała się na „automat już to
+oglądał" i milczała — zgubione zostawało zgubione. W bazie nie było pola,
+po którym dałoby się taką sprawę odróżnić od dnia bez ani jednego pilnego
+zgłoszenia.
+
+Dziś sprawa pilna **albo dociera, albo zostawia ślad, że nie dotarła**:
+
+| Stan `reports.alarm_pilny_stan` | Znaczy |
+|---|---|
+| `NULL` | Sprawa nie jest pilna — tak wygląda ogromna większość wierszy |
+| `zalegly` | Alarm należny, jeszcze nie zlecony. Zapisywany **tą samą transakcją**, która zapisuje sprawę, więc worker ubity zaraz po `COMMIT`-cie nie kasuje obowiązku |
+| `zlecony` | Alarm przekazany kanałowi pocztowemu; `alarm_pilny_zlecony_at` mówi kiedy. To nie znaczy „EmailLabs przyjął" — za ten odcinek odpowiadają `failed_jobs` i `mail_failures` |
+| `bez_adresu` | `KUKING_MODEL_ALARM_EMAIL` jest pusty, kanał alarmowy nie istnieje. Naprawia to wpisanie adresu, nie ponowienie |
+| `nieudany` | Zlecenie listu rzuciło wyjątkiem; wyjątek poszedł do `report()` |
+
+Zaległy alarm **dosyła komenda** `kuking:doslij-pilne-alarmy`, co godzinę
+z harmonogramu — tylko przy sprawach nadal otwartych, najwyżej jeden list na
+sprawę (zajęcie wiersza w bazie). Nie trzeba do tego drugiej analizy treści:
+ta jest zlecana tylko przy publikacji. Po wpisaniu brakującego adresu zaległe
+listy wychodzą same, najpóźniej w godzinę.
+
+Sonda `alarmy_moderacji` w `/health` świeci przy **otwartej** sprawie pilnej
+bez zleconego alarmu, młodszej niż 72 godziny — więc sprawa z nocy nie robi
+się niewidzialna o świcie, a zamknięcie sprawy w panelu sondę gasi. Pełna
+reguła i co zrobić przy każdym kodzie: `docs/infra/MONITORING_BLEDOW.md` §8.
+Sprawa już zamknięta nie dostaje alarmu także przy ponowionej analizie
+(`OznaczDoPrzegladu` oddaje wtedy `null`).
+
 **Limit poczty:** EmailLabs, plan darmowy, **300 listów dziennie**, dzielone
 z listami do użytkowników (potwierdzenia rejestracji, zmiany adresu,
 powiadomienia moderacyjne). Alarmy moderacyjne nie mogą zjeść limitu
