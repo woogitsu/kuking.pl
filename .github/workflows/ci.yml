@@ -1084,6 +1084,12 @@ jobs:
           flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
           node scripts/skala-proporcje.mjs
 
+      # Pusty pas pod stopką i jej wysokość (zgłoszenia właściciela 22.09
+      # i 24.09) na kaskadzie z buildu, razem z kontrolą ujemną. Wersja na
+      # żywym serwisie z kontem chodzi w `port-projektu.mjs`.
+      - name: Stopka bez pustego pasa — rzeczywisty CSS w Chromium
+        run: node scripts/stopka-pusty-pas.mjs --statycznie
+
       # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
       # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
       # a `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
