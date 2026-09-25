@@ -95,7 +95,14 @@ self.addEventListener('fetch', (event) => {
         caches.match(request).then((trafienie) => trafienie || fetch(request).then((odpowiedz) => {
             if (odpowiedz.ok && odpowiedz.type === 'basic') {
                 const kopia = odpowiedz.clone();
-                caches.open(WERSJA).then((cache) => cache.put(request, kopia));
+                // Zapis wiążemy ze zdarzeniem: bez waitUntil przeglądarka może
+                // zakończyć workera przed końcem put(). Odmowa magazynu nie
+                // psuje odpowiedzi z sieci.
+                event.waitUntil(
+                    caches.open(WERSJA)
+                        .then((cache) => cache.put(request, kopia))
+                        .catch(() => {})
+                );
             }
 
             return odpowiedz;

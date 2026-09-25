@@ -159,7 +159,7 @@ final class SearchQuery
         SQL;
 
     /**
-     * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @param  User|null  $widz  kto szuka — widoczność (#1320), blokady i licznik ugotowań
      * @return Collection<int, Recipe>
      */
     public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
@@ -185,14 +185,38 @@ final class SearchQuery
         ProgPodobienstwa::ustaw();
 
         return Recipe::query()
-            ->publiclyVisible()
+            // TEN SAM ZBIÓR, KTÓRY WIDZ MOŻE OTWORZYĆ (issue #1320).
+            //
+            // Do tej pory było tu `publiclyVisible()` — także dla zalogowanej
+            // osoby. Obserwująca nie znajdowała po tytule przepisu „dla
+            // obserwujących", który otwierała z profilu, a autor własnego
+            // przepisu „tylko dla mnie". `widoczneDla($widz)` to granica
+            // `RecipePolicy::view` w SQL: gość i obcy dostają dokładnie to,
+            // co dawniej (publiczne), obserwujący — także `followers`,
+            // autor — także swoje `private`.
+            //
+            // `published()` PRZED `widoczneDla()` i to jest obowiązkowe:
+            // sam scope wpuszcza autorowi jego SZKICE (zeszyt ich potrzebuje),
+            // a pokazanie szkiców w wyszukiwarce to osobna decyzja produktowa,
+            // nie część tej poprawki.
+            //
+            // Moderator świadomie NIE dostaje tu szerszego zbioru niż zwykła
+            // osoba — Policy wpuszcza go pod adres, ale wyszukiwarka nie jest
+            // narzędziem moderacji.
+            //
+            // Koszt zmierzony (mediana 7 × `EXPLAIN ANALYZE`, 200 autorów,
+            // 20 000 przepisów, widz obserwuje 50 autorów, fraza „pierogi"):
+            // gość 59,9 → 61,3 ms, zalogowana 62,5 → 61,3 ms. Wyznacza go
+            // nadal zbiór kandydatów z `KANDYDACI_SQL`, nie `follows`.
+            ->published()
+            ->widoczneDla($widz)
             // Konto autora aktywne (audyt A5) — bez tego wyszukiwarka
             // wypychała przepisy osoby zawieszonej albo zbanowanej na widok
             // każdego, kto akurat wpisał trafną frazę, mimo że jej profil
             // (link pod wynikiem) dawał 403.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
-            ->with(['author.profile', 'heroMedia'])
+            ->with(Recipe::RELACJE_KARTY)
             // `widoczneDla($widz)` W LICZNIKU, nie gołe `withCount`.
             //
             // Karta wyniku pokazuje „Ugotowane N ×" tą samą etykietą, którą
