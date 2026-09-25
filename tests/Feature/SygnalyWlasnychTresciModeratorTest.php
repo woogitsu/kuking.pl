@@ -62,6 +62,27 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
         $this->assertNicSieNieZmienilo();
     }
 
+    /**
+     * PostgreSQL przyjmuje ten sam UUID także bez myślników i w klamrach —
+     * oba zapisy trafiają w te same wiersze, więc samo `strtolower` ich nie
+     * zatrzyma. Kontroler przyjmuje wyłącznie postać kanoniczną.
+     */
+    public function test_moderator_nie_obchodzi_odmowy_innym_zapisem_uuid(): void
+    {
+        $moderator = $this->moderator();
+        $this->oznaczonyWpis($moderator);
+        $uuid = (string) $moderator->getKey();
+
+        foreach ([str_replace('-', '', $uuid), '{'.$uuid.'}'] as $zapis) {
+            $this->actingAs($moderator)
+                ->from(route('admin.sygnaly'))
+                ->post(route('admin.sygnaly.dismiss'), ['autor' => $zapis])
+                ->assertSessionHasErrors('autor');
+
+            $this->assertNicSieNieZmienilo();
+        }
+    }
+
     /** Kontrola dodatnia: tę samą grupę zamyka ktoś inny z moderacji. */
     public function test_inny_moderator_zamyka_te_oznaczenia(): void
     {

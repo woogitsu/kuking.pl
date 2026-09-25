@@ -18,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 
@@ -117,6 +118,17 @@ class SygnalyController extends Controller
         // `ReportPolicy::decide` (`SPRAWA_O_CIEBIE`). `strtolower`, bo
         // PostgreSQL porównuje UUID bez względu na wielkość liter: `ABC…`
         // w polu trafiłoby w ten sam wiersz, a zwykłe `===` by go przepuściło.
+        //
+        // Sama wielkość liter nie wystarcza: PostgreSQL przyjmuje UUID także
+        // bez myślników i w klamrach (`{…}`), a oba zapisy trafiają w ten sam
+        // wiersz. Dlatego najpierw wymagamy postaci kanonicznej — formularz
+        // i tak wysyła tylko ją albo `brak`.
+        if ($autorId !== null && ! Str::isUuid($autorId)) {
+            return back()->withErrors([
+                'autor' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            ]);
+        }
+
         if ($autorId !== null && strtolower($autorId) === strtolower((string) $moderator->getKey())) {
             return back()->withErrors([
                 'autor' => self::WLASNE_OZNACZENIA,
