@@ -264,6 +264,16 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Dalsze okna wyszukiwania za kursorem rankingu (#1023). Mutacja gubi kursor
+# obu list, czyli wraca do samego liczbowego `OFFSET`; test dopisania ma
+# zobaczyć duplikat, test ukrycia — pominięcie.
+SZUKAJ_KONTROLER = "app/Http/Controllers/SearchController.php"
+STABILNE_OKNA_TEST = "StabilneOknaWyszukiwaniaTest"
+
+
+def bez_kursora_wyszukiwania(source):
+    source = replace_once(source, "$poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;", "$poPrzepisie = null;")
+    return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
 
 
 def digest(path):
@@ -632,6 +642,8 @@ checks = [
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
+     bez_kursora_wyszukiwania),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -685,6 +697,7 @@ run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(STABILNE_OKNA_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
