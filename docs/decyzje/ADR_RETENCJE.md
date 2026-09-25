@@ -671,6 +671,31 @@ rekomendacje z powodem.
 
 ---
 
+### 5.7 Treści usunięte przez autora (`posts`, `recipes`, `comments` z `deleted_at`) — dopisane 25.09.2026
+
+Audyt B5 (znalezisko 1) zmierzył, że miękkie usunięcie było stanem
+końcowym: tekst w bazie i zdjęcia w R2 zostawały bez terminu, wbrew
+polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
+
+- **Okres:** `kuking.usuniete_tresci.retention_days` = **30 dni** od
+  `deleted_at` — ta sama liczba co karencja usunięcia konta
+  (`account.delete_grace_days`), żeby polityka miała jedną liczbę dla obu
+  dróg. Okno służy odkręceniu pomyłki i spójności kopii.
+- **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:20,
+  budżet 500 treści każdego rodzaju na przebieg, transakcja na treść.
+- **Wyjątek moderacyjny:** treść, na którą wskazuje jakikolwiek wiersz
+  `reports`/`moderation_actions` (także przez jej komentarz, zdjęcie albo
+  wykonanie), czeka na retencję sprawy (§5.3–5.5). Nie ma osobnej listy
+  wyjątków: gdy `kuking:sprzataj-sprawy-moderacyjne` zabierze sprawę,
+  treść sama staje się kandydatem.
+- **Nagrobek przepisu:** `cooked_events.recipe_id` ma `ON DELETE CASCADE`,
+  więc `forceDelete()` zabrałby cudze „Ugotowałem”. Przepis z cudzymi
+  wykonaniami jest opróżniany (tytuł „Przepis usunięty”, pusty slug, bez
+  opisu, źródła, zdjęć, składników, kroków, wersji i komentarzy) i kasowany
+  dopiero, gdy ostatnie cudze wykonanie zniknie.
+- **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
+  gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

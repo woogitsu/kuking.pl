@@ -252,6 +252,20 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:20 — dziesięć minut po sesjach (uzasadnienie odstępów wyżej).
+// Treści usunięte przez autora (audyt B5, znalezisko 1): po
+// `config('kuking.usuniete_tresci.retention_days')` dniach od `deleted_at`
+// wpis, przepis albo komentarz znika z bazy na stałe, a jego zdjęcia z R2.
+// Treści ze sprawą moderacyjną czekają na retencję sprawy — reguły
+// w `App\Domain\Compliance\PrzedawnioneUsunieteTresci`.
+// PRZED sprzątaczem osieroconych zdjęć z następnej nocy (03:40): zdjęcia,
+// których nie dało się skasować od razu, dobierze on jako nieprzypięte.
+Harmonogram::artisan('kuking:sprzataj-usuniete-tresci')
+    ->name('kuking:sprzataj-usuniete-tresci')
+    ->dailyAt('05:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie

@@ -1371,6 +1371,29 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**Miękkie usunięcie nie jest stanem końcowym (audyt B5 pkt 1, 25.09.2026).**
+`posts`, `recipes` i `comments` mają `deleted_at`. Treść usunięta przez autora
+leży z `deleted_at` najwyżej `kuking.usuniete_tresci.retention_days` (30) dni;
+potem `kuking:sprzataj-usuniete-tresci`
+(`App\Domain\Compliance\PrzedawnioneUsunieteTresci`) robi `forceDelete()`
+— kaskady zabierają `post_media`, `post_tags`, `collection_items`,
+`hero_picks`, komentarze — i kasuje pliki zdjęć przez
+`KasujZdjecie::jesliNieuzywane()`. Dwa wyjątki:
+
+- treść, na którą (albo na której komentarz, zdjęcie, wykonanie) wskazuje
+  jakikolwiek wiersz `reports` lub `moderation_actions`, czeka — moderacja
+  zdejmuje treść tym samym `delete()`, a sprawa potrzebuje celu. Po retencji
+  sprawy (36 mies.) treść wraca do kolejki;
+- przepis z cudzymi `cooked_events` (FK `ON DELETE CASCADE`) nie jest
+  kasowany, tylko opróżniany do **nagrobka**: `title = 'Przepis usunięty'`,
+  `slug = 'usuniety-przepis-' || id bez kresek`, kolumny opisu, źródła
+  i zdjęć `NULL`, a `recipe_ingredients`, `recipe_steps`, `recipe_versions`,
+  `recipe_slug_redirects`, `collection_items` i komentarze przepisu znikają.
+  Gdy ostatnie cudze wykonanie zniknie, nagrobek idzie `forceDelete()`.
+
+Bez zmiany schematu — rollback to wyłączenie zadania w `routes/console.php`
+(skasowanych wierszy żaden rollback nie przywróci; to jest cel zmiany).
+
 
 **Rodzaj wpisu i tytuł pytania (#371).** Migracja
 `2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)

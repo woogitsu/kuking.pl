@@ -118,7 +118,13 @@ egzekwuje.
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
-- **Termin usunięcia:** do usunięcia treści albo konta. Przy usunięciu konta
+- **Termin usunięcia:** do usunięcia treści albo konta. Treść usunięta przez
+  autora znika z serwisu od razu, a z bazy i z R2 (tekst, oryginały
+  i warianty zdjęć) po `kuking.usuniete_tresci.retention_days` = **30 dni**
+  (`kuking:sprzataj-usuniete-tresci`, audyt B5 pkt 1). Wyjątki: przepis
+  ugotowany przez inną osobę zostaje pustym nagrobkiem, żeby nie zabrać
+  cudzego „Ugotowałem”; treść ze zgłoszeniem albo decyzją moderacji czeka
+  na retencję sprawy (36 miesięcy, §3.6). Przy usunięciu konta
   **decyduje użytkownik** (`users.delete_scope`, D-022): domyślnie tekst
   zostaje zanonimizowany („Użytkownik usunięty"), po zaznaczeniu haczyka
   jest kasowany razem z wpisami, przepisami, komentarzami, wykonaniami
@@ -137,6 +143,8 @@ egzekwuje.
   usunięciu konta kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) —
   bo anonimizacja podpisu nie zmienia niczego w pikselach. Zdjęcia
   nieprzypięte do żadnej treści kasuje `kuking:sprzataj-osierocone-zdjecia`.
+  Zdjęcia treści usuniętej przez autora (oryginał i warianty) kasuje
+  `kuking:sprzataj-usuniete-tresci` razem z treścią, po 30 dniach (§3.3).
 
 ### 3.5 Relacje w serwisie
 

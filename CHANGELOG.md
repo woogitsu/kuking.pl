@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” usuwają teraz naprawdę. Treść znika z serwisu od razu, jak dotąd, a najpóźniej 30 dni później także z naszej bazy — razem ze zdjęciami w pełnym rozmiarze. Wcześniej usunięta treść i jej zdjęcia zostawały u nas bez końca. Jeśli Wasz przepis ugotował ktoś inny, jego „Ugotowałem” zostaje, a z samego przepisu nie zostaje ani tytuł, ani składniki, ani zdjęcia. Polityka prywatności mówi o tym w tabeli przy „Publikowaniu treści”.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
