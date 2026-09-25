@@ -68,3 +68,6 @@ __pycache__/
 
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
+
+# Skompilowany Python z uruchomień skryptów kontrolnych.
+__pycache__/

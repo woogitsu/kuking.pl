@@ -14,6 +14,7 @@ use App\Models\Media;
 use App\Models\User;
 use App\Support\RozpoznanieZdjecia;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -230,45 +231,81 @@ final class StoreUploadedImage
                 wysokosc: $height,
             );
 
-            $media = Media::create([
-                'owner_id' => $owner->getKey(),
-                'disk' => $disk,
-                // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
-                // z konfiguracji przy każdym odczycie: konfiguracja może się
-                // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
-                'variants_disk' => $dyskWariantow,
-                'object_key' => $objectKey,
-                'mime_type' => $detectedMime,
-                'bytes' => $bytes,
-                'width' => $width,
-                'height' => $height,
-                'status' => Media::STATUS_PENDING,
-                'alt_text' => $altText,
-                // Suma z tego, CO NAPRAWDĘ LEŻY W BUCKECIE, nie z pliku przed
-                // zdjęciem GPS-u — inaczej opisywałaby plik, którego nigdzie nie
-                // ma. Nic jej dziś nie czyta, ale suma kontrolna, która nie
-                // zgadza się z obiektem, jest gorsza niż jej brak.
-                'checksum_sha256' => hash('sha256', $oryginal),
-                'metadata' => [
-                    'original_name_length' => mb_strlen($file->getClientOriginalName()),
-                    // Bez tej wartości zdjęcia z telefonu publikowałyby się
-                    // obrócone. Osoba 50+ tego nie zgłosi, po prostu przestanie
-                    // wrzucać zdjęcia. Czytane wyżej, przy pliku na dysku.
-                    'exif_orientation' => $orientacja,
-                    // Pusta tablica, gdy podglądu nie zrobiliśmy — i wtedy
-                    // `wariantDoSerwowania()` oddaje `null`, a widok pokazuje
-                    // komunikat zastępczy. `ProcessUploadedImage` DOPISUJE do
-                    // tego `thumb`/`feed`/`large`, zamiast nadpisywać całość.
-                    'variants' => $warianty,
-                ],
-            ]);
+            // WIERSZ I ZADANIE W JEDNEJ TRANSAKCJI (issue #1456).
+            //
+            // `ProcessUploadedImage` jest JEDYNĄ drogą z `pending` do `ready`
+            // albo `rejected`, a zlecamy je raz — tutaj. Dispatch stał dawniej
+            // ZA tym blokiem: gdy zapis do `jobs` padał, zostawał wiersz
+            // `pending`, o którym nie wiedział żaden worker, i pliki, których
+            // kompensacja już nie ruszała. Człowiek dostawał błąd po uploadzie,
+            // który w połowie się udał.
+            //
+            // Kolejka jest bazodanowa, na TYM SAMYM połączeniu co `media`,
+            // z `after_commit => false` — więc INSERT do `jobs` wchodzi do tej
+            // transakcji i cofa się razem z wierszem. `afterCommit()` NIE
+            // wystarczy: przenosi zapis zadania za commit, czyli zostawia to
+            // samo okno. Założenie pilnuje `ZlecenieZdjeciaWTransakcjiTest`;
+            // inna kolejka wymaga outboxa albo reconcilera, nie tej transakcji.
+            $media = DB::connection((new Media)->getConnectionName())->transaction(function () use (
+                $owner, $disk, $dyskWariantow, $objectKey, $detectedMime, $bytes, $width, $height,
+                $altText, $oryginal, $file, $orientacja, $warianty,
+            ): Media {
+                $media = Media::create([
+                    'owner_id' => $owner->getKey(),
+                    'disk' => $disk,
+                    // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
+                    // z konfiguracji przy każdym odczycie: konfiguracja może się
+                    // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
+                    'variants_disk' => $dyskWariantow,
+                    'object_key' => $objectKey,
+                    'mime_type' => $detectedMime,
+                    'bytes' => $bytes,
+                    'width' => $width,
+                    'height' => $height,
+                    'status' => Media::STATUS_PENDING,
+                    'alt_text' => $altText,
+                    // Suma z tego, CO NAPRAWDĘ LEŻY W BUCKECIE, nie z pliku przed
+                    // zdjęciem GPS-u — inaczej opisywałaby plik, którego nigdzie nie
+                    // ma. Nic jej dziś nie czyta, ale suma kontrolna, która nie
+                    // zgadza się z obiektem, jest gorsza niż jej brak.
+                    'checksum_sha256' => hash('sha256', $oryginal),
+                    'metadata' => [
+                        'original_name_length' => mb_strlen($file->getClientOriginalName()),
+                        // Bez tej wartości zdjęcia z telefonu publikowałyby się
+                        // obrócone. Osoba 50+ tego nie zgłosi, po prostu przestanie
+                        // wrzucać zdjęcia. Czytane wyżej, przy pliku na dysku.
+                        'exif_orientation' => $orientacja,
+                        // Pusta tablica, gdy podglądu nie zrobiliśmy — i wtedy
+                        // `wariantDoSerwowania()` oddaje `null`, a widok pokazuje
+                        // komunikat zastępczy. `ProcessUploadedImage` DOPISUJE do
+                        // tego `thumb`/`feed`/`large`, zamiast nadpisywać całość.
+                        'variants' => $warianty,
+                    ],
+                ]);
+
+                try {
+                    ProcessUploadedImage::dispatch($media->getKey());
+                } catch (\Throwable $blad) {
+                    // Pełny błąd idzie do operatora; kontekst niesie tylko
+                    // identyfikator wiersza — bez nazwy pliku i bajtów.
+                    report($blad);
+
+                    // Wyjątek wychodzi z transakcji, więc wiersz się cofa,
+                    // a `catch` niżej sprząta pliki. Po tym NIC z uploadu nie
+                    // zostaje — i to jest prawdą, którą mówimy człowiekowi.
+                    throw new BladDlaCzlowieka(
+                        'Nie udało się teraz zapisać zdjęcia. Nic się nie zapisało — wyślij je jeszcze raz za chwilę.',
+                        previous: $blad,
+                    );
+                }
+
+                return $media;
+            });
         } catch (\Throwable $e) {
             $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);
 
             throw $e;
         }
-
-        ProcessUploadedImage::dispatch($media->getKey());
 
         return $media;
     }

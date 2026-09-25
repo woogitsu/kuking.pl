@@ -26,7 +26,7 @@ use Throwable;
  * typów WŁASNY termin to `Notification::terminOchronyOdwolawczej()`
  * (`ModerationAction::appealDeadline()` powiązanej decyzji), NIE liczba
  * z configu — więc ta klasa sprawdza je JEDNO PO JEDNYM (Wzorzec C), a nie
- * jednym masowym `DELETE`, jak resztę tabeli.
+ * partiami (`UsuwanieWPartiach`, #1657), jak resztę tabeli.
  *
  * Powiadomienie, którego powiązanej decyzji nie da się ustalić (odniesienie
  * puste albo skasowane), NIE jest kasowane automatycznie — patrz komentarz
@@ -62,13 +62,16 @@ final class PrzedawnionePowiadomienia
         // człowieka. Podmiana byłaby tam skróceniem obiecanego terminu.
         $prog = now()->subMonthsNoOverflow($miesiecyKarencji);
 
-        // Zwykłe powiadomienia — Wzorzec B (masowy DELETE), tak jak
-        // audit_log/product_signals: wiersz nie ma odpowiednika w storage.
-        $zwykle = Notification::query()
+        // Zwykłe powiadomienia — `DELETE` partiami z budżetem (#1657), tak
+        // jak audit_log/product_signals: wiersz nie ma odpowiednika w storage.
+        // Wyjątek odwoławczy jest w predykacie każdej partii.
+        $zwykle = fn () => Notification::query()
             ->whereNotIn('type', Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA)
             ->where('created_at', '<', $prog);
 
-        $usunieteZwykle = $naSucho ? $zwykle->count() : $zwykle->delete();
+        $usunieteZwykle = $naSucho
+            ? $zwykle()->count()
+            : UsuwanieWPartiach::zKonfiguracji()->usun($zwykle, (new Notification)->getKeyName(), 'notifications');
 
         [$usunieteModeracyjne, $zatrzymane, $bezDecyzji, $nieudane] = $this->posprzatajModeracyjne($prog, $naSucho);
 
