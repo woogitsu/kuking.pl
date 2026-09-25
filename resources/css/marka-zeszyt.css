@@ -93,6 +93,17 @@
   gap: var(--spacing-5);
 }
 
+/* Pozycja zeszytu: karta i pod nią prywatna notatka właściciela (#978). */
+.marka-zeszyt-pozycja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.notatka-zapisu-tresc {
+  overflow-wrap: anywhere;
+}
+
 .recipe-card-kafel {
   position: relative;
   align-self: start;

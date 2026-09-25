@@ -1949,6 +1949,12 @@ który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
 
+**Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
+zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
+powiadomień), puste pole zapisuje NULL, limit 500 znaków pilnowany w akcji,
+nie tylko w kolumnie. Notatkę rysuje `x-notatka-zapisu` tylko właścicielowi
+zeszytu. Bez migracji.
+
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 
