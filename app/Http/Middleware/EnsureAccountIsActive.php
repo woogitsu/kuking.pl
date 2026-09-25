@@ -84,6 +84,18 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
+        // D-258 (audyt B2-03): zawieszenie odcina od pisania, nie od
+        // ochrony. Zawieszona osoba dalej czyta serwis, więc widzi też
+        // tego, kto ją nęka — blokada niczego nie publikuje, a zdjęcie
+        // blokady to decyzja wyłącznie o własnym widoku. Zgłoszenie treści
+        // (także formularzem prawnym) to prawo z DSA art. 16, niezależne od
+        // stanu konta zgłaszającego. Przyciski „Zablokuj” i „Zgłoś” stoją na
+        // stronach, które zawieszone konto widzi — bez tych tras byłyby
+        // martwe (D-053).
+        'social.block',
+        'social.unblock',
+        'reports.store',
+        'zglos.nielegalna.store',
     ];
 
     public function handle(Request $request, Closure $next): Response
