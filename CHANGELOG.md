@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Raport właściciela (`php artisan kuking:raport`) ma nową sekcję „Historie przepisów”: ile opublikowanych w ostatnich 90 dniach przepisów ma wpisane, od kogo pochodzą, historię, rok „w rodzinie od”, gotowy skan kartki i rodzaj „Rodzinny” — same liczby i procenty, bez treści przepisów i bez nazwisk. Przy mniej niż 20 przepisach raport mówi „za mało danych” zamiast pokazywać procent (#1045).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

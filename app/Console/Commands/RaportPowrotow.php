@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
+use App\Domain\Analytics\HistoriePrzepisow;
 use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZasiegUgotowalem;
 use App\Domain\Analytics\ZrobiePonownie;
@@ -48,6 +49,9 @@ use Illuminate\Support\Collection;
  * - „Zrobię ponownie" liczy się w trzech stanach — tak / nie / brak
  *   odpowiedzi — osobno dla cudzych i własnych przepisów; brak odpowiedzi
  *   nie jest „nie" (issue #1509, `App\Domain\Analytics\ZrobiePonownie`).
+ * - „Historie przepisów” liczą, jaka część opublikowanych przepisów ma
+ *   zachowane pochodzenie — same liczniki, bez treści pól (issue #1045,
+ *   `App\Domain\Analytics\HistoriePrzepisow`).
  *
  * PUSTA BAZA NIE WYWALA KOMENDY
  * Każda z trzech klas domenowych zwraca `0`, nie wyjątek, gdy nie ma
@@ -68,6 +72,7 @@ class RaportPowrotow extends Command
         ZasiegUgotowalem $ugotowalem,
         CookRetentionCohorts $kohorty,
         ZrobiePonownie $zrobiePonownie,
+        HistoriePrzepisow $historie,
     ): int {
         $this->line('Raport powrotów — Kuking.pl');
         $this->line('Liczone teraz, na podstawie ostatniej znanej wizyty każdego konta.');
@@ -96,6 +101,9 @@ class RaportPowrotow extends Command
 
         $this->newLine();
         $this->zrobiePonownie($zrobiePonownie);
+
+        $this->newLine();
+        $this->historie($historie);
 
         $this->newLine();
         $this->kohorty($kohorty);
@@ -231,6 +239,52 @@ class RaportPowrotow extends Command
             "  {$etykieta}: tak {$w['tak']} · nie {$w['nie']} · brak odpowiedzi {$w['brak']}"
             ." · odpowiedziało {$odpowiedzi}% z {$w['wszystkie']} wykonań · {$odsetekTak}",
         );
+    }
+
+    /**
+     * „Historie przepisów” (issue #1045): licznik, mianownik i procent dla
+     * każdego śladu pochodzenia. Poniżej minimum próby — same liczniki
+     * i „za mało danych”, nigdy rozstrzygające 0%. Definicje
+     * w `App\Domain\Analytics\HistoriePrzepisow`.
+     */
+    private function historie(HistoriePrzepisow $historie): void
+    {
+        $wynik = $historie->policz();
+        $przepisy = $wynik['przepisy'];
+
+        $this->line('Historie przepisów — opublikowane w ostatnich '.HistoriePrzepisow::DNI.' dniach, wszystkie widoczności.');
+
+        if ($przepisy === 0) {
+            $this->line('  Brak opublikowanych przepisów w tym okresie — jeszcze nie da się tego policzyć.');
+
+            return;
+        }
+
+        $this->line("  Przepisy w mierniku: {$przepisy} (w tym publicznych: {$wynik['publiczne']}).");
+
+        if ($przepisy < HistoriePrzepisow::MINIMUM_PRZEPISOW) {
+            $this->line(
+                '  Za mało danych na procenty (mniej niż '.HistoriePrzepisow::MINIMUM_PRZEPISOW
+                .' przepisów) — poniżej same liczniki, nie wniosek o produkcie.',
+            );
+        }
+
+        $etykiety = [
+            'od_kogo' => '„Od kogo albo skąd masz ten przepis” wypełnione',
+            'historia' => 'Historia przepisu wypełniona',
+            'rok_rodzinny' => '„W rodzinie od roku” wypełnione',
+            'skan' => 'Gotowy skan kartki z zeszytu',
+            'rodzinny' => 'Rodzaj źródła „Rodzinny” (sam wybór opcji)',
+            'ma_slad' => 'Choć jeden konkretny ślad pochodzenia',
+            'rodzinny_ze_sladem' => '„Rodzinny” i choć jeden konkretny ślad',
+        ];
+
+        foreach (HistoriePrzepisow::MIERNIKI as $miernik) {
+            $procent = $wynik['procenty'][$miernik];
+            $ogon = $procent === null ? '' : ' ('.number_format($procent, 1, ',', '').'%)';
+
+            $this->line("  {$etykiety[$miernik]}: {$wynik['liczniki'][$miernik]} z {$przepisy}{$ogon}");
+        }
     }
 
     /** @param  array{kwalifikujacy_sie: int, wrocilo: int, procent: float|null}  $wynik */
