@@ -201,8 +201,16 @@ class KursorStartuPamietaZrodloTest extends TestCase
     private function feedTagu(?User $widz, string $sufiks): array
     {
         $tag = Tag::factory()->create(['name' => "Tag {$sufiks}"]);
-        $autor = $this->konto("autor-tagu-{$sufiks}");
-        $wpisy = $this->wpisy($autor, "Tagi {$sufiks}", 3);
+        // Trzech RÓŻNYCH autorów, nie jeden. Od #940 „Świeżo z Kuking" pokazuje
+        // najwyżej jeden wpis od osoby, więc trzy wpisy jednego autora dawały
+        // w odkrywaniu jedną pozycję i żadnej drugiej strony — test startujący
+        // z odkrywania (`tag-po-odkrywaniu`) padał na fiksturze. Feed tagu
+        // i feed obserwowanych nie zależą od liczby autorów.
+        $wpisy = collect(range(1, 3))->map(fn (int $numer) => Post::factory()->create([
+            'author_id' => $this->konto("autor-tagu-{$sufiks}-{$numer}")->getKey(),
+            'body' => "Tagi {$sufiks} {$numer}",
+            'published_at' => now()->subMinutes($numer),
+        ]));
 
         foreach ($wpisy as $pozycja => $wpis) {
             $wpis->tags()->attach($tag->getKey(), ['position' => $pozycja]);
