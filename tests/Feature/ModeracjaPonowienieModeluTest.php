@@ -11,6 +11,7 @@ use App\Models\Report;
 use App\Moderacja\KlientOpenAI;
 use App\Moderacja\ModelChwilowoNiedostepny;
 use App\Moderacja\OcenaModelem;
+use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -218,24 +219,41 @@ class ModeracjaPonowienieModeluTest extends TestCase
         )->once();
     }
 
-    public function test_ponowienie_po_porazce_nie_stawia_drugiego_oznaczenia_ani_alarmu(): void
+    /**
+     * `queue:retry` po ostatecznej porażce nie stawia drugiej pozycji
+     * w kolejce, ale pilnej oceny też nie gubi.
+     *
+     * Pierwsze oznaczenie powstało z samego lokalnego sygnału (niepilne, bez
+     * alarmu). Gdy model przy ponowieniu wskaże kategorię pilną, istniejąca
+     * sprawa dostaje alarm — dokładnie jeden, także po kolejnym ponowieniu
+     * (`AlarmujModeratora`, `alarm_pilny_zlecony_at`, #1051).
+     */
+    public function test_ponowienie_po_porazce_nie_stawia_drugiego_oznaczenia_a_pilny_alarm_idzie_raz(): void
     {
         $this->dostawcaOdpowiada([
             Http::response('', 503),
             Http::response('', 503),
             Http::response('', 503),
             // `queue:retry` po ostatecznej porażce: model tym razem odpowiada
-            // kategorią pilną.
+            // kategorią pilną — i drugi raz, przy kolejnym ponowieniu.
+            Http::response(self::ocena(['sexual/minors' => 0.99])),
             Http::response(self::ocena(['sexual/minors' => 0.99])),
         ]);
         $wpis = $this->wpis('Ciasta na zamówienie, tel. 600 100 200.');
 
-        foreach ([1, 2, 3, 1] as $numer) {
+        foreach ([1, 2, 3] as $numer) {
             $this->proba($wpis, $numer);
         }
 
         $this->assertCount(1, $this->oznaczenia());
         Notification::assertNothingSent();
+
+        $this->proba($wpis, 1);
+        $this->proba($wpis, 1);
+
+        $this->assertCount(1, $this->oznaczenia(), 'Ponowienie postawiło drugą pozycję w kolejce.');
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(Report::ALARM_ZLECONY, $this->oznaczenia()->first()->alarm_pilny_stan);
     }
 
     public function test_kazda_proba_sprawdza_widocznosc_od_nowa(): void

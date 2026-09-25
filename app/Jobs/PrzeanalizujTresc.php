@@ -132,8 +132,10 @@ class PrzeanalizujTresc implements ShouldQueue
      * Lokalne sygnały nie giną: jeśli ostatnia próba też trafi na awarię,
      * zapisujemy je bez oceny modelu, a zadanie oznaczamy jako nieudane
      * (`failed_jobs`) — to jest ślad operacyjny, że model tej treści nie
-     * ocenił. Drugiego oznaczenia ani drugiego alarmu nie będzie, nawet po
-     * `queue:retry`: pilnuje tego `OznaczDoPrzegladu`.
+     * ocenił. Drugiego oznaczenia nie będzie, nawet po `queue:retry`:
+     * pilnuje tego `OznaczDoPrzegladu`. Jeśli model przy ponowieniu wskaże
+     * kategorię pilną, istniejąca sprawa dostaje alarm — jeden, bo
+     * `AlarmujModeratora` nie wysyła drugiego (#1051).
      */
     public function handle(
         WykrywaczSygnalow $wykrywacz,
