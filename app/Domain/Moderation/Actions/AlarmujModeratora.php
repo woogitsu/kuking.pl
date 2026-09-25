@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\Sygnaly\Sygnal;
+use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilnyAlarmModeracyjny;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -29,6 +31,12 @@ use Illuminate\Support\Facades\Notification;
  * przestałby działać dokładnie wtedy, gdy jest potrzebny. Osobno liczy się
  * limit poczty: 300 listów dziennie dzielone z resztą serwisu.
  *
+ * DOBOWY SUFIT (audyt B8-02). Do 25.09.2026 każdy pilny sygnał wysyłał list
+ * bez rezerwacji w `DziennyBudzetListow` — seria wpisów oznaczonych przez
+ * model zjadała pulę, a licznik aplikacji dalej pokazywał wolne miejsce.
+ * Teraz list idzie tylko spod `dlaAlarmuAutomatu()`; po wyczerpaniu sprawa
+ * czeka w panelu, a dziennik mówi, dlaczego bez listu.
+ *
  * Pusty `alarm_email` znaczy „bez poczty" i jest normalnym stanem lokalnie
  * oraz w testach — zostaje sama kolejka w panelu.
  */
@@ -49,6 +57,16 @@ final class AlarmujModeratora
         $pilne = array_filter($sygnaly, static fn (Sygnal $s): bool => $s->pilny);
 
         if ($pilne === []) {
+            return false;
+        }
+
+        if (! DziennyBudzetListow::dlaAlarmuAutomatu()->sprobujZarezerwowac()) {
+            // Bez treści i bez danych autora — sam numer oznaczenia.
+            Log::warning('Pilne oznaczenie automatu bez listu alarmowego: dobowy sufit alarmów albo pula poczty wyczerpane.', [
+                'oznaczenie' => $oznaczenie->getKey(),
+                'co_zrobic' => 'Sprawdź kolejkę /admin/sygnaly — oznaczenie tam czeka.',
+            ]);
+
             return false;
         }
 

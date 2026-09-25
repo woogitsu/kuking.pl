@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\LoginLinkToken;
 use App\Models\User;
+use App\Poczta\ListZarezerwowany;
 use App\Support\AdresKanoniczny;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -91,7 +92,7 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             ->subject('Twój link do zalogowania w Kuking')
             ->view('mail.link-do-logowania', [
                 // KANONICZNY KORZEŃ, NIE HOST Z ŻĄDANIA (S2, D-071). Ten link

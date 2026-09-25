@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Poczta\ListZarezerwowany;
 use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
@@ -100,7 +101,7 @@ final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldQ
             60,
         );
 
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             /*
              * TEMAT MÓWI, ŻE TO ODPOWIEDŹ NA PROŚBĘ O WEJŚCIE NA KONTO,
              * I OD RAZU ZAPOWIADA RÓŻNICĘ.

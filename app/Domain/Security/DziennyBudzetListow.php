@@ -376,6 +376,25 @@ final class DziennyBudzetListow
     }
 
     /**
+     * Alarm AUTOMATU o pilnym oznaczeniu (`AlarmujModeratora`, audyt B8-02).
+     *
+     * Ta sama konstrukcja co `dlaAlarmuModeracji()` — klasa `wejscie`, żeby
+     * zalanie klasy `zwykla` nie uciszyło alarmu, i własny sufit
+     * (`moderation.model.alarm_dzienny_sufit`), który mówi, ile najwyżej
+     * ostatnich listów doby może zabrać. Licznik jest OSOBNY od alarmu
+     * o zgłoszeniu człowieka: oznaczenia wyzwala treść autora, a zgłoszenia
+     * — zgłaszający; jedno nie może wyczerpać drugiego.
+     */
+    public static function dlaAlarmuAutomatu(): self
+    {
+        return new self(
+            'alarm-automatu',
+            'kuking.moderation.model.alarm_dzienny_sufit',
+            self::wspolny(self::KLASA_WEJSCIE),
+        );
+    }
+
+    /**
      * Tygodniowe podsumowanie od gospodarza (issue #11, D-057).
      *
      * Klasa `podsumowanie`: gaśnie PIERWSZE. Podsumowanie, które nie doszło,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\Report;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -51,7 +52,7 @@ final class PilnyAlarmModeracyjny extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             ->subject('Kuking: pilna pozycja w kolejce moderacji')
             ->greeting('Dzień dobry.')
             ->line('Automat oznaczył treść, która nie powinna czekać do jutrzejszego podsumowania.')

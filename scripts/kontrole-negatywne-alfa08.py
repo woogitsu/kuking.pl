@@ -557,6 +557,10 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    # Audyt B8-02: list z rezerwacją niesie znacznik, a rejestr klas jest
+    # zamknięty w obie strony. Zgubiony znacznik = list policzony dwa razy.
+    ("Alarm automatu bez znacznika rezerwacji", "app/Notifications/PilnyAlarmModeracyjny.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "ListZarezerwowany::oznacz(new MailMessage)", "(new MailMessage)")),
 ]
 
 run_test(COLLECTION_TEST, True)

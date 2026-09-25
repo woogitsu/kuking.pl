@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Poczta\ListZarezerwowany;
 use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
@@ -75,7 +76,7 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
      */
     public function toMail($notifiable): MailMessage
     {
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             ->subject('Ustaw nowe hasło do Kuking')
             ->view('mail.nowe-haslo', [
                 // `resetUrl()` z klasy nadrzędnej, żeby link powstawał

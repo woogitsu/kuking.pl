@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Poczta\ListZarezerwowany;
 use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Bus\Queueable;
@@ -49,7 +50,7 @@ final class PotwierdzenieAdresu extends VerifyEmail implements ShouldQueue
     {
         $minut = (int) config('auth.verification.expire', 60);
 
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             ->subject('Potwierdź swój adres e-mail w Kuking')
             ->view('mail.potwierdz-adres', [
                 // `verificationUrl()` z klasy nadrzędnej: adres jest podpisany
