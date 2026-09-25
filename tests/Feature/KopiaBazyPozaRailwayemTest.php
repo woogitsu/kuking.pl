@@ -211,6 +211,7 @@ class KopiaBazyPozaRailwayemTest extends TestCase
             'docker/kopia/s3.sh',
             'docker/kopia/Dockerfile',
             'docs/infra/KOPIE_I_ODTWORZENIE.md',
+            'docs/infra/DR594_PIERWSZY_ZRZUT_WLASCICIEL.md',
         ];
 
         // Szukamy PRAWDZIWEGO bloku PEM (nagłówek + ciało base64), a nie
