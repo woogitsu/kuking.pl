@@ -390,10 +390,8 @@ class PostController extends Controller
     }
 
     /**
-     * Czy to żądanie to krok POŚREDNI („Szukaj tagów"/„Dodaj"/„Usuń"), a nie
-     * próba publikacji/zapisu (R1 §6.2 — SPEC nie precyzuje tego rozróżnienia
-     * wprost, ale formularz bez JS potrzebuje go, żeby kliknięcie „Dodaj"
-     * nie próbowało jednocześnie opublikować niedokończonego wpisu).
+     * Odpowiedź na ponowione, już opublikowane wysłanie (issue #873) — ta
+     * sama dla wczesnego rozpoznania klucza i dla zderzenia na indeksie.
      */
     private function odpowiedzNaPonowienie(Post $post, bool $question): RedirectResponse
     {
@@ -409,6 +407,12 @@ class PostController extends Controller
         );
     }
 
+    /**
+     * Czy to żądanie to krok POŚREDNI („Szukaj tagów"/„Dodaj"/„Usuń"), a nie
+     * próba publikacji/zapisu (R1 §6.2 — SPEC nie precyzuje tego rozróżnienia
+     * wprost, ale formularz bez JS potrzebuje go, żeby kliknięcie „Dodaj"
+     * nie próbowało jednocześnie opublikować niedokończonego wpisu).
+     */
     private function toAkcjaTagow(Request $request): bool
     {
         return $request->has('szukaj_tagu') || $request->filled('dodaj_tag') || $request->filled('usun_tag');
