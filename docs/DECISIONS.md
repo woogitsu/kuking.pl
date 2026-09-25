@@ -3560,6 +3560,14 @@ i wyłącznie tego.
 
 **Data:** 10 września 2026 · Issue #25 · Status: **obowiązuje**
 
+**Doprecyzowanie właściciela, 20 września 2026 (#889):** jeśli przed
+wykonaniem kolejki link wygasł albo został zastąpiony, pomijamy list.
+Nie wysyłamy dodatkowej wiadomości i nie tworzymy nowego tokenu przy
+ponowieniu zadania. Starsze zadania bez zapisanego terminu sprawdzają
+aktualność tokenu w bazie. Czas w liście odnosimy do chwili zamówienia,
+nie do doręczenia. Kontrola przy kliknięciu pozostaje rozstrzygająca:
+ważny przy wysyłce link może utracić ważność przed przeczytaniem listu.
+
 Kuking wpuszcza na konto **linkiem wysłanym pocztą**. Droga jest równorzędna
 z hasłem i widoczna wprost na ekranie logowania, a nie schowana pod „innymi
 opcjami". Adres: `/logowanie/link`.
@@ -16943,3 +16951,32 @@ Odwrócić commit w `.github/workflows/ci.yml`. Schemat bazy się nie zmienia.
 Zmienne `CI_RUNS_ON_MAIN`/`CI_RUNS_ON_BROWSER_MAIN` w ustawieniach
 repozytorium przestają być czytane i można je skasować; etykiety
 `kuking-main`/`kuking-pr` na runnerach mogą zostać bez efektu.
+
+## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)
+
+**Decyzja właściciela z 25 września 2026.** Gdy „Usuń z zeszytu” przy
+przepisie zdjęłoby go z więcej niż jednego zeszytu tej osoby, serwis
+najpierw pyta. Odwracalność („Przywróć do zeszytu” z notatkami, D-242) tego
+nie zastępuje: przycisk powrotu żyje jedno kliknięcie i znika przy
+następnym wyjęciu, a notatka, która przepadła, bo ktoś nie zauważył
+przycisku, przepadła naprawdę.
+
+### Jak to działa
+- To samo `DELETE collections.unsave` bez `collection_id`, gdy przepis leży
+  w ≥ 2 zeszytach, **oddaje stronę potwierdzenia** zamiast wyjmować
+  (`pages/collections/potwierdz-wyjecie-ze-wszystkich.blade.php`). Bez
+  JavaScriptu, bez nowej trasy; reguła stoi po stronie serwera, więc chroni
+  też stronę narysowaną, zanim przepis trafił do drugiego zeszytu.
+- Strona mówi, z ilu zeszytów zejdzie przepis i ile notatek zniknie, daje
+  „Usuń tylko z zeszytu „…”” dla każdego zeszytu, „Nie usuwaj — wróć”
+  i — odsunięte, za kreską — „Tak, usuń ze wszystkich N zeszytów”
+  (`potwierdzam_wszystkie=1`).
+- Po akcji zostaje komunikat z liczbą i „Przywróć do zeszytu” (D-242).
+- Jeden zeszyt albo wskazany `collection_id` — bez pytania, jak dotąd.
+
+### Czego to nie zmienia
+Wpisy (`collections.unsave-post`) działają jak dotąd; ta decyzja dotyczy
+przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia.
