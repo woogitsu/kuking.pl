@@ -6,6 +6,7 @@ namespace App\Domain\Tags;
 
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\FrazaWyszukiwania;
 use Illuminate\Support\Str;
 
 /**
@@ -165,8 +166,9 @@ final class TagFollowWindow
     }
 
     /**
-     * Ta sama reguła co `SearchQuery::normalize()` i `TagSuggester::normalize()`
-     * — `Str::ascii` robi z polskimi znakami to, co `unaccent` w bazie, więc
+     * Ta sama reguła co wyszukiwarka i podpowiedzi tagów
+     * (`App\Support\FrazaWyszukiwania::normalizuj()`) — `Str::ascii` robi
+     * z polskimi znakami to, co `unaccent` w bazie, więc
      * „zurek” znajduje „Żurek”. To nie jest przypadkowe podobieństwo: ekran,
      * który szuka inaczej niż wyszukiwarka obok, uczy dwóch różnych nawyków.
      *
@@ -177,6 +179,6 @@ final class TagFollowWindow
      */
     public static function normalizuj(string $fraza): string
     {
-        return mb_strtolower(Str::ascii(mb_substr($fraza, 0, self::MAKS_FRAZA)));
+        return FrazaWyszukiwania::normalizuj(mb_substr($fraza, 0, self::MAKS_FRAZA));
     }
 }
