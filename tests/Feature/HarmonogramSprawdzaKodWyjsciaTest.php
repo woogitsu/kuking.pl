@@ -85,6 +85,8 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
 
                 return $code;
             });
+            // Pusta atrapa wyjścia: komunikat zostaje w samej formie „nazwa i kod”.
+            $kernel->shouldReceive('output')->andReturn('');
             Artisan::swap($kernel);
             $mutex = Mockery::mock(EventMutex::class);
             $mutex->shouldReceive('create')->once()->with($event)->andReturnTrue();
@@ -113,7 +115,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
             } elseif ($code === 0) {
                 $this->assertNull($exception);
             } else {
-                // Wspólny adapter: nazwa komendy i kod, nic więcej.
+                // Wspólny adapter: nazwa komendy i kod (ogon wyjścia — HarmonogramPokazujePrzyczyneTest).
                 $this->assertInstanceOf(RuntimeException::class, $exception, $event->description);
                 $this->assertMatchesRegularExpression(
                     '/^Komenda harmonogramu \'kuking:[a-z-]+\' zakończyła się niepowodzeniem \(kod wyjścia: '.$code.'\)\.$/u',
