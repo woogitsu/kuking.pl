@@ -113,6 +113,7 @@ class KolejkaGospodarzaTest extends TestCase
     /** Dopisek pod cudzym komentarzem nie jest odpowiedzią na pytanie — tak jak w kolejce `questions()`. */
     public function test_mediana_pytan_liczy_tylko_glowne_odpowiedzi(): void
     {
+        config(['kuking.questions.enabled' => true]);
         $host = $this->moderator();
         $answered = Post::factory()->question()->create(['author_id' => $this->user()->id, 'published_at' => now()->subHours(10)]);
         Comment::factory()->create(['post_id' => $answered->id, 'author_id' => $host->id, 'created_at' => now()->subHours(9)]);

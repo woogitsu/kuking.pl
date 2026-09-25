@@ -26,6 +26,7 @@ use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -686,8 +687,17 @@ class PostController extends Controller
             // dołączenia `posts` ten kontroler liczyłby TEŻ dopiski autora pod
             // własnym pytaniem jako odpowiedzi, czyli dokładnie usterkę, którą
             // ta definicja miała zamknąć wszędzie naraz.
-            $odpowiedzi = $post->comments()
+            //
+            // Widoczne komentarze idą jako PODZAPYTANIE: `widoczneDla()` pisze
+            // kolumny bez tabeli (`status`), więc `join('posts')` na tym samym
+            // poziomie dawał „column reference is ambiguous” (500 na każdej
+            // stronie pytania).
+            $widoczne = $post->comments()
                 ->widoczneDla($request->user())
+                ->select('comments.*')
+                ->getQuery();
+            $odpowiedzi = DB::query()
+                ->fromSub($widoczne, 'comments')
                 ->join('posts', 'posts.id', '=', 'comments.post_id');
             OdpowiedzNaPytanie::zawez($odpowiedzi, 'comments', 'posts.author_id');
             $answerCount = $odpowiedzi->count();

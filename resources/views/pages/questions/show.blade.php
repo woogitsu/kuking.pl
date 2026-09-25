@@ -11,13 +11,11 @@
                     'name' => $post->title,
                     'text' => $post->body ?: $post->title,
                     'answerCount' => $komentarzyRazem,
-                    {{--
-                        Ta sama definicja odpowiedzi co licznik wyżej i lista
-                        `/pytania` — `OdpowiedzNaPytanie::pasuje()` (#372).
-                        Bez tego filtru dopisek autora pod własnym pytaniem
-                        („Dodam, że mam piekarnik gazowy”) wyszedłby tu jako
-                        `suggestedAnswer`, choć nikt na pytanie nie odpowiedział.
-                    --}}
+                    // Ta sama definicja odpowiedzi co licznik wyżej i lista
+                    // `/pytania` — `OdpowiedzNaPytanie::pasuje()` (#372).
+                    // Bez tego filtru dopisek autora pod własnym pytaniem
+                    // („Dodam, że mam piekarnik gazowy”) wyszedłby tu jako
+                    // `suggestedAnswer`, choć nikt na pytanie nie odpowiedział.
                     'suggestedAnswer' => $komentarze->getCollection()->filter(fn ($answer) => \App\Domain\Questions\OdpowiedzNaPytanie::pasuje($answer, $post->author_id))->map(fn ($answer) => [
                         '@type' => 'Answer',
                         'text' => $answer->body,

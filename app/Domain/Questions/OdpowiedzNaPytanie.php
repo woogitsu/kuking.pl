@@ -27,7 +27,7 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 final class OdpowiedzNaPytanie
 {
     /**
-     * @param  Builder<\App\Models\Comment>|QueryBuilder  $komentarze
+     * @param  Builder<Comment>|QueryBuilder  $komentarze
      * @param  string  $tabela  nazwa albo alias tabeli komentarzy w zapytaniu
      * @param  string  $autorPytania  kolumna z autorem pytania, np. `posts.author_id`
      */
