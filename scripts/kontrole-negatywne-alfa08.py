@@ -114,6 +114,12 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+# Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
+# zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
+# wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
+REGULY_CF = "docs/infra/cloudflare-cache-rules-597-610.json"
+REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_cache"
+REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
 # Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
@@ -156,6 +162,22 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Zmienne Railwaya per rola (#1013, #1014). Strażnik czyta `.railway/railway.ts`
+# statycznie, więc tylko mutacja dowodzi, że parser widzi bloki usług, a nie
+# pusty zbiór: sekret OAuth dopisany workerowi, klucz modelu zabrany workerowi
+# i adres alarmów zabrany schedulerowi — każda z trzech ma zapalić test.
+RAILWAY_IAC = ".railway/railway.ts"
+ZMIENNE_ROL_TEST = "ZmienneRailwayaPerRolaTest"
+# Scheduler budujący mailer w digeście musi mieć klucze EmailLabs (przegląd #1013).
+HARMONOGRAM_POCZTA_TEST = "harmonogram_budujacy_mailer_ma_klucze_poczty"
+# Klucz modelu i adres alarmu tylko na produkcji — środowisko PR jest kopią
+# bazowego, więc bez warunku preview dostałby wartości produkcji (#1014).
+TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
+# Serwis `kopia-bazy` ma zamkniętą listę zmiennych (#193): spread zestawu
+# aplikacji dałby procesowi ze zrzutem bazy APP_KEY i klucze zdjęć/poczty.
+KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
+KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
+
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -185,6 +207,12 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Rejestr wyjątków nazywa tylko istniejące symbole (audyt A5-18). Strażnik
+# czyta własną stałą REJESTR; mutacje wracają do nazw sprzed poprawki —
+# klasy, której nie ma, i stałej, której model nie definiuje.
+REJESTR_WYJATKOW = "tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php"
+REJESTR_WYJATKOW_TEST = "test_rejestr_nazywa_tylko_istniejace_klasy_i_stale"
+
 # Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
 # jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
 # końca, więc przechodzi host podszywający się sufiksem.
@@ -205,6 +233,12 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
+# Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
+# kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
+KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
+ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
 
 def digest(path):
@@ -523,6 +557,26 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
+    ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "    ...modelEnv,\n", "")),
+    ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv };")),
+    # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
+    # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
+    # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
+    # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
+    ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv };", "...czyszczenieCdnEnv };")),
+    ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
+    ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",', "KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,")),
+    ("Scheduler bez kluczy poczty przy digeście", RAILWAY_IAC, HARMONOGRAM_POCZTA_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
+    ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
+     lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
      lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
@@ -531,16 +585,28 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Rejestr wyjątków z nieistniejącą klasą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
+     lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
+    ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
+     lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
+     lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
      lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
     ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
+     lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
+    # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
+    ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
+     lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -562,12 +628,16 @@ run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(ZMIENNE_ROL_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(REJESTR_WYJATKOW_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

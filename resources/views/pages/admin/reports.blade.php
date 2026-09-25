@@ -15,14 +15,14 @@
 
     {{--
         DWA ŹRÓDŁA, DWA EKRANY — a tu jedno zdanie, żeby nikt nie musiał się
-        domyślać, na który patrzy. Liczniki nad zakładkami dotyczą zawsze
-        spraw OD LUDZI, więc przy widoku automatu trzeba powiedzieć wprost,
-        że liczby mówią o czym innym niż lista.
+        domyślać, na który patrzy. Liczniki nad zakładkami liczą to samo
+        źródło, co lista pod nimi (issue #990): przy widoku automatu —
+        oznaczenia automatu, przy zwykłym — zgłoszenia od ludzi.
     --}}
     @if($zrodlo === \App\Models\Report::SOURCE_AUTOMAT)
         <p class="notice">
             Patrzysz na <strong>oznaczenia automatu</strong>. Nikt ich nie zgłosił, a treści są
-            widoczne w serwisie normalnie. Liczby przy zakładkach dotyczą zgłoszeń od ludzi.
+            widoczne w serwisie normalnie. Liczby przy zakładkach dotyczą oznaczeń automatu.
             <a href="{{ route('admin.sygnaly') }}">Wróć do kolejki automatu</a> albo
             <a href="{{ route('admin.reports', ['status' => $status]) }}">pokaż zgłoszenia od ludzi</a>.
         </p>
