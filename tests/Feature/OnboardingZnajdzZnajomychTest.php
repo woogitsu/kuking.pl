@@ -251,6 +251,56 @@ class OnboardingZnajdzZnajomychTest extends TestCase
         $this->assertStringContainsString('Wpisz dokładniejsze imię', $wyniki);
     }
 
+    /**
+     * Issue #945 — własny profil wykluczany PRZED `LIMIT`, nie po nim.
+     * Przed poprawką pasujący własny profil zajmował jedno z sześciu miejsc,
+     * `reject()` w PHP je zwalniało i ekran pokazywał pięć osób BEZ
+     * wskazówki „Wpisz dokładniejsze imię", choć szósta osoba istniała.
+     */
+    public function test_pasujacy_wlasny_profil_nie_zabiera_miejsca_ani_komunikatu_o_dalszych_wynikach(): void
+    {
+        // Dokładnie „Basia" — najwyższe `similarity`, więc na pewno
+        // w pierwszej szóstce zwróconej przez bazę.
+        $ja = $this->user('basia', ['display_name' => 'Basia']);
+
+        foreach (range(1, 6) as $i) {
+            $this->user("basia{$i}", ['display_name' => "Basia {$i}"]);
+        }
+
+        $html = $this->actingAs($ja)
+            ->get(route('onboarding.people', ['q' => 'basia']))
+            ->assertOk()
+            ->getContent();
+
+        $wyniki = $this->wycinek($html, 'Wyniki wyszukiwania', 'Osoby, które polecamy');
+
+        $this->assertStringNotContainsString('name="follow[]" value="basia"', $wyniki);
+        $this->assertSame(5, substr_count($wyniki, 'name="follow[]"'));
+        $this->assertStringContainsString('Wpisz dokładniejsze imię', $wyniki);
+    }
+
+    public function test_pieciu_cudzych_i_wlasny_profil_to_piec_wynikow_bez_komunikatu_o_dalszych(): void
+    {
+        // Kontrola dodatnia: gdy cudzych trafień jest DOKŁADNIE pięć,
+        // wykluczenie siebie nie może udawać, że jest ich więcej.
+        $ja = $this->user('basia', ['display_name' => 'Basia']);
+
+        foreach (range(1, 5) as $i) {
+            $this->user("basia{$i}", ['display_name' => "Basia {$i}"]);
+        }
+
+        $html = $this->actingAs($ja)
+            ->get(route('onboarding.people', ['q' => 'basia']))
+            ->assertOk()
+            ->getContent();
+
+        $wyniki = $this->wycinek($html, 'Wyniki wyszukiwania', 'Osoby, które polecamy');
+
+        $this->assertStringNotContainsString('name="follow[]" value="basia"', $wyniki);
+        $this->assertSame(5, substr_count($wyniki, 'name="follow[]"'));
+        $this->assertStringNotContainsString('Wpisz dokładniejsze imię', $wyniki);
+    }
+
     // -----------------------------------------------------------------
     // RODO — nic nowego nie zapisujemy.
     // -----------------------------------------------------------------
