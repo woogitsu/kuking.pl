@@ -52,6 +52,9 @@ Konto:
   **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
+- `punishment_status`, `punishment_expires_at` — kara (`suspended`/`banned`)
+  ODŁOŻONA na czas cyklu usunięcia konta (issue #980, patrz niżej). Pola
+  sterujące: poza `$fillable`, zapisuje je wyłącznie `User` pod blokadą;
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
@@ -395,6 +398,45 @@ KUKING_ROLLBACK_KASUJ_TERMINY_KAR=true php artisan migrate:rollback
 
 Pilnuje tego `CofniecieMigracjiNieRobiKaryBezterminowejTest` (odmowa + dwie
 kontrole dodatnie).
+
+#### `punishment_status` — kara odłożona na czas usuwania konta (issue #980)
+
+Migracja `2026_09_24_100000_add_punishment_status_to_users`.
+
+`status` niósł dwa niezależne procesy — karę moderacyjną i cykl usunięcia —
+a każda operacja nadpisywała go bez patrzenia na drugi: ban po zgłoszeniu
+usunięcia wyjmował konto spod `kuking:usun-wygasle-konta` (ten wybiera
+`status = 'pending_delete'`), a zgłoszenie usunięcia po banie gubiło karę
+(cofnięcie usunięcia stawiało `active`).
+
+**Kontrakt.** Dopóki konto jest w cyklu usunięcia (`pending_delete`,
+`erased`), `status` mówi o usuwaniu, a kara czeka tutaj. Macierz przejść
+(`App\Models\User`, każde przejście na świeżym wierszu pod `ZamekKonta`):
+
+| Stan przed | `suspend()`/`ban()` | `markForDeletion()` | `cancelDeletion()` | `reinstate()` |
+|---|---|---|---|---|
+| `active` | `status` = kara | `pending_delete` | — | — |
+| `suspended`/`banned` | `status` = kara | `pending_delete`, kara → `punishment_*` | — | `active` |
+| `pending_delete` | kara → `punishment_*` | odmowa (`BladDlaCzlowieka`) | `status` = odłożona kara albo `active` | zeruje `punishment_*` |
+| `erased` | kara → `punishment_*` | odmowa | (odmawia `CancelAccountDeletion`) | zeruje `punishment_*` |
+
+Wymazanie danych zostawia `punishment_status` na wierszu jako zapis stanu
+konta w chwili wymazania; autorytatywny zapis decyzji żyje
+w `moderation_actions` (retencja: `docs/decyzje/ADR_RETENCJE.md`).
+Mechanizmu blokady ponownej rejestracji w projekcie nie ma i ta migracja go
+nie wprowadza.
+
+```sql
+CHECK (punishment_status IS NULL OR punishment_status IN ('suspended','banned'))  -- users_punishment_status_check
+CHECK (punishment_status IS NULL OR status IN ('pending_delete','erased'))        -- users_punishment_status_deletion_check
+CHECK (punishment_expires_at IS NULL OR punishment_status = 'suspended')           -- users_punishment_expires_at_check
+```
+
+**Rollback ODMAWIA** (D-088), gdy choć jedno konto ma odłożoną karę: stary
+schemat nie ma gdzie jej zapisać, a stary kod przy cofnięciu usunięcia
+ustawiłby `active`. Bez takich kont cofnięcie przechodzi i nic nie ginie.
+Testy: `BanIUsuniecieKontaNieNadpisujaSieTest`,
+`tests/Dwa/BanIUsuniecieKontaRownolegleTest`.
 
 #### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
 
@@ -3791,12 +3833,25 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
-| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
+| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` wymusza: status `new` MUSI mieć `num_nonnulls(handled_by, handled_at) = 0`, a status inny niż `new` MUSI mieć `handled_at IS NOT NULL`. `handled_by` ma `nullOnDelete()` — usunięcie konta operatora zeruje tę kolumnę i nie wywraca bazy (poprawka w `2026_09_24_100000_allow_null_handled_by_on_contact_messages`, #844). `handled_at` pozostaje nienaruszone, bo od niego liczy się retencja. |
 | `handler_note` | Notatka operatora, widoczna wyłącznie w panelu. |
+| `version` | Licznik wersji notatki i stanu, `bigint NOT NULL DEFAULT 0`, poza `$fillable`. Migracja `2026_09_24_110000_add_contact_message_version` (#846). `UpdateContactMessage` porównuje wersję formularza pod blokadą wiersza, a notatkę, stan i licznik zapisuje atomowo. Sama edycja notatki nie zmienia `handled_at` ani `handled_by` (#843). |
+
+**Wycofanie licznika wersji:** usunięcie kolumny nie zmienia treści ani dat.
+Na czas rollbacku wyłącz zapis w panelu i unieważnij otwarte sesje/formularze;
+ponowne wdrożenie zaczyna licznik od zera i nie może przyjąć starej karty.
 
 Indeksy: `contact_messages_status_created_idx (status, created_at, id)` —
 kolejka; `contact_messages_handled_at_idx (handled_at) WHERE handled_at IS
 NOT NULL` — nocna retencja.
+
+**Wycofanie poprawki #844:** migracja
+`2026_09_24_100000_allow_null_handled_by_on_contact_messages` przywraca stary
+CHECK tylko wtedy, gdy nie ma obsłużonych wiadomości bez operatora.
+W przeciwnym razie odmawia; pozostaw migrację i wycofaj sam kod aplikacji.
+Nie usuwaj historii i nie przypisuj przypadkowego operatora dla rollbacku.
+Decyzja właściciela z 20 września 2026: po fizycznym usunięciu operatora
+zachowujemy wiadomość i datę, usuwamy tylko powiązanie z kontem.
 
 **Retencja:** `config('kuking.kontakt.retention_months')` (domyślnie 12)
 miesięcy od `handled_at`, komenda `kuking:sprzataj-wiadomosci`, harmonogram
@@ -3838,6 +3893,24 @@ opowiedzieć.
 | `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |
 | `sent_at` | Kiedy dostawca potwierdził przyjęcie. CHECK `contact_message_replies_sent_complete` wiąże to ze stanem: `wyslana` MUSI mieć `sent_at`, każdy inny stan NIE MOŻE go mieć. |
 | `error` | Powód odmowy, przepuszczony przez redakcję adresów (`WyslijOdpowiedz::bezpiecznyPowod()` — ta sama lekcja co audyt A6-01). Ma odpowiadać moderatorowi na pytanie „co teraz zrobić", nie przechowywać cudzych danych. |
+| `reply_key` | UUID jednego wysłania odpowiedzi. `UNIQUE (contact_message_id, reply_key)`; `NULL` tylko w historycznych wierszach. Poza `$fillable`, zapis przez akcję domenową. Powtórzony klucz odczytuje istniejący wynik; zmieniona treść lub autor z tym samym kluczem są odrzucani. |
+| `sending_started_at` | Nullable `timestamptz`, atomowa rezerwacja przez `UPDATE ... WHERE sending_started_at IS NULL`, zatwierdzona przed pocztą. Ustawiony znacznik wyklucza ponowną wysyłkę tego formularza, również przy niepewnym wyniku. |
+| `audit_recorded_at` | Nullable `timestamptz`; znacznik i wpis `audit_log` powstają w jednej transakcji. Brak znacznika po awarii pozwala dokończyć audyt na ponowionym POST lub po wejściu na kartę. Retencja audytu nie zeruje znacznika. |
+
+Znaczniki dodaje `2026_09_24_120000_add_contact_reply_delivery_markers` (#839).
+Historyczne odpowiedzi dostają oba znaczniki z `created_at`; nie wysyłamy ich
+ani nie tworzymy ponownie dawnych wpisów audytu. `down()` odmawia, jeśli jest
+choć jeden niepusty `reply_key`, bo jego utrata umożliwiłaby duplikaty.
+Bez nowych kluczy rollback usuwa wyłącznie nowe kolumny i indeks. Przy danych
+zachowaj migrację i ochronę ponowień; nie kasuj kluczy dla wymuszenia rollbacku.
+
+Po potwierdzonej odmowie poczty stan to `nieudana`. Zerwane połączenie albo
+brak jednoznacznej odpowiedzi zachowuje `w_toku`, z ograniczonym,
+zredagowanym powodem (#840). `OdmowaEmailLabs::isConfirmedRejection()` niesie
+pewność odmowy oddzielnie od kategorii awarii; pozostałych wyjątków nie
+traktujemy jako dowodu niewysłania. Nowa świadoma próba ma nowy klucz;
+przy niepewności operator najpierw sprawdza dostawcę. Nie jest to gwarancja
+dokładnie jednego doręczenia przez zewnętrzną pocztę.
 
 **Czego tu świadomie NIE MA: adresu, na który list poszedł.** Adres jest już
 w bazie raz — `contact_messages.contact_email` (gość) albo `users.email`
@@ -4028,6 +4101,35 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### zalegle_czyszczenia_cdn
+
+Adresy skasowanych zdjęć, których cache CDN **jeszcze nie wyczyszczono**,
+migracja `2026_09_24_100000_utworz_zalegle_czyszczenia_cdn` (issue #959).
+Do niej `PurgePublicMediaCache` bez `CLOUDFLARE_ZONE_ID` albo
+`CLOUDFLARE_PURGE_TOKEN` kończył się sukcesem z samym ostrzeżeniem w logu,
+a po uzupełnieniu zmiennych nikt nie wiedział, co dokończyć.
+
+| Kolumna | Opis |
+|---|---|
+| `id bigserial` | Kolejność odkładania — `kuking:wyczysc-zalegle-cdn` bierze najstarsze. |
+| `adres varchar(2048) NOT NULL` | Pełny publiczny adres wariantu. **UNIKALNY** (`zalegle_czyszczenia_cdn_adres_unique`): czyszczenie jest idempotentne, drugie odłożenie nic nie dodaje (`insertOrIgnore`). CHECK `zalegle_czyszczenia_cdn_adres_http_check`: `adres ~ '^https?://'` — adresu względnego Cloudflare nie wyczyści nigdy. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy odłożono. |
+
+Kto pisze: zadanie na **produkcji** bez konfiguracji oraz `failed()` po
+wyczerpaniu prób (wszędzie). Kto kasuje: wyłącznie
+`ZalegleCzyszczeniaCdn::wyczysc()` — **po** potwierdzeniu Cloudflare
+(`success: true` dla każdej partii). Porażka zostawia wiersze na następny
+przebieg (co kwadrans). `/health` → `cdn_zalegle` = `czyszczenie_cdn_zalegle`,
+dopóki tabela nie jest pusta.
+
+**Rollback odmawia przy niepustej tabeli (D-088):** każdy wiersz to zdjęcie,
+które może się jeszcze otwierać z cache — często po wymazaniu konta albo
+decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
+`php artisan kuking:wyczysc-zalegle-cdn`, potem wycofuj. Pusta tabela znika
+bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
+z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
+`tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
 ### sessions
 
