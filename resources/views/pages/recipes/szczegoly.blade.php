@@ -177,7 +177,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
