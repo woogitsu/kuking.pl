@@ -9,6 +9,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Policies\ReportPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -22,6 +23,9 @@ use Tests\TestCase;
  * administratora, sam to zgłoszenie rozstrzygnąć i zbanować go — ban
  * unieważnia sesje. Razem z #1016 dawało to drogę do odcięcia wszystkich
  * administratorów.
+ *
+ * Stroną sprawy jest też ten, KOGO ona dotyczy: skargi na własny wpis
+ * albo własny profil moderator nie rozstrzyga, nawet „Bez działania".
  *
  * Każdy test odmowy sprawdza CAŁY brak skutku: konto celu nadal aktywne,
  * zgłoszenie nadal otwarte, brak wpisu w `moderation_actions` i brak wpisu
@@ -204,6 +208,114 @@ class ModeratorNieJestSedziaWeWlasnejSprawieTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(User::STATUS_SUSPENDED, $moderator->refresh()->status);
+        $this->assertSame(Report::STATUS_RESOLVED, $report->refresh()->status);
+    }
+
+    public function test_moderator_nie_rozstrzyga_zgloszenia_wlasnego_wpisu(): void
+    {
+        // Skarga NA moderatora, wniesiona przez kogoś innego. „Bez działania"
+        // oddalałoby ją ręką tego, kogo dotyczy — i odpisywało zgłaszającej,
+        // że sprawę niezależnie oceniono.
+        $moderator = $this->moderator();
+        $zglaszajaca = $this->user('zglaszajaca');
+        $wpis = Post::factory()->create(['author_id' => $moderator->getKey(), 'visibility' => 'public']);
+
+        $report = $this->zgloszenie($zglaszajaca, 'post', $wpis->getKey());
+
+        $this->rozstrzygnij($moderator, $report, ['action' => ModerationAction::ACTION_NONE])
+            ->assertSessionHasErrors(['action' => ReportPolicy::SPRAWA_O_CIEBIE]);
+
+        $this->assertBezSkutku($report, $moderator);
+    }
+
+    public function test_moderator_nie_rozstrzyga_zgloszenia_wlasnego_profilu(): void
+    {
+        $moderator = $this->moderator();
+        $zglaszajaca = $this->user('zglaszajaca');
+
+        $report = $this->zgloszenie($zglaszajaca, 'user', $moderator->getKey());
+
+        $this->rozstrzygnij($moderator, $report, ['action' => ModerationAction::ACTION_WARN])
+            ->assertSessionHasErrors(['action' => ReportPolicy::SPRAWA_O_CIEBIE]);
+
+        $this->assertBezSkutku($report, $moderator);
+    }
+
+    public function test_administrator_tez_nie_rozstrzyga_zgloszenia_wlasnej_tresci(): void
+    {
+        $admin = $this->admin();
+        $zglaszajaca = $this->user('zglaszajaca');
+        $wpis = Post::factory()->create(['author_id' => $admin->getKey(), 'visibility' => 'public']);
+
+        $report = $this->zgloszenie($zglaszajaca, 'post', $wpis->getKey());
+
+        $this->rozstrzygnij($admin, $report, ['action' => ModerationAction::ACTION_NONE])
+            ->assertSessionHasErrors(['action' => ReportPolicy::SPRAWA_O_CIEBIE]);
+
+        $this->assertBezSkutku($report, $admin);
+    }
+
+    public function test_kontrola_dodatnia_inny_moderator_rozstrzyga_zgloszenie_tresci_moderatora(): void
+    {
+        // Ta sama sprawa co wyżej trafia do KOGOŚ INNEGO i ten ktoś ją
+        // zamyka — reguła nie może zostawić skargi na moderatora bez wyjścia.
+        $autor = $this->moderator();
+        $drugi = $this->moderator();
+        $zglaszajaca = $this->user('zglaszajaca');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+
+        $report = $this->zgloszenie($zglaszajaca, 'post', $wpis->getKey());
+
+        $this->rozstrzygnij($drugi, $report, ['action' => ModerationAction::ACTION_HIDE])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(Post::STATUS_HIDDEN, $wpis->refresh()->status);
+        $this->assertSame(Report::STATUS_RESOLVED, $report->refresh()->status);
+        $this->assertSame($drugi->getKey(), $report->resolved_by);
+    }
+
+    public function test_awans_celu_miedzy_formularzem_a_zapisem_blokuje_kare(): void
+    {
+        // Moderator otwiera kolejkę, gdy cel jest zwykłym kontem. Zanim
+        // wyśle decyzję, cel dostaje rolę moderatora. Reguła rangi ma
+        // zapaść na stanie z chwili zapisu, nie z chwili wyświetlenia.
+        $moderator = $this->moderator();
+        $basia = $this->user('basia');
+        $zglaszajaca = $this->user('zglaszajaca');
+
+        $report = $this->zgloszenie($zglaszajaca, 'user', $basia->getKey());
+
+        $this->actingAs($moderator)->get(route('admin.reports'))->assertOk();
+
+        $basia->forceFill(['role' => User::ROLE_MODERATOR])->save();
+
+        $this->rozstrzygnij($moderator, $report, ['action' => ModerationAction::ACTION_BAN])
+            ->assertSessionHasErrors('action');
+
+        $this->assertBezSkutku($report, $basia);
+    }
+
+    public function test_zgloszenie_bez_konta_zglaszajacego_rozstrzyga_kazdy_moderator(): void
+    {
+        // Zgłoszenie prawne bez konta: `reporter_id IS NULL` nie jest
+        // konfliktem. Hierarchia celu nadal obowiązuje osobno.
+        $moderator = $this->moderator();
+        $basia = $this->user('basia');
+
+        $report = Report::create([
+            'reporter_id' => null,
+            'target_type' => 'user',
+            'target_id' => $basia->getKey(),
+            'reason' => 'harassment',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->rozstrzygnij($moderator, $report, [
+            'action' => ModerationAction::ACTION_SUSPEND,
+            'suspend_days' => '7',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(User::STATUS_SUSPENDED, $basia->refresh()->status);
         $this->assertSame(Report::STATUS_RESOLVED, $report->refresh()->status);
     }
 }
