@@ -4,8 +4,17 @@
 
 - Paczka z danymi konta nie zawiera już komentarzy, których nie widać na ekranie: od osób zablokowanych (w obie strony) oraz od kont zablokowanych przez moderację albo zamykanych. Dotyczy komentarzy i odpowiedzi pod przepisami, wpisami i wykonaniami; Twoje własne komentarze zostają w paczce jak dotąd (#1245).
 - „Zobacz” przy powiadomieniu o pierwszym wpisie nowej osoby otwiera ten właśnie wpis, a nie ogólną listę „Bez odpowiedzi”. Gdy wpisu nie da się już otworzyć, lista mówi to wprost (#1371).
+- Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
+
+- List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
+- Przy każdym polu hasła jest przycisk „Pokaż hasło”, który odsłania wpisane hasło, żeby przed wysłaniem sprawdzić literówkę albo włączony Caps Lock. Drugie naciśnięcie („Ukryj hasło”) znów je zasłania, a przy wysyłaniu formularza hasło zasłania się samo. Menedżer haseł i wklejanie działają jak dotąd (#948).
+
+- Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
+
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
+- Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
+- Wyszukiwarka znajduje teraz przepisy, które możecie otworzyć: osoba obserwująca autora znajdzie jego przepis „dla obserwujących”, a autor — własny przepis „tylko dla mnie”. Takie wyniki mają na karcie plakietkę „Tylko dla obserwujących” albo „Tylko dla mnie”. Gość i osoba nieobserwująca nadal widzą w wynikach wyłącznie przepisy publiczne, a szkice nie trafiają do wyników (#1320).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
@@ -13,6 +22,8 @@
 - W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
 - Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- Dalsze strony profilu, spisu tagów, Odkrywaj i Poradźcie oraz zakładki profilu i filtry Poradźcie mają własny adres kanoniczny i własny adres w karcie udostępniania. Wyszukiwarka nie traktuje już ich jako kopii pierwszej strony, a dopiski śledzące (np. utm) dalej są z adresu usuwane.
+- Profil otwarty z inną wielkością liter w nazwie (np. `/@basia_1971` zamiast `/@Basia_1971`) i każda strona otwarta przez `www` wskazują wyszukiwarce i karcie udostępniania jeden adres: zapisaną nazwę na `kuking.pl`. Stare linki dalej działają. Linki z przycisku „Podziel się” (WhatsApp, e-mail, Facebook) też prowadzą zawsze na `kuking.pl`, nawet gdy strona była otwarta przez `www`.
 
 ## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
 
