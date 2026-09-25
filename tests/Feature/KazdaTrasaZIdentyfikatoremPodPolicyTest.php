@@ -827,8 +827,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Bramką nie jest `authorize()`, tylko `DostepDoZdjecia` pytające
         // `Gate` o Policy RODZICA — dlatego ta trasa musi być zmierzona
         // żądaniem, a nie odhaczona w skanie po nazwie funkcji.
+        // Moderator ma tu ODMOWĘ, tak samo jak na stronie tego wpisu: sama
+        // rola nie otwiera już bajtów każdego zdjęcia (#1360, AUTHZ-02).
         $dodaj('media.show', 'zdjęcie z prywatnego wpisu', 'get',
-            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze
