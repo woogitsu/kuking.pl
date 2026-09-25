@@ -70,9 +70,15 @@ updates:
   # ---------------------------------------------------------------------
   # Same workflowy CI (actions/checkout, setup-php, ...) też się starzeją
   # i też bywają źródłem CVE (np. podatne wersje `actions/*`).
+  #
+  # `directory: "/"` skanuje TYLKO `.github/workflows`. Akcje composite
+  # w `.github/actions/<nazwa>/action.yml` (np. `php` z `setup-php`) Dependabot
+  # widzi dopiero, gdy wskaże się ich katalog — stąd glob w `directories`.
   # ---------------------------------------------------------------------
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "weekly"
       day: "monday"
