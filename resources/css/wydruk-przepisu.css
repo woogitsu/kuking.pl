@@ -52,6 +52,19 @@
     padding: 0;
   }
 
+  /* MINIMUM 12 pt NA KARTCE — dla KAŻDEGO tekstu, nie tylko składników
+     i kroków. Na ekranie autor, data, adres i podpisy są „drobne” (klasa
+     `.meta` i pokrewne), a przeniesione na papier jeden do jednego dawały
+     10–11 pt. `max(…, 1em)`: element dostaje co najmniej 12 pt (razy skala
+     tekstu), a większe pismo rodzica dziedziczy bez zmian. Nagłówki i listy
+     mają niżej własne, większe rozmiary z wyższą swoistością. Pomiar:
+     `scripts/wydruk-przepisu.mjs` sprawdza każdy element z tekstem;
+     `WydrukPrzepisuMaAdresTest` pilnuje, że żadna reguła druku nie schodzi
+     poniżej 12 pt. */
+  body:has(.przepis-uklad) .przepis-uklad * {
+    font-size: max(calc(12pt * var(--druk-skala)), 1em);
+  }
+
   /* Motyw ciemny nie może zużyć tonera na tło. Kolory ekranu idą w kosz,
      zostaje czarny tekst na białym. */
   body:has(.przepis-uklad) *,
@@ -67,7 +80,7 @@
   body:has(.przepis-uklad) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
-    .przepis-akcje, .podziel-sie, .danger-zone,
+    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
   body:has(.przepis-uklad) main :is(.btn, button, form) {

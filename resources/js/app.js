@@ -23,6 +23,7 @@ import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
 import './pokaz-haslo.js';
+import './drukuj-przepis.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 

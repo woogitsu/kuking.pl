@@ -39,8 +39,10 @@ const UKRYTE = [
   '.szybki-wyglad', '.pwa-install', '.okruchy', '.przepis-akcje', '.podziel-sie',
   '.przepis-autor form', '.danger-zone', '[aria-labelledby="komu-wyszlo"]',
   '[aria-labelledby="komentarze"]', 'main .btn', 'main button', 'main form',
+  '[data-drukuj-przepis]', '.druk-podpowiedz',
 ];
-// Minimum czytelności na papierze: 12 pt (= 16 px CSS) dla składników i kroków.
+// Minimum czytelności na papierze: 12 pt (= 16 px CSS) dla KAŻDEGO tekstu na
+// kartce — składników, kroków, ale też autora, daty, adresu i podpisów.
 const MIN_PISMO_PX = 16;
 // Zdjęcie główne „opcjonalnie małe”: najwyżej 6 cm wysokości.
 const MAX_ZDJECIE_PX = 6 / 2.54 * 96;
@@ -128,6 +130,8 @@ async function zmierz(strona) {
         if (styl.backgroundImage !== 'none' && el.tagName !== 'IMG') { bledy.push(`obraz tła na papierze: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')}${pseudo ?? ''}`); }
       }
       const maTekst = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+      const pismo = parseFloat(getComputedStyle(el).fontSize);
+      if (maTekst && pismo < MIN_PISMO_PX) bledy.push(`pismo poniżej 12 pt (${pismo}px): ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} „${el.textContent.trim().slice(0, 30)}”`);
       if (maTekst && kanal(getComputedStyle(el).color) > 100) bledy.push(`jasny tekst na papierze: ${el.textContent.trim().slice(0, 30)} ${getComputedStyle(el).color}`);
     }
     const tlo = getComputedStyle(document.body).backgroundColor;

@@ -417,7 +417,27 @@
                 @if($recipe->steps->isNotEmpty())
                     <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
+
+                {{--
+                    „DRUKUJ PRZEPIS” (#765). Kartka leży obok blatu, a Ctrl+P
+                    nie jest czymś, co nasza grupa zna na pamięć — stąd
+                    widoczny przycisk. To ZWYKŁY ODNOŚNIK do tej samej strony
+                    z `?druk=1`: skrypt (`resources/js/drukuj-przepis.js`)
+                    zamienia kliknięcie w `window.print()`, a bez skryptu
+                    człowiek ląduje przy instrukcji niżej, nie przy martwym
+                    przycisku (D-053). Na papier przycisk nie idzie — `main .btn`
+                    chowa `wydruk-przepisu.css`.
+                --}}
+                <a class="btn btn-secondary" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>
             </div>
+            @if(request()->boolean('druk'))
+                <div class="notice druk-podpowiedz" id="jak-wydrukowac" role="status">
+                    <p class="m-0"><strong>Jak wydrukować ten przepis:</strong></p>
+                    <p class="m-0">Na komputerze naciśnij razem klawisze <kbd>Ctrl</kbd> i <kbd>P</kbd> (na komputerze Apple: <kbd>Cmd</kbd> i <kbd>P</kbd>).</p>
+                    <p class="m-0">Na telefonie otwórz menu przeglądarki (trzy kropki albo „Udostępnij”) i wybierz „Drukuj”.</p>
+                    <p class="m-0">Na kartce będzie sam przepis — bez menu, przycisków i komentarzy.</p>
+                </div>
+            @endif
 
             {{-- „Podziel się" POD paskiem akcji, a nie w nim.
 
