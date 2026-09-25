@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dziennik serwera zapisuje przy każdym wejściu ten sam adres, którego serwis używa do limitów prób i śladu w dzienniku zdarzeń. Wcześniej serwer brał adres z części nagłówka, którą może wpisać sam odwiedzający, więc ślad po nadużyciu mógł prowadzić pod cudzy adres (#1306).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
