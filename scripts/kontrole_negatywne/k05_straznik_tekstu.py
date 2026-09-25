@@ -21,9 +21,9 @@ PUNKT_WEJSCIA_TEST = "test_punkt_wejscia_kontroli_nie_ma_wpisow_w_starym_ukladzi
 
 
 def bez_wpisu_dla_straznika(source):
-    """KONTROLA DODATNIA 1: zabierz strażnikowi jego własny wpis w tym pliku.
+    """KONTROLA DODATNIA 1: zabierz strażnikowi jego własne wpisy w tym pliku.
 
-    Strażnik szuka tu swojej nazwy klasy. Po podmianie nie znajdzie jej, uzna
+    Strażnik szuka tu swojej nazwy klasy i nazw swoich metod `test_…`. Po podmianie nie znajdzie jej, uzna
     sam siebie za strażnika tekstu bez pokrycia i ma zapalić. Podmieniamy samą
     wartość stałej, nie wpis w `KONTROLE` — dzięki temu mutacja nie rusza tego,
     KTÓRY test zostanie uruchomiony (ten stoi już w pamięci procesu).
@@ -34,8 +34,15 @@ def bez_wpisu_dla_straznika(source):
     # strażnik znajdowałby swoją nazwę także po mutacji, więc kontrola dodatnia
     # nigdy by nie zapaliła. Zmierzone przy pierwszym uruchomieniu, 20.09.2026.
     stara = 'STRAZNIK_TEKSTU_TEST = "' + STRAZNIK_TEKSTU_TEST + '"'
+    source = replace_once(source, stara, 'STRAZNIK_TEKSTU_TEST = "WpisZabranyPrzezKontroleDodatnia"')
 
-    return replace_once(source, stara, 'STRAZNIK_TEKSTU_TEST = "WpisZabranyPrzezKontroleDodatnia"')
+    # Metoda `PUNKT_WEJSCIA_TEST` należy do TEJ SAMEJ klasy strażnika, a on
+    # uznaje za pokrycie także nazwę samej metody w cudzysłowie. Bez tej
+    # podmiany strażnik po mutacji nadal znajdował pokrycie przez kontrolę 3
+    # i kontrola dodatnia nie zapalała (CI #1478, 25.09.2026).
+    stara = 'PUNKT_WEJSCIA_TEST = "' + PUNKT_WEJSCIA_TEST + '"'
+
+    return replace_once(source, stara, 'PUNKT_WEJSCIA_TEST = "WpisZabranyPrzezKontroleDodatnia"')
 
 
 def bez_znacznika_odstepstwa(source):
