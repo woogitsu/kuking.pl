@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- `.env.example` nie wymieniał `CLOUDFLARE_ZONE_ID` ani `CLOUDFLARE_PURGE_TOKEN`, mimo że `config/kuking.php` (czyszczenie cache CDN po usunięciu zdjęcia, #959) je czyta, a runbook opisuje jako wymagane. Szablon środowiska ma teraz obie zmienne, puste, z komentarzem o zakresie tokenu i skutku ich braku (#1741).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
