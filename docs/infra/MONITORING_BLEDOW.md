@@ -295,7 +295,9 @@ połykał wyjątek połączenia, a nieudane żądanie HTTP wyjątku nawet nie rz
 Kanał wyciszony i kanał sprawny wyglądały identycznie. Teraz
 `WebhookBleduHandler` zapisuje sam fakt niedodzwonienia się do dziennika
 serwera („Nie udało się zadzwonić na webhook błędów. Wiadomość przepadła.",
-kanał `single` — nigdy ten kanał, bo to byłaby pętla), a `/health` **oddaje
+kanał `stderr` — nigdy ten kanał, bo to byłaby pętla; do 24 września 2026 był
+to kanał `single`, ale Railway pokazuje w panelu wyłącznie `stdout`/`stderr`,
+nie plik na dysku kontenera, patrz #599), a `/health` **oddaje
 wtedy swój 30-minutowy odstęp**, więc następne odpytanie dzwoni jeszcze raz.
 Jedna sekunda niedostępności Discorda nie kupuje pół godziny ciszy
 o trwającej awarii.
