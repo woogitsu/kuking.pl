@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Compliance;
 
+use App\Domain\Moderation\KolejkiPanelu;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -48,11 +50,28 @@ use Throwable;
  * ADR każe trzymać wszystkie trzy kroki w JEDNEJ komendzie, żeby dziennik
  * działania opisywał całą "sprawę" spójnie.
  *
- * WZORZEC C — TRANSAKCJA PER WIERSZ, NIE ŚLEPY MASOWY `DELETE`
+ * WZORZEC C — PARTIA W TRANSAKCJI, A PRZY BŁĘDZIE WIERSZ PO WIERSZU
  * W odróżnieniu od `product_signals`/`audit_log`/`notifications`, te trzy
  * tabele zależą od siebie przez klucze obce z różnym zachowaniem przy
- * kasowaniu, więc każdy wiersz jest osobną transakcją i osobną próbą —
- * błąd jednego nie blokuje reszty listy, a zostaje log z identyfikatorem.
+ * kasowaniu, więc nie ma tu ślepego `DELETE ... WHERE` na całą tabelę.
+ * Kandydaci idą partiami po `ROZMIAR_PARTII` identyfikatorów; partia jest
+ * jednym `DELETE ... WHERE id IN (...)` w transakcji. Gdy partia padnie,
+ * jest wycofana w całości i powtórzona wiersz po wierszu — błąd jednego nie
+ * blokuje reszty listy, a zostaje log z identyfikatorem (issue #998).
+ *
+ * BUDŻET PRZEBIEGU (issue #998). Jeden przebieg rusza najwyżej
+ * `BUDZET_PRZEBIEGU` wierszy z każdej tabeli. Wcześniej cały backlog szedł
+ * do pamięci jednym `get()` i był kasowany rekord po rekordzie — po
+ * dłuższej przerwie harmonogramu albo przy pierwszym uruchomieniu na starej
+ * bazie to był przebieg bez końca. Reszta czeka na następną noc, a raport
+ * mówi, ile jej zostało.
+ *
+ * ODŚWIEŻENIE LICZNIKÓW KOLEJEK RAZ, NIE PER WIERSZ. `AppServiceProvider`
+ * przelicza `KolejkiPanelu` po każdym `deleted` na `Appeal` i `Report`.
+ * Kasowanie zbiorcze tych zdarzeń nie wywołuje, więc ta klasa odświeża
+ * liczniki sama — jeden raz na koniec przebiegu, jeśli cokolwiek zniknęło.
+ * Skutek jest ten sam (liczniki po sprzątaniu są świeże), a koszt nie rośnie
+ * z liczbą skasowanych wierszy. Innych obserwatorów te trzy modele nie mają.
  *
  * BŁĄD PRZY KASOWANIU ODWOŁANIA MUSI ZABLOKOWAĆ KASOWANIE JEGO DECYZJI
  * (ADR §5.4) — nie może "zgadywać", że się udało. Jeśli transakcja kasująca
@@ -76,6 +95,17 @@ use Throwable;
  */
 final class PrzedawnioneSprawyModeracyjne
 {
+    /** Ile identyfikatorów idzie w jednym `DELETE ... WHERE id IN (...)`. */
+    public const ROZMIAR_PARTII = 500;
+
+    /** Ile wierszy z KAŻDEJ z trzech tabel rusza jeden przebieg. */
+    public const BUDZET_PRZEBIEGU = 20000;
+
+    public function __construct(
+        private readonly int $rozmiarPartii = self::ROZMIAR_PARTII,
+        private readonly int $budzetPrzebiegu = self::BUDZET_PRZEBIEGU,
+    ) {}
+
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiSpraw
     {
         // `subMonthsNoOverflow`, NIE `subMonths` — ta sama pułapka co
@@ -90,6 +120,27 @@ final class PrzedawnioneSprawyModeracyjne
 
         [$usunieteZgloszenia, $bledyZgloszen] = $this->posprzatajZgloszenia($prog, $naSucho);
 
+        if ($usunieteOdwolania + $usunieteDecyzje + $usunieteZgloszenia > 0) {
+            app(KolejkiPanelu::class)->odswiez();
+        }
+
+        // Ile kandydatów zostało na następny przebieg — bo nie zmieścili się
+        // w budżecie albo ich skasowanie padło. Na sucho nic nie znika, więc
+        // „zostało” nie ma sensu i zostaje zerem.
+        $pozostalo = $naSucho ? 0 : $this->odwolaniaDoSkasowania($prog)->count()
+            + $this->decyzjeDoSkasowania($prog)->count()
+            + $this->zgloszeniaDoSkasowania($prog)->count();
+
+        // Harmonogram woła komendę przez `Artisan::call()`, więc jej wyjście
+        // nigdzie nie trafia — backlog, który nie mieści się w budżecie, musi
+        // być widoczny w dzienniku serwera, inaczej nikt się o nim nie dowie.
+        if ($pozostalo > 0) {
+            Log::warning('Retencja spraw moderacyjnych: część kandydatów czeka na następny przebieg', [
+                'pozostalo' => $pozostalo,
+                'budzet_przebiegu_na_tabele' => $this->budzetPrzebiegu,
+            ]);
+        }
+
         return new RaportRetencjiSpraw(
             usunieteOdwolania: $usunieteOdwolania,
             bledyOdwolan: $bledyOdwolan,
@@ -98,40 +149,29 @@ final class PrzedawnioneSprawyModeracyjne
             pominieteDecyzjeZywymOdwolaniem: $pominieteZywymOdwolaniem,
             usunieteZgloszenia: $usunieteZgloszenia,
             bledyZgloszen: $bledyZgloszen,
+            pozostaloNaKolejnyPrzebieg: $pozostalo,
         );
     }
 
     /** @return array{0: int, 1: int} [usunięto, błędy] */
     private function posprzatajOdwolania(CarbonInterface $prog, bool $naSucho): array
     {
-        $kandydaci = Appeal::query()
+        if ($naSucho) {
+            return [$this->odwolaniaDoSkasowania($prog)->count(), 0];
+        }
+
+        return $this->skasujPartiami(
+            fn (): Builder => $this->odwolaniaDoSkasowania($prog),
+            'Nie udało się skasować przedawnionego odwołania',
+            'appeal_id',
+        );
+    }
+
+    private function odwolaniaDoSkasowania(CarbonInterface $prog): Builder
+    {
+        return Appeal::query()
             ->whereIn('status', [Appeal::STATUS_UPHELD, Appeal::STATUS_OVERTURNED])
             ->where('decided_at', '<', $prog);
-
-        if ($naSucho) {
-            return [$kandydaci->count(), 0];
-        }
-
-        $usuniete = 0;
-        $bledy = 0;
-
-        foreach ($kandydaci->get() as $odwolanie) {
-            try {
-                DB::transaction(static function () use ($odwolanie): void {
-                    $odwolanie->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionego odwołania', [
-                    'appeal_id' => $odwolanie->getKey(),
-                    'moderation_action_id' => $odwolanie->moderation_action_id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return [$usuniete, $bledy];
     }
 
     /**
@@ -192,58 +232,107 @@ final class PrzedawnioneSprawyModeracyjne
             ->whereExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false))
             ->count();
 
-        $kandydaci = ModerationAction::query()
-            ->where('created_at', '<', $prog)
-            ->whereNotExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false))
-            ->get();
-
-        $usuniete = 0;
-        $bledy = 0;
-
-        foreach ($kandydaci as $decyzja) {
-            try {
-                DB::transaction(static function () use ($decyzja): void {
-                    $decyzja->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionej decyzji moderacyjnej', [
-                    'moderation_action_id' => $decyzja->getKey(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        [$usuniete, $bledy] = $this->skasujPartiami(
+            fn (): Builder => $this->decyzjeDoSkasowania($prog),
+            'Nie udało się skasować przedawnionej decyzji moderacyjnej',
+            'moderation_action_id',
+        );
 
         return [$usuniete, $bledy, $pominiete];
+    }
+
+    /**
+     * Decyzje bez JAKIEGOKOLWIEK wiersza `appeals` (tryb normalny, po kroku 1).
+     * Warunek wraca także w samym `DELETE` każdej partii, więc odwołanie
+     * złożone w trakcie przebiegu chroni swoją decyzję przed kaskadą.
+     */
+    private function decyzjeDoSkasowania(CarbonInterface $prog): Builder
+    {
+        return ModerationAction::query()
+            ->where('created_at', '<', $prog)
+            ->whereNotExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false));
     }
 
     /** @return array{0: int, 1: int} [usunięto, błędy] */
     private function posprzatajZgloszenia(CarbonInterface $prog, bool $naSucho): array
     {
-        $kandydaci = Report::query()
-            ->whereIn('status', [Report::STATUS_RESOLVED, Report::STATUS_REJECTED])
-            ->where('resolved_at', '<', $prog);
-
         if ($naSucho) {
-            return [$kandydaci->count(), 0];
+            return [$this->zgloszeniaDoSkasowania($prog)->count(), 0];
         }
 
+        return $this->skasujPartiami(
+            fn (): Builder => $this->zgloszeniaDoSkasowania($prog),
+            'Nie udało się skasować przedawnionego zgłoszenia',
+            'report_id',
+        );
+    }
+
+    private function zgloszeniaDoSkasowania(CarbonInterface $prog): Builder
+    {
+        return Report::query()
+            ->whereIn('status', [Report::STATUS_RESOLVED, Report::STATUS_REJECTED])
+            ->where('resolved_at', '<', $prog);
+    }
+
+    /**
+     * Kasuje kandydatów partiami, najwyżej `budzetPrzebiegu` wierszy.
+     *
+     * Identyfikatory idą stronami po kluczu (`id > ostatni`), nie przez
+     * `OFFSET` — skasowane wiersze znikają z wyniku, więc przesunięcie
+     * przeskakiwałoby żywych kandydatów. Wiersz, którego nie dało się
+     * skasować, zostaje w tabeli, ale kursor jest już za nim: ten przebieg do
+     * niego nie wraca, następny spróbuje znowu.
+     *
+     * Każdy `DELETE` powtarza warunek kandydata (`$kandydaci()`), a nie
+     * tylko listę identyfikatorów — między odczytem a kasowaniem sprawa mogła
+     * zostać otwarta na nowo albo dostać odwołanie.
+     *
+     * @param  \Closure(): Builder  $kandydaci
+     * @return array{0: int, 1: int} [usunięto, błędy]
+     */
+    private function skasujPartiami(\Closure $kandydaci, string $komunikatBledu, string $kluczLogu): array
+    {
         $usuniete = 0;
         $bledy = 0;
+        $ruszone = 0;
+        $ostatni = null;
 
-        foreach ($kandydaci->get() as $zgloszenie) {
+        while ($ruszone < $this->budzetPrzebiegu) {
+            /** @var list<string> $partia */
+            $partia = $kandydaci()
+                ->when($ostatni !== null, static fn (Builder $q) => $q->where($q->qualifyColumn('id'), '>', $ostatni))
+                ->orderBy($kandydaci()->qualifyColumn('id'))
+                ->limit(min($this->rozmiarPartii, $this->budzetPrzebiegu - $ruszone))
+                ->pluck('id')
+                ->map(static fn ($id): string => (string) $id)
+                ->all();
+
+            if ($partia === []) {
+                break;
+            }
+
+            $ruszone += count($partia);
+            $ostatni = end($partia);
+
             try {
-                DB::transaction(static function () use ($zgloszenie): void {
-                    $zgloszenie->delete();
-                });
-                $usuniete++;
-            } catch (Throwable $e) {
-                $bledy++;
-                Log::error('Nie udało się skasować przedawnionego zgłoszenia', [
-                    'report_id' => $zgloszenie->getKey(),
-                    'error' => $e->getMessage(),
-                ]);
+                $usuniete += DB::transaction(static fn (): int => $kandydaci()->whereKey($partia)->delete());
+
+                continue;
+            } catch (Throwable) {
+                // Partia wycofana w całości — niżej wiersz po wierszu, żeby
+                // jeden zły wiersz nie zatrzymał pięciuset dobrych.
+            }
+
+            foreach ($partia as $id) {
+                try {
+                    $usuniete += DB::transaction(static fn (): int => $kandydaci()->whereKey($id)->delete());
+                } catch (Throwable $e) {
+                    $bledy++;
+                    Log::error($komunikatBledu, [
+                        $kluczLogu => $id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 
