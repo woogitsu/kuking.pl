@@ -110,7 +110,8 @@ class OdmianaPorcjiTest extends TestCase
 
     public function test_json_ld_podaje_google_prawdziwa_liczbe_porcji(): void
     {
-        $recipe = Recipe::factory()->create([
+        // `Recipe` w JSON-LD tylko przy gotowym zdjęciu (#1005).
+        $recipe = Recipe::factory()->zeZdjeciem()->create([
             'author_id' => $this->user('autorka')->getKey(),
             'servings' => 1.5,
             'slug' => 'poltorej-porcji-do-google',
