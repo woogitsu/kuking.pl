@@ -102,7 +102,9 @@ final class SondaWdrozeniaTest extends TestCase
     ): void {
         $root = dirname(__DIR__, 2);
         $workflow = file_get_contents($root.'/.github/workflows/preview.yml');
-        $count = preg_match_all('/      - name: Usuń środowisko PR\R        run: \|\R((?:          .*\R|\R)+)/u', $workflow, $matches);
+        // Między nazwą a `run:` mogą stać komentarz i `env:` kroku (RAILWAY_TOKEN
+        // tylko w tym kroku, audyt B10-02) — liczy się sam wykonywany skrypt.
+        $count = preg_match_all('/      - name: Usuń środowisko PR\R(?:        (?!run:).*\R)*        run: \|\R((?:          .*\R|\R)+)/u', $workflow, $matches);
         $this->assertSame(1, $count, 'Test musi znaleźć dokładnie jeden wykonywany krok usuwania.');
         $script = preg_replace('/^          /m', '', $matches[1][0]);
         $script = str_replace('${{ github.event.inputs.pr_number }}', '999999', $script);

@@ -64,3 +64,6 @@ Thumbs.db
 
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
+
+# Pamięć podręczna Pythona (scripts/*.py)
+__pycache__/
