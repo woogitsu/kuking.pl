@@ -57,7 +57,7 @@ class RailwayCliPrzypietaWersjaTest extends TestCase
                 $this->assertMatchesRegularExpression(
                     '/@railway\/cli@\d+\.\d+\.\d+/',
                     $bezKomentarza,
-                    "{$plik}:".($numer + 1)." — `@railway/cli` bez przypiętej wersji. ".
+                    "{$plik}:".($numer + 1).' — `@railway/cli` bez przypiętej wersji. '.
                     'Bez `@X.Y.Z` npm instaluje `latest` w chwili uruchomienia, obok tokenu Railway. '.
                     'Przypnij: `npm install -g @railway/cli@<x.y.z>` (audyt B10-02).',
                 );
