@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Tags\LiczbyTagowWCache;
+use App\Domain\Tags\TagCollage;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
@@ -47,6 +49,9 @@ if ($mode === 'przywroc') {
     if (isset($saved['photo681'])) {
         Storage::disk('public')->delete($saved['photo681']['key']);
     }
+    $wszystkie = Tag::pluck('id')->map(fn ($id): string => (string) $id)->all();
+    TagCollage::zapomnijGoscia($wszystkie);
+    LiczbyTagowWCache::zapomnij($wszystkie);
     if (TagPromotion::all()->keyBy('tag_id')->map(fn ($p) => $p->getAttributes())->all() != collect($saved['promotions'])->keyBy('tag_id')->all() || Tag::orderBy('id')->pluck('id')->all() !== $saved['tag_ids']) {
         throw new RuntimeException('Nie odtworzono promocji515.');
     }
@@ -76,6 +81,13 @@ if ($mode === 'fotografia') {
             'metadata' => ['variants' => array_fill_keys(['thumb', 'feed', 'large'], $variant)]]);
         $post->media()->attach($media);
     });
+    // Strony tagów trzymają dobór kolażu i liczby gościa w cache
+    // (audyt B4 W2). Wcześniejsze kroki pomiaru odwiedzają `/tagi` jako
+    // gość w stanie bez tego zdjęcia, więc bez unieważnienia katalog przez
+    // `CACHE_SEKUND` pokazywałby stary, pusty kolaż (K681_BRAK_FOTOGRAFII).
+    $tagId = (string) Tag::where('slug', 'pomiar515-1')->value('id');
+    TagCollage::zapomnijGoscia([$tagId]);
+    LiczbyTagowWCache::zapomnij([$tagId]);
     exit;
 }
 TagPromotion::query()->delete();

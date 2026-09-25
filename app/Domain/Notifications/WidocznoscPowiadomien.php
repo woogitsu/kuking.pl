@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * JEDEN KONTRAKT WIDOCZNOŚCI POWIADOMIEŃ (issue #1687, etap 1).
@@ -61,9 +62,16 @@ final class WidocznoscPowiadomien
      */
     public function zawez(Builder $query, User $viewer): Builder
     {
+        // `recipe.saved` NIE idzie przez filtry sprawcy (ten niżej i ten po
+        // statusie): to partia wielu osób (D-070), a `actor_id` trzyma tylko
+        // pierwszą. Ukrycie całego „A oraz 2 inne osoby…” dlatego, że autor
+        // zablokował A PO jej zapisie, gubiło B i C — i każdą kolejną osobę
+        // dopisaną do tego ukrytego wiersza (przegląd PR #1213). Ta partia
+        // ma własny warunek, po całej liście, w `widocznaPartiaZapisow()`.
         $query->whereNotExists(function (QueryBuilder $sub) use ($viewer): void {
             $sub->selectRaw('1')
                 ->from('blocks')
+                ->where('notifications.type', '!=', Notification::TYPE_SAVED)
                 ->where(function (QueryBuilder $warunek) use ($viewer): void {
                     $warunek
                         ->where(function (QueryBuilder $ja) use ($viewer): void {
@@ -94,6 +102,17 @@ final class WidocznoscPowiadomien
             $query->where('notifications.type', '!=', Notification::TYPE_APPEAL_FILED);
         }
 
+        // `post.first` — ta sama zasada, inna zdolność (issue #1351).
+        // Alert prowadzi do kolejki „Bez odpowiedzi", do której wstęp daje
+        // `moderate` (`BezOdpowiedziController::index()`), a odbiorcę
+        // wybiera `PublishPost` z `host_username` BEZ pytania o rolę. Po
+        // odebraniu roli, przy zawieszeniu albo gdy gospodarzem jest zwykłe
+        // konto, „Zobacz" kończyłoby się odmową. Wiersz i `first_post_events`
+        // zostają — po nadaniu roli alert wraca.
+        if (! $viewer->isModerator()) {
+            $query->where('notifications.type', '!=', Notification::TYPE_FIRST_POST);
+        }
+
         /*
          * SPRAWCA ZDARZENIA ZBANOWANY ALBO OZNACZONY DO USUNIĘCIA PO FAKCIE.
          *
@@ -119,9 +138,12 @@ final class WidocznoscPowiadomien
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')
+                ->where('notifications.type', '!=', Notification::TYPE_SAVED)
                 ->whereColumn('sprawcy.id', 'notifications.actor_id')
                 ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
         });
+
+        $this->widocznaPartiaZapisow($query, $viewer);
 
         /*
          * POWIADOMIENIE O KOMENTARZU, KTÓREGO TREŚĆ ZNIKŁA ALBO DO KTÓREJ
@@ -202,5 +224,63 @@ final class WidocznoscPowiadomien
         });
 
         return $query;
+    }
+
+    /**
+     * Partia zapisów (D-070) jest widoczna, dopóki JEDNA osoba z `data.savers`
+     * jest dla odbiorcy widoczna — te same dwie reguły, co filtry sprawcy
+     * w `zawez()` (blokada w obie strony, `User::STATUSY_UKRYWAJACE_TRESC`),
+     * tylko liczone po liście, nie po `actor_id`.
+     *
+     * Gdy niewidoczni są WSZYSCY, wiersz znika z listy i z licznika —
+     * dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokady
+     * nie kasują wiersza: odblokowanie pokazuje go z powrotem.
+     *
+     * Wiersze sprzed zbiorczych zapisów nie mają `savers` — wtedy lista to
+     * sam `actor_id`. Brak sprawcy (`actor_id IS NULL`) przechodzi zawsze,
+     * z tego samego powodu co przy filtrach wyżej.
+     *
+     * @param  Builder<Notification>  $query
+     */
+    private function widocznaPartiaZapisow(Builder $query, User $viewer): void
+    {
+        $query->where(function (Builder $warunek) use ($viewer): void {
+            $warunek->where('notifications.type', '!=', Notification::TYPE_SAVED)
+                ->orWhereNull('notifications.actor_id')
+                ->orWhereExists(function (QueryBuilder $sub) use ($viewer): void {
+                    $sub->selectRaw('1')
+                        ->fromRaw(
+                            "jsonb_array_elements_text(COALESCE(notifications.data->'savers', jsonb_build_array(notifications.actor_id))) AS zapisujacy_z_partii(id)",
+                        )
+                        ->join('users as zapisujacy', 'zapisujacy.id', '=', DB::raw('zapisujacy_z_partii.id::uuid'))
+                        ->whereNotIn('zapisujacy.status', User::STATUSY_UKRYWAJACE_TRESC)
+                        ->whereNotExists(function (QueryBuilder $blokada) use ($viewer): void {
+                            self::blokadaZOdbiorca($blokada, 'zapisujacy.id', (string) $viewer->getKey());
+                        });
+                });
+        });
+    }
+
+    /**
+     * `blocks` w obie strony między kolumną z osobą a odbiorcą — jedno
+     * miejsce dla warunku widoczności partii i dla wyboru imienia do
+     * pokazania (`Notification::zapisujacyDoPokazania()`), żeby lista
+     * i nagłówek nie rozjechały się co do tego, kto jest widoczny.
+     */
+    public static function blokadaZOdbiorca(QueryBuilder $sub, string $kolumnaOsoby, string $odbiorcaId): void
+    {
+        $sub->selectRaw('1')
+            ->from('blocks')
+            ->where(function (QueryBuilder $warunek) use ($kolumnaOsoby, $odbiorcaId): void {
+                $warunek
+                    ->where(function (QueryBuilder $ja) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $ja->where('blocks.blocker_id', $odbiorcaId)
+                            ->whereColumn('blocks.blocked_id', $kolumnaOsoby);
+                    })
+                    ->orWhere(function (QueryBuilder $on) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $on->whereColumn('blocks.blocker_id', $kolumnaOsoby)
+                            ->where('blocks.blocked_id', $odbiorcaId);
+                    });
+            });
     }
 }

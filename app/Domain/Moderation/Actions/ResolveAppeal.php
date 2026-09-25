@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
@@ -219,6 +220,12 @@ final class ResolveAppeal
                 // Odpowiedź na odwołanie idzie osobno i mówi to samo lepiej.
                 zPowiadomieniem: false,
             );
+        } catch (WlasnejTresciNiePrzywracasz $odmowa) {
+            // Własnej treści nie przywracasz nawet z odwołania (#1479).
+            // Połknięcie zamknęłoby odwołanie jako „cofam" przy treści, która
+            // dalej jest schowana. Nic jeszcze nie zapisaliśmy — odmowa
+            // wychodzi do formularza, a sprawę zamknie ktoś inny.
+            throw $odmowa;
         } catch (BladDlaCzlowieka) {
             // „Ta treść jest już widoczna" — nie ma czego cofać. Patrz wyżej.
             // Tylko to: `RuntimeException` połykałby tu także `QueryException`
