@@ -202,6 +202,12 @@ final class CollectUserExportData
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
             ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'comments.replies.author.profile', 'comments.author.profile'])
+            // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
+            // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
+            // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
+            // to 500 round-tripów w zadaniu z limitem 900 s. Nie ładujemy
+            // samych wykonań: paczka potrzebuje tylko liczby.
+            ->withCount('cookedEvents')
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -244,7 +250,7 @@ final class CollectUserExportData
                 'minutnik_sekundy' => $step->timer_seconds,
                 'zdjecie' => $photos->pathFor($step->media_id),
             ])->all(),
-            'ile_razy_ugotowany_przez_innych' => $recipe->cookedEvents()->count(),
+            'ile_razy_ugotowany_przez_innych' => (int) $recipe->cooked_events_count,
             'komentarze' => $this->foreignComments($recipe->comments),
         ])->all();
     }

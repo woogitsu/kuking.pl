@@ -14,7 +14,9 @@ use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\TagHighlight;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -116,18 +118,6 @@ class FeedController extends Controller
             default => 'odkrywanie',
         };
 
-        // Własne wpisy w feedzie zastępczym (issue #1318, decyzja właściciela
-        // z 24.09). `FollowingFeed` zawsze je pokazywał, ale osoba bez
-        // obserwowanych dostawała tagi albo odkrywanie — i własnego wpisu
-        // „tylko dla obserwujących" nie widziała na Starcie wcale. Flaga
-        // widoku mówi tylko, czy nagłówek ma wspomnieć o jej wpisach:
-        // nie obiecujemy „samych cudzych", kiedy stoją tam też jej własne.
-        $wlasneWFeedzie = $zrodlo !== 'obserwowani' && $user->posts()
-            ->enabledKinds()
-            ->published()
-            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
-            ->exists();
-
         // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
         // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
         // człowiek wyłączył tę mechanikę; widok NIE ma pustego stanu, bo
@@ -172,6 +162,22 @@ class FeedController extends Controller
             ->limit(3)
             ->get();
 
+        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $request->query->has('cursor'));
+
+        // Własne wpisy w feedzie zastępczym (issue #1318, decyzja właściciela
+        // z 24.09). `FollowingFeed` zawsze je pokazywał, ale osoba bez
+        // obserwowanych dostawała tagi albo odkrywanie — i własnego wpisu
+        // „tylko dla obserwujących" nie widziała na Starcie wcale. Flaga
+        // widoku mówi tylko, czy nagłówek ma wspomnieć o jej wpisach:
+        // nie obiecujemy „samych cudzych", kiedy stoją tam też jej własne.
+        // Liczone PO `pierwszaStronaZrodla()` (#983): źródło może się tam
+        // zmienić, a flaga ma opisywać wpisy, które faktycznie pokazujemy.
+        $wlasneWFeedzie = $zrodlo !== 'obserwowani' && $user->posts()
+            ->enabledKinds()
+            ->published()
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->exists();
+
         return view('pages.home', [
             'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
             'pwaContext' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE
@@ -179,18 +185,68 @@ class FeedController extends Controller
                 : null,
             'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
+            'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),
-            'posts' => match ($zrodlo) {
-                'obserwowani' => $this->followingFeed->paginate($user),
-                'tagi' => $this->tagFeed->paginate($user, zWlasnymi: true),
-                default => $this->discoverFeed->paginate($user, zWlasnymi: true),
-            },
+            'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'wlasneWFeedzie' => $wlasneWFeedzie,
             'showingDiscover' => $zrodlo === 'odkrywanie',
         ]);
+    }
+
+    /**
+     * Strona z wybranego źródła — a gdy to źródło okazało się puste, z
+     * następnego w kolejności obserwowani → tagi → odkrywanie (issue #983).
+     *
+     * Wybór źródła (`isEmptyFor()` / `maTresci()`) i paginacja to osobne
+     * zapytania, a przy Read Committed każde widzi inny zatwierdzony stan.
+     * Cofnięcie obserwowania, blokada albo ukrycie ostatniego wpisu między
+     * nimi zostawiało pusty Start, choć następne źródło miało treść. Dlatego
+     * o źródle rozstrzyga dopiero to, co paginacja faktycznie oddała —
+     * i `zrodloFeedu` opisuje źródło zwróconych wpisów, nie wcześniejszą
+     * prognozę.
+     *
+     * Feed obserwowanych zawiera też własne wpisy, a `isEmptyFor()` celowo
+     * ich nie liczy. Strona złożona z samych własnych wpisów zostaje więc
+     * tylko wtedy, gdy obserwowani nadal mają treść — inaczej własny wpis
+     * zacząłby sam blokować przejście dalej.
+     *
+     * Z kursorem nic nie przeskakujemy: kursor należy do źródła, a pusta
+     * dalsza strona to zwyczajny koniec listy, nie wyścig.
+     *
+     * @return array{0: string, 1: CursorPaginator<int, Post>}
+     */
+    private function pierwszaStronaZrodla(User $user, string $zrodlo, bool $zKursorem): array
+    {
+        if ($zrodlo === 'obserwowani') {
+            $posts = $this->followingFeed->paginate($user);
+
+            if ($zKursorem
+                || $posts->getCollection()->contains(fn (Post $post) => $post->author_id !== $user->getKey())
+                || ($posts->isNotEmpty() && ! $this->followingFeed->isEmptyFor($user))) {
+                return ['obserwowani', $posts];
+            }
+
+            $zrodlo = 'tagi';
+        }
+
+        // Tagi i odkrywanie na Starcie niosą też własne wpisy (issue #1318).
+        // Tak jak przy obserwowanych: strona z samych własnych wpisów zostaje
+        // przy tagach tylko wtedy, gdy tagi nadal mają cudzą treść —
+        // własny wpis nie może sam blokować przejścia do odkrywania.
+        if ($zrodlo === 'tagi') {
+            $posts = $this->tagFeed->paginate($user, zWlasnymi: true);
+
+            if ($zKursorem
+                || $posts->getCollection()->contains(fn (Post $post) => $post->author_id !== $user->getKey())
+                || ($posts->isNotEmpty() && $this->tagFeed->maTresci($user))) {
+                return ['tagi', $posts];
+            }
+        }
+
+        return ['odkrywanie', $this->discoverFeed->paginate($user, zWlasnymi: true)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
