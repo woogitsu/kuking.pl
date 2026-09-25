@@ -87,16 +87,50 @@ fi
 # -----------------------------------------------------------------------------
 [[ -f /app/artisan ]] || die "brak /app/artisan — obraz zbudowany niepoprawnie"
 
+# Pusty APP_KEY w potwierdzonym środowisku PR dostaje losowy klucz tego
+# kontenera — zapieczętowany klucz staginu do PR Environments nie trafia
+# (issue #975). Warunki i powody: docker/klucz-preview.sh. Klucza nie logujemy.
+# shellcheck source=docker/klucz-preview.sh
+source /app/docker/klucz-preview.sh
+if [[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then
+  log "APP_KEY: środowisko PR ${RAILWAY_ENVIRONMENT_NAME} nie ma własnego klucza —"
+  log "         wygenerowano jednorazowy klucz tego kontenera. Restart unieważni sesje."
+fi
+
 if [[ -z "${APP_KEY:-}" ]]; then
   die "APP_KEY jest pusty. Wygeneruj go raz: 'php artisan key:generate --show' \
 i wklej jako zmienną środowiskową w Railway. Bez APP_KEY nie da się odszyfrować \
 sesji ani ciasteczek — aplikacja wywali 500 na każdym requeście."
 fi
 
-if [[ -z "${DB_URL:-}${DATABASE_URL:-}" ]]; then
-  log "OSTRZEŻENIE: ani DB_URL, ani DATABASE_URL nie jest ustawione."
-  log "             Sprawdź referencję do serwisu Postgres w zmiennych Railway."
-fi
+# Sprawdzamy zmienne, które Laravel NAPRAWDĘ czyta. `config/database.php`
+# bierze `DB_URL` albo osobne `DB_HOST`/`DB_DATABASE`/`DB_USERNAME` — samego
+# `DATABASE_URL` nie czyta nigdzie (#1356). Wcześniej samo `DATABASE_URL`
+# uciszało ostrzeżenie, a aplikacja i tak łączyła się z 127.0.0.1.
+#
+# Świadomie NIE mapujemy DATABASE_URL → DB_URL: to ukryłoby błędną
+# konfigurację zamiast ją nazwać. Nie wypisujemy też wartości — URL niesie
+# hasło. Kontrola stoi PRZED `config:cache`, bo po zapieczeniu konfiguracji
+# zmiana zmiennej nie poprawi już bieżącego kontenera; poprawi ją restart
+# (entrypoint i tak czyści cache na każdym starcie).
+sprawdz_konfiguracje_bazy() {
+  [[ -n "${DB_URL:-}" ]] && return 0
+  if [[ -n "${DB_HOST:-}" && -n "${DB_DATABASE:-}" && -n "${DB_USERNAME:-}" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${DATABASE_URL:-}" ]]; then
+    log "OSTRZEŻENIE: DATABASE_URL jest ustawione, ale aplikacja go NIE czyta — czyta DB_URL."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  else
+    log "OSTRZEŻENIE: brak konfiguracji bazy — nie ma DB_URL ani kompletu"
+    log "             DB_HOST, DB_DATABASE i DB_USERNAME."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  fi
+  return 1
+}
+
+sprawdz_konfiguracje_bazy || true
 
 # -----------------------------------------------------------------------------
 # 2. Katalogi scratch. Filesystem jest ulotny, więc po każdym restarcie
