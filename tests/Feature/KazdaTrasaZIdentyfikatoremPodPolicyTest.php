@@ -867,6 +867,18 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
         $dodaj('api.zdjecia.show', 'API: zdjęcie z prywatnego wpisu', 'get',
             route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+        // Publikacja (D-273) — lustro wierszy `posts.comment`, `recipes.comment`,
+        // `cooked.store`, `social.follow` i `social.unfollow` wyżej.
+        $dodaj('api.wpisy.komentarze.store', 'API: komentarz pod prywatnym wpisem', 'postJson',
+            route('api.wpisy.komentarze.store', $wpis), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.komentarze.store', 'API: komentarz pod prywatnym przepisem', 'postJson',
+            route('api.przepisy.komentarze.store', $przepisPrywatny->getKey()), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.ugotowalem', 'API: „Ugotowałem" przy prywatnym przepisie', 'postJson',
+            route('api.przepisy.ugotowalem', $przepisPrywatny->getKey()), ['note' => 'Wyszło.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.osoby.obserwuj', 'API: obserwowanie właściciela', 'postJson',
+            route('api.osoby.obserwuj', $wlasciciel), [], [$O, $W, $O, $W, $O]);
+        $dodaj('api.osoby.przestan', 'API: przestaję obserwować kogoś trzeciego', 'deleteJson',
+            route('api.osoby.przestan', $przedmiot), [], [$W, $W, $W, $W, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze

@@ -25,10 +25,14 @@ declare(strict_types=1);
 use App\Domain\Media\PodgladOdRazu;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\JaController;
+use App\Http\Controllers\Api\V1\KomentarzController;
+use App\Http\Controllers\Api\V1\ObserwowanieController;
 use App\Http\Controllers\Api\V1\PostController;
 use App\Http\Controllers\Api\V1\ProfilController;
+use App\Http\Controllers\Api\V1\PublikacjaController;
 use App\Http\Controllers\Api\V1\RecipeController;
 use App\Http\Controllers\Api\V1\TokenController;
+use App\Http\Controllers\Api\V1\UgotowalemController;
 use App\Http\Controllers\MediaController;
 use App\Http\Middleware\EnsureApiAccountIsActive;
 use Illuminate\Support\Facades\Route;
@@ -110,4 +114,37 @@ Route::middleware(['auth:sanctum', EnsureApiAccountIsActive::class])->group(func
         ])
         ->middleware("throttle:{$limits['zdjecie']},zdjecie")
         ->name('api.zdjecia.show');
+
+    /*
+     * PUBLIKACJA (D-273). Te same prefiksy i progi limitów co odpowiednie
+     * formularze WWW (`post`, `comment`, `obserwowanie`) — wspólne wiadra,
+     * więc aplikacja nie dokłada nikomu drugiego budżetu. Zawieszone konto
+     * odbija się tu od `EnsureApiAccountIsActive` (403 `konto_zawieszone`).
+     */
+    Route::post('/wpisy', [PublikacjaController::class, 'store'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('api.wpisy.store');
+
+    Route::post('/przepisy/{przepis}/ugotowalem', [UgotowalemController::class, 'store'])
+        ->whereUuid('przepis')
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('api.przepisy.ugotowalem');
+
+    Route::post('/wpisy/{post}/komentarze', [KomentarzController::class, 'storePost'])
+        ->whereUuid('post')
+        ->middleware("throttle:{$limits['comment']},comment")
+        ->name('api.wpisy.komentarze.store');
+    Route::post('/przepisy/{przepis}/komentarze', [KomentarzController::class, 'storeRecipe'])
+        ->whereUuid('przepis')
+        ->middleware("throttle:{$limits['comment']},comment")
+        ->name('api.przepisy.komentarze.store');
+
+    Route::post('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'store'])
+        ->whereUuid('osoba')
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('api.osoby.obserwuj');
+    Route::delete('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'destroy'])
+        ->whereUuid('osoba')
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('api.osoby.przestan');
 });
