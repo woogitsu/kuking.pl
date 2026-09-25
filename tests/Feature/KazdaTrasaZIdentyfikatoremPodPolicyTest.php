@@ -352,6 +352,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         foreach ($this->przypadki as $przypadek) {
             $oczekiwane = $przypadek['oczekiwania'][$rola];
 
+            // Świeży token przed każdą trasą API: trasy WWW wyżej w tabeli
+            // (zmiana hasła, „wyloguj inne urządzenia") kasują tokeny razem
+            // z sesjami — i mają to robić (D-270).
+            if (str_starts_with($przypadek['trasa'], 'api.')) {
+                $this->zaloguj($rola);
+            }
+
             $odpowiedz = $this->from(route('home'))
                 ->{$przypadek['metoda']}($przypadek['url'], $przypadek['dane']);
 
@@ -366,7 +373,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
                 .'Odmowa to 403 albo 404 — nigdy 500.');
 
             if ($oczekiwane === self::ODMOWA) {
-                $this->assertTrue(in_array($kod, [403, 404], true) || $naLogowanie,
+                // 401 to odmowa API dla żądania bez tokenu (D-272) — odpowiednik
+                // przekierowania na logowanie z WWW.
+                $this->assertTrue(in_array($kod, [401, 403, 404], true) || $naLogowanie,
                     "Wejście przez sam identyfikator: {$gdzie}, a miała być odmowa.\n"
                     .'AGENTS.md §7: UUID w adresie NIE JEST autoryzacją — każde wejście na cudzą treść przez Policy.');
             } elseif ($oczekiwane === self::WOLNO) {
@@ -392,8 +401,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
     {
         $this->app['auth']->forgetGuards();
 
+        $this->flushHeaders();
+
         if ($rola !== 'gosc') {
             $this->actingAs($this->osoby[$rola]);
+
+            // API (D-272) nie czyta sesji, tylko token w nagłówku — ta sama
+            // rola wchodzi obiema drogami. Na trasach WWW nagłówek niczego
+            // nie zmienia: strażnik `web` go nie czyta.
+            $this->withHeader('Authorization', 'Bearer '.$this->osoby[$rola]->createToken('Pomiar')->plainTextToken);
         }
     }
 
@@ -425,6 +441,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // `ZdjeciaLimitZapytanTest`).
         $this->withoutMiddleware(ThrottleRequests::class);
         Storage::fake('public');
+        config(['kuking.api.wlaczone' => true]);
 
         $wlasciciel = $this->user('wlascicielka');
         $obcy = $this->user('obcaosoba');
@@ -690,6 +707,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             ]), [], [$W, $O, $O, $O, $O]);
         $dodaj('notifications.open', 'otwarcie cudzego powiadomienia', 'post',
             route('notifications.open', $powiadomienie), [], [$W, $O, $O, $O, $O]);
+        // Token aplikacji mobilnej (D-270): odciąć go może tylko właściciel
+        // konta — moderator też nie (`PersonalAccessTokenPolicy`).
+        $dodaj('settings.devices.destroy', 'odcięcie cudzego urządzenia', 'delete',
+            route('settings.devices.destroy', $wlasciciel->createToken('Telefon')->accessToken), [], [$W, $O, $O, $O, $O]);
         $dodaj('settings.data.download', 'pobranie paczki RODO', 'get',
             URL::temporarySignedRoute('settings.data.download', now()->addHour(), ['export' => $this->paczka->getKey()]),
             [], [$W, $O, $O, $O, $O]);
@@ -838,6 +859,35 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // rola nie otwiera już bajtów każdego zdjęcia (#1360, AUTHZ-02).
         $dodaj('media.show', 'zdjęcie z prywatnego wpisu', 'get',
             route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
+
+        // ─── API (D-272) ─────────────────────────────────────────────────
+        // Te same zasoby co wiersze WWW wyżej i ta sama Policy. Różnica
+        // jedna i zamierzona: API nie ma gościa — bez tokenu jest 401,
+        // także tam, gdzie WWW wpuszcza bez logowania (profil publiczny).
+        $dodaj('api.wpisy.show', 'API: wpis prywatny', 'getJson',
+            route('api.wpisy.show', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.wpisy.komentarze', 'API: komentarze wpisu prywatnego', 'getJson',
+            route('api.wpisy.komentarze', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.show', 'API: przepis prywatny', 'getJson',
+            route('api.przepisy.show', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.komentarze', 'API: komentarze przepisu prywatnego', 'getJson',
+            route('api.przepisy.komentarze', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.profile.show', 'API: profil', 'getJson',
+            route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
+        $dodaj('api.zdjecia.show', 'API: zdjęcie z prywatnego wpisu', 'get',
+            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+        // Publikacja (D-273) — lustro wierszy `posts.comment`, `recipes.comment`,
+        // `cooked.store`, `social.follow` i `social.unfollow` wyżej.
+        $dodaj('api.wpisy.komentarze.store', 'API: komentarz pod prywatnym wpisem', 'postJson',
+            route('api.wpisy.komentarze.store', $wpis), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.komentarze.store', 'API: komentarz pod prywatnym przepisem', 'postJson',
+            route('api.przepisy.komentarze.store', $przepisPrywatny->getKey()), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.ugotowalem', 'API: „Ugotowałem" przy prywatnym przepisie', 'postJson',
+            route('api.przepisy.ugotowalem', $przepisPrywatny->getKey()), ['note' => 'Wyszło.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.osoby.obserwuj', 'API: obserwowanie właściciela', 'postJson',
+            route('api.osoby.obserwuj', $wlasciciel), [], [$O, $W, $O, $W, $O]);
+        $dodaj('api.osoby.przestan', 'API: przestaję obserwować kogoś trzeciego', 'deleteJson',
+            route('api.osoby.przestan', $przedmiot), [], [$W, $W, $W, $W, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze

@@ -360,7 +360,31 @@ Koszt zmiany: jedna linijka w `components/kuking-board.blade.php`.
 
 ## D-014 · Nie budujemy API „pod przyszłą aplikację mobilną"
 
-**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
+**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **zmienione decyzją właściciela 25.09.2026 — API budowane** (zasady: D-270)
+
+> **Zmiana z 25 września 2026 (decyzja właściciela).** Właściciel postanowił
+> uruchomić publiczne API, żeby mogła powstać aplikacja mobilna. Konkluzja
+> „nie budujemy API" przestaje obowiązywać; obowiązuje za to w całości
+> akapit „Gdy przyjdzie czas" niżej — `routes/api.php` + Laravel Sanctum
+> (tokeny zamiast sesji) + kontrolery API nad tymi samymi Akcjami — i to on
+> jest teraz zasadą, nie zapowiedzią. Z tego wpisu zostają trzy zobowiązania,
+> rozpisane w **D-270**:
+>
+> 1. **API nad tymi samymi Akcjami i Policy co WWW.** Kontroler API waliduje,
+>    woła Akcję z `app/Domain/…/Actions` i zwraca zasób JSON. Reguła domenowa
+>    w kontrolerze API to reguła, którą da się obejść drugim endpointem —
+>    tak samo jak w kontrolerze HTML (AGENTS.md §4). Każde wejście na cudzą
+>    treść idzie przez tę samą Policy (AGENTS.md §7).
+> 2. **Brak logiki w kontrolerach API.** Jeśli kontroler API potrzebuje
+>    czegoś, czego nie ma w Akcji, to znaczy, że kontroler HTML ma to
+>    w sobie — wtedy najpierw wyciągamy to do Akcji, dopiero potem piszemy
+>    drugi adapter. Nie kopiujemy.
+> 3. **Ryzyko „API bez konsumenta rozjeżdża się z rzeczywistością" (punkt 2
+>    niżej) zostaje prawdziwe.** Odpowiedzią jest wyłącznik
+>    `KUKING_API_ENABLED`, domyślnie zamknięty, i testy Feature na każdej
+>    trasie — nie przekonanie, że tym razem ktoś będzie pamiętał.
+>
+> Reszta wpisu zostaje jako zapis rozumowania z 5 września.
 
 > **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
 > API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
@@ -17140,3 +17164,217 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+---
+
+## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
+
+Zmienia D-014. Etap 1 to fundament: nie ma w nim jeszcze żadnej trasy
+produkcyjnej, jest wszystko, na czym trasy staną.
+
+### Co
+
+1. **Laravel Sanctum, wyłącznie tokeny osobistego dostępu.** Nagłówek
+   `Authorization: Bearer <id>|kuking_<sekret>`. Droga „SPA na ciasteczku
+   sesji" jest zamknięta z trzech stron (`config/sanctum.php`): pusta lista
+   domen stanowych, pusta lista strażników sesji (`guard => []` — zalogowana
+   przeglądarka NIE przechodzi przez `auth:sanctum`) i brak trasy
+   `/sanctum/csrf-cookie`. Grupa `api` nie ma sesji, ciasteczek ani CSRF.
+2. **Tabela `personal_access_tokens` pod nasze zasady**, nie kopia z pakietu:
+   UUID, klucz obcy do `users`, CHECK-i, `timestamptz`, skrót poza
+   `$fillable` (`docs/DATABASE.md`). Tokeny giną razem z sesjami
+   (`User::invalidateSessions()` → `invalidateApiTokens()`).
+3. **Wersja w adresie: `/api/v1`** (`bootstrap/app.php`, `apiPrefix`).
+   Zmiana niezgodna wstecz to `/api/v2` obok, nie przeróbka `v1` — aplikacji
+   w telefonach nie da się zaktualizować w dniu wdrożenia.
+4. **Wyłącznik `KUKING_API_ENABLED`, domyślnie `false`.** Przy zamkniętym API
+   każdy adres pod `/api/*` odpowiada tym samym 404 co adres nieistniejący
+   (`App\Http\Middleware\BramaApi`, pierwsza na liście priorytetów
+   middleware'u — przed `auth:sanctum` i `throttle`). Zamknięte API nie
+   zdradza swojej mapy i nie zjada liczników limitu.
+5. **Jeden format błędu, po polsku** (`App\Http\Api\BledyApi`):
+   `{"message": "…", "code": "…"}`, przy 422 dodatkowo `errors` z komunikatami
+   z `lang/pl/validation.php`. 401, 403, 404, 405, 429 i 500 mają własne
+   zdania mówiące, co zrobić. Treść wyjątku technicznego nie wychodzi NIGDY,
+   także przy `APP_DEBUG=true`; wychodzi tylko `BladDlaCzlowieka` i zdanie
+   z `Response::deny()` Policy.
+6. **Dwa limity na każde żądanie**, liczby w `config/kuking.php`
+   (`api.limity`): na adres IP (300/min) liczony w `BramaApi` PRZED
+   sprawdzeniem tokenu — inaczej fałszywe tokeny odbijałyby się na 401
+   niepoliczone — i na token (120/min) w limiterze `api`. Limity logowania
+   (etap 2) dochodzą do tego osobno.
+
+### Dlaczego tak, a nie inaczej
+
+- **Token bez terminu.** Wylogowanie z telefonu co miesiąc to dla osoby 50+
+  koniec korzystania z aplikacji. Ochroną jest odwołanie (lista urządzeń na
+  WWW, etap 2) i kasowanie razem z sesjami, nie termin.
+- **Rollback tabeli bez odmowy.** D-088 chroni decyzje człowieka; token jest
+  poświadczeniem. Po `down()` + `migrate` każde urządzenie loguje się
+  jeszcze raz — kierunek bezpieczny.
+- **Limit na adres w middlewarze, nie w `throttle:`.** Sortowanie
+  `Kernel::$middlewarePriority` stawia `ThrottleRequests` za
+  `AuthenticatesRequests` i nie da się tego zmienić dla jednej grupy bez
+  zmiany dla WWW.
+
+### Czego to NIE zmienia
+
+PWA zostaje drogą mobilną dla przeglądarki. AGENTS.md §3 dalej zabrania SPA,
+GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
+
+**Zmiana wymaga:** decyzji właściciela (zamknięcie API) albo zmierzonego
+problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
+rozwiązuje.
+
+Dokumentacja dla autorów aplikacji: `docs/API.md` (pilnuje jej
+`tests/Feature/Api/ApiJestUdokumentowaneTest.php` — każda trasa w tabeli,
+każda poza logowaniem z `auth:sanctum`, każda z identyfikatorem w
+`KazdaTrasaZIdentyfikatoremPodPolicyTest`).
+
+📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
+`app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
+`app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
+`tests/Feature/Api/`
+
+---
+
+## D-271 — Logowanie aplikacji mobilnej: te same akcje co WWW, 2FA przez zaszyfrowane wyzwanie, lista urządzeń (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 2 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+1. **`POST /api/v1/tokeny`** (login + hasło + `device_name`) i
+   **`POST /api/v1/tokeny/kod`** (drugi krok) idą przez TE SAME akcje co
+   formularze WWW. Logika pierwszego kroku wyszła z `LoginController` do
+   `App\Domain\Security\Actions\SprawdzHasloPrzyLogowaniu`, drugiego —
+   z `TwoFactorChallengeController` do `SprawdzKodDrugiegoSkladnika`.
+   Kontrolery WWW i API są teraz adapterami tych samych reguł (D-014).
+2. **Wspólne koszyki limitów.** Trzy koszyki `LimitProbHasla`, koszyk prób
+   kodu po koncie (`TwoFactorAuthenticator::kluczLimituProb`) i prefiksy
+   `throttle:` (`login`, `two_factor`) są te same dla obu dróg. Zgadujący nie
+   podwoi budżetu, przeskakując między formularzem a aplikacją.
+3. **Konto z 2FA nie dostaje tokenu przed kodem.** Pierwszy krok zwraca 202
+   z zaszyfrowanym wyzwaniem (`App\Domain\Api\WyzwanieDwuetapowe`): konto,
+   odcisk jego stanu (ten sam co w sesji WWW, #931), nazwa urządzenia,
+   termin 10 minut. Bez tabeli i bez cache'u — API nie ma sesji. Zmiana
+   hasła, statusu albo 2FA unieważnia wyzwanie od razu.
+4. **Stan konta przy każdym żądaniu z tokenem**
+   (`EnsureApiAccountIsActive`, odpowiednik `EnsureAccountIsActive`):
+   zamknięte konto → token ginie, 401 `konto_zamkniete`; zawieszone → odczyt
+   tak, zapis 403 `konto_zawieszone`, wylogowanie zawsze. Zdania te same co
+   na WWW.
+5. **Tokeny giną razem z sesjami** (D-270) — zmiana hasła, „wyloguj inne
+   urządzenia", blokada, zawieszenie, usunięcie konta.
+6. **Ekran „Urządzenia z dostępem"** (`/ustawienia/urzadzenia`): lista
+   tokenów, odcięcie jednego i wszystkich. Bez hasła, świadomie: akcja
+   wyłącznie odbiera dostęp. Dostępna także przy zawieszeniu. Właścicielem
+   tokenu rozstrzyga `PersonalAccessTokenPolicy` — moderator też nie ma
+   dostępu, token to poświadczenie, nie treść.
+7. **Najwyżej 10 urządzeń na konto** (`kuking.api.max_urzadzen`); kolejne
+   logowanie odcina używane najdawniej, zamiast odmawiać.
+8. Wydanie i odwołanie tokenu zostawia wpis w `audit_log`
+   (`account.api_token_created`, `account.api_token_revoked`,
+   `account.api_tokens_revoked_all`).
+
+### Znany ubytek względem WWW: brak Turnstile
+
+Turnstile (D-050) jest captchą przeglądarkową; aplikacja nie ma jej jak
+pokazać. Logowanie w API chronią tylko limity z punktu 2 i limit na adres IP
+z `BramaApi`. To świadome i zapisane, nie przeoczone. Uzupełnieniem w etapie
+aplikacji jest atestacja urządzenia (Play Integrity / App Attest) — osobna
+decyzja, gdy aplikacja będzie istnieć.
+
+**Zmiana wymaga:** pomiaru ataku na logowanie przez API, którego limity nie
+łapią (wtedy atestacja albo zamknięcie `POST /api/v1/tokeny` flagą).
+
+📄 `app/Http/Controllers/Api/V1/TokenController.php` ·
+`app/Domain/Security/Actions/` · `app/Domain/Api/` ·
+`app/Http/Middleware/EnsureApiAccountIsActive.php` ·
+`app/Http/Controllers/Settings/DevicesSettingsController.php` ·
+`tests/Feature/Api/LogowanieApiTest.php` · `tests/Feature/UrzadzeniaZDostepemTest.php`
+
+---
+
+## D-272 — API: czytanie przez te same zapytania i Policy co WWW, zdjęcia tylko przez `DostepDoZdjecia` (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 3 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- `GET /api/v1/feed` — ten sam `FollowingFeed` co strona główna:
+  chronologicznie, kursorowo (`?cursor=` z `meta.next_cursor`), te same
+  filtry widoczności, blokad, aktywnych autorów i widocznego przepisu.
+- `GET /api/v1/wpisy/{uuid}` i `/komentarze` — `PostPolicy::view`.
+- `GET /api/v1/przepisy/{uuid}` i `/komentarze` — `RecipePolicy::view`.
+  **Po UUID, nie po slugu** jak WWW: slug zmienia się z tytułem, aplikacja
+  trzyma identyfikator.
+- `GET /api/v1/profile/{username}` — `UserPolicy::viewProfile`.
+- Komentarze przez `Comment::scopeWidoczneDla()` — blokady w obie strony.
+- **Zdjęcia: `GET /api/v1/zdjecia/{uuid}/{wariant}` to ten sam
+  `MediaController` co `media.show`** — `DostepDoZdjecia` pyta Policy
+  rodzica. Zasoby JSON podają WYŁĄCZNIE adresy tej trasy
+  (`App\Http\Resources\Api\V1\Zdjecie`), nigdy klucz w buckecie; zdjęcie bez
+  gotowego wariantu nie trafia do odpowiedzi.
+- Zasoby (`app/Http/Resources/Api/V1`) nie wypuszczają pól prywatnych:
+  adresu e-mail (poza `GET /ja`), statusu moderacji, `klucz_wyslania`,
+  `hide_as_memory`, skanu źródła przepisu.
+- API nie ma gościa: bez tokenu 401 także tam, gdzie WWW wpuszcza bez
+  logowania. Trasy z identyfikatorem są w
+  `KazdaTrasaZIdentyfikatoremPodPolicyTest` (pięć ról).
+
+### Czego tu świadomie nie ma
+
+Listy wpisów i przepisów na profilu, „Świeżo z Kuking", wyszukiwarki
+i powiadomień — etap 2 aplikacji. Profil w WWW liczy widoczność prywatną
+metodą kontrolera (`ProfileController::tylkoWidoczne`); przed dodaniem tej
+listy do API trzeba ją najpierw wyciągnąć do domeny (D-014, pkt 2).
+
+📄 `app/Http/Controllers/Api/V1/` · `app/Http/Resources/Api/V1/` ·
+`tests/Feature/Api/CzytanieApiTest.php`
+
+---
+
+## D-273 — API: publikacja przez te same Akcje co WWW — wpis, „Ugotowałem", komentarz, obserwowanie (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 4 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- **`POST /api/v1/wpisy`** (multipart: `photos[]`, `body`, `visibility`,
+  opcjonalnie `tags[]`) — główna akcja „Co dziś ugotowałeś?". Zdjęcia przez
+  `StoreUploadedImage` (te same limity typów i rozmiaru z `LimityZdjec`,
+  magic bytes, limit megapikseli, re-enkodowanie w tle zdejmujące EXIF/GPS),
+  wpis przez `PublishPost`. Nagłówek `Idempotency-Key` (UUID) pełni rolę
+  ukrytego `klucz_wyslania` z formularza: ponowienie przy słabym zasięgu nie
+  tworzy drugiego wpisu (201 za pierwszym razem, 200 przy powtórce).
+- **`POST /api/v1/przepisy/{uuid}/ugotowalem`** — `RecordCookedEvent` pod
+  `RecipePolicy::cook`. Powiadomienie autora robi ta sama akcja
+  (`NotifyUser`), więc trzy granice z AGENTS.md §1 obowiązują bez kopii:
+  własny przepis, konto autora zamknięte, blokada. Zmierzone w
+  `tests/Feature/Api/PublikacjaApiTest.php`.
+- **`POST /api/v1/wpisy/{uuid}/komentarze`** (`PostPolicy::comment`)
+  i **`POST /api/v1/przepisy/{uuid}/komentarze`** (`RecipePolicy::view`, jak
+  WWW) — `PublishComment`; rodzic odpowiedzi szukany tylko wśród komentarzy
+  widocznych dla piszącego.
+- **`POST`/`DELETE /api/v1/osoby/{uuid}/obserwuj`** — `FollowUser` /
+  `UnfollowUser` pod `UserPolicy::follow`/`unfollow`. **Po UUID osoby, nie
+  po nazwie** — nazwa może przejść na inne konto (#793).
+- Limity: te same prefiksy i progi co formularze WWW (`post`, `comment`,
+  `obserwowanie`) — wspólne wiadra. Zawieszone konto: 403
+  `konto_zawieszone` z `EnsureApiAccountIsActive`.
+- Błędy akcji domenowych (`BladDlaCzlowieka`) wracają jako 422 przy polu,
+  tym samym zdaniem co na WWW.
+
+**Czego tu nie ma:** edycji i usuwania wpisów, przepisów z aplikacji,
+zeszytów, blokowania, zgłoszeń — etap 2 aplikacji. Zgłaszanie treści
+(DSA art. 16) musi wejść do API **przed** publicznym wydaniem aplikacji, bo
+publikacja bez drogi zgłoszenia to luka prawna, nie funkcja do dołożenia.
+
+📄 `app/Http/Controllers/Api/V1/PublikacjaController.php` ·
+`app/Http/Controllers/Api/V1/UgotowalemController.php` ·
+`app/Http/Controllers/Api/V1/KomentarzController.php` ·
+`app/Http/Controllers/Api/V1/ObserwowanieController.php` ·
+`app/Http/Controllers/Api/V1/Concerns/PrzyjmujeZdjecia.php`

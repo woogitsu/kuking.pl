@@ -276,6 +276,13 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Dokumentacja API (D-270): każda trasa `/api/v1` ma wiersz w tabeli
+# `docs/API.md`. Mutacja wycina wiersz feedu — strażnik ma zauważyć trasę
+# bez opisu.
+DOKUMENTACJA_API = "docs/API.md"
+DOKUMENTACJA_API_TEST = "ApiJestUdokumentowaneTest"
+WIERSZ_FEEDU = "| `GET /api/v1/feed` | wpisy obserwowanych, chronologicznie | token | to samo zapytanie co strona główna |\n"
+
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -729,6 +736,8 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
+     lambda s: replace_once(s, WIERSZ_FEEDU, "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -783,6 +792,7 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DOKUMENTACJA_API_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

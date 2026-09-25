@@ -53,6 +53,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
+use App\Http\Controllers\Settings\DevicesSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
@@ -936,6 +937,20 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
         ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.security.logout-others');
+
+    // Urządzenia z dostępem przez aplikację mobilną (D-270). Odwołanie NIE
+    // prosi o hasło, świadomie: to akcja wyłącznie odbierająca dostęp —
+    // napastnik z otwartą sesją nic nią nie zyskuje, a właściciel, który
+    // właśnie zgubił telefon, nie ma czekać na przypomnienie hasła.
+    // Identyfikator urządzenia w adresie przechodzi przez Policy.
+    Route::get('/ustawienia/urzadzenia', [DevicesSettingsController::class, 'index'])->name('settings.devices');
+    Route::delete('/ustawienia/urzadzenia/{urzadzenie}', [DevicesSettingsController::class, 'destroy'])
+        ->whereUuid('urzadzenie')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.devices.destroy');
+    Route::delete('/ustawienia/urzadzenia', [DevicesSettingsController::class, 'destroyAll'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.devices.destroy-all');
     /*
      * Adres e-mail (issue #195).
      *
