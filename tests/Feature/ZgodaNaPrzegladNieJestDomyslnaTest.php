@@ -106,6 +106,9 @@ class ZgodaNaPrzegladNieJestDomyslnaTest extends TestCase
 
         $this->actingAs($konto)
             ->put(route('settings.privacy'), [
+                'original_digest' => (int) $konto->fresh()->wants_weekly_digest,
+                'original_memories' => (int) $konto->fresh()->memories_enabled,
+
                 'wants_weekly_digest' => '1',
             ])
             ->assertRedirect();
