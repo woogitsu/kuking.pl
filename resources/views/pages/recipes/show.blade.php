@@ -33,6 +33,16 @@
                 interactionStatistic — uczciwie i zgodnie ze znaczeniem
                 (docs/seo/SEO_TECHNICAL.md).
             --}}
+            {{--
+                `Recipe` TYLKO ZE ZDJĘCIEM (#1005). Google wymaga `image`, a bez
+                niego obiekt nie kwalifikuje się do wyniku rozszerzonego
+                i ląduje jako błąd w Search Console. Zdjęcie jest w Kuking
+                opcjonalne i przez chwilę po wgraniu nie jest `ready` — wtedy
+                lepiej nie deklarować typu, którego nie umiemy wypełnić.
+                Logo zamiast dania odpada: obraz ma przedstawiać przepis.
+                `BreadcrumbList` niżej zostaje zawsze.
+            --}}
+            @if($recipe->heroMedia?->isReady() && $recipe->heroMedia->maWariantDoPokazania('large'))
             @php
                 $recipeJsonLd = array_filter([
                 '@context' => 'https://schema.org',
@@ -134,7 +144,7 @@
                         && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
                     ? $recipe->source_url
                     : null,
-                'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
+                'image' => [$recipe->heroMedia->url('large')],
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
@@ -154,6 +164,7 @@
             ], static fn ($value) => $value !== null && $value !== []);
             @endphp
             <x-json-ld :data="$recipeJsonLd" />
+            @endif
 
             @php
                 $breadcrumbJsonLd = [
@@ -375,7 +386,7 @@
                                 <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
                                 <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
                             @elseif($zeszytyTegoPrzepisu->count() > 1)
-                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Zanim to zrobimy, zapytamy o potwierdzenie i pozwolimy wybrać jeden zeszyt.</p>
                             @endif
                             <button class="btn btn-secondary" type="submit"
                                 @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
