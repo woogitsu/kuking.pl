@@ -266,9 +266,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
     environment: staging
 
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-
     steps:
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -276,9 +273,16 @@ jobs:
           node-version: "22"
 
       - name: Instalacja Railway CLI
-        run: npm install -g @railway/cli
+        # Wersja przypięta (audyt B10-02) — patrz uzasadnienie w deploy.yml,
+        # krok „Instalacja Railway CLI". [do potwierdzenia] 5.62.1 to
+        # `npm view @railway/cli version` 25.09.2026.
+        run: npm install -g @railway/cli@5.62.1
 
       - name: Utwórz środowisko dla PR
+        # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —
+        # kroki wyżej instalują pakiet z npm i go nie potrzebują.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
         run: |
           set -euo pipefail
           env_name="pr-${{ github.event.inputs.pr_number }}"
@@ -293,9 +297,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delete'
     environment: staging
 
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-
     steps:
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -303,9 +304,16 @@ jobs:
           node-version: "22"
 
       - name: Instalacja Railway CLI
-        run: npm install -g @railway/cli
+        # Wersja przypięta (audyt B10-02) — patrz uzasadnienie w deploy.yml,
+        # krok „Instalacja Railway CLI". [do potwierdzenia] 5.62.1 to
+        # `npm view @railway/cli version` 25.09.2026.
+        run: npm install -g @railway/cli@5.62.1
 
       - name: Usuń środowisko PR
+        # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —
+        # kroki wyżej instalują pakiet z npm i go nie potrzebują.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
         run: |
           set -euo pipefail
           env_name="pr-${{ github.event.inputs.pr_number }}"
