@@ -2355,6 +2355,68 @@ Dwie rzeczy różnią ją od pozostałych w schemacie:
 Pełny opis sygnałów, progów i fałszywych alarmów:
 `docs/legal/SYGNALY_AUTOMATU.md`.
 
+##### Ślad po pilnym alarmie (issue #1051)
+
+Migracja `2026_09_23_110000_dodaj_slad_pilnego_alarmu_do_reports` dokłada
+dwie kolumny, jeden indeks częściowy i CHECK `reports_alarm_pilny_spojny_check`
+(stoi po `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`
+z #1441 — obie zmieniają `reports`, ale różne kolumny):
+
+| Kolumna | Po co |
+|---|---|
+| `alarm_pilny_stan` | **`NULL` = sprawa nie jest pilna** i tak wygląda ogromna większość wierszy. Każda inna wartość znaczy „automat uznał tę sprawę za pilną" i mówi, co się z alarmem stało: `zalegly`, `zlecony`, `bez_adresu`, `nieudany` (stałe `Report::ALARM_*`). |
+| `alarm_pilny_zlecony_at` | Kiedy alarm został **zlecony kanałowi pocztowemu**. Nazwa mówi `zlecony`, a nie `wyslany`, celowo: `PilnyAlarmModeracyjny` jest `ShouldQueue`, więc w tym miejscu nie da się wiedzieć, czy EmailLabs list przyjął. Za dalszy odcinek drogi odpowiadają `failed_jobs` i `mail_failures`. |
+
+Bez tych kolumn pilność sprawy **nie dawała się odtworzyć z bazy**: żyła
+w liście obiektów `Sygnal` w pamięci workera, a do `reports` trafiał sam kod
+powodu (`automat_model`), identyczny dla sprawy pilnej i niepilnej. Skutek
+był taki, że sprawa zapisana bez wysłanego alarmu wyglądała dokładnie tak
+samo jak dzień bez ani jednego pilnego zgłoszenia.
+
+`alarm_pilny_stan` zapisuje **ta sama transakcja**, która zapisuje wiersz
+(`OznaczDoPrzegladu`) — obowiązek alarmu nie może mieć własnej szczeliny,
+skoro powstał po to, żeby szczelinę zamknąć.
+
+Indeks częściowy `reports_pilny_alarm_bez_sladu` obejmuje dokładnie
+`alarm_pilny_stan IS NOT NULL AND alarm_pilny_zlecony_at IS NULL`, czyli
+wiersze, z których biorą sonda `alarmy_moderacji` w `/health` i komenda
+`kuking:doslij-pilne-alarmy` (`Report::scopePilneBezAlarmu()`, zawężane
+w `scopePilneDoDoslania()` do spraw otwartych). Wiersz **wychodzi** z indeksu w chwili,
+w której alarm dochodzi do skutku, więc indeks zostaje mały na zawsze.
+
+CHECK `reports_alarm_pilny_spojny_check` pilnuje zamkniętego słownika
+i spójności pary:
+
+```sql
+(alarm_pilny_stan IS NULL AND alarm_pilny_zlecony_at IS NULL)
+OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan IN ('zalegly','bez_adresu','nieudany') AND alarm_pilny_zlecony_at IS NULL)
+OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan = 'zlecony' AND alarm_pilny_zlecony_at IS NOT NULL)
+```
+
+`alarm_pilny_stan IS NOT NULL` w dwóch ostatnich gałęziach nie jest
+nadmiarowe: CHECK przepuszcza wynik NULL, a `NULL IN (...)` daje NULL —
+bez tego przeszedłby wiersz niepilny ze znacznikiem zlecenia.
+
+Znacznik jest ustawiony **wtedy i tylko wtedy**, gdy stan to `zlecony`.
+`AlarmujModeratora` zapisuje stany porażki tylko pod
+`alarm_pilny_zlecony_at IS NULL`, więc drugie zadanie, któremu padła poczta,
+nie nadpisze alarmu zleconego przez pierwsze; CHECK jest tym samym na
+poziomie bazy. Od `reports_resolution_complete_check` (#1441) jest
+niezależny: alarm nie zmienia statusu sprawy, a zamknięcie sprawy nie
+zmienia stanu alarmu.
+
+Kolumny wypełnia dziś **tylko automat** (`OznaczDoPrzegladu`,
+`AlarmujModeratora`). Zgłoszenia od człowieka (`ReportContent`,
+`ZglosNielegalnaTresc`) mają `alarm_pilny_stan = NULL` i sonda
+`alarmy_moderacji` ich nie widzi.
+
+Wierszom sprzed tej migracji obie kolumny zostają **puste** — świadomie.
+`'zlecony'` byłoby kłamstwem (nikt tego nie zmierzył), `'zalegly'`
+zapaliłoby sondę dla setek spraw, które alarmu nigdy nie potrzebowały.
+Granica przebiega w dacie wdrożenia. Cofnięcie migracji **odmawia**, gdy
+którakolwiek sprawa ma zapisany stan (D-088) —
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW=true` mówi to wprost.
+
 Kolumny dołożone dla drogi prawnej:
 
 | Kolumna | Po co |
