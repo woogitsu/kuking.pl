@@ -4583,6 +4583,10 @@ CREATE TABLE hero_picks (
 );
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_media_id_unique UNIQUE (media_id);
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_position_check CHECK (position >= 0);
+ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_post_media_foreign
+  FOREIGN KEY (post_id, media_id)
+  REFERENCES post_media (post_id, media_id)
+  ON DELETE CASCADE;
 CREATE INDEX hero_picks_position_index ON hero_picks (position);
 ```
 
@@ -4596,6 +4600,19 @@ ono wisi (`posts.visibility`, `posts.status`, stan konta autora). To samo
 zdjęcie bywa przypięte do kilku wpisów (`post_media` jest wiele-do-wielu),
 więc bez zapisania, którego wpisu dotyczy wskazanie, nie da się później
 sprawdzić, czy wciąż jest publiczny.
+
+**Para `(post_id, media_id)` musi istnieć w `post_media`.** Dwa osobne klucze
+obce do `posts` i `media` nie wystarczają: dowodzą tylko, że oba wiersze
+istnieją, nie że zdjęcie naprawdę wisi przy wskazanym wpisie. To ważne także
+dla autoryzacji bajtów zdjęcia — `DostepDoZdjecia` pyta Policy właśnie tego
+wpisu i wskazanie w kolażu nie może nadać zdjęciu obcego, publicznego rodzica.
+
+Migracja `2026_09_24_100000_powiaz_hero_picks_z_post_media` przed dodaniem
+constraintu blokuje zapisy do `hero_picks` i sprawdza wszystkie istniejące
+pary. Jeżeli znajdzie niespójność, **odmawia przed zmianą schematu**, podaje
+liczbę oraz zapytanie do ręcznego przeglądu. Niczego nie przepina ani nie
+kasuje. Usunięcie relacji zdjęcia z wpisem kasuje tylko odpowiadający wybór
+kolażu (`ON DELETE CASCADE`); wpis i zdjęcie zostają.
 
 **Kaskada nie jest zabezpieczeniem prywatności.** `ON DELETE CASCADE` sprząta
 wiersz po skasowanym wpisie albo zdjęciu — i tyle. Wpis przełączony na
@@ -4631,6 +4648,12 @@ TO 'hero_picks.csv' CSV HEADER
 
 Strażnika i obie kontrole dodatnie sprawdza
 `CofniecieMigracjiNieKasujeKolazuTest`.
+
+**Rollback migracji złożonego klucza (#955):** `down()` usuwa wyłącznie
+constraint `hero_picks_post_media_foreign`. Wszystkie wiersze `hero_picks`,
+`post_media`, `posts` i `media` pozostają bez zmian. Po cofnięciu baza ponownie
+dopuszcza niespójne pary, więc rollback osłabia ochronę, lecz nie traci ani
+nie zgaduje żadnej wartości semantycznej.
 
 ## Dwie reguły, które obowiązują CAŁY schemat
 
