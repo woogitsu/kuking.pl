@@ -72,6 +72,27 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 | #1521 | #982 | TAK (po dopisku) | kryt. „druga poprawka nie zleca skutków ubocznych edycji” bez własnej asercji — dopisany test | `1da2c561` (`test_konflikt_nie_zleca_ponownej_analizy`) |
 | #1522 | #996 | TAK | — | — |
 | #1524 | #836 | TAK (kod) | uruchomienie komendy czyszczącej z `--wykonaj` na produkcji — decyzja właściciela (triaż issue) | — |
+| #1552 | #1344, #1025 | TAK (×2) | — | — |
+| #1554 | #1317 | TAK (po dopisku) | opis PR-a obiecywał wpis audytu `parent_restored_as_placeholder`, żaden test go nie sprawdzał — dopisany. Drobna luka: przywrócenie odpowiedzi pod korzeniem zdjętym przez moderację nie mówi, że odpowiedź dalej jest niewidoczna | `42bcb8ca` |
+| #1566 | #1385 (Refs #1394) | TAK; KONFLIKT z `main` (`CHANGELOG.md`, `DECISIONS.md`) | — (scalać po #1503; odejście od „blokada odcina dostęp” pokryte decyzją właściciela D-265 w #1503) | — (konflikt) |
+| #1567 | #1318 | CZĘŚCIOWO | kryt. 1 + decyzja „wmieszać własne wpisy”: reguła „jeden wpis na autora” (#940) pokazuje tylko najnowszy własny wpis — starszy „tylko dla obserwujących” znika ze Startu po nowszym publicznym (potwierdzone testem jednorazowym); brak wariantu onboardingu „Pomiń ten krok” ×2 z komentarza | — (zmiana logiki feedu) |
+| #1571 | #871, #872, #874 | #871 TAK, #872 CZĘŚCIOWO, #874 CZĘŚCIOWO | #872: brak wymaganej próby w przeglądarce (jest tylko HTTP); #874: fokus i czytnik ekranu niesprawdzone; `aria-describedby`/`aria-invalid` przy polu zdjęć w 3 formularzach — robi to osobny #1621 (#1572) | — |
+| #1575 | #1024, #1059 | #1024 CZĘŚCIOWO, #1059 TAK | #1024: brak testu „wyścig i awaria w połowie spełniają gwarancje #950”. Kod i `MODERATION.md` powołują się na „decyzję właściciela, wariant b” — na GitHubie brak takiego komentarza; opis PR-a nieaktualny (po `e29ef193` znacznik stanu, nie identyfikatory) | — |
+| #1576 | #1323, #1325 | TAK (×2) | — (zamiana warunkowego `UPDATE` na sprawdzenie w PHP nie oblewa testu — brak testu współbieżności, kryteria go nie wymagają) | — |
+| #1601 | #1010 | TAK | — | — |
+| #1603 | #957, #1029 | #957 CZĘŚCIOWO, #1029 TAK | #957: brak testu w przeglądarce zapisującego żądania na 390 i 1280 px; brak LCP przed/po na desktopie (pomiar tylko 360×640); kryt. „<64 rem: zero pobrań” niespełnione — PR przyjmuje, że telefon pobiera 4 kafle, bez `<picture>` | — |
+| #1604 | #1082, #1316 | TAK (×2) | — (zgodnie z „Decyzją właściciela” 24.09 w #1316) | — |
+| #1605 | #884 (Refs #903) | CZĘŚCIOWO; **CI czerwone**; KONFLIKT z `main` (`CHANGELOG.md`) | brak testu w prawdziwej przeglądarce (A/B/C → usunięcie B → w FormData A/C), są tylko testy node z atrapą `DataTransfer`; 4 nowe `test_903_*` w `CookingModeTest` oblewają na gałęzi i po scaleniu (dublują `GotowanieOdPoczatkuTest`, #903 jest na `main`) | — (konflikt) |
+| #1606 | #883 (Refs #768) | TAK | — | — |
+| #1607 | #985 | CZĘŚCIOWO | kryt. 2 z komentarza: `/witaj/zainteresowania` nie zaznacza zapisanych tagów, brak testu prawdziwego `checked` (wznowienie omija krok, idzie do `/witaj/ludzie`) | `09f06d26` (usunięty wgrany `.pyc`) |
+| #1609 | #1346, #1347, #1364 | #1346 TAK, #1347 SPRZECZNOŚĆ, #1364 TAK | #1347: `account.delete_requested` wszedł do transakcji (klasa 1 D-249), a komentarz w issue z 25.09 chce `recordBezWywracania()` po COMMIT i zakazu przenoszenia audytu do transakcji — rozstrzyga właściciel; przydziału wpisu do klasy brak w rejestrze D-249 | — |
+| #1587 | #1302, #1368, #1304 | #1302 TAK (bez testu na urządzeniu), #1368 CZĘŚCIOWO, #1304 CZĘŚCIOWO | #1368: brak pomiaru położenia zdjęcia i LCP (desktop, tablet, 320 px, krótka/długa instrukcja); zdjęcie kroku zawsze od razu, bez leniwego, gdy leży niżej. #1304: autor nie może wpisać własnego opisu zdjęcia kroku (brak pola w kreatorze/edycji, `ZapiszPrzepisZFormularza` nie zapisuje `alt_text`); brak próby z czytnikiem ekranu | — |
+| #1590 | #1297, #1319 | TAK co do treści; **CI czerwone**; KONFLIKT z `main` (`DailyBoard.php`, `TagController.php`) | `ListyWpisuZWlasnaTresciaTest::test_kontrola_dodatnia_dostepny_przepis…` oblewa zawsze („Odkrywanie: brak wpisu z własną treścią”) — część z #1377/#1584 zderza się z regułą „jeden wpis na autora” (#940) | — (konflikt) |
+| #1592 | #845 | TAK (bez przebiegu w przeglądarce) | `scripts/kontakt-panel-browser.mjs` ma na sztywno bazę `kuking_flota_gpt-kontakt-panel` i port 55439, w CI nie chodzi — klawiatura i telefon niesprawdzone | — |
+| #1594 | #1090 | TAK | — | — |
+| #1595 | #1389, #1390 | TAK (×2) | — | — |
+| #1596 | #1310, #1326 | CZĘŚCIOWO (×2) | brak pomiaru w przeglądarce wymaganego przez oba issues (adresy i bajty przy DPR 1/2/3, zimny cache, 320 px i desktop) — PR przyznaje | — |
+| #1598 | #1032, #1280 | #1032 TAK, #1280 CZĘŚCIOWO | #1280 kryt. 3: zmiana widoczności publiczny → prywatny/dla obserwujących nie przesuwa `lastmod` profilu (PR: „znana granica”) | — |
 
 ### Uwagi
 
@@ -137,3 +158,21 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 - **#1514–#1524.** Celowane testy zielone (w tym grupy na dwóch połączeniach dla
   #1514, #1521, #1522 na własnych bazach `kuking_race_wt_*`), każda kontrola
   ujemna oblewa. #1516 po lokalnym połączeniu obu stron konfliktu: 69 PASS.
+- **#1552–#1576.** Celowane testy zielone, kontrole ujemne oblewają. #1552:
+  migracja z odmawiającym rollbackiem, kontrolą dodatnią i wpisem w `DATABASE.md`.
+  **#1575 — do potwierdzenia przez właściciela:** „wariant b” (znacznik stanu grupy)
+  nie ma zapisanej decyzji właściciela.
+- **#1601–#1609.** Celowane testy zielone (poza #1605), kontrole ujemne oblewają.
+  #1603: `fetchpriority="high"` na kolażu pod pierwszym ekranem telefonu może
+  konkurować z właściwym obrazem LCP — niezmierzone. #1604: `scripts/menu-karty-wpisu.mjs`
+  przechodzi w Chromium (z `KUKING_DEMO_HASLO` jak w CI). #1609: indeks częściowy
+  nie uwzględnia `rodzaj` — przy nowym rodzaju żądania zablokuje drugą sprawę konta.
+- **#1605 — do decyzji sesji głównej / autora.** Na stanie połączonym z `main`
+  (CHANGELOG rozwiązany lokalnie, niewypchnięty) oblewa
+  `CookingModeTest::test_903_przy_postepie_jest_potwierdzenie…` — blok `test_903_*`
+  dopisany w `5dd2b4ef` sprawdza tekst UI „Zostaw odhaczenia”, a #903 weszło na
+  `main` inną drogą z `GotowanieOdPoczatkuTest`. Naprawa = usunąć albo przepisać
+  blok #903 pod UI z `main`; ta sesja nie usuwa testów z cudzego PR-a.
+- **#1587–#1598.** Celowane testy zielone (poza #1590), kontrole ujemne oblewają.
+  #1590: same poprawki #1297/#1319 działają (8 PASS, kontrole ujemne oblewają 2 i 7).
+  #1598: test pilnuje braku N+1 w sitemapie; zależny #1570 jest już na `main`.
