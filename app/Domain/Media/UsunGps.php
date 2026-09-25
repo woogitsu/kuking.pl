@@ -102,10 +102,16 @@ namespace App\Domain\Media;
  * IPTC-IIM (JPEG APP13) współrzędnych nie ma — tylko nazwy miejsc — więc
  * zostaje, tak jak reszta EXIF-u.
  *
+ * KILKA OBRAZÓW W JEDNYM JPEG-U (MPF, mapa wzmocnienia HDR) i AVIF BEZ
+ * PREFIKSU `Exif\0\0` — od 25.09.2026 (audyt B5, znalezisko 5): każdy
+ * kolejny obraz za pierwszym jest czyszczony tak samo jak główny
+ * (`kolejneObrazyJpeg()`), a w kontenerze bez rozpoznanej struktury szukamy
+ * też samego nagłówka TIFF (`usunGpsZKandydatowTiff()`).
+ *
  * CZEGO TA KLASA NADAL NIE OBEJMUJE, wprost, żeby nikt nie zakładał więcej,
- * niż jest: AVIF-a inaczej niż przez awaryjne szukanie w bajtach (EXIF po
- * `Exif\0\0`, XMP po nagłówku pakietu) — bez parsera ISOBMFF skompresowany
- * element XMP w AVIF-ie zostałby niewidoczny.
+ * niż jest: AVIF-a inaczej niż przez szukanie w bajtach (EXIF po `Exif\0\0`
+ * albo nagłówku TIFF, XMP po nagłówku pakietu) — bez parsera ISOBMFF
+ * skompresowany element XMP w AVIF-ie zostałby niewidoczny.
  *
  * PNG: chunk `eXIf` niesie własną sumę CRC32, więc po zerowaniu trzeba ją
  * przeliczyć. Bez tego przeglądarka uznałaby plik za uszkodzony. JPEG i
@@ -159,9 +165,62 @@ final class UsunGps
     /** Prefiks słów kluczowych, pod którymi ImageMagick zapisuje surowe profile. */
     private const SLOWO_SUROWY_PROFIL_PNG = 'Raw profile type ';
 
+    /**
+     * Najwięcej obrazów w jednym pliku, które czyścimy poza pierwszym — i
+     * najwięcej kandydatów na blok TIFF w kontenerze bez struktury (AVIF).
+     * Telefon zapisuje 2–3 (obraz, podgląd MPF, mapa wzmocnienia HDR);
+     * sufit jest po to, żeby spreparowany plik nie zamienił sanitacji w pętlę.
+     */
+    private const LIMIT_OBRAZOW = 16;
+
     public static function zBajtow(string $bajty): string
     {
-        return self::usunXmp(self::usunGpsZExif($bajty));
+        $wynik = self::usunXmp(self::usunGpsZExif($bajty));
+
+        return str_starts_with($wynik, "\xFF\xD8")
+            ? self::kolejneObrazyJpeg($wynik)
+            : $wynik;
+    }
+
+    /**
+     * KAŻDY OBRAZ W JPEG-U, NIE TYLKO PIERWSZY (audyt B5, znalezisko 5).
+     *
+     * JPEG z telefonu bywa kilkoma JPEG-ami sklejonymi w jeden plik: za `EOI`
+     * obrazu głównego stoi podgląd albo mapa wzmocnienia HDR (MPF, APP2
+     * `MPF\0` z tabelą przesunięć), a każdy z nich ma WŁASNY APP1 z EXIF-em
+     * i własnym GPS-em. `blokWJpeg()` i `usunXmpZJpeg()` kończą na pierwszym
+     * `SOS`, więc czyściły tylko obraz główny — pomiar z audytu: dwa
+     * wystąpienia współrzędnych przed sanitacją, jedno po niej.
+     *
+     * Szukamy więc każdego kolejnego `FF D8 FF` (SOI i pierwszy znacznik).
+     * W danych skompresowanych `FF` jest zawsze uzupełniane zerem albo
+     * znacznikiem RST, więc `FF D8` nie pojawi się tam przypadkiem. Trafienie
+     * w miniaturę wewnątrz APP1 obrazu głównego też nie szkodzi: to też JPEG
+     * i czyszczenie go niczego nie psuje. Obie operacje nie zmieniają długości
+     * pliku, więc przesunięcia z tabeli MPF zostają prawdziwe.
+     */
+    private static function kolejneObrazyJpeg(string $bajty): string
+    {
+        $od = 2;
+
+        for ($i = 0; $i < self::LIMIT_OBRAZOW; $i++) {
+            $poz = strpos($bajty, "\xFF\xD8\xFF", $od);
+
+            if ($poz === false) {
+                break;
+            }
+
+            $obraz = substr($bajty, $poz);
+            $czysty = self::usunXmpZJpeg(self::usunGpsZExif($obraz));
+
+            if ($czysty !== $obraz && strlen($czysty) === strlen($obraz)) {
+                $bajty = substr($bajty, 0, $poz).$czysty;
+            }
+
+            $od = $poz + 3;
+        }
+
+        return $bajty;
     }
 
     /**
@@ -373,10 +432,57 @@ final class UsunGps
         $blok = self::znajdzBlokTiff($bajty);
 
         if ($blok === null) {
-            return $bajty;
+            return self::kontenerBezStruktury($bajty)
+                ? self::usunGpsZKandydatowTiff($bajty)
+                : $bajty;
         }
 
         [$tiff, $chunkPng] = $blok;
+
+        return self::usunGpsZTiff($bajty, $tiff, $chunkPng);
+    }
+
+    /** AVIF, HEIF i wszystko, czego nie rozpoznajemy po sygnaturze. */
+    private static function kontenerBezStruktury(string $bajty): bool
+    {
+        return ! str_starts_with($bajty, self::SYGNATURA_PNG)
+            && ! (str_starts_with($bajty, 'RIFF') && substr($bajty, 8, 4) === 'WEBP')
+            && ! str_starts_with($bajty, "\xFF\xD8");
+    }
+
+    /**
+     * AVIF BEZ PREFIKSU `Exif\0\0` (audyt B5, znalezisko 5).
+     *
+     * Element `Exif` w HEIF/AVIF zaczyna się od czterobajtowego przesunięcia
+     * do nagłówka TIFF, a prefiks `Exif\0\0` jest w nim opcjonalny — spec
+     * go dopuszcza, ale nie wymaga. Bez parsera ISOBMFF (`iinf`/`iloc`) jedyne,
+     * co mamy, to nagłówek TIFF: `II*\0` albo `MM\0*`. Każde trafienie
+     * przechodzi przez te same bramki co blok z JPEG-a (magiczne 42, poprawny
+     * IFD0, wskaźnik GPS, IFD w granicach pliku), więc przypadkowe bajty
+     * obrazu bez całej tej struktury zostają nietknięte.
+     */
+    private static function usunGpsZKandydatowTiff(string $bajty): string
+    {
+        foreach (["II\x2A\x00", "MM\x00\x2A"] as $naglowek) {
+            $od = 0;
+
+            for ($i = 0; $i < self::LIMIT_OBRAZOW; $i++) {
+                $poz = strpos($bajty, $naglowek, $od);
+
+                if ($poz === false) {
+                    break;
+                }
+
+                $bajty = self::usunGpsZTiff($bajty, $poz, null);
+                $od = $poz + 4;
+            }
+        }
+
+        return $bajty;
+    }
+
+    private static function usunGpsZTiff(string $bajty, int $tiff, ?int $chunkPng): string
+    {
 
         $porzadek = substr($bajty, $tiff, 2);
 
