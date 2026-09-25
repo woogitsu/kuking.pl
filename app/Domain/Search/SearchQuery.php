@@ -295,10 +295,15 @@ final class SearchQuery
      * na pełnym skanie. Rozstrzyga to, czy warunki są na jednej tabeli,
      * a nie samo słowo `OR`.
      *
-     * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @param  User|null  $widz  kto szuka — do blokad i (przy `$bezWidza`) do wykluczenia siebie
+     * @param  bool  $bezWidza  pomiń profil samego szukającego W ZAPYTANIU, przed `LIMIT`
+     *                          (issue #945). Odrzucenie po fakcie w PHP zjadało miejsce
+     *                          poprawnemu wynikowi i fałszowało informację „jest więcej".
+     *                          `/szukaj` tego nie włącza — tam własny profil w wynikach
+     *                          jest zgodny z tym, co człowiek wpisał.
      * @return Collection<int, Profile>
      */
-    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
+    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0, bool $bezWidza = false): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -350,6 +355,7 @@ final class SearchQuery
             ->with(['user.profile.avatar', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
+            ->when($bezWidza && $widz !== null, fn ($query) => $query->where('profiles.user_id', '!=', $widz->getKey()))
             ->where(function ($query) use ($literalnie): void {
                 $query
                     ->whereRaw('display_name_search LIKE ?', ['%'.$literalnie.'%'])
