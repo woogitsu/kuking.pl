@@ -68,7 +68,7 @@ final class NiedodzwonienieWebhookaIdzieNaKanalWidocznyNaRailwayTest extends Tes
     private function rekord(): LogRecord
     {
         return new LogRecord(
-            datetime: new DateTimeImmutable(),
+            datetime: new DateTimeImmutable,
             channel: 'blad_webhook',
             level: Level::Error,
             message: 'Coś się zepsuło.',
