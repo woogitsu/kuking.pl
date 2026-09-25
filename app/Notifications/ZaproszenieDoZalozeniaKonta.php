@@ -76,6 +76,19 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldQu
             && (($this->wygasa ?? null) === null || $this->wygasa->isFuture());
     }
 
+    /**
+     * Kolejka `high` (audyt B8-06): ten list wpuszcza człowieka na konto
+     * i ma krótki termin ważności, więc nie staje w FIFO za podsumowaniem
+     * tygodnia na `default`. Worker czyta `high` pierwszą (`docker/entrypoint.sh`,
+     * pilnuje `UmowaKolejkiTest`).
+     *
+     * @return array<string, string>
+     */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'high'];
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
