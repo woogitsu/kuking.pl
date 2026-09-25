@@ -36,6 +36,11 @@ class SprawdzKolejke extends Command
 
         if ($wynik['stan'] === StanKolejki::NIEDOSTEPNA) {
             $this->error('Nie udało się odczytać stanu tabel kolejki.');
+            // Pomiar TEŻ wtedy (#599): bez tej linii szereg czasowy w kanale
+            // `pomiary` miał dziurę dokładnie w chwili awarii, a z
+            // `--bez-alarmu` nie zostawał żaden trwały ślad. Liczniki są
+            // `null`, nie zero — nikt nie przeczyta tego jako „kolejka pusta”.
+            $this->zapiszWDzienniku($wynik);
 
             if (! $this->option('bez-alarmu')) {
                 $alarm->zadzwonJesliTrzeba($wynik);
