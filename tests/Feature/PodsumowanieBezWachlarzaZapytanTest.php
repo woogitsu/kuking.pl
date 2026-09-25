@@ -11,6 +11,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 /**
@@ -122,5 +123,144 @@ class PodsumowanieBezWachlarzaZapytanTest extends TestCase
             "Liczba zapytań rośnie z liczbą odbiorców (N+1): {$maloZapytan} przy 5 osobach, "
             ."{$duzoZapytan} przy 50. Zbieracz musi pytać bazę RAZ na paczkę, nie raz na osobę.",
         );
+    }
+
+    public function test_rosnaca_historia_wykonan_nie_zwieksza_liczby_hydratowanych_zdarzen(): void
+    {
+        config()->set('kuking.digest.max_pozycji', 3);
+
+        $odbiorca = $this->user('limit_wykonan');
+        $przepis = Recipe::factory()->for($odbiorca, 'author')->create();
+
+        $najnowsze = [];
+        for ($i = 0; $i < 20; $i++) {
+            $zdarzenie = CookedEvent::factory()
+                ->for($this->user('limit_kucharz_'.$i), 'user')
+                ->for($przepis, 'recipe')
+                ->create(['cooked_at' => now()->subMinutes($i)]);
+            if ($i < 3) {
+                $najnowsze[] = (string) $zdarzenie->getKey();
+            }
+        }
+
+        $zhydratowane = 0;
+        Event::listen('eloquent.retrieved: '.CookedEvent::class, function () use (&$zhydratowane): void {
+            $zhydratowane++;
+        });
+
+        $tresc = app(ZbierzTresciDigestu::class)->dlaJednej($odbiorca);
+
+        $this->assertCount(3, $tresc->wykonania);
+        $this->assertSame(3, $zhydratowane, 'Zbieracz zhydratował wykonania, których list nie pokaże.');
+        $this->assertSame(
+            $najnowsze,
+            array_map(fn (CookedEvent $zdarzenie): string => (string) $zdarzenie->getKey(), $tresc->wykonania),
+            'List ma pokazać trzy najnowsze wykonania.',
+        );
+    }
+
+    public function test_pelna_liczba_obserwujacych_nie_wymaga_hydratacji_pelnej_listy(): void
+    {
+        config()->set('kuking.digest.max_pozycji', 3);
+
+        $odbiorca = $this->user('limit_obserwujacych');
+
+        $najnowsi = [];
+        for ($i = 0; $i < 20; $i++) {
+            $nowy = $this->user('limit_obserwujacy_'.$i);
+            $nowy->following()->attach($odbiorca->getKey(), ['created_at' => now()->subMinutes($i)]);
+            if ($i < 3) {
+                $najnowsi[] = (string) $nowy->getKey();
+            }
+        }
+
+        $zhydratowane = 0;
+        Event::listen('eloquent.retrieved: '.User::class, function () use (&$zhydratowane): void {
+            $zhydratowane++;
+        });
+
+        $tresc = app(ZbierzTresciDigestu::class)->dlaJednej($odbiorca);
+
+        $this->assertCount(3, $tresc->nowiObserwujacy);
+        $this->assertSame(20, $tresc->ileNowychObserwujacych);
+        $this->assertSame(3, $zhydratowane, 'Pełny licznik obserwujących nie wymaga hydratacji wszystkich osób.');
+        $this->assertSame(
+            $najnowsi,
+            array_map(fn (User $osoba): string => (string) $osoba->getKey(), $tresc->nowiObserwujacy),
+        );
+    }
+
+    public function test_wspolny_autor_ma_osobny_limit_dla_kazdego_odbiorcy(): void
+    {
+        config()->set('kuking.digest.max_pozycji', 3);
+
+        $pierwszy = $this->user('limit_wpisow_a');
+        $drugi = $this->user('limit_wpisow_b');
+        $autor = $this->user('limit_wspolny_autor');
+        $pierwszy->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
+        $drugi->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
+
+        $najnowsze = [];
+        for ($i = 0; $i < 20; $i++) {
+            $wpis = Post::factory()->for($autor, 'author')->create(['published_at' => now()->subMinutes($i)]);
+            if ($i < 3) {
+                $najnowsze[] = (string) $wpis->getKey();
+            }
+        }
+
+        $zhydratowane = 0;
+        Event::listen('eloquent.retrieved: '.Post::class, function () use (&$zhydratowane): void {
+            $zhydratowane++;
+        });
+
+        $tresci = app(ZbierzTresciDigestu::class)->dla(collect([$pierwszy, $drugi]));
+
+        foreach ([$pierwszy, $drugi] as $odbiorca) {
+            $wpisy = $tresci[(string) $odbiorca->getKey()]->wpisyObserwowanych;
+            $this->assertSame($najnowsze, array_map(fn (Post $wpis): string => (string) $wpis->getKey(), $wpisy));
+        }
+
+        $this->assertSame(6, $zhydratowane, 'Wspólny autor nie może wciągać pełnej historii do pamięci.');
+    }
+
+    /**
+     * Styk z #1328: `odswiez()` czyta świeżo WYŁĄCZNIE pozycje wybrane przy
+     * kolejkowaniu. Limit w SQL nie może ich przyciąć, nawet gdy
+     * `max_pozycji` zmalało, zanim zadanie doszło do wysyłki.
+     */
+    public function test_odswiezenie_przy_wysylce_nie_tnie_wybranych_pozycji_nowym_limitem(): void
+    {
+        config()->set('kuking.digest.max_pozycji', 3);
+
+        $odbiorca = $this->user('limit_odswiez');
+        $przepis = Recipe::factory()->for($odbiorca, 'author')->create();
+        $autor = $this->user('limit_odswiez_autor');
+        $odbiorca->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
+
+        for ($i = 0; $i < 5; $i++) {
+            CookedEvent::factory()
+                ->for($this->user('limit_odswiez_kucharz_'.$i), 'user')
+                ->for($przepis, 'recipe')
+                ->create(['cooked_at' => now()->subMinutes($i)]);
+            $this->user('limit_odswiez_obs_'.$i)->following()
+                ->attach($odbiorca->getKey(), ['created_at' => now()->subMinutes($i)]);
+            Post::factory()->for($autor, 'author')->create(['published_at' => now()->subMinutes($i)]);
+        }
+
+        $zbieracz = app(ZbierzTresciDigestu::class);
+        $zapis = $zbieracz->dlaJednej($odbiorca);
+        $this->assertCount(3, $zapis->wykonania);
+        $this->assertCount(3, $zapis->nowiObserwujacy);
+        $this->assertCount(3, $zapis->wpisyObserwowanych);
+
+        config()->set('kuking.digest.max_pozycji', 1);
+        $swieza = $zbieracz->odswiez($zapis);
+
+        $klucze = fn (array $modele): array => array_map(fn ($m): string => (string) $m->getKey(), $modele);
+        $this->assertNotNull($swieza);
+        $this->assertSame($klucze($zapis->wykonania), $klucze($swieza->wykonania));
+        $this->assertSame($klucze($zapis->nowiObserwujacy), $klucze($swieza->nowiObserwujacy));
+        $this->assertSame($klucze($zapis->wpisyObserwowanych), $klucze($swieza->wpisyObserwowanych));
+        $this->assertSame(5, $swieza->ileNowychObserwujacych);
     }
 }
