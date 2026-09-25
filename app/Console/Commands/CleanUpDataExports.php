@@ -36,20 +36,26 @@ class CleanUpDataExports extends Command
         $expired = DataExport::query()
             ->whereNotNull('expires_at')
             ->where('expires_at', '<', now())
-            ->whereIn('status', [DataExport::STATUS_READY, DataExport::STATUS_EXPIRED])
-            ->orderBy('expires_at')
-            ->get();
-
-        if ($expired->isEmpty()) {
-            $this->info('Nie ma wygasłych paczek do usunięcia.');
-
-            return self::SUCCESS;
-        }
+            ->where(function ($query): void {
+                $query->where('status', DataExport::STATUS_READY)
+                    ->orWhere(function ($query): void {
+                        $query->where('status', DataExport::STATUS_EXPIRED)
+                            ->whereNotNull('disk')
+                            ->whereNotNull('object_key');
+                    });
+            })
+            // UUID jest stabilnym kursorem. Nie używamy offsetu: każdy udany
+            // przebieg zmienia rekord tak, że wypada on ze zbioru retry.
+            // `lazyById` trzyma w pamięci najwyżej jedną partię, a nie całą
+            // historię eksportów.
+            ->lazyById(100);
 
         $removed = 0;
         $nieudane = 0;
+        $znalezione = 0;
 
         foreach ($expired as $export) {
+            $znalezione++;
             $label = $export->getKey().' (wygasła '.$export->expires_at->format('Y-m-d H:i').')';
 
             if ($dryRun) {
@@ -92,6 +98,12 @@ class CleanUpDataExports extends Command
             }
         }
 
+        if ($znalezione === 0) {
+            $this->info('Nie ma wygasłych paczek do usunięcia.');
+
+            return self::SUCCESS;
+        }
+
         if ($nieudane > 0) {
             // CZĘŚCIOWA PORAŻKA TO PORAŻKA (#1534, wzorem #1342). Paczka,
             // której nie udało się usunąć, leży dalej w storage — to kopia
@@ -105,7 +117,7 @@ class CleanUpDataExports extends Command
         }
 
         $this->info($dryRun
-            ? 'Tryb podglądu: znaleziono '.$this->paczki($expired->count()).'.'
+            ? 'Tryb podglądu: znaleziono '.$this->paczki($znalezione).'.'
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
@@ -126,10 +138,23 @@ class CleanUpDataExports extends Command
      */
     private function skasujPlik(DataExport $export): bool
     {
-        if ($export->disk === null || $export->object_key === null) {
+        if ($export->disk === null && $export->object_key === null) {
             // Nie ma czego kasować — plik zniknął przy wcześniejszym przebiegu
             // albo nigdy nie powstał. To jest sukces, nie awaria.
             return true;
+        }
+
+        if ($export->disk === null || $export->object_key === null) {
+            // Połowa adresu nie pozwala ani znaleźć pliku, ani uczciwie
+            // stwierdzić, że go nie ma. Zachowujemy to, co zostało, i
+            // zostawiamy ślad operatorowi zamiast udawać udane kasowanie.
+            Log::error('Paczka z danymi ma niepełny adres pliku', [
+                'data_export_id' => $export->getKey(),
+                'disk' => $export->disk,
+                'object_key' => $export->object_key,
+            ]);
+
+            return false;
         }
 
         try {
