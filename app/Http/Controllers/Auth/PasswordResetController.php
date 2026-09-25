@@ -7,8 +7,8 @@ namespace App\Http\Controllers\Auth;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelEmailChange;
+use App\Domain\Users\Actions\UstawNoweHaslo;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Komunikat;
@@ -157,7 +157,7 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, CancelEmailChange $anuluj, LimitProbHasla $limit): RedirectResponse
+    public function reset(Request $request, UstawNoweHaslo $ustaw, LimitProbHasla $limit): RedirectResponse
     {
         $request->validate([
             'token' => ['required'],
@@ -196,22 +196,22 @@ class PasswordResetController extends Controller
                 ...$request->only('password', 'password_confirmation', 'token'),
                 'email' => User::normalizeEmail((string) $request->input('email', '')),
             ],
-            function ($user, string $password) use ($request, $anuluj, $limit): void {
-                // Hasło jedną nazwaną drogą (`assignPassword()`), bo
-                // `password` jest poza `$fillable`. Wspólna metoda niżej
-                // odwołuje również token „zapamiętaj mnie” (#584).
-                $user->assignPassword($password)->save();
-
-                // Rotacja sesji (issue #12): to jest DOKŁADNIE sytuacja, w
-                // której zmiana hasła musi kasować stare sesje — ktoś prosi
-                // o reset właśnie DLATEGO, że podejrzewa, że jego hasło zna
-                // ktoś inny. Bez tego druga osoba zostałaby zalogowana dalej,
-                // a resetujący/a miałby/aby złudne poczucie, że problem
-                // zniknął. W tej ścieżce nie ma „bieżącej sesji do
-                // zachowania" — resetujący/a nie jest tu zalogowany/a
-                // (formularz jest publiczny), więc kasujemy WSZYSTKIE sesje
-                // bez wyjątku.
-                $user->invalidateSessions();
+            function ($user, string $password) use ($request, $ustaw, $limit): void {
+                // Hasło, sesje, link resetu, zamówiona zmiana adresu i wpis
+                // dziennika — jedną transakcją pod blokadą konta (#1358).
+                //
+                // Rotacja sesji (issue #12): ktoś prosi o reset właśnie
+                // DLATEGO, że podejrzewa, że jego hasło zna ktoś inny.
+                // Resetujący/a nie jest tu zalogowany/a (formularz jest
+                // publiczny), więc kasujemy WSZYSTKIE sesje bez wyjątku.
+                //
+                // Reset UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU (issue #195):
+                // gdyby przetrwała, napastnik dokończyłby przejęcie konta
+                // swoim odnośnikiem — właśnie w chwili, w której właściciel
+                // odzyskuje kontrolę. Pod tą samą blokadą co zapis hasła,
+                // bo inaczej potwierdzenie mieści się pomiędzy
+                // (`App\Domain\Users\Actions\UstawNoweHaslo`).
+                $ustaw->handle($user, $password, CancelEmailChange::POWOD_RESET_HASLA, $request->ip());
 
                 // KLIKNIĘCIE W TEN LINK POTWIERDZA ADRES (issue #317).
                 //
@@ -236,17 +236,6 @@ class PasswordResetController extends Controller
                 if (! $user->hasVerifiedEmail()) {
                     $user->markEmailAsVerified();
                 }
-
-                // ...I UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU E-MAIL (issue #195).
-                //
-                // Ten sam powód co przy zmianie hasła w ustawieniach:
-                // reset hasła jest drogą powrotu na konto, do którego ktoś
-                // inny mógł mieć dostęp. Gdyby oczekująca zmiana adresu
-                // przetrwała reset, napastnik dokończyłby przejęcie konta
-                // swoim odnośnikiem — właśnie w chwili, w której właściciel
-                // odzyskuje kontrolę. Pełne uzasadnienie:
-                // `App\Domain\Users\Actions\CancelEmailChange`.
-                $anuluj->handle($user, CancelEmailChange::POWOD_RESET_HASLA, $request->ip());
 
                 // ...I ZDEJMUJE BLOKADĘ KONTA Z LIMITERA LOGOWANIA.
                 //
@@ -273,8 +262,6 @@ class PasswordResetController extends Controller
                 // konta, żeby wyczyścić licznik adresowy przed powrotem do
                 // rozpylania (`App\Support\KluczeLimitow`).
                 $limit->zdejmijBlokadeKonta($user);
-
-                AuditLogEntry::record('account.password_reset', $user, $user, ip: $request->ip());
 
                 event(new PasswordReset($user));
             },
