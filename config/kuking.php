@@ -3108,6 +3108,54 @@ return [
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Publiczne API dla aplikacji mobilnej (D-014, D-270)
+    |--------------------------------------------------------------------------
+    |
+    | Drugi adapter nad TYMI SAMYMI Akcjami i Policy co kontrolery HTML.
+    | Trasy leżą w `routes/api.php` pod prefiksem `/api/v1`, uwierzytelnia je
+    | Laravel Sanctum TOKENAMI OSOBISTEGO DOSTĘPU (nagłówek `Authorization:
+    | Bearer …`), nigdy ciasteczkiem sesji — patrz `config/sanctum.php`.
+    */
+    'api' => [
+        /*
+         * WYŁĄCZNIK CAŁEGO API, domyślnie ZAMKNIĘTY.
+         *
+         * `false` znaczy: każdy adres pod `/api/*` — także ten, który istnieje
+         * — odpowiada tym samym 404 co adres, którego nie ma
+         * (`App\Http\Middleware\BramaApi`). Nie 401 i nie 403: zamknięte
+         * API nie ma zdradzać, które trasy za nim stoją.
+         *
+         * Domyślnie zamknięte, bo otwarcie jest decyzją wdrożeniową, nie
+         * skutkiem ubocznym merge'a: dopóki aplikacja mobilna nie istnieje,
+         * otwarte API byłoby powierzchnią bez konsumenta — dokładnie tym,
+         * przed czym ostrzegał D-014.
+         */
+        'wlaczone' => (bool) env('KUKING_API_ENABLED', false),
+
+        /*
+         * DWA LIMITY NA KAŻDE ŻĄDANIE, LICZONE NIEZALEŻNIE: `na_adres`
+         * w `App\Http\Middleware\BramaApi` (przed sprawdzeniem tokenu),
+         * `na_token` w limiterze `api` (`App\Providers\ApiServiceProvider`).
+         * Format „próby,minuty" jak w `limits` niżej.
+         *
+         * `na_token` — jedno urządzenie jednej osoby. Aplikacja przewijająca
+         * feed i otwierająca wpisy robi kilka żądań na ekran; 120 na minutę
+         * to dwa żądania na sekundę bez przerwy, czyli sufit, którego człowiek
+         * palcem nie dotknie, a zapętlony klient dotknie w minutę.
+         *
+         * `na_adres` — jeden adres IP, z tokenem albo bez. Wyższy niż
+         * `na_token`, bo za jednym ruterem domowym (albo za NAT-em operatora
+         * komórkowego) siedzi kilka osób naraz. To on jest jedyną zaporą dla
+         * żądań bez tokenu i dla kogoś, kto zakłada tokeny seriami.
+         */
+        'limity' => [
+            'na_token' => '120,1',
+            'na_adres' => '300,1',
+        ],
+    ],
+
     'demo' => [
         // Hasło kont demonstracyjnych `DemoSeeder`. Czytane przez `config()`,
         // nie `env()` bezpośrednio w seederze — PHPStan słusznie oblewa

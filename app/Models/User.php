@@ -26,6 +26,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\NewAccessToken;
 
 /**
  * Konto użytkownika.
@@ -35,6 +37,15 @@ use Illuminate\Support\Str;
  */
 class User extends Authenticatable implements MustVerifyEmailContract
 {
+    /**
+     * Tokeny aplikacji mobilnej (D-014, D-270). Bez tego traitu
+     * `Laravel\Sanctum\Guard` nie uzna konta za zdolne do tokenów
+     * i `auth:sanctum` odpowie 401 każdemu.
+     *
+     * @use HasApiTokens<PersonalAccessToken>
+     */
+    use HasApiTokens;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
@@ -1481,6 +1492,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // niczyją bieżącą przeglądarką.
         $this->invalidateLoginLinks();
 
+        // TOKENY APLIKACJI MOBILNEJ GINĄ TĄ SAMĄ DROGĄ (D-270), z tego samego
+        // powodu co link wyżej: token JEST wejściem na konto, tyle że leżącym
+        // w telefonie, a nie w skrzynce. Zmiana hasła, „wyloguj mnie
+        // z innych urządzeń", blokada, zawieszenie i zgłoszenie usunięcia
+        // konta, które zostawiałyby żywy token, odcinałyby przeglądarkę
+        // i zostawiały otwartą aplikację. `$exceptSessionId` nie ma tu
+        // odpowiednika z tego samego powodu co przy linku: wyjątek jest dla
+        // BIEŻĄCEJ przeglądarki, a telefon nią nie jest.
+        $this->invalidateApiTokens();
+
         if (config('session.driver') !== 'database') {
             return;
         }
@@ -1507,6 +1528,48 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function invalidateLoginLinks(): void
     {
         LoginLinkToken::query()->where('user_id', $this->getKey())->delete();
+    }
+
+    /**
+     * Odwołanie WSZYSTKICH tokenów aplikacji mobilnej tego konta (D-270).
+     *
+     * Osobna, nazwana metoda z tego samego powodu co `invalidateLoginLinks()`:
+     * da się ją wywołać samą, a nazwa mówi, co znika.
+     */
+    public function invalidateApiTokens(): void
+    {
+        PersonalAccessToken::query()
+            ->where('tokenable_type', self::class)
+            ->where('tokenable_id', $this->getKey())
+            ->delete();
+    }
+
+    /**
+     * Wydanie tokenu aplikacji mobilnej — nadpisanie metody z `HasApiTokens`.
+     *
+     * Pakiet zapisuje wiersz przez `create([... 'token' => ...])`, czyli
+     * masowym przypisaniem poświadczenia (AGENTS.md §7). Tu skrót idzie
+     * przez `forceFill()`, a `PersonalAccessToken::$fillable` nie zna
+     * kolumny `token`. Postać jawna wraca WYŁĄCZNIE w `NewAccessToken`
+     * i nie jest nigdzie zapisywana.
+     *
+     * @param  array<int, string>  $abilities
+     */
+    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    {
+        $jawny = $this->generateTokenString();
+
+        $token = new PersonalAccessToken;
+        $token->forceFill([
+            'tokenable_type' => self::class,
+            'tokenable_id' => $this->getKey(),
+            'name' => $name,
+            'token' => hash('sha256', $jawny),
+            'abilities' => $abilities,
+            'expires_at' => $expiresAt,
+        ])->save();
+
+        return new NewAccessToken($token, $token->getKey().'|'.$jawny);
     }
 
     /**
