@@ -314,6 +314,16 @@ class CookingModeTest extends TestCase
         return 'gotowanie.'.$recipe->getKey().'.zrobione';
     }
 
+    /** Odhacza krok tak jak formularz widoku: numer i tożsamość kroku (#756). */
+    private function odhacz(Recipe $recipe, int $krok): void
+    {
+        $this->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => $krok,
+            'krok_id' => $recipe->steps()->orderBy('position')->get()->get($krok - 1)->getKey(),
+            'zrobiono' => 1,
+        ]);
+    }
+
     public function test_903_bez_odhaczen_nie_ma_zbednego_resetu(): void
     {
         $recipe = $this->przepisZKrokami($this->user('autorka903a'), 2);
@@ -328,7 +338,7 @@ class CookingModeTest extends TestCase
     public function test_903_przy_postepie_jest_potwierdzenie_z_formularzem_post_i_wycofaniem(): void
     {
         $recipe = $this->przepisZKrokami($this->user('autorka903b'), 2);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->odhacz($recipe, 1);
 
         $html = $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
             ->assertOk()
@@ -351,9 +361,9 @@ class CookingModeTest extends TestCase
         $recipe = $this->przepisZKrokami($autor, 2);
         $inny = $this->przepisZKrokami($autor, 2);
 
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 2, 'zrobiono' => 1]);
-        $this->post(route('cooking.zaznacz', $inny->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->odhacz($recipe, 1);
+        $this->odhacz($recipe, 2);
+        $this->odhacz($inny, 1);
         $postepInnego = session($this->kluczPostepu($inny));
         $this->assertCount(2, session($this->kluczPostepu($recipe)), 'Kontrola dodatnia: przed resetem są dwa odhaczenia.');
 
@@ -377,7 +387,7 @@ class CookingModeTest extends TestCase
     public function test_903_get_nie_resetuje(): void
     {
         $recipe = $this->przepisZKrokami($this->user('autorka903d'), 1);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->odhacz($recipe, 1);
 
         $this->get(route('cooking.restart', $recipe->slug))->assertMethodNotAllowed();
 
@@ -387,7 +397,7 @@ class CookingModeTest extends TestCase
     public function test_903_reset_bez_tokenu_csrf_dostaje_419_i_nic_nie_czysci(): void
     {
         $recipe = $this->przepisZKrokami($this->user('autorka903e'), 1);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->odhacz($recipe, 1);
 
         // Framework pomija CSRF w testach; tu świadomie przywracamy walidację
         // (ten sam zabieg co w CacheHtmlGosciaTest).
