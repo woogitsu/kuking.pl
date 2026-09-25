@@ -3207,6 +3207,7 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
+Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -16017,6 +16018,12 @@ odwołania.
    Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
    i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
    bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+   **Uzupełnienie (#1408, 24 września 2026):** stroną sprawy jest też ten,
+   KOGO ona dotyczy. Zgłoszenia własnej treści albo własnego profilu nie
+   rozstrzyga ani moderator, ani administrator — reguła rangi blokowała
+   tylko karę na sobie, a „Bez działania” pozwalało oddalić skargę na siebie.
+   Autora wyznacza `ModeratedContent::osoba()`, cel szukany razem z miękko
+   usuniętymi.
 2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
    `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
    administrator także moderatorów. **Konta administratora nie zawiesza ani
@@ -16261,6 +16268,84 @@ wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
 komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
+
+---
+
+## D-252 — Aplikacja sama dosyła zaległe potwierdzenia przyjęcia zgłoszeń, co godzinę (#797, DSA art. 16 ust. 4, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+### Problem
+
+Potwierdzenie przyjęcia zgłoszenia (powiadomienie w serwisie
+`report.received` + znacznik `reports.receipt_sent_at`) powstaje POZA
+transakcją zapisu sprawy — celowo, żeby awaria powiadomienia nie zabrała
+człowiekowi przyjętego zgłoszenia. Awaria zostawia sprawę z pustym
+znacznikiem. Dokańczał ją tylko powrót człowieka do tej samej sprawy;
+sprawa, do której nikt nie wraca, zostawała bez potwierdzenia na zawsze,
+a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
+
+### Decyzja
+
+**TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
+wcześniej nie wyszły.** Robi to komenda
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`).
+
+- **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
+  akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
+  warunkowy `UPDATE ... WHERE receipt_sent_at IS NULL` w jednej transakcji
+  z utworzeniem powiadomienia. Gdy dosyłka zbiegnie się z człowiekiem
+  wracającym do tej samej sprawy, wiersz dostaje dokładnie jedno
+  potwierdzenie — ten jeden przeplot mierzy
+  `tests/Dwa/DosylkaNieDublujePotwierdzeniaTest` na dwóch połączeniach.
+  Dwóch przebiegów dosyłki naraz nikt nie mierzy osobno: nie dopuszczają
+  ich `onOneServer()` i `withoutOverlapping(50)`, a gdyby do nich doszło,
+  chroni ten sam warunkowy `UPDATE`.
+- **Partiami.** `--ile` (domyślnie 200) ogranicza jeden przebieg,
+  najstarsze sprawy idą pierwsze, reszta czeka na następną godzinę.
+- **Sprawa, która pada stale, nie zatyka kolejki.** Porażki są liczone
+  per sprawa (cache, klucz `kuking:dosylka-potwierdzen:porazki`, 30 dni);
+  po 3 porażkach z rzędu sprawa idzie na koniec kolejki i dostaje próbę
+  dopiero, gdy w partii zostaje miejsce po sprawach zdrowych. Nie przepada:
+  dalej liczy się jako zaległość, a jej porażka dalej daje kod ≠ 0. Udana
+  próba albo zniknięcie zaległości zeruje licznik. Licznik nie jest
+  w kolumnie, bo to stan roboczy dosyłki, nie fakt o sprawie — jego utrata
+  kosztuje tylko kilka dodatkowych prób.
+- **Nie jest zaległością** (i nie wchodzi do licznika): zgłoszenie bez
+  konta (droga prawna ma własne potwierdzenie mailowe), zgłaszający
+  z kontem wymazanym (brak czytelnika), sprawa, której rozstrzygnięcie
+  (art. 16 ust. 5, `decision_sent_at`) już doszło — potwierdzenie mówi
+  „sprawdzimy i napiszemy, co postanowiliśmy", więc po decyzji byłoby
+  nieprawdą, a informacja o decyzji niesie ten sam numer sprawy. Warunek
+  decyzji stoi także w samym zamku, więc decyzja doręczona w trakcie
+  przebiegu wygrywa. Sprawa rozstrzygnięta BEZ doręczonej decyzji
+  potwierdzenie dostaje — to wtedy jedyny ślad, że zgłoszenie doszło.
+- **Ping skasowany przez retencję nie jest zaległością** — komenda pyta
+  o znacznik, nigdy o istnienie powiadomienia.
+- **Porażka widoczna.** Awaria jednej sprawy nie zatrzymuje partii, ale
+  komenda kończy się kodem ≠ 0, a wspólny adapter
+  `App\Support\Harmonogram::artisan()` zamienia go w wyjątek (#835). Zadanie ma `onOneServer()` (#595)
+  i `withoutOverlapping(50)` (#1002).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Górnej granicy wieku sprawy: komenda dośle potwierdzenie także do
+zgłoszenia sprzed roku. „Od kiedy jest za późno" wymaga osobnej decyzji.
+Nie dotyczy też informacji o rozstrzygnięciu, która nie doszła —
+to osobna zaległość bez własnej dosyłki.
+
+### Dowód
+
+`tests/Feature/DosylkaZaleglychPotwierdzenTest.php`,
+`tests/Dwa/DosylkaNieDublujePotwierdzeniaTest.php`.
+
+### Wycofanie
+
+Usunąć zadanie z `routes/console.php` (komenda może zostać do ręcznego
+użycia). Schemat się nie zmienia; wysłanych powiadomień nie trzeba cofać.
+
+---
 
 ## D-253 — Decyzja właściciela #926: prywatne czynności podczas zawieszenia (20 września 2026)
 
@@ -16596,3 +16681,116 @@ w `PriorytetSprawy::MAPOWANIE`.
 
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
+
+---
+
+## D-255 — Adres magazynu R2 za strażnikiem hostów: tylko `<konto>.eu.r2.cloudflarestorage.com` (24 września 2026)
+
+**Data:** 24 września 2026 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+
+**Co.** `AWS_ENDPOINT` — adres, pod który dyski R2/S3 wysyłają żądania
+podpisane kluczami z `AWS_*` (zdjęcia `r2`/`r2_publiczne`/`r2_legacy`,
+eksporty RODO `r2_eksporty`, kopie bazy `r2_kopie`, ogólny `s3`) — podlega
+strażnikowi hostów, tak jak adresy API z kluczami (#991). Dozwolony jest
+wyłącznie adres:
+
+```text
+https://<32 znaki hex>.eu.r2.cloudflarestorage.com
+```
+
+— wzór `^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$`, schemat `https`,
+bez portu (także bez wpisanego `:443`), bez danych logowania, bez ścieżki
+poza „/”, bez `?` i `#`.
+
+**Dlaczego.** (1) Adres niósł sekrety i dane ludzi (oryginały z EXIF-em, paczki
+RODO, zrzuty bazy), a nikt go nie sprawdzał: literówka albo podmieniona
+zmienna wysyłała podpisane żądania pod obcy host, a pusty adres — do Amazona
+(domyślny endpoint AWS SDK). (2) Segment `eu` przypina dane do jurysdykcji
+UE: bucket z jurysdykcją jest osiągalny wyłącznie przez endpoint
+jurysdykcyjny, a endpoint `eu` nie sięga bucketów spoza niej
+(`docs/infra/LOKALIZACJA_DANYCH_R2.md` §2). Polityka prywatności składa
+obietnicę o UE — strażnik sprawia, że aplikacja nie zapisze zdjęcia nigdzie
+indziej.
+
+**Co robi strażnik** (`App\Support\Storage\DozwolonyHostR2`):
+
+- `DyskR2::utworz()` (sterownik `r2`) i `DyskR2::utworzS3()` (wbudowany `s3`,
+  przepięty w `AppServiceProvider`) sprawdzają adres **przed** zbudowaniem
+  `S3Client`. Zły adres → dysk się nie buduje, wyjątek po polsku nazywa
+  zmienną i SAM host (bez klucza, userinfo i ścieżki); żadne żądanie nie
+  wychodzi.
+- `/health` ma sondę `magazyn`: zły adres któregoś dysku R2/S3 → `ok:false`,
+  kod `magazyn_r2_zly_host`; host (z identyfikatorem konta) idzie tylko do
+  logu. Dysk bez klucza i bez adresu (produkcja bez R2) jest pomijany.
+- W `local`/`testing` dopuszczone są też adresy, które nie wychodzą z maszyny:
+  pętla zwrotna (`localhost`, `127.0.0.1`, `::1` — MinIO z
+  `PomiarOdcieciaDostepuDoPlikuTest`) i zarezerwowane domeny `.test`,
+  `.invalid`, `.example`, `.localhost` (RFC 2606/6761), oraz pusty adres.
+  Na każdym innym środowisku — wyłącznie wzór.
+- Wzór jest w kodzie, nie w `.env`: kto może podmienić adres, nie może też
+  dopisać wyjątku.
+
+**Jak wymienić konto albo region.**
+
+- *Inne konto Cloudflare, dalej jurysdykcja UE:* wystarczy nowa wartość
+  `R2_ENDPOINT` na Railway (`https://<nowe konto>.eu.r2.cloudflarestorage.com`)
+  — identyfikator konta pasuje do wzoru. Buckety na nowym koncie muszą być
+  utworzone z jurysdykcją `eu` (inaczej endpoint `eu` ich nie zobaczy).
+- *Inna jurysdykcja albo inny dostawca:* to jest zmiana tej decyzji —
+  nowa decyzja właściciela, zmiana `DozwolonyHostR2::WZOR_HOSTA`,
+  `BramkaR2::JURYSDYKCJA_Z_POLITYKI` i polityki prywatności w jednym PR,
+  z testem. Jurysdykcji istniejącego bucketu nie da się zmienić — dane
+  trzeba przenieść do nowego bucketu (`kuking:przenies-zdjecia`).
+
+**Co musiałoby się stać, żeby to zmienić:** właściciel zmienia obietnicę
+o lokalizacji danych albo dostawcę magazynu.
+
+Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
+„Strażnik R2 bez segmentu eu” w `scripts/kontrole-negatywne-alfa08.py`.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
+
+## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
+(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+
+**Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
+opublikowanego komentarza, `CommentController::update()` zleca
+`PrzeanalizujTresc::dlaKomentarza()` — to samo zadanie, w tej samej kolejce
+`low`, co po publikacji. Zapis bez zmiany (`wasChanged('body')` fałszywe)
+nic nie zleca. Wpisy i przepisy zostają bez zmian.
+
+**Dlaczego.** D-052 odłożył ponowną analizę po edycji „ze świadomą luką”,
+z dwóch powodów. Oba przy komentarzu nie trzymają:
+
+1. *Obietnica „odrzucone nie wraca”* — nienaruszona. Zadanie kończy się
+   w `OznaczDoPrzegladu`, a tam `juzOgladane()` i indeks
+   `reports_jeden_automat_na_tresc` przepuszczają jedno oznaczenie na
+   komentarz, na zawsze. Edycja NIE otwiera sprawy odrzuconej i nie stawia
+   drugiej pozycji przy otwartej (moderator i tak ogląda aktualny tekst).
+2. *Koszt zadania za każdą literówkę* — ograniczony: okno 15 minut, limit
+   trasy `comment`, tylko rzeczywista zmiana. Kilka szybkich poprawek daje
+   kilka zadań, ale każde czyta komentarz po ID, więc każde ocenia
+   najnowszy tekst, a wynik to najwyżej jedna pozycja w kolejce.
+
+Luka była najtańszym obejściem wykrywacza: neutralny komentarz → zakończona
+analiza → dopisany spam.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+treść zostaje opublikowana, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji — zadanie ogląda tylko opublikowany komentarz.
+
+**Znana granica.** Komentarz, którego oznaczenie moderator już odrzucił,
+po edycji nie wraca do kolejki automatu — to cena obietnicy z D-052.
+Zostaje zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiKomentarzaTest.php` (zakończona
+pierwsza analiza, pierwsze zadanie wciąż w kolejce, zapis bez zmiany,
+wyłącznik, odrzucone nie wraca).
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.

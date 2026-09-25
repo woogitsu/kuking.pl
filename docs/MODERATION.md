@@ -95,6 +95,10 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
 - **Nikt nie rozstrzyga zgłoszenia, które sam złożył** — także administrator
   i także decyzją „Bez działania" (`ReportPolicy::decide()`). Zgłoszenie
   prawne bez konta rozstrzyga każdy moderator.
+- **Nikt nie rozstrzyga zgłoszenia, które dotyczy jego samego** — skargi na
+  własny wpis, przepis, komentarz, „Ugotowałem” albo na własny profil
+  (autor wyznaczony przez `ModeratedContent::osoba()`, także przy treści już
+  usuniętej). Taką sprawę zamyka ktoś inny z moderacji.
 - **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
   moderator karze zwykłe konta, administrator także moderatorów. Konta
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
@@ -367,8 +371,10 @@ Zmiana roli i wpis audytu zatwierdzają się w jednej transakcji. Równoległe
 polecenia serializuje `ChangeUserRole`: wspólna blokada ról poprzedza blokadę
 konta, a status, poprzednia rola i liczba pozostałych czynnych administratorów
 są sprawdzane ponownie po oczekiwaniu. Pytanie o potwierdzenie nie trzyma
-transakcji. To ochrona przed równoległymi degradacjami, nie nowa blokada
-zawieszenia, bana ani usunięcia konta. Zakres i pomiar:
+transakcji. Ta sama blokada (`OstatniAdministrator`) chroni zawieszenie,
+ban i własne żądanie usunięcia konta: ostatniego czynnego administratora nie
+da się ani zdegradować, ani odebrać mu aktywności, także dwiema równoległymi
+operacjami na dwóch różnych kontach. Zakres i pomiar:
 [`OSTATNI_ADMINISTRATOR_1016.md`](security/OSTATNI_ADMINISTRATOR_1016.md).
 
 **Zawieszone konto obsługi nie ma uprawnień moderacji** (issue #1336, #1351).
