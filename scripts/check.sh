@@ -51,11 +51,13 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 krok "PostgreSQL"
 # Sonda pyta o JAWNY endpoint bazy testowej (DB_HOST/DB_PORT/DB_DATABASE/
 # DB_USERNAME) i nie uruchamia żadnego klastra (issue #732) — szczegóły
-# i powód: scripts/lib/sonda-postgresql.sh. Brak parametrów kończy kontrolę
-# od razu: dalsze kroki trafiłyby w domyślny, być może cudzy, port.
+# i powód: scripts/lib/sonda-postgresql.sh. W pełnej kontroli brak parametrów
+# kończy ją od razu: dalsze kroki trafiłyby w domyślny, być może cudzy, port.
+# W trybie --szybko (hook pre-push) brak parametrów to tylko ostrzeżenie
+# i pominięta sonda (decyzja właściciela z 25.09.2026).
 # shellcheck source=lib/sonda-postgresql.sh
 . scripts/lib/sonda-postgresql.sh
-krok_postgresql
+krok_postgresql "$SZYBKO"
 if [ "$?" -eq 2 ]; then
     exit 1
 fi

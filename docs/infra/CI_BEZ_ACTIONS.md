@@ -89,8 +89,9 @@ testy, **odwracalność migracji** (`migrate:refresh`, czyli czy `down()` dział
 i build assetów.
 
 **Baza testowa musi być podana jawnie** (issue #732): `DB_HOST`, `DB_PORT`,
-`DB_DATABASE` i `DB_USERNAME`. Bez nich kontrola kończy się od razu
-z listą brakujących zmiennych — nie zgaduje domyślnego portu, bo w środowisku
+`DB_DATABASE` i `DB_USERNAME`. Bez nich pełna kontrola kończy się od razu
+z listą brakujących zmiennych; w trybie `--szybko` (hook `pre-push`) brak
+zmiennych daje tylko ostrzeżenie i pomija sondę — nie zgaduje domyślnego portu, bo w środowisku
 współdzielonym to może być cudza baza. Sonda nie uruchamia żadnego klastra;
 „przyjmuje połączenia” nie znaczy jeszcze, że hasło i baza są poprawne
 (to sprawdzają testy). Przykład z własną bazą na 55439:

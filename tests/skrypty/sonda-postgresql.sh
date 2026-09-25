@@ -64,6 +64,8 @@ uruchom_blok() {
         export PATH="$TMP/bin:$PATH" ATRAPA_LOG="$TMP/log"
         # Ta sama sygnatura funkcji co w check.sh; BLEDY liczy porażki.
         BLEDY=0
+        # Flaga trybu z check.sh; test ustawia ją przez SZYBKO_TEST.
+        SZYBKO="${SZYBKO_TEST:-0}"
         krok() { printf '── %s ──\n' "$1"; }
         ok() { printf 'OK: %s\n' "$1"; }
         zle() { printf 'ZLE: %s\n' "$1"; BLEDY=$((BLEDY + 1)); }
@@ -113,15 +115,38 @@ sprawdz "niedostępność: komunikat nazywa sprawdzany endpoint" $?
 sprawdz "niedostępność: komunikat nie wypisuje hasła" $?
 
 # --- 3. brak parametrów -------------------------------------------------------------
-env -u DB_PORT -u DB_DATABASE DB_HOST=127.0.0.1 DB_USERNAME=kuking ATRAPA_KOD=0 \
+env -u DB_PORT -u DB_DATABASE DB_HOST=127.0.0.1 DB_USERNAME=kuking SZYBKO_TEST=0 ATRAPA_KOD=0 \
     bash -c "$(declare -f uruchom_blok); TMP='$TMP' KORZEN='$KORZEN'; uruchom_blok"
 
 [ "$(cat "$TMP/kod")" != 0 ]
-sprawdz "brak parametrów: kontrola kończy się odmową" $?
+sprawdz "pełna kontrola bez parametrów: kończy się odmową" $?
 grep -q 'DB_PORT' "$TMP/wyjscie" && grep -q 'DB_DATABASE' "$TMP/wyjscie"
 sprawdz "brak parametrów: komunikat wymienia brakujące zmienne" $?
 [ ! -s "$TMP/log" ]
 sprawdz "brak parametrów: pg_isready nie jest wołany z domyślnym połączeniem" $?
+
+# --- 3b. tryb --szybko bez parametrów: ostrzeżenie, sonda pominięta -----------------
+env -u DB_PORT -u DB_DATABASE -u DB_HOST -u DB_USERNAME SZYBKO_TEST=1 ATRAPA_KOD=0 \
+    bash -c "$(declare -f uruchom_blok); TMP='$TMP' KORZEN='$KORZEN'; uruchom_blok"
+
+[ "$(cat "$TMP/kod")" = 0 ] || printf '    SZYBKO_BLOKUJE: tryb --szybko bez DB_* zgłosił błąd: %s\n' "$(cat "$TMP/wyjscie")"
+[ "$(cat "$TMP/kod")" = 0 ]
+sprawdz "--szybko bez parametrów: kontrola idzie dalej bez błędu" $?
+grep -q 'Pomijam sondę PostgreSQL' "$TMP/wyjscie" && grep -q 'DB_PORT' "$TMP/wyjscie"
+sprawdz "--szybko bez parametrów: ostrzeżenie mówi, że sonda pominięta i czego brakuje" $?
+[ ! -s "$TMP/log" ]
+sprawdz "--szybko bez parametrów: pg_isready nie jest wołany z domyślnym połączeniem" $?
+
+# --- 3c. tryb --szybko Z parametrami: sonda działa jak w pełnej kontroli ------------
+env DB_HOST=127.0.0.1 DB_PORT=55439 DB_DATABASE=kuking_test_sonda DB_USERNAME=kuking \
+    SZYBKO_TEST=1 ATRAPA_KOD=2 bash -c "$(declare -f uruchom_blok); TMP='$TMP' KORZEN='$KORZEN'; uruchom_blok"
+
+grep -q -- '-p 55439' "$TMP/log"
+sprawdz "--szybko z parametrami: sonda pyta o jawny endpoint" $?
+[ "$(cat "$TMP/kod")" != 0 ]
+sprawdz "--szybko z parametrami: niedostępna baza to nadal błąd" $?
+! grep -q 'UNEXPECTED_CLUSTER_START' "$TMP/log"
+sprawdz "--szybko z parametrami: zero wywołań pg_ctlcluster" $?
 
 # --- 4. check.sh sam z siebie nie wraca do starej sondy ------------------------------
 ! grep -q 'pg_ctlcluster' "$TMP/blok.sh"
