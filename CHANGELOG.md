@@ -2,11 +2,14 @@
 
 ## Nieopublikowane
 
+- „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
+
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
 - Na stronie powiadomień przycisk „Oznacz wszystkie jako przeczytane” pojawia się tylko wtedy, gdy są nieprzeczytane powiadomienia. Jeśli między wczytaniem strony a kliknięciem wszystko zostało już przeczytane (np. w drugiej karcie), strona mówi, że nie było nic do oznaczenia, zamiast potwierdzać zmianę, której nie było (#1402).
 - Szkic przepisu widzi już tylko jego autor — moderacja też nie. Moderacja zagląda wyłącznie do przepisów, które sama ukryła albo zdjęła. Zdjęcia moderacja widzi tak samo jak treść, do której są przypięte; wyjątkiem jest zdjęcie, które samo jest przedmiotem zgłoszenia w panelu, oraz zdjęcie wpisu (także „tylko dla obserwujących”), który czeka na rozpatrzenie jako otwarte zgłoszenie albo oznaczenie automatu. Nieprzypięte jeszcze zdjęcie, szkic i skan rodzinnej kartki z prywatnego przepisu nie otwierają się już nikomu poza autorem.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Strona główna nie zostaje pusta, gdy tuż przed jej otwarciem przestaliście kogoś obserwować, zablokowaliście kogoś albo zniknął ostatni wpis z Waszych tagów. Zamiast pustego ekranu pokazuje wtedy wpisy z tagów albo „Świeżo z Kuking” (#983).
+- „Świeżo z Kuking” i strona powitalna pokazują najwyżej jeden wpis od każdej osoby — jej najnowszy, który możecie zobaczyć. Jedna bardzo aktywna osoba nie zasłania już całej reszty, a kolejność nadal jest po prostu od najnowszych (#940).
 - Polityka prywatności mówi teraz wprost, że Wasze zdjęcia leżą w Unii Europejskiej: magazyn zdjęć ma ograniczenie do jurysdykcji UE, sprawdzone 25 września 2026. Wcześniej dokument uczciwie pisał, że tego nie potwierdziliśmy. Polityka ma nową datę stanu, a zgody udzielone wcześniej zostają ważne (#619).
 
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
