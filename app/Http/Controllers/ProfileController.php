@@ -9,9 +9,11 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\Czas;
+use App\Support\KanonicznyAdresStrony;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,6 +53,9 @@ class ProfileController extends Controller
         $owner->setRelation('profile', $profile);
 
         $this->authorize('viewProfile', $owner);
+
+        // Dopiero po autoryzacji: canonical z zapisaną pisownią nazwy (#1311).
+        KanonicznyAdresStrony::ustawSciezke($request, route('profile.show', $profile->username, false));
 
         $tab = in_array($request->query('zakladka'), ['przepisy', 'ugotowane'], true)
             ? $request->query('zakladka')
@@ -100,7 +105,7 @@ class ProfileController extends Controller
                 ? $owner->recipes()
                     ->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-                    ->with('heroMedia')
+                    ->with(Recipe::RELACJE_KARTY)
                     ->latest('published_at')
                     ->latest('id')
                     ->paginate(12)
