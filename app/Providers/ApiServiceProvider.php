@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiter as Limiter;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
