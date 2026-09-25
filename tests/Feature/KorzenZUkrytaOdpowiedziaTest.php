@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
@@ -125,6 +126,25 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
             ->assertSessionHasNoErrors();
     }
 
+    /**
+     * Wartość `parent_restored_as_placeholder` z wpisu audytu przywrócenia
+     * tej odpowiedzi — albo `null`, gdy wpisu nie ma.
+     */
+    private function korzenJakoSladWAudycie(Comment $odpowiedz): ?bool
+    {
+        $wpis = AuditLogEntry::query()
+            ->where('action', 'moderation.restored')
+            ->where('metadata->target_id', (string) $odpowiedz->getKey())
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($wpis, 'Przywrócenie odpowiedzi musi zostawić wpis w audycie.');
+
+        $wartosc = $wpis->metadata['parent_restored_as_placeholder'] ?? null;
+
+        return is_bool($wartosc) ? $wartosc : null;
+    }
+
     #[DataProvider('miejsca')]
     public function test_ukryta_odpowiedz_chroni_korzen_i_wraca_widocznie(string $rodzaj): void
     {
@@ -153,6 +173,8 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
 
         $this->assertSame(Comment::STATUS_PUBLISHED, $odpowiedz->refresh()->status);
         $this->assertSame($korzen->getKey(), $odpowiedz->parent_id);
+        // Korzeń nie był w koszu — nie było czego wracać jako ślad.
+        $this->assertFalse($this->korzenJakoSladWAudycie($odpowiedz));
 
         $this->actingAs($widz)->get($miejsce->url())
             ->assertOk()
@@ -179,6 +201,7 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
 
         $korzen->refresh();
         $this->assertFalse($korzen->trashed(), 'Bez korzenia przywrócona odpowiedź nie ma gdzie się pokazać.');
+        $this->assertTrue($this->korzenJakoSladWAudycie($odpowiedz), 'Powrót korzenia jako śladu musi być widać w audycie.');
         $this->assertSame('Komentarz usunięty.', $korzen->body);
         $this->assertNotNull($korzen->body_removed_at);
 
@@ -203,6 +226,7 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
         $this->assertSame(Comment::STATUS_PUBLISHED, $odpowiedz->refresh()->status);
         $korzen->refresh();
         $this->assertTrue($korzen->trashed(), 'O korzeniu zdjętym przez moderację rozstrzyga osobna decyzja.');
+        $this->assertFalse($this->korzenJakoSladWAudycie($odpowiedz));
         $this->assertSame(self::TEKST_KORZENIA, $korzen->body, 'Treść zdjęta decyzją musi zostać nietknięta na wypadek odwołania.');
     }
 
