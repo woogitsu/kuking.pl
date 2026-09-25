@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * Zawieszona osoba może się obronić: zablokować natręta i zgłosić treść
- * (audyt B2-03, D-258).
+ * (audyt B2-03, D-263).
  *
  * CO SIĘ DZIAŁO
  * Zawieszone konto dalej czyta serwis, więc widzi komentarze i profil osoby,

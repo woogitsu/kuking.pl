@@ -84,7 +84,7 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
-        // D-258 (audyt B2-03): zawieszenie odcina od pisania, nie od
+        // D-263 (audyt B2-03): zawieszenie odcina od pisania, nie od
         // ochrony. Zawieszona osoba dalej czyta serwis, więc widzi też
         // tego, kto ją nęka — blokada niczego nie publikuje, a zdjęcie
         // blokady to decyzja wyłącznie o własnym widoku. Zgłoszenie treści

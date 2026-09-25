@@ -16849,7 +16849,7 @@ do wspólnego tokenu, który musi mieć dostęp do każdego z nich.
 
 ---
 
-## D-258 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
+## D-263 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2 (DSA
 art. 16, bezpieczeństwo ludzi) · Status: **obowiązuje** · Uzupełnia D-253
