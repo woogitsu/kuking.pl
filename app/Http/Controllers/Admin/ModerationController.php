@@ -556,7 +556,21 @@ class ModerationController extends Controller
             'reason_code.required' => 'Podaj powód przywrócenia — w logu musi zostać ślad, dlaczego zdjęto ukrycie.',
         ]);
 
-        $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+        // „Przywróć” cofa decyzję podjętą PRZY TYM zgłoszeniu (audyt B2-01).
+        // Bez tego warunku przycisk z dowolnego zgłoszenia — także
+        // odrzuconego — przywracał treść, którą schował ktoś inny.
+        $decyzja = ModerationAction::query()
+            ->where('report_id', $report->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE])
+            ->first();
+
+        if ($decyzja === null) {
+            return back()->withErrors([
+                'reason_code' => 'Przy tym zgłoszeniu moderacja niczego nie ukryła ani nie usunęła, więc nie ma czego przywracać.',
+            ]);
+        }
+
+        $cel = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($cel === null) {
             return back()->withErrors([
@@ -612,10 +626,12 @@ class ModerationController extends Controller
                 continue;
             }
 
-            $schowana = ModeratedContent::jestUkryta($cel)
-                || (method_exists($cel, 'trashed') && $cel->trashed());
+            $usunieta = method_exists($cel, 'trashed') && $cel->trashed();
+            $schowana = ModeratedContent::jestUkryta($cel) || $usunieta;
 
-            if ($schowana) {
+            // Treść schowana przez autora albo właściciela wpisu nie dostaje
+            // przycisku — `RestoreContent` i tak by odmówił (B2-01).
+            if ($schowana && RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta) !== null) {
                 $wynik[(string) $decyzja->report_id] = true;
             }
         }
