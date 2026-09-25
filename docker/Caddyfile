@@ -37,6 +37,49 @@
 	root /app/public
 
 	# -------------------------------------------------------------------------
+	# Limit rozmiaru ciała żądania (audyt A5-16).
+	#
+	# Bez tego anonim mógł wysyłać równolegle POST-y po 112 MB na dowolną
+	# trasę (np. /login). PHP buforuje ciało do /tmp, ZANIM zadziała CSRF
+	# i limit zapytań w Laravelu — więc koszt ponosił serwer, nie atakujący.
+	#
+	# Dwa progi:
+	#  * 112MiB wszędzie — tyle samo co `post_max_size=112M` w docker/php.ini
+	#    (PHP liczy M jako 1024², Caddy „MB" jako 1000²);
+	#    większe ciało PHP i tak odrzuci, więc nie ma po co go czytać;
+	#  * 2MB poza trasami, które przyjmują zdjęcia. Najdłuższy formularz bez
+	#    pliku (przepis, komentarz, „Napisz do nas") to kilkadziesiąt KB.
+	#
+	# Lista tras z plikami to KAŻDA trasa z `photos.*`/zdjęciem w walidacji:
+	# /dodaj/* (wpis, przepis), /pytania, /przepisy/* (edycja przepisu,
+	# „Ugotowałem" ze zdjęciem), /wpisy/* (edycja wpisu), /ustawienia/zdjecie,
+	# Livewire (kreator przepisu; prefiks bywa `/livewire-<hash>`) i /storage/*
+	# (podpisany zapis na dysk lokalny). Nowa trasa z uploadem MUSI tu trafić,
+	# inaczej zdjęcia powyżej 2 MB dostaną 413.
+	#
+	# ZMIERZONE (FrankenPHP 1.12 / Caddy 2.11): po przekroczeniu `max_size`
+	# Caddy NIE odpowiada 413 — ucina ciało po cichu i PHP dostaje 200
+	# z obciętymi danymi. Dlatego odmowa idzie PO NAGŁÓWKU Content-Length
+	# (przeglądarka wysyła go przy każdym formularzu): ≥ 2 000 000 bajtów poza
+	# trasami z plikami → 413 bez czytania ciała. `request_body` zostaje
+	# jako sufit dla ciał bez długości (chunked). „2MB" w Caddy to
+	# 2 000 000 bajtów, tyle samo co próg w wyrażeniu niżej.
+	# -------------------------------------------------------------------------
+	@zaDuzeBezPlikow {
+		not path /dodaj/* /pytania /przepisy/* /wpisy/* /ustawienia/zdjecie /livewire/* /livewire-* /storage/*
+		header_regexp Content-Length ^([2-9][0-9]{6}|[1-9][0-9]{7,})$
+	}
+	respond @zaDuzeBezPlikow "Za duże żądanie." 413
+
+	@bezPlikow not path /dodaj/* /pytania /przepisy/* /wpisy/* /ustawienia/zdjecie /livewire/* /livewire-* /storage/*
+	request_body @bezPlikow {
+		max_size 2MB
+	}
+	request_body {
+		max_size 112MiB
+	}
+
+	# -------------------------------------------------------------------------
 	# Kompresja. Cloudflare i tak kompresuje na krawędzi, ale ruch
 	# Railway edge → kontener też warto ścisnąć (płacisz za egress).
 	# -------------------------------------------------------------------------
