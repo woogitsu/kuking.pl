@@ -16934,6 +16934,11 @@ GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
 problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
 rozwiązuje.
 
+Dokumentacja dla autorów aplikacji: `docs/API.md` (pilnuje jej
+`tests/Feature/Api/ApiJestUdokumentowaneTest.php` — każda trasa w tabeli,
+każda poza logowaniem z `auth:sanctum`, każda z identyfikatorem w
+`KazdaTrasaZIdentyfikatoremPodPolicyTest`).
+
 📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
 `app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·

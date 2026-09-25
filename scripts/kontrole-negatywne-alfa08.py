@@ -218,6 +218,13 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Dokumentacja API (D-270): każda trasa `/api/v1` ma wiersz w tabeli
+# `docs/API.md`. Mutacja wycina wiersz feedu — strażnik ma zauważyć trasę
+# bez opisu.
+DOKUMENTACJA_API = "docs/API.md"
+DOKUMENTACJA_API_TEST = "ApiJestUdokumentowaneTest"
+WIERSZ_FEEDU = "| `GET /api/v1/feed` | wpisy obserwowanych, chronologicznie | token | to samo zapytanie co strona główna |\n"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -557,6 +564,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
+     lambda s: replace_once(s, WIERSZ_FEEDU, "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -586,6 +595,7 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DOKUMENTACJA_API_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
