@@ -99,6 +99,15 @@ koordynator przeglądał tylko 30 najnowszych sesji.
   ujawniają takie wady.
 - Scalaj **paczkami**, dopiero po zielonym CI na main. Kolejność sprawdzaj
   symulacją `git merge-tree --write-tree` na kolejnych PR-ach.
+- **Wersję podbija tylko sesja główna, jednym commitem na main po scaleniu
+  paczki** (#928). Gałęzie robocze NIE ruszają `wersja.etykieta`
+  w `config/kuking.php` i nie zakładają nagłówka „## Alfa 0.N" — wpis idzie
+  pod „## Nieopublikowane”. Przy wydaniu przenosisz ten blok pod nowy
+  nagłówek i w tym samym commicie podbijasz etykietę o jeden. Dwie gałęzie
+  z tym samym podbiciem scalają się bez konfliktu i cicho zlewają dwa wydania
+  w jedno; dwa takie same nagłówki w `CHANGELOG.md` zatrzymuje
+  `PodbicieWersjiWymagaWpisuWChangelogTest`. Gałąź z własnym podbiciem
+  cofnij w niej przed scaleniem albo przenieś jej wpis pod „Nieopublikowane”.
 - Zbędne, niezaczęte przebiegi CI starszych commitów main wolno anulować.
   Robi to automatycznie `czuwanie.py`.
 - Zasady scalania z [`AGENTS.md`](../../../AGENTS.md) i reguł właściciela:
