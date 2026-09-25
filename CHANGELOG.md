@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Panel „Bez odpowiedzi”: pytanie bez odpowiedzi stoi już tylko w zakładce „Pytania”, a nie jednocześnie w „Wpisach”. Powiadomienie gospodarza o pierwszej publikacji nowej osoby nadal przychodzi raz na osobę, ale gdy tą publikacją jest pytanie, mówi „pierwsze pytanie w Kuking” i prowadzi do zakładki „Pytania”. Gdy dział pytań jest wyłączony, takie powiadomienie nie ma przycisku „Zobacz”, zamiast prowadzić do nieistniejącej strony (#372).
 - Pod pytaniem w „Poradźcie” jest teraz sekcja „Inne pytania na ten temat” z odnośnikami „Pytania: <tag>”. Prowadzą do listy pytań z tym tagiem (`/pytania?tag=…`), a nie do ogólnej strony tagu z daniami. Na liście tag zostaje widoczny, można go zdjąć odnośnikiem „Pokaż wszystkie tagi”, a „Czeka na odpowiedź” zawęża pytania bez gubienia tagu (#372).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 

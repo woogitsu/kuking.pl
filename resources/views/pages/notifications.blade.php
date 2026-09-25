@@ -186,8 +186,13 @@
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
                                      (issue #6). Zachęca do odpowiedzi nowej osobie,
                                      bez obietnicy terminu ani tezy o retencji. --}}
-                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
-                                To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
+                                @if(($data['kind'] ?? null) === \App\Models\Post::KIND_QUESTION)
+                                    <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwsze pytanie w Kuking.</strong>
+                                    To pierwsza publikacja tej osoby. Warto odpowiedzieć szybko.
+                                @else
+                                    <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
+                                    To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_APPEAL_FILED)
                                 {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył

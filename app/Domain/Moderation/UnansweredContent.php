@@ -28,10 +28,16 @@ final class UnansweredContent
             ->whereHas('author', fn (Builder $author) => $author->widocznyJakoOsoba());
     }
 
-    /** @return Builder<Post> */
+    /**
+     * Tylko dania. Pytania mają własną zakładkę (`questions()`) i własną
+     * definicję odzewu — bez tego warunku pytanie bez odpowiedzi stało
+     * w obu kolejkach naraz (#372).
+     *
+     * @return Builder<Post>
+     */
     public function posts(User $host): Builder
     {
-        return $this->withoutResponse($this->eligiblePosts($host), 'post_id', 'posts', 'author_id');
+        return $this->withoutResponse($this->eligiblePosts($host)->where('posts.kind', Post::KIND_DISH), 'post_id', 'posts', 'author_id');
     }
 
     /**

@@ -295,7 +295,10 @@ final class PublishPost
             recipient: $gospodarz,
             type: Notification::TYPE_FIRST_POST,
             actor: $author,
-            data: ['post_id' => $post->getKey(), 'display_name' => $author->displayName()],
+            // `kind` (#372): jeden alert na osobę za pierwszą publikację
+            // DOWOLNEGO rodzaju (decyzja właściciela 25.09.2026), ale tekst
+            // i cel zależą od tego, czy to danie, czy pytanie.
+            data: ['post_id' => $post->getKey(), 'display_name' => $author->displayName(), 'kind' => $post->kind],
         );
     }
 
