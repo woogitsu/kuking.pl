@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\QuestionNotificationContext;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -15,7 +16,7 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, QuestionNotificationContext $questionContext): View
     {
         $user = $request->user();
 
@@ -33,7 +34,13 @@ class NotificationController extends Controller
 
         return view('pages.notifications', [
             'notifications' => $notifications,
+            'questionTitles' => $questionContext->titles($notifications->items(), $user),
+            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
+            // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
+            // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
+            // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
+            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
         ]);
     }
 
@@ -142,7 +149,13 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->notifications()->whereNull('read_at')->update(['read_at' => now()]);
+        $user = $request->user();
+
+        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969).
+        // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
+        // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
+        // choć człowiek nigdy ich nie zobaczył.
+        $user->notifications()->visibleTo($user)->whereNull('read_at')->update(['read_at' => now()]);
 
         return back()->with('status', 'Wszystkie powiadomienia oznaczone jako przeczytane.');
     }

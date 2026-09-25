@@ -54,7 +54,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║                                                                            ║
 ║   ┌────────────────────────────────┐   ┌────────────────────────────────┐  ║
 ║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media) WYCOFANE  │  ║
-║   │  /build/*        → 1 rok       │   │  cdn.kuking.pl/*               │  ║
+║   │  /build/assets/* → 1 rok       │   │  cdn.kuking.pl/*               │  ║
 ║   │  /favicon, /sw.js→ 1 godz.     │   │  → Cache Everything, 30 dni    │  ║
 ║   │  /livewire/*     → BYPASS      │   │  ↑ NIE ODTWARZAĆ — D-020       │  ║
 ║   │  cookie sesji    → BYPASS      │   └───────────────┬────────────────┘  ║
@@ -339,6 +339,10 @@ są bezwartościowe, a osobny bucket na każdy PR to bałagan), projekt Sentry
 ## 5. Serwisy w Railway — kiedy rozdzielać
 
 Plik `railway.ts` ma jeden przełącznik: `PRODUCTION_SPLIT_SERVICES`.
+
+Przełączenie żywej produkcji (pierwszy `railway config apply`, nazwy
+istniejących zasobów, czytanie planu, cofnięcie):
+[PRZELACZENIE_NA_3_SERWISY_595.md](./PRZELACZENIE_NA_3_SERWISY_595.md).
 
 ### Faza alfa (`false`) — produkcja jako jeden serwis
 
@@ -627,14 +631,17 @@ dla obu — inaczej `www` dałoby błąd TLS **przed** wykonaniem przekierowania
 
 **Aktualizacja #597/#610, 20.09.2026:** instrukcja i wyłączone projekty reguł
 są w [CLOUDFLARE_CACHE_597_610.md](CLOUDFLARE_CACHE_597_610.md).
-To nie jest potwierdzenie stanu panelu. HTML gościa pozostaje niegotowy do
-cache (sesja i CSRF). Reguły zdjęć wymagają odbioru stagingu.
+To nie jest potwierdzenie stanu panelu. HTML gościa (landing, przepis,
+profil) jest od 24.09.2026 gotowy w aplikacji za flagą
+`KUKING_HTML_EDGE_CACHE_SECONDS` (domyślnie 0 = wyłączone); reguła brzegu,
+TTL i plan wycofania — tamże, rozdział #610. Reguły zdjęć i HTML wymagają
+odbioru stagingu.
 
 **Co cache'ować:**
 
 | Reguła | Warunek | Akcja |
 |---|---|---|
-| Assety Vite | `starts_with(http.request.uri.path, "/build/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
+| Assety Vite | `starts_with(http.request.uri.path, "/build/assets/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
 | Statyka PWA | ścieżka w `/favicon.ico`, `/robots.txt`, `/manifest.webmanifest` | Edge TTL 1 godz. |
 | Zdjęcia przez aplikację (projekt #597) | `/zdjecia/{media}/{wariant}`, bez stanu klienta | Respektuj origin, przy braku nagłówka BYPASS; odbiór według dokumentu powyżej |
 

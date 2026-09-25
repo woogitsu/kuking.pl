@@ -157,7 +157,11 @@ final class PublishComment
                 actor: $author,
                 data: [
                     'comment_id' => $comment->getKey(),
-                    'excerpt' => mb_substr($body, 0, 120),
+                    // BEZ `excerpt` — ISSUE #758, D-229. Wycinek treści liczy
+                    // się przy WYŚWIETLANIU, z aktualnego komentarza
+                    // (`Notification::zyweWycinkiKomentarzy()`). Kopia
+                    // zapisana tutaj byłaby drugim źródłem prawdy i po
+                    // poprawce autora cytowałaby zdanie, którego już nie ma.
                     'url' => $this->urlFor($subject),
                     'question_answer' => $subject instanceof Post && $subject->kind === Post::KIND_QUESTION && $parentId === null,
                 ],
@@ -172,7 +176,7 @@ final class PublishComment
                     actor: $author,
                     data: [
                         'comment_id' => $comment->getKey(),
-                        'excerpt' => mb_substr($body, 0, 120),
+                        // Bez `excerpt` — ten sam powód co wyżej (#758, D-229).
                         'url' => $this->urlFor($subject),
                     ],
                 );

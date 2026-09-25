@@ -130,6 +130,25 @@ który kłamie.
 
 ---
 
+## 3a. Strażnik hosta w aplikacji (D-255, 24.09.2026)
+
+Od decyzji właściciela z 24.09.2026 aplikacja **sama odmawia** pracy z endpointem
+bez jurysdykcji UE. `App\Support\Storage\DozwolonyHostR2` dopuszcza wyłącznie
+`https://<32 znaki hex>.eu.r2.cloudflarestorage.com` (bez portu, ścieżki,
+danych logowania) dla każdego dysku R2/S3 — `r2`, `r2_publiczne`, `r2_legacy`,
+`r2_eksporty`, `r2_kopie`, `s3`. Zły adres → dysk się nie buduje, a `/health`
+pokazuje `checks.magazyn.error = magazyn_r2_zly_host`.
+
+To domyka wariant **A** z §6 po stronie kodu: wariant **B** (zostawić buckety
+bez jurysdykcji) wymaga od teraz zmiany D-255 i `WZOR_HOSTA`, nie samej
+polityki. Serwis `kopia-bazy` (skrypt powłoki, `KOPIA_S3_ENDPOINT`) nie
+przechodzi przez PHP i tym strażnikiem **nie** jest objęty.
+
+**Przed wdrożeniem** sprawdź w panelu R2, że każdy bucket (oryginały, warianty,
+eksporty, kopie) ma „Jurisdiction: European Union”, i że `R2_ENDPOINT` na
+Railway ma segment `.eu.`. Endpoint `eu` nie widzi bucketów bez jurysdykcji —
+aplikacja by się zbudowała, ale każdy odczyt dostałby `NoSuchBucket`.
+
 ## 4. Co wiadomo na 17.09.2026 — i skąd
 
 | Ustalenie | Źródło | Data |
@@ -219,6 +238,17 @@ faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
 ---
 
 ## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
+
+> **SPROSTOWANIE Z 24 IX 2026 (D-257).** Kroki 1–2a niżej zakładały jeden
+> bucket kopii z kopią **lustrzaną** i lifecycle „usuń po 31 dniach od
+> zapisu”. W kopii lustrzanej wiek obiektu liczy się od jego zapisu do
+> kopii, więc lifecycle kasowałby **każde zdjęcie starsze niż 31 dni**,
+> a rygiel z warunkiem wieku chroniłby tylko obiekty młodsze niż 30 dni.
+> Obowiązujący układ to **datowane migawki** (`migawka-RRRR-MM-DD/`).
+> Runbook krok po kroku, tokeny, koszt, próby i RPO/RTO:
+> **`docs/infra/DR_ZDJEC_R2.md`**. Reszta tej sekcji (dlaczego nie rygiel
+> na oryginałach, rygiel ≠ koniec retencji, pogodzenie z RODO) nadal
+> obowiązuje.
 
 **Stan na 18 IX 2026: nic nie zostało założone ani zmienione.** To jest
 procedura gotowa do wykonania, nie jej wykonanie. Panel Cloudflare jest poza

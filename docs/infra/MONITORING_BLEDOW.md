@@ -799,3 +799,62 @@ dokładnie jedną rzecz i nie zostawia po sobie stanu.
 `--bez-wysylki` odpowiada wyłącznie na pytanie, czy kanał jest skonfigurowany.
 **Sama konfiguracja nie jest dowodem dostarczenia** — to jest właśnie różnica
 między warstwą 2 a 4.
+
+### 7.5. Droga ODCZYTU: `/admin/kolejka` (issue #599)
+
+Wszystko wyżej w tym rozdziale opisuje **wysyłanie**: czujkę, która dzwoni.
+Ten punkt opisuje rzecz odwrotną — pytanie zadane z własnej woli, wtedy,
+kiedy ktoś już wie, że coś jest nie tak.
+
+**Problem, który to zamyka.** `/health` mówi `degraded` z powodem
+`zadania_nieudane` i nie podaje ani liczby, ani klasy zadania: publiczna
+odpowiedź niesie sam kod (`HealthController::sprawdzKolejke()`). Odpowiedź
+na pytanie „KTÓRE zadanie padło" miały wyłącznie `kuking:martwe-zadania`
+i `kuking:kto-nie-dostal-listu`, czyli komendy z **powłoki serwera**.
+Na Railway powłoki nie ma (`proc_open` wyłączony w `docker/php.ini`),
+a dostępu do bazy produkcyjnej nie ma nikt. Stan trwał od 9 września 2026
+i nikt nie umiał powiedzieć, co go trzyma — nie z braku narzędzia, tylko
+dlatego, że jedyne narzędzie stało po drugiej stronie ściany.
+
+**Co to jest.** Jeden ekran `GET /admin/kolejka`, bez `{parametru}` w adresie
+i bez jednej metody `POST`. Pokazuje:
+
+| Blok | Skąd | Odpowiada na pytanie |
+|---|---|---|
+| ramka górna | `App\Domain\Kolejka\StanKolejki` (§7.2) | czy coś psuje się TERAZ i czy worker żyje |
+| lista grup | `App\Domain\Kolejka\NieudaneZadania` | co zalega w `failed_jobs` i co je przewróciło |
+
+W grupie: nazwa klasy zadania, **nazwa klasy wyjątku**, liczba wierszy,
+najstarsza i najnowsza data.
+
+**Kto wchodzi.** Rola `admin`, przez `UserPolicy::diagnozujKolejke()`.
+Middleware `auth` + `moderator` + `moderator.2fa` pilnuje wejścia do panelu,
+ale **autoryzacją jest Policy** — moderator z potwierdzonym 2FA dostaje tu
+403. Ekran mówi, co psuje się w infrastrukturze, a to jest praca osoby
+prowadzącej wdrożenie, nie osoby moderującej treści (D-039).
+
+**Czego tam nie ma i nie będzie.** Ładunku zadania i treści wyjątku.
+W `failed_jobs.payload` leży **żywy żeton** logowania albo resetu hasła,
+a `exception` to ślad stosu, który w Laravelu potrafi nieść argumenty
+wywołań — czyli ten sam żeton i adres e-mail (audyt A6-01). Z kolumny
+`exception` odcinane jest **wszystko po pierwszym dwukropku**, zanim
+cokolwiek innego się z nią stanie; obie nazwy przechodzą jeszcze przez filtr
+kształtu nazwy klasy PHP, więc cokolwiek innego wychodzi jako `?`.
+Pilnuje tego `tests/Feature/PanelKolejkiZadanTest.php` — z kontrolą dodatnią,
+czyli asercją, że żeton i znacznik śladu stosu NAPRAWDĘ leżą w bazie.
+
+**Ekran wyłącznie czyta.** Żadnego „ponów" i żadnego „skasuj": zbiorcze
+`queue:retry` na starym żetonie resetu hasła wysyła człowiekowi martwy link,
+a skasowany wiersz to skasowany jedyny ślad po awarii. Obie decyzje zostają
+w `kuking:martwe-zadania`, gdzie podejmuje je człowiek po zobaczeniu, kogo
+dotyczą.
+
+**Dlaczego nie log.** Bo `LOG_LEVEL` na produkcji bywa ustawiony na
+`warning`, a wszystko na poziomie `info` przepada po drodze. Przyrząd oparty
+o dziennik byłby przyrządem, który milczy. Ten ekran czyta bazę przy każdym
+wejściu i nie zależy od poziomu logowania ani od `LOG_BLAD_WEBHOOK_URL`.
+
+**Czego to NIE rozwiązuje.** Nie mówi, KOGO dotyczyły te zadania — imię,
+adres i liczba różnych osób zostają w komendach, bo tam wymagają decyzji
+człowieka i nie wychodzą do przeglądarki. Nie rozlicza też tabeli: `/health`
+będzie mówić `degraded`, dopóki ktoś świadomie tych wierszy nie usunie.

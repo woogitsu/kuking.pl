@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * Edycja i usunięcie komentarza.
@@ -25,7 +27,7 @@ class CommentController extends Controller
 {
     public function __construct(private readonly DeleteComment $deleteComment) {}
 
-    public function update(Request $request, Comment $comment): RedirectResponse
+    public function update(Request $request, Comment $comment): RedirectResponse|Response
     {
         // Issue #937: autor widzi własny ukryty komentarz, ale nie może go
         // poprawić (CommentPolicy::update). Zamiast gołego 403 mówimy mu,
@@ -38,8 +40,20 @@ class CommentController extends Controller
             ]);
         }
 
+        // Po 15 minutach autor nie poprawi komentarza, ale nie traci tekstu,
+        // który właśnie wpisał — dopiero PO kontroli moderacji wyżej.
+        if ($request->user()->can('recoverExpiredEdit', $comment)) {
+            return response()->view('pages.comments.expired-edit', [
+                'body' => is_string($request->input('body')) ? $request->input('body') : '',
+                'returnUrl' => $comment->subject()->url(),
+            ], 403);
+        }
+
         $this->authorize('update', $comment);
 
+        // Po walidacji przekierowanie może dotrzeć już po zamknięciu okna.
+        // Identyfikator pochodzi z autoryzowanego modelu, nie z pola formularza.
+        $request->session()->flash('comment_edit_recovery', $comment->getKey());
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4000'],
         ], [
@@ -48,12 +62,32 @@ class CommentController extends Controller
         ]);
 
         $comment->update(['body' => trim($data['body'])]);
+        $request->session()->forget('comment_edit_recovery');
+
+        // Issue #909, D-256: nowa treść przechodzi przez tę samą analizę co
+        // pierwsza — w kolejce, więc zapis nie czeka. Zapis bez zmiany nic
+        // nie zleca. Zadanie czyta komentarz po ID, więc przy kilku szybkich
+        // poprawkach każde ogląda najnowszy tekst, a indeks jednego oznaczenia
+        // na treść nie pozwala postawić drugiej pozycji w kolejce moderatora.
+        if ($comment->wasChanged('body')) {
+            PrzeanalizujTresc::dlaKomentarza($comment)->afterCommit();
+        }
 
         return back()->with('status', 'Komentarz poprawiony.');
     }
 
     public function destroy(Request $request, Comment $comment): RedirectResponse
     {
+        // Issue #937: jak przy edycji — autor wie o swoim ukrytym komentarzu,
+        // więc zamiast gołego 403 mówimy mu, co może zrobić.
+        if ($request->user()->getKey() === $comment->author_id
+            && $comment->status !== Comment::STATUS_PUBLISHED) {
+            return back()->withErrors([
+                'comment' => 'Moderacja ukryła ten komentarz, więc nie da się go już usunąć. '
+                    .'Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.',
+            ]);
+        }
+
         $this->authorize('delete', $comment);
 
         $actor = $request->user();

@@ -3,16 +3,19 @@
 declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\HeroKolazController;
+use App\Http\Controllers\Admin\KolejkaController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
+use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\FacebookDeauthorizeController;
@@ -63,7 +66,6 @@ use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
-use App\Http\Controllers\WydanieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
 
@@ -100,8 +102,8 @@ Route::get('/szukaj', [SearchController::class, 'index'])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
-// Pełny SHA działającego wydania dla testu dymnego po wdrożeniu (#1012).
-Route::get('/wydanie', WydanieController::class)->name('wydanie');
+// `/wydanie` (#1012) NIE stoi tutaj — jest w `bootstrap/app.php` (`then:`),
+// poza grupą `web`, żeby nie zakładać sesji ani nie stawiać ciasteczek.
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
 
@@ -198,6 +200,9 @@ Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recip
 // bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
 // endpointów zmieniających stan.
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
+Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::class, 'restart'])
+    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+    ->name('cooking.restart');
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
@@ -1044,6 +1049,18 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
 
+    // „Zdejmij z urzędu” — treść bez zgłoszenia (G31, D-251). Wejście przyciskiem
+    // przy treści; Policy `removeExOfficio` pyta drugi raz, niezależnie od grupy.
+    Route::get('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'create'])
+        ->whereIn('typ', array_keys(ZdejmijZUrzedu::TYPY))
+        ->whereUuid('id')
+        ->name('admin.z-urzedu.create');
+    Route::post('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'store'])
+        ->whereIn('typ', array_keys(ZdejmijZUrzedu::TYPY))
+        ->whereUuid('id')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.z-urzedu.store');
+
     /*
      * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez
      * wykrywacz sygnałów, których NIKT nie zgłosił.
@@ -1180,6 +1197,23 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['search']},admin_uzytkownicy")
         ->name('admin.users');
     Route::get('/uzytkownicy/{user}', [UzytkownicyController::class, 'show'])->name('admin.users.show');
+
+    /*
+     * Nieudane zadania kolejki — DLACZEGO `/health` mówi `degraded`.
+     *
+     * Trasa stoi w tej grupie, więc przechodzi przez `auth`, `moderator`
+     * i obowiązkowe 2FA — ale to NIE jest jej autoryzacja. Bramką jest
+     * `UserPolicy::diagnozujKolejke()` w kontrolerze, a ona pyta o rolę
+     * `admin`. Moderator wchodzi więc na `/admin`, ale tutaj dostaje 403:
+     * ekran mówi, co się psuje w infrastrukturze, a to jest praca osoby
+     * prowadzącej wdrożenie, nie osoby moderującej treści (D-039).
+     *
+     * Bez `{parametru}` w adresie i bez żadnej metody `POST`: ten ekran
+     * wyłącznie CZYTA. Ponawianie i kasowanie zostało w
+     * `kuking:martwe-zadania`, gdzie decyzję podejmuje człowiek po
+     * zobaczeniu, kogo dotyczy.
+     */
+    Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
 });
 
 // --------------------------------------------------------------------------

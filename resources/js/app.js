@@ -22,7 +22,8 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+import './pokaz-haslo.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
@@ -475,6 +476,229 @@ document.addEventListener('DOMContentLoaded', () => {
  * w ./minutnik-krok.js, osobno testowalnym module bez DOM-u. Tu zostaje
  * wylacznie okablowanie DOM-u.
  */
+/*
+ * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
+ * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
+ * z oscylatora kosztuje zero bajtow transferu. Deklaracje funkcji (nie
+ * `const`), bo korzystaja z nich oba miejsca nizej: minutnik widocznego
+ * kroku i pas alarmow innych krokow. Cala sekcja stoi PRZED nimi: minutnik
+ * widocznego kroku potrafi zagrac alarm juz przy ladowaniu strony (termin
+ * minal, gdy karta lezala w tle -- przeglad #1301), a `let kontekstAlarmu`
+ * zadeklarowane nizej bylby wtedy jeszcze w martwej strefie (TDZ) --
+ * ReferenceError polkniety przez `catch` oznaczalby alarm bez dzwieku.
+ *
+ * DZWIEK NA TELEFONIE (przeglad #1301). Kazdy krok to swiezo zaladowana
+ * strona, a przegladarki (iOS Safari, Chrome na Androidzie) startuja
+ * AudioContext utworzony bez gestu czlowieka jako ZAWIESZONY -- sygnal
+ * alarmu z pasa innych krokow po prostu by nie zagral, a `vibrate` bez
+ * gestu bywa ignorowane. Dlatego:
+ *  - jeden wspolny kontekst na strone (a nie nowy na kazdy sygnal --
+ *    przegladarki limituja liczbe kontekstow, a 12 powtorzen alarmu to
+ *    12 kontekstow);
+ *  - pierwsze dotkniecie albo klawisz gdziekolwiek na stronie trybu
+ *    gotowania odblokowuje go (`resume()` + cichy bufor dla starszego
+ *    Safari) -- jesli czlowiek dotknal ekranu, zanim minutnik skonczyl,
+ *    pierwszy sygnal zagra;
+ *  - jesli alarm przychodzi przed jakimkolwiek gestem (typowo: termin
+ *    minal, gdy telefon byl zablokowany, a iOS przeladowal karte po
+ *    powrocie), pierwszy sygnal PRZEMILCZY, a wibracja zwykle tez --
+ *    dlatego alarm w pasie (pokazAlarmWPasie) powtarza sygnal co kilka
+ *    sekund: pierwsze dotkniecie odblokowuje dzwiek, zagra kolejne
+ *    powtorzenie;
+ *  - zamykamy go przy `pagehide`, a nie po zdarzeniu `ended` oscylatora,
+ *    ktore przy zawieszonym kontekscie nigdy nie przychodzi.
+ * Nawet tak nic nie gwarantuje dzwieku (wyciszony telefon, brak gestu),
+ * wiec glownym sygnalem jest WIDOCZNY komunikat w pasie `.cook-alarmy`
+ * (`role="alert"`) -- takze dla spoznionego minutnika widocznego kroku --
+ * a UI nie obiecuje, ze cos zabrzmi.
+ */
+let kontekstAlarmu = null;
+
+function wspolnyKontekstAudio() {
+    if (kontekstAlarmu && kontekstAlarmu.state !== 'closed') {
+        return kontekstAlarmu;
+    }
+
+    const KlasaAudio = window.AudioContext || window.webkitAudioContext;
+
+    kontekstAlarmu = KlasaAudio ? new KlasaAudio() : null;
+
+    return kontekstAlarmu;
+}
+
+function odblokujDzwiek() {
+    try {
+        const kontekst = wspolnyKontekstAudio();
+
+        if (!kontekst || kontekst.state === 'running') {
+            return;
+        }
+
+        kontekst.resume().catch(() => {});
+
+        // Starsze iOS Safari odblokowuje dzwiek dopiero po odegraniu
+        // czegokolwiek w trakcie gestu -- jedna cicha probka wystarcza.
+        const cisza = kontekst.createBufferSource();
+        cisza.buffer = kontekst.createBuffer(1, 1, 22050);
+        cisza.connect(kontekst.destination);
+        cisza.start(0);
+    } catch {
+        // Bez dzwieku minutnik i tak dziala -- komunikat na ekranie.
+    }
+}
+
+if (document.querySelector('.cook-timer, .cook-alarmy')) {
+    // Aktywacja uzytkownika na dotyku przychodzi dopiero z pointerup,
+    // touchend albo click (iOS Safari nie odblokowuje dzwieku na samym
+    // pointerdown) -- sluchamy wszystkich, odblokowanie jest idempotentne.
+    ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((zdarzenie) => {
+        document.addEventListener(zdarzenie, odblokujDzwiek, {capture: true, passive: true});
+    });
+
+    window.addEventListener('pagehide', () => {
+        if (kontekstAlarmu && kontekstAlarmu.state !== 'closed') {
+            kontekstAlarmu.close().catch(() => {});
+        }
+
+        kontekstAlarmu = null;
+    });
+}
+
+function zagrajAlarm() {
+    try {
+        const kontekst = wspolnyKontekstAudio();
+
+        if (kontekst) {
+            const zagraj = () => {
+                const oscylator = kontekst.createOscillator();
+                const glosnosc = kontekst.createGain();
+
+                oscylator.connect(glosnosc);
+                glosnosc.connect(kontekst.destination);
+                oscylator.frequency.value = 880;
+                glosnosc.gain.value = 0.2;
+                oscylator.start();
+                oscylator.stop(kontekst.currentTime + 0.6);
+            };
+
+            if (kontekst.state === 'running') {
+                zagraj();
+            } else {
+                // Zawieszony kontekst: probujemy go wznowic, ale sygnal gramy
+                // tylko, jesli wznowil sie od razu -- spozniony o minute
+                // "beep" przy pierwszym dotknieciu ekranu bylby mylacy.
+                // Bez gestu ten pojedynczy sygnal zwykle milczy; dlatego
+                // alarmy w pasie powtarzaja go (pokazAlarmWPasie).
+                const prosba = performance.now();
+
+                kontekst.resume().then(() => {
+                    if (kontekst.state === 'running' && performance.now() - prosba < 1000) {
+                        zagraj();
+                    }
+                }).catch(() => {});
+            }
+        }
+    } catch {
+        // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
+        // i komunikat tekstowy dzialaja od niego niezaleznie.
+    }
+
+    if ('vibrate' in navigator) {
+        navigator.vibrate([300, 150, 300, 150, 300]);
+    }
+}
+
+
+/*
+ * WIDOCZNY ALARM W PASIE `.cook-alarmy` (issue #1301) -- wspolny dla
+ * minutnikow innych krokow i dla spoznionego minutnika widocznego kroku.
+ * Komunikat z `role="alert"` jest glownym sygnalem; dzwiek powtarza sie co
+ * POWTORZENIA_CO_MS, bo pierwszy sygnal bez gestu zwykle milczy (zawieszony
+ * AudioContext) -- dopiero pierwsze dotkniecie ekranu go odblokowuje,
+ * a zagra KOLEJNE powtorzenie. Najwyzej minute, zeby zapomniana karta nie
+ * piszczala bez konca.
+ */
+const POWTORZENIA_CO_MS = 5000;
+const POWTORZENIA_NAJWYZEJ = 12;
+
+function pokazAlarmWPasie(pas, tresc, przejscie = null) {
+    const alarm = document.createElement('div');
+    alarm.className = 'cook-alarm';
+    alarm.setAttribute('role', 'alert');
+
+    const tekst = document.createElement('p');
+    tekst.className = 'cook-alarm-tekst';
+    tekst.textContent = tresc;
+
+    const wylacz = document.createElement('button');
+    wylacz.type = 'button';
+    wylacz.className = 'btn btn-primary btn-cook cook-alarm-wylacz';
+    wylacz.textContent = 'Wyłącz alarm';
+
+    alarm.append(tekst, wylacz);
+
+    if (przejscie) {
+        const przejdz = document.createElement('a');
+        przejdz.className = 'btn btn-secondary btn-cook';
+        przejdz.href = przejscie.href;
+        przejdz.textContent = przejscie.tekst;
+        alarm.append(przejdz);
+    }
+
+    pas.append(alarm);
+    pas.hidden = false;
+
+    zagrajAlarm();
+    let powtorzenia = 1;
+    const powtarzanie = window.setInterval(() => {
+        zagrajAlarm();
+        powtorzenia += 1;
+
+        if (powtorzenia >= POWTORZENIA_NAJWYZEJ) {
+            window.clearInterval(powtarzanie);
+        }
+    }, POWTORZENIA_CO_MS);
+
+    // Wylaczenie bez ruszania fokusu -- woła je tez blok minutnika, gdy
+    // czlowiek uruchamia odliczanie jeszcze raz (przeglad #1301: nowe
+    // odliczanie obok piszczacego "skonczyl odliczanie" to sprzeczny
+    // sygnal). Drugie wywolanie nic nie robi.
+    let wylaczony = false;
+    const wylaczAlarm = () => {
+        if (wylaczony) {
+            return;
+        }
+
+        wylaczony = true;
+        window.clearInterval(powtarzanie);
+
+        if ('vibrate' in navigator) {
+            navigator.vibrate(0);
+        }
+
+        alarm.remove();
+        pas.hidden = pas.childElementCount === 0;
+    };
+
+    wylacz.addEventListener('click', () => {
+        wylaczAlarm();
+
+        // Fokus nie moze zostac na usunietym przycisku -- przechodzi
+        // na nastepny alarm albo na postep krokow u gory ekranu.
+        const nastepny = pas.querySelector('.cook-alarm-wylacz');
+        const postep = document.querySelector('.cook-progress');
+
+        if (nastepny) {
+            nastepny.focus();
+        } else if (postep) {
+            postep.setAttribute('tabindex', '-1');
+            postep.focus();
+        }
+    });
+
+    return wylaczAlarm;
+}
+
 document.querySelectorAll('.cook-timer').forEach((blok) => {
     const przycisk = blok.querySelector('.cook-timer-start');
     const anuluj = blok.querySelector('.cook-timer-anuluj');
@@ -495,34 +719,31 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
     // wywolanie setInterval oznacza dokladnie jedna sekunde.
     let interwal = null;
+    // Funkcja wylaczajaca alarm TEGO kroku w pasie (pokazAlarmWPasie) --
+    // start nowego odliczania musi go uciszyc.
+    let wylaczAlarmKroku = null;
+
+    const alarmKroku = () => {
+        const pas = document.querySelector('.cook-alarmy');
+
+        if (pas) {
+            wylaczAlarmKroku?.();
+            wylaczAlarmKroku = pokazAlarmWPasie(pas, 'Minutnik tego kroku skończył odliczanie.');
+        } else {
+            zagrajAlarm();
+        }
+    };
 
     const pokaz = (sekundy) => {
         odliczanie.textContent = formatMinutySekundy(sekundy);
     };
 
-    /*
-     * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
-     * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
-     * z oscylatora kosztuje zero bajtow transferu.
-     */
-    const zagraj = () => {
-        try {
-            const KlasaAudio = window.AudioContext || window.webkitAudioContext;
-            const kontekst = new KlasaAudio();
-            const oscylator = kontekst.createOscillator();
-            const glosnosc = kontekst.createGain();
-
-            oscylator.connect(glosnosc);
-            glosnosc.connect(kontekst.destination);
-            oscylator.frequency.value = 880;
-            glosnosc.gain.value = 0.2;
-            oscylator.start();
-            oscylator.stop(kontekst.currentTime + 0.6);
-            oscylator.addEventListener('ended', () => kontekst.close());
-        } catch {
-            // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
-            // i komunikat tekstowy nizej dzialaja od niego niezaleznie.
-        }
+    const pokazKoniec = () => {
+        komunikat.textContent = 'Czas minął!';
+        przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+        przycisk.hidden = false;
+        przycisk.disabled = false;
+        anuluj.hidden = true;
     };
 
     const zatrzymajOdliczanie = () => {
@@ -540,17 +761,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
             if (pozostalo <= 0) {
                 zatrzymajOdliczanie();
-                zagraj();
-
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([300, 150, 300, 150, 300]);
-                }
-
-                komunikat.textContent = 'Czas minął!';
-                przycisk.textContent = 'Uruchom minutnik jeszcze raz';
-                przycisk.hidden = false;
-                przycisk.disabled = false;
-                anuluj.hidden = true;
+                pokazKoniec();
+                // Widoczny alarm z powtarzanym sygnalem, nie jedno "beep"
+                // (przeglad #1301): "Czas minął!" jest tylko dla czytnika
+                // ekranu, a gdy iOS zamrozil karte, interwal odpala sie po
+                // terminie bez gestu i pojedynczy sygnal milczy.
+                alarmKroku();
             }
         }, 1000);
     };
@@ -559,6 +775,10 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         if (interwal !== null) {
             return;
         }
+
+        // Bez przenoszenia fokusu -- czlowiek wlasnie kliknal ten przycisk.
+        wylaczAlarmKroku?.();
+        wylaczAlarmKroku = null;
 
         przycisk.hidden = true;
         anuluj.hidden = false;
@@ -599,18 +819,202 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
      * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
      * nigdy nie ruszyl.
      */
-    const zapisanyStan = odczytajStan(sessionStorage.getItem(klucz), Date.now(), performance.now());
+    const przywrocZapis = () => {
+        if (interwal !== null) {
+            return true;
+        }
 
-    if (zapisanyStan) {
-        przycisk.hidden = true;
-        anuluj.hidden = false;
+        const zapis = sessionStorage.getItem(klucz);
+
+        if (zapis === null) {
+            return false;
+        }
+
+        // odczytajTermin, nie odczytajStan (przeglad #1301): termin, ktory
+        // minal, gdy karta lezala w tle (telefon zablokowany, iOS wyrzucil
+        // karte z pamieci i przeladowal ja po powrocie), tez musi dac
+        // alarm -- inaczej zapis znikal po cichu, a razem z nim jedyny
+        // sygnal, ze garnek juz czeka.
+        const stan = odczytajTermin(zapis, Date.now(), performance.now());
+
+        if (!stan) {
+            // Uszkodzony albo porzucony dawno po terminie (ponad
+            // PRZETERMINOWANIE_NAJWYZEJ_MS) -- znika po cichu, bez alarmu.
+            sessionStorage.removeItem(klucz);
+            return false;
+        }
+
         odliczanie.hidden = false;
-        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
-        uruchomOdliczanie(zapisanyStan.terminMonotoniczny);
-    } else {
+
+        if (stan.terminMonotoniczny > performance.now()) {
+            przycisk.hidden = true;
+            anuluj.hidden = false;
+            komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+            uruchomOdliczanie(stan.terminMonotoniczny);
+            return true;
+        }
+
+        // Spozniony, ale nie porzucony: alarm, a DOPIERO POTEM zapis
+        // znika -- zeby pas alarmow innych krokow (nizej) nie zadzwonil
+        // drugi raz za ten sam minutnik po przejsciu do kolejnego kroku.
+        //
+        // Sam komunikat w bloku minutnika tu nie wystarcza (przeglad #1301):
+        // `.cook-timer-komunikat` jest tylko dla czytnika ekranu, a jego
+        // aria-live przy ladowaniu strony zwykle nie jest odczytywane;
+        // sygnal bez gestu milczy. Dlatego widoczny alarm w pasie -- ten sam,
+        // co dla innych krokow -- z powtarzanym sygnalem.
+        pokaz(0);
+        pokazKoniec();
+        alarmKroku();
+
+        sessionStorage.removeItem(klucz);
+        return true;
+    };
+
+    if (!przywrocZapis()) {
         przycisk.hidden = false;
     }
+
+    // Powrot "Wstecz" z pamieci podrecznej przegladarki (bfcache) nie
+    // uruchamia skryptu od nowa -- zapis tego kroku mogl sie w miedzyczasie
+    // pojawic albo przeterminowac, wiec czytamy go jeszcze raz.
+    window.addEventListener('pageshow', (zdarzenie) => {
+        if (zdarzenie.persisted) {
+            przywrocZapis();
+        }
+    });
 });
+/*
+ * MINUTNIKI INNYCH KROKOW (issue #1301).
+ *
+ * Kazdy krok to osobne przeladowanie strony, a blok wyzej obsluguje
+ * wylacznie `.cook-timer` WIDOCZNEGO kroku. Minutnik uruchomiony w kroku 1
+ * zostawal po przejsciu do kroku 2 tylko zapisem w sessionStorage, ktorego
+ * nikt nie odliczal -- czyli nie dzwonil, a potrawa sie przypalala.
+ *
+ * Tu odliczamy wszystkie zapisane minutniki TEGO przepisu z POZA
+ * widocznego kroku (widoczny ma swoj blok -- dwa zegary na jeden minutnik
+ * oznaczalyby dwa alarmy). Koniec: zapis znika PRZED alarmem, wiec kazdy
+ * minutnik dzwoni najwyzej raz, a powrot do jego kroku pokazuje zwykly
+ * przycisk startu. Alarm powtarza sygnal, dopoki czlowiek go nie wylaczy
+ * duzym przyciskiem (garnek bywa w drugim koncu kuchni) -- ale najwyzej
+ * minute, zeby zapomniana karta nie piszczala bez konca.
+ */
+(() => {
+    const pas = document.querySelector('.cook-alarmy');
+
+    if (!pas) {
+        return;
+    }
+
+    const recipeSlug = pas.dataset.alarmyRecipe ?? '';
+    const widocznyKrok = pas.dataset.alarmyKrok ?? '';
+    const adres = pas.dataset.alarmyAdres ?? '';
+
+    const pokazAlarm = (krok) => {
+        pokazAlarmWPasie(
+            pas,
+            `Minutnik kroku ${krok} skończył odliczanie.`,
+            adres ? {href: `${adres}?krok=${encodeURIComponent(krok)}`, tekst: `Przejdź do kroku ${krok}`} : null,
+        );
+    };
+
+    const odliczaj = (klucz, krok, zapis, terminMonotoniczny) => {
+        const sprawdz = () => {
+            if (pozostaloSekund(terminMonotoniczny, performance.now()) > 0) {
+                return false;
+            }
+
+            // Tylko jesli to wciaz TEN SAM minutnik -- nikt go w miedzyczasie
+            // nie anulowal ani nie uruchomil od nowa.
+            if (sessionStorage.getItem(klucz) === zapis) {
+                sessionStorage.removeItem(klucz);
+                pokazAlarm(krok);
+            }
+
+            return true;
+        };
+
+        if (sprawdz()) {
+            return;
+        }
+
+        const interwal = window.setInterval(() => {
+            if (sprawdz()) {
+                window.clearInterval(interwal);
+            }
+        }, 1000);
+    };
+
+    const kluczeTegoPrzepisu = () => {
+        const klucze = [];
+
+        for (let i = 0; i < sessionStorage.length; i += 1) {
+            const klucz = sessionStorage.key(i);
+
+            if (krokZKlucza(klucz, recipeSlug) !== null) {
+                klucze.push(klucz);
+            }
+        }
+
+        return klucze;
+    };
+
+    // Zapisy juz odliczane na tej stronie -- ponowny przeglad (pageshow
+    // nizej) nie moze uruchomic drugiego zegara dla tego samego minutnika.
+    const odliczane = new Set();
+
+    const przejrzyjZapisy = () => {
+        kluczeTegoPrzepisu().forEach((klucz) => {
+            const krok = krokZKlucza(klucz, recipeSlug);
+
+            if (krok === widocznyKrok) {
+                return;
+            }
+
+            const zapis = sessionStorage.getItem(klucz);
+            // Uszkodzony albo porzucony dawno po terminie (przeglad #1301):
+            // znika po cichu, bez alarmu.
+            const stan = odczytajTermin(zapis, Date.now(), performance.now());
+
+            if (!stan) {
+                sessionStorage.removeItem(klucz);
+                return;
+            }
+
+            if (odliczane.has(`${klucz}|${zapis}`)) {
+                return;
+            }
+
+            odliczane.add(`${klucz}|${zapis}`);
+            odliczaj(klucz, krok, zapis, stan.terminMonotoniczny);
+        });
+    };
+
+    przejrzyjZapisy();
+
+    // Powrot "Wstecz" z pamieci podrecznej przegladarki (bfcache) nie
+    // uruchamia skryptu od nowa, a w innym kroku mogl w miedzyczasie
+    // ruszyc nowy minutnik -- przegladamy zapisy jeszcze raz.
+    window.addEventListener('pageshow', (zdarzenie) => {
+        if (zdarzenie.persisted) {
+            przejrzyjZapisy();
+        }
+    });
+
+    /*
+     * "Zakoncz gotowanie" i "Ugotowalem" to zwykle linki i dzialaja bez
+     * JavaScriptu. Tu tylko DOKLADKA: wychodzac z trybu gotowania czlowiek
+     * konczy tez minutniki tego przepisu, wiec ich zapisy znikaja -- inaczej
+     * powrot do przepisu w tej samej karcie zaczynalby sie od alarmu za
+     * garnek, ktorego dawno nie ma na ogniu (przeglad #1301).
+     */
+    document.querySelectorAll('[data-minutniki-koniec]').forEach((link) => {
+        link.addEventListener('click', () => {
+            kluczeTegoPrzepisu().forEach((klucz) => sessionStorage.removeItem(klucz));
+        });
+    });
+})();
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 
 /*

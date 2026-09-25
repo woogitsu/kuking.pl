@@ -52,6 +52,9 @@ Konto:
   **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
+- `punishment_status`, `punishment_expires_at` — kara (`suspended`/`banned`)
+  ODŁOŻONA na czas cyklu usunięcia konta (issue #980, patrz niżej). Pola
+  sterujące: poza `$fillable`, zapisuje je wyłącznie `User` pod blokadą;
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
@@ -395,6 +398,45 @@ KUKING_ROLLBACK_KASUJ_TERMINY_KAR=true php artisan migrate:rollback
 
 Pilnuje tego `CofniecieMigracjiNieRobiKaryBezterminowejTest` (odmowa + dwie
 kontrole dodatnie).
+
+#### `punishment_status` — kara odłożona na czas usuwania konta (issue #980)
+
+Migracja `2026_09_24_100000_add_punishment_status_to_users`.
+
+`status` niósł dwa niezależne procesy — karę moderacyjną i cykl usunięcia —
+a każda operacja nadpisywała go bez patrzenia na drugi: ban po zgłoszeniu
+usunięcia wyjmował konto spod `kuking:usun-wygasle-konta` (ten wybiera
+`status = 'pending_delete'`), a zgłoszenie usunięcia po banie gubiło karę
+(cofnięcie usunięcia stawiało `active`).
+
+**Kontrakt.** Dopóki konto jest w cyklu usunięcia (`pending_delete`,
+`erased`), `status` mówi o usuwaniu, a kara czeka tutaj. Macierz przejść
+(`App\Models\User`, każde przejście na świeżym wierszu pod `ZamekKonta`):
+
+| Stan przed | `suspend()`/`ban()` | `markForDeletion()` | `cancelDeletion()` | `reinstate()` |
+|---|---|---|---|---|
+| `active` | `status` = kara | `pending_delete` | — | — |
+| `suspended`/`banned` | `status` = kara | `pending_delete`, kara → `punishment_*` | — | `active` |
+| `pending_delete` | kara → `punishment_*` | odmowa (`BladDlaCzlowieka`) | `status` = odłożona kara albo `active` | zeruje `punishment_*` |
+| `erased` | kara → `punishment_*` | odmowa | (odmawia `CancelAccountDeletion`) | zeruje `punishment_*` |
+
+Wymazanie danych zostawia `punishment_status` na wierszu jako zapis stanu
+konta w chwili wymazania; autorytatywny zapis decyzji żyje
+w `moderation_actions` (retencja: `docs/decyzje/ADR_RETENCJE.md`).
+Mechanizmu blokady ponownej rejestracji w projekcie nie ma i ta migracja go
+nie wprowadza.
+
+```sql
+CHECK (punishment_status IS NULL OR punishment_status IN ('suspended','banned'))  -- users_punishment_status_check
+CHECK (punishment_status IS NULL OR status IN ('pending_delete','erased'))        -- users_punishment_status_deletion_check
+CHECK (punishment_expires_at IS NULL OR punishment_status = 'suspended')           -- users_punishment_expires_at_check
+```
+
+**Rollback ODMAWIA** (D-088), gdy choć jedno konto ma odłożoną karę: stary
+schemat nie ma gdzie jej zapisać, a stary kod przy cofnięciu usunięcia
+ustawiłby `active`. Bez takich kont cofnięcie przechodzi i nic nie ginie.
+Testy: `BanIUsuniecieKontaNieNadpisujaSieTest`,
+`tests/Dwa/BanIUsuniecieKontaRownolegleTest`.
 
 #### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
 
@@ -1573,7 +1615,7 @@ deklaracją pochodzenia (`docs/MODERATION.md`).
 | `source_type` | `varchar(20) NOT NULL DEFAULT 'own'` | Zamknięta lista, CHECK `recipes_source_type_check`: `own` \| `family` \| `adaptation` \| `external`. Etykiety dla człowieka trzyma `Recipe::SOURCE_LABELS`. |
 | `source_person` | `varchar(120) NULL` | **Wolny tekst od człowieka.** Patrz niżej — to nie jest osoba. |
 | `source_note` | `varchar(2000) NULL` | Historia przepisu, wspomnienie. Pokazywane pod nagłówkiem „Skąd ten przepis", PRZED składnikami, z zachowaniem łamań wierszy (`whitespace-pre-line`). |
-| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**, jako `rel="nofollow noopener"`. W bazie bez limitu długości; formularz przyjmuje najwyżej 2000 znaków i wymaga poprawnego adresu (`'url'` w regułach `RecipeController`). |
+| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**; link z `rel="nofollow noopener"` powstaje tylko dla HTTP/HTTPS, inne zachowane adresy są zwykłym tekstem. W bazie bez limitu długości; formularz i kreator przyjmują najwyżej 2000 znaków. Nowy lub zmieniony adres musi być HTTP/HTTPS (`url:http,https`), niezmieniony dawny adres z bazy może zostać (#900, D-254). |
 
 Puste i złożone z samych spacji wartości `PublishRecipe` zamienia na `NULL`
 **przed** zapisem (`nullIfBlank`), więc „pole wyczyszczone" i „pole nigdy nie
@@ -2039,6 +2081,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
+
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
 „Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
@@ -2186,12 +2257,26 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez gospodarza wskazanego `KUKING_HOST_USERNAME` w chwili
+migracji (migracja wdrożona przed #1089 — nie jest modyfikowana). Nie wysyła
+alertów. Od #1089 kod aplikacji rozpoznaje gospodarza po stabilnym
+`KUKING_HOST_USER_ID` (fallback po nazwie tylko przy pustym UUID); nowe wiersze
+zapisuje `PublishPost`, więc backfill nie jest liczony ponownie.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia (instrukcja krok po kroku: `docs/DEPLOYMENT.md`, „Konto
+gospodarza"): przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Rollback tej migracji odtwarza backfill po `KUKING_HOST_USERNAME`; po zmianie
+nazwy gospodarza może świadomie odmówić (D-088) — dane zostają.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.
@@ -2401,8 +2486,11 @@ kopia tabeli).
 `open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
 Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
-`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
-harmonogram codziennie o 04:30.
+`moderation_actions` i `appeals`, w jednej komendzie, harmonogram codziennie
+o 04:30. Kasuje partiami po 500 identyfikatorów (partia w transakcji; gdy
+padnie — powtórka wiersz po wierszu) i najwyżej 20 000 wierszy z każdej
+tabeli na przebieg; resztę bierze następna noc, a ostrzeżenie w dzienniku
+mówi, ile jej zostało (issue #998).
 
 **`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
 `2026_09_07_910000_add_numer_sprawy_to_reports`).
@@ -2601,6 +2689,15 @@ Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`
 **Rollback:** `DROP` obu kolumn (`down()` migracji). Bezpieczny — czyta je
 wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
 zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
+
+#### `report_id IS NULL` przy decyzji odwoływalnej — decyzja z urzędu (G31, D-251)
+
+Pusty `report_id` przy `action = 'remove'` znaczy „nikt tego nie zgłosił”:
+moderator zdjął treść z własnego przeglądu („Zdejmij z urzędu”,
+`App\Domain\Moderation\Actions\ZdejmijZUrzedu`). Nie ma przy tym sztucznego
+zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
+znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
+decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
@@ -3302,8 +3399,44 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
+| `notified_at` | Nullable `timestamptz`: kiedy `App\Jobs\NotifyUserExportReady` zajął list „paczka gotowa" (issue #820). Poza `$fillable`. CHECK `data_exports_notified_after_completed_check`: bez `completed_at` nie ma listu. Szczegóły niżej. Migracja `2026_09_23_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
+
+List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
+5 prób, przerwy 1, 5, 15 i 60 minut), a nie `GenerateUserExport` — tamto
+łapało awarię poczty i nikt listu nie ponawiał. Zadanie jest zlecane
+w transakcji, która ustawia `ready` (`GenerateUserExport::finalize()`): na
+kolejce bazodanowej wiersz w `jobs` i `ready` zatwierdzają się razem albo
+wcale. Kolejka `sync` (testy) wysyła list po commicie, bez ponowień.
+
+Zadanie **zajmuje** list jednym `UPDATE … SET notified_at = teraz WHERE
+notified_at IS NULL AND status = 'ready' AND expires_at > teraz`; z dwóch
+przebiegów naraz przechodzi jeden. Gdy wysyłka padnie, zajęcie jest
+zwalniane (tylko po tym samym znaczniku) i kolejka ponawia. Granice:
+zerwane połączenie PO przyjęciu listu przez dostawcę daje drugi list;
+proces zabity między zajęciem a wysyłką — żadnego (zajęcie zostaje).
+Wartość znaczy więc „list zajęty do wysyłki i nie zgłoszono awarii", a nie
+„list doręczony".
+
+Pusta kolumna przy paczce gotowej do pobrania to na ekranie ustawień zdanie
+„E-mail o tej paczce jeszcze nie wyszedł. Nie musisz na niego czekać —
+paczkę pobierzesz tutaj."
+
+**Backfill:** wiersze `ready` i `expired` sprzed migracji dostają
+`notified_at = completed_at` — stary kod próbował wysłać list w tym samym
+przebiegu, a nikt tej próby już nie powtórzy; pusta kolumna kazałaby ekranowi
+mówić o nich „jeszcze nie wyszedł".
+
+**Rollback:** `down()` usuwa CHECK i kolumnę bez odmowy. To nie jest wartość
+semantyczna w rozumieniu D-088: ponowne `up()` odtwarza znaczniki gotowych
+paczek z `completed_at`, więc cykl down/up może najwyżej zgubić list
+czekający w kolejce, nie wysłać drugiego. Przy cofaniu wdrożenia: zatrzymać
+workery; zadania `NotifyUserExportReady` pozostałe w `jobs` po powrocie do
+starego kodu nie znajdą klasy i trafią do `failed_jobs` — paczka czeka
+w ustawieniach. `down()` bez tabeli albo kolumny nic nie robi.
 
 #### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
 
@@ -3744,12 +3877,25 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
-| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
+| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` wymusza: status `new` MUSI mieć `num_nonnulls(handled_by, handled_at) = 0`, a status inny niż `new` MUSI mieć `handled_at IS NOT NULL`. `handled_by` ma `nullOnDelete()` — usunięcie konta operatora zeruje tę kolumnę i nie wywraca bazy (poprawka w `2026_09_24_100000_allow_null_handled_by_on_contact_messages`, #844). `handled_at` pozostaje nienaruszone, bo od niego liczy się retencja. |
 | `handler_note` | Notatka operatora, widoczna wyłącznie w panelu. |
+| `version` | Licznik wersji notatki i stanu, `bigint NOT NULL DEFAULT 0`, poza `$fillable`. Migracja `2026_09_24_110000_add_contact_message_version` (#846). `UpdateContactMessage` porównuje wersję formularza pod blokadą wiersza, a notatkę, stan i licznik zapisuje atomowo. Sama edycja notatki nie zmienia `handled_at` ani `handled_by` (#843). |
+
+**Wycofanie licznika wersji:** usunięcie kolumny nie zmienia treści ani dat.
+Na czas rollbacku wyłącz zapis w panelu i unieważnij otwarte sesje/formularze;
+ponowne wdrożenie zaczyna licznik od zera i nie może przyjąć starej karty.
 
 Indeksy: `contact_messages_status_created_idx (status, created_at, id)` —
 kolejka; `contact_messages_handled_at_idx (handled_at) WHERE handled_at IS
 NOT NULL` — nocna retencja.
+
+**Wycofanie poprawki #844:** migracja
+`2026_09_24_100000_allow_null_handled_by_on_contact_messages` przywraca stary
+CHECK tylko wtedy, gdy nie ma obsłużonych wiadomości bez operatora.
+W przeciwnym razie odmawia; pozostaw migrację i wycofaj sam kod aplikacji.
+Nie usuwaj historii i nie przypisuj przypadkowego operatora dla rollbacku.
+Decyzja właściciela z 20 września 2026: po fizycznym usunięciu operatora
+zachowujemy wiadomość i datę, usuwamy tylko powiązanie z kontem.
 
 **Retencja:** `config('kuking.kontakt.retention_months')` (domyślnie 12)
 miesięcy od `handled_at`, komenda `kuking:sprzataj-wiadomosci`, harmonogram
@@ -3791,6 +3937,24 @@ opowiedzieć.
 | `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |
 | `sent_at` | Kiedy dostawca potwierdził przyjęcie. CHECK `contact_message_replies_sent_complete` wiąże to ze stanem: `wyslana` MUSI mieć `sent_at`, każdy inny stan NIE MOŻE go mieć. |
 | `error` | Powód odmowy, przepuszczony przez redakcję adresów (`WyslijOdpowiedz::bezpiecznyPowod()` — ta sama lekcja co audyt A6-01). Ma odpowiadać moderatorowi na pytanie „co teraz zrobić", nie przechowywać cudzych danych. |
+| `reply_key` | UUID jednego wysłania odpowiedzi. `UNIQUE (contact_message_id, reply_key)`; `NULL` tylko w historycznych wierszach. Poza `$fillable`, zapis przez akcję domenową. Powtórzony klucz odczytuje istniejący wynik; zmieniona treść lub autor z tym samym kluczem są odrzucani. |
+| `sending_started_at` | Nullable `timestamptz`, atomowa rezerwacja przez `UPDATE ... WHERE sending_started_at IS NULL`, zatwierdzona przed pocztą. Ustawiony znacznik wyklucza ponowną wysyłkę tego formularza, również przy niepewnym wyniku. |
+| `audit_recorded_at` | Nullable `timestamptz`; znacznik i wpis `audit_log` powstają w jednej transakcji. Brak znacznika po awarii pozwala dokończyć audyt na ponowionym POST lub po wejściu na kartę. Retencja audytu nie zeruje znacznika. |
+
+Znaczniki dodaje `2026_09_24_120000_add_contact_reply_delivery_markers` (#839).
+Historyczne odpowiedzi dostają oba znaczniki z `created_at`; nie wysyłamy ich
+ani nie tworzymy ponownie dawnych wpisów audytu. `down()` odmawia, jeśli jest
+choć jeden niepusty `reply_key`, bo jego utrata umożliwiłaby duplikaty.
+Bez nowych kluczy rollback usuwa wyłącznie nowe kolumny i indeks. Przy danych
+zachowaj migrację i ochronę ponowień; nie kasuj kluczy dla wymuszenia rollbacku.
+
+Po potwierdzonej odmowie poczty stan to `nieudana`. Zerwane połączenie albo
+brak jednoznacznej odpowiedzi zachowuje `w_toku`, z ograniczonym,
+zredagowanym powodem (#840). `OdmowaEmailLabs::isConfirmedRejection()` niesie
+pewność odmowy oddzielnie od kategorii awarii; pozostałych wyjątków nie
+traktujemy jako dowodu niewysłania. Nowa świadoma próba ma nowy klucz;
+przy niepewności operator najpierw sprawdza dostawcę. Nie jest to gwarancja
+dokładnie jednego doręczenia przez zewnętrzną pocztę.
 
 **Czego tu świadomie NIE MA: adresu, na który list poszedł.** Adres jest już
 w bazie raz — `contact_messages.contact_email` (gość) albo `users.email`
@@ -3981,6 +4145,35 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### zalegle_czyszczenia_cdn
+
+Adresy skasowanych zdjęć, których cache CDN **jeszcze nie wyczyszczono**,
+migracja `2026_09_24_100000_utworz_zalegle_czyszczenia_cdn` (issue #959).
+Do niej `PurgePublicMediaCache` bez `CLOUDFLARE_ZONE_ID` albo
+`CLOUDFLARE_PURGE_TOKEN` kończył się sukcesem z samym ostrzeżeniem w logu,
+a po uzupełnieniu zmiennych nikt nie wiedział, co dokończyć.
+
+| Kolumna | Opis |
+|---|---|
+| `id bigserial` | Kolejność odkładania — `kuking:wyczysc-zalegle-cdn` bierze najstarsze. |
+| `adres varchar(2048) NOT NULL` | Pełny publiczny adres wariantu. **UNIKALNY** (`zalegle_czyszczenia_cdn_adres_unique`): czyszczenie jest idempotentne, drugie odłożenie nic nie dodaje (`insertOrIgnore`). CHECK `zalegle_czyszczenia_cdn_adres_http_check`: `adres ~ '^https?://'` — adresu względnego Cloudflare nie wyczyści nigdy. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy odłożono. |
+
+Kto pisze: zadanie na **produkcji** bez konfiguracji oraz `failed()` po
+wyczerpaniu prób (wszędzie). Kto kasuje: wyłącznie
+`ZalegleCzyszczeniaCdn::wyczysc()` — **po** potwierdzeniu Cloudflare
+(`success: true` dla każdej partii). Porażka zostawia wiersze na następny
+przebieg (co kwadrans). `/health` → `cdn_zalegle` = `czyszczenie_cdn_zalegle`,
+dopóki tabela nie jest pusta.
+
+**Rollback odmawia przy niepustej tabeli (D-088):** każdy wiersz to zdjęcie,
+które może się jeszcze otwierać z cache — często po wymazaniu konta albo
+decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
+`php artisan kuking:wyczysc-zalegle-cdn`, potem wycofuj. Pusta tabela znika
+bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
+z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
+`tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
 ### sessions
 
@@ -4601,3 +4794,54 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
+
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
+schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
+
+**Co robi.** Zdejmuje klucz `excerpt` z `notifications.data` w wierszach typu
+`comment.created` i `comment.replied`. Operator `data - 'excerpt'` na `jsonb`
+zostawia resztę kluczy nietkniętą; warunek `jsonb_exists(data, 'excerpt')`
+zawęża zapis do wierszy, które ten klucz naprawdę mają.
+
+**Dlaczego.** Decyzja właściciela D-229: wycinek treści komentarza liczy się
+teraz z **aktualnej** treści, a eksport RODO zmienia się razem z ekranem.
+Uzasadnieniem było zdanie „paczka ma pokazywać, co o kimś trzymamy dziś" —
+a zamrożone kopie sprzed zmiany (do 120 znaków cudzego tekstu) leżały dalej
+w bazie, tyle że nikt ich nie czytał. Decyzja rozstrzyga tę różnicę na
+**„nie trzymamy"**, nie „nie czytamy".
+
+**Zakres jest wąski celowo.** `excerpt` zostaje w innych typach powiadomień,
+bo tam nie został zastąpiony niczym żywym — skasowanie zabrałoby treść,
+której nic nie odtworzy.
+
+**WYCOFANIE NIE PRZYWRACA DANYCH.** `down()` jest świadomie puste: kasujemy
+wartości, których nie ma skąd odczytać z powrotem, a `down()` wpisujące
+cokolwiek wpisałoby wartość zmyśloną. Migrację można cofnąć bez błędu, ale
+**to nie jest przywrócenie**.
+
+**Bez kopii bazy — decyzja właściciela z 23.09.2026.** Migracja wchodzi bez
+osobnej kopii zapasowej przed uruchomieniem: „to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników". Po jej wykonaniu skasowanych wycinków nie odtworzy
+**nic** — ani `down()`, ani kopia. Gdyby Kuking miał już prawdziwych
+użytkowników, ta sama migracja wymagałaby kopii przed uruchomieniem.
+
+**Dlaczego rollback tu NIE odmawia (D-088, AGENTS.md §6).** Odmowa w `down()`
+jest dla wartości semantycznych, które cykl `down()` → `migrate` po cichu
+odwraca (zgoda, zakres usunięcia, widoczność). Tu takiej wartości nie ma:
+ponowne `up()` znów tylko zdejmuje klucz, a kod sprzed tej zmiany, który
+czytał `data.excerpt`, przy braku klucza pokazuje powiadomienie **bez
+wycinka** — mniej treści, nie inna decyzja człowieka. Odmowa musiałaby być
+przy tym bezwarunkowa (w bazie nie zostaje ślad, które wiersze straciły
+wycinek), czyli blokowałaby `migrate:refresh` w CI na zawsze — a to D-088
+nazywa błędem tej samej wagi w drugą stronę. Stąd świadomie pusty `down()`
+z uzasadnieniem w kodzie.
+
+Numer `2026_09_23_120000` — przenumerowane z `2026_09_20_120000` przy scalaniu
+z main (PR #1180), żeby migracja stała po najnowszej migracji na main.
+
+Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
+trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
+nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
+warunek przestał trafiać w jakikolwiek wiersz.

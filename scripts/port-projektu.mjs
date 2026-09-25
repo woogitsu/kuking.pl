@@ -21,6 +21,8 @@ import { sprawdzHeroNadZgieciem } from './hero-nad-zgieciem.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
 import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
 import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
+import { sprawdzStopke } from './stopka-pusty-pas.mjs';
+import { wymagajStanu } from './lib/stan-ustalony.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -140,7 +142,7 @@ async function podniesSerwer() {
   /* Strona wciąga zbudowany `public/build/assets/app-*.css` przez manifest
      Vite — pomiar bez przebudowania opisywałby POPRZEDNIĄ wersję arkusza. */
   console.log('Buduję arkusz (vite build)...');
-  execFileSync('npm', ['run', 'build'], { stdio: 'ignore', env: process.env });
+  execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore', env: process.env });
 
   try {
     execFileSync('createdb', [env().DB_DATABASE], {
@@ -301,6 +303,25 @@ const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
   if (response.status() !== 200) throw new Error(`${path}: HTTP ${response.status()}`);
   await page.evaluate(() => document.fonts.ready);
+  /* KOLORY PORÓWNUJEMY DOPIERO PO PRZEJŚCIACH CSS (wzorzec z PR #1472:
+     `scripts/lib/stan-ustalony.mjs`, `docs/PULAPKI_TESTOW.md` §14).
+     `KARTA_OSOB` porównuje tło karty osób z tłem paska, a te dwa elementy
+     przechodzą zmianę motywu RÓŻNIE: pasek ma `data-pasek-przewijany`, więc
+     przy `reducedMotion: 'reduce'` `pasek-przewijany.css` daje mu
+     `transition: none` i nowe tło ma od razu; karta dostaje z `tokens.css`
+     `transition-duration: 0.01ms` przy domyślnym `transition-property: all`,
+     więc tło po zmianie `data-theme`/`data-text-scale` z `DOMContentLoaded`
+     PRZECHODZI i do najbliższej klatki `getComputedStyle` oddaje wartość
+     pośrednią. Na zajętym runnerze (main 1acbfeeb, DOM-NEW-04, wariant
+     „tekst 140%") pomiar trafiał przed tę klatkę. Odtworzone lokalnie
+     wydłużeniem samych przejść: karta `rgb(70, 73, 68)` przy pasku
+     `rgb(34, 38, 32)`. Czekamy więc, co klatkę, aż w dokumencie nie ma
+     trwającego przejścia i fonty są wczytane — stan, nie zegar. */
+  await wymagajStanu(page, {
+    opis: `${path}: przejścia CSS przed pomiarem marki (${width} px)`,
+    warunek: (_, przejscia) => document.fonts.status === 'loaded' && przejscia().length === 0,
+    pomiar: (_, przejscia) => ({ fonty: document.fonts.status, przejscia: przejscia().slice(0, 12) }),
+  });
   const result = await page.evaluate(() => {
     const main = document.querySelector('.app-main').getBoundingClientRect();
     const nav = document.querySelector('.marka-nawigacja');
@@ -469,6 +490,7 @@ try {
   await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
+  await sprawdzStopke({ browser: przegladarka, adres, sesja });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
@@ -484,7 +506,7 @@ try {
   try {
     appendFileSync(source, '\n[data-marka] .marka-rama:not([data-tryb-panelu]) { width: 80px; }\n');
     console.log(`KONTROLA_UJEMNA przed=${before} zmieniony=${hash()}`);
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     const negativeContext = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
     const negativePage = await negativeContext.newPage();
     let detected = false;
@@ -494,7 +516,7 @@ try {
     if (!detected) throw new Error('Kontrola ujemna nie wykryła zwężenia strony');
   } finally {
     execFileSync('cp', [copy, source]);
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     if (hash() !== before) throw new Error('Źródło nie zostało odtworzone');
     console.log(`KONTROLA_UJEMNA przywrocony=${hash()}`);
   }
@@ -506,7 +528,7 @@ try {
   try {
     appendFileSync(source, '\n[data-marka] .marka-profil.blok-ciemny { background-color: #fff; }\n[data-marka] .przepis-uklad > header h1 { font-size: 12px; }\n[data-marka] .ustawienia-nawigacja-opis { font-size: 12px; }\n[data-marka] .panel-formularza .choice-help { font-size: 12px; }\n');
     console.log('MARKA_UJEMNA przed=' + before + ' zmieniony=' + hash());
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     for (const [path, kod] of [['/@zofia_z_bieszczad', 'MARKA_PROFIL'], [przepis, 'MARKA_TYTUL'], ['/ustawienia', 'MARKA_OPISY']]) {
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
       let wykryto = false;
@@ -519,7 +541,7 @@ try {
     // Opisy ustawień nie mogą zamaskować osobnego sprawdzenia opisów wyboru.
     execFileSync('cp', [copy, source]);
     appendFileSync(source, '\n[data-marka] .panel-formularza .choice-help { font-size: 12px; }\n');
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
     let wykryto = false;
     try { await pomiar(await context.newPage(), 390, '/ustawienia/czytelnosc'); }
@@ -529,7 +551,7 @@ try {
     console.log('MARKA_UJEMNA wykryto=MARKA_WYBORY');
   } finally {
     execFileSync('cp', [copy, source]);
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     if (hash() !== before) throw new Error('Źródło marki nie zostało odtworzone');
     console.log('MARKA_UJEMNA przywrocony=' + hash());
   }
@@ -544,7 +566,7 @@ try {
   try {
     appendFileSync(source, '\n[data-marka] .marka-publikacja .composer-title { font-size: 14px; }\n[data-marka] .marka-publikacja::after { border-width: 0; }\n[data-marka] .marka-tablica-wstep { background: #fff; }\n[data-marka] .marka-tablica .kuking-board-kolumna { background: transparent; }\n');
     console.log('KOMPOZYCJA_UJEMNA przed=' + before + ' zmieniony=' + hash());
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
     let blad = '';
     try { await pomiar(await context.newPage(), 1440, '/home'); }
@@ -556,7 +578,7 @@ try {
     }
   } finally {
     execFileSync('cp', [copy, source]);
-    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
     if (hash() !== before) throw new Error('Nie odtworzono CSS po kontroli kompozycji');
     console.log('KOMPOZYCJA_UJEMNA przywrocony=' + hash());
   }
@@ -573,7 +595,7 @@ try {
     try {
       appendFileSync(source, `\n[data-marka] ${selector} { ${declaration} }\n`);
       console.log('TABLICA_UJEMNA przed=' + before + ' zmieniony=' + hash());
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
       let wykryto = false;
       try { await pomiar(await context.newPage(), 1440, '/odkryj'); }
@@ -583,7 +605,7 @@ try {
       console.log('TABLICA_UJEMNA wykryto=' + kod);
     } finally {
       execFileSync('cp', ['-p', copy, source]);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       if (hash() !== before) throw new Error('Nie odtworzono CSS po kontroli tablicy');
       console.log('TABLICA_UJEMNA przywrocony=' + hash());
     }
@@ -600,7 +622,7 @@ try {
     execFileSync('cp', ['-p', source, copy]);
     try {
       appendFileSync(source, `\n[data-marka] ${selector} { ${declaration} }\n`);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       const guest = await przegladarka.newContext({ viewport: { width: 1440, height: 900 } });
       let wykryto = false;
       try { await pomiarLanding(await guest.newPage(), 1440); }
@@ -610,7 +632,7 @@ try {
       console.log('LANDING_UJEMNA wykryto=' + kod + ' przed=' + before + ' zmieniony=' + hash());
     } finally {
       execFileSync('cp', ['-p', copy, source]);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      execFileSync('npm', ['run', 'build:assets'], { stdio: 'ignore' });
       if (hash() !== before) throw new Error('Nie odtworzono CSS landingu');
       console.log('LANDING_UJEMNA przywrocony=' + hash());
     }

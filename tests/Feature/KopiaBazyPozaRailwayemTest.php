@@ -52,7 +52,7 @@ class KopiaBazyPozaRailwayemTest extends TestCase
      */
     private function kodSerwisuKopii(): string
     {
-        $linie = preg_split('/\R/', $this->blokSerwisuKopii()) ?: [];
+        $linie = preg_split('/\r\n|\n|\r/', $this->blokSerwisuKopii()) ?: [];
 
         $bezKomentarzy = array_filter(
             $linie,
@@ -211,6 +211,7 @@ class KopiaBazyPozaRailwayemTest extends TestCase
             'docker/kopia/s3.sh',
             'docker/kopia/Dockerfile',
             'docs/infra/KOPIE_I_ODTWORZENIE.md',
+            'docs/infra/DR594_PIERWSZY_ZRZUT_WLASCICIEL.md',
         ];
 
         // Szukamy PRAWDZIWEGO bloku PEM (nagłówek + ciało base64), a nie
@@ -218,7 +219,7 @@ class KopiaBazyPozaRailwayemTest extends TestCase
         // zaczyna się od `-----BEGIN PRIVATE KEY-----` — bez tego zdania nie
         // da się ostrzec przed pomyleniem plików, a to jest tu najbardziej
         // prawdopodobna pomyłka.
-        $prawdziwyBlok = '/-----BEGIN (?:RSA |ENCRYPTED )?(?:PRIVATE KEY|CERTIFICATE)-----\s*\R[A-Za-z0-9+\/=\s]{40,}-----END/';
+        $prawdziwyBlok = '/-----BEGIN (?:RSA |ENCRYPTED )?(?:PRIVATE KEY|CERTIFICATE)-----\s*(?:\r\n|\n|\r)[A-Za-z0-9+\/=\s]{40,}-----END/';
 
         foreach ($pliki as $plik) {
             $tresc = (string) file_get_contents(base_path($plik));

@@ -26,7 +26,116 @@
 .szybki-wyglad [data-wyglad-status]:empty { display: none; }
 /* Podpowiedź jest dostępna również przy zwiniętym details. */
 .szybki-wyglad:not([open]) > .szybki-wyglad-podpowiedz:not([hidden]) { display: block; content-visibility: visible; }
-body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 80px); }
+/* MIEJSCE NA TEN PRZYCISK NIE JEST JUŻ LICZONE TUTAJ.
+   Do 22 września 2026 stało tu `body:has(.szybki-wyglad) { padding-bottom:
+   calc(var(--rezerwa-pod-belka, 0px) + 80px) }` — czyli rezerwa na przypiętą
+   belkę po raz DRUGI, obok tej samej rezerwy w `padding-bottom` stopki.
+   Gość, który belki w ogóle nie ma (`.bottom-nav` pod `@auth`), dostawał
+   przez to 284 px szarego pasa pod stopką. Rezerwa jest teraz jedna,
+   wydawana raz, w stopce: `--rezerwa-ukladu-dol` w `marka-rama.css`. */
+/*
+ * ZASIĘG WIDŻETU LICZONY Z JEGO WŁASNYCH WYMIARÓW, NIE ZE STAŁEJ.
+ *
+ * 80 px było odczytem JEDNEGO pomiaru: przy domyślnej czcionce przeglądarki
+ * i skali tekstu 140% widget sięga 77,06 px od dołu okna. Ta liczba nie jest
+ * jednak stała — rośnie z pismem. ZMIERZONE (Chromium, /admin/wiadomosci/<id>,
+ * skala tekstu 140%, prawdziwy zoom karty nie zmienia żadnej z tych wartości):
+ *
+ *   czcionka przeglądarki   16 px (100%)    widget sięga   77,06 px
+ *   czcionka przeglądarki   22 px (140%)    widget sięga  105,20 px
+ *   czcionka przeglądarki   32 px (200%)    widget sięga  152,12 px
+ *
+ * Przy 22 px stała 80 px była KRÓTSZA o 25,20 px i przewijanie parkowało
+ * treść w pasie widżetu. Dlatego rezerwa jest tu policzona z tych samych
+ * deklaracji, które nadają widżetowi wysokość — `summary` ma wiersz
+ * `--leading-body`, dwa razy `--spacing-3` na dopełnienie i 2 px obramowania,
+ * a całość stoi `--spacing-3` nad krawędzią okna. Formuła odtwarza wszystkie
+ * trzy pomiary co do piksela, więc nie jest zaokrągleniem.
+ *
+ * `--wyglad-dol` (wysokość widocznej dolnej belki) CELOWO tu nie wchodzi:
+ * belkę pokrywa `--rezerwa-pod-belka`, dodawana obok. Liczylibyśmy ją dwa razy.
+ *
+ * 1 px na końcu to NIE zapas „na wszelki wypadek": pozycja przewinięcia
+ * zaokrągla się do pikseli fizycznych i przy DPR 2 zmierzona resztówka
+ * sięgała 0,15 px. Jeden piksel ją pokrywa i nic więcej nie robi.
+ *
+ * Podłoga `max(80px, …)` zostaje, żeby ta zmiana nie ruszyła ani o piksel
+ * układów, które przy domyślnym piśmie są dziś zielone.
+ */
+:root {
+  --wyglad-zasieg: max(80px, calc(
+      max(48px, calc(max(16px, var(--text-body)) * var(--leading-body) + 2 * var(--spacing-3) + 2px))
+    + var(--spacing-3) + env(safe-area-inset-bottom, 0px) + 1px));
+}
+/* `padding-bottom` na `body` z tą rezerwą (#1081) CELOWO tu nie wraca —
+   patrz komentarz wyżej: koniec dokumentu to koniec stopki, a miejsce na
+   przycisk zostawia sama stopka (z boku paska, a przy dużym tekście pod
+   nim — `marka-rama.css`, #1525). `--wyglad-zasieg` służy już tylko
+   przewijaniu do celu, niżej. */
+/*
+ * TA SAMA REZERWA, TYLE ŻE DLA PRZEWIJANIA DO CELU — DRUGA POŁOWA REGUŁY WYŻEJ.
+ *
+ * Rezerwa w stopce ratuje tylko KONIEC dokumentu. Przewinięcie fokusu albo
+ * kotwicy w widok liczy się do krawędzi okna i nie wie, że w prawym dolnym
+ * rogu stoi widget (`position: fixed`, `z-index: 25`). Mechanizmem CSS na tę
+ * różnicę jest `scroll-padding-bottom` i on w serwisie JEST — ale w app.css
+ * stoi na `--rezerwa-pod-belka`, czyli mierzy WYŁĄCZNIE dolną belkę. Belka
+ * znika od 64rem i tam rezerwa spada do zera; widget nie znika nigdy i przy
+ * żadnej szerokości. Od 1024 px przewijanie parkowało więc treść równo przy
+ * dolnej krawędzi okna, pod widgetem.
+ *
+ * ZMIERZONE (#1081, /admin/wiadomosci/<id>, 1440 px, tekst 140%): ostatnie
+ * linijki akapitu w `<details>` lądowały w prostokącie 1245–1428 × 822,9–888,
+ * czyli dokładnie pod widgetem — `elementFromPoint` trafiał w jego `summary`,
+ * nie w tekst. Rezerwa 80 px to TA SAMA liczba co podłoga `--wyglad-zasieg` wyżej,
+ * a nie nowa: widget sięga 77,1 px od dołu okna przy tekście 140%.
+ *
+ * Nic nie rysuje — działa wyłącznie przy celowanym przewijaniu. Nie ruszamy
+ * ani wielkości tekstu, ani pola dotykowego (docs/UX_50_PLUS.md).
+ */
+/*
+ * SELEKTOR JEST `:root:has(body .szybki-wyglad)`, A NIE `:root:has(.szybki-wyglad)`,
+ * I TO NIE JEST OZDOBNIK. W `marka-rama.css` stoi
+ *   @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
+ *     :root:has(body[data-marka]) { scroll-padding-bottom: .5rem }
+ *   }
+ * czyli (0,2,1). Poprzedni zapis (0,2,0) PRZEGRYWAŁ z nim niezależnie od
+ * kolejności, więc w niskim i wąskim widoku rezerwa pod widżetem nie
+ * działała wcale. ZMIERZONE przy CSS 320x600: `scroll-padding-bottom`
+ * wychodziło 8 px, a widget sięgał 77,06 px. `body .szybki-wyglad` podnosi
+ * nas do (0,2,1) — remis rozstrzyga kolejność, a `szybki-wyglad.css` jest
+ * w `app.css` importowany PO `marka-rama.css`. Body ma `data-marka` na
+ * każdym ekranie serwisu, więc obie reguły dotyczą tych samych stron.
+ *
+ * AKTUALIZACJA: w NISKIM I WĄSKIM widoku ta reguła jest jednak wyłączona
+ * (blok niżej) — tam wygrywanie z `marka-rama.css` łamało strażnika N492.
+ */
+/*
+ * W NISKIM I WĄSKIM WIDOKU TA REGUŁA NIE OBOWIĄZUJE — tam rezerwę trzyma
+ * `marka-rama.css` (`.5rem`) i to MA zostać jedynym źródłem.
+ *
+ * Reguła niżej ma swoistość (0,2,1), dokładnie tyle samo co
+ * `:root:has(body[data-marka])` z `marka-rama.css`, a ten arkusz jest w
+ * `app.css` importowany PÓŹNIEJ — więc bez zawężenia wygrywała remisem
+ * i podmieniała w niskim widoku `.5rem` na własną rezerwę.
+ * `scripts/nawigacja-niski-widok.mjs` żąda tam `scroll-padding-bottom ===
+ * fontSize / 2` i zgłaszał `N492_DOL_REZERWA`. ZMIERZONE (Chromium, domyślna
+ * czcionka przez CDP): short 320x500 zoom2 → 80 px zamiast 8 px, largeFont
+ * 320x740 f32 → 153,12 px zamiast 16 px.
+ *
+ * DLACZEGO WYŁĄCZENIE, A NIE POWTÓRZENIE `.5rem` TUTAJ. Pierwsza wersja tej
+ * poprawki przywracała `.5rem` drugą regułą w tym pliku. Pozytyw przechodził,
+ * ale oślepiła kontrolę ujemną strażnika: `rezerwa-dol` zmienia `.5rem` na
+ * `0rem` W `marka-rama.css`, a powtórzona wartość stąd ją przykrywała —
+ * `N492_NEGATYW rezerwa-dol` w CI. Druga kopia tej samej liczby w innym pliku
+ * to dokładnie to, przed czym strażnik ma chronić.
+ *
+ * Warunek jest dosłownym zaprzeczeniem media query z `marka-rama.css`; przy
+ * zmianie tamtej trzeba zmienić i tę.
+ */
+@media not ((max-width: 15rem) or ((max-width: 30rem) and (max-height: 40rem))) {
+  :root:has(body .szybki-wyglad) { scroll-padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
+}
 @media (max-height: 400px) {
   .szybki-wyglad[open] { inset: 8px; max-width: none; background: var(--color-surface-raised); overflow: auto; }
   .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }

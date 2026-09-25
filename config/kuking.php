@@ -190,9 +190,10 @@ return [
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
          * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
-         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
-         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
-         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie i kończy się
+         * sukcesem; na produkcji odkłada przy tym adresy do tabeli
+         * `zalegle_czyszczenia_cdn`, skąd `kuking:wyczysc-zalegle-cdn`
+         * wyśle je po uzupełnieniu zmiennych (#959). Sygnałem, który dociera, jest
          * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
          * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
          * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
@@ -442,6 +443,18 @@ return [
         // żeby wygląd nie mrugnął z powrotem do jasnego, gdyby ta sama osoba
         // wylogowała się na tym samym urządzeniu.
         'cookie' => 'motyw',
+    ],
+
+    'html_cache' => [
+        // Ile sekund brzeg Cloudflare może trzymać HTML landingu, przepisu
+        // i profilu dla gościa BEZ żadnego ciasteczka (#610). 0 = wyłączone
+        // i to jest wartość domyślna: aplikacja zakłada wtedy sesję i wysyła
+        // `private, no-store` jak przed #610. Kod obcina wartość do 300 s
+        // (`PublicznyHtmlGoscia::MAKS_SEKUND`), bo tyle najwyżej trwa okno,
+        // w którym przepis przełączony na prywatny, ukryty przez moderację
+        // albo usunięty może być jeszcze widoczny z brzegu.
+        // Reguła brzegu i plan wycofania: docs/infra/CLOUDFLARE_CACHE_597_610.md.
+        'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
     ],
 
     'account' => [
@@ -1487,7 +1500,9 @@ return [
         // bez zmian, zmieniło się tylko miejsce, w którym się ją czyta.
         // Sześć na minutę: człowiek klika „wyślij jeszcze raz", nie widzi
         // listu (poczta potrafi iść minutę), klika znowu. Każde kliknięcie
-        // to jeden e-mail z naszej puli.
+        // to jeden e-mail z naszej puli. TO JEST LIMIT NA MINUTĘ, NIE NA
+        // DOBĘ — sufit dobowy na konto stoi w
+        // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
 
         /*
@@ -2016,7 +2031,9 @@ return [
     | 720 próśb na dobę) wysyłał listy na 300 różnych adresów i opróżniał
     | CAŁĄ pulę w około 70 minut. Ponawianie potwierdzenia adresu
     | (`limits.verification_resend` = 6 na minutę, bez sufitu dobowego)
-    | robiło to samo z jednego niepotwierdzonego konta w około 50 minut.
+    | robiło to samo z jednego niepotwierdzonego konta w około 50 minut
+    | (domknięte dopiero w D-246: klasa `ponowienie` i sufit na konto,
+    | bo sam wspólny licznik z progiem zero tego nie zatrzymywał).
     | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
     |
     | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
@@ -2062,6 +2079,7 @@ return [
          |
          |   240  `podsumowanie`  gaśnie PIERWSZE
          |   100  `zwykla`
+         |   100  `ponowienie`    (D-246, ponowne wysłanie potwierdzenia adresu)
          |     0  `wejscie`       gaśnie OSTATNIE
          |
          | SKĄD TE TRZY LICZBY — ŻADNA NIE JEST NOWA.
@@ -2080,6 +2098,21 @@ return [
          | nich nowy człowiek nie wchodzi tu wcale, a osoba, dla której link
          | jest jedyną drogą — nie wraca.
          |
+         | 100 dla klasy `ponowienie` (D-246, 23 września 2026) — też nie
+         | nowa liczba: to znowu `rezerwa_transakcyjna`. Do D-246 ponowienie
+         | potwierdzenia stało w klasie `wejscie` z progiem zero, więc
+         | ponowienia z wielu kont (albo z jednego — patrz
+         | `ponowienie_potwierdzenia_na_dobe` niżej) zjadały dokładnie te
+         | ostatnie listy, które miały zostać dla rejestracji i logowania
+         | linkiem. Ponowienie klika ktoś, kto JUŻ MA konto i korzysta z niego
+         | normalnie bez potwierdzonego adresu (potwierdzenie jest potrzebne
+         | dopiero do eksportu danych i odzyskania hasła), więc nie ma prawa
+         | sięgać do rezerwy, którą obiecujemy listom WPUSZCZAJĄCYM na konto.
+         | Osobna klasa zamiast dopisania do `zwykla`, bo to jest osobna
+         | decyzja: właściciel może ją przesunąć bez ruszania przypomnienia
+         | hasła i listów moderacyjnych. Warunek, który MUSI zostać:
+         | `ponowienie` > `wejscie` (pilnuje `PodzialLimituPocztyTest`).
+         |
          | CZEGO TE PROGI NIE ROBIĄ. Nie dzielą puli między KONKRETNYCH ludzi.
          | Jeden sprawca zalewający `/nie-pamietam-hasla` nadal wypali klasę
          | `zwykla` i zabierze tego dnia odpowiedzi z „Napisz do nas" oraz
@@ -2094,8 +2127,37 @@ return [
         'progi_wygaszania' => [
             'podsumowanie' => (int) env('KUKING_POCZTA_PROG_PODSUMOWANIE', 240),
             'zwykla' => (int) env('KUKING_POCZTA_PROG_ZWYKLA', 100),
+            'ponowienie' => (int) env('KUKING_POCZTA_PROG_PONOWIENIE', 100),
             'wejscie' => (int) env('KUKING_POCZTA_PROG_WEJSCIE', 0),
         ],
+
+        /*
+         * ILE RAZY NA DOBĘ JEDNO KONTO MOŻE KLIKNĄĆ „WYŚLIJ WIADOMOŚĆ JESZCZE
+         * RAZ" (D-246, 23 września 2026). Liczy się doba kalendarzowa, jak
+         * w całej puli — o północy licznik zaczyna się od nowa.
+         *
+         * PO CO, SKORO JEST `limits.verification_resend`: tamten limit to
+         * 6 na MINUTĘ i nic więcej, czyli 8640 listów na dobę z jednego
+         * konta. Zmierzone (audyt bezpieczeństwa 23.09, znalezisko 2): jedno
+         * niepotwierdzone konto opróżniało całą pulę 300 listów w około
+         * 50 minut. Próg klasy `ponowienie` wyżej zatrzymuje to przed
+         * rezerwą dla wejścia, ale sam nie broni reszty serwisu przed jednym
+         * kontem — to robi ta liczba.
+         *
+         * SKĄD 5: ten sam rząd co `login_link.limit_na_adres` (3 na godzinę),
+         * tylko liczony na dobę, bo ten list nie jest drogą na konto.
+         * Człowiek, któremu list nie doszedł, klika raz, po minucie drugi raz,
+         * po godzinie trzeci — piąty to zapas. Pierwszy list przy rejestracji
+         * się tu NIE liczy (to nie jest ponowienie). Pięć listów to 1,7% puli,
+         * więc do wyczerpania klasy `ponowienie` (200 listów) trzeba
+         * czterdziestu kont, a każde z nich to osobna rejestracja pod
+         * `limits.register`. Po przekroczeniu ekran mówi, ile listów już
+         * wysłaliśmy i od kiedy można prosić znowu (`EmailVerificationController`).
+         *
+         * Zero znaczy „ponowień dziś nie wysyłamy" — świadome awaryjne
+         * odcięcie, tak samo jak przy pozostałych sufitach.
+         */
+        'ponowienie_potwierdzenia_na_dobe' => (int) env('KUKING_PONOWIENIE_POTWIERDZENIA_NA_DOBE', 5),
 
         /*
          * ILE DNI TRZYMAMY ODHACZONE ŚLADY NIEUDANYCH LISTÓW
@@ -2630,10 +2692,14 @@ return [
         //
         // To jest decyzja podjęta ZA CZŁOWIEKA, więc obowiązkowo z widoczną
         // możliwością cofnięcia — przycisk „Nie obserwuj" na profilu istnieje.
-        // Pusta wartość wyłącza mechanizm całkowicie.
-        //
-        // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
-        // a nazwa jest tym, co widać i co da się sprawdzić okiem.
+        // Stabilna tożsamość gospodarza. UUID nie zmienia się razem z nazwą
+        // profilu i nie może zostać przejęty przez inne konto (#1089).
+        // Pusta wartość uruchamia wyłącznie zgodność przejściową po nazwie.
+        'host_user_id' => env('KUKING_HOST_USER_ID', ''),
+
+        // ZGODNOŚĆ PRZEJŚCIOWA dla wdrożeń sprzed #1089. Po ustawieniu UUID
+        // ta wartość nie wybiera gospodarza; zostaje na czas bezpiecznego
+        // przejścia i może zostać usunięta w osobnym wdrożeniu.
         'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
 
         // IMIĘ GOSPODARZA — podpis, który czyta CZŁOWIEK, nie konto.
@@ -2643,10 +2709,8 @@ return [
         // Decyzja właściciela: gospodarzem jest **Ula** (patrz
         // `docs/DECISIONS.md` — wpis o imieniu gospodarza).
         //
-        // TO NIE JEST TO SAMO CO `host_username` WYŻEJ. `host_username` to
-        // nazwa konta, którą czyta MECHANIZM (auto-obserwowanie przy
-        // rejestracji, `RegisterController::zaobserwujGospodarza()`) i która
-        // musi dać się znaleźć w bazie (`Profile::where('username', ...)`).
+        // TO NIE JEST TO SAMO CO `host_user_id` WYŻEJ. `host_user_id` to
+        // stabilny identyfikator konta czytany przez mechanizmy społeczności.
         // `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem
         // — nadawca maila (`docs/brand/COPY_STYLE.md` §6 „nadawca",
         // `docs/product/RETENTION_LOOPS.md` §4 „imię gospodarza + „z
@@ -2941,6 +3005,27 @@ return [
              * podsumowaniem (`kuking:podsumowanie-automatu`).
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+        ],
+
+        /*
+         * ALARM O PILNYM ZGŁOSZENIU OD CZŁOWIEKA (`AlarmujOPilnymZgloszeniu`,
+         * D-236). Kategorię wybiera zgłaszający — także w formularzu DSA bez
+         * konta — więc bez tych dwóch liczb 40 zgłoszeń jednego wpisu dawało
+         * 40 listów, a jedno konto przy kolejnych celach do 60 listów na
+         * godzinę, i to z puli dzielonej z logowaniem i rejestracją.
+         *
+         * `okno_celu_godzin` — najwyżej JEDEN list o danym celu w tym oknie.
+         * Kolejne zgłoszenia tego samego wpisu stoją w kolejce z plakietką,
+         * list o nich nic by nie dodał.
+         *
+         * `dzienny_sufit` — ile listów alarmowych od ludzi na dobę, dla
+         * wszystkich celów razem. Ostatni list doby mówi wprost, że kolejnych
+         * dziś nie będzie. Leży WEWNĄTRZ wspólnego licznika poczty (D-239),
+         * więc zabiera z puli najwyżej tyle listów.
+         */
+        'alarm_czlowieka' => [
+            'okno_celu_godzin' => (int) env('KUKING_ALARM_CZLOWIEKA_OKNO_GODZIN', 6),
+            'dzienny_sufit' => (int) env('KUKING_ALARM_CZLOWIEKA_SUFIT', 10),
         ],
     ],
 

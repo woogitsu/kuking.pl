@@ -111,6 +111,18 @@ class OnboardingController extends Controller
             $request->session()->put('onboarding.selection', $context);
         }
         $input = old('follow', $request->input('follow', []));
+        // Para nazwa–identyfikator (#793) z TEGO SAMEGO źródła co `follow`:
+        // po błędzie walidacji z `old()`, inaczej z adresu (#1340).
+        $oczekiwaniSurowi = $request->session()->hasOldInput('follow')
+            ? old('oczekiwani', [])
+            : $request->input('oczekiwani', []);
+        $oczekiwani = [];
+
+        foreach (is_array($oczekiwaniSurowi) ? $oczekiwaniSurowi : [] as $nazwa => $id) {
+            if (is_string($id)) {
+                $oczekiwani[mb_strtolower((string) $nazwa)] = $id;
+            }
+        }
         $selected = $selectionValid && is_array($input)
             ? array_values(array_unique(array_filter($input, fn ($name) => is_string($name) && strlen($name) <= 40)))
             : [];
@@ -130,20 +142,29 @@ class OnboardingController extends Controller
             $user = $request->user();
 
             $wynikiWyszukiwania = $this->search
-                ->people($phrase, $user, self::WYNIKI_WYSZUKIWANIA + 1)
                 // Szukającego samego siebie nie ma sensu proponować mu
                 // do zaobserwowania — `FollowUser` i tak by to odrzucił,
-                // ale checkbox przy własnym koncie byłby mylący.
-                ->reject(fn (Profile $profil) => $profil->user_id === $user->getKey())
-                ->values();
+                // ale checkbox przy własnym koncie byłby mylący. Wykluczenie
+                // idzie W ZAPYTANIU (`bezWidza`), nie przez `reject()` po
+                // `LIMIT`: własny profil zajmował wtedy jedno z sześciu miejsc,
+                // ekran gubił poprawną osobę i kłamał, że więcej nie ma (#945).
+                ->people($phrase, $user, self::WYNIKI_WYSZUKIWANIA + 1, bezWidza: true);
         }
 
         $results = $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA);
-        $people = $this->board->peopleToFollow($request->user(), 8)
-            ->reject(fn ($person) => $results?->contains('user_id', $person->getKey()));
+        // Wyniki wyszukiwania wykluczamy PRZED limitem SQL (#1299) — odsiane
+        // po fakcie zjadałyby miejsca na liście polecanych.
+        $people = $this->board->peopleToFollow($request->user(), 8, $results?->pluck('user_id')->all() ?? []);
         $visibleNames = $people->pluck('profile.username')->merge($results?->pluck('username') ?? []);
         $selectedProfiles = Profile::query()->whereIn('username', $selected)->with('user')->get()
             ->filter(fn (Profile $profile) => $profile->user !== null && $request->user()->can('follow', $profile->user));
+        // Nazwa, która od wyrenderowania zmieniła właściciela, nie wraca
+        // zaznaczona przy nowej osobie — tak samo jak w `saveFollows()`.
+        [$selectedProfiles, $zmienionePrzyWyborze] = $selectedProfiles->partition(function (Profile $profile) use ($oczekiwani) {
+            $oczekiwanyId = $oczekiwani[mb_strtolower($profile->username)] ?? null;
+
+            return $oczekiwanyId === null || (string) $profile->user_id === $oczekiwanyId;
+        });
         $selected = $selectedProfiles->pluck('username')->all();
 
         return view('pages.onboarding.people', [
@@ -152,6 +173,7 @@ class OnboardingController extends Controller
             'selectionContext' => $context['token'],
             'selectedProfiles' => $selectedProfiles->reject(fn ($profile) => $visibleNames->contains($profile->username)),
             'selectionExpired' => ! $selectionValid && $request->has('selection'),
+            'zmienionePrzyWyborze' => $zmienionePrzyWyborze->pluck('username')->values()->all(),
             'phrase' => $phrase,
             'searchErrors' => $searchErrors,
             'zaKrotka' => $zaKrotka,

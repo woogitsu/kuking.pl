@@ -63,3 +63,22 @@ na: return true;
 oczekuj: Failed asserting|nieprzetworzone|kolaz
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php
 ocena:
+---
+# Issue #1386. Do tej zmiany fixture trzymala wariant pod TYM SAMYM kluczem
+# co oryginal, wiec obie mutacje nizej przezywaly: skasowanie oryginalu
+# „kasowalo" tez wariant. Teraz wariant to osobny plik na osobnym dysku.
+nazwa: wymazanie konta kasuje publiczne warianty zdjec, nie tylko oryginal
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: if ($this->kasujZdjecie->skasujPliki($zdjecie)) {
+na: if (\Illuminate\Support\Facades\Storage::disk($zdjecie->disk)->delete((string) $zdjecie->object_key)) {
+oczekuj: Failed asserting|Unexpected file found
+polecenie: vendor/bin/phpunit --no-coverage --filter test_kasuje_zdjecia_z_wpisow_i_przepisow_nie_tylko_awatar tests/Feature/UsuwanieKontaKasujeZdjeciaTest.php
+ocena:
+---
+nazwa: kasowanie zdjecia przy wymazaniu konta przechodzi po wariantach z metadanych
+plik: app/Domain/Media/KasujZdjecie.php
+zamien: foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
+na: foreach ([] as $nazwa => $wariant) {
+oczekuj: Failed asserting|Unexpected file found
+polecenie: vendor/bin/phpunit --no-coverage --filter test_kasuje_zdjecia_z_wpisow_i_przepisow_nie_tylko_awatar tests/Feature/UsuwanieKontaKasujeZdjeciaTest.php
+ocena:
