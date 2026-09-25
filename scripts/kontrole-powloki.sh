@@ -57,6 +57,8 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 #  * kontrola-ujemna — przyrząd `scripts/kontrola-ujemna.sh` pilnuje, żeby
 #    mutacja, która nie trafiła, nie udawała wykonanej kontroli. Bez własnej
 #    kontroli ujemnej byłby tym, co naprawia (PULAPKI_TESTOW §5);
+#  * check-postgres — krok „PostgreSQL” z `check.sh` na atrapach `pg_isready`
+#    i `pg_ctlcluster`: port ze zmiennej DB_PORT, cudzy klaster nieruszany (#732);
 #  * kontrola-sondy-wdrozenia — sondy testu dymnego po wdrożeniu (#1012,
 #    #1332) chodzą tylko w GitHub Actions, na produkcji; tu na atrapach curl.
 while IFS='|' read -r test opis; do
@@ -73,6 +75,7 @@ tests/skrypty/php-ini-slady.sh|Ślady wyjątków w docker/php.ini niosą argumen
 tests/skrypty/kopia-bazy.sh|Testy kopii bazy oblewają
 tests/skrypty/cache-assetow.sh|Sonda cache oblewa
 tests/skrypty/kontrola-ujemna.sh|Przyrząd kontroli ujemnych oblewa
+tests/skrypty/check-postgres.sh|Sonda PostgreSQL w check.sh oblewa
 tests/skrypty/kontrola-sondy-wdrozenia.sh|Sondy testu dymnego oblewają
 LISTA
 
