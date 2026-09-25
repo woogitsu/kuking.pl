@@ -348,6 +348,8 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Wpis samo-zdjęcie bez tekstu | `index, follow`, ale **bez** promowania w sitemapie priorytetowej | Nie jest spamem, ale ma niską wartość tekstową dla Google — niech żyje dla ludzi (link, udostępnienie), nie forsować w crawl budgecie |
 | Profil z ≥1 publiczną treścią | `index, follow` + `ProfilePage` | Realna, zweryfikowana obecność |
 | Profil bez żadnej publicznej treści (świeże konto, samo „popatrzę”) | `noindex, follow` | Zero wartości dla wyszukującego, ryzyko cienkiej treści na skalę (tysiące pustych profili) |
+| Strona tagu z ≥1 wpisem widocznym dla wszystkich (`/tag/{slug}`) | `index, follow` | Realna treść; warunek = ten sam zakres co licznik w spisie tagów (D-087) |
+| Strona tagu bez publicznego wpisu (większość słownika z `TagSeeder`) | `noindex, follow`, link w spisie `/tagi` z `rel="nofollow"`, poza sitemapą | Strona zostaje dla ludzi (prawdziwe zero, „Dodaj wpis”), ale ~1400 prawie identycznych pustych stron to cienka treść na skalę (issue #1007). Wraca do indeksu sama po pierwszym publicznym wpisie |
 | Treść `visibility IN ('followers','private')` | `noindex, nofollow` + brak w sitemapie + wymagany auth do renderu | Nigdy nie może wyciec do crawlera |
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
@@ -406,6 +408,32 @@ zbiór i liczności adresów dla 1001 rekordów każdego typu, przy datach
 rosnących, malejących i równych; sprawdza także odczyt cache i wykluczenia.
 Poniższy podział na pliki pozostaje planem większej skali. Poprawka #1055
 nie zmienia czasu cache, reguł profili ani wyboru adresów pytań.
+
+### Świeżość zapamiętanej mapy (#1006)
+
+Lista adresów stoi w cache pod kluczem `sitemap.urls`
+(`App\Support\MapaStrony::KLUCZ`) z czasem życia sześciu godzin. Ten czas
+jest **tylko zabezpieczeniem awaryjnym** — docelowa zwłoka po zmianie
+widoczności to **zero**: następne żądanie `/sitemap.xml` po zatwierdzeniu
+zapisu składa mapę od nowa. Sześć godzin to górna granica wyłącznie dla
+zmian, które ominą Eloquenta (surowe `UPDATE` w bazie).
+
+Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
+(`MapaStrony::zarejestrujHaki()`):
+
+| Model | Zdarzenie |
+|---|---|
+| `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
+| `Recipe` | dodatkowo zmiana `slug` (inny adres) |
+| `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Profile` | zmiana `username` (inny adres), usunięcie |
+| `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
+
+Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
+po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
+magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
+rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
 
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
 

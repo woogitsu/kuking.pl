@@ -310,7 +310,47 @@
     </nav>
 
     @if($tab === 'wszystko')
-        @if($posts->count() === 0)
+        {{--
+            Pusty ROK to nie puste ARCHIWUM (issue #1380). Stary link do roku,
+            z którego wpisy zniknęły, pokazywał „Ta osoba jeszcze nic nie
+            pokazała" — nieprawdę o całej osobie, bez drogi powrotu. Lista lat
+            liczy się z tym samym filtrem widoczności co wpisy, więc niepusta
+            lista znaczy: są wpisy, tylko nie w tym roku. Nawigacja po latach
+            stoi dlatego PRZED pustym stanem, a nie w gałęzi z wpisami.
+        --}}
+        @if(($lata ?? collect())->count() > 1)
+            {{--
+                NAWIGACJA PO LATACH (issue #34).
+
+                Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
+                w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
+                trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
+                droga, której nikt nie przejdzie.
+
+                Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
+                tylko rząd przycisków udający wybór.
+
+                Zwykłe odnośniki, bez skryptu.
+            --}}
+            <nav class="lata-archiwum" aria-label="Lata w archiwum">
+                <a class="tab" href="{{ route('profile.show', $p->username) }}"
+                   @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
+
+                @foreach($lata as $rokZListy)
+                    <a class="tab"
+                       href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
+                       @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
+                @endforeach
+            </nav>
+        @endif
+
+        @if($posts->count() === 0 && ($rok ?? null) && ($lata ?? collect())->isNotEmpty())
+            <x-empty-state :title="'Nie ma wpisów z '.$rok.' roku'"
+                           action="Pokaż całe archiwum"
+                           :href="route('profile.show', $p->username)">
+                Wybierz inny rok albo wróć do całego archiwum.
+            </x-empty-state>
+        @elseif($posts->count() === 0)
             <x-empty-state :title="$isOwner ? 'Twoje archiwum jest jeszcze puste' : 'Ta osoba jeszcze nic nie pokazała'"
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
                            :href="$isOwner ? route('posts.create') : null">
@@ -319,32 +359,6 @@
                 @endif
             </x-empty-state>
         @else
-            @if(($lata ?? collect())->count() > 1)
-                {{--
-                    NAWIGACJA PO LATACH (issue #34).
-
-                    Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
-                    w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
-                    trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
-                    droga, której nikt nie przejdzie.
-
-                    Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
-                    tylko rząd przycisków udający wybór.
-
-                    Zwykłe odnośniki, bez skryptu.
-                --}}
-                <nav class="lata-archiwum" aria-label="Lata w archiwum">
-                    <a class="tab" href="{{ route('profile.show', $p->username) }}"
-                       @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
-
-                    @foreach($lata as $rokZListy)
-                        <a class="tab"
-                           href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
-                           @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
-                    @endforeach
-                </nav>
-            @endif
-
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
             <div class="stack">
