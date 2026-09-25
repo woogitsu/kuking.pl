@@ -229,6 +229,51 @@ const MUTACJE = [
   }],
 ];
 
+// ---------------------------------------------------------------------------
+//  LISTY URODZINOWE (#1755, D-269): wyłącznik wysyłki tylko w roli, która
+//  wysyła (scheduler / all) i włączony wyłącznie na produkcji.
+// ---------------------------------------------------------------------------
+function bledyUrodzin(g, { srodowisko, nazwaWww }) {
+  const b = [];
+  const aplikacja = g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
+  const produkcja = srodowisko === "production";
+  for (const s of aplikacja) {
+    const rola = ROLA(s);
+    const flaga = zmienna(s, "KUKING_URODZINY_MAIL_WLACZONY");
+    const wysyla = rola === "scheduler" || rola === "all";
+    if (!wysyla && flaga) b.push(`${s.name}: KUKING_URODZINY_MAIL_WLACZONY w roli ${rola}, która list nie kolejkuje`);
+    if (wysyla) {
+      const oczekiwana = produkcja ? "true" : "false";
+      if (flaga?.type !== "literal" || flaga.value !== oczekiwana) {
+        b.push(`${s.name}: KUKING_URODZINY_MAIL_WLACZONY=${flaga?.value}, oczekiwane „${oczekiwana}” (${srodowisko})`);
+      }
+    }
+  }
+  if (!aplikacja.some((s) => s.name === nazwaWww)) b.push("brak serwisu WWW — nie ma czego sprawdzać");
+  return b;
+}
+
+for (const [opis, srodowisko] of [["production", "production"], ["staging", "staging"], ["preview pr-123", "pr-123"]]) {
+  test(`listy urodzinowe: wyłącznik w grafie ${opis}`, () => {
+    assert.deepEqual(bledyUrodzin(graf(srodowisko), { ...KONTEKST, srodowisko }), []);
+  });
+}
+
+for (const [opis, wzor, zepsuj] of [
+  ["wysyłka wyłączona na produkcji", PROD, (g) => { usluga(g, "scheduler").variables.KUKING_URODZINY_MAIL_WLACZONY.value = "false"; }],
+  ["wyłącznik w workerze", PROD, (g) => { usluga(g, "worker").variables.KUKING_URODZINY_MAIL_WLACZONY = { type: "literal", value: "true" }; }],
+  ["wysyłka włączona na stagingu", STAGING, (g) => { usluga(g, "kuking.pl").variables.KUKING_URODZINY_MAIL_WLACZONY.value = "true"; }],
+]) {
+  test(`kontrola ujemna listów urodzinowych: ${opis}`, () => {
+    const g = structuredClone(wzor);
+    const przed = JSON.stringify(g);
+    zepsuj(g);
+    assert.notEqual(JSON.stringify(g), przed, "mutacja nic nie zmieniła");
+    const srodowisko = wzor === PROD ? "production" : "staging";
+    assert.notDeepEqual(bledyUrodzin(g, { ...KONTEKST, srodowisko }), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
+
 for (const [opis, wzor, zepsuj] of MUTACJE) {
   test(`kontrola ujemna: ${opis}`, () => {
     const g = structuredClone(wzor);

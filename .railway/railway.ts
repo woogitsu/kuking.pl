@@ -787,6 +787,17 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
+  //  --- Listy z życzeniami urodzinowymi: TYLKO scheduler (#1755, D-269) -----
+  //  Wyłącznik `kuking.urodziny.mail_wlaczony` czyta WYŁĄCZNIE komenda
+  //  `kuking:wyslij-zyczenia-urodzinowe`, która chodzi z harmonogramu; worker
+  //  tylko wysyła to, co już jest w kolejce (i sam sprawdza zgodę w chwili
+  //  wysyłki). Decyzja właściciela z 25.09.2026: po scaleniu wysyłka włączona.
+  //  TYLKO PRODUKCJA: staging i PR-y nie wysyłają ludziom życzeń z kopii
+  //  danych — tak samo jak alarmy moderacji wyżej.
+  const urodzinyEnv = {
+    KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
+  };
+
   const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
   const workerEnv = {
     ...appEnv,
@@ -795,7 +806,7 @@ export default defineRailway((ctx) => {
     ...modelEnv,
     ...alarmModeratoraEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------

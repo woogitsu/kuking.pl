@@ -416,6 +416,30 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         );
     }
 
+    /**
+     * Wyłącznik listów urodzinowych (#1755, D-269) to nie sekret, więc MACIERZ
+     * (która liczy referencje `ctx.shared`) go nie widzi. Pilnujemy go osobno:
+     * dostaje go WYŁĄCZNIE scheduler — jedyna rola, która woła
+     * `kuking:wyslij-zyczenia-urodzinowe` — i rola `all` (przez sumę), a
+     * wartość „true" stoi tylko na produkcji.
+     */
+    #[Test]
+    public function wylacznik_listow_urodzinowych_tylko_w_schedulerze_i_tylko_na_produkcji(): void
+    {
+        $role = $this->zmienneRol(surowe: true);
+
+        $this->assertSame(
+            'isProduction ? "true" : "false"',
+            $role['scheduler']['KUKING_URODZINY_MAIL_WLACZONY'] ?? null,
+            'Scheduler ma dostać KUKING_URODZINY_MAIL_WLACZONY włączony wyłącznie na produkcji — '
+            .'bez tego listy z życzeniami po scaleniu nie wychodzą (decyzja właściciela z 25.09.2026).',
+        );
+        $this->assertArrayHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['all'], 'Rola `all` też kolejkuje listy z harmonogramu.');
+        $this->assertArrayNotHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['web'], 'Web nie czyta wyłącznika listów urodzinowych.');
+        $this->assertArrayNotHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['worker'], 'Worker nie czyta wyłącznika listów urodzinowych.');
+        $this->assertContains('KUKING_URODZINY_MAIL_WLACZONY', $this->zmienneConfig(), 'Wyłącznika nie czyta żadne env() w config/*.php.');
+    }
+
     #[Test]
     public function rola_all_dostaje_sume_trzech_rol(): void
     {
