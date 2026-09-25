@@ -50,7 +50,10 @@ final class PoprawkaKomentarzaNaDwochPolaczeniachTest extends TestDwochPolaczen
 
         // Karta A: prawdziwa akcja, transakcja jeszcze niezatwierdzona.
         DB::beginTransaction();
-        app(EditComment::class)->handle($comment, 'Pół łyżeczki soli', $wersjaStartowa);
+        $this->assertNotNull(
+            app(EditComment::class)->handle($autor, $comment, 'Pół łyżeczki soli', $wersjaStartowa),
+            'Kontrola: karta A nie zapisała poprawki — Policy odmówiła, test nie mierzy wyścigu.',
+        );
 
         $kartaB = $this->karta($name, $comment, 'Sól i pieprz do smaku', $wersjaStartowa);
         $this->czekajNaKarte($name);

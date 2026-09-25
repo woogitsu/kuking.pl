@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 use App\Domain\Comments\Actions\EditComment;
 use App\Models\Comment;
+use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 
@@ -26,8 +27,14 @@ DB::selectOne("SELECT set_config('application_name', ?, false)", [$args['name']]
 
 try {
     $comment = Comment::query()->findOrFail($args['comment']);
-    app(EditComment::class)->handle($comment, $args['body'], $args['wersja']);
-    echo json_encode(['ok' => true, 'wartosc' => $comment->body, 'sqlstate' => null, 'komunikat' => '', 'wyjatek' => null]);
+    $author = User::query()->findOrFail($comment->author_id);
+    $poprawiony = app(EditComment::class)->handle($author, $comment, $args['body'], $args['wersja']);
+    if ($poprawiony === null) {
+        // Odmowa Policy pod zamkiem (#1337) — to nie jest wynik wyścigu #982.
+        echo json_encode(['ok' => false, 'wartosc' => null, 'sqlstate' => null, 'komunikat' => 'Policy odmówiła poprawki.', 'wyjatek' => null]);
+    } else {
+        echo json_encode(['ok' => true, 'wartosc' => $poprawiony->body, 'sqlstate' => null, 'komunikat' => '', 'wyjatek' => null]);
+    }
 } catch (Throwable $exception) {
     echo json_encode([
         'ok' => false, 'wartosc' => null, 'sqlstate' => (string) $exception->getCode(),

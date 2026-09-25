@@ -6,45 +6,59 @@ namespace App\Domain\Comments\Actions;
 
 use App\Domain\Comments\KonfliktPoprawkiKomentarza;
 use App\Models\Comment;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
- * Poprawka treści komentarza warunkowa względem wersji z formularza
- * (issue #982).
+ * Poprawka własnego komentarza (issue #1337, #982).
  *
- * Formularz niesie `Comment::wersjaTresci()` z chwili wyrenderowania. Pod
- * blokadą wiersza porównujemy ją z treścią w bazie: inna wersja to
- * `KonfliktPoprawkiKomentarza` i żadnego zapisu. Sama blokada bez porównania
- * tylko ustawiłaby zapisy w kolejce — starszy formularz i tak nadpisałby
- * nowszy tekst.
+ * Sprawdzenie w kontrolerze to za mało: odpowiedź mogła zostać zatwierdzona
+ * między `authorize()` a zapisem i poprawka trafiłaby pod cudzą odpowiedź.
+ * `LockCommentContext` przy publikacji odpowiedzi trzyma wiersz korzenia pod
+ * `FOR NO KEY UPDATE` aż do zatwierdzenia — tu bierzemy ten sam zamek i dopiero
+ * pod nim pytamy `CommentPolicy::update()` jeszcze raz. Zamek jest jeden,
+ * więc nie powstaje nowa kolejność blokad.
  *
- * Wyjątek od konfliktu: tekst z formularza jest już zapisany (ponowione
- * żądanie, podwójne kliknięcie). To sukces bez zapisu — nic by nie zginęło,
- * a ostrzeżenie o „innej karcie” byłoby fałszywe.
+ * Zwraca `null`, gdy pod zamkiem poprawka nie jest już dozwolona; kontroler
+ * wybiera wtedy komunikat na podstawie świeżego stanu.
  *
- * `FOR NO KEY UPDATE`, a nie `FOR UPDATE`: tyle samo bierze sam `UPDATE`
- * treści i `DeleteComment`, więc publikacja odpowiedzi (klucz obcy
- * `parent_id`, `FOR KEY SHARE`) nie czeka na poprawkę rodzica.
+ * DRUGA KARTA (#982). Formularz niesie `Comment::wersjaTresci()` z chwili
+ * wyrenderowania. Pod tym samym zamkiem porównujemy ją z treścią w bazie:
+ * inna wersja to `KonfliktPoprawkiKomentarza` i żadnego zapisu. Sama blokada
+ * bez porównania tylko ustawiłaby zapisy w kolejce — starszy formularz i tak
+ * nadpisałby nowszy tekst. Wyjątek od konfliktu: tekst z formularza jest już
+ * zapisany (ponowione żądanie, podwójne kliknięcie) — to sukces bez zmiany,
+ * bo nic by nie zginęło, a ostrzeżenie o „innej karcie” byłoby fałszywe.
+ * `$wersjaFormularza === null` — wołający bez wersji (formularz sprzed #982,
+ * scenariusze wyścigów #1337): bez porównania, jak przed tą zmianą.
+ *
+ * Kolejność pod zamkiem: najpierw Policy, potem wersja. Poprawka, której
+ * i tak nie wolno zrobić, nie ma zgłaszać konfliktu z drugą kartą.
  */
 final class EditComment
 {
     /**
-     * Aktualizuje przekazany model, żeby wołający widział `wasChanged()`.
-     * `$wersjaFormularza === null` — formularz sprzed tej zmiany, bez pola.
+     * @throws KonfliktPoprawkiKomentarza gdy formularz niesie nieaktualną wersję treści
      */
-    public function handle(Comment $comment, string $body, ?string $wersjaFormularza): void
+    public function handle(User $author, Comment $comment, string $body, ?string $wersjaFormularza = null): ?Comment
     {
-        DB::transaction(function () use ($comment, $body, $wersjaFormularza): void {
-            $zapisany = Comment::query()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
-            $comment->setRawAttributes($zapisany->getAttributes(), true);
+        return DB::transaction(function () use ($author, $comment, $body, $wersjaFormularza): ?Comment {
+            $fresh = Comment::query()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->first();
+
+            if ($fresh === null || Gate::forUser($author)->denies('update', $fresh)) {
+                return null;
+            }
 
             if ($wersjaFormularza !== null
-                && ! hash_equals($comment->wersjaTresci(), $wersjaFormularza)
-                && $comment->body !== $body) {
+                && ! hash_equals($fresh->wersjaTresci(), $wersjaFormularza)
+                && $fresh->body !== $body) {
                 throw new KonfliktPoprawkiKomentarza;
             }
 
-            $comment->update(['body' => $body]);
+            $fresh->update(['body' => $body]);
+
+            return $fresh;
         });
     }
 }
