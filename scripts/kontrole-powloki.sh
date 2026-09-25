@@ -34,7 +34,7 @@ oblane() {
 # --- Składnia ------------------------------------------------------------------
 bledy_bash=""
 sprawdzonych=0
-for skrypt in docker/entrypoint.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$skrypt" ] || continue
     sprawdzonych=$((sprawdzonych + 1))
     bash -n "$skrypt" 2>/dev/null || bledy_bash="$bledy_bash $skrypt"
