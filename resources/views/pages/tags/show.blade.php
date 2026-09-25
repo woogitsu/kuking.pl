@@ -53,7 +53,7 @@
             ->count()
         : 0;
 @endphp
-<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
+<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)" :noindex-follow="! $indeksowalny">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> ·
         <a href="{{ route('tags.index') }}">wszystkie tagi</a>
