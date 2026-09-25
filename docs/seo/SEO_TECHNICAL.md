@@ -342,6 +342,8 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Wpis samo-zdjęcie bez tekstu | `index, follow`, ale **bez** promowania w sitemapie priorytetowej | Nie jest spamem, ale ma niską wartość tekstową dla Google — niech żyje dla ludzi (link, udostępnienie), nie forsować w crawl budgecie |
 | Profil z ≥1 publiczną treścią | `index, follow` + `ProfilePage` | Realna, zweryfikowana obecność |
 | Profil bez żadnej publicznej treści (świeże konto, samo „popatrzę”) | `noindex, follow` | Zero wartości dla wyszukującego, ryzyko cienkiej treści na skalę (tysiące pustych profili) |
+| Strona tagu z ≥1 wpisem widocznym dla wszystkich (`/tag/{slug}`) | `index, follow` | Realna treść; warunek = ten sam zakres co licznik w spisie tagów (D-087) |
+| Strona tagu bez publicznego wpisu (większość słownika z `TagSeeder`) | `noindex, follow`, link w spisie `/tagi` z `rel="nofollow"`, poza sitemapą | Strona zostaje dla ludzi (prawdziwe zero, „Dodaj wpis”), ale ~1400 prawie identycznych pustych stron to cienka treść na skalę (issue #1007). Wraca do indeksu sama po pierwszym publicznym wpisie |
 | Treść `visibility IN ('followers','private')` | `noindex, nofollow` + brak w sitemapie + wymagany auth do renderu | Nigdy nie może wyciec do crawlera |
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
