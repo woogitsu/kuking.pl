@@ -14588,7 +14588,7 @@ publikował", ze zmierzonym powodem w komentarzu) stoi dalej. Dotyczy wyłączni
 **kolejności** propozycji, nie tego, co widać — pokazuje o jedno konto za dużo, nigdy
 o jedną treść za dużo.
 
-📄 `app/Domain/Feed/TagFeed.php` · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
+📄 `app/Domain/Feed/FollowingFeed.php` (od D-277; wcześniej `TagFeed`, usunięty) · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
 `FeedTagowNieGubiKolumnPrzepisuTest` · `app/Models/Post.php`
 
 ---
