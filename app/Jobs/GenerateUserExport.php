@@ -224,6 +224,7 @@ class GenerateUserExport implements ShouldQueue
             ]);
 
             $this->markFailed($export, $this->reasonFor($e));
+            $this->usunOsieroconaPaczke($export);
 
             throw $e;
         } finally {
@@ -411,6 +412,7 @@ class GenerateUserExport implements ShouldQueue
             ? DataExport::REASON_TIMEOUT
             : $this->reasonFor($e),
         );
+        $this->usunOsieroconaPaczke($export);
 
         $this->cleanUpTempFiles();
         // Ta instancja jest odtworzona z ładunku kolejki i nie zna listy
@@ -843,6 +845,39 @@ class GenerateUserExport implements ShouldQueue
             (new NotifyUserExportReady($this->dataExportId))->handle();
         } catch (Throwable) {
             // Zapisane w dzienniku przez NotifyUserExportReady::handle().
+        }
+    }
+
+    /**
+     * PACZKA WGRANA, ALE NIEZAPISANA W WIERSZU (audyt B5, znalezisko 4).
+     *
+     * `writeStream()` idzie przed `finalize()`. Wyjątek albo timeout między
+     * nimi zostawiał w magazynie pełną kopię konta — e-mail, prywatne wpisy,
+     * szkice, oryginały zdjęć — pod kluczem, którego wiersz nie zna. Nikt
+     * jej potem nie kasował: `kuking:sprzataj-eksporty` szuka po `object_key`,
+     * a wymazanie konta wygasza tylko `ready`, `queued` i `processing`.
+     *
+     * Klucz da się policzyć (`ExportFileNames::objectKey()` zależy od id
+     * paczki, konta i `created_at`), a kasowanie nieistniejącego obiektu nic
+     * nie robi — więc kasujemy zawsze, gdy paczka NIE jest gotowa. Ponowna
+     * próba z kolejki wgra plik od nowa. Gotowej paczki (`ready` — wyjątek
+     * padł dopiero po `finalize()`) nie ruszamy: człowiek ma ją pobrać.
+     */
+    private function usunOsieroconaPaczke(DataExport $export): void
+    {
+        $status = DataExport::query()->whereKey($export->getKey())->value('status');
+
+        if ($status === null || $status === DataExport::STATUS_READY) {
+            return;
+        }
+
+        try {
+            Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
+        } catch (Throwable $e) {
+            Log::warning('Nie udało się skasować niedokończonej paczki z danymi; zabierze ją sprzątanie eksportów albo wymazanie konta.', [
+                'data_export_id' => $export->getKey(),
+                'wyjatek' => $e::class,
+            ]);
         }
     }
 
