@@ -291,6 +291,21 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
+# przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
+# wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
+# wycisza epizod na godziny. Jeden punkt mutacji w komponencie ma zapalić
+# i test samej maszyny, i test obu czujek, które z niej korzystają.
+EPIZOD_ALARMU = "app/Domain/Monitoring/EpizodAlarmu.php"
+EPIZOD_ALARMU_TEST = "EpizodAlarmuTest|NieudanyDzwonekNieKupujeCiszyTest"
+CISZA_TYLKO_PO_PRZYJECIU = (
+    "            $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+    "        }\n"
+)
+CISZA_BEZ_WARUNKU = (
+    "        }\n"
+    "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+)
 
 
 def digest(path):
@@ -702,6 +717,8 @@ checks = [
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
+     lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -760,6 +777,7 @@ run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
