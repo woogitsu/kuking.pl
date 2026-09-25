@@ -34,6 +34,8 @@
 /storage/kroki-kreatora/
 # PDF-y A4 z pomiaru wydruku przepisu (#765, scripts/wydruk-przepisu.mjs).
 /storage/wydruk-765/
+# Pomiar i zrzuty stopki (`scripts/stopka-pusty-pas.mjs --statycznie`).
+/storage/stopka-pusty-pas/
 /storage/pail
 /vendor
 _ide_helper.php
