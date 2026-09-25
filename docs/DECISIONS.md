@@ -3702,10 +3702,20 @@ a listu, którego wysyłka padła, nikt nie dostał.
 i `ZaproszenieDoZalozeniaKonta` mają `ShouldBeEncrypted`, więc w `jobs`
 i `failed_jobs` leży szyfrogram kluczem aplikacji. Komendy czytające odbiorców
 z `failed_jobs` odszyfrowują go przez `App\Domain\Kolejka\PolecenieZadania`.
-Automatycznego `queue:prune-failed` świadomie NIE dodano — `failed_jobs` to
-jedyny ślad po awarii, a o jego skasowaniu decyduje człowiek
-(`kuking:martwe-zadania`, uzasadnienie w nagłówku tej komendy). Pilnuje tego
-`tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+Pilnuje tego `tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+
+**Decyzja właściciela z 25 września 2026: `failed_jobs` czyści się
+automatycznie po 30 dniach.** `queue:prune-failed --hours=720` chodzi
+codziennie o 05:20 (`routes/console.php`, `onOneServer()`,
+`withoutOverlapping(120)`). Powody: żetony w ładunku są szyfrowane (akapit
+wyżej), więc miesiąc leżenia nie wystawia żywego sekretu, a 30 dni wystarcza
+na diagnozę — o świeżej awarii mówią czujka kolejki, panel kolejki i `/health`
+długo wcześniej. Pierwsza wersja tej zmiany (ten sam dzień) świadomie
+automatu nie dodawała; właściciel rozstrzygnął inaczej. `kuking:martwe-zadania`
+zostaje do ręcznego, wcześniejszego czyszczenia po rozliczeniu awarii.
+Uwaga praktyczna: cztery zadania z 9 września 2026 (D-047) znikną same około
+10 października 2026 — kto chce je rozliczyć z odbiorcami, musi to zrobić
+przed tą datą. Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
 
 ### RACHUNEK LISTÓW — I CO SIĘ DZIEJE, GDY PULA PADNIE W ŚRODKU DNIA
 

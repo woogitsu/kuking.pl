@@ -251,6 +251,33 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:20 — dziesięć minut po sesjach, tak jak rozsunięta jest cała reszta tej
+// listy (uzasadnienie odstępów wyżej).
+// Retencja `failed_jobs`: 30 dni (720 godzin) od `failed_at` — decyzja
+// właściciela z 25.09.2026, `docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY
+// WYŁĄCZNIE JAKO SKRÓT”.
+//
+// DLACZEGO AUTOMATYCZNIE, SKORO `failed_jobs` TO ŚLAD PO AWARII
+// Bo 30 dni wystarcza na diagnozę: o świeżej awarii mówią czujka kolejki
+// (`kuking:sprawdz-kolejke`, co kwadrans), panel kolejki i `/health` — długo
+// przed tym, zanim wiersz zniknie. Po miesiącu wiersz nie jest już śladem,
+// na który ktoś czeka, tylko ładunkiem z danymi odbiorcy (AGENTS.md §7 —
+// minimalizacja). Żetony w ładunku są szyfrowane kluczem aplikacji (audyt
+// A5-10, `ShouldBeEncrypted`), więc te trzydzieści dni nie wystawia żywego
+// sekretu.
+// Wcześniejsze, ręczne sprzątanie po rozliczeniu awarii zostaje
+// w `kuking:martwe-zadania` (domyślnie na sucho, kasuje dopiero `--skasuj`).
+//
+// `queue:prune-failed` to komenda Laravela; przez `Harmonogram::artisan()`
+// idzie tak samo jak nasze — w tym samym procesie, z kontrolą kodu wyjścia.
+// Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])
+    ->name('queue:prune-failed')
+    ->dailyAt('05:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie

@@ -632,7 +632,10 @@ zadań. Żeton resetu hasła wygasa `config/auth.php` → `expire` minut od
 wystawienia, więc zbiorowe `queue:retry` po tygodniu wysłałoby czterem
 osobom martwy link. Rozliczenie tabeli jest osobną czynnością na produkcji
 (`php artisan kuking:martwe-zadania`, bez `--skasuj` niczego nie usuwa)
-i należy do właściciela, nie do tej zmiany.
+i należy do właściciela, nie do tej zmiany. **Dopisek z 25.09.2026:** od tego
+dnia wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed
+--hours=720`, decyzja właściciela), więc te cztery zadania znikną same około
+10 października 2026 — rozliczenie z odbiorcami trzeba zrobić przed tą datą.
 
 ### 7.2. Trzy nowe czujki i jak sprawdzono, że naprawdę wysyłają
 
@@ -847,7 +850,9 @@ czyli asercją, że żeton i znacznik śladu stosu NAPRAWDĘ leżą w bazie.
 `queue:retry` na starym żetonie resetu hasła wysyła człowiekowi martwy link,
 a skasowany wiersz to skasowany jedyny ślad po awarii. Obie decyzje zostają
 w `kuking:martwe-zadania`, gdzie podejmuje je człowiek po zobaczeniu, kogo
-dotyczą.
+dotyczą. Wyjątkiem są wiersze starsze niż 30 dni: te od 25.09.2026 kasuje
+harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela,
+`docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”).
 
 **Dlaczego nie log.** Bo `LOG_LEVEL` na produkcji bywa ustawiony na
 `warning`, a wszystko na poziomie `info` przepada po drodze. Przyrząd oparty
