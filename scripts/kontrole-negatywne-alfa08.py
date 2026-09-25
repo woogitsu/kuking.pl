@@ -178,6 +178,11 @@ TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
 KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
 KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
 
+# Polityka nie obiecuje „pełnej kopii" danych (R1, wariant A z 20.09.2026).
+# Strażnik czyta dokument prawny; mutacja przywraca dawne sformułowanie
+# i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
+POLITYKA = "resources/legal/polityka-prywatnosci.md"
+POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -196,8 +201,7 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # Polityka nazywa każde ciasteczko ustawień (R6). Strażnik czyta dokument
 # prawny; mutacja zdejmuje NAZWĘ ciasteczka motywu w backtickach, a zwykłe
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
-# a nie wyrazu.
-POLITYKA = "resources/legal/polityka-prywatnosci.md"
+# a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -602,6 +606,8 @@ checks = [
      lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
     ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
+    ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
+     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
      lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
@@ -674,6 +680,7 @@ run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
+run_test(POLITYKA_KOPIA_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
