@@ -612,10 +612,13 @@ class ZmienneRailwayaPerRolaTest extends TestCase
 
     private function envUslugi(string $kod, string $nazwa): string
     {
-        $poczatek = strpos($kod, 'service("'.$nazwa.'"');
-        $this->assertNotFalse($poczatek, "Brak deklaracji serwisu `{$nazwa}` w railway.ts.");
+        // Serwis WWW nazywa się jak serwis produkcji (`kuking.pl`), więc w railway.ts
+        // stoi jako `service(NAZWA_SERWISU_WWW, …)`, nie `service("web", …)`.
+        $igla = $nazwa === 'web' ? 'service(NAZWA_SERWISU_WWW' : 'service("'.$nazwa.'"';
+        $poczatek = strpos($kod, $igla);
+        $this->assertNotFalse($poczatek, "Brak deklaracji serwisu `{$nazwa}` w railway.ts (szukano `{$igla}`).");
 
-        $nastepny = strpos($kod, 'service("', $poczatek + 1);
+        $nastepny = strpos($kod, 'service(', $poczatek + 1);
         $blok = substr($kod, $poczatek, $nastepny === false ? null : $nastepny - $poczatek);
 
         $this->assertSame(
