@@ -33,6 +33,16 @@
                 interactionStatistic — uczciwie i zgodnie ze znaczeniem
                 (docs/seo/SEO_TECHNICAL.md).
             --}}
+            {{--
+                `Recipe` TYLKO ZE ZDJĘCIEM (#1005). Google wymaga `image`, a bez
+                niego obiekt nie kwalifikuje się do wyniku rozszerzonego
+                i ląduje jako błąd w Search Console. Zdjęcie jest w Kuking
+                opcjonalne i przez chwilę po wgraniu nie jest `ready` — wtedy
+                lepiej nie deklarować typu, którego nie umiemy wypełnić.
+                Logo zamiast dania odpada: obraz ma przedstawiać przepis.
+                `BreadcrumbList` niżej zostaje zawsze.
+            --}}
+            @if($recipe->heroMedia?->isReady() && $recipe->heroMedia->maWariantDoPokazania('large'))
             @php
                 $recipeJsonLd = array_filter([
                 '@context' => 'https://schema.org',
@@ -134,7 +144,7 @@
                         && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
                     ? $recipe->source_url
                     : null,
-                'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
+                'image' => [$recipe->heroMedia->url('large')],
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
@@ -154,6 +164,7 @@
             ], static fn ($value) => $value !== null && $value !== []);
             @endphp
             <x-json-ld :data="$recipeJsonLd" />
+            @endif
 
             @php
                 $breadcrumbJsonLd = [
