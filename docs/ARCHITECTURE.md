@@ -102,10 +102,18 @@ MVP:
 Jobs:
 - ProcessUploadedImage;
 - GenerateUserExport;
-- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki);
-- SendDigest;
-- RefreshSearchDocument;
-- GenerateSitemapChunk.
+- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki).
+
+Poza kolejką (zamiast jobów, świadomie, na razie):
+- tygodniowy digest — komenda harmonogramu
+  `App\Console\Commands\WyslijPodsumowaniaTygodnia` (`Mail::queue()` per
+  odbiorca), nie osobny job `SendDigest`;
+- wyszukiwarka czyta PostgreSQL na żywo (`App\Domain\Search\SearchQuery`),
+  nie ma materializowanego dokumentu ani joba `RefreshSearchDocument`
+  do jego odświeżania;
+- sitemapa generuje się na żądanie z cache'em HTTP (`SitemapController`);
+  podział na chunki i job `GenerateSitemapChunk` to plan przy dziesiątkach
+  tysięcy adresów (`docs/seo/SEO_TECHNICAL.md`), nie dzisiejszy stan.
 
 Redis dopiero po pomiarze.
 
