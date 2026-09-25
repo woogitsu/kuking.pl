@@ -144,6 +144,19 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
+    # Bramka wdrożeniowa (audyt B10-01): ten job wykonuje `.railway/railway.ts`
+    # Z GAŁĘZI PR-a, z tokenem RAILWAY_TOKEN_PRODUCTION. Bez tego każdy, kto
+    # może wypchnąć gałąź w tym repozytorium (nie tylko fork — warunek wyżej
+    # blokuje tylko forki), dopisuje do railway.ts jedną linię wysyłającą
+    # token/env na zewnątrz i dostaje pełny dostęp do projektu produkcyjnego.
+    #
+    # `environment: production` wymaga zatwierdzenia recenzenta (Settings →
+    # Environments → production → Required reviewers — to samo ustawienie,
+    # co przy `apply` niżej) ZANIM job wykona choćby jeden krok, więc kod
+    # z PR-a nie dostaje tokenu bez świadomej zgody człowieka, który wcześniej
+    # przejrzał diff `.railway/**`.
+    environment: production
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
