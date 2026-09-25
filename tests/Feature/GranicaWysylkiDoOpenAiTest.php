@@ -267,6 +267,38 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
         $this->assertSame([[320, 240, IMAGETYPE_JPEG]], $this->wyslaneObrazy());
     }
 
+    /**
+     * Miniatura z metadanymi nie wynosi ich do dostawcy (#912).
+     *
+     * Dzisiejsze miniatury powstają przez przekodowanie, więc EXIF-u nie
+     * mają. Ale granica nie może na tym polegać: miniatura z historycznego
+     * przetwarzania, z importu albo z innego generatora może nieść GPS
+     * kuchni. Tu `thumb` jest JPEG-iem z APP1 Exif (z GPS) i APP1 XMP;
+     * do OpenAI ma wyjść obraz 320 px bez żadnego z nich.
+     */
+    public function test_wyslana_miniatura_nie_niesie_exif_ani_xmp(): void
+    {
+        $autor = $this->user('metadane');
+        $wpis = $this->wpis($autor, '');
+        $miniatura = $this->jpegZMetadanymi(320, 240);
+
+        // Kontrola dodatnia: wykrywacz widzi metadane w pliku wejściowym.
+        // Bez tego „nic nie znaleziono" przechodziłoby też dla zepsutego
+        // wykrywacza albo atrapy, z której metadane wypadły przy zapisie.
+        $this->assertSame(['exif', 'xmp', 'gps'], $this->metadaneW($miniatura));
+        $this->assertSame([320, 240], array_slice((array) getimagesizefromstring($miniatura), 0, 2));
+
+        $wpis->media()->attach($this->zdjecie($autor, ['thumb' => $miniatura]));
+
+        $this->analizuj(PrzeanalizujTresc::TYP_WPIS, $wpis);
+
+        $this->assertSame([[320, 240, IMAGETYPE_JPEG]], $this->wyslaneObrazy());
+
+        foreach ($this->wyslaneBajty() as $bajty) {
+            $this->assertSame([], $this->metadaneW($bajty), 'Do OpenAI wyszły metadane zdjęcia.');
+        }
+    }
+
     /** @return array<string, array{array<string, array{int, int}|string>}> */
     public static function zleMiniatury(): array
     {
@@ -466,5 +498,65 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
         }
 
         return $wynik;
+    }
+
+    /** @return list<string> Bajty obrazów, które wyszły w żądaniach do atrapy. */
+    private function wyslaneBajty(): array
+    {
+        $wynik = [];
+
+        foreach (Http::recorded() as [$zadanie]) {
+            $adres = $zadanie['input'][0]['image_url']['url'] ?? null;
+
+            if (is_string($adres)) {
+                $wynik[] = (string) base64_decode(explode(',', $adres, 2)[1] ?? '');
+            }
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * JPEG z segmentami APP1: Exif (z wpisem GPS) i XMP — wstawionymi zaraz
+     * po SOI, tak jak robi to aparat w telefonie.
+     */
+    private function jpegZMetadanymi(int $szer, int $wys): string
+    {
+        $jpeg = (string) ImageManager::gd()->create($szer, $wys)->fill('cc4400')->toJpeg();
+
+        // TIFF little-endian, IFD0 z jednym wpisem: wskaźnik GPS IFD (0x8825),
+        // a w nim GPSLatitudeRef = "N". Poprawny na tyle, że `exif_read_data`
+        // go czyta — atrapa nie może być śmieciem, który dekoder i tak odrzuci.
+        $tiff = 'II*'."\x00".pack('V', 8)
+            .pack('v', 1).pack('vvVV', 0x8825, 4, 1, 26).pack('V', 0)
+            .pack('v', 1).pack('vvV', 0x0001, 2, 2)."N\x00\x00\x00".pack('V', 0);
+        $exif = "Exif\x00\x00".$tiff;
+        $xmp = "http://ns.adobe.com/xap/1.0/\x00".'<x:xmpmeta xmlns:x="adobe:ns:meta/"><exif:GPSLatitude>52,13.0N</exif:GPSLatitude></x:xmpmeta>';
+
+        $segment = fn (string $tresc): string => "\xFF\xE1".pack('n', strlen($tresc) + 2).$tresc;
+
+        return substr($jpeg, 0, 2).$segment($exif).$segment($xmp).substr($jpeg, 2);
+    }
+
+    /** @return list<string> Które metadane są w pliku: `exif`, `xmp`, `gps`. */
+    private function metadaneW(string $bajty): array
+    {
+        $znalezione = [];
+
+        if (str_contains($bajty, "Exif\x00\x00")) {
+            $znalezione[] = 'exif';
+        }
+
+        if (str_contains($bajty, 'http://ns.adobe.com/xap/1.0/') || str_contains($bajty, '<x:xmpmeta')) {
+            $znalezione[] = 'xmp';
+        }
+
+        $exif = @exif_read_data('data://image/jpeg;base64,'.base64_encode($bajty), 'GPS');
+
+        if (is_array($exif) || str_contains($bajty, 'GPSLatitude')) {
+            $znalezione[] = 'gps';
+        }
+
+        return $znalezione;
     }
 }
