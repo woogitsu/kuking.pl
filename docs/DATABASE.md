@@ -3888,7 +3888,7 @@ opowiedzieć.
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()`. |
-| `contact_message_id` | **`ON DELETE CASCADE`** i to jest wymóg RODO, nie wygoda: retencja (`kuking:sprzataj-wiadomosci`) robi masowy `DELETE` na `contact_messages`, omijając modele. Bez kaskady W BAZIE odpowiedzi zostałyby sierotami, których nic już nigdy nie usunie. |
+| `contact_message_id` | **`ON DELETE CASCADE`** i to jest wymóg RODO, nie wygoda: retencja (`kuking:sprzataj-wiadomosci`) robi masowy `DELETE` na `contact_messages`, omijając modele. Bez kaskady W BAZIE odpowiedzi zostałyby sierotami, których nic już nigdy nie usunie. Skutek dla odpowiedzi przy sprawie ZAMKNIĘTEJ (#847): dziedziczy ona termin usunięcia sprawy, bo nie przesuwa `handled_at`. Operator widzi ten termin nad formularzem i w potwierdzeniu po wysyłce, razem z drogą ponownego otwarcia; otwarta sprawa nie jest kandydatem, a ponowne zamknięcie liczy retencję od nowa (`OdpowiedzPrzyZamknietejSprawieTest`). |
 | `author_id` | Moderator, który wysłał. `nullOnDelete()` — konto może zniknąć, fakt wysłania zostaje (ekran pokazuje wtedy „obsługa Kuking"). |
 | `body` | Treść listu, dokładnie ta, którą dostał człowiek. `text`; górną granicę (5000 znaków, tyle samo co wiadomość) trzyma walidacja, w bazie stoi CHECK `contact_message_replies_body_not_blank`. |
 | `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |

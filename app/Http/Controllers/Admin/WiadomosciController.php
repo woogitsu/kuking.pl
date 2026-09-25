@@ -10,6 +10,7 @@ use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
+use App\Support\Czas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -198,9 +199,23 @@ class WiadomosciController extends Controller
                     .'poczty na '.$adres.'. Powód odmowy jest wypisany niżej, w historii odpowiedzi.']);
         }
 
+        // Odpowiedź przy sprawie ZAMKNIĘTEJ dziedziczy jej termin usunięcia
+        // (#847, kaskada `contact_message_replies`). Ostrzeżenie nad
+        // formularzem łatwo przeoczyć, a po wysłaniu nie ma go już przed
+        // oczami — więc potwierdzenie powtarza termin i drogę ponownego
+        // otwarcia. Retencja się NIE zmienia (decyzja właściciela, 20.09.2026).
+        $termin = $this->retencja->terminUsuniecia($wiadomosc->fresh() ?? $wiadomosc);
+        $komunikat = 'Odpowiedź wysłana na '.$adres.'.';
+
+        if ($termin !== null) {
+            $komunikat .= ' Sprawa jest zamknięta, więc ta odpowiedź zostanie skasowana razem z nią '
+                .Czas::data($termin, 'j F Y, H:i').'. Jeśli ma zostać, otwórz sprawę ponownie: '
+                .'zaznacz „W trakcie” w polu „Stan wiadomości” i zapisz.';
+        }
+
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
             ->withInput($request->only(['handler_note', 'status', 'version']))
-            ->with('status', 'Odpowiedź wysłana na '.$adres.'.');
+            ->with('status', $komunikat);
     }
 }
