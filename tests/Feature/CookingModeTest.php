@@ -169,14 +169,14 @@ class CookingModeTest extends TestCase
             ->assertSee('Oznacz krok jako zrobiony')
             ->assertDontSee('Zrobione ✓');
 
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1])
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $recipe->steps()->orderBy('position')->first()->getKey(), 'zrobiono' => 1])
             ->assertRedirect(route('cooking.show', [$recipe->slug, 'krok' => 1]));
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
             ->assertSee('Zrobione ✓');
 
         // Cofnięcie oznaczenia — ten sam przycisk działa w obie strony.
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 0]);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $recipe->steps()->orderBy('position')->first()->getKey(), 'zrobiono' => 0]);
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
             ->assertSee('Oznacz krok jako zrobiony')
@@ -187,7 +187,7 @@ class CookingModeTest extends TestCase
     {
         $recipe = $this->przepisZKrokami($this->user('autorka9'), 2);
 
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $recipe->steps()->orderBy('position')->first()->getKey(), 'zrobiono' => 1]);
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
             ->assertSee('Oznacz krok jako zrobiony')
