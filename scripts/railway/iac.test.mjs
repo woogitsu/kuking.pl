@@ -25,15 +25,21 @@ import { resolve } from "node:path";
 
 const KORZEN = resolve(import.meta.dirname, "..", "..");
 
-function graf(srodowisko, env = {}) {
-  const wyjscie = execFileSync(
+function uruchomGraf(srodowisko, env) {
+  return execFileSync(
     process.execPath,
     ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/iac-graf.mjs"), srodowisko],
     // Czyste środowisko procesu: KUKING_* z powłoki uruchamiającej test
     // nie może po cichu zmienić grafu, który sprawdzamy.
-    { cwd: KORZEN, encoding: "utf8", env: { PATH: process.env.PATH, ...env } },
+    { cwd: KORZEN, encoding: "utf8", env: { PATH: process.env.PATH, ...env }, stdio: ["ignore", "pipe", "pipe"] },
   );
-  return JSON.parse(wyjscie);
+}
+
+// railway.ts odmawia bez jawnego KUKING_WAIT_FOR_CI (#1390), więc graf
+// liczymy z jawnym "false" — tak jak dziś stoi produkcja bez bramki —
+// chyba że przypadek poda własną wartość.
+function graf(srodowisko, env = {}) {
+  return JSON.parse(uruchomGraf(srodowisko, { KUKING_WAIT_FOR_CI: "false", ...env }));
 }
 
 // Nazwa serwisu, na który celuje job `operate` w deploy.yml. Serwis WWW
@@ -188,7 +194,18 @@ test("KUKING_WAIT_FOR_CI przełącza „Wait for CI” w każdym serwisie aplika
   // ustawić; tu pilnujemy, że zmienna naprawdę działa.
   const aplikacja = (g) => g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
   for (const s of aplikacja(graf("production", { KUKING_WAIT_FOR_CI: "true" }))) assert.equal(s.source.checkSuites, true, s.name);
-  for (const s of aplikacja(graf("production"))) assert.equal(s.source.checkSuites, false, s.name);
+  for (const s of aplikacja(graf("production", { KUKING_WAIT_FOR_CI: "false" }))) assert.equal(s.source.checkSuites, false, s.name);
+});
+
+test("brak albo zła wartość KUKING_WAIT_FOR_CI zatrzymuje graf zamiast wyłączać bramkę (#1390)", () => {
+  // Do 24.09.2026 brak zmiennej dawał po cichu `checkSuites: false`.
+  for (const env of [{}, { KUKING_WAIT_FOR_CI: "" }, { KUKING_WAIT_FOR_CI: "1" }, { KUKING_WAIT_FOR_CI: "TRUE" }]) {
+    assert.throws(
+      () => uruchomGraf("production", env),
+      (e) => /KUKING_WAIT_FOR_CI musi być jawnie "true" albo "false"/.test(String(e.stderr)),
+      `graf policzony mimo KUKING_WAIT_FOR_CI=${JSON.stringify(env.KUKING_WAIT_FOR_CI)}`,
+    );
+  }
 });
 
 test("serwis WWW nazywa się jak żywy serwis i jak APP_SERVICE w deploy.yml", () => {
