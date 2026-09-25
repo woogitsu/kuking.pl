@@ -156,6 +156,39 @@ class DataExportTest extends TestCase
     }
 
     /**
+     * #666: licznik przy przepisie w paczce liczy WYKONANIA w pełnym zakresie
+     * i tak się nazywa. Dawny klucz `ile_razy_ugotowany_przez_innych` przy
+     * tych danych mówił 5, choć jedno z pięciu wykonań należało do autora.
+     */
+    public function test_licznik_przepisu_w_paczce_nazywa_pelny_zakres_wykonan(): void
+    {
+        $autor = $this->user('autorka');
+        $kucharz = $this->user('kucharz');
+        $zbanowany = $this->user('zbanowany');
+        $przepis = Recipe::factory()->for($autor, 'author')->create(['title' => 'Rosół z makaronem']);
+
+        foreach ([$autor, $kucharz, $kucharz, $zbanowany, $zbanowany] as $i => $osoba) {
+            CookedEvent::factory()->create([
+                'recipe_id' => $przepis->getKey(),
+                'user_id' => $osoba->getKey(),
+                'cooked_at' => now()->subMinutes($i),
+            ]);
+        }
+        $zbanowany->ban();
+
+        $data = $this->jsonFromArchive($this->runExportFor($autor));
+        $wpis = collect($data['przepisy'])->firstWhere('tytul', 'Rosół z makaronem');
+
+        $this->assertSame(5, $wpis['ile_razy_ugotowany_lacznie']);
+        $this->assertArrayNotHasKey('ile_razy_ugotowany_przez_innych', $wpis);
+
+        $opis = $data['o_tym_pliku']['zakres_licznika_wykonan_przepisu'];
+        $this->assertStringContainsString('ile_razy_ugotowany_lacznie', $opis);
+        $this->assertStringContainsString('Twoje i cudze', $opis);
+        $this->assertStringContainsString('nie liczba osób', $opis);
+    }
+
+    /**
      * REGRESJA: zapisany WPIS w ogóle nie trafiał do paczki.
      *
      * Od migracji `2026_09_06_150000_collection_items_accept_posts` zeszyt

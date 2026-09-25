@@ -100,6 +100,13 @@ nową nazwę; wcześniej pobrane archiwa pozostają bez zmian. Wyszukiwanie
 w źródłach nie wykazało innych konsumentów starego klucza w aplikacji.
 Własne wykonania w `ugotowalem` i indeks HTML eksportu zachowują swój zakres.
 
+> **Stan na 25 września 2026:** kod tej zmiany nie trafił na `main` razem
+> z tym dokumentem — `CollectUserExportData` nadal zapisywał
+> `ile_razy_ugotowany_przez_innych`, a testu z tabeli niżej nie było.
+> Zmianę wdrożono ponownie na gałęzi `claude/666-liczniki-zdarzen`, zgodnie
+> z opisaną decyzją, z testem
+> `DataExportTest::test_licznik_przepisu_w_paczce_nazywa_pelny_zakres_wykonan`.
+
 ## Odnośniki #667
 
 Samodzielny render HTTP/Blade potwierdził:

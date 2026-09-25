@@ -120,6 +120,8 @@ final class CollectUserExportData
                     .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
+                // Zawsze, jak `czego_nie_zawiera`: opisuje regułę, nie to jedno archiwum (#666).
+                'zakres_licznika_wykonan_przepisu' => 'Pole „ile_razy_ugotowany_lacznie” przy Twoim przepisie liczy wszystkie wykonania: Twoje i cudze, także te, których nie widać w galerii na stronie przepisu. Każde kolejne gotowanie liczy się osobno, więc to liczba wykonań, nie liczba osób.',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do
                 // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
@@ -244,7 +246,13 @@ final class CollectUserExportData
                 'minutnik_sekundy' => $step->timer_seconds,
                 'zdjecie' => $photos->pathFor($step->media_id),
             ])->all(),
-            'ile_razy_ugotowany_przez_innych' => $recipe->cookedEvents()->count(),
+            // #666: liczba WYKONAŃ w pełnym zakresie — własne i cudze, także
+            // niewidoczne w galerii, każde kolejne gotowanie osobno. Dawny
+            // klucz `ile_razy_ugotowany_przez_innych` obiecywał „przez innych",
+            // a liczył też wykonania autora. Zakres nazwany wprost to decyzja
+            // właściciela (docs/design/WERYFIKACJA_LICZNIKOW_I_LINKOW_666_667_2026_09_20.md);
+            // opis dla programów: `o_tym_pliku.zakres_licznika_wykonan_przepisu`.
+            'ile_razy_ugotowany_lacznie' => $recipe->cookedEvents()->count(),
             'komentarze' => $this->foreignComments($recipe->comments),
         ])->all();
     }
