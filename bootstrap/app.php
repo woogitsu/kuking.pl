@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
+use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\CorrelateRequest;
@@ -25,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -35,6 +37,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // który sprawdza bazę. Frameworkowy /up zostaje jako najprostszy sygnał
         // "proces żyje" — przydaje się, gdy baza jest w trakcie restartu.
         health: '/up',
+        // `/wydanie` (#1012) — POZA grupą `web`, jak `/up`. Sonda testu
+        // dymnego pyta co kilka sekund, a w grupie `web` każde pytanie
+        // zakładało nową sesję i odsyłało `Set-Cookie` z sesją i tokenem
+        // CSRF. Punkt jest tylko GET-em i niczego od klienta nie przyjmuje.
+        // Nagłówki bezpieczeństwa i zakaz cache daje stos globalny.
+        then: function (): void {
+            Route::get('/wydanie', WydanieController::class)->name('wydanie');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // PIERWSZY W CAŁYM STOSIE GLOBALNYM, przed `TrustProxies` — i to jest
