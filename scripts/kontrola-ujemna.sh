@@ -386,6 +386,17 @@ fi
 krok "4/4 — czy po przywróceniu źródła test znów przechodzi"
 cp -p "$KOPIA" "$PLIK"
 # Bez `touch`: `cp -p` wyżej oddaje mtime dokładnie, a ucięcie do pełnych sekund byłoby cofnięciem tej dokładności.
+#
+# Krok krytyczny (audyt B7-04): `cp -p` przywraca źródło RAZEM z pierwotnym
+# mtime, czyli STARSZYM niż kompilat zmutowanego widoku z kroku 2/4 — bez
+# tego wywołania `Illuminate\View\Compilers\Compiler::isExpired()` uznaje ten
+# kompilat za świeży i serwuje go dalej. Test niżej widziałby wtedy ZNÓW
+# zmutowany widok mimo przywróconego źródła i kończył się fałszywym
+# `PRZYWROCENIE_NIEUDANE` dla KAŻDEJ mutacji pliku `.blade.php` — czerwień
+# nieprawdziwa, ale jej naturalna „naprawa" przez człowieka to rozluźnienie
+# tej kontroli. Tu wystarczy skasować kompilat: Laravel odtworzy go przy
+# najbliższym renderze, ze ŹRÓDŁA, które już jest przywrócone.
+unieważnij_kompilaty
 if "${POLECENIE[@]}" >/dev/null 2>&1; then
     KD_PO="PASS"
     ok "Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS."
