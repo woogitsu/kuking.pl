@@ -4779,6 +4779,13 @@ do ~110 ms, a lista czyta pytania w kolejności kursora. Pełne liczby, plany
 i to, czego indeks nie naprawia (pełny skan `comments` w anty-złączeniu
 licznika gościa): `docs/product/WLACZENIE_PYTAN_372.md`.
 
+Od 25.09.2026 licznik nie jest już liczony na żądanie: liczbę gościa przelicza
+w tle `PytaniaBezOdpowiedzi::przelicz()` (zadanie po zapisie pytania albo
+komentarza pod pytaniem i harmonogram `kuking:policz-pytania`), a zalogowanemu
+dolicza się dokładną poprawkę na blokady i obserwowanych. Indeks nadal służy
+temu przeliczeniu, poprawce widza i liście. Bez zmian schematu — wynik leży
+w istniejącej tabeli `cache` (klucz `pytania:czeka-na-odpowiedz`).
+
 Predykat zawiera tylko warunki obecne w KAŻDYM zapytaniu listy i licznika
 (`kind`, `SoftDeletes`, `published()`); widoczność zostaje poza nim, bo gość
 i zalogowany pytają o nią inaczej. Rozmiar przy 10 000 pytań: 392 kB.

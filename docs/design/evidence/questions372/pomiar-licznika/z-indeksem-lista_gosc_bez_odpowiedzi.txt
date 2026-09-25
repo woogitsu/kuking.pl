@@ -1,38 +1,38 @@
-Limit  (cost=1.28..926.26 rows=16 width=210) (actual time=0.094..0.764 rows=16 loops=1)
+Limit  (cost=1.28..940.69 rows=16 width=210) (actual time=0.092..0.784 rows=16 loops=1)
   Buffers: shared hit=386
-  ->  Nested Loop  (cost=1.28..150715.44 rows=2607 width=210) (actual time=0.093..0.760 rows=16 loops=1)
+  ->  Nested Loop  (cost=1.28..144846.83 rows=2467 width=210) (actual time=0.090..0.779 rows=16 loops=1)
         Buffers: shared hit=386
-        ->  Nested Loop Anti Join  (cost=0.99..42053.87 rows=2656 width=202) (actual time=0.061..0.593 rows=16 loops=1)
+        ->  Nested Loop Anti Join  (cost=0.99..42001.73 rows=2513 width=202) (actual time=0.058..0.582 rows=16 loops=1)
               Buffers: shared hit=270
-              ->  Index Scan using posts_questions_published_idx on posts  (cost=0.29..8116.02 rows=7779 width=202) (actual time=0.020..0.074 rows=41 loops=1)
+              ->  Index Scan using posts_questions_published_idx on posts  (cost=0.29..8114.83 rows=7767 width=202) (actual time=0.019..0.097 rows=41 loops=1)
                     Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
                     Filter: ((visibility)::text = 'public'::text)
                     Rows Removed by Filter: 10
                     Buffers: shared hit=27
-              ->  Nested Loop  (cost=0.71..6.10 rows=3 width=16) (actual time=0.012..0.012 rows=1 loops=41)
+              ->  Nested Loop  (cost=0.71..6.12 rows=3 width=32) (actual time=0.012..0.012 rows=1 loops=41)
                     Buffers: shared hit=243
-                    ->  Index Scan using comments_post_idx on comments  (cost=0.42..5.17 rows=3 width=32) (actual time=0.006..0.006 rows=1 loops=41)
+                    ->  Index Scan using comments_post_idx on comments  (cost=0.42..5.19 rows=3 width=32) (actual time=0.006..0.007 rows=1 loops=41)
                           Index Cond: (post_id = posts.id)
-                          Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                          Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND (author_id <> posts.author_id))
                           Rows Removed by Filter: 0
                           Buffers: shared hit=156
-                    ->  Index Scan using users_pkey on users users_1  (cost=0.29..0.31 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=29)
+                    ->  Index Scan using users_pkey on users users_1  (cost=0.29..0.31 rows=1 width=16) (actual time=0.006..0.006 rows=1 loops=29)
                           Index Cond: (id = comments.author_id)
                           Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
                           Rows Removed by Filter: 0
                           Buffers: shared hit=87
-        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=16)
+        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.006..0.006 rows=1 loops=16)
               Index Cond: (id = posts.author_id)
               Filter: ((status)::text = 'active'::text)
               Buffers: shared hit=48
         SubPlan 1
-          ->  Aggregate  (cost=41.23..41.24 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=16)
+          ->  Aggregate  (cost=41.24..41.25 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=16)
                 Buffers: shared hit=68
-                ->  Nested Loop  (cost=4.73..41.22 rows=3 width=0) (actual time=0.003..0.003 rows=0 loops=16)
+                ->  Nested Loop  (cost=4.73..41.23 rows=3 width=0) (actual time=0.003..0.003 rows=0 loops=16)
                       Buffers: shared hit=68
-                      ->  Bitmap Heap Scan on comments comments_1  (cost=4.45..16.30 rows=3 width=16) (actual time=0.002..0.002 rows=0 loops=16)
+                      ->  Bitmap Heap Scan on comments comments_1  (cost=4.45..16.31 rows=3 width=16) (actual time=0.002..0.002 rows=0 loops=16)
                             Recheck Cond: (posts.id = post_id)
-                            Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                            Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND (author_id <> posts.author_id) AND ((status)::text = 'published'::text))
                             Rows Removed by Filter: 0
                             Heap Blocks: exact=8
                             Buffers: shared hit=56
@@ -45,6 +45,6 @@ Limit  (cost=1.28..926.26 rows=16 width=210) (actual time=0.094..0.764 rows=16 l
                             Rows Removed by Filter: 1
                             Buffers: shared hit=12
 Planning:
-  Buffers: shared hit=468
-Planning Time: 1.549 ms
-Execution Time: 0.872 ms
+  Buffers: shared hit=470
+Planning Time: 4.744 ms
+Execution Time: 0.892 ms

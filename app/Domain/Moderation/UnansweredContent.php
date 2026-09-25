@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation;
 
+use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -145,11 +146,13 @@ final class UnansweredContent
         return $value === null ? null : round((float) $value, 1);
     }
 
-    /** Odpowiedź na pytanie = widoczny komentarz najwyższego poziomu innej osoby z treścią. */
+    /** Odpowiedź na pytanie (`OdpowiedzNaPytanie`), widoczna dla pytającego. */
     private function answers(): QueryBuilder
     {
-        return $this->responses('post_id', 'posts', 'author_id')
-            ->whereNull('queue_comments.parent_id')->whereNull('queue_comments.body_removed_at');
+        $answers = $this->responses('post_id', 'posts', 'author_id');
+        OdpowiedzNaPytanie::zawez($answers, 'queue_comments', 'posts.author_id');
+
+        return $answers;
     }
 
     private function responses(string $foreignKey, string $table, string $ownerKey): QueryBuilder

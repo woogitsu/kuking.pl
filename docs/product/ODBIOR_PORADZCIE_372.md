@@ -340,5 +340,7 @@ To nadal nie jest odbiór produkcyjny ani włączenie funkcji.
 Koszt „Czeka na odpowiedź (N)” na danych syntetycznych (200 000 wpisów,
 5% pytań), indeks częściowy `posts_questions_published_idx` oraz instrukcja
 włączenia i wyłączenia `KUKING_QUESTIONS_ENABLED`:
-[WLACZENIE_PYTAN_372.md](WLACZENIE_PYTAN_372.md). Flaga na produkcji
-pozostaje wyłączona.
+[WLACZENIE_PYTAN_372.md](WLACZENIE_PYTAN_372.md). Tego samego dnia dział
+włączono na produkcji (`/pytania` → 200). Właściciel zdecydował, że licznik
+ma być liczony w tle, bez omijania blokad — opis i pomiar przed/po w tym
+samym dokumencie, rozdział 2.

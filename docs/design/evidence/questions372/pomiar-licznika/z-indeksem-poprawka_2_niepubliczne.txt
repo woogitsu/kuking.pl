@@ -1,0 +1,80 @@
+Aggregate  (cost=58230.76..58230.77 rows=1 width=8) (actual time=12.451..12.496 rows=1 loops=1)
+  Buffers: shared hit=4587
+  ->  Nested Loop Anti Join  (cost=312.82..58230.32 rows=178 width=0) (actual time=3.672..12.485 rows=7 loops=1)
+        Buffers: shared hit=4587
+        ->  Nested Loop  (cost=311.82..57316.27 rows=178 width=16) (actual time=3.655..12.387 rows=7 loops=1)
+              Buffers: shared hit=4552
+              ->  Nested Loop Anti Join  (cost=311.53..56942.72 rows=181 width=16) (actual time=3.640..12.316 rows=7 loops=1)
+                    Buffers: shared hit=4531
+                    ->  Bitmap Heap Scan on posts  (cost=310.23..45585.08 rows=558 width=32) (actual time=1.808..11.858 rows=15 loops=1)
+                          Recheck Cond: (((author_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) AND (published_at IS NOT NULL) AND (deleted_at IS NULL)) OR ((published_at IS NOT NULL) AND (published_at IS NOT NULL) AND ((kind)::text = 'question'::text) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text)))
+                          Filter: (((visibility)::text <> 'public'::text) AND ((kind)::text = 'question'::text) AND ((status)::text = 'published'::text) AND ((author_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) OR (hashed SubPlan 3)) AND ((author_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (hashed SubPlan 2))))))
+                          Rows Removed by Filter: 9379
+                          Heap Blocks: exact=4329
+                          Buffers: shared hit=4398
+                          ->  BitmapOr  (cost=284.49..284.49 rows=9151 width=0) (actual time=0.822..0.823 rows=0 loops=1)
+                                Buffers: shared hit=51
+                                ->  Bitmap Index Scan on posts_author_published_idx  (cost=0.00..4.52 rows=10 width=0) (actual time=0.006..0.006 rows=0 loops=1)
+                                      Index Cond: ((author_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) AND (published_at IS NOT NULL))
+                                      Buffers: shared hit=3
+                                ->  Bitmap Index Scan on posts_questions_published_idx  (cost=0.00..279.69 rows=9141 width=0) (actual time=0.815..0.816 rows=9394 loops=1)
+                                      Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
+                                      Buffers: shared hit=48
+                          SubPlan 3
+                            ->  Index Only Scan using follows_pkey on follows follows_1  (cost=0.42..24.58 rows=466 width=16) (actual time=0.031..0.076 rows=500 loops=1)
+                                  Index Cond: (follower_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)
+                                  Heap Fetches: 0
+                                  Buffers: shared hit=9
+                          SubPlan 2
+                            ->  Index Only Scan using follows_pkey on follows  (cost=0.42..24.58 rows=466 width=16) (actual time=0.007..0.044 rows=500 loops=1)
+                                  Index Cond: (follower_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)
+                                  Heap Fetches: 0
+                                  Buffers: shared hit=9
+                    ->  Nested Loop  (cost=1.30..29.54 rows=3 width=32) (actual time=0.027..0.027 rows=1 loops=15)
+                          Buffers: shared hit=133
+                          ->  Nested Loop Anti Join  (cost=1.01..28.61 rows=3 width=32) (actual time=0.019..0.020 rows=1 loops=15)
+                                Buffers: shared hit=103
+                                ->  Index Scan using comments_post_idx on comments  (cost=0.42..14.75 rows=3 width=32) (actual time=0.011..0.011 rows=1 loops=15)
+                                      Index Cond: (post_id = posts.id)
+                                      Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND (author_id <> posts.author_id))
+                                      Rows Removed by Filter: 0
+                                      Buffers: shared hit=58
+                                ->  Bitmap Heap Scan on blocks blocks_1  (cost=0.59..4.61 rows=1 width=32) (actual time=0.010..0.010 rows=0 loops=11)
+                                      Recheck Cond: (((blocker_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) AND (blocked_id = comments.author_id)) OR ((blocker_id = comments.author_id) AND (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)))
+                                      Heap Blocks: exact=1
+                                      Buffers: shared hit=45
+                                      ->  BitmapOr  (cost=0.59..0.59 rows=1 width=0) (actual time=0.009..0.009 rows=0 loops=11)
+                                            Buffers: shared hit=44
+                                            ->  Bitmap Index Scan on blocks_pkey  (cost=0.00..0.29 rows=1 width=0) (actual time=0.004..0.004 rows=0 loops=11)
+                                                  Index Cond: ((blocker_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) AND (blocked_id = comments.author_id))
+                                                  Buffers: shared hit=22
+                                            ->  Bitmap Index Scan on blocks_pkey  (cost=0.00..0.29 rows=1 width=0) (actual time=0.004..0.004 rows=0 loops=11)
+                                                  Index Cond: ((blocker_id = comments.author_id) AND (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid))
+                                                  Buffers: shared hit=22
+                          ->  Index Scan using users_pkey on users users_1  (cost=0.29..0.31 rows=1 width=16) (actual time=0.009..0.010 rows=1 loops=10)
+                                Index Cond: (id = comments.author_id)
+                                Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                                Rows Removed by Filter: 0
+                                Buffers: shared hit=30
+              ->  Index Scan using users_pkey on users  (cost=0.29..2.06 rows=1 width=16) (actual time=0.009..0.009 rows=1 loops=7)
+                    Index Cond: (id = posts.author_id)
+                    Filter: ((status)::text = 'active'::text)
+                    Buffers: shared hit=21
+        ->  Bitmap Heap Scan on blocks  (cost=1.00..5.13 rows=1 width=32) (actual time=0.012..0.012 rows=0 loops=7)
+              Recheck Cond: ((blocked_id = posts.author_id) OR ((blocker_id = posts.author_id) AND (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)))
+              Filter: (((blocker_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) OR (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)) AND (((blocker_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid) AND (blocked_id = posts.author_id)) OR ((blocker_id = posts.author_id) AND (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid))))
+              Rows Removed by Filter: 1
+              Heap Blocks: exact=7
+              Buffers: shared hit=35
+              ->  BitmapOr  (cost=1.00..1.00 rows=5 width=0) (actual time=0.009..0.009 rows=0 loops=7)
+                    Buffers: shared hit=28
+                    ->  Bitmap Index Scan on blocks_blocked_idx  (cost=0.00..0.41 rows=5 width=0) (actual time=0.005..0.005 rows=1 loops=7)
+                          Index Cond: (blocked_id = posts.author_id)
+                          Buffers: shared hit=14
+                    ->  Bitmap Index Scan on blocks_pkey  (cost=0.00..0.59 rows=1 width=0) (actual time=0.002..0.002 rows=0 loops=7)
+                          Index Cond: ((blocker_id = posts.author_id) AND (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid))
+                          Buffers: shared hit=14
+Planning:
+  Buffers: shared hit=585
+Planning Time: 1.933 ms
+Execution Time: 12.694 ms

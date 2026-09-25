@@ -32,6 +32,7 @@ final class QuestionList
     /** @param Builder<Comment> $query */
     public function visibleAnswers(Builder $query, ?User $viewer): void
     {
-        $query->whereNull('comments.parent_id')->whereNull('comments.body_removed_at')->widoczneDla($viewer);
+        OdpowiedzNaPytanie::zawez($query, 'comments', 'posts.author_id');
+        $query->widoczneDla($viewer);
     }
 }

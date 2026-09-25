@@ -1,51 +1,51 @@
-Aggregate  (cost=1802.46..1802.47 rows=1 width=8) (actual time=113.063..113.070 rows=1 loops=1)
+Aggregate  (cost=1805.09..1805.10 rows=1 width=8) (actual time=167.051..167.057 rows=1 loops=1)
   Buffers: shared hit=144069
-  ->  Nested Loop  (cost=1413.16..1802.45 rows=6 width=0) (actual time=21.414..112.997 rows=588 loops=1)
+  ->  Nested Loop  (cost=1413.16..1805.08 rows=6 width=0) (actual time=22.177..166.651 rows=588 loops=1)
         Buffers: shared hit=144069
-        ->  Nested Loop Anti Join  (cost=1412.87..1799.85 rows=6 width=16) (actual time=21.406..111.536 rows=595 loops=1)
+        ->  Nested Loop Anti Join  (cost=1412.87..1802.48 rows=6 width=16) (actual time=22.159..164.781 rows=595 loops=1)
               Buffers: shared hit=142284
-              ->  Nested Loop  (cost=1412.16..1718.26 rows=19 width=32) (actual time=21.376..104.310 rows=1340 loops=1)
+              ->  Nested Loop  (cost=1412.16..1719.97 rows=19 width=32) (actual time=22.092..156.228 rows=1340 loops=1)
                     Buffers: shared hit=134631
-                    ->  HashAggregate  (cost=1411.74..1416.68 rows=494 width=16) (actual time=21.335..27.724 rows=33032 loops=1)
+                    ->  HashAggregate  (cost=1411.74..1416.68 rows=494 width=16) (actual time=22.047..33.306 rows=33032 loops=1)
                           Group Key: post_tags.post_id
                           Batches: 1  Memory Usage: 3089kB
                           Buffers: shared hit=2503
-                          ->  Nested Loop  (cost=9.27..1410.50 rows=494 width=16) (actual time=1.050..14.060 rows=33032 loops=1)
+                          ->  Nested Loop  (cost=9.27..1410.50 rows=494 width=16) (actual time=1.294..13.299 rows=33032 loops=1)
                                 Buffers: shared hit=2503
-                                ->  Index Scan using tags_slug_key on tags  (cost=0.28..8.29 rows=1 width=16) (actual time=0.019..0.024 rows=1 loops=1)
+                                ->  Index Scan using tags_slug_key on tags  (cost=0.28..8.29 rows=1 width=16) (actual time=0.027..0.031 rows=1 loops=1)
                                       Index Cond: ((slug)::text = 'tag-0'::text)
                                       Filter: ((status)::text = 'active'::text)
                                       Buffers: shared hit=3
-                                ->  Bitmap Heap Scan on post_tags  (cost=9.00..1396.31 rows=590 width=32) (actual time=1.027..11.803 rows=33032 loops=1)
+                                ->  Bitmap Heap Scan on post_tags  (cost=9.00..1396.31 rows=590 width=32) (actual time=1.264..10.459 rows=33032 loops=1)
                                       Recheck Cond: (tags.id = tag_id)
                                       Heap Blocks: exact=2472
                                       Buffers: shared hit=2500
-                                      ->  Bitmap Index Scan on post_tags_tag_id_index  (cost=0.00..8.85 rows=590 width=0) (actual time=0.815..0.816 rows=33032 loops=1)
+                                      ->  Bitmap Index Scan on post_tags_tag_id_index  (cost=0.00..8.85 rows=590 width=0) (actual time=0.972..0.973 rows=33032 loops=1)
                                             Index Cond: (tag_id = tags.id)
                                             Buffers: shared hit=28
-                    ->  Index Scan using posts_pkey on posts  (cost=0.42..0.61 rows=1 width=32) (actual time=0.002..0.002 rows=0 loops=33032)
+                    ->  Index Scan using posts_pkey on posts  (cost=0.42..0.61 rows=1 width=32) (actual time=0.003..0.003 rows=0 loops=33032)
                           Index Cond: (id = post_tags.post_id)
                           Filter: ((published_at IS NOT NULL) AND (published_at IS NOT NULL) AND (deleted_at IS NULL) AND ((kind)::text = 'question'::text) AND ((status)::text = 'published'::text) AND ((visibility)::text = 'public'::text))
                           Rows Removed by Filter: 1
                           Buffers: shared hit=132128
-              ->  Nested Loop  (cost=0.71..6.10 rows=3 width=16) (actual time=0.005..0.005 rows=1 loops=1340)
+              ->  Nested Loop  (cost=0.71..6.12 rows=3 width=32) (actual time=0.006..0.006 rows=1 loops=1340)
                     Buffers: shared hit=7653
-                    ->  Index Scan using comments_post_idx on comments  (cost=0.42..5.17 rows=3 width=32) (actual time=0.004..0.004 rows=1 loops=1340)
+                    ->  Index Scan using comments_post_idx on comments  (cost=0.42..5.19 rows=3 width=32) (actual time=0.004..0.004 rows=1 loops=1340)
                           Index Cond: (post_id = posts.id)
-                          Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                          Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND (author_id <> posts.author_id))
                           Rows Removed by Filter: 0
                           Buffers: shared hit=5208
-                    ->  Index Scan using users_pkey on users users_1  (cost=0.29..0.31 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=815)
+                    ->  Index Scan using users_pkey on users users_1  (cost=0.29..0.31 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=815)
                           Index Cond: (id = comments.author_id)
                           Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
                           Rows Removed by Filter: 0
                           Buffers: shared hit=2445
-        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=595)
+        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=595)
               Index Cond: (id = posts.author_id)
               Filter: ((status)::text = 'active'::text)
               Rows Removed by Filter: 0
               Buffers: shared hit=1785
 Planning:
-  Buffers: shared hit=640
-Planning Time: 1.873 ms
-Execution Time: 113.414 ms
+  Buffers: shared hit=642
+Planning Time: 2.171 ms
+Execution Time: 167.480 ms

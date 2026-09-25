@@ -1,36 +1,36 @@
-Limit  (cost=0.71..705.72 rows=16 width=210) (actual time=0.131..0.668 rows=16 loops=1)
+Limit  (cost=0.71..706.87 rows=16 width=210) (actual time=0.087..0.853 rows=16 loops=1)
   Buffers: shared hit=194
-  ->  Nested Loop  (cost=0.71..338187.55 rows=7675 width=210) (actual time=0.130..0.664 rows=16 loops=1)
+  ->  Nested Loop  (cost=0.71..330791.56 rows=7495 width=210) (actual time=0.086..0.850 rows=16 loops=1)
         Buffers: shared hit=194
-        ->  Index Scan using posts_published_idx on posts  (cost=0.42..18293.69 rows=7818 width=202) (actual time=0.023..0.085 rows=16 loops=1)
+        ->  Index Scan using posts_published_idx on posts  (cost=0.42..18320.78 rows=7635 width=202) (actual time=0.019..0.070 rows=16 loops=1)
               Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
               Filter: ((kind)::text = 'question'::text)
               Rows Removed by Filter: 267
               Buffers: shared hit=13
-        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=16)
+        ->  Index Scan using users_pkey on users  (cost=0.29..0.44 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=16)
               Index Cond: (id = posts.author_id)
               Filter: ((status)::text = 'active'::text)
               Buffers: shared hit=48
         SubPlan 1
-          ->  Aggregate  (cost=41.23..41.24 rows=1 width=8) (actual time=0.027..0.027 rows=1 loops=16)
+          ->  Aggregate  (cost=41.24..41.25 rows=1 width=8) (actual time=0.041..0.041 rows=1 loops=16)
                 Buffers: shared hit=133
-                ->  Nested Loop  (cost=4.73..41.22 rows=3 width=0) (actual time=0.022..0.027 rows=1 loops=16)
+                ->  Nested Loop  (cost=4.73..41.23 rows=3 width=0) (actual time=0.035..0.040 rows=1 loops=16)
                       Buffers: shared hit=133
-                      ->  Bitmap Heap Scan on comments  (cost=4.45..16.30 rows=3 width=16) (actual time=0.013..0.014 rows=2 loops=16)
+                      ->  Bitmap Heap Scan on comments  (cost=4.45..16.31 rows=3 width=16) (actual time=0.012..0.013 rows=2 loops=16)
                             Recheck Cond: (posts.id = post_id)
-                            Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                            Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND (author_id <> posts.author_id) AND ((status)::text = 'published'::text))
                             Rows Removed by Filter: 0
                             Heap Blocks: exact=13
                             Buffers: shared hit=61
-                            ->  Bitmap Index Scan on comments_post_idx  (cost=0.00..4.45 rows=3 width=0) (actual time=0.008..0.008 rows=2 loops=16)
+                            ->  Bitmap Index Scan on comments_post_idx  (cost=0.00..4.45 rows=3 width=0) (actual time=0.011..0.011 rows=2 loops=16)
                                   Index Cond: (post_id = posts.id)
                                   Buffers: shared hit=48
-                      ->  Index Scan using users_pkey on users users_1  (cost=0.29..8.31 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=24)
+                      ->  Index Scan using users_pkey on users users_1  (cost=0.29..8.31 rows=1 width=16) (actual time=0.018..0.018 rows=1 loops=24)
                             Index Cond: (id = comments.author_id)
                             Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
                             Rows Removed by Filter: 0
                             Buffers: shared hit=72
 Planning:
-  Buffers: shared hit=395
-Planning Time: 1.142 ms
-Execution Time: 0.747 ms
+  Buffers: shared hit=397
+Planning Time: 1.188 ms
+Execution Time: 0.923 ms

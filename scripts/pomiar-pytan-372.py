@@ -41,9 +41,18 @@ POWTORZEN = 7
 TAG = "tag-0"
 
 
-def uuid_widza():
-    h = hashlib.md5(b"p372:user:0").hexdigest()
+def uuid_uzytkownika(n):
+    h = hashlib.md5(f"p372:user:{n}".encode()).hexdigest()
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+
+
+def uuid_widza():
+    return uuid_uzytkownika(0)
+
+
+# Widz pomiaru blokuje konta 8001–8100, a 8101–8200 blokują jego
+# (scripts/pomiar-pytan-372-dane.sql); losowe blokady go nie dotyczą.
+W_BLOKADZIE = ", ".join(f"'{uuid_uzytkownika(n)}'" for n in range(8001, 8201))
 
 
 def psql(baza, *args, sql=None):
@@ -60,6 +69,7 @@ def zapytania():
         nazwa, _, reszta = blok.partition("\n")
         sql = "\n".join(l for l in reszta.splitlines() if not l.lstrip().startswith("--")).strip()
         sql = sql.rstrip(";").replace("{widz}", uuid_widza()).replace("{tag}", TAG)
+        sql = sql.replace("{w_blokadzie}", W_BLOKADZIE)
         wynik.append((nazwa.strip(), sql))
     if not wynik:
         raise SystemExit("Brak zapytań w " + str(ZAPYTANIA))
@@ -86,7 +96,7 @@ def zmierz(baza, etap, wyniki):
             czas = float(re.search(r"Execution Time: ([\d.]+) ms", plan).group(1))
             czasy.append(czas)
             pierwszy = pierwszy or plan
-        wiersze = psql(baza, "-At", sql=f"SELECT count(*) FROM ({sql}) x" if nazwa.startswith("lista") else sql).strip()
+        wiersze = psql(baza, "-At", sql=f"SELECT count(*) FROM ({sql}) x" if not nazwa.startswith(("licznik", "poprawka_1", "poprawka_2", "poprawka_3")) else sql).strip()
         (wyniki / f"{etap}-{nazwa}.txt").write_text(pierwszy, encoding="utf-8")
         linia = (f"{etap:12} {nazwa:28} mediana {statistics.median(czasy):8.2f} ms"
                  f"  min {min(czasy):8.2f}  max {max(czasy):8.2f}  wynik={wiersze}")

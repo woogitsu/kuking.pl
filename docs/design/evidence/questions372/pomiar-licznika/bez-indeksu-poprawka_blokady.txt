@@ -1,0 +1,17 @@
+Append  (cost=0.28..57.34 rows=200 width=16) (actual time=0.035..0.101 rows=200 loops=1)
+  Buffers: shared hit=8
+  ->  Index Only Scan using blocks_pkey on blocks  (cost=0.28..6.03 rows=100 width=16) (actual time=0.034..0.047 rows=100 loops=1)
+        Index Cond: (blocker_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)
+        Heap Fetches: 0
+        Buffers: shared hit=4
+  ->  Bitmap Heap Scan on blocks blocks_1  (cost=5.06..50.31 rows=100 width=16) (actual time=0.027..0.038 rows=100 loops=1)
+        Recheck Cond: (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)
+        Heap Blocks: exact=2
+        Buffers: shared hit=4
+        ->  Bitmap Index Scan on blocks_blocked_idx  (cost=0.00..5.03 rows=100 width=0) (actual time=0.020..0.021 rows=100 loops=1)
+              Index Cond: (blocked_id = '5f46bd79-da4c-251e-9c20-370a2d5e7f12'::uuid)
+              Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=111
+Planning Time: 1.128 ms
+Execution Time: 0.175 ms

@@ -742,6 +742,17 @@ checks = [
     ("Indeks pytań z predykatem na daniach", "database/migrations/2026_09_25_200000_add_questions_published_index_to_posts.php",
      "test_licznik_goscia_i_zalogowanego_moze_uzyc_indeksu_pytan",
      lambda s: replace_once(s, "WHERE kind = 'question' AND deleted_at IS NULL", "WHERE kind = 'dish' AND deleted_at IS NULL")),
+    # Licznik „Czeka na odpowiedź” w tle (#372, decyzja 25.09.2026): poprawka
+    # widza na blokady, wspólna definicja odpowiedzi i odświeżenie po odpowiedzi.
+    ("Licznik widza bez poprawki na blokady", "app/Domain/Questions/PytaniaBezOdpowiedzi.php",
+     "test_blokada_zmniejsza_licznik_widza_ale_nie_goscia",
+     lambda s: replace_once(s, "        if ($wBlokadzie !== []) {\n", "        if (false) {\n")),
+    ("Dopisek autora liczony jako odpowiedź", "app/Domain/Questions/OdpowiedzNaPytanie.php",
+     "test_komentarz_autora_pod_wlasnym_pytaniem_nie_jest_odpowiedzia",
+     lambda s: replace_once(s, "\n            ->whereColumn($tabela.'.author_id', '!=', $autorPytania);", ";")),
+    ("Odpowiedź nie odświeża licznika pytań", "app/Providers/AppServiceProvider.php",
+     "test_nowa_odpowiedz_odswieza_licznik_bez_recznego_przeliczenia",
+     lambda s: replace_once(s, "        Comment::saved($komentarz);\n", "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.

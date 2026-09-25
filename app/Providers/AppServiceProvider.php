@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Models\Appeal;
+use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\Post;
+use App\Models\PostTag;
 use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
@@ -106,6 +110,7 @@ class AppServiceProvider extends ServiceProvider
         $this->zdejmijAdresZLinkuResetu();
 
         $this->odswiezajLicznikiKolejek();
+        $this->odswiezajLicznikPytan();
 
         // Mapa strony nie może ogłaszać treści, która przestała być
         // publiczna (issue #1006) — opis w `App\Support\MapaStrony`.
@@ -249,5 +254,48 @@ class AppServiceProvider extends ServiceProvider
             $model::saved($odswiez);
             $model::deleted($odswiez);
         }
+    }
+
+    /**
+     * LICZNIK „CZEKA NA ODPOWIEDŹ (N)” NA /pytania — przeliczanie w tle po
+     * zapisie (#372, `App\Domain\Questions\PytaniaBezOdpowiedzi`).
+     *
+     * To JEST hak na `Post` i `Comment`, których liczniki panelu świadomie
+     * nie mają (wyżej) — ale wąski: reaguje tylko na pytania i komentarze
+     * pod pytaniami, a samo liczenie idzie do kolejki po commicie. Koszt
+     * w żądaniu: przy komentarzu jedno `exists()` po kluczu głównym wpisu
+     * i jeden wiersz zadania; przy daniu — nic. Właściciel zdecydował
+     * 25.09.2026, że nowa odpowiedź ma odświeżać licznik od razu, a nie po
+     * pięciu minutach harmonogramu.
+     *
+     * `PostTag`: tagi przypinamy po utworzeniu wpisu, a licznik ma też
+     * wersję per tag.
+     */
+    private function odswiezajLicznikPytan(): void
+    {
+        $pytanie = static function (Post $post): void {
+            if ($post->kind === Post::KIND_QUESTION || $post->getOriginal('kind') === Post::KIND_QUESTION) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        Post::saved($pytanie);
+        Post::deleted($pytanie);
+
+        $komentarz = static function (Comment $comment): void {
+            if (PytaniaBezOdpowiedzi::dotyczyKomentarza($comment)) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        Comment::saved($komentarz);
+        Comment::deleted($komentarz);
+
+        $tag = static function (PostTag $pivot): void {
+            if (config('kuking.questions.enabled')
+                && Post::withTrashed()->whereKey($pivot->post_id)->where('kind', Post::KIND_QUESTION)->exists()) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        PostTag::saved($tag);
+        PostTag::deleted($tag);
     }
 }
