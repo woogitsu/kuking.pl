@@ -97,6 +97,14 @@ final class ListyZSystemuPoPolskuTest extends TestCase
     {
         $user = $this->user(null, ['email' => 'basia@example.com', 'email_verified_at' => null]);
 
+        // Token musi istnieć w brokerze: od audytu B8-04 list z tokenem
+        // spoza brokera nie wychodzi (`SwiezyTokenResetuHasla`).
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->email,
+            'token' => Hash::make('token-testowy'),
+            'created_at' => now(),
+        ]);
+
         $user->notify(new UstawienieHaslaZamiastLinku('token-testowy'));
 
         $wiadomosc = $this->ostatniaWiadomosc();
