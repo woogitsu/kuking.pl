@@ -1,0 +1,36 @@
+Limit  (cost=0.57..684.47 rows=16 width=210) (actual time=0.090..0.493 rows=16 loops=1)
+  Buffers: shared hit=191
+  ->  Nested Loop  (cost=0.57..326389.57 rows=7636 width=210) (actual time=0.089..0.490 rows=16 loops=1)
+        Buffers: shared hit=191
+        ->  Index Scan using posts_questions_published_idx on posts  (cost=0.29..8116.02 rows=7779 width=202) (actual time=0.023..0.043 rows=16 loops=1)
+              Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
+              Filter: ((visibility)::text = 'public'::text)
+              Rows Removed by Filter: 1
+              Buffers: shared hit=10
+        ->  Index Scan using users_pkey on users  (cost=0.29..0.43 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=16)
+              Index Cond: (id = posts.author_id)
+              Filter: ((status)::text = 'active'::text)
+              Buffers: shared hit=48
+        SubPlan 1
+          ->  Aggregate  (cost=41.23..41.24 rows=1 width=8) (actual time=0.020..0.020 rows=1 loops=16)
+                Buffers: shared hit=133
+                ->  Nested Loop  (cost=4.73..41.22 rows=3 width=0) (actual time=0.015..0.020 rows=1 loops=16)
+                      Buffers: shared hit=133
+                      ->  Bitmap Heap Scan on comments  (cost=4.45..16.30 rows=3 width=16) (actual time=0.009..0.009 rows=2 loops=16)
+                            Recheck Cond: (posts.id = post_id)
+                            Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                            Rows Removed by Filter: 0
+                            Heap Blocks: exact=13
+                            Buffers: shared hit=61
+                            ->  Bitmap Index Scan on comments_post_idx  (cost=0.00..4.45 rows=3 width=0) (actual time=0.008..0.008 rows=2 loops=16)
+                                  Index Cond: (post_id = posts.id)
+                                  Buffers: shared hit=48
+                      ->  Index Scan using users_pkey on users users_1  (cost=0.29..8.31 rows=1 width=16) (actual time=0.006..0.006 rows=1 loops=24)
+                            Index Cond: (id = comments.author_id)
+                            Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                            Rows Removed by Filter: 0
+                            Buffers: shared hit=72
+Planning:
+  Buffers: shared hit=410
+Planning Time: 1.219 ms
+Execution Time: 0.569 ms

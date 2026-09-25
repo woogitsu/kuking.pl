@@ -4759,6 +4759,44 @@ Pozostałe klucze obce bez indeksu wiodącego (audyt B3 N1: m.in.
 `tozsamosci_zewnetrzne.user_id`) dotyczą rodziców kasowanych rzadko albo nigdy
 i świadomie zostały poza tą migracją.
 
+## Indeks częściowy opublikowanych pytań (#372)
+
+Migracja `2026_09_25_200000_add_questions_published_index_to_posts`:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_questions_published_idx
+    ON posts (published_at DESC, id DESC)
+    WHERE kind = 'question' AND deleted_at IS NULL AND status = 'published';
+```
+
+Po co: `/pytania` przy każdym wejściu liczy „Czeka na odpowiedź (N)” osobnym
+`COUNT(*)` po całym zbiorze pytań (`QuestionController::index`). Pomiar na
+danych syntetycznych (200 000 wpisów, 5% pytań — `scripts/pomiar-pytan-372.py`)
+pokazał pełny skan `posts` u gościa i przegląd ~193 000 pozycji
+`posts_author_published_idx` u zalogowanego; u zalogowanego zawyżony koszt planu
+włączał jeszcze JIT (~280 ms z ~480 ms). Z indeksem licznik zalogowanego spada
+do ~110 ms, a lista czyta pytania w kolejności kursora. Pełne liczby, plany
+i to, czego indeks nie naprawia (pełny skan `comments` w anty-złączeniu
+licznika gościa): `docs/product/WLACZENIE_PYTAN_372.md`.
+
+Predykat zawiera tylko warunki obecne w KAŻDYM zapytaniu listy i licznika
+(`kind`, `SoftDeletes`, `published()`); widoczność zostaje poza nim, bo gość
+i zalogowany pytają o nią inaczej. Rozmiar przy 10 000 pytań: 392 kB.
+
+Indeks powstaje `CONCURRENTLY` w migracji z `$withinTransaction = false`
+(ten sam wzorzec co indeksy kluczy obcych wyżej); niedokończony (INVALID)
+migracja zdejmuje i buduje od nowa.
+
+Pilnuje go `tests/Feature/IndeksPytanOpublikowanychTest.php`: zapytanie licznika
+zbudowane przez `QuestionList` (gość i zalogowany) potrafi użyć indeksu,
+zapytanie o dania nie (predykat jest prawdziwy), a `down()`/`up()` zdejmuje
+i przywraca indeks.
+
+**Rollback:** `down()` → `DROP INDEX CONCURRENTLY IF EXISTS
+posts_questions_published_idx`. Bezstratnie — indeks nie niesie danych ani
+decyzji człowieka, więc D-088 nie ma tu czego chronić i `down()` nie odmawia.
+Wracają plany sprzed migracji.
+
 ## Normalizacja adresu e-mail
 
 `User::email` ma mutator wymuszający małe litery i przycięcie spacji.

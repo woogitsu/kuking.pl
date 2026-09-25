@@ -1,0 +1,13 @@
+bez-indeksu  licznik_gosc                 mediana    81.84 ms  min    72.33  max   112.36  wynik=3453
+bez-indeksu  licznik_gosc_tag             mediana   134.13 ms  min   113.43  max   156.69  wynik=588
+bez-indeksu  licznik_konto                mediana   452.59 ms  min   401.14  max   510.03  wynik=3660
+bez-indeksu  licznik_konto_tag            mediana   136.40 ms  min   122.54  max   164.31  wynik=629
+bez-indeksu  lista_gosc                   mediana     0.69 ms  min     0.55  max     0.79  wynik=16
+bez-indeksu  lista_gosc_bez_odpowiedzi    mediana     1.03 ms  min     0.84  max     1.55  wynik=16
+z-indeksem   licznik_gosc                 mediana    81.62 ms  min    75.66  max    91.50  wynik=3453
+z-indeksem   licznik_gosc_tag             mediana   124.27 ms  min   108.56  max   136.36  wynik=588
+z-indeksem   licznik_konto                mediana   123.03 ms  min   107.17  max   134.20  wynik=3660
+z-indeksem   licznik_konto_tag            mediana   138.71 ms  min   120.19  max   169.26  wynik=629
+z-indeksem   lista_gosc                   mediana     0.62 ms  min     0.54  max     0.78  wynik=16
+z-indeksem   lista_gosc_bez_odpowiedzi    mediana     0.90 ms  min     0.86  max     1.02  wynik=16
+Rozmiar indeksu posts_questions_published_idx: 392 kB

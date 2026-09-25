@@ -1,0 +1,51 @@
+Finalize Aggregate  (cost=16728.19..16728.20 rows=1 width=8) (actual time=77.750..81.435 rows=1 loops=1)
+  Buffers: shared hit=5821 read=6130
+  ->  Gather  (cost=16727.97..16728.18 rows=2 width=8) (actual time=76.617..81.424 rows=3 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=5821 read=6130
+        ->  Partial Aggregate  (cost=15727.97..15727.98 rows=1 width=8) (actual time=73.979..73.987 rows=1 loops=3)
+              Buffers: shared hit=5821 read=6130
+              ->  Parallel Hash Right Anti Join  (cost=6033.06..15725.26 rows=1086 width=0) (actual time=73.749..73.926 rows=1151 loops=3)
+                    Hash Cond: (comments.post_id = posts.id)
+                    Buffers: shared hit=5821 read=6130
+                    ->  Hash Join  (cost=645.56..9701.72 rows=162707 width=16) (actual time=5.241..43.565 rows=130647 loops=3)
+                          Hash Cond: (comments.author_id = users_1.id)
+                          Buffers: shared hit=878 read=6130
+                          ->  Parallel Seq Scan on comments  (cost=0.00..8624.71 rows=164325 width=32) (actual time=0.028..19.536 rows=131357 loops=3)
+                                Filter: ((parent_id IS NULL) AND (body_removed_at IS NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                                Rows Removed by Filter: 913
+                                Buffers: shared hit=428 read=6130
+                          ->  Hash  (cost=398.01..398.01 rows=19804 width=16) (actual time=5.057..5.058 rows=19804 loops=3)
+                                Buckets: 32768  Batches: 1  Memory Usage: 1185kB
+                                Buffers: shared hit=450
+                                ->  Seq Scan on users users_1  (cost=0.00..398.01 rows=19804 width=16) (actual time=0.023..2.048 rows=19804 loops=3)
+                                      Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                                      Rows Removed by Filter: 197
+                                      Buffers: shared hit=450
+                    ->  Parallel Hash  (cost=5347.72..5347.72 rows=3182 width=16) (actual time=16.607..16.610 rows=2647 loops=3)
+                          Buckets: 8192  Batches: 1  Memory Usage: 480kB
+                          Buffers: shared hit=4821
+                          ->  Hash Join  (cost=925.36..5347.72 rows=3182 width=16) (actual time=5.992..15.812 rows=2647 loops=3)
+                                Hash Cond: (posts.author_id = users.id)
+                                Buffers: shared hit=4821
+                                ->  Parallel Bitmap Heap Scan on posts  (cost=281.92..4695.78 rows=3241 width=32) (actual time=0.630..9.054 rows=2677 loops=3)
+                                      Recheck Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL) AND ((kind)::text = 'question'::text) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text))
+                                      Filter: ((visibility)::text = 'public'::text)
+                                      Rows Removed by Filter: 454
+                                      Heap Blocks: exact=1330
+                                      Buffers: shared hit=4377
+                                      ->  Bitmap Index Scan on posts_questions_published_idx  (cost=0.00..279.98 rows=9169 width=0) (actual time=1.174..1.174 rows=9394 loops=1)
+                                            Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
+                                            Buffers: shared hit=48
+                                ->  Hash  (cost=398.01..398.01 rows=19634 width=16) (actual time=5.200..5.201 rows=19634 loops=3)
+                                      Buckets: 32768  Batches: 1  Memory Usage: 1177kB
+                                      Buffers: shared hit=444
+                                      ->  Seq Scan on users  (cost=0.00..398.01 rows=19634 width=16) (actual time=0.033..2.332 rows=19634 loops=3)
+                                            Filter: ((status)::text = 'active'::text)
+                                            Rows Removed by Filter: 367
+                                            Buffers: shared hit=444
+Planning:
+  Buffers: shared hit=499
+Planning Time: 2.395 ms
+Execution Time: 81.618 ms

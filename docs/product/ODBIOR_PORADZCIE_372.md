@@ -334,3 +334,11 @@ Własne pomiary, czerwienie przed poprawką, kontrole ujemne, 4397 zielonych
 testów, 24 konfiguracje przeglądarki i granice dowodu są w
 [raporcie stanowiska](../qa/pytania-poradzcie/RAPORT.md).
 To nadal nie jest odbiór produkcyjny ani włączenie funkcji.
+
+## Pomiar licznika przed włączeniem flagi — 25 września 2026
+
+Koszt „Czeka na odpowiedź (N)” na danych syntetycznych (200 000 wpisów,
+5% pytań), indeks częściowy `posts_questions_published_idx` oraz instrukcja
+włączenia i wyłączenia `KUKING_QUESTIONS_ENABLED`:
+[WLACZENIE_PYTAN_372.md](WLACZENIE_PYTAN_372.md). Flaga na produkcji
+pozostaje wyłączona.

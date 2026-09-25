@@ -737,6 +737,11 @@ checks = [
      lambda s: replace_once(s, "            ->where('posts.kind', $kind)\n", "")),
     ("Mediana pytań liczy dopiski jako odpowiedź", UNANSWERED_CONTENT, "test_mediana_pytan_liczy_tylko_glowne_odpowiedzi",
      lambda s: replace_once(s, "Post::KIND_QUESTION, $this->answers()", "Post::KIND_QUESTION, $this->responses('post_id', 'posts', 'author_id')")),
+    # Indeks częściowy licznika „Czeka na odpowiedź” (#372). Test pyta planistę
+    # o zapytanie z prawdziwego QuestionList; predykat na daniach ma go zgasić.
+    ("Indeks pytań z predykatem na daniach", "database/migrations/2026_09_25_200000_add_questions_published_index_to_posts.php",
+     "test_licznik_goscia_i_zalogowanego_moze_uzyc_indeksu_pytan",
+     lambda s: replace_once(s, "WHERE kind = 'question' AND deleted_at IS NULL", "WHERE kind = 'dish' AND deleted_at IS NULL")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
