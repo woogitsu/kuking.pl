@@ -72,7 +72,10 @@
     // niezależnie od tego, co ustawił system operacyjny odwiedzającego.
     $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
     $theme = $theme === 'dark' ? 'dark' : 'light';
-    $unread = $user?->unreadNotificationsCount() ?? 0;
+    // Z sufitem (audyt B4 S1): powyżej 99 plakietka mówi „99+", a zapytanie
+    // nie liczy tysięcy zaległych na każdej stronie.
+    $unread = $user?->unreadNotificationsBadgeCount() ?? 0;
+    $unreadPonad = $unread > \App\Models\User::PLAKIETKA_POWIADOMIEN_DO;
 
     // Pozycja „Dodaj" (pasek dolny i nawigacja boczna, UI kit v2 etap D)
     // zostaje bieżącą pozycją przez CAŁY proces dodawania, nie tylko na
@@ -486,8 +489,13 @@
                     <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
-                            <span class="badge badge-cooked">{{ $unread }}</span>
-                            <span class="visually-hidden">nieprzeczytanych</span>
+                            @if($unreadPonad)
+                                <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                            @else
+                                <span class="badge badge-cooked">{{ $unread }}</span>
+                                <span class="visually-hidden">nieprzeczytanych</span>
+                            @endif
                         @endif
                     </a>
                     {{--
@@ -876,8 +884,13 @@
                         <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
                             <x-ikona nazwa="bell" /> Powiadomienia
                             @if($unread > 0)
-                                <span class="badge badge-cooked">{{ $unread }}</span>
-                                <span class="visually-hidden">nieprzeczytanych</span>
+                                @if($unreadPonad)
+                                    <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                    <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                                @else
+                                    <span class="badge badge-cooked">{{ $unread }}</span>
+                                    <span class="visually-hidden">nieprzeczytanych</span>
+                                @endif
                             @endif
                         </a></li>
                         {{-- Napis „Ustawienia" prowadzi na EKRAN O TYM TYTULE

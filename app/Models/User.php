@@ -844,6 +844,39 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Od ilu nieprzeczytanych plakietka w belce przestaje liczyć dokładnie
+     * i pokazuje „99+" (audyt B4 S1).
+     */
+    public const PLAKIETKA_POWIADOMIEN_DO = 99;
+
+    /**
+     * Licznik do PLAKIETKI w belce — z sufitem, bo stoi na każdej stronie
+     * zalogowanej osoby (audyt B4 S1).
+     *
+     * `unreadNotificationsCount()` liczy WSZYSTKIE nieprzeczytane przez pełne
+     * `visibleTo` (blokady, konta, łańcuch widoczności komentarzy) na każdym
+     * wierszu. Najwięcej płacił ten, kto najrzadziej zagląda do powiadomień:
+     * tysiące nieprzeczytanych na każdej stronie. Plakietka i tak nie
+     * pokazuje liczby większej niż `PLAKIETKA_POWIADOMIEN_DO` — więc liczymy
+     * najwyżej o jeden wiersz dalej (`LIMIT` w podzapytaniu) i koszt przestaje
+     * rosnąć z zaległościami.
+     *
+     * Ten sam filtr co lista i co `unreadNotificationsCount()`, więc przy
+     * małych liczbach wynik jest identyczny; różni się dopiero powyżej sufitu.
+     */
+    public function unreadNotificationsBadgeCount(): int
+    {
+        $nieprzeczytane = $this->notifications()
+            ->visibleTo($this)
+            ->whereNull('read_at')
+            ->select('notifications.id')
+            ->limit(self::PLAKIETKA_POWIADOMIEN_DO + 1)
+            ->toBase();
+
+        return DB::query()->fromSub($nieprzeczytane, 'nieprzeczytane')->count();
+    }
+
+    /**
      * Treść ostatniej decyzji moderacyjnej skierowanej do tej osoby.
      *
      * Potrzebna poza listą powiadomień, bo osoba zbanowana do serwisu nie

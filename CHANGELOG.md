@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Gdy nieprzeczytanych powiadomień jest więcej niż 99, plakietka przy „Powiadomienia” pokazuje „99+”, a czytnik ekranu mówi „ponad 99 nieprzeczytanych”. Strony dla osób z dużą liczbą zaległych powiadomień wczytują się przez to szybciej. Lista powiadomień pokazuje wszystkie, jak dotąd.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
