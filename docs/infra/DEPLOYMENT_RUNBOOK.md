@@ -2254,6 +2254,29 @@ Te rzeczy albo nie należą do `railway.ts`, albo trzeba je potwierdzić.
 > **Środowiskiem bazowym PR-ów musi być `staging`.** Przy `production` każdy
 > pull request — także z forka — dostawałby kopię produkcyjnych sekretów.
 
+#### `APP_KEY` w środowiskach PR — nie odpieczętowuj klucza staginu (#975)
+
+Railway **nie kopiuje zmiennych `Sealed`** do PR Environments ani przy
+`railway environment new pr-N --copy staging`. Preview dostaje więc pusty
+`APP_KEY` i tak ma zostać. Entrypoint (`docker/klucz-preview.sh`) nadaje wtedy
+**losowy klucz tego kontenera**, ale tylko gdy wszystkie warunki są spełnione
+naraz: Railway wstrzyknął `RAILWAY_ENVIRONMENT_ID`, nazwa środowiska ma kształt
+`pr-<numer>` albo `<coś>-pr-<numer>`, `APP_ENV` nie jest `production`, a
+`APP_URL` nie wskazuje `kuking.pl`, `www.kuking.pl` ani `staging.kuking.pl`.
+W każdym innym przypadku pusty klucz dalej zatrzymuje start.
+
+- Klucz nie jest kluczem produkcji ani staginu i nie trafia do logów.
+- Żyje tyle, co kontener: restart albo nowy deploy preview wylogowuje
+  i unieważnia ciasteczka. Dla środowiska do oglądania zmiany to przyjęty koszt.
+- **Nie „naprawiaj" preview zdjęciem pieczęci z `APP_KEY` staginu** — kod
+  z gałęzi PR dostałby klucz trwałego środowiska.
+
+Pozostałe zapieczętowane sekrety (Turnstile, EmailLabs, Google, Facebook, R2)
+też do preview nie przechodzą. Funkcje, które ich potrzebują — logowanie
+kontem Google i Facebooka, wysyłka poczty, zdjęcia w R2 — w preview nie
+działają, dopóki właściciel świadomie nie nada środowisku PR **osobnych,
+testowych** poświadczeń. Kluczy produkcji nie kopiujemy nigdy.
+
 ### Per serwis — potwierdź, że `railway.ts` to ustawił
 
 → każdy serwis → **Settings**:
