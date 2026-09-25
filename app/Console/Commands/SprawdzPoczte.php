@@ -652,7 +652,7 @@ class SprawdzPoczte extends Command
         $this->line('Zadanie leży w tabeli `jobs` i wyśle je worker. Jeśli worker nie chodzi, nikt go nie ruszy.');
         $this->newLine();
         $this->line('  Na produkcji: serwis `worker` w Railway ma mieć w logu „start queue:work”.');
-        $this->line('  Lokalnie:     php artisan queue:work --once');
+        $this->line('  Lokalnie:     php artisan queue:work --queue=high,default --once');
         $this->line('  Po chwili:    php artisan queue:failed   (jeśli list nie doszedł, przyczyna jest tam)');
     }
 

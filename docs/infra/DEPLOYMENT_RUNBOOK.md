@@ -667,6 +667,7 @@ sekretów.
 | `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
+| `R2_ZDJECIA_KOPIA_BUCKET`, `R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID`, `R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY` | z `DR_ZDJEC_R2.md` §4, kroki 2 i 6 (token **odczytu** kopii zdjęć) | **TAK** (poza nazwą bucketu) | Kopia zdjęć (#1497, D-257). `railway.ts` → `AWS_ZDJECIA_KOPIA_*` → dysk `r2_kopia_zdjec`, **tylko scheduler** (ręczne `kuking:sprawdz-kopie-zdjec`, `DR_ZDJEC_R2.md` §6). Dopóki kopii zdjęć nie ma, **załóż je z pustą wartością** — na referencję do zmiennej, której nie ma, nie polegamy. Pusto = komenda odmawia z komunikatem, nic więcej się nie psuje |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
 | `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
@@ -678,6 +679,8 @@ sekretów.
 | ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. **Tylko serwis z kolejką** (`PrzeanalizujTresc`): `worker` po rozdzieleniu usług, `kuking.pl` w roli `all` dziś. Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
 | `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. Web (`AlarmujOPilnymZgloszeniu` — synchronicznie przy pilnym zgłoszeniu od człowieka, D-236), worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą, zostaje sama kolejka w panelu |
+| `KUKING_PULS_HARMONOGRAMU_URL` | adres monitora *heartbeat* z `MONITORING_599_KROKI.md` B3 | **TAK** (token monitora w adresie) | Puls harmonogramu (#599). **Tylko scheduler** (`kuking:puls-harmonogramu`). Pusto = puls wyłączony bez błędu — **załóż z pustą wartością**, dopóki monitora nie ma. Na stagingu osobny monitor, nigdy adres produkcji |
+| `KUKING_HOST_USER_ID` | UUID konta gospodarza **w bazie tego środowiska** (`docs/DEPLOYMENT.md`, „Konto gospodarza”) | nie | Gospodarz po UUID (#1089). Web (`ZalozKonto`, `PublishPost`) i scheduler (`kuking:policz-kukingow`). Pusto = przejściowy fallback po `KUKING_HOST_USERNAME` — **załóż z pustą wartością**, jeśli UUID jeszcze nie jest ustalony. Na stagingu inny UUID niż na produkcji |
 | `CLOUDFLARE_ZONE_ID` | Cloudflare → strefa `kuking.pl` → Overview → Zone ID | nie | Czyszczenie cache CDN po skasowaniu zdjęcia (#959). Worker (`PurgePublicMediaCache`) i web (`/health` sprawdza obecność) |
 | `CLOUDFLARE_PURGE_TOKEN` | token API z jedynym uprawnieniem **Zone → Cache Purge** dla tej jednej strefy | **TAK** | jw. |
 | ~~`SENTRY_LARAVEL_DSN`~~ | — | — | **Nieprzekazywane** (#1013). Sentry'ego nie ma w `composer.json` i nic tej zmiennej nie czyta (D-041). Gdy integracja powstanie, zmienną dopisuje się w `railway.ts` do ról, które ją wykonują |
@@ -697,7 +700,7 @@ wtedy pokazywać wartość w panelu i w CLI.
 
 `railway.ts` składa zestaw każdego serwisu z mniejszych grup (`appEnv`,
 `pocztaEnv`, `wejscieEnv`, `czyszczenieCdnEnv`, `modelEnv`,
-`alarmModeratoraEnv`, `kopieOdczytEnv`). Serwis w roli `all` (staging,
+`alarmModeratoraEnv`, `kopieOdczytEnv`, `pulsHarmonogramuEnv`, `gospodarzEnv`). Serwis w roli `all` (staging,
 preview i dzisiejsza produkcja `kuking.pl`) dostaje **sumę** trzech kolumn.
 Macierz pilnuje test `ZmienneRailwayaPerRolaTest` — zmienna w roli, która jej
 nie czyta, oblewa go tak samo jak zmienna brakująca.
@@ -714,6 +717,9 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `OPENAI_MODERATION_KEY` | — | ✔ | — | `PrzeanalizujTresc` → `KlientOpenAI` |
 | `KUKING_MODEL_ALARM_EMAIL` | ✔ | ✔ | ✔ | web: `AlarmujOPilnymZgloszeniu` w żądaniu zgłoszenia (`ReportContent`, `ZglosNielegalnaTresc`); worker: `AlarmujModeratora`; scheduler: `kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan` |
 | `AWS_KOPIE_BUCKET`, `AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie` z harmonogramu |
+| `AWS_ZDJECIA_KOPIA_BUCKET`, `AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID`, `AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie-zdjec`, uruchamiane ręcznie w konsoli schedulera (`DR_ZDJEC_R2.md` §6) |
+| `KUKING_PULS_HARMONOGRAMU_URL` | — | — | ✔ | `kuking:puls-harmonogramu` z harmonogramu |
+| `KUKING_HOST_USER_ID` | ✔ | — | ✔ | web: `ZalozKonto` (auto-obserwowanie), `PublishPost` (alert pierwszego wpisu); scheduler: `kuking:policz-kukingow` (`CookEligibility`) |
 
 Serwis `kopia-bazy` ma własną, zamkniętą listę bez żadnego zestawu aplikacji
 (`KopiaBazyPozaRailwayemTest`).
@@ -2151,6 +2157,9 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 # Oczekiwane: 0
 # Wynik > 0 znaczy, że strona błędu ujawnia zmienne środowiskowe. Natychmiast
 # ustaw APP_DEBUG=false i zredeployuj.
+# Od audytu B10-04 to samo mówi /health na produkcji: checks.debug.error =
+# debug_wlaczony (APP_DEBUG=true) i checks.sesja.error = sesja_bez_secure
+# (jawne SESSION_SECURE_COOKIE=false; bez zmiennej produkcja ma Secure).
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"

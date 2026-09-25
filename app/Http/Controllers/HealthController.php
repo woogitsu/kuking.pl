@@ -148,7 +148,23 @@ class HealthController extends Controller
         self::POWOD_KANAL_ALARMOWY_WYLACZONY,
         self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY,
         self::POWOD_MAGAZYN_ZLY_HOST,
+        self::POWOD_DEBUG_WLACZONY,
+        self::POWOD_SESJA_BEZ_SECURE,
     ];
+
+    /**
+     * `APP_DEBUG=true` na produkcji (audyt B10-04): strona błędu pokazuje
+     * ślad stosu razem ze zmiennymi środowiska, czyli sekrety każdemu, kto
+     * wywoła 500. `ENV APP_DEBUG=false` w `Dockerfile` przegrywa ze zmienną
+     * z panelu, a poprawną wartość ustawia wyłącznie `.railway/railway.ts`.
+     */
+    private const POWOD_DEBUG_WLACZONY = 'debug_wlaczony';
+
+    /**
+     * Ciasteczko sesji bez `Secure` na produkcji (audyt B10-04) — przeglądarka
+     * wyśle je także po HTTP, gdzie da się je podsłuchać.
+     */
+    private const POWOD_SESJA_BEZ_SECURE = 'sesja_bez_secure';
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
     private const POWOD_BAZA = 'baza_nie_odpowiada';
@@ -348,6 +364,8 @@ class HealthController extends Controller
             'alarmy_moderacji' => $this->check('alarmy_moderacji', self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY, fn () => $this->sprawdzPilneAlarmy()),
             'cdn_zalegle' => $this->check('cdn_zalegle', self::POWOD_CZYSZCZENIE_CDN_ZALEGLE, fn () => $this->sprawdzZalegleCzyszczenieCdn()),
             'magazyn' => $this->check('magazyn', self::POWOD_MAGAZYN_ZLY_HOST, fn () => $this->sprawdzHostMagazynu()),
+            'debug' => $this->check('debug', self::POWOD_DEBUG_WLACZONY, fn () => $this->sprawdzTrybDebug()),
+            'sesja' => $this->check('sesja', self::POWOD_SESJA_BEZ_SECURE, fn () => $this->sprawdzCiasteczkoSesji()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -547,6 +565,45 @@ class HealthController extends Controller
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_TURNSTILE_BEZ_KLUCZY,
             Turnstile::komunikatBrakuKluczy(),
+        );
+    }
+
+    /**
+     * Produkcja z `APP_DEBUG=true` (audyt B10-04) — wzorzec `sprawdzTurnstile()`.
+     *
+     * `degraded`, nie 503: kontener w pętli restartów nie wyłączy trybu
+     * debugowania, zrobi to człowiek w panelu, a `check()` zapisuje błąd
+     * w dzienniku i dzwoni na `blad_webhook`. Poza produkcją debug jest
+     * stanem normalnym (`.env.example`, CI).
+     */
+    private function sprawdzTrybDebug(): void
+    {
+        if (! app()->environment('production') || ! (bool) config('app.debug')) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_DEBUG_WLACZONY,
+            'APP_DEBUG=true na produkcji: strona błędu pokazuje ślad stosu i zmienne środowiska. '
+                .'Ustaw APP_DEBUG=false w zmiennych serwisu (wzorzec: .railway/railway.ts).',
+        );
+    }
+
+    /**
+     * Produkcja z ciasteczkiem sesji bez `Secure` (audyt B10-04). Domyślna
+     * wartość na produkcji to `true` (`config/session.php`), więc ten sygnał
+     * zapala tylko JAWNE `SESSION_SECURE_COOKIE=false`.
+     */
+    private function sprawdzCiasteczkoSesji(): void
+    {
+        if (! app()->environment('production') || (bool) config('session.secure')) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_SESJA_BEZ_SECURE,
+            'Ciasteczko sesji bez flagi Secure na produkcji. '
+                .'Ustaw SESSION_SECURE_COOKIE=true albo usuń tę zmienną (domyślnie true na produkcji).',
         );
     }
 
