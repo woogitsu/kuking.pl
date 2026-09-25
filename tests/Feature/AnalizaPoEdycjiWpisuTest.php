@@ -188,6 +188,12 @@ class AnalizaPoEdycjiWpisuTest extends TestCase
             ->assertRedirect($wpis->url())
             ->assertSessionHas('status', fn (string $s): bool => str_contains($s, 'odwołaj się'));
 
+        // Przekierowanie nie może skończyć się 403 ani zgubić komunikatu:
+        // autor widzi własny wpis pod decyzją razem ze zdaniem, co zrobić.
+        $this->actingAs($autor)->followingRedirects()->get(route('posts.edit', $wpis))
+            ->assertOk()
+            ->assertSee('odwołaj się od decyzji', false);
+
         // Tekst wpisany mimo to nie znika — wraca do skopiowania.
         $this->zapisz($autor, $wpis, ['body' => 'Moja poprawka po decyzji.'])
             ->assertForbidden()

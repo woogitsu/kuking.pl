@@ -17080,7 +17080,7 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 Odwrócić commit. Schemat bazy się nie zmienia.
 ## D-258 — Poprawiony wpis przechodzi analizę automatu jeszcze raz; wpisu pod decyzją moderacji nie da się edytować (24 września 2026)
 
-**Data:** 24 września 2026 · Issue #936 · Status: **do decyzji właściciela**
+**Data:** 24 września 2026 · Issue #936 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
 (zmienia jeden wiersz „ODŁOŻONE” z D-052)
 
 **Co.**

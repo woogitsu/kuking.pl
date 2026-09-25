@@ -2,7 +2,7 @@
      zapisano, ale wpisany tekst nie znika (AGENTS.md §5) — wraca do skopiowania. --}}
 <x-layout title="Tego wpisu nie da się teraz poprawić">
     <section class="panel-formularza stack" aria-labelledby="poprawka-pod-decyzja">
-        <h2 id="poprawka-pod-decyzja">Tego wpisu nie da się teraz poprawić.</h2>
+        <h1 id="poprawka-pod-decyzja">Tego wpisu nie da się teraz poprawić.</h1>
         <p>{{ $komunikat }}</p>
         <p>Poniżej jest Twój tekst — nie został zapisany we wpisie. Skopiuj go, żeby zachować go u siebie.</p>
         <div class="field">
