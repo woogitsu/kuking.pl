@@ -205,7 +205,9 @@ export async function sprawdzScenariuszDetails({ page, context, origin, c, width
       await nextTo(page, 'summary[data-details-probe="summary"]', 'Shift+Tab'); await focus(page);
       await page.keyboard.press('Enter'); assert(!(await page.locator('details[data-details-probe="container"]').evaluate(e => e.open)), 'DETAILS_NOT_CLOSED');
       if (c.id === 'wiadomosc') {
-        const last = page.locator('main form').filter({ has: page.locator('[name=handler_note]') }).locator('button[type=submit]');
+        // `textarea`, nie samo `[name=handler_note]`: od #845 formularz odpowiedzi niesie
+        // ukrytą, wyłączoną kopię notatki (`data-kopia-z`), więc sama nazwa pola pasuje do dwóch formularzy.
+        const last = page.locator('main form').filter({ has: page.locator('textarea[name=handler_note]') }).locator('button[type=submit]');
         assert.equal(await last.count(), 1); assert(await last.evaluate(e => !e.disabled && e.textContent.trim() === 'Zapisz'), 'DETAILS_SAVE_TEXT'); await last.evaluate(e => e.dataset.detailsLast = 'save');
         await nextTo(page, '[data-details-last="save"]'); row.lastButton = await focus(page);
         await screenshot(page, resolve(outputDir, name + '-last-button.png'));
