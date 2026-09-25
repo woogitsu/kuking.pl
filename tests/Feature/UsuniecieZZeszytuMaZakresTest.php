@@ -130,7 +130,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
      * kliknie, a zdanie po akcji nazywa go liczbą i daje drogę powrotu, która
      * naprawdę wraca — z notatkami.
      *
-     * 25.09.2026 WŁAŚCICIEL DOŁOŻYŁ POTWIERDZENIE (D-257): przy kilku
+     * 25.09.2026 WŁAŚCICIEL DOŁOŻYŁ POTWIERDZENIE (D-267): przy kilku
      * zeszytach samo DELETE oddaje najpierw stronę z pytaniem, a wyjmuje
      * dopiero z `potwierdzam_wszystkie=1`. Pilnuje tego
      * `WyjecieZeWszystkichZeszytowWymagaPotwierdzeniaTest`; tu zostaje

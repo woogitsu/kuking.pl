@@ -384,7 +384,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
 
             // --- trzy drzwi do kreatora przepisu --------------------------
             'szukaj-pusty-stan' => [
-                $this->zalogujIWezAdres(fn () => route('search', ['q' => 'niczegotakiegoniema'])),
+                $this->zalogujIWezAdres(fn () => route('search', ['q' => 'niczegotakiegoniema', 'sekcja' => 'przepisy'])),
                 'Dodaj taki przepis',
                 null,
                 false,

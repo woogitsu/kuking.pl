@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * „Usuń z zeszytu” przy przepisie w kilku zeszytach pyta, zanim zdejmie go
- * ze wszystkich (#775, D-257, decyzja właściciela z 25.09.2026).
+ * ze wszystkich (#775, D-267, decyzja właściciela z 25.09.2026).
  *
  * Sceny używają dwóch własnych zeszytów z notatkami i jednego cudzego —
  * i sprawdzają konkretne wiersze pivotu, nie tylko odpowiedź.
