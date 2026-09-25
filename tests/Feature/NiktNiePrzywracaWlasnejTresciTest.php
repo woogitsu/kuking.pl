@@ -190,10 +190,14 @@ class NiktNiePrzywracaWlasnejTresciTest extends TestCase
      * Stan „ukryte przez innego moderatora przy zgłoszeniu" budujemy wprost:
      * droga przez `decide` podlega regule rangi celu, a tu mierzymy wyłącznie
      * przywracanie.
+     *
+     * Ukrywa ktoś tej samej rangi co autor: decyzję administratora cofa tylko
+     * administrator (audyt B2-01), a kontrole dodatnie przywracają rękami
+     * zwykłego moderatora.
      */
     private function ukryte(Model $cel, string $typ, User $autor): Report
     {
-        $ukrywajacy = $this->admin();
+        $ukrywajacy = $autor->isAdmin() ? $this->admin() : $this->moderator();
 
         $report = Report::create([
             'reporter_id' => $this->user()->getKey(),
