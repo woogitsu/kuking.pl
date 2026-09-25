@@ -2320,7 +2320,9 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
-o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+o 04:20. Zwykłe powiadomienia: `DELETE` partiami z budżetem na przebieg
+(`UsuwanieWPartiach`, #1657, opis przy `product_signals`) — wiersz nie ma
+odpowiednika w storage.
 Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
 (następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
 liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
@@ -3801,9 +3803,23 @@ filtruje po `signal_name`.
 **Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
 90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
 (`App\Domain\Analytics\PrzedawnioneSygnaly`), harmonogram codziennie o 04:00
-(`routes/console.php`). Zwykły masowy `DELETE ... WHERE occurred_at < ?` —
-bez `chunkById`, bo wiersz nie ma odpowiednika po stronie storage (w
-odróżnieniu od `OsieroconeZdjecia`).
+(`routes/console.php`). `DELETE ... WHERE occurred_at < ? AND id IN (...)`
+partiami — bez `chunkById` po modelach, bo wiersz nie ma odpowiednika po
+stronie storage (w odróżnieniu od `OsieroconeZdjecia`).
+
+**Retencja prostych tabel partiami (#1657)** — `product_signals`, `audit_log`,
+zwykłe `notifications`, `sessions` i `potwierdzenia_zadan_rodo` kasuje
+`App\Domain\Compliance\UsuwanieWPartiach`: partia identyfikatorów w stałym
+porządku po kluczu głównym, potem `DELETE` z tym samym predykatem wieku
+(i wyjątków: `NIGDY_NIE_KASUJ`, typy odwoławcze, wstrzymanie RODO, próg
+`SESSION_LIFETIME`) we własnej krótkiej transakcji. Najwyżej
+`kuking.retencja.budzet` wierszy z jednej tabeli na przebieg (domyślnie
+50 000, partia `kuking.retencja.partia` = 1000); reszta schodzi w kolejne
+noce, z ostrzeżeniem `stage=retention_budget_exhausted` (tabela i liczby,
+bez identyfikatorów). Przerwany przebieg zachowuje zatwierdzone partie.
+Wcześniej był tu jeden `DELETE` na cały backlog — przerwany cofał się
+w całości. Schemat ani indeksy się nie zmieniają; pomiaru `EXPLAIN` na
+danych produkcyjnych nie wykonano. Testy: `RetencjaPartiamiTest`.
 
 **Zapis sygnału nigdy nie wywraca operacji, którą opisuje:**
 `ZapiszSygnal::handle()` łapie każdy wyjątek i tylko go loguje
