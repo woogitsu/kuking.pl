@@ -583,6 +583,21 @@ kolejność merytoryczna z `docs/ROADMAP.md`. Nowe pomysły zapisuj jako issue
 z opisem, uzasadnieniem i kryteriami akceptacji — nie dokładaj ich
 do niepowiązanego PR-a.
 
+### Praca równoległa wielu sesji (flota)
+
+Jeśli prowadzisz albo koordynujesz równoległe sesje Claude Code w chmurze,
+czyli jesteś **sesją główną**, pracujesz według
+[`docs/flota/chmura/SESJA_GLOWNA.md`](docs/flota/chmura/SESJA_GLOWNA.md).
+Tam jest opisane:
+- wznawianie pracy bez pytania;
+- limit i dokładanie sesji;
+- kontrola pełnej listy sesji;
+- przegląd kodu przed PR-em;
+- zamykanie issues z dowodem;
+- scalanie paczkami.
+
+Sesja robocza nie otwiera PR-ów. Pushuje swoją gałąź i kończy raportem.
+
 ---
 
 ## 11. Język
