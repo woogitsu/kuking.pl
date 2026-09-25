@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\LiczbyTagowWCache;
 use App\Domain\Tags\TagCollage;
-use App\Domain\Tags\TagPublicStats;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -31,7 +31,7 @@ class TagController extends Controller
 {
     public function __construct(
         private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
-        private readonly TagPublicStats $publicStats = new TagPublicStats,
+        private readonly LiczbyTagowWCache $liczby = new LiczbyTagowWCache,
         private readonly TagCollage $collage = new TagCollage,
     ) {}
 
@@ -51,57 +51,51 @@ class TagController extends Controller
      */
     public function index(Request $request): View
     {
-        // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
-        // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
-        // zakres, który komentarz `Post::scopeTylkoOdAktywnychAutorow()`
-        // wymienia wprost jako przeznaczony m.in. dla feedu tagów.
+        // LICZBA WPISÓW TO TEN SAM ZAKRES CO `tylkoPubliczne()` (D-087, #941),
+        // ale liczona w `LiczbyTagowWCache`, z cache per tag (audyt B4 W2).
+        // Wcześniej `withCount('posts')` przeliczało wszystkie wpisy stu tagów
+        // przy każdej odsłonie. Liczba jest ta sama dla każdego widza, więc
+        // cache jej nie zmienia — tylko przesuwa świeżość o kilka minut.
         //
         // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
-        // ten zakres liczy się PER WIDZ (blokady, obserwowanie), więc na
-        // liście z jednym zapytaniem dla wielu tagów naraz dałby inną
-        // liczbę każdej zalogowanej osobie — nie do zmierzenia raz i nie
-        // do wytłumaczenia. `publiclyVisible()` daje TĘ SAMĄ liczbę
-        // każdemu i jest dokładnie tym, co zobaczy gość wchodząc na
-        // `/tag/{slug}` — dla zalogowanej osoby to bezpieczne
-        // niedoszacowanie, nigdy zawyżenie (D-087).
+        // tamten zakres liczy się PER WIDZ (blokady, obserwowanie), a liczba
+        // w spisie ma znaczyć to samo dla każdego — to, co zobaczy gość
+        // wchodząc na `/tag/{slug}`. Dla zalogowanej osoby to bezpieczne
+        // niedoszacowanie, nigdy zawyżenie.
         //
-        // `zWidocznymPrzepisem(null)` — z tego samego powodu co w `show()`:
-        // zapowiedź przepisu jest na stałe `public`, więc `publiclyVisible()`
-        // jej nie odcina. Bez tej bramki zapowiedź przepisu „tylko dla
-        // obserwujących", ukrytego albo usuniętego podnosiła liczbę, choć
-        // gość na stronie tagu jej nie zobaczy, a `TagPublicStats` i
-        // `TagCollage` na tym samym ekranie ją pomijają (issue #941).
-        // `null`, nie widz: liczba ma być ta sama dla każdego. Wpis z własną
-        // treścią liczy się według własnej widoczności — tak jak stoi na
-        // stronie tagu (issue #1377); zakres trzyma `tylkoPubliczne()`, więc
-        // licznik i warunek indeksowania (#1007) dalej znaczą to samo.
-        // `TagPublicStats`, `TagCollage` i `PodpowiedziTagow` zostają przy
-        // węższym `zWidocznymPrzepisem()` — ich testy utrwalają to od #941;
-        // różnica to niedoszacowanie, nigdy zawyżenie (D-087).
-        $liczPubliczneWpisy = fn ($query) => $this->tylkoPubliczne($query);
-
+        // Wpis z własną treścią liczy się według własnej widoczności — tak
+        // jak stoi na stronie tagu (issue #1377); `LiczbyTagowWCache` trzyma
+        // ten sam zakres co `tylkoPubliczne()`, więc licznik i warunek
+        // indeksowania (#1007) dalej znaczą to samo. `TagPublicStats`,
+        // `TagCollage` i `PodpowiedziTagow` zostają przy węższym
+        // `zWidocznymPrzepisem()` — ich testy utrwalają to od #941; różnica
+        // to niedoszacowanie, nigdy zawyżenie (D-087).
         $polecane = Tag::query()
             ->promowane()
-            ->withCount(['posts' => $liczPubliczneWpisy])
             ->get();
 
         $tagi = Tag::query()
             ->aktywne()
-            ->withCount(['posts' => $liczPubliczneWpisy])
             ->orderBy('name')
             ->paginate((int) config('kuking.tags.index_page_size'))
             ->withQueryString();
 
+        $publicStats = $this->liczby->forTags(
+            array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
+        );
+
+        foreach ([...$polecane, ...$tagi->getCollection()] as $tag) {
+            $tag->setAttribute('posts_count', $publicStats[$tag->getKey()]['postsCount'] ?? 0);
+        }
+
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
-            'collages' => $this->collage->forTags(
+            'collages' => $this->collage->forTagsWCache(
                 array_unique(array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys())),
                 $request->user(),
             ),
-            'publicStats' => $this->publicStats->forTags(
-                array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
-            ),
+            'publicStats' => $publicStats,
         ]);
     }
 
@@ -181,7 +175,10 @@ class TagController extends Controller
             ->tap(fn ($query) => $this->zapisy->dolicz($query, $widz))
             ->latest('published_at')
             ->latest('id')
-            ->paginate((int) config('kuking.feed.page_size'))
+            // Kursor, nie OFFSET (audyt B4 W2): `paginate()` liczył przy
+            // każdej odsłonie pełny COUNT wszystkich wpisów tagu, a dalsze
+            // strony płaciły OFFSET-em. Feedy robią to tak samo.
+            ->cursorPaginate((int) config('kuking.feed.page_size'))
             ->withQueryString()
             ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $widz));
 
@@ -201,9 +198,13 @@ class TagController extends Controller
         return view('pages.tags.show', [
             'tag' => $tag,
             'indeksowalny' => $maPublicznyWpis,
-            'collage' => $this->collage->forTags([$tag->getKey()], $widz)[$tag->getKey()],
+            'collage' => $this->collage->forTagsWCache([$tag->getKey()], $widz)[$tag->getKey()],
             'tagNote' => $tag->promotion?->note,
-            'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
+            'publicStats' => $publicStats = $this->liczby->forTags([$tag->getKey()])[$tag->getKey()],
+            // Opis dla wyszukiwarki mówi liczbę widoczną dla GOŚCIA — robot
+            // odwiedza jako anonim. Kursor nie liczy `total()`, więc bierzemy
+            // publiczną liczbę z `LiczbyTagowWCache` (ten sam zakres co spis).
+            'liczbaPublicznychWpisow' => $publicStats['postsCount'],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
         ]);
