@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Moderacja;
 
+use App\Support\DozwolonyHostApi;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -35,6 +37,9 @@ use Throwable;
  *
  * BRAK KLUCZA = FUNKCJA WYŁĄCZONA I NIC NIE PADA. Tak jest lokalnie, w CI
  * i w testach: `oceniamy()` oddaje `false`, żadne żądanie nie wychodzi.
+ * KLUCZ POD OBCYM ADRESEM (#991) też daje `false`, ale to już błąd, nie
+ * spoczynek — `bladKonfiguracji()` go nazywa, `zglosBladKonfiguracji()`
+ * zgłasza raz na godzinę.
  *
  * AWARIA PO TAMTEJ STRONIE NIE MOŻE NICZEGO WSTRZYMAĆ. Publikacja wpisu
  * dzieje się w zupełnie innym żądaniu (analiza chodzi w kolejce), więc
@@ -44,10 +49,114 @@ use Throwable;
  */
 final class KlientOpenAI
 {
+    /**
+     * Jedyny host, któremu wolno dać klucz i cudzą treść do oceny (#991).
+     *
+     * @var list<string>
+     */
+    public const HOSTY = ['api.openai.com'];
+
+    /**
+     * Jedyna ścieżka: klient buduje żądanie w kształcie API moderacji, więc
+     * pod żadnym innym adresem OpenAI i tak nie miałoby sensu (D-250).
+     */
+    public const SCIEZKA = '#^/v1/moderations$#';
+
+    /** Kanoniczny adres — ten sam co wartość domyślna w `config/kuking.php`. */
+    public const ADRES = 'https://api.openai.com/v1/moderations';
+
+    /**
+     * Klucz pod obcym adresem zgłaszamy najwyżej raz na to okno. Bez tego
+     * KAŻDA oceniana treść dawała `Log::error` na kanale `blad_webhook`
+     * i jeden błąd konfiguracji zalewał alarmy.
+     */
+    public const OKNO_ZGLOSZENIA_SEKUND = 3600;
+
+    private const KLUCZ_ZGLOSZENIA = 'kuking:moderacja:obcy-adres-modelu';
+
+    /**
+     * Czy model w ogóle ocenia: jest klucz I adres prowadzi do OpenAI.
+     * Klucz z obcym adresem to NIE jest „ocenianie" — nic nie wychodzi,
+     * a nazwę błędu podaje `bladKonfiguracji()`.
+     */
     public static function oceniamy(): bool
+    {
+        return self::maKlucz() && self::adresZgodny();
+    }
+
+    public static function maKlucz(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
             && config('kuking.moderation.model.klucz') !== '';
+    }
+
+    /**
+     * Czy `KUKING_MODEL_ENDPOINT` to dokładnie API moderacji OpenAI. Obcy
+     * host, ścieżka, port, query albo fragment = klient odmawia każdego
+     * zapytania, zanim cokolwiek wyjdzie.
+     */
+    public static function adresZgodny(): bool
+    {
+        return self::bladAdresu() === null;
+    }
+
+    /**
+     * Zdanie dla operatora, gdy klucz jest, a adres nie prowadzi do OpenAI.
+     * Tylko nazwa zmiennej, nazwa złej części adresu i poprawna wartość —
+     * nigdy sam adres ani klucz. `null` = konfiguracja w porządku albo
+     * brak klucza (to osobny, opisany stan).
+     */
+    public static function bladKonfiguracji(): ?string
+    {
+        if (! self::maKlucz()) {
+            return null;
+        }
+
+        $powod = self::bladAdresu();
+
+        if ($powod === null) {
+            return null;
+        }
+
+        return "Zmienna KUKING_MODEL_ENDPOINT nie jest adresem API moderacji OpenAI ({$powod}). "
+            .'Moderacja modelem NIE DZIAŁA — nic nie wysyłamy. Usuń zmienną (wartość domyślna '
+            .'jest poprawna) albo wpisz '.self::ADRES.'.';
+    }
+
+    /**
+     * Jeden `Log::error` na okno, nie jeden na treść. `Cache::add` jest
+     * atomowe — przy kilku workerach zgłasza tylko pierwszy.
+     */
+    public static function zglosBladKonfiguracji(string $czego): void
+    {
+        $blad = self::bladKonfiguracji();
+
+        if ($blad === null) {
+            return;
+        }
+
+        if (! Cache::add(self::KLUCZ_ZGLOSZENIA, true, self::OKNO_ZGLOSZENIA_SEKUND)) {
+            return;
+        }
+
+        // `error`, nie `warning`: to jest błąd konfiguracji, który ma dojść do
+        // kanału alarmowego. Bez adresu w kontekście — zmienna bywa wklejana
+        // razem z tokenem, a nazwa zmiennej wystarcza, żeby wiedzieć, co zmienić.
+        Log::error($blad, [
+            'czego' => $czego,
+            'zmienna' => 'KUKING_MODEL_ENDPOINT',
+            'dozwolone' => self::HOSTY,
+            'stage' => 'openai_obcy_host',
+        ]);
+    }
+
+    private static function bladAdresu(): ?string
+    {
+        return DozwolonyHostApi::powod(
+            (string) config('kuking.moderation.model.endpoint'),
+            self::HOSTY,
+            self::SCIEZKA,
+        );
     }
 
     /**
@@ -98,7 +207,13 @@ final class KlientOpenAI
      */
     private function zapytaj(array $wejscie, string $czego): ?WynikOceny
     {
-        if (! self::oceniamy()) {
+        if (! self::maKlucz()) {
+            return null;
+        }
+
+        if (! self::adresZgodny()) {
+            self::zglosBladKonfiguracji($czego);
+
             return null;
         }
 
