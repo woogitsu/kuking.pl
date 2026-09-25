@@ -1171,10 +1171,23 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Topologia Railway (#595). Stoi TU (katalog `scripts/railway/`, jak `scripts/przegladarka/`), a nie na liście `node --test`
+      # w skrypcie `build`, bo `npm run build` jedzie także w Dockerfile,
+      # a `.dockerignore` wycina `.railway/`. Potrzebuje `npm ci` (paczka
+      # `railway`), sieci do Railwaya — nie.
+      - name: Topologia Railway (graf IaC, bez połączenia)
+        run: node --test scripts/railway/iac.test.mjs
+
       - name: Proporcje małej skali — rzeczywisty CSS w Chromium
         run: |
           flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
           node scripts/skala-proporcje.mjs
+
+      # Pusty pas pod stopką i jej wysokość (zgłoszenia właściciela 22.09
+      # i 24.09) na kaskadzie z buildu, razem z kontrolą ujemną. Wersja na
+      # żywym serwisie z kontem chodzi w `port-projektu.mjs`.
+      - name: Stopka bez pustego pasa — rzeczywisty CSS w Chromium
+        run: node scripts/stopka-pusty-pas.mjs --statycznie
 
       # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
       # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
