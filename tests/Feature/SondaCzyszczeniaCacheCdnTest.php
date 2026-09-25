@@ -98,6 +98,33 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
     }
 
     /**
+     * Strefa i token są, ale adres czyszczenia prowadzi poza Cloudflare
+     * (#991, D-250). Zadanie odmawia wysłania tokenu, więc czyszczenie nie
+     * działa nigdy — sonda nie ma prawa mówić „ok" tylko dlatego, że dwie
+     * zmienne są niepuste. Publicznie: sam kod, bez adresu.
+     */
+    public function test_obcy_adres_czyszczenia_jest_degraded_i_nie_zdradza_adresu(): void
+    {
+        $this->produkcjaBezSzumu();
+
+        config([
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token',
+            'kuking.media.cdn_purge.endpoint' => 'https://przechwyt.example.com/client/v4/zones/{zone}/purge_cache',
+        ]);
+
+        $odpowiedz = $this->get('/health')
+            ->assertOk()
+            ->assertJsonPath('status', 'degraded')
+            ->assertJsonPath('checks.cdn.ok', false)
+            ->assertJsonPath('checks.cdn.error', 'czyszczenie_cdn_zly_adres');
+
+        $this->assertContains('czyszczenie_cdn_zly_adres', HealthController::POWODY);
+        $this->assertStringNotContainsString('przechwyt', (string) $odpowiedz->getContent());
+        $this->assertStringNotContainsString('udawany-token', (string) $odpowiedz->getContent());
+    }
+
+    /**
      * Sama strefa bez tokenu (i odwrotnie) to nadal wyłączone czyszczenie —
      * `PurgePublicMediaCache` wymaga OBU. Gdyby sonda pytała tylko o jedną
      * zmienną, wdrożenie z połową konfiguracji świeciłoby na zielono, nie
