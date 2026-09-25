@@ -16,6 +16,16 @@ use App\Support\Facebook;
 
 return [
 
+    /*
+     * TAG TYGODNIA (issue #18) — blok na `/home` i plan wyróżnień w panelu
+     * tagów promowanych. DOMYŚLNIE WYŁĄCZONY: przy wyłączonej fladze `/home`
+     * nie pokazuje bloku, a trasy panelu zwracają 404. Dane (`tag_highlights`)
+     * zostają niezależnie od flagi.
+     */
+    'tag_tygodnia' => [
+        'wlaczony' => (bool) env('KUKING_TAG_TYGODNIA', false),
+    ],
+
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
