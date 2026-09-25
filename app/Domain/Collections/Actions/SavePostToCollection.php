@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\User;
@@ -36,7 +37,18 @@ final class SavePostToCollection
 {
     public function handle(User $user, Post $post, ?Collection $collection = null, ?string $note = null): Collection
     {
-        $collection ??= $user->defaultCollection();
+        // Ta sama granica co przy przepisie (#1022) — uzasadnienie
+        // w `ZamekZapisuDoZeszytu`.
+        return app(ZamekZapisuDoZeszytu::class)->zapisz(
+            $user,
+            $post,
+            $collection,
+            fn (User $user, Post $post, Collection $collection): Collection => $this->save($user, $post, $collection, $note),
+        );
+    }
+
+    private function save(User $user, Post $post, Collection $collection, ?string $note): Collection
+    {
         Gate::forUser($user)->authorize('update', $collection);
 
         if ($collection->posts()->whereKey($post->getKey())->exists()) {
@@ -48,10 +60,12 @@ final class SavePostToCollection
         }
 
         try {
-            $collection->posts()->attach($post->getKey(), [
+            // Savepoint: jesteśmy w transakcji zamka, a złapane 23505 bez
+            // niego zostawiłoby ją w stanie „transaction aborted”.
+            DB::transaction(fn () => $collection->posts()->attach($post->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
-            ]);
+            ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa żądania równocześnie: oba przeszły sprawdzenie wyżej, drugie
             // odbiło się o indeks częściowy. Dla człowieka to nadal jedno
