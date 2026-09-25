@@ -34,6 +34,17 @@ limit brokera, zgodnie z walidacją samego resetu. Nowe zadanie zachowuje
 dodatkowo przekazany termin. Nie zmieniamy schematu ani zasad przyjmowania
 tokenów przez formularze.
 
+## Logowanie linkiem (dołożone 24 września 2026)
+
+`LinkDoLogowania` ma teraz ten sam strażnik `shouldSend`: szuka wiersza
+`login_link_tokens` po skrócie tokenu, sprawdza właściciela i termin
+(`expires_at` z bazy, skrócony przez przekazane `wygasa`, nigdy wydłużony).
+Wygasły albo zastąpiony link nie trafia do transportu; tokenu nie odnawiamy,
+a miejsca w dobowym budżecie nie oddajemy (budżet liczy próby). Zadanie bez
+daty (`wygasa === null`) czyta termin z bazy. Treść podaje „przez pół godziny
+od chwili zamówienia", a przy opóźnieniu — ile minut naprawdę zostało.
+Regresja: `tests/Feature/LinkLogowaniaTerminIPonowienieTest.php`.
+
 ## Własne pomiary
 
 Baza wyjściowa gałęzi `gpt/tokeny-zaproszen`:
