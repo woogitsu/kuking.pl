@@ -576,12 +576,7 @@ class DataExportTest extends TestCase
         // Dysk, którego nie ma w konfiguracji — realny odpowiednik awarii storage.
         config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
 
-        try {
-            (new GenerateUserExport((string) $export->getKey()))->handle();
-            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
-        } catch (\Throwable) {
-            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
-        }
+        $this->uruchomJobOczekujacAwariiMagazynu($export);
 
         $export->refresh();
 
@@ -625,12 +620,7 @@ class DataExportTest extends TestCase
         // wylądowałyby wprost w failure_reason i na ekranie ustawień.
         config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
 
-        try {
-            (new GenerateUserExport((string) $export->getKey()))->handle();
-            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
-        } catch (\Throwable) {
-            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
-        }
+        $this->uruchomJobOczekujacAwariiMagazynu($export);
 
         $export->refresh();
 
@@ -642,6 +632,32 @@ class DataExportTest extends TestCase
         $this->assertStringNotContainsString('Exception', $powod);
         $this->assertStringNotContainsString('dysk-ktorego-nie-ma', $powod);
         $this->assertStringNotContainsString(sys_get_temp_dir(), $powod);
+    }
+
+    /**
+     * Uruchamia job i wymaga, żeby awaria magazynu DOTARŁA do kolejki (#822).
+     *
+     * Wcześniej stało tu `try { handle(); $this->fail(...); } catch (\Throwable) {}`.
+     * `fail()` rzuca `AssertionFailedError`, który też jest `Throwable` — więc
+     * catch połykał własną asercję testu. Job, który zapisałby `failed`, ale
+     * zgubił `throw $e` po `markFailed()`, przechodził: kolejka nie dowiedziałaby
+     * się o porażce i nie ponowiła zadania. Teraz łapiemy wyłącznie oczekiwany
+     * typ, a brak wyjątku sprawdzamy POZA blokiem catch.
+     */
+    private function uruchomJobOczekujacAwariiMagazynu(DataExport $export): void
+    {
+        $wyjatek = null;
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+        } catch (DataExportStorageFailure $e) {
+            $wyjatek = $e;
+        }
+
+        $this->assertNotNull(
+            $wyjatek,
+            'Job powinien przekazać wyjątek kolejce, żeby zapisała porażkę i mogła ponowić zadanie.',
+        );
     }
 
     public function test_widok_pokazuje_ludzki_tekst_powodu_a_nie_kod(): void
