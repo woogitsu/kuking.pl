@@ -4567,6 +4567,12 @@ razem z gałęzią `@case` w widoku powiadomień.
 
 **Data:** 10 września 2026 · Issue #237 · Status: **obowiązuje**
 
+> **Adnotacja (25 września 2026, B6-06):** **D-240** (22 września 2026)
+> uchyla tę decyzję w części „zdjęcie profilowe idzie do modelu" — awatar
+> **nie** wychodzi do OpenAI (`app/Jobs/PrzeanalizujAwatar.php`, celowo
+> pusty job). Część o celu oznaczenia (`target_type = 'media'`) i o tym,
+> że awatar jest ważniejszy do ochrony niż wpis, zostaje w mocy.
+
 Pytanie właściciela było jednozdaniowe: *„czy zdjęcie profilowe jest
 przetwarzane przez moderation omni model?"*. Odpowiedź brzmiała **nie** —
 i to była luka większa, niż wyglądała.
@@ -15349,6 +15355,13 @@ o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
 komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
 powiadomienia i nie przywraca `read_at` do `null`.
 
+> **Adnotacja (25 września 2026, B6-07):** zdanie powyżej o ponownej
+> analizie przestało być prawdziwe — **D-256** (24 września 2026, #909)
+> zastąpiła je w tej części: `CommentController::update()` zleca
+> `PrzeanalizujTresc::dlaKomentarza()`, gdy edycja rzeczywiście zmienia
+> tekst komentarza. Reszta zdania (brak nowego powiadomienia, `read_at`
+> bez zmiany) obowiązuje bez zmian.
+
 Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
 komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
 komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
@@ -15566,7 +15579,8 @@ krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
 i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
 
 Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
-(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+(#1164), D-228 (#966, numer na gałęzi, nie na `main`), D-229 (#1180), D-230
+(#1168) są zajęte, a D-232 jest
 zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
 
 Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
@@ -15663,10 +15677,15 @@ jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 ## D-239 — Wspólny licznik całej poczty i kolejność wygaszania (#732, 22 września 2026)
 
 > Numer: gałąź `fix/732-wspolny-licznik-poczty` niosła tę decyzję jako D-225,
-> a ten numer (i D-226, D-227) zajęły w międzyczasie inne decyzje na `main`.
-> D-239 to pierwszy numer wolny na `origin/main` i na wszystkich gałęziach
-> zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź, której numeru
-> nie ma jeszcze na `main`). Treść to intencja tamtej gałęzi przeniesiona na
+> a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
+> bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
+> na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
+> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
+> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
+> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
+> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
+> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
 Do tej zmiany każda funkcja wysyłająca wiele listów miała własny sufit dobowy
@@ -15985,7 +16004,8 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 „Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
 
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
-D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
+gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
 wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
 strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
@@ -16758,8 +16778,15 @@ Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
 ## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
 
-**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
-(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+**Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
+(potwierdzone przez właściciela 25 września 2026 — zmienia jeden wiersz
+„ODŁOŻONE” z D-052)
+
+**Potwierdzenie właściciela (25 września 2026):** treść decyzji z
+24 września obowiązuje bez zmian. Audyt dokumentacji B6 (znalezisko
+B6-12) zwrócił uwagę, że commit wszedł na `main` (#909), zanim wpis dostał
+status inny niż „do decyzji właściciela” — właściciel potwierdza tę treść
+zamiast wycofywać commit.
 
 **Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
 opublikowanego komentarza, `CommentController::update()` zleca
