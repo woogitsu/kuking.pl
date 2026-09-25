@@ -53,6 +53,34 @@ class LivewireReleaseTokenZWydaniaTest extends TestCase
     }
 
     #[Test]
+    public function token_stopka_i_runbook_mowia_o_tej_samej_zmiennej(): void
+    {
+        // Kryterium #977: kontrakt config ↔ wdrożenie ↔ dokumentacja. Token
+        // i wersja w stopce mają czytać TĘ SAMĄ zmienną wydania, a runbook
+        // wdrożenia ma mówić, skąd token się bierze — inaczej ktoś „poprawi”
+        // jedno źródło, a drugie zostanie na starym.
+        $livewire = (string) file_get_contents(base_path('config/livewire.php'));
+        $kuking = (string) file_get_contents(base_path('config/kuking.php'));
+        $runbook = (string) file_get_contents(base_path('docs/infra/DEPLOYMENT_RUNBOOK.md'));
+
+        $this->assertMatchesRegularExpression(
+            "/'release_token'\\s*=>[^\\n]*env\\('".self::ZMIENNA."'\\)/",
+            $livewire,
+            'livewire.release_token nie czyta '.self::ZMIENNA.'.',
+        );
+        $this->assertMatchesRegularExpression(
+            "/'commit'\\s*=>\\s*env\\('".self::ZMIENNA."'\\)/",
+            $kuking,
+            'kuking.wersja.commit nie czyta '.self::ZMIENNA.' — token i stopka rozjechały się.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/livewire\.release_token[^\n]*\n?[^\n]*'.self::ZMIENNA.'/',
+            $runbook,
+            'Runbook wdrożenia nie mówi, że token wydania Livewire bierze się z '.self::ZMIENNA.'.',
+        );
+    }
+
+    #[Test]
     public function migawka_ze_starego_wydania_jest_odrzucana(): void
     {
         // Prawdziwy mechanizm Livewire 4.4.3: migawka z `memo.release` wydanego
