@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -137,6 +139,33 @@ class PoprawkaKomentarzaDwieKartyTest extends TestCase
 
         $this->assertSame('Pół łyżeczki soli', $comment->fresh()->body);
         $this->assertTrue($poPierwszym->equalTo($comment->fresh()->updated_at), 'Ponowienie nie może zapisywać wiersza drugi raz.');
+    }
+
+    /**
+     * Odrzucona poprawka z drugiej karty nie zleca skutków ubocznych edycji
+     * (kryterium #982): ponownej analizy treści (#909, D-256) ani zapisu
+     * wiersza. Kontrola dodatnia: poprawka z aktualną wersją zleca analizę.
+     */
+    public function test_konflikt_nie_zleca_ponownej_analizy(): void
+    {
+        Queue::fake([PrzeanalizujTresc::class]);
+        [$basia, , $comment] = $this->komentarz('Sól do smaku');
+        $wersjaStartowa = $comment->wersjaTresci();
+
+        $this->actingAs($basia)->put(route('comments.update', $comment), [
+            'body' => 'Pół łyżeczki soli', 'wersja' => $wersjaStartowa,
+        ])->assertSessionHasNoErrors();
+        Queue::assertPushed(PrzeanalizujTresc::class, 1);
+        $poPierwszym = $comment->fresh()->updated_at;
+        $this->travel(5)->seconds();
+
+        $this->actingAs($basia)->put(route('comments.update', $comment), [
+            'body' => 'Sól i pieprz do smaku', 'wersja' => $wersjaStartowa,
+        ])->assertSessionHasErrors('wersja');
+
+        Queue::assertPushed(PrzeanalizujTresc::class, 1);
+        $this->assertSame('Pół łyżeczki soli', $comment->fresh()->body);
+        $this->assertTrue($poPierwszym->equalTo($comment->fresh()->updated_at), 'Odrzucona poprawka zapisała wiersz.');
     }
 
     /** @return array{0: User, 1: Post, 2: Comment} */
