@@ -2318,7 +2318,7 @@ Kolumny dołożone dla drogi prawnej:
 |---|---|
 | `notifier_name` | Imię i nazwisko albo nazwa instytucji (art. 16 ust. 2 lit. b). |
 | `notifier_email` | **Może być `NULL`** — art. 16 ust. 2 lit. c zwalnia z podania danych przy zgłoszeniach dotyczących przestępstw z art. 3–7 dyrektywy 2011/93/UE. Wtedy nie ma komu odpowiedzieć i to jest zgodne z przepisem, a nie brak w danych. |
-| `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). |
+| `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). To dowód, nie zaufany cel: `target_type`/`target_id` wyznaczamy z niego tylko dla bezwzględnego adresu http(s) na `kuking.pl`, `www.kuking.pl` albo hoście z `APP_URL`, bez `user@` i nieoczekiwanego portu (`App\Domain\Moderation\AdresZgloszenia`, #1636). W listach do zgłaszającego wartość idzie jako tekst, nie Markdown. |
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
 | `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |

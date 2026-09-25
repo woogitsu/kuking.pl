@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
+use App\Domain\Moderation\AdresZgloszenia;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Rules\TurnstileJestPotwierdzony;
@@ -174,11 +175,17 @@ class ZgloszenieNielegalnejTresciController extends Controller
      * adresu, byłaby odmówieniem mechanizmu, który przepis nakazuje
      * udostępnić. Moderator zobaczy wtedy sam adres i poradzi sobie.
      *
+     * SAMA ŚCIEŻKA NIE WYSTARCZA (issue #1636). Do celu wolno przypiąć tylko
+     * adres, który naprawdę wskazuje Kuking — `obcy.example/przepis/<slug>`
+     * przypinał się do naszego przepisu o tym samym slugu. Reguła hosta,
+     * schematu i portu żyje w `AdresZgloszenia`, bo panel moderatora pyta
+     * o to samo.
+     *
      * @return array{0: string|null, 1: string|null}
      */
     private function rozpoznajAdres(string $adres): array
     {
-        $sciezka = parse_url(trim($adres), PHP_URL_PATH);
+        $sciezka = AdresZgloszenia::sciezkaWewnetrzna($adres);
 
         if (! is_string($sciezka)) {
             return [null, null];

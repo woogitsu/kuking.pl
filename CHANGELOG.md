@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Zgłoszenie nielegalnej treści z adresem innej strony niż Kuking nie jest już łączone z przepisem lub wpisem Kuking o podobnym adresie — trafia do kolejki jako zgłoszenie z adresem do sprawdzenia ręcznie, a panel moderacji mówi, czy adres jest z Kuking, spoza niego, czy to tylko opis. Adres wpisany w formularzu wraca w listach do zgłaszającego jako zwykły tekst, a nie klikalny odnośnik (#1636).
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
