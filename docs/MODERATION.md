@@ -400,7 +400,8 @@ obowiązuje). Zakaz wejścia kontem obsługi linkiem, przez Google albo
 Facebooka patrzy na samą rolę (`User::hasStaffRole()`), więc zawieszenie go
 nie zdejmuje.
 
-**Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
+**Jak administrator zamyka sprawę** — `/admin/odwolania` (rozstrzyga wyłącznie
+czynny administrator, `UserPolicy::resolveAppeals()`; patrz akapit wyżej): widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać
 uzasadnienie. Cofnięcie realnie przywraca treść albo odblokowuje konto.

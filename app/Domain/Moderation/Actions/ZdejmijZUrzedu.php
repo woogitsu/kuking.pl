@@ -155,7 +155,7 @@ final class ZdejmijZUrzedu
             ]);
 
             // Ten sam mechanizm co „Usuń” ze zgłoszenia
-            // (`ModerationController::applyAction()`): miękkie usunięcie.
+            // (`RozstrzygnijZgloszenie::applyAction()`): miękkie usunięcie.
             // „Cofam” po odwołaniu przywraca je przez `RestoreContent`
             // — też tak samo jak decyzję ze zgłoszenia.
             $cel->delete();
