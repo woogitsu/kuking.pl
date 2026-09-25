@@ -267,6 +267,11 @@ jobs:
   #  wpuszczasz niezweryfikowany kod do środowiska z kopią zmiennych
   #  środowiska bazowego. Dlatego środowiskiem bazowym PR-ów MUSI być
   #  `staging` z własnymi, nieprodukcyjnymi sekretami — nigdy `production`.
+  #
+  #  `APP_KEY` staginu jest `Sealed`, więc `--copy staging` go NIE przenosi.
+  #  Nowe `pr-N` startuje z pustym kluczem i dostaje losowy klucz kontenera
+  #  z docker/klucz-preview.sh (#975). Tu nic nie dopisujemy i niczego nie
+  #  odpieczętowujemy — klucz nie przechodzi przez ten job ani jego logi.
   # ===========================================================================
   manual-create:
     name: "Preview: utwórz (ręcznie)"
