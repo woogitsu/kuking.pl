@@ -49,17 +49,19 @@ class CzyszczenieNieudanychZadanTest extends TestCase
 
     public function test_kontrola_dodatnia_regula_odrzuca_zle_zarejestrowane_zadanie(): void
     {
+        // `onOneServer()` na `CallbackEvent` wymaga nazwy (Laravel rzuca
+        // LogicException) — jak w `routes/console.php`, nazwa przed nim.
         $schedule = new Schedule('UTC');
         $tydzien = $schedule->call($this->domkniecie('queue:prune-failed', ['--hours' => 168]))
-            ->dailyAt('05:20')->onOneServer()->withoutOverlapping(120);
+            ->dailyAt('05:20')->name('kontrola-1')->onOneServer()->withoutOverlapping(120);
         $bezBlokady = $schedule->call($this->domkniecie('queue:prune-failed', ['--hours' => 720]))
-            ->dailyAt('05:20')->onOneServer();
+            ->dailyAt('05:20')->name('kontrola-2')->onOneServer();
         $coGodzine = $schedule->call($this->domkniecie('queue:prune-failed', ['--hours' => 720]))
-            ->hourly()->onOneServer()->withoutOverlapping(50);
+            ->hourly()->name('kontrola-3')->onOneServer()->withoutOverlapping(50);
         $inna = $schedule->call($this->domkniecie('queue:flush', []))
-            ->dailyAt('05:20')->onOneServer()->withoutOverlapping(120);
+            ->dailyAt('05:20')->name('kontrola-4')->onOneServer()->withoutOverlapping(120);
         $poprawne = $schedule->call($this->domkniecie('queue:prune-failed', ['--hours' => 720]))
-            ->dailyAt('05:20')->onOneServer()->withoutOverlapping(120);
+            ->dailyAt('05:20')->name('kontrola-5')->onOneServer()->withoutOverlapping(120);
 
         $this->assertNotSame([], $this->bledyCzyszczenia($tydzien), 'Reguła przepuściła 168 godzin zamiast 720.');
         $this->assertNotSame([], $this->bledyCzyszczenia($bezBlokady), 'Reguła przepuściła zadanie bez withoutOverlapping.');

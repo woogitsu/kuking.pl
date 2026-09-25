@@ -96,7 +96,8 @@ class ZetonyWKolejceSaSzyfrowaneTest extends TestCase
 
         $uzytkownik->notify(new UstawienieNowegoHasla(self::ZETON));
 
-        Artisan::call('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 1]);
+        // Listy wejścia idą na `high` (B8-05) — worker czyta ją jak na produkcji.
+        Artisan::call('queue:work', ['connection' => 'database', '--queue' => 'high,default', '--once' => true, '--tries' => 1]);
 
         $this->assertSame(0, DB::table('failed_jobs')->count(), 'Worker nie odczytał zaszyfrowanego zadania.');
         $this->assertSame(0, DB::table('jobs')->count());
