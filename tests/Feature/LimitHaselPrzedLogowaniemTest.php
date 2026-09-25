@@ -322,9 +322,35 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             .'obcy, nie ma skąd o tym wiedzieć.');
     }
 
-    /** Komunikat nie może się różnić dla konta, którego nie ma. */
+    /**
+     * Komunikat nie może się różnić dla konta, którego nie ma.
+     *
+     * ZEGAR JEST ZAMROŻONY NA CZAS OBU SERII (issue #1557). Komunikat niesie
+     * liczbę minut do końca blokady: `LimitProbHasla::zatrzymajJesliZaDuzo()`
+     * liczy ją jako `ceil(RateLimiter::availableIn() / 60)`, a `availableIn()`
+     * to znacznik `:timer` (zapisany przy pierwszym `hit()` jako
+     * `Carbon::now() + sekundy`) minus `Carbon::now()` — oba z
+     * `InteractsWithTime::currentTime()`. Seria bez konta startuje po serii
+     * z kontem, więc na wolnym runnerze upływ czasu w każdej z nich
+     * przesuwał się przez granicę minuty i test porównywał „za 14 min"
+     * z „za 15 min", choć treść nie zależała od konta. Po zamrożeniu obie
+     * serie widzą to samo `now()`, więc jedyną różnicą, jaka może zostać,
+     * jest różnica od istnienia konta — czyli dokładnie wyrocznia, której
+     * test pilnuje.
+     *
+     * KONTROLE (sprawdzone ręcznie przy #1557):
+     *  - dodatnia: dopisanie w `LimitProbHasla::zatrzymajJesliZaDuzo()` do
+     *    komunikatu czegokolwiek zależnego od konta, np.
+     *    `(User::findByLogin($login) ? ' ' : '')`, OBLEWA `assertSame` niżej
+     *    — zamrożenie usuwa szum zegara, nie osłabia porównania;
+     *  - odtworzenie wady: bez `travelTo()` i z `$this->travel(61)->seconds()`
+     *    po pierwszej próbie serii z kontem (symulacja wolnego runnera) test
+     *    oblewa na „za 14 min" wobec „za 15 min".
+     */
     public function test_komunikat_po_blokadzie_nie_zdradza_czy_konto_istnieje(): void
     {
+        $this->travelTo(now()->startOfSecond());
+
         $this->ofiara();
 
         $proby = $this->probyNaKonto();
