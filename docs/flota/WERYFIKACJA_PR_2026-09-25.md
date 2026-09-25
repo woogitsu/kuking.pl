@@ -93,6 +93,27 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 | #1595 | #1389, #1390 | TAK (×2) | — | — |
 | #1596 | #1310, #1326 | CZĘŚCIOWO (×2) | brak pomiaru w przeglądarce wymaganego przez oba issues (adresy i bajty przy DPR 1/2/3, zimny cache, 320 px i desktop) — PR przyznaje | — |
 | #1598 | #1032, #1280 | #1032 TAK, #1280 CZĘŚCIOWO | #1280 kryt. 3: zmiana widoczności publiczny → prywatny/dla obserwujących nie przesuwa `lastmod` profilu (PR: „znana granica”) | — |
+| #1543 | #977 | TAK (po dopisku) | brakowało testu, że konfiguracja, stopka i runbook mówią o tej samej zmiennej wydania (`RAILWAY_GIT_COMMIT_SHA`, zgodnie z komentarzem 25.09) | `6cfcc583` |
+| #1544 | #986 | CZĘŚCIOWO | fokus sprawdzony tylko automatem w Chromium, bez czytnika; `/tag/{slug}` dalej `paginate()` z OFFSET (komentarz w issue) — element przesunięty na wcześniejszą stronę może przepaść. Test PHP oblewał po merge z `main` (reguła #940) — dane testu poprawione | `2703e199` |
+| #1546 | #911 | TAK | — (drobny efekt `withTrashed()`: obcy dostaje 403 zamiast 404 na usuniętym komentarzu) | — |
+| #1547 | #947, #899 | #947 CZĘŚCIOWO, #899 TAK | #947 wymaga fizycznego Androida i iPhone'a na prawdziwych formularzach — test Chromium to sztuczna strona z emulacją klawiatury; nagłówek `nawigacja-niski-widok.mjs` obiecywał pomiar, którego nie robi — poprawiony | `a13043f8` |
+| #1548 | #829, #830 | TAK (po dopisku) | po wejściu #1268 na `main` PR nie zapisywał `alarm_pilny_stan = ZALEGLY` przy dołożonym pilnym sygnale (ubity worker gubi alarm, #1051); `content.flagged_by_automat` szedł przez `record()` w transakcji wbrew klasie 2 D-249 — oba uzupełnione z testami. **Dopisek zmienia zachowanie — do przeglądu przed scaleniem** | `7fb4e467` |
+| #1549 | #1027, #1329, #1296 | #1027 TAK, #1329 TAK wg kryteriów — **SPRZECZNOŚĆ z D-249**, #1296 TAK | przy awarii dziennika audytu gospodarz dostaje 500 i traci wybór; D-249 (klasa 1) i AGENTS.md §5 wymagają komunikatu „nic się nie zmieniło, spróbuj jeszcze raz” i zachowania danych (poprawka: 2 kontrolery, 4 testy, widok kolażu — nie jest mała); `tests/Dwa` nieuruchomione | — |
+| #1550 | #1349 | TAK | — (komentarz w `ProcessUploadedImage.php` i test odwołują się do klas z #1528 — scalać po #1528) | — |
+| #1577 | #1365 (Refs #1307, #1388) | #1365 TAK | — | — |
+| #1578 | #943, #1094 | TAK (×2) | — | — |
+| #1579 | #1305, #1384 | #1305 TAK, #1384 CZĘŚCIOWO | #1384: brak sprawdzenia równoległego zapisu i wyjęcia (issue: „Sprawdź również … równoległy zapis/wyjęcie”), testu w `tests/Dwa/` nie ma. Klasa wpisu `appeal.filed` była tylko w komentarzu kodu — dopisana do D-249 | `c1d33000` |
+| #1580 | #1330, #1331, #1333 | TAK (×3) | — | — |
+| #1583 | #1366, #1341 | TAK (×2) | — | — |
+| #1584 | #1377, #1378 | CZĘŚCIOWO (×2); **test czerwony na gałęzi**; KONFLIKT z `main` (`DailyBoard.php`, `TagController.php`) | licznik tagu przeniesiono na `main` do `LiczbyTagowWCache` — zmianę nałożyć tam od nowa; #1377: `ListyWpisuZWlasnaTresciaTest::test_kontrola_dodatnia…` oblewa (`DISTINCT ON (author_id)` z #940 vs oczekiwane dwa wpisy autora — ta sama przyczyna co w #1590); #1378: brak testu eksportu danych (`visibleTo()` niesprawdzone) | — (konflikt) |
+| #1586 | #1245, #1371 | TAK (×2) | — | — |
+| #1613 | brak issue (decyzja właściciela 24.09 w opisie; #1610 scalony) | TAK | — | — |
+| #1616 | #759, #1401 | #759 TAK (po dopisku), #1401 TAK | #759 (komentarz 24.09: kotwica wskazuje dokładnie jeden element dla wpisu, przepisu i wykonania): test przepisu sprawdzał tylko przekierowanie, „Ugotowałem” bez testu — dopisane | `560f37fc` |
+| #1617 | #1324 | CZĘŚCIOWO; KONFLIKT z `main` (`CHANGELOG.md`, `EraseAccountData.php`) | kryt. 3: brak testu współbieżności z `ZapiszSygnal` — usunięcie `sharedLock()` nie oblewa żadnego testu; PR podbija `wersja_polityki` na 2026-09-25 — potwierdzić u właściciela | — (konflikt) |
+| #1618 | #738, #749 | #738 TAK, #749 CZĘŚCIOWO; KONFLIKT z `main` (`CHANGELOG.md`, `kontrole-negatywne-alfa08.py`) | #749: issue wymaga testu w przeglądarce (instalacja SW, offline, powrót sieci, klik) — jest test w Node vm; **pokrywa się z #1453** (też zamyka #749) | — (konflikt) |
+| #1619 | #1295 | TAK | — | `fe244543` (usunięty wgrany `.pyc`) |
+| #1620 | #873 | CZĘŚCIOWO | kryt. 2: współbieżne ponowienie niezmierzone i nieprzetestowane (tylko indeks UNIQUE); kryt. 5: brak pomiaru kosztu przed/po | `ec84daf8` (przeniesiony `odpowiedzNaPonowienie()` spod cudzego docblocku, o co prosił opis) |
+| #1621 | #1572 | TAK | — | — |
 
 ### Uwagi
 
@@ -176,3 +197,19 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 - **#1587–#1598.** Celowane testy zielone (poza #1590), kontrole ujemne oblewają.
   #1590: same poprawki #1297/#1319 działają (8 PASS, kontrole ujemne oblewają 2 i 7).
   #1598: test pilnuje braku N+1 w sitemapie; zależny #1570 jest już na `main`.
+- **#1543–#1550.** Merge czysty dla wszystkich; celowane testy zielone po
+  dopiskach (m.in. #1548 moderacja i alarmy 195/195, #1550 455/455), kontrole ujemne
+  oblewają. Testy Playwright na Chromium 1194.
+- **#1577–#1586.** Merge czysty (poza #1584), celowane testy zielone, kontrole
+  ujemne oblewają. #1583: `scripts/lista-osob-szerokosc.mjs` na DemoSeeder, 36
+  konfiguracji PASS, kontrola ujemna (`14rem`) wykrywa przepełnienie 497 > 320 px.
+- **#1584 i #1590** oblewają ten sam test z tej samej przyczyny — to jedna
+  sprzeczność między „wpis z własną treścią zostaje na listach” (#1377) a
+  „jeden wpis na autora w odkrywaniu” (#940). Wymaga rozstrzygnięcia, który
+  test ma rację, zanim którykolwiek z tych PR-ów wejdzie.
+- **#1613–#1621.** Celowane testy zielone, kontrole ujemne oblewają.
+- **`KursorStartuPamietaZrodloTest::test_odkrywanie_zmienione_na_tagi…`** oblewa
+  nie tylko lokalnie na czystym `main`, ale też **w CI** (część 2/4 w #1613,
+  „Fixture nie utworzył drugiej strony feedu”). Najpewniej skutek reguły „jeden
+  wpis na autora” (#940) w fixturze — **podejrzenie czerwieni na `main`**, do
+  sprawdzenia przez sesję główną; nie jest winą PR-ów, w których się pojawia.
