@@ -63,7 +63,10 @@ use Illuminate\Support\Facades\Log;
  * kontenera z pamięciowym sterownikiem cache) kosztuje najwyżej tyle, że
  * budżet zaczyna się liczyć od nowa — czyli awaria wychodzi w stronę
  * „wyślemy więcej listów", nie „zamkniemy komuś drzwi". Przy `CACHE_STORE`
- * ustawionym na `database` (tak chodzi produkcja) licznik przeżywa restart.
+ * ustawionym na `database` (tak chodzi produkcja) licznik przeżywa restart
+ * — naprawdę dopiero od 25.09.2026: wcześniej `docker/entrypoint.sh` wołał
+ * `cache:clear` przy każdym starcie kontenera (audyt B8-01). Pilnuje tego
+ * `StartKonteneraNieCzysciCacheTest`.
  *
  * ────────────────────────────────────────────────────────────────────────
  *  SUFIT JEST TWARDY, A NIE SUGESTIĄ (D-076)
