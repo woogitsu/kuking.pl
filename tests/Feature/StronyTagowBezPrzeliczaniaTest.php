@@ -68,6 +68,29 @@ class StronyTagowBezPrzeliczaniaTest extends TestCase
         $this->assertSame(2, (new LiczbyTagowWCache)->forTags([$tag->id])[$tag->id]['postsCount']);
     }
 
+    /**
+     * Regresja: przyrząd przeglądarkowy (`kompozycje-515.php fotografia`)
+     * dopisuje zdjęcie do bazy po tym, jak gość już odwiedził `/tagi`.
+     * Bez unieważnienia cache katalog pokazywał pusty kolaż
+     * (K681_BRAK_FOTOGRAFII w jobie „Port marki — rodziny ekranów").
+     */
+    public function test_zapomnienie_cache_goscia_pokazuje_nowe_zdjecie_od_razu(): void
+    {
+        $tag = Tag::factory()->create();
+        $this->assertCount(0, (new TagCollage)->forTagsWCache([$tag->id])[$tag->id]);
+        $this->assertSame(0, (new LiczbyTagowWCache)->forTags([$tag->id])[$tag->id]['postsCount']);
+
+        $wpis = $this->zdjecie($tag);
+        $this->assertCount(0, (new TagCollage)->forTagsWCache([$tag->id])[$tag->id], 'Kolaż gościa nie jest z cache.');
+
+        TagCollage::zapomnijGoscia([$tag->id]);
+        LiczbyTagowWCache::zapomnij([$tag->id]);
+
+        $kafle = (new TagCollage)->forTagsWCache([$tag->id])[$tag->id];
+        $this->assertSame([$wpis->id], $kafle->map(fn (Media $m) => $m->posts->first()->id)->all());
+        $this->assertSame(1, (new LiczbyTagowWCache)->forTags([$tag->id])[$tag->id]['postsCount']);
+    }
+
     public function test_strona_tagu_idzie_kursorem_bez_pelnego_count(): void
     {
         $tag = Tag::factory()->create();

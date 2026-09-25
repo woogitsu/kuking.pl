@@ -56,6 +56,21 @@ final class TagCollage
     }
 
     /**
+     * Unieważnia zapisany dobór gościa dla podanych tagów. Strony tego nie
+     * wołają (świeżość do `CACHE_SEKUND` to świadoma cena); służy
+     * przyrządom, które piszą do bazy z pominięciem aplikacji i od razu
+     * mierzą wynik (np. `scripts/fixtures/kompozycje-515.php`).
+     *
+     * @param  iterable<string>  $tagIds
+     */
+    public static function zapomnijGoscia(iterable $tagIds): void
+    {
+        foreach ($tagIds as $id) {
+            Cache::forget(self::KLUCZ.$id);
+        }
+    }
+
+    /**
      * To samo co `forTags()`, ale dobór dla GOŚCIA z cache (komentarz klasy).
      * Tego używają strony; `forTags()` zostaje dokładne.
      *

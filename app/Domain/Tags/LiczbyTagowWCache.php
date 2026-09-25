@@ -33,6 +33,19 @@ final class LiczbyTagowWCache
     public function __construct(private readonly TagPublicStats $statystyki = new TagPublicStats) {}
 
     /**
+     * Unieważnia zapisane liczby podanych tagów — dla przyrządów, które
+     * piszą do bazy z pominięciem aplikacji (jak `TagCollage::zapomnijGoscia()`).
+     *
+     * @param  iterable<string>  $tagIds
+     */
+    public static function zapomnij(iterable $tagIds): void
+    {
+        foreach ($tagIds as $id) {
+            Cache::forget(self::KLUCZ.$id);
+        }
+    }
+
+    /**
      * @param  iterable<string>  $tagIds
      * @return array<string, array{postsCount: int, photosCount: int, contributorsCount: int}>
      */
