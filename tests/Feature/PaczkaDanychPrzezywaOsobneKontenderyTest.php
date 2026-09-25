@@ -119,7 +119,7 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $niekasujacy->shouldReceive('delete')->andReturn(false);
         $niekasujacy->shouldReceive('exists')->andReturn(true);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
 
@@ -150,7 +150,9 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $dysk->shouldReceive('exists')->twice()->andReturn(true, false);
         Storage::shouldReceive('disk')->twice()->with('local')->andReturn($dysk);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        // Pierwsze kasowanie się nie udaje: częściowa porażka kończy się
+        // błędem, żeby harmonogram ją zobaczył (#1534).
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
         $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
         $this->assertSame('eksporty/do-ponowienia.zip', $export->object_key);
 
@@ -178,7 +180,8 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
             'expires_at' => now()->subDay(),
         ]);
 
-        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        // Niepełny adres to nieudane kasowanie, więc kod ≠ 0 (#1534).
+        $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
         $this->assertSame(DataExport::STATUS_EXPIRED, $export->status);

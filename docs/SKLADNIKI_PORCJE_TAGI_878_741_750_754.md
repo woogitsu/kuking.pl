@@ -20,7 +20,8 @@ Argument skryptów to `gpt-skladniki`, ponieważ wskazane w poleceniu
   `input` nadal trafia do innych odbiorców. Test DOM w Chromium
   **jest w CI od commita `c7b0f498`** — wcześniejszy zapis w tym miejscu
   („Test DOM w Chromium jest w CI") był **nieścisły**: test istniał
-  w repozytorium jako `scripts/tagi-potwierdzenie.test.mjs`, ale nie wołał go
+  w repozytorium jako `scripts/tagi-potwierdzenie.test.mjs` (dziś
+  `scripts/przegladarka/tagi-potwierdzenie.test.mjs`), ale nie wołał go
   ani `ci.yml`, ani skrypt `build` — nie uruchamiało go NIC.
 
 ## Pomiary własne

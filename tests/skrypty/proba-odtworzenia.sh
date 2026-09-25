@@ -209,7 +209,7 @@ WYZWALACZY_FIKSTURY="$("${PSQL[@]}" -d "${BAZA_ZRODLOWA}" -Atc \
   "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
      JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE NOT t.tgisinternal AND n.nspname='public'")"
-sprawdz "fikstura niesie trzy wyzwalacze gwarancji (D-072, D-080)" "3" "${WYZWALACZY_FIKSTURY}"
+sprawdz "fikstura niesie cztery wyzwalacze gwarancji (D-072, D-080, #954)" "4" "${WYZWALACZY_FIKSTURY}"
 
 # =============================================================================
 echo
@@ -234,6 +234,45 @@ sprawdz "kopia zostawiła plik zrzutu" "tak" \
   "$([[ -s "${ZRZUT_JAWNY}" ]] && echo tak || echo nie)"
 sprawdz "kopia zostawiła plik .meta" "tak" \
   "$([[ -n "$(find "${KATALOG_KOPII}" -maxdepth 1 -name '*.meta')" ]] && echo tak || echo nie)"
+
+# Zrzut to komplet danych osobowych. Do 24.09.2026 powstawał z prawami
+# dziedziczonymi po umasku powłoki — tu 0644, czyli czytelny dla każdego
+# użytkownika maszyny. Umask ustawiamy celowo ZŁY, żeby asercja nie
+# przechodziła dzięki łaskawym ustawieniom środowiska testu.
+KATALOG_PRAW="$(mktemp -d "${TMPDIR:-/tmp}/kopia-prawa.XXXXXX")"
+(umask 000 && bash "${SKRYPT_KOPII}" --zrodlo "${DSN_ZRODLA}" --katalog "${KATALOG_PRAW}" >/dev/null 2>&1)
+sprawdz "zrzut powstaje z prawami 600 nawet przy umask 000" "600" \
+  "$(stat -c %a "$(find "${KATALOG_PRAW}" -maxdepth 1 -name '*.dump' | head -1)" 2>/dev/null)"
+sprawdz "…i jego .meta też" "600" \
+  "$(stat -c %a "$(find "${KATALOG_PRAW}" -maxdepth 1 -name '*.meta' | head -1)" 2>/dev/null)"
+rm -rf "${KATALOG_PRAW}"
+
+# --- KONTROLA UJEMNA: zrzut obcięty PRZEZ SAM pg_dump ------------------------
+# Podstawiony `pg_dump` woła prawdziwy, a potem obcina wynik do 99% — tak
+# wygląda zrzut przerwany pełnym dyskiem albo zerwanym tunelem, gdy narzędzie
+# i tak zwróciło zero. Spis treści leży na początku pliku, więc `--list` go
+# przepuszcza; łapie go wyłącznie pełny odczyt archiwum.
+KATALOG_ATRAPY="$(mktemp -d "${TMPDIR:-/tmp}/kopia-atrapa.XXXXXX")"
+KATALOG_OBCIETEJ="$(mktemp -d "${TMPDIR:-/tmp}/kopia-obcieta.XXXXXX")"
+PRAWDZIWY_PG_DUMP="$(command -v pg_dump)"
+cat >"${KATALOG_ATRAPY}/pg_dump" <<ATRAPA
+#!/usr/bin/env bash
+"${PRAWDZIWY_PG_DUMP}" "\$@" || exit \$?
+if [[ "\$1" != --version ]]; then
+  for a in "\$@"; do case "\$a" in --file=*) f="\${a#--file=}" ;; esac; done
+  r=\$(stat -c %s "\$f"); head -c \$((r * 99 / 100)) "\$f" >"\$f.t" && mv "\$f.t" "\$f"
+fi
+ATRAPA
+chmod +x "${KATALOG_ATRAPY}/pg_dump"
+wyjscie="$(PATH="${KATALOG_ATRAPY}:${PATH}" bash "${SKRYPT_KOPII}" --zrodlo "${DSN_ZRODLA}" \
+  --katalog "${KATALOG_OBCIETEJ}" 2>&1)"
+kod=$?
+sprawdz "kopia obcięta do 99% nie przechodzi weryfikacji (kod 41)" "41" "${kod}"
+sprawdz_zawiera "…i mówi, że bloków danych nie da się odczytać" \
+  "bloków danych nie da się odczytać do końca" "${wyjscie}"
+sprawdz "…i kasuje obcięty plik, zamiast zostawić go jako kopię" "0" \
+  "$(find "${KATALOG_OBCIETEJ}" -maxdepth 1 -name '*.dump' | wc -l)"
+rm -rf "${KATALOG_ATRAPY}" "${KATALOG_OBCIETEJ}"
 
 # --- KONTROLA UJEMNA: „zrzut się nie udał” to INNY stan niż „zrzut jest pusty”
 #
@@ -680,6 +719,40 @@ sprawdz "…i baza próbna NIE zostaje na serwerze po sprzątaniu" "0" \
   "$("${PSQL[@]}" -d postgres -Atc \
     "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}bezhasla'")"
 
+# `migrate:status` NA SERWERZE Z HASŁEM, gdy `.env` repozytorium ma INNE hasło.
+#
+# ODTWORZONE 24.09.2026 na osobnym klastrze z `scram-sha-256` (#594): próba
+# przechodziła odtworzenie i porównanie 53 tabel, a padała kodem 64
+# („migrate:status nie wykonał się") na `password authentication failed`.
+# Artisan dostawał `DB_URL` bez hasła (hasło leży w PGPASSFILE), a Laravel
+# dokładał `DB_PASSWORD` z `.env` — hasło lokalnej bazy deweloperskiej, nie
+# serwera odtworzenia — i libpq nie sięgał już do pliku. Wcześniejsze próby
+# stały na `trust` albo na serwerze z tym samym hasłem, co `.env`, więc
+# nikt tego nie widział. Właściciel odtwarzający na własnym Postgresie
+# z hasłem dostałby fałszywą czerwień w ostatnim kroku ćwiczenia.
+#
+# Tu serwer testów wymaga hasła po TCP, a `DB_PASSWORD` celowo jest ZŁE —
+# tak jak `.env` niepasujący do serwera, na którym się odtwarza.
+wyjscie_hasla="$(
+  unset PGPASSWORD
+  export DB_PASSWORD='haslo-z-env-ktore-nie-pasuje-do-serwera'
+  bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}bezhasla" --tabele users,follows 2>&1
+  printf '\nKOD=%s' "$?"
+)"
+sprawdz "migrate:status działa, gdy hasło jest tylko w DSN, a DB_PASSWORD jest inne (kod 0)" \
+  "KOD=0" "$(tail -1 <<<"${wyjscie_hasla}")"
+sprawdz_zawiera "…i naprawdę policzył migracje na odtworzonej bazie" \
+  "migrate:status na odtworzonej bazie:" "${wyjscie_hasla}"
+# Na serwerze `trust` (np. stanowisko WSL z DR594_RUNBOOK_LOKALNY.md) dwie
+# asercje wyżej przechodzą ZAWSZE i niczego nie mierzą. Nie oblewamy wtedy
+# całego zestawu — mówimy to głośno. W CI serwer wymaga hasła i mierzą.
+if PGPASSWORD='haslo-z-env-ktore-nie-pasuje-do-serwera' "${PSQL[@]}" -d postgres -Atc 'SELECT 1' >/dev/null 2>&1; then
+  printf '  \033[0;33m!\033[0m UWAGA: serwer testów przyjmuje ZŁE hasło (trust) — dwie asercje wyżej NICZEGO tu nie zmierzyły\n'
+else
+  sprawdz "…a serwer testów NAPRAWDĘ odrzuca złe hasło (asercje wyżej coś mierzą)" "odrzuca" "odrzuca"
+fi
+
 # =============================================================================
 echo
 echo "── KOPIA PUSTA, OBCIĘTA I BEZ DANYCH — kontrole ujemne ──"
@@ -729,6 +802,77 @@ else
     "powyżej progu" "poniżej progu"
 fi
 
+# =============================================================================
+#  ZRZUT JAWNY Z .meta — skrót i pełny odczyt PRZED `CREATE DATABASE` (#594)
+#
+#  To jest pierwsza kopia właściciela: `kopia-lokalna.sh` bez klucza, bo
+#  pary kluczy jeszcze nie ma (§8.1). Do 24.09.2026 skrót `sha256_pliku`
+#  z jej `.meta` NIE BYŁ CZYTANY i zmieniony plik przechodził całą próbę.
+#  Każdą z trzech fikstur uruchamiamy z `--zostaw`, żeby asercja „baza nie
+#  powstała" mierzyła kolejność kroków, a nie sprzątanie po sobie.
+# =============================================================================
+KATALOG_JAWNEJ="$(mktemp -d "${TMPDIR:-/tmp}/kopia-jawna.XXXXXX")"
+bash "${SKRYPT_KOPII}" --zrodlo "${DSN_ZRODLA}" --katalog "${KATALOG_JAWNEJ}" >/dev/null 2>&1
+JAWNY="$(find "${KATALOG_JAWNEJ}" -maxdepth 1 -name '*.dump' | head -1)"
+JAWNY_META="${JAWNY%.dump}.meta"
+baza_probna_istnieje() {
+  "${PSQL[@]}" -d postgres -Atc "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}'"
+}
+usun_baze_probna() {
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA} WITH (FORCE)" >/dev/null 2>&1
+}
+
+wyjscie="$(uruchom_probe "${JAWNY}")"
+kod=$?
+sprawdz "jawna kopia z .meta przechodzi próbę (kod 0)" "0" "${kod}"
+sprawdz_zawiera "…porównując skrót z pola sha256_pliku" \
+  "skrót zrzutu zgadza się z .meta (sha256_pliku" "${wyjscie}"
+sprawdz_zawiera "…i mówiąc o tym w podsumowaniu" \
+  "skrót z .meta:      zgodny z" "${wyjscie}"
+
+# 1. Doklejone bajty. Fikstura DETERMINISTYCZNA: `pg_restore` ignoruje
+#    wszystko za archiwum, więc spis, pełny odczyt i odtworzenie przechodzą —
+#    zmieniony plik łapie WYŁĄCZNIE skrót. Kontrola ujemna samej kontroli
+#    jest niżej: ten sam plik bez `.meta` przechodzi.
+cp "${JAWNY}" "${KATALOG_JAWNEJ}/doklejony.dump"
+cp "${JAWNY_META}" "${KATALOG_JAWNEJ}/doklejony.meta"
+printf 'XXXXXXXXXXXXXXXX' >>"${KATALOG_JAWNEJ}/doklejony.dump"
+wyjscie="$(uruchom_probe "${KATALOG_JAWNEJ}/doklejony.dump" users,follows --zostaw)"
+kod=$?
+sprawdz "jawny zrzut niezgodny ze skrótem z .meta — odmowa (kod 44)" "44" "${kod}"
+sprawdz_zawiera "…nazywając pole, z którym porównano" \
+  "NIE ZGADZA SIĘ ze skrótem z pliku .meta (pole sha256_pliku)" "${wyjscie}"
+sprawdz "…ZANIM powstała baza próbna" "0" "$(baza_probna_istnieje)"
+usun_baze_probna
+
+rm -f "${KATALOG_JAWNEJ}/doklejony.meta"
+wyjscie="$(uruchom_probe "${KATALOG_JAWNEJ}/doklejony.dump")"
+kod=$?
+sprawdz "kontrola ujemna: ten sam plik BEZ .meta przechodzi (kod 0) — łapał go tylko skrót" \
+  "0" "${kod}"
+sprawdz_zawiera "…ale przebieg mówi wprost, że skrótu nie sprawdzono" \
+  "skrót z .meta:      NIE SPRAWDZONY" "${wyjscie}"
+usun_baze_probna
+
+# 2. Obcięty do 99%, BEZ .meta — tu skrót nie pomoże, musi pełny odczyt.
+#    Do 24.09.2026 skrypt zakładał bazę i padał na `pg_restore` kodem 50
+#    z komunikatem o rozszerzeniach serwera, czyli o złej przyczynie.
+ROZMIAR_JAWNEGO="$(stat -c %s "${JAWNY}")"
+head -c $((ROZMIAR_JAWNEGO * 99 / 100)) "${JAWNY}" >"${KATALOG_JAWNEJ}/obciety99.dump"
+if pg_restore --list "${KATALOG_JAWNEJ}/obciety99.dump" >/dev/null 2>&1; then
+  sprawdz "fikstura: obcięty do 99% PRZECHODZI sam spis (dowód, że to inna kontrola)" "tak" "tak"
+else
+  sprawdz "fikstura: obcięty do 99% PRZECHODZI sam spis (dowód, że to inna kontrola)" "tak" "nie"
+fi
+wyjscie="$(uruchom_probe "${KATALOG_JAWNEJ}/obciety99.dump" users,follows --zostaw)"
+kod=$?
+sprawdz "zrzut obcięty do 99% — odmowa po pełnym odczycie (kod 41)" "41" "${kod}"
+sprawdz_zawiera "…mówiąc, że nie da się go odczytać do końca" \
+  "nie potrafi odczytać tego archiwum do końca" "${wyjscie}"
+sprawdz "…ZANIM powstała baza próbna" "0" "$(baza_probna_istnieje)"
+usun_baze_probna
+rm -rf "${KATALOG_JAWNEJ}"
+
 # Zrzut ze SCHEMATEM, ale bez wierszy — najgroźniejszy z trzech, bo ma
 # właściwy rozmiar, wszystkie 49 tabel, wszystkie wyzwalacze i wszystkie
 # ograniczenia. Różni się od dobrej kopii wyłącznie tym, że nie ma w nim
@@ -762,7 +906,9 @@ echo "── WYZWALACZE — kontrole ujemne (sedno issue #9) ──"
   -c 'DROP TRIGGER follows_blokada_ma_pierwszenstwo_trg ON follows' >/dev/null
 pg_dump "${DSN_ZRODLA}" --format=custom --no-owner --file="${KATALOG_KOPII}/bez-wyzwalacza.dump"
 
-wyjscie="$(uruchom_probe "${KATALOG_KOPII}/bez-wyzwalacza.dump")"
+# Próg = liczba wyzwalaczy fikstury: zrzut bez jednego ma ich o jeden mniej,
+# więc oblewa się już na liczeniu, a nie dopiero na liście nazwanych.
+wyjscie="$(PROBA_MIN_WYZWALACZY="${WYZWALACZY_FIKSTURY}" uruchom_probe "${KATALOG_KOPII}/bez-wyzwalacza.dump")"
 kod=$?
 sprawdz "oblewa się, gdy zrzut zgubił wyzwalacz (kod 70)" "70" "${kod}"
 sprawdz_zawiera "…i mówi, ile ich znalazł" \
