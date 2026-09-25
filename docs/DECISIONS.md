@@ -3207,6 +3207,7 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
+Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -16017,6 +16018,12 @@ odwołania.
    Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
    i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
    bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+   **Uzupełnienie (#1408, 24 września 2026):** stroną sprawy jest też ten,
+   KOGO ona dotyczy. Zgłoszenia własnej treści albo własnego profilu nie
+   rozstrzyga ani moderator, ani administrator — reguła rangi blokowała
+   tylko karę na sobie, a „Bez działania” pozwalało oddalić skargę na siebie.
+   Autora wyznacza `ModeratedContent::osoba()`, cel szukany razem z miękko
+   usuniętymi.
 2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
    `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
    administrator także moderatorów. **Konta administratora nie zawiesza ani
@@ -16743,6 +16750,50 @@ Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
+
+## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
+(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+
+**Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
+opublikowanego komentarza, `CommentController::update()` zleca
+`PrzeanalizujTresc::dlaKomentarza()` — to samo zadanie, w tej samej kolejce
+`low`, co po publikacji. Zapis bez zmiany (`wasChanged('body')` fałszywe)
+nic nie zleca. Wpisy i przepisy zostają bez zmian.
+
+**Dlaczego.** D-052 odłożył ponowną analizę po edycji „ze świadomą luką”,
+z dwóch powodów. Oba przy komentarzu nie trzymają:
+
+1. *Obietnica „odrzucone nie wraca”* — nienaruszona. Zadanie kończy się
+   w `OznaczDoPrzegladu`, a tam `juzOgladane()` i indeks
+   `reports_jeden_automat_na_tresc` przepuszczają jedno oznaczenie na
+   komentarz, na zawsze. Edycja NIE otwiera sprawy odrzuconej i nie stawia
+   drugiej pozycji przy otwartej (moderator i tak ogląda aktualny tekst).
+2. *Koszt zadania za każdą literówkę* — ograniczony: okno 15 minut, limit
+   trasy `comment`, tylko rzeczywista zmiana. Kilka szybkich poprawek daje
+   kilka zadań, ale każde czyta komentarz po ID, więc każde ocenia
+   najnowszy tekst, a wynik to najwyżej jedna pozycja w kolejce.
+
+Luka była najtańszym obejściem wykrywacza: neutralny komentarz → zakończona
+analiza → dopisany spam.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+treść zostaje opublikowana, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji — zadanie ogląda tylko opublikowany komentarz.
+
+**Znana granica.** Komentarz, którego oznaczenie moderator już odrzucił,
+po edycji nie wraca do kolejki automatu — to cena obietnicy z D-052.
+Zostaje zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiKomentarzaTest.php` (zakończona
+pierwsza analiza, pierwsze zadanie wciąż w kolejce, zapis bez zmiany,
+wyłącznik, odrzucone nie wraca).
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.
 
 ## D-259 — Własne „Ugotowałem” otwiera się kucharzowi mimo blokady z autorem przepisu; przepis zostaje zamknięty (#1394, PR #1503, 24 września 2026)
 

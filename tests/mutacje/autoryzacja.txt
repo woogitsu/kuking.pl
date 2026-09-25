@@ -89,3 +89,19 @@ na: $w->whereRaw('false')
 oczekuj: Failed asserting
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomienieOKomentarzuPodWlasnymWykonaniemTest.php
 ocena:
+---
+nazwa: moderator nie rozstrzyga zgloszenia wlasnej tresci ani profilu
+plik: app/Policies/ReportPolicy.php
+zamien: if ($osoba !== null && $osoba->getKey() === $user->getKey()) {
+na: if (false) {
+oczekuj: wlasnego_wpisu|wlasnego_profilu|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php
+ocena:
+---
+nazwa: moderator nie rozstrzyga zgloszenia, ktore sam zlozyl
+plik: app/Policies/ReportPolicy.php
+zamien: if ($report->reporter_id !== null && $report->reporter_id === $user->getKey()) {
+na: if (false) {
+oczekuj: wlasnego_zgloszenia|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php
+ocena:
