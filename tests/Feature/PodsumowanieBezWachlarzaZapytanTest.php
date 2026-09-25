@@ -196,15 +196,22 @@ class PodsumowanieBezWachlarzaZapytanTest extends TestCase
 
         $pierwszy = $this->user('limit_wpisow_a');
         $drugi = $this->user('limit_wpisow_b');
-        $autor = $this->user('limit_wspolny_autor');
-        $pierwszy->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
-        $drugi->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
 
+        // Od #1812 (D-279) list ma najwyżej jeden wpis na autora, więc
+        // „wspólna historia" to dwudziestu wspólnych autorów po jednym wpisie
+        // — i jeden z nich z dodatkowym, starszym wpisem, który też nie ma
+        // prawa trafić do pamięci.
         $najnowsze = [];
         for ($i = 0; $i < 20; $i++) {
+            $autor = $this->user('limit_wspolny_autor_'.$i);
+            $pierwszy->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
+            $drugi->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
             $wpis = Post::factory()->for($autor, 'author')->create(['published_at' => now()->subMinutes($i)]);
             if ($i < 3) {
                 $najnowsze[] = (string) $wpis->getKey();
+            }
+            if ($i === 0) {
+                Post::factory()->for($autor, 'author')->create(['published_at' => now()->subSeconds(30)]);
             }
         }
 
@@ -220,7 +227,7 @@ class PodsumowanieBezWachlarzaZapytanTest extends TestCase
             $this->assertSame($najnowsze, array_map(fn (Post $wpis): string => (string) $wpis->getKey(), $wpisy));
         }
 
-        $this->assertSame(6, $zhydratowane, 'Wspólny autor nie może wciągać pełnej historii do pamięci.');
+        $this->assertSame(6, $zhydratowane, 'Wspólni autorzy nie mogą wciągać pełnej historii do pamięci.');
     }
 
     /**
@@ -234,10 +241,10 @@ class PodsumowanieBezWachlarzaZapytanTest extends TestCase
 
         $odbiorca = $this->user('limit_odswiez');
         $przepis = Recipe::factory()->for($odbiorca, 'author')->create();
-        $autor = $this->user('limit_odswiez_autor');
-        $odbiorca->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
-
         for ($i = 0; $i < 5; $i++) {
+            // Pięciu autorów, nie jeden: list bierze najwyżej jeden wpis na autora (#1812).
+            $autor = $this->user('limit_odswiez_autor_'.$i);
+            $odbiorca->following()->attach($autor->getKey(), ['created_at' => now()->subMonth()]);
             CookedEvent::factory()
                 ->for($this->user('limit_odswiez_kucharz_'.$i), 'user')
                 ->for($przepis, 'recipe')

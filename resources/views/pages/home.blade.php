@@ -180,9 +180,32 @@
         </x-empty-state>
     @else
         <div class="stack">
-            @foreach($posts as $post)
-                <x-post-card :post="$post" />
-            @endforeach
+            @if($showingDiscover)
+                @foreach($posts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            @else
+                {{-- ZWIJANIE SERII (issue #1812, AGENTS.md §8 / D-275). Więcej
+                     niż dwa kolejne wpisy jednej osoby albo jednego tagu:
+                     dwa widać, reszta w `<details>` — kolejność bez zmian,
+                     nic nie znika, otwiera się bez JavaScriptu. Cel dotknięcia
+                     `summary` 48 px (`.seria-wpisow > summary`). --}}
+                @foreach(\App\Domain\Feed\SerieWpisow::grupuj($posts) as $seria)
+                    @foreach($seria['widoczne'] as $post)
+                        <x-post-card :post="$post" />
+                    @endforeach
+                    @if($seria['zwiniete'] !== [])
+                        <details class="seria-wpisow" data-seria-wpisow>
+                            <summary><span>{{ $seria['podpis'] }}</span> <span class="seria-wpisow-pokaz">— Pokaż</span></summary>
+                            <div class="stack">
+                                @foreach($seria['zwiniete'] as $post)
+                                    <x-post-card :post="$post" />
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endforeach
+            @endif
         </div>
 
         <x-show-more :paginator="$posts" />
