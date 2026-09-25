@@ -29,6 +29,14 @@ use Illuminate\Support\Facades\Notification as Poczta;
  * po zatwierdzeniu transakcji (`afterCommit`), więc wycofane rozpatrzenie
  * nie wyśle korekty zmiany, której nie było.
  *
+ * GRANICA: sprawdzenie „już jest” działa bez blokady i bez UNIQUE. Dwa
+ * RÓWNOCZESNE „cofam” z dwóch kart mogą dać dwie korekty — dopóki
+ * `ResolveAppeal` nie rozpatruje odwołania pod blokadą wiersza (#1485).
+ * Dziś na `main` nie ma tam ani transakcji, ani blokady; ten sam wyścig
+ * daje też podwójne powiadomienie autora. Przy scalaniu z #1485 ta klasa
+ * ma dostać odwołanie ZABLOKOWANE (ze statusem po zapisie), nie obiekt
+ * z trasy — ten ma jeszcze `open` i korekta cicho by nie wyszła.
+ *
  * Zgłoszenie anonimowe bez adresu nie ma kanału — i nie próbujemy go szukać.
  */
 final class NotifyReporterDecisionChanged
