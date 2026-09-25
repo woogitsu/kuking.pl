@@ -105,7 +105,7 @@ if ($mode === 'http') {
 } elseif ($mode === 'idle-worker') {
     // Ta sama lista i sleep co jedyny proces roli `all` w entrypoincie
     // (`listy_kolejek()`, #1030), ograniczony czas.
-    $details['exit'] = Artisan::call('queue:work', ['--queue' => 'default,media,low', '--sleep' => 1,
+    $details['exit'] = Artisan::call('queue:work', ['--queue' => 'high,default,media,low', '--sleep' => 1,
         '--max-time' => 10, '--no-interaction' => true]);
 } elseif ($mode === 'queue-pop') {
     for ($i = 0; $i < 200; $i++) {

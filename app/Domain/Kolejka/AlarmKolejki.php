@@ -39,10 +39,11 @@ use Throwable;
  * liczbę żądań do martwego kanału i nie pomija żadnego przebiegu czujki.
  *
  * ZNANE OGRANICZENIE PAMIĘCI
- * Pamięć stanu mieszka w cache, a `docker/entrypoint.sh` czyści cache przy
- * każdym starcie kontenera. Po wdrożeniu pamięć jest pusta, więc trwający
- * alarm zadzwoni raz dodatkowo, a niewysłane odwołanie przepadnie. To jest
- * świadomie zaakceptowane: nadmiarowa wiadomość o prawdziwej awarii jest
+ * Pamięć stanu mieszka w cache. Start kontenera już jej nie czyści (do
+ * 25.09.2026 `docker/entrypoint.sh` wołał `cache:clear`, audyt B10-03), ale
+ * wpis może zniknąć przy ręcznym czyszczeniu cache albo wygaśnięciu. Wtedy
+ * trwający alarm zadzwoni raz dodatkowo, a niewysłane odwołanie przepadnie.
+ * To jest świadomie zaakceptowane: nadmiarowa wiadomość o prawdziwej awarii jest
  * tańsza niż tabela i migracja dla stanu, który wolno zgubić. SAMA OCENA
  * stanu jest bezstanowa (`StanKolejki` liczy z okna czasowego), więc restart
  * nie generuje fałszywej awarii — tylko ewentualne powtórzenie prawdziwej.

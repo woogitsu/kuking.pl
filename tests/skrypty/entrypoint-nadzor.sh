@@ -205,8 +205,8 @@ PROBA
 )" 2>/dev/null
 }
 
-sprawdz "rola worker: osobny proces na default, media i low (bez high)" "default low media " "$(procesy_kolejek worker)"
-sprawdz "rola all: JEDEN proces, kolejność default,media,low" "default,media,low " "$(procesy_kolejek all)"
+sprawdz "rola worker: osobny proces na high, default, media i low (high: B8-06)" "default high low media " "$(procesy_kolejek worker)"
+sprawdz "rola all: JEDEN proces, kolejność high,default,media,low" "high,default,media,low " "$(procesy_kolejek all)"
 sprawdz "rola all: jawne QUEUE_WORKERS wygrywa" "default low media " "$(procesy_kolejek all QUEUE_WORKERS='default media low')"
 sprawdz "rola worker: jawne QUEUE_WORKERS wygrywa" "default,low media " "$(procesy_kolejek worker QUEUE_WORKERS='default,low media')"
 sprawdz "QUEUE_NAMES to alias jednego procesu (rola worker)" "default,media " "$(procesy_kolejek worker QUEUE_NAMES='default,media')"

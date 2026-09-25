@@ -94,10 +94,34 @@ i wklej jako zmienną środowiskową w Railway. Bez APP_KEY nie da się odszyfro
 sesji ani ciasteczek — aplikacja wywali 500 na każdym requeście."
 fi
 
-if [[ -z "${DB_URL:-}${DATABASE_URL:-}" ]]; then
-  log "OSTRZEŻENIE: ani DB_URL, ani DATABASE_URL nie jest ustawione."
-  log "             Sprawdź referencję do serwisu Postgres w zmiennych Railway."
-fi
+# Sprawdzamy zmienne, które Laravel NAPRAWDĘ czyta. `config/database.php`
+# bierze `DB_URL` albo osobne `DB_HOST`/`DB_DATABASE`/`DB_USERNAME` — samego
+# `DATABASE_URL` nie czyta nigdzie (#1356). Wcześniej samo `DATABASE_URL`
+# uciszało ostrzeżenie, a aplikacja i tak łączyła się z 127.0.0.1.
+#
+# Świadomie NIE mapujemy DATABASE_URL → DB_URL: to ukryłoby błędną
+# konfigurację zamiast ją nazwać. Nie wypisujemy też wartości — URL niesie
+# hasło. Kontrola stoi PRZED `config:cache`, bo po zapieczeniu konfiguracji
+# zmiana zmiennej nie poprawi już bieżącego kontenera; poprawi ją restart
+# (entrypoint i tak czyści cache na każdym starcie).
+sprawdz_konfiguracje_bazy() {
+  [[ -n "${DB_URL:-}" ]] && return 0
+  if [[ -n "${DB_HOST:-}" && -n "${DB_DATABASE:-}" && -n "${DB_USERNAME:-}" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${DATABASE_URL:-}" ]]; then
+    log "OSTRZEŻENIE: DATABASE_URL jest ustawione, ale aplikacja go NIE czyta — czyta DB_URL."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  else
+    log "OSTRZEŻENIE: brak konfiguracji bazy — nie ma DB_URL ani kompletu"
+    log "             DB_HOST, DB_DATABASE i DB_USERNAME."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  fi
+  return 1
+}
+
+sprawdz_konfiguracje_bazy || true
 
 # -----------------------------------------------------------------------------
 # 2. Katalogi scratch. Filesystem jest ulotny, więc po każdym restarcie
@@ -130,32 +154,30 @@ php /app/artisan view:clear   --no-interaction >/dev/null
 php /app/artisan event:clear  --no-interaction >/dev/null
 
 # -----------------------------------------------------------------------------
-#  `cache:clear` JEST INNY: przy CACHE_STORE=database uderza w tabelę `cache`.
+#  `cache:clear` CELOWO NIE WYSTĘPUJE — ani samo, ani w `optimize:clear`.
 #
-#  Wcześniej stało tu `optimize:clear`, które woła cache:clear w środku.
-#  Przy `set -Eeuo pipefail` wyjątek z bazy kończył cały skrypt, więc kontener
-#  padał — i wstawał, i padał, w pętli. Zaobserwowane na produkcji przy
-#  pierwszym wdrożeniu, zanim wykonały się migracje:
+#  Przy CACHE_STORE=database tabela `cache` NIE jest odtwarzalną kopią
+#  czegokolwiek. Leży w niej stan, który ma przeżyć restart:
+#    - liczniki `RateLimiter` (próby hasła, kodu 2FA, linki logowania,
+#      ponowienia potwierdzeń, formularz zgłoszenia DSA),
+#    - dobowy sufit listów `DziennyBudzetListow` (D-076),
+#    - okna deduplikacji alarmów i listów o próbie wejścia kontem Facebooka.
+#  Do 25 września 2026 stało tu `cache:clear` przy KAŻDYM starcie web, workera
+#  i schedulera, a wdrożeń jest kilkadziesiąt na dobę. Każdy deploy dawał
+#  zgadującemu kod 2FA nową pulę prób i zerował dobowy licznik poczty
+#  (audyt B10-03 = B8-01).
 #
-#      SQLSTATE[42P01]: Undefined table: relation "cache" does not exist
-#
-#  Aplikacja nie wstawała nawet po to, żeby pokazać, co jest nie tak.
-#  Healthcheck nie miał czego odpytać, a w panelu było samo „CRASHED".
-#
-#  Niedostępny cache NIE JEST powodem, żeby nie uruchomić serwisu. Cache jest
-#  z definicji odtwarzalny — najgorsze, co się stanie, to wolniejsze pierwsze
-#  żądania. Dlatego to jedno polecenie ma prawo się nie udać, ale musi
-#  o tym GŁOŚNO powiedzieć w logu.
+#  Czyszczenie nie jest też potrzebne po deployu: pliki konfiguracji, tras,
+#  zdarzeń i widoków czyszczą `*:clear` wyżej i przebudowuje `optimize` niżej.
+#  Wpisy treści w cache (`LiczbaKukingow`, `KolejkiPanelu`) przelicza
+#  harmonogram, a ich odczyt znosi wpis ze starszego wdrożenia. Gdyby kiedyś
+#  wpis z poprzedniej wersji kodu naprawdę szkodził — usuń NAZWANY klucz
+#  (`Cache::forget('...')`) albo zmień jego nazwę, nigdy całą tabelę.
+#  Pilnuje tego `tests/Feature/StartKonteneraNieCzysciCacheTest.php`.
 # -----------------------------------------------------------------------------
-if ! php /app/artisan cache:clear --no-interaction >/dev/null 2>&1; then
-  log "OSTRZEŻENIE: nie udało się wyczyścić cache aplikacji."
-  log "  Najczęstsza przyczyna: brak tabeli 'cache', czyli niewykonane migracje."
-  log "  Startuję dalej — cache jest odtwarzalny, a serwis ma wstać i dać się zdiagnozować."
-fi
 
-# `optimize` zostaje BEZ tolerancji na błąd. Tu jest odwrotnie niż wyżej:
-# nieudane zapieczenie konfiguracji, tras i widoków znaczy, że aplikacja
-# naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
+# `optimize` jest BEZ tolerancji na błąd: nieudane zapieczenie konfiguracji,
+# tras i widoków znaczy, że aplikacja naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
 # deploy, zamiast wpuszczać ruch na coś zepsutego.
 php /app/artisan optimize --no-interaction
 
@@ -383,7 +405,7 @@ start_worker() {
 # -----------------------------------------------------------------------------
 #  ILE PROCESÓW `queue:work` I NA JAKICH KOLEJKACH (issue #1030)
 #
-#  Jeden `queue:work --queue=default,media,low` czyta listę jako ŚCISŁY
+#  Jeden `queue:work --queue=high,default,media,low` czyta listę jako ŚCISŁY
 #  priorytet: dopóki `default` ma gotowe zadanie, worker nie zajrzy do
 #  `media`, a do `low` — dopóki czeka cokolwiek wyżej. Przy stałym napływie
 #  maili zdjęcia i eksport RODO czekałyby bez końca.
@@ -392,12 +414,13 @@ start_worker() {
 #  liczba procesów ZALEŻY OD ROLI:
 #
 #    worker (osobny kontener, cała pamięć dla kolejki)
-#        → proces na kolejkę: `default`, `media`, `low`. Żadna nie czeka
-#          na cudzą zaległość.
+#        → proces na kolejkę: `high`, `default`, `media`, `low`. Żadna nie
+#          czeka na cudzą zaległość. `high` to czwarty proces, ale lekki
+#          (same e-maile) — patrz uwaga o pamięci w .railway/railway.ts.
 #
 #    all (produkcja dziś: jeden kontener 1024 MB z FrankenPHP i harmonogramem)
-#        → JEDEN proces `default,media,low`, kolejność = priorytet, tak jak
-#          przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
+#        → JEDEN proces `high,default,media,low`, kolejność = priorytet, tak
+#          jak przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
 #          przy zdjęciu 50 Mpx, `low` do limitu 512M przy eksporcie, do tego
 #          WWW — OOM położyłby także stronę. Ceną jest głodzenie `media`
 #          i `low` przy stałej zaległości `default`; lekarstwem jest
@@ -412,12 +435,18 @@ start_worker() {
 #                    QUEUE_WORKERS.
 #
 #  `media` zawsze bierze JEDEN proces: dwa dekodowania 50 Mpx naraz nie
-#  mieszczą się w 1024 MB (BudzetPamieciZdjecTest). `high` zniknęła z listy:
-#  żaden kod jej nie używał.
+#  mieszczą się w 1024 MB (BudzetPamieciZdjecTest).
+#
+#  `high` WRÓCIŁA (audyt B8-06): listy wejścia na konto — link do logowania,
+#  potwierdzenie adresu, ustawienie hasła, zaproszenie — idą na `high`, żeby
+#  nie stać w FIFO na `default` za podsumowaniami tygodnia. Przez chwilę
+#  (#1030) usunięta jako nieużywana; kolejka, której worker nie czyta,
+#  zostawia list w bazie na zawsze. Dlatego stoi PIERWSZA w obu rolach,
+#  a w roli `worker` ma własny proces (UmowaKolejkiTest).
 # -----------------------------------------------------------------------------
 listy_kolejek() {
-  local osobne="default media low"
-  local wspolny="${QUEUE_NAMES:-default,media,low}"
+  local osobne="high default media low"
+  local wspolny="${QUEUE_NAMES:-high,default,media,low}"
 
   if [[ -n "${QUEUE_WORKERS:-}" ]]; then
     [[ -n "${QUEUE_NAMES:-}" ]] && log "OSTRZEŻENIE: ustawione QUEUE_WORKERS i QUEUE_NAMES — QUEUE_NAMES jest pomijane"
