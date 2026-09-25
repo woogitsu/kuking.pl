@@ -7,15 +7,17 @@ namespace App\Domain\Feed;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * "Świeżo z Kuking" — to, co widzi ktoś, kto nikogo jeszcze nie obserwuje.
  *
- * To NIE jest ranking popularności. To chronologia z jednym ograniczeniem:
- * maksymalnie jeden wpis od tej samej osoby w widoku. Bez tego jedna aktywna
- * osoba zasłania cały serwis, a nowy użytkownik odnosi wrażenie, że "tu jest
- * tylko ta pani".
+ * To NIE jest ranking popularności. To chronologia z rotacją autorów:
+ * najpierw najnowszy wpis każdej osoby, potem drugi każdej i tak dalej
+ * (issue #1807). Bez tego jedna aktywna osoba zasłania cały serwis, a nowy
+ * użytkownik odnosi wrażenie, że "tu jest tylko ta pani".
  *
  * Cold start bez tego ekranu nie działa: feed obserwowanych nowego
  * użytkownika jest z definicji pusty (docs/product/COLD_START.md).
@@ -34,52 +36,72 @@ final class DiscoverFeed
      */
     public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
-    /** @return CursorPaginator<int, Post> */
-    public function paginate(?User $viewer, ?int $perPage = null): CursorPaginator
+    /**
+     * Najdalszy wstecz „stan", jaki przyjmujemy z adresu. Kursor starszy niż
+     * doba to zakładka, nie przeglądanie — wtedy liczymy od teraz.
+     */
+    private const STAN_NAJWYZEJ_SEKUND_WSTECZ = 86_400;
+
+    /**
+     * @param  string|null  $stan  wartość parametru `stan` z adresu DALSZEJ
+     *                             strony (patrz niżej); pierwsza strona podaje `null`
+     * @return CursorPaginator<int, Post>
+     */
+    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
+        $chwila = $this->chwilaListy($stan);
 
-        // JEDEN WPIS NA AUTORA W CAŁEJ SEKWENCJI, NIE TYLKO NA STRONIE (issue #940).
+        // ROTACJA AUTORÓW (issue #1807, reguła doboru z AGENTS.md §8: „równość
+        // autorów"). Najpierw najnowszy wpis każdej osoby, potem drugi każdej,
+        // potem trzeci — i tak do końca.
         //
-        // Obietnica z nagłówka tej klasy stała tu od pierwszego commita, ale
-        // zapytanie jej nie wykonywało: jedna osoba z serią wpisów wypełniała
-        // całą pierwszą stronę i landing gościa. Reguła jest własnością
-        // zapytania — `DISTINCT ON (author_id)` w podzapytaniu, tym samym
-        // wzorcem co `DailyBoard::automaticPosts()`.
+        // Wcześniej stało tu `DISTINCT ON (author_id)` (issue #940): jeden wpis
+        // na autora w CAŁEJ sekwencji. Seria jednej osoby przestała zasłaniać
+        // innych, ale głębokość Odkrywania równała się liczbie aktywnych
+        // autorów — przy dziesięciu osobach dziesięć kart i koniec, a starsze
+        // wpisy nigdy nie wracały. Rotacja zachowuje gwarancję z #940 (pierwsza
+        // runda to dalej po jednym wpisie od osoby) i oddaje całą resztę.
         //
-        // „W widoku" = w całym odkrywaniu, nie w jednej stronie: wybór
-        // reprezentanta nie zależy od kursora, więc druga strona nie powtórzy
-        // autora z pierwszej i nie zgubi pozostałych. Kolejność reprezentantów
-        // jest dalej czysto chronologiczna — to nie jest ranking.
+        // `runda` = `row_number()` w oknie autora, od najnowszego. To liczy
+        // WPISY TEJ OSOBY, nie cudze reakcje — nikt nie trafia wyżej za to, ile
+        // „Ugotowałem" zebrał (strażnik: `FeedNieSortujePoMierzeReakcjiTest`).
         //
-        // WSZYSTKIE BRAMKI WIDOCZNOŚCI SĄ W PODZAPYTANIU, PRZED WYBOREM
-        // reprezentanta. Wpis odsiany dopiero na zewnątrz zabrałby ze sobą
-        // całe miejsce autora, zamiast oddać je jego starszemu dozwolonemu
-        // wpisowi. `ORDER BY` musi zaczynać się od `author_id` (wymóg
-        // Postgresa dla `DISTINCT ON`); `published_at, id` wybierają najnowszy.
-        $najnowszyKazdegoAutora = Post::query()
-            ->selectRaw('DISTINCT ON (posts.author_id) posts.id')
+        // WSZYSTKIE BRAMKI WIDOCZNOŚCI SĄ W PODZAPYTANIU, PRZED NUMERACJĄ.
+        // Wpis odsiany dopiero na zewnątrz zostawiłby dziurę w rundach autora
+        // (jego starszy wpis stałby w rundzie trzeciej zamiast drugiej).
+        //
+        // `published_at <= chwila` — ta sama chwila na każdej stronie jednego
+        // przeglądania. Nowy wpis osoby opublikowany w trakcie przesunąłby
+        // wszystkie jej starsze wpisy o rundę dalej, a przesunięty wpis
+        // wróciłby na następnej stronie drugi raz. Chwila przechodzi między
+        // stronami w parametrze `stan` (dokładany do odnośników niżej).
+        $rundy = Post::query()
+            ->select('posts.id')
+            ->selectRaw('row_number() OVER (PARTITION BY posts.author_id ORDER BY posts.published_at DESC, posts.id DESC) AS runda')
             ->publiclyVisible()
+            // Pierwsza strona nie ma granicy (widzi wszystko do teraz), dalsze
+            // biorą wpisy do pełnej sekundy chwili pierwszej. Eloquent zapisuje
+            // `published_at` z dokładnością do sekundy, więc zdublować się może
+            // najwyżej wpis dodany w TEJ SAMEJ sekundzie co pierwsza strona.
+            ->when($stan !== null, fn ($query) => $query->where('posts.published_at', '<=', $chwila->format('Y-m-d H:i:sP')))
             // Konto autora musi być w pełni aktywne (audyt A5) — to jest
             // surowszy próg niż w Policy pojedynczego wpisu. Odkrywanie
             // aktywnie POLECA treść nieznajomym, więc zawieszenie (kara
             // czasowa, nie tylko ban) też ma tu wystarczyć do zdjęcia —
             // inaczej strona promowałaby konto będące właśnie pod sankcją.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            ->when($viewer !== null, fn ($query) => $query->whereNotIn(
-                'author_id',
-                $this->hiddenAuthorIdsFor($viewer),
-            ))
+            // Punkt zaczepienia dla jawnych poleceń widza (AGENTS.md §8):
+            // dziś blokady, od #1810 także ukrycia wpisów i osób.
+            ->when($viewer !== null, fn ($query) => $this->bezUkrytychPrzez($query, $viewer))
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
-            ->zWidocznymPrzepisem($viewer)
-            ->orderBy('posts.author_id')
-            ->orderByDesc('posts.published_at')
-            ->orderByDesc('posts.id');
+            ->zWidocznymPrzepisem($viewer);
 
-        return Post::query()
-            ->whereIn('posts.id', $najnowszyKazdegoAutora)
+        $strona = Post::query()
+            ->select('posts.*', 'rotacja.runda')
+            ->joinSub($rundy, 'rotacja', 'rotacja.id', '=', 'posts.id')
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -107,9 +129,63 @@ final class DiscoverFeed
             // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
-            ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            // Runda, w niej czas, a remis czasu rozstrzyga identyfikator —
+            // ta sama trójka, którą kursor zapisuje i odtwarza.
+            ->orderBy('rotacja.runda')
+            ->orderByDesc('posts.published_at')
+            ->orderByDesc('posts.id')
             ->cursorPaginate($perPage);
+
+        return $strona->appends('stan', (string) $chwila->getTimestamp());
+    }
+
+    /**
+     * Chwila, od której liczymy listę: z `stan` dalszej strony albo teraz.
+     *
+     * Wartość z adresu jest tylko POZYCJĄ w czasie — nie otwiera niczego, czego
+     * widz nie mógłby zobaczyć (bramki widoczności liczą się zawsze od teraz).
+     * Przyszłość i wartości starsze niż doba wracają do „teraz".
+     */
+    private function chwilaListy(?string $stan): CarbonImmutable
+    {
+        $teraz = CarbonImmutable::now()->startOfSecond();
+
+        if ($stan === null || preg_match('/^\d{1,12}$/', $stan) !== 1) {
+            return $teraz;
+        }
+
+        $chwila = CarbonImmutable::createFromTimestamp((int) $stan, $teraz->getTimezone());
+
+        if ($chwila->greaterThan($teraz)
+            || $chwila->lessThan($teraz->subSeconds(self::STAN_NAJWYZEJ_SEKUND_WSTECZ))) {
+            return $teraz;
+        }
+
+        return $chwila;
+    }
+
+    /**
+     * Blokady w obie strony. Zwrotnej („ktoś zablokował mnie") widz nie
+     * widzi nigdzie w interfejsie — liczy się tylko do odsiania.
+     *
+     * @param  Builder<Post>  $query
+     */
+    private function bezUkrytychPrzez($query, User $viewer): void
+    {
+        $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer));
+    }
+
+    /**
+     * Ile osób widz sam ukrywa (dziś: blokuje). Pusty stan Odkrywania mówi
+     * wtedy „część ukrywasz" i prowadzi do listy, na której da się to cofnąć
+     * (AGENTS.md §8: jawne polecenie widza zawsze z listą do cofnięcia).
+     *
+     * Tylko blokady ZROBIONE PRZEZ widza — blokady, którymi ktoś odciął jego,
+     * nie są jego decyzją i pusty stan nie może ich zdradzać.
+     */
+    public function ileUkrywa(User $viewer): int
+    {
+        return $viewer->blocking()->count();
     }
 
     /** @return list<string> */

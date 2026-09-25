@@ -90,7 +90,6 @@ use Tests\TestCase;
  *  - `test_kryterium_odroznia_czas_od_popularnosci` — czy klasyfikator ma moc,
  *    gdy dostanie sortowanie po popularności. Bez tej drugiej skan mógłby
  *    czytać wszystko i nie umieć niczego odrzucić.
- *
  */
 class FeedNieSortujePoMierzeReakcjiTest extends TestCase
 {
@@ -150,6 +149,12 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
                 .'Komentarz w kodzie tuż nad tym sortowaniem mówi to samo: „Sortujemy po tym, KIEDY ktoś ostatnio '
                 .'coś pokazał, nie po tym, ile ma obserwujących." Ten test jest po to, żeby ta reguła przestała być '
                 .'komentarzem przy jednym zapytaniu i zaczęła obowiązywać następne, które napisze ktoś inny.',
+        ],
+        'app/Domain/Feed/DiscoverFeed.php' => [
+            "'rotacja.runda'" => 'Alias `row_number() OVER (PARTITION BY posts.author_id ORDER BY posts.published_at DESC, '
+                .'posts.id DESC)` z podzapytania — numer wpisu W OBRĘBIE JEDNEJ OSOBY, od najnowszego. To rotacja '
+                .'autorów (#1807, D-276): najpierw najnowszy wpis każdej osoby, potem drugi każdej. Liczy własne wpisy '
+                .'autora po czasie, nie cudze reakcje — reguła „równość autorów” z listy AGENTS.md §8 (D-275).',
         ],
         'app/Domain/Feed/DailyBoardCandidates.php' => [
             "'latest_publication'" => 'Alias `withMax([\'posts as latest_publication\'], \'published_at\')`, '

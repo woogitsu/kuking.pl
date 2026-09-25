@@ -457,7 +457,7 @@ na „widzianych” i „niewidzianych” i wyłącza publikowanie u większośc
 Dozwolone są **wyłącznie**:
 
 - kolejność po czasie;
-- równość autorów (np. najwyżej jeden wpis od osoby w „Świeżo z Kuking”);
+- równość autorów (np. rotacja w „Świeżo z Kuking”: najpierw po jednym wpisie od każdej osoby, potem po drugim — D-276);
 - wybór gospodarza, oznaczony w interfejsie jako jego wybór;
 - bramki widoczności i blokady;
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.

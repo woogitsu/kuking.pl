@@ -202,7 +202,7 @@ Rozwiązanie: `/home` to nie „feed”, to **strona z blokami**, których kolej
 ### 6.2 „Świeżo z Kuking” — zasady, żeby nie było algorytmem
 
 - kolejność **chronologiczna**, nie „popularne”;
-- **maks. 1 wpis od jednej osoby** w jednym ładowaniu (inaczej 3 aktywne osoby zasłonią wszystko);
+- **rotacja autorów**: najpierw najnowszy wpis każdej osoby, potem drugi każdej i tak dalej (inaczej 3 aktywne osoby zasłonią wszystko; #1807, D-276 — wcześniej jeden wpis od osoby w całej liście, #940);
 - wykluczamy zablokowanych i zgłoszone treści;
 - preferencja tematyczna **tylko** jako filtr na starcie (zainteresowania z onboardingu), nigdy jako ranking;
 - widoczna etykieta: „Świeżo z Kuking — najnowsze dania osób, których jeszcze nie obserwujesz”. Użytkownik musi rozumieć, dlaczego to widzi. Zero tajemnicy.

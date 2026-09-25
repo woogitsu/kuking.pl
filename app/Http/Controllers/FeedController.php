@@ -205,6 +205,7 @@ class FeedController extends Controller
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',
+            'ileUkrywasz' => $zrodlo === 'odkrywanie' && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
         ]);
     }
 
@@ -261,16 +262,37 @@ class FeedController extends Controller
             }
         }
 
-        return ['odkrywanie', $this->discoverFeed->paginate($user)];
+        return ['odkrywanie', $this->discoverFeed->paginate($user, null, $zKursorem ? $this->stanOdkrywania() : null)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
     public function discover(Request $request): View
     {
+        $user = $request->user();
+        $posts = $this->discoverFeed->paginate(
+            $user,
+            null,
+            $request->query->has('cursor') ? $this->stanOdkrywania() : null,
+        );
+
         return view('pages.discover', [
-            'posts' => $this->discoverFeed->paginate($request->user()),
-            'board' => $this->dailyBoard->forViewer($request->user()),
+            'posts' => $posts,
+            'board' => $this->dailyBoard->forViewer($user),
+            // Liczone tylko dla pustej listy — tylko tam pusty stan o tym mówi.
+            'ileUkrywasz' => $user !== null && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
         ]);
+    }
+
+    /**
+     * Chwila pierwszej strony Odkrywania (issue #1807) — tylko razem
+     * z kursorem, bo bez kursora to jest nowe wejście i liczy się od teraz.
+     * Walidację wartości robi `DiscoverFeed`.
+     */
+    private function stanOdkrywania(): ?string
+    {
+        $stan = request()->query('stan');
+
+        return is_string($stan) ? $stan : null;
     }
 
     /**
