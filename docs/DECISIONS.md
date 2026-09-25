@@ -16212,6 +16212,22 @@ Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
 jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
 klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
 
+**Uzupełnienie (#1429, #1530, #1573, 24 września 2026).** Trzy kolejne
+wywołania przypisane do klas:
+
+- `data.export_requested` — **klasa 2**. Autorytatywny ślad to wiersz
+  `data_exports` i zadanie w `jobs`, zatwierdzane razem (A02).
+- `user.blocked` — **klasa 2**, zgodnie z D-090 i D-080 („blokada musi się
+  udać zawsze"). Autorytatywny ślad to wiersz `blocks` z `created_at`.
+- `account.login_link_used` — **klasa 1**. Tu trwałym skutkiem jest
+  zużycie jednorazowego poświadczenia, więc wpis stoi w transakcji
+  `ZamekKonta` razem z `delete()` tokenu. Awaria cofa oba zapisy, sesja
+  ani etap 2FA nie powstają, a człowiek dostaje „link nadal działa, kliknij
+  jeszcze raz". Samej sesji HTTP transakcja nie obejmuje.
+
+Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
+i `LogowanieLinkiemTest` (sekcja #1530).
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
