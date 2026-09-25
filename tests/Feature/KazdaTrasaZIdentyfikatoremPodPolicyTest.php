@@ -709,6 +709,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
+        // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
+        // wpisu — tylko autorowi, nigdy moderatorowi ani obcemu.
+        $dodaj('recipes.create.from-post', 'formularz przepisu ze zdjęciem prywatnego wpisu', 'get',
+            route('recipes.create.from-post', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.edit', 'układ zdjęć wpisu', 'get',
             route('posts.media.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.update', 'zapis układu zdjęć', 'post',

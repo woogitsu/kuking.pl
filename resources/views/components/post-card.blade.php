@@ -195,6 +195,11 @@
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{-- „Dopisz przepis” (#1334) — tylko przy kwalifikującym
+                             się wpisie; reguła w `PostPolicy::dopiszPrzepis`. --}}
+                        @can('dopiszPrzepis', $post)
+                            <a href="{{ route('recipes.create.from-post', $post) }}">Dopisz przepis</a>
+                        @endcan
                         {{--
                             „Usuń wpis" — akcja destrukcyjna, odsunięta od
                             zwykłych akcji i wymagająca potwierdzenia

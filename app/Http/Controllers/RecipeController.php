@@ -9,6 +9,7 @@ use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
 use App\Support\PaginationLinks;
@@ -190,9 +191,44 @@ class RecipeController extends Controller
         ]);
     }
 
+    /**
+     * „Dopisz przepis” z własnego wpisu ze zdjęciem (issue #1334).
+     *
+     * WERSJA NAJPROSTSZA, BEZ MIGRACJI DANYCH. Otwiera ten sam formularz
+     * sześciu rzeczy co „Dodaj przepis”, ze zdjęciem wpisu zamiast pola
+     * pliku (można wybrać inne). Niczego nie publikuje sama i NIE RUSZA
+     * wpisu: jego treść, komentarze, adres i widoczność zostają takie, jakie
+     * były. Przepis jest nowym, osobnym obiektem — dostaje własną
+     * zapowiedź w strumieniu (#368), jak każdy przepis. Zdjęcie jest jednym
+     * wierszem `media` wskazanym z obu miejsc; `KasujZdjecie` nie skasuje go,
+     * dopóki wskazuje je choć jedno.
+     */
+    public function createFromPost(Request $request, Post $post): View
+    {
+        $this->authorize('dopiszPrzepis', $post);
+
+        return view('pages.recipes.create', [
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+            'zWpisu' => $post,
+            'zdjecieZWpisu' => $post->zdjecieDoPrzepisu(),
+        ]);
+    }
+
     public function store(ZapisPrzepisuRequest $request): RedirectResponse
     {
         $data = $request->daneZapisu();
+
+        // Zdjęcie z własnego wpisu (#1334) — ta sama Policy co przy wejściu
+        // na formularz, sprawdzona jeszcze raz przy zapisie: identyfikator
+        // w polu ukrytym to nie autoryzacja (AGENTS.md §7). Własny plik
+        // z formularza ma pierwszeństwo.
+        $zdjecieZWpisu = null;
+
+        if ($request->zWpisu() !== null && $request->przeslanyPlik('hero_photo') === null) {
+            $wpis = Post::query()->findOrFail($request->zWpisu());
+            $this->authorize('dopiszPrzepis', $wpis);
+            $zdjecieZWpisu = $wpis->zdjecieDoPrzepisu()?->getKey();
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
@@ -204,6 +240,7 @@ class RecipeController extends Controller
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
+                zdjecieGlowneZWpisu: $zdjecieZWpisu,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);

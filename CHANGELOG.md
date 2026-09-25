@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Do własnego wpisu ze zdjęciem dania można dopisać przepis: w menu „…” przy wpisie jest „Dopisz przepis”. Otwiera się zwykły formularz przepisu ze zdjęciem z wpisu, więc nie trzeba go wgrywać drugi raz. Sam wpis zostaje taki, jaki był — z treścią, komentarzami i tym, kto go widzi. Kto ma widzieć przepis, wybieracie osobno; gdy wpis nie był publiczny, formularz proponuje „Tylko ja” (#1334).
+
 - Na ekranie „Twój zeszyt” jest pole „Szukaj w moich zeszytach”: wystarczy wpisać kawałek tytułu przepisu, żeby znaleźć go wśród swoich zapisów, bez pamiętania, do którego zeszytu trafił. Polskie znaki nie mają znaczenia, a przy każdym wyniku stoją zeszyty, w których leży. Wyniki pokazują tylko to, co możecie dziś otworzyć (#779).
 
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
