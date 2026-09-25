@@ -280,24 +280,14 @@ class SprawdzPoczte extends Command
     {
         $ostrzezenia = [];
 
-        // FAILOVER Z `log` W ŚRODKU — najgroźniejsza pułapka w pliku
-        // konfiguracji. `Poczta::dziala()` widzi sterownik `failover`
-        // i mówi „tak”, a domyślna lista to `['smtp', 'log']`: gdy SMTP
-        // padnie, listy zaczynają cicho wpadać do dziennika i NIC tego nie
-        // pokazuje. Zapasem ma być drugi dostawca, nie dziura w podłodze.
+        // FAILOVER / ROUNDROBIN: pokazujemy, przez co naprawdę idzie list.
+        // Łańcucha z `log` albo `array` tu już nie ma — od issue #1084
+        // odrzuca go `Poczta::dziala()` wyżej, zanim cokolwiek wyjdzie.
         if (in_array($transport, ['failover', 'roundrobin'], true)) {
             $skladowe = config("mail.mailers.{$sterownik}.mailers");
 
             if (is_array($skladowe)) {
                 $ostrzezenia[] = 'Sterownik `'.$sterownik.'` wysyła przez: '.implode(', ', array_map('strval', $skladowe)).'.';
-
-                foreach ($skladowe as $skladowa) {
-                    if (in_array((string) $skladowa, ['log', 'array'], true)) {
-                        $ostrzezenia[] = 'Na tej liście jest `'.$skladowa.'`, który NIC NIE DOSTARCZA. '
-                            .'Po awarii poprzedniego transportu listy zaczną cicho wpadać do dziennika, a wysyłka dalej będzie zgłaszać sukces. '
-                            .'Zapasem ma być drugi dostawca, nie `log`.';
-                    }
-                }
             }
         }
 
