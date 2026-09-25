@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,12 +66,24 @@ class CommentController extends Controller
 
         // Pod zamkiem korzenia `EditComment` pyta Policy jeszcze raz: odpowiedź
         // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337).
-        if ($this->editComment->handle($request->user(), $comment, trim($data['body'])) === null) {
+        $poprawiony = $this->editComment->handle($request->user(), $comment, trim($data['body']));
+        if ($poprawiony === null) {
             $request->session()->forget('comment_edit_recovery');
 
             return $this->odmowaZTekstem($request, $comment->fresh() ?? $comment) ?? abort(403);
         }
         $request->session()->forget('comment_edit_recovery');
+
+        // Issue #909, D-256: nowa treść przechodzi przez tę samą analizę co
+        // pierwsza — w kolejce, więc zapis nie czeka. Zapis bez zmiany nic
+        // nie zleca. Zadanie czyta komentarz po ID, więc przy kilku szybkich
+        // poprawkach każde ogląda najnowszy tekst, a indeks jednego oznaczenia
+        // na treść nie pozwala postawić drugiej pozycji w kolejce moderatora.
+        // `EditComment` zapisuje świeży wiersz spod zamka (#1337), więc zmianę
+        // czytamy z niego, a nie z modelu z trasy — ten nie wie o zapisie.
+        if ($poprawiony->wasChanged('body')) {
+            PrzeanalizujTresc::dlaKomentarza($poprawiony)->afterCommit();
+        }
 
         return back()->with('status', 'Komentarz poprawiony.');
     }

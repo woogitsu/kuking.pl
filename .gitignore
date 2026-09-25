@@ -32,6 +32,8 @@
 /storage/martwe-przyciski.json
 # Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
 /storage/kroki-kreatora/
+# Pomiar i zrzuty stopki (`scripts/stopka-pusty-pas.mjs --statycznie`).
+/storage/stopka-pusty-pas/
 /storage/pail
 /vendor
 _ide_helper.php
@@ -54,3 +56,6 @@ Thumbs.db
 # wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
 .pint.cache
 .php-cs-fixer.cache
+
+# Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
+docs/flota/chmura/czuwanie-stan.json
