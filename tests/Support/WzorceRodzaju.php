@@ -123,6 +123,14 @@ final class WzorceRodzaju
         // jest adresem, nie formą rodzajową.
         'ukosnik_powtorzony' => '/\b(\p{L}{3,}?)(?:ł(?:a|am|aś)|a|ą)\s*\/\s*\1(?:ł(?:|em|eś)|y|e|ym|ego)(?![\p{L}])/iu',
 
+        // „jestem/jesteś” + imiesłów albo przymiotnik z końcówką rodzaju:
+        // „jakim kontem Google jesteś zalogowany” (`auth/google-link`, żywe
+        // do 25.09.2026), „jestem gotowa”. Wzorce wyżej łapią czasowniki
+        // na „-ł-”, a tej konstrukcji nie — nie ma w niej „ł”. Co najmniej
+        // trzy litery, więc „jesteś na ostatnim kroku” nie łapie; rzeczownik
+        // w narzędniku („jesteś moderatorem”) kończy się na „-em” i też nie.
+        'jestem_przymiotnik' => '/(?<![\p{L}])(?:jestem|jesteś)\s+\p{L}{2,}[ya](?![\p{L}])/iu',
+
         // Nawias rodzajowy: „zalogowany(a)", „pierwsz(a)".
         'nawias' => '/\p{L}{3,}\((?:a|ą|y|e|ła|em|eś)\)/u',
 

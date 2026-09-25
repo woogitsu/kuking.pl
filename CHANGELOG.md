@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Ekran łączenia konta Google nie mówi już „jesteś zalogowany” każdemu czytelnikowi — pyta, jakie konto Google jest zalogowane na tym urządzeniu. Test tekstów łapie teraz także „jestem/jesteś” z formą rodzajową bez „ł” („jesteś zalogowany”, „jestem gotowa”).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
