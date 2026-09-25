@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Pod pytaniem w „Poradźcie” jest teraz sekcja „Inne pytania na ten temat” z odnośnikami „Pytania: <tag>”. Prowadzą do listy pytań z tym tagiem (`/pytania?tag=…`), a nie do ogólnej strony tagu z daniami. Na liście tag zostaje widoczny, można go zdjąć odnośnikiem „Pokaż wszystkie tagi”, a „Czeka na odpowiedź” zawęża pytania bez gubienia tagu (#372).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

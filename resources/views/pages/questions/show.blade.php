@@ -24,6 +24,29 @@
     <p><a href="{{ route('questions.index') }}">Poradźcie — pytania do innych</a></p>
     <h1>{{ $post->title }}</h1>
     <x-post-card :post="$post" :show-question-title="false" />
+    {{--
+        DROGA DO „PYTANIA Z TAGIEM X” (#372). Chip w karcie prowadzi na ogólną
+        stronę tagu (dania i pytania razem); filtr `/pytania?tag=` istniał,
+        ale żaden link do niego nie prowadził. Osobna, jawnie podpisana
+        nawigacja zamiast podmiany chipa: karta jest wspólna dla wszystkich
+        ekranów, a etykieta musi odróżniać pytania od wszystkich wpisów.
+        Tagi są już doładowane w `PostController::show`; bierzemy tylko aktywne.
+    --}}
+    @php
+        $tagiPytania = $post->relationLoaded('tags')
+            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
+            : collect();
+    @endphp
+    @if($tagiPytania->isNotEmpty())
+        <section class="mb-6" aria-labelledby="pytania-z-tagiem">
+            <h2 id="pytania-z-tagiem">Inne pytania na ten temat</h2>
+            <nav class="chipsy mt-0" aria-label="Pytania z tagami tego pytania">
+                @foreach($tagiPytania as $tagPytania)
+                    <a class="chip" href="{{ route('questions.index', ['tag' => $tagPytania->slug]) }}">Pytania: {{ $tagPytania->name }}</a>
+                @endforeach
+            </nav>
+        </section>
+    @endif
     <x-podziel-sie :tresc="$post" />
     <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem"
                       :action="route('posts.comment', $post)" :answers="true" />
