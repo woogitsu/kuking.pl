@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
+- Przy przepisie albo wpisie we własnym zeszycie można teraz dopisać notatkę dla siebie, np. „na urodziny taty — mniej soli”. Notatkę widzisz tylko Ty: nie zobaczy jej autor ani nikt, kto ogląda zeszyt, także publiczny. Ta sama rzecz w dwóch zeszytach może mieć dwie różne notatki. Żeby notatkę usunąć, wystarczy wyczyścić pole i zapisać. Zapisywanie jednym kliknięciem działa jak dotąd (#978).
 
 - Panel wiadomości do nas: zapis stanu sprawy nie gubi już rozpoczętej, niewysłanej odpowiedzi — po kliknięciu „Zapisz” tekst wraca w polu „Treść odpowiedzi”, a list nie wychodzi. Tak samo wysłanie odpowiedzi zostawia w polu niezapisaną notatkę i zaznaczony stan, niczego z nich nie zapisując. Działa w przeglądarce z JavaScriptem (#845).
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
