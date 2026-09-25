@@ -17,6 +17,7 @@ use App\Models\Recipe;
 use App\Models\TagHighlight;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -59,7 +60,7 @@ class FeedController extends Controller
      * z animacjami — to od razu prawdziwe zdjęcia prawdziwych ludzi, bo to
      * jest jedyny wiarygodny argument, żeby tu zostać.
      */
-    public function landing(Request $request): View
+    public function landing(Request $request): View|RedirectResponse
     {
         if ($request->user() !== null) {
             return $this->home($request);
@@ -108,15 +109,33 @@ class FeedController extends Controller
      * Ludzie są ważniejsi od kategorii — to jest serwis o ludziach,
      * którzy gotują (AGENTS.md).
      */
-    public function home(Request $request): View
+    public function home(Request $request): View|RedirectResponse
     {
         $user = $request->user();
 
-        $zrodlo = match (true) {
-            ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
-            $this->tagFeed->maTresci($user) => 'tagi',
-            default => 'odkrywanie',
-        };
+        $zrodlo = $this->aktualneZrodloFeedu($user);
+        $maKursor = $request->query->has('cursor');
+        $podaneZrodlo = $request->query('zrodlo');
+
+        // Kursor opisuje pozycję, ale nie mówi, z którego z trzech zapytań
+        // pochodzi. Bez tej drugiej informacji poprawny technicznie kursor
+        // feedu obserwowanych mógłby zostać zastosowany do tagów albo
+        // odkrywania i uciąć ich najnowsze wpisy (#1021).
+        //
+        // Nazwa z adresu nie wybiera feedu. Serwer najpierw ponownie
+        // rozstrzyga właściwe źródło z aktualnych relacji i widoczności,
+        // a parametr może je wyłącznie potwierdzić. Gdy źródło między
+        // stronami się zmieniło — albo parametr jest obcy/niepełny — wracamy
+        // do kanonicznej pierwszej strony zamiast użyć kursora w innym SQL-u.
+        if ($maKursor) {
+            if (! is_string($podaneZrodlo)
+                || ! in_array($podaneZrodlo, ['obserwowani', 'tagi', 'odkrywanie'], true)
+                || $podaneZrodlo !== $zrodlo) {
+                return redirect()->route('home');
+            }
+        } elseif ($request->query->has('zrodlo')) {
+            return redirect()->route('home');
+        }
 
         // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
         // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
@@ -162,7 +181,15 @@ class FeedController extends Controller
             ->limit(3)
             ->get();
 
-        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $request->query->has('cursor'));
+        // Na pierwszej stronie (bez kursora) źródło może jeszcze zmienić się
+        // na kolejne w kolejności, gdy okaże się puste (issue #983) — patrz
+        // `pierwszaStronaZrodla()`. Z kursorem źródło jest już ustalone przez
+        // walidację wyżej i się nie przełącza.
+        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $maKursor);
+
+        // `appends`, nie ręczne składanie adresu: Laravel nadal koduje sam
+        // kursor, a my dokładamy wyłącznie serwerowo wybraną tożsamość źródła.
+        $posts->appends(['zrodlo' => $zrodlo]);
 
         return view('pages.home', [
             'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
@@ -179,6 +206,15 @@ class FeedController extends Controller
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',
         ]);
+    }
+
+    private function aktualneZrodloFeedu(User $user): string
+    {
+        return match (true) {
+            ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
+            $this->tagFeed->maTresci($user) => 'tagi',
+            default => 'odkrywanie',
+        };
     }
 
     /**
