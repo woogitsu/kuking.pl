@@ -641,6 +641,9 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         $this->wylaczTurnstile();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $this->get('/health')
             // Świadomie 200, nie 503: healthcheck oddający 503 już raz położył
@@ -667,6 +670,9 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         $this->pocztaDziala();
         $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $this->get('/health')
             ->assertOk()
@@ -712,6 +718,9 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         $this->pocztaDziala();
         $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $this->get('/health')
             ->assertOk()
