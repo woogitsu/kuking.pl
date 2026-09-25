@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Formularz zgłoszenia treści niezgodnej z prawem mówi wprost, co zrobić bez adresu strony: w pole adresu można wpisać, gdzie widać tę treść — na przykład tytuł przepisu i nazwę autora. Wcześniej podpowiedź kazała opisać to „poniżej”, a puste pole kończyło się błędem.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 

@@ -77,10 +77,17 @@
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         @endif
 
+        {{-- Pole jest wymagane, ale przyjmuje DOWOLNY tekst — adres albo opis
+             miejsca (DSA art. 16 ust. 2 lit. b: „takie jak dokładny adres URL”).
+             Podpowiedź kiedyś kazała osobie bez adresu „opisać poniżej”, a puste
+             pole kończyło się błędem „Wklej adres strony…” — formularz przeczył
+             sam sobie (audyt B9, pkt 2). Podpowiedź i komunikat błędu mówią
+             teraz to samo: opis wpisuje się TUTAJ.
+             `ZgloszenieNielegalnejTresciBezAdresuTest`. --}}
         <x-field name="target_url" label="Adres strony z tą treścią" required
                  :value="old('target_url')"
                  placeholder="https://kuking.pl/przepis/..."
-                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to jest." />
+                 help="Skopiuj adres z paska przeglądarki. Jeśli go nie masz, wpisz tutaj, gdzie to widzisz — na przykład tytuł przepisu i nazwę autora." />
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
