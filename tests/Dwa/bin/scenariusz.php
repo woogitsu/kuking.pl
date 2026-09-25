@@ -32,6 +32,7 @@ use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
@@ -256,6 +257,9 @@ try {
         'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            // Jawny zeszyt — jedna osoba zapisująca naraz do dwóch SWOICH
+            // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
+            collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
