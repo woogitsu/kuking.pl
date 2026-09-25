@@ -17,6 +17,26 @@ class CookedEventPolicy
      */
     public function view(?User $user, CookedEvent $event): bool
     {
+        return $this->dostep($user, $event, doKomentarza: false);
+    }
+
+    /**
+     * Kto może skomentować to wykonanie (`cooked.comment`, `PublishComment`).
+     *
+     * To samo co `view()` z JEDNYM wyjątkiem: zbanowany kucharz nie zamyka
+     * komentowania. Decyzja właściciela z 25.09.2026 do D-261: „Nie,
+     * komentarze zostają”. Ban chowa wykonanie przed obcymi (strona, zdjęcia,
+     * listy), ale rozmowa pod nim nie jest zamykana. Blokada, status
+     * i widoczność przepisu, karencja usunięcia kucharza — obowiązują jak
+     * przy `view()`.
+     */
+    public function comment(User $user, CookedEvent $event): bool
+    {
+        return $this->dostep($user, $event, doKomentarza: true);
+    }
+
+    private function dostep(?User $user, CookedEvent $event, bool $doKomentarza): bool
+    {
         // 1. Blokada — pierwsza, bezwarunkowa, w obie strony (`AGENTS.md` §4).
         if ($user !== null && $user->hasBlockRelationWith($event->user)) {
             return false;
@@ -84,7 +104,13 @@ class CookedEventPolicy
         // wszystkich samo. Kucharz i moderator przeszli już punktem 3 —
         // moderator ma zaglądać z urzędu, a człowiek w `pending_delete`
         // do tej Policy nie dociera (`EnsureAccountIsActive` go wylogowuje).
-        if (! $event->user->jestDostepnyJakoAutor()) {
+        //
+        // Wyjątek: komentowanie (`comment()`) przy zbanowanym kucharzu zostaje
+        // otwarte — decyzja właściciela z 25.09.2026. Karencja usunięcia
+        // zamyka także komentowanie.
+        $zbanowanyPrzyKomentarzu = $doKomentarza && $event->user->status === User::STATUS_BANNED;
+
+        if (! $event->user->jestDostepnyJakoAutor() && ! $zbanowanyPrzyKomentarzu) {
             return false;
         }
 

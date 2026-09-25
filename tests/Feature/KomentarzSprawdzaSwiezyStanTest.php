@@ -221,20 +221,24 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
                 $this->assertSame(1, $subject->comments()->count());
             }
         }
-        foreach (['active', 'suspended', 'erased'] as $status) {
+
+        // Decyzja właściciela do D-261 (25.09.2026): „Nie, komentarze
+        // zostają”. Ban chowa wykonanie przed obcymi, ale komentowania nie
+        // zamyka — stąd `banned` na tej liście (`CookedEventPolicy::comment()`).
+        foreach (['active', 'suspended', 'banned', 'erased'] as $status) {
             [$subject, $cook] = $this->subject('cooked');
             $cook->forceFill(['status' => $status, 'data_erased_at' => $status === 'erased' ? now() : null])->save();
             $comment = app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Widoczna historia kucharza.');
             $this->assertNotNull($comment->id);
         }
 
-        // D-261: wykonania zbanowanego kucharza obcy nie widzi także pod
-        // bezpośrednim adresem, więc nie może go też skomentować.
+        // Kontrola ujemna: wyjątek dotyczy tylko bana. Kucharz w karencji
+        // usunięcia zamyka także komentowanie.
         [$subject, $cook] = $this->subject('cooked');
-        $cook->forceFill(['status' => 'banned'])->save();
+        $cook->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
         try {
-            app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Nie pod wykonaniem zbanowanego.');
-            $this->fail('Komentarz pod wykonaniem zbanowanego kucharza przeszedł mimo D-261.');
+            app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Nie pod wykonaniem w karencji.');
+            $this->fail('Komentarz pod wykonaniem kucharza w karencji usunięcia przeszedł.');
         } catch (BladDlaCzlowieka) {
             $this->assertSame(0, $subject->comments()->count());
         }

@@ -16970,8 +16970,12 @@ znika tylko wyróżnienie” z `KomusWyszloWidocznoscTest` znaczy od dziś
 **Znana granica.** Kopie zdjęć już zapisane w pamięci podręcznej CDN przed
 banem wygasają według swojego `Cache-Control` — ta decyzja ich nie czyści.
 
-**Skutki uboczne.** Obcy nie skomentuje wykonania zbanowanego kucharza
-(`LockCommentContext` pyta tę samą `view()`). Lokalna analiza spamu (D-241)
+**Skutki uboczne.** Komentowanie świadomie zostaje — decyzja właściciela
+z 25 września 2026 („Nie, komentarze zostają”). Obcy nie otworzy wykonania
+zbanowanego kucharza, ale komentarz pod nim przechodzi: `cooked.comment`
+i `LockCommentContext` pytają o osobną zdolność `CookedEventPolicy::comment()`,
+która różni się od `view()` tylko tym, że ban kucharza nie zamyka rozmowy
+(karencja usunięcia, blokada i stan przepisu — jak w `view()`). Lokalna analiza spamu (D-241)
 działa dalej: `GranicaWysylki::pozaAutorem()` podmienia w kopii zbanowanego
 kucharza na aktywnego, tak jak autora wpisu i przepisu. Do OpenAI taki
 komentarz nie wychodzi.
@@ -16979,7 +16983,9 @@ komentarz nie wychodzi.
 Dowody: `tests/Feature/KarencjaUsunieciaChowaWykonanieTest.php`
 (gość, obcy zalogowany, zdjęcie; kontrola dodatnia: moderator i powrót po
 zdjęciu bana), `tests/Feature/Visibility/KomusWyszloWidocznoscTest.php`,
-`tests/Feature/KomentarzSprawdzaSwiezyStanTest.php`,
+`tests/Feature/KomentarzSprawdzaSwiezyStanTest.php` (zbanowany kucharz —
+komentarz przechodzi; karencja — odmowa),
+`KarencjaUsunieciaChowaWykonanieTest::test_zbanowany_kucharz_nie_zamyka_komentowania`,
 `tests/Feature/GranicaWysylkiDoOpenAiTest.php` („wykonanie autor_zbanowany”).
 
 ## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)

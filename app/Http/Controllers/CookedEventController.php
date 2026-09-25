@@ -330,7 +330,9 @@ class CookedEventController extends Controller
 
     public function comment(Request $request, CookedEvent $cookedEvent): RedirectResponse
     {
-        $this->authorize('view', $cookedEvent);
+        // `comment`, nie `view`: zbanowany kucharz chowa wykonanie, ale nie
+        // zamyka komentowania (decyzja właściciela do D-261).
+        $this->authorize('comment', $cookedEvent);
 
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4000'],

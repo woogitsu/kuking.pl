@@ -165,6 +165,26 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
         );
     }
 
+    /**
+     * Decyzja właściciela do D-261 (25.09.2026): „Nie, komentarze zostają”.
+     * Obcy nie otworzy wykonania zbanowanej osoby, ale komentarz przez
+     * `cooked.comment` dalej przechodzi (`CookedEventPolicy::comment()`).
+     */
+    public function test_zbanowany_kucharz_nie_zamyka_komentowania(): void
+    {
+        [$kucharz, $wykonanie] = $this->wykonanieZeZdjeciem();
+
+        $kucharz->ban();
+        $obcy = $this->user('komentujacy');
+
+        $this->actingAs($obcy)->get(route('cooked.show', $wykonanie))
+            ->assertForbidden();
+        $this->actingAs($obcy)->post(route('cooked.comment', $wykonanie), ['body' => 'Gratulacje mimo wszystko.'])
+            ->assertRedirect();
+
+        $this->assertSame(1, $wykonanie->comments()->where('author_id', $obcy->getKey())->count());
+    }
+
     /** Kontrola dodatnia: moderator zagląda z urzędu, a po zdjęciu bana wykonanie wraca. */
     public function test_zbanowane_wykonanie_widzi_moderator_a_po_zdjeciu_bana_wszyscy(): void
     {
