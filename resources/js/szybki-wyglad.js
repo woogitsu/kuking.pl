@@ -33,6 +33,28 @@ function initialize() {
         hint.hidden = true;
         try { localStorage.setItem('kuking-wyglad-poznany', '1'); } catch { /* Brak pamięci nie blokuje ustawień. */ }
     };
+    // Kandydatów bierzemy spod samego przycisku (`elementsFromPoint` w kilku
+    // punktach), a nie z całej strony — geometria biegnie przy każdym scrollu.
+    const CEL = 'a[href], button, input:not([type=hidden]), select, textarea, summary, label, [tabindex]:not([tabindex="-1"])';
+    const zakrywaCel = floating => {
+        const w = floating.width, h = floating.height;
+        const punkty = [[0.5, 0.5], [0.15, 0.2], [0.85, 0.2], [0.15, 0.8], [0.85, 0.8]];
+        const cele = new Set();
+        for (const [fx, fy] of punkty) {
+            for (const el of document.elementsFromPoint(floating.left + w * fx, floating.top + h * fy)) {
+                if (widget.contains(el) || hint.contains(el)) continue;
+                const cel = el.closest(CEL);
+                if (cel && !widget.contains(cel) && !hint.contains(cel)) cele.add(cel);
+            }
+        }
+        return [...cele].some(cel => [...cel.getClientRects()].some(r => {
+            const left = Math.max(0, r.left), right = Math.min(innerWidth, r.right);
+            const top = Math.max(0, r.top), bottom = Math.min(innerHeight, r.bottom);
+            if (right <= left || bottom <= top) return false;
+            const x = (left + right) / 2, y = (top + bottom) / 2;
+            return x >= floating.left && x <= floating.right && y >= floating.top && y <= floating.bottom;
+        }));
+    };
     const geometry = () => {
         if (pointerOnFlowSummary) return;
         const wasInFlow = widget.hasAttribute('data-wyglad-w-przeplywie');
@@ -61,6 +83,15 @@ function initialize() {
                     && r.right > floating.left && r.left < floating.right
                     && r.bottom > floating.top && r.top < floating.bottom));
             if (obscuresError) {
+                widget.setAttribute('data-wyglad-w-przeplywie', '');
+                return;
+            }
+            // Ta sama reguła dla myszy i dotyku (#684): gdy przycisk leży na
+            // środku linku albo przycisku strony, kliknięcie trafiłoby
+            // w „Wygląd", nie w cel. Klawiatura ma odsłanianie w `focusin`,
+            // wskaźnik nie dostawał niczego. Środek widocznej części celu to
+            // miejsce, w które człowiek celuje palcem.
+            if (zakrywaCel(floating)) {
                 widget.setAttribute('data-wyglad-w-przeplywie', '');
                 return;
             }

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Przycisk „Wygląd” w rogu ekranu nie zasłania już linku ani przycisku, w który chcecie kliknąć myszą albo dotknąć palcem. Gdy leży na środku takiego miejsca, przesuwa się na dół strony, a po dalszym przewinięciu wraca do rogu (#684).
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
