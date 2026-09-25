@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Po usunięciu konta zdarzenia z analizy działania serwisu przestają być z nim powiązane i znikają same po 90 dniach, jak wszystkie inne. Polityka prywatności mówi to wprost i ma nową datę stanu — 25 września 2026. Zgody udzielone wcześniej zostają ważne i dalej wskazują brzmienie, na które je dano (#1324).
+
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).

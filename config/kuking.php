@@ -2321,9 +2321,11 @@ return [
          * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
          * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
-         * przestawić w panelu Railwaya.
+         * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
+         * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
+         * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-25',
     ],
 
     'analytics' => [
