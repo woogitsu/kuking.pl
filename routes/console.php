@@ -318,6 +318,19 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
+// stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak
+// spokój. Dlatego co 5 minut znak życia do ZEWNĘTRZNEGO monitora, który
+// alarmuje, gdy znak nie przyjdzie. Bez `KUKING_PULS_HARMONOGRAMU_URL` nie
+// wysyła nic (zero efektu). Co 5 minut: monitor z oknem 15 minut dostaje
+// trzy szanse, więc jedno zgubione żądanie nie budzi nikogo w nocy.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:puls-harmonogramu')
+    ->name('kuking:puls-harmonogramu')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
 // Zaległe czyszczenie cache CDN (issue #959). Adresy skasowanych zdjęć, których
 // `PurgePublicMediaCache` nie wyczyścił — bo nie było konfiguracji Cloudflare
 // albo zadanie wyczerpało próby — czekają w `zalegle_czyszczenia_cdn`. Bez
