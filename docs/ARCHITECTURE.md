@@ -46,6 +46,12 @@ Monolit zmniejsza liczbę ruchomych części i jest bardzo dobry do pracy przez 
 - kontrolery;
 - Form Requests.
 
+Granica przyjęta w #970: **Form Request odpowiada za wejście HTTP** (rola,
+reguły, komunikaty, kolejność sprawdzeń), **akcja w `app/Domain` za regułę
+i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
+`ZapisPrzepisuRequest` + `ZapiszPrzepisZFormularza` (przepis) oraz
+`DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna).
+
 ### Application
 Use cases, np.:
 - PublishPost;
@@ -96,10 +102,18 @@ MVP:
 Jobs:
 - ProcessUploadedImage;
 - GenerateUserExport;
-- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki);
-- SendDigest;
-- RefreshSearchDocument;
-- GenerateSitemapChunk.
+- NotifyUserExportReady (list „paczka gotowa”, ponawiany osobno od budowy paczki).
+
+Poza kolejką (zamiast jobów, świadomie, na razie):
+- tygodniowy digest — komenda harmonogramu
+  `App\Console\Commands\WyslijPodsumowaniaTygodnia` (`Mail::queue()` per
+  odbiorca), nie osobny job `SendDigest`;
+- wyszukiwarka czyta PostgreSQL na żywo (`App\Domain\Search\SearchQuery`),
+  nie ma materializowanego dokumentu ani joba `RefreshSearchDocument`
+  do jego odświeżania;
+- sitemapa generuje się na żądanie z cache'em HTTP (`SitemapController`);
+  podział na chunki i job `GenerateSitemapChunk` to plan przy dziesiątkach
+  tysięcy adresów (`docs/seo/SEO_TECHNICAL.md`), nie dzisiejszy stan.
 
 Redis dopiero po pomiarze.
 
