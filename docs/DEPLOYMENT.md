@@ -10,14 +10,20 @@ Kuking
 
 Queue MVP: database.
 
-Po wzroście:
+Po wzroście (`PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts`):
 ```text
 Kuking
 ├── web
 ├── worker
-├── postgres
-└── cron
+├── scheduler
+└── postgres
 ```
+
+`scheduler` to **długo działający** proces Laravel `schedule:work` (nie
+Railway Cron — ten ma granulację 5 minut, a `everyMinute()` wymaga odpytania
+co minutę). Ma zawsze dokładnie 1 replikę: dwie odpalałyby ten sam
+harmonogram dwa razy. Pełne uzasadnienie: `docs/infra/INFRA_DECISION.md`
+§5, kontrakt ról: `.railway/railway.ts`.
 
 Zdjęcia docelowo: Cloudflare R2.
 
