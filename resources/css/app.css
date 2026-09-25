@@ -1509,7 +1509,7 @@
   }
 
   /* Samodzielny nagłówek sekcji, 16 px zamiast 18 px z §5 — świadomy
-     wyjątek D-260 (napis pomocniczy w panelu moderacji, widoczny wyłącznie
+     wyjątek D-262 (napis pomocniczy w panelu moderacji, widoczny wyłącznie
      dla moderatorów). */
   .side-nav-moderacja-naglowek {
     margin: 0 0 var(--spacing-2);
@@ -1629,7 +1629,7 @@
      `--text-help` (16 px) zamiast 18 px z §5 — to jest CYTAT z cudzej treści
      w narzędziu roboczym dla jednej osoby, nie tekst produktu czytany przez
      użytkowników 50+. Pełna treść stoi o jedno kliknięcie dalej, w normalnym
-     rozmiarze. Wyjątek D-260 (napis pomocniczy w panelu moderacji) —
+     rozmiarze. Wyjątek D-262 (napis pomocniczy w panelu moderacji) —
      NIE D-051, który obejmuje wyłącznie dwa elementy stopki. */
   .sygnal-podglad-cytat {
     margin: 0 0 var(--spacing-2);

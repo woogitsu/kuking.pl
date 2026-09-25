@@ -16853,7 +16853,7 @@ do wspólnego tokenu, który musi mieć dostęp do każdego z nich.
 
 ---
 
-## D-260 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
+## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
 
 **Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
 
@@ -16901,15 +16901,15 @@ minimum 18 px obowiązuje bez wyjątku.
 ### CO Z TYM ZROBIONO W KODZIE
 
 W `resources/css/app.css` zamieniono błędne powołanie na D-051 przy
-`.sygnal-podglad-cytat` na powołanie na D-260 i dopisano odwołanie do
-D-260 przy `.side-nav-moderacja-naglowek`. W `resources/css/ekran-uzytkownikow.css`
-dopisano odwołanie do D-260 przy `.tabela-kont .drobne` i `.stan-konta`.
+`.sygnal-podglad-cytat` na powołanie na D-262 i dopisano odwołanie do
+D-262 przy `.side-nav-moderacja-naglowek`. W `resources/css/ekran-uzytkownikow.css`
+dopisano odwołanie do D-262 przy `.tabela-kont .drobne` i `.stan-konta`.
 Strażnik `tests/Feature/MinimalnyRozmiarTekstuTest.php` pilnuje ZAMKNIĘTEJ
 listy `SAMODZIELNE_ETYKIETY`, w której żaden z tych czterech selektorów nie
 stał ani wcześniej, ani teraz — nie jest to strażnik z otwartą listą
 wyjątków, więc nie ma tu nic do dopisania; gdyby ktoś kiedyś przepisał go
 na skaner całego CSS, te cztery selektory muszą wtedy dostać jawny wpis na
-liście wyjątków z odwołaniem do D-260, a nie zgłoszenie jako regresja.
+liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
