@@ -51,6 +51,12 @@ final class TagFeed
 
         return Post::query()
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+            // TYLKO OPUBLIKOWANE (issue #1338). `widoczneDla()` ma furtkę
+            // „autor widzi swoje" bez pytania o status — dla archiwum autora,
+            // nie dla strumienia. Bez tego własny wpis ukryty przez moderację
+            // albo szkic z tagiem stał na Starcie. Strona tagu i
+            // `FollowingFeed` mają ten warunek od początku.
+            ->published()
             // Ta sama macierz widoczności co wszędzie indziej: obserwowanie
             // tagu NIE MOŻE być obejściem ustawień prywatności ani blokady.
             ->widoczneDla($viewer)
@@ -130,6 +136,7 @@ final class TagFeed
         // co zrobić dalej.
         return Post::query()
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+            ->published()
             ->widoczneDla($viewer)
             ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->tylkoOdAktywnychAutorow()

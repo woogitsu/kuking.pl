@@ -60,6 +60,34 @@ return [
     'zaufane_przeskoki' => (int) env('KUKING_ZAUFANE_PRZESKOKI', 1),
 
     /*
+     * TOKEN KRAWĘDZIOWY `X-Kuking-Edge-Token` (issue #1306, Blok B
+     * w `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`).
+     *
+     * Jedyny sposób, żeby odróżnić żądanie, które przeszło przez Cloudflare,
+     * od wejścia wprost na origin. Mechanizm i tryby: `App\Support\TokenKrawedzi`.
+     *
+     *   - `KUKING_EDGE_TOKEN` puste → bramka wyłączona (lokalnie, testy, preview);
+     *   - `KUKING_EDGE_TRYB` — `obserwacja` (DOMYŚLNIE: tylko log)
+     *     albo `egzekwowanie` (403 bez ważnego tokenu). Blokowanie włącza się
+     *     dopiero wtedy, gdy log z trybu obserwacji potwierdzi, że cały
+     *     prawdziwy ruch niesie token;
+     *   - `KUKING_EDGE_TOKEN_POPRZEDNI` — tylko na czas rotacji sekretu.
+     *
+     * Sekretu NIE wpisujemy do repozytorium ani do `.railway/railway.ts` —
+     * żyje wyłącznie w zmiennych Railwaya i w regule Cloudflare.
+     */
+    'token_krawedzi' => [
+        'aktualny' => (string) env('KUKING_EDGE_TOKEN', ''),
+        'poprzedni' => (string) env('KUKING_EDGE_TOKEN_POPRZEDNI', ''),
+        'tryb' => (string) env('KUKING_EDGE_TRYB', 'obserwacja'),
+
+        // Sondy zdrowia chodzą do kontenera z pominięciem Cloudflare
+        // (`/health` — healthcheck Railwaya, `/up` — framework). Tylko GET/HEAD
+        // i zawsze bez nagłówków `X-Forwarded-*`.
+        'bez_tokenu' => ['health', 'up'],
+    ],
+
+    /*
      * DODATKOWE HOSTY, POD KTÓRYMI WOLNO ODPYTYWAĆ SERWIS (ustalenie S2, D-071).
      *
      * Pełna lista dozwolonych hostów żyje w `App\Support\ZaufaneHosty`

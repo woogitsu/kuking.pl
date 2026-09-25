@@ -105,6 +105,71 @@ final class StanKolejki
         ] + $progi;
     }
 
+    /** Kolejki, które zna `docker/entrypoint.sh` (`QUEUE_NAMES`); reszta idzie do „inne". */
+    public const ZNANE_KOLEJKI = ['high', 'default', 'media', 'low'];
+
+    /**
+     * Te same liczby co `sprawdz()`, ale OSOBNO dla każdej kolejki (issue #599).
+     *
+     * Po co: `media` to zadania ciężkie (dekodowanie zdjęć), `high` to
+     * potwierdzenia adresu i resety hasła. Suma z `sprawdz()` nie odróżni
+     * „zdjęcia czekają minutę" od „reset hasła czeka minutę", a to są dwie
+     * różne pilności. Alarm zostaje na sumie — ta rozbicie jest do szeregu
+     * czasowego w dzienniku i do decyzji o osobnym workerze media (#595).
+     *
+     * Nazwy spoza listy znanych kolejek łączymy w `inne`, żeby do dziennika
+     * nie trafiło nic poza stałym, krótkim słownikiem. `null` znaczy, że
+     * tabel nie dało się odpytać.
+     *
+     * @return array<string, array{oczekujace: int, zaleglosc_sekundy: int, zawieszone: int, nieudane_w_oknie: int}>|null
+     */
+    public function poKolejkach(?Carbon $teraz = null): ?array
+    {
+        $teraz ??= Carbon::now();
+        $znacznik = $teraz->getTimestamp();
+        $od = $teraz->copy()->subHours($this->oknoGodzin());
+
+        $wynik = [];
+
+        foreach (self::ZNANE_KOLEJKI as $nazwa) {
+            $wynik[$nazwa] = ['oczekujace' => 0, 'zaleglosc_sekundy' => 0, 'zawieszone' => 0, 'nieudane_w_oknie' => 0];
+        }
+
+        try {
+            $kolejki = DB::table('jobs')->selectRaw(
+                'queue,
+                 count(*) FILTER (WHERE reserved_at IS NULL AND available_at <= ?) AS oczekujace,
+                 coalesce(max(? - available_at) FILTER (WHERE reserved_at IS NULL AND available_at <= ?), 0) AS zaleglosc,
+                 count(*) FILTER (WHERE reserved_at IS NOT NULL AND reserved_at <= ?) AS zawieszone',
+                [$znacznik, $znacznik, $znacznik, $znacznik - $this->progZawieszenia()],
+            )->groupBy('queue')->get();
+
+            $nieudane = DB::table('failed_jobs')
+                ->selectRaw('queue, count(*) AS w_oknie')
+                ->where('failed_at', '>=', $od)
+                ->groupBy('queue')
+                ->get();
+        } catch (Throwable) {
+            return null;
+        }
+
+        foreach ($kolejki as $wiersz) {
+            $nazwa = in_array($wiersz->queue, self::ZNANE_KOLEJKI, true) ? $wiersz->queue : 'inne';
+            $wynik[$nazwa] ??= ['oczekujace' => 0, 'zaleglosc_sekundy' => 0, 'zawieszone' => 0, 'nieudane_w_oknie' => 0];
+            $wynik[$nazwa]['oczekujace'] += (int) $wiersz->oczekujace;
+            $wynik[$nazwa]['zaleglosc_sekundy'] = max($wynik[$nazwa]['zaleglosc_sekundy'], (int) $wiersz->zaleglosc);
+            $wynik[$nazwa]['zawieszone'] += (int) $wiersz->zawieszone;
+        }
+
+        foreach ($nieudane as $wiersz) {
+            $nazwa = in_array($wiersz->queue, self::ZNANE_KOLEJKI, true) ? $wiersz->queue : 'inne';
+            $wynik[$nazwa] ??= ['oczekujace' => 0, 'zaleglosc_sekundy' => 0, 'zawieszone' => 0, 'nieudane_w_oknie' => 0];
+            $wynik[$nazwa]['nieudane_w_oknie'] += (int) $wiersz->w_oknie;
+        }
+
+        return $wynik;
+    }
+
     /**
      * ZALEGŁOŚĆ WYGRYWA Z NOWYMI NIEUDANYMI, i to nie jest kolejność losowa:
      * kilka zadań, które padły, znaczy „coś jest zepsute". Zaległość znaczy

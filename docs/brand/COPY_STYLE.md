@@ -504,6 +504,8 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
+| brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |
+| + wyjaśnienie | Nie znaleźliśmy ani przepisu, ani osoby pasującej do „{fraza}". Sprawdź, czy wszystko jest dobrze wpisane, albo wpisz krócej: samo imię albo jedną nazwę dania. |
 | brak komentarzy | Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz. |
 
 ### Błędy — poziom „poważny", zero żartów
