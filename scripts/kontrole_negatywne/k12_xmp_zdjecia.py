@@ -14,5 +14,5 @@ KONTROLE_DODATNIE = [XMP_TEST]
 
 KONTROLE = [
     Kontrola("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
-             lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+             lambda s: replace_once(s, "$wynik = self::usunXmp(self::usunGpsZExif($bajty));", "$wynik = self::usunGpsZExif($bajty);")),
 ]
