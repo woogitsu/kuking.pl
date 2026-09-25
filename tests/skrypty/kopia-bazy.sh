@@ -247,6 +247,59 @@ else
     sprawdz "…i metoda pomiaru NAPRAWDĘ widzi wyciek starej implementacji" "widzi" "nie widzi: $(head -c 300 "${LOG_STARA}")"
   fi
   rm -f "${LOG_STARA}"
+
+  # 3. CAŁA derywacja SigV4 przez produkcyjne `s3_podpis`, nie tylko jedno
+  #    wywołanie `s3_hmac`. Klucz z pkt 1 to tylko PIERWSZY klucz łańcucha;
+  #    kDate, kRegion, kService i kSigning (każdy wystarcza do podrobienia
+  #    podpisów na swoim poziomie) oraz ich postacie po XOR z ipad/opad
+  #    (z nich da się odtworzyć klucz jednym XOR-em) też są sekretami.
+  #    Test z pkt 1 nie zauważyłby, gdyby któryś z nich wyciekł — np. gdyby
+  #    ktoś zamienił `s3_hex_xor_bajt` na wywołanie zewnętrznego narzędzia
+  #    z kluczem w argumencie albo dopisał w `s3_podpis` krok przez `openssl`.
+  #    Wartości do wyszukania liczymy PRZED `strace`, tymi samymi funkcjami
+  #    (poprawność `s3_hmac` wobec wektorów RFC 4231 i AWS sprawdza sekcja
+  #    wyżej; tu chodzi wyłącznie o to, dokąd klucze trafiają).
+  zakazane=("${SEKRET_TESTOWY}")
+  klucz_k="${KLUCZ_HEX_TESTOWY}"
+  for skladnik in '' 20260925 auto s3 aws4_request; do
+    if [[ -n "${skladnik}" ]]; then
+      klucz_k="$(printf '%s' "${skladnik}" | s3_hmac "${klucz_k}")"
+    fi
+    wypelniony="${klucz_k}"
+    for ((b = ${#wypelniony} / 2; b < 64; b++)); do wypelniony+='00'; done
+    zakazane+=("${klucz_k}" "$(s3_hex_xor_bajt "${wypelniony}" 36)" "$(s3_hex_xor_bajt "${wypelniony}" 5c)")
+  done
+
+  LOG_PODPIS="$(mktemp)"
+  (
+    # shellcheck disable=SC1090
+    . "${BIBLIOTEKA_S3}"
+    for funkcja in $(declare -F | awk '{print $3}' | grep '^s3_'); do
+      # shellcheck disable=SC2163 # eksport FUNKCJI, nie zmiennej
+      export -f "${funkcja}"
+    done
+    # Sekret wchodzi przez środowisko (strace nie loguje envp), a do
+    # `s3_podpis` — jako argument FUNKCJI, czyli bez `execve`.
+    strace -f -s 4096 -e trace=execve -o "${LOG_PODPIS}" bash -c '
+      s3_podpis PUT /kuking/baza/x "" "host:example.com
+x-amz-date:20260925T010203Z
+" "host;x-amz-date" UNSIGNED-PAYLOAD 20260925T010203Z 20260925 auto s3 "${SEKRET_TESTOWY}" >/dev/null
+    ' >/dev/null 2>&1
+  )
+  wycieki=0
+  liczba_execve="$(grep -c 'execve(' "${LOG_PODPIS}" || true)"
+  for wartosc in "${zakazane[@]}"; do
+    if grep -qF -- "${wartosc}" "${LOG_PODPIS}"; then wycieki=$((wycieki + 1)); fi
+  done
+  sprawdz "s3_podpis: żaden z ${#zakazane[@]} kluczy łańcucha SigV4 (także po XOR z ipad/opad) nie wychodzi w execve" "0" "${wycieki}"
+  # Bez tego „0 wycieków” mogłoby znaczyć „strace nic nie zobaczył”:
+  # pięć HMAC-ów to kilkadziesiąt wywołań openssl/sed/od/cat.
+  if ((liczba_execve >= 20)); then
+    sprawdz "…a strace naprawdę widział procesy potomne s3_podpis" "widział" "widział"
+  else
+    sprawdz "…a strace naprawdę widział procesy potomne s3_podpis" "widział" "tylko ${liczba_execve} execve"
+  fi
+  rm -f "${LOG_PODPIS}"
 fi
 
 # =============================================================================
