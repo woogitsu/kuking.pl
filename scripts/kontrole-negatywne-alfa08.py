@@ -291,6 +291,21 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
+# przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
+# wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
+# wycisza epizod na godziny. Jeden punkt mutacji w komponencie ma zapalić
+# i test samej maszyny, i test obu czujek, które z niej korzystają.
+EPIZOD_ALARMU = "app/Domain/Monitoring/EpizodAlarmu.php"
+EPIZOD_ALARMU_TEST = "EpizodAlarmuTest|NieudanyDzwonekNieKupujeCiszyTest"
+CISZA_TYLKO_PO_PRZYJECIU = (
+    "            $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+    "        }\n"
+)
+CISZA_BEZ_WARUNKU = (
+    "        }\n"
+    "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+)
 
 
 def digest(path):
@@ -595,6 +610,10 @@ checks = [
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
+    # `--color-border` (1,3:1 na tle panelu) ma zapalić test kontrastu.
+    ("Obwódka listy wyglądu poniżej 3:1", "resources/css/szybki-wyglad.css", "KontrolkiPaneluWygladuMajaWidocznaObwodkeTest",
+     lambda s: replace_once(s, "select { border: 2px solid var(--color-border-strong);", "select { border: 2px solid var(--color-border);")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
@@ -643,7 +662,7 @@ checks = [
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
-     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+     lambda s: replace_once(s, "$wynik = self::usunXmp(self::usunGpsZExif($bajty));", "$wynik = self::usunGpsZExif($bajty);")),
     ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
@@ -702,6 +721,8 @@ checks = [
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
+     lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -760,6 +781,7 @@ run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
