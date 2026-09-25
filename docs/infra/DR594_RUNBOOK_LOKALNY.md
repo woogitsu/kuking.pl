@@ -5,6 +5,8 @@ Wynik próby: [raport i dowody](evidence/dr594/RAPORT.md).
 To uzupełnienie [głównej procedury kopii](KOPIE_I_ODTWORZENIE.md), nie zgoda
 na produkcyjny restore. Nie otwieraj publicznego portu produkcji i nie pobieraj
 jej danych na ten komputer. Nie zamykaj #594 ani #193 na podstawie tej próby.
+Ćwiczenie na **prawdziwym** zrzucie produkcji prowadzi osobna karta:
+[`DR594_PIERWSZY_ZRZUT_WLASCICIEL.md`](DR594_PIERWSZY_ZRZUT_WLASCICIEL.md).
 
 ## 1. O trzeciej w nocy: najpierw ustal, co odtwarzasz
 

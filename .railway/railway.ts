@@ -30,9 +30,11 @@
 //    railway config plan            # podgląd zmian, NIC nie zmienia
 //    railway config apply           # zastosowanie po potwierdzeniu
 //
-//  W CI (workflows/railway-iac.yml) używamy przypiętego planu:
-//    railway config plan  --out railway-plan.json
-//    railway config apply --plan railway-plan.json --yes --confirm-destructive
+//  W CI (workflows/railway-iac.yml): PR → sam plan (komentarz w PR);
+//  apply WYŁĄCZNIE ręcznie (Run workflow na `main`, wpisane potwierdzenie,
+//  zmiany destrukcyjne domyślnie zablokowane). Do 24.09.2026 apply szło
+//  samo po scaleniu PR-a, z --confirm-destructive — patrz nagłówek workflow.
+//  Przełączenie na trzy serwisy: docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md
 // =============================================================================
 
 import {
@@ -83,6 +85,32 @@ const STAGING_DOMAINS = [{ domain: "staging.kuking.pl", port: APP_PORT }];
 const MB = 1024 * 1024;
 
 /**
+ * NAZWY ISTNIEJĄCYCH ZASOBÓW RAILWAY — tożsamość, nie etykieta (#595).
+ *
+ * `railway config plan` porównuje ten plik z ŻYWYM środowiskiem po nazwie
+ * zasobu; nie ma pliku stanu. Do 24.09.2026 stały tu nazwy `web` i
+ * `postgres`, a produkcja (zmierzone 9.09.2026, projekt `ideal-exploration`)
+ * ma serwisy `kuking.pl` i `Postgres`. Pierwszy `apply` z tamtymi nazwami:
+ *
+ *   * UTWORZYŁBY nowy serwis `web` z domenami kuking.pl — zajętymi przez
+ *     istniejący serwis — i zaproponował USUNIĘCIE `kuking.pl`;
+ *   * UTWORZYŁBY NOWĄ, PUSTĄ bazę `postgres`, przepiął na nią DB_URL
+ *     wszystkich serwisów i zaproponował USUNIĘCIE bazy z danymi.
+ *
+ * Z nazwami zgodnymi z żywym środowiskiem plan ma ZMIENIĆ istniejący
+ * serwis w miejscu (start `web` zamiast `all`) i DOPISAĆ `worker`
+ * i `scheduler`. Cokolwiek innego w planie — patrz
+ * docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md, krok „Czytanie planu”.
+ *
+ * Zmienna TypeScriptu dalej nazywa się `web` — to rola, nie nazwa w Railway.
+ * `NAZWA_SERWISU_WWW` musi się zgadzać z `APP_SERVICE` w
+ * `.github/workflows/deploy.yml`; pilnuje tego scripts/railway/iac.test.mjs.
+ * Wielkość liter ma znaczenie (`${{Postgres.DATABASE_URL}}`).
+ */
+const NAZWA_SERWISU_WWW = "kuking.pl";
+const NAZWA_BAZY = "Postgres";
+
+/**
  * TOPOLOGIA PRODUKCJI — jedyny przełącznik, który realnie zmienia rachunek.
  *
  *   false (ALFA, ~50 użytkowników)
@@ -111,9 +139,9 @@ const MB = 1024 * 1024;
  * ANI RAZU URUCHOMIONE na tym projekcie. Produkcja dziś to JEDEN serwis,
  * nazwany `kuking.pl` (nie `web`), uruchamiany komendą
  * `/usr/local/bin/kuking-entrypoint all` — dokładnie topologia opisana
- * wyżej dla `false`, mimo że flaga stoi na `true`. Nazwy serwisów `web`,
- * `worker`, `scheduler` z tego pliku nie odpowiadają żadnemu istniejącemu
- * serwisowi w Railway. NIE zmieniaj tej flagi w ramach samego sprostowania
+ * wyżej dla `false`, mimo że flaga stoi na `true`. Serwisów `worker`
+ * i `scheduler` z tego pliku w Railway nie ma; serwis WWW nosi w pliku
+ * nazwę żywego serwisu (`NAZWA_SERWISU_WWW`, od 24.09.2026). NIE zmieniaj tej flagi w ramach samego sprostowania
  * dokumentacji — rozbicie na trzy serwisy zostaje celem, dopóki właściciel
  * nie zdecyduje inaczej; zmienia się tylko to, co ten komentarz mówi o dziś.
  */
@@ -132,9 +160,18 @@ export default defineRailway((ctx) => {
   const isStaging = ctx.isEnvironment("staging");
 
   // Czy produkcja ma rozdzielone serwisy (web/worker/scheduler)?
-  // Poza produkcją NIGDY nie rozdzielamy — staging i preview zawsze
-  // chodzą jako jeden kontener w trybie APP_ROLE=all.
-  const splitServices = isProduction && PRODUCTION_SPLIT_SERVICES;
+  // Poza produkcją nie rozdzielamy — staging i preview chodzą jako jeden
+  // kontener w trybie APP_ROLE=all (wyjątek na próbę: niżej).
+  //
+  //  WYJĄTEK NA PRÓBĘ (#595): `KUKING_IAC_STAGING_ROZBITY=true` przy
+  //  `railway config plan/apply` na stagingu rozbija TAKŻE staging na trzy
+  //  serwisy — jedyny sposób, żeby przećwiczyć przełączenie gdzie indziej
+  //  niż na produkcji. Bez zmiennej staging zostaje jednym kontenerem `all`.
+  //  Czytane tak samo jak KUKING_WAIT_FOR_CI niżej: ze środowiska procesu,
+  //  który wykonuje ten plik, nie ze zmiennych Railwaya.
+  const splitServices = isProduction
+    ? PRODUCTION_SPLIT_SERVICES
+    : isStaging && process.env.KUKING_IAC_STAGING_ROZBITY === "true";
 
   // Cokolwiek innego to efemeryczne środowisko PR. Konfigurujemy je tak samo
   // jak staging (jeden serwis, Serverless włączony, brak domeny custom),
@@ -156,7 +193,7 @@ export default defineRailway((ctx) => {
   //  KAŻDE środowisko ma WŁASNĄ bazę. Zero współdzielenia: staging nie może
   //  dotknąć produkcyjnych danych użytkowników (RODO + zdrowy rozsądek).
   // ---------------------------------------------------------------------------
-  const db = postgres("postgres", { region: REGION });
+  const db = postgres(NAZWA_BAZY, { region: REGION });
 
   // ---------------------------------------------------------------------------
   //  ZMIENNE WSPÓLNE
@@ -640,9 +677,9 @@ export default defineRailway((ctx) => {
   };
 
   // ===========================================================================
-  //  SERWIS: web
+  //  SERWIS: web (w Railway: NAZWA_SERWISU_WWW = "kuking.pl")
   // ===========================================================================
-  const web = service("web", {
+  const web = service(NAZWA_SERWISU_WWW, {
     source,
     build,
 
