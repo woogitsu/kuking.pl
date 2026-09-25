@@ -283,6 +283,14 @@ Gdy pojawi się import przepisu z zewnętrznego URL (`FEATURES.md` V2):
 - Logowania (udane i nieudane), zmiana hasła, zmiana e-maila, włączenie/wyłączenie 2FA.
 - Akcje moderacyjne: kto, co, kiedy, jaka decyzja, jakie uzasadnienie (wymagane też przez DSA Art. 17 — patrz `COMPLIANCE.md`).
 - Zmiany uprawnień/ról (np. nadanie roli moderatora/admina).
+  Zmiana roli (`kuking:nadaj-role`, #1315) w tej samej transakcji co zapis
+  roli i wpis audytu kasuje wszystkie sesje konta, zmienia `remember_token`
+  i unieważnia link logowania. Dla zalogowanej osoby oznacza to: przy
+  następnym kliknięciu na każdym urządzeniu trafia na ekran logowania.
+  Po awansie loguje się hasłem i kodem 2FA; konto bez 2FA widzi w panelu
+  ekran z instrukcją włączenia. Awaria audytu albo odmowa zmiany roli
+  nikogo nie wylogowuje. Pilnują tego `AwansRoliWymagaNowejSesjiTest`
+  (HTTP, sterownik `database`) i `AtomowaZmianaRoliTest`.
 - Usunięcie konta / żądanie eksportu danych (dla dowodu realizacji praw RODO).
 - Nietypowe wzorce: masowe pobieranie danych, nagły wzrost częstotliwości akcji z jednego konta/IP.
 

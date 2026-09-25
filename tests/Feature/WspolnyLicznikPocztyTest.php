@@ -9,6 +9,7 @@ use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
+use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -353,7 +354,7 @@ class WspolnyLicznikPocztyTest extends TestCase
 
         $odpowiedz = app(WyslijOdpowiedz::class)->handle(
             $wiadomosc,
-            $this->user('moderatorka'),
+            $this->user('moderatorka', ['role' => User::ROLE_MODERATOR]),
             'Przycisk poprawiliśmy dziś rano.',
             replyKey: (string) Str::uuid(),
         );
