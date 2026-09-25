@@ -1,0 +1,6 @@
+Skrócony wynik rzeczywistego pełnego przebiegu; surowe wyjście zachowano lokalnie w TEMP.
+Polecenie: scripts/kontakt-testy-pelne.sh
+Pominięto wyłącznie ProbaOdtworzeniaTest (wspólna baza).
+
+  Tests:    4404 passed (83608 assertions)
+  Duration: 345.93s
