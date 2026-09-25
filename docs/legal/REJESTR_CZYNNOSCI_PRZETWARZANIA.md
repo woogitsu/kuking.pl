@@ -255,7 +255,24 @@ egzekwuje.
   (`config/kuking.php` → `audit_log.retention_months`), egzekwuje
   `kuking:sprzataj-audyt`. **Wyjątek trwały:** wpisy dokumentujące złożenie,
   cofnięcie albo wykonanie żądania usunięcia konta zostają na stałe — są
-  dowodem, że usunięcie się odbyło.
+  dowodem, że usunięcie się odbyło. Skrót IP (`ip_hash`) zeruje w nich ta sama
+  komenda po tych samych 12 miesiącach (audyt B5 pkt 10) — dowodem jest
+  rodzaj zdarzenia i data, nie sieć.
+
+### 3.10a Sesja logowania (tabela `sessions`)
+
+- **Cel:** utrzymanie zalogowania między żądaniami; wylogowanie pozostałych
+  urządzeń po zmianie hasła, adresu e-mail albo stanu konta.
+- **Dane:** zgrubny adres IP (IPv4 do `/24`, IPv6 do `/48` —
+  `App\Support\MaskaAdresuIp`, `UchwytSesjiBezPelnegoAdresu`), pełny nagłówek
+  `User-Agent`, `user_id`, czas ostatniej aktywności, zawartość sesji.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO; w części bezpieczeństwa — lit. f.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** **30 dni** od ostatniej aktywności —
+  `max(kuking.sessions.retention_days, SESSION_LIFETIME)`, na produkcji
+  `SESSION_LIFETIME=43200` minut (`.railway/railway.ts`); egzekwuje
+  `kuking:sprzataj-sesje` co noc. Wylogowanie i wymazanie konta kasują wiersz
+  od razu (audyt B5 pkt 7).
 
 ### 3.11 Powiadomienia w serwisie
 
@@ -376,7 +393,7 @@ brakuje.
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
 | Railway | podmiot przetwarzający | cała aplikacja i baza | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
-| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
+| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |
@@ -448,15 +465,18 @@ w `SECURITY_BASELINE.md`.
   serwis; dwuetapowa weryfikacja obowiązkowa dla kont z uprawnieniami
   moderatora (`SECURITY_BASELINE.md` §2).
 - **Kopie zapasowe bazy** — `scripts/kopia-lokalna.sh`,
-  `kuking:sprawdz-kopie`.
+  `kuking:sprawdz-kopie`. Zrzuty offsite (serwis `kopia-bazy`) są szyfrowane
+  kluczem publicznym i trzymane **30 dni** (`KOPIA_RETENCJA_DNI`,
+  `docs/infra/KOPIE_I_ODTWORZENIE.md` §7); PITR Railwaya ok. 4 tygodni według
+  dokumentacji dostawcy — niepotwierdzone na produkcji (#594).
 
 **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:**
 
-- **Maksymalny czas życia kopii zapasowej** zawierającej dane osoby, która
-  usunęła konto. To jest dziś jedyna luka w opisie retencji, o której
-  wiadomo, że jest luką — `COMPLIANCE.md` §7.1 i §2.8. Bez tej liczby
-  rejestr nie mówi, kiedy dane naprawdę znikają, tylko kiedy znikają
-  z bazy roboczej.
+- **Maksymalny czas życia kopii zapasowej u dostawcy hostingu** (Volume
+  Backups/PITR Railwaya) zawierającej dane osoby, która usunęła konto.
+  Własne zrzuty offsite mają już liczbę (30 dni, wyżej); kopie po stronie
+  Railwaya — nie, dopóki #594 nie potwierdzi ustawień produkcji
+  (`COMPLIANCE.md` §7.1 i §2.8).
 - **Umowy powierzenia** z każdym podmiotem przetwarzającym — stan do
   odhaczenia: `REJESTR_UMOW_POWIERZENIA.md`.
 - **Data ostatniego przeglądu tego rejestru** i osoba, która go zrobiła.

@@ -2806,7 +2806,10 @@ Wysokiego znaczenia zmiany.
 - **`ip_hash varchar(128) NULL`** — adres IP **wyłącznie jako skrót**, nigdy
   jawnie. Do wykrywania nadużyć skrót wystarcza, a danych osobowych nie
   trzymamy dłużej, niż to konieczne. `NULL` znaczy „zdarzenie nie przyszło
-  z żądania HTTP" (komenda, harmonogram);
+  z żądania HTTP" (komenda, harmonogram) **albo** „wpis dowodowy
+  (`NIGDY_NIE_KASUJ`) starszy niż `audit_log.retention_months`" — ten sam
+  `kuking:sprzataj-audyt`, który kasuje zwykłe wpisy, zeruje w dowodowych
+  sam skrót (audyt B5 pkt 10; wpis zostaje). Bez zmiany schematu;
 - `metadata jsonb NOT NULL DEFAULT '{}'` — reszta kontekstu;
 - `created_at`.
 

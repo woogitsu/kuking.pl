@@ -410,7 +410,7 @@ przeglądu.
 |---|---|
 | **Okres (domyślny, nie-wyjątkowe kategorie)** | **DECYZJA WŁAŚCICIELA (druga tura, §10): 12 miesięcy** od `created_at` — nie 24. Pierwsza tura przyjęła rekomendację agenta badawczego (24 miesiące) bez oceny prawnika; ocena zewnętrzna (`OCENA_RETENCJI_ZEWNETRZNA.md` §B.6) nazwała ją nieuzasadnioną i zaproponowała 12, właściciel to przyjął. |
 | **Wyjątek — nigdy nie kasować automatem** | `account.data_erased`, `account.delete_requested`, `account.delete_cancelled` — z powodów w §3.1. Zamknięta stała: `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`. |
-| **Co robi automat** | Wzorzec B (§1.3): `DELETE FROM audit_log WHERE created_at < próg AND action NOT IN (wyjątki)`. Bez efektu ubocznego poza bazą — jeden `DELETE`, bez `chunkById`. |
+| **Co robi automat** | Wzorzec B (§1.3): `DELETE FROM audit_log WHERE created_at < próg AND action NOT IN (wyjątki)`. Bez efektu ubocznego poza bazą — jeden `DELETE`, bez `chunkById`. Od 25.09.2026 (audyt B5 pkt 10) także `UPDATE audit_log SET ip_hash = NULL WHERE created_at < próg AND action IN (wyjątki)` — wpis dowodowy zostaje na zawsze, skrót IP tylko przez okres retencji. |
 | **Harmonogram** | Codziennie w nocy, 04:10 (po `kuking:sprzataj-sygnaly` o 04:00) — `Schedule::call()`, `withoutOverlapping()`, `dailyAt`, `routes/console.php`. |
 | **Błąd** | Pojedyncze zapytanie DB — albo się wykona w całości, albo w ogóle (atomowość jednej instrukcji SQL). Przy porażce: `Log::error` z komunikatem, następny przebieg dobiera to samo (predykat to sam wiek wiersza, nic do „zapamiętania" między przebiegami). |
 

@@ -24,12 +24,12 @@ use App\Models\AuditLogEntry;
 final class PrzedawnioneWpisyAudytu
 {
     /**
-     * @return array{skasowano: int, niekasowalne: int} liczba skasowanych
-     *                                                  wierszy i liczba wierszy starszych niż próg,
-     *                                                  które zostały POMINIĘTE jako niekasowalne
-     *                                                  (informacyjnie — dry-run i normalny przebieg
-     *                                                  liczą to samo, bo druga liczba nigdy nie zależy
-     *                                                  od trybu).
+     * @return array{skasowano: int, niekasowalne: int, wyczyszczono_ip: int} liczba skasowanych
+     *                                                                        wierszy i liczba wierszy starszych niż próg,
+     *                                                                        które zostały POMINIĘTE jako niekasowalne
+     *                                                                        (informacyjnie — dry-run i normalny przebieg
+     *                                                                        liczą to samo, bo druga liczba nigdy nie zależy
+     *                                                                        od trybu).
      */
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): array
     {
@@ -50,6 +50,20 @@ final class PrzedawnioneWpisyAudytu
 
         $skasowano = $naSucho ? $doSkasowania->count() : $doSkasowania->delete();
 
-        return ['skasowano' => $skasowano, 'niekasowalne' => $niekasowalne];
+        // SKRÓT IP WE WPISACH DOWODOWYCH ŻYJE TYLE, CO ZWYKŁY DZIENNIK (audyt
+        // B5, znalezisko 10). Wpis `NIGDY_NIE_KASUJ` zostaje na zawsze — ale
+        // jego dowodem jest to, CO i KIEDY się stało, a nie z jakiej sieci.
+        // Skrót to HMAC z `APP_KEY`: kto ma zrzut bazy i klucz, przejdzie całą
+        // przestrzeń IPv4 i odtworzy adres. Przez okres retencji skrót zostaje
+        // (tyle samo, co przy każdym innym wpisie, na wypadek sporu o świeże
+        // żądanie), potem zerujemy go, a sam wpis zostaje nietknięty.
+        $zeSkrotem = AuditLogEntry::query()
+            ->where('created_at', '<', $prog)
+            ->whereIn('action', AuditLogEntry::NIGDY_NIE_KASUJ)
+            ->whereNotNull('ip_hash');
+
+        $wyczyszczonoIp = $naSucho ? $zeSkrotem->count() : $zeSkrotem->update(['ip_hash' => null]);
+
+        return ['skasowano' => $skasowano, 'niekasowalne' => $niekasowalne, 'wyczyszczono_ip' => $wyczyszczonoIp];
     }
 }
