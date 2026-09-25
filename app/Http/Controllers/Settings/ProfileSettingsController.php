@@ -118,23 +118,61 @@ class ProfileSettingsController extends Controller
             'speciality.max' => 'To jest za długie. Napisz krócej, mieszcząc się w 120 znakach — wystarczy kilka słów.',
         ]);
 
+        /*
+         * WYŚCIG O TĘ SAMĄ NAZWĘ (issue #887).
+         *
+         * `UsernameNotTaken` sprawdza stan z chwili odczytu, ale niczego nie
+         * rezerwuje: dwie osoby wybierające tę samą wolną nazwę przechodzą
+         * walidację obie, a drugi UPDATE odbija się od unikalnego indeksu.
+         * Bez tego przechwycenia druga osoba dostawała błąd serwera i traciła
+         * wszystko, co wpisała w formularz.
+         *
+         * `DB::transaction` daje savepoint, gdy żądanie już jest w transakcji
+         * — inaczej złapane 23505 zostawia połączenie w stanie „transaction
+         * aborted" (ten sam powód co w `User::defaultCollection()`).
+         *
+         * Łapiemy WYŁĄCZNIE naruszenie indeksów nazwy. Każda inna kolizja
+         * unikalności leci dalej do zwykłej obsługi błędów — zamiana jej na
+         * „nazwa zajęta" schowałaby prawdziwą awarię. Wyjątku nie logujemy:
+         * jego komunikat zawiera wartości z zapytania.
+         *
+         * Nazwę ograniczenia czytamy wyłącznie z PIERWSZEJ linii diagnostyki
+         * PostgreSQL — treść pól w DETAIL nie może udawać nazwy indeksu.
+         */
         try {
             DB::transaction(fn () => $profile->update($data));
-        } catch (UniqueConstraintViolationException $exception) {
-            // Walidacja nie rezerwuje nazwy. Rozpoznajemy wyłącznie dwa
-            // indeksy nazwy, z pierwszej linii diagnostyki PostgreSQL;
-            // treść pól w DETAIL nie może udawać nazwy ograniczenia (#887).
-            $diagnostic = (string) ($exception->errorInfo[2] ?? '');
-            $firstLine = trim(explode("\n", $diagnostic, 2)[0]);
-            if (preg_match('/"profiles_username_(?:lower_)?unique"$/', $firstLine) !== 1) {
-                throw $exception;
+        } catch (UniqueConstraintViolationException $e) {
+            if (! self::naruszonoIndeksNazwy($e)) {
+                throw $e;
             }
 
+            // Model trzyma już nową, niezapisaną nazwę — nie może z nią
+            // pójść dalej w tym żądaniu.
+            $profile->refresh();
+
+            // ValidationException wraca na formularz z `withInput()`, więc
+            // imię, opis, region i specjalność zostają w polach.
             throw ValidationException::withMessages([
-                'username' => 'Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.',
+                'username' => 'Ta nazwa jest już zajęta — wybierz inną. Ktoś zajął ją przed chwilą. Spróbuj dodać coś na końcu. Pozostałe pola zostały bez zmian — popraw tylko nazwę i kliknij „Zapisz”.',
             ]);
         }
 
         return back()->with('status', 'Zapisane.');
+    }
+
+    /**
+     * Stary `profiles_username_unique` (dokładny zapis) i funkcyjny
+     * `profiles_username_lower_unique` pilnują tej samej nazwy — o tym,
+     * który z nich zgłosi kolizję, decyduje PostgreSQL, więc uznajemy oba.
+     */
+    private static function naruszonoIndeksNazwy(UniqueConstraintViolationException $e): bool
+    {
+        // Pierwsza linia komunikatu PostgreSQL kończy się nazwą ograniczenia.
+        // DETAIL niesie wartości z formularza, więc wpisana treść
+        // „profiles_username_unique" nie może tu niczego rozstrzygnąć.
+        $diagnostyka = (string) ($e->errorInfo[2] ?? '');
+        $pierwszaLinia = trim(explode("\n", $diagnostyka, 2)[0]);
+
+        return preg_match('/"profiles_username_(?:lower_)?unique"$/', $pierwszaLinia) === 1;
     }
 }
