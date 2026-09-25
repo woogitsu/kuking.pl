@@ -9,6 +9,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -191,6 +192,14 @@ final class CollectUserExportData
             'okolica' => $profile->region,
             'w_czym_jestem_dobra' => $profile->speciality,
             'zdjecie_profilowe' => $photos->pathFor($profile->avatar_media_id),
+            // „Jak mamy do Ciebie pisać?” (D-268, #1752). Słowem, nie kodem
+            // z bazy: `NULL` w kolumnie to wybór formy neutralnej, a nie
+            // „brak danych”, więc paczka mówi to wprost.
+            'forma_zwracania_sie' => match ($profile->form_of_address) {
+                Profile::FORM_FEMININE => 'żeńska',
+                Profile::FORM_MASCULINE => 'męska',
+                default => 'neutralna',
+            },
         ];
     }
 

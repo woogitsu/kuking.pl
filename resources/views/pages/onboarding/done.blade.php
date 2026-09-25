@@ -35,6 +35,16 @@
         <a class="btn btn-secondary" href="{{ route('home') }}">Na razie tylko pooglądam</a>
     </div>
 
+    {{-- Pomijalne pytanie o formę zwracania się (D-268, #1752). Stoi POD dwoma
+         wyjściami, nie przed nimi: kto nie chce odpowiadać, po prostu idzie
+         dalej, a forma neutralna zostaje. Bez przypominania później. --}}
+    @if($profile)
+        <section class="ramka-pomocnicza mt-8">
+            <h2 class="mt-0">Jedno pytanie, jeśli chcesz</h2>
+            <x-wybor-formy :profile="$profile" :akcja="route('onboarding.form_of_address')" />
+        </section>
+    @endif
+
     <section class="ramka-pomocnicza mt-8">
         <h2>Trzy rzeczy, które warto wiedzieć</h2>
         <ul class="pl-6">

@@ -54,6 +54,7 @@ use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
+use App\Http\Controllers\Settings\FormOfAddressController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -625,6 +626,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/witaj/ludzie', [OnboardingController::class, 'saveFollows'])
         ->middleware("throttle:{$limits['masowe_obserwowanie']},masowe_obserwowanie");
     Route::get('/witaj/gotowe', [OnboardingController::class, 'done'])->name('onboarding.done');
+    // Pomijalne pytanie o formę zwracania się na ekranie „Gotowe” (D-268).
+    Route::post('/witaj/forma', [FormOfAddressController::class, 'updateFromOnboarding'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('onboarding.form_of_address');
 
     // Dodawanie treści
     Route::view('/dodaj', 'pages.add')->name('add');
@@ -847,6 +852,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    // „Jak mamy do Ciebie pisać?” (D-268, #1752) — osobny formularz na tym
+    // samym ekranie, żeby wybór formy nie odbijał się od walidacji nazwy
+    // użytkownika. Bez identyfikatora w adresie; Policy w kontrolerze.
+    Route::put('/ustawienia/profil/forma', [FormOfAddressController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.form_of_address');
 
     /*
      * ZDJĘCIE PROFILOWE — OSOBNY, KRÓTKI EKRAN.

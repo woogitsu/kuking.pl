@@ -26,6 +26,12 @@
         </div>
     </form>
 
+    {{-- „Jak mamy do Ciebie pisać?” (D-268) — OSOBNY formularz: wybór formy
+         nie może odbijać się od walidacji nazwy użytkownika w formularzu wyżej. --}}
+    <section class="ramka-pomocnicza">
+        <x-wybor-formy :profile="$profile" :akcja="route('settings.form_of_address')" metoda="PUT" />
+    </section>
+
     {{--
         ZDJĘCIE PROFILOWE MA WŁASNY EKRAN — i to jest tu napisane wprost,
         a nie zostawione domysłowi.

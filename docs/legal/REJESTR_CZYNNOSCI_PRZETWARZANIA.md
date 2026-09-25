@@ -104,7 +104,11 @@ egzekwuje.
 ### 3.2 Profil publiczny
 
 - **Cel:** pokazanie użytkownika innym ludziom w serwisie.
-- **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe.
+- **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe,
+  a jeśli ją wybierze — forma zwracania się (żeńska albo męska; brak wyboru
+  = forma neutralna). Forma to preferencja językowa, **nie płeć**; jest
+  widoczna dla innych w tekstach o tej osobie, nie jest zgadywana ani brana
+  z Google/Facebooka i nie służy statystykom ani segmentacji (D-268).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway, Cloudflare R2 (zdjęcie profilowe). Od D-240
   zdjęcie profilowe **nie** idzie do OpenAI — brak potwierdzonej zgody.

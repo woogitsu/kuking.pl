@@ -1,6 +1,6 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 24 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 25 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
@@ -24,6 +24,7 @@ Nie wyznaczyliśmy inspektora ochrony danych. Jeśli to się zmieni, podamy jego
 |---|---|---|---|
 | Założenie i prowadzenie konta | e-mail, hasło (przechowywane jako nieodwracalny skrót, nigdy jako zwykły tekst — my Twojego hasła nie znamy i nie umiemy go odczytać z bazy; ale skrótu krótkiego albo popularnego hasła da się dojść zgadywaniem, więc opłaca się mieć hasło długie i używane tylko tutaj), status konta | Wykonanie umowy o świadczenie usługi (regulamin, który akceptujesz przy rejestracji) | Do usunięcia konta + krótki okres karencji na wypadek pomyłki (patrz sekcja 7) |
 | Twój publiczny profil | nazwa użytkownika, wyświetlana nazwa, opis (bio), zdjęcie profilowe | Wykonanie umowy — to funkcje, z których świadomie korzystasz | Do usunięcia lub zmiany przez Ciebie |
+| Forma, w jakiej do Ciebie i o Tobie piszemy (jeśli ją wybierzesz) | forma żeńska albo męska z odpowiedzi na pytanie „Jak mamy do Ciebie pisać?”; jeśli nic nie wybierzesz, piszemy formą neutralną i niczego nie zapisujemy. To nie jest pytanie o płeć — nie zgadujemy formy z imienia i nie bierzemy jej z Google ani z Facebooka. **Wybraną formę widzą też inni**, bo tak piszemy o Tobie, na przykład pod przepisem, z którego ktoś gotował. Nie używamy jej w statystykach | Wykonanie umowy — to ustawienie, z którego świadomie korzystasz | Do zmiany przez Ciebie (w ustawieniach profilu, w każdej chwili) albo do usunięcia konta — przy usunięciu znika razem z opisem profilu. Jest w kopii Twoich danych |
 | Publikowanie treści | zdjęcia, przepisy wraz z ich wcześniejszymi wersjami, wpisy, komentarze | Wykonanie umowy | Do usunięcia treści lub konta przez Ciebie |
 | Relacje w serwisie | kogo obserwujesz, kogo blokujesz | Wykonanie umowy | Do usunięcia relacji lub konta |
 | Obsługa zgłoszeń i moderacji | treść zgłoszenia, decyzja moderatora, uzasadnienie | Obowiązek prawny (przepisy o usługach cyfrowych) oraz nasz uzasadniony interes w utrzymaniu bezpieczeństwa serwisu | **36 miesięcy od zamknięcia sprawy** (decyzji moderatora albo rozstrzygnięcia odwołania, jeśli je złożono — nie od dnia zgłoszenia). Co noc usuwamy zamknięte zgłoszenia, decyzje moderacyjne i odwołania starsze niż 36 miesięcy. Dłużej niż inne dane, bo przez ten czas mogą się jeszcze przydać jako dowód, gdyby sprawa do nas wróciła. Sprawy, które wciąż trwają, nie są kasowane niezależnie od wieku. Dane kontaktowe osoby, która złożyła zgłoszenie, zostają powiązane ze sprawą przez cały ten okres |

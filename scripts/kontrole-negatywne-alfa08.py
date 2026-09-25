@@ -291,6 +291,9 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+FORMA_MIGRACJA = "database/migrations/2026_09_25_140000_add_form_of_address_to_profiles.php"
+FORMA_WYMAZANIE = "app/Domain/Users/Actions/EraseAccountData.php"
+FORMA_TEST = "FormaZwracaniaSieTest"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -719,6 +722,12 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    # #1752 (D-268): rollback formy zwracania się bez strażnika D-088
+    # i anonimizacja konta, która zostawia wybraną formę.
+    ("Cofnięcie formy zwracania się bez odmowy", FORMA_MIGRACJA, FORMA_TEST,
+     lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
+    ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
+     lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -780,6 +789,7 @@ run_test(HERO_PICKS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
+run_test(FORMA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)

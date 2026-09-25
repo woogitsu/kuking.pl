@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- W ustawieniach profilu i na ostatnim kroku po założeniu konta jest pytanie „Jak mamy do Ciebie pisać?” z trzema odpowiedziami: forma żeńska, forma męska albo forma neutralna. Neutralna jest zaznaczona od początku i nic się nie zmienia, dopóki ktoś sam nie wybierze inaczej. To nie jest pytanie o płeć — nie zgadujemy formy z imienia ani nie bierzemy jej z Google czy Facebooka. Wybraną formę zobaczą też inni, bo tak będziemy o tej osobie pisać; ekran mówi to przed wyborem. Pytanie po założeniu konta można pominąć. Wybór jest w kopii danych (`profil.forma_zwracania_sie`) i znika przy usunięciu konta. Teksty w wybranej formie przychodzą w kolejnym kroku (#1752).
+
 - Pod spodem, bez zmian na ekranie: nowa decyzja D-268 — serwis będzie pytać „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna, domyślnie neutralna) zamiast unikać rodzaju u każdego. Forma nie jest płcią, nie zgadujemy jej, a wybrana będzie widoczna też dla innych („Ania ugotowała”). Zaktualizowane zasady tekstów (`COPY_STYLE.md`, `BRAND_EXTENDED.md`, `GLOS_MARKI.md`) i zasady prywatności; samo ustawienie przychodzi osobno (#1751).
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).

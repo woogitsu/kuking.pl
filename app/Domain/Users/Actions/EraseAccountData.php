@@ -299,6 +299,9 @@ final class EraseAccountData
                     'avatar_media_id' => null,
                     'region' => null,
                     'speciality' => null,
+                    // Forma zwracania się (D-268) jest widoczna dla innych,
+                    // więc znika razem z polami opisowymi (art. 17 RODO).
+                    'form_of_address' => null,
                 ])->save();
             }
 
