@@ -188,7 +188,7 @@ class CollectionController extends Controller
         $recipes = $collection->recipes()
             ->widoczneDla($request->user())
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->with(['author.profile', 'heroMedia'])
+            ->with(Recipe::RELACJE_KARTY)
             ->paginate(12);
 
         $posts = $collection->posts()

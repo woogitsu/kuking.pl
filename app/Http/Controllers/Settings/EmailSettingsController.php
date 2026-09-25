@@ -180,9 +180,18 @@ class EmailSettingsController extends Controller
             return redirect()->route('settings.email')->withErrors(['email' => $e->getMessage()]);
         }
 
+        // Nowy identyfikator bieżącej sesji po wrażliwej zmianie (#979).
+        // `handle()` zostawił tę jedną sesję przy życiu; gdyby jej stary
+        // identyfikator znał ktoś obcy, dalej siedziałby na koncie. `true`
+        // kasuje stary wiersz — bez tego zostałby w tabeli jako ważna sesja.
+        $request->session()->regenerate(true);
+
         return redirect()->route('settings.email')->with('status',
             "Gotowe. Od teraz Twoje konto ma adres {$nowyAdres} — tym adresem się logujesz i na niego "
-            .'przyjdzie link, gdyby trzeba było ustawić nowe hasło. Adres jest już potwierdzony.',
+            .'przyjdzie link, gdyby trzeba było ustawić nowe hasło. Adres jest już potwierdzony. '
+            .'Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon '
+            .'zostaje zalogowany. Odnośniki do logowania i do ustawienia hasła wysłane wcześniej '
+            .'na stary adres już nie działają.',
         );
     }
 

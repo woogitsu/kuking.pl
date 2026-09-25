@@ -156,7 +156,7 @@ Ta sama albo prawie ta sama treść (≥ 92% podobieństwa) opublikowana przez
 | **Poziomy zaufania (TL0–TL4)** | **REJECT na dziś** | poz. 3.13 — blisko publicznego rankingu użytkowników zakazanego w `AGENTS.md` §12. |
 | **Captcha** | **REJECT** | Bariera wejścia dla 50+. Zamiast niej — te sygnały. |
 | **Analiza przepisów (`recipes`)** | **ODŁOŻONE** | Tekst przepisu leży w trzech tabelach. Spam ląduje tam, gdzie jest najszybciej: w polu „napisz kilka słów" i pod cudzym zdjęciem. |
-| **Ponowna analiza po EDYCJI treści** | **ODŁOŻONE, ze świadomą luką** | Opublikować niewinny wpis i dopisać spam edycją to najprostsze obejście tego wykrywacza. Nie zamykamy go dziś, bo jedno oznaczenie na treść jest fundamentem obietnicy „odrzucone nie wraca", a ponowna analiza po każdej poprawce literówki kosztuje zadanie w kolejce za każdym razem. Ta luka jest zamykana zgłoszeniem od człowieka i **musi wrócić na stół**, gdy pojawi się pierwszy przypadek. |
+| **Ponowna analiza po EDYCJI treści** | **KOMENTARZE: WDROŻONE (D-256). Wpisy: ODŁOŻONE, ze świadomą luką** | Poprawiony komentarz przechodzi analizę jeszcze raz (D-256, #909); jedno oznaczenie na treść zostaje, więc odrzucone nadal nie wraca. Dla wpisów: opublikować niewinny wpis i dopisać spam edycją to najprostsze obejście tego wykrywacza. Nie zamykamy go dziś, bo jedno oznaczenie na treść jest fundamentem obietnicy „odrzucone nie wraca", a ponowna analiza po każdej poprawce literówki kosztuje zadanie w kolejce za każdym razem. Ta luka jest zamykana zgłoszeniem od człowieka i **musi wrócić na stół**, gdy pojawi się pierwszy przypadek. |
 
 ## 5. Kolejka: jak to ma przeżyć tysiąc kont przy jednym moderatorze
 
