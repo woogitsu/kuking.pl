@@ -2450,18 +2450,28 @@ zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
 Migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` dopisuje do
-`reports_target_type_check` wartość **`media`**. Dziś trafia tu wyłącznie
-zdjęcie profilowe: model ocenia je po przetworzeniu (`PrzeanalizujAwatar`),
-a oznaczenie wskazuje `media.id`.
+`reports_target_type_check` wartość **`media`**. Wprowadził ją automat oceny
+zdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`.
 
-**Dlaczego zdjęcie, a nie konto.** Indeks `reports_jeden_automat_na_tresc`
+**Stan od D-240: wartości `media` nic dziś nie produkuje.** Zdjęcie profilowe
+nie jest wysyłane do modelu — `AvatarSettingsController` nie zleca
+`PrzeanalizujAwatar`, a samo zadanie jest pustym no-opem zostawionym wyłącznie
+dla zleceń sprzed wdrożenia. Awatar zgłoszony przez człowieka ma cel `user`
+(„Zgłoś” na profilu), nie `media`. Wartość zostaje w ograniczeniu dla
+**historycznych** oznaczeń awatarów sprzed D-240: to sprawy moderacyjne
+z decyzjami i odwołaniami, które dalej dają się rozpatrzyć. Ponowne włączenie
+oceny awatarów wymaga osobnej decyzji z celem zgody, ekranem jej udzielania
+i wycofania oraz sprawdzeniem zgody przed wysyłką
+(`docs/legal/SYGNALY_AUTOMATU.md` §9.1).
+
+**Dlaczego zdjęcie, a nie konto (uzasadnienie z #237).** Indeks `reports_jeden_automat_na_tresc`
 przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
 Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
 a podmiana zdjęcia to sekunda pracy.
 
 **Dlaczego `media`, a nie `avatar`.** `ModeratedContent::TYPY` mapuje klasę
 modelu, a klasa (`App\Models\Media`) jest ta sama dla awatara i dla zdjęcia
-we wpisie. Nazwa `avatar` byłaby prawdziwa dziś i kłamliwa pierwszego dnia,
+we wpisie. Nazwa `avatar` byłaby prawdziwa w #237 i kłamliwa pierwszego dnia,
 w którym oznaczymy zdjęcie z wpisu osobno.
 
 `ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —
@@ -4228,7 +4238,7 @@ wskazuje na nią kolumną `failed_job_uuid`.
 | `rodzaj` | `displayName` z payloadu, czyli **klasa powiadomienia** (`App\Notifications\PotwierdzenieAdresu`). To ona mówi, CO przepadło. |
 | `kolejka` | `high` \| `default` \| `low`. |
 | `prob` | Ile prób wykonał worker (na produkcji 3, w trybie `sync` 1), CHECK `mail_failures_prob_check`. |
-| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. |
+| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. Wymazanie konta (`EraseAccountData`) jawnie ustawia `NULL` — kaskada klucza nie zadziała, bo kont się nie kasuje (D-022; audyt B5 pkt 9). |
 | `komunikat` | Powód po redakcji (`App\Poczta\BezpiecznyKomunikat`): jedna linia, bez adresów e-mail, przycięta. |
 | `failed_at` | Kiedy list przepadł. Zapisane wprost, nie jako `created_at` — wiersz opisuje zdarzenie, nie encję (stąd brak `timestampsTz()`). |
 | `zauwazony_at` | „Właściciel to przeczytał" (`kuking:nieudane-listy --odhacz`). Dopóki `NULL`, `/health` zgłasza `degraded`. Jedyna kolumna, którą się tu aktualizuje. CHECK `mail_failures_zauwazony_po_awarii_check`: nie może być wcześniejsze niż `failed_at`. |

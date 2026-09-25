@@ -41,9 +41,11 @@ final class ModeratedContent
         Comment::class => 'comment',
         CookedEvent::class => 'cooked_event',
 
-        // ZDJĘCIE JAKO OSOBNY CEL (issue #237). Dziś trafia tu wyłącznie
-        // zdjęcie profilowe: model ocenia je po przetworzeniu, a oznaczenie
-        // musi wskazywać KONKRETNY plik, nie konto — inaczej „jedno
+        // ZDJĘCIE JAKO OSOBNY CEL (issue #237). Od D-240 nic tu nowego nie
+        // trafia: zdjęcie profilowe nie idzie do modelu, a `PrzeanalizujAwatar`
+        // jest pustym zadaniem. Wpis zostaje dla oznaczeń awatarów sprzed
+        // D-240, które nadal da się rozpatrzyć. Wtedy oznaczenie musiało
+        // wskazywać KONKRETNY plik, nie konto — inaczej „jedno
         // oznaczenie automatu na treść" znaczyłoby „pierwszy awatar tego
         // konta i już nigdy więcej", a podmiana zdjęcia to sekunda pracy.
         //
