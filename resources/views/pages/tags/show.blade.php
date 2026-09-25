@@ -15,14 +15,13 @@
      * SEO 92/100 zamiast 100, bo `<x-layout>` nie dostawał `description`
      * w ogóle (renderuje znacznik TYLKO, gdy coś jest przekazane).
      *
-     * Treść liczymy tutaj, nie w kontrolerze: `$posts` (wynik paginacji,
-     * już przefiltrowany przez `widoczneDla($widz)`) jest jedynym miejscem,
-     * które zna liczbę wpisów WIDOCZNYCH DLA GOŚCIA — a to jest dokładnie
-     * to, co zobaczy robot Google (odwiedza jako anonim, `$widz === null`).
-     * Kontroler zostaje cienki (AGENTS.md §4): to jest czyste formatowanie
-     * tekstu, nie reguła domenowa.
+     * Liczba to wpisy WIDOCZNE DLA GOŚCIA (`$liczbaPublicznychWpisow`,
+     * z `TagPublicStats`) — dokładnie to, co zobaczy robot Google (odwiedza
+     * jako anonim). Lista wpisów idzie kursorem i nie liczy `total()`
+     * (audyt B4 W2). Kontroler zostaje cienki (AGENTS.md §4): to jest czyste
+     * formatowanie tekstu, nie reguła domenowa.
      */
-    $liczbaWpisow = $posts->total();
+    $liczbaWpisow = $liczbaPublicznychWpisow;
     $formaWpis = \App\Support\Odmiana::rzeczownik($liczbaWpisow, 'wpis', 'wpisy', 'wpisów');
 
     $opisTagu = $liczbaWpisow > 0
