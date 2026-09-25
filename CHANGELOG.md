@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
+
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
 - Na stronie powiadomień przycisk „Oznacz wszystkie jako przeczytane” pojawia się tylko wtedy, gdy są nieprzeczytane powiadomienia. Jeśli między wczytaniem strony a kliknięciem wszystko zostało już przeczytane (np. w drugiej karcie), strona mówi, że nie było nic do oznaczenia, zamiast potwierdzać zmianę, której nie było (#1402).
 - Szkic przepisu widzi już tylko jego autor — moderacja też nie. Moderacja zagląda wyłącznie do przepisów, które sama ukryła albo zdjęła. Zdjęcia moderacja widzi tak samo jak treść, do której są przypięte; wyjątkiem jest zdjęcie, które samo jest przedmiotem zgłoszenia w panelu, oraz zdjęcie wpisu (także „tylko dla obserwujących”), który czeka na rozpatrzenie jako otwarte zgłoszenie albo oznaczenie automatu. Nieprzypięte jeszcze zdjęcie, szkic i skan rodzinnej kartki z prywatnego przepisu nie otwierają się już nikomu poza autorem.

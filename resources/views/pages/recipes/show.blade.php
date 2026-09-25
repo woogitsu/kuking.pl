@@ -386,7 +386,7 @@
                                 <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
                                 <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
                             @elseif($zeszytyTegoPrzepisu->count() > 1)
-                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Zanim to zrobimy, zapytamy o potwierdzenie i pozwolimy wybrać jeden zeszyt.</p>
                             @endif
                             <button class="btn btn-secondary" type="submit"
                                 @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
