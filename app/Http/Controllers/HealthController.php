@@ -910,7 +910,6 @@ class HealthController extends Controller
 
     private function zapiszIOdczytajProbke(string $nazwaDysku): void
     {
-
         // Nazwa z kropką na początku i losowym sufiksem: nie zderzy się
         // z niczyim plikiem i nie trafi do listingów.
         $probka = '.health/'.Str::uuid()->toString();

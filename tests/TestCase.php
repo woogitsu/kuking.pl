@@ -27,6 +27,15 @@ abstract class TestCase extends BaseTestCase
      *
      * To, że manifest naprawdę powstaje, weryfikuje job `assets`.
      */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+        Http::preventStrayRequests();
+        $this->wyzerujStanLivewire();
+    }
+
     /**
      * `/health` Z POLEM `checks` — czyli tak, jak widzi go właściciel
      * z tokenem w nagłówku (audyt A5-05). Bez tokenu odpowiedź ma tylko kod
@@ -38,15 +47,6 @@ abstract class TestCase extends BaseTestCase
         config(['kuking.health.token' => 'token-zdrowia-do-testow']);
 
         return $this->get('/health', [HealthController::NAGLOWEK_TOKENU => 'token-zdrowia-do-testow']);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withoutVite();
-        Http::preventStrayRequests();
-        $this->wyzerujStanLivewire();
     }
 
     /**
