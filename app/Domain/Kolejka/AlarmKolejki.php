@@ -22,6 +22,17 @@ use App\Domain\Monitoring\EpizodAlarmu;
  * (`kuking.kolejka.cisza_godzin`) i treść wiadomości. SAMA OCENA stanu jest
  * bezstanowa (`StanKolejki` liczy z okna czasowego), więc restart nie
  * generuje fałszywej awarii — tylko ewentualne powtórzenie prawdziwej.
+ *
+ * CISZA NALEŻY SIĘ ZA DZWONEK, KTÓRY KANAŁ PRZYJĄŁ — NIE ZA SAMĄ PRÓBĘ
+ * (poprawka do #599; usterkę zmierzył odbiór #676; pełne uzasadnienie
+ * i historia usterki stoją teraz w `EpizodAlarmu`, bo tam mieszka algorytm).
+ *
+ * ZNANE OGRANICZENIE PAMIĘCI
+ * Pamięć stanu mieszka w cache. Start kontenera już jej nie czyści (do
+ * 25.09.2026 `docker/entrypoint.sh` wołał `cache:clear`, audyt B10-03), ale
+ * wpis może zniknąć przy ręcznym czyszczeniu cache albo wygaśnięciu. Wtedy
+ * trwający alarm zadzwoni raz dodatkowo, a niewysłane odwołanie przepadnie —
+ * to jest świadomie zaakceptowane, bo SAMA OCENA stanu jest bezstanowa.
  */
 final class AlarmKolejki
 {
