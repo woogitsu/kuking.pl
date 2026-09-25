@@ -7,10 +7,12 @@ namespace Tests\Feature;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -235,5 +237,54 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         $odpowiedzHttp = $this->actingAs($korzen)->post(route('notifications.open', $powiadomienie));
 
         $odpowiedzHttp->assertRedirect($przepis->url().'?komentarze=2#komentarz-'.$reply->getKey());
+        $this->assertJedenCelKotwicy($this->actingAs($korzen)->get($odpowiedzHttp->headers->get('Location')), $odpowiedzHttp->headers->get('Location'));
+    }
+
+    /**
+     * „Ugotowałem” nie stronicuje rozmowy, ale kotwica odpowiedzi też musi
+     * mieć cel — ten sam wspólny komponent wątku (komentarz w #759).
+     */
+    public function test_zobacz_przy_odpowiedzi_pod_ugotowalem_ma_cel_kotwicy(): void
+    {
+        $przepis = Recipe::factory()->create([
+            'author_id' => $this->user('autorugotowal759')->getKey(),
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'public',
+        ]);
+        $kucharz = $this->user('kucharzugotowal759');
+        $wykonanie = CookedEvent::factory()->for($kucharz, 'user')->for($przepis)->create();
+
+        $korzen = $this->user('korzenugotowal759');
+        $komentarzGlowny = app(PublishComment::class)->handle($korzen, $wykonanie, 'KORZEN-UGOTOWAL-759');
+        app(PublishComment::class)->handle(
+            $this->user('odpowiadajacyugotowal759'),
+            $wykonanie,
+            'ODPOWIEDZ-UGOTOWAL-759',
+            $komentarzGlowny,
+        );
+
+        $powiadomienie = Notification::query()
+            ->where('user_id', $korzen->getKey())
+            ->where('type', Notification::TYPE_REPLY)
+            ->firstOrFail();
+        $reply = Comment::where('body', 'ODPOWIEDZ-UGOTOWAL-759')->firstOrFail();
+
+        $odpowiedzHttp = $this->actingAs($korzen)->post(route('notifications.open', $powiadomienie));
+
+        $odpowiedzHttp->assertRedirect($wykonanie->url().'#komentarz-'.$reply->getKey());
+        $this->assertJedenCelKotwicy($this->actingAs($korzen)->get($odpowiedzHttp->headers->get('Location')), $odpowiedzHttp->headers->get('Location'));
+    }
+
+    /** Fragment z `Location` wskazuje DOKŁADNIE jeden element zwróconego HTML. */
+    private function assertJedenCelKotwicy(TestResponse $strona, string $location): void
+    {
+        $strona->assertOk();
+        $fragment = (string) parse_url($location, PHP_URL_FRAGMENT);
+        $this->assertNotSame('', $fragment, 'Adres z powiadomienia nie ma kotwicy.');
+        $this->assertSame(
+            1,
+            substr_count((string) $strona->getContent(), 'id="'.$fragment.'"'),
+            'Kotwica „'.$fragment.'” musi mieć w HTML dokładnie jeden cel.',
+        );
     }
 }
