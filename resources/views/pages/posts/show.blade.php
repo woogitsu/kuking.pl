@@ -1,5 +1,7 @@
 @php
     $isPublic = $post->visibility === 'public' && $post->isPublished();
+    // Jedna lista dla okruszków i `BreadcrumbList` (#1033).
+    $okruszki = \App\Support\Okruszki::dlaWpisu($post);
 @endphp
 <x-layout
     :title="$post->author->displayName().' — wpis'"
@@ -9,6 +11,16 @@
          wklejony w Messengera nie pokazuje NICZEGO poza imieniem autora. --}}
     :image="$isPublic ? $post->media->first() : null"
     ogType="article">
+
+    {{-- Dane o ścieżce tylko dla wpisu publicznego — szkic i wpis dla
+         znajomych nie zdradzają w znaczniku ani treści, ani autora. --}}
+    @if($isPublic)
+        <x-slot:head>
+            <x-json-ld :data="\App\Support\Okruszki::jsonLd($okruszki)" />
+        </x-slot:head>
+    @endif
+
+    <x-okruszki :elementy="$okruszki" />
 
     <x-post-card :post="$post" />
 
