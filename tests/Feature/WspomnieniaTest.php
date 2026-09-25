@@ -115,6 +115,9 @@ class WspomnieniaTest extends TestCase
         $this->wpisSprzed($basia, 1, 'Rosół na urodziny Zosi.');
 
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => (int) $basia->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $basia->fresh()->memories_enabled,
+
             // Brak `memories_enabled` w żądaniu = odznaczone pole. Tak działa
             // checkbox w HTML-u i tak wraca z formularza.
             'wants_weekly_digest' => '1',
@@ -134,6 +137,9 @@ class WspomnieniaTest extends TestCase
         $this->wpisSprzed($basia, 1, 'Rosół na urodziny Zosi.');
 
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => (int) $basia->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $basia->fresh()->memories_enabled,
+
             'memories_enabled' => '1',
         ])->assertRedirect();
 
