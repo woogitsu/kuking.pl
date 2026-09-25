@@ -223,6 +223,33 @@
                                 question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
                         </div>
                     @else
+                        {{-- SKRÓTY DO OBSERWOWANIA (issue #1809). Zamiast „więcej
+                             takich treści" — jawne polecenia widza z listą do
+                             cofnięcia (AGENTS.md §8, D-275). Nazwa konta i tagu
+                             dosłownie, po dwukropku albo w ogóle bez nazwy
+                             (COPY_STYLE, 11 września 2026: bez odmiany).
+                             Formularze POST, bez JavaScriptu; wygląd i 48 px
+                             celu daje `.post-card-menu-tresc button`. Kto
+                             może obserwować, liczy `SkrotyObserwowania` (ta
+                             sama reguła co `UserPolicy::follow`, raz na
+                             żądanie zamiast zapytania na kartę). --}}
+                        @php
+                            $skroty = app(\App\Domain\Social\SkrotyObserwowania::class);
+                            $widzKarty = auth()->user();
+                        @endphp
+                        @if($skroty->osobaDoObserwowania($widzKarty, $author))
+                            <form method="POST" action="{{ route('social.follow', $author->profile->username) }}">
+                                @csrf
+                                <input type="hidden" name="oczekiwany_id" value="{{ $author->getKey() }}">
+                                <button type="submit" data-skrot-obserwuj="osoba">Obserwuj tę osobę</button>
+                            </form>
+                        @endif
+                        @foreach($skroty->tagiDoObserwowania($widzKarty, $post) as $tagDoObserwowania)
+                            <form method="POST" action="{{ route('tags.follow', $tagDoObserwowania) }}">
+                                @csrf
+                                <button type="submit" data-skrot-obserwuj="tag">Obserwuj tag: {{ $tagDoObserwowania->name }}</button>
+                            </form>
+                        @endforeach
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
                     @endcan
                 </div>
