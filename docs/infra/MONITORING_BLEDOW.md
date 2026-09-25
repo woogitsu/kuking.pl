@@ -692,6 +692,16 @@ naprawiony w tej zmianie, bo pracował nad tym plikiem równoległy pakiet
 wystąpień nagłówka w `CichyBrakKopiiBazyDajeAlarmTest`. Wszystkie trzy klasy
 alarmu wysyłają dziś nagłówek dokładnie raz, i każda ma na to strażnika.
 
+**Od #972 maszyna epizodu i transport są wspólne.** Pamięć, krótkie ponowienie
+po nieprzyjętej próbie, długa cisza, zmiana stanu i odwołanie żyją w jednym
+miejscu: `App\Domain\Monitoring\EpizodAlarmu`. Kontrakt „przyjęte = 2xx"
+żyje w `App\Domain\Monitoring\KanalAlarmowy`, z którego korzystają wszystkie
+trzy klasy alarmu. `AlarmKolejki` i `AlarmPolaczen` podają już tylko klucz
+pamięci, stany, długość ciszy i treść; `AlarmKopii` używa samego transportu,
+bo nie wycisza i nie odwołuje. Format pamięci (wersja 2, klucze
+`kuking:kolejka:ostatni-alarm` i `kuking:polaczenia:ostatni-alarm`) i migracja
+starego formatu się nie zmieniły.
+
 Warto zapamiętać sam wzorzec, bo nie dotyczy on wyłącznie nagłówka:
 **test na atrapie klienta HTTP sprawdza, co program CHCIAŁ wysłać, a nie co
 dotarło.** Dopóki asercje mają kształt „treść zawiera X", podwojenie,
