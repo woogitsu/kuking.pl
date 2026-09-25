@@ -88,6 +88,17 @@ Sprawdza: PostgreSQL, formatowanie (Pint), składnię PHP, analizę statyczną,
 testy, **odwracalność migracji** (`migrate:refresh`, czyli czy `down()` działa)
 i build assetów.
 
+**Baza testowa musi być podana jawnie** (issue #732): `DB_HOST`, `DB_PORT`,
+`DB_DATABASE` i `DB_USERNAME`. Bez nich kontrola kończy się od razu
+z listą brakujących zmiennych — nie zgaduje domyślnego portu, bo w środowisku
+współdzielonym to może być cudza baza. Sonda nie uruchamia żadnego klastra;
+„przyjmuje połączenia” nie znaczy jeszcze, że hasło i baza są poprawne
+(to sprawdzają testy). Przykład z własną bazą na 55439:
+
+```bash
+DB_HOST=127.0.0.1 DB_PORT=55439 DB_DATABASE=kuking_test_zadanie DB_USERNAME=kuking ./scripts/check.sh
+```
+
 ### 2. Hook `pre-push` — żeby nie dało się o tym zapomnieć
 
 ```bash

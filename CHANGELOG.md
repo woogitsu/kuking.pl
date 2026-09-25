@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- `./scripts/check.sh` sprawdza PostgreSQL pod jawnie podanym adresem bazy testowej (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`) zamiast pod domyślnym połączeniem i nie próbuje już sam uruchamiać klastra systemowego (`pg_ctlcluster`). Bez tych zmiennych kontrola kończy się od razu z listą brakujących; przy niedostępnej bazie komunikat podaje sprawdzany adres, bez hasła (#732).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

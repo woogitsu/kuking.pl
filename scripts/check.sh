@@ -49,19 +49,15 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 
 # --- 1. Baza danych -------------------------------------------------------
 krok "PostgreSQL"
-if ! pg_isready -q 2>/dev/null; then
-    printf "Baza nie odpowiada — próbuję ją uruchomić…\n"
-    for wersja in 18 17 16 15; do
-        [ -d "/usr/lib/postgresql/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
-    done
-    sleep 2
-fi
-
-if pg_isready -q 2>/dev/null; then
-    ok "PostgreSQL działa"
-else
-    zle "PostgreSQL nie działa — testy Kuking nie chodzą na SQLite"
-    printf "  Uruchom: pg_ctlcluster 16 main start\n"
+# Sonda pyta o JAWNY endpoint bazy testowej (DB_HOST/DB_PORT/DB_DATABASE/
+# DB_USERNAME) i nie uruchamia żadnego klastra (issue #732) — szczegóły
+# i powód: scripts/lib/sonda-postgresql.sh. Brak parametrów kończy kontrolę
+# od razu: dalsze kroki trafiłyby w domyślny, być może cudzy, port.
+# shellcheck source=lib/sonda-postgresql.sh
+. scripts/lib/sonda-postgresql.sh
+krok_postgresql
+if [ "$?" -eq 2 ]; then
+    exit 1
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -96,6 +92,9 @@ if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
 elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/sonda-postgresql.sh >/dev/null 2>&1; then
+    # Sonda bazy z kroku 1 (issue #732): jawny endpoint, zero pg_ctlcluster.
+    zle "Test sondy PostgreSQL oblewa — uruchom: bash tests/skrypty/sonda-postgresql.sh"
 elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
     zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
 elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
