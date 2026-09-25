@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
@@ -17,6 +18,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -109,6 +112,11 @@ class AppServiceProvider extends ServiceProvider
         MapaStrony::zarejestrujHaki();
 
         $this->zapisujWSesjiTylkoZgrubnyAdres();
+
+        // Issue #993: osierocone pliki pośrednie eksportu sprząta pętla
+        // workera, na dysku, na którym powstały — nie tylko start następnego
+        // eksportu. Dławik i uzasadnienie w `ExportTempDirectory::sweepStaleIfDue()`.
+        Event::listen(Looping::class, fn () => ExportTempDirectory::sweepStaleIfDue());
     }
 
     /**
