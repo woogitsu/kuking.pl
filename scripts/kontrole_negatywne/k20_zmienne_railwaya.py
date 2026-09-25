@@ -30,7 +30,7 @@ KONTROLE = [
     Kontrola("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
              lambda s: replace_once(s, "    ...modelEnv,\n", "")),
     Kontrola("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-             lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv };")),
+             lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv, ")),
     # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
     # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.

@@ -87,7 +87,7 @@ fi
 # „proces się skończył" od „proces padł".
 krok "Skrypty powłoki"
 _bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for _skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$_skrypt" ] || continue
     bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
 done
@@ -96,6 +96,12 @@ if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
 elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
+    zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
+elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
+    # Obraz FrankenPHP nie ma php.ini-production — bez tej dyrektywy w
+    # docker/php.ini ślady wyjątków niosą prefiksy argumentów, także sekretów.
+    zle "Ślady wyjątków w docker/php.ini niosą argumenty — uruchom: bash tests/skrypty/php-ini-slady.sh"
 elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # Kopia bazy to też skrypt powłoki, w obrazie bez PHP (decyzja D-043),
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
@@ -116,7 +122,8 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
 elif ! python3 scripts/kontrole-negatywne-alfa08.py --lista >/dev/null 2>&1; then
     # Tryb suchy katalogu kontroli negatywnych (PR #1478): import każdego pliku,
-    # unikalne nazwy, brak wpisów w starym punkcie wejścia. Bez bazy i mutacji.
+    # unikalne nazwy, brak wpisów w starym punkcie wejścia, kotwice mutacji
+    # sprawdzone w pamięci. Bez bazy i bez pisania po źródłach.
     zle "Katalog kontroli negatywnych odmawia — uruchom: python3 scripts/kontrole-negatywne-alfa08.py --lista"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"

@@ -152,8 +152,13 @@ def zaladuj():
 
 
 def lista():
-    """Tryb suchy: co zostałoby uruchomione, bez testów i bez pisania po źródłach."""
+    """Tryb suchy: co zostałoby uruchomione, bez testów i bez pisania po źródłach.
+
+    Kotwice mutacji sprawdza w pamięci (`preflight`), więc `scripts/check.sh`
+    łapie kotwicę rozjechaną z kodem, zanim zrobi to CI.
+    """
     dodatnie, kontrole = zaladuj()
+    preflight(kontrole)
     for test in dodatnie:
         print(f"dodatnia\t{test}\tTrue")
     for kontrola in kontrole:
@@ -161,10 +166,30 @@ def lista():
     print(f"{len(dodatnie)} kontroli dodatnich, {len(kontrole)} kontroli negatywnych.")
 
 
+def preflight(checks):
+    """Każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
+
+    Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po
+    kilku minutach, anonimowym „nie znalazła dokładnie jednego miejsca” — bez
+    nazwy kontroli. Czytanie w logu ~500 linii oczekiwanych porażek (np.
+    „Format UUID” celowo daje 500 w WyborZeszytuMaWalidacjeTest) wyglądało jak
+    regresja w kodzie. Tu nic nie jest zapisywane na dysk; błąd mówi, KTÓRA
+    kontrola i w jakim pliku.
+    """
+    for label, filename, _test, mutate in checks:
+        try:
+            source = (ROOT / filename).read_text()
+            if mutate(source) == source:
+                raise RuntimeError("Mutacja nie zmieniła źródła.")
+        except Exception as error:
+            raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
+
+
 def uruchom():
     os.chdir(ROOT)
     bramka()
     dodatnie, checks = zaladuj()
+    preflight(checks)
 
     for test in dodatnie:
         run_test(test, True)

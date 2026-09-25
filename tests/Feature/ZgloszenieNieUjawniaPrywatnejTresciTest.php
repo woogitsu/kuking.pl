@@ -256,21 +256,15 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
         ]);
     }
 
-    public function test_moderator_widzi_i_zglasza_szkic_przepisu(): void
+    public function test_moderator_nie_widzi_ani_nie_zglasza_cudzego_szkicu_przepisu(): void
     {
-        // Świadomie SZKIC (`status`), nie treść `visibility: private`.
-        // `RecipePolicy::view()` wpuszcza moderatora TYLKO w gałęzi
-        // `! $recipe->isPublished()` (`|| $user->isModerator()`) — dla treści
-        // już OPUBLIKOWANEJ, ale `private`/`followers`, dopasowanie na końcu
-        // Policy sprawdza wyłącznie właściciela, bez wyjątku dla moderatora.
-        // Sprawdzone bezpośrednio: `Gate::forUser($moderator)->allows('view',
-        // $opublikowanyPrywatny)` zwraca `false`, tak samo jak w `PostPolicy`.
-        // To ISTNIEJĄCE zachowanie obu Policy, sprzed tej zmiany — bramka
-        // W7-05 świadomie go NIE nadpisuje (plan naprawy pkt 2: korzystamy
-        // z Policy, nie poprawiamy jej przy okazji). Jeśli moderator ma
-        // widzieć KAŻDĄ opublikowaną prywatną treść przez ten formularz, to
-        // osobna decyzja projektowa o zakresie dostępu moderatora — patrz
-        // raport z tego zlecenia.
+        // Do 24.09.2026 ten test nazywał się `test_moderator_widzi_i_zglasza_
+        // szkic_przepisu` i utrwalał szerszą regułę: `RecipePolicy::view()`
+        // wpuszczała moderatora do KAŻDEGO nieopublikowanego przepisu. Szkic
+        // nie jest sprawą moderacyjną — widzi go wyłącznie autor, tak jak
+        // szkic wpisu (#1359, audyt AUTHZ-01). Formularz zgłoszenia idzie
+        // przez tę samą Policy, więc odmawia tak samo jak strona przepisu:
+        // 404, bez zdradzania, że taki szkic istnieje.
         $moderator = $this->moderator();
 
         $szkicPrzepisu = Recipe::factory()->draft()->create([
@@ -279,13 +273,30 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($moderator)
             ->get(route('reports.create', ['type' => 'recipe', 'id' => $szkicPrzepisu->slug]))
-            ->assertOk();
+            ->assertNotFound();
 
         $this->actingAs($moderator)
             ->post(route('reports.store', ['type' => 'recipe', 'id' => $szkicPrzepisu->slug]), ['reason' => 'spam'])
-            ->assertRedirectContains('/zgloszenia/');
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('reports', ['target_type' => 'recipe', 'target_id' => $szkicPrzepisu->getKey()]);
+        $this->assertDatabaseMissing('reports', ['target_type' => 'recipe', 'target_id' => $szkicPrzepisu->getKey()]);
+    }
+
+    public function test_moderator_otwiera_formularz_zgloszenia_przepisu_ukrytego_przez_moderacje(): void
+    {
+        // Kontrola dodatnia do testu wyżej: odmowa dotyczy SZKICU, nie
+        // każdego nieopublikowanego przepisu. Przepis ukryty decyzją
+        // moderacji dalej otwiera się obsłudze (#1359).
+        $moderator = $this->moderator();
+
+        $ukryty = Recipe::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'status' => Recipe::STATUS_HIDDEN,
+        ]);
+
+        $this->actingAs($moderator)
+            ->get(route('reports.create', ['type' => 'recipe', 'id' => $ukryty->slug]))
+            ->assertOk();
     }
 
     public function test_zablokowany_nie_moze_zglosic_publicznego_wpisu_autora_ktory_go_zablokowal(): void
