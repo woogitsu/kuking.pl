@@ -688,6 +688,17 @@ class Notification extends Model
             $query->where('notifications.type', '!=', self::TYPE_APPEAL_FILED);
         }
 
+        // `post.first` — ta sama zasada, inna zdolność (issue #1351).
+        // Alert prowadzi do kolejki „Bez odpowiedzi", do której wstęp daje
+        // `moderate` (`BezOdpowiedziController::index()`), a odbiorcę
+        // wybiera `PublishPost` z `host_username` BEZ pytania o rolę. Po
+        // odebraniu roli, przy zawieszeniu albo gdy gospodarzem jest zwykłe
+        // konto, „Zobacz" kończyłoby się odmową. Wiersz i `first_post_events`
+        // zostają — po nadaniu roli alert wraca.
+        if (! $viewer->isModerator()) {
+            $query->where('notifications.type', '!=', self::TYPE_FIRST_POST);
+        }
+
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')
