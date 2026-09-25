@@ -209,7 +209,7 @@ WYZWALACZY_FIKSTURY="$("${PSQL[@]}" -d "${BAZA_ZRODLOWA}" -Atc \
   "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
      JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE NOT t.tgisinternal AND n.nspname='public'")"
-sprawdz "fikstura niesie trzy wyzwalacze gwarancji (D-072, D-080)" "3" "${WYZWALACZY_FIKSTURY}"
+sprawdz "fikstura niesie cztery wyzwalacze gwarancji (D-072, D-080, #954)" "4" "${WYZWALACZY_FIKSTURY}"
 
 # =============================================================================
 echo
@@ -906,7 +906,9 @@ echo "── WYZWALACZE — kontrole ujemne (sedno issue #9) ──"
   -c 'DROP TRIGGER follows_blokada_ma_pierwszenstwo_trg ON follows' >/dev/null
 pg_dump "${DSN_ZRODLA}" --format=custom --no-owner --file="${KATALOG_KOPII}/bez-wyzwalacza.dump"
 
-wyjscie="$(uruchom_probe "${KATALOG_KOPII}/bez-wyzwalacza.dump")"
+# Próg = liczba wyzwalaczy fikstury: zrzut bez jednego ma ich o jeden mniej,
+# więc oblewa się już na liczeniu, a nie dopiero na liście nazwanych.
+wyjscie="$(PROBA_MIN_WYZWALACZY="${WYZWALACZY_FIKSTURY}" uruchom_probe "${KATALOG_KOPII}/bez-wyzwalacza.dump")"
 kod=$?
 sprawdz "oblewa się, gdy zrzut zgubił wyzwalacz (kod 70)" "70" "${kod}"
 sprawdz_zawiera "…i mówi, ile ich znalazł" \
