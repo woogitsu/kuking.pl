@@ -118,6 +118,74 @@ class TerminPaczkiDanychTest extends TestCase
         $this->actingAs($basia)->get($adres)->assertOk();
     }
 
+    /**
+     * Kryterium 2 z #819: po nocnym sprzątaniu (`ready` → `expired`) ekran
+     * mówi to samo co przed nim — wygasła, bez przycisku, z drogą do nowej
+     * paczki — a pobranie starym adresem dalej się nie udaje.
+     */
+    public function test_po_sprzataniu_ekran_mowi_to_samo_co_przed_nim(): void
+    {
+        $termin = Carbon::parse('2026-09-27 08:15:00', 'UTC');
+        Carbon::setTestNow($termin->copy()->subDay());
+        $basia = $this->user('basiasprzatanie');
+        $export = $this->gotowaPaczka($basia, $termin);
+        $adres = $this->adresPobrania($export);
+
+        Carbon::setTestNow($termin->copy()->addHours(3));
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
+
+        $odpowiedz = $this->actingAs($basia)->get(route('settings.data'))
+            ->assertOk()
+            ->assertDontSee('Pobierz paczkę')
+            ->assertSee('Tej paczki nie można już pobrać.')
+            ->assertSee('Nową przygotujesz przyciskiem „Przygotuj paczkę z moimi danymi”.', false);
+        $tresc = (string) $odpowiedz->getContent();
+        $this->assertDoesNotMatchRegularExpression(self::GOTOWA, $tresc);
+        $this->assertMatchesRegularExpression('/—\s+wygasła\b/u', $tresc);
+
+        // Po terminie odmawia już sam podpis (403) albo `isDownloadable()` (404)
+        // — ważne, że pliku nie ma.
+        $this->assertContains($this->actingAs($basia)->get($adres)->status(), [403, 404]);
+    }
+
+    /**
+     * Kryterium 2 z #819, druga połowa: poprawka terminu nie wciąga
+     * `queued`, `processing` ani `failed` do „wygasła”. Każdy zostaje przy
+     * swoim komunikacie, `failed` przy bezpiecznej etykiecie przyczyny.
+     */
+    public function test_kolejka_przygotowanie_i_niepowodzenie_nie_sa_nazywane_wygaslymi(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-20 12:00:00', 'UTC'));
+
+        // Osobne konto na każdy stan: baza pozwala na jedną aktywną paczkę
+        // na osobę (`data_exports_one_active_per_user`).
+        $stany = [
+            DataExport::STATUS_QUEUED => ['w kolejce', []],
+            DataExport::STATUS_PROCESSING => ['przygotowujemy', []],
+            DataExport::STATUS_FAILED => ['nie udało się przygotować',
+                ['failure_reason' => DataExport::REASON_STORAGE, 'completed_at' => now()]],
+        ];
+
+        foreach ($stany as $status => [$etykieta, $pola]) {
+            $osoba = $this->user('basia'.$status);
+            $export = DataExport::create(['user_id' => $osoba->getKey(), 'status' => DataExport::STATUS_QUEUED]);
+            $export->forceFill(['status' => $status] + $pola)->save();
+
+            $odpowiedz = $this->actingAs($osoba)->get(route('settings.data'))
+                ->assertOk()
+                ->assertDontSee('Pobierz paczkę')
+                ->assertDontSee('Tej paczki nie można już pobrać.');
+            if ($status === DataExport::STATUS_FAILED) {
+                $odpowiedz->assertSee($export->failureReasonLabel(), false);
+            }
+            $tresc = (string) $odpowiedz->getContent();
+
+            $this->assertMatchesRegularExpression('/—\s+'.$etykieta.'\b/u', $tresc, $status);
+            $this->assertDoesNotMatchRegularExpression('/—\s+wygasła\b/u', $tresc, $status);
+        }
+    }
+
     // -----------------------------------------------------------------
 
     private function gotowaPaczka(User $user, Carbon $wygasa): DataExport
