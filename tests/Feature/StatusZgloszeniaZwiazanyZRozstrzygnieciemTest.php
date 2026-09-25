@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -31,6 +32,7 @@ use Tests\TestCase;
 class StatusZgloszeniaZwiazanyZRozstrzygnieciemTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     private const OGRANICZENIE = 'reports_resolution_complete_check';
 
@@ -197,7 +199,7 @@ class StatusZgloszeniaZwiazanyZRozstrzygnieciemTest extends TestCase
         ]);
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $oznaczenie->refresh();
@@ -243,21 +245,5 @@ class StatusZgloszeniaZwiazanyZRozstrzygnieciemTest extends TestCase
         $migracja->up();
         $this->assertTrue($this->ograniczenieZwalidowane(), 'VALIDATE CONSTRAINT nie przeszedł.');
         $this->assertSame(2, DB::table('reports')->count());
-    }
-
-    /**
-     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
-     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
-     * oznaczenia innych grup w niej nie szkodzą.
-     *
-     * @return list<string>
-     */
-    private function oznaczeniaNaEkranie(): array
-    {
-        return Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->pluck('id')
-            ->map(static fn ($id): string => (string) $id)
-            ->all();
     }
 }

@@ -275,10 +275,14 @@ zauważa, nikomu nic się nie dzieje.
   `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
 - „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
   oznaczenia dla tej samej treści.
-- Zamyka dokładnie te oznaczenia, które były na ekranie (#1059): formularz
-  niesie ich identyfikatory, a gdy automat dopisał do grupy coś nowego po
-  otwarciu strony, nic nie zostaje zamknięte i moderator dostaje prośbę
-  o ponowny przegląd.
+- Zamyka grupę w stanie, który moderator widział (#1059, decyzja właściciela):
+  formularz niesie klucz grupy, liczbę otwartych oznaczeń i identyfikator
+  najnowszego z nich — nie listę identyfikatorów, bo widok rozwija najwyżej
+  10 pozycji na grupę (#1060). Gdy od otwarcia strony do grupy doszło coś
+  nowego (nowsze od najnowszego albo więcej niż liczba z ekranu), nic nie
+  zostaje zamknięte: „Doszły nowe zgłoszenia — odśwież listę i sprawdź je”.
+  Oznaczenie zamknięte w międzyczasie przez kogoś innego nie dostaje drugiej
+  decyzji, a reszta grupy się zamyka.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 

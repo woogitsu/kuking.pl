@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification as Powiadomienia;
 use Illuminate\Testing\TestResponse;
 use RuntimeException;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -52,6 +53,7 @@ use Tests\TestCase;
 class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Przełącznik awarii — `DB::listen` nie da się odpiąć, więc ponowienie po „naprawie" gasi go tutaj. */
     private bool $awaria = true;
@@ -305,7 +307,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasErrors(['autor' => 'Nie udało się zamknąć tej grupy i nic się w niej nie zmieniło. Spróbuj jeszcze raz za chwilę.'])
             ->assertSessionMissing('status');
@@ -322,7 +324,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status');
@@ -339,7 +341,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $autor = $this->oznaczonyAutor();
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, $this->wpisy('moderation.automat_dismissed'));
@@ -365,22 +367,6 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         });
 
         Exceptions::assertReported(RuntimeException::class);
-    }
-
-    /**
-     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
-     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
-     * oznaczenia innych grup w niej nie szkodzą.
-     *
-     * @return list<string>
-     */
-    private function oznaczeniaNaEkranie(): array
-    {
-        return Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->pluck('id')
-            ->map(static fn ($id): string => (string) $id)
-            ->all();
     }
 
     // ------------------------------------------------------------------

@@ -14,6 +14,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -59,6 +60,12 @@ class SygnalyController extends Controller
     /** Powód w logu przy zamknięciu grupy — patrz `PodstawaDecyzji`: kod spoza listy nie dostaje numeru punktu i tak ma być. */
     public const POWOD_ODRZUCENIA = 'automat-falszywy-alarm';
 
+    /** Odmowa, gdy od wyświetlenia strony grupa urosła (#1059, decyzja właściciela). */
+    public const GRUPA_UROSLA = 'Doszły nowe zgłoszenia — odśwież listę i sprawdź je. W tej grupie nic nie zamknęliśmy.';
+
+    /** Formularz bez znacznika stanu (np. karta otwarta przed tą zmianą). */
+    public const NIEZNANY_STAN = 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.';
+
     public function index(Request $request): View
     {
         $this->authorize('moderate', User::class);
@@ -100,14 +107,22 @@ class SygnalyController extends Controller
      * której nikt nie oglądał, z decyzją człowieka w logu. A `juzOgladane()`
      * nie pozwala automatowi postawić jej drugi raz, więc znikała na dobre.
      *
-     * Formularz niesie więc identyfikatory oznaczeń, które były na ekranie.
+     * Formularz niesie więc ZNACZNIK STANU grupy z chwili wyświetlenia
+     * (decyzja właściciela do #1059, wariant b): liczbę otwartych oznaczeń
+     * (`stan_ile`) i identyfikator najnowszego z nich (`stan_najnowsze`,
+     * kolejność `created_at DESC, id DESC`). Nie listę identyfikatorów —
+     * widok rozwija najwyżej `POZYCJI_W_GRUPIE` pozycji (#1060), a grupa
+     * bywa liczona w setkach.
+     *
      * Serwer i tak wybiera wiersze SAM — źródło, autor, otwarty status, pod
-     * blokadą — a przysłana lista jedynie ogranicza, nigdy nie rozszerza:
-     * identyfikator z formularza nie jest autoryzacją. Gdy w grupie jest
-     * coś spoza listy, nie zamykamy niczego i każemy spojrzeć jeszcze raz —
-     * grupa to jedna decyzja, a połowa decyzji podjęta za kogoś nie jest
-     * decyzją. Oznaczenie z listy, które zamknął w międzyczasie ktoś inny,
-     * po prostu nie wraca z zapytania i nie dostaje drugiej decyzji.
+     * blokadą — a znacznik jedynie sprawdza, czy grupa nie urosła: nic
+     * nowszego od najnowszego z ekranu i nie więcej niż `stan_ile`. Znacznik
+     * spoza tej grupy (inny autor, nie automat, nie istnieje) to formularz
+     * nieaktualny albo podrobiony — też odmowa. Gdy grupa urosła, nie
+     * zamykamy niczego — grupa to jedna decyzja, a połowa decyzji podjęta
+     * za kogoś nie jest decyzją. Oznaczenie, które zamknął w międzyczasie
+     * ktoś inny, po prostu nie wraca z zapytania i nie dostaje drugiej
+     * decyzji; reszta grupy się zamyka.
      */
     public function odrzucGrupe(Request $request): RedirectResponse
     {
@@ -116,22 +131,25 @@ class SygnalyController extends Controller
         $dane = $request->validate([
             'autor' => ['required', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:2000'],
-            'oznaczenia' => ['required', 'array'],
-            'oznaczenia.*' => ['required', 'string', 'max:64'],
+            'stan_ile' => ['required', 'integer', 'min:1'],
+            'stan_najnowsze' => ['required', 'uuid'],
         ], [
             'autor.required' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
-            'oznaczenia.required' => 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
-            'oznaczenia.*' => 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            'stan_ile.required' => self::NIEZNANY_STAN,
+            'stan_ile.integer' => self::NIEZNANY_STAN,
+            'stan_ile.min' => self::NIEZNANY_STAN,
+            'stan_najnowsze.required' => self::NIEZNANY_STAN,
+            'stan_najnowsze.uuid' => self::NIEZNANY_STAN,
         ]);
 
-        /** @var list<string> $zEkranu */
-        $zEkranu = array_values(array_map('strval', $dane['oznaczenia']));
+        $stanIle = (int) $dane['stan_ile'];
+        $stanNajnowsze = (string) $dane['stan_najnowsze'];
 
         $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
 
         try {
-            [$ile, $nowych] = DB::transaction(function () use ($autorId, $moderator, $dane, $request, $zEkranu): array {
+            [$ile, $urosla] = DB::transaction(function () use ($autorId, $moderator, $dane, $request, $stanIle, $stanNajnowsze): array {
                 $oznaczenia = $this->otwarte()
                     ->when($autorId === null,
                         fn ($q) => $q->whereNull('autor_tresci_id'),
@@ -147,12 +165,8 @@ class SygnalyController extends Controller
                 // Dopisane po odczycie strony (#1059) — patrz komentarz
                 // metody. Nic jeszcze nie zapisaliśmy, więc wyjście tutaj
                 // zostawia grupę dokładnie taką, jaka była.
-                $nowych = $oznaczenia
-                    ->reject(static fn (Report $r): bool => in_array((string) $r->getKey(), $zEkranu, true))
-                    ->count();
-
-                if ($nowych > 0) {
-                    return [0, $nowych];
+                if ($this->grupaUrosla($oznaczenia, $autorId, $stanIle, $stanNajnowsze)) {
+                    return [0, true];
                 }
 
                 foreach ($oznaczenia as $oznaczenie) {
@@ -193,7 +207,7 @@ class SygnalyController extends Controller
                     );
                 }
 
-                return [$ile, 0];
+                return [$ile, false];
             });
         } catch (Throwable $awaria) {
             // Transakcja jest wycofana w całości — grupa zostaje otwarta,
@@ -206,12 +220,8 @@ class SygnalyController extends Controller
             ]);
         }
 
-        if ($nowych > 0) {
-            return back()->withErrors([
-                'autor' => $nowych === 1
-                    ? 'Od otwarcia strony w tej grupie pojawiło się nowe oznaczenie. Nic nie zamknęliśmy — przejrzyj grupę jeszcze raz i dopiero wtedy ją zamknij.'
-                    : 'Od otwarcia strony w tej grupie pojawiły się nowe oznaczenia ('.$nowych.'). Nic nie zamknęliśmy — przejrzyj grupę jeszcze raz i dopiero wtedy ją zamknij.',
-            ]);
+        if ($urosla) {
+            return back()->withErrors(['autor' => self::GRUPA_UROSLA]);
         }
 
         if ($ile === 0) {
@@ -223,6 +233,42 @@ class SygnalyController extends Controller
         return back()->with('status', $ile === 1
             ? 'Zamknięte. Treść zostaje bez zmian, a automat już do niej nie wróci.'
             : 'Zamknięte — '.$ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.');
+    }
+
+    /**
+     * Czy grupa jest inna niż ta, którą moderator widział (#1059).
+     *
+     * Najnowsze z ekranu musi być oznaczeniem automatu z TEJ grupy. Nowsze od
+     * niego (po `created_at`, a przy tej samej sekundzie po identyfikatorze —
+     * UUIDv7 rośnie z czasem) oznacza, że automat coś dopisał. Liczba ponad
+     * `stan_ile` łapie dopisanie, którego kolejność nie odróżni (ta sama
+     * chwila, losowa część UUID). Mniej niż `stan_ile` jest w porządku — to
+     * oznaczenia zamknięte w międzyczasie przez kogoś innego.
+     *
+     * @param  EloquentCollection<int, Report>  $oznaczenia  otwarte oznaczenia grupy, pod blokadą
+     */
+    private function grupaUrosla(EloquentCollection $oznaczenia, ?string $autorId, int $stanIle, string $stanNajnowsze): bool
+    {
+        $znacznik = Report::query()
+            ->whereKey($stanNajnowsze)
+            ->where('source', Report::SOURCE_AUTOMAT)
+            ->when($autorId === null,
+                fn ($q) => $q->whereNull('autor_tresci_id'),
+                fn ($q) => $q->where('autor_tresci_id', $autorId),
+            )
+            ->first(['id', 'created_at']);
+
+        $granica = $znacznik?->created_at;
+
+        if ($znacznik === null || $granica === null || $oznaczenia->count() > $stanIle) {
+            return true;
+        }
+
+        $najnowszeId = (string) $znacznik->getKey();
+
+        return $oznaczenia->contains(static fn (Report $r): bool => $r->created_at === null
+            || $r->created_at->greaterThan($granica)
+            || ($r->created_at->equalTo($granica) && strcmp((string) $r->getKey(), $najnowszeId) > 0));
     }
 
     /** Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka". */
@@ -246,7 +292,10 @@ class SygnalyController extends Controller
     private function grupy(): LengthAwarePaginator
     {
         return $this->otwarte()
-            ->selectRaw('autor_tresci_id, COUNT(*) AS ile, MAX('.$this->wagaCase().') AS waga, MAX(created_at) AS ostatnie')
+            // `najnowsze` — znacznik stanu grupy dla formularza zamknięcia
+            // (#1059); ta sama kolejność co w `grupaUrosla()`.
+            ->selectRaw('autor_tresci_id, COUNT(*) AS ile, MAX('.$this->wagaCase().') AS waga, MAX(created_at) AS ostatnie, '
+                .'(ARRAY_AGG(id::text ORDER BY created_at DESC, id DESC))[1] AS najnowsze')
             ->with('autorTresci.profile')
             ->groupBy('autor_tresci_id')
             ->orderByDesc('waga')

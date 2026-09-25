@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -42,6 +43,7 @@ use Tests\TestCase;
 class SygnalyAutomatuTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Tekst dłuższy niż próg 40 znaków, żeby sygnał powtórzenia miał się o co oprzeć. */
     private const DLUGI = 'Rosół z kury zagrodowej, gotowany na wolnym ogniu przez cztery godziny, z korzeniem pietruszki.';
@@ -396,7 +398,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(1, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $oznaczenie = $this->oznaczenia()->first();
@@ -426,7 +428,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(3, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey(), 'oznaczenia' => $this->oznaczeniaNaEkranie()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey(), ...$this->stanGrupySygnalow((string) $spamer->getKey())])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0, Report::query()
@@ -557,21 +559,5 @@ class SygnalyAutomatuTest extends TestCase
 
         // KONTROLA: powiadomienie naprawdę powstało, więc test nie sprawdza pustki.
         $this->assertSame(Notification::TYPE_MODERATION, $powiadomienie->type);
-    }
-
-    /**
-     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
-     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
-     * oznaczenia innych grup w niej nie szkodzą.
-     *
-     * @return list<string>
-     */
-    private function oznaczeniaNaEkranie(): array
-    {
-        return Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->pluck('id')
-            ->map(static fn ($id): string => (string) $id)
-            ->all();
     }
 }

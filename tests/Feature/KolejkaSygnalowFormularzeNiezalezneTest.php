@@ -11,6 +11,7 @@ use App\Moderacja\OcenaModelem;
 use App\Support\WierszFormularza;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
 class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Oznaczenie automatu na koncie $autor, bez uruchamiania wykrywacza — patrz KolejkaSygnalowPokazujePodgladTest. */
     private function oznaczenie(User $autor): Report
@@ -76,7 +78,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $druga->getKey(),
-                'oznaczenia' => $this->oznaczeniaNaEkranie(),
+                ...$this->stanGrupySygnalow((string) $druga->getKey()),
                 // `_wiersz` tak, jak wysyła go prawdziwy formularz (issue
                 // #243, `App\Support\WierszFormularza`).
                 WierszFormularza::POLE => (string) $druga->getKey(),
@@ -135,7 +137,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $jedyna->getKey(),
-                'oznaczenia' => $this->oznaczeniaNaEkranie(),
+                ...$this->stanGrupySygnalow((string) $jedyna->getKey()),
                 WierszFormularza::POLE => (string) $jedyna->getKey(),
                 'note' => $zaDluga,
             ])
@@ -219,21 +221,5 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
                 'Pole o id '.$oczekiwanyId.' występuje więcej niż raz.',
             );
         }
-    }
-
-    /**
-     * Identyfikatory otwartych oznaczeń automatu — to, co formularz grupy
-     * niesie z ekranu (#1059). Przysłana lista tylko ogranicza zakres, więc
-     * oznaczenia innych grup w niej nie szkodzą.
-     *
-     * @return list<string>
-     */
-    private function oznaczeniaNaEkranie(): array
-    {
-        return Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->pluck('id')
-            ->map(static fn ($id): string => (string) $id)
-            ->all();
     }
 }
