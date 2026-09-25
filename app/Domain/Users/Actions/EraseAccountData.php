@@ -9,6 +9,7 @@ use App\Domain\Media\KasujZdjecie;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -256,6 +257,7 @@ final class EraseAccountData
             $fresh->tozsamosciZewnetrzne()->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);
+            $this->odlaczSladyNieudanychListow($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -579,6 +581,23 @@ final class EraseAccountData
         }
 
         return $skasowane;
+    }
+
+    /**
+     * ŚLADY NIEUDANYCH LISTÓW ZOSTAJĄ, ALE BEZ KONTA (audyt B5, znalezisko 9).
+     *
+     * `mail_failures` to wiedza operatora, że jakiś list nie doszedł — bez
+     * adresu i bez treści (`BezpiecznyKomunikat`). `user_id` mówił jednak,
+     * KOMU nie doszedł, i po wymazaniu wskazywał konto bez końca: klucz ma
+     * `nullOnDelete()`, a kont się nie kasuje (D-022), więc kaskada nigdy by
+     * nie zadziałała. Wiersz zostaje (nieodhaczony zapala `/health`),
+     * znika tylko powiązanie z osobą.
+     */
+    private function odlaczSladyNieudanychListow(User $user): void
+    {
+        MailFailure::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
     }
 
     /**
