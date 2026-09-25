@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Raport `kuking:raport` pokazuje, jaka część zapisanych w Zeszycie cudzych przepisów została ugotowana w ciągu 30 dni od zapisu. Liczy każdą parę osoba–przepis raz, tylko z zapisów, które miały już pełne 30 dni, i mówi wprost, gdy danych jest za mało albo są za świeże (#1015).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

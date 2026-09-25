@@ -104,6 +104,46 @@ gotujący z `CookEligibility` (gospodarz, konta testowe, zalążkowe,
 zamknięte) są wyłączeni. Wynik jest tylko zbiorczy — bez nazw, tytułów,
 notatek i bez rankingu przepisów lub autorów.
 
+**`save → cooked w 30 dni` w `kuking:raport` (issue #1015).** Definicja
+stała, żeby kolejne raporty porównywały to samo
+(`App\Domain\Analytics\ZapisDoUgotowania`):
+
+- **jednostka** — para osoba–przepis, nie wiersz `collection_items`. Liczy
+  się PIERWSZY zapis: `min(collection_items.created_at)` po
+  `(collections.owner_id, recipe_id)` z całej historii. Ten sam przepis
+  w kilku zeszytach i ponowny zapis to wciąż jedna para, przypisana do
+  kohorty według pierwszego zapisu;
+- **kohorta** — pary, których pierwszy zapis przypada na przedział
+  `(chwila liczenia − 60 dni, chwila liczenia − 30 dni]`. Każda miała już
+  pełne 30 dni na ugotowanie. Zapisy młodsze niż 30 dni raport podaje osobno
+  jako „jeszcze w oknie” i nie wlicza ich do mianownika;
+- **licznik** — para, dla której ta sama osoba ma `cooked_events` tego
+  przepisu z `cooked_at` > pierwszy zapis i ≤ pierwszy zapis + 30 dni.
+  Ugotowanie sprzed zapisu nie jest konwersją; kilka ugotowań to jedna
+  konwersja. `cooked_at` ustawia serwer w chwili zgłoszenia;
+- **minimalna próba** — 20 par w kohorcie; poniżej raport podaje licznik
+  i mianownik, ale zamiast procentu pisze „za mało danych”. Cel: ≥15%
+  (`docs/product/RETENTION_LOOPS.md`);
+- **poza pomiarem** — konta z `CookEligibility`, zapis własnego przepisu
+  (autor nie potrzebuje Zeszytu, a jego gotowanie to dziennik), zapisane
+  wpisy (`post_id`). Przepis ukryty moderacyjnie zostaje w liczbach;
+- **znane ograniczenie** — usunięcie przepisu z zeszytu kasuje wiersz
+  `collection_items`, więc taki zapis znika z pomiaru, a zapis po usunięciu
+  liczy się jako nowy pierwszy zapis. Nie dodajemy dla tego tabeli ani
+  zdarzenia śledzącego.
+
+Wynik jest tylko zbiorczy — trzy liczby i procent, bez identyfikatorów,
+tytułów, nazw zeszytów i notatek; nic nie trafia do logów.
+
+**Wynik pierwszej pełnej rzeczywistej kohorty: jeszcze niezmierzony.**
+Wymaga uruchomienia `php artisan kuking:raport` na produkcji; wpisać tu datę,
+licznik, mianownik i procent. Przypomnienie o zapisanym przepisie
+w tygodniowym podsumowaniu **nie jest włączone** — zanim powstanie, potrzebne
+są: pełna kohorta z co najmniej 20 parami, porównanie z celem 15%, rozmowy
+z użytkownikami (zapominanie czy jakość przepisu — zestawić z
+„zrobię ponownie”, #1509, bez łączenia w jeden wskaźnik) i decyzja właściciela
+zapisana jako aktualizacja D-057.
+
 **Liczba główna: WAC.** Liczby pomocnicze, w tej kolejności ważności:
 
 1. `% kont, które w tygodniu cokolwiek opublikowały` (post LUB przepis LUB

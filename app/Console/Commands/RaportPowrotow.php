@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
 use App\Domain\Analytics\PowrotPoDniach;
+use App\Domain\Analytics\ZapisDoUgotowania;
 use App\Domain\Analytics\ZasiegUgotowalem;
 use App\Domain\Analytics\ZrobiePonownie;
 use App\Support\Czas;
@@ -48,6 +49,10 @@ use Illuminate\Support\Collection;
  * - „Zrobię ponownie" liczy się w trzech stanach — tak / nie / brak
  *   odpowiedzi — osobno dla cudzych i własnych przepisów; brak odpowiedzi
  *   nie jest „nie" (issue #1509, `App\Domain\Analytics\ZrobiePonownie`).
+ * - „Zapis → Ugotowałem w 30 dni" liczy pary osoba–przepis z zamkniętej,
+ *   pełnej kohorty pierwszych zapisów; zapisy młodsze niż 30 dni stoją osobno
+ *   i nie wchodzą do mianownika (issue #1015,
+ *   `App\Domain\Analytics\ZapisDoUgotowania`).
  *
  * PUSTA BAZA NIE WYWALA KOMENDY
  * Każda z trzech klas domenowych zwraca `0`, nie wyjątek, gdy nie ma
@@ -68,6 +73,7 @@ class RaportPowrotow extends Command
         ZasiegUgotowalem $ugotowalem,
         CookRetentionCohorts $kohorty,
         ZrobiePonownie $zrobiePonownie,
+        ZapisDoUgotowania $zapisDoUgotowania,
     ): int {
         $this->line('Raport powrotów — Kuking.pl');
         $this->line('Liczone teraz, na podstawie ostatniej znanej wizyty każdego konta.');
@@ -96,6 +102,9 @@ class RaportPowrotow extends Command
 
         $this->newLine();
         $this->zrobiePonownie($zrobiePonownie);
+
+        $this->newLine();
+        $this->zapisDoUgotowania($zapisDoUgotowania);
 
         $this->newLine();
         $this->kohorty($kohorty);
@@ -211,6 +220,37 @@ class RaportPowrotow extends Command
         $this->line('„Zrobię ponownie” po gotowaniu — ostatnie '.ZrobiePonownie::DNI.' dni, każde wykonanie osobno.');
         $this->wierszZrobiePonownie('Cudze przepisy', $wynik['cudze']);
         $this->wierszZrobiePonownie('Własne przepisy autora', $wynik['wlasne']);
+    }
+
+    /**
+     * Pętla „Zapisuję → Ugotowałem" (issue #1015). Trzy stany, których nie
+     * wolno pomylić: brak jakichkolwiek zapisów, kohorta pusta, bo wszystkie
+     * zapisy są za świeże, i kohorta za mała na procent. Definicja kohorty
+     * i mianownika w `App\Domain\Analytics\ZapisDoUgotowania`.
+     */
+    private function zapisDoUgotowania(ZapisDoUgotowania $zapisDoUgotowania): void
+    {
+        $w = $zapisDoUgotowania->policz();
+        $dni = ZapisDoUgotowania::DNI;
+        $od = Czas::data($w['kohorta_od'], 'd.m.Y');
+        $do = Czas::data($w['kohorta_do'], 'd.m.Y');
+
+        $this->line("Zapis → „Ugotowałem” w {$dni} dni — pierwszy zapis cudzego przepisu przez daną osobę, zapisy z {$od}–{$do}.");
+
+        if ($w['w_kohorcie'] === 0) {
+            $this->line($w['w_oknie_obserwacji'] === 0
+                ? '  Brak zapisanych przepisów — jeszcze nie da się tego policzyć.'
+                : "  Za wcześnie na wniosek: w tej kohorcie nie ma zapisów, a wszystkie nowsze nie miały jeszcze {$dni} dni na ugotowanie.");
+        } else {
+            $procent = $w['procent'] === null
+                ? 'za mało danych (mniej niż '.ZapisDoUgotowania::MINIMUM_PAR.' zapisów w kohorcie)'
+                : number_format($w['procent'], 1, ',', '').'% (cel co najmniej '
+                    .number_format(ZapisDoUgotowania::CEL_PROCENT, 0, ',', '').'%)';
+
+            $this->line("  Ugotowane w {$dni} dni po zapisie: {$w['ugotowane']} z {$w['w_kohorcie']} zapisów · {$procent}");
+        }
+
+        $this->line("  Zapisy młodsze niż {$dni} dni: {$w['w_oknie_obserwacji']} — jeszcze w oknie, nie wliczone.");
     }
 
     /** @param  array{tak: int, nie: int, brak: int, wszystkie: int, odsetek_odpowiedzi: float|null, odsetek_tak: float|null}  $w */
