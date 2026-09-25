@@ -292,6 +292,11 @@ egzekwuje.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
   `app/Domain/Security/DziennyBudzetListow.php`.
+- **Ślad nieudanego listu (`mail_failures`):** rodzaj listu, powód odmowy,
+  zamaskowany komunikat, `user_id` odbiorcy — bez adresu i treści. Odhaczone
+  ślady kasowane po `kuking.poczta.retencja_dni` (90) dniach przy kolejnym
+  zapisie (`ZapiszNieudanyList`); przy wymazaniu konta `user_id` → `NULL`
+  (audyt B5 pkt 9).
 - **Termin usunięcia:** do usunięcia konta. **DO UZUPEŁNIENIA PRZEZ
   WŁAŚCICIELA:** jak długo EmailLabs trzyma logi wysyłek i otwarć —
   to jest okres po jego stronie i widać go tylko w umowie albo w panelu.
