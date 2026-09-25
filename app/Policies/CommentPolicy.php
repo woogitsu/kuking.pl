@@ -132,8 +132,16 @@ class CommentPolicy
     public function update(User $user, Comment $comment): bool
     {
         // Edycja komentarza tylko przez 15 minut od publikacji. Krótkie okno
-        // wystarcza na poprawienie literówki, a nie pozwala zmienić sensu
-        // rozmowy po tym, jak ktoś już odpowiedział.
+        // wystarcza na poprawienie literówki.
+        //
+        // Issue #1337: samo okno NIE chroniło rozmowy, choć ten komentarz tak
+        // twierdził — odpowiedź potrafi przyjść minutę po publikacji, a pytanie
+        // „Czy dodać sól?" dało się potem zmienić na „Czy pominąć sól?" pod
+        // cudzym „Tak". Pierwsza odpowiedź zamyka więc edycję. Liczy się
+        // odpowiedź widoczna w rozmowie (`replies()`: opublikowana, nieusunięta);
+        // odpowiedź ukryta przez moderację albo usunięta edycji nie blokuje.
+        // Ścisłą gwarancję przy równoczesnej odpowiedzi daje dopiero
+        // `EditComment`, który pyta tę metodę ponownie pod blokadą wiersza.
         //
         // Issue #937: komentarz ukryty albo zdjęty przez moderację nie jest
         // już edytowalny. Inaczej autor mógł w oknie 15 minut podmienić treść,
@@ -142,7 +150,26 @@ class CommentPolicy
         return $user->getKey() === $comment->author_id
             && $comment->status === Comment::STATUS_PUBLISHED
             && $comment->getAttribute('body_removed_at') === null
-            && $comment->created_at?->diffInMinutes(now()) < 15;
+            && $comment->created_at?->diffInMinutes(now()) < 15
+            && ! $comment->replies()->exists();
+    }
+
+    /**
+     * Poprawka odrzucona tylko dlatego, że ktoś już odpowiedział (#1337):
+     * autor dostaje swój tekst z powrotem i drogę do dopisania sprostowania.
+     * Rozłączne z `recoverExpiredEdit()` — tamto pilnuje okna 15 minut.
+     */
+    public function recoverAnsweredEdit(User $user, Comment $comment): bool
+    {
+        return $user->isActive()
+            && $user->getKey() === $comment->author_id
+            && $comment->body_removed_at === null
+            && $comment->status === Comment::STATUS_PUBLISHED
+            && ! $comment->trashed()
+            && $this->view($user, $comment)
+            && $comment->created_at !== null
+            && $comment->created_at->diffInMinutes(now()) < 15
+            && $comment->replies()->exists();
     }
 
     /** Odzyskanie własnego tekstu nie otwiera ponownie okna edycji. */
