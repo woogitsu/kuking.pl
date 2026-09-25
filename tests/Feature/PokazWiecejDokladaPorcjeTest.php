@@ -42,8 +42,11 @@ class PokazWiecejDokladaPorcjeTest extends TestCase
 
     public function test_odkrywanie_z_kursorem_daje_liste_do_dokladania(): void
     {
-        $autor = $this->user('autor986');
+        // Odkrywanie pokazuje jeden wpis na autora (#940), więc każdy wpis
+        // ma własnego autora — inaczej lista miałaby jedną pozycję i żadnej
+        // kolejnej porcji do dołożenia.
         for ($i = 0; $i < 20; $i++) {
+            $autor = $this->user('autor986n'.$i);
             Post::factory()->create(['author_id' => $autor->getKey(), 'body' => 'Wpis986-'.$i, 'published_at' => now()->subMinutes($i)]);
         }
 
