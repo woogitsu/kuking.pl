@@ -1,107 +1,81 @@
 #!/usr/bin/env bash
-# Uruchamiamy prawdziwy początek check.sh na atrapach, bez dostępu do bazy.
+# Regresja #732: uruchamiamy PRAWDZIWY krok „PostgreSQL” z `scripts/check.sh`
+# na atrapach `pg_isready` i `pg_ctlcluster` — bez dotykania żadnej bazy.
 #
-# Pilnujemy dwóch rzeczy naraz:
-#  1. sonda pyta DOKŁADNIE o wskazany endpoint i nie podnosi klastra,
-#  2. w `check.sh` NIE MA zaszytego portu — port przychodzi z `DB_PORT`,
-#     z wartością zapasową 5432 (jak `.env.example`, `phpunit.xml`
-#     i `tests/skrypty/proba-odtworzenia.sh`). Zaszyta liczba oznaczałaby
-#     `exit 1` zamiast kontroli u każdego, kto nie stoi na tym stanowisku:
-#     w CI (port losowy) i w każdym świeżym klonie.
+# Pilnujemy:
+#  1. sonda pyta o host i port ze zmiennych DB_HOST / DB_PORT, a bez nich
+#     o te same wartości co dotąd (127.0.0.1:5432) — nic nie trzeba eksportować;
+#  2. w `check.sh` nie ma zaszytego portu stanowiska;
+#  3. lokalny start klastra działa jak dotąd dla portu domyślnego,
+#     a dla innego portu (cudza instancja) klaster nie jest ruszany;
+#  4. komunikat o niedostępności nazywa sprawdzany adres.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TASK="$(mktemp -d)"
 trap 'rm -rf "$TASK"' EXIT
-mkdir -p "$TASK/scripts" "$TASK/bin"
+mkdir -p "$TASK/scripts" "$TASK/bin" "$TASK/pglib/18"
 awk '/# --- 2\. Formatowanie/{exit} {print}' "$ROOT/scripts/check.sh" > "$TASK/scripts/check.sh"
-test -s "$TASK/scripts/check.sh"
-cat > "$TASK/bin/pg_isready" <<'EOF'
+grep -q 'krok "PostgreSQL"' "$TASK/scripts/check.sh"
+# `sleep 2` po starcie klastra nie ma tu nic do czekania.
+cat > "$TASK/bin/sleep" <<'EOS'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >> "$TRACE"
+exit 0
+EOS
+cat > "$TASK/bin/pg_isready" <<'EOS'
+#!/usr/bin/env bash
+printf 'SONDA %s\n' "$*" >> "$TRACE"
 exit "${READY_STATUS:-0}"
-EOF
-cat > "$TASK/bin/pg_ctlcluster" <<'EOF'
+EOS
+cat > "$TASK/bin/pg_ctlcluster" <<'EOS'
 #!/usr/bin/env bash
-echo UNEXPECTED_CLUSTER_START >> "$TRACE"
-exit 1
-EOF
+printf 'START %s\n' "$*" >> "$TRACE"
+exit 0
+EOS
 chmod +x "$TASK/bin/"*
-export PATH="$TASK/bin:$PATH" TRACE="$TASK/trace"
-export DB_HOST=127.0.0.1 DB_PORT=55439 DB_DATABASE=kuking_flota_probe DB_USERNAME=kuking
-export PGHOST=wrong PGPORT=1 PGDATABASE=wrong PGUSER=wrong
+export PATH="$TASK/bin:$PATH" TRACE="$TASK/trace" KUKING_PG_LIB="$TASK/pglib"
+# Zmienne libpq nie mogą decydować o celu sondy.
+export PGHOST=zly PGPORT=1
+unset DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_URL READY_STATUS || true
+
 failures=0
-check() {
-    if "$@"; then return; fi
-    echo "BŁĄD: $*"
-    failures=$((failures + 1))
-}
+blad() { echo "BŁĄD: $1"; failures=$((failures + 1)); }
 run() {
     : > "$TRACE"
     code=0
     bash "$TASK/scripts/check.sh" > "$TASK/output" 2>&1 || code=$?
 }
+
+# 1. Bez żadnej zmiennej: domyślne 127.0.0.1:5432, bez startu klastra.
 run
-check test "$code" = 0
-check grep -q -- '-h 127.0.0.1 -p 55439 -d kuking_flota_probe -U kuking' "$TRACE"
-check test "$(wc -l < "$TRACE")" = 1
-export READY_STATUS=1
-run
-check test "$code" != 0
-check grep -q '127.0.0.1:55439' "$TASK/output"
-check test "$(grep -c UNEXPECTED_CLUSTER_START "$TRACE" || true)" = 0
-unset READY_STATUS
-# Nazwa bazy i użytkownik nadal OBOWIĄZKOWE: to one decydują, co skasuje
-# `migrate:refresh`, więc brak którejkolwiek ma zatrzymać kontrolę PRZED sondą.
-for missing in DB_DATABASE DB_USERNAME; do
-    (unset "$missing"; run; test "$code" != 0 && test ! -s "$TRACE") || {
-        echo "BŁĄD: brak $missing nie zatrzymał sondy"; failures=$((failures + 1));
-    }
-done
+[ "$code" = 0 ] || blad "bez zmiennych krok kończy się kodem $code"
+grep -qx 'SONDA -q -h 127.0.0.1 -p 5432' "$TRACE" || blad "bez zmiennych sonda nie pyta o 127.0.0.1:5432: $(cat "$TRACE")"
+grep -q '^START' "$TRACE" && blad "klaster uruchomiony, choć baza odpowiadała"
+grep -q '✓ PostgreSQL odpowiada na 127.0.0.1:5432' "$TASK/output" || blad "brak komunikatu o gotowości z adresem"
 
-# --- Port NIE jest zaszyty -------------------------------------------------
-# Kontrola dodatnia: inny port niż ten stanowiska ma PRZEJŚĆ i trafić do sondy.
-# Gdyby ktoś wpisał liczbę z powrotem, ten przebieg oblewa.
-(
-    export DB_PORT=6543
-    run
-    test "$code" = 0 && grep -q -- '-p 6543 ' "$TRACE"
-) || { echo "BŁĄD: inny port nie przeszedł kontroli"; failures=$((failures + 1)); }
+# 2. Port ze zmiennej trafia do sondy.
+(export DB_PORT=55439; run; grep -qx 'SONDA -q -h 127.0.0.1 -p 55439' "$TRACE") || blad "DB_PORT=55439 nie trafił do sondy"
+(export DB_PORT=6543 DB_HOST=127.0.0.1; run; grep -qx 'SONDA -q -h 127.0.0.1 -p 6543' "$TRACE") || blad "DB_PORT=6543 nie trafił do sondy"
 
-# Port 5432 to zwykły port, nie port zakazany — świeży klon nie ma innego.
+# 3. Port domyślny niedostępny: start klastra JAK DOTĄD.
 (
-    export DB_PORT=5432
+    export READY_STATUS=1
     run
-    test "$code" = 0 && grep -q -- '-p 5432 ' "$TRACE"
-) || { echo "BŁĄD: port 5432 nie przeszedł kontroli"; failures=$((failures + 1)); }
+    grep -qx 'START 18 main start' "$TRACE" && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:5432' "$TASK/output"
+) || blad "przy niedostępnym 5432 nie było próby startu lokalnego klastra albo komunikatu z adresem"
 
-# Brak DB_PORT: wartość zapasowa 5432, ta sama co w reszcie repozytorium.
+# 4. Inny port niedostępny: cudzej instancji nie ruszamy, komunikat nazywa adres.
 (
-    unset DB_PORT
+    export READY_STATUS=1 DB_PORT=55439
     run
-    test "$code" = 0 && grep -q -- '-p 5432 ' "$TRACE"
-) || { echo "BŁĄD: brak DB_PORT nie wziął wartości zapasowej 5432"; failures=$((failures + 1)); }
+    ! grep -q '^START' "$TRACE" && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:55439' "$TASK/output"
+) || blad "przy niedostępnym 55439 skrypt ruszył klaster albo nie nazwał adresu"
 
-# Brak DB_HOST: wartość zapasowa 127.0.0.1.
-(
-    unset DB_HOST
-    run
-    test "$code" = 0 && grep -q -- '-h 127.0.0.1 ' "$TRACE"
-) || { echo "BŁĄD: brak DB_HOST nie wziął wartości zapasowej 127.0.0.1"; failures=$((failures + 1)); }
+# 5. Portu stanowiska nie ma w skrypcie.
+grep -q '55439' <(grep -v '^[[:space:]]*#' "$ROOT/scripts/check.sh") && blad "check.sh ma zaszyty port 55439"
 
-# Kontrola ujemna, która ZOSTAJE: kontrola kasuje wskazaną bazę, więc nie wolno
-# jej skierować poza pętlę zwrotną — i to musi paść PRZED dotknięciem sondy.
-(
-    export DB_HOST=baza.produkcja.example
-    run
-    test "$code" != 0 && test ! -s "$TRACE"
-) || { echo "BŁĄD: nielokalny DB_HOST nie zatrzymał sondy"; failures=$((failures + 1)); }
+# Kontrola przyrządu: sonda bez portu MUSI zostać wykryta. Mutujemy kopię.
+sed -i 's/ -p "\$_pg_port"//' "$TASK/scripts/check.sh"
+(export DB_PORT=6543; run; grep -q -- '-p 6543' "$TRACE") && blad "przyrząd nie wykrywa sondy bez portu"
 
-# Kontrola ujemna sprawdzająca SAM PRZYRZĄD: gdyby `run` nie wykonywał
-# prawdziwego `check.sh`, wszystkie powyższe przeszłyby na pusto.
-(
-    export DB_PORT=6543
-    run
-    grep -q -- '-p 55439 ' "$TRACE"
-) && { echo "BŁĄD: sonda poszła na zaszyty port mimo DB_PORT=6543"; failures=$((failures + 1)); }
 if [ "$failures" -gt 0 ]; then exit 1; fi
-echo 'Gotowość, niedostępność, brak parametrów, port ze zmiennej i nielokalny host: poprawnie.'
+echo 'Sonda PostgreSQL: port i host ze zmiennych, domyślne 127.0.0.1:5432, start klastra tylko dla portu domyślnego — poprawnie.'

@@ -79,15 +79,15 @@ zanim ten trafi na GitHuba — czyli zanim zje minuty z puli.
 
 ### 1. Kontrola lokalna — dokładnie to samo, co robi CI
 
-Przed `check.sh` wyeksportuj `DB_DATABASE` (własna izolowana baza),
-`DB_USERNAME` i dane uwierzytelnienia; `DB_HOST` i `DB_PORT` skrypt bierze
-ze środowiska, z wartościami zapasowymi `127.0.0.1` i `5432` (jak
-`.env.example` i `phpunit.xml`). Usuń `DB_URL` z otoczenia kontroli. Skrypt
-odmawia przy brakującej nazwie bazy lub użytkowniku, przy hoście innym niż
-`127.0.0.1` i przy ustawionym `DB_URL`; nie uruchamia klastra systemowego (#732).
-Sonda `pg_isready` potwierdza tylko gotowość serwera. Uwierzytelnienie,
-istnienie bazy i schemat weryfikują dopiero testy i migracje.
-Port usługi PostgreSQL w GitHub Actions pozostaje przydzielany dynamicznie.
+Nic nie trzeba eksportować. Krok „PostgreSQL” pyta `pg_isready` o host
+i port z `DB_HOST` i `DB_PORT`, a bez nich o `127.0.0.1:5432` — te same
+wartości co `.env.example` i `phpunit.xml` (#732). Masz własną instancję
+na innym porcie? Uruchom `DB_PORT=55439 ./scripts/check.sh`, a sonda
+sprawdzi ten port. Lokalny klaster systemowy skrypt podnosi jak dotąd,
+ale tylko dla portu domyślnego 5432 — instancji na innym porcie nie
+rusza, tylko mówi, na jakim adresie baza nie odpowiada. Sonda potwierdza
+gotowość serwera; hasło i istnienie bazy sprawdzają dopiero testy
+i migracje. Port usługi PostgreSQL w GitHub Actions zostaje dynamiczny.
 Regresja sondy bez dostępu do bazy: `bash tests/skrypty/check-postgres.sh`.
 
 ```bash

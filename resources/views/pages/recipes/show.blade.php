@@ -206,7 +206,6 @@
                  trzech osobnych miejsc w szablonie. --}}
             <p class="meta">{{ $recipe->attributionLine() }}</p>
             <h1>{{ $recipe->title }}</h1>
-            <p class="przepis-adres-druk">Adres przepisu: {{ route('recipes.show', $recipe->slug) }}</p>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
                 {{--
@@ -669,7 +668,7 @@
             osobny od `komentarze` obok), więc kliknięcie pokazuje kolejne
             PRAWDZIWE wykonania, nie placeholder.
         --}}
-        <section class="stack przepis-bez-druku" aria-labelledby="komu-wyszlo">
+        <section class="stack" aria-labelledby="komu-wyszlo">
             <div class="komu-wyszlo-naglowek">
                 <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
                 @if($cookedCount > 0)
@@ -707,7 +706,7 @@
             </div>
         @endif
 
-        <div class="kolumna-czytania przepis-bez-druku">
+        <div class="kolumna-czytania">
             <x-zdejmij-z-urzedu :tresc="$recipe" typ="recipe" />
 
             <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" />

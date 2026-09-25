@@ -49,45 +49,47 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 
 # --- 1. Baza danych -------------------------------------------------------
 krok "PostgreSQL"
-# Parametry muszą być eksportowane: ten sam endpoint dostaną też PHPUnit
-# i migracje. Nie wczytujemy .env jako kodu powłoki ani nie zarządzamy klastrem.
+# SONDA PYTA O TĘ BAZĘ, NA KTÓREJ PÓJDĄ TESTY (#732). Wcześniej `pg_isready`
+# szło bez `-h`/`-p`, więc sprawdzało domyślny endpoint libpq (albo `PG*`),
+# a nie `DB_HOST`/`DB_PORT`, które dostają PHPUnit i migracje — „PostgreSQL
+# działa” nie mówiło nic o bazie z testów na innym porcie.
 #
-# Nazwa bazy i użytkownik ZOSTAJĄ obowiązkowe i bez wartości zapasowej: to one
-# decydują, co skasuje `migrate:refresh` w kroku 6. Domyślna nazwa bazy
-# znaczyłaby „zaoraj cudzą bazę, bo ktoś zapomniał wyeksportować zmienną”.
-for parametr in DB_DATABASE DB_USERNAME; do
-    if [ -z "${!parametr:-}" ]; then
-        zle "Ustaw i wyeksportuj $parametr dla własnej bazy testowej przed kontrolą."
-        exit 1
-    fi
-done
+# NIC NIE TRZEBA EKSPORTOWAĆ. Bez zmiennych wartości są te same co dotąd
+# i te same co w `.env.example` i `phpunit.xml`: 127.0.0.1 i 5432. Kto ma
+# własną instancję na innym porcie, ustawia `DB_PORT` — i wtedy sonda pyta
+# o ten port. Portu stanowiska (np. 55439) tu nie zaszywamy: świeży klon
+# i CI (port losowy) dostałyby czerwień bez powodu.
+#
+# START KLASTRA JAK DOTĄD, ALE TYLKO DLA PORTU DOMYŚLNEGO. Na 5432 stoi
+# lokalny klaster systemowy, który ten skrypt zawsze umiał podnieść. Przy
+# innym porcie to czyjaś własna instancja — cudzego klastra nie ruszamy,
+# tylko mówimy, na jakim adresie baza nie odpowiada.
+_pg_host="${DB_HOST:-127.0.0.1}"
+_pg_port="${DB_PORT:-5432}"
+_pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
+sonda_pg() { pg_isready -q -h "$_pg_host" -p "$_pg_port" 2>/dev/null; }
 
-# Host i port bierzemy ZE ŚRODOWISKA — tą samą konwencją i tymi samymi
-# wartościami zapasowymi, co `tests/skrypty/proba-odtworzenia.sh`
-# (`BAZA_PORT="${DB_PORT:-5432}"`), `.env.example` i `phpunit.xml`.
-#
-# Portu nie zaszywamy: przychodzi ze zmiennej DB_PORT, a zapasem jest 5432.
-# CI dostaje port losowy (`job.services.postgres.ports[5432]` w `ci.yml`).
-# Bezpieczeństwo nie wisi na liczbie, bo krok 6 robi `migrate:refresh`
-# i kasuje to, w co trafi: host musi być pętlą zwrotną, sonda pyta dokładnie
-# o wskazany endpoint, klastra nie podnosimy, `DB_URL` jest zakazane,
-# a nazwa bazy jest obowiązkowa.
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-5432}"
-if [ "$DB_HOST" != 127.0.0.1 ]; then
-    zle "Ustaw DB_HOST=127.0.0.1 — kontrola kasuje wskazaną bazę, więc ma iść wyłącznie na lokalną instancję testową."
-    exit 1
+if ! sonda_pg; then
+    if [ "$_pg_port" = 5432 ]; then
+        printf "Baza nie odpowiada na %s:%s — próbuję uruchomić lokalny klaster…\n" "$_pg_host" "$_pg_port"
+        for wersja in 18 17 16 15; do
+            [ -d "$_pg_katalog/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
+        done
+        sleep 2
+    else
+        printf "Baza nie odpowiada na %s:%s — to nie jest port domyślny, więc nie uruchamiam klastra systemowego.\n" "$_pg_host" "$_pg_port"
+    fi
 fi
-if [ -n "${DB_URL:-}" ]; then
-    zle "Usuń DB_URL z otoczenia kontroli i podaj osobne parametry własnej bazy testowej."
-    exit 1
-fi
-export DB_HOST DB_PORT DB_DATABASE DB_USERNAME
-if pg_isready -q -h "$DB_HOST" -p "$DB_PORT" -d "$DB_DATABASE" -U "$DB_USERNAME" 2>/dev/null; then
-    ok "Serwer PostgreSQL odpowiada na $DB_HOST:$DB_PORT (sonda nie sprawdza hasła ani istnienia bazy)"
+
+if sonda_pg; then
+    ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
 else
-    zle "PostgreSQL nie odpowiada na $DB_HOST:$DB_PORT. Sprawdź uruchomienie własnej instancji testowej i ponów kontrolę."
-    exit 1
+    zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
+    if [ "$_pg_port" = 5432 ]; then
+        printf "  Uruchom: pg_ctlcluster 18 main start\n"
+    else
+        printf "  Uruchom własną instancję na porcie %s albo usuń DB_PORT, żeby sprawdzić domyślny 5432.\n" "$_pg_port"
+    fi
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -137,7 +139,7 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
 elif ! bash tests/skrypty/check-postgres.sh >/dev/null 2>&1; then
-    zle "Izolacja sondy PostgreSQL oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
+    zle "Sonda PostgreSQL w check.sh oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
 elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.

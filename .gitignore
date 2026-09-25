@@ -57,8 +57,5 @@ Thumbs.db
 .pint.cache
 .php-cs-fixer.cache
 
-# Lokalne wyniki narzędzi (np. PRINT_FIXTURES=1 w WydrukPrzepisuFixtureTest).
-/output/
-
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
