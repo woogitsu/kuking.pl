@@ -187,6 +187,15 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   Ukryty szkic po przywróceniu jest dalej szkicem (`moderation_actions.previous_status`,
   patrz `docs/DATABASE.md`).
 - Autor dostaje powiadomienie tym samym mechanizmem co przy każdej innej decyzji.
+- **Przywraca się tylko to, co schowała moderacja** (audyt B2-01). „Przywróć”
+  przy zgłoszeniu działa wyłącznie wtedy, gdy przy TYM zgłoszeniu zapadła
+  decyzja `hide` albo `remove`. `RestoreContent` sprawdza dodatkowo ostatnią
+  decyzję o treści: `unhide` na końcu albo `hide` przy treści miękko usuniętej
+  znaczy, że schował ją autor albo właściciel wpisu — i wtedy odmawia, także
+  przy „cofam” po odwołaniu. Komentarz usunięty przez właściciela wpisu nie
+  wraca więc decyzją moderatora.
+- Decyzję administratora cofa tylko administrator — ta sama reguła rangi co
+  przy zdejmowaniu (`UserPolicy::takeDownContentOf`).
 
 ## Co dostaje ZGŁASZAJĄCY (issue #10, DSA art. 16 ust. 4 i 5)
 
