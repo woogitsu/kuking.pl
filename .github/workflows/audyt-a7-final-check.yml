@@ -5,16 +5,30 @@ on:
     branches: [audit/a7-20260909]
     paths: [.github/workflows/audyt-a7-final-check.yml]
 
+# Uprawnienie domyślne dla całego workflow jest tylko do odczytu (#1742).
+# Zapis dostaje WYŁĄCZNIE job `zapisz-formatowanie`, i tylko na czas
+# jednego kroku, który naprawdę pushuje — checkout, Composer, Pint
+# i pełne testy chodzą w osobnym jobie bez tokena zapisu.
 permissions:
-  contents: write
+  contents: read
 
 env:
   PHP_VERSION: '8.4'
 
 jobs:
-  check:
+  # ---------------------------------------------------------------------
+  #  Sprawdzenie: checkout, zależności, Pint (bez zapisu) i pełne testy.
+  #  BEZ tokena zapisu przez cały czas trwania joba (#1742) — kod z gałęzi
+  #  (Composer, zależności, Pint, testy) nigdy nie dostaje poświadczenia,
+  #  którym dałoby się cokolwiek wypchnąć do repozytorium.
+  # ---------------------------------------------------------------------
+  sprawdz:
+    permissions:
+      contents: read
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
+    outputs:
+      pint_zmienil_pliki: ${{ steps.diff.outputs.zmieniono }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -51,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true
+          persist-credentials: false
       - name: PostgreSQL dynamiczny port
         run: |
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
@@ -80,17 +94,61 @@ jobs:
           for f in docs/zlecenia/dowody-a7/*.php; do php -l "$f"; done
       - name: Sformatuj dowody Pintem
         run: vendor/bin/pint docs/zlecenia/dowody-a7/*.php
-      - name: Zapisz formatowanie na gałęzi audytu
+      - name: Sprawdź, czy Pint coś zmienił
+        id: diff
         run: |
           set -euo pipefail
-          git add docs/zlecenia/dowody-a7/*.php
-          if git diff --cached --quiet; then
+          if git diff --quiet -- docs/zlecenia/dowody-a7; then
             echo "Pint nie zmienił plików."
+            echo "zmieniono=false" >> "$GITHUB_OUTPUT"
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "audyt A7: sformatuj skrypty dowodowe Pintem"
-            git push origin HEAD:audit/a7-20260909
+            echo "zmieniono=true" >> "$GITHUB_OUTPUT"
+            git diff -- docs/zlecenia/dowody-a7 > pint-a7.patch
           fi
+      # Poprawki Pinta idą do artefaktu, NIE do commitu w tym jobie — ten
+      # job nie ma tokena zapisu. Zapisuje je dopiero `zapisz-formatowanie`.
+      - name: Zapisz łatkę formatowania jako artefakt
+        if: steps.diff.outputs.zmieniono == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pint-a7-patch
+          path: pint-a7.patch
+          retention-days: 1
       - name: Pełne testy PostgreSQL 18
         run: php artisan test --compact
+
+  # ---------------------------------------------------------------------
+  #  Zapis formatowania na gałęzi audytu. JEDYNY job z tokenem zapisu,
+  #  i tylko wtedy, gdy `sprawdz` naprawdę znalazł zmianę Pinta. Nie
+  #  uruchamia Composera, Pinta ani testów — tylko `git apply` łatki
+  #  policzonej w poprzednim jobie i push.
+  # ---------------------------------------------------------------------
+  zapisz-formatowanie:
+    needs: sprawdz
+    if: needs.sprawdz.outputs.pint_zmienil_pliki == 'true'
+    permissions:
+      contents: write
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: audit/a7-20260909
+          persist-credentials: true
+      - name: Pobierz łatkę formatowania
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: pint-a7-patch
+      - name: Zastosuj i wypchnij łatkę
+        run: |
+          set -euo pipefail
+          git apply pint-a7.patch
+          git add docs/zlecenia/dowody-a7/*.php
+          if git diff --cached --quiet; then
+            echo "Nic do zapisania (łatka nie zmieniła plików w tej gałęzi)."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "audyt A7: sformatuj skrypty dowodowe Pintem"
+          git push origin HEAD:audit/a7-20260909
