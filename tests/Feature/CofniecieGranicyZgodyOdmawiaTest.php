@@ -18,6 +18,8 @@ use Tests\TestCase;
  * powiadomienia Facebooka o odebraniu dostępu znów mogłyby usypiać
  * powiązania, dla których człowiek już na nowo dał zgodę. Test sprawdza
  * odmowę, przejście przy pustej kolumnie i działającą furtkę.
+ *
+ * @bez-kontroli-dodatniej Test nie czyta źródeł — uruchamia down()/up() migracji na bazie i sprawdza zachowanie; strażnik łapie tylko `base_path(` wewnątrz `database_path(`.
  */
 class CofniecieGranicyZgodyOdmawiaTest extends TestCase
 {
