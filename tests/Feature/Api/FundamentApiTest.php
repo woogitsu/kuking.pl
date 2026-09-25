@@ -9,9 +9,11 @@ use App\Models\PersonalAccessToken;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Cache\RateLimiter as Limiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -337,6 +339,21 @@ class FundamentApiTest extends TestCase
         $this->getJson('/api/v1/_proba/ja', ['Authorization' => 'Bearer '.$drugi])
             ->assertOk()
             ->assertJsonPath('id', $drugaOsoba->getKey());
+    }
+
+    /**
+     * Regresja: `RateLimiter::for()` w `boot()` tworzył singleton limitera
+     * przy starcie aplikacji, z magazynem cache z tej chwili. Test startu
+     * kontenera (StartKonteneraNieCzysciCacheTest) przełącza potem
+     * `cache.default` na `database` i jego kontrola dodatnia `cache:clear`
+     * przestała cokolwiek zerować.
+     */
+    public function test_limiter_api_nie_tworzy_rate_limitera_przy_starcie_aplikacji(): void
+    {
+        $this->assertFalse($this->app->resolved(Limiter::class), 'Limiter powstał już przy starcie aplikacji.');
+
+        // Kontrola dodatnia: przy pierwszym użyciu limiter `api` jest na miejscu.
+        $this->assertNotNull(RateLimiter::limiter('api'));
     }
 
     // --------------------------------------------------------------
