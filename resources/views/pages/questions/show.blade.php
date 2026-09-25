@@ -1,5 +1,6 @@
 <x-layout :title="$post->title" :description="\Illuminate\Support\Str::limit($post->body ?: $post->title, 155)"
           :noindex="$post->visibility !== 'public' || ! $post->isPublished()">
+    @php $okruszki = \App\Support\Okruszki::dlaPytania($post); @endphp
     @if($post->visibility === 'public' && $post->isPublished())
         @php
             $questionSchema = [
@@ -20,8 +21,10 @@
             ];
         @endphp
         <x-json-ld :data="$questionSchema" />
+        {{-- Ta sama lista co widoczne okruszki niżej (#1033). --}}
+        <x-json-ld :data="\App\Support\Okruszki::jsonLd($okruszki)" />
     @endif
-    <p><a href="{{ route('questions.index') }}">Poradźcie — pytania do innych</a></p>
+    <x-okruszki :elementy="$okruszki" />
     <h1>{{ $post->title }}</h1>
     <x-post-card :post="$post" :show-question-title="false" />
     {{--
