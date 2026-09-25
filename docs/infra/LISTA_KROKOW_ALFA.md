@@ -447,7 +447,7 @@ próbą — dlatego przed nim cztery rzeczy, **wszystkie**:
   wypełniona z datą.
 - **Czas:** 30 min. **Odblokowuje:** C3, #120, #619.
 - **Ryzyko / cofnięcie:** wyłączenie `r2.dev` nie psuje aplikacji (zdjęcia
-  idą przez trasę `/zdjecia/…` i podpisane adresy). Włączenie z powrotem —
+  idą przez trasę `/zdjecia/{media}/{wariant}` i podpisane adresy). Włączenie z powrotem —
   ten sam przełącznik, ale nie rób tego.
 
 ### C3. Bramka R2 (#120)
