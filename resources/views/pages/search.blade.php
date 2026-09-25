@@ -186,7 +186,7 @@
             </p>
             <div class="stack">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" />
+                    <x-recipe-card :recipe="$recipe" :pokaz-widocznosc="true" />
                 @endforeach
             </div>
 
