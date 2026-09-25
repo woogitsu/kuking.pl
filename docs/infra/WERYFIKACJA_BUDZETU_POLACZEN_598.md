@@ -251,6 +251,8 @@ potrzeby** — to notatka dla kogoś, kto zmieni plan bazy na mniejszy.
 3. **Szczyt w oknie wdrożenia — nie zmierzony nigdzie.** Liczba 13 jest
    **policzona**, nie zmierzona. Zmierzyłby ją dopiero szereg czasowy z §2,
    próbkowany częściej niż raz na godzinę.
+   *(25.09.2026: narzędzia do tego pomiaru i kroki dla właściciela są
+   w `docs/DATABASE.md` §598 G — sam pomiar nadal nie jest wykonany.)*
 4. **Wartość `LOG_LEVEL` w panelu — nieodczytywalna** (`valuesRedacted: true`).
    Ustalono ją z manifestu `.railway/railway.ts`, co jest lekturą kodu, nie
    odczytem stanu. Gdyby ktoś nadpisał ją ręcznie w panelu, ten wniosek
