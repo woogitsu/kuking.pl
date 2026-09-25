@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -156,6 +157,20 @@ class Post extends Model
         return $this->belongsToMany(Media::class, 'post_media')
             ->withPivot('position')
             ->orderBy('post_media.position');
+    }
+
+    /**
+     * Cache stron tagów dla gościa (kolaż, liczby) czyści się po każdej
+     * zmianie wpisu — publikacji, edycji, ukryciu, usunięciu,
+     * przywróceniu. Reguły i powód „po commicie": `UniewaznijCacheTagow`.
+     * `deleting`, nie `deleted`: przy trwałym usunięciu tagi trzeba
+     * przeczytać, zanim kaskada zdejmie `post_tags`.
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+        static::deleting(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+        static::restored(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
     }
 
     /**

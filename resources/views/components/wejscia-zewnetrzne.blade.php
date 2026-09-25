@@ -59,7 +59,7 @@
     i kontrolerowi — więc nie da się dojść do stanu „przycisk jest, droga
     nie działa".
 --}}
-@props(['naglowek' => 'Masz konto Google albo Facebooka? Zaloguj się przez nie'])
+@props(['rodzaj' => 'logowanie'])
 
 @php
     /**
@@ -117,6 +117,20 @@
     $naStrone = count($dostawcy) === 1
         ? 'na stronę '.$dostawcy[0]['nazwa']
         : 'na stronę wybranego serwisu';
+
+    /**
+     * NAGŁÓWEK SKŁADA SIĘ Z LISTY DZIAŁAJĄCYCH DOSTAWCÓW (issue #1300).
+     *
+     * Wcześniej nagłówek był stały („…Google albo Facebooka…"), więc przy
+     * jednym działającym dostawcy obiecywał drogę, której przycisku nie ma.
+     * Nazwy biorą się z tej samej tablicy co przyciski, więc zdanie i rząd
+     * przycisków nie mogą się rozjechać. `rodzaj` wybiera tylko początek
+     * i koniec zdania: logowanie albo zakładanie konta.
+     */
+    $nazwy = implode(' albo ', array_column($dostawcy, 'nazwa'));
+    $naglowek = $rodzaj === 'rejestracja'
+        ? 'Nie chcesz wymyślać hasła? Załóż konto przez '.$nazwy
+        : 'Masz konto '.$nazwy.'? Zaloguj się przez nie';
 @endphp
 
 @if($dostawcy !== [])
