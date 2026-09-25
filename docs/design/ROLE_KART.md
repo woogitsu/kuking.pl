@@ -563,7 +563,17 @@ _24 wystąpień: sekcja strony — 10, panel formularza — 9, ramka pomocnicza 
 
 ### Panel moderacji — `pages/admin/`
 
-_20 wystąpień: sekcja strony — 9, karta treści — 6, panel formularza — 5._
+_21 wystąpień: sekcja strony — 9, karta treści — 6, panel formularza — 6._
+
+`pages/admin/z-urzedu.blade.php` („Zdejmij z urzędu”, G31) powstał po
+porcie panelu i do 25.09.2026 nie miał żadnej warstwy: pola stały gołe
+na tle ramy. Formularz jest tam jedyną rzeczą do wypełnienia, więc dostał
+rolę 2 na samym `<form>` (#581); przycisk usuwający zostaje za kreską
+`.danger-zone` wewnątrz panelu. Pilnuje tego
+`tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Suma w nagłówku
+inwentarza niżej NIE jest przeliczona po tej zmianie ani po dojściu
+`pages/admin/kolejka.blade.php` — ten ekran też nie ma jeszcze wierszy
+w tabeli; do uzupełnienia przy następnym przeliczeniu ze stanu kodu.
 
 `pages/admin/kolaz-powitalny.blade.php` powstał PO napisaniu tego dokumentu
 i trafił do inwentarza dopiero teraz. Nie było czego rozstrzygać: ekran
@@ -595,6 +605,7 @@ nie decyzją o roli.
 | `pages/admin/wiadomosc.blade.php:213` | `panel-formularza mt-5` | panel formularza |
 | `pages/admin/wiadomosci.blade.php:37` | `card mb-5` | karta treści |
 | `pages/admin/wiadomosci.blade.php:61` | `sekcja-strony` | sekcja strony |
+| `pages/admin/z-urzedu.blade.php:52` | `panel-formularza` | panel formularza |
 
 
 ### Zgłoszenia i odwołania

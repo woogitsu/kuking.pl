@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Panel moderacji: ekran „Zdejmij z urzędu” ma ten sam układ co reszta panelu — pola decyzji stoją w jednym wyraźnym formularzu, przycisk „Zdejmij tę treść” jest odsunięty kreską pod polami, a „Wróć do treści” stoi osobno, poza formularzem (#581).
+
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
