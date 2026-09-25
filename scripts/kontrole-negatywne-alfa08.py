@@ -255,9 +255,17 @@ RUNBOOK_WIERSZ_WEBHOOKA = "| `LOG_BLAD_WEBHOOK_URL` | z kroku 4 |"
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
 # zdejmuje ten rethrow — oba testy mają oblać na braku wyjątku.
+#
+# Kotwica obejmuje `usunOsieroconaPaczke()` (audyt B5 pkt 4, PR #1721): ten
+# wiersz stanął między `markFailed()` a `throw $e`, a stara kotwica
+# („markFailed, pusta linia, throw”) przestała pasować — replace_once rzucał
+# RuntimeError i cały krok „Kontrole negatywne” padał na main. Mutacja zdejmuje
+# nadal WYŁĄCZNIE rethrow; sprzątanie osieroconej paczki zostaje nietknięte,
+# żeby kontrola dowodziła jednej rzeczy: że testy łapią brak wyjątku.
 EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
-EKSPORT_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n\n            throw $e;\n"
+EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
+EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 
 
 def digest(path):
@@ -581,7 +589,7 @@ checks = [
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, "    ...modelEnv,\n", "")),
     ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv };")),
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv, ")),
     # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
     # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
@@ -627,7 +635,7 @@ checks = [
     ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
      lambda s: replace_once(s, RUNBOOK_WIERSZ_WEBHOOKA, "| `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |\n" + RUNBOOK_WIERSZ_WEBHOOKA)),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
-     lambda s: replace_once(s, EKSPORT_RETHROW, "            $this->markFailed($export, $this->reasonFor($e));\n\n")),
+     lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -635,6 +643,20 @@ checks = [
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
 ]
+
+# PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
+# Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po kilku
+# minutach, anonimowym „nie znalazła dokładnie jednego miejsca” — bez nazwy
+# kontroli. Czytanie w logu ~500 linii oczekiwanych porażek (np. „Format UUID”
+# celowo daje 500 w WyborZeszytuMaWalidacjeTest) wyglądało jak regresja w kodzie.
+# Tu nic nie jest zapisywane na dysk; błąd mówi, KTÓRA kontrola i w jakim pliku.
+for label, filename, _test, mutate in checks:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
 
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
