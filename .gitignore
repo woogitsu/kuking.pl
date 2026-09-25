@@ -64,3 +64,4 @@ Thumbs.db
 
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
+__pycache__/
