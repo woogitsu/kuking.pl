@@ -17204,7 +17204,10 @@ Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
 - Podstawa: **wykonanie umowy** (art. 6 ust. 1 lit. b RODO) — funkcja,
   z której człowiek świadomie korzysta, tak jak nazwa wyświetlana i opis
   w publicznym profilu. Pole jest dobrowolne, a domyślna odpowiedź nie
-  ujawnia niczego.
+  ujawnia niczego. **Do potwierdzenia u prawnika (#8):** czy przy formie
+  widocznej dla innych wystarcza umowa, czy potrzebna jest zgoda
+  (art. 6 ust. 1 lit. a). Do tej odpowiedzi obowiązuje lit. b (decyzja
+  właściciela z 25.09.2026).
 - Nie używamy formy w statystykach, w analityce ani do segmentacji
   (podsumowanie tygodnia, tablica, wyszukiwarka).
 - Eksport RODO zawiera wybraną formę; anonimizacja konta (art. 17) ją zeruje.
