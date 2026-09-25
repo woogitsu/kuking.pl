@@ -6,4 +6,4 @@ Skrót: Laravel 13 · PHP 8.4 · Blade + Livewire 4 · Tailwind 4 · PostgreSQL 
 Modularny monolit (`app/Domain` = reguły, kontrolery cienkie). Komentarze
 i komunikaty po polsku, kod po angielsku, `declare(strict_types=1);` wszędzie.
 UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, bez hover/swipe, poprawne dane nie giną.
-JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków. Testy na PostgreSQL. Przed PR: pint + test.
+JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków. Testy na PostgreSQL. Przed PR: `./scripts/check.sh` (AGENTS.md §10).
