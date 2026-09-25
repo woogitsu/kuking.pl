@@ -32,6 +32,8 @@
         @if($expiredEdit)
             @can('recoverExpiredEdit', $expiredEdit)
                 <x-expired-comment-edit :body="old('body')" />
+            @elsecan('recoverAnsweredEdit', $expiredEdit)
+                <x-answered-comment-edit :body="old('body')" :comment-id="$expiredEdit->id" />
             @endcan
         @endif
     @endif

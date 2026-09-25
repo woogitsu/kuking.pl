@@ -34,6 +34,13 @@ class NotificationController extends Controller
 
         return view('pages.notifications', [
             'notifications' => $notifications,
+            // ISSUE #1402: „Oznacz wszystkie" tylko wtedy, gdy JEST co
+            // oznaczyć — liczone na tym samym zbiorze co lista i licznik
+            // (`visibleTo`), po wszystkich stronach, nie po bieżącej.
+            // Nieprzeczytane na tej stronie rozstrzyga bez zapytania;
+            // dopiero strona samych przeczytanych pyta o resztę.
+            'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
+                || $user->unreadNotificationsCount() > 0,
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
             'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
@@ -149,15 +156,20 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request): RedirectResponse
     {
-        // ISSUE #1401: TYLKO TO, CO CZŁOWIEK WIDZI NA LIŚCIE. Bez `visibleTo()`
-        // przycisk gasił też powiadomienia ukryte blokadą — po odblokowaniu
-        // wracały jako przeczytane, choć nikt ich nie przeczytał. Jedno
-        // zdanie `UPDATE`: właściciel, `read_at IS NULL` i widoczność razem.
-        $request->user()
-            ->notifications()
-            ->visibleTo($request->user())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $user = $request->user();
+
+        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969, #1401).
+        // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
+        // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
+        // choć człowiek nigdy ich nie zobaczył.
+        $oznaczono = $user->notifications()->visibleTo($user)->whereNull('read_at')->update(['read_at' => now()]);
+
+        // ISSUE #1402: komunikat mówi o tym, co się NAPRAWDĘ stało. Zero
+        // zmienionych wierszy (np. druga karta zdążyła wcześniej) to nie
+        // „oznaczone" — to informacja, że nie było czego oznaczać.
+        if ($oznaczono === 0) {
+            return back()->with('status', 'Nie było nic do oznaczenia — wszystkie powiadomienia są już przeczytane.');
+        }
 
         return back()->with('status', 'Wszystkie powiadomienia oznaczone jako przeczytane.');
     }

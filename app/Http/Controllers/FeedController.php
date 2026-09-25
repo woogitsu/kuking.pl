@@ -12,8 +12,11 @@ use App\Domain\Feed\TagFeed;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
+use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\TagHighlight;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -159,6 +162,8 @@ class FeedController extends Controller
             ->limit(3)
             ->get();
 
+        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $request->query->has('cursor'));
+
         return view('pages.home', [
             'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
             'pwaContext' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE
@@ -166,17 +171,61 @@ class FeedController extends Controller
                 : null,
             'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
+            'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),
-            'posts' => match ($zrodlo) {
-                'obserwowani' => $this->followingFeed->paginate($user),
-                'tagi' => $this->tagFeed->paginate($user),
-                default => $this->discoverFeed->paginate($user),
-            },
+            'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',
         ]);
+    }
+
+    /**
+     * Strona z wybranego źródła — a gdy to źródło okazało się puste, z
+     * następnego w kolejności obserwowani → tagi → odkrywanie (issue #983).
+     *
+     * Wybór źródła (`isEmptyFor()` / `maTresci()`) i paginacja to osobne
+     * zapytania, a przy Read Committed każde widzi inny zatwierdzony stan.
+     * Cofnięcie obserwowania, blokada albo ukrycie ostatniego wpisu między
+     * nimi zostawiało pusty Start, choć następne źródło miało treść. Dlatego
+     * o źródle rozstrzyga dopiero to, co paginacja faktycznie oddała —
+     * i `zrodloFeedu` opisuje źródło zwróconych wpisów, nie wcześniejszą
+     * prognozę.
+     *
+     * Feed obserwowanych zawiera też własne wpisy, a `isEmptyFor()` celowo
+     * ich nie liczy. Strona złożona z samych własnych wpisów zostaje więc
+     * tylko wtedy, gdy obserwowani nadal mają treść — inaczej własny wpis
+     * zacząłby sam blokować przejście dalej.
+     *
+     * Z kursorem nic nie przeskakujemy: kursor należy do źródła, a pusta
+     * dalsza strona to zwyczajny koniec listy, nie wyścig.
+     *
+     * @return array{0: string, 1: CursorPaginator<int, Post>}
+     */
+    private function pierwszaStronaZrodla(User $user, string $zrodlo, bool $zKursorem): array
+    {
+        if ($zrodlo === 'obserwowani') {
+            $posts = $this->followingFeed->paginate($user);
+
+            if ($zKursorem
+                || $posts->getCollection()->contains(fn (Post $post) => $post->author_id !== $user->getKey())
+                || ($posts->isNotEmpty() && ! $this->followingFeed->isEmptyFor($user))) {
+                return ['obserwowani', $posts];
+            }
+
+            $zrodlo = 'tagi';
+        }
+
+        if ($zrodlo === 'tagi') {
+            $posts = $this->tagFeed->paginate($user);
+
+            if ($zKursorem || $posts->isNotEmpty()) {
+                return ['tagi', $posts];
+            }
+        }
+
+        return ['odkrywanie', $this->discoverFeed->paginate($user)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
