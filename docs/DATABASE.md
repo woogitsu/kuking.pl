@@ -3671,7 +3671,7 @@ uda.
 **Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
 telemetryczne, nie dane, na podstawie których podjęto decyzję.
 
-### tags + tag_aliases + post_tags + tag_follows + tag_promotions
+### tags + tag_aliases + post_tags + tag_follows + tag_promotions + tag_highlights
 
 Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
 `2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
@@ -3788,6 +3788,20 @@ odpowiednik `topics.description`). Panel: `Admin\TagPromotionController`,
 za tą samą bramką co „kuKINGi na dziś" (`Gate` `moderate` na `User`).
 „Kto i kiedy" zmienił listę zapisuje `audit_log`, bez osobnej kolumny
 `promoted_by` — ten sam wzorzec co `daily_board.updated`.
+
+`tag_highlights` (issue #18, migracja `2026_09_25_100000_create_tag_highlights_table`)
+— **tag tygodnia**: zwykły tag wyróżniony na dni `starts_on`–`ends_on`
+(`date`, dzień w strefie `kuking.strefa`), z opcjonalną `note` (200 znaków).
+Osobna tabela, bo `tag_promotions` ma klucz `tag_id` i nie uniesie historii
+ani powrotu tego samego tagu za rok. `id` UUID, FK `tag_id` → `tags`
+`ON DELETE CASCADE`. W bazie: CHECK `ends_on >= starts_on` i
+`EXCLUDE USING gist (daterange(starts_on, ends_on, '[]') WITH &&)` —
+dwa wyróżnienia nie nachodzą na siebie, więc bieżące jest najwyżej jedno.
+Czyta `TagHighlight::doPokazania()` (blok na `/home`), pisze
+`Admin\TagHighlightController` (audyt `tag_highlight.added`/`.removed`).
+Całość za flagą `KUKING_TAG_TYGODNIA` (domyślnie wyłączona).
+**Rollback:** `DROP TABLE` bez strażnika D-088 — to plan redakcyjny, nie
+zgoda ani prywatność; ginie plan i archiwum wyróżnień, tagi i wpisy zostają.
 
 Indeksy trigramowe (Postgres, na `kuking_normalize()` z migracji
 `2026_09_05_001300_fix_search_indexes`): `tags_name_trgm_idx`,

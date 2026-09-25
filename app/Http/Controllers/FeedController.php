@@ -13,6 +13,7 @@ use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
+use App\Models\TagHighlight;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -166,6 +167,7 @@ class FeedController extends Controller
                 : null,
             'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
+            'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),
