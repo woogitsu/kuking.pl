@@ -8,14 +8,18 @@ use App\Domain\Moderation\KolejkiPanelu;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
+use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Events\MigrationEnded;
+use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -54,6 +58,12 @@ class AppServiceProvider extends ServiceProvider
         // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
         // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
         Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
+        // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
+        // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce
+        // całego ruchu serwisu. Uzasadnienie w `LimitBlokadMigracji`.
+        Event::listen(MigrationStarted::class, [LimitBlokadMigracji::class, 'przyStarcie']);
+        Event::listen(MigrationEnded::class, [LimitBlokadMigracji::class, 'przyKoncu']);
 
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,

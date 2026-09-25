@@ -315,6 +315,30 @@ Zasady modelu:
 Ta sama osoba może gotować ten sam przepis dziesiątki razy przez lata
 i każde takie wykonanie jest osobnym, wartościowym wydarzeniem.
 
+### DDL na istniejącej tabeli nie może zatrzymać serwisu (audyt B3 W3)
+
+Migracje chodzą na **żywej** bazie (rola `migrate`). `ALTER TABLE posts`
+czekający na blokadę za długim zapytaniem ustawia za sobą w kolejce KAŻDE
+następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
+
+- **Każda migracja chodzi z `lock_timeout = 5s`** — ustawia go
+  `App\Support\Baza\LimitBlokadMigracji` na zdarzeniach migratora, nie
+  trzeba nic dopisywać. DDL, który nie dostał blokady, pada i daje się
+  powtórzyć. Pilnuje `tests/Feature/MigracjeMajaLimitBlokadTest.php`.
+- **Indeks na istniejącej tabeli** to `CREATE INDEX CONCURRENTLY IF NOT EXISTS`
+  w migracji z `public $withinTransaction = false;` (`CONCURRENTLY` nie działa
+  w transakcji). Przerwana budowa zostawia indeks INVALID pod tą samą nazwą —
+  migracja ma go przed budową zdjąć, bo `IF NOT EXISTS` by go przepuściło.
+  `down()`: `DROP INDEX CONCURRENTLY IF EXISTS`.
+- **CHECK i klucz obcy na istniejącej tabeli** to `ADD CONSTRAINT … NOT VALID`,
+  a potem osobno `VALIDATE CONSTRAINT` — obie rzeczy poza jedną transakcją
+  (`$withinTransaction = false`), inaczej blokada z pierwszego kroku trwa do
+  końca drugiego. Wzorzec:
+  `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem.php`.
+- **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
+- **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
+  typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
+
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
 > **`down()` nie ma prawa przywracać stanu groźnego ani zmieniać znaczenia
