@@ -15,6 +15,7 @@ use App\Facebook\TozsamoscFacebook;
 use App\Google\DostawcaWejsciaGoogle;
 use App\Google\TozsamoscGoogle;
 use App\Models\User;
+use App\Support\RejestracjaZamknieta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -431,8 +432,9 @@ class WejdzPrzezDostawceTest extends TestCase
         $nazwa = (new $klasa)->nazwa();
 
         $this->get(route($nazwa.'.finish'))->assertRedirect(route('login'));
-        $this->assertStringContainsString('chwilowo zamknięte', (string) session('status'));
-        $this->post(route($nazwa.'.finish'))->assertStatus(503);
+        $this->assertSame(RejestracjaZamknieta::KOMUNIKAT, session('status'));
+        // Przekierowanie, nie 503 — zamknięta rejestracja to nie awaria.
+        $this->post(route($nazwa.'.finish'))->assertRedirect(route('login'));
         $this->assertSame(0, User::count());
     }
 
