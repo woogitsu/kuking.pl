@@ -13,10 +13,12 @@ use Closure;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
+use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
@@ -1121,5 +1123,107 @@ class LogowanieLinkiemTest extends TestCase
         $user->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
 
         return $user->refresh();
+    }
+
+    // ------------------------------------------------------------------
+    //  #1530 — awaria dziennika nie zużywa linku przed sesją
+    // ------------------------------------------------------------------
+
+    /** Przełącznik awarii — `DB::listen` nie da się odpiąć, więc ponowienie gasi ją tutaj. */
+    private bool $awariaAudytu = false;
+
+    /**
+     * Wstrzykuje awarię w SAM `INSERT` wpisu `account.login_link_used`
+     * (po jego wykonaniu — `DB::listen` woła się po zapytaniu), tak jak
+     * `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest`.
+     */
+    private function zepsujWpisWejscia(): void
+    {
+        $this->awariaAudytu = true;
+
+        DB::listen(function (QueryExecuted $zapytanie): void {
+            if ($this->awariaAudytu
+                && str_contains($zapytanie->sql, 'insert into "audit_log"')
+                && in_array('account.login_link_used', $zapytanie->bindings, true)) {
+                throw new RuntimeException('Wstrzyknięta awaria dziennika: account.login_link_used');
+            }
+        });
+    }
+
+    /**
+     * Przedtem: token skasowany i zatwierdzony, potem 500 z `record()`,
+     * człowiek gościem, a ponowienie z tego samego listu — „link już nie
+     * działa". Teraz zużycie tokenu i wpis mają jeden wynik: po awarii token
+     * wraca, człowiek dostaje prawdę i ten sam przycisk, a drugie kliknięcie
+     * wpuszcza z jednym wpisem.
+     */
+    public function test_awaria_audytu_nie_zuzywa_linku_i_ponowienie_wpuszcza(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+        $this->zepsujWpisWejscia();
+
+        $odpowiedz = $this->wejdz($link)->assertRedirect($link);
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('login_link_tokens', 1);
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.login_link_used')->count());
+        $this->assertStringContainsString('link nadal działa', $this->komunikat($odpowiedz));
+        $this->assertStringContainsString('jeszcze raz', $this->komunikat($odpowiedz));
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), '„account.login_link_used"')
+            && ! str_contains($e->getMessage(), $this->tokenZLinku($link))
+            && ! str_contains($e->getMessage(), $basia->email)
+            && $e->getPrevious() instanceof RuntimeException);
+
+        // Ekran z listu nadal działa — to jest ta sama droga ponowienia.
+        $this->get($link)->assertOk()->assertSee('b***@example.com');
+
+        $this->awariaAudytu = false;
+        $this->wejdz($link)->assertRedirect(route('home'));
+
+        $this->assertAuthenticatedAs($basia);
+        $this->assertDatabaseCount('login_link_tokens', 0);
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.login_link_used')->count());
+    }
+
+    /** Konto z 2FA: po awarii nie powstaje nawet oczekujący etap kodu, a link zostaje. */
+    public function test_awaria_audytu_przy_2fa_nie_zuzywa_linku_ani_nie_otwiera_etapu_kodu(): void
+    {
+        Exceptions::fake();
+        $basia = $this->uzytkownikZDwuetapowa();
+        $link = $this->popros($basia->email);
+        $this->zepsujWpisWejscia();
+
+        $this->wejdz($link)->assertRedirect($link);
+
+        $this->assertGuest();
+        $this->assertNull(session('logowanie.2fa.user_id'));
+        $this->assertDatabaseCount('login_link_tokens', 1);
+
+        $this->awariaAudytu = false;
+        $this->wejdz($link)->assertRedirect(route('login.two_factor'));
+        $this->assertSame($basia->getKey(), session('logowanie.2fa.user_id'));
+        $this->assertDatabaseCount('login_link_tokens', 0);
+    }
+
+    /**
+     * KONTROLA DODATNIA: z tym samym podsłuchem, ale bez awarii, wejście
+     * zapisuje dokładnie jeden wpis i nic nie trafia do `report()` — więc
+     * „naprawa" przez skasowanie wpisu albo wieczne odsyłanie nie przejdzie.
+     */
+    public function test_kontrola_dodatnia_wejscie_bez_awarii_zapisuje_wpis_i_niczego_nie_zglasza(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+        $this->zepsujWpisWejscia();
+        $this->awariaAudytu = false;
+
+        $this->wejdz($link)->assertRedirect(route('home'));
+
+        $this->assertAuthenticatedAs($basia);
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.login_link_used')->count());
+        Exceptions::assertNothingReported();
     }
 }
