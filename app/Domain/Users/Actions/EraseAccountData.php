@@ -8,6 +8,7 @@ use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\MailFailure;
@@ -80,6 +81,7 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
@@ -290,6 +292,9 @@ final class EraseAccountData
              * (`PrzestawZgodeNaDigest`), a nie rzucany dalej.
              */
             $this->przestawZgode->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
+            // Zgoda na mail urodzinowy (issue #1755) — tak samo: wycofanie
+            // z dowodem w dzienniku, nigdy nie wywraca kasowania konta.
+            $this->zgodaNaZyczenia->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -320,6 +325,8 @@ final class EraseAccountData
                 // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
                 'birthday_day' => null,
                 'birthday_month' => null,
+                'wants_birthday_email' => false,
+                'birthday_email_sent_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
                 // KONKRETNA osoba ostatnio korzystała z serwisu. Konto

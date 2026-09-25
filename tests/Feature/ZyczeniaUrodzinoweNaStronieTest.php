@@ -88,7 +88,7 @@ class ZyczeniaUrodzinoweNaStronieTest extends TestCase
         $this->travelTo(Carbon::parse('2026-03-12 09:00:00', 'UTC'));
 
         $this->actingAs($basia)
-            ->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory'])
+            ->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory', 'original_birthday_email' => '0'])
             ->assertSessionHasNoErrors();
 
         $this->assertFalse($basia->fresh()->birthday_wishes_enabled);
@@ -96,7 +96,7 @@ class ZyczeniaUrodzinoweNaStronieTest extends TestCase
 
         // I da się włączyć z powrotem — wyłącznik na zawsze byłby pułapką.
         $this->actingAs($basia)
-            ->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory', 'birthday_wishes_enabled' => '1'])
+            ->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory', 'original_birthday_email' => '0', 'birthday_wishes_enabled' => '1'])
             ->assertSessionHasNoErrors();
         $this->actingAs($basia->fresh())->get(route('home'))->assertSee(self::ZDANIE, escape: false);
     }
@@ -120,7 +120,7 @@ class ZyczeniaUrodzinoweNaStronieTest extends TestCase
     public function test_cofniecie_migracji_odmawia_gdy_ktos_wylaczyl_zyczenia(): void
     {
         $basia = $this->basia();
-        $this->actingAs($basia)->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory']);
+        $this->actingAs($basia)->put(route('settings.birthday.preferences'), ['_formularz' => 'wybory', 'original_birthday_email' => '0']);
         $this->assertFalse($basia->fresh()->birthday_wishes_enabled);
 
         try {

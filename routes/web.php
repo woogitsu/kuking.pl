@@ -67,6 +67,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -179,6 +180,14 @@ Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodn
 Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('podsumowanie.wracam');
+
+// Wypisanie z listu z życzeniami urodzinowymi (issue #1755, etap c). Poza
+// `auth` z tego samego powodu co wypisanie z podsumowania wyżej: jednym
+// kliknięciem, bez logowania. Autoryzacją jest podpis. Tylko GET — list nie
+// ma nagłówka `List-Unsubscribe-Post`, więc nie potrzeba wyjątku z CSRF.
+Route::get('/urodziny/wypisz/{user}', UrodzinyWypiszController::class)
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('urodziny.wypisz');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć

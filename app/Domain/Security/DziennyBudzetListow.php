@@ -395,6 +395,22 @@ final class DziennyBudzetListow
     }
 
     /**
+     * Mail z życzeniami urodzinowymi (issue #1755, etap c): własny sufit
+     * dobowy `kuking.urodziny.mail_dzienny_sufit`, a nad nim wspólna pula
+     * w klasie `podsumowanie` — tej, która gaśnie PIERWSZA. Życzenia nie są
+     * listem niezbędnym do korzystania z konta, więc nie mają prawa zabrać
+     * ostatnich listów doby rejestracji ani logowaniu linkiem.
+     */
+    public static function dlaZyczenUrodzinowych(): self
+    {
+        return new self(
+            'zyczenia-urodzinowe',
+            'kuking.urodziny.mail_dzienny_sufit',
+            self::wspolny(self::KLASA_PODSUMOWANIE),
+        );
+    }
+
+    /**
      * Zaproszenia do założenia konta — adres BEZ konta (D-085).
      *
      * TEN SUFIT LEŻY WEWNĄTRZ SUFITU LOGOWANIA LINKIEM, a nie obok niego,

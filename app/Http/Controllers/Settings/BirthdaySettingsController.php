@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\Users\Actions\UstawUrodziny;
+use App\Domain\Users\Actions\ZapiszWyboryUrodzin;
 use App\Http\Controllers\Controller;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -61,21 +62,30 @@ class BirthdaySettingsController extends Controller
     }
 
     /**
-     * Wybory przy dacie: dziś wyłącznik życzeń na stronie głównej (etap b).
-     * Osobny formularz, żeby przestawienie wyłącznika nie wymagało ponownego
-     * wybierania daty.
+     * Wybory przy dacie: życzenia na stronie głównej (etap b) i zgoda na
+     * e-mail z życzeniami (etap c). Osobny formularz, żeby przestawienie
+     * wyborów nie wymagało ponownego wybierania daty.
      */
-    public function preferences(Request $request, UstawUrodziny $urodziny): RedirectResponse
+    public function preferences(Request $request, ZapiszWyboryUrodzin $wybory): RedirectResponse
     {
         // Odznaczony checkbox nie przychodzi w żądaniu — brak pola znaczy „nie".
-        $request->mergeIfMissing(['birthday_wishes_enabled' => '0']);
+        $request->mergeIfMissing(['birthday_wishes_enabled' => '0', 'wants_birthday_email' => '0']);
         $request->validate([
             'birthday_wishes_enabled' => ['boolean'],
+            'wants_birthday_email' => ['boolean'],
+            'original_birthday_email' => ['required', 'boolean'],
         ], [
             'birthday_wishes_enabled.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
+            'wants_birthday_email.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
+            'original_birthday_email.*' => 'Otwórz aktualne ustawienia i wybierz ponownie zgodę na e-mail z życzeniami.',
         ]);
 
-        $urodziny->ustawZyczenia($request->user(), $request->boolean('birthday_wishes_enabled'));
+        $wybory->handle(
+            $request->user(),
+            $request->boolean('birthday_wishes_enabled'),
+            $request->boolean('wants_birthday_email'),
+            $request->boolean('original_birthday_email'),
+        );
 
         return back()->with('status', 'Zapisane.');
     }

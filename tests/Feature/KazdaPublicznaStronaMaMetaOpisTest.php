@@ -191,6 +191,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             // kliknięciem.
             'podsumowanie.wypisz' => OdnosnikWypisania::dla($autor),
             'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
+            // Wypisanie z listu urodzinowego (#1755) — podpisany adres, `noindex`.
+            'urodziny.wypisz' => \App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin::dla($autor),
         ];
 
         $zbadanych = 0;

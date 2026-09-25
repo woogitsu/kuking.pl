@@ -168,6 +168,7 @@ final class CollectUserExportData
             // zbieramy, więc nie ma go i tutaj. `null`, gdy daty nie podano.
             'urodziny' => Urodziny::doEksportu($user),
             'pokazuj_zyczenia_urodzinowe' => (bool) $user->birthday_wishes_enabled,
+            'chce_zyczen_urodzinowych_mailem' => (bool) $user->wants_birthday_email,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
             // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO

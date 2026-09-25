@@ -1927,6 +1927,23 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   `DEFAULT true` włączyłby życzenia osobie, która je wyłączyła. Test:
   `tests/Feature/ZyczeniaUrodzinoweNaStronieTest.php`.
 
+**Etap c** — migracja `2026_09_25_200200_add_birthday_email_consent_to_users`:
+
+- **`users.wants_birthday_email`** (`boolean NOT NULL DEFAULT false`) —
+  **osobna** zgoda na list z życzeniami (PKE art. 398); podanie daty jej nie
+  daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
+  które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
+  konta wycofują zgodę z wpisem w dzienniku.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
+  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
+  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
+  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
+  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
+  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+  `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 

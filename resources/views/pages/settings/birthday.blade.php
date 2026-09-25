@@ -92,6 +92,29 @@
                 @enderror
             </div>
 
+            {{-- ZGODA NA E-MAIL (etap c) — OSOBNA, domyślnie odznaczona. Podanie
+                 daty jej nie daje (PKE art. 398). Ukryte pole niesie stan
+                 widziany przy otwarciu formularza (#879): stary formularz nie
+                 zapisze nikogo z powrotem na list. --}}
+            <input type="hidden" name="original_birthday_email" value="{{ $poBledzieWyborow ? old('original_birthday_email') : (int) $user->wants_birthday_email }}">
+            <div class="field @error('wants_birthday_email') has-error @enderror mt-4">
+                <label class="choice" for="f-wants_birthday_email">
+                    <input id="f-wants_birthday_email" type="checkbox" name="wants_birthday_email" value="1"
+                           @error('wants_birthday_email') aria-invalid="true" aria-describedby="f-wants_birthday_email-error" @enderror
+                           @checked($poBledzieWyborow ? old('wants_birthday_email', false) : $user->wants_birthday_email)>
+                    <span>
+                        <span class="choice-label">Chcę dostać e-mail z życzeniami w dniu urodzin</span>
+                        <span class="choice-help">Jeden krótki list raz w roku, rano. Wysyłamy go tylko wtedy, gdy zaznaczysz to pole. Wypisać się możesz jednym kliknięciem na dole listu, bez logowania.</span>
+                    </span>
+                </label>
+                @error('wants_birthday_email')
+                    <span class="field-error" id="f-wants_birthday_email-error">{{ $message }}</span>
+                @enderror
+                @if($errors->has('wants_birthday_email'))
+                    <p><a href="{{ route('settings.birthday') }}">Otwórz aktualne ustawienia</a> i wybierz ponownie.</p>
+                @endif
+            </div>
+
             <button class="btn btn-primary mt-4" type="submit">Zapisz wybory</button>
         </form>
     @endif

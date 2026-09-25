@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\User;
+use App\Models\WpisZgody;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -17,6 +20,8 @@ use InvalidArgumentException;
  */
 final class UstawUrodziny
 {
+    public function __construct(private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaMail) {}
+
     public function zapisz(User $user, int $dzien, int $miesiac): void
     {
         if (! Urodziny::poprawna($dzien, $miesiac)) {
@@ -32,19 +37,19 @@ final class UstawUrodziny
     }
 
     /**
-     * Wyłącznik życzeń na stronie głównej (etap b). Poza `$fillable` jak
-     * data — jedyna droga zapisu to ta metoda.
+     * „Usuń datę" wyłącza też wszystko, co od daty zależy: zgoda na mail
+     * z życzeniami zostaje wycofana (z wpisem w dzienniku zgód), żeby po
+     * ponownym podaniu daty list nie wrócił bez nowej decyzji.
      */
-    public function ustawZyczenia(User $user, bool $wlaczone): void
-    {
-        $user->forceFill(['birthday_wishes_enabled' => $wlaczone])->save();
-    }
-
     public function usun(User $user): void
     {
-        $user->forceFill([
-            'birthday_day' => null,
-            'birthday_month' => null,
-        ])->save();
+        DB::transaction(function () use ($user): void {
+            $user->forceFill([
+                'birthday_day' => null,
+                'birthday_month' => null,
+            ])->save();
+
+            $this->zgodaNaMail->handle($user, false, WpisZgody::ZRODLO_USTAWIENIA);
+        });
     }
 }
