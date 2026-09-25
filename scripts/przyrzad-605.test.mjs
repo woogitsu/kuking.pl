@@ -210,6 +210,42 @@ function manifestNa(baza, katalogZdjec) {
   };
 }
 
+/*
+ * CZY PORZUCONE SIEDZĄ W MIANOWNIKU — jedno sprawdzenie dla przypadku
+ * dodatniego i dla kontroli ujemnej, żeby kontrola ujemna psuła DOKŁADNIE to,
+ * czego pilnuje przypadek dodatni.
+ *
+ * Do 24 września 2026 rozstrzygał sam odsetek: `blad_procent` z porzuconymi
+ * miał być WIĘKSZY niż bez nich. To nie jest prawdą zawsze: gdy seria nie ma
+ * ani jednej poprawnej odpowiedzi, oba ułamki wynoszą 100% i porównanie nic nie
+ * mówi. Tak padło CI na DOM-NEW-02 (run 35964288456): „100% to tyle samo, co
+ * bez nich (100%)”. Wszystkie cele GET w tej serii sączą bez końca, sukces dają
+ * tylko `/`, `/home`, `/odkryj`, `/szukaj` i zapisy, a mieszanka jest losowana
+ * — przy dwóch miejscach w locie i małej liczbie wysłanych (wolny runner)
+ * zdarza się przebieg bez żadnego sukcesu.
+ *
+ * Rozstrzyga więc LICZBA BEZWZGLĘDNA: `nieudanych` musi obejmować porzucone
+ * (`zadan_wyslanych + porzuconych - poprawnych`). Przy `porzuconych > 0` ta
+ * równość odróżnia oba mianowniki niezależnie od liczby sukcesów. Porównanie
+ * odsetków zostaje tam, gdzie coś znaczy — przy co najmniej jednym sukcesie.
+ * Każdy komunikat niesie liczby, z których został policzony.
+ */
+function sprawdzMianownik(razem) {
+  const { zadan_wyslanych: wyslanych, porzuconych_przez_limit: porzuconych, poprawnych, nieudanych, blad_procent: procent } = razem;
+  const liczby = `wysłanych=${wyslanych}, porzuconych=${porzuconych}, poprawnych=${poprawnych}, nieudanych=${nieudanych}, blad_procent=${procent}`;
+  const mianownik = wyslanych + porzuconych;
+  assert.equal(nieudanych, mianownik - poprawnych,
+    `Porzucone nie weszły do liczby nieudanych: oczekiwano ${mianownik - poprawnych} (wysłane + porzucone − poprawne). ${liczby}`);
+  assert.equal(procent, Math.round(((mianownik - poprawnych) / mianownik) * 1000) / 10,
+    `blad_procent ma być liczony z mianownikiem obejmującym żądania porzucone. ${liczby}`);
+  const bezPorzuconych = wyslanych ? Math.round(((wyslanych - poprawnych) / wyslanych) * 1000) / 10 : 0;
+  if (poprawnych > 0) {
+    assert.ok(procent > bezPorzuconych,
+      `Porzucone nie weszły do mianownika: ${procent}% to tyle samo, co bez nich (${bezPorzuconych}%). ${liczby}`);
+  }
+  return { liczby, bezPorzuconych };
+}
+
 function uruchomSerie(args, { sygnalPo = null, limitMs = 60000, skrypt = GENERATOR } = {}) {
   return new Promise((gotowe, blad) => {
     const proces = spawn(process.execPath, [skrypt, 'seria', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -350,19 +386,28 @@ writeFileSync(join(katalogZdjec, 'kuking-b605-12mpx.jpg'), Buffer.alloc(2048, 7)
   assert.ok(w.razem.porzuconych_przez_limit > 0,
     'Limit żądań w locie miał zdławić napływ — bez porzuconych ten przypadek niczego nie sprawdza.');
 
-  const mianownik = w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit;
-  const bezPorzuconych = w.razem.zadan_wyslanych
-    ? Math.round(((w.razem.zadan_wyslanych - w.razem.poprawnych) / w.razem.zadan_wyslanych) * 1000) / 10
-    : 0;
-  assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10,
-    'blad_procent ma być liczony z mianownikiem obejmującym żądania porzucone.');
-  assert.ok(w.razem.blad_procent > bezPorzuconych,
-    `Porzucone nie weszły do mianownika: ${w.razem.blad_procent}% to tyle samo, co bez nich (${bezPorzuconych}%).`);
+  const { liczby } = sprawdzMianownik(w.razem);
   assert.ok(w.uwagi.some((u) => u.includes('maks_w_locie')),
     'Zdławiony napływ musi być opisany w uwagach, a nie tylko w liczbie.');
   assert.equal(w.razem.w_locie_na_koniec, 0, 'Zostały żądania w locie po zamknięciu serii.');
   await stanowiskoP.zamknij();
-  powiedz('żądania porzucone przez limit w locie wchodzą do mianownika odsetka błędów');
+  powiedz(`żądania porzucone przez limit w locie wchodzą do mianownika odsetka błędów (${liczby})`);
+}
+
+{
+  /*
+   * REGRESJA Z CI (run 35964288456, DOM-NEW-02): seria bez ani jednej
+   * poprawnej odpowiedzi. Losowej serii nie da się zmusić do zera sukcesów,
+   * więc ten kształt sprawdzamy wprost na liczbach: poprawnie policzony wynik
+   * PRZECHODZI, a wynik z porzuconymi wyciętymi z mianownika — choć jego
+   * odsetek też wynosi 100% — OBLEWA na liczbie nieudanych.
+   */
+  const poprawny = { zadan_wyslanych: 6, porzuconych_przez_limit: 170, poprawnych: 0, nieudanych: 176, blad_procent: 100 };
+  sprawdzMianownik(poprawny);
+  const bezPorzuconych = { ...poprawny, nieudanych: 6 };
+  assert.throws(() => sprawdzMianownik(bezPorzuconych), /Porzucone nie weszły do liczby nieudanych/,
+    'Przy zerze sukcesów wynik z porzuconymi poza mianownikiem musi oblać, choć odsetek wynosi 100% w obu wariantach.');
+  powiedz('zero poprawnych: 100% w obu wariantach, mianownik rozstrzyga liczba nieudanych (przechodzi / oblewa)');
 }
 
 if (process.platform === 'win32') {
@@ -621,19 +666,20 @@ await stanowiskoKU.zamknij();
   assert.equal(bieg.kod, 0, `Zepsuta seria zakończyła się kodem ${bieg.kod}. stderr: ${bieg.bledy}`);
   const w = JSON.parse(readFileSync(plikWyniku, 'utf8'));
   assert.ok(w.razem.porzuconych_przez_limit > 0, 'Kontrola ujemna mianownika: napływ nie został zdławiony.');
-  const mianownik = w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit;
-  let oblalo = false;
+  let oblalo = null;
   try {
-    assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10);
-  } catch {
-    oblalo = true;
+    sprawdzMianownik(w.razem);
+  } catch (blad) {
+    oblalo = blad.message;
   }
+  const r = w.razem;
   assert.ok(oblalo,
-    'Kontrola ujemna mianownika NIE zadziałała: po wycięciu porzuconych z mianownika wynik się nie zmienił'
-    + ` (blad_procent=${w.razem.blad_procent}).`);
+    'Kontrola ujemna mianownika NIE zadziałała: po wycięciu porzuconych z mianownika sprawdzenie przeszło'
+    + ` (wysłanych=${r.zadan_wyslanych}, porzuconych=${r.porzuconych_przez_limit}, poprawnych=${r.poprawnych},`
+    + ` nieudanych=${r.nieudanych}, blad_procent=${r.blad_procent}).`);
   await stanowisko5.zamknij();
   rmSync(kopia);
-  powiedz('kontrola ujemna: porzucone poza mianownikiem → zaniżony odsetek błędów, sprawdzenie OBLEWA');
+  powiedz(`kontrola ujemna: porzucone poza mianownikiem → sprawdzenie OBLEWA (${oblalo.split('. ')[0]})`);
 }
 
 /*

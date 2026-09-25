@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Domain\Moderation\ModeratedContent;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 /**
  * Kto widzi kartę zgłoszenia na `/zgloszenia/{report}` (issue #10).
@@ -29,6 +31,12 @@ use App\Models\User;
  */
 class ReportPolicy
 {
+    public const WLASNE_ZGLOSZENIE = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
+        .'Nikt nie decyduje we własnej sprawie.';
+
+    public const SPRAWA_O_CIEBIE = 'To zgłoszenie dotyczy Twojego konta albo Twojej treści, więc rozstrzygnie je ktoś inny z moderacji. '
+        .'Nikt nie decyduje we własnej sprawie.';
+
     public function view(User $user, Report $report): bool
     {
         if ($report->reporter_id === null) {
@@ -41,27 +49,47 @@ class ReportPolicy
     /**
      * Kto może ROZSTRZYGNĄĆ zgłoszenie w panelu moderacji (#1408, D-244).
      *
-     * NIKT NIE JEST SĘDZIĄ WE WŁASNEJ SPRAWIE. Zgłoszenie złożone przez
-     * moderatora (albo administratora) rozstrzyga ktoś inny z moderacji.
-     * Bez tej reguły jedna osoba z uprawnieniami mogła sama wnieść sprawę,
-     * sama ją rozstrzygnąć i zostawić w logu ślad wyglądający jak zwykła,
-     * niezależna decyzja — także „Bez działania", które zamyka sprawę
-     * i odpisuje zgłaszającemu, czyli samemu sobie.
+     * NIKT NIE JEST SĘDZIĄ WE WŁASNEJ SPRAWIE — ani jako ten, kto sprawę
+     * wniósł, ani jako ten, kogo sprawa dotyczy.
+     *
+     *  - Zgłoszenie złożone przez moderatora (albo administratora)
+     *    rozstrzyga ktoś inny z moderacji. Bez tej reguły jedna osoba
+     *    z uprawnieniami mogła sama wnieść sprawę, sama ją rozstrzygnąć
+     *    i zostawić w logu ślad wyglądający jak zwykła, niezależna decyzja
+     *    — także „Bez działania", które zamyka sprawę i odpisuje
+     *    zgłaszającemu, czyli samemu sobie.
+     *  - Zgłoszenie WŁASNEJ treści albo własnego profilu też rozstrzyga ktoś
+     *    inny. Reguła rangi (`UserPolicy::sanctionAccount()`) nie pozwala
+     *    ukarać samego siebie, ale „Bez działania" oddalałoby skargę ręką
+     *    tego, na kogo ją złożono.
      *
      * `reporter_id IS NULL` (zgłoszenie prawne bez konta) nie ma w serwisie
      * strony, która mogłaby się z moderatorem pokrywać — rozstrzyga je każdy
-     * moderator.
+     * moderator, o ile sprawa nie dotyczy jego samego.
+     *
+     * Cel sprawdzamy razem z miękko usuniętymi: skarga na własny, już
+     * skasowany wpis nadal jest własną sprawą.
      *
      * To jest osobna reguła od rangi celu (`UserPolicy::sanctionAccount()`):
      * tamta pilnuje, KOGO wolno ukarać, ta — KTO w ogóle zamyka sprawę.
      */
-    public function decide(User $user, Report $report): bool
+    public function decide(User $user, Report $report): Response
     {
         if (! $user->isModerator()) {
-            return false;
+            return Response::deny('Rozstrzygać zgłoszenia może tylko moderacja.');
         }
 
-        return $report->reporter_id === null
-            || $report->reporter_id !== $user->getKey();
+        if ($report->reporter_id !== null && $report->reporter_id === $user->getKey()) {
+            return Response::deny(self::WLASNE_ZGLOSZENIE);
+        }
+
+        $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+        $osoba = $cel === null ? null : ModeratedContent::osoba($cel);
+
+        if ($osoba !== null && $osoba->getKey() === $user->getKey()) {
+            return Response::deny(self::SPRAWA_O_CIEBIE);
+        }
+
+        return Response::allow();
     }
 }
