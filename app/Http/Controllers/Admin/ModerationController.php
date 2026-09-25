@@ -24,6 +24,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -39,9 +40,6 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
-    private const WLASNA_SPRAWA = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
-        .'Nikt nie decyduje we własnej sprawie.';
-
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
@@ -174,8 +172,10 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
-        if ($request->user()->cannot('decide', $report)) {
-            return back()->withInput()->withErrors(['action' => self::WLASNA_SPRAWA]);
+        $wlasnaSprawa = Gate::forUser($request->user())->inspect('decide', $report);
+
+        if ($wlasnaSprawa->denied()) {
+            return back()->withInput()->withErrors(['action' => $wlasnaSprawa->message()]);
         }
 
         if ($report->status !== Report::STATUS_OPEN) {
@@ -363,8 +363,10 @@ class ModerationController extends Controller
 
             // Ta sama reguła co na wejściu, ale już na zablokowanym wierszu:
             // wynik ma zależeć od stanu, pod którym zapada decyzja (#1408).
-            if ($moderator->cannot('decide', $zablokowane)) {
-                throw ValidationException::withMessages(['action' => self::WLASNA_SPRAWA]);
+            $wlasnaSprawa = Gate::forUser($moderator)->inspect('decide', $zablokowane);
+
+            if ($wlasnaSprawa->denied()) {
+                throw ValidationException::withMessages(['action' => $wlasnaSprawa->message()]);
             }
 
             // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
