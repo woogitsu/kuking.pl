@@ -1,9 +1,22 @@
 # Gdzie naprawdę leżą zdjęcia — lokalizacja danych w Cloudflare R2
 
 **Zgłoszenie:** issue #619 (P0, `obszar: infra`), audyt spójności 16.09.2026.
-**Ostatnia aktualizacja tego pliku:** 2026-09-17.
-**Stan:** dowód maszynowy DOŁOŻONY do bramki (§3) · odczyt panelu **NIEWYKONANY**
-— brak dostępu do konta Cloudflare (§5).
+**Ostatnia aktualizacja tego pliku:** 2026-09-25.
+**Stan:** dowód maszynowy DOŁOŻONY do bramki (§3) · strażnik hosta w aplikacji
+(§3a, D-255) · **jurysdykcja UE POTWIERDZONA przez właściciela w panelu
+Cloudflare 25.09.2026** (§0).
+
+## 0. Zapis weryfikacji
+
+To jest jedyne miejsce, z którego `DokumentyPrawneNieKlamiaTest` bierze prawo
+polityki prywatności do zdania „zdjęcia leżą w Unii Europejskiej”. Wpis
+dopisuje się, nie nadpisuje; data w polityce ma być datą ostatniego wpisu.
+
+- **2026-09-25** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (Jurisdictional Restriction: European Union), nie sam Location Hint. Odczyt wykonał właściciel; ta sesja panelu nie widziała i przepisuje jego potwierdzenie. Razem ze strażnikiem hosta (§3a — aplikacja poza `local`/`testing` sięga do R2 wyłącznie przez `<konto>.eu.r2.cloudflarestorage.com`, a taki endpoint nie dotyka bucketów spoza jurysdykcji UE) daje to podstawę zdania w `resources/legal/polityka-prywatnosci.md`.
+
+Czego ten wpis NIE obejmuje: bucketów, po które aplikacja nie sięga
+(np. kopie bazy poza `r2_kopie`, przyszła kwarantanna #602) — te trzeba
+dopisać osobno, gdy zostaną sprawdzone.
 
 > **Twarda zasada tego dokumentu:** `resources/legal/polityka-prywatnosci.md`
 > mówi użytkownikowi, że zdjęcia leżą w Unii Europejskiej. To jest obietnica

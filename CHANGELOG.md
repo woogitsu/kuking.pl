@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Polityka prywatności mówi teraz wprost, że Wasze zdjęcia leżą w Unii Europejskiej: magazyn zdjęć ma ograniczenie do jurysdykcji UE, sprawdzone 25 września 2026. Wcześniej dokument uczciwie pisał, że tego nie potwierdziliśmy. Polityka ma nową datę stanu, a zgody udzielone wcześniej zostają ważne (#619).
+
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).

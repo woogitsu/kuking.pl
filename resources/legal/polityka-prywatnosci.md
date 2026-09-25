@@ -1,12 +1,12 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 24 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 25 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
 ## W skrócie
 
-Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-mail i hasło, dane profilu, które sam uzupełniasz, i treści, które publikujesz. Nie sprzedajemy Twoich danych nikomu. Serwer, na którym działa Kuking, stoi w Unii Europejskiej. Miejsca przechowywania zdjęć dziś nie potwierdziliśmy — piszemy o tym dokładniej w sekcji 3. W każdej chwili możesz pobrać kopię swoich danych albo usunąć konto — opisujemy dokładnie, jak to zrobić i co się wtedy dzieje z Twoimi treściami. Jeśli masz pytania, napisz do nas na **kontakt@kuking.pl**.
+Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-mail i hasło, dane profilu, które sam uzupełniasz, i treści, które publikujesz. Nie sprzedajemy Twoich danych nikomu. Serwer, na którym działa Kuking, stoi w Unii Europejskiej, i tam też leżą Twoje zdjęcia — piszemy o tym dokładniej w sekcji 3. W każdej chwili możesz pobrać kopię swoich danych albo usunąć konto — opisujemy dokładnie, jak to zrobić i co się wtedy dzieje z Twoimi treściami. Jeśli masz pytania, napisz do nas na **kontakt@kuking.pl**.
 
 ---
 
@@ -48,7 +48,7 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 | Dostawca | Do czego służy | Gdzie przechowywane są dane |
 |---|---|---|
 | Railway | Hosting serwera i bazy danych | Unia Europejska |
-| Cloudflare R2 | Przechowywanie zdjęć | Nie potwierdziliśmy, że zdjęcia leżą wyłącznie w Unii Europejskiej |
+| Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska — magazyn z ograniczeniem do jurysdykcji UE, sprawdzone 25 września 2026 |
 | EmailLabs (Vercom S.A.) | Wysyłka poczty: potwierdzenie adresu, przypomnienie hasła, powiadomienia. Rejestruje też otwarcia listów — patrz akapit niżej | Unia Europejska (Polska) |
 | Cloudflare Turnstile | Sprawdzenie, czy formularz wypełnia człowiek, a nie automat | Cloudflare, Inc. (USA) — patrz akapit o przekazywaniu poza EOG |
 | Cloudflare Web Analytics | Statystyka odwiedzin: ile osób weszło na stronę, które strony oglądały i z jakiego miejsca w internecie do nas trafiły | Cloudflare, Inc. (USA) — **ta sama spółka co wyżej**, patrz akapit o przekazywaniu poza EOG |
