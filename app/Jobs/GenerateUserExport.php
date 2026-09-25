@@ -294,7 +294,7 @@ class GenerateUserExport implements ShouldQueue
 
             // List ma własne zadanie z ponowieniami (issue #820) i wchodzi
             // do TEJ transakcji: kolejka jest bazodanowa na tym samym
-            // połączeniu (`DataSettingsController::zlecWykonanie()`), więc
+            // połączeniu (`ZamowEksportDanych::zlecWykonanie()`), więc
             // wiersz w `jobs` i `ready` zatwierdzają się razem albo wcale.
             // Po commicie, a przed zleceniem, nie ma okna, w którym paczka
             // jest gotowa, a listu nie wyśle nikt. Kolejka `sync` wykonałaby
@@ -321,7 +321,7 @@ class GenerateUserExport implements ShouldQueue
      * 23 września 2026).
      *
      * Dwa zadania na jednym rekordzie to nie teoria: „ponów” w ustawieniach
-     * (`DataSettingsController::odpowiedzNaTrwajacy`) wysyła drugie zadanie
+     * (`ZamowEksportDanych::przejmijTrwajacy()`) wysyła drugie zadanie
      * dla `queued` stojącego 15 minut — a pierwsze mogło po prostu czekać
      * w kolejce i ruszyć chwilę później. Bez tego strażnika drugie zaczynało
      * od `ExportTempDirectory::remove()` i kasowało pliki pierwszego
