@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
+use App\Domain\Analytics\DrugiWpisW7Dni;
 use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZasiegUgotowalem;
 use App\Domain\Analytics\ZrobiePonownie;
@@ -82,6 +83,7 @@ class RaportPowrotow extends Command
         $this->newLine();
         $this->wierszPowrotu($powroty->policz(7), 'Powrót po 7 dniach (D7)', 'tygodnia');
         $this->wierszPowrotu($powroty->policz(30), 'Powrót po 30 dniach (D30)', 'miesiąca');
+        $this->drugiWpis();
 
         $this->newLine();
         $zasieg = $ugotowalem->policz();
@@ -231,6 +233,37 @@ class RaportPowrotow extends Command
             "  {$etykieta}: tak {$w['tak']} · nie {$w['nie']} · brak odpowiedzi {$w['brak']}"
             ." · odpowiedziało {$odpowiedzi}% z {$w['wszystkie']} wykonań · {$odsetekTak}",
         );
+    }
+
+    /**
+     * „Drugi wpis w 7 dni” (issue #29): czy pierwszy wpis zamienia się
+     * w nawyk. Same liczby; poniżej progu próby bez procentu. Definicja
+     * w `App\Domain\Analytics\DrugiWpisW7Dni`. Klasa brana z kontenera
+     * tutaj, nie z sygnatury `handle()`, żeby ta sekcja nie kolidowała
+     * z innymi dopisywanymi równolegle.
+     */
+    private function drugiWpis(): void
+    {
+        $w = app(DrugiWpisW7Dni::class)->policz();
+        $etykieta = 'Drugi wpis w 7 dni od pierwszego (pierwsze wpisy z ostatnich '
+            .DrugiWpisW7Dni::KOHORTA_DNI.' dni, najmłodsze '.DrugiWpisW7Dni::OKNO_DNI.' dni pominięte)';
+
+        if ($w['kohorta'] === 0) {
+            $this->line("{$etykieta}: brak osób z pierwszym wpisem w tym okresie — jeszcze nie da się tego policzyć.");
+
+            return;
+        }
+
+        if ($w['procent'] === null) {
+            $this->line(
+                "{$etykieta}: {$w['z_drugim']} z {$w['kohorta']} — za mało danych na procent (mniej niż "
+                .DrugiWpisW7Dni::MINIMUM_OSOB.' osób), to liczba, nie wniosek.',
+            );
+
+            return;
+        }
+
+        $this->line("{$etykieta}: {$w['z_drugim']} z {$w['kohorta']} (".number_format($w['procent'], 1, ',', '').'%).');
     }
 
     /** @param  array{kwalifikujacy_sie: int, wrocilo: int, procent: float|null}  $wynik */
