@@ -96,6 +96,12 @@ if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
 elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
+    zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
+elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
+    # Obraz FrankenPHP nie ma php.ini-production — bez tej dyrektywy w
+    # docker/php.ini ślady wyjątków niosą prefiksy argumentów, także sekretów.
+    zle "Ślady wyjątków w docker/php.ini niosą argumenty — uruchom: bash tests/skrypty/php-ini-slady.sh"
 elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # Kopia bazy to też skrypt powłoki, w obrazie bez PHP (decyzja D-043),
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
@@ -136,6 +142,21 @@ elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
     ok "Regresje i kontrole ujemne przyrządu przechodzą"
 else
     zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
+fi
+
+# --- 3c'. Topologia Railway (#595) -----------------------------------------
+# Kompiluje .railway/railway.ts lokalnym SDK (bez połączenia z Railwayem)
+# i sprawdza role, nazwy żywych zasobów, migracje w jednym serwisie,
+# jeden harmonogram i zgodność zmiennych. Nie zastępuje `railway config plan`.
+krok "Topologia Railway (#595)"
+if ! command -v node >/dev/null 2>&1; then
+    zle "Brak node — nie sprawdzono topologii Railway (to jest brak kontroli, nie sukces)"
+elif [ ! -d node_modules/railway ]; then
+    zle "Brak node_modules/railway — uruchom: npm ci"
+elif node --test scripts/railway/iac.test.mjs >/dev/null 2>&1; then
+    ok "Graf IaC produkcji i stagingu zgodny z zamierzoną topologią"
+else
+    zle "Topologia Railway niezgodna — uruchom: node --test scripts/railway/iac.test.mjs"
 fi
 
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------

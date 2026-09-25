@@ -101,6 +101,7 @@ Znaki używane w produkcie: [`../public/icons/`](../public/icons/).
 |---|---|
 | [`infra/INFRA_DECISION.md`](./infra/INFRA_DECISION.md) | Railway + Cloudflare, dlaczego bez Workers, koszty |
 | [`infra/DEPLOYMENT_RUNBOOK.md`](./infra/DEPLOYMENT_RUNBOOK.md) | krok po kroku, dla osoby nietechnicznej |
+| [`infra/PRZELACZENIE_NA_3_SERWISY_595.md`](./infra/PRZELACZENIE_NA_3_SERWISY_595.md) | rozbicie produkcji na web / worker / scheduler (#595): plan, apply, weryfikacja, cofnięcie |
 | [`infra/CI_BEZ_ACTIONS.md`](./infra/CI_BEZ_ACTIONS.md) | dlaczego CI było wyłączone, jak je włączyliśmy i co zrobić, gdy limit się skończy |
 | [`infra/PRZENIESIENIE_DO_ORGANIZACJI.md`](./infra/PRZENIESIENIE_DO_ORGANIZACJI.md) | transfer repo pod organizację `woogitsu` (wykonany) — i co trzeba było ustawić ponownie |
 | [`infra/SELF_HOSTED_RUNNER.md`](./infra/SELF_HOSTED_RUNNER.md) | własny runner — plan awaryjny, gdyby limit organizacji nie wystarczył |

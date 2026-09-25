@@ -44,9 +44,12 @@ final class OznaczDoPrzegladu
      * nie znaczy „pierwszy awatar tego konta i już nigdy więcej".
      *
      * @param  list<Sygnal>  $sygnaly  powody, dla których automat podniósł rękę
-     * @return ?Report `null`, gdy nie ma czego oznaczać albo ta treść była już
-     *                 oglądana przez automat (także wtedy, gdy moderator
-     *                 wcześniej powiedział „to nic takiego")
+     * @return ?Report `null`, gdy nie ma czego oznaczać (brak sygnałów,
+     *                 nieznany typ celu) albo gdy automat oznaczył tę treść
+     *                 wcześniej, a sprawa jest już zamknięta (`doAlarmu()`).
+     *                 Gdy treść była już oglądana przez automat, a sprawa
+     *                 jest otwarta, wraca ISTNIEJĄCY wiersz — patrz
+     *                 „DLACZEGO NIE `null`" niżej (issue #1051).
      */
     public function handle(Post|Comment|Media $tresc, array $sygnaly): ?Report
     {
@@ -73,32 +76,94 @@ final class OznaczDoPrzegladu
 
         $najciezszy = $sygnaly[0];
 
-        if ($this->juzOgladane($typ, (string) $tresc->getKey())) {
-            return null;
+        /*
+         * DLACZEGO OBIE DROGI POWROTU ODDAJĄ ISTNIEJĄCY WIERSZ, A NIE `null`
+         * (issue #1051).
+         *
+         * Do 22 września 2026 oddawały `null`, a `PrzeanalizujTresc`
+         * i `PrzeanalizujAwatar` (od D-240 bez modelu) miały ten sam warunek:
+         * `if ($oznaczenie !== null) { $alarm->handle(...); }`. Skutek był
+         * taki, że ISTNIENIE wiersza w `reports` WYŁĄCZAŁO alarm — czyli
+         * dokładnie w sytuacji, w której sprawa już jest zapisana, nikt się
+         * o niej nie dowiadywał. Wystarczyło, żeby worker zginął w szczelinie
+         * między zatwierdzeniem transakcji niżej a wywołaniem alarmu
+         * (`timeout = 30`, `tries = 1`, restart przy wdrożeniu), a każda
+         * kolejna analiza tej treści zatrzymywała się na sprawdzeniu
+         * „automat już to oglądał" i milczała. Zgubione zostawało zgubione.
+         *
+         * Wiersz oddany zamiast `null` nie tworzy drugiego alarmu:
+         * `AlarmujModeratora` pyta o `alarm_pilny_zlecony_at` i przy
+         * zleconym już alarmie nie robi nic. Kolejka moderatora dostaje tak
+         * czy tak JEDNĄ pozycję — tego pilnuje indeks
+         * `reports_jeden_automat_na_tresc`, nie ten zwrot.
+         */
+        $juz = $this->istniejace($typ, (string) $tresc->getKey());
+
+        if ($juz !== null) {
+            return $this->doAlarmu($juz);
         }
 
         try {
-            // Transakcja wokół jednego `INSERT`-a nie jest po atomowość, tylko
-            // po to, żeby odbicie się o indeks nie zerwało transakcji
-            // wołającego (PostgreSQL, 25P02) — ten sam powód i ten sam
-            // kształt co w `ReportContent`.
-            $zgloszenie = DB::transaction(fn (): Report => Report::create([
-                'reporter_id' => null,
-                'autor_tresci_id' => $autor?->getKey(),
-                'source' => Report::SOURCE_AUTOMAT,
-                'target_type' => $typ,
-                'target_id' => $tresc->getKey(),
-                'reason' => $najciezszy->kod,
-                'details' => $this->opis($sygnaly),
-                'status' => Report::STATUS_OPEN,
-            ]));
+            /*
+             * OBOWIĄZEK ALARMU ZAPISANY RAZEM ZE SPRAWĄ, W JEDNEJ TRANSAKCJI
+             * (issue #1051).
+             *
+             * `alarm_pilny_stan = ZALEGLY` nie jest ozdobą ani pamiątką —
+             * jest JEDYNYM miejscem w bazie, z którego da się odtworzyć, że
+             * ta sprawa była pilna. Pilność żyje w liście obiektów `Sygnal`
+             * w pamięci workera; do `reports` trafia sam kod powodu
+             * (`automat_model`), identyczny dla sprawy pilnej i niepilnej.
+             * Gdyby ten zapis stał LINIJKĘ NIŻEJ, poza transakcją, miałby tę
+             * samą szczelinę co alarm, którego pilnuje.
+             *
+             * Transakcja wokół jednego `INSERT`-a nie jest po atomowość
+             * samego wiersza — jest po to, żeby odbicie się o indeks nie
+             * zerwało transakcji wołającego (PostgreSQL, 25P02) — ten sam
+             * powód i ten sam kształt co w `ReportContent`.
+             */
+            $zgloszenie = DB::transaction(function () use ($autor, $typ, $tresc, $najciezszy, $sygnaly): Report {
+                $wiersz = new Report([
+                    'reporter_id' => null,
+                    'autor_tresci_id' => $autor?->getKey(),
+                    'source' => Report::SOURCE_AUTOMAT,
+                    'target_type' => $typ,
+                    'target_id' => $tresc->getKey(),
+                    'reason' => $najciezszy->kod,
+                    'details' => $this->opis($sygnaly),
+                    'status' => Report::STATUS_OPEN,
+                ]);
+
+                // POZA MASOWYM PRZYPISANIEM, jak `numer_sprawy`: to jest
+                // rozstrzygnięcie serwera o tym, czy sprawa jest pilna, a nie
+                // dana z jakiegokolwiek formularza. Żadna trasa nie prowadzi
+                // do tej akcji — ale `$fillable` jest umową na przyszłość,
+                // nie opisem dzisiejszych wywołań.
+                $wiersz->alarm_pilny_stan = $this->pilne($sygnaly) ? Report::ALARM_ZALEGLY : null;
+                $wiersz->save();
+
+                return $wiersz;
+            });
         } catch (UniqueConstraintViolationException) {
             // Drugie zadanie z kolejki zdążyło pierwsze. Dla kolejki
-            // moderatora to jest ta sama, jedna pozycja.
-            return null;
+            // moderatora to jest ta sama, jedna pozycja — ale wiersz oddajemy,
+            // żeby alarm miał na czym pracować (powód wyżej).
+            $juz = $this->istniejace($typ, (string) $tresc->getKey());
+
+            return $juz === null ? null : $this->doAlarmu($juz);
         }
 
-        AuditLogEntry::record(
+        /*
+         * WPIS POMOCNICZY (D-249, klasa 2) — i to jest tu warunek alarmu,
+         * nie kosmetyka. Sprawa jest już zatwierdzona i ma pełny własny ślad
+         * w `reports` (`source = automat`, powód, opis sygnałów, `created_at`,
+         * `alarm_pilny_stan`). Gołe `record()` za transakcją rzucało przy
+         * awarii dziennika PRZED powrotem do `PrzeanalizujTresc`, a tamten
+         * blankietowy `catch` połykał wyjątek — czyli awaria `audit_log`
+         * zjadała pilny alarm o sprawie, która już stoi w kolejce
+         * (issue #1051). Teraz awaria idzie do `report()` z nazwą braku,
+         * a alarm idzie dalej.
+         */
+        AuditLogEntry::recordBezWywracania(
             action: 'content.flagged_by_automat',
             actor: null,
             subject: $zgloszenie,
@@ -112,21 +177,68 @@ final class OznaczDoPrzegladu
     }
 
     /**
-     * Czy automat już kiedyś oglądał tę treść.
+     * Oznaczenie, które automat postawił przy tej treści wcześniej — albo
+     * `null`, gdy jeszcze go nie ma.
      *
      * Pytanie obejmuje WSZYSTKIE statusy, także `rejected`. To jest sedno
      * obietnicy „odrzucone nie wraca": po „to nic takiego" wiersz zostaje
      * w tabeli jako pamięć decyzji człowieka, a nie jako sprawa do
      * rozpatrzenia. Ten sam wybór zrobił Discourse
-     * (`docs/research/repos/discourse-discourse.md` §4.5).
+     * (`docs/research/repos/discourse-discourse.md` §4.5). Nowe oznaczenie
+     * przy takiej treści NIE POWSTAJE — zmienił się tylko zwrot: był `true`
+     * bez wiersza, jest wiersz (issue #1051).
      */
-    private function juzOgladane(string $typ, string $id): bool
+    private function istniejace(string $typ, string $id): ?Report
     {
         return Report::query()
             ->where('source', Report::SOURCE_AUTOMAT)
             ->where('target_type', $typ)
             ->where('target_id', $id)
-            ->exists();
+            ->first();
+    }
+
+    /**
+     * Istniejący wiersz oddany wołającemu — albo `null`, gdy sprawa jest już
+     * ROZSTRZYGNIĘTA albo ODRZUCONA.
+     *
+     * `istniejace()` celowo widzi wszystkie statusy (pamięć decyzji
+     * człowieka, niżej), ale wołający robi z oddanym wierszem jedno: woła
+     * `AlarmujModeratora`. Przy sprawie zamkniętej to byłby list „pilna
+     * pozycja w kolejce" o pozycji, której w kolejce nie ma — i zdarzało się
+     * to realnie przy `queue:retry` starego zadania o wierszu sprzed migracji
+     * #1051 (`alarm_pilny_stan IS NULL`), bo `handle()` alarmu dopisuje wtedy
+     * stan i wysyła. Zamknięta sprawa ma za sobą człowieka; alarm o niej
+     * niczego nie przyspiesza.
+     *
+     * Nowe oznaczenie i tak nie powstaje — `null` tutaj znaczy tylko „nie ma
+     * o czym alarmować", obietnica „odrzucone nie wraca" zostaje.
+     */
+    private function doAlarmu(Report $juz): ?Report
+    {
+        return $juz->jestRozstrzygniete() ? null : $juz;
+    }
+
+    /**
+     * Czy wśród sygnałów jest choć jeden, który nie może czekać do
+     * jutrzejszego podsumowania.
+     *
+     * Ta sama reguła, którą stosuje `AlarmujModeratora` — i to jest jedyny
+     * powód, dla którego stoi tu osobno: obie klasy muszą odpowiadać na to
+     * pytanie IDENTYCZNIE, bo jedna zapisuje obowiązek, a druga go
+     * wykonuje. Rozjazd wyglądałby tak, że wiersz mówi „zaległy alarm",
+     * a alarm uważa sprawę za niepilną i nigdy tego stanu nie zdejmie.
+     *
+     * @param  list<Sygnal>  $sygnaly
+     */
+    private function pilne(array $sygnaly): bool
+    {
+        foreach ($sygnaly as $sygnal) {
+            if ($sygnal->pilny) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
