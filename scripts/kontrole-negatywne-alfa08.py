@@ -100,6 +100,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Strażnik adresów z sekretami (#991, D-250). Kryterium issue wprost: kontrola
+# ujemna osłabiająca sprawdzenie do samego `https://` ma oblać test hosta
+# podszywającego się sufiksem. Druga mutacja zabiera sprawdzenie ścieżki.
+STRAZNIK_HOSTA = "app/Support/DozwolonyHostApi.php"
+STRAZNIK_HOSTA_TEST = "test_straznik_odrzuca_adres_spoza_listy"
+
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -178,6 +184,11 @@ TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
 KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
 KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
 
+# Polityka nie obiecuje „pełnej kopii" danych (R1, wariant A z 20.09.2026).
+# Strażnik czyta dokument prawny; mutacja przywraca dawne sformułowanie
+# i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
+POLITYKA = "resources/legal/polityka-prywatnosci.md"
+POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -196,8 +207,7 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # Polityka nazywa każde ciasteczko ustawień (R6). Strażnik czyta dokument
 # prawny; mutacja zdejmuje NAZWĘ ciasteczka motywu w backtickach, a zwykłe
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
-# a nie wyrazu.
-POLITYKA = "resources/legal/polityka-prywatnosci.md"
+# a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -212,18 +222,35 @@ CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_asset
 # klasy, której nie ma, i stałej, której model nie definiuje.
 REJESTR_WYJATKOW = "tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php"
 REJESTR_WYJATKOW_TEST = "test_rejestr_nazywa_tylko_istniejace_klasy_i_stale"
+# Wiersz `media` i zadanie przetwarzania w jednej transakcji (issue #1456).
+# Test wymusza fizyczną odmowę INSERT-u do `jobs`; mutacja wynosi dispatch
+# z powrotem ZA granicę transakcji i kompensacji — test ma wtedy oblać, bo
+# zostaje wiersz `pending` bez zadania i pliki w buckecie.
+STORE_UPLOADED_IMAGE = "app/Domain/Media/Actions/StoreUploadedImage.php"
+ZLECENIE_ZDJECIA_TEST = "ZlecenieZdjeciaWTransakcjiTest"
 
 # Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
 # jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
 # końca, więc przechodzi host podszywający się sufiksem.
 STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+# Ostrzeżenie o zmianie adresu utrwala STARY adres przy prośbie (#888).
+# Mutacja wraca do `$user->notify()` — adres czytany przy wysyłce, po
+# potwierdzeniu już nowy — i test przechodzący przez kolejkę ma zapalić.
+OSTRZEZENIE_888 = "app/Domain/Users/Actions/RequestEmailChange.php"
+OSTRZEZENIE_888_TEST = "OstrzezenieZmianyAdresuWKolejceTest"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
 ZMIANA_ROLI = "app/Domain/Users/Actions/ChangeUserRole.php"
 AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
+# Wybór kolażu należy do wpisu (#955). Strażnik ładuje migrację przez
+# `base_path(...)` i sprawdza definicję złożonego FK w `pg_constraint`.
+# Mutacja zdejmuje z migracji `ON DELETE CASCADE` — FK nadal istnieje, więc
+# sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
+MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
+HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
 # Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
 # `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
 WYJECIE_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
@@ -258,6 +285,11 @@ def odwolanie_bez_transakcji(uzyte):
 # zwrot miejsca do wspólnej puli poczty.
 BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
 BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+# Klucz preview środowiska PR (#975). Zachowanie skryptu mierzą testy
+# behawioralne; ten wpis pilnuje jedynego testu czytającego entrypoint —
+# mutacja odcina wywołanie przed odmową startu i ma go zapalić.
+ENTRYPOINT = "docker/entrypoint.sh"
+KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 # Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
 # akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
 # `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
@@ -478,6 +510,15 @@ def bez_digestu_obrazu_kopii(source):
     return source[:start] + "FROM postgres:18" + source[end:]
 
 
+def dispatch_zdjecia_poza_transakcja(source):
+    source = replace_once(source, "ProcessUploadedImage::dispatch($media->getKey());", "null;")
+    return replace_once(
+        source,
+        "            throw $e;\n        }\n\n        return $media;",
+        "            throw $e;\n        }\n\n        ProcessUploadedImage::dispatch($media->getKey());\n\n        return $media;",
+    )
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -489,6 +530,28 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
         source,
         "    .hero .hero-lead {\n      margin-bottom: var(--spacing-4);\n",
         "    .hero .hero-lead {\n      font-size: 1rem;\n      margin-bottom: var(--spacing-4);\n",
+    )
+
+
+def bez_sprawdzenia_hosta(source):
+    """KONTROLA DODATNIA: strażnik adresu zostaje przy samym `https://`."""
+    return replace_once(
+        source,
+        "        if (! in_array(strtolower($uri->getHost()), $hosty, true)) {\n"
+        "            return 'host spoza listy dostawcy';\n"
+        "        }\n",
+        "",
+    )
+
+
+def bez_sprawdzenia_sciezki(source):
+    """KONTROLA DODATNIA: strażnik adresu przestaje patrzeć na ścieżkę."""
+    return replace_once(
+        source,
+        "        if (preg_match($sciezka, $uri->getPath()) !== 1) {\n"
+        "            return 'ścieżka spoza API dostawcy';\n"
+        "        }\n",
+        "",
     )
 
 
@@ -574,6 +637,10 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Strażnik sekretów osłabiony do samego https", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_hosta),
+    ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_sciezki),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
@@ -626,6 +693,8 @@ checks = [
      lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
     ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
+    ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
+     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
      lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
@@ -638,12 +707,18 @@ checks = [
      lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
     ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
      lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
+    ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
+     dispatch_zdjecia_poza_transakcja),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Ostrzeżenie o zmianie adresu czyta adres przy wysyłce", OSTRZEZENIE_888, OSTRZEZENIE_888_TEST,
+     lambda s: replace_once(s, "Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(", "$user->notify(new ZgloszonaZmianaAdresu(")),
     ("Awans roli bez odwołania sesji", ZMIANA_ROLI, AWANS_ROLI_TEST,
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
+    ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
+     lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -664,6 +739,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
+     lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -693,6 +770,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(STRAZNIK_HOSTA_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
 run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
@@ -706,19 +784,24 @@ run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
+run_test(POLITYKA_KOPIA_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
+run_test(ZLECENIE_ZDJECIA_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
+run_test(HERO_PICKS_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
+run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
