@@ -13,6 +13,7 @@ use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Exceptions\BladZdjecFormularza;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
@@ -168,8 +169,10 @@ class PostController extends Controller
 
         try {
             $mediaIds = $this->zebranZdjecia($request, $user);
-        } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+        } catch (BladZdjecFormularza $e) {
+            return back()
+                ->withInput($this->wejscieBezPlikow($request, $e->mediaIds))
+                ->withErrors(['photos' => $e->getMessage()]);
         }
 
         $tagNames = $this->tagiZFormularza($request);
@@ -476,22 +479,32 @@ class PostController extends Controller
             ->pluck('id')
             ->all();
 
-        $nowe = [];
+        $photos = $request->file('photos', []);
 
-        foreach ($request->file('photos', []) as $photo) {
-            $nowe[] = $this->storeImage->handle($user, $photo)->getKey();
+        // Najpierw liczymy WYŁĄCZNIE zdjęcia, które naprawdę wolno odzyskać,
+        // oraz pliki z bieżącego żądania. Sprawdzenie po `handle()` byłoby za
+        // późne: odrzucony formularz zostawiałby nowy rekord i obiekt w storage.
+        if (count($odzyskane) + count($photos) > LimityZdjec::maksZdjecNaWysylke()) {
+            throw new BladZdjecFormularza(
+                LimityZdjec::komunikatZaDuzoZdjec().' Nowych zdjęć nie dodano. Usuń część zachowanych zdjęć albo wybierz mniej nowych.',
+                $odzyskane,
+            );
         }
 
-        $wszystkie = array_values(array_unique([...$odzyskane, ...$nowe]));
+        $wszystkie = $odzyskane;
 
-        // Limit liczony na SUMIE, nie osobno na kazdej z dwoch drog. Inaczej
-        // dalo by sie go obejsc, wysylajac polowe zdjec w plikach, a polowe
-        // w ukrytych polach.
-        if (count($wszystkie) > LimityZdjec::maksZdjecNaWysylke()) {
-            throw new BladDlaCzlowieka(LimityZdjec::komunikatZaDuzoZdjec());
+        foreach ($photos as $photo) {
+            try {
+                $wszystkie[] = $this->storeImage->handle($user, $photo)->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                // Pliku input nie da się odtworzyć przez `withInput()`. Jeśli
+                // późniejszy plik zawiedzie, zachowujemy identyfikatory tych,
+                // które zdążyły już zostać poprawnie przyjęte.
+                throw new BladZdjecFormularza($e->getMessage(), $wszystkie, $e);
+            }
         }
 
-        return $wszystkie;
+        return array_values(array_unique($wszystkie));
     }
 
     public function show(Request $request, Post $post): View|RedirectResponse
@@ -500,6 +513,22 @@ class PostController extends Controller
             abort_unless(config('kuking.questions.enabled') && $post->kind === Post::KIND_QUESTION, 404);
         }
         $this->authorize('view', $post);
+
+        // PYTANIE MA JEDEN ADRES: `/pytania/{id}` (#968). Pod `/wpisy/{id}`
+        // też się renderowało, więc wyszukiwarka dostawała dwie
+        // samokanoniczne kopie tej samej rozmowy. Przekierowanie stoi PO
+        // `authorize()` — pytanie prywatne albo ukryte za flagą dostaje tu
+        // to samo 403 co dotąd, zamiast zdradzać swój adres.
+        //
+        // `reflash()`, bo część akcji (edycja, komentarz) odsyła na
+        // `posts.show` z komunikatem — bez tego człowiek traciłby „Zapisane"
+        // albo błąd formularza na drugim skoku.
+        if ($post->kind === Post::KIND_QUESTION && ! $request->routeIs('questions.show')) {
+            $request->session()->reflash();
+            $query = $request->getQueryString();
+
+            return redirect()->to($post->url().($query ? '?'.$query : ''), 301);
+        }
 
         $post->load([
             'author.profile.avatar',

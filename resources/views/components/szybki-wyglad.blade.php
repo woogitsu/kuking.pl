@@ -1,4 +1,4 @@
-﻿@props(['scale', 'theme'])
+@props(['scale', 'theme'])
 <details class="szybki-wyglad" data-szybki-wyglad>
     <summary><span aria-hidden="true">Aa · </span>Wygląd</summary>
     <section class="szybki-wyglad-panel" aria-labelledby="szybki-wyglad-tytul">
