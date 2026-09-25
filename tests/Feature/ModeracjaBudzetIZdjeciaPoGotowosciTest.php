@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\Actions\DolozDoOznaczenia;
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Domain\Posts\Actions\EditPost;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujTresc;
@@ -17,6 +19,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -273,6 +277,65 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $this->assertStringContainsString('Wcześniejszy powód.', (string) $oznaczenia[0]->details);
         $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details, 'Sygnał modelu nie dopisał się do istniejącej sprawy.');
         $this->assertSame('automat_model', $oznaczenia[0]->reason);
+    }
+
+    /**
+     * Pilny sygnał DOŁOŻONY do istniejącej sprawy zapisuje obowiązek alarmu
+     * (`ZALEGLY`) w tej samej transakcji co opis (#1051). Wołamy samą akcję,
+     * bez `AlarmujModeratora` — dokładnie stan po workerze ubitym między
+     * zatwierdzeniem a listem.
+     */
+    public function test_pilny_sygnal_dolozony_zapisuje_zalegly_alarm_przed_listem(): void
+    {
+        $sprawa = $this->otwartaSprawa($this->wpis($this->user('zalegly'), 'Zupa pomidorowa jak u mamy.'));
+
+        app(DolozDoOznaczenia::class)->handle($this->tresc($sprawa), [new Sygnal('automat_model', 'Pilny sygnał modelu.', pilny: true)]);
+
+        $this->assertSame(Report::ALARM_ZALEGLY, $sprawa->fresh()->alarm_pilny_stan, 'Pilny sygnał dołożony bez śladu obowiązku alarmu.');
+
+        // Kontrola: niepilny sygnał nie zakłada obowiązku alarmu.
+        $druga = $this->otwartaSprawa($this->wpis($this->user('niepilny'), 'Pierogi ruskie.'));
+        app(DolozDoOznaczenia::class)->handle($this->tresc($druga), [new Sygnal('automat_model', 'Zwykły sygnał modelu.')]);
+        $this->assertNull($druga->fresh()->alarm_pilny_stan);
+    }
+
+    /** Awaria dziennika nie cofa dołożonych sygnałów (D-249, klasa 2 — jak w `OznaczDoPrzegladu`). */
+    public function test_awaria_dziennika_nie_cofa_dolozonych_sygnalow(): void
+    {
+        Exceptions::fake();
+        $sprawa = $this->otwartaSprawa($this->wpis($this->user('awariadz'), 'Zupa pomidorowa jak u mamy.'));
+        DB::listen(function ($zapytanie): void {
+            if (str_contains($zapytanie->sql, 'insert into "audit_log"')
+                && in_array('content.flagged_by_automat', $zapytanie->bindings, true)) {
+                throw new \RuntimeException('Wstrzyknięta awaria dziennika.');
+            }
+        });
+
+        $wynik = app(DolozDoOznaczenia::class)->handle($this->tresc($sprawa), [new Sygnal('automat_model', 'Pilny sygnał modelu.', pilny: true)]);
+
+        $this->assertNotNull($wynik, 'Awaria dziennika zjadła wynik — alarm by nie poszedł.');
+        $this->assertStringContainsString('Pilny sygnał modelu.', (string) $sprawa->fresh()->details);
+        $this->assertSame(Report::ALARM_ZALEGLY, $sprawa->fresh()->alarm_pilny_stan);
+        Exceptions::assertReported(fn (\RuntimeException $e): bool => str_contains($e->getMessage(), '„content.flagged_by_automat"'));
+    }
+
+    private function otwartaSprawa(Post $wpis): Report
+    {
+        return Report::query()->create([
+            'reporter_id' => null,
+            'autor_tresci_id' => $wpis->author_id,
+            'source' => Report::SOURCE_AUTOMAT,
+            'target_type' => ModeratedContent::typ($wpis),
+            'target_id' => $wpis->getKey(),
+            'reason' => 'automat_odnosnik',
+            'details' => "Automat oznaczył tę treść do przeglądu.\n— Wcześniejszy powód.",
+            'status' => Report::STATUS_OPEN,
+        ]);
+    }
+
+    private function tresc(Report $sprawa): Post
+    {
+        return Post::query()->findOrFail($sprawa->target_id);
     }
 
     public function test_wylaczona_ocena_zdjec_i_brak_klucza_nie_zaliczaja_sie_do_niepelnej(): void

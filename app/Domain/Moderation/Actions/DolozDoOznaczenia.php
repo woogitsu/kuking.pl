@@ -76,7 +76,7 @@ final class DolozDoOznaczenia
             // dopisujemy się do niego jak do każdego istniejącego.
         }
 
-        return DB::transaction(function () use ($typ, $tresc, $sygnaly): ?array {
+        $wynik = DB::transaction(function () use ($typ, $tresc, $sygnaly): ?array {
             $zgloszenie = $this->zapytanie($typ, $tresc)->lockForUpdate()->first();
 
             if ($zgloszenie === null) {
@@ -116,21 +116,53 @@ final class DolozDoOznaczenia
                 $zmiany['reason'] = $dolozone[0]->kod;
             }
 
-            $zgloszenie->update($zmiany);
+            // OBOWIĄZEK ALARMU W TEJ SAMEJ TRANSAKCJI CO SYGNAŁ (#1051).
+            // Pilny sygnał dołożony do sprawy, która alarmu jeszcze nie
+            // miała, zapisuje `ZALEGLY` razem z opisem — tak jak
+            // `OznaczDoPrzegladu` przy nowym oznaczeniu. Worker ubity między
+            // zatwierdzeniem a `AlarmujModeratora` zostawia wtedy ślad, który
+            // widzi sonda `alarmy_moderacji` w `/health`,
+            // zamiast pilnej sprawy bez listu i bez śladu.
+            if ($zgloszenie->alarm_pilny_stan === null && $this->pilne($dolozone)) {
+                $zgloszenie->alarm_pilny_stan = Report::ALARM_ZALEGLY;
+            }
 
-            AuditLogEntry::record(
-                action: 'content.flagged_by_automat',
-                actor: null,
-                subject: $zgloszenie,
-                metadata: [
-                    'target_type' => $typ,
-                    'sygnaly' => array_map(static fn (Sygnal $s): string => $s->kod, $dolozone),
-                    'dolozone' => true,
-                ],
-            );
+            $zgloszenie->fill($zmiany)->save();
 
             return [$zgloszenie, $dolozone];
         });
+
+        if ($wynik === null) {
+            return null;
+        }
+
+        // WPIS POMOCNICZY (D-249, klasa 2), jak w `OznaczDoPrzegladu`: sprawa
+        // ma pełny własny ślad w `reports`, a awaria dziennika nie może
+        // cofnąć dołożonych sygnałów ani zjeść alarmu.
+        AuditLogEntry::recordBezWywracania(
+            action: 'content.flagged_by_automat',
+            actor: null,
+            subject: $wynik[0],
+            metadata: [
+                'target_type' => $typ,
+                'sygnaly' => array_map(static fn (Sygnal $s): string => $s->kod, $wynik[1]),
+                'dolozone' => true,
+            ],
+        );
+
+        return $wynik;
+    }
+
+    /** @param  list<Sygnal>  $sygnaly */
+    private function pilne(array $sygnaly): bool
+    {
+        foreach ($sygnaly as $sygnal) {
+            if ($sygnal->pilny) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
