@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Komunikat błędu pod polem formularza ma teraz ten sam rozmiar co reszta tekstu (18 px zamiast 16 px, a przy powiększonym tekście odpowiednio więcej). To zdanie mówi, co poprawić, więc ma być czytelne bez przybliżania.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 

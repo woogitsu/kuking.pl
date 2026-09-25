@@ -1186,13 +1186,19 @@
      co najmniej 10 znaków — najprościej wpisać trzy słowa razem"), a stoi
      w kolumnie pola. Bez zawijania w dowolnym miejscu rozpychał formularz
      w bok przy skali 140%. Wyrównanie do góry jest po to, żeby ewentualny
-     znak ostrzegawczy stał przy PIERWSZYM wierszu, nie pośrodku trzech. */
+     znak ostrzegawczy stał przy PIERWSZYM wierszu, nie pośrodku trzech.
+
+     `--text-body`, nie `--text-help` (audyt B1, znalezisko 2). Wyjątek 16 px
+     z DESIGN_SYSTEM §2.1 dotyczy tekstu, obok którego stoi tekst ≥ 18 px
+     niosący treść. Komunikat błędu stoi sam i jest w tej chwili
+     najważniejszym zdaniem na ekranie: mówi, co poprawić. Pogrubienie
+     i kolor nie zastąpią wielkości. Pilnuje `MinimalnyRozmiarTekstuTest`. */
   .field-error {
     display: flex;
     align-items: flex-start;
     gap: var(--spacing-2);
     margin-top: var(--spacing-2);
-    font-size: var(--text-help);
+    font-size: var(--text-body);
     font-weight: 700;
     color: var(--color-danger);
     overflow-wrap: anywhere;

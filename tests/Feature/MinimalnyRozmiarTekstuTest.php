@@ -36,6 +36,17 @@ class MinimalnyRozmiarTekstuTest extends TestCase
         '.post-card-czytaj-dalej a', // „Czytaj dalej" pod skróconym wpisem (#354)
     ];
 
+    /**
+     * To samo minimum dla reguł, które żyją w `tokens.css`, nie w `app.css`.
+     *
+     * `.field-error` to komunikat błędu pod polem — jedyne zdanie mówiące,
+     * co poprawić. Stoi sam, więc wyjątek 16 px go nie obejmuje (audyt B1,
+     * znalezisko 2: miał `--text-help` w 54 miejscach naraz).
+     */
+    private const SAMODZIELNE_W_TOKENACH = [
+        '.field-error',
+    ];
+
     /** Rozmiary, które wolno przypisać samodzielnej etykiecie. */
     private const DOZWOLONE_TOKENY = [
         '--text-body',
@@ -127,9 +138,18 @@ class MinimalnyRozmiarTekstuTest extends TestCase
 
     public function test_samodzielne_etykiety_maja_co_najmniej_18_px(): void
     {
-        $css = $this->css('app.css');
+        $this->sprawdzMinimum($this->css('app.css'), self::SAMODZIELNE_ETYKIETY);
+    }
 
-        foreach (self::SAMODZIELNE_ETYKIETY as $selektor) {
+    public function test_komunikat_bledu_pod_polem_ma_co_najmniej_18_px(): void
+    {
+        $this->sprawdzMinimum($this->css('tokens.css'), self::SAMODZIELNE_W_TOKENACH);
+    }
+
+    /** @param list<string> $selektory */
+    private function sprawdzMinimum(string $css, array $selektory): void
+    {
+        foreach ($selektory as $selektor) {
             $deklaracje = $this->deklaracje($css, $selektor);
 
             $this->assertSame(
