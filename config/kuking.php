@@ -1982,6 +1982,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puls harmonogramu do zewnętrznego monitora — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | Adres monitora typu „dead man's switch" (np. Healthchecks.io, Better
+    | Stack Heartbeat, UptimeRobot Heartbeat). `kuking:puls-harmonogramu`
+    | woła go co 5 minut; monitor alarmuje, gdy znak życia nie przyjdzie.
+    | Pusty = wyłączone: nic nie jest wysyłane. Adres jest sekretem (zawiera
+    | token), więc trzymaj go w zmiennych Railway, nie w repozytorium.
+    | Kroki: docs/infra/MONITORING_599_KROKI.md.
+    */
+    'monitoring' => [
+        'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
@@ -3005,6 +3021,24 @@ return [
              * podsumowaniem (`kuking:podsumowanie-automatu`).
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+
+            /*
+             * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
+             * `kuking:doslij-pilne-alarmy`, co godzinę).
+             *
+             * `alarm_partia` — ile spraw jeden przebieg bierze najwyżej. Pilnych
+             * spraw jest w normalnym tygodniu kilka; limit jest bezpiecznikiem
+             * na dzień, w którym kanał leżał długo, żeby jeden przebieg nie zjadł
+             * dobowego limitu poczty (300 listów, dzielone z rejestracją).
+             *
+             * `alarm_sonda_godzin` — jak długo zaległy alarm OTWARTEJ sprawy
+             * trzyma `/health` w stanie `degraded`. 72, nie 24: sprawa z piątku
+             * wieczorem ma być widoczna jeszcze w poniedziałek rano, a serwis
+             * prowadzi jedna osoba, nie dyżur. Pełna reguła
+             * w `docs/infra/MONITORING_BLEDOW.md`.
+             */
+            'alarm_partia' => 50,
+            'alarm_sonda_godzin' => 72,
         ],
 
         /*
