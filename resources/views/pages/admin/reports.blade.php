@@ -380,5 +380,5 @@
         <x-empty-state title="Nic tu nie ma">Brak zgłoszeń w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $reports->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$reports" /></div>
 </x-layout>

@@ -160,5 +160,5 @@
         </x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $grupy->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$grupy" /></div>
 </x-layout>

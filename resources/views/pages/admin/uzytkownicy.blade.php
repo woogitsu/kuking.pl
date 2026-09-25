@@ -243,6 +243,6 @@
             </table>
         </div>
 
-        <div class="mt-6">{{ $uzytkownicy->links() }}</div>
+        <div class="mt-6"><x-paginacja-panelu :paginator="$uzytkownicy" /></div>
     @endif
 </x-layout>

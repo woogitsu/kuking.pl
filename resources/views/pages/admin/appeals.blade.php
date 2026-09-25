@@ -216,5 +216,5 @@
         <x-empty-state title="Nic tu nie ma">Brak odwołań w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $appeals->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$appeals" /></div>
 </x-layout>

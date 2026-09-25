@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Panel moderacji: pod kolejką zgłoszeń, odwołań, oznaczeń automatu, listą kont i wiadomości widać teraz na komputerze przyciski „Poprzednia strona” i „Następna strona” oraz napis „Strona 2 z 4”. Wcześniej na szerokim ekranie pod listą nie było niczego, więc sprawy spoza pierwszych 25 pozostawały niewidoczne, a na telefonie przyciski były małe i miały angielski opis.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
