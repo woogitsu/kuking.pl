@@ -87,6 +87,16 @@ fi
 # -----------------------------------------------------------------------------
 [[ -f /app/artisan ]] || die "brak /app/artisan — obraz zbudowany niepoprawnie"
 
+# Pusty APP_KEY w potwierdzonym środowisku PR dostaje losowy klucz tego
+# kontenera — zapieczętowany klucz staginu do PR Environments nie trafia
+# (issue #975). Warunki i powody: docker/klucz-preview.sh. Klucza nie logujemy.
+# shellcheck source=docker/klucz-preview.sh
+source /app/docker/klucz-preview.sh
+if [[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then
+  log "APP_KEY: środowisko PR ${RAILWAY_ENVIRONMENT_NAME} nie ma własnego klucza —"
+  log "         wygenerowano jednorazowy klucz tego kontenera. Restart unieważni sesje."
+fi
+
 if [[ -z "${APP_KEY:-}" ]]; then
   die "APP_KEY jest pusty. Wygeneruj go raz: 'php artisan key:generate --show' \
 i wklej jako zmienną środowiskową w Railway. Bez APP_KEY nie da się odszyfrować \
