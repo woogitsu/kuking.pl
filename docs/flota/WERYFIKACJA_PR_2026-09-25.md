@@ -19,6 +19,70 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
   test musi oblać, przywrócenie.
 - Pominięte z założenia: gałęzie `claude/api-*`, PR #1478 i #1511.
 
+## Podsumowanie (stan na koniec sesji)
+
+Sprawdzono **98 otwartych PR-ów** (wszystkie poza #1478, #1511 i `claude/api-*`)
+plus #1757 otwarty w trakcie. Dopisano **16 commitów** na gałęziach `claude/*`
+(kolumna „co dopisano”); poza nimi nic nie wypchnięto.
+
+### Domyka po scaleniu — issue do zamknięcia przez sesję główną
+
+#821 (#1405) · #1053 (#1399) · #1093 (#1406) · #746, #748, #749 (#1453) ·
+#819 (#1542) · #946 (#1538) · #1308 (#1593) · #1309 (dopiero po **#1593 i #1628**) ·
+#950, #933 (#1485) · #1479 (#1491) · #1400 (#1493) · #1395 (#1496) · #992 (#1498) ·
+#1034 (#1501) · #1394 (#1503) · #1289 (#1505) · #961 (#1508) · #1435 (#1514) ·
+#1018 (#1516) · #1461 (#1519) · #938 (#1520) · #982 (#1521) · #996 (#1522) ·
+#836 (#1524, kod) · #769 (#1527) · #823, #824 (#1528) · #964 (#1533) · #939 (#1539) ·
+#977 (#1543) · #911 (#1546) · #899 (#1547) · #829, #830 (#1548) · #1027, #1296 (#1549) ·
+#1349 (#1550) · #1344, #1025 (#1552) · #1317 (#1554) · #1385 (#1566) · #871 (#1571) ·
+#1059 (#1575) · #1323, #1325 (#1576) · #1365 (#1577) · #943, #1094 (#1578) ·
+#1305 (#1579) · #1330, #1331, #1333 (#1580) · #1366, #1341 (#1583) · #1245, #1371 (#1586) ·
+#1302 (#1587) · #845 (#1592) · #1090 (#1594) · #1389, #1390 (#1595) · #1032 (#1598) ·
+#1010 (#1601) · #1029 (#1603) · #1082, #1316 (#1604) · #883 (#1606) · #1346, #1364 (#1609) ·
+#759, #1401 (#1616) · #738 (#1618) · #1295 (#1619) · #1572 (#1621) · #1044 (#1622) ·
+#1313 (#1624) · #976 (#1627, po zielonym CI) · #765 (#1629) · #1599 (#1630) ·
+#1636 (#1647) · #984 (#1648) · #967 (#1532) · #1037 (#1628).
+
+Już zamknięte wcześniej, PR tylko uzupełnia: #930 (#1476), #875 (#1531),
+#766, #802 (#1537), #853 (#1540), #741 (#1642).
+
+**Nie zamykać** (częściowo / nie): #684, #892, #906, #987, #988, #994, #1000,
+#1001, #732, #973, #953, #989, #1023, #936, #1046, #965, #986, #947, #1329, #1318,
+#872, #874, #1024, #1384, #1377, #1378, #1368, #1304, #1310, #1326, #1280, #957,
+#884, #985, #1347, #1324, #749 (przez #1618; #1453 go domyka), #873, #1030, #1600,
+#971, #750, #978, #794.
+
+### Czerwone — zanim cokolwiek z tej listy wejdzie
+
+1. **`main` jest czerwony**: `KursorStartuPamietaZrodloTest::test_odkrywanie_zmienione_na_tagi…`
+   (fixture jednego autora vs reguła #940). Naprawia **#1757** — scalić pierwszy.
+2. **#1584 i #1590** — ten sam test `ListyWpisuZWlasnaTresciaTest::test_kontrola_dodatnia…`,
+   sprzeczność „jeden wpis na autora” (#940) z „wpis z własną treścią zostaje” (#1377).
+3. **#1605** — zdublowany blok `test_903_*` sprawdza UI, którego na `main` nie ma.
+4. **#1631** — nowy strażnik cykli modułów oblewa: cykl szerszy (Analytics, Media).
+5. **#1642** — `decimal:0,2` daje dwa błędy naraz, oblewa `KrokOPrzepisieKreatoraTest`.
+
+### Do decyzji właściciela
+
+- #1499/#994: potwierdzić w Railway plan Hobby, 7 dni i kraj przechowywania dziennika.
+- #1475/#953: polityka prywatności (`:88`) przeczy nowej zawartości paczki danych.
+- #1609/#1347: audyt `account.delete_requested` w transakcji vs komentarz w issue (po COMMIT).
+- #1549/#1329: 500 przy awarii dziennika vs D-249 klasa 1 i AGENTS.md §5.
+- #1575: „wariant b” bez zapisanej decyzji; #1627: „decyzja 25.09” bez wpisu w `DECISIONS.md`;
+  #1608: D-260 `viewport-fit=cover` „do odbioru”; #1617: podbicie `wersja_polityki`.
+- #1524: uruchomienie czyszczenia z `--wykonaj` na produkcji.
+- #1498: testowe klucze Turnstile odrzucane lokalnie i na stagingu.
+- **#1548: dopisek `7fb4e467` zmienia zachowanie alarmu i klasę audytu — przejrzeć.**
+
+### Pary i kolejność
+
+#1194 ↔ #966 (ta sama sonda w `check.sh`) · #1453 ↔ #1618 (#749) · #1500 po #1475
+i #1476 · #1566 po #1503 · #1539 ↔ #1520 · #1550 po #1528 · #1628 po #1584/#1590 ·
+#1532: przy konflikcie połączyć z `Okruszki::nazwaWpisu()`. Konflikt z `main` ma 21 PR-ów
+(oznaczone „KONFLIKT”) — większość tylko w `CHANGELOG.md` i liście
+`kontrole-negatywne-alfa08.py`. W ośmiu PR-ach był wgrany `scripts/__pycache__/*.pyc`;
+usunięto go tam, gdzie gałąź to `claude/*` bez konfliktu.
+
 ## Wyniki
 
 > **Środowisko:** lokalny PostgreSQL to **16**, nie 18 — `TestyChodzaNaPostgresieTest`
@@ -114,6 +178,18 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 | #1619 | #1295 | TAK | — | `fe244543` (usunięty wgrany `.pyc`) |
 | #1620 | #873 | CZĘŚCIOWO | kryt. 2: współbieżne ponowienie niezmierzone i nieprzetestowane (tylko indeks UNIQUE); kryt. 5: brak pomiaru kosztu przed/po | `ec84daf8` (przeniesiony `odpowiedzNaPonowienie()` spod cudzego docblocku, o co prosił opis) |
 | #1621 | #1572 | TAK | — | — |
+| #1644 | #978 | CZĘŚCIOWO (kod i testy kompletne) | brak oglądu ekranu przy 320 px i 200% (kryterium issue); brak osobnego testu, że eksport autora treści nie zawiera cudzej notatki (z kodu: nie zawiera) | — |
+| #1647 | #1636 | TAK | — (CI czerwone wyłącznie przez `KursorStartu…` z `main`) | — |
+| #1648 | #984 | TAK | — | — |
+| #1654 | #794 | CZĘŚCIOWO | kryt. 5: ogląd przy 320 px, obsługa klawiaturą, krótki test z użytkownikiem — odbiór ręczny | — |
+| #1757 | brak issue (naprawa czerwonego `main`) | TAK | — (naprawia fixture `KursorStartuPamietaZrodloTest`; 11/11, na teście z `main` oblewa jak opisano) | — |
+| #1622 | #1030, #1044 | #1030 CZĘŚCIOWO, #1044 TAK; KONFLIKT z `main` (`.gitignore`, `AlarmKolejki.php` po #1632) | #1030 kryt. 1 („każda kolejka z producentem ma niezerową przepustowość”) spełnia tylko rola `worker`; rola `all` (dzisiejsza produkcja) dalej jeden proces w ścisłym priorytecie — głodzenie zostaje; brak kontraktu okna zamknięcia per kolejka (komentarz 25.09: `low`/eksport 900 s vs `all` 30 s) | — (konflikt) |
+| #1624 | #1313 | TAK | — (opis PR-a nieaktualny: kroku „Bramka gałęzi docelowej” nie ma, apply jest ręczny z `main` od #595) | — |
+| #1627 | #976 | TAK (kryterium „pełne `check.sh` przechodzi” — rozstrzyga CI, było w toku) | — (kod włącza logowanie naruszeń na stagingu i powołuje się na „decyzję właściciela z 25.09.2026”, której nie ma w `DECISIONS.md` — do potwierdzenia) | — |
+| #1629 | #765 | TAK | — (drobiazgi, które PR sam wymienia: `.flash` i notatka o szkicu trafiają na papier) | — |
+| #1630 | #1599, #1600 | #1599 TAK, #1600 CZĘŚCIOWO | #1600 kryt. „brak ukrytego ID nie może spowodować zaobserwowania innej osoby”: para nazwa–ID dalej opcjonalna (projekt z #793), wybór bez `oczekiwani` obserwuje obecnego właściciela nazwy; bez testu | — (zmiana nie jest mała) |
+| #1631 | #971 | NIE; **CI czerwone**; KONFLIKT z `main` (`kontrole-negatywne-alfa08.py`) | nowy strażnik `GrafModulowDomenyBezCykliTest` oblewa na samej gałęzi (lokalnie i w CI): cykl szerszy niż zakładany — także Analytics i Media (`Media\StoreUploadedImage` → `Analytics\ZapiszSygnal`, `Users\EraseAccountData` → Media); śmieciowy `.pyc` | — (konflikt) |
+| #1642 | #750, #741 | #750 CZĘŚCIOWO, #741 TAK (dubluje `848a9c02` z `main`, issue zamknięte); KONFLIKT z `main` (`kontrole-negatywne-alfa08.py`) | #750: po `decimal:0,2` wartość „cztery” daje dwa błędy naraz (numeric + decimal) — oblewa istniejący `KrokOPrzepisieKreatoraTest` dla `servings.numeric`; kod do poprawy (np. `bail`); śmieciowy `.pyc` | — (konflikt) |
 
 ### Uwagi
 
@@ -211,5 +287,18 @@ Ten plik to wynik takiego porównania, PR po PR-ze.
 - **`KursorStartuPamietaZrodloTest::test_odkrywanie_zmienione_na_tagi…`** oblewa
   nie tylko lokalnie na czystym `main`, ale też **w CI** (część 2/4 w #1613,
   „Fixture nie utworzył drugiej strony feedu”). Najpewniej skutek reguły „jeden
-  wpis na autora” (#940) w fixturze — **podejrzenie czerwieni na `main`**, do
-  sprawdzenia przez sesję główną; nie jest winą PR-ów, w których się pojawia.
+  wpis na autora” (#940) w fixturze. **Potwierdzone: czerwień na `main`**
+  (`9dddf0f0`, deterministycznie, 1/1): test wszedł z #1367 (`codex/issue-1021`)
+  po `b30a847b` (#940), a fixture tworzy wpisy jednego autora, więc drugiej
+  strony feedu nie ma. Naprawia to **#1757** (otwarty po starcie tej sesji) — scalić go jako pierwszy,
+  odblokuje CI m.in. #1613, #1647, #1648, #1654;
+  nie jest winą PR-ów, w których się pojawia.
+- **#1644–#1757.** Merge czysty dla wszystkich, celowane testy zielone, kontrole
+  ujemne oblewają. Żaden nie zmienia schematu.
+- **Metoda (worktree):** testy szły w worktree z dowiązanym `vendor` i
+  `APP_BASE_PATH`; `tests/bootstrap.php` przepina autoloader klas na katalog
+  worktree, a każda kontrola ujemna w kodzie aplikacji oblewała — wyniki nie są
+  fałszywie zielone z głównego katalogu. Gdy `php artisan test` wywracał się na
+  nowych klasach („Invalid route action”), używano `vendor/bin/phpunit`.
+- **#1622–#1642.** Celowane testy zielone poza #1631 i #1642; kontrole ujemne
+  oblewają. #1629: `scripts/wydruk-przepisu.mjs` — 8 wariantów A4 bez naruszeń.
