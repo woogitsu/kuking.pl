@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Settings;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
@@ -445,6 +446,10 @@ class DataSettingsController extends Controller
                 'confirm' => 'Jesteś ostatnim czynnym administratorem serwisu. Zanim usuniesz konto, '
                     .'nadaj rolę administratora innemu czynnemu kontu — bez tego nikt nie rozpatrzy odwołań.',
             ])->withInput($request->only('usun_tresci'));
+        } catch (BladDlaCzlowieka $blad) {
+            // Świeży stan pod blokadą mówi, że konto już jest w usuwaniu
+            // (drugie kliknięcie, druga karta — #980). Nic nie zapisano.
+            return back()->withErrors(['confirm' => $blad->getMessage()]);
         }
 
         // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
