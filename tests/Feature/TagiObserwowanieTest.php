@@ -282,7 +282,12 @@ class TagiObserwowanieTest extends TestCase
         $scalony = $this->tag('serniki', 'Serniki');
         $scalony->forceFill(['status' => Tag::STATUS_MERGED, 'merged_into_tag_id' => $kanoniczny->getKey()])->save();
 
-        $this->get(route('tags.show', $scalony))->assertRedirect(route('tags.show', $kanoniczny));
+        // 301, nie 302 (issue #1350): scalenie jest trwałe, więc wyszukiwarka
+        // ma przenieść stary adres na kanoniczny. Samo `assertRedirect()`
+        // przepuszcza oba kody.
+        $this->get(route('tags.show', $scalony))
+            ->assertStatus(301)
+            ->assertRedirect(route('tags.show', $kanoniczny));
     }
 
     public function test_ukryty_tag_nie_ma_publicznej_strony(): void
