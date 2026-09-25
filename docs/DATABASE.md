@@ -1892,8 +1892,8 @@ rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
 ### Urodziny bez roku (issue #1755)
 
 Kolumny na `users`, bo to prywatne ustawienie konta, a nie dana profilu
-publicznego (`profiles`). Decyzja właściciela z 25.09.2026, research
-`docs/research/PROFIL_FORMA_I_URODZINY.md`.
+publicznego (`profiles`). Decyzja właściciela z 25.09.2026 — **D-269**
+w `docs/DECISIONS.md`, research `docs/research/PROFIL_FORMA_I_URODZINY.md`.
 
 **Etap a** — migracja `2026_09_25_200000_add_birthday_to_users`:
 
