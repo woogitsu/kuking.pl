@@ -217,10 +217,13 @@ final class OcenaModelem
 
             $jpeg = (string) ImageManager::gd()->read($bajty)->toJpeg(quality: 80);
         } catch (Throwable $blad) {
-            // Bez identyfikatora zdjęcia w treści komunikatu i bez samych
-            // bajtów — to jest cudza fotografia, a dziennik błędów nie jest
-            // miejscem na treści użytkowników.
+            // Bez bajtów, adresu i wiadomości wyjątku — to jest cudza
+            // fotografia, a dziennik błędów nie jest miejscem na treści
+            // użytkowników. Wewnętrzny UUID zdjęcia zostaje w kontekście
+            // (#1354): bez niego operator nie ustali, które zdjęcie ominęło
+            // ocenę, a UUID nie jest treścią ani daną kontaktową.
             Log::warning('Nie udało się przygotować zdjęcia do oceny modelem.', [
+                'media_id' => (string) $media->getKey(),
                 ...ExceptionContext::forStage($blad, 'image_preparation'),
             ]);
 
