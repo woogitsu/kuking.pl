@@ -59,6 +59,9 @@ class SygnalyController extends Controller
     /** Powód w logu przy zamknięciu grupy — patrz `PodstawaDecyzji`: kod spoza listy nie dostaje numeru punktu i tak ma być. */
     public const POWOD_ODRZUCENIA = 'automat-falszywy-alarm';
 
+    /** Odmowa przy grupie oznaczeń własnych treści moderatora (audyt A5-11). */
+    public const WLASNE_OZNACZENIA = 'To oznaczenia Twoich własnych treści — zamknąć je może tylko ktoś inny z moderacji.';
+
     public function index(Request $request): View
     {
         $this->authorize('moderate', User::class);
@@ -106,6 +109,19 @@ class SygnalyController extends Controller
 
         $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
+
+        // WŁASNYCH OZNACZEŃ NIE ZAMYKASZ (audyt A5-11). Bez tego moderator
+        // zamykał jednym kliknięciem wszystkie oznaczenia automatu przy
+        // własnych treściach, zanim zobaczył je ktoś inny z zespołu — ten sam
+        // konflikt interesów, który przy zgłoszeniach od ludzi blokuje
+        // `ReportPolicy::decide` (`SPRAWA_O_CIEBIE`). `strtolower`, bo
+        // PostgreSQL porównuje UUID bez względu na wielkość liter: `ABC…`
+        // w polu trafiłoby w ten sam wiersz, a zwykłe `===` by go przepuściło.
+        if ($autorId !== null && strtolower($autorId) === strtolower((string) $moderator->getKey())) {
+            return back()->withErrors([
+                'autor' => self::WLASNE_OZNACZENIA,
+            ]);
+        }
 
         try {
             $ile = DB::transaction(function () use ($autorId, $moderator, $dane, $request): int {

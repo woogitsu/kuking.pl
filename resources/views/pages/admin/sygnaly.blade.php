@@ -132,6 +132,12 @@
                 jego kopia tutaj rozjechałaby się z tamtą przy pierwszej
                 zmianie w pouczeniu.
             --}}
+            {{-- Własnych oznaczeń moderator nie zamyka (audyt A5-11) —
+                 kontroler i tak by odmówił, więc zamiast martwego przycisku
+                 stoi informacja (AGENTS.md §5). --}}
+            @if($kluczGrupy === strtolower((string) auth()->user()->getKey()))
+            <p class="mt-4">{{ \App\Http\Controllers\Admin\SygnalyController::WLASNE_OZNACZENIA }}</p>
+            @else
             <form class="mt-4" method="POST" action="{{ route('admin.sygnaly.dismiss') }}">
                 @csrf
                 <input type="hidden" name="autor" value="{{ $kluczGrupy }}">
@@ -147,6 +153,7 @@
                     To nic takiego — zamknij {{ $ile === 1 ? 'to oznaczenie' : 'wszystkie '.$ile }}
                 </button>
             </form>
+            @endif
 
             <p class="meta mt-4">
                 Jeśli jednak jest tu co robić:

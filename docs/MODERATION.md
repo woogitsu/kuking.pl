@@ -254,6 +254,9 @@ zauważa, nikomu nic się nie dzieje.
   `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
 - „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
   oznaczenia dla tej samej treści.
+- Oznaczeń **własnych treści** moderator nie zamyka (audyt A5-11) — zamiast
+  przycisku widzi informację, a `SygnalyController::odrzucGrupe()` odmawia.
+  Zamyka je ktoś inny z zespołu.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 
