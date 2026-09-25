@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Compliance\PrzedawnioneWiadomosciDoOperatora;
+use App\Domain\Contact\Actions\UpdateContactMessage;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
+use App\Models\ContactMessageReply;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -79,6 +83,10 @@ class WiadomosciController extends Controller
     {
         $this->authorize('view', $wiadomosc);
 
+        foreach ($wiadomosc->odpowiedzi()->whereNull('audit_recorded_at')->get() as $reply) {
+            $this->wyslij->finishAudit($reply, $wiadomosc);
+        }
+
         return view('pages.admin.wiadomosc', [
             // `odpowiedzi.author.profile` doładowane RAZEM z resztą, nie
             // w widoku: bez tego każda odpowiedź w historii dokładałaby
@@ -99,49 +107,33 @@ class WiadomosciController extends Controller
         $this->authorize('handle', $wiadomosc);
 
         $dane = $request->validate([
+            'version' => ['required', 'integer', 'min:0'],
             'status' => ['required', 'string', 'in:'.implode(',', array_keys(ContactMessage::STATUSY))],
             'handler_note' => ['nullable', 'string', 'max:2000'],
         ], [
+            'version.required' => 'Otwórz ponownie kartę wiadomości przed zapisem. Zachowaj wpisaną notatkę.',
+            'version.integer' => 'Otwórz ponownie kartę wiadomości przed zapisem.',
+            'version.min' => 'Otwórz ponownie kartę wiadomości przed zapisem.',
             'status.required' => 'Wybierz stan wiadomości.',
             'status.in' => 'Wybierz stan wiadomości.',
             'handler_note.max' => 'Notatka jest za długa — zmieść się w 2000 znakach.',
         ]);
 
-        // Notatka najpierw, stan potem. `oznaczJako()` zapisuje wiersz sam
-        // (musi, bo CHECK w bazie wymaga kompletu `status` + `handled_by` +
-        // `handled_at`), więc odwrotna kolejność gubiłaby notatkę przy
-        // przejściu na „Nowa", które czyści ślad obsługi.
-        $wiadomosc->forceFill(['handler_note' => $dane['handler_note'] ?? null])->save();
-        $wiadomosc->oznaczJako($dane['status'], $request->user());
+        try {
+            app(UpdateContactMessage::class)->handle(
+                $wiadomosc, $request->user(), (int) $dane['version'], $dane['status'], $dane['handler_note'] ?? null,
+            );
+        } catch (ValidationException $conflict) {
+            return back()->withInput()->withErrors($conflict->errors());
+        }
 
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
+            ->withInput($request->only(['odpowiedz', 'reply_key']))
             ->with('status', 'Zapisano: '.$wiadomosc->statusLabel().'.');
     }
 
-    /**
-     * ODPOWIEDŹ POCZTĄ DO OSOBY, KTÓRA NAPISAŁA (D-058).
-     *
-     * Do 10 września 2026 ten ekran miał wyłącznie odnośnik `mailto:` i pole
-     * „Notatka dla siebie". Odpisywało się więc z własnego programu poczty,
-     * a w serwisie nie zostawał ŻADEN ślad, że odpowiedź poszła — poza tym,
-     * co moderator sam sobie zapisał. Zgłoszenie właściciela brzmiało wprost:
-     * „widzę je, przychodzą, ale jak mam odpisać?".
-     *
-     * OSOBNA TRASA, NIE DRUGIE POLE W `update()`. Te dwie rzeczy mają różne
-     * skutki i różną odwracalność: zapis stanu i notatki da się poprawić
-     * w każdej chwili, a wysłanego listu nie da się odwołać. Jeden formularz
-     * znaczyłby, że poprawienie literówki w notatce wysyła drugi list —
-     * albo że wysłanie listu wymaga jednoczesnego wybrania stanu.
-     *
-     * NIE ZMIENIAMY TU STANU WIADOMOŚCI, i to jest decyzja, nie oszczędność.
-     * „Odpisałem" nie znaczy „załatwione": odpowiedź bywa pytaniem
-     * dodatkowym („z jakiego telefonu Pani pisze?"), po którym sprawa jest
-     * bardziej otwarta niż przedtem. Automatyczne przestawienie na
-     * „Załatwiona" ruszyłoby przy okazji `handled_at`, czyli ZEGAR RETENCJI
-     * (12 miesięcy, D-045) — dla wiadomości, której nikt nie zamknął. Ekran
-     * mówi więc wprost, że stan zaznacza się osobno, niżej.
-     */
+    /** Wysyłka ma osobny endpoint; wspólny formularz zachowuje sąsiedni szkic. */
     public function odpowiedz(Request $request, ContactMessage $wiadomosc): RedirectResponse
     {
         $this->authorize('reply', $wiadomosc);
@@ -150,8 +142,11 @@ class WiadomosciController extends Controller
             // 5000 znaków — tyle samo, co sama wiadomość. Odpowiedź na opis
             // awarii bywa dłuższa niż opis.
             'odpowiedz' => ['required', 'string', 'max:5000'],
+            'reply_key' => ['required', 'uuid'],
         ], [
             'odpowiedz.required' => 'Napisz odpowiedź, zanim ją wyślesz.',
+            'reply_key.required' => 'Otwórz ponownie kartę wiadomości przed wysłaniem. Zachowaj tekst odpowiedzi.',
+            'reply_key.uuid' => 'Otwórz ponownie kartę wiadomości przed wysłaniem. Zachowaj tekst odpowiedzi.',
             'odpowiedz.max' => 'Odpowiedź jest za długa — zmieść się w 5000 znakach.',
         ]);
 
@@ -169,39 +164,43 @@ class WiadomosciController extends Controller
                     .'załatwioną i zapisz w notatce, co ustalono.']);
         }
 
-        $odpowiedz = $this->wyslij->handle(
-            wiadomosc: $wiadomosc,
-            moderator: $request->user(),
-            tresc: $dane['odpowiedz'],
-            ip: $request->ip(),
-        );
+        try {
+            $odpowiedz = $this->wyslij->handle(
+                wiadomosc: $wiadomosc,
+                moderator: $request->user(),
+                tresc: $dane['odpowiedz'],
+                ip: $request->ip(),
+                replyKey: $dane['reply_key'],
+            );
+        } catch (ValidationException $conflict) {
+            return back()->withInput()->withErrors($conflict->errors());
+        } catch (\Throwable) {
+            // Wyjątek bazy może zawierać treść listu i adres. Nie logujemy go.
+            Log::error('Sprawdź zapis wyniku odpowiedzi w panelu wiadomości.', ['message_id' => $wiadomosc->getKey()]);
+
+            return back()->withInput()->withErrors([
+                'odpowiedz' => 'Nie można potwierdzić zapisu wyniku. Zachowaj tekst i sprawdź historię odpowiedzi oraz panel dostawcy poczty. Ponowienie tego formularza nie wyśle rozpoczętej odpowiedzi drugi raz.',
+            ]);
+        }
+
+        if ($odpowiedz->status === ContactMessageReply::STATUS_W_TOKU) {
+            return back()->withInput()->withErrors([
+                'odpowiedz' => 'Nie wiadomo, czy odpowiedź wyszła. Twój tekst pozostał w polu. Sprawdź panel dostawcy poczty przed rozpoczęciem nowej odpowiedzi. Ponowienie tego formularza nie wyśle listu drugi raz.',
+            ]);
+        }
 
         if (! $odpowiedz->wyszla()) {
-            /*
-             * NIE MELDUJEMY SUKCESU I NIE GUBIMY TEKSTU.
-             *
-             * `withInput()` jest tu połową funkcji, nie uprzejmością:
-             * odpowiedź na wiadomość od człowieka pisze się kwadrans, a
-             * awaria poczty nie jest niczyim błędem we formularzu
-             * (docs/UX_50_PLUS.md — poprawnie wpisane dane nigdy nie
-             * znikają). Sama treść leży już zapisana przy wiadomości ze
-             * stanem „Nie udało się wysłać", więc nie przepada nawet wtedy,
-             * gdy ktoś zamknie kartę.
-             *
-             * Komunikat mówi, CO ZROBIĆ, i podaje obie drogi: spróbować
-             * jeszcze raz albo odpisać z własnej poczty na widoczny obok
-             * adres.
-             */
             return back()
                 ->withInput()
                 ->withErrors(['odpowiedz' => 'Nie udało się wysłać odpowiedzi — poczta serwisu '
                     .'odmówiła przyjęcia listu. Twój tekst jest zapisany przy wiadomości i został '
-                    .'w polu. Spróbuj wysłać jeszcze raz; jeśli znów się nie uda, odpisz z własnej '
+                    .'w polu. Wybierz „Wyślij jako nową odpowiedź”; jeśli znów się nie uda, odpisz z własnej '
                     .'poczty na '.$adres.'. Powód odmowy jest wypisany niżej, w historii odpowiedzi.']);
         }
 
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
+            ->withInput($request->only(['handler_note', 'status', 'version']))
             ->with('status', 'Odpowiedź wysłana na '.$adres.'.');
     }
 }

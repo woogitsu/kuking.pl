@@ -23,6 +23,7 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -35,6 +36,7 @@ use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -146,6 +148,19 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
+        // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
+        // który sprawdził hasło, zanim moderator zdążył zbanować.
+        'stan-konta-980' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            match ($argumenty['przejscie']) {
+                'zbanuj' => $konto->ban(),
+                'usun' => $konto->markForDeletion(),
+            };
+
+            return (string) $konto->status;
+        })(),
+
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
@@ -227,6 +242,23 @@ try {
                 biezacaSesja: $argumenty['sesja'],
             );
         })(),
+
+        // Komenda obchodząca zaległe potwierdzenia zgłoszeń (issue #797).
+        // Wołamy PRAWDZIWĄ komendę przez Artisana, nie jej wnętrzności —
+        // razem z jej kodem wyjścia, bo to na nim stoi wpięcie
+        // w harmonogram.
+        'dosylka-potwierdzen' => Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen'),
+
+        // Człowiek wracający do tej samej sprawy: ponowne kliknięcie „Zgłoś"
+        // na tej samej treści. `ReportContent` oddaje istniejące zgłoszenie
+        // i po drodze dokańcza zaległe potwierdzenie — to jest DRUGA droga
+        // do tego samego znacznika i to z nią ma się ścigać dosyłka.
+        'powrot-do-sprawy' => (string) app(ReportContent::class)->handle(
+            reporter: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reason: 'spam',
+            details: 'To jest reklama.',
+        )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

@@ -28,7 +28,7 @@ class PodsumowanieWalidacjiNieZgadujePrzyczynyTest extends TestCase
         $tekst = str_repeat('ą', 2001);
         $adres = route('admin.contact.show', $wiadomosc);
         $ekran = $this->actingAs($this->moderator())->followingRedirects()->from($adres)
-            ->post(route('admin.contact.update', $wiadomosc), ['status' => $status, 'handler_note' => $tekst])
+            ->post(route('admin.contact.update', $wiadomosc), ['version' => 0, 'status' => $status, 'handler_note' => $tekst])
             ->assertOk();
         $ekran->assertSee('Sprawdź formularz')->assertDontSee('rzeczy jeszcze brakuje');
         $ekran->assertSee('Notatka jest za długa')->assertSee($tekst);
