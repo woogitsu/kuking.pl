@@ -100,6 +100,34 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
+# Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
+# definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
+# cofnięcie przy wiadomościach po usuniętym operatorze wywraca się dopiero
+# na CHECK-u, innym wyjątkiem i bez zdania, co zrobić — test ma to zauważyć.
+KONTAKT_MIGRACJA = "database/migrations/2026_09_24_100000_allow_null_handled_by_on_contact_messages.php"
+KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
+
+# Znaczniki odpowiedzi (`reply_key`, `sending_started_at`) chronią przed drugą
+# wysyłką tego samego listu (#1081). Strażnik wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę cofnięcia po pierwszym
+# formularzu, więc `down()` przechodzi i test odmowy ma oblać.
+KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
+KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+# Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
+# akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
+# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
+# mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
+BRAMKA_CI = ".github/workflows/ci.yml"
+BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
+# Ciężkie joby wąskiego obszaru zawężane TYLKO na PR-ach (decyzja 24.09.2026).
+# Strażnicy pytają prawdziwy skrypt bramki z `ci.yml`; mutacje dowodzą, że
+# zapalają się w obie strony: gdy job wypada przy zmianie własnego wejścia,
+# gdy zawężenie przecieka poza PR i gdy wzorzec przestaje cokolwiek zawężać.
+BRAMKA_WEJSCIA_TEST = "test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta"
+BRAMKA_POZA_PR_TEST = "test_poza_pull_requestem_kazdy_job_rusza_przy_zmianie_kodu"
+BRAMKA_OBOK_TEST = "test_na_pull_requescie_zmiana_obok_pomija_ciezkie_joby"
+WIDOK_POZA_PR_TEST = "test_poza_pull_requestem_filtr_widoku_nie_zaweza"
 # `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
 # w `tests/`, `scripts/` i `app/`; mutacja przywraca stary podział w skanerze
 # poświadczeń — tym miejscu, gdzie strzępy wierszy kosztowały najwięcej.
@@ -115,6 +143,10 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+# `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
+# pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
+WYDANIE_TRASY = "bootstrap/app.php"
+WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 
 # Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
@@ -127,6 +159,14 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 # wyłącza samo czyszczenie XMP i test ma wtedy oblać.
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
+
+# Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
+# `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
+# skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
+# wywołanie kompensacji — test ma oblać na oryginale i podglądzie, które
+# zostały w `Storage::fake()`.
+KOMPENSACJA_UPLOADU = "app/Domain/Media/Actions/StoreUploadedImage.php"
+KOMPENSACJA_UPLOADU_TEST = "NieudanyZapisZdjeciaNieZostawiaPlikowTest"
 
 # Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
 # Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
@@ -155,6 +195,20 @@ CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_asset
 STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+
+# Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
+# behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
+# zwrot miejsca do wspólnej puli poczty.
+BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+# Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
+# akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
+# `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
+# osobno z akcji przepisu i z akcji wpisu — każda ma zapalić ten sam test.
+ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 
 
 def digest(path):
@@ -292,6 +346,47 @@ def stara_sonda_https(source):
     )
 
 
+def test_dymny_bez_sondy_wydania(source):
+    """KONTROLA DODATNIA: zdejmij sondę wydania sprzed sprawdzeń.
+
+    `test_dymny_najpierw_potwierdza_pelny_sha_zdarzenia` ma zapalić (#1012):
+    bez niej test dymny zdarzenia A znów sprawdza wydanie B.
+    """
+    return replace_once(
+        source,
+        '          if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then\n'
+        '            echo "::error title=Pod adresem działa inne wydanie::Oczekiwano ${OCZEKIWANY_SHA}, otrzymano ${SONDA_OTRZYMANY:-nic}. Test dymny nie sprawdza cudzego wydania."\n'
+        '            exit 1\n'
+        '          fi\n',
+        "",
+    )
+
+
+def koncowa_sonda_jedna_proba(source):
+    """KONTROLA DODATNIA: końcowa sonda wydania znów z jedną próbą.
+
+    Ten sam test (#1012, przegląd #1439) ma zapalić: jedna chwilowa porażka
+    sieci po testach oblewała całe wdrożenie.
+    """
+    return replace_once(
+        source,
+        '          sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+        '          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+    )
+
+
+def akcja_rollback_wraca(source):
+    """KONTROLA DODATNIA: przywróć akcję `rollback`, która niczego nie cofa.
+
+    `zadna_akcja_nie_nazywa_sie_rollback_skoro_nic_nie_cofa` ma zapalić (#974).
+    """
+    return replace_once(
+        source,
+        "options: [smoke, migrate, redeploy, instrukcja-cofniecia]",
+        "options: [smoke, migrate, redeploy, rollback]",
+    )
+
+
 def bez_digestu_obrazu_kopii(source):
     """KONTROLA DODATNIA: wróć w obrazie kopii do gołego, ruchomego tagu.
 
@@ -318,6 +413,68 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def akcje_poza_filtrem_widoku(source):
+    """KONTROLA DODATNIA: wyjmij `.github/actions/` z filtra warstwy widoku.
+
+    Zmiana lokalnej akcji znowu daje `widok=false`, więc joby przeglądarkowe,
+    które jej używają, byłyby pominięte. Strażnik bramki ma zapalić.
+    """
+    return replace_once(
+        source,
+        r"|\.github/(workflows/ci\.yml|actions/))'",
+        r"|\.github/workflows/ci\.yml)'",
+    )
+
+
+def dockerfile_poza_wzorcem_obrazu(source):
+    """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
+
+    Build obrazu byłby pomijany na PR-ze zmieniającym sam Dockerfile, a ten
+    plik strażnik czyta z `ci.yml` jako wejście joba — ma zapalić.
+    """
+    return replace_once(source, "ciezki obraz '^(Dockerfile$|", "ciezki obraz '^(")
+
+
+def grupa_wyscigow_poza_wzorcem(source):
+    """KONTROLA DODATNIA: `tests/Dwa/` wypada ze wzorca `wyscigi`.
+
+    Pliki grupy strażnik zbiera z dysku (atrybut `#[Group(...)]` grupy
+    wołanej przez `--group=` w skrypcie joba) — ma zapalić.
+    """
+    return replace_once(source, "tests/(Dwa/|Support/|", "tests/(Support/|")
+
+
+def zawezanie_takze_poza_pr(source):
+    """KONTROLA DODATNIA: ciężkie joby zawężane także na `main`.
+
+    Bez warunku na zdarzenie push na `main` pomijałby build obrazu, przyrząd
+    #605 i wyścigi przy zmianie obok ich obszaru — wbrew decyzji właściciela.
+    """
+    return replace_once(
+        source,
+        'if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+        'if grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+    )
+
+
+def wzorzec_przyrzadu_lapie_wszystko(source):
+    """KONTROLA UJEMNA ZAWĘŻENIA: wzorzec `obciazenie` pasuje do każdej ścieżki.
+
+    Kontrole „job rusza" przeszłyby wtedy śpiewająco, a oszczędności nie ma.
+    Strażnik zmiany obok ma zapalić.
+    """
+    return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
+
+
+def widok_zawezany_poza_pr(source):
+    """KONTROLA DODATNIA: filtr widoku zawęża także na `main`."""
+    return replace_once(
+        source,
+        """if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '""",
+        """if grep -qE '""",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -338,14 +495,40 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
+    ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
+     lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
+    ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
+     akcje_poza_filtrem_widoku),
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     dockerfile_poza_wzorcem_obrazu),
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     grupa_wyscigow_poza_wzorcem),
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_CI, BRAMKA_POZA_PR_TEST,
+     zawezanie_takze_poza_pr),
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_CI, BRAMKA_OBOK_TEST,
+     wzorzec_przyrzadu_lapie_wszystko),
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_CI, WIDOK_POZA_PR_TEST,
+     widok_zawezany_poza_pr),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      stara_sonda_https),
+    ("Test dymny bez sondy wydania przed sprawdzeniami", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     test_dymny_bez_sondy_wydania),
+    ("Końcowa sonda wydania z jedną próbą", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     koncowa_sonda_jedna_proba),
+    ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     akcja_rollback_wraca),
+    ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
+     lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
+     lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
@@ -358,6 +541,12 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
+    ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -367,15 +556,25 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(KONTAKT_MIGRACJA_TEST, True)
+run_test(KONTAKT_ZNACZNIKI_TEST, True)
+run_test(BRAMKA_AKCJE_TEST, True)
+run_test(BRAMKA_WEJSCIA_TEST, True)
+run_test(BRAMKA_POZA_PR_TEST, True)
+run_test(BRAMKA_OBOK_TEST, True)
+run_test(WIDOK_POZA_PR_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
+run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
+run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

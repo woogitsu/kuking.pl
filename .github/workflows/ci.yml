@@ -251,6 +251,10 @@ jobs:
     outputs:
       kod: ${{ steps.sprawdz.outputs.kod }}
       widok: ${{ steps.sprawdz.outputs.widok }}
+      dokumenty: ${{ steps.sprawdz.outputs.dokumenty }}
+      obraz: ${{ steps.sprawdz.outputs.obraz }}
+      obciazenie: ${{ steps.sprawdz.outputs.obciazenie }}
+      wyscigi: ${{ steps.sprawdz.outputs.wyscigi }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -262,6 +266,8 @@ jobs:
         id: sprawdz
         env:
           BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          # Zawężanie ciężkich jobów obowiązuje WYŁĄCZNIE na PR-ach (niżej).
+          ZDARZENIE: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -271,6 +277,8 @@ jobs:
             echo "Brak punktu odniesienia — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
             echo "widok=true" >> "$GITHUB_OUTPUT"
+            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
+            printf '%s\n' obraz=true obciazenie=true wyscigi=true >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -278,6 +286,8 @@ jobs:
             echo "Baza ${BAZA} nieosiągalna — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
             echo "widok=true" >> "$GITHUB_OUTPUT"
+            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
+            printf '%s\n' obraz=true obciazenie=true wyscigi=true >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -291,6 +301,74 @@ jobs:
           # nadmiarowego przebiegu kosztuje minuty, a w drugą stronę
           # przepuszcza niesprawdzoną zmianę.
           POZA="$(echo "${ZMIENIONE}" | grep -vE '^(docs/|README\.md$)' || true)"
+
+          # -------------------------------------------------------------
+          # WARSTWA DOKUMENTACJI — bo `kod=false` NIE ZNACZY „nie ma czego
+          # mierzyć".
+          #
+          # CO BYŁO ZEPSUTE (zmierzone 22.09.2026). Między 08:55 a 13:05 na
+          # `main` nie było ani jednego uczciwego pomiaru: ponad 60 przebiegów
+          # skończyło się jako `cancelled` (grupa współbieżności — każde
+          # kolejne pchnięcie ubijało poprzednie), a SIEDEM zameldowało
+          # `success`, NIE MIERZĄC NICZEGO: ta bramka uznała je za zmianę
+          # wyłącznie w `docs/`, ustawiła `kod=false` i pominęła 12 z 13 jobów.
+          # Tą dziurą weszły na `main` DWIE wady — PR-ami dokumentacyjnymi,
+          # którym ta sama bramka pominęła dokładnie te joby, które by je
+          # złapały.
+          #
+          # DLACZEGO `docs/` NIE JEST „NIE KODEM". To jest ZMIERZONE, nie
+          # przyjęte na wiarę — pilnuje tego
+          # `BramkaZakresuNiePomijaJobowCzytajacychTest`, który czyta z DYSKU,
+          # kto naprawdę otwiera pliki spod wykluczeń tej bramki:
+          #
+          #   `lint` — Pint skanuje CAŁE repozytorium, a w `docs/` leżą pliki
+          #            `.php` (paczki dowodowe audytów, fixture'y badawcze).
+          #            To jest jedna z dwóch wad, które tędy weszły.
+          #   `test` — kilkanaście plików z `tests/` OTWIERA pliki z `docs/`:
+          #            strażnicy martwych odnośników, zgodność
+          #            `docs/DATABASE.md` ze schematem, numeracja decyzji.
+          #            To jest druga.
+          #
+          # Dlatego oba chodzą także przy `kod=false`. Pozostałe jedenaście
+          # jobów zostaje pominiętych — one `docs/` nie czytają, a nadmiarowy
+          # przebieg przeglądarkowy kosztuje kilkanaście minut.
+          #
+          # RÓŻNICA LIST, A NIE DRUGA KOPIA WZORCA: `POZA` to już „zmienione
+          # bez dokumentacji", więc gdy listy się różnią, jakiś plik
+          # dokumentacji wypadł — czyli był. Drugi `grep` z tym samym wzorcem
+          # dałoby się zmienić w jednym miejscu i zapomnieć o drugim, a to
+          # jest dokładnie ta wada, którą ten blok naprawia, piętro wyżej.
+          #
+          # `dokumenty=false` przy PUSTEJ liście zmian nie jest przeoczeniem:
+          # gdy nie zmienił się żaden plik, nie ma czego sprawdzać.
+          if [ -n "${ZMIENIONE}" ] && [ "${POZA}" != "${ZMIENIONE}" ]; then
+            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dokumenty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # -------------------------------------------------------------
+          # PACZKA WZORCOWA MARKI TO DANE, NIE DOKUMENTACJA.
+          #
+          # `docs/design/references/` leży w `docs/`, ale `scripts/fixtures/
+          # kompozycje-marki.php` i `scripts/fixtures/panel-marki.php`
+          # OTWIERAJĄ stamtąd archiwum wzorców — a te fixture'y są wejściem
+          # trzech jobów przeglądarkowych (`port_marki`, `port_funkcje`
+          # przez `scripts/port-projektu.mjs`, `port_panelu` przez
+          # `scripts/panel-marki-run.mjs`). Podmiana wzorca bez ani jednego
+          # przebiegu portu marki znaczyłaby, że port marki mierzy się wobec
+          # pliku, którego nikt nie sprawdził.
+          #
+          # Dopisujemy więc te ścieżki z powrotem do `POZA` (czyli na stronę
+          # „to jest kod"), zamiast dokładać trzem jobom osobnych warunków:
+          # warunki tych jobów są pilnowane przez `PortMarkiMaWlasnaBramkeCiTest`
+          # i mają zostać proste. Ta sama ścieżka jest też w filtrze warstwy
+          # widoku niżej.
+          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^docs/design/references/' || true)"
+
+          if [ -n "${WZORCE_MARKI}" ]; then
+            POZA="$(printf '%s\n%s\n' "${POZA}" "${WZORCE_MARKI}" | grep -v '^$' || true)"
+          fi
 
           if [ -z "${POZA}" ]; then
             echo "Zmiana wyłącznie w dokumentacji — ciężkie zadania pominięte."
@@ -323,6 +401,17 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
+          #
+          # OBEJMUJE TAKŻE `.github/actions/` — i to nie jest ozdoba. Te joby
+          # wołają lokalne akcje przez `uses: ./…` (konfiguracja PHP,
+          # sprawdzenie sekretu hasła demonstracyjnego). Zmierzone przed tą
+          # poprawką: zmiana `.github/actions/haslo-demo/action.yml` dawała
+          # `kod=true`, ale `widok=false`, czyli WSZYSTKIE trzy joby
+          # przeglądarkowe były pomijane. Dałoby się więc zepsuć albo odwrócić
+          # warunek w akcji-strażniku i nie zobaczyć ani jednego czerwonego
+          # przebiegu. Pilnuje tego
+          # `BramkaZakresuNiePomijaJobowCzytajacychTest::test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja`.
+          #
           # Lista pomiarów niesie też `referrer-sekret-browser` (z `main`).
           # Sterujące nim `ApplySecurityHeaders.php` i `AnalitykaCloudflare.php`
           # łapie już szersze `app/`, więc nie stoją na liście osobno.
@@ -330,12 +419,110 @@ jobs:
           # i modele. Konserwatywnie obejmujemy całe app/, konfigurację,
           # start aplikacji, tłumaczenia, bazę oraz zależności PHP (#1039).
           # Here-string nie gubi trafienia przez SIGPIPE przy dużym diffie.
-          if grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|kreator-zachowanie|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)' <<< "${ZMIENIONE}"; then
+          #
+          # POZA PR-EM (push na `main`/`staging`, uruchomienie ręczne) filtr
+          # nie zawęża: `widok=true` zawsze, bo `main` mierzy pełny zestaw
+          # (decyzja właściciela 24.09.2026). Brak `ZDARZENIE` też znaczy
+          # „pełny" — pomyłka w konfiguracji ma dać nadmiarowy przebieg,
+          # nie pominięty pomiar. `scripts/panel-*` są na liście, bo od
+          # 24.09 filtr pilnuje także `port_panelu`.
+          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|kreator-zachowanie|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
             echo "widok=false" >> "$GITHUB_OUTPUT"
           fi
+
+          # -------------------------------------------------------------
+          # CIĘŻKIE JOBY WĄSKIEGO OBSZARU — zawężane TYLKO NA PR-ACH.
+          #
+          # PO CO (decyzja właściciela 24.09.2026): 138 otwartych PR-ów, każdy
+          # przebieg to ~13 ciężkich jobów na self-hosted runnerach, joby
+          # wypadały na limitach czasu. Trzy joby mierzą wąski obszar, a
+          # chodziły przy KAŻDEJ zmianie kodu:
+          #
+          #   obraz      → `docker-build`: Dockerfile'e, `docker/`,
+          #                `.dockerignore`, manifesty zależności, konfiguracja
+          #                builda (Vite/Tailwind/PostCSS), `.railway/`, to, co
+          #                czyta `artisan package:discover` w obrazie
+          #                (`bootstrap/`, `config/`, `app/Providers/`), oraz
+          #                testy JS z polecenia `npm run build` — obraz
+          #                uruchamia je BEZ `tests/`, `docs/` i `*.md`
+          #                (`.dockerignore`), czego job Vite nie odtworzy.
+          #                Sam build Vite ze zmienionych źródeł mierzy job
+          #                `assets` na każdym PR-ze.
+          #   obciazenie → `przyrzad_605`: wyłącznie pliki `scripts/*605*`.
+          #   wyscigi    → `dwa-polaczenia`: kod i dane aplikacji (testy tej
+          #                grupy chodzą przez HTTP i zatwierdzają dane, więc
+          #                także widoki i tłumaczenia), `tests/Dwa/`, wspólne
+          #                zaplecze testów i skrypt uruchamiający.
+          #
+          # Każdy wzorzec obejmuje `ci.yml`, a `wyscigi` także akcję PHP:
+          # zmiana przyrządu uruchamia pomiar. Że job ruszy przy zmianie
+          # każdego pliku, który naprawdę czyta, pilnuje z DYSKU
+          # `BramkaZakresuNiePomijaJobowCzytajacychTest`.
+          #
+          # Poza PR-em (i bez `ZDARZENIE`) wszystkie trzy są `true` — jak
+          # dotąd; o pominięciu nadal decyduje wyłącznie `kod`.
+          ciezki() {
+            if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -Eq "$2" <<< "${ZMIENIONE}"; then
+              echo "$1=true"
+            else
+              echo "Obszar joba (${1}) nietknięty — job pominięty na tym PR-ze." >&2
+              echo "$1=false"
+            fi >> "$GITHUB_OUTPUT"
+          }
+
+          ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|\.github/workflows/ci\.yml$)'
+          ciezki obciazenie '^(scripts/[^/]*605[^/]*$|\.github/workflows/ci\.yml$)'
+          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/testy-dwa-polaczenia\.sh$|\.github/(workflows/ci\.yml$|actions/php/))'
+
+      # =====================================================================
+      #  CO TA ZIELEŃ ZNACZY — wypisane na wierzchu przebiegu.
+      #
+      #  `success` przy dwunastu pominiętych jobach wygląda na liście
+      #  kontrolnej PR-a DOKŁADNIE tak samo jak `success` po pełnym przebiegu.
+      #  22.09.2026 scalono na tej podstawie ponad osiemdziesiąt PR-ów, a
+      #  część tej zieleni znaczyła „nie sprawdzono".
+      #
+      #  Ten krok nie jest bramką i niczego nie blokuje — wypisuje do
+      #  podsumowania przebiegu, co bramka orzekła. Kto patrzy na przebieg,
+      #  widzi zakres, zamiast musieć go odtwarzać z listy `skipped`.
+      #
+      #  PEŁNE ROZWIĄZANIE JEST POZA TYM PLIKIEM i wymaga decyzji właściciela —
+      #  opis w raporcie do tej zmiany: pominięty job zgłasza się dziś jako
+      #  `skipped`, a wymagana kontrola w regułach gałęzi traktuje `skipped`
+      #  jak spełnioną. Rozróżnienie „zielone, bo zmierzone" od „zielone, bo
+      #  nie mierzone" musi więc powstać w tym, CZEGO WYMAGA `main`, a nie
+      #  tylko w tym, co widać.
+      # =====================================================================
+      - name: Co ten przebieg zmierzy
+        env:
+          KOD: ${{ steps.sprawdz.outputs.kod }}
+          WIDOK: ${{ steps.sprawdz.outputs.widok }}
+          DOKUMENTY: ${{ steps.sprawdz.outputs.dokumenty }}
+          OBRAZ: ${{ steps.sprawdz.outputs.obraz }}
+          OBCIAZENIE: ${{ steps.sprawdz.outputs.obciazenie }}
+          WYSCIGI: ${{ steps.sprawdz.outputs.wyscigi }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Zakres tego przebiegu"
+            echo
+            echo "| wyjście bramki | wartość | co z tego wynika |"
+            echo "| --- | --- | --- |"
+            echo "| \`kod\` | ${KOD} | ciężkie joby: $([ "${KOD}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`widok\` | ${WIDOK} | joby przeglądarkowe: $([ "${WIDOK}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`dokumenty\` | ${DOKUMENTY} | Pint i zestaw testów: $([ "${KOD}" = true ] || [ "${DOKUMENTY}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`obraz\` | ${OBRAZ} | build obrazu: $([ "${KOD}" = true ] && [ "${OBRAZ}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
+            echo "| \`obciazenie\` | ${OBCIAZENIE} | przyrząd #605: $([ "${KOD}" = true ] && [ "${OBCIAZENIE}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
+            echo "| \`wyscigi\` | ${WYSCIGI} | wyścigi na dwóch połączeniach: $([ "${KOD}" = true ] && [ "${WYSCIGI}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo
+            if [ "${KOD}" != true ]; then
+              echo "> **Uwaga:** to nie jest pełny przebieg. Zielony wynik znaczy tu"
+              echo "> tyle, ile zmierzyły joby wymienione wyżej jako chodzące."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
   #  1. Styl kodu — Laravel Pint
@@ -343,7 +530,7 @@ jobs:
   lint:
     name: Pint (styl kodu)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
@@ -461,7 +648,8 @@ jobs:
   przyrzad_605:
     name: Przyrząd testu obciążeniowego (#605)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    # Na PR-ze tylko przy zmianie `scripts/*605*` albo `ci.yml` (wyjście `obciazenie`).
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
@@ -582,9 +770,13 @@ jobs:
   test:
     name: Testy (PostgreSQL 18)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 25
+    # 24.09.2026: pełny zestaw trwa 14 min na szybkich runnerach i do 24 min na
+    # wolniejszych (i5-6500T, WSL). Przy 25 min przebiegi #1081 i #1464 zostały
+    # ucięte w trakcie zielonych testów. 40 min daje zapas na wolny runner,
+    # a zawieszony test nadal zostanie przerwany.
+    timeout-minutes: 40
 
     services:
       postgres:
@@ -780,7 +972,8 @@ jobs:
   dwa-polaczenia:
     name: Wyścigi na dwóch połączeniach (nie blokuje)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     continue-on-error: true
@@ -993,11 +1186,13 @@ jobs:
   # dotychczasowego pomiaru; nowe konfiguracje #513 nie konkurują o limit
   # czasu z axe i Lighthouse (PR #517: wspólny job trwał 18 min 34 s).
   # #581: 600 konfiguracji panelu ma własny budżet czasu i PostgreSQL.
-  # Każda zmiana kodu (również samego skryptu/fixture/workflow) uruchamia job.
+  # Od 24.09.2026 job stoi na filtrze warstwy widoku, jak trzy pozostałe
+  # joby przeglądarkowe: na PR-ze chodzi przy zmianie widoku, PHP sterującego
+  # ekranem, `scripts/panel-*.mjs`, fixture'ów albo `ci.yml`. Poza PR-em zawsze.
   port_panelu:
     name: Panel marki — puste i pełne widoki
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
     services:
@@ -1749,7 +1944,8 @@ jobs:
   docker-build:
     name: Build obrazu (weryfikacja)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    # Na PR-ze tylko przy zmianie tego, co czyta build obrazu (wyjście `obraz`).
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obraz == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
