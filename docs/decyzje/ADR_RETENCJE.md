@@ -128,6 +128,13 @@ trzyma się §5 niżej.
 
 #### Wzorzec B — `kuking:sprzataj-sygnaly` / `PrzedawnioneSygnaly` — czyste dane tabelaryczne
 
+> **Aktualizacja (#1657).** Opis niżej to stan z chwili pisania ADR. Jeden
+> `DELETE` na cały backlog NIE był bezpieczny na przerwanie: przerwana
+> instrukcja cofa się w całości i następny przebieg zaczyna od zera. Dziś
+> Wzorzec B idzie partiami z budżetem na przebieg
+> (`App\Domain\Compliance\UsuwanieWPartiach`, opis w `docs/DATABASE.md`
+> przy `product_signals`); predykat i wyjątki są te same.
+
 `app/Domain/Analytics/PrzedawnioneSygnaly.php` — cała logika to jedna linia:
 
 ```php

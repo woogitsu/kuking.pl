@@ -97,7 +97,9 @@ egzekwuje.
   (`config/kuking.php` → `delete_grace_days`), potem dane kasuje
   `kuking:usun-wygasle-konta`. Wygasłe żądania zmiany adresu e-mail kasuje
   `kuking:sprzataj-zmiany-adresu`, wygasłe zaproszenia —
-  `kuking:sprzataj-zaproszenia`.
+  `kuking:sprzataj-zaproszenia`. Żetony resetu hasła (`password_reset_tokens`, klucz: adres
+  e-mail) kasuje co noc `kuking:sprzataj-resety-hasel`, a przy wymazaniu konta —
+  `EraseAccountData` (audyt B5 pkt 6).
 
 ### 3.2 Profil publiczny
 
@@ -358,7 +360,9 @@ egzekwuje.
   zakres usunięcia (`users.delete_scope`).
 - **Podstawa:** art. 6 ust. 1 lit. c RODO — obowiązek prawny.
 - **Odbiorcy:** Railway, Cloudflare R2 (paczka leży na dysku obiektowym).
-- **Termin usunięcia:** paczka **7 dni**, kasuje `kuking:sprzataj-eksporty`;
+- **Termin usunięcia:** paczka **7 dni**, kasuje `kuking:sprzataj-eksporty`
+  (także plik próby, która padła przed zapisaniem paczki); przy wymazaniu
+  konta znika od razu cały katalog paczek konta (audyt B5 pkt 4);
   konto po karencji 30 dni — `kuking:usun-wygasle-konta`.
 - **Znane ograniczenie, opisane osobno:** paczka **nie zawiera** ośmiu
   kategorii danych, które serwis przechowuje (tożsamości zewnętrzne,
