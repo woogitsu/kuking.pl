@@ -197,7 +197,11 @@ class AnalizaPoEdycjiKomentarzaTest extends TestCase
         $this->assertCount(1, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), [
+                'autor' => (string) $autor->getKey(),
+                // Formularz grupy niesie oznaczenia widziane na ekranie (#1059).
+                'oznaczenia' => $this->oznaczenia()->map(static fn (Report $r): string => (string) $r->getKey())->all(),
+            ])
             ->assertSessionHasNoErrors();
 
         $this->actingAs($autor)
