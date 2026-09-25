@@ -614,6 +614,10 @@ checks = [
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
+    # `--color-border` (1,3:1 na tle panelu) ma zapalić test kontrastu.
+    ("Obwódka listy wyglądu poniżej 3:1", "resources/css/szybki-wyglad.css", "KontrolkiPaneluWygladuMajaWidocznaObwodkeTest",
+     lambda s: replace_once(s, "select { border: 2px solid var(--color-border-strong);", "select { border: 2px solid var(--color-border);")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
@@ -662,7 +666,7 @@ checks = [
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
-     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+     lambda s: replace_once(s, "$wynik = self::usunXmp(self::usunGpsZExif($bajty));", "$wynik = self::usunGpsZExif($bajty);")),
     ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
