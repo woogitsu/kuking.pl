@@ -1394,6 +1394,116 @@ async function wlaczSkaleTekstu(strona, skala, gdzie) {
 }
 
 /*
+ * PO WŁĄCZENIU MOTYWU CIEMNEGO CZEKAMY, AŻ STRONA MA KOLORY MOTYWU CIEMNEGO —
+ * NIE „JAKIEKOLWIEK INNE NIŻ PRZEDTEM".
+ *
+ * CO SIĘ DZIAŁO (CI PR #1470, 24 września 2026). Wcześniej czekaliśmy, aż tło
+ * `body` będzie RÓŻNE od tła sprzed `setAttribute`, z limitem 5 s. Ten warunek
+ * mówi o ZMIANIE, a nie o CELU, i ma dwie dziury:
+ *
+ *   (a) strona, która już jest ciemna (motyw z konta albo z ciasteczka — oba
+ *       wydaje `layout.blade.php` na `<html>`), nigdy się nie zmieni, więc
+ *       czekanie kończy się gołym `TimeoutError` i wywraca CAŁY przebieg,
+ *       choć strona jest dokładnie w stanie, którego chcemy. Sprawdzone na
+ *       statycznej stronie z tą samą regułą `body`: stary warunek zawisł
+ *       10 razy na 10, nowy przeszedł 100 razy na 100;
+ *   (b) „różne" przechodzi też na pierwszej pośredniej wartości przejścia
+ *       CSS i nic nie mówi o kolorze TEKSTU. `tokens.css` przy
+ *       `prefers-reduced-motion` skraca przejścia do 0.01ms, ale ich nie
+ *       wyłącza — zaraz po `setAttribute` `getComputedStyle(body)` oddaje
+ *       jeszcze STARE tło (zmierzone), a nowe dopiero po klatce. Na
+ *       zdławionym runnerze klatki przychodzą rzadko i 5 s potrafi nie
+ *       wystarczyć. Stąd limit 10 s i pomiar przy porażce — żeby następnym
+ *       razem było widać, CO stało (np. `visibilityState` i trwające
+ *       przejścia), a nie tylko że minął czas.
+ *
+ * `body` jest właściwym elementem: jego tło to `var(--color-surface)`
+ * (`tokens.css`, warstwa base), a `<html>` nie ma własnego — sprawdzone,
+ * zanim to napisaliśmy, żeby nie czekać na element, który się nie maluje.
+ *
+ * SKĄD WARTOŚĆ OCZEKIWANA. Liczymy ją w przeglądarce: świeży element-sonda
+ * z `background-color: var(--color-surface)` i `color: var(--color-ink)`
+ * dziedziczy tokeny z `:root[data-theme="dark"]`, a nowo wstawiony element
+ * NIE MA przejścia (przejście potrzebuje stylu „przed"), więc od razu ma
+ * wartość docelową, już w postaci `rgb(…)`, porównywalnej z `body`. Nie
+ * przepisujemy tu szesnastkowej palety — po zmianie tokenu pomocnik dalej
+ * mówi prawdę. Sonda wisi w dokumencie tylko w obrębie jednego zadania,
+ * więc nigdy nie jest malowana i axe jej nie zobaczy.
+ *
+ * WARUNEK: tło I kolor tekstu `body` równe sondzie ORAZ zero trwających
+ * przejść CSS w dokumencie — ten sam wzorzec „czekaj na stan, nie na zmianę
+ * ani zegar" co `scripts/lib/stan-ustalony.mjs` z PR #1472 (tu lokalnie, bo
+ * tego pliku jeszcze nie ma na `main`; docs/PULAPKI_TESTOW.md §16).
+ * Bez przejść, bo axe czyta kolor KAŻDEGO węzła, nie tylko `body` —
+ * trwające przejście na `<time>` albo `.btn` to dokładnie fałszywe
+ * `color-contrast` opisane przy wywołaniu niżej.
+ *
+ * Sam `setAttribute` zostaje w pętli axe, PO otwarciu `<details>` — tę
+ * kolejność pilnuje `PomiarDostepnosciOtwieraDetailsPrzedMotywemTest` (#454),
+ * a pomocnik tylko czeka. `przed` to tło sprzed przełączenia, do komunikatu.
+ *
+ * Zwraca `true`, gdy strona jest ciemna i ustalona. `false` znaczy „nie
+ * udało się" — wywołujący MA POMINĄĆ ekran z błędem, jak przy skali tekstu.
+ */
+const MOTYW_CIEMNY_LIMIT_MS = 10_000;
+
+function stanMotywuCiemnego() {
+  const sonda = document.createElement('div');
+  sonda.style.cssText = 'position:absolute;visibility:hidden;transition:none;'
+    + 'background-color:var(--color-surface);color:var(--color-ink)';
+  document.documentElement.appendChild(sonda);
+  const wzor = getComputedStyle(sonda);
+  const oczekiwane = { tlo: wzor.backgroundColor, tekst: wzor.color };
+  sonda.remove();
+
+  const styl = getComputedStyle(document.body);
+  const przejscia = document.getAnimations()
+    .filter((a) => a instanceof CSSTransition && a.playState !== 'finished')
+    .map((a) => {
+      const cel = a.effect?.target;
+      return `${cel ? cel.tagName.toLowerCase() : '?'}:${a.transitionProperty}:${a.playState}`;
+    });
+
+  return {
+    motyw: document.documentElement.getAttribute('data-theme'),
+    oczekiwane,
+    aktualne: { tlo: styl.backgroundColor, tekst: styl.color },
+    przejscia: przejscia.slice(0, 10),
+    ilePrzejsc: przejscia.length,
+    widocznosc: document.visibilityState,
+  };
+}
+
+async function poczekajNaMotywCiemny(strona, przed, gdzie) {
+  // Funkcja, nie łańcuch: CSP aplikacji nie ma `unsafe-eval`, a łańcuch
+  // `waitForFunction` wykonuje jak `eval` (docs/PULAPKI_TESTOW.md §16).
+  const gotowe = new Function(`const s = (${stanMotywuCiemnego})();
+    return s.motyw === 'dark'
+      && s.aktualne.tlo === s.oczekiwane.tlo
+      && s.aktualne.tekst === s.oczekiwane.tekst
+      && s.ilePrzejsc === 0;`);
+
+  try {
+    await strona.waitForFunction(gotowe, null, { polling: 'raf', timeout: MOTYW_CIEMNY_LIMIT_MS });
+
+    return true;
+  } catch (blad) {
+    if (blad?.name !== 'TimeoutError') throw blad;
+  }
+
+  const zmierzone = await strona.evaluate(stanMotywuCiemnego);
+  console.error(
+    `BŁĄD: ${gdzie} — strona nie przemalowała się na motyw ciemny w `
+    + `${MOTYW_CIEMNY_LIMIT_MS} ms. Tło przed: ${przed}; `
+    + `zmierzone: ${JSON.stringify(zmierzone)}. Axe czytałby kolory w nieznanym `
+    + 'stanie, więc ten ekran zostaje pominięty.',
+  );
+  process.exitCode = 1;
+
+  return false;
+}
+
+/*
  * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
  *
  * DLACZEGO POMIAR, A NIE REGUŁA AXE
@@ -2578,8 +2688,10 @@ for (const wariant of WARIANTY) {
     // sprawdzenia, bo uczy ludzi ignorować wynik.
     //
     // Dlatego nie czekamy tu na sztywną liczbę milisekund, tylko na WARUNEK:
-    // aż tło strony faktycznie zmieni wartość. Warunek nie zgaduje i nie
-    // rozjedzie się na szybszej ani wolniejszej maszynie.
+    // aż tło i tekst strony mają WARTOŚCI MOTYWU CIEMNEGO i nic się już nie
+    // przemalowuje. Nie „aż się zmieni" — strona już ciemna nie zmieni się
+    // nigdy, a pierwsza zmiana to jeszcze nie koniec przemalowania
+    // (uzasadnienie i pomiary przy `poczekajNaMotywCiemny` wyżej).
     if (wariant.motyw === 'dark') {
       const tloPrzed = await strona.evaluate(
         () => getComputedStyle(document.body).backgroundColor,
@@ -2587,11 +2699,17 @@ for (const wariant of WARIANTY) {
 
       await strona.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 
-      await strona.waitForFunction(
-        (przed) => getComputedStyle(document.body).backgroundColor !== przed,
+      const ciemny = await poczekajNaMotywCiemny(
+        strona,
         tloPrzed,
-        { timeout: 5000 },
+        `ekran „${ekran.nazwa}" (${wariant.nazwa})`,
       );
+
+      // Strona jest wspólna dla ekranów wariantu — nie zamykamy jej,
+      // pomijamy tylko ten ekran, z błędem (jak przy skali tekstu).
+      if (! ciemny) {
+        continue;
+      }
 
       // Dwa pełne obiegi klatki: pierwszy kończy przeliczanie stylów, drugi
       // daje pewność, że przemalowanie już się odbyło. Bez tego `waitForFunction`
