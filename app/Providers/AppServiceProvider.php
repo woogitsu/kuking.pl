@@ -17,6 +17,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -247,18 +248,60 @@ class AppServiceProvider extends ServiceProvider
      * `shouldBeStrict()` włącza trzy ochrony naraz: `preventLazyLoading()`
      * (przypadkowe N+1), `preventSilentlyDiscardingAttributes()` (atrybut
      * spoza `$fillable` odrzucony po cichu) i `preventAccessingMissingAttributes()`
-     * (odczyt kolumny, której nie pobrał częściowy `select()`). W `local`
-     * i `testing` każde z tych przeoczeń przerywa test dokładnie w miejscu
-     * błędu; produkcja zostaje tolerancyjna, żeby przeoczenie nie stało się
-     * błędem widocznym dla użytkownika. Staging i podglądy PR (`APP_ENV=staging`)
-     * też zostają tolerancyjne: tam biegną joby i komendy spoza zasięgu testów,
-     * a wyłącznika bez wdrożenia nie ma (wariant zachowawczy, noc 24.09).
+     * (odczyt kolumny, której nie pobrał częściowy `select()`).
+     *
+     * - `local` i `testing`: każde z tych przeoczeń rzuca wyjątek i przerywa
+     *   test dokładnie w miejscu błędu.
+     * - `staging` (także podglądy PR): ochrony są włączone, ale naruszenie
+     *   trafia do logu jako OSTRZEŻENIE i nic nie przerywa. Zachowanie jest
+     *   takie jak w produkcji — relacja doładowuje się leniwie, niepobrana
+     *   kolumna czyta się jako `null`, pole spoza `$fillable` odpada — a joby
+     *   i komendy spoza zasięgu testów zostawiają ślad do naprawy zamiast
+     *   błędu 500. Decyzja właściciela z 25.09.2026.
+     * - produkcja: bez zmian, ochrony wyłączone i bez logowania.
+     *
+     * Obsługę trzeba ustawić przy KAŻDYM starcie, także na `null`: wywołania
+     * są statyczne i bez tego obsługa ze stagingu przeżyłaby w procesie
+     * do następnego startu aplikacji (np. w testach).
      *
      * Świadomie BEZ automatycznego eager loadingu relacji — maskowałby brak
      * jawnego planu zapytań (`with()`, `loadMissing()`).
      */
     private function wlaczTrybScislyEloquentPozaProdukcja(): void
     {
-        Model::shouldBeStrict($this->app->environment('local', 'testing'));
+        $staging = $this->app->environment('staging');
+
+        Model::shouldBeStrict($this->app->environment('local', 'testing') || $staging);
+
+        if (! $staging) {
+            Model::handleLazyLoadingViolationUsing(null);
+            Model::handleMissingAttributeViolationUsing(null);
+            Model::handleDiscardedAttributeViolationUsing(null);
+
+            return;
+        }
+
+        Model::handleLazyLoadingViolationUsing(static function (Model $model, string $relation): void {
+            Log::warning('Tryb ścisły Eloquent: leniwe ładowanie relacji.', [
+                'model' => $model::class,
+                'relacja' => $relation,
+            ]);
+        });
+
+        Model::handleMissingAttributeViolationUsing(static function (Model $model, string $key): mixed {
+            Log::warning('Tryb ścisły Eloquent: odczyt niepobranej kolumny.', [
+                'model' => $model::class,
+                'kolumna' => $key,
+            ]);
+
+            return null;
+        });
+
+        Model::handleDiscardedAttributeViolationUsing(static function (Model $model, array $keys): void {
+            Log::warning('Tryb ścisły Eloquent: pole spoza $fillable odrzucone.', [
+                'model' => $model::class,
+                'pola' => array_values($keys),
+            ]);
+        });
     }
 }

@@ -561,7 +561,7 @@ checks = [
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
-     lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing'));\n", "")),
+     lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing') || $staging);\n", "")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
 ]

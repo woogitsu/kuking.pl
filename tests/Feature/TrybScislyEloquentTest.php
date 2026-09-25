@@ -13,16 +13,19 @@ use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\LazyLoadingViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
  * Tryb ścisły Eloquent poza produkcją (issue #976).
  *
- * `AppServiceProvider` woła `Model::shouldBeStrict(environment('local', 'testing'))`, więc
+ * `AppServiceProvider` woła `Model::shouldBeStrict()` dla `local`, `testing` i `staging`, więc
  * w `local` i `testing` trzy ciche przeoczenia przerywają test w miejscu
  * błędu: leniwe ładowanie relacji (N+1), odczyt kolumny spoza częściowego
  * `select()` i pole spoza `$fillable` odrzucone przy masowym przypisaniu.
- * Produkcja zostaje tolerancyjna.
+ * Na stagingu te same trzy naruszenia trafiają do logu jako ostrzeżenie
+ * i niczego nie przerywają (decyzja właściciela z 25.09.2026). Produkcja
+ * zostaje tolerancyjna i nie loguje.
  *
  * Każdy test niżej ma też kontrolę dodatnią: ta sama operacja wykonana
  * poprawnie (z `with()`, z pobraną kolumną, z polem z `$fillable`) przechodzi —
@@ -116,15 +119,53 @@ class TrybScislyEloquentTest extends TestCase
         $this->assertSame('Podrzucony rodzaj.', $wpis->body);
     }
 
-    public function test_na_stagingu_ochrony_sa_wylaczone(): void
+    public function test_na_stagingu_naruszenia_trafiaja_do_logu_jako_ostrzezenie_i_nic_nie_przerywaja(): void
     {
+        $autor = $this->user('staging');
+        Recipe::factory()->count(2)->create(['author_id' => $autor->getKey()]);
+
         $this->app->detectEnvironment(fn (): string => 'staging');
         $this->assertTrue($this->app->environment('staging'), 'Kontrola: środowisko naprawdę przełączone na staging.');
 
         (new AppServiceProvider($this->app))->boot();
 
-        $this->assertFalse(Model::preventsLazyLoading(), 'Staging blokuje leniwe ładowanie — joby spoza testów padałyby bez wyłącznika.');
-        $this->assertFalse(Model::preventsSilentlyDiscardingAttributes(), 'Staging rzuca na polu spoza $fillable.');
-        $this->assertFalse(Model::preventsAccessingMissingAttributes(), 'Staging rzuca na niepobranej kolumnie.');
+        $this->assertTrue(Model::preventsLazyLoading(), 'Staging nie wykrywa leniwego ładowania — naruszenia nie trafią do logu.');
+        $this->assertTrue(Model::preventsSilentlyDiscardingAttributes(), 'Staging nie wykrywa pól spoza $fillable.');
+        $this->assertTrue(Model::preventsAccessingMissingAttributes(), 'Staging nie wykrywa odczytu niepobranej kolumny.');
+
+        Log::spy();
+
+        // Leniwe ładowanie: relacja doładowuje się jak w produkcji, zamiast wyjątku.
+        $przepisy = Recipe::query()->get();
+        $this->assertSame($autor->getKey(), $przepisy->first()->author->getKey(), 'Staging przerwał leniwe ładowanie zamiast je zalogować.');
+
+        // Niepobrana kolumna: `null`, jak w produkcji.
+        $konto = User::query()->select('id')->whereKey($autor->getKey())->firstOrFail();
+        $this->assertNull($konto->locale, 'Staging przerwał odczyt niepobranej kolumny zamiast go zalogować.');
+
+        // Pole sterujące odpada po cichu, jak w produkcji — ale zostawia ślad.
+        $wpis = new Post(['kind' => Post::KIND_QUESTION, 'body' => 'Podrzucony rodzaj.']);
+        $this->assertSame(Post::KIND_DISH, $wpis->kind, 'Pole sterujące przeszło masowym przypisaniem na stagingu.');
+        $this->assertSame('Podrzucony rodzaj.', $wpis->body);
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'leniwe ładowanie')
+            && $kontekst === ['model' => Recipe::class, 'relacja' => 'author']);
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'niepobranej kolumny')
+            && $kontekst === ['model' => User::class, 'kolumna' => 'locale']);
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'spoza $fillable')
+            && $kontekst === ['model' => Post::class, 'pola' => ['kind']]);
+    }
+
+    public function test_po_stagingu_testy_znow_dostaja_wyjatek_a_nie_log(): void
+    {
+        $this->app->detectEnvironment(fn (): string => 'staging');
+        (new AppServiceProvider($this->app))->boot();
+
+        $this->app->detectEnvironment(fn (): string => 'testing');
+        (new AppServiceProvider($this->app))->boot();
+
+        $this->expectException(MassAssignmentException::class);
+
+        new Post(['kind' => Post::KIND_QUESTION, 'body' => 'Podrzucony rodzaj.']);
     }
 }
