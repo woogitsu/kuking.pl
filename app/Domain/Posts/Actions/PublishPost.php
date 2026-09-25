@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Community\HostUserResolver;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Notifications\Actions\NotifyUser;
@@ -13,7 +14,6 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
 use App\Models\Post;
-use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +53,7 @@ final class PublishPost
         private readonly NotifyUser $notify,
         private readonly ResolvePostTags $resolveTags,
         private readonly PublicationAnalysisQueue $analysisQueue,
+        private readonly HostUserResolver $hostUser,
     ) {}
 
     /**
@@ -281,9 +282,7 @@ final class PublishPost
             return;
         }
 
-        $nazwaGospodarza = (string) config('kuking.community.host_username');
-
-        $gospodarz = $nazwaGospodarza === '' ? null : Profile::poNazwie($nazwaGospodarza)?->user;
+        $gospodarz = $this->hostUser->resolve();
         $eligible = $gospodarz === null
             ? Post::query()->publiclyVisible()->whereHas('author', fn ($query) => $query->widocznyJakoOsoba())
             : app(UnansweredContent::class)->eligiblePosts($gospodarz);
