@@ -79,7 +79,9 @@ class QuestionsFeatureGateTest extends TestCase
         $question = Post::factory()->question()->create(['body' => 'Publiczne pytanie o gotowanie']);
         $private = Post::factory()->question()->private()->create();
 
-        $this->get(route('posts.show', $question))->assertOk()->assertSee($question->body);
+        // Pytanie ma jeden adres (#968): stary `/wpisy/{id}` przekierowuje.
+        $this->get(route('posts.show', $question))->assertStatus(301)->assertRedirect(route('questions.show', $question));
+        $this->get(route('questions.show', $question))->assertOk()->assertSee($question->body);
         $this->get(route('posts.show', $private))->assertForbidden();
         $this->assertTrue(Post::query()->publiclyVisible()->whereKey($question)->exists());
         $this->assertFalse(Post::query()->widoczneDla(null)->whereKey($private)->exists());

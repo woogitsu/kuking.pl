@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Community\HostUserResolver;
 use App\Domain\Social\Actions\FollowUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -66,7 +67,10 @@ use Throwable;
  */
 final class ZalozKonto
 {
-    public function __construct(private readonly FollowUser $followUser) {}
+    public function __construct(
+        private readonly FollowUser $followUser,
+        private readonly HostUserResolver $hostUser,
+    ) {}
 
     /**
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
@@ -147,8 +151,9 @@ final class ZalozKonto
              * Facebook nie oddaje `email_verified`, więc nie ma czego
              * przeczytać: konto powstaje z adresem niepotwierdzonym
              * i przechodzi naszą zwykłą ścieżkę potwierdzenia, dokładnie jak
-             * przy rejestracji hasłem. Pilnuje tego wywołanie w
-             * `FacebookLoginController::finish()`, a nie warunek tutaj —
+             * przy rejestracji hasłem. Pilnuje tego mapowanie w
+             * `DostawcaWejsciaFacebook::tozsamosc()` (zawsze
+             * `emailPotwierdzony: false`, #1035), a nie warunek tutaj —
              * bo warunek tutaj byłby drugą kopią tej samej reguły i pierwsza
              * osoba, która doda trzeciego dostawcę, musiałaby ją znaleźć.
              */
@@ -269,15 +274,11 @@ final class ZalozKonto
      */
     private function zaobserwujGospodarza(User $user): void
     {
-        $nazwa = (string) config('kuking.community.host_username');
-
-        if ($nazwa === '') {
-            return;
-        }
-
         try {
-            DB::transaction(function () use ($nazwa, $user): void {
-                $gospodarz = Profile::where('username', $nazwa)->first()?->user;
+            DB::transaction(function () use ($user): void {
+                // Gospodarz rozpoznawany po UUID konta, nie po edytowalnej
+                // nazwie profilu (#1089) — jedno źródło: HostUserResolver.
+                $gospodarz = $this->hostUser->resolve();
 
                 if ($gospodarz === null || $gospodarz->getKey() === $user->getKey()) {
                     return;
@@ -290,7 +291,7 @@ final class ZalozKonto
             // idzie dalej; feed ratują tematy z onboardingu (#31).
         } catch (Throwable $awaria) {
             report(new RuntimeException(
-                'Konto '.$user->getKey().' jest założone, ale nie zaczęło obserwować gospodarza „'.$nazwa.'" '
+                'Konto '.$user->getKey().' jest założone, ale nie zaczęło obserwować gospodarza '
                 .'— to nie jest błąd konfiguracji, tylko awaria; naprawa: FollowUser dla tego konta.',
                 previous: $awaria,
             ));
