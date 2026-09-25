@@ -27,14 +27,11 @@ use Tests\TestCase;
  * ->count()` zwracało 2 przy jednym wykonaniu, które wolno pokazać, i strona
  * przepisu renderowała notatkę zbanowanego konta.
  *
- * CO ZOSTAJE OTWARTE I DLACZEGO NIE ZMIENIŁEM TEGO PRZY OKAZJI
- * Sam adres `cooked.show` takiego wykonania dalej odpowiada 200. To NIE jest
- * przeoczenie: przypina to `Visibility\KomusWyszloWidocznoscTest::
- * test_wykonanie_zbanowanego_kucharza_nie_dostaje_celebracji` wraz
- * z uzasadnieniem („treść zostaje, znika tylko wyróżnienie"). Rozjazd między
- * listą i adresem jest tu więc świadomy i w OSTRZEJSZĄ stronę — lista
- * pokazuje mniej. Czy ma taki zostać, jest pytaniem produktowym; zgłoszone
- * właścicielowi, nie rozstrzygnięte w tym pliku.
+ * BEZPOŚREDNI ADRES — OD D-261 (audyt A5-07) TA SAMA GRANICA
+ * Do D-261 sam adres `cooked.show` takiego wykonania odpowiadał 200. Dziś
+ * `CookedEventPolicy::view()` pyta o `jestDostepnyJakoAutor()` tak samo jak
+ * galeria; pilnuje tego `KarencjaUsunieciaChowaWykonanieTest::
+ * test_zbanowany_kucharz_znika_takze_pod_bezposrednim_adresem`.
  */
 class UgotowalemGranicaStatusuKucharzaTest extends TestCase
 {

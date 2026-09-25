@@ -132,7 +132,7 @@ class CookedEvent extends Model
      * adres pokazywał więcej niż lista. Dziś oba miejsca pytają o
      * `jestDostepnyJakoAutor()`; moderator i sam kucharz mają w polityce
      * własną furtkę, której ten zakres nie potrzebuje.
-
+     *
      * Reguła NIE zależy od tego, kto patrzy, więc obowiązuje także gościa —
      * dlatego jest poza gałęzią `$widz !== null`. Wcześniej metoda kończyła
      * się na `return` dla gościa i galeria pokazywała mu wszystko.
