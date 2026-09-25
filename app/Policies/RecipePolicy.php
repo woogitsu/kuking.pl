@@ -13,7 +13,27 @@ class RecipePolicy
     public function view(?User $user, Recipe $recipe): bool
     {
         if (! $recipe->isPublished()) {
-            return $user !== null && ($user->getKey() === $recipe->author_id || $user->isModerator());
+            if ($user === null) {
+                return false;
+            }
+
+            if ($user->getKey() === $recipe->author_id) {
+                return true;
+            }
+
+            // SZKIC JEST WYŁĄCZNIE AUTORA — także wobec moderatora (#1359,
+            // audyt AUTHZ-01). Moderacja zagląda do treści, którą sama
+            // ukryła albo zdjęła (`hidden`/`removed`), bo rozpatruje sprawę
+            // albo odwołanie. Rodzinny przepis w warsztacie, którego autor
+            // nikomu nie pokazał, nie jest żadną sprawą — ta sama granica co
+            // `PostPolicy::view()` dla szkicu wpisu. Lista statusów jest
+            // zamknięta: nowy stan nieopublikowany nie otworzy się moderacji
+            // po cichu. Blokady ta gałąź celowo nie sprawdza — tak jak przed
+            // #1359: czy blokada ma odcinać moderatora od sprawy, to otwarte
+            // pytanie B-02 z `docs/AUDYT_BEZPIECZENSTWA_2026-09-15.md`,
+            // a nie coś do rozstrzygnięcia przy okazji.
+            return in_array($recipe->status, [Recipe::STATUS_HIDDEN, Recipe::STATUS_REMOVED], true)
+                && $user->isModerator();
         }
 
         $isOwnerOrModerator = $user !== null
