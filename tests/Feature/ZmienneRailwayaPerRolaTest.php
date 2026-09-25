@@ -155,6 +155,11 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'role' => ['scheduler'],
             'powod' => '`kuking:puls-harmonogramu` z harmonogramu (#599, #1659); adres zawiera token monitora.',
         ],
+        'KUKING_EDGE_TOKEN' => [
+            'role' => ['web'],
+            'powod' => 'Bramka tokenu krawędzi Cloudflare (`TokenKrawedzi`, `NormalizeForwardedFor`) — tylko żądania HTTP.',
+        ],
+        'KUKING_EDGE_TOKEN_POPRZEDNI' => ['role' => ['web'], 'powod' => 'Jak KUKING_EDGE_TOKEN, na czas rotacji sekretu.'],
         'KUKING_HOST_USER_ID' => [
             'role' => ['web', 'scheduler'],
             'powod' => '`HostUserResolver` (#1089, #1375). Web: `ZalozKonto` (auto-obserwowanie przy rejestracji, '

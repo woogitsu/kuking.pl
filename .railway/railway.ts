@@ -592,6 +592,13 @@ export default defineRailway((ctx) => {
     TURNSTILE_SITE_KEY: ctx.shared.TURNSTILE_SITE_KEY,
     TURNSTILE_SECRET_KEY: ctx.shared.TURNSTILE_SECRET_KEY,
 
+    // --- Token krawędzi Cloudflare (config/proxy.php, App\Support\TokenKrawedzi) ---
+    // Nagłówek X-Kuking-Edge-Token od Cloudflare potwierdza, że żądanie przyszło
+    // przez krawędź. Czyta go wyłącznie web (żądania HTTP). PUSTE = bramka
+    // wyłączona. `_POPRZEDNI` tylko na czas rotacji. Oba sekrety — „Sealed".
+    KUKING_EDGE_TOKEN: ctx.shared.KUKING_EDGE_TOKEN,
+    KUKING_EDGE_TOKEN_POPRZEDNI: ctx.shared.KUKING_EDGE_TOKEN_POPRZEDNI,
+
     // --- Wejście kontem Google (D-069, issue #258) ----------------------------
     // Dodatkowa droga wejścia obok hasła i wiadomości z linkiem. Oba klucze
     // idą przez `ctx.shared`, bo powstają w Google Cloud Console i są
