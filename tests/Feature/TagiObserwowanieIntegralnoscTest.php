@@ -289,6 +289,53 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertSame(0, $user->followedTags()->count());
     }
 
+    /**
+     * #861: UUID poprawny składniowo, ale nieistniejący, przechodzi fazę
+     * formatu i odbija się dopiero o sprawdzenie istnienia. Ma dać zwykły
+     * błąd formularza po polsku — nie 500, nie cichy zapis części wyboru —
+     * a poprawne zaznaczenie ma zostać w formularzu (AGENTS.md: poprawne
+     * dane nigdy nie znikają).
+     */
+    public function test_861_nieistniejacy_uuid_daje_blad_formularza_i_zostawia_wybor(): void
+    {
+        $a = $this->promoted();
+        $b = $this->promoted();
+        // Trzeci pokazany tag: limit rozmiaru wynika z okna, a ta odmowa ma
+        // przyjść z fazy istnienia, nie z fazy rozmiaru.
+        $this->promoted();
+        $user = $this->user();
+        $user->followedTags()->attach($b->id, ['created_at' => now()->subMinute()->startOfSecond()]);
+        $relacje = fn (): array => DB::table('tag_follows')->where('user_id', $user->id)
+            ->orderBy('tag_id')->get(['tag_id', 'created_at'])->map(fn ($r) => (array) $r)->all();
+        $przed = $relacje();
+        $duch = (string) Str::uuid();
+        $this->assertFalse(Tag::query()->whereKey($duch)->exists());
+        $komunikat = 'Jeden z wybranych tagów nie jest już dostępny. Sprawdź pozostałe zaznaczenia i zapisz ponownie.';
+
+        $trasy = [
+            ['settings.tags', 'put', 'settings.tags.update'],
+            ['onboarding.interests', 'post', 'onboarding.interests'],
+        ];
+        foreach ($trasy as [$ekran, $metoda, $zapis]) {
+            $form = $ekran === 'settings.tags' ? $this->form($user) : [];
+            $this->actingAs($user)->from(route($ekran))
+                ->$metoda(route($zapis), $form + ['tags' => [$a->id, $b->id, $duch]])
+                ->assertRedirect(route($ekran))
+                ->assertSessionHasErrors(['tags' => $komunikat]);
+            $this->assertSame($przed, $relacje(), "Odmowa na {$zapis} zmieniła relacje.");
+
+            // Przekierowanie w przeglądarce niesie tę samą sesję.
+            $this->withCookie(config('session.cookie'), session()->getId());
+            $html = $this->get(route($ekran))->assertOk()->getContent();
+            $this->assertStringContainsString($komunikat, $html);
+            $this->assertMatchesRegularExpression(
+                '/<input[^>]*value="'.$a->id.'"[^>]*checked/',
+                $html,
+                "Po odmowie na {$zapis} poprawne zaznaczenie zniknęło z formularza.",
+            );
+        }
+    }
+
     public function test_861_lista_ponad_250_tagow_nie_dostaje_arbitralnego_limitu(): void
     {
         $user = $this->user();
