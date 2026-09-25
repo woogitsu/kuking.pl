@@ -71,6 +71,9 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         config(['mail.default' => 'log']);
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $odpowiedz = $this->zdrowieZeSzczegolami();
 
@@ -121,6 +124,9 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             'kuking.media.cdn_purge.token' => 'udawany-token-czyszczenia',
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         $this->zdrowieZeSzczegolami()
             ->assertOk()

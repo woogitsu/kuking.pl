@@ -598,6 +598,9 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
         ]);
 
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
     }
 
     private function bezTokenu(): void
