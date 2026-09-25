@@ -189,7 +189,12 @@ final class CollectUserExportData
             'nazwa_wyswietlana' => $profile->display_name,
             'o_mnie' => $profile->bio,
             'okolica' => $profile->region,
-            'w_czym_jestem_dobra' => $profile->speciality,
+            // Klucz mówi to samo co pole w ustawieniach („Na czym się
+            // znasz”), w pierwszej osobie jak `o_mnie`, i BEZ RODZAJU.
+            // Do 25.09.2026 stało tu `w_czym_jestem_dobra` — forma żeńska
+            // przypisana każdemu czytelnikowi paczki, ta sama rodzina co
+            // issue #274 (#1750). Test: `EksportKluczeBezRodzajuTest`.
+            'na_czym_sie_znam' => $profile->speciality,
             'zdjecie_profilowe' => $photos->pathFor($profile->avatar_media_id),
         ];
     }
