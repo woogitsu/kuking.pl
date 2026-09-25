@@ -415,6 +415,9 @@ class PanelKolejkiZadanTest extends TestCase
 
         Artisan::call('queue:work', [
             'connection' => 'database',
+            // Ta sama lista co worker (`docker/entrypoint.sh`): listy
+            // wpuszczające na konto idą na `high` (audyt B8-06).
+            '--queue' => 'high,default',
             '--once' => true,
             '--tries' => 1,
         ]);
