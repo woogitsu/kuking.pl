@@ -26,7 +26,10 @@ class GospodarzIPowiadomieniaTest extends TestCase
     {
         $user = User::factory()->create();
         $user->profile()->update(['username' => $nazwa]);
-        config(['kuking.community.host_username' => $nazwa]);
+        config([
+            'kuking.community.host_user_id' => $user->getKey(),
+            'kuking.community.host_username' => $nazwa,
+        ]);
 
         return $user->fresh();
     }
@@ -58,6 +61,57 @@ class GospodarzIPowiadomieniaTest extends TestCase
         // Feed obserwowanych nowego konta jest z definicji pusty, a pusty
         // ekran dla kogoś po sześćdziesiątce znaczy „to nie jest dla mnie".
         $this->assertTrue($nowa->isFollowing($gospodarz));
+    }
+
+    public function test_zmiana_nazwy_i_przejecie_starej_nie_zmieniaja_tozsamosci_gospodarza(): void
+    {
+        $gospodarz = $this->gospodarz();
+
+        $this->actingAs($gospodarz)->put(route('settings.profile'), [
+            'display_name' => $gospodarz->profile->display_name,
+            'username' => 'ula_gospodyni',
+            'bio' => null,
+            'region' => null,
+            'speciality' => null,
+        ])->assertSessionHasNoErrors();
+
+        $podszywajacy = $this->user('woogitsu');
+        auth()->logout();
+        $this->zarejestruj('nowa_po_zmianie');
+        $nowa = Profile::where('username', 'nowa_po_zmianie')->firstOrFail()->user;
+
+        $this->assertTrue($nowa->isFollowing($gospodarz->fresh()));
+        $this->assertFalse($nowa->isFollowing($podszywajacy));
+    }
+
+    public function test_bledny_stabilny_id_nie_cofa_sie_do_nazwy_innego_konta(): void
+    {
+        $podszywajacy = $this->user('woogitsu');
+        config([
+            'kuking.community.host_user_id' => '10000000-0000-4000-8000-000000000001',
+            'kuking.community.host_username' => $podszywajacy->profile->username,
+        ]);
+
+        $this->zarejestruj();
+        $nowa = Profile::where('username', 'basia_z_podkarpacia')->firstOrFail()->user;
+
+        $this->assertFalse($nowa->isFollowing($podszywajacy));
+        $this->assertSame(0, $nowa->following()->count());
+    }
+
+    public function test_niepoprawny_format_uuid_nie_przerywa_rejestracji_i_nie_cofa_sie_do_nazwy(): void
+    {
+        $podszywajacy = $this->user('woogitsu');
+        config([
+            'kuking.community.host_user_id' => 'to-nie-jest-uuid',
+            'kuking.community.host_username' => $podszywajacy->profile->username,
+        ]);
+
+        $this->zarejestruj('nowa_przy_blednej_konfiguracji');
+        $nowa = Profile::where('username', 'nowa_przy_blednej_konfiguracji')->firstOrFail()->user;
+
+        $this->assertFalse($nowa->isFollowing($podszywajacy));
+        $this->assertSame(0, $nowa->following()->count());
     }
 
     public function test_da_sie_przestac_obserwowac_gospodarza(): void
