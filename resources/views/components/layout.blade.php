@@ -274,10 +274,11 @@
     @endif
     <meta property="og:type" content="{{ $ogType }}">
     <meta property="og:locale" content="pl_PL">
-    {{-- Adres kanoniczny bez parametrów zapytania: inaczej ten sam przepis
-         wysłany z „?zakladka=..." liczy się jako osobna strona i zbiera
-         własne polubienia zamiast dołożyć do wspólnej puli. --}}
-    <meta property="og:url" content="{{ url()->current() }}">
+    {{-- Adres kanoniczny tylko z parametrami, które NA TEJ TRASIE wybierają
+         treść (strona 2, zakładka profilu — issue #963). Reszta odpada:
+         przepis wysłany z „?zakladka=..." albo z UTM-em zbiera polubienia
+         we wspólnej puli. Ta sama wartość idzie do `canonical` niżej. --}}
+    <meta property="og:url" content="{{ \App\Support\KanonicznyAdresStrony::dla(request()) }}">
     <meta property="og:image" content="{{ $ogImage }}">
     <meta property="og:image:alt" content="{{ $title ?? 'Kuking' }}">
     {{-- `$ogImageGotowe`, nie sam `$image` (audyt A3): dla zdjęcia jeszcze
@@ -297,7 +298,7 @@
          a niegotowe zdjęcie dostaje dokładnie tę zapasową kartę (patrz wyżej). --}}
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
-    <link rel="canonical" href="{{ url()->current() }}">
+    <link rel="canonical" href="{{ \App\Support\KanonicznyAdresStrony::dla(request()) }}">
     <meta name="theme-color" content="#151714">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
@@ -1251,7 +1252,13 @@
                         AccessibilitySettingsController).
                     --}}
                     <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
-                        @csrf
+                        {{-- #610: strona z brzegu Cloudflare jest wspólna dla
+                             wszystkich gości, więc nie może nieść tokenu CSRF.
+                             Zapis motywu przechodzi wtedy sprawdzeniem
+                             pochodzenia (PreventRequestForgeryExceptMediaCookie). --}}
+                        @unless (\App\Support\PublicznyHtmlGoscia::bezSesji())
+                            @csrf
+                        @endunless
                         <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
                         <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
                         @php
