@@ -163,6 +163,31 @@ class QuestionShowTest extends TestCase
         $this->assertSame(1, $post->comments()->count());
     }
 
+    public function test_zwykle_danie_z_komentarzem_nie_dostaje_schematu_qapage(): void
+    {
+        // Issue #372, „Testy obowiązkowe”: QAPage tylko dla pytania. Danie
+        // z komentarzem najwyższego poziomu wygląda z danych jak pytanie
+        // z odpowiedzią — różni je wyłącznie `kind`, więc pilnujemy strony
+        // dania, a nie tylko tego, że `/pytania/{uuid}` dania nie wpuszcza.
+        // Kontrola dodatnia: to samo wyszukiwanie znajduje QAPage na pytaniu.
+        config(['kuking.questions.enabled' => true]);
+        $typySchematu = function (string $html): array {
+            preg_match_all('~<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>~s', $html, $matches);
+
+            return array_map(fn ($json) => json_decode($json, true, 512, JSON_THROW_ON_ERROR)['@type'] ?? null, $matches[1]);
+        };
+
+        $danie = Post::factory()->create();
+        Comment::factory()->create(['post_id' => $danie->id, 'body' => 'Wygląda pysznie.']);
+        $htmlDania = $this->get(route('posts.show', $danie))->assertOk()->assertSee('Wygląda pysznie.')->getContent();
+        $this->assertNotContains('QAPage', $typySchematu($htmlDania));
+        $this->assertStringNotContainsString('QAPage', $htmlDania);
+
+        $pytanie = Post::factory()->question()->create();
+        Comment::factory()->create(['post_id' => $pytanie->id, 'body' => 'Dolej bulionu.']);
+        $this->assertContains('QAPage', $typySchematu($this->get(route('posts.show', $pytanie))->assertOk()->getContent()));
+    }
+
     public function test_question_renders_title_and_counts_only_top_level_answers(): void
     {
         config(['kuking.questions.enabled' => true]);
