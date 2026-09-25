@@ -120,9 +120,11 @@ class TagController extends Controller
         // nadal, ale ma przekierować na kanoniczną. Bez osobnej tabeli
         // przekierowań (`recipe_slug_redirects`) — R1 §1.8 tłumaczy,
         // dlaczego tagi jej nie potrzebują: `Tag::tagKanoniczny()` już
-        // wie, dokąd prowadzić.
+        // wie, dokąd prowadzić. 301, nie domyślne 302: scalenie jest trwałe
+        // i nie ma drogi powrotu, więc wyszukiwarka ma przenieść adres
+        // na kanoniczny (issue #1350).
         if ($tag->isMerged()) {
-            return redirect()->route('tags.show', $tag->tagKanoniczny());
+            return redirect()->route('tags.show', $tag->tagKanoniczny(), status: 301);
         }
 
         $widz = $request->user();
