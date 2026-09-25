@@ -2081,6 +2081,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
+
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
 „Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
@@ -2228,12 +2257,26 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez gospodarza wskazanego `KUKING_HOST_USERNAME` w chwili
+migracji (migracja wdrożona przed #1089 — nie jest modyfikowana). Nie wysyła
+alertów. Od #1089 kod aplikacji rozpoznaje gospodarza po stabilnym
+`KUKING_HOST_USER_ID` (fallback po nazwie tylko przy pustym UUID); nowe wiersze
+zapisuje `PublishPost`, więc backfill nie jest liczony ponownie.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia (instrukcja krok po kroku: `docs/DEPLOYMENT.md`, „Konto
+gospodarza"): przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Rollback tej migracji odtwarza backfill po `KUKING_HOST_USERNAME`; po zmianie
+nazwy gospodarza może świadomie odmówić (D-088) — dane zostają.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.
@@ -4751,6 +4794,59 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+### G. Jak zmierzyć szczyt — kroki dla właściciela (dopisane 25.09.2026)
+
+Definicja gotowości #598 wymaga **zmierzonego** szczytu, a §C daje tylko
+policzony (16 z zapasem, 13 w oknie wdrożenia). Czujka godzinna go nie
+złapie: próbkuje raz na godzinę o :25, a okno wdrożenia trwa minutę–dwie.
+Dlatego są trzy narzędzia — wszystkie tylko do odczytu, żadne nie dzwoni
+na webhook i żadne nie zmienia konfiguracji:
+
+| Narzędzie | Co mierzy | Gdzie chodzi |
+|---|---|---|
+| `scripts/szczyt-polaczen-z-dziennika.php` | min / mediana / **max** z szeregu czujki godzinnej i z okien `--probki` | lokalnie, na pliku wyeksportowanym z dziennika Railway |
+| `php artisan kuking:budzet-polaczen --probki=N --odstep=S` | szczyt w oknie N próbek co S s (max 3600 próbek, odstęp 1–60 s); jedna linia `kuking:budzet-polaczen:szczyt {...}` do kanału `pomiary` na końcu | konsola kontenera aplikacji |
+| `scripts/szczyt-polaczen.sql` + `\watch 1` | to samo zapytanie co czujka, co sekundę | psql w usłudze Postgres — **przeżywa wdrożenie aplikacji** |
+
+**Krok 1 — szczyt zwykłego ruchu (ok. 10 minut, raz w tygodniu przez miesiąc).**
+Railway → serwis aplikacji → *Logs*, filtr `kuking:budzet-polaczen`, okno
+możliwie długie (retencja zależy od planu). Skopiuj wynik do pliku
+i uruchom lokalnie:
+
+```bash
+php scripts/szczyt-polaczen-z-dziennika.php dziennik-598.txt
+```
+
+Kod wyjścia **2** znaczy „w pliku nie ma ani jednej linii pomiaru" —
+czyli szeregu nie ma (np. wrócił problem z §F), a **nie** „zapas jest".
+Zapisz tu datę, liczbę pomiarów, MAX i chwilę MAX.
+
+**Krok 2 — szczyt w oknie wdrożenia (ok. 10 minut, przy zwykłym wdrożeniu).**
+Wariant preferowany, bo konsola nie ginie razem ze starym kontenerem:
+otwórz psql w usłudze **Postgres** (nie w aplikacji), wklej zawartość
+`scripts/szczyt-polaczen.sql`, w nowej linii wpisz `\watch 1`, a potem
+uruchom zwykłe wdrożenie aplikacji. Po jego zakończeniu i minucie spokoju
+przerwij `Ctrl+C` i zanotuj największą wartość `zajete_serwer`.
+Nie wystawiaj w tym celu publicznego portu bazy (proxy TCP) — jeśli
+psql w usłudze Postgres nie jest dostępny, użyj wariantu z konsolą aplikacji.
+
+Wariant z konsolą aplikacji: `php artisan kuking:budzet-polaczen --probki=300`
+(5 minut). Uruchomiony w kontenerze, który wdrożenie zastępuje, zostanie
+przerwany razem z nim — wtedy linia podsumowania do dziennika nie powstanie,
+ale wiersze `próbka i/N` wypisane w terminalu zostają i to je się notuje.
+
+**Krok 3 — decyzja.** Zmierzony MAX porównaj z §D: poniżej 50 — progi
+zostają, #600 nie ma liczb za PgBouncerem; powyżej 50 w spokojnym ruchu —
+szukać wycieku albo nieznanych procesów, zanim doda się replikę. Ten sam
+MAX wpisz w #598 z datą i SHA wdrożenia.
+
+**Czego ta sekcja nie dowodzi.** Dostępność psql w usłudze Postgres
+na Railway i dokładna nazwa przycisku konsoli **nie były sprawdzone**
+w sesji, która to pisała — tylko zapytanie (test na PostgreSQL 18)
+i oba narzędzia PHP (`ProbkowanieSzczytuPolaczenTest`,
+`SzczytPolaczenZDziennikaTest`). Wycofanie: odwrócenie commita; nie ma
+migracji ani zmiennych środowiskowych.
 
 ## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
 
