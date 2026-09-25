@@ -97,7 +97,7 @@ class RetencjaPartiamiTest extends TestCase
     public function test_przebieg_nie_przekracza_budzetu_a_reszta_schodzi_nastepnym(): void
     {
         config(['kuking.retencja.budzet' => 5]);
-        Log::spy();
+        $log = Log::spy();
 
         foreach (['s1', 's2', 's3', 's4', 's5', 's6', 's7'] as $id) {
             $this->sesja($id, 30);
@@ -108,7 +108,7 @@ class RetencjaPartiamiTest extends TestCase
         // Stały porządek po kluczu: znikają najniższe identyfikatory.
         $this->assertSame(['s6', 's7'], $this->sesje());
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $log->shouldHaveReceived('warning')->withArgs(
             fn (string $komunikat, array $kontekst = []): bool => $kontekst === [
                 'tabela' => 'sessions',
                 'skasowano' => 5,
@@ -125,14 +125,14 @@ class RetencjaPartiamiTest extends TestCase
     public function test_budzet_rowny_zalegosci_nie_ostrzega(): void
     {
         config(['kuking.retencja.budzet' => 3]);
-        Log::spy();
+        $log = Log::spy();
 
         foreach (['s1', 's2', 's3'] as $id) {
             $this->sesja($id, 30);
         }
 
         $this->assertSame(3, (new PrzedawnioneSesje)->posprzataj(7)['skasowano']);
-        Log::shouldNotHaveReceived('warning');
+        $log->shouldNotHaveReceived('warning');
     }
 
     public function test_awaria_po_pierwszej_partii_nie_cofa_jej(): void
