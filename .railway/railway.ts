@@ -147,6 +147,26 @@ const NAZWA_BAZY = "Postgres";
  */
 const PRODUCTION_SPLIT_SERVICES = true;
 
+/**
+ * OKNO ZAMKNIĘCIA KONTENERA, W KTÓRYM CHODZI `queue:work` (role `worker`
+ * i `all`), w sekundach (audyt B8-03).
+ *
+ * 130 = `ProcessUploadedImage::$timeout` (120 s, najdłuższe zadanie, na które
+ * ktoś czeka na ekranie) + 10 s na zamknięcie procesu. Wcześniej worker miał
+ * 120 (równo z limitem, bez zapasu), a rola `all` — 30.
+ *
+ * CZEGO TO NIE POKRYWA: `GenerateUserExport` ma 900 s. Zadanie ubite przy
+ * wdrożeniu wraca po `retry_after` (`config/queue.php`, 960 s) — paczkę
+ * i tak dostaje się e-mailem, więc kwadrans opóźnienia jest do przyjęcia,
+ * a kontener, który przy każdym z kilkudziesięciu deployów na dobę czeka
+ * kwadrans na zamknięcie, nie jest. Krótszy `retry_after` dla kolejek bez
+ * eksportu wymaga osobnego połączenia i osobnego procesu `queue:work`
+ * (worker czyta jedno połączenie) — patrz #1030.
+ *
+ * Pilnuje `scripts/railway/iac.test.mjs` (limit czytany z kodu zadania).
+ */
+const ZAMKNIECIE_Z_KOLEJKA_S = 130;
+
 // =============================================================================
 export default defineRailway((ctx) => {
   // ---------------------------------------------------------------------------
@@ -807,8 +827,14 @@ export default defineRailway((ctx) => {
       //  Graceful shutdown. Railway wysyła SIGTERM i czeka `drainingSeconds`,
       //  zanim ubije kontener. Caddy w tym czasie dokańcza otwarte requesty.
       //  30 s z zapasem pokrywa najdłuższy sensowny request HTTP.
+      //
+      //  W ROLI `all` TEN SAM KONTENER TRZYMA `queue:work` (audyt B8-03).
+      //  30 s ubijało przetwarzanie zdjęcia (limit 120 s) w połowie:
+      //  `failed()` się nie wykonywał, a rezerwacja wisiała w `jobs` do
+      //  `retry_after` (960 s) — zdjęcie „za chwilę" przez 16 minut i zużyta
+      //  próba. Dlatego `all` dostaje to samo okno co worker.
       // -----------------------------------------------------------------------
-      drainingSeconds: 30,
+      drainingSeconds: splitServices ? 30 : ZAMKNIECIE_Z_KOLEJKA_S,
 
       // -----------------------------------------------------------------------
       //  Serverless (dawniej App Sleeping): usypia serwis po ~5-10 min bez
@@ -891,10 +917,9 @@ export default defineRailway((ctx) => {
       restartPolicyMaxRetries: 10,
 
       // Worker dostaje DŁUGIE okno na zamknięcie: `queue:work` reaguje na
-      // SIGTERM dokańczając bieżący job (dzięki rozszerzeniu pcntl). 120 s
-      // wystarcza na przetworzenie nawet dużego zdjęcia, więc deploy nie
-      // porzuca zadania w połowie.
-      drainingSeconds: 120,
+      // SIGTERM dokańczając bieżący job (dzięki rozszerzeniu pcntl).
+      // Uzasadnienie liczby przy `ZAMKNIECIE_Z_KOLEJKA_S`.
+      drainingSeconds: ZAMKNIECIE_Z_KOLEJKA_S,
 
       // Worker NIE MOŻE być usypiany — kolejka musi być odbierana ciągle,
       // a Serverless usypia po braku ruchu wychodzącego.
