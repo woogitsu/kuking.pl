@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Polaczenia\StanPolaczenBazy;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +25,8 @@ use Tests\TestCase;
  * więc szczyt wdrożeniowy z `docs/DATABASE.md` §598 C (13) był dotąd tylko
  * policzony. Ten tryb pozwala właścicielowi go ZMIERZYĆ — i ten plik pilnuje,
  * że tryb podaje maksimum okna, a nie ostatnią próbkę, i że nigdy nie dzwoni.
+ *
+ * @bez-kontroli-dodatniej Jedyny odczyt pliku to `scripts/szczyt-polaczen.sql`, wykonywany na PostgreSQL; asercje dotyczą wyniku zapytania i zachowania komendy, nie tekstu źródła.
  */
 class ProbkowanieSzczytuPolaczenTest extends TestCase
 {
@@ -118,12 +121,8 @@ class ProbkowanieSzczytuPolaczenTest extends TestCase
     }
 
     #[Test]
-    public function szczyt_to_maksimum_okna_a_nie_ostatnia_probka_i_nigdy_nie_dzwoni(): void
+    public function szczyt_to_maksimum_okna_a_nie_ostatnia_probka(): void
     {
-        config()->set('logging.channels.blad_webhook.url', 'https://przyklad.test/webhook');
-        Log::forgetChannel('blad_webhook');
-        Http::fake();
-
         $this->kolejnePomiary(6, 130, 7);
 
         $dziennik = $this->szpiegKanaluPomiarow();
@@ -140,9 +139,37 @@ class ProbkowanieSzczytuPolaczenTest extends TestCase
                 return true;
             })
             ->once();
+    }
 
-        // Z ustawionym webhookiem zwykły przebieg w stanie krytycznym by
-        // zadzwonił (BudzetPolaczenBazyTest). Tryb okna nie dzwoni nigdy.
+    private function wlaczKanalAlarmu(): void
+    {
+        config()->set('logging.channels.blad_webhook.url', 'https://przyklad.test/webhook-598');
+        Log::forgetChannel('blad_webhook');
+        Cache::flush();
+        Http::fake(['https://przyklad.test/*' => Http::response('ok', 200)]);
+    }
+
+    #[Test]
+    public function kontrola_dodatnia_zwykly_przebieg_w_tym_samym_stanie_dzwoni(): void
+    {
+        // Bez tego testu „nic nie wysłano" niżej mogłoby znaczyć tylko tyle,
+        // że kanał alarmu w teście jest martwy.
+        $this->wlaczKanalAlarmu();
+        $this->kolejnePomiary(130);
+
+        $this->artisan('kuking:budzet-polaczen')->assertExitCode(1);
+
+        Http::assertSentCount(1);
+    }
+
+    #[Test]
+    public function probkowanie_nigdy_nie_dzwoni_nawet_w_stanie_krytycznym(): void
+    {
+        $this->wlaczKanalAlarmu();
+        $this->kolejnePomiary(130, 130, 130);
+
+        $this->artisan('kuking:budzet-polaczen', ['--probki' => 3])->assertExitCode(1);
+
         Http::assertNothingSent();
     }
 
