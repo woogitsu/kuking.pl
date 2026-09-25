@@ -12,6 +12,7 @@
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 
+- Panel moderacji: na liście oznaczeń automatu liczby przy zakładkach „Nowe”, „W trakcie” i „Rozpatrzone” liczą oznaczenia automatu, a nie zgłoszenia od ludzi. Liczba w zakładce zgadza się z liczbą pozycji, które pokaże jej kliknięcie (#990).
 - Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
 - Wyszukiwarka znajduje teraz przepisy, które możecie otworzyć: osoba obserwująca autora znajdzie jego przepis „dla obserwujących”, a autor — własny przepis „tylko dla mnie”. Takie wyniki mają na karcie plakietkę „Tylko dla obserwujących” albo „Tylko dla mnie”. Gość i osoba nieobserwująca nadal widzą w wynikach wyłącznie przepisy publiczne, a szkice nie trafiają do wyników (#1320).
 - Pytanie ma teraz jeden adres — stronę w dziale pytań. Stary odnośnik do pytania jako zwykłego wpisu przenosi na właściwą stronę, a mapa strony dla wyszukiwarek podaje pytania pod ich własnym adresem — także te, które mają sam tytuł (#968).
