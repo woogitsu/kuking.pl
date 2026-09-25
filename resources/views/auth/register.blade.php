@@ -25,7 +25,7 @@
          powstało, odbijał się wcześniej. Większość naszej grupy ma konto
          Google albo Facebooka i to jest dla niej droga krótsza, nie
          dodatek. --}}
-    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google albo Facebooka" />
+    <x-wejscia-zewnetrzne rodzaj="rejestracja" />
 
     <x-error-summary />
 

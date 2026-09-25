@@ -142,7 +142,10 @@ class SecuritySettingsTest extends TestCase
 
         // Osoba, która właśnie zmieniła hasło, NIE zostaje wylogowana ze
         // swojej własnej przeglądarki — to byłoby nieodróżnialne od awarii.
-        $this->assertDatabaseHas('sessions', ['id' => $biezacaSesjaId, 'user_id' => $basia->getKey()]);
+        // Ale jej sesja dostaje NOWY identyfikator, a stary nie działa (#1358).
+        $this->assertDatabaseMissing('sessions', ['id' => $biezacaSesjaId]);
+        $this->assertSame(1, DB::table('sessions')->where('user_id', $basia->getKey())->count(),
+            'Bieżąca przeglądarka ma zostać zalogowana pod nowym identyfikatorem sesji.');
 
         $this->get(route('home'))->assertOk();
     }
