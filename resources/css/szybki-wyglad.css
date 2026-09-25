@@ -26,6 +26,13 @@
 .szybki-wyglad [data-wyglad-status]:empty { display: none; }
 /* Podpowiedź jest dostępna również przy zwiniętym details. */
 .szybki-wyglad:not([open]) > .szybki-wyglad-podpowiedz:not([hidden]) { display: block; content-visibility: visible; }
+/* MIEJSCE NA TEN PRZYCISK NIE JEST JUŻ LICZONE TUTAJ.
+   Do 22 września 2026 stało tu `body:has(.szybki-wyglad) { padding-bottom:
+   calc(var(--rezerwa-pod-belka, 0px) + 80px) }` — czyli rezerwa na przypiętą
+   belkę po raz DRUGI, obok tej samej rezerwy w `padding-bottom` stopki.
+   Gość, który belki w ogóle nie ma (`.bottom-nav` pod `@auth`), dostawał
+   przez to 284 px szarego pasa pod stopką. Rezerwa jest teraz jedna,
+   wydawana raz, w stopce: `--rezerwa-ukladu-dol` w `marka-rama.css`. */
 /*
  * ZASIĘG WIDŻETU LICZONY Z JEGO WŁASNYCH WYMIARÓW, NIE ZE STAŁEJ.
  *
@@ -60,11 +67,15 @@
       max(48px, calc(max(16px, var(--text-body)) * var(--leading-body) + 2 * var(--spacing-3) + 2px))
     + var(--spacing-3) + env(safe-area-inset-bottom, 0px) + 1px));
 }
-body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
+/* `padding-bottom` na `body` z tą rezerwą (#1081) CELOWO tu nie wraca —
+   patrz komentarz wyżej: koniec dokumentu to koniec stopki, a miejsce na
+   przycisk zostawia sama stopka (z boku paska, a przy dużym tekście pod
+   nim — `marka-rama.css`, #1525). `--wyglad-zasieg` służy już tylko
+   przewijaniu do celu, niżej. */
 /*
  * TA SAMA REZERWA, TYLE ŻE DLA PRZEWIJANIA DO CELU — DRUGA POŁOWA REGUŁY WYŻEJ.
  *
- * `padding-bottom` ratuje tylko KONIEC dokumentu. Przewinięcie fokusu albo
+ * Rezerwa w stopce ratuje tylko KONIEC dokumentu. Przewinięcie fokusu albo
  * kotwicy w widok liczy się do krawędzi okna i nie wie, że w prawym dolnym
  * rogu stoi widget (`position: fixed`, `z-index: 25`). Mechanizmem CSS na tę
  * różnicę jest `scroll-padding-bottom` i on w serwisie JEST — ale w app.css
@@ -76,7 +87,7 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
  * ZMIERZONE (#1081, /admin/wiadomosci/<id>, 1440 px, tekst 140%): ostatnie
  * linijki akapitu w `<details>` lądowały w prostokącie 1245–1428 × 822,9–888,
  * czyli dokładnie pod widgetem — `elementFromPoint` trafiał w jego `summary`,
- * nie w tekst. Rezerwa 80 px to TA SAMA liczba co w `padding-bottom` wyżej,
+ * nie w tekst. Rezerwa 80 px to TA SAMA liczba co podłoga `--wyglad-zasieg` wyżej,
  * a nie nowa: widget sięga 77,1 px od dołu okna przy tekście 140%.
  *
  * Nic nie rysuje — działa wyłącznie przy celowanym przewijaniu. Nie ruszamy
