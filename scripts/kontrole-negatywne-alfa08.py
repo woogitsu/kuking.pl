@@ -294,6 +294,11 @@ EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 FORMA_MIGRACJA = "database/migrations/2026_09_25_140000_add_form_of_address_to_profiles.php"
 FORMA_WYMAZANIE = "app/Domain/Users/Actions/EraseAccountData.php"
 FORMA_TEST = "FormaZwracaniaSieTest"
+FORMA_HELPER = "app/Support/Forma.php"
+FORMA_KONIEC_ONBOARDINGU = "resources/views/pages/onboarding/done.blade.php"
+FORMA_ODKRYWANIE = "resources/views/pages/discover.blade.php"
+FORMA_TEKSTY_TEST = "FormaTekstyTest"
+TEKSTY_BEZ_PLCI_TEST = "TekstyNiePrzypisujaPlciTest"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -728,6 +733,14 @@ checks = [
      lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
     ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
      lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
+    # #1753 (D-268): helper ignoruje formę żeńską; wariant neutralny z rodzajem;
+    # goły rodzaj OBOK helpera w tej samej linii (wycinamy tylko argumenty).
+    ("Helper formy ignoruje formę żeńską", FORMA_HELPER, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "Profile::FORM_FEMININE => $zenska,", "Profile::FORM_FEMININE => $neutralna,")),
+    ("Wariant neutralny helpera z rodzajem", FORMA_KONIEC_ONBOARDINGU, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "'ugotowałaś', 'ugotowałeś', 'gotujesz') }} —", "'ugotowałaś', 'ugotowałeś', 'ugotowałeś') }} —")),
+    ("Goły rodzaj obok wywołania helpera", FORMA_ODKRYWANIE, TEKSTY_BEZ_PLCI_TEST,
+     lambda s: replace_once(s, "}}. Nie musi być ładne", "}} ugotowałaś. Nie musi być ładne")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -790,6 +803,8 @@ run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(FORMA_TEST, True)
+run_test(FORMA_TEKSTY_TEST, True)
+run_test(TEKSTY_BEZ_PLCI_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)

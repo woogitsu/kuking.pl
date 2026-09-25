@@ -135,6 +135,114 @@ final class WzorceRodzaju
     ];
 
     /**
+     * Wywołanie helpera formy (D-268, #1753) — jedyne miejsce, w którym forma
+     * rodzajowa w tekście serwisu jest dozwolona.
+     */
+    public const WYWOLANIE_FORMY = 'Forma::dla(';
+
+    /**
+     * Treść z WYCIĘTYMI argumentami wywołań `Forma::dla(...)`.
+     *
+     * DLACZEGO WYCINAMY CAŁE ARGUMENTY, A NIE CAŁĄ LINIĘ
+     * Linia, w której obok helpera stoi goły „ugotowałaś”, ma dalej oblewać.
+     * Zerowanie całej linii byłoby dokładnie tym szerokim wyjątkiem, przed
+     * którym ostrzega komentarz przy `WYJATKI`. Argumenty zamieniamy na
+     * spacje, a znaki nowej linii zostawiamy — numery linii w komunikacie
+     * wskazują dalej właściwe miejsce.
+     *
+     * Że neutralny wariant każdego wywołania jest naprawdę bez rodzaju,
+     * pilnuje osobno `FormaTekstyTest` (przez `wywolaniaFormy()`).
+     */
+    public static function bezWywolanFormy(string $tresc): string
+    {
+        $wynik = $tresc;
+
+        foreach (array_reverse(self::wywolaniaFormy($tresc)) as $wywolanie) {
+            $dlugosc = $wywolanie['koniec'] - $wywolanie['poczatek'];
+            $wyciete = (string) preg_replace('/[^\n]/u', ' ', substr($wynik, $wywolanie['poczatek'], $dlugosc));
+            $wynik = substr($wynik, 0, $wywolanie['poczatek'])
+                .str_pad($wyciete, $dlugosc)
+                .substr($wynik, $wywolanie['koniec']);
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * Wszystkie wywołania `Forma::dla(...)` w tekście, z argumentami
+     * rozdzielonymi na najwyższym poziomie (przecinek w napisie albo
+     * w zagnieżdżonym nawiasie nie dzieli argumentu).
+     *
+     * @return list<array{poczatek: int, koniec: int, linia: int, argumenty: list<string>}>
+     *                                                                                      `poczatek`/`koniec` — bajty argumentów (bez nawiasów)
+     */
+    public static function wywolaniaFormy(string $tresc): array
+    {
+        $wywolania = [];
+        $od = 0;
+
+        while (($pozycja = strpos($tresc, self::WYWOLANIE_FORMY, $od)) !== false) {
+            $poczatek = $pozycja + strlen(self::WYWOLANIE_FORMY);
+            $glebokosc = 1;
+            $cudzyslow = null;
+            $argumenty = [];
+            $biezacy = '';
+            $i = $poczatek;
+            $n = strlen($tresc);
+
+            for (; $i < $n; $i++) {
+                $znak = $tresc[$i];
+
+                if ($cudzyslow !== null) {
+                    $biezacy .= $znak;
+
+                    if ($znak === '\\' && $i + 1 < $n) {
+                        $biezacy .= $tresc[++$i];
+                    } elseif ($znak === $cudzyslow) {
+                        $cudzyslow = null;
+                    }
+
+                    continue;
+                }
+
+                if ($znak === "'" || $znak === '"') {
+                    $cudzyslow = $znak;
+                } elseif ($znak === '(' || $znak === '[') {
+                    $glebokosc++;
+                } elseif ($znak === ')' || $znak === ']') {
+                    $glebokosc--;
+
+                    if ($glebokosc === 0) {
+                        break;
+                    }
+                } elseif ($znak === ',' && $glebokosc === 1) {
+                    $argumenty[] = trim($biezacy);
+                    $biezacy = '';
+
+                    continue;
+                }
+
+                $biezacy .= $znak;
+            }
+
+            if (trim($biezacy) !== '') {
+                $argumenty[] = trim($biezacy);
+            }
+
+            $wywolania[] = [
+                'poczatek' => $poczatek,
+                'koniec' => $i,
+                'linia' => substr_count($tresc, "\n", 0, $pozycja) + 1,
+                'argumenty' => $argumenty,
+            ];
+
+            $od = max($i, $poczatek);
+        }
+
+        return $wywolania;
+    }
+
+    /**
      * Trafienia w tekście, linia po linii, po wycięciu nazwanych wyjątków
      * i homografów.
      *

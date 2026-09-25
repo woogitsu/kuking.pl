@@ -17248,4 +17248,5 @@ zapisanych wyborach (D-088).
 📄 `docs/brand/COPY_STYLE.md` · `docs/brand/BRAND_EXTENDED.md` · `docs/brand/GLOS_MARKI.md` ·
 `docs/SECURITY_PRIVACY_LEGAL.md` · D-207 · D-088 ·
 `database/migrations/2026_09_25_140000_add_form_of_address_to_profiles.php` ·
-`app/Http/Controllers/Settings/FormOfAddressController.php` · `FormaZwracaniaSieTest`
+`app/Http/Controllers/Settings/FormOfAddressController.php` · `FormaZwracaniaSieTest` ·
+`app/Support/Forma.php` · `FormaTekstyTest` · `TekstyNiePrzypisujaPlciTest`

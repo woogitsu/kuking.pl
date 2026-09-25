@@ -68,7 +68,8 @@
             --}}
             @auth
                 <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
-                    Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
+                    {{-- D-268: zalogowanego znamy — forma z profilu, bez wyboru bez rodzaju. Gość niżej zostaje przy haśle. --}}
+                    Zacznij od zdjęcia tego, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}. Nie musi być ładne — ma być prawdziwe.
                 </x-empty-state>
             @else
                 <x-empty-state title="Jeszcze nic tu nie ma" action="Załóż konto i pokaż swoje" :href="route('register')">

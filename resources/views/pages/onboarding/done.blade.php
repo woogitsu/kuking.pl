@@ -25,7 +25,8 @@
              („co gotowałam") przez profil („będziesz mogła") po ukośniki
              rodzajowe („Zrobiłam/zrobiłem"). Dlatego reguła nie stoi już na
              czyjejś pamięci, tylko na teście `TekstyNiePrzypisujaPlciTest`. --}}
-        Konto jest założone. Możesz od razu pokazać, co dziś ugotowałeś —
+        {{-- D-268: w formie wybranej przez tę osobę; bez wyboru — bez rodzaju. --}}
+        Konto jest założone. Możesz od razu pokazać, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }} —
         albo najpierw się rozejrzeć.
     </p>
 

@@ -47,6 +47,15 @@ use Tests\TestCase;
  * wystąpieniach jest gorszy niż brak testu, bo wygląda na dowód. Ten plik
  * bierze cały wzorzec od nowa i pilnuje go na wszystkich powierzchniach
  * naraz — widoki, teksty prawne, tłumaczenia i napisy składane w PHP.
+ *
+ * OD D-268 (25.09.2026): JEDYNA FURTKA TO HELPER FORMY
+ * Osoba, która sama wybrała formę („Jak mamy do Ciebie pisać?”), dostaje
+ * teksty w swojej formie — ale wyłącznie przez `App\Support\Forma::dla()`
+ * z trzema wariantami. Skan widoków i napisów w PHP wycina ARGUMENTY tych
+ * wywołań (`WzorceRodzaju::bezWywolanFormy()`), nic poza nimi: goły
+ * „ugotowałaś” obok helpera w tej samej linii dalej oblewa. Że wariant
+ * neutralny każdego wywołania jest bez rodzaju, pilnuje `FormaTekstyTest`.
+ * Teksty prawne i tłumaczenia helpera nie mają i furtki nie dostają.
  */
 class TekstyNiePrzypisujaPlciTest extends TestCase
 {
@@ -129,7 +138,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         $winowajcy = [];
 
         foreach ($pliki as $plik) {
-            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+            // Rodzaj wolno pokazać wyłącznie przez helper formy (D-268):
+            // argumenty `Forma::dla(...)` wypadają ze skanu, reszta linii nie.
+            $tresc = WzorceRodzaju::bezWywolanFormy($this->bezKomentarzyBlade((string) file_get_contents($plik)));
 
             foreach ($this->trafienia($tresc) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
@@ -167,7 +178,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         $winowajcy = [];
 
         foreach ($pliki as $plik) {
-            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+            // Rodzaj wolno pokazać wyłącznie przez helper formy (D-268):
+            // argumenty `Forma::dla(...)` wypadają ze skanu, reszta linii nie.
+            $tresc = WzorceRodzaju::bezWywolanFormy($this->bezKomentarzyBlade((string) file_get_contents($plik)));
 
             foreach ($this->trafieniaTylkoWidoki($tresc) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
@@ -573,7 +586,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
     {
         $napisy = [];
 
-        foreach (token_get_all((string) file_get_contents($plik)) as $token) {
+        // Argumenty `Forma::dla(...)` wycięte przed podziałem na tokeny (D-268) —
+        // nawiasy zostają, więc `token_get_all()` czyta resztę pliku jak dotąd.
+        foreach (token_get_all(WzorceRodzaju::bezWywolanFormy((string) file_get_contents($plik))) as $token) {
             if (! is_array($token)) {
                 continue;
             }

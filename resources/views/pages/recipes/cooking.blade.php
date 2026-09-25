@@ -215,7 +215,8 @@
                 <h2 class="mt-0">To już ostatni krok.</h2>
                 @can('cook', $recipe)
                     <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}" data-minutniki-koniec>Ugotowałem</a>
+                    {{-- D-268: przy formie żeńskiej „Ugotowałam”; nazwą funkcji zostaje „Ugotowałem”. --}}
+                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}" data-minutniki-koniec>{{ \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem') }}</a>
                 @else
                     @guest
                         <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>

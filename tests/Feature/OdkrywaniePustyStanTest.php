@@ -75,8 +75,11 @@ class OdkrywaniePustyStanTest extends TestCase
         $pustyStan = $this->pustyStanZDiscover((string) $html);
 
         $this->assertStringContainsString('Jeszcze nic tu nie ma', $pustyStan);
+        // Od D-268 (#1753) zalogowany bez wybranej formy dostaje to zdanie
+        // BEZ RODZAJU — hasło „ugotowałeś” zostaje tylko dla gościa niżej.
+        // Warianty żeński i męski pilnuje `FormaTekstyTest`.
         $this->assertStringContainsString(
-            'Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.',
+            'Zacznij od zdjęcia tego, co dziś gotujesz. Nie musi być ładne — ma być prawdziwe.',
             $pustyStan,
         );
 
