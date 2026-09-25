@@ -12,6 +12,7 @@ use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -44,6 +45,11 @@ class StronyBezWachlarzaZapytanTest extends TestCase
 
     private function policzZapytania(callable $akcja): int
     {
+        // Każdy pomiar na zimno: liczby i kolaż strony tagu leżą w cache
+        // (audyt B4 W2). Bez tego drugi pomiar byłby tańszy o samo liczenie
+        // statystyk, a nie o brak wachlarza zapytań.
+        Cache::flush();
+
         $ile = 0;
         $liczy = true;
 
