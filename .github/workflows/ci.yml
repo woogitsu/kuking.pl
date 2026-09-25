@@ -455,7 +455,8 @@ jobs:
           #   wyscigi    → `dwa-polaczenia`: kod i dane aplikacji (testy tej
           #                grupy chodzą przez HTTP i zatwierdzają dane, więc
           #                także widoki i tłumaczenia), `tests/Dwa/`, wspólne
-          #                zaplecze testów i skrypt uruchamiający.
+          #                zaplecze testów (z `tests/nazwa-bazy.php`, z którego
+          #                skrypt bierze nazwę bazy) i skrypt uruchamiający.
           #
           # Każdy wzorzec obejmuje `ci.yml`, a `wyscigi` także akcję PHP:
           # zmiana przyrządu uruchamia pomiar. Że job ruszy przy zmianie
@@ -475,7 +476,7 @@ jobs:
 
           ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|\.github/workflows/ci\.yml$)'
           ciezki obciazenie '^(scripts/[^/]*605[^/]*$|\.github/workflows/ci\.yml$)'
-          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/testy-dwa-polaczenia\.sh$|\.github/(workflows/ci\.yml$|actions/php/))'
+          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$|nazwa-bazy\.php$)|scripts/testy-dwa-polaczenia\.sh$|\.github/(workflows/ci\.yml$|actions/php/))'
 
       # =====================================================================
       #  CO TA ZIELEŃ ZNACZY — wypisane na wierzchu przebiegu.
