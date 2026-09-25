@@ -280,6 +280,8 @@ KUCHARZ_W_KARENCJI = """            ->where(function (QueryBuilder $kucharz) use
                     });
             })
 """
+# #1747: zapowiedź przepisu ma bramkę w przepisie (`PostPolicy::view()`).
+BRAMKA_ZAPOWIEDZI = "        if ($tabela === 'posts') {\n            self::bramkaZapowiedziPrzepisu($sub, $a, $widz);\n        }\n"
 
 
 def digest(path):
@@ -656,6 +658,8 @@ checks = [
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
     ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
      lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
+    ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.

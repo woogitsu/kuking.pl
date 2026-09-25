@@ -52,65 +52,115 @@ final class WidocznoscTresciSql
      * (obie tabele mają identyczny kształt: `author_id`, `status`,
      * `published_at`, `visibility`, `deleted_at`).
      *
+     * $alias istnieje dla zagnieżdżenia: zapowiedź przepisu (#1747) pyta
+     * o widoczność przepisu WEWNĄTRZ zapytania o wpis, więc obie tabele
+     * muszą mieć w SQL różne nazwy.
+     *
      * @param  'posts'|'recipes'  $tabela
      */
-    public static function wpisLubPrzepis(QueryBuilder $sub, string $tabela, string $kolumnaId, User $widz): void
+    public static function wpisLubPrzepis(QueryBuilder $sub, string $tabela, string $kolumnaId, User $widz, string $alias = 'tw'): void
     {
         $widzId = $widz->getKey();
+        $a = $alias;
 
         if ($tabela === 'posts' && ! config('kuking.questions.enabled')) {
-            $sub->where('tw.kind', Post::KIND_DISH);
+            $sub->where("{$a}.kind", Post::KIND_DISH);
         }
 
         $sub->selectRaw('1')
-            ->from("{$tabela} as tw")
-            ->whereColumn('tw.id', $kolumnaId)
+            ->from("{$tabela} as {$a}")
+            ->whereColumn("{$a}.id", $kolumnaId)
             // Skasowana (soft delete) treść nie wraca do nikogo, nawet do autora.
-            ->whereNull('tw.deleted_at')
-            ->where(function (QueryBuilder $w) use ($widzId): void {
+            ->whereNull("{$a}.deleted_at")
+            ->where(function (QueryBuilder $w) use ($widzId, $a): void {
                 // Właściciel widzi zawsze własną treść — szkic, ukrytą przez
                 // moderację, prywatną. „Poprawne dane nigdy nie znikają."
-                $w->where('tw.author_id', $widzId)
-                    ->orWhere(function (QueryBuilder $obce) use ($widzId): void {
-                        $obce->where('tw.status', self::STATUS_TRESCI_OPUBLIKOWANA)
-                            ->whereNotNull('tw.published_at')
+                $w->where("{$a}.author_id", $widzId)
+                    ->orWhere(function (QueryBuilder $obce) use ($widzId, $a): void {
+                        $obce->where("{$a}.status", self::STATUS_TRESCI_OPUBLIKOWANA)
+                            ->whereNotNull("{$a}.published_at")
                             // Autor treści zbanowany/do usunięcia odcina WSZYSTKICH
                             // poza sobą — już obsłużonym w gałęzi wyżej.
-                            ->whereNotExists(function (QueryBuilder $autor): void {
+                            ->whereNotExists(function (QueryBuilder $autor) use ($a): void {
                                 $autor->selectRaw('1')
                                     ->from('users as autorzy_tresci')
-                                    ->whereColumn('autorzy_tresci.id', 'tw.author_id')
+                                    ->whereColumn('autorzy_tresci.id', "{$a}.author_id")
                                     ->whereIn('autorzy_tresci.status', User::STATUSY_UKRYWAJACE_TRESC);
                             })
                             // Blokada między WIDZEM a AUTOREM TREŚCI — może
                             // być inna osoba niż sprawca zdarzenia (odpowiedź
                             // w cudzym wątku).
-                            ->whereNotExists(function (QueryBuilder $blok) use ($widzId): void {
+                            ->whereNotExists(function (QueryBuilder $blok) use ($widzId, $a): void {
                                 $blok->selectRaw('1')
                                     ->from('blocks')
-                                    ->where(function (QueryBuilder $w2) use ($widzId): void {
+                                    ->where(function (QueryBuilder $w2) use ($widzId, $a): void {
                                         $w2->where('blocks.blocker_id', $widzId)
-                                            ->whereColumn('blocks.blocked_id', 'tw.author_id');
+                                            ->whereColumn('blocks.blocked_id', "{$a}.author_id");
                                     })
-                                    ->orWhere(function (QueryBuilder $w2) use ($widzId): void {
-                                        $w2->whereColumn('blocks.blocker_id', 'tw.author_id')
+                                    ->orWhere(function (QueryBuilder $w2) use ($widzId, $a): void {
+                                        $w2->whereColumn('blocks.blocker_id', "{$a}.author_id")
                                             ->where('blocks.blocked_id', $widzId);
                                     });
                             })
-                            ->where(function (QueryBuilder $widocznosc) use ($widzId): void {
-                                $widocznosc->where('tw.visibility', 'public')
-                                    ->orWhere(function (QueryBuilder $obserwujacy) use ($widzId): void {
-                                        $obserwujacy->where('tw.visibility', 'followers')
-                                            ->whereExists(function (QueryBuilder $f) use ($widzId): void {
+                            ->where(function (QueryBuilder $widocznosc) use ($widzId, $a): void {
+                                $widocznosc->where("{$a}.visibility", 'public')
+                                    ->orWhere(function (QueryBuilder $obserwujacy) use ($widzId, $a): void {
+                                        $obserwujacy->where("{$a}.visibility", 'followers')
+                                            ->whereExists(function (QueryBuilder $f) use ($widzId, $a): void {
                                                 $f->selectRaw('1')
                                                     ->from('follows')
                                                     ->where('follows.follower_id', $widzId)
-                                                    ->whereColumn('follows.followed_id', 'tw.author_id');
+                                                    ->whereColumn('follows.followed_id', "{$a}.author_id");
                                             });
                                     });
                             });
                     });
             });
+
+        if ($tabela === 'posts') {
+            self::bramkaZapowiedziPrzepisu($sub, $a, $widz);
+        }
+    }
+
+    /**
+     * ZAPOWIEDŹ PRZEPISU MA BRAMKĘ W PRZEPISIE, NIE W SOBIE (#1747, #368).
+     *
+     * Wpis, który `WpisWskazujacyPrzepis` dopisuje do opublikowanego
+     * przepisu, ma `visibility = 'public'`, ale to nie jest decyzja o jawności
+     * — jedyną bramką jest przepis. `PostPolicy::view()` odmawia takiego
+     * wpisu (bez własnej treści i bez zdjęć, `Post::czyJestZapowiedziaPrzepisu()`),
+     * gdy przepisu nie ma albo widz go nie widzi. Filtr powiadomień tego nie
+     * robił: powiadomienie o komentarzu pod zapowiedzią przepisu, który autor
+     * potem ukrył albo zawęził, zostawało na liście i w eksporcie.
+     *
+     * Kolejność jak w Policy: autor NIEOPUBLIKOWANEGO wpisu dostaje go przed
+     * tą bramką (`view()` wraca wcześniej), więc ta gałąź go przepuszcza.
+     *
+     * „Bez własnej treści" liczymy jak `filled()`: NULL albo same białe znaki.
+     */
+    private static function bramkaZapowiedziPrzepisu(QueryBuilder $sub, string $a, User $widz): void
+    {
+        $widzId = $widz->getKey();
+
+        $sub->where(function (QueryBuilder $bramka) use ($a, $widzId, $widz): void {
+            $bramka->whereNull("{$a}.recipe_id")
+                ->orWhereRaw("btrim(coalesce({$a}.body, ''), E' \\t\\n\\r\\x0B') <> ''")
+                ->orWhereExists(function (QueryBuilder $zdjecia) use ($a): void {
+                    $zdjecia->selectRaw('1')
+                        ->from('post_media')
+                        ->whereColumn('post_media.post_id', "{$a}.id");
+                })
+                ->orWhere(function (QueryBuilder $szkicAutora) use ($a, $widzId): void {
+                    $szkicAutora->where("{$a}.author_id", $widzId)
+                        ->where(function (QueryBuilder $nieopublikowany) use ($a): void {
+                            $nieopublikowany->where("{$a}.status", '!=', self::STATUS_TRESCI_OPUBLIKOWANA)
+                                ->orWhereNull("{$a}.published_at");
+                        });
+                })
+                ->orWhereExists(
+                    fn (QueryBuilder $przepis) => self::wpisLubPrzepis($przepis, 'recipes', "{$a}.recipe_id", $widz, 'przepis_zapowiedzi'),
+                );
+        });
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Visibility;
 
+use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Models\Comment;
@@ -28,7 +29,8 @@ use Tests\TestCase;
  * zgodność deklarował wyłącznie komentarz w modelu. Ten test porównuje obie
  * odpowiedzi na macierzy:
  *
- *   cel:        wpis, przepis, „Ugotowałem"
+ *   cel:        wpis, przepis, „Ugotowałem", zapowiedź przepisu (#1747 —
+ *               wpis bez własnej treści, którego bramką jest przepis)
  *   widz:       właściciel treści, obserwujący autora, obcy
  *   stan:       publiczne, dla obserwujących, prywatne, blokada w obie
  *               strony, autor treści zbanowany, treść ukryta, szkic,
@@ -64,7 +66,7 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const CELE = ['wpis', 'przepis', 'wykonanie'];
+    private const CELE = ['wpis', 'przepis', 'wykonanie', 'zapowiedz'];
 
     private const WIDZOWIE = ['wlasciciel', 'obserwujacy', 'obcy'];
 
@@ -265,6 +267,17 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
 
         if ($cel === 'przepis') {
             return ['recipes', (string) $przepis->getKey(), 'recipe_id', (string) $przepis->getKey()];
+        }
+
+        if ($cel === 'zapowiedz') {
+            // Zapowiedź powstaje drogą produkcyjną, nie fabryką — to
+            // `WpisWskazujacyPrzepis` decyduje, jak wygląda taki wpis.
+            // Stan nakładamy na PRZEPIS: to on jest bramką zapowiedzi.
+            $zapowiedz = WpisWskazujacyPrzepis::dopisz($przepis);
+            $this->assertNotNull($zapowiedz, 'Zapowiedź nie powstała — ta komórka macierzy nie miałaby czego mierzyć.');
+            $this->assertTrue($zapowiedz->czyJestZapowiedziaPrzepisu(), 'Wpis nie jest zapowiedzią przepisu.');
+
+            return ['recipes', (string) $przepis->getKey(), 'post_id', (string) $zapowiedz->getKey()];
         }
 
         // „Ugotowałem" nie ma własnej widoczności — stan nakładamy na PRZEPIS.
