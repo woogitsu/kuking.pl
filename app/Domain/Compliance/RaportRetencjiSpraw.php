@@ -21,5 +21,8 @@ final class RaportRetencjiSpraw
         public readonly int $pominieteDecyzjeZywymOdwolaniem,
         public readonly int $usunieteZgloszenia,
         public readonly int $bledyZgloszen,
+        // Kandydaci, którzy nie zmieścili się w budżecie przebiegu albo których
+        // skasowanie padło — podejmie ich następny przebieg (issue #998).
+        public readonly int $pozostaloNaKolejnyPrzebieg = 0,
     ) {}
 }
