@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Usunięty jednorazowy workflow audytu A7 (`audyt-a7-final-check.yml`) z 09.09. Uruchamiał się tylko po pushu na nieistniejącą już gałąź audytu, a miał prawo zapisu do repozytorium — martwy kod z uprawnieniami to niepotrzebne ryzyko (decyzja właściciela z 25.09, #1742).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
