@@ -745,44 +745,20 @@ for label, filename, _test, mutate in checks:
     except Exception as error:
         raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
 
-run_test(COLLECTION_TEST, True)
-run_test(COMPOSER_TEST, True)
-run_test(AKCJE_SHA_TEST, True)
-run_test(STRAZNIK_TEKSTU_TEST, True)
-run_test(OBRAZ_ASSETOW_TEST, True)
-run_test(MIGRACJA_2FA_TEST, True)
-run_test(PIERWSZY_EKRAN_TEST, True)
-run_test(STRAZNIK_HOSTA_TEST, True)
-run_test(KONTAKT_MIGRACJA_TEST, True)
-run_test(KONTAKT_ZNACZNIKI_TEST, True)
-run_test(BRAMKA_AKCJE_TEST, True)
-run_test(BRAMKA_WEJSCIA_TEST, True)
-run_test(BRAMKA_POZA_PR_TEST, True)
-run_test(BRAMKA_OBOK_TEST, True)
-run_test(WIDOK_POZA_PR_TEST, True)
-run_test(PODZIAL_WIERSZY_TEST, True)
-run_test(WDROZENIE_TEST, True)
-run_test(WYDANIE_TEST, True)
-run_test(OBRAZY_DIGEST_TEST, True)
-run_test(XMP_TEST, True)
-run_test(ZMIENNE_ROL_TEST, True)
-run_test(POLITYKA_KOPIA_TEST, True)
-run_test(KOMPENSACJA_UPLOADU_TEST, True)
-run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
-run_test(POLITYKA_CIASTECZKA_TEST, True)
-run_test(CACHE_MANIFESTU_TEST, True)
-run_test(REJESTR_WYJATKOW_TEST, True)
-run_test(ZLECENIE_ZDJECIA_TEST, True)
-run_test(STRAZNIK_R2_TEST, True)
-run_test(OSTRZEZENIE_888_TEST, True)
-run_test(AWANS_ROLI_TEST, True)
-run_test(HERO_PICKS_TEST, True)
-run_test(REGULY_CF_TEST, True)
-run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
-run_test(EKSPORT_PORAZKA_TEST, True)
-run_test(KLUCZ_PREVIEW_TEST, True)
-run_test(EPIZOD_ALARMU_TEST, True)
-run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+# KONTROLE DODATNIE PRZED MUTACJAMI wynikają z `checks`, nie z ręcznej listy.
+# Ręczna lista (38 wywołań `run_test(..., True)`) rozjechała się z `checks`:
+# audyt po fali 25.09 znalazł siedem testów z `checks` bez kontroli dodatniej
+# PRZED mutacją (m.in. KontrolkiPaneluWygladuMajaWidocznaObwodkeTest,
+# StartKonteneraNieCzysciCacheTest). Luki nie było — pętla niżej uruchamia
+# każdy test na zielono po przywróceniu źródła — ale test czerwony od początku
+# wyglądał w logu jak „mutacja wykryta”, dopóki pętla nie doszła do końca.
+# Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
+# w kolejności z `checks`, a nowy wpis nie ma czego zapomnieć.
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in checks))
+if not kontrole_dodatnie:
+    raise RuntimeError("Lista `checks` jest pusta — nie ma czego sprawdzać.")
+for test in kontrole_dodatnie:
+    run_test(test, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
