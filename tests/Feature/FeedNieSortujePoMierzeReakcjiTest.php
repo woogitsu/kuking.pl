@@ -9,7 +9,14 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Feed nie jest algorytmiczny — AGENTS.md §12 (R73), pilnowane automatem.
+ * Feed nie jest algorytmiczny — AGENTS.md §8 i §12 (R73, D-275), pilnowane automatem.
+ *
+ * Od D-275 (#1806) AGENTS.md §8 ma ZAMKNIĘTĄ listę dozwolonych reguł doboru:
+ * czas, równość autorów, oznaczony wybór gospodarza, bramki i blokady, jawne
+ * polecenia widza. Ten plik pilnuje jej mierzalnej części — żadna lista nie
+ * jest układana po mierze cudzych reakcji. Zasięg: `app/Domain/Feed`,
+ * `app/Domain/Digest` (tygodniowy list to czwarta powierzchnia z wpisami,
+ * obok Obserwowanych, Odkrywania i tablicy) i każdy plik z `publiclyVisible()`.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  CO TEN TEST MIERZY I DLACZEGO AKURAT TO
@@ -74,7 +81,9 @@ use Tests\TestCase;
  * Skan, który nie znajdzie ani jednego pliku, przechodzi — zero trafień jest
  * dla niego sukcesem. Przeniesienie `app/Domain/Feed`, zmiana `glob()` albo
  * literówka w wyrażeniu wyłączyłyby ten plik bez jednego czerwonego przebiegu.
- * Stąd dwie kontrole dodatnie, mierzące dwie różne rzeczy:
+ * Stąd dwie kontrole dodatnie, mierzące dwie różne rzeczy (a trzecią,
+ * mutacyjną, trzyma `scripts/kontrole-negatywne-alfa08.py`: sortowanie
+ * wpisów w `ZbierzTresciDigestu` po liczbie „Ugotowałem” ma zapalić ten plik):
  *
  *  - `test_skan_naprawde_czyta_kod_feedu` — czy skan widzi pliki, sortowania
  *    i konkretne, znane z nazwy miejsca;
@@ -82,7 +91,6 @@ use Tests\TestCase;
  *    gdy dostanie sortowanie po popularności. Bez tej drugiej skan mógłby
  *    czytać wszystko i nie umieć niczego odrzucić.
  *
- * @bez-kontroli-dodatniej Skan pilnuje własnego zasięgu (assertGreaterThanOrEqual na liczbie plików, sortowań i kolumn schematu), więc skurczony skan czerwieni zamiast przechodzić nad pustką.
  */
 class FeedNieSortujePoMierzeReakcjiTest extends TestCase
 {
@@ -104,7 +112,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      * warunkiem, nie kluczem), a samo „obserwujący" tym bardziej. Zakazane
      * jest dopiero LICZENIE reakcji.
      */
-    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion)/i';
+    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion|smakowic|odslon|wyswietl|views)/i';
 
     private const WZORZEC_LICZENIA = '/(?<![a-z])(count|sum|liczb|ile|total|avg|srednia)/i';
 
@@ -123,6 +131,20 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      * @var array<string, array<string, string>>
      */
     private const REJESTR = [
+        'app/Domain/Digest/OdbiorcyDigestu.php' => [
+            "'weekly_digest_sent_at ASC NULLS FIRST'" => 'Kolejka WYSYŁKI tygodniowego listu, nie kolejność treści: '
+                .'pierwsze idą osoby, które listu jeszcze nie dostały albo dostały go najdawniej. Klucz to CZAS '
+                .'ostatniego listu do adresata — nikt nie trafia wyżej za to, ile reakcji zebrał. Surowy SQL tylko '
+                .'dlatego, że Laravel nie ma `NULLS FIRST` w `orderBy()`.',
+        ],
+        'app/Domain/Digest/ZbierzTresciDigestu.php' => [
+            "'digest_odbiorca_id'" => 'Alias `recipes.author_id` / `follows.follower_id` z podzapytania — grupuje wiersze '
+                .'paczki PO ADRESACIE listu, żeby rozdać je właściwym osobom. To identyfikator, nie miara.',
+            "'digest_row_number'" => 'Alias ROW_NUMBER() OVER (PARTITION BY adresat ORDER BY …) z podzapytania. '
+                .'Porządek w oknie wyznacza CZAS: `cooked_events.cooked_at` (wykonania), `follows.created_at` '
+                .'(nowi obserwujący), `posts.published_at` (wpisy obserwowanych), z identyfikatorem jako '
+                .'rozstrzygnięciem. Przycięcie do `max_pozycji` bierze więc najnowsze, nie najpopularniejsze (D-275).',
+        ],
         'app/Domain/Feed/DailyBoard.php' => [
             "'ostatnie.ostatnia_publikacja'" => 'Alias podzapytania MAX(published_at) — agreguje CZAS, nie popularność. '
                 .'Komentarz w kodzie tuż nad tym sortowaniem mówi to samo: „Sortujemy po tym, KIEDY ktoś ostatnio '
@@ -160,7 +182,9 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      * Pliki objęte strażnikiem — wyliczane, nie wypisane.
      *
      * Zasięg jest sumą dwóch reguł, żeby nowy plik wszedł pod ochronę sam:
-     *  - wszystko w `app/Domain/Feed` (to jest feed z definicji katalogu),
+     *  - wszystko w `app/Domain/Feed` (to jest feed z definicji katalogu)
+     *    i w `app/Domain/Digest` (tygodniowy list: wpisy obserwowanych,
+     *    cudze „Ugotowałem”, nowi obserwujący — D-275),
      *  - każdy inny plik w `app/`, który pyta o `publiclyVisible()`, czyli
      *    o treści pokazywane publicznie.
      * Z obu bierzemy tylko te, które cokolwiek sortują.
@@ -169,7 +193,10 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      */
     private function pliki(): array
     {
-        $kandydaci = glob(app_path('Domain/Feed/*.php')) ?: [];
+        $kandydaci = [
+            ...(glob(app_path('Domain/Feed/*.php')) ?: []),
+            ...(glob(app_path('Domain/Digest/*.php')) ?: []),
+        ];
 
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
 
@@ -471,6 +498,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             'app/Domain/Feed/TagFeed.php',
             'app/Domain/Feed/HeroKolaz.php',
             'app/Domain/Search/SearchQuery.php',
+            'app/Domain/Digest/ZbierzTresciDigestu.php',
         ] as $kotwica) {
             $this->assertContains($kotwica, $pliki, "Skan nie widzi {$kotwica} — zasięg strażnika przestał obejmować feed.");
         }
@@ -503,7 +531,16 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             $this->assertStringNotContainsString('CommentCount', $sortowanie['argument']);
         }
 
+        // Tygodniowy list (D-275): skan widzi sortowanie wpisów obserwowanych
+        // po czasie publikacji i sortowanie cudzych „Ugotowałem” po CZASIE
+        // ugotowania — `cooked_events.cooked_at` zawiera słowo „cooked”, ale nie
+        // liczy niczego, więc nie może wpaść do NIETYKALNYCH.
+        $argumentyDigestu = array_column($this->sortowania('app/Domain/Digest/ZbierzTresciDigestu.php'), 'argument');
+        $this->assertContains("'published_at'", $argumentyDigestu, 'Skan nie widzi sortowania wpisów w tygodniowym liście.');
+        $this->assertContains("'cooked_events.cooked_at'", $argumentyDigestu, 'Skan nie widzi sortowania wykonań w tygodniowym liście.');
+
         $kolumny = $this->kolumnySchematu();
+        $this->assertSame('neutralne', $this->rozstrzygnij('orderByDesc', "'cooked_events.cooked_at'", $kolumny));
         $this->assertGreaterThanOrEqual(20, count($kolumny), 'Skan nie widzi schematu bazy — bez niego każda kolumna wyglądałaby na wyrażenie.');
         $this->assertTrue($this->kolumnaSchematu('posts.published_at', $kolumny));
         $this->assertFalse(
@@ -533,6 +570,10 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             ["'COUNT(comments.id) DESC'", 'nietykalne'],
             ["'popularity_score DESC'", 'nietykalne'],
             ['fn ($post) => $post->wykonania->count()', 'nietykalne'],
+            // D-275: odsłony i przyszła reakcja „Smakowicie wygląda” (#1813)
+            ["'views_count'", 'nietykalne'],
+            ["'liczba_odslon DESC'", 'nietykalne'],
+            ["'smakowicie_count'", 'nietykalne'],
 
             // czas i porządek — wolno
             ["'published_at'", 'neutralne'],

@@ -274,6 +274,15 @@ AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collec
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
 KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+
+# Reguła doboru treści (AGENTS.md §8, D-275, #1806): tygodniowy list nie układa
+# wpisów po liczbie „Ugotowałem”. Mutacja podmienia sortowanie wpisów
+# obserwowanych w `ZbierzTresciDigestu` z czasu publikacji na licznik wykonań —
+# dowód, że strażnik naprawdę skanuje `app/Domain/Digest`, a nie tylko feed.
+# Filtr na samą metodę głównego pomiaru, żeby czerwień pochodziła z reguły,
+# a nie z kotwic zasięgu w sąsiednich metodach.
+DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
+DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
@@ -729,6 +738,8 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -783,6 +794,7 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DIGEST_DOBOR_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
