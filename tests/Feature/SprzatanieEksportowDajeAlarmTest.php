@@ -9,6 +9,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -178,7 +179,7 @@ class SprzatanieEksportowDajeAlarmTest extends TestCase
             'object_key' => self::KLUCZ,
             'bytes' => 1234,
             // Komplet metadanych gotowej paczki — CHECK `data_exports_ready_complete_check` (#1365).
-            'completed_at' => \Illuminate\Support\Carbon::parse($wygasla)->subDays(7),
+            'completed_at' => Carbon::parse($wygasla)->subDays(7),
             'expires_at' => $wygasla,
         ]);
     }
