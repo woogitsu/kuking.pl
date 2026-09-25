@@ -71,7 +71,7 @@
     $twojeWpisy = $n === 1 ? 'Jeden Twój wpis' : ($mnogaOd2Do4 ? "{$n} Twoje wpisy" : "{$n} Twoich wpisów");
     $niewidoczne = $n === 1 ? 'nie jest widoczny' : ($mnogaOd2Do4 ? 'nie są widoczne' : 'nie jest widocznych');
 @endphp
-<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
+<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)" :noindex-follow="! $indeksowalny">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> ·
         <a href="{{ route('tags.index') }}">wszystkie tagi</a>

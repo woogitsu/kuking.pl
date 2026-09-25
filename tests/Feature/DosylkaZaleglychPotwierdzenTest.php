@@ -379,7 +379,9 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
         } catch (RuntimeException $e) {
             // Komunikat wspólnego adaptera `Harmonogram::artisan()` (#835) —
             // ten sam, który sprawdza `HarmonogramSprawdzaKodWyjsciaTest`.
-            $this->assertSame(
+            // Pierwsze zdanie jest stałe; po nim adapter dokleja końcówkę
+            // wyjścia komendy (`HarmonogramPokazujePrzyczyneTest`).
+            $this->assertStringStartsWith(
                 "Komenda harmonogramu 'kuking:dosylaj-potwierdzenia-zgloszen' zakończyła się niepowodzeniem (kod wyjścia: 1).",
                 $e->getMessage(),
             );
