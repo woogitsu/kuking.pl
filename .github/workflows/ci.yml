@@ -10,17 +10,19 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
-#  WYJĄTEK od 21.09.2026: JEDEN job, `port_funkcje`, czyta osobną zmienną,
-#  `CI_RUNS_ON_BROWSER` — patrz blok „JOB PRZEGLĄDARKOWY" niżej. Wszystkie
-#  POZOSTAŁE joby mają dokładnie to samo:
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121), a od
+#  25.09.2026 dla przebiegów PUSH NA MAIN najpierw `CI_RUNS_ON_MAIN` (D-266,
+#  patrz blok „RUNNERY NA MAIN" niżej). WYJĄTEK od 21.09.2026: JEDEN job,
+#  `port_funkcje`, czyta osobną zmienną, `CI_RUNS_ON_BROWSER` (i, tak samo dla
+#  push na main, `CI_RUNS_ON_BROWSER_MAIN`) — patrz blok „JOB PRZEGLĄDARKOWY"
+#  niżej. Wszystkie POZOSTAŁE joby mają dokładnie to samo:
 #
-#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
-#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
-#  JEST i jest wartością domyślną. Żeby wysłać joby na własną pulę
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
-#  Secrets and variables → Actions → Variables:
+#  Bez ŻADNEJ z tych dwóch zmiennych joby idą na `ubuntu-latest` — zapas
+#  w runnerach GitHuba JEST i jest wartością domyślną. Żeby wysłać joby na
+#  własną pulę `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia
+#  w Settings → Secrets and variables → Actions → Variables:
 #
 #      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
 #
@@ -55,8 +57,67 @@
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
+#  RUNNERY NA MAIN: DWA RUNNERY ZAREZERWOWANE ZMIENNĄ `CI_RUNS_ON_MAIN`
+#  (decyzja właściciela z 25.09.2026, D-266).
+#
+#  PROBLEM. Pula `CI_RUNS_ON` jest WSPÓLNA dla PR-ów i dla `main`. Przy kilku
+#  PR-ach naraz przebiegi main-a (jedyne, po których Railway wdraża — „Wait
+#  for CI") stały w TEJ SAMEJ kolejce co przebiegi PR-ów i czekały na wolną
+#  maszynę razem z nimi — wdrożenie na produkcję głodniało przez ruch, który
+#  z produkcją nie ma nic wspólnego.
+#
+#  DECYZJA: DWA runnery z sześciu-dziesięciu w puli `woogitsu-linux-*` noszą
+#  DODATKOWĄ etykietę `kuking-main` i są WYŁĄCZNIE dla przebiegów main-a;
+#  pozostałe noszą etykietę `kuking-pr` i obsługują PR-y (i staging). Żaden
+#  runner nie nosi obu etykiet naraz — to jest rezerwacja, nie priorytet.
+#
+#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#
+#  Warunek wybiera `CI_RUNS_ON_MAIN` TYLKO wtedy, gdy przebieg jest PRAWDZIWYM
+#  pushem na `main` (`github.ref == 'refs/heads/main' && github.event_name ==
+#  'push'`) — nie dla PR-a kierowanego do `main` (tam `github.ref` to
+#  `refs/pull/<n>/merge`, więc warunek i tak by nie trafił) i CELOWO nie dla
+#  ręcznego `workflow_dispatch` puszczonego na gałęzi `main` (ten sam `ref`,
+#  ale inny `event_name`) — ręczny przebieg diagnostyczny nie ma zajmować
+#  puli zarezerwowanej dla realnego wdrożenia. Bez trafienia warunek spada na
+#  `vars.CI_RUNS_ON`, czyli DOKŁADNIE dzisiejsze zachowanie — nowa zmienna,
+#  zanim ktoś ją ustawi, jest w pełni bezpieczna (nic się nie zmienia).
+#
+#  Właściciel ustawia w Settings → Secrets and variables → Actions →
+#  Variables (przykładowe wartości, do dopasowania do faktycznie oznaczonych
+#  maszyn):
+#
+#      CI_RUNS_ON_MAIN = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-main"]
+#      CI_RUNS_ON      = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-pr"]
+#
+#  KOLEJNOŚĆ WDROŻENIA — NIE DO ODWRÓCENIA:
+#    1. Najpierw właściciel oznacza fizycznie DWA runnery etykietą
+#       `kuking-main`, a pozostałe etykietą `kuking-pr` (GitHub → Settings →
+#       Actions → Runners).
+#    2. DOPIERO POTEM ustawia zmienne repozytorium `CI_RUNS_ON_MAIN`
+#       i `CI_RUNS_ON` powyżej.
+#  W odwrotnej kolejności zmienna wskazywałaby etykietę, której żaden runner
+#  jeszcze nie nosi — GitHub Actions wtedy NIE odrzuca joba, tylko trzyma go
+#  w kolejce BEZ KOŃCA, czekając na runnera, który nigdy się nie zgłosi. To
+#  ten sam rodzaj kosztu co przy offline'owej puli (patrz blok wyżej) i tak
+#  samo blokuje deploy przez „Wait for CI".
+#
+#  Job przeglądarkowy (`port_funkcje`) ma WŁASNĄ, analogiczną parę zmiennych
+#  (`CI_RUNS_ON_BROWSER_MAIN` / `CI_RUNS_ON_BROWSER`) — patrz blok „JOB
+#  PRZEGLĄDARKOWY" niżej, ten sam mechanizm, osobna zmienna z tego samego
+#  powodu co dziś (dwa różne środowiska docelowe joba przeglądarkowego).
+#
+#  Zgodności tego bloku z tym, co naprawdę stoi w `runs-on:`, pilnuje
+#  `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php` (rozszerzony
+#  o `CI_RUNS_ON_MAIN` przy tej samej decyzji, D-266).
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 #  JOB PRZEGLĄDARKOWY `port_funkcje`: OSOBNA ZMIENNA `CI_RUNS_ON_BROWSER`
-#  (decyzja właściciela z 21.09.2026, ZAWĘŻONA tego samego dnia).
+#  (decyzja właściciela z 21.09.2026, ZAWĘŻONA tego samego dnia; od 25.09.2026
+#  ten sam job dla push na main czyta najpierw `CI_RUNS_ON_BROWSER_MAIN` —
+#  patrz blok „RUNNERY NA MAIN" wyżej, D-266 — ten sam mechanizm rezerwacji,
+#  osobna zmienna, bo `port_funkcje` już ma osobne środowisko docelowe).
 #
 #  CO SIĘ ZMIENIŁO. 21.09 CI przeszło na własne runnery (`CI_RUNS_ON`) we
 #  WSZYSTKICH jobach — koszt minut spadł do zera, ale runnery stoją na TEJ
@@ -84,7 +145,7 @@
 #  Sam `port_funkcje` to ok. 27 min na przebieg — z puli ~500 minut to
 #  około OSIEMNASTU przebiegów, znacznie mniej ciasno niż przy pięciu jobach.
 #
-#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
 #
 #  Pozostałe cztery joby (`assets`, `port_panelu`, `port_marki`, `dostepnosc`)
 #  WRÓCIŁY na `CI_RUNS_ON` (własne runnery) — cofnięte do stanu sprzed
@@ -189,6 +250,16 @@
 #  Zmienna żyje w ustawieniach repozytorium i z kodu jej nie widać — ostatni
 #  pomiar stoi wyżej (D-121). Zgodność tego opisu z tym, co naprawdę stoi
 #  w `runs-on:`, pilnuje `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
+#
+#  Od 25.09.2026 to jest TYLKO część mechanizmu w tym pliku: dla przebiegów
+#  będących PUSHEM na `main` `runs-on` sięga NAJPIERW po `CI_RUNS_ON_MAIN`
+#  (i, w `port_funkcje`, po `CI_RUNS_ON_BROWSER_MAIN`), a dopiero bez niej po
+#  `CI_RUNS_ON` opisaną wyżej — patrz blok „RUNNERY NA MAIN" na początku
+#  pliku (D-266). `deploy.yml`, `preview.yml` i `railway-iac.yml` tej pary nie
+#  mają: żaden z nich nie uruchamia się `push`-em na `main` (deploy reaguje na
+#  `deployment_status`, preview i railway-iac na `pull_request`), więc warunek
+#  rezerwacji main-a w nich nigdy by nie trafił i dopisanie go byłoby martwym
+#  kodem — te trzy pliki zostają przy samym `CI_RUNS_ON`.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -246,7 +317,7 @@ jobs:
   # ===========================================================================
   zakres:
     name: Zakres zmiany
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     outputs:
       kod: ${{ steps.sprawdz.outputs.kod }}
@@ -531,7 +602,7 @@ jobs:
     name: Pint (styl kodu)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -650,7 +721,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie `scripts/*605*` albo `ci.yml` (wyjście `obciazenie`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -671,7 +742,7 @@ jobs:
     name: Larastan (analiza statyczna)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -771,7 +842,7 @@ jobs:
     name: Testy (PostgreSQL 18)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # 24.09.2026: pełny zestaw trwa 14 min na szybkich runnerach i do 24 min na
     # wolniejszych (i5-6500T, WSL). Przy 25 min przebiegi #1081 i #1464 zostały
     # ucięte w trakcie zielonych testów. 40 min daje zapas na wolny runner,
@@ -979,7 +1050,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     continue-on-error: true
 
@@ -1064,7 +1135,7 @@ jobs:
     name: Build assetów (Vite)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -1211,7 +1282,7 @@ jobs:
     name: Panel marki — puste i pełne widoki
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
     services:
       postgres:
@@ -1300,7 +1371,7 @@ jobs:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     services:
@@ -1416,7 +1487,7 @@ jobs:
     name: Port marki — rodziny ekranów, zoom i kreator
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
     timeout-minutes: 35
 
@@ -1552,7 +1623,7 @@ jobs:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     services:
@@ -1871,7 +1942,7 @@ jobs:
     name: Audyt zależności
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -1953,7 +2024,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie tego, co czyta build obrazu (wyjście `obraz`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obraz == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     steps:
