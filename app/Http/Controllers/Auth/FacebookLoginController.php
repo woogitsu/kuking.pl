@@ -13,6 +13,7 @@ use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
