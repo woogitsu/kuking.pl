@@ -111,7 +111,7 @@ Feed         → Collections
 Wspomnienia  → Collections
 Collections  → Notifications
 Moderation   → Notifications, Security
-Security     → Moderation            ← znany cykl, do rozcięcia
+Security     → Moderation, Users     ← znany cykl, do rozcięcia
 Contact      → Security
 Media, Pwa   → Analytics
 Kolejka, Polaczenia → Monitoring
@@ -120,9 +120,13 @@ Kolejka, Polaczenia → Monitoring
 Pilnuje tego `tests/Unit/GrafModulowDomenyBezCykliTest.php` (tokenizer PHP,
 bez nowych bibliotek). Lista zastanych cykli w teście jest dokładna w obie
 strony: nowy cykl oblewa test, a rozcięty znany też — żeby wpis nie został
-furtką. Jedyny zastany cykl to `Moderation ↔ Security`
+furtką. Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
 (`AlarmujOPilnymZgloszeniu` → `DziennyBudzetListow`,
-`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`).
+`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`). Wejście przez
+dostawcę (#1035) dołożyło krawędź `Security → Users`
+(`WejdzPrzezDostawce` → `ZalozKonto`, `ZamekKonta`), więc ten sam cykl
+obejmuje dziś `Compliance → Moderation → Security → Users → Compliance`.
+Do rozcięcia osobnym zadaniem.
 
 ## Queue
 

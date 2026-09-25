@@ -41,10 +41,18 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
      * `DziennyBudzetListow`, a `KomunikatZamknietegoKonta` —
      * `UzasadnienieDecyzji`.
      *
+     * Ten cykl urósł o Compliance i Users przez wejście przez dostawcę
+     * (#1035, PR #1635 na `main`): `Security\WejsciePrzezDostawce\
+     * WejdzPrzezDostawce` używa `Users\Actions\ZalozKonto` i `ZamekKonta`,
+     * a dalej Users → Compliance (`EraseAccountData`, `CancelAccountDeletion`)
+     * → Moderation (`PrzedawnioneSprawyModeracyjne`) → Security. Zastany
+     * na `main`, do rozcięcia osobnym zadaniem — tak jak Users → Social
+     * kontraktem `ObserwowanieGospodarza`.
+     *
      * @var list<list<string>>
      */
     private const ZNANE_CYKLE = [
-        ['Moderation', 'Security'],
+        ['Compliance', 'Moderation', 'Security', 'Users'],
     ];
 
     public function test_graf_modulow_domeny_nie_ma_nowych_cykli(): void
