@@ -204,6 +204,16 @@ ich adresów e-mail ani żadnych ich danych kontaktowych — to nie są Twoje
 dane i nie możemy Ci ich przekazać.
 
 
+CZEGO W TEJ PACZCE NIE MA
+-------------------------
+
+Nie ma tu hasła ani kodów do logowania — nie wydajemy ich nikomu.
+Nie ma też kilku rodzajów danych, które wydajemy tylko na prośbę,
+na przykład dziennika bezpieczeństwa konta. Plik dane.json wymienia
+je wszystkie z powodami (w polu "kategorie_poza_paczka"). Jeśli chcesz
+je dostać, napisz do nas: {{ $contactEmail }}
+
+
 DLACZEGO TA PACZKA ISTNIEJE
 ---------------------------
 
