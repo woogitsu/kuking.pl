@@ -588,8 +588,11 @@ Jeśli kreator oferuje tylko 17:
 - **Opcja B:** utwórz serwis z obrazu `ghcr.io/railwayapp-templates/postgres-ssl:18.3`
   — tracisz wtedy część integracji panelu (Database View).
 
-→ Zmień nazwę serwisu na **`postgres`** (dokładnie tak — `railway.ts` się do
-niej odwołuje).
+→ Nazwij serwis **`Postgres`** — wielką literą, dokładnie tak jak
+`NAZWA_BAZY` w `.railway/railway.ts` (od 24.09.2026, #595; wcześniej stało tu
+`postgres`). Plan IaC porównuje plik z żywym środowiskiem **po nazwie**: przy
+innej nazwie `railway config apply` utworzy obok **nową, pustą bazę**
+i przepnie na nią `DB_URL` (`docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`).
 
 ### 6.4 Backupy — **zrób to teraz, nie później**
 
@@ -598,7 +601,7 @@ niej odwołuje).
 > dokument w razie sprzeczności wygrywa. Tu zostaje tylko włączenie backupów
 > jako część wdrożenia od zera.
 
-→ serwis `postgres` → zakładka **Backups**:
+→ serwis `Postgres` → zakładka **Backups**:
 
 1. Włącz **Daily** (6 dni retencji)
 2. Włącz **Weekly** (1 miesiąc retencji)
@@ -1829,11 +1832,15 @@ railway config plan
 ```
 
 Docelowo — jeśli plan wygląda tak, jak zakłada `railway.ts` — zobaczysz listę
-zmian: utworzenie serwisów `web`, `worker`, `scheduler`, przypisanie domen,
-zmiennych, healthchecku. Ale to jest opis ZAMIERZONEGO wyniku, nie gwarancja:
-skoro na produkcji istnieje dziś serwis o innej nazwie (`kuking.pl`, nie
-`web`), `plan` może pokazać coś innego niż samo „utworzenie" — czytaj wynik,
-nie tę listę.
+zmian: utworzenie serwisów `worker` i `scheduler`, zmianę konfiguracji
+ISTNIEJĄCEGO serwisu `kuking.pl` (w pliku to rola `web` pod nazwą
+`NAZWA_SERWISU_WWW`, od 24.09.2026, #595), przypisanie domen, zmiennych,
+healthchecku. **Utworzenie serwisu `web` albo drugiej bazy w planie = stop** —
+znaczy, że nazwy w `railway.ts` rozjechały się z żywymi zasobami. Ale to jest
+opis ZAMIERZONEGO wyniku, nie gwarancja — czytaj wynik, nie tę listę.
+Aktualna procedura rozbicia na trzy serwisy, krok po kroku, stoi
+w `docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`; w razie sprzeczności
+wygrywa ona.
 
 ```bash
 # Zastosowanie (poprosi o potwierdzenie)
@@ -1854,8 +1861,8 @@ railway link --environment production   # wróć na produkcję
 `sleepApplication`, `checkSuites`): usuń je z `railway.ts` i ustaw ręcznie
 w panelu (krok 12). Reszta konfiguracji zadziała bez zmian.
 
-**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `web`, `worker`,
-`scheduler`, `postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
+**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `kuking.pl` (rola
+`web`), `worker`, `scheduler`, `Postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
 `apply` zostało uruchomione i przebiegło zgodnie z planem**. Stan sprzed tego
 kroku (i stan na 9 września 2026, zanim ktokolwiek to uruchomił) to jeden
 serwis `kuking.pl` w trybie `all` + `Postgres`.
