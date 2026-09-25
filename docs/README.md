@@ -32,6 +32,7 @@ Ten plik jest indeksem reszty.
 | [`research/COMPETITIVE_LANDSCAPE.md`](./research/COMPETITIVE_LANDSCAPE.md) | Garnek.pl, Cookpad, Ravelry, grupy FB, luka rynkowa |
 | [`research/AUDIENCE_50_PLUS.md`](./research/AUDIENCE_50_PLUS.md) | dane o Polakach 50+ online, bariery, motywacje |
 | [`research/PUBLIC_REPOS.md`](./research/PUBLIC_REPOS.md) | publiczne repozytoria do inspiracji (Pixelfed, Tandoor, Discourse, Filament…) + stan wdrożenia |
+| [`research/PREFERENCJE_TRESCI.md`](./research/PREFERENCJE_TRESCI.md) | „więcej / mniej takich treści” — warianty, DSA art. 27, RODO, propozycja D-xxx (#1781) |
 | [`RESEARCH.md`](./RESEARCH.md) | notatki źródłowe z blueprintu |
 | [`SOURCES.md`](./SOURCES.md) | lista źródeł |
 
