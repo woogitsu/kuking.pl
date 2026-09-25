@@ -271,23 +271,17 @@ final class ZalozKonto
      */
     private function zaobserwujGospodarza(User $user): void
     {
-        $nazwa = (string) config('kuking.community.host_username');
-
-        if ($nazwa === '') {
-            return;
-        }
-
         try {
             // Samo obserwowanie (i odszukanie gospodarza) mieszka w `Social`
             // za kontraktem `ObserwowanieGospodarza` — bez importu `Social`
             // tutaj, żeby nie zamknąć cyklu `Users ↔ Social` (#971).
-            DB::transaction(fn () => $this->obserwowanieGospodarza->zacznij($user, $nazwa));
+            DB::transaction(fn () => $this->obserwowanieGospodarza->zacznij($user));
         } catch (BladDlaCzlowieka) {
             // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
             // idzie dalej; feed ratują tematy z onboardingu (#31).
         } catch (Throwable $awaria) {
             report(new RuntimeException(
-                'Konto '.$user->getKey().' jest założone, ale nie zaczęło obserwować gospodarza „'.$nazwa.'" '
+                'Konto '.$user->getKey().' jest założone, ale nie zaczęło obserwować gospodarza '
                 .'— to nie jest błąd konfiguracji, tylko awaria; naprawa: FollowUser dla tego konta.',
                 previous: $awaria,
             ));

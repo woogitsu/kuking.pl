@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Domain\Community\HostUserResolver;
 use App\Domain\Users\ObserwowanieGospodarza;
-use App\Models\Profile;
 use App\Models\User;
 
 /**
@@ -19,11 +19,16 @@ use App\Models\User;
  */
 final class ObserwujGospodarza implements ObserwowanieGospodarza
 {
-    public function __construct(private readonly FollowUser $followUser) {}
+    public function __construct(
+        private readonly FollowUser $followUser,
+        private readonly HostUserResolver $hostUser,
+    ) {}
 
-    public function zacznij(User $konto, string $nazwaGospodarza): void
+    public function zacznij(User $konto): void
     {
-        $gospodarz = Profile::where('username', $nazwaGospodarza)->first()?->user;
+        // Gospodarz rozpoznawany po UUID konta, nie po edytowalnej nazwie
+        // profilu (#1089) — jedno źródło: HostUserResolver.
+        $gospodarz = $this->hostUser->resolve();
 
         if ($gospodarz === null || $gospodarz->getKey() === $konto->getKey()) {
             return;

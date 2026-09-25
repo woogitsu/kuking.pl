@@ -112,19 +112,20 @@ return [
         ],
 
         /*
-        | UWAGA: `log` na tej liście NIC NIE DOSTARCZA.
+        | NA TEJ LIŚCIE STOJĄ WYŁĄCZNIE TRANSPORTY, KTÓRE WYSYŁAJĄ (issue #1084).
         |
-        | To jest wpis domyślny Laravela, zostawiony jako przykład składni,
-        | i nie wolno go ustawić w `MAIL_MAILER` bez wymiany tej listy na dwóch
-        | prawdziwych dostawców. Po awarii pierwszego listy zaczęłyby cicho
-        | wpadać do dziennika, a wysyłka dalej zgłaszałaby sukces — ostrzega
-        | przed tym `kuking:sprawdz-poczte`.
+        | Domyślny wpis Laravela kończył się na `log`: po awarii SMTP list
+        | lądował w dzienniku (razem z linkiem do nowego hasła), a wysyłka
+        | zgłaszała sukces. `App\Support\Poczta` odrzuca dziś każdy łańcuch
+        | z `log` albo `array` — także pod własną nazwą mailera — więc taki
+        | wpis dałby czerwone `/health` i schowane formularze, zamiast cichej
+        | dziury. Zapasem są dwaj istniejący dostawcy, bez dokładania trzeciego.
         */
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
+                'emaillabs',
                 'smtp',
-                'log',
             ],
             'retry_after' => 60,
         ],

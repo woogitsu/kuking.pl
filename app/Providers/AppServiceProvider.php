@@ -6,11 +6,13 @@ namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
+use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
+use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -18,6 +20,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -109,7 +113,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->odswiezajLicznikiKolejek();
 
+        // Mapa strony nie może ogłaszać treści, która przestała być
+        // publiczna (issue #1006) — opis w `App\Support\MapaStrony`.
+        MapaStrony::zarejestrujHaki();
+
         $this->zapisujWSesjiTylkoZgrubnyAdres();
+
+        // Issue #993: osierocone pliki pośrednie eksportu sprząta pętla
+        // workera, na dysku, na którym powstały — nie tylko start następnego
+        // eksportu. Dławik i uzasadnienie w `ExportTempDirectory::sweepStaleIfDue()`.
+        Event::listen(Looping::class, fn () => ExportTempDirectory::sweepStaleIfDue());
     }
 
     /**

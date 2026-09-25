@@ -298,6 +298,52 @@ class EksportMowiOZdjeciachKtoreNieWejdaNigdyTest extends TestCase
         }
     }
 
+    /**
+     * LICZEBNIKI SETKOWE — DŁUG WERYFIKACYJNY #713, POZYCJA D5.
+     *
+     * Test wyżej sprawdza 1, 3, 5 i 12. Rejestr #713 zapisał wprost, że
+     * odmiany „dla setek" nikt nie sprawdził. Tu są trzy liczby, na których
+     * reguła „ostatnia cyfra" i reguła „nastki" dają różne formy: 102 (dwie
+     * ostatnie cyfry 02 → „zdjęcia weszły"), 112 (nastka mimo końcówki 2 →
+     * „zdjęć weszło") i 122 (znów „zdjęcia weszły"). Sprawdzamy OBA pliki
+     * czytane przez człowieka — `index.html` i `CZYTAJ-TO-NAJPIERW.txt` —
+     * bo każdy liczy formy osobno.
+     *
+     * Kontrola ujemna wykonana przy dopisaniu: `$dwieOstatnie = $ile % 100`
+     * zamienione w `Odmiana::rzeczownik()` na `$ile` — test oblewa na 112
+     * („112 zdjęcia weszły" zamiast „112 zdjęć weszło"), przywrócone
+     * z kontrolą MD5.
+     */
+    public function test_liczebnik_setkowy_w_zdaniu_o_brakach_jest_odmieniony_po_polsku(): void
+    {
+        $przypadki = [
+            102 => ['102 zdjęcia', 'weszły', 'wejdą'],
+            112 => ['112 zdjęć', 'weszło', 'wejdzie'],
+            122 => ['122 zdjęcia', 'weszły', 'wejdą'],
+        ];
+
+        foreach ($przypadki as $ile => [$liczba, $weszlo, $wejdzie]) {
+            $basia = $this->user('setki'.$ile);
+
+            for ($i = 0; $i < $ile; $i++) {
+                $this->zdjecie($basia, 'spalony-'.$i, Media::STATUS_REJECTED);
+            }
+
+            $paczka = $this->zbudujPaczke($basia);
+            $oczekiwane = $liczba.' '.$this->zdanieONigdy($weszlo, $wejdzie);
+
+            foreach (['index.html', 'CZYTAJ-TO-NAJPIERW.txt'] as $plik) {
+                $this->assertStringContainsString(
+                    $oczekiwane,
+                    $this->jednymWierszem($this->zArchiwum($paczka, $plik)),
+                    "Przy {$ile} zdjęciach odrzuconych liczebnik w {$plik} jest odmieniony źle.",
+                );
+            }
+
+            $this->assertSame($ile, $this->dane($paczka)['o_tym_pliku']['zdjec_odrzuconych_przy_przygotowaniu']);
+        }
+    }
+
     public function test_dane_json_opisuje_regule_bezwarunkowo_takze_przy_zerze(): void
     {
         /*
