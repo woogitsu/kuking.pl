@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\RecipeController;
+use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -39,8 +38,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         // Granice kontrolera sprawdzamy bez zapisu. Osobny znany problem:
         // słownik składników ma varchar(160), choć formularz dopuszcza 240.
         // Nie mieszamy naprawy słownika z odzyskiwaniem (#524).
-        $validated = (new \ReflectionMethod(RecipeController::class, 'validated'))
-            ->invoke(app(RecipeController::class), Request::create('/dodaj/przepis', 'POST', $dane));
+        $validated = $this->daneZapisu($dane);
         $this->assertCount(60, $validated['steps']);
         $this->assertCount(120, $validated['ingredients']);
         // Kontroler przyjmuje także OBIE reprezentacje naraz. Odzyskiwanie
@@ -51,8 +49,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
             $step['id'] = '019a52f0-0000-4000-8000-000000000001';
         }
         unset($step);
-        $both = (new \ReflectionMethod(RecipeController::class, 'validated'))
-            ->invoke(app(RecipeController::class), Request::create('/dodaj/przepis', 'POST', $dane));
+        $both = $this->daneZapisu($dane);
         $this->assertCount(1, $both['steps']);
         $this->assertCount(1, $both['ingredients']);
         if ($status === 429) {
@@ -216,5 +213,20 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $this->assertNotEmpty($data['_token']);
 
         return ['action' => $forms->item(0)->getAttribute('action'), 'method' => strtoupper($forms->item(0)->getAttribute('method')), 'data' => $data];
+    }
+
+    /**
+     * Granice formularza bez zapisu — ta sama walidacja, którą trasa
+     * `recipes.store` przepuszcza przez `ZapisPrzepisuRequest` (issue #970).
+     *
+     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}
+     */
+    private function daneZapisu(array $dane): array
+    {
+        $request = ZapisPrzepisuRequest::create('/dodaj/przepis', 'POST', $dane);
+        $request->setContainer($this->app)->setRedirector($this->app->make('redirect'));
+        $request->validateResolved();
+
+        return $request->daneZapisu();
     }
 }
