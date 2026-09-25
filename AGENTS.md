@@ -634,7 +634,8 @@ W skrócie:
 - zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
-  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”); formę, którą osoba
+  sama wybrała, stosujemy wyłącznie przez helper z wariantem neutralnym — D-268.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
