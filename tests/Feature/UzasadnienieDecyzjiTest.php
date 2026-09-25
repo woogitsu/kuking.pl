@@ -333,7 +333,10 @@ class UzasadnienieDecyzjiTest extends TestCase
     public function test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka(): void
     {
         $dozwolone = [
-            'app/Http/Controllers/Admin/ModerationController.php',
+            // Decyzja z kolejki zgłoszeń — od #970 (krok 2) w akcji, którą
+            // woła wyłącznie `ModerationController::decide()` za
+            // `DecyzjaModeracyjnaRequest::authorize()` (`moderate`).
+            'app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php',
             'app/Domain/Moderation/Actions/RestoreContent.php',
             // TRZECIE MIEJSCE, DOPISANE ŚWIADOMIE (D-052).
             //
@@ -409,8 +412,10 @@ class UzasadnienieDecyzjiTest extends TestCase
      * treści na ukryty. Wtedy wiersza w logu nie ma, test wyżej jest zielony,
      * a zdanie w powiadomieniu — nieprawdziwe.
      *
-     * Dlatego kara i ukrycie wolno wywołać z JEDNEGO miejsca: z kontrolera
-     * moderacji, za `authorize('moderate', User::class)`.
+     * Dlatego kara i ukrycie wolno wywołać z JEDNEGO miejsca: z decyzji
+     * panelu moderacji (`RozstrzygnijZgloszenie`, #970), wołanej wyłącznie
+     * za `DecyzjaModeracyjnaRequest::authorize()` (`moderate`) — oraz
+     * z decyzji po uznanym odwołaniu (#989, niżej).
      */
     public function test_nie_ma_automatu_ktory_sam_ukrywa_albo_blokuje(): void
     {
@@ -421,14 +426,14 @@ class UzasadnienieDecyzjiTest extends TestCase
 
         $oczekiwane = [
             // Kara na koncie — wyłącznie z panelu moderacji.
-            '->ban()' => ['app/Http/Controllers/Admin/ModerationController.php', $poOdwolaniu],
-            '->suspend(' => ['app/Http/Controllers/Admin/ModerationController.php', $poOdwolaniu],
+            '->ban()' => ['app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php', $poOdwolaniu],
+            '->suspend(' => ['app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php', $poOdwolaniu],
             // Ustawienie statusu „ukryte" — panel plus słownik statusów,
             // który tę wartość tylko definiuje i czyta. Szukamy `UKRYTY[`
             // bez nazwy klasy, bo w samym słowniku odwołanie brzmi `self::`.
             'UKRYTY[' => [
+                'app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php',
                 'app/Domain/Moderation/ModeratedContent.php',
-                'app/Http/Controllers/Admin/ModerationController.php',
                 $poOdwolaniu,
             ],
         ];

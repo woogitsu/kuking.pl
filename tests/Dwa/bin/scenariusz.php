@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
@@ -30,7 +31,9 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
+use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
@@ -40,9 +43,11 @@ use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
@@ -231,6 +236,21 @@ try {
             body: $argumenty['tresc'],
         )->getKey(),
 
+        // Odpowiedź i poprawka tego samego komentarza (#1337). Obie strony to
+        // prawdziwe akcje domenowe — test ma pęknąć, gdy `EditComment` przestanie
+        // brać zamek korzenia albo pytać pod nim Policy.
+        'odpowiedz' => (string) app(PublishComment::class)->handle(
+            author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            subject: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            body: $argumenty['tresc'],
+            parent: Comment::query()->whereKey($argumenty['rodzic'])->firstOrFail(),
+        )->getKey(),
+        'popraw-komentarz' => app(EditComment::class)->handle(
+            author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            comment: Comment::query()->whereKey($argumenty['komentarz'])->firstOrFail(),
+            body: $argumenty['tresc'],
+        ) === null ? 'odmowa' : 'zapisano',
+
         // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
         // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
         // wyścig w User::defaultCollection().
@@ -261,19 +281,30 @@ try {
             $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
             Auth::setUser($moderator);
 
-            $zadanie = Request::create('/admin/zgloszenia/x', 'POST', array_filter([
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            // Wejście przez ten sam FormRequest co trasa (#970, krok 2):
+            // rola, własna sprawa, stan zgłoszenia i reguły pól, potem kontroler.
+            $zadanie = DecyzjaModeracyjnaRequest::create('/admin/zgloszenia/x', 'POST', array_filter([
                 'action' => $argumenty['akcja'],
                 'reason_code' => 'harassment',
                 'suspend_days' => $argumenty['dni'] ?? null,
                 'user_message' => 'Decyzja z testu wyścigu.',
             ]));
+            $zadanie->setContainer(app())->setRedirector(app('redirect'));
             $zadanie->setLaravelSession(app('session.store'));
             $zadanie->setUserResolver(static fn () => $moderator);
+            $trasa = (new Route('POST', '/admin/zgloszenia/{report}', []))->bind($zadanie);
+            $trasa->setParameter('report', $zgloszenie);
+            $zadanie->setRouteResolver(static fn () => $trasa);
 
-            $odpowiedz = app(ModerationController::class)->decide(
-                $zadanie,
-                Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail(),
-            );
+            try {
+                $zadanie->validateResolved();
+            } catch (ValidationException $e) {
+                return implode(' ', $e->validator->errors()->all());
+            }
+
+            $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
 
             $bledy = $odpowiedz->getSession()?->get('errors');
 

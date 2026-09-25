@@ -92,7 +92,7 @@ final class DecyzjaPoOdwolaniu
             throw new BladDlaCzlowieka('Nie da się ustalić konta autora tej treści, więc nie ma kogo zawiesić ani zablokować.');
         }
 
-        // Ta sama reguła rang co w `ModerationController::decide()` (#1408).
+        // Ta sama reguła rang co w `RozstrzygnijZgloszenie::handle()` (#1408).
         if ($karaKonta && $moderator->cannot('sanctionAccount', $osoba)) {
             throw new BladDlaCzlowieka($osoba->isAdmin()
                 ? 'Konta administratora nie da się zawiesić ani zablokować z panelu moderacji. '
@@ -178,7 +178,7 @@ final class DecyzjaPoOdwolaniu
         return $zapytanie->whereKey($cel->getKey())->lockForUpdate()->first();
     }
 
-    /** Ten sam skutek co `ModerationController::applyAction()` dla tej akcji. */
+    /** Ten sam skutek co `RozstrzygnijZgloszenie::applyAction()` dla tej akcji. */
     private function wykonaj(Model $cel, ?User $osoba, NowaDecyzja $nowa): void
     {
         match ($nowa->akcja) {
