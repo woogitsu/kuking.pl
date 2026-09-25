@@ -1,6 +1,12 @@
 <x-layout title="Powiadomienia" :noindex="true">
     <h1>Powiadomienia</h1>
 
+    {{-- Domyślnie BRAK przycisku: widok renderowany bez kontrolera (testy
+         pojedynczych wierszy) nie ma skąd wiedzieć, czy jest co oznaczyć. --}}
+    @php
+        $saNieprzeczytane ??= false;
+    @endphp
+
     {{--
         Ten sam przycisk stoi TU i jeszcze raz pod listą (issue #276).
 
@@ -11,8 +17,12 @@
         listą jest tańsze i pewniejsze niż `position: sticky` na pasku:
         żadna wysokość paska nie zostawia go bez akcji na końcu, a dla
         grupy 50+ nic tu nie może zależeć od zachowania przy przewijaniu.
+
+        Oba przyciski stoją tylko przy `$saNieprzeczytane` (issue #1402):
+        bez widocznych nieprzeczytanych kliknięcie nic nie zmieniało, a strona
+        i tak odpowiadała „oznaczone". Martwy przycisk — AGENTS.md §5.
     --}}
-    @if($notifications->total() > 0)
+    @if($saNieprzeczytane)
         <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
             <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
@@ -378,10 +388,12 @@
         skończy czytać ostatnią kartę. Bez tego jedyna droga do „oznacz
         wszystkie" to przewinięcie z powrotem na górę.
     --}}
+    @if($saNieprzeczytane)
     <form class="mt-5" method="POST" action="{{ route('notifications.read') }}">
         @csrf
         <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
     </form>
+    @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.

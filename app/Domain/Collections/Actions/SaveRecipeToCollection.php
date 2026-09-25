@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Models\Collection;
 use App\Models\Recipe;
@@ -28,12 +29,20 @@ final class SaveRecipeToCollection
         // Oba skutki są zapisami tej samej bazy (#907). Istniejące powiązanie
         // jest znacznikiem zakończenia: zatwierdzamy je razem z powiadomieniem.
         // Nie sprawdzamy istnienia wiadomości, którą mogła usunąć retencja.
-        return DB::transaction(fn (): Collection => $this->saveWithNotification($user, $recipe, $collection, $note));
+        //
+        // Transakcję otwiera `ZamekZapisuDoZeszytu` (#1022): pod jego zamkami
+        // dostajemy ŚWIEŻE konto, przepis i zeszyt, już sprawdzone przez
+        // Policy — nie te odczytane w kontrolerze przed chwilą.
+        return app(ZamekZapisuDoZeszytu::class)->zapisz(
+            $user,
+            $recipe,
+            $collection,
+            fn (User $user, Recipe $recipe, Collection $collection): Collection => $this->saveWithNotification($user, $recipe, $collection, $note),
+        );
     }
 
-    private function saveWithNotification(User $user, Recipe $recipe, ?Collection $collection, ?string $note): Collection
+    private function saveWithNotification(User $user, Recipe $recipe, Collection $collection, ?string $note): Collection
     {
-        $collection ??= $user->defaultCollection();
         Gate::forUser($user)->authorize('update', $collection);
 
         // DRUGIE KLIKNIĘCIE „ZAPISUJĘ” NIE JEST NOWYM ZAPISEM (issue #43).
