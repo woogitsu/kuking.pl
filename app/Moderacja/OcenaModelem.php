@@ -81,7 +81,13 @@ final class OcenaModelem
     public function dla(Post|Comment $tresc, ?BudzetCzasu $budzet = null): array
     {
         if (! KlientOpenAI::oceniamy()) {
-            $this->sladBrakuKlucza();
+            // Klucz jest, adres nie prowadzi do OpenAI (#991): błąd, nie
+            // spoczynek — zgłoszony raz na okno, żadna treść nie wychodzi.
+            if (KlientOpenAI::maKlucz()) {
+                KlientOpenAI::zglosBladKonfiguracji('treść');
+            } else {
+                $this->sladBrakuKlucza();
+            }
 
             return [];
         }
