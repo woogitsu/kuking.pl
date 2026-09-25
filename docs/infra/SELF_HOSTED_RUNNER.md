@@ -166,6 +166,41 @@ przebiegów). Pozostałe cztery joby wróciły na `CI_RUNS_ON`. Ten dokument
 opisuje mechanizm `CI_RUNS_ON`; mechanizm `CI_RUNS_ON_BROWSER` jest z nim
 identyczny, tylko dotyczy jednego, węższego joba.
 
+**Od 25.09.2026: dwa runnery zarezerwowane dla `main` — `CI_RUNS_ON_MAIN`
+(D-266).** Pula `CI_RUNS_ON` jest wspólna dla PR-ów i dla `main`; przy kilku
+PR-ach naraz przebiegi `main`-a (jedyne, po których Railway wdraża — „Wait
+for CI") stały w tej samej kolejce co PR-y. Właściciel oznaczył **dwa**
+z runnerów puli `woogitsu-linux-*` dodatkową etykietą `kuking-main`
+(WYŁĄCZNIE dla przebiegów `main`-a), a pozostałe etykietą `kuking-pr`. Każdy
+job w `ci.yml`, który dziś czyta `CI_RUNS_ON`, dla przebiegu będącego
+prawdziwym pushem na `main` (`github.ref == 'refs/heads/main' &&
+github.event_name == 'push'` — nie dla PR-a do `main` i nie dla ręcznego
+`workflow_dispatch` na tej gałęzi) sięga NAJPIERW po `CI_RUNS_ON_MAIN`,
+a dopiero bez niej po `CI_RUNS_ON`:
+
+```yaml
+runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+```
+
+`port_funkcje` ma analogiczną parę: `CI_RUNS_ON_BROWSER_MAIN` przed
+`CI_RUNS_ON_BROWSER`. Przykładowe wartości:
+
+```text
+CI_RUNS_ON_MAIN = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-main"]
+CI_RUNS_ON      = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-pr"]
+```
+
+**Kolejność wdrożenia, nie do odwrócenia:** najpierw właściciel oznacza
+fizycznie runnery etykietami `kuking-main`/`kuking-pr` w GitHub → Settings →
+Actions → Runners, **dopiero potem** ustawia te dwie zmienne. W odwrotnej
+kolejności zmienna wskazywałaby etykietę, której żaden runner jeszcze nie
+nosi — job wtedy nie pada, tylko stoi w „Queued" bez końca (ten sam koszt co
+offline'owa pula, patrz „Skutek, który trzeba znać" niżej), a przez „Wait for
+CI" stoi wtedy i wdrożenie. `deploy.yml`, `preview.yml` i `railway-iac.yml`
+tej pary zmiennych nie mają: żaden z nich nie uruchamia się pushem na `main`
+(deploy reaguje na `deployment_status`, preview i railway-iac na
+`pull_request`), więc dopisanie tam warunku main-a byłoby martwym kodem.
+
 Bez tej zmiennej joby idą na `ubuntu-latest`. Żeby trafiły na własną pulę,
 ustaw w **Settings** → **Secrets and variables** → **Actions** →
 **Variables**:
