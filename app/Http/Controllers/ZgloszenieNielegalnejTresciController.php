@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
-use App\Models\Recipe;
+use App\Domain\Moderation\CelZAdresuZgloszenia;
 use App\Models\Report;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\FormConfirmation;
@@ -136,7 +136,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
             'good_faith.accepted' => 'Zaznacz oświadczenie na dole formularza.',
         ]);
 
-        [$typ, $id] = $this->rozpoznajAdres($data['target_url']);
+        [$typ, $id] = CelZAdresuZgloszenia::rozpoznaj($data['target_url']);
 
         $zgloszenie = $this->zglos->handle(
             imie: $data['notifier_name'] ?? null,
@@ -163,54 +163,5 @@ class ZgloszenieNielegalnejTresciController extends Controller
         return response()->view('pages.zglos-nielegalna-tresc-potwierdzenie', [
             'numer' => $receipt['number'] ?? null,
         ])->header('Cache-Control', 'private, no-store');
-    }
-
-    /**
-     * Próba rozpoznania, czego dotyczy wklejony adres.
-     *
-     * NIEUDANA PRÓBA NIE JEST BŁĘDEM. Ktoś wkleja link z pamięci albo ze
-     * zrzutu ekranu, treść mogła już zniknąć, adres może być z innego serwisu.
-     * Zgłoszenie i tak musi zostać przyjęte — odmowa, bo nie rozpoznaliśmy
-     * adresu, byłaby odmówieniem mechanizmu, który przepis nakazuje
-     * udostępnić. Moderator zobaczy wtedy sam adres i poradzi sobie.
-     *
-     * @return array{0: string|null, 1: string|null}
-     */
-    private function rozpoznajAdres(string $adres): array
-    {
-        $sciezka = parse_url(trim($adres), PHP_URL_PATH);
-
-        if (! is_string($sciezka)) {
-            return [null, null];
-        }
-
-        $segmenty = array_values(array_filter(explode('/', $sciezka)));
-
-        if (count($segmenty) < 2) {
-            return [null, null];
-        }
-
-        [$pierwszy, $drugi] = $segmenty;
-
-        return match ($pierwszy) {
-            'przepis', 'przepisy' => ['recipe', $this->idPrzepisu($drugi)],
-            'wpis', 'wpisy' => ['post', $this->uuidAlbo($drugi)],
-            'ugotowane' => ['cooked_event', $this->uuidAlbo($drugi)],
-            default => [null, null],
-        };
-    }
-
-    private function idPrzepisu(string $segment): ?string
-    {
-        // Adres przepisu niesie slug, nie UUID — trzeba go przetłumaczyć.
-        return Recipe::query()->where('slug', $segment)->value('id')
-            ?? $this->uuidAlbo($segment);
-    }
-
-    private function uuidAlbo(string $segment): ?string
-    {
-        return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $segment) === 1
-            ? $segment
-            : null;
     }
 }
