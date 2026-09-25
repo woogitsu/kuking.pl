@@ -72,10 +72,7 @@ class TagController extends Controller
         // gość na stronie tagu jej nie zobaczy, a `TagPublicStats` i
         // `TagCollage` na tym samym ekranie ją pomijają (issue #941).
         // `null`, nie widz: liczba ma być ta sama dla każdego.
-        $liczPubliczneWpisy = fn ($query) => $query
-            ->publiclyVisible()
-            ->tylkoOdAktywnychAutorow()
-            ->zWidocznymPrzepisem(null);
+        $liczPubliczneWpisy = fn ($query) => $this->tylkoPubliczne($query);
 
         $polecane = Tag::query()
             ->promowane()
@@ -116,9 +113,11 @@ class TagController extends Controller
         // nadal, ale ma przekierować na kanoniczną. Bez osobnej tabeli
         // przekierowań (`recipe_slug_redirects`) — R1 §1.8 tłumaczy,
         // dlaczego tagi jej nie potrzebują: `Tag::tagKanoniczny()` już
-        // wie, dokąd prowadzić.
+        // wie, dokąd prowadzić. 301, nie domyślne 302: scalenie jest trwałe
+        // i nie ma drogi powrotu, więc wyszukiwarka ma przenieść adres
+        // na kanoniczny (issue #1350).
         if ($tag->isMerged()) {
-            return redirect()->route('tags.show', $tag->tagKanoniczny());
+            return redirect()->route('tags.show', $tag->tagKanoniczny(), status: 301);
         }
 
         $widz = $request->user();
@@ -175,13 +174,44 @@ class TagController extends Controller
             ->paginate((int) config('kuking.feed.page_size'))
             ->withQueryString();
 
+        // Indeksowanie (issue #1007). Pusty tag zostaje dla ludzi (D-087:
+        // prawdziwe zero i „Dodaj wpis z tym tagiem"), ale wyszukiwarka nie
+        // ma dostać ~1400 prawie identycznych stron bez treści — dostaje
+        // `noindex, follow`, dopóki tag nie ma choć jednego wpisu widocznego
+        // dla gościa. TEN SAM zakres co licznik w spisie (`tylkoPubliczne()`),
+        // NIE `$wpisy->total()`: tamto liczy per widz, więc zalogowany autor
+        // z prywatnym wpisem dostałby inną dyrektywę niż robot. Jedno
+        // zapytanie EXISTS, bez cache — dyrektywa przełącza się od razu
+        // przy pierwszym i po ostatnim publicznym wpisie.
+        $maPublicznyWpis = $this->tylkoPubliczne(
+            Post::query()->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey())),
+        )->exists();
+
         return view('pages.tags.show', [
             'tag' => $tag,
+            'indeksowalny' => $maPublicznyWpis,
             'collage' => $this->collage->forTags([$tag->getKey()], $widz)[$tag->getKey()],
             'tagNote' => $tag->promotion?->note,
             'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
         ]);
+    }
+
+    /**
+     * Wpisy widoczne dla KAŻDEGO — liczba w spisie tagów (D-087) i warunek
+     * indeksowania strony tagu (issue #1007) muszą znaczyć to samo.
+     *
+     * @template TQuery of \Illuminate\Database\Eloquent\Builder
+     *
+     * @param  TQuery  $query
+     * @return TQuery
+     */
+    private function tylkoPubliczne($query)
+    {
+        return $query
+            ->publiclyVisible()
+            ->tylkoOdAktywnychAutorow()
+            ->zWidocznymPrzepisem(null);
     }
 }

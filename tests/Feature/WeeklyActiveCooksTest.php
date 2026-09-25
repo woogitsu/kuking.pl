@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Analytics\CookEligibility;
 use App\Domain\Analytics\CookRetentionCohorts;
 use App\Domain\Analytics\WeeklyActiveCooks;
 use App\Models\CookedEvent;
@@ -105,7 +106,7 @@ class WeeklyActiveCooksTest extends TestCase
         ]);
 
         $gospodarz = $this->user('woogitsu');
-        config(['kuking.community.host_username' => 'woogitsu']);
+        config(['kuking.community.host_user_id' => $gospodarz->getKey(), 'kuking.community.host_username' => 'woogitsu']);
         Post::factory()->create([
             'author_id' => $gospodarz->getKey(),
             'published_at' => $this->wTygodniu('13:00:00'),
@@ -116,6 +117,24 @@ class WeeklyActiveCooksTest extends TestCase
         // Bez poprawki ten tydzień pokazuje 2 (Basia + gospodarz). To jest
         // dokładnie zniekształcenie z opisu issue #114: gospodarz publikuje
         // co tydzień z definicji, więc podnosiłby WAC co tydzień gwarantowanie.
+        $this->assertSame(1, (int) $tydzien->weekly_active_cooks);
+    }
+
+    public function test_zmiana_nazwy_gospodarza_nie_zamienia_wykluczenia_wac(): void
+    {
+        $gospodarz = $this->user('woogitsu');
+        config(['kuking.community.host_user_id' => $gospodarz->getKey(), 'kuking.community.host_username' => 'woogitsu']);
+        $gospodarz->profile->update(['username' => 'ula_gospodyni']);
+        $podszywajacy = $this->user('woogitsu');
+
+        Post::factory()->create(['author_id' => $gospodarz->getKey(), 'published_at' => $this->wTygodniu()]);
+        Post::factory()->create(['author_id' => $podszywajacy->getKey(), 'published_at' => $this->wTygodniu('13:00:00')]);
+
+        $wykluczeni = app(CookEligibility::class)->excludedUserIds();
+        $tydzien = $this->tydzienZWyniku($this->wac()->weekly(), self::TYDZIEN_START);
+
+        $this->assertContains($gospodarz->getKey(), $wykluczeni);
+        $this->assertNotContains($podszywajacy->getKey(), $wykluczeni);
         $this->assertSame(1, (int) $tydzien->weekly_active_cooks);
     }
 
