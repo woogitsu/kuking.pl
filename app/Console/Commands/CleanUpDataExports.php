@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Users\Exports\ExportFileNames;
 use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use Illuminate\Console\Command;
@@ -50,6 +51,10 @@ class CleanUpDataExports extends Command
             // `lazyById` trzyma w pamięci najwyżej jedną partię, a nie całą
             // historię eksportów.
             ->lazyById(100);
+
+        if (! $dryRun) {
+            $this->skasujNiedokonczone();
+        }
 
         $removed = 0;
         $nieudane = 0;
@@ -184,6 +189,37 @@ class CleanUpDataExports extends Command
 
             return false;
         }
+    }
+
+    /**
+     * SIATKA POD NIEUDANE PRÓBY (audyt B5, znalezisko 4).
+     *
+     * Próba, która wgrała plik i padła przed `finalize()`, zostawia `failed`
+     * bez `object_key`. Job kasuje taki plik sam (`GenerateUserExport::
+     * usunOsieroconaPaczke()`), ale proces zabity bez `failed()` tego nie
+     * zrobi. Klucz da się policzyć, a kasowanie nieistniejącego obiektu nic
+     * nie robi — więc co noc przechodzimy po `failed` z ostatnich 7 dni
+     * (starsze przeszły już przez wcześniejsze noce). Godzina karencji, żeby
+     * nie ścigać się z ponowieniem, które właśnie wgrywa ten sam klucz.
+     */
+    private function skasujNiedokonczone(): void
+    {
+        DataExport::query()
+            ->where('status', DataExport::STATUS_FAILED)
+            ->whereNull('object_key')
+            ->where('updated_at', '<', now()->subHour())
+            ->where('updated_at', '>=', now()->subDays(7))
+            ->lazyById(100)
+            ->each(function (DataExport $export): void {
+                try {
+                    Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
+                } catch (Throwable $e) {
+                    Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
+                        'data_export_id' => $export->getKey(),
+                        'wyjatek' => $e::class,
+                    ]);
+                }
+            });
     }
 
     private function paczki(int $n): string

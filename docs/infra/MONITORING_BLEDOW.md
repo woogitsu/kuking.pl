@@ -664,6 +664,7 @@ a `NIE WIEMY` jest nieprzejściem bramki, nie sukcesem (`docs/OTWARCIE.md`).
 | opóźnienie kolejki / martwy worker | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** — wcześniej nie mierzyło tego NIC | §7.2 niżej |
 | wyczerpywanie połączeń PostgreSQL | `kuking:budzet-polaczen`, co godzinę | **NOWE** — progi i wyprowadzenie w `docs/DATABASE.md` | §7.2 niżej |
 | awaria całej aplikacji (strona nie odpowiada) | zewnętrzny monitor `/health` | **NIEZROBIONE** | §6 wyżej opisuje, jak to założyć; to jest czynność właściciela |
+| stojący harmonogram (milkną wszystkie czujki) | `kuking:puls-harmonogramu` co 5 min → zewnętrzny monitor *heartbeat* | **KOD JEST, WYŁĄCZONY** bez `KUKING_PULS_HARMONOGRAMU_URL` (dopisane 25.09.2026) | [`MONITORING_599_KROKI.md`](MONITORING_599_KROKI.md) §B3 |
 
 ### 7.1. Dlaczego `/health` przestał odróżniać awarię od jej braku
 
