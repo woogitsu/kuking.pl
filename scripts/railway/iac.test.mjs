@@ -55,6 +55,9 @@ function limitZadaniaZdjec() {
   return Number(trafienie[1]);
 }
 
+/** Sekundy na zamknięcie procesu po dokończeniu zadania (audyt B8-03). */
+const ZAPAS_ZAMKNIECIA_S = 10;
+
 const ROLA = (s) => s.deploy?.startCommand?.split(" ").at(-1);
 const zmienna = (s, k) => s.variables?.[k];
 
@@ -112,6 +115,11 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (produkcja && s.deploy?.sleepApplication !== false) b.push(`${s.name}: usypianie na produkcji`);
     if (!(s.deploy?.limitOverride?.containers?.memoryBytes > 0)) b.push(`${s.name}: brak limitu pamięci`);
     if (!(s.deploy?.drainingSeconds > 0)) b.push(`${s.name}: brak drainingSeconds — SIGKILL od razu po SIGTERM`);
+    // Rola z `queue:work` (worker albo all) musi dać dokończyć zdjęcie z zapasem
+    // na zamknięcie procesu — inaczej ubite zadanie wisi do `retry_after` (B8-03).
+    if ((rola === "worker" || rola === "all") && !(s.deploy?.drainingSeconds >= limitZdjec + ZAPAS_ZAMKNIECIA_S)) {
+      b.push(`${s.name}: rola ${rola}, drainingSeconds=${s.deploy?.drainingSeconds} krótszy niż limit zadania zdjęć ${limitZdjec} s + ${ZAPAS_ZAMKNIECIA_S} s zapasu`);
+    }
     if (s.variables?.DB_URL?.resource !== "database.Postgres") b.push(`${s.name}: DB_URL nie wskazuje database.Postgres`);
   }
 
@@ -124,12 +132,22 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (worker && !(worker.deploy?.drainingSeconds >= limitZdjec)) {
       b.push(`worker: drainingSeconds=${worker.deploy?.drainingSeconds} krótszy niż limit zadania zdjęć ${limitZdjec} s`);
     }
-    // Te same zmienne w trzech serwisach, poza APP_ROLE. Zmienna dopisana
-    // tylko do web (np. klucz R2) daje workera, który pada na pierwszym zdjęciu.
+    // Od #1459 (#1013) role NIE mają identycznych zmiennych: każda dostaje
+    // rdzeń + tylko swoje sekrety (web: logowanie/Turnstile, worker: klucz
+    // modelu, scheduler: odczyt kopii). Pilnujemy więc dwóch rzeczy:
+    //  1. rdzeń jest w KAŻDEJ roli — zmienna rdzenia dopisana tylko do web
+    //     (np. klucz R2) daje workera, który pada na pierwszym zdjęciu;
+    //  2. zmienna obecna w dwóch rolach ma w obu tę samą wartość.
+    // Pełny podział na role pilnuje tests/Feature/ZmienneRailwayaPerRolaTest.php.
     if (www) {
-      const bezRoli = (s) => JSON.stringify(Object.entries(s.variables ?? {}).filter(([k]) => k !== "APP_ROLE").sort());
+      const RDZEN = /^(APP_(?!ROLE$)|DB_|AWS_|FILESYSTEM_DISK$|LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK$|KUKING_EXPORT_DISK$|QUEUE_CONNECTION$|CACHE_STORE$|SESSION_|LOG_|MAIL_MAILER$|MAIL_FROM_ADDRESS$)/;
+      const zm = (s) => s.variables ?? {};
       for (const s of aplikacja) {
-        if (s !== www && bezRoli(s) !== bezRoli(www)) b.push(`${s.name}: zmienne różnią się od serwisu WWW (poza APP_ROLE)`);
+        if (s === www) continue;
+        const brak = Object.keys(zm(www)).filter((k) => RDZEN.test(k) && !(k in zm(s)));
+        if (brak.length) b.push(`${s.name}: brak zmiennych rdzenia obecnych w serwisie WWW (${brak.sort().join(", ")})`);
+        const rozne = Object.keys(zm(s)).filter((k) => k !== "APP_ROLE" && k in zm(www) && JSON.stringify(zm(s)[k]) !== JSON.stringify(zm(www)[k]));
+        if (rozne.length) b.push(`${s.name}: inna wartość niż w serwisie WWW (${rozne.sort().join(", ")})`);
         if (s !== www && JSON.stringify([s.source, s.build]) !== JSON.stringify([www.source, www.build])) {
           b.push(`${s.name}: inne źródło albo build niż serwis WWW — role mają chodzić na jednym obrazie`);
         }
@@ -195,7 +213,10 @@ const MUTACJE = [
   ["domena na workerze", PROD, (g) => { usluga(g, "worker").networking = { customDomains: { "kuking.pl": { port: 8080 } } }; }],
   ["healthcheck HTTP na harmonogramie", PROD, (g) => { usluga(g, "scheduler").deploy.healthcheckPath = "/health"; }],
   ["zmienna tylko w web", PROD, (g) => { delete usluga(g, "worker").variables.AWS_BUCKET; }],
+  ["inna wartość zmiennej rdzenia w harmonogramie", PROD, (g) => { usluga(g, "scheduler").variables.AWS_BUCKET = { value: "inny-bucket" }; }],
   ["worker bez czasu na zdjęcie", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 30; }],
+  ["worker bez zapasu po zadaniu zdjęć", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 120; }],
+  ["rola all z oknem serwisu WWW", STAGING, (g) => { usluga(g, "kuking.pl").deploy.drainingSeconds = 30; }],
   ["usypianie workera", PROD, (g) => { usluga(g, "worker").deploy.sleepApplication = true; }],
   ["worker w innym regionie", PROD, (g) => { usluga(g, "worker").deploy.region = "us-west2"; }],
   ["worker z innej gałęzi", PROD, (g) => { usluga(g, "worker").source = { ...usluga(g, "worker").source, branch: "staging" }; }],
@@ -258,5 +279,93 @@ for (const [opis, zepsuj] of MUTACJE_WORKFLOW) {
     const zepsuty = zepsuj(WORKFLOW_IAC);
     assert.notEqual(zepsuty, WORKFLOW_IAC, "mutacja nic nie zmieniła");
     assert.notDeepEqual(bledyWorkflow(zepsuty), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  watchPatterns OBEJMUJE WSZYSTKO, CO WCHODZI DO OBRAZU (audyt B10-05)
+//
+//  `Dockerfile` robi `COPY . .`, więc do obrazu wchodzi każdy śledzony
+//  katalog i plik z korzenia, którego nie wycina `.dockerignore`. Do
+//  25.09.2026 `watchPatterns` pomijał `lang/**`: PR zmieniający same
+//  komunikaty (błędy walidacji, hasła) nie uruchamiał wdrożenia i wisiał
+//  zielony na `main` do następnego commita w innym katalogu.
+//
+//  Porównanie idzie na poziomie korzenia repozytorium. Wpis z obrazu, który
+//  NIE wpływa na działanie aplikacji, musi stać w rejestrze niżej z powodem.
+// ---------------------------------------------------------------------------
+const W_OBRAZIE_BEZ_WPLYWU = {
+  scripts: "narzędzia i testy JS; etap `assets` tylko je uruchamia, obraz końcowy bierze z niego samo public/build, a runtime ich nie woła",
+  storage: "same .gitignore — katalogi robocze zakłada entrypoint",
+  "README.md": "dokumentacja",
+  LICENSE: "dokumentacja",
+  ".env.example": "wzór zmiennych; obraz nie czyta .env",
+  "pint.json": "konfiguracja formatera, nieużywana w runtime",
+  "phpstan.neon": "konfiguracja analizy statycznej",
+  "phpstan-bootstrap.php": "konfiguracja analizy statycznej",
+  ".windsurfrules": "wskaźnik instrukcji dla agentów",
+  ".codex": "instrukcje dla agentów (porządki: audyt A4)",
+  evidence: "pliki robocze audytów (porządki: audyt A4 1.x)",
+  object_key: "plik roboczy (A5-17)",
+};
+
+function wpisyKorzenia() {
+  const pliki = execFileSync("git", ["ls-files", "-z"], { cwd: KORZEN, encoding: "utf8" }).split("\0").filter(Boolean);
+  return [...new Set(pliki.map((p) => p.split("/")[0]))].sort();
+}
+
+/** Minimalny odczyt `.dockerignore` dla wpisów z korzenia: ostatnia pasująca reguła wygrywa. */
+function wycinaDockerignore(nazwa, dockerignore) {
+  let wyciety = false;
+  for (const surowa of dockerignore.split("\n")) {
+    const linia = surowa.trim();
+    if (!linia || linia.startsWith("#")) continue;
+    const negacja = linia.startsWith("!");
+    const wzor = (negacja ? linia.slice(1) : linia).replace(/\/(\*\*)?$/, "");
+    if (wzor.includes("/")) continue; // reguła dotyczy wnętrza katalogu, nie całego wpisu
+    const regex = new RegExp(`^${wzor.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]")}$`);
+    if (regex.test(nazwa)) wyciety = !negacja;
+  }
+  return wyciety;
+}
+
+function nieobserwowaneWObrazie(wpisy, dockerignore, wzorce, rejestr) {
+  return wpisy
+    .filter((w) => !wycinaDockerignore(w, dockerignore))
+    .filter((w) => !wzorce.includes(w) && !wzorce.includes(`${w}/**`))
+    .filter((w) => !(w in rejestr));
+}
+
+const DOCKERIGNORE = readFileSync(resolve(KORZEN, ".dockerignore"), "utf8");
+const WZORCE_WWW = usluga(PROD, "kuking.pl").build.watchPatterns;
+
+test("watchPatterns serwisu WWW obejmuje każdy wpis korzenia, który wchodzi do obrazu", () => {
+  assert.deepEqual(nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE, WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU), []);
+});
+
+test("watchPatterns jest ten sam we wszystkich serwisach aplikacji i środowiskach", () => {
+  for (const g of [PROD, STAGING, graf("pr-123")]) {
+    for (const s of g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja")) {
+      assert.deepEqual(s.build.watchPatterns, WZORCE_WWW, s.name);
+    }
+  }
+});
+
+test("rejestr wpisów bez wpływu nie zasłania niczego, co obserwujemy albo co wycina .dockerignore", () => {
+  for (const w of Object.keys(W_OBRAZIE_BEZ_WPLYWU)) {
+    assert.ok(!WZORCE_WWW.includes(w) && !WZORCE_WWW.includes(`${w}/**`), `${w} jest w watchPatterns — zbędny wpis w rejestrze`);
+    assert.ok(!wycinaDockerignore(w, DOCKERIGNORE), `${w} wycina .dockerignore — zbędny wpis w rejestrze`);
+  }
+});
+
+const MUTACJE_OBRAZU = [
+  ["watchPatterns bez lang/**", () => nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE, WZORCE_WWW.filter((w) => w !== "lang/**"), W_OBRAZIE_BEZ_WPLYWU)],
+  ["nowy katalog w obrazie", () => nieobserwowaneWObrazie([...wpisyKorzenia(), "nowy-katalog"], DOCKERIGNORE, WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU)],
+  ["docs zdjęte z .dockerignore", () => nieobserwowaneWObrazie(wpisyKorzenia(), DOCKERIGNORE.replace(/^docs$/m, ""), WZORCE_WWW, W_OBRAZIE_BEZ_WPLYWU)],
+];
+
+for (const [opis, policz] of MUTACJE_OBRAZU) {
+  test(`kontrola ujemna obrazu: ${opis}`, () => {
+    assert.notDeepEqual(policz(), [], `strażnik nie zauważył: ${opis}`);
   });
 }
