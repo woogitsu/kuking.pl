@@ -66,7 +66,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $b->recipes()->attach($przepis->getKey());
 
         $this->actingAs($osoba)
-            ->delete(route('collections.unsave', $przepis->slug))
+            ->delete(route('collections.unsave', $przepis->slug), ['potwierdzam_wszystkie' => 1])
             ->assertRedirect();
 
         $this->assertFalse($a->recipes()->whereKey($przepis->getKey())->exists());
@@ -129,6 +129,12 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
      * więc obu rzeczy naraz: zakres stoi NAPISANY NAD PRZYCISKIEM, zanim ktoś
      * kliknie, a zdanie po akcji nazywa go liczbą i daje drogę powrotu, która
      * naprawdę wraca — z notatkami.
+     *
+     * 25.09.2026 WŁAŚCICIEL DOŁOŻYŁ POTWIERDZENIE (D-257): przy kilku
+     * zeszytach samo DELETE oddaje najpierw stronę z pytaniem, a wyjmuje
+     * dopiero z `potwierdzam_wszystkie=1`. Pilnuje tego
+     * `WyjecieZeWszystkichZeszytowWymagaPotwierdzeniaTest`; tu zostaje
+     * ujawnienie zakresu i zdanie po akcji.
      */
     public function test_strona_przepisu_ujawnia_zakres_przed_akcja_i_nazywa_go_po_niej(): void
     {
@@ -148,11 +154,11 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $this->assertStringContainsString('Usuń z zeszytu', $tresc);
         $this->assertStringContainsString('ze wszystkich Twoich zeszytów', $tresc);
         $this->assertStringContainsString('aria-describedby="zakres-wyjecia-', $tresc);
-        $this->assertStringContainsString('Przywróć do zeszytu', $tresc);
+        $this->assertStringContainsString('zapytamy o potwierdzenie', $tresc);
 
         $odpowiedz = $this->actingAs($basia)
             ->from($przepis->url())
-            ->delete(route('collections.unsave', $przepis->slug));
+            ->delete(route('collections.unsave', $przepis->slug), ['potwierdzam_wszystkie' => 1]);
 
         $odpowiedz->assertRedirect();
 
