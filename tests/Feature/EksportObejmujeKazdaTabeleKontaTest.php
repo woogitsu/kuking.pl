@@ -175,6 +175,31 @@ final class EksportObejmujeKazdaTabeleKontaTest extends TestCase
         }
     }
 
+    /**
+     * Kara odłożona na czas usuwania konta (#980) to dana o osobie tak samo
+     * jak `status_konta` — paczka ma ją pokazać, a nie tylko spisać w inwentarzu.
+     */
+    public function test_kara_odlozona_na_czas_usuwania_jest_w_paczce(): void
+    {
+        $basia = User::factory()->create();
+        $basia->forceFill([
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now(),
+            'punishment_status' => User::STATUS_SUSPENDED,
+            'punishment_expires_at' => Carbon::parse('2026-10-24 12:00:00', 'UTC'),
+        ])->save();
+
+        $konto = $this->paczka($basia->fresh())['konto'];
+
+        $this->assertSame(User::STATUS_SUSPENDED, $konto['kara_odlozona']);
+        $this->assertSame('2026-10-24T12:00:00+00:00', $konto['kara_odlozona_do']);
+
+        // Kontrola ujemna: konto bez odłożonej kary nie dostaje wymyślonej.
+        $zenek = $this->paczka(User::factory()->create()->fresh())['konto'];
+        $this->assertNull($zenek['kara_odlozona']);
+        $this->assertNull($zenek['kara_odlozona_do']);
+    }
+
     /** @return list<string> */
     private function kolumnyWskazujaceNaKonto(): array
     {
