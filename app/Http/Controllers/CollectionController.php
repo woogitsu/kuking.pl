@@ -8,6 +8,7 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Search\SearchQuery;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -73,7 +74,66 @@ class CollectionController extends Controller
                 ->get(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
-        ]);
+        ] + $this->szukajWZapisach($request));
+    }
+
+    /**
+     * „Szukaj w moich zeszytach” — po TYTULE zapisanego przepisu (issue #779).
+     *
+     * Najprostsza wersja, na decyzję właściciela z 25.09.2026: jedno pole
+     * na ekranie „Moje”, formularz GET działający bez JavaScriptu, jeden
+     * wynik na przepis z listą zeszytów, w których leży — nie kilka kopii.
+     *
+     * BEZ NOWEGO SILNIKA. Porównanie idzie po tej samej kolumnie
+     * `recipes.title_search` (`kuking_normalize(title)`: małe litery, bez
+     * polskich znaków) i tą samą normalizacją frazy po stronie PHP co
+     * `SearchQuery` — „zurek” znajdzie „Żurek babci”. `LIKE` z ucieczką
+     * metaznaków, bo `%` i `_` z frazy mają być dosłownym tekstem (#753).
+     *
+     * WIDOCZNOŚĆ JAK WEWNĄTRZ ZESZYTU: `widoczneDla()` (widoczność, status,
+     * blokady w obie strony) i `dostepnyJakoAutor()`. Do zeszytu odkłada się
+     * CUDZE przepisy; po zmianie ich widoczności wynik znika, a nie zdradza
+     * tytułu. Zeszyty w wyniku i sam zakres szukania to wyłącznie zeszyty
+     * zalogowanej osoby (`owner_id`).
+     *
+     * @return array{szukaj: string, wynikiSzukania: ?\Illuminate\Support\Collection<int, Recipe>, bladSzukania: ?string, wiecejWynikow: bool}
+     */
+    private function szukajWZapisach(Request $request): array
+    {
+        $fraza = trim((string) $request->query('szukaj', ''));
+        $pusto = ['szukaj' => $fraza, 'wynikiSzukania' => null, 'bladSzukania' => null, 'wiecejWynikow' => false];
+
+        if ($fraza === '') {
+            return $pusto;
+        }
+
+        if (mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
+            return ['bladSzukania' => 'Skróć tekst w polu „Szukaj w moich zeszytach” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.'] + $pusto;
+        }
+
+        if (mb_strlen($fraza) < 2) {
+            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu.'] + $pusto;
+        }
+
+        $user = $request->user();
+        $limit = (int) config('kuking.zeszyt.szukaj_limit', 50);
+        $wzorzec = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], mb_strtolower(Str::ascii($fraza))).'%';
+
+        $wyniki = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
+            ->where('recipes.title_search', 'like', $wzorzec)
+            ->with(['collections' => fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey())->orderBy('collections.name')])
+            ->orderBy('recipes.title')
+            ->orderBy('recipes.id')
+            ->limit($limit + 1)
+            ->get();
+
+        return [
+            'wynikiSzukania' => $wyniki->take($limit)->values(),
+            'wiecejWynikow' => $wyniki->count() > $limit,
+        ] + $pusto;
     }
 
     /**
