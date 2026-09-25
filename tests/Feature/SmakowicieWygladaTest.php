@@ -1,0 +1,192 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Domain\Reakcje\PowiadomOSmakowicie;
+use App\Domain\Users\Exports\CollectUserExportData;
+use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Models\Notification;
+use App\Models\Post;
+use App\Models\PostReaction;
+use App\Models\Recipe;
+use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use RuntimeException;
+use Tests\TestCase;
+
+/**
+ * Issue #1813 (D-280) — reakcja „Smakowicie wygląda": lżejsza niż
+ * „Ugotowałem", bez licznika, zbiorcze powiadomienie raz dziennie.
+ *
+ * Kontrole ujemne (sprawdzone przy pisaniu):
+ *  - `withExists(... czy_smakowicie)` zdjęte z `ZapisyWpisu::dolicz()` →
+ *    `test_przycisk…` nie widzi stanu „— cofnij";
+ *  - warunek blokad zdjęty z `PowiadomOSmakowicie` → test blokad liczy trzy osoby;
+ *  - `throw` zdjęty z `down()` migracji → test odmowy rollbacku oblewa.
+ */
+class SmakowicieWygladaTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function wpis(User $autor, string $tresc = 'Pierogi z kapustą', int $minutTemu = 5): Post
+    {
+        return Post::factory()->create(['author_id' => $autor->id, 'body' => $tresc, 'published_at' => now()->subMinutes($minutTemu)]);
+    }
+
+    public function test_przycisk_jest_drugorzedny_bez_licznika_i_cofa_sie_jednym_dotknieciem(): void
+    {
+        $widz = $this->user('widz');
+        $autorka = $this->user('autorka');
+        $przepis = Recipe::factory()->create(['author_id' => $autorka->id]);
+        $wpis = Post::factory()->create(['author_id' => $autorka->id, 'recipe_id' => $przepis->id, 'published_at' => now()->subMinute()]);
+
+        $html = (string) $this->actingAs($widz)->get(route('discover'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('~<button class="btn btn-secondary" type="submit" data-rola="smakowicie">Smakowicie wygląda</button>~', $html);
+        // „Ugotowałem" dalej pierwsze i jedyne w kolorze marki.
+        $this->assertLessThan(strpos($html, 'data-rola="smakowicie"'), strpos($html, 'Ugotowałem'));
+        $this->assertStringNotContainsString('btn btn-primary" type="submit" data-rola="smakowicie"', $html);
+
+        $this->from(route('discover'))->post(route('posts.smakowicie', $wpis))->assertSessionHasNoErrors();
+        $this->assertSame(1, PostReaction::query()->count());
+        // Drugie kliknięcie — ten sam stan, bez błędu i bez drugiego wiersza.
+        $this->from(route('discover'))->post(route('posts.smakowicie', $wpis))->assertSessionHasNoErrors();
+        $this->assertSame(1, PostReaction::query()->count());
+
+        $html = (string) $this->get(route('discover'))->getContent();
+        $this->assertStringContainsString('Smakowicie wygląda — cofnij', $html);
+        // Bez licznika — nigdzie żadnej liczby reakcji.
+        $this->assertDoesNotMatchRegularExpression('/\d+\s*(osob|osoby|osób)[^<]{0,40}smakowicie/iu', $html);
+
+        $this->from(route('discover'))->delete(route('posts.smakowicie.cofnij', $wpis))->assertSessionHasNoErrors();
+        $this->assertSame(0, PostReaction::query()->count());
+
+        // Pod własnym wpisem przycisku nie ma, a zapis odmawia.
+        $this->actingAs($autorka)->get(route('posts.show', $wpis))->assertDontSee('data-rola="smakowicie"', false);
+        $this->from(route('discover'))->post(route('posts.smakowicie', $wpis))->assertSessionHasErrors('smakowicie');
+    }
+
+    public function test_autor_widzi_kto_napisal_inni_nie_a_blokady_dzialaja_w_obie_strony(): void
+    {
+        $autorka = $this->user('autorka');
+        $wpis = $this->wpis($autorka);
+        $anna = $this->user('anna');
+        $zablokowana = $this->user('zablokowana');
+        $inna = $this->user('inna');
+        foreach ([$anna, $zablokowana] as $kto) {
+            $this->actingAs($kto)->post(route('posts.smakowicie', $wpis));
+        }
+        DB::table('blocks')->insert(['blocker_id' => $autorka->id, 'blocked_id' => $zablokowana->id, 'created_at' => now()]);
+
+        $this->actingAs($autorka)->get(route('posts.show', $wpis))->assertOk()
+            ->assertSee('Kto napisał „Smakowicie wygląda”:')
+            ->assertSee($anna->displayName())
+            ->assertSee(route('profile.show', $anna->profile->username), false)
+            ->assertDontSee(route('profile.show', $zablokowana->profile->username), false);
+
+        $this->actingAs($inna)->get(route('posts.show', $wpis))->assertOk()->assertDontSee('Kto napisał „Smakowicie wygląda”');
+
+        // Zablokowana nie zareaguje ponownie (Policy wpisu albo akcja odmawia).
+        // Reakcja sprzed blokady zostaje w bazie, ale nigdzie jej nie widać.
+        PostReaction::query()->where('user_id', $zablokowana->id)->delete();
+        $odpowiedz = $this->actingAs($zablokowana)->from(route('discover'))->post(route('posts.smakowicie', $wpis));
+        $this->assertTrue(in_array($odpowiedz->getStatusCode(), [403, 404], true) || session()->has('errors'));
+        $this->assertSame(0, PostReaction::query()->where('user_id', $zablokowana->id)->count());
+    }
+
+    public function test_zbiorcze_powiadomienie_raz_dziennie_liczy_rozne_osoby_bez_zablokowanych(): void
+    {
+        Mail::fake();
+        $autorka = $this->user('autorka');
+        $pierwszy = $this->wpis($autorka, 'Pierwszy', 10);
+        $drugi = $this->wpis($autorka, 'Drugi', 5);
+        $anna = $this->user('anna');
+        $basia = $this->user('basia');
+        $zablokowana = $this->user('zablokowana');
+        $this->actingAs($anna)->post(route('posts.smakowicie', $pierwszy));
+        $this->actingAs($anna)->post(route('posts.smakowicie', $drugi));
+        $this->actingAs($basia)->post(route('posts.smakowicie', $drugi));
+        $this->actingAs($zablokowana)->post(route('posts.smakowicie', $drugi));
+        DB::table('blocks')->insert(['blocker_id' => $zablokowana->id, 'blocked_id' => $autorka->id, 'created_at' => now()]);
+
+        // Nic od razu — „Ugotowałem" ma zostać jedyną natychmiastową wiadomością.
+        $this->assertSame(0, Notification::query()->where('user_id', $autorka->id)->count());
+
+        Artisan::call('kuking:powiadom-smakowicie');
+
+        $powiadomienia = Notification::query()->where('user_id', $autorka->id)->where('type', Notification::TYPE_SMAKOWICIE)->get();
+        $this->assertCount(1, $powiadomienia);
+        $this->assertSame('2 osoby napisały: Smakowicie wygląda', $powiadomienia->first()->naglowekSmakowicie());
+        $this->assertNull($powiadomienia->first()->actor_id);
+        $this->assertSame(0, PostReaction::query()->whereNull('notified_at')->count(), 'Czekające reakcje zostały po przebiegu.');
+
+        // Drugi przebieg tego samego dnia nic nie dokłada.
+        Artisan::call('kuking:powiadom-smakowicie');
+        $this->assertSame(1, Notification::query()->where('user_id', $autorka->id)->count());
+
+        $this->actingAs($autorka)->get(route('notifications.index'))->assertOk()->assertSee('2 osoby napisały: Smakowicie wygląda');
+        Mail::assertNothingSent();
+        Mail::assertNothingQueued();
+    }
+
+    public function test_odmiana_naglowka(): void
+    {
+        foreach ([1 => 'Jedna osoba napisała', 3 => '3 osoby napisały', 5 => '5 osób napisało', 22 => '22 osoby napisały'] as $osob => $poczatek) {
+            $n = new Notification(['type' => Notification::TYPE_SMAKOWICIE]);
+            $n->data = ['osob' => $osob];
+            $this->assertSame($poczatek.': Smakowicie wygląda', $n->naglowekSmakowicie());
+        }
+    }
+
+    public function test_harmonogram_ma_zbiorcze_powiadomienie_raz_dziennie(): void
+    {
+        $zdarzenia = collect(app(Schedule::class)->events())
+            ->filter(fn ($e) => ($e->description ?? '') === 'kuking:powiadom-smakowicie');
+        $this->assertCount(1, $zdarzenia);
+        $this->assertSame('47 17 * * *', $zdarzenia->first()->expression);
+    }
+
+    public function test_eksport_ma_reakcje_dane_i_otrzymane(): void
+    {
+        $autorka = $this->user('autorka');
+        $anna = $this->user('anna');
+        $wpis = $this->wpis($autorka);
+        $wpisAnny = $this->wpis($anna, 'Wpis Anny');
+        $this->actingAs($anna)->post(route('posts.smakowicie', $wpis));
+        $this->actingAs($autorka)->post(route('posts.smakowicie', $wpisAnny));
+
+        $paczka = app(CollectUserExportData::class)
+            ->handle($anna, new ExportPhotoPlan($anna), now());
+        $this->assertCount(1, $paczka['moje_reakcje']);
+        $this->assertSame(route('posts.show', $wpis), $paczka['moje_reakcje'][0]['wpis']);
+        $this->assertCount(1, $paczka['reakcje_otrzymane']);
+        $this->assertSame('autorka', $paczka['reakcje_otrzymane'][0]['od']);
+    }
+
+    public function test_rollback_odmawia_gdy_sa_reakcje_i_przechodzi_na_pustej(): void
+    {
+        $sciezka = 'database/migrations/2026_09_26_110000_create_post_reactions_table.php';
+        $wpis = $this->wpis($this->user('autorka'));
+        $this->actingAs($this->user('anna'))->post(route('posts.smakowicie', $wpis));
+
+        try {
+            Artisan::call('migrate:rollback', ['--path' => $sciezka]);
+            $this->fail('Rollback przeszedł mimo reakcji w tabeli.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('CO ZROBIĆ', $e->getMessage());
+        }
+        $this->assertSame(1, PostReaction::query()->count());
+
+        PostReaction::query()->delete();
+        Artisan::call('migrate:rollback', ['--path' => $sciezka]);
+        $this->assertFalse(Schema::hasTable('post_reactions'));
+        Artisan::call('migrate', ['--path' => $sciezka]);
+        $this->assertTrue(Schema::hasTable('post_reactions'));
+    }
+}

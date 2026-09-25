@@ -768,6 +768,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.hide', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.unhide', 'cofnięcie ukrycia prywatnego wpisu', 'delete',
             route('posts.unhide', $wpis), [], [$W, $O, $O, $O, $O]);
+        // „Smakowicie wygląda” (#1813) pyta `PostPolicy::view`. Właściciel
+        // wchodzi i dostaje komunikat „pod własnym wpisem tego nie piszesz”.
+        $dodaj('posts.smakowicie', 'reakcja pod prywatnym wpisem', 'post',
+            route('posts.smakowicie', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.smakowicie.cofnij', 'cofnięcie reakcji pod prywatnym wpisem', 'delete',
+            route('posts.smakowicie.cofnij', $wpis), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',

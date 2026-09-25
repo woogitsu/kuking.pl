@@ -8,10 +8,11 @@ use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\Hide;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\PostReaction;
 use App\Models\Recipe;
-use App\Models\Hide;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -169,6 +170,11 @@ final class CollectUserExportData
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
             'ukryte' => $this->hides($user),
+            // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
+            // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
+            // i tak widzi ją przy swoim wpisie.
+            'moje_reakcje' => $this->reakcjeDane($user),
+            'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -727,6 +733,37 @@ final class CollectUserExportData
                 'osoba' => $ukrycie->hiddenUser?->profile?->username,
                 'ukryte_od' => $this->date($ukrycie->created_at),
                 'ukryte_do' => $ukrycie->hidden_until === null ? 'na stałe' : $this->date($ukrycie->hidden_until),
+            ])->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function reakcjeDane(User $user): array
+    {
+        return PostReaction::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (PostReaction $r): array => [
+                'reakcja' => 'Smakowicie wygląda',
+                'wpis' => route('posts.show', $r->post_id),
+                'kiedy' => $this->date($r->created_at),
+            ])->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function reakcjeOtrzymane(User $user): array
+    {
+        return PostReaction::query()
+            ->join('posts', 'posts.id', '=', 'post_reactions.post_id')
+            ->where('posts.author_id', $user->getKey())
+            ->with('user.profile')
+            ->orderBy('post_reactions.created_at')
+            ->get(['post_reactions.*'])
+            ->map(fn (PostReaction $r): array => [
+                'reakcja' => 'Smakowicie wygląda',
+                'wpis' => route('posts.show', $r->post_id),
+                'od' => $r->user?->profile?->username,
+                'kiedy' => $this->date($r->created_at),
             ])->all();
     }
 

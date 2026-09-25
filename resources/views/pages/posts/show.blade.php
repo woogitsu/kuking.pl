@@ -24,6 +24,18 @@
 
     <x-post-card :post="$post" />
 
+    {{-- „Smakowicie wygląda" (issue #1813, D-280): autor widzi, KTO to
+         napisał — nazwy dosłownie, po dwukropku, bez liczby i bez „i 5
+         innych". Inni nie widzą nic. --}}
+    @if($smakowicie !== null && $smakowicie->isNotEmpty())
+        <p class="meta" data-rola="kto-smakowicie">
+            Kto napisał „Smakowicie wygląda”:
+            @foreach($smakowicie as $osoba)
+                <a href="{{ route('profile.show', $osoba->profile->username) }}">{{ $osoba->displayName() }}</a>@if(! $loop->last), @endif
+            @endforeach
+        </p>
+    @endif
+
     @if($poprzedniWpis || $nastepnyWpis)
         {{--
             Kolejne zdjęcie tej samej osoby (Garnek.pl: „kolejne >" z miniaturą

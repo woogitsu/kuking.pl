@@ -67,6 +67,15 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
+// dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
+// powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
+Harmonogram::artisan('kuking:powiadom-smakowicie')
+    ->dailyAt('17:47')
+    ->name('kuking:powiadom-smakowicie')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 Harmonogram::artisan('kuking:sprzataj-eksporty')
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')

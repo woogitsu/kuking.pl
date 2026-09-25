@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; autor na stronie swojego wpisu widzi, kto. Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813).
 - Gdy ktoś z obserwowanych opublikuje kilka wpisów pod rząd, na Starcie widać dwa, a resztę pod przyciskiem „{imię}: jeszcze N wpisów — Pokaż”. Tak samo zwija się seria wpisów z jednego tagu. Kolejność się nie zmienia i nic nie znika. W tygodniowym e-mailu od każdej obserwowanej osoby jest najwyżej jeden wpis, ten najnowszy (#1812).
 - W menu z trzema kropkami przy cudzym wpisie są „Ukryj ten wpis” i „Ukryj tę osobę”. Ukrycie działa tylko dla Was, domyślnie przez 30 dni — potem wpis albo osoba wracają same. Ukryty wpis znika ze Startu, „Świeżo z Kuking”, tablicy na dziś i tygodniowego e-maila, a na profilu i pod linkiem zwija się do „Ten wpis ukrywasz tylko dla siebie. Pokaż”. Ukryta osoba znika z „Świeżo z Kuking”, tablicy i propozycji osób. Nikogo o tym nie powiadamiamy. Listę z datą końca, „Zostaw ukryte” i „Przywróć” znajdziecie w Ustawieniach → Ukryte (#1810).
 - W menu z trzema kropkami przy cudzym wpisie są teraz „Obserwuj tę osobę” i „Obserwuj tag: …” (najwyżej dwa tagi wpisu, tylko te, których jeszcze nie obserwujecie). Po kliknięciu strona mówi, co się stało i co z tego wyniknie, a pod komunikatem jest przycisk „Cofnij” (#1809).

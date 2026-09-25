@@ -151,6 +151,17 @@ class Post extends Model
             ->orderBy('post_tags.position');
     }
 
+    /**
+     * „Smakowicie wygląda" pod tym wpisem (issue #1813, D-280). Bez liczników
+     * gdziekolwiek w listach — patrz `FeedNieSortujePoMierzeReakcjiTest`.
+     *
+     * @return HasMany<PostReaction, $this>
+     */
+    public function reakcje(): HasMany
+    {
+        return $this->hasMany(PostReaction::class, 'post_id');
+    }
+
     public function comments(): HasMany
     {
         // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa

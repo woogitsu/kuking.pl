@@ -1239,6 +1239,33 @@ drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
 `App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
 pod blokadą wierszy.
 
+### post_reactions
+Reakcja „Smakowicie wygląda” (issue #1813, D-280). Migracja
+`2026_09_26_110000_create_post_reactions_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `post_id uuid NOT NULL` → `posts` (`ON DELETE CASCADE`),
+- `user_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto napisał,
+- `notified_at timestamptz NULL` — kiedy weszła do zbiorczego powiadomienia
+  (raz dziennie, `kuking:powiadom-smakowicie`); `NULL` = czeka,
+- `created_at timestamptz`.
+
+`UNIQUE (post_id, user_id)` — reakcja to STAN jednej osoby przy jednym wpisie
+(odwrotnie niż `cooked_events`, gdzie unikalność jest zakazana). Indeks
+częściowy `post_reactions_pending_idx (created_at) WHERE notified_at IS NULL`
+pod zbiorcze powiadomienie, indeks `user_id` pod kaskadę konta.
+
+Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
+(`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
+to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — tylko autor, na stronie
+wpisu, bez blokad (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
+`moje_reakcje` i `reakcje_otrzymane`.
+
+**Rollback:** `down()` ODMAWIA, gdy w tabeli są reakcje (słowa ludzi do autorów,
+`up()` ich nie odtworzy — D-088); na pustej przechodzi. Ręcznie:
+`\copy post_reactions TO reakcje.csv CSV HEADER`, decyzja właściciela, potem
+usunięcie wierszy. Test: `SmakowicieWygladaTest::test_rollback_odmawia…`.
+
 ### hides
 Prywatne ukrycia jednego widza (issue #1810, D-278): „Ukryj ten wpis” i „Ukryj
 tę osobę”. Migracja `2026_09_26_100000_create_hides_table.php`.

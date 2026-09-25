@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Odmiana;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -48,6 +49,13 @@ class Notification extends Model
     public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY];
 
     public const TYPE_FOLLOW = 'follow.created';
+
+    /**
+     * Zbiorcze „N osób napisało: Smakowicie wygląda" — raz dziennie, bez
+     * nadawcy (`actor_id` NULL), z liczbą RÓŻNYCH osób w `data.osob`
+     * (issue #1813, D-280, `App\Domain\Reakcje\PowiadomOSmakowicie`).
+     */
+    public const TYPE_SMAKOWICIE = 'post.smakowicie';
 
     public const TYPE_SAVED = 'recipe.saved';
 
@@ -306,6 +314,22 @@ class Notification extends Model
     }
 
     /**
+     * „3 osoby napisały: Smakowicie wygląda" — polska odmiana w jednym
+     * miejscu dla widoku i testów (issue #1813).
+     */
+    public function naglowekSmakowicie(): string
+    {
+        $osob = max(1, (int) (($this->data ?? [])['osob'] ?? 1));
+
+        $podmiot = $osob === 1
+            ? 'Jedna osoba napisała'
+            : $osob.' '.Odmiana::rzeczownik($osob, 'osoba', 'osoby', 'osób').' '
+                .Odmiana::rzeczownik($osob, 'napisała', 'napisały', 'napisało');
+
+        return $podmiot.': Smakowicie wygląda';
+    }
+
+    /**
      * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
      *
      * DLACZEGO TO STOI W MODELU, A NIE W WIDOKU (bo tam stało do 8 września).
@@ -343,6 +367,10 @@ class Notification extends Model
                 ? route('profile.show', $nazwa)
                 : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
+            // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał.
+            self::TYPE_SMAKOWICIE => is_string($data['post_id'] ?? null) && $data['post_id'] !== ''
+                ? route('posts.show', $data['post_id'])
+                : null,
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
             // na niej najstarsze na górze, czyli to z najbliższym terminem

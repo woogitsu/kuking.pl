@@ -14639,7 +14639,8 @@ Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest 
 Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
 i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
 2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
-sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+sygnałem jest reakcja **„Smakowicie wygląda”** (#1813, **D-280**) — nie lajk: bez
+licznika, powiadomienie zbiorczo raz dziennie, „Ugotowałem” powiadamia od razu.
 Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
 jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
@@ -17606,3 +17607,40 @@ w `ZbierzTresciDigestu::wpisyObserwowanych()`.
 
 📄 `app/Domain/Feed/SerieWpisow.php` · `app/Domain/Digest/ZbierzTresciDigestu.php` ·
 `tests/Feature/ZwijanieSeriiWObserwowanychTest.php` · D-275 · D-277
+
+## D-280 — Reakcja „Smakowicie wygląda”: bez licznika, zbiorczo raz dziennie (#1813, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1813) · Status: **obowiązuje**
+
+### Decyzja
+
+Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** (D-194 —
+„Ugotowałem” stoi wyżej):
+
+- przycisk drugiego planu na karcie cudzego wpisu, za komentarzami; cofnięcie
+  tym samym przyciskiem („Smakowicie wygląda — cofnij”), bez pytania, bez JS;
+- **bez licznika** — nikt, także autor, nie widzi liczby; autor widzi na stronie
+  swojego wpisu, KTO napisał (nazwy dosłownie, bez osób z blokadą);
+- **powiadomienie zbiorczo raz dziennie** (17:47, `kuking:powiadom-smakowicie`):
+  jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
+  zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
+  powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
+- **nigdy nie sortuje i nie przycina list** (D-275) — strażnik zna słowa
+  „smakowic”, „reakcj” i „reaction” (tabela `post_reactions`);
+- pod własnym wpisem przycisku nie ma; blokady działają w obie strony (Policy
+  wpisu i akcja).
+
+„Respektuje ustawienia powiadomień”: jedynym ustawieniem powiadomień w serwisie
+jest zgoda na tygodniowy list (AGENTS.md §1), która tych powiadomień nie dotyczy;
+obowiązują granice `NotifyUser` (konto, które nie może czytać, nic nie dostaje).
+
+Dane: tabela `post_reactions` (docs/DATABASE.md), rollback odmawia przy
+niepustej tabeli (D-088). Eksport: `moje_reakcje`, `reakcje_otrzymane`.
+Reakcje nie są źródłem analityki (#1814).
+
+### Wycofanie
+
+Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
+
+📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
+`tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
