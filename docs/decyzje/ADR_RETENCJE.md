@@ -184,6 +184,12 @@ Dla każdego konta z pierwszej kolejki:
 - Błąd na jednym koncie nie blokuje reszty listy — każde konto to osobna
   transakcja (komentarz, linie 33-36).
 - `--dry-run` (linie 56-57).
+- *(Dopisek, issue #1028/#998:)* obie kolejki mają budżet jednego przebiegu
+  (`--limit`, domyślnie 500 kont na kolejkę, najstarsze zgłoszenia najpierw)
+  i wczytują konta partiami; to, co nie zmieściło się w przebiegu, trafia
+  ostrzeżeniem do dziennika serwera. `PrzedawnioneSprawyModeracyjne` kasuje
+  partiami z powtórką wiersz po wierszu przy błędzie partii — izolacja błędu
+  jednego wiersza zostaje. Numery linii wyżej opisują stan sprzed tej zmiany.
 
 **Ten wzorzec jest właściwy dla `reports` + `moderation_actions` + `appeals`
 razem** — bo w odróżnieniu od `product_signals`, te trzy tabele **zależą od
