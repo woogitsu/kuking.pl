@@ -32,7 +32,8 @@ use Tests\TestCase;
  *   widz:       właściciel treści, obserwujący autora, obcy
  *   stan:       publiczne, dla obserwujących, prywatne, blokada w obie
  *               strony, autor treści zbanowany, treść ukryta, szkic,
- *               treść usunięta, komentujący zbanowany, korzeń wątku ukryty
+ *               treść usunięta, komentujący zbanowany, korzeń wątku ukryty,
+ *               kucharz „Ugotowałem" w karencji usunięcia konta (#1746)
  *   komentarz:  główny i odpowiedź
  *
  * Każdy stan jest nakładany PO utworzeniu powiadomienia — dokładnie tak, jak
@@ -79,6 +80,7 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
         'usuniete',
         'komentujacy_zbanowany',
         'korzen_ukryty',
+        'kucharz_do_usuniecia',
     ];
 
     private const KOMENTARZE = ['glowny', 'odpowiedz'];
@@ -167,6 +169,11 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
             return null;
         }
 
+        // Stan kucharza ma sens tylko tam, gdzie jest kucharz.
+        if ($stan === 'kucharz_do_usuniecia' && $kucharz === null) {
+            return null;
+        }
+
         if ($rola === 'obserwujacy') {
             app(FollowUser::class)->handle($widz, $autor);
         }
@@ -210,6 +217,7 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
             'usuniete' => DB::table($tabela)->where('id', $idTresci)->update(['deleted_at' => now()]),
             'komentujacy_zbanowany' => $komentujacy->ban(),
             'korzen_ukryty' => DB::table('comments')->where('id', $korzen->getKey())->update(['status' => Comment::STATUS_HIDDEN]),
+            'kucharz_do_usuniecia' => $kucharz?->markForDeletion(),
         };
 
         $widzTeraz = User::query()->findOrFail($widz->getKey());

@@ -143,6 +143,20 @@ final class WidocznoscTresciSql
                         $w->whereColumn('blocks.blocker_id', 'ce.user_id')->where('blocks.blocked_id', $widzId);
                     });
             })
+            // KUCHARZ W KARENCJI USUNIĘCIA (#1746) — `CookedEventPolicy::view()`
+            // punkt 3a: konto `pending_delete` znika ze strony „od razu", więc
+            // jego wykonania nie widzi nikt poza nim samym (a on i tak nie
+            // chodzi po serwisie). Zbanowany kucharz CELOWO tu nie wchodzi —
+            // D-018/D-022, ta sama cisza co w Policy.
+            ->where(function (QueryBuilder $kucharz) use ($widzId): void {
+                $kucharz->where('ce.user_id', $widzId)
+                    ->orWhereNotExists(function (QueryBuilder $konto): void {
+                        $konto->selectRaw('1')
+                            ->from('users as kucharze')
+                            ->whereColumn('kucharze.id', 'ce.user_id')
+                            ->where('kucharze.status', User::STATUS_PENDING_DELETE);
+                    });
+            })
             ->where(function (QueryBuilder $w) use ($widzId, $widz): void {
                 $w->where(function (QueryBuilder $bezPrzepisu) use ($widzId): void {
                     $bezPrzepisu->whereNull('ce.recipe_id')->where('ce.user_id', $widzId);
