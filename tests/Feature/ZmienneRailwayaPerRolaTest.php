@@ -190,6 +190,9 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
+        'KUKING_HEALTH_TOKEN' => 'Opcjonalna (audyt A5-05): pusto = `/health` oddaje tylko `status`, healthcheck '
+            .'Railwaya działa tak samo. `ctx.shared` wymaga istniejącej zmiennej, więc najpierw panel, potem '
+            .'`railway.ts` — kolejność w `docs/infra/DEPLOYMENT_RUNBOOK.md`.',
 
         // --- Domyślne połączenie Laravela jest poprawne (null = domyślne) ----
         'CACHE_STORAGE_DISK' => 'Cache stoi na bazie (`CACHE_STORE=database`); dysk cache nieużywany.',
