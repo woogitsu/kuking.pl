@@ -6,6 +6,7 @@ namespace App\Domain\Users\Actions;
 
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
@@ -16,7 +17,10 @@ use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Egzekucja karencji: trwałe usunięcie/anonimizacja danych osobowych konta
@@ -302,6 +306,15 @@ final class EraseAccountData
                 ])->save();
             }
 
+            // LINK DO USTAWIENIA HASŁA (audyt B5, znalezisko 6). Tabela
+            // resetów jest kluczowana ADRESEM, nie kontem — po anonimizacji
+            // wiersz z prawdziwym e-mailem zostawał bez terminu (Laravel
+            // sprząta go dopiero `auth:clear-resets`). Kasujemy po adresie
+            // sprzed anonimizacji, tak jak `ConfirmEmailChange` po starym.
+            DB::table((string) config('auth.passwords.users.table', 'password_reset_tokens'))
+                ->whereRaw('lower(email) = ?', [User::normalizeEmail((string) $fresh->email)])
+                ->delete();
+
             $fresh->forceFill([
                 'email' => $this->anonimowyEmail($fresh),
                 'password' => Hash::make(Str::random(40)),
@@ -409,6 +422,10 @@ final class EraseAccountData
         // nie zobaczy samego siebie.
         if ($wymazano && $doSkasowania !== []) {
             $this->dokonczKasowanieZdjec($doSkasowania);
+        }
+
+        if ($wymazano) {
+            $this->skasujPaczkiEksportu($user);
         }
 
         return $wymazano;
@@ -585,6 +602,31 @@ final class EraseAccountData
         }
 
         return $skasowane;
+    }
+
+    /**
+     * WSZYSTKIE PACZKI EKSPORTU TEGO KONTA ZNIKAJĄ Z MAGAZYNU (audyt B5, pkt 4).
+     *
+     * Wygaszenie `expires_at` w transakcji wyżej zamyka pobieranie i oddaje
+     * paczki `ready` nocnemu sprzątaniu — ale tylko te, których klucz jest
+     * w wierszu. Paczka wgrana przez próbę, która padła przed `finalize()`
+     * (`failed`, bez `object_key`), zostawała na zawsze. Cały prefiks
+     * `eksporty/<user_id>/` kasujemy więc od razu, niezależnie od wierszy.
+     *
+     * Po commicie i bez wyjątku na zewnątrz: magazyn niedostępny w tej chwili
+     * nie może cofnąć anonimizacji. Paczki `ready`/`expired` z kluczem
+     * dobierze wtedy `kuking:sprzataj-eksporty`.
+     */
+    private function skasujPaczkiEksportu(User $user): void
+    {
+        try {
+            Storage::disk((string) config('kuking.exports.disk'))->deleteDirectory(ExportFileNames::katalogKonta((string) $user->getKey()));
+        } catch (Throwable $e) {
+            Log::warning('Wymazanie konta: nie udało się skasować paczek eksportu z magazynu.', [
+                'user_id' => $user->getKey(),
+                'wyjatek' => $e::class,
+            ]);
+        }
     }
 
     /**
