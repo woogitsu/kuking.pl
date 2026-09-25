@@ -2692,10 +2692,14 @@ return [
         //
         // To jest decyzja podjęta ZA CZŁOWIEKA, więc obowiązkowo z widoczną
         // możliwością cofnięcia — przycisk „Nie obserwuj" na profilu istnieje.
-        // Pusta wartość wyłącza mechanizm całkowicie.
-        //
-        // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
-        // a nazwa jest tym, co widać i co da się sprawdzić okiem.
+        // Stabilna tożsamość gospodarza. UUID nie zmienia się razem z nazwą
+        // profilu i nie może zostać przejęty przez inne konto (#1089).
+        // Pusta wartość uruchamia wyłącznie zgodność przejściową po nazwie.
+        'host_user_id' => env('KUKING_HOST_USER_ID', ''),
+
+        // ZGODNOŚĆ PRZEJŚCIOWA dla wdrożeń sprzed #1089. Po ustawieniu UUID
+        // ta wartość nie wybiera gospodarza; zostaje na czas bezpiecznego
+        // przejścia i może zostać usunięta w osobnym wdrożeniu.
         'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
 
         // IMIĘ GOSPODARZA — podpis, który czyta CZŁOWIEK, nie konto.
@@ -2705,10 +2709,8 @@ return [
         // Decyzja właściciela: gospodarzem jest **Ula** (patrz
         // `docs/DECISIONS.md` — wpis o imieniu gospodarza).
         //
-        // TO NIE JEST TO SAMO CO `host_username` WYŻEJ. `host_username` to
-        // nazwa konta, którą czyta MECHANIZM (auto-obserwowanie przy
-        // rejestracji, `RegisterController::zaobserwujGospodarza()`) i która
-        // musi dać się znaleźć w bazie (`Profile::where('username', ...)`).
+        // TO NIE JEST TO SAMO CO `host_user_id` WYŻEJ. `host_user_id` to
+        // stabilny identyfikator konta czytany przez mechanizmy społeczności.
         // `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem
         // — nadawca maila (`docs/brand/COPY_STYLE.md` §6 „nadawca",
         // `docs/product/RETENTION_LOOPS.md` §4 „imię gospodarza + „z

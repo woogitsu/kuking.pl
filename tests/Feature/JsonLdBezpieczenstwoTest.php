@@ -148,7 +148,7 @@ class JsonLdBezpieczenstwoTest extends TestCase
     {
         $autor = $this->user('autorka');
 
-        $recipe = Recipe::factory()->create([
+        $recipe = Recipe::factory()->zeZdjeciem()->create([
             'author_id' => $autor->getKey(),
             'visibility' => 'public',
             'title' => 'Żurek na zakwasie',
