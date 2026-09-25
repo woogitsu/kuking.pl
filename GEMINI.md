@@ -18,7 +18,8 @@ i jedyne źródło prawdy — dla Gemini, Claude, GPT i każdego innego modelu.
   błędy po polsku mówiące co zrobić, poprawne dane nigdy nie znikają.
 - JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków.
 - Zmiana schematu = migracja + test + docs + rollback. Bugfix = test regresyjny.
-- `status` i `role` nigdy w `$fillable`. UUID w adresie to nie autoryzacja.
-- Testy na PostgreSQL. Przed PR-em: `./scripts/check.sh` — sam `pint`
-  i `php artisan test` pomijają składnię, migracje i assety.
+- Pola sterujące nigdy w `$fillable`: `status` i `role` użytkownika, `kind` wpisu
+  (AGENTS.md §7, D-006). UUID w adresie to nie autoryzacja.
+- Testy na PostgreSQL. Przed PR-em: `./scripts/check.sh` (AGENTS.md §10) — sam `pint`
+  i `artisan test` pomijają składnię, migracje i assety.
 - Dokumentacja, interfejs i komentarze **po polsku**; kod po angielsku.

@@ -16,6 +16,16 @@ use App\Support\Facebook;
 
 return [
 
+    /*
+     * TAG TYGODNIA (issue #18) — blok na `/home` i plan wyróżnień w panelu
+     * tagów promowanych. DOMYŚLNIE WYŁĄCZONY: przy wyłączonej fladze `/home`
+     * nie pokazuje bloku, a trasy panelu zwracają 404. Dane (`tag_highlights`)
+     * zostają niezależnie od flagi.
+     */
+    'tag_tygodnia' => [
+        'wlaczony' => (bool) env('KUKING_TAG_TYGODNIA', false),
+    ],
+
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
@@ -847,6 +857,34 @@ return [
          * strona ma prawo o nim wiedzieć.
          */
         'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
+
+        /*
+         * POWIADOMIENIA POZA SERWISEM — etap 1 issue #35: reguły przed kanałem.
+         *
+         * Egzekwuje je `App\Domain\Notifications\TerminPowiadomieniaZewnetrznego`.
+         * Żaden kanał (Web Push, e-mail o zdarzeniu) jeszcze z nich nie korzysta
+         * — reguły mają istnieć i być przetestowane, ZANIM powstanie kanał, żeby
+         * nie zaszyć ich w jednym dostawcy (`docs/product/RETENTION_LOOPS.md` §3.2).
+         *
+         * DOMYŚLNIE WYŁĄCZONE. Przy wyłączonej fladze rozstrzygnięcie zawsze
+         * brzmi „kanał wyłączony" — nic nie wychodzi. Powiadomień w serwisie
+         * (`NotifyUser`) to nie dotyczy i nigdy nie ma dotyczyć: in-app jest
+         * bez limitu i bez ciszy nocnej.
+         */
+        'zewnetrzne' => [
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+
+            // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
+            // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
+            'cisza_od_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_OD', 21),
+            'cisza_do_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_DO', 8),
+
+            // Ile powiadomień poza serwisem na lokalną dobę odbiorcy. Jedno,
+            // jak e-mail transakcyjny w §3.2 — nadmiar czeka do rana następnej
+            // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
+            // konfiguracja awaryjna), nie „odkładaj bez końca".
+            'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+        ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
         //
@@ -2608,6 +2646,24 @@ return [
         'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
     ],
 
+    // RETENCJA PROSTYCH TABEL PARTIAMI (#1657).
+    //
+    // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
+    // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
+    // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
+    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
+    // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
+    // (`stage=retention_budget_exhausted`).
+    //
+    // 50 000 na noc to ok. 18 mln wierszy rocznie na tabelę — rząd wielkości
+    // ponad dzisiejszy dobowy przyrost każdej z nich, więc codzienna retencja
+    // mieści się w budżecie z zapasem, a jednorazowy zator schodzi w kilka nocy.
+    'retencja' => [
+        'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
+        'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -3021,6 +3077,24 @@ return [
              * podsumowaniem (`kuking:podsumowanie-automatu`).
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+
+            /*
+             * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
+             * `kuking:doslij-pilne-alarmy`, co godzinę).
+             *
+             * `alarm_partia` — ile spraw jeden przebieg bierze najwyżej. Pilnych
+             * spraw jest w normalnym tygodniu kilka; limit jest bezpiecznikiem
+             * na dzień, w którym kanał leżał długo, żeby jeden przebieg nie zjadł
+             * dobowego limitu poczty (300 listów, dzielone z rejestracją).
+             *
+             * `alarm_sonda_godzin` — jak długo zaległy alarm OTWARTEJ sprawy
+             * trzyma `/health` w stanie `degraded`. 72, nie 24: sprawa z piątku
+             * wieczorem ma być widoczna jeszcze w poniedziałek rano, a serwis
+             * prowadzi jedna osoba, nie dyżur. Pełna reguła
+             * w `docs/infra/MONITORING_BLEDOW.md`.
+             */
+            'alarm_partia' => 50,
+            'alarm_sonda_godzin' => 72,
         ],
 
         /*
