@@ -136,7 +136,17 @@ class KopiaBazyPozaRailwayemTest extends TestCase
             .'Lista zmiennych ma być zamknięta i krótka.',
         );
 
-        foreach (['APP_KEY', 'EMAILLABS_SECRET_KEY', 'SENTRY_LARAVEL_DSN', 'R2_SECRET_ACCESS_KEY'] as $sekret) {
+        // Nie tylko `...appEnv`: od #1013 zestawy są per rola (`webEnv`,
+        // `workerEnv`, `schedulerEnv`...), a każdy z nich niesie sekrety
+        // aplikacji. Lista kopii ma być zamknięta, więc żadnego rozwinięcia.
+        $this->assertStringNotContainsString(
+            '...',
+            $blok,
+            'Serwis kopii nie może dostać ŻADNEGO rozwinięcia zestawu zmiennych (`...xxxEnv`). '
+            .'Każdy zestaw aplikacji niesie sekrety, których kontener ze zrzutem bazy nie potrzebuje.',
+        );
+
+        foreach (['APP_KEY', 'EMAILLABS_SECRET_KEY', 'SENTRY_LARAVEL_DSN', 'R2_SECRET_ACCESS_KEY', 'OPENAI_MODERATION_KEY'] as $sekret) {
             $this->assertStringNotContainsString(
                 $sekret,
                 $blok,
@@ -211,6 +221,7 @@ class KopiaBazyPozaRailwayemTest extends TestCase
             'docker/kopia/s3.sh',
             'docker/kopia/Dockerfile',
             'docs/infra/KOPIE_I_ODTWORZENIE.md',
+            'docs/infra/DR594_PIERWSZY_ZRZUT_WLASCICIEL.md',
         ];
 
         // Szukamy PRAWDZIWEGO bloku PEM (nagłówek + ciało base64), a nie
