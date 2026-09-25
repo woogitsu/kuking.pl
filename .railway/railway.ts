@@ -807,6 +807,8 @@ export default defineRailway((ctx) => {
   //  watchPatterns: przebudowuj tylko, gdy zmieniło się coś, co wpływa na
   //  obraz. Zmiana README albo docs/ nie musi kosztować buildu (a build
   //  kosztuje minuty i pieniądze). Wymagane też przez Focused PR Environments.
+  //  Każdy wpis korzenia, który `COPY . .` wnosi do obrazu, ma tu wzorzec
+  //  albo powód w rejestrze `W_OBRAZIE_BEZ_WPLYWU` (scripts/railway/iac.test.mjs).
   // ---------------------------------------------------------------------------
   const build = {
     builder: "DOCKERFILE" as const,
@@ -819,12 +821,18 @@ export default defineRailway((ctx) => {
       "public/**",
       "resources/**",
       "routes/**",
+      // Komunikaty po polsku (walidacja, hasła). Do 25.09.2026 brakowało
+      // tego wpisu: poprawka samego tekstu błędu nie uruchamiała wdrożenia
+      // (audyt B10-05).
+      "lang/**",
       "docker/**",
       "Dockerfile",
       "composer.json",
       "composer.lock",
       "package.json",
       "package-lock.json",
+      // `ignore-scripts=true` dla `npm ci` w etapie assets — zmienia build.
+      ".npmrc",
       "vite.config.js",
       "artisan",
     ],
