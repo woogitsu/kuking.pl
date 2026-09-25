@@ -100,6 +100,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Strażnik adresów z sekretami (#991, D-250). Kryterium issue wprost: kontrola
+# ujemna osłabiająca sprawdzenie do samego `https://` ma oblać test hosta
+# podszywającego się sufiksem. Druga mutacja zabiera sprawdzenie ścieżki.
+STRAZNIK_HOSTA = "app/Support/DozwolonyHostApi.php"
+STRAZNIK_HOSTA_TEST = "test_straznik_odrzuca_adres_spoza_listy"
+
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -483,6 +489,28 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def bez_sprawdzenia_hosta(source):
+    """KONTROLA DODATNIA: strażnik adresu zostaje przy samym `https://`."""
+    return replace_once(
+        source,
+        "        if (! in_array(strtolower($uri->getHost()), $hosty, true)) {\n"
+        "            return 'host spoza listy dostawcy';\n"
+        "        }\n",
+        "",
+    )
+
+
+def bez_sprawdzenia_sciezki(source):
+    """KONTROLA DODATNIA: strażnik adresu przestaje patrzeć na ścieżkę."""
+    return replace_once(
+        source,
+        "        if (preg_match($sciezka, $uri->getPath()) !== 1) {\n"
+        "            return 'ścieżka spoza API dostawcy';\n"
+        "        }\n",
+        "",
+    )
+
+
 def akcje_poza_filtrem_widoku(source):
     """KONTROLA DODATNIA: wyjmij `.github/actions/` z filtra warstwy widoku.
 
@@ -565,6 +593,10 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Strażnik sekretów osłabiony do samego https", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_hosta),
+    ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_sciezki),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
@@ -682,6 +714,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(STRAZNIK_HOSTA_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
 run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
