@@ -16228,6 +16228,14 @@ wywołania przypisane do klas:
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
 
+**Uzupełnienie (#1305, 25 września 2026).** `appeal.filed` — **klasa 2**.
+To czynność samego człowieka (autora treści albo zgłaszającego), a jej
+autorytatywny ślad to wiersz `appeals` z terminem DSA art. 20, zatwierdzany
+w jednej transakcji z zawiadomieniami administratorów i zleceniem listu
+z potwierdzeniem w `jobs` (`FileAppeal`, `FileReporterAppeal`). Awaria
+dziennika nie cofa pisma z biegnącym terminem. Dowód:
+`ZlozenieOdwolaniaJestAtomoweTest::test_awaria_audytu_nie_cofa_zlozonego_pisma`.
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
