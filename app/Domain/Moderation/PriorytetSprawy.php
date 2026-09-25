@@ -106,7 +106,8 @@ final class PriorytetSprawy
 
         // P1 — szkoda rośnie z każdą godziną, w której treść wisi.
         // Zgodne z wierszem P1 tabeli SLA w `docs/legal/MODERATION_PLAYBOOK.md`
-        // („nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość").
+        // („nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość,
+        // oszustwo (scam)").
         //
         //  • `scam` — wyłudzenie działa, dopóki odnośnik jest klikalny;
         //  • `harassment` i `hate` — celem jest konkretna osoba, która to
@@ -114,11 +115,11 @@ final class PriorytetSprawy
         //  • `personal_data` — czyjegoś adresu nie da się odzobaczyć,
         //    a każda godzina to kolejne kopie;
         //
-        // `scam` NIE MA POZYCJI W PODRĘCZNIKU — tabela SLA nie wymienia go
-        // w żadnym wierszu. Kładę go tu własnym osądem, bo wyłudzenie działa
-        // dopóki odnośnik jest klikalny, czyli szkoda rośnie z godzinami tak
-        // samo jak przy trzech pozycjach obok. Gdyby właściciel chciał
-        // inaczej — to jest jedna linijka.
+        // `scam` → P1 POTWIERDZONE PRZEZ WŁAŚCICIELA 25 września 2026
+        // (D-236). Przy scaleniu było to jeszcze moim osądem — tabela SLA
+        // w podręczniku wtedy tej kategorii nie wymieniała. Dziś wymienia:
+        // wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` §3 ma już
+        // „oszustwo (scam)".
         'scam' => self::P1,
         'harassment' => self::P1,
         'hate' => self::P1,
