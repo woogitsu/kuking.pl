@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Support\MapaStrony;
 use Illuminate\Http\Response;
 
 /**
@@ -24,7 +25,9 @@ class SitemapController extends Controller
 {
     public function index(): Response
     {
-        $urls = cache()->remember('sitemap.urls', now()->addHours(6), function (): array {
+        // Klucz kasuje `MapaStrony` po każdej zatwierdzonej zmianie widoczności
+        // (issue #1006); sześć godzin to tylko zabezpieczenie awaryjne.
+        $urls = cache()->remember(MapaStrony::KLUCZ, now()->addHours(MapaStrony::CZAS_ZYCIA_GODZINY), function (): array {
             $urls = [
                 ['loc' => route('landing'), 'priority' => '1.0', 'changefreq' => 'daily'],
                 ['loc' => route('discover'), 'priority' => '0.8', 'changefreq' => 'daily'],
