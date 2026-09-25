@@ -48,6 +48,23 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($tagTygodnia ?? null)
+        {{-- TAG TYGODNIA (issue #18). Zaproszenie, nie obowiązek: jeden
+             odnośnik do zwykłego formularza wpisu z zaznaczonym tagiem, który
+             da się odznaczyć. Ta sama ścieżka co przycisk na stronie tagu —
+             bez drugiego mechanizmu. Znika po ostatnim dniu wyróżnienia. --}}
+        <section class="sekcja-strony tag-tygodnia" aria-labelledby="tag-tygodnia-podpis">
+            <h2 id="tag-tygodnia-podpis">Tag tygodnia: {{ $tagTygodnia->tag->name }}</h2>
+            @if($tagTygodnia->note)
+                <p>{{ $tagTygodnia->note }}</p>
+            @endif
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tagTygodnia->tag->slug]) }}">Dodaj wpis z tym tagiem</a>
+                <a class="btn btn-secondary" href="{{ route('tags.show', $tagTygodnia->tag) }}">Zobacz wpisy z tym tagiem</a>
+            </div>
+        </section>
+    @endif
+
     @if($wspomnienie ?? null)
         {{--
             „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).

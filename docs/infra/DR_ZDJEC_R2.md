@@ -132,7 +132,7 @@ i 5 nie mają prawa ruszyć (`LOKALIZACJA_DANYCH_R2.md` §6a krok 3).
 | 4 | Rygiel: jedna reguła, bez prefiksu (cały bucket), warunek wieku **30 dni** (`MaxAgeSeconds = 2592000`). Nigdy „indefinite” | | |
 | 5 | Lifecycle: „delete objects” po **31 dniach**. Rygiel ma pierwszeństwo przed lifecycle, a usuwanie jest asynchroniczne, zwykle do 24 h (cytaty w §6a) `[do potwierdzenia w dokumentacji Cloudflare]` | | |
 | 6 | Utworzyć trzy tokeny z tabeli §3. Wartości tylko w menedżerze haseł i w Railway, **nigdy w repozytorium ani w zgłoszeniu** | | |
-| 7 | Railway, usługa `kuking.pl`: `AWS_ZDJECIA_KOPIA_BUCKET`, `AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID`, `AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY` (token **odczytu** kopii) | | |
+| 7 | Railway, **Shared Variables** środowiska: `R2_ZDJECIA_KOPIA_BUCKET`, `R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID`, `R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY` (token **odczytu** kopii, „Sealed”). `railway.ts` przekazuje je jako `AWS_ZDJECIA_KOPIA_*` **tylko schedulerowi** (dziś rola `all` w `kuking.pl`). Zmienna wpisana wprost w serwisie po rozdzieleniu usług (#595) nie dojdzie do procesu | | |
 | 8 | Pierwsza migawka (§5) | | |
 | 9 | Sprawdzenie migawki (§6) | | |
 | 10 | Próby rygla i lifecycle (§7.2, §7.3) | | |
@@ -184,6 +184,7 @@ przy darmowym progu 1 mln. Codzienne migawki dają RPO 1 dzień przy ok.
 ## 6. Sprawdzenie migawki — `kuking:sprawdz-kopie-zdjec` (tylko odczyt)
 
 ```bash
+# dziś (rola `all`): --service kuking.pl; po rozdzieleniu usług (#595): --service scheduler
 railway ssh --service kuking.pl -- php artisan kuking:sprawdz-kopie-zdjec \
     --prefiks=migawka-2026-09-28/ --sumy --nadmiarowe
 ```
