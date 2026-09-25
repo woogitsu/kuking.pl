@@ -107,6 +107,7 @@ Dla użytkownika: **Start**, a w opisach: **„co gotują osoby, które obserwuj
 - **Preferujemy formy bezosobowe i rzeczownikowe w etykietach:** „Dodaj zdjęcie", „Zapisano".
 - **W zdaniach zwracamy się per „Ty", z wielkiej litery**, bez zdrobnień i bez rozkazującego tonu.
 - **Nie zakładamy płci** tam, gdzie to możliwe: „Zapisano", nie „Zapisałeś". Wyjątkiem jest claim główny „Pokaż, co dziś ugotowałeś" — jest utrwalony w `docs/BRAND.md` i zostaje. Wariant równoległy do materiałów, gdzie odbiorcą jest wprost kobieta: **„Pokaż, co dziś ugotowałaś"**.
+- **Forma wybrana przez osobę (D-268).** Po zalogowaniu piszemy do osoby — i o niej do innych — w formie, którą sama wybrała na pytanie „Jak mamy do Ciebie pisać?”: żeńskiej, męskiej albo neutralnej (domyślnej). Nigdy jej nie zgadujemy. Każdy taki tekst ma trzy warianty i idzie przez helper `App\Support\Forma`; wariant neutralny jest obowiązkowy i brzmi tak, jak tekst bez rodzaju sprzed tej decyzji. Przycisk przy formie żeńskiej: „Ugotowałam”. Nazwa funkcji w dokumentacji i marce zostaje „Ugotowałem” (§3).
 - **Liczby zapisujemy cyframi** („8 komentarzy"), jednostki pełnym słowem („15 MB", „40 minut", nie „40'").
 
 ---

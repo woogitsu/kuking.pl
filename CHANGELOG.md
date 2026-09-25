@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Pod spodem, bez zmian na ekranie: nowa decyzja D-268 — serwis będzie pytać „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna, domyślnie neutralna) zamiast unikać rodzaju u każdego. Forma nie jest płcią, nie zgadujemy jej, a wybrana będzie widoczna też dla innych („Ania ugotowała”). Zaktualizowane zasady tekstów (`COPY_STYLE.md`, `BRAND_EXTENDED.md`, `GLOS_MARKI.md`) i zasady prywatności; samo ustawienie przychodzi osobno (#1751).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

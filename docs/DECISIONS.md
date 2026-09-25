@@ -14886,6 +14886,12 @@ i fikcyjnych liczb z makiety jest zamierzony. Wymagane są pomiary
 rzeczywistego CSS, oglądane zrzuty oraz kontrole ujemne z kopią poza repo
 i MD5. Wynik scalenia i wynik produkcji raportujemy oddzielnie.
 
+**Uzupełnienie (25 września 2026, D-268):** „nie wprowadzamy rozpoznawania
+płci” znaczy: nie **zgadujemy** jej — ani z imienia, ani z nazwy konta.
+Forma zwracania się, którą człowiek **sam wybrał** w ustawieniach albo
+w onboardingu, jest dozwolona i idzie przez jeden helper z obowiązkowym
+wariantem neutralnym. Wołacza nazwy nadal nie odmieniamy (D-153).
+
 ## D-208 · Publiczne kroki i blok „Ugotowałem” według wskazanej wizualizacji
 
 13 września 2026, kolejne porównanie właściciela, issue #506. Otwarte
@@ -17140,3 +17146,104 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+---
+
+## D-268 · Forma zwracania się zamiast „nie pytamy o płeć” (#1751, 25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
+`claude/research-profil-forma-urodziny`), pytania P1, P2, P3 i P7.
+
+### Decyzja
+
+1. **Pytamy „Jak mamy do Ciebie pisać?”** — trzy równorzędne odpowiedzi:
+   forma żeńska, forma męska, forma neutralna. **Neutralna jest domyślna**
+   i jest pełnoprawną odpowiedzią, nie brakiem odpowiedzi. To **preferencja
+   językowa, nie płeć**: nie pytamy o płeć, nie nazywamy pola „płeć” i nie
+   wyciągamy z niego wniosków o człowieku.
+2. **Nie zgadujemy.** Formy nie wywodzimy z imienia, z nazwy konta, z adresu
+   e-mail ani z danych Google/Facebooka (zakres Facebooka zostaje
+   `public_profile,email`, bez `user_gender`). Formę ustawia wyłącznie
+   sam człowiek. Kto nic nie wybrał, dostaje dokładnie dzisiejsze teksty
+   bez rodzaju.
+3. **Forma działa w obu kierunkach:** w tekstach **do** osoby („Co dziś
+   ugotowałaś?”) **i** w tym, jak **inni czytają o niej** („Ania ugotowała
+   Twój rosół”, karty wpisów, powiadomienia). Dlatego jest **daną widoczną
+   dla innych** — tak samo jak nazwa wyświetlana — i ekran wyboru mówi to
+   wprost, zanim ktoś wybierze.
+4. **Przycisk przy formie żeńskiej brzmi „Ugotowałam”.** Nazwą funkcji
+   w dokumentacji, w marce, w pomocy i na liczniku cudzego profilu zostaje
+   **„Ugotowałem”** (reguła „jedna nazwa funkcji”, `BRAND_EXTENDED.md` §3).
+   Zmienia się wyłącznie napis na przycisku i w formularzu wykonania
+   u osoby, która wybrała formę żeńską.
+5. **Pytamy w dwóch miejscach:** w ustawieniach profilu i w onboardingu —
+   tam jako krok **pomijalny**, z domyślnie zaznaczoną formą neutralną, bez
+   przypominania i bez „Uzupełnij profil!”.
+
+### Co z tego wynika dla tekstów
+
+- Granica z `COPY_STYLE.md` §2 dostaje trzecią część: **do czytelnika bez
+  wybranej formy — bez rodzaju** (jak dotąd); **do osoby i o osobie, która
+  wybrała formę — w jej formie, wyłącznie przez jeden helper**
+  (`App\Support\Forma`) z **obowiązkowym** wariantem neutralnym. Goły tekst
+  z rodzajem w widoku nadal jest usterką.
+- Zakaz ukośników („ugotowałaś/eś”) i wypisywania obu form obok siebie
+  zostaje bez zmian.
+- Przed zalogowaniem (landing, rejestracja, `<title>`, maile przed założeniem
+  konta) czytelnika nie znamy — tam zostaje hasło „ugotowałeś” jak dotąd.
+- „Nie tworzymy formy żeńskiej” z D-009/D-145 i `GLOS_MARKI.md` dotyczy
+  **rzeczownika `kuKING`** (kuKINGini, kuKINGówka) i obowiązuje dalej.
+  Formy czasownika to inna sprawa i tej decyzji rzeczownik nie dotyczy.
+
+### Dane i prywatność
+
+- Kolumna z zamkniętą listą wartości (CHECK), `NULL` = forma neutralna.
+  To zwykła preferencja, nie pole sterujące — nie podlega D-006.
+- Podstawa: **wykonanie umowy** (art. 6 ust. 1 lit. b RODO) — funkcja,
+  z której człowiek świadomie korzysta, tak jak nazwa wyświetlana i opis
+  w publicznym profilu. Pole jest dobrowolne, a domyślna odpowiedź nie
+  ujawnia niczego.
+- Nie używamy formy w statystykach, w analityce ani do segmentacji
+  (podsumowanie tygodnia, tablica, wyszukiwarka).
+- Eksport RODO zawiera wybraną formę; anonimizacja konta (art. 17) ją zeruje.
+- Polityka prywatności dostaje wiersz o tej danej (widoczna dla innych,
+  podstawa, eksport, usunięcie) **razem z kodem, który ją zapisuje**
+  (#1752) — dokument opisuje stan serwisu, nie plan.
+
+### Co ta decyzja zmienia w innych dokumentach
+
+- `docs/brand/COPY_STYLE.md` §2, §6 (Ugotowałem), §7, §8;
+- `docs/brand/BRAND_EXTENDED.md` §2.4;
+- `docs/brand/GLOS_MARKI.md` (zakres „formy żeńskiej nie tworzymy”);
+- `docs/SECURITY_PRIVACY_LEGAL.md` „Data minimization”;
+- D-207 — dopisek: nie **zgadujemy** płci; forma wybrana przez człowieka
+  jest dozwolona.
+
+`tests/Feature/TekstyNiePrzypisujaPlciTest.php` zmienia się razem
+z helperem (#1753): rodzaj w widoku przechodzi wyłącznie wewnątrz wywołania
+helpera z trzema wariantami, a przy formie neutralnej wyrenderowane ekrany
+nadal przechodzą dzisiejszy skan.
+
+### Czego ta decyzja NIE obejmuje
+
+- Urodzin, imienin i rocznicy dołączenia — to osobne pytania P4–P6, P8
+  z researchu.
+- Formy w materiałach marketingowych i w mailach wysyłanych przed
+  założeniem konta.
+- Wariantów spoza trzech wymienionych.
+
+**Zmiana wymaga:** sygnału z testów z ludźmi (#15), że pytanie odstrasza
+albo myli (np. konta współdzielone przez małżeństwo), albo opinii prawnika,
+że widoczność formy dla innych wymaga zgody zamiast wykonania umowy.
+
+### Wycofanie
+
+Helper zwraca wariant neutralny dla każdego (jedna zmiana), ekran wyboru
+znika z ustawień i onboardingu, kolumna zostaje do decyzji o danych —
+jej usunięcie przechodzi przez migrację, której rollback odmawia przy
+zapisanych wyborach (D-088).
+
+📄 `docs/brand/COPY_STYLE.md` · `docs/brand/BRAND_EXTENDED.md` · `docs/brand/GLOS_MARKI.md` ·
+`docs/SECURITY_PRIVACY_LEGAL.md` · D-207 · D-088

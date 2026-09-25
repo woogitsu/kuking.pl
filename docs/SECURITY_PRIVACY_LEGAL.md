@@ -62,6 +62,14 @@ Nie zbierać bez potrzeby:
 - pełnej daty urodzenia;
 - danych zdrowotnych.
 
+**Forma zwracania się to nie płeć (D-268).** Pytamy wyłącznie „Jak mamy do
+Ciebie pisać?” — forma żeńska, męska albo neutralna (domyślna). Cel: brzmienie
+tekstów do tej osoby i o niej. Pole jest dobrowolne, a forma jest **widoczna
+dla innych** (np. „Ania ugotowała”), co ekran wyboru mówi wprost. Nie
+zgadujemy jej z imienia ani nie pobieramy z Google/Facebooka, nie używamy
+w statystykach ani do segmentacji. Podstawa: wykonanie umowy (jak publiczny
+profil). Eksport RODO ją zawiera, anonimizacja konta ją zeruje.
+
 ## DSA
 
 Od początku:
