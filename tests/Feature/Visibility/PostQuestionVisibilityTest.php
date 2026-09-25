@@ -24,4 +24,10 @@ class PostQuestionVisibilityTest extends PostWidocznoscTest
             'body' => 'Tajny rosol '.$widocznosc,
         ]);
     }
+
+    /** Pytanie ma własny adres; `/wpisy/{id}` tylko na niego przekierowuje (#968). */
+    protected function adres(Model $tresc): string
+    {
+        return route('questions.show', $tresc);
+    }
 }
