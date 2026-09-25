@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Klient S3 kopii bazy (`docker/kopia/s3.sh`) liczy teraz podpis HMAC-SHA256 ręcznie (dwa wywołania SHA-256, zgodnie z RFC 2104), zamiast przekazywać klucz `openssl -macopt hexkey:…` jako argument procesu. Argumenty procesu są na Linuksie widoczne dla każdego użytkownika maszyny (`ps`, `/proc/<pid>/cmdline`) przez cały czas trwania procesu — klucz podpisujący R2 już tam nie trafia (#594).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

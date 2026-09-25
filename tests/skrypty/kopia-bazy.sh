@@ -151,6 +151,105 @@ else
 fi
 
 # =============================================================================
+echo "── Klucz HMAC nie trafia w argumenty procesu, widoczne przez ps (#594) ──"
+# =============================================================================
+#
+#  USTERKA: `s3_hmac` woływał `openssl dgst -mac HMAC -macopt "hexkey:$1"` —
+#  klucz HMAC (a w łańcuchu derywacji AWS SigV4 to w kolejnych krokach sekret
+#  R2, w postaci wystarczającej do podrobienia podpisu) trafiał wprost
+#  w ARGUMENT wywołania `openssl`. Argumenty procesu są na Linuksie jawne dla
+#  KAŻDEGO użytkownika maszyny przez cały czas trwania procesu (`ps -o args=`,
+#  `/proc/<pid>/cmdline`) — bez żadnych uprawnień specjalnych.
+#
+#  DLACZEGO `strace`, A NIE SAMO PRZECZYTANIE KODU
+#  Bo grep po treści pliku dowodzi tylko, że słowo „macopt” zniknęło z tekstu —
+#  nie dowodzi, że żaden PRAWDZIWY proces potomny nie dostał sekretu jako
+#  swojego argv. `strace -f -e trace=execve` widzi KAŻDE wywołanie `execve()`
+#  w całym drzewie procesów tego wywołania, razem z jego argumentami — to jest
+#  dokładnie to, co widziałby obcy użytkownik przez `ps`.
+#
+#  KONTROLA DODATNIA JEST TU NIEZBĘDNA (pułapka 4): sama nieobecność sekretu
+#  w logu `strace` niczego by nie dowodziła, gdyby ta metoda pomiaru nie
+#  potrafiła w ogóle wykryć wycieku. Dlatego ten sam pomiar uruchamiamy też
+#  na ŚWIADOMIE PRZYWRÓCONEJ starej, dziurawej implementacji (zdefiniowanej
+#  tylko lokalnie w tym teście, plik produkcyjny nie jest ruszany) i wymagamy,
+#  żeby wtedy sekret w argumentach BYŁ WIDOCZNY.
+if ! command -v strace >/dev/null 2>&1; then
+  sprawdz "strace do pomiaru argumentów procesu" "strace jest" "strace BRAK"
+else
+  # UWAGA NA TO, CZEGO SZUKAMY. `s3_hmac` dostaje klucz już jako HEX (patrz
+  # kontrakt funkcji), więc to jest wartość, która wyciekłaby w argumentach
+  # starej implementacji — nie surowy sekret ASCII, który nigdzie nie trafia
+  # do `s3_hmac` wprost. Liczymy ją TU, PRZED `strace`: samo policzenie
+  # (przez `s3_hex`, czyli `od` na stdin) niczego nie ujawnia w argumentach.
+  #
+  # Sekret idzie do procesu pod `strace` przez ZMIENNĄ ŚRODOWISKOWĄ, nie jako
+  # argument `bash -c` — inaczej test zanieczyściłby sam siebie: domyślny
+  # zapis `execve` w `strace` pokazuje argv, ale NIE pokazuje envp, więc to
+  # jest jedyna droga, którą sekret dotrze do wnętrza bez własnego wycieku
+  # w POMIARZE.
+  # shellcheck disable=SC1090
+  . "${BIBLIOTEKA_S3}"
+  export SEKRET_TESTOWY='NiechNiktNieZobaczyTegoWpsAux99887766'
+  KLUCZ_HEX_TESTOWY="$(printf 'AWS4%s' "${SEKRET_TESTOWY}" | s3_hex)"
+  export KLUCZ_HEX_TESTOWY
+
+  hmac_pod_straca() { # hmac_pod_straca <definicja_funkcji_s3_hmac> <plik_logu>
+    local definicja="$1" plik_logu="$2"
+    (
+      # shellcheck disable=SC1090
+      . "${BIBLIOTEKA_S3}"
+      eval "${definicja}"
+      # `bash -c` niżej to NOWY proces — funkcje z tego pliku (i ewentualna
+      # podmiana `s3_hmac` wyżej) trzeba mu jawnie wyeksportować, inaczej
+      # nie zobaczy ich wcale (kod wyjścia 127) i test mierzyłby powietrze.
+      local funkcja
+      for funkcja in $(declare -F | awk '{print $3}' | grep '^s3_'); do
+        # shellcheck disable=SC2163 # `export -f <nazwa>` eksportuje FUNKCJĘ,
+        # nie zmienną — SC2163 myli to ze `export "$zmienna"`.
+        export -f "${funkcja}"
+      done
+      strace -f -s 4096 -e trace=execve -o "${plik_logu}" bash -c '
+        printf "20260925" | s3_hmac "${KLUCZ_HEX_TESTOWY}" >/dev/null
+      ' >/dev/null 2>&1
+    )
+  }
+
+  # 1. Implementacja PRODUKCYJNA (ta z docker/kopia/s3.sh, po poprawce):
+  #    klucz nie ma prawa wystąpić w ŻADNYM argumencie ŻADNEGO execve.
+  LOG_NOWA="$(mktemp)"
+  hmac_pod_straca ':' "${LOG_NOWA}"
+  if grep -q "${KLUCZ_HEX_TESTOWY}" "${LOG_NOWA}"; then
+    sprawdz "produkcyjny s3_hmac: klucz NIE wychodzi w argumentach execve" "brak" "JEST: $(grep "${KLUCZ_HEX_TESTOWY}" "${LOG_NOWA}" | head -1)"
+  else
+    sprawdz "produkcyjny s3_hmac: klucz NIE wychodzi w argumentach execve" "brak" "brak"
+  fi
+
+  # Kontrola dodatkowa: żaden `execve` nie ma prawa nieść starego mechanizmu
+  # przekazywania klucza w ogóle — nawet gdyby ktoś podał go inną wartością.
+  if grep -qE 'execve\(.*(hexkey|-macopt)' "${LOG_NOWA}"; then
+    sprawdz 'produkcyjny s3_hmac: żaden execve nie niesie „-macopt"/"hexkey"' "brak" "JEST"
+  else
+    sprawdz 'produkcyjny s3_hmac: żaden execve nie niesie „-macopt"/"hexkey"' "brak" "brak"
+  fi
+  rm -f "${LOG_NOWA}"
+
+  # 2. KONTROLA DODATNIA: implementacja SPRZED poprawki, zdefiniowana tylko
+  #    tutaj (produkcyjny plik zostaje nietknięty). Bez tego bloku test
+  #    przechodziłby także wtedy, gdyby `strace` w ogóle nie widział
+  #    wywołań `openssl` z tego środowiska — czyli mierzyłby powietrze
+  #    (pułapka 4).
+  LOG_STARA="$(mktemp)"
+  hmac_pod_straca 's3_hmac() { openssl dgst -sha256 -mac HMAC -macopt "hexkey:$1" -hex | sed "s/^.*= *//"; }' "${LOG_STARA}"
+  if grep -q "${KLUCZ_HEX_TESTOWY}" "${LOG_STARA}"; then
+    sprawdz "…i metoda pomiaru NAPRAWDĘ widzi wyciek starej implementacji" "widzi" "widzi"
+  else
+    sprawdz "…i metoda pomiaru NAPRAWDĘ widzi wyciek starej implementacji" "widzi" "nie widzi: $(head -c 300 "${LOG_STARA}")"
+  fi
+  rm -f "${LOG_STARA}"
+fi
+
+# =============================================================================
 echo "── Alarm: co wychodzi na webhook (audyt A6-01) ──"
 # =============================================================================
 #
