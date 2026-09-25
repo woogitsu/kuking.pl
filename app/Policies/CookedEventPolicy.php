@@ -29,7 +29,7 @@ class CookedEventPolicy
         //
         // To jedyne miejsce w serwisie, gdzie treść osoby ZBANOWANEJ zostaje
         // dostępna pod bezpośrednim adresem — `RecipePolicy::view()` (audyt A5),
-        // `UserPolicy::viewProfile()` i `Notification::widoczneDla()` w tym
+        // `UserPolicy::viewProfile()` i `WidocznoscPowiadomien::zawez()` w tym
         // stanie odmawiają. Wygląda to na przeoczenie, ale nie jest: taką
         // decyzję zapisuje wprost `KomusWyszloWidocznoscTest::
         // test_wykonanie_zbanowanego_kucharza_nie_dostaje_celebracji`, razem

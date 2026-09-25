@@ -94,6 +94,41 @@ app/Domain/
 
 Nie robimy z nich osobnych serwisów ani pakietów.
 
+## Widoczność treści w zapytaniach zbiorczych (#1687)
+
+Policy (`PostPolicy`, `RecipePolicy`, `CookedEventPolicy`, `CommentPolicy`)
+odpowiada na pytanie o **jeden** rekord. Lista, licznik albo eksport, które
+filtrują wiele wierszy naraz, nie wołają Policy po jednym rekordzie (N+1),
+tylko używają **nazwanej specyfikacji zapytania** i **testu równoważności**
+z Policy. Model Eloquenta nie trzyma własnej kopii reguł innego modułu.
+
+```text
+Notification::scopeVisibleTo()           ← tylko wejście (lista, licznik,
+        │                                   „Oznacz wszystkie", otwarcie, eksport)
+        ▼
+Domain/Notifications/WidocznoscPowiadomien   reguły samego powiadomienia:
+        │                                    sprawca, blokada, typ służbowy,
+        │                                    czy komentarz wciąż istnieje
+        ▼
+Domain/Widocznosc/WidocznoscTresciSql        widoczność wpisu, przepisu
+                                             i „Ugotowałem" jako fragment EXISTS
+```
+
+Zgodności pilnuje `tests/Feature/Visibility/PowiadomieniaZgodneZPolicyTest`:
+macierz cel × widz × stan × rodzaj komentarza, stan nakładany po utworzeniu
+powiadomienia. Nowa reguła w Policy treści bez obsługi w specyfikacji daje
+czerwony test z nazwą komórki. Tolerowane są wyłącznie dwa znane rozjazdy,
+każdy w jednym kierunku i z numerem zgłoszenia (#1378, #1385).
+
+Zasada dla kolejnych modułów: jeśli zapytanie zbiorcze musi odtworzyć regułę
+z Policy, reguła trafia do specyfikacji w `app/Domain`, a obok powstaje test
+równoważności z Policy — nie kolejna prywatna kopia w modelu albo kontrolerze.
+
+Jeszcze niezrobione w ramach #1687 (kolejne etapy): wspólna specyfikacja dla
+list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od
+Policy m.in. statusem konta autora), wydzielenie z modelu `Notification`
+wyznaczania adresów i wycinków (resolver celu) oraz retencji.
+
 ## Queue
 
 MVP:

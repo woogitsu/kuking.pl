@@ -75,7 +75,7 @@ polecenie: vendor/bin/phpunit --no-coverage tests/Feature/FeedTagowNiePokazujeCu
 ocena: DZIURA W POKRYCIU (waski przypadek: wlasny nieopublikowany przepis autora) — nie luka w prywatnosci
 ---
 nazwa: powiadomienie od sprawcy zbanowanego znika z listy i licznika
-plik: app/Models/Notification.php
+plik: app/Domain/Notifications/WidocznoscPowiadomien.php
 zamien: ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
 na: ->whereNotIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
 oczekuj: Failed asserting|licznik

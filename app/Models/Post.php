@@ -253,9 +253,10 @@ class Post extends Model
      * na tabeli wymagałby pamiętania o tym warunku — a to jest dokładnie ten
      * rodzaj rzeczy, który się zapomina przy drugiej kopii.
      *
-     * DLACZEGO NIE REUŻYWAMY `Notification::wierszTresciWidoczny()`
-     * Tamten pomocnik odpowiada na to samo pytanie, ale jest prywatny,
-     * zbudowany na surowym `Query\Builder` z aliasem tabeli i wymaga
+     * DLACZEGO NIE REUŻYWAMY `WidocznoscTresciSql::wpisLubPrzepis()`
+     * Tamta specyfikacja (#1687, dawniej prywatny pomocnik `Notification`)
+     * odpowiada na podobne pytanie, ale jest zbudowana na surowym
+     * `Query\Builder` z aliasem tabeli i wymaga
      * NIEPUSTEGO widza — a strumienie („Świeżo z Kuking", tablica dnia,
      * strona powitalna) pytają także za gościa, czyli z `?User = null`.
      * Kanonicznym odpowiednikiem w warstwie Eloquenta jest
