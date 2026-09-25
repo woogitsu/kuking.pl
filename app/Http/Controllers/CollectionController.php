@@ -8,6 +8,7 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\ZapisyWpisu;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -19,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -395,7 +397,18 @@ class CollectionController extends Controller
 
         $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
 
-        $collection->update($data);
+        try {
+            // `DB::transaction()` — ten sam powód co łapanie w `store()`, plus
+            // jeden: na PostgreSQL odrzucony UPDATE psuje całą bieżącą
+            // transakcję. Własna (w testach: savepoint) wycofuje tylko jego,
+            // więc reszta żądania dalej może rozmawiać z bazą (issue #1339).
+            DB::transaction(fn () => $collection->update($data));
+        } catch (UniqueConstraintViolationException) {
+            // Druga karta zajęła tę nazwę między walidacją a zapisem.
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
+        }
 
         $jestPubliczna = $collection->isPublic();
 
@@ -469,7 +482,13 @@ class CollectionController extends Controller
             }
         }
 
-        $target = $this->save->handle($request->user(), $model, $collection);
+        try {
+            $target = $this->save->handle($request->user(), $model, $collection);
+        } catch (BladDlaCzlowieka $e) {
+            // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
+            // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
+            return back()->withErrors(['collection_id' => $e->getMessage()]);
+        }
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
@@ -491,19 +510,48 @@ class CollectionController extends Controller
      *  1. jest `collection_id` → wyjmujemy z TEGO zeszytu i tylko z tego;
      *  2. nie ma `collection_id`, a przepis leży w jednym zeszycie → nie ma
      *     czego ujawniać, bo zakres i tak jest jednoznaczny;
-     *  3. nie ma `collection_id`, a zeszytów jest więcej → wyjmujemy ze
-     *     wszystkich (tak działał ten ekran i nie zmieniamy tego pod ludźmi),
-     *     ale komunikat MÓWI, ile ich było, i daje przycisk powrotu.
+     *  3. nie ma `collection_id`, a zeszytów jest więcej → NAJPIERW strona
+     *     potwierdzenia (decyzja właściciela z 25.09.2026). Mówi, z ilu
+     *     zeszytów zejdzie przepis i ile notatek zniknie, i pozwala zamiast
+     *     tego wyjąć go z jednego wybranego zeszytu. Ze wszystkich wyjmujemy
+     *     dopiero z `potwierdzam_wszystkie=1`; przycisk „Przywróć do
+     *     zeszytu” po akcji zostaje.
      *
-     * Potwierdzenia PRZED akcją nie ma świadomie — to ten sam wybór co przy
-     * wpisie: wyjęcie jest teraz odwracalne co do notatki, więc tańszy jest
-     * przycisk powrotu PO akcji niż pytanie „czy na pewno" przed każdą.
+     * Potwierdzenie to ZWYKŁA ODPOWIEDŹ NA TO SAMO DELETE, nie osobna trasa
+     * ani okienko skryptu: działa bez JavaScriptu i nie da się go obejść
+     * starym formularzem z innej karty — reguła stoi po stronie serwera,
+     * więc chroni też stronę narysowaną, zanim przepis trafił do drugiego
+     * zeszytu.
      */
-    public function removeRecipe(Request $request, string $recipe): RedirectResponse
+    public function removeRecipe(Request $request, string $recipe): RedirectResponse|View
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
         $zeszyt = $this->wybranyZeszytDoWyjecia($request);
+
+        if ($zeszyt === null && ! $request->boolean('potwierdzam_wszystkie')) {
+            $zeszytyZPrzepisem = $request->user()->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($model->getKey()))
+                ->with(['recipes' => fn ($q) => $q->whereKey($model->getKey())])
+                ->orderBy('name')
+                ->get();
+
+            if ($zeszytyZPrzepisem->count() > 1) {
+                $widoczny = Gate::forUser($request->user())->allows('view', $model);
+
+                return view('pages.collections.potwierdz-wyjecie-ze-wszystkich', [
+                    'recipe' => $model,
+                    // Tytuł i powrót do przepisu tylko wtedy, gdy wolno go
+                    // oglądać — przepis mógł w międzyczasie stać się prywatny.
+                    'widoczny' => $widoczny,
+                    'zeszyty' => $zeszytyZPrzepisem,
+                    'notatek' => $zeszytyZPrzepisem
+                        ->filter(fn (Collection $c): bool => trim((string) $c->recipes->first()?->pivot->note) !== '')
+                        ->count(),
+                    'powrot' => $widoczny ? route('recipes.show', $model->slug) : route('collections.index'),
+                ]);
+            }
+        }
 
         $zdjete = $this->save->remove($request->user(), $model, $zeszyt);
 
@@ -544,7 +592,13 @@ class CollectionController extends Controller
             }
         }
 
-        $target = $this->savePost->handle($request->user(), $post, $collection);
+        try {
+            $target = $this->savePost->handle($request->user(), $post, $collection);
+        } catch (BladDlaCzlowieka $e) {
+            // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
+            // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
+            return back()->withErrors(['collection_id' => $e->getMessage()]);
+        }
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
