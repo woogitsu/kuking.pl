@@ -7,6 +7,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Livewire\Forms\PrzepisForm;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
@@ -96,19 +97,29 @@ new class extends Component
 
     public string $cook_minutes = '';
 
-    public string $difficulty = '';
+    /**
+     * Pola trudności, widoczności i „Skąd ten przepis” — Livewire Form Object
+     * (issue #1387, krok 3). W Livewire żyją pod `form.<pole>`, także
+     * w kluczach błędów. Pola powyżej przejdą tu w następnym kroku.
+     */
+    public PrzepisForm $form;
 
-    public string $visibility = 'public';
+    /**
+     * Wersja kształtu stanu komponentu, ustawiana w `mount()`.
+     *
+     * Karta otwarta PRZED wdrożeniem kroku 3 odsyła migawkę bez `form`,
+     * a Livewire pomija nieznane klucze i tworzy PUSTY obiekt formularza.
+     * Pierwszy autozapis takiej karty nadpisałby przepis domyślnymi
+     * wartościami — prywatny przepis stałby się publiczny, a historia
+     * przepisu by znikła. Stara migawka nie ma tego pola (zostaje 0), więc
+     * `hydrate()` odmawia, zanim cokolwiek się zapisze. Zapisany szkic
+     * zostaje nietknięty w bazie. Każda kolejna zmiana kształtu stanu
+     * (np. przeniesienie następnych pól do `$form`) PODBIJA `WERSJA_STANU`.
+     */
+    #[Locked]
+    public int $wersjaStanu = 0;
 
-    public string $source_type = 'own';
-
-    public string $source_person = '';
-
-    public string $source_note = '';
-
-    public string $source_url = '';
-
-    public string $family_since_year = '';
+    public const WERSJA_STANU = 3;
 
     /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
     public array $ingredients = [];
@@ -157,6 +168,8 @@ new class extends Component
 
     public function mount(?string $recipeId = null): void
     {
+        $this->wersjaStanu = self::WERSJA_STANU;
+
         if ($recipeId !== null) {
             $recipe = Recipe::with(['ingredients', 'steps'])->findOrFail($recipeId);
             Gate::authorize('update', $recipe);
@@ -172,6 +185,19 @@ new class extends Component
         $this->steps = [$this->blankStep(), $this->blankStep(), $this->blankStep()];
     }
 
+    /**
+     * Hook Livewire: każde żądanie po pierwszym renderze, PRZED zastosowaniem
+     * zmian pól i wywołaniem akcji. Migawka sprzed kroku 3 (patrz
+     * `$wersjaStanu`) dostaje 419 — ten sam kod, co wygasła strona, więc
+     * przeglądarka poprosi o odświeżenie, a nic się nie zapisze.
+     */
+    public function hydrate(): void
+    {
+        if ($this->wersjaStanu !== self::WERSJA_STANU) {
+            abort(419);
+        }
+    }
+
     private function fillFrom(Recipe $recipe): void
     {
         $this->recipeId = $recipe->getKey();
@@ -184,13 +210,13 @@ new class extends Component
         $this->servings = $this->numberToText($recipe->servings);
         $this->prep_minutes = $this->numberToText($recipe->prep_minutes);
         $this->cook_minutes = $this->numberToText($recipe->cook_minutes);
-        $this->difficulty = (string) $recipe->difficulty;
-        $this->visibility = (string) ($recipe->visibility ?: 'public');
-        $this->source_type = (string) ($recipe->source_type ?: Recipe::SOURCE_OWN);
-        $this->source_person = (string) $recipe->source_person;
-        $this->source_note = (string) $recipe->source_note;
-        $this->source_url = (string) $recipe->source_url;
-        $this->family_since_year = $this->numberToText($recipe->family_since_year);
+        $this->form->difficulty = (string) $recipe->difficulty;
+        $this->form->visibility = (string) ($recipe->visibility ?: 'public');
+        $this->form->source_type = (string) ($recipe->source_type ?: Recipe::SOURCE_OWN);
+        $this->form->source_person = (string) $recipe->source_person;
+        $this->form->source_note = (string) $recipe->source_note;
+        $this->form->source_url = (string) $recipe->source_url;
+        $this->form->family_since_year = $this->numberToText($recipe->family_since_year);
 
         $this->ingredients = $recipe->ingredients
             ->map(fn ($row): array => [
@@ -539,13 +565,13 @@ new class extends Component
                 'servings' => $this->numberOrNull($this->servings),
                 'prep_minutes' => $this->intOrNull($this->prep_minutes),
                 'cook_minutes' => $this->intOrNull($this->cook_minutes),
-                'difficulty' => $this->textOrNull($this->difficulty),
-                'visibility' => $this->visibility,
-                'source_type' => $this->source_type,
-                'source_person' => $this->textOrNull($this->source_person),
-                'source_note' => $this->textOrNull($this->source_note),
-                'source_url' => $this->textOrNull($this->source_url),
-                'family_since_year' => $this->intOrNull($this->family_since_year),
+                'difficulty' => $this->textOrNull($this->form->difficulty),
+                'visibility' => $this->form->visibility,
+                'source_type' => $this->form->source_type,
+                'source_person' => $this->textOrNull($this->form->source_person),
+                'source_note' => $this->textOrNull($this->form->source_note),
+                'source_url' => $this->textOrNull($this->form->source_url),
+                'family_since_year' => $this->intOrNull($this->form->family_since_year),
                 'hero_media_id' => $this->heroMediaId,
                 'source_scan_media_id' => $this->sourceScanMediaId,
             ],
@@ -672,15 +698,19 @@ new class extends Component
         // wyjątku”.
         $dawnyAdres = $this->recipeId === null ? null : Recipe::whereKey($this->recipeId)->value('source_url');
 
-        $validator = KrokOPrzepisie::walidator($this->only(KrokOPrzepisie::POLA), $dawnyAdres);
+        // Część pól jest już w `$form` (krok 3), część jeszcze w komponencie.
+        // `KrokOPrzepisie` dostaje je razem, pod nazwami bez przedrostka,
+        // a klucze błędów wracają do worka jako `form.<pole>` dla pól z `$form`.
+        $pola = $this->only(array_values(array_diff(KrokOPrzepisie::POLA, PrzepisForm::POLA))) + $this->form->pola();
+        $validator = KrokOPrzepisie::walidator($pola, $dawnyAdres);
 
         // Ponowna walidacja usuwa stare błędy tylko tych pól. Nie kasuje
         // komunikatu zdjęcia ani innego etapu; poprawka pola odblokowuje zapis.
-        $this->resetErrorBag(array_keys($validator->getData()));
+        $this->resetErrorBag(array_map(PrzepisForm::kluczBledu(...), array_keys($validator->getData())));
         if ($validator->fails()) {
             foreach ($validator->errors()->messages() as $key => $messages) {
                 foreach ($messages as $message) {
-                    $this->addError($key, $message);
+                    $this->addError(PrzepisForm::kluczBledu($key), $message);
                 }
             }
 
@@ -777,7 +807,7 @@ new class extends Component
      */
     public function previewHeading(): string
     {
-        return match ($this->visibility) {
+        return match ($this->form->visibility) {
             'private' => 'Podgląd: tak będziesz widzieć ten przepis',
             'followers' => 'Podgląd: tak zobaczą to osoby, które Cię obserwują',
             default => 'Podgląd: tak zobaczą to inni',
@@ -1110,36 +1140,42 @@ new class extends Component
                          :value="$cook_minutes" :min="0" :max="10080" />
             </div>
 
-            <fieldset class="border-0 p-0 mt-6">
+            {{-- `id` jest CELEM odnośnika z podsumowania błędów i zdarzenia
+                 `kreator-fokus-pole`, a atrybuty ARIA wiążą błąd z grupą —
+                 patrz `x-blad-grupy`. Bez `id` odnośnik do błędu grupy
+                 wyboru nie prowadził nigdzie (issue #1387, krok 3). --}}
+            <fieldset class="border-0 p-0 mt-6" id="f-form-difficulty"
+                      @error('form.difficulty') tabindex="-1" aria-invalid="true" aria-describedby="f-form-difficulty-error" @enderror>
                 <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
                         <label class="choice">
-                            <input type="radio" wire:model="difficulty" value="{{ $value }}">
+                            <input type="radio" wire:model="form.difficulty" value="{{ $value }}">
                             <span class="choice-label">{{ $label }}</span>
                         </label>
                     @endforeach
                 </div>
-                @error('difficulty')<span class="field-error">{{ $message }}</span>@enderror
+                <x-blad-grupy name="form.difficulty" />
             </fieldset>
 
-            <fieldset class="border-0 p-0 mt-6">
+            <fieldset class="border-0 p-0 mt-6" id="f-form-visibility"
+                      @error('form.visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-form-visibility-error" @enderror>
                 <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
                 <div class="choice-grid">
                     <label class="choice">
-                        <input type="radio" wire:model="visibility" value="public">
+                        <input type="radio" wire:model="form.visibility" value="public">
                         <span><span class="choice-label">Wszyscy</span><span class="choice-help">Także osoby bez konta. Przepis może pojawić się w Google.</span></span>
                     </label>
                     <label class="choice">
-                        <input type="radio" wire:model="visibility" value="followers">
+                        <input type="radio" wire:model="form.visibility" value="followers">
                         <span><span class="choice-label">Tylko osoby, które mnie obserwują</span></span>
                     </label>
                     <label class="choice">
-                        <input type="radio" wire:model="visibility" value="private">
+                        <input type="radio" wire:model="form.visibility" value="private">
                         <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt.</span></span>
                     </label>
                 </div>
-                @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+                <x-blad-grupy name="form.visibility" />
             </fieldset>
 
             <div class="form-section">
@@ -1153,22 +1189,23 @@ new class extends Component
                     Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże.
                 </p>
 
-                <fieldset class="border-0 p-0">
+                <fieldset class="border-0 p-0" id="f-form-source_type"
+                          @error('form.source_type') tabindex="-1" aria-invalid="true" aria-describedby="f-form-source_type-error" @enderror>
                     <legend class="font-bold mb-3">Ten przepis jest…</legend>
                     <div class="choice-grid">
                         @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                             <label class="choice">
-                                <input type="radio" wire:model="source_type" value="{{ $value }}">
+                                <input type="radio" wire:model="form.source_type" value="{{ $value }}">
                                 <span class="choice-label">{{ $label }}</span>
                             </label>
                         @endforeach
                     </div>
-                    @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
+                    <x-blad-grupy name="form.source_type" />
                 </fieldset>
 
                 {{-- PYTAMY O FRAZĘ, KTÓRA STOI SAMODZIELNIE — uzasadnienie
                      przy tym samym polu w `pages/recipes/szczegoly.blade.php`. --}}
-                <x-field name="source_person" label="Od kogo albo skąd masz ten przepis" wire="source_person" :value="$source_person"
+                <x-field name="form.source_person" label="Od kogo albo skąd masz ten przepis" wire="form.source_person" :value="$form->source_person"
                          placeholder="od mamy · z gazety · z bloga Nasze smaki"
                          help="Napisz to tak, żeby dało się przeczytać samo: „od mamy”, „z gazety”, „od sąsiadki Haliny”. Pokażemy to przy przepisie dokładnie tak, jak wpiszesz." />
 
@@ -1176,7 +1213,7 @@ new class extends Component
 
                      Stało tu „To zostaje w rodzinie." — nieprawda przy
                      przepisie publicznym, a taki jest tu domyślny
-                     (`public $visibility = 'public'`). Zdanie zależne od
+                     (`PrzepisForm::$visibility = 'public'`). Zdanie zależne od
                      `visibility` byłoby tutaj gorsze niż neutralne: pole
                      stoi na tym samym kroku co wybór widoczności, a radia
                      mają zwykły `wire:model` (bez `.live`), więc wartość
@@ -1184,15 +1221,15 @@ new class extends Component
                      Zdanie zależne od stanu, który chwilami jest nieaktualny,
                      zamieniłoby jedną nieprawdę na drugą, trudniejszą do
                      złapania. To jest prawdziwe zawsze. --}}
-                <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4" wire="source_note"
-                         :value="$source_note"
+                <x-field name="form.source_note" label="Historia tego przepisu" type="textarea" :rows="4" wire="form.source_note"
+                         :value="$form->source_note"
                          help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis." />
 
-                <x-field name="family_since_year" label="W rodzinie od roku" type="number" inputmode="numeric" wire="family_since_year"
-                         :value="$family_since_year" :min="1850" :max="2100" placeholder="1974" />
+                <x-field name="form.family_since_year" label="W rodzinie od roku" type="number" inputmode="numeric" wire="form.family_since_year"
+                         :value="$form->family_since_year" :min="1850" :max="2100" placeholder="1974" />
 
-                <x-field name="source_url" label="Adres strony, z której jest przepis" type="url" wire="source_url"
-                         :value="$source_url"
+                <x-field name="form.source_url" label="Adres strony, z której jest przepis" type="url" wire="form.source_url"
+                         :value="$form->source_url"
                          help="Podaj, jeśli przepis pochodzi z bloga albo innej strony. Nie publikuj cudzych treści bez zgody." />
 
                 <p class="field-help">
@@ -1396,11 +1433,11 @@ new class extends Component
                     @if($this->totalMinutes() !== null)
                         <li><span class="badge">Razem około {{ $this->totalMinutes() }} min</span></li>
                     @endif
-                    @if($difficulty !== '')
-                        <li><span class="badge">{{ \App\Models\Recipe::DIFFICULTY_LABELS[$difficulty] ?? $difficulty }}</span></li>
+                    @if($form->difficulty !== '')
+                        <li><span class="badge">{{ \App\Models\Recipe::DIFFICULTY_LABELS[$form->difficulty] ?? $form->difficulty }}</span></li>
                     @endif
-                    @if(trim($family_since_year) !== '')
-                        <li><span class="badge badge-cooked">W rodzinie od {{ trim($family_since_year) }}</span></li>
+                    @if(trim($form->family_since_year) !== '')
+                        <li><span class="badge badge-cooked">W rodzinie od {{ trim($form->family_since_year) }}</span></li>
                     @endif
                 </ul>
 
@@ -1412,18 +1449,18 @@ new class extends Component
                     <p class="text-lead">{{ trim($summary) }}</p>
                 @endif
 
-                @if(trim($source_person) !== '' || trim($source_note) !== '')
+                @if(trim($form->source_person) !== '' || trim($form->source_note) !== '')
                     <section class="recipe-story">
                         <h4 class="mt-0 text-title-sm">Skąd ten przepis</h4>
-                        @if(trim($source_person) !== '')
+                        @if(trim($form->source_person) !== '')
                             {{-- Podgląd pokazuje dokładnie to, co strona
                                  przepisu — wartość dosłownie, bez doklejonego
                                  „Po". Uzasadnienie stoi przy tym samym
                                  miejscu w `pages/recipes/show.blade.php`. --}}
-                            <p><strong>{{ \Illuminate\Support\Str::ucfirst(trim($source_person)) }}</strong></p>
+                            <p><strong>{{ \Illuminate\Support\Str::ucfirst(trim($form->source_person)) }}</strong></p>
                         @endif
-                        @if(trim($source_note) !== '')
-                            <p class="whitespace-pre-line mb-0">{{ trim($source_note) }}</p>
+                        @if(trim($form->source_note) !== '')
+                            <p class="whitespace-pre-line mb-0">{{ trim($form->source_note) }}</p>
                         @endif
                     </section>
                 @endif

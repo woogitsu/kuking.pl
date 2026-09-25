@@ -78,19 +78,19 @@ class AdresZrodlaPrzepisuTest extends TestCase
     public function test_nowy_adres_w_kreatorze_jest_strona(string $url, bool $allowed): void
     {
         $component = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Przepis z kreatora')->set('source_type', 'external')
+            ->set('title', 'Przepis z kreatora')->set('form.source_type', 'external')
             ->assertSet('saveState', 'saved')
-            ->set('source_url', $url)->assertSet('source_url', $url);
+            ->set('form.source_url', $url)->assertSet('form.source_url', $url);
         if ($allowed) {
-            $component->assertHasNoErrors('source_url')->assertSet('saveState', 'saved');
+            $component->assertHasNoErrors('form.source_url')->assertSet('saveState', 'saved');
             $this->assertSame($url, Recipe::sole()->source_url);
         } else {
             // Autozapis nie zapisuje odrzuconego adresu; tekst zostaje w polu.
-            $component->assertHasErrors('source_url')->assertSet('saveState', 'error')
+            $component->assertHasErrors('form.source_url')->assertSet('saveState', 'error')
                 ->assertSee('Wklej adres strony zaczynający się od http:// lub https://.')
                 ->assertSet('title', 'Przepis z kreatora');
             $this->assertNull(Recipe::sole()->source_url);
-            $component->call('saveDraft')->assertHasErrors('source_url');
+            $component->call('saveDraft')->assertHasErrors('form.source_url');
             $this->assertNull(Recipe::sole()->source_url);
         }
     }
@@ -101,15 +101,15 @@ class AdresZrodlaPrzepisuTest extends TestCase
         // Syntetyczny stan istniejących danych, jak w teście formularza wyżej.
         $recipe = app(PublishRecipe::class)->handle($author, ['title' => 'Stary przepis', 'source_type' => 'external', 'source_url' => 'ftp://example.invalid/stary'], [], [['instruction' => 'Gotuj.']], true);
         $component = Livewire::actingAs($author)->test('recipe-wizard', ['recipeId' => $recipe->getKey()])
-            ->assertSet('source_url', 'ftp://example.invalid/stary')
+            ->assertSet('form.source_url', 'ftp://example.invalid/stary')
             ->set('title', 'Poprawiony tytuł')->assertHasNoErrors()->assertSet('saveState', 'saved');
         $this->assertSame(['Poprawiony tytuł', 'ftp://example.invalid/stary'], [$recipe->fresh()->title, $recipe->fresh()->source_url]);
-        $component->set('source_url', 'ftp://example.invalid/nowy')->assertHasErrors('source_url')->assertSet('saveState', 'error');
+        $component->set('form.source_url', 'ftp://example.invalid/nowy')->assertHasErrors('form.source_url')->assertSet('saveState', 'error');
         $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
-        $component->set('source_url', 'https://example.invalid/nowy')->assertHasNoErrors('source_url')->assertSet('saveState', 'saved');
+        $component->set('form.source_url', 'https://example.invalid/nowy')->assertHasNoErrors('form.source_url')->assertSet('saveState', 'saved');
         $this->assertSame('https://example.invalid/nowy', $recipe->fresh()->source_url);
         // Raz porzucony dawny adres nie wraca jako wyjątek.
-        $component->set('source_url', 'ftp://example.invalid/stary')->assertHasErrors('source_url');
+        $component->set('form.source_url', 'ftp://example.invalid/stary')->assertHasErrors('form.source_url');
         $this->assertSame('https://example.invalid/nowy', $recipe->fresh()->source_url);
     }
 }

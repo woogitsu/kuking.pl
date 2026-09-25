@@ -46,7 +46,7 @@ class KomunikatyPrzepisuUwzgledniajaWidocznoscTest extends TestCase
     {
         $author = $this->user('autor530');
         Livewire::actingAs($author)->test('recipe-wizard')
-            ->set('title', 'Przepis z kreatora')->set('visibility', $visibility)
+            ->set('title', 'Przepis z kreatora')->set('form.visibility', $visibility)
             ->set('steps.0.instruction', 'Gotuj.')->call('publish')
             ->assertHasNoErrors()->assertRedirect();
         $this->assertSame($status, session('status'));

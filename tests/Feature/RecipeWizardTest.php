@@ -309,7 +309,7 @@ class RecipeWizardTest extends TestCase
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
             ->set('title', 'Pierogi ruskie')
-            ->set('source_person', 'od babci Zofii')
+            ->set('form.source_person', 'od babci Zofii')
             ->call('next')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.1.text', 'twaróg');

@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Kreator przepisu: gdy podsumowanie błędów wskazuje wybór „Jak trudny jest ten przepis?”, „Kto ma widzieć ten przepis?” albo „Ten przepis jest…”, kliknięcie komunikatu przenosi teraz do tej grupy i ustawia na niej fokus, a komunikat jest odczytywany razem z grupą. Wcześniej odnośnik nie prowadził nigdzie. Karta z kreatorem otwarta przed tą zmianą poprosi o odświeżenie strony, zamiast zapisać przepis ze zgubionymi ustawieniami; wszystko, co zapisało się wcześniej, zostaje (#1387).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.
