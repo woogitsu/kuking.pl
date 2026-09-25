@@ -59,7 +59,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
     {
         Artisan::call('storage:link');
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.poczta.ok', true);
@@ -72,7 +72,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         config(['mail.default' => 'log']);
         $this->app->detectEnvironment(static fn (): string => 'production');
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         // Świadomie 200: dokładnie ta sama zasada co przy Turnstile i mediach
         // wyżej w tym kontrolerze — healthcheck oddający 503 tu zbędnie
@@ -122,7 +122,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.poczta.ok', true);
@@ -136,7 +136,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
     {
         Artisan::call('storage:link');
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.kolejka.ok', true);
@@ -155,7 +155,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()
             ->assertJsonPath('status', 'degraded')
@@ -179,7 +179,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.kolejka.ok', false);
     }
@@ -213,7 +213,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         // Druga linia obrony po `bootstrap/app.php`/D-041: brak zmiennej
         // środowiskowej znaczy ZERO żądań HTTP, nawet gdy /health wykrywa
@@ -230,7 +230,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         Http::assertSent(function ($request): bool {
             if ($request->url() !== self::ADRES_WEBHOOKA) {
@@ -264,8 +264,8 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         // Ten sam monitoring zewnętrzny odpytujący `/health` co kilka minut
         // (`docs/infra/INFRA_DECISION.md`) — DWA odpytania tej samej,
         // TRWAJĄCEJ awarii.
-        $this->get('/health')->assertOk();
-        $this->get('/health')->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
 
         Http::assertSentCount(1);
     }
@@ -283,13 +283,13 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         Http::fake();
 
         $this->wstawNieudaneZadanie();
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         DB::table('failed_jobs')->truncate();
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', true);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', true);
 
         $this->wstawNieudaneZadanie();
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         Http::assertSentCount(2);
     }
@@ -324,7 +324,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         ]);
 
         try {
-            $this->get('/health')->assertStatus(503);
+            $this->zdrowieZeSzczegolami()->assertStatus(503);
         } finally {
             config(['database.default' => $domyslna]);
             DB::purge('zepsuta');
@@ -384,7 +384,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         $this->assertTrue(
             $this->wDziennikuJest('Nie udało się zadzwonić na webhook błędów'),
@@ -393,7 +393,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         // Ta sama, wciąż trwająca awaria: skoro poprzedni dzwonek nie doszedł,
         // odstęp nie należy się i drugie odpytanie ma zadzwonić.
-        $this->get('/health')->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
 
         Http::assertSentCount(2);
     }
@@ -423,7 +423,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         // Brak wyjątku z `/health` JEST tu asercją: awaria mechanizmu
         // powiadamiania nie ma prawa wywrócić samego healthchecku.
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
 
         $this->assertSame(
             1,
@@ -436,7 +436,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
         // wyjątkiem połączenia, więc `assertSentCount()` pokazywałaby tu zero
         // niezależnie od tego, czy odstęp został oddany — czyli byłaby
         // asercją o niczym.
-        $this->get('/health')->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
 
         $this->assertSame(
             2,
@@ -460,8 +460,8 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
 
         $this->wstawNieudaneZadanie();
 
-        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
-        $this->get('/health')->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->zdrowieZeSzczegolami()->assertOk();
 
         Http::assertSentCount(1);
     }

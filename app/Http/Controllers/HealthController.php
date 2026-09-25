@@ -17,9 +17,11 @@ use App\Support\Poczta;
 use App\Support\Storage\DozwolonyHostR2;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -102,6 +104,17 @@ use Throwable;
  * przy awarii bazy zawiera adres hosta, port, nazwę bazy i nazwę użytkownika
  * z komunikatu PDO. Szczegół techniczny zostaje w logu (`Log::error` niżej),
  * gdzie ma dostęp do niego wyłącznie właściciel.
+ *
+ * OD AUDYTU A5-05 PUBLICZNIE WYCHODZI TYLKO KOD HTTP I `status`
+ * Nawet same KODY z `POWODY` mówiły za dużo: `turnstile_bez_kluczy` albo
+ * `limit_poczty_wyczerpany` to dokładnie chwila, w której warto uderzyć
+ * w formularze. Pole `checks` dostaje więc tylko zapytanie z tokenem
+ * w nagłówku `NAGLOWEK_TOKENU` (`config/kuking.php`, `health.token`).
+ * Kod 200/503 i `status` zostają dla wszystkich — z nich korzysta Railway,
+ * test dymny wdrożenia i `scripts/sprawdz-wdrozenie.sh`. Do tego limit
+ * zapytań po adresie (`limits.health`) i krótka pamięć udanej próbki
+ * magazynu (`health.probka_magazynu_sekund`), żeby pętla `curl` nie
+ * zamieniała się w zapisy do R2. Pilnuje tego `HealthSzczegolyTylkoZTokenemTest`.
  */
 class HealthController extends Controller
 {
@@ -281,8 +294,21 @@ class HealthController extends Controller
      */
     private const WEBHOOK_ODSTEP_MINUT = 30;
 
-    public function __invoke(): JsonResponse
+    /** Nagłówek z tokenem, który odsłania pole `checks` (audyt A5-05). */
+    public const NAGLOWEK_TOKENU = 'X-Kuking-Health-Token';
+
+    public function __invoke(Request $request): JsonResponse
     {
+        $zaDuzo = $this->limitPrzekroczony($request);
+
+        if ($zaDuzo !== null) {
+            return response()->json(
+                ['message' => 'Za dużo zapytań. Spróbuj ponownie za chwilę.'],
+                429,
+                ['Retry-After' => (string) $zaDuzo],
+            );
+        }
+
         $checks = [
             'database' => $this->check('database', self::POWOD_BAZA, static function (): void {
                 DB::select('select 1');
@@ -318,13 +344,53 @@ class HealthController extends Controller
 
         $wszystkoOk = ! in_array(false, array_column($checks, 'ok'), true);
 
-        return response()->json([
+        $odpowiedz = [
             'status' => $wszystkoOk ? 'ok' : 'degraded',
             'app' => config('app.name'),
             'environment' => config('app.env'),
             'time' => now()->toIso8601String(),
-            'checks' => $checks,
-        ], $krytyczneOk ? 200 : 503);
+        ];
+
+        // Kod HTTP i `status` dla każdego, `checks` tylko z tokenem (A5-05).
+        if ($this->maTokenSzczegolow($request)) {
+            $odpowiedz['checks'] = $checks;
+        }
+
+        return response()->json($odpowiedz, $krytyczneOk ? 200 : 503);
+    }
+
+    /**
+     * Sekundy do ponowienia, gdy ten adres pyta za często — albo null.
+     *
+     * Licznik leży w cache w bazie. Gdy baza nie odpowiada, liczenie się nie
+     * uda i pytanie PRZECHODZI: healthcheck ma wtedy oddać 503 z `status`,
+     * a nie 500 z wyjątku limitera (`config/kuking.php`, `limits.health`).
+     */
+    private function limitPrzekroczony(Request $request): ?int
+    {
+        [$ile, $minut] = array_map('intval', explode(',', (string) config('kuking.limits.health')));
+        $klucz = 'health|'.$request->ip();
+
+        try {
+            if (RateLimiter::tooManyAttempts($klucz, $ile)) {
+                return max(1, RateLimiter::availableIn($klucz));
+            }
+
+            RateLimiter::hit($klucz, $minut * 60);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return null;
+    }
+
+    private function maTokenSzczegolow(Request $request): bool
+    {
+        $token = config('kuking.health.token');
+        $podany = $request->header(self::NAGLOWEK_TOKENU);
+
+        return is_string($token) && $token !== ''
+            && is_string($podany) && hash_equals($token, $podany);
     }
 
     /**
@@ -817,6 +883,34 @@ class HealthController extends Controller
     {
         $nazwaDysku = (string) config('kuking.media.disk');
 
+        // UDANA próbka jest pamiętana krótko (audyt A5-05): bez tego każde
+        // wywołanie `/health` zapisywało i czytało obiekt w R2. Porażki nie
+        // pamiętamy, więc awaria nie chowa się za starym „ok". Cache może
+        // leżeć w bazie — jego awaria nie przewraca sondy, tylko ją powtarza.
+        $kluczProbki = 'health:probka-magazynu:'.$nazwaDysku;
+
+        try {
+            $probkaUdana = Cache::get($kluczProbki) === true;
+        } catch (Throwable) {
+            $probkaUdana = false;
+        }
+
+        if (! $probkaUdana) {
+            $this->zapiszIOdczytajProbke($nazwaDysku);
+
+            try {
+                Cache::put($kluczProbki, true, (int) config('kuking.health.probka_magazynu_sekund'));
+            } catch (Throwable) {
+                // Zostaje bez pamięci — następne pytanie spróbuje od nowa.
+            }
+        }
+
+        $this->sprawdzDrogePubliczna($nazwaDysku);
+    }
+
+    private function zapiszIOdczytajProbke(string $nazwaDysku): void
+    {
+
         // Nazwa z kropką na początku i losowym sufiksem: nie zderzy się
         // z niczyim plikiem i nie trafi do listingów.
         $probka = '.health/'.Str::uuid()->toString();
@@ -850,8 +944,6 @@ class HealthController extends Controller
         } finally {
             $dysk->delete($probka);
         }
-
-        $this->sprawdzDrogePubliczna($nazwaDysku);
     }
 
     /**

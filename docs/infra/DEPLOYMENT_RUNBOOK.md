@@ -659,6 +659,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `R2_EXPORTS_BUCKET` | `kuking-eksporty` | nie | Bucket **paczek RODO**. `railway.ts` → `AWS_EXPORTS_BUCKET` → dysk `r2_eksporty`. Bez niego dysk nie ma bucketu i „Twoje dane są gotowe" kończy się 404 u człowieka |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
+| `KUKING_HEALTH_TOKEN` | losowy ciąg, np. `openssl rand -hex 32` | nie | Odsłania pole `checks` w `/health` zapytaniu z nagłówkiem `X-Kuking-Health-Token` (audyt A5-05). Bez niego `/health` oddaje tylko kod HTTP i `status` — healthcheck Railway i test dymny działają tak samo, ale polecenia `curl … \| jq '.checks…'` w tym runbooku zwracają `null`. Zmienna NIE jest jeszcze przewleczona w `.railway/railway.ts` (`ctx.shared` wymaga istniejącej zmiennej) — najpierw załóż ją w panelu, potem dopisz `KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN`. Zaznacz „Sealed" |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
 | `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
@@ -937,7 +938,7 @@ listy hostnames w tym samym widgetcie. Ten sam Secret Key wolno użyć w obu.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.turnstile'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.turnstile'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Widget jest na stronie rejestracji
@@ -1079,7 +1080,7 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 > ## ✅ WYKONANE — potwierdzone 12 września 2026
 >
-> `curl -s https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
+> `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
 > a `/login` zawiera przycisk „Wejdź kontem Google". Klucze doszły do
 > aplikacji. Sprawdzone na żywej produkcji przy okazji domykania 8E.
 >
@@ -1197,7 +1198,7 @@ adres staginu do listy z 8D.1.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.google'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.google'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1276,7 +1277,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 >
 > | co | polecenie | wynik |
 > |---|---|---|
-> | klucze doszły do aplikacji | `curl -s https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
+> | klucze doszły do aplikacji | `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
 > | przycisk jest na ekranie logowania | `curl -s https://kuking.pl/login \| grep -c 'wejdz/facebook'` | `1` |
 > | kolejność przycisków | odczyt napisów z `/login` | „Wejdź kontem Google", potem „Wejdź kontem Facebooka" — zgodnie z wymogiem 8E.3 („obok przycisku Google i **nie przed nim**") |
 >
@@ -1455,7 +1456,7 @@ jest już na liście z 8E.1 pkt 5.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.facebook'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.facebook'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1640,7 +1641,7 @@ i `/health` o niego nie pyta.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wpisaniem tokenu: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.analityka'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.analityka'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Beacon jest w HTML-u DOKŁADNIE RAZ (dwa = włączone wstrzykiwanie z 8F.1 pkt 3)
@@ -2622,7 +2623,7 @@ wygoda (stare linki z maili i ciasteczka).
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
-| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
+| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq .checks.analityka` |
 | **Jedno zadanie harmonogramu milczy** (np. liczniki panelu moderacji stoją), a pętla harmonogramu żyje | stara blokada `withoutOverlapping` po procesie zabitym bez sygnału (SIGKILL, OOM, ubity kontener) | sekcja „Stara blokada harmonogramu" niżej |
 
 ### Stara blokada harmonogramu (#1002)

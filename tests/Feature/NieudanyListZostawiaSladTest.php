@@ -201,12 +201,12 @@ class NieudanyListZostawiaSladTest extends TestCase
         // i przykrywa to, o czym jest ten test.
         Artisan::call('storage:link');
 
-        $this->get('/health')->assertOk()->assertJsonPath('status', 'ok');
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('status', 'ok');
 
         Http::fake([self::ADRES_API => $this->odpowiedz429()]);
         $this->oczekujOdmowy(fn () => User::factory()->unverified()->create()->notify(new PotwierdzenieAdresu));
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk(); // NIE 503: poczta nie jest krytyczna, Railway nie ma czego restartować.
         $odpowiedz->assertJsonPath('status', 'degraded');
@@ -219,7 +219,7 @@ class NieudanyListZostawiaSladTest extends TestCase
 
         $this->artisan('kuking:nieudane-listy', ['--odhacz' => true])->assertExitCode(0);
 
-        $this->get('/health')->assertOk()->assertJsonPath('status', 'ok');
+        $this->zdrowieZeSzczegolami()->assertOk()->assertJsonPath('status', 'ok');
     }
 
     /**
@@ -232,7 +232,7 @@ class NieudanyListZostawiaSladTest extends TestCase
     {
         $this->slad(['failed_at' => now()->subDays(9)]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.listy.ok', false)
             ->assertJsonPath('checks.listy.error', 'listy_przepadaja');
@@ -257,7 +257,7 @@ class NieudanyListZostawiaSladTest extends TestCase
 
         Schema::drop('mail_failures');
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk(); // Poczta nie jest krytyczna — nadal nie 503.
         $odpowiedz->assertJsonPath('status', 'degraded');

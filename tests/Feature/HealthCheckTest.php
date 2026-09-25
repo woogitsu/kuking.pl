@@ -33,7 +33,7 @@ class HealthCheckTest extends TestCase
         // jest idempotentny.
         Artisan::call('storage:link');
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.database.ok', true)
@@ -54,7 +54,7 @@ class HealthCheckTest extends TestCase
             ],
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         // NAJWAŻNIEJSZA ASERCJA W TYM PLIKU: awaria zdjęć jest RAPORTOWANA...
         $odpowiedz->assertJsonPath('checks.media.ok', false)
@@ -87,7 +87,7 @@ class HealthCheckTest extends TestCase
         // tak wyglądała awaria na produkcji: `ProcessUploadedImage` kończył się
         // powodzeniem, plik leżał na dysku, a w interfejsie była ikona
         // zepsutego obrazka. Sprawdzanie samego zapisu przepuściłoby to.
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.media.ok', false)
             ->assertJsonPath('status', 'degraded');
@@ -110,8 +110,8 @@ class HealthCheckTest extends TestCase
             ],
         ]);
 
-        $this->get('/health')->assertOk();
-        $this->get('/health')->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
+        $this->zdrowieZeSzczegolami()->assertOk();
 
         // Railway odpytuje /health co kilkadziesiąt sekund. Sprawdzenie, które
         // zostawia plik za każdym razem, po tygodniu zapycha wolumin — czyli

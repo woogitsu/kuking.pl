@@ -52,7 +52,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezKonfiguracjiCzyszczenia();
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz
             // ŚWIADOMIE 200, NIE 503. `cdn` nie jest na liście KRYTYCZNE:
@@ -91,7 +91,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
             'kuking.media.cdn_purge.token' => 'udawany-token',
         ]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.cdn.ok', true);
@@ -112,14 +112,14 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
             'kuking.media.cdn_purge.token' => '',
         ]);
 
-        $this->get('/health')->assertJsonPath('checks.cdn.error', self::POWOD);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn.error', self::POWOD);
 
         config([
             'kuking.media.cdn_purge.zone_id' => '',
             'kuking.media.cdn_purge.token' => 'udawany-token',
         ]);
 
-        $this->get('/health')->assertJsonPath('checks.cdn.error', self::POWOD);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn.error', self::POWOD);
     }
 
     /**
@@ -137,7 +137,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
 
         $this->bezKonfiguracjiCzyszczenia();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.cdn.ok', true);
     }
@@ -153,7 +153,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezKonfiguracjiCzyszczenia();
 
-        $tresc = $this->get('/health')->getContent();
+        $tresc = $this->zdrowieZeSzczegolami()->getContent();
 
         foreach (['CLOUDFLARE_ZONE_ID', 'CLOUDFLARE_PURGE_TOKEN', 'r2_legacy', 'kuking:przenies-zdjecia'] as $czego) {
             $this->assertStringNotContainsString(

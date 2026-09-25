@@ -73,7 +73,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
         ]);
 
         try {
-            $odpowiedz = $this->get('/health');
+            $odpowiedz = $this->zdrowieZeSzczegolami();
         } finally {
             // Przywracamy PRZED czymkolwiek innym: `RefreshDatabase` wycofuje
             // transakcję na połączeniu domyślnym dopiero w `tearDown()`,
@@ -120,7 +120,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
             ],
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('checks.media.ok', false);
 
@@ -151,7 +151,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
             ],
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('checks.media.ok', false);
 
@@ -173,7 +173,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
     {
         Artisan::call('storage:link');
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('status', 'ok');
 

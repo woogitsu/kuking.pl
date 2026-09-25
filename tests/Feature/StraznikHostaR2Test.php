@@ -175,7 +175,7 @@ class StraznikHostaR2Test extends TestCase
             'filesystems.disks.r2_eksporty.endpoint' => 'https://'.self::KONTO.'.r2.cloudflarestorage.com',
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()
             ->assertJsonPath('checks.magazyn.ok', false)
@@ -190,17 +190,17 @@ class StraznikHostaR2Test extends TestCase
     public function test_health_dobry_host_magazynu_przechodzi(): void
     {
         $this->produkcja();
-        $this->get('/health')->assertJsonPath('checks.magazyn.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.ok', true);
 
         config([
             'filesystems.disks.r2.key' => self::KLUCZ,
             'filesystems.disks.r2.endpoint' => self::DOBRY,
         ]);
-        $this->get('/health')->assertJsonPath('checks.magazyn.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.ok', true);
 
         // Klucz bez adresu: AWS SDK poszedłby do Amazona.
         config(['filesystems.disks.r2.endpoint' => '']);
-        $this->get('/health')->assertJsonPath('checks.magazyn.error', 'magazyn_r2_zly_host');
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.error', 'magazyn_r2_zly_host');
     }
 
     private function produkcja(): void

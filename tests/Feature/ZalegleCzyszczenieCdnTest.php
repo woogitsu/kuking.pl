@@ -230,11 +230,11 @@ class ZalegleCzyszczenieCdnTest extends TestCase
         Artisan::call('storage:link');
 
         // KONTROLA UJEMNA: pusta tabela — sonda milczy.
-        $this->get('/health')->assertJsonPath('checks.cdn_zalegle.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn_zalegle.ok', true);
 
         ZalegleCzyszczeniaCdn::odloz(self::ADRESY);
 
-        $odpowiedz = $this->get('/health')
+        $odpowiedz = $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.cdn_zalegle.ok', false)
