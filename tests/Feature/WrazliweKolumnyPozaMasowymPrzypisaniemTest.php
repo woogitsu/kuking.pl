@@ -399,10 +399,6 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
     }
 
     /**
-     * GŁÓWNY POMIAR: żadna kolumna wrażliwa nie daje się ustawić masowym
-     * przypisaniem, chyba że stoi w rejestrze z powodem.
-     */
-    /**
      * Rejestr nazywa tylko symbole, które istnieją (audyt A5-18).
      *
      * Uzasadnienia w `REJESTR` wskazują, KTÓRA klasa ustawia daną kolumnę —
@@ -460,6 +456,10 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
         $this->assertGreaterThan(20, $sprawdzone, 'Strażnik rejestru prawie niczego nie sprawdził — wzorzec przestał pasować.');
     }
 
+    /**
+     * GŁÓWNY POMIAR: żadna kolumna wrażliwa nie daje się ustawić masowym
+     * przypisaniem, chyba że stoi w rejestrze z powodem.
+     */
     public function test_zadna_kolumna_wrazliwa_nie_wchodzi_masowym_przypisaniem_poza_rejestrem(): void
     {
         $sprawdzonychKolumn = 0;
