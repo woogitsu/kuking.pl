@@ -8,18 +8,21 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * #1313 — `railway-iac.yml` liczy plan i stosuje apply na PRODUKCJI
- * wyłącznie dla PR-a kierowanego do `main`.
+ * #1313 — `railway-iac.yml` liczy plan z tokenem PRODUKCYJNYM wyłącznie dla
+ * PR-a kierowanego do `main`.
  *
- * Przed poprawką `pull_request` nie miał filtra gałęzi docelowej, a joby nie
- * sprawdzały `base.ref`. Po włączeniu `KUKING_DEPLOY_ENABLED` scalenie PR-a
- * z `.railway/**` do `staging` odpalało `Apply (production)` z tokenem
- * produkcyjnym i `confirm-destructive: true`.
+ * Przed poprawką `pull_request` nie miał filtra gałęzi docelowej, a job plan
+ * nie sprawdzał `base.ref`. Po włączeniu `KUKING_DEPLOY_ENABLED` PR
+ * z `.railway/**` do `staging` liczył plan z `RAILWAY_TOKEN_PRODUCTION`.
  *
- * Trzy niezależne zamki, każdy sprawdzany osobno:
+ * Apply NIE jest tu pilnowany: od #595 idzie wyłącznie ręcznie
+ * (`workflow_dispatch` z `main` plus wpisywane potwierdzenie) i to sprawdza
+ * `scripts/railway/iac.test.mjs`. Ten test pilnuje tylko, żeby apply nie
+ * wrócił na ścieżkę PR-ową, której filtr gałęzi nie obejmuje.
+ *
+ * Dwa niezależne zamki planu, każdy sprawdzany osobno:
  *   1. `on.pull_request.branches: [main]` — workflow w ogóle nie rusza,
- *   2. `base.ref == 'main'` w warunku KAŻDEGO joba z tokenem produkcyjnym,
- *   3. krok „Bramka gałęzi docelowej” — jawna odmowa, zanim ruszy token.
+ *   2. `base.ref == 'main'` w warunku joba plan.
  *
  * GitHub Actions nie da się uruchomić z testu, więc czytamy plik. Kontrole
  * dodatnie (mutacje, które mają zapalić ten test) stoją w
@@ -86,68 +89,40 @@ class IacProdukcjaTylkoZPrDoMainTest extends TestCase
     }
 
     #[Test]
-    public function workflow_rusza_tylko_na_pull_request_do_main(): void
+    public function pull_request_rusza_tylko_dla_pr_do_main(): void
     {
         $on = $this->blokOn();
 
-        $this->assertSame(1, preg_match_all('/^  (\S+):/m', $on, $wyzwalacze), 'Blok `on:` jest pusty.');
-        $this->assertSame(['pull_request'], $wyzwalacze[1], 'Jedynym wyzwalaczem ma być `pull_request` (bez push, dispatch i pull_request_target).');
-        $this->assertMatchesRegularExpression('/^    branches: \[main\]\s*$/m', $on, '`pull_request` musi mieć `branches: [main]` — filtr gałęzi DOCELOWEJ (#1313).');
+        $this->assertSame(1, preg_match('/^  pull_request:\n((?:    .*\n)+)/m', $on, $m), 'Blok `on:` nie ma wyzwalacza `pull_request`.');
+        $this->assertMatchesRegularExpression('/^    branches: \[main\]\s*$/m', $m[1], '`pull_request` musi mieć `branches: [main]` — filtr gałęzi DOCELOWEJ (#1313).');
         $this->assertStringNotContainsString('branches-ignore', $on);
+        $this->assertStringNotContainsString('pull_request_target', $on, '`pull_request_target` dałby token produkcyjny kodowi z forka.');
     }
 
     #[Test]
-    public function kazdy_job_z_tokenem_produkcyjnym_wymaga_pr_do_main(): void
+    public function plan_wymaga_pr_do_main(): void
     {
-        foreach ($this->jobyProdukcyjne() as $nazwa => $job) {
-            $warunek = $this->warunek($job);
+        $warunek = $this->warunek($this->jobyProdukcyjne()['plan']);
 
-            $this->assertStringContainsString(self::GALAZ_W_WARUNKU, $warunek, "Job `{$nazwa}` musi wymagać PR-a do main (#1313).");
-            $this->assertStringContainsString("github.event_name == 'pull_request'", $warunek, "Job `{$nazwa}` bez sprawdzenia zdarzenia.");
-            $this->assertStringNotContainsString('||', $warunek, "Warunek joba `{$nazwa}` ma być koniunkcją — `||` otwiera obejście.");
+        $this->assertStringContainsString(self::GALAZ_W_WARUNKU, $warunek, 'Job `plan` musi wymagać PR-a do main (#1313).');
+        $this->assertStringContainsString("github.event_name == 'pull_request'", $warunek, 'Job `plan` bez sprawdzenia zdarzenia.');
+        $this->assertStringNotContainsString('||', $warunek, 'Warunek joba `plan` ma być koniunkcją — `||` otwiera obejście.');
 
-            // Obecne bramki zostają (kryterium akceptacji #1313).
-            $this->assertStringContainsString("vars.KUKING_DEPLOY_ENABLED == 'true'", $warunek, "Job `{$nazwa}` zgubił bramkę wdrożeniową.");
-            $this->assertStringContainsString('github.event.pull_request.head.repo.full_name == github.repository', $warunek, "Job `{$nazwa}` zgubił bramkę same-repo.");
-        }
+        // Obecne bramki zostają (kryterium akceptacji #1313).
+        $this->assertStringContainsString("vars.KUKING_DEPLOY_ENABLED == 'true'", $warunek, 'Job `plan` zgubił bramkę wdrożeniową.');
+        $this->assertStringContainsString('github.event.pull_request.head.repo.full_name == github.repository', $warunek, 'Job `plan` zgubił bramkę same-repo.');
     }
 
     #[Test]
-    public function plan_przed_scaleniem_apply_po_scaleniu_z_reviewerem(): void
+    public function apply_nie_wraca_na_sciezke_pull_request(): void
     {
-        $joby = $this->jobyProdukcyjne();
+        // Filtr `branches` chroni tylko zdarzenia `pull_request`. Apply
+        // uruchamiany przez PR (np. po scaleniu) ominąłby ręczne potwierdzenie
+        // z #595 — dlatego apply ma zostać przy `workflow_dispatch`.
+        $warunek = $this->warunek($this->jobyProdukcyjne()['apply']);
 
-        $this->assertStringContainsString("github.event.action != 'closed'", $this->warunek($joby['plan']));
-
-        $apply = $this->warunek($joby['apply']);
-        $this->assertStringContainsString("github.event.action == 'closed'", $apply);
-        $this->assertStringContainsString('github.event.pull_request.merged', $apply);
-        $this->assertMatchesRegularExpression('/^    environment: production$/m', $joby['apply'], 'Apply bez środowiska production traci wymaganego reviewera.');
-        $this->assertStringContainsString('ref: ${{ github.event.pull_request.merge_commit_sha }}', $joby['apply']);
-    }
-
-    #[Test]
-    public function kazdy_job_produkcyjny_odmawia_jawnie_przed_tokenem(): void
-    {
-        foreach ($this->jobyProdukcyjne() as $nazwa => $job) {
-            $bramka = strpos($job, '- name: Bramka gałęzi docelowej');
-            $this->assertNotFalse($bramka, "Job `{$nazwa}` nie ma kroku „Bramka gałęzi docelowej”.");
-            $this->assertLessThan(strpos($job, '- uses: actions/checkout@'), $bramka, "W `{$nazwa}` bramka gałęzi ma stać przed checkoutem.");
-            $this->assertLessThan(strpos($job, self::TOKEN), $bramka);
-
-            $koniec = strpos($job, '- uses:', $bramka);
-            $krok = substr($job, $bramka, $koniec === false ? null : $koniec - $bramka);
-
-            $this->assertStringContainsString('GALAZ_DOCELOWA: ${{ github.event.pull_request.base.ref }}', $krok);
-            $this->assertStringContainsString('ZDARZENIE: ${{ github.event_name }}', $krok);
-            $this->assertStringContainsString('set -euo pipefail', $krok);
-            $this->assertStringContainsString('[ "$ZDARZENIE" != "pull_request" ] || [ "$GALAZ_DOCELOWA" != "main" ]', $krok, "Bramka `{$nazwa}` nie odmawia gałęzi innej niż main.");
-            $this->assertStringContainsString('exit 1', $krok);
-        }
-
-        $apply = $this->jobyProdukcyjne()['apply'];
-        $this->assertStringContainsString('SCALONY: ${{ github.event.pull_request.merged }}', $apply);
-        $this->assertStringContainsString('[ "$SCALONY" != "true" ]', $apply, 'Bramka apply nie odmawia PR-a niescalonego.');
+        $this->assertStringContainsString("github.event_name == 'workflow_dispatch'", $warunek);
+        $this->assertStringNotContainsString('pull_request', $warunek, 'Apply produkcji nie może ruszać ze zdarzenia PR-a.');
     }
 
     #[Test]

@@ -171,7 +171,12 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Domyślnie `Secure` na produkcji (audyt B10-04). Wcześniej brak zmiennej
+    // znaczył `null`, czyli ciasteczko sesji bez `Secure` — poprawną wartość
+    // dawał wyłącznie `.railway/railway.ts`, a serwis założony ręcznie w panelu
+    // (albo z `.env.example`) wystawiał sesję po HTTP. Jawne `false` nadal
+    // wygrywa; wtedy `/health` na produkcji zgłasza `sesja_bez_secure`.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
