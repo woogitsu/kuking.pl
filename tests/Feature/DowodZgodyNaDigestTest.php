@@ -62,8 +62,11 @@ class DowodZgodyNaDigestTest extends TestCase
     {
         $this->actingAs($osoba)
             ->put(route('settings.privacy'), array_filter([
+                'original_digest' => (int) $osoba->fresh()->wants_weekly_digest,
+                'original_memories' => (int) $osoba->fresh()->memories_enabled,
+
                 'wants_weekly_digest' => $chce ? '1' : null,
-            ]))
+            ], static fn ($value) => $value !== null))
             ->assertRedirect();
     }
 
@@ -139,6 +142,9 @@ class DowodZgodyNaDigestTest extends TestCase
 
         $this->actingAs($osoba)
             ->put(route('settings.privacy'), [
+                'original_digest' => (int) $osoba->fresh()->wants_weekly_digest,
+                'original_memories' => (int) $osoba->fresh()->memories_enabled,
+
                 'wants_weekly_digest' => '1',
                 'memories_enabled' => '1',
             ])
@@ -258,7 +264,10 @@ class DowodZgodyNaDigestTest extends TestCase
         $this->actingAs($osoba)
             ->withServerVariables(['REMOTE_ADDR' => $ip])
             ->withHeaders(['User-Agent' => $przegladarka])
-            ->put(route('settings.privacy'), ['wants_weekly_digest' => '1'])
+            ->put(route('settings.privacy'), [
+                'original_digest' => (int) $osoba->fresh()->wants_weekly_digest,
+                'original_memories' => (int) $osoba->fresh()->memories_enabled,
+                'wants_weekly_digest' => '1'])
             ->assertRedirect();
 
         $wiersz = DB::table('dziennik_zgod')->where('user_id', $osoba->getKey())->sole();

@@ -22,17 +22,40 @@
             poprzednie żądanie: gdy tak, brak pola ma znaczyć odznaczone,
             a nie „sięgnij do bazy".
         --}}
-        <div class="field @error('wants_weekly_digest') has-error @enderror">
-            <label class="choice" for="f-wants_weekly_digest">
+        {{--
+            STAN Z CHWILI OTWARCIA FORMULARZA (#879/#882).
+
+            Zapis prywatności niesie DOWÓD ZGODY, nie samą preferencję —
+            więc formularz otwarty wczoraj nie może dziś po cichu zapisać
+            człowieka z powrotem na tygodniowy list ani cofnąć nowszej
+            decyzji podjętej gdzie indziej (odnośnik „wypisz się" na dole
+            e-maila, druga karta w przeglądarce). Te dwa ukryte pola niosą
+            stan WIDZIANY przy renderowaniu; `UpdatePrivacySettings`
+            porównuje je z bazą pod blokadą i przy rozjeździe nie zapisuje
+            NICZEGO — ani połowy formularza, ani nieaktualnej zgody.
+
+            Po błędzie wartość zostaje ze starego wysłania (`old()`), bo
+            nowy stan trzeba ZOBACZYĆ, a nie dostać po cichu podstawiony —
+            dlatego pod spodem jest odnośnik „Otwórz aktualne ustawienia".
+        --}}
+        @if($errors->any())
+            <p><a href="{{ route('settings.privacy') }}">Otwórz aktualne ustawienia</a>, sprawdź oba wybory i zapisz je ponownie.</p>
+        @endif
+        <input type="hidden" name="original_digest" value="{{ old('original_digest', session()->hasOldInput() ? '' : (int) auth()->user()->wants_weekly_digest) }}">
+        <input type="hidden" name="original_memories" value="{{ old('original_memories', session()->hasOldInput() ? '' : (int) auth()->user()->memories_enabled) }}">
+        <div class="field @if($errors->hasAny(['wants_weekly_digest', 'original_digest'])) has-error @endif">
+            <label class="choice" for="f-wants_weekly_digest" id="f-original_digest">
                 <input id="f-wants_weekly_digest" type="checkbox" name="wants_weekly_digest" value="1"
-                       @error('wants_weekly_digest') aria-invalid="true" aria-describedby="f-wants_weekly_digest-error" @enderror
+                       @if($errors->hasAny(['wants_weekly_digest', 'original_digest'])) aria-invalid="true" aria-describedby="f-wants_weekly_digest-error" @endif
                        @checked(session()->hasOldInput() ? old('wants_weekly_digest', false) : auth()->user()->wants_weekly_digest)>
                 <span>
                     <span class="choice-label">Chcę raz w tygodniu dostawać e-mail z Kuking</span>
                     <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów, kto zaczął Cię obserwować i co pokazali ludzie, których obserwujesz. Jeden e-mail tygodniowo, nigdy więcej — i tylko wtedy, gdy naprawdę jest o czym pisać. Wypisać się możesz jednym kliknięciem na dole każdego e-maila, bez logowania.</span>
                 </span>
             </label>
-            @error('wants_weekly_digest')<span class="field-error" id="f-wants_weekly_digest-error">{{ $message }}</span>@enderror
+            @if($errors->hasAny(['wants_weekly_digest', 'original_digest']))
+                <span class="field-error" id="f-wants_weekly_digest-error">{{ $errors->first('wants_weekly_digest') ?: $errors->first('original_digest') }}</span>
+            @endif
         </div>
 
         {{--
@@ -48,17 +71,19 @@
             dla osoby gotującej od czterdziestu lat, nie dla osoby, która czyta
             ustawienia.
         --}}
-        <div class="field @error('memories_enabled') has-error @enderror mt-4">
-            <label class="choice" for="f-memories_enabled">
+        <div class="field @if($errors->hasAny(['memories_enabled', 'original_memories'])) has-error @endif mt-4">
+            <label class="choice" for="f-memories_enabled" id="f-original_memories">
                 <input id="f-memories_enabled" type="checkbox" name="memories_enabled" value="1"
-                       @error('memories_enabled') aria-invalid="true" aria-describedby="f-memories_enabled-error" @enderror
+                       @if($errors->hasAny(['memories_enabled', 'original_memories'])) aria-invalid="true" aria-describedby="f-memories_enabled-error" @endif
                        @checked(session()->hasOldInput() ? old('memories_enabled', false) : auth()->user()->memories_enabled)>
                 <span>
                     <span class="choice-label">Przypominaj mi moje wpisy z tego dnia w poprzednich latach</span>
                     <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
                 </span>
             </label>
-            @error('memories_enabled')<span class="field-error" id="f-memories_enabled-error">{{ $message }}</span>@enderror
+            @if($errors->hasAny(['memories_enabled', 'original_memories']))
+                <span class="field-error" id="f-memories_enabled-error">{{ $errors->first('memories_enabled') ?: $errors->first('original_memories') }}</span>
+            @endif
         </div>
 
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
