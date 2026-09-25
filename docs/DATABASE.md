@@ -3403,6 +3403,23 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
 
+**Plik bez wiersza (audyt B5 pkt 4, 25.09.2026).** `GenerateUserExport` wgrywa
+ZIP przed `finalize()`, więc próba, która padła pomiędzy, zostawiała w magazynie
+paczkę pod kluczem nieznanym wierszowi (`failed`, `object_key IS NULL`). Teraz:
+catch i `failed()` kasują `ExportFileNames::objectKey($export)` (klucz da się
+policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
+7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
+`eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
+Bez zmiany schematu.
+
+### password_reset_tokens (tabela Laravela)
+
+Kluczowana **adresem e-mail zapisanym jawnie** (`email`, `token` — bcrypt,
+`created_at`). Retencja (audyt B5 pkt 6): `kuking:sprzataj-resety-hasel` (to samo co `auth:clear-resets`) codziennie
+o 05:40 kasuje żetony starsze niż `auth.passwords.users.expire`; wymazanie
+konta (`EraseAccountData`) kasuje wiersz po `lower(email)` sprzed
+anonimizacji, zmiana adresu (`ConfirmEmailChange`) — po starym adresie.
+
 #### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
 
 List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
@@ -4794,6 +4811,59 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+### G. Jak zmierzyć szczyt — kroki dla właściciela (dopisane 25.09.2026)
+
+Definicja gotowości #598 wymaga **zmierzonego** szczytu, a §C daje tylko
+policzony (16 z zapasem, 13 w oknie wdrożenia). Czujka godzinna go nie
+złapie: próbkuje raz na godzinę o :25, a okno wdrożenia trwa minutę–dwie.
+Dlatego są trzy narzędzia — wszystkie tylko do odczytu, żadne nie dzwoni
+na webhook i żadne nie zmienia konfiguracji:
+
+| Narzędzie | Co mierzy | Gdzie chodzi |
+|---|---|---|
+| `scripts/szczyt-polaczen-z-dziennika.php` | min / mediana / **max** z szeregu czujki godzinnej i z okien `--probki` | lokalnie, na pliku wyeksportowanym z dziennika Railway |
+| `php artisan kuking:budzet-polaczen --probki=N --odstep=S` | szczyt w oknie N próbek co S s (max 3600 próbek, odstęp 1–60 s); jedna linia `kuking:budzet-polaczen:szczyt {...}` do kanału `pomiary` na końcu | konsola kontenera aplikacji |
+| `scripts/szczyt-polaczen.sql` + `\watch 1` | to samo zapytanie co czujka, co sekundę | psql w usłudze Postgres — **przeżywa wdrożenie aplikacji** |
+
+**Krok 1 — szczyt zwykłego ruchu (ok. 10 minut, raz w tygodniu przez miesiąc).**
+Railway → serwis aplikacji → *Logs*, filtr `kuking:budzet-polaczen`, okno
+możliwie długie (retencja zależy od planu). Skopiuj wynik do pliku
+i uruchom lokalnie:
+
+```bash
+php scripts/szczyt-polaczen-z-dziennika.php dziennik-598.txt
+```
+
+Kod wyjścia **2** znaczy „w pliku nie ma ani jednej linii pomiaru" —
+czyli szeregu nie ma (np. wrócił problem z §F), a **nie** „zapas jest".
+Zapisz tu datę, liczbę pomiarów, MAX i chwilę MAX.
+
+**Krok 2 — szczyt w oknie wdrożenia (ok. 10 minut, przy zwykłym wdrożeniu).**
+Wariant preferowany, bo konsola nie ginie razem ze starym kontenerem:
+otwórz psql w usłudze **Postgres** (nie w aplikacji), wklej zawartość
+`scripts/szczyt-polaczen.sql`, w nowej linii wpisz `\watch 1`, a potem
+uruchom zwykłe wdrożenie aplikacji. Po jego zakończeniu i minucie spokoju
+przerwij `Ctrl+C` i zanotuj największą wartość `zajete_serwer`.
+Nie wystawiaj w tym celu publicznego portu bazy (proxy TCP) — jeśli
+psql w usłudze Postgres nie jest dostępny, użyj wariantu z konsolą aplikacji.
+
+Wariant z konsolą aplikacji: `php artisan kuking:budzet-polaczen --probki=300`
+(5 minut). Uruchomiony w kontenerze, który wdrożenie zastępuje, zostanie
+przerwany razem z nim — wtedy linia podsumowania do dziennika nie powstanie,
+ale wiersze `próbka i/N` wypisane w terminalu zostają i to je się notuje.
+
+**Krok 3 — decyzja.** Zmierzony MAX porównaj z §D: poniżej 50 — progi
+zostają, #600 nie ma liczb za PgBouncerem; powyżej 50 w spokojnym ruchu —
+szukać wycieku albo nieznanych procesów, zanim doda się replikę. Ten sam
+MAX wpisz w #598 z datą i SHA wdrożenia.
+
+**Czego ta sekcja nie dowodzi.** Dostępność psql w usłudze Postgres
+na Railway i dokładna nazwa przycisku konsoli **nie były sprawdzone**
+w sesji, która to pisała — tylko zapytanie (test na PostgreSQL 18)
+i oba narzędzia PHP (`ProbkowanieSzczytuPolaczenTest`,
+`SzczytPolaczenZDziennikaTest`). Wycofanie: odwrócenie commita; nie ma
+migracji ani zmiennych środowiskowych.
 
 ## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
 
