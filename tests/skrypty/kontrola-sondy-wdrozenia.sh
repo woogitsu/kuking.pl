@@ -44,6 +44,11 @@ curl() {
                 html)          printf '<html>wydanie 0123456</html>' ;;
                 niedostepny)   return 28 ;;
                 # Stare wydanie jeszcze przez dwie próby, potem nowe.
+                # Jedna / dwie chwilowe porażki sieci, potem właściwe wydanie.
+                chwilowa)      if [ "$n" -le 1 ]; then return 28
+                               else printf '{"commit":"%s"}' "$WDRAZANY"; fi ;;
+                dwie-chwilowe) if [ "$n" -le 2 ]; then printf '<html>502 Bad Gateway</html>'
+                               else printf '{"commit":"%s"}' "$WDRAZANY"; fi ;;
                 przelaczenie)  if [ "$n" -le 2 ]; then printf '{"commit":"%s"}' "$NOWSZY"
                                else printf '{"commit":"%s"}' "$WDRAZANY"; fi ;;
             esac ;;
@@ -129,6 +134,26 @@ if [ "$potw_ok" = "$WDRAZANY" ] && [ -z "$potw_zle" ]; then
     printf "  ${ZIELONY}✓${RESET} SONDA_POTWIERDZONY tylko po zgodności\n"; zdane=$((zdane + 1))
 else
     printf "  ${CZERWONY}✗${RESET} SONDA_POTWIERDZONY: zgodny='%s', niezgodny='%s'\n" "$potw_ok" "$potw_zle"; oblane=$((oblane + 1))
+fi
+
+echo "sonda_wydanie_koncowa (#1012, po testach)"
+# Domyślne SONDA_KONCOWA_PROBY celowo NIE nadpisane — sprawdzamy kontrakt 3 prób.
+export SONDA_KONCOWA_ODSTEP=0
+sprawdz "zgodny SHA przechodzi (kontrola dodatnia)"          0 z zgodny        sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+sprawdz "jedna chwilowa porażka to nie nieudane wdrożenie"   0 z chwilowa      sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+sprawdz "dwie chwilowe porażki, trzecia próba przechodzi"    0 z dwie-chwilowe sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+sprawdz "stała niedostępność oblewa"                         1 z niedostepny   sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+sprawdz "inne wydanie po testach oblewa"                     1 z nowszy        sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+zawiera "chwilowa porażka nazywa próbę i powód" "próba 1/3 nieudana: oczekiwano $WDRAZANY, otrzymano brak odpowiedzi (curl 28)" \
+        z chwilowa sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+zawiera "porażka po wszystkich próbach mówi ile ich było" "nieudane wszystkie próby: 3" \
+        z nowszy sonda_wydanie_koncowa https://example.invalid "$WDRAZANY"
+
+echo 0 > "$LICZNIK"; SCENARIUSZ=niedostepny sonda_wydanie_koncowa https://example.invalid "$WDRAZANY" >/dev/null 2>&1
+if [ "$(cat "$LICZNIK")" = 3 ] && [ "$SONDA_PROBY" = 4 ]; then
+    printf "  ${ZIELONY}✓${RESET} końcowa robi dokładnie 3 próby i nie rusza SONDA_PROBY\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} końcowa: prób %s (oczekiwano 3), SONDA_PROBY=%s (oczekiwano 4)\n" "$(cat "$LICZNIK")" "$SONDA_PROBY"; oblane=$((oblane + 1))
 fi
 
 echo "sonda_https (#1332)"

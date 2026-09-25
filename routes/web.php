@@ -66,7 +66,6 @@ use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
-use App\Http\Controllers\WydanieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
 
@@ -103,8 +102,8 @@ Route::get('/szukaj', [SearchController::class, 'index'])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
-// Pełny SHA działającego wydania dla testu dymnego po wdrożeniu (#1012).
-Route::get('/wydanie', WydanieController::class)->name('wydanie');
+// `/wydanie` (#1012) NIE stoi tutaj — jest w `bootstrap/app.php` (`then:`),
+// poza grupą `web`, żeby nie zakładać sesji ani nie stawiać ciasteczek.
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
 
