@@ -124,12 +124,24 @@ Kolejność jest według stosunku korzyści do kosztu tokenów.
 Projekt jest prowadzony w trybie **jeden agent researchu + kilku agentów kodu**,
 każdy w **osobnym worktree gita** i z **osobną bazą testową**.
 
-| Rola | Zakres | Baza testowa |
-|---|---|---|
-| research (ciągły) | `docs/research/repos/`, `docs/INSPIRATION_DECISIONS.md` — nie dotyka kodu | — |
-| kod: kreator przepisu | `resources/views/pages/recipes/`, `RecipeController`, `app/Domain/Recipes/` | `kuking_test_b` |
-| kod: eksport danych | `app/Jobs/`, `app/Mail/`, `app/Console/Commands/`, `app/Domain/Users/` | `kuking_test_c` |
-| kod: profil i komentarze | `ProfileController`, `SocialController`, `comment-thread`, `resources/views/pages/profile/` | `kuking_test_a` |
+| Rola | Zakres |
+|---|---|
+| research (ciągły) | `docs/research/repos/`, `docs/INSPIRATION_DECISIONS.md` — nie dotyka kodu |
+| kod: kreator przepisu | `resources/views/pages/recipes/`, `RecipeController`, `app/Domain/Recipes/` |
+| kod: eksport danych | `app/Jobs/`, `app/Mail/`, `app/Console/Commands/`, `app/Domain/Users/` |
+| kod: profil i komentarze | `ProfileController`, `SocialController`, `comment-thread`, `resources/views/pages/profile/` |
+
+W tabeli nie ma już kolumny „baza testowa": **nazwy baz nie przydziela się
+ręcznie**. Wylicza ją `tests/nazwa-bazy.php`: `kuking_test` w głównym
+checkoucie, `kuking_test_<worktree>` w `git worktree`, a w kopii bez `.git`
+(runtime, archiwum, obraz) `kuking_test_kat_<katalog>_<skrót ścieżki>`.
+Ręczne `DB_DATABASE=…` dalej ma
+pierwszeństwo, ale nie jest już do niczego potrzebne. Swoją nazwę sprawdzisz
+poleceniem:
+
+```bash
+php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'
+```
 
 Cztery rzeczy, które sprawiają, że to działa:
 
@@ -139,9 +151,14 @@ Cztery rzeczy, które sprawiają, że to działa:
    a każdy commituje na własną gałąź.
 3. **Osobne bazy testowe.** To jest najczęściej pomijany szczegół: `RefreshDatabase`
    czyści bazę na starcie każdego testu, więc dwóch agentów na jednej bazie
-   testowej kasuje sobie dane w połowie przebiegu i dostaje losowe błędy.
-   Testy uruchamia się jako `DB_DATABASE=kuking_test_b php artisan test`
-   (`phpunit.xml` nie nadpisuje zmiennych już obecnych w środowisku).
+   testowej kasuje sobie dane w połowie przebiegu i dostaje losowe błędy —
+   963, 3737 i kilkaset porażek `QueryException` w trzech sesjach 19 września
+   wzięło się dokładnie stąd. Od naprawy #736 i #920 nie trzeba z tym nic
+   robić: `tests/nazwa-bazy.php` liczy nazwę z worktree albo — gdy `.git`
+   nie ma wcale, czyli w runtime — z KATALOGU kopii roboczej, więc dwa
+   stanowiska to z definicji dwie bazy. Porzucone bazy sprząta
+   `./scripts/cleanup-test-dbs.sh` (kasuje tylko te, po których kopia robocza
+   zniknęła z dysku — nigdy bazy trwającego przebiegu).
 4. **Symlink na `vendor` i `node_modules`** z głównego katalogu zamiast
    ponownej instalacji — oszczędza minuty i omija limity pobierania z GitHuba.
 
@@ -160,7 +177,7 @@ mimo że w ogóle nie wykonał nowego kodu.
 Dlatego **każda komenda artisana w worktree** idzie z jawną ścieżką bazową:
 
 ```bash
-APP_BASE_PATH=$(pwd) DB_DATABASE=kuking_test_b php artisan test
+APP_BASE_PATH=$(pwd) php artisan test   # nazwa bazy liczy sie sama, patrz wyzej
 APP_BASE_PATH=$(pwd) php artisan migrate --force
 APP_BASE_PATH=$(pwd) php artisan serve --port=8201
 ```

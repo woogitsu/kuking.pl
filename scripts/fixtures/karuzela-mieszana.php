@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 require __DIR__.'/../../vendor/autoload.php';
+require __DIR__.'/baza-pomiarowa.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 set_exception_handler(function (Throwable $error): never {
@@ -20,8 +21,11 @@ set_exception_handler(function (Throwable $error): never {
 // Sprawdzamy rozwiązaną konfigurację połączenia, także po DB_URL/config:cache.
 $connection = DB::connection();
 $database = $connection->getDatabaseName();
-$allowed = in_array($database, ['kuking_a11y', 'kuking_test_a11y', 'kuking_proof431'], true)
-    || ($database === 'kuking_test' && getenv('GITHUB_ACTIONS') === 'true');
+// Rodzina baz jednorazowych stoi w `scripts/fixtures/baza-pomiarowa.php` —
+// ta sama, którą `scripts/bezpiecznik-bazy.mjs` wpuszcza po stronie `.mjs`.
+// Dwie listy trzymane osobno rozjechały się przy #736 i job `dostepnosc`
+// padał na `kuking_widok_pomiar`, którego `.mjs` już przyjmował.
+$allowed = kukingWolnoUzycBazyFixture($database, ['kuking_a11y', 'kuking_test_a11y', 'kuking_proof431']);
 if (! $app->environment(['local', 'testing']) || $connection->getDriverName() !== 'pgsql' || ! $allowed
     || ! in_array($connection->getConfig('host'), ['127.0.0.1', 'localhost', '::1'], true)
     || config('filesystems.disks.public.driver') !== 'local') {

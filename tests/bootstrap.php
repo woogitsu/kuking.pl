@@ -3,72 +3,48 @@
 declare(strict_types=1);
 
 /**
- * Bootstrap PHPUnit (issue #66): wylicza nazwę testowej bazy danych, zanim
- * Laravel w ogóle zacznie czytać zmienne środowiskowe.
+ * Bootstrap PHPUnit (issue #66, #736): wylicza nazwę testowej bazy danych,
+ * zanim Laravel w ogóle zacznie czytać zmienne środowiskowe.
  *
  * Co się działo bez tego: `phpunit.xml` ustawiał DB_DATABASE na sztywno
  * "kuking_test". Kiedy dwa przebiegi `php artisan test` chodziły naraz na
- * tej samej bazie (np. główny katalog + worktree agenta), `RefreshDatabase`
- * jednego z nich kasowało schemat w trakcie działania drugiego — testy
- * padały z "relation ... does not exist", mimo że w kodzie nie było
- * żadnego błędu. Dokładnie to zdarzyło się przy pracy nad tym repozytorium.
+ * tej samej bazie, `RefreshDatabase` jednego z nich kasowało schemat
+ * w trakcie działania drugiego — testy padały z "relation ... does not
+ * exist", mimo że w kodzie nie było żadnego błędu.
  *
- * Rozwiązanie: nazwa bazy zależy od KATALOGU ROBOCZEGO — a konkretnie od
- * tego, czy repozytorium jest głównym checkoutem, czy osobnym
- * `git worktree`. Każdy worktree ma własny, stały katalog na dysku (i Git
- * sam nadaje mu unikalną nazwę w `.git/worktrees/<nazwa>`), więc dwa
- * równoległe przebiegi w różnych katalogach naturalnie trafiają w różne
- * bazy — bez ustawiania czegokolwiek ręcznie. Domyślne `php artisan test`
- * w głównym katalogu dalej idzie na "kuking_test", tak jak dziś.
+ * SAMA REGUŁA NAZYWANIA SIEDZI W `tests/nazwa-bazy.php` — tam jest też
+ * pełne uzasadnienie, co ją różnicuje i czego świadomie nie wybrano. Jest
+ * osobnym plikiem, bo czytają ją także skrypty powłoki, które działają bez
+ * `vendor/` (m.in. `.claude/hooks/session-start.sh`).
  *
- * Ręczne ustawienie DB_DATABASE (shell, CI) ma ZAWSZE pierwszeństwo — ten
- * plik nie nadpisuje zmiennej, która już jest ustawiona (patrz job `test`
- * w .github/workflows/ci.yml, który ustawia DB_DATABASE=kuking_test wprost
- * na poziomie joba — tam przebieg jest jeden, więc nic się tu nie zmienia).
+ * UWAGA na kolejność: `putenv()` musi paść PRZED `vendor/autoload.php`,
+ * bo dopiero tamten wciąga Dotenva Laravela — a Dotenv jest niemutowalny
+ * i nie nadpisze zmiennej, która już jest w środowisku. Stąd też druga
+ * strona tej samej monety: ręczne `DB_DATABASE=… php artisan test` (shell,
+ * CI) ma ZAWSZE pierwszeństwo, bo ten plik nie rusza zmiennej już ustawionej.
  *
- * Czego świadomie NIE wybrano i dlaczego:
- *
- *  - PID procesu. Dawałby nową, inną bazę przy KAŻDYM uruchomieniu — także
- *    kolejnych w tym samym katalogu, jedno po drugim. To usuwa kolizję
- *    kosztem gwarantowanego zaśmiecania dysku: baza nigdy nie jest ta sama,
- *    więc nigdy nie ma jednej, powtarzalnej rzeczy do posprzątania ani do
- *    ponownego użycia (cache migracji, dane testowe do inspekcji).
- *
- *  - Zmienna z CI (np. GITHUB_RUN_ID). Działa wyłącznie w CI, a w CI
- *    przebieg i tak jest jeden (workflow ma `concurrency`, patrz ci.yml) —
- *    czyli rozwiązywałaby problem tam, gdzie go nie ma, i nie rozwiązywałaby
- *    go lokalnie, gdzie jest to issue.
- *
- *  - Losowy UUID przy starcie. Maksymalna izolacja, ale baza nie ma żadnej
- *    stałej, rozpoznawalnej nazwy — nie da się jej odróżnić od śmiecia bez
- *    dodatkowego rejestru. Nazwa worktree jest czytelna w `psql -l` za darmo
- *    i widać po niej, do czego baza należy.
- *
- *  - SAM hash pełnej ścieżki repozytorium. Działa, ale jest nieczytelny przy
- *    sprzątaniu (`psql -l` pokazuje ciąg hexów, nie to, o który katalog
- *    chodzi). Tam, gdzie Git nadaje worktree'owi czytelną nazwę, bierzemy ją;
- *    hash dokładamy tylko tam, gdzie nazwy worktree NIE MA (patrz niżej) —
- *    i wtedy obok czytelnej nazwy katalogu, nie zamiast niej.
- *
- * 2026-09-20: KOPIA REPOZYTORIUM BEZ `.git` TO NIE JEST GŁÓWNY CHECKOUT.
- * Powyższe opiera się na pliku `.git`, a runtime floty (`przygotuj-runtime.sh`)
- * przegrywa worktree rsynkiem z `--exclude '.git'`. W katalogu, w którym
- * NAPRAWDĘ chodzą testy, tego pliku nie ma — więc każde stanowisko dostawało
- * gołe `kuking_test` i wszystkie lądowały w jednej bazie. Objawem nie był
- * jeden zepsuty test, tylko fałszywa czerwień z kontencji, po której każdy
- * musiał najpierw udowodnić, że to nie jego wina. Dlatego trzecia gałąź
- * funkcji liczy nazwę z KATALOGU REPOZYTORIUM — jedynej rzeczy, która
- * w runtime istnieje na pewno, bo bez niej nie byłoby czego uruchamiać.
- *
- * Sprzątanie: `scripts/cleanup-test-dbs.sh` usuwa bazy `kuking_test_*`,
- * których worktree już nie istnieje na dysku (czyli został usunięty przez
- * `git worktree remove`, a baza po nim została).
+ * Skutek uboczny, zamierzony: nazwa bazy NIE pochodzi z `.env` kopii
+ * roboczej. Gdyby pochodziła, dwie kopie zrobione przez `cp -a` miałyby tę
+ * samą nazwę bazy aż do chwili, w której ktoś ręcznie poprawi `.env` —
+ * czyli izolacja zależałaby od pamięci człowieka. Tu zależy od worktree,
+ * a tam, gdzie `.git` nie ma wcale, od ścieżki katalogu — której nie da się
+ * zapomnieć zmienić, bo bez niej nie byłoby czego uruchomić.
  */
-require __DIR__.'/Support/kuking_nazwa_testowej_bazy.php';
+require_once __DIR__.'/nazwa-bazy.php';
 
-if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
-    putenv('DB_DATABASE='.kuking_nazwa_testowej_bazy(__DIR__.'/..'));
+$kuking_baza_testowa = getenv('DB_DATABASE');
+
+if ($kuking_baza_testowa === false || $kuking_baza_testowa === '') {
+    $kuking_baza_testowa = kuking_nazwa_testowej_bazy(__DIR__.'/..');
+    putenv('DB_DATABASE='.$kuking_baza_testowa);
 }
+
+// Wpis do rejestru mówi `scripts/cleanup-test-dbs.sh`, do której kopii
+// roboczej należy ta baza. Bez wpisu sprzątacz uznaje bazę za „nie wiem,
+// czyja" i jej NIE rusza — patrz `kuking_katalog_rejestru_baz()`.
+kuking_zapisz_rejestr_bazy($kuking_baza_testowa, __DIR__.'/..');
+
+unset($kuking_baza_testowa);
 
 require __DIR__.'/../vendor/autoload.php';
 
@@ -160,53 +136,3 @@ function kuking_klasy_z_tego_katalogu(string $katalogRepo): void
         }
     }, prepend: true);
 }
-
-/**
- * Zwraca nazwę bazy dla grupy testów `dwa-polaczenia` (D-105): "kuking_race"
- * dla głównego checkoutu, "kuking_race_<worktree>" dla `git worktree`.
- *
- * Ta grupa NIE MOŻE chodzić na `kuking_test*` i nie jest to ostrożność na
- * wyrost. Testy na dwóch połączeniach zatwierdzają dane naprawdę (bez
- * `RefreshDatabase`), więc żyją obok zwykłego przebiegu — a zwykły przebieg
- * na tej samej bazie zrzuciłby im schemat w trakcie działania. To dokładnie
- * issue #66, tylko z drugiej strony: tam kolidowały dwa zwykłe przebiegi,
- * tutaj kolidowałby zwykły z wyścigowym.
- *
- * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda,
- * żeby nie było w repozytorium dwóch reguł nazywania baz, które mogą się
- * rozjechać. Zmiana tamtej funkcji przenosi się tutaj sama.
- *
- * Ta funkcja NICZEGO nie ustawia w środowisku: `DB_DATABASE` dla zwykłego
- * przebiegu liczy się wyżej i pozostaje nietknięte. Nazwę bazy wyścigów
- * bierze `Tests\Dwa\TestDwochPolaczen::setUp()` oraz
- * `scripts/testy-dwa-polaczenia.sh`.
- */
-function kuking_nazwa_bazy_wyscigow(string $katalogRepo): string
-{
-    return 'kuking_race'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
-}
-
-/**
- * Zwraca nazwę bazy POMIAROWEJ dla próby wycofania migracji
- * (`scripts/proba-wycofania.sh`): "proba_wycofania" w głównym checkoucie,
- * "proba_wycofania_<worktree>" w `git worktree`.
- *
- * Prefiks jest inny niż `kuking_*` i to jest jego jedyne zadanie. Skrypt
- * próby wycofania KASUJE swoją bazę i zrzuca w niej schemat do zera — czyli
- * robi dokładnie to, czego nie wolno zrobić nigdzie indziej. Jego bezpiecznik
- * przepuszcza wyłącznie nazwy pasujące do `proba_wycofania*`, więc `kuking`,
- * `kuking_test*`, `kuking_race*` ani `railway` nie wpadną do niego nawet
- * przy literówce: to nie jest różnica jednego znaku.
- *
- * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda, co
- * przy bazie testowej i wyścigowej, żeby nie było w repozytorium trzech reguł
- * nazywania baz, które rozjadą się przy pierwszej zmianie.
- */
-function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
-{
-    return 'proba_wycofania'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
-}
-
-// `kuking_nazwa_testowej_bazy()` żyje teraz w `tests/Support/kuking_nazwa_testowej_bazy.php`
-// (wymagane na górze tego pliku) — to jedyne źródło tej reguły, współdzielone
-// z `.claude/hooks/session-start.sh`. Nie dopisuj tu drugiej definicji.

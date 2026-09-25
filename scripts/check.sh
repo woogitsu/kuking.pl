@@ -18,7 +18,18 @@
 #                                   # REFERRER_DB_DATABASE=kuking_port_* po migracji
 
 set -uo pipefail
-cd "$(dirname "$0")/.." || exit 1
+# Katalog skryptu liczymy PRZED `cd`. Po zmianie katalogu `dirname "$0"`
+# wskazuje juz co innego, gdy skrypt uruchomiono sciezka wzgledna spoza
+# katalogu glownego (np. `bash ../scripts/check.sh` z podkatalogu).
+KATALOG_SKRYPTOW="$(cd "$(dirname "$0")" && pwd)"
+# Pusta zmienna zrobilaby z `cd "${KATALOG_SKRYPTOW}/.."` skok do `/` — czyli
+# skrypt operowalby na korzeniu systemu plikow zamiast na repozytorium.
+[ -n "$KATALOG_SKRYPTOW" ] || { printf "Nie umiem ustalic katalogu skryptu.
+" >&2; exit 1; }
+cd "${KATALOG_SKRYPTOW}/.." || exit 1
+
+# shellcheck source=scripts/port-bazy.sh
+. "${KATALOG_SKRYPTOW}/port-bazy.sh"
 
 SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
@@ -48,20 +59,34 @@ ok()   { printf "${ZIELONY}✓ %s${RESET}\n" "$1"; }
 zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 
 # --- 1. Baza danych -------------------------------------------------------
+#
+# PYTAMY O TEN PORT, NA KTÓRYM NAPRAWDĘ POJADĄ TESTY.
+#
+# Stało tu gołe `pg_isready -q`, czyli pytanie o port 5432 i gniazdo miejscowe.
+# Na maszynie dewelopera klaster 5432 należy do INNEGO projektu, a testy
+# Kukinga chodzą na porcie z `DB_PORT` (u nas 55439). Kontrola meldowała
+# „PostgreSQL działa", patrząc na cudzą bazę — a push kończył się 3737
+# porażkami z `password authentication failed … Port: 5432`. Fałszywa zieleń
+# w kontroli przed wysłaniem jest gorsza niż brak kontroli, bo człowiek na
+# niej polega. Komunikat mówi teraz, O KTÓRY port chodzi.
 krok "PostgreSQL"
-if ! pg_isready -q 2>/dev/null; then
-    printf "Baza nie odpowiada — próbuję ją uruchomić…\n"
+kuking_ustal_dostep_do_bazy . || BLEDY=$((BLEDY + 1))
+
+if ! pg_isready -q -h "${KUKING_DB_HOST:-127.0.0.1}" -p "${KUKING_DB_PORT:-5432}" 2>/dev/null; then
+    printf "Baza na %s nie odpowiada — próbuję ją uruchomić…\n" "$(kuking_opis_bazy)"
     for wersja in 18 17 16 15; do
         [ -d "/usr/lib/postgresql/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
     done
     sleep 2
 fi
 
-if pg_isready -q 2>/dev/null; then
-    ok "PostgreSQL działa"
+if pg_isready -q -h "${KUKING_DB_HOST:-127.0.0.1}" -p "${KUKING_DB_PORT:-5432}" 2>/dev/null; then
+    ok "PostgreSQL działa na $(kuking_opis_bazy)"
 else
-    zle "PostgreSQL nie działa — testy Kuking nie chodzą na SQLite"
-    printf "  Uruchom: pg_ctlcluster 16 main start\n"
+    zle "PostgreSQL nie odpowiada na $(kuking_opis_bazy) — testy Kuking nie chodzą na SQLite"
+    printf "  Port bierze się z DB_PORT albo z .env tej kopii roboczej.\n"
+    printf "  Klaster pakietowy: pg_ctlcluster 18 main start\n"
+    printf "  Klaster w osobnym katalogu: pg_ctl -D … -o \"-p %s\" start\n" "${KUKING_DB_PORT:-5432}"
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -134,10 +159,16 @@ fi
 krok "Przyrząd obciążeniowy (#605)"
 if ! command -v node >/dev/null 2>&1; then
     zle "Brak node — nie sprawdzono przyrządu #605 (to jest brak kontroli, nie sukces)"
-elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
-    ok "Regresje i kontrole ujemne przyrządu przechodzą"
-else
+elif ! node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
     zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
+# Bezpiecznik przed `migrate:fresh` na cudzej bazie (#736). Stoi tutaj, a nie
+# tylko w `php artisan test`, bo chroni przed wypadkiem, który zdarza się
+# PRZED testami: ktoś uruchamia przyrząd pomiarowy w powłoce z wyeksportowanym
+# `DB_DATABASE` i kasuje cudzą pracę. Bez bazy, poniżej sekundy.
+elif ! node --test scripts/bezpiecznik-bazy.test.mjs >/dev/null 2>&1; then
+    zle "Bezpiecznik baz pomiarowych oblewa — uruchom: node --test scripts/bezpiecznik-bazy.test.mjs"
+else
+    ok "Regresje i kontrole ujemne przyrządów przechodzą"
 fi
 
 # --- 3c'. Topologia Railway (#595) -----------------------------------------
@@ -174,7 +205,7 @@ if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
     printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w widokach\n"
 elif [ ! -d node_modules/@axe-core ]; then
     printf "  Pominięte: brak @axe-core/playwright (npm install)\n"
-elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
+elif DB_DATABASE=kuking_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
     ok "Zero naruszeń critical i serious, strona nie przewija się w bok"
 else
     zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
@@ -195,7 +226,7 @@ if [ "$SPRAWDZ_WYDAJNOSC" -ne 1 ]; then
     printf "  Pominięte: uruchom './scripts/check.sh --wydajnosc' przy zmianach w widokach\n"
 elif [ ! -d node_modules/lighthouse ]; then
     printf "  Pominięte: brak paczki 'lighthouse' (npm install — do zrobienia przez właściciela)\n"
-elif DB_DATABASE=kuking_test_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&1; then
+elif DB_DATABASE=kuking_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&1; then
     ok "Wydajność i SEO powyżej progów na wszystkich mierzonych ekranach"
 else
     zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"

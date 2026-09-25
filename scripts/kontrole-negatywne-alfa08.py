@@ -106,6 +106,14 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 STRAZNIK_HOSTA = "app/Support/DozwolonyHostApi.php"
 STRAZNIK_HOSTA_TEST = "test_straznik_odrzuca_adres_spoza_listy"
 
+# D-243 (#966): wspólny strażnik baz fixture'ów i port bazy w skryptach powłoki.
+# Oba testy czytają źródła, więc strażnik z #1217 wymaga od nich dowodu, że
+# potrafią zapalić. Mutacje odtwarzają dokładnie te regresje, przed którymi
+# stoją: własną listę nazw w fixturze i gołe `pg_isready -q` w check.sh.
+FIXTURE_KARUZELI = "scripts/fixtures/karuzela-mieszana.php"
+FIXTURE_TEST = "test_oba_fixtury_wolaja_wspolnego_straznika_zamiast_wlasnej_listy"
+CHECK_SH = "scripts/check.sh"
+PORT_TEST = "test_zadne_wywolanie_pg_isready_nie_idzie_na_port_domyslny"
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -427,6 +435,34 @@ def zdjecie_checku_przed_straznikiem_2fa(source):
     return replace_once(bez_zdjecia, straznik, zdjecie + straznik)
 
 
+def fixture_z_wlasna_lista_nazw(source):
+    """KONTROLA DODATNIA: fixture wraca do własnej listy dosłownych nazw (#736).
+
+    Zamiast wspólnego `kukingWolnoUzycBazyFixture()` stoi `in_array` z dwiema
+    nazwami — dokładnie ten kształt, który przed D-243 przepuszczał
+    `kuking_test_<worktree>`. `test_oba_fixtury_wolaja_wspolnego_straznika…`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        "$allowed = kukingWolnoUzycBazyFixture($database, ",
+        "$allowed = ! in_array($database, ['kuking', 'kuking_test'], true) && (bool) (",
+    )
+
+
+def goly_pg_isready_w_check_sh(source):
+    """KONTROLA DODATNIA: check.sh znowu pyta o port domyślny.
+
+    Wraca gołe `pg_isready -q`, które meldowało „PostgreSQL działa", patrząc na
+    klaster innego projektu na 5432. `test_zadne_wywolanie_pg_isready…` ma zapalić.
+    """
+    return replace_once(
+        source,
+        'if ! pg_isready -q -h "${KUKING_DB_HOST:-127.0.0.1}" -p "${KUKING_DB_PORT:-5432}" 2>/dev/null; then',
+        "if ! pg_isready -q 2>/dev/null; then",
+    )
+
+
 def stara_sonda_https(source):
     """KONTROLA DODATNIA: wróć do `case 301|302|307|308` bez sprawdzania celu.
 
@@ -631,6 +667,10 @@ checks = [
      bez_sprawdzenia_hosta),
     ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
      bez_sprawdzenia_sciezki),
+    ("Fixture z własną listą nazw baz", FIXTURE_KARUZELI, FIXTURE_TEST,
+     fixture_z_wlasna_lista_nazw),
+    ("Gołe pg_isready w check.sh", CHECK_SH, PORT_TEST,
+     goly_pg_isready_w_check_sh),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,

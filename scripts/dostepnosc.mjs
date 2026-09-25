@@ -45,6 +45,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa, zalozBazeJesliTrzeba } from './bezpiecznik-bazy.mjs';
 import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
 import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
@@ -742,7 +743,9 @@ const WARIANTY = SZYBKO
 /** Naruszenia poniżej tej wagi notujemy, ale nie zatrzymują one wysyłki. */
 const BLOKUJACE = new Set(['critical', 'serious']);
 
-// BAZA DOMYŚLNA TEGO AUTOMATU. Do 7 września 2026 stało tu `kuking_test`,
+// BAZA DOMYŚLNA TEGO AUTOMATU. Od #736 wskazanie `kuking_test*` nie jest już
+// tylko odradzane — `ustalBazePomiarowa()` niżej po prostu ODMAWIA startu.
+// Do 7 września 2026 stało tu `kuking_test`,
 // czyli baza, na której chodzi `php artisan test` — a ten skrypt wykonuje
 // `migrate:fresh --seed`. Uruchomienie automatu bez `DB_DATABASE` KASOWAŁO
 // więc schemat bazy testowej, i to w środku ewentualnego przebiegu testów.
@@ -753,6 +756,16 @@ const BLOKUJACE = new Set(['critical', 'serious']);
 // Stała stoi w zasięgu MODUŁU, nie funkcji, bo czytają ją cztery różne
 // miejsca w tym pliku.
 const BAZA_DOMYSLNA = 'kuking_a11y';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/dostepnosc.mjs',
+});
 
 
 function log(...args) {
@@ -937,10 +950,17 @@ async function podnies_serwer() {
     return { adres: process.env.ADRES, zamknij: () => {} };
   }
 
+  // Baza pomiarowa musi ISTNIEĆ, zanim pójdzie `migrate:fresh` — migracja
+  // zakłada tabele, nie bazę. Do #736 ten skrypt szedł w CI na `kuking_test`,
+  // czyli na bazie usługi Postgresa, więc pytanie nie powstawało; teraz ma
+  // własną i zakłada ją sam, tak jak robią to `kafel-dodawania.mjs`
+  // i `fokus-karty-dania.mjs`.
+  zalozBazeJesliTrzeba(BAZA_POMIAROWA);
+
   log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+    env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA },
   });
 
   // Trzy podejścia, za każdym razem inny port. Jedno by wystarczyło, gdyby
@@ -960,7 +980,7 @@ async function podnies_serwer() {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        DB_DATABASE: BAZA_POMIAROWA,
         // Mierzymy również dział przed publicznym włączeniem (#372).
         KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
@@ -1086,7 +1106,7 @@ async function stanZalogowanego(przegladarka, adres) {
 function kodTotp(sekret) {
   const kod = execFileSync('php', ['artisan', 'tinker', '--execute',
     `echo (new PragmaRX\\Google2FA\\Google2FA)->getCurrentOtp('${sekret}');`,
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   // Bez tego sprawdzenia komunikat błędu z `tinker` (albo puste wyjście)
@@ -1159,7 +1179,7 @@ async function stanModeratora(przegladarka, adres) {
     const sekret = execFileSync('php', ['artisan', 'tinker', '--execute',
       `echo App\\Models\\User::whereRelation('profile', 'username', '${KONTO_MODERATORA}')`
       + '->firstOrFail()->two_factor_secret;',
-    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
       .toString().trim();
 
     await strona.fill('input[name="code"]', kodTotp(sekret));
@@ -1642,7 +1662,7 @@ const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
     "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')"
     + "->orderBy('id')->first())->slug;",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return slug === '' ? null : `/przepisy/${slug}`;
@@ -1672,7 +1692,7 @@ if (adresPrzepisu === null) {
  */
 // Własna rzeczywista próbka, także dla axe/układu: brak fixture jest błędem,
 // nigdy powodem do powrotu do wygodnej karuzeli z samymi poziomymi zdjęciami.
-const mieszanaKaruzela = przygotujKaruzele({ ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA });
+const mieszanaKaruzela = przygotujKaruzele({ ...process.env, DB_DATABASE: BAZA_POMIAROWA });
 process.once('exit', () => mieszanaKaruzela.sprzataj());
 const wpisyPoTrybie = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
@@ -1680,7 +1700,7 @@ const wpisyPoTrybie = (() => {
     + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
     + "->where('visibility','public')->has('media', '>=', 2)->orderBy('id')->first(); "
     + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString();
 
   const mapa = {};
@@ -1723,7 +1743,7 @@ const wpisDlugiejNazwy = (() => {
     + "if (! $a) { echo ''; exit; } "
     + "echo App\\Models\\Post::where('author_id',$a)->publiclyVisible()"
     + "->orderBy('id')->value('id') ?? '';",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return id === '' ? null : id;
@@ -1800,7 +1820,7 @@ const idOdwolania = (() => {
     + "'user_message'=>'Ta treść reklamowała konkretny sklep, co jest niezgodne z naszymi zasadami. "
     + "Poprawiliśmy opis i treść zostaje widoczna — to ostrzeżenie zapisujemy do wiadomości.']); "
     + "} echo $a->getKey();",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return id === '' ? null : id;
@@ -1853,7 +1873,7 @@ const idZgloszenia = (() => {
     + "'target_type'=>$z->target_type,'target_id'=>$z->target_id,'action'=>'no_action',"
     + "'reason_code'=>'bez_podstaw','note'=>'Utworzone przez automat dostępności.']); "
     + "} echo $z->getKey();",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return id === '' ? null : id;
@@ -1976,7 +1996,7 @@ const kolejkiPanelu = (() => {
     + "$grup = App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_AUTOMAT)"
     + "->whereIn('status',['open','triage','reviewing'])->distinct('autor_tresci_id')->count('autor_tresci_id'); "
     + "echo $ludzi.'|'.$grup;",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return wynik === '' ? null : wynik;
@@ -2070,7 +2090,7 @@ const tablicaDnia = (() => {
     // i ta ma być taka sama.
     + "'note' => 'Wybór automatu dostępności.']); $poz++; } "
     + "echo $osoba->getKey();",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return wynik === '' ? null : wynik;
@@ -2104,7 +2124,7 @@ function sciezkaEkranu(ekran) {
   if (ekran.znajdz === 'link-zewnetrzny') {
     const token = execFileSync('php', ['artisan', 'tinker', '--execute',
       "echo Illuminate\\Support\\Facades\\Crypt::encryptString('https://example.test/przepis');",
-    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } }).toString().trim();
+    ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } }).toString().trim();
     if (!token) throw new Error('Nie utworzono tokenu ostrzeżenia');
     return `/otworz-link?cel=${encodeURIComponent(token)}`;
   }

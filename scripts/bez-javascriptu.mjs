@@ -61,6 +61,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -71,7 +72,16 @@ const HASLO = 'haslo-testowe-123';
 
 /* Osobna baza pomiarowa — patrz nagłówek. */
 const BAZA_DOMYSLNA = 'kuking_bez_javascriptu';
-const BAZY_ZAKAZANE = ['kuking', 'kuking_test'];
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/bez-javascriptu.mjs',
+});
 
 /* Strona sondy dla bramek A i B. Skrypt ustawia atrybut w DOM — atrybut
    przeżywa wykonanie i da się go odczytać bez pytania o `window`, więc
@@ -90,7 +100,7 @@ function znajdzChromium() {
 }
 
 function env(dodatkowe = {}) {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA, ...dodatkowe };
+  return { ...process.env, DB_DATABASE: BAZA_POMIAROWA, ...dodatkowe };
 }
 
 async function wolnyPort() {
@@ -110,9 +120,10 @@ async function wolnyPort() {
 async function podniesSerwer(dodatkoweEnv = {}, przygotuj = true) {
   if (process.env.ADRES && przygotuj) return { adres: process.env.ADRES, zamknij: () => {} };
 
-  if (BAZY_ZAKAZANE.includes(env().DB_DATABASE)) {
-    throw new Error(`Odmawiam: ten skrypt robi \`migrate:fresh\`, a DB_DATABASE wskazuje na \`${env().DB_DATABASE}\`.`);
-  }
+  // Rozpoznanie bazy siedzi w `ustalBazePomiarowa()` (BAZA_POMIAROWA wyżej)
+  // i odmówiło startu zanim tu doszliśmy. Stała tu lista ZAKAZÓW
+  // `['kuking', 'kuking_test']`, więc wszystko spoza niej było dozwolone —
+  // a po #736 żadna kopia robocza nie nazywa już swojej bazy `kuking_test`.
 
   console.log('Czyszczę zapamiętaną konfigurację...');
   execFileSync('php', ['artisan', 'config:clear'], { stdio: 'ignore', env: env() });

@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test regresyjny do issue #66 (dwa równoległe przebiegi testów psują sobie
- * bazę): sprawdza samą LOGIKĘ wyboru nazwy testowej bazy z `tests/bootstrap.php`,
- * bez odpalania całego Laravela ani PHPUnit — funkcja `kuking_nazwa_testowej_bazy()`
- * jest już zadeklarowana globalnie, bo to właśnie ten plik ładuje PHPUnit jako
- * bootstrap (patrz `bootstrap` w phpunit.xml).
+ * Test regresyjny do issue #66, #736 i #920 (równoległe przebiegi testów psują
+ * sobie bazę): sprawdza samą LOGIKĘ wyboru nazwy bazy z `tests/nazwa-bazy.php`,
+ * bez odpalania Laravela — funkcje są zadeklarowane globalnie, bo ten plik
+ * wciąga `tests/bootstrap.php`, czyli bootstrap PHPUnit (patrz `bootstrap`
+ * w phpunit.xml).
  *
- * Świadomie `PHPUnit\Framework\TestCase`, nie `Tests\TestCase` — ten test nie
- * dotyka bazy danych w ogóle, więc nie potrzebuje bootowania aplikacji Laravel.
+ * Świadomie `PHPUnit\Framework\TestCase`, nie `Tests\TestCase`: ten test nie
+ * dotyka bazy danych w ogóle.
+ *
+ * @bez-kontroli-dodatniej Testuje zachowanie funkcji z tests/nazwa-bazy.php na katalogach tymczasowych; file_get_contents czyta plik rejestru, który ta funkcja sama przed chwilą zapisała, nie źródło aplikacji.
  */
 class NazwaTestowejBazyTest extends TestCase
 {
+    /** Limit długości identyfikatora w PostgreSQL-u (NAMEDATALEN - 1). */
+    private const LIMIT_POSTGRESA = 63;
+
     public function test_glowny_checkout_dostaje_nazwe_bez_sufiksu(): void
     {
         $katalog = $this->tymczasowyKatalogRepo();
@@ -268,10 +274,106 @@ class NazwaTestowejBazyTest extends TestCase
         );
 
         $this->assertLessThanOrEqual(
-            63,
+            self::LIMIT_POSTGRESA,
             strlen('kuking_zrodlo_proby'.$sufiks),
             'Nazwa przekracza 63 bajty — Postgres obetnie ją po cichu i dwa stanowiska mogą trafić w jedną bazę.',
         );
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function katalogiOWieluKsztaltach(): iterable
+    {
+        yield 'krótka nazwa' => ['kuking'];
+        yield 'zwykła nazwa robocza' => ['kuking-736-izolacja-bazy'];
+        yield 'nazwa dłuższa niż limit Postgresa' => [str_repeat('bardzo-dluga-nazwa-katalogu-', 5)];
+        yield 'znaki wymagające cudzysłowu w SQL' => ["agent's; DROP TABLE x;--"];
+        yield 'same znaki niebezpieczne' => ['.-.-.-'];
+        yield 'znaki spoza ASCII' => ['kopia-żółć-ćma'];
+        yield 'wielkie litery' => ['Kuking-681'];
+    }
+
+    /**
+     * Każda z trzech nazw (testowa, wyścigowa, próby wycofania) musi być
+     * poprawnym identyfikatorem PostgreSQL-a BEZ cudzysłowu i musi się zmieścić
+     * w 63 znakach — dla dowolnie paskudnej nazwy katalogu.
+     *
+     * MAŁE LITERY nie są kosmetyką: PostgreSQL składa identyfikator bez
+     * cudzysłowu do małych liter, więc `createdb Kuking_Test_X` zakłada bazę
+     * `kuking_test_x`, a aplikacja pyta przez PDO o `Kuking_Test_X` dosłownie
+     * i dostaje „database does not exist". Katalog `Kuking-681` wystarczy,
+     * żeby to wywołać.
+     */
+    #[DataProvider('katalogiOWieluKsztaltach')]
+    public function test_nazwa_jest_bezpiecznym_identyfikatorem_w_limicie(string $nazwaKatalogu): void
+    {
+        $katalog = @$this->tymczasowyKatalogRepo($nazwaKatalogu);
+
+        if (! is_dir($katalog)) {
+            $this->markTestSkipped('System plików nie przyjął nazwy: '.$nazwaKatalogu);
+        }
+
+        foreach ([
+            'kuking_nazwa_testowej_bazy',
+            'kuking_nazwa_bazy_wyscigow',
+            'kuking_nazwa_bazy_wycofania',
+        ] as $funkcja) {
+            $nazwa = $funkcja($katalog);
+
+            $this->assertMatchesRegularExpression(
+                '/^[a-z][a-z0-9_]*$/',
+                $nazwa,
+                $funkcja.' dała nazwę wymagającą cudzysłowu w SQL',
+            );
+            $this->assertLessThanOrEqual(
+                self::LIMIT_POSTGRESA,
+                strlen($nazwa),
+                $funkcja.' przekroczyła limit identyfikatora PostgreSQL-a: '.$nazwa,
+            );
+        }
+    }
+
+    /**
+     * Bazy wyścigów i próby wycofania MUSZĄ mieć własne przedrostki, bo ich
+     * skrypty kasują swoje bazy i zrzucają w nich schemat. `proba-wycofania.sh`
+     * ma bezpiecznik przepuszczający wyłącznie `proba_wycofania*`.
+     */
+    public function test_kazda_rodzina_baz_ma_swoj_przedrostek(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('rodziny-run');
+
+        $this->assertStringStartsWith('kuking_test_kat_', kuking_nazwa_testowej_bazy($stanowisko));
+        $this->assertStringStartsWith('kuking_race_kat_', kuking_nazwa_bazy_wyscigow($stanowisko));
+        $this->assertStringStartsWith('proba_wycofania_kat_', kuking_nazwa_bazy_wycofania($stanowisko));
+    }
+
+    /**
+     * Wpis w rejestrze jest JEDYNYM dowodem, na podstawie którego
+     * `scripts/cleanup-test-dbs.sh` wolno skasować bazę. Musi zawierać
+     * ścieżkę kopii roboczej, bo sprzątacz sprawdza, czy ta ścieżka jeszcze
+     * istnieje.
+     */
+    public function test_rejestr_zapisuje_sciezke_kopii_roboczej(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('rejestr-run');
+        $rejestr = $this->tymczasowyKatalogRepo();
+
+        putenv('KUKING_REJESTR_BAZ='.$rejestr);
+
+        try {
+            $nazwa = kuking_nazwa_testowej_bazy($stanowisko);
+            kuking_zapisz_rejestr_bazy($nazwa, $stanowisko);
+
+            $this->assertFileExists($rejestr.'/'.$nazwa);
+            $this->plikiDoUsuniecia[] = $rejestr.'/'.$nazwa;
+            $this->assertSame(
+                rtrim(str_replace('\\', '/', (string) realpath($stanowisko)), '/'),
+                trim((string) file_get_contents($rejestr.'/'.$nazwa)),
+            );
+        } finally {
+            putenv('KUKING_REJESTR_BAZ');
+        }
     }
 
     /**
@@ -284,7 +386,7 @@ class NazwaTestowejBazyTest extends TestCase
         $koperta = sys_get_temp_dir().'/kuking-nazwa-bazy-'.bin2hex(random_bytes(8));
         $katalog = $nazwa === null ? $koperta : $koperta.'/'.$nazwa;
 
-        mkdir($katalog, 0o777, true);
+        @mkdir($katalog, 0o777, true);
 
         $this->tmpDoUsuniecia[] = $katalog;
 
@@ -300,8 +402,15 @@ class NazwaTestowejBazyTest extends TestCase
     /** @var list<string> */
     private array $tmpDoUsuniecia = [];
 
+    /** @var list<string> */
+    private array $plikiDoUsuniecia = [];
+
     protected function tearDown(): void
     {
+        foreach ($this->plikiDoUsuniecia as $plik) {
+            @unlink($plik);
+        }
+
         foreach ($this->tmpDoUsuniecia as $katalog) {
             // Katalog ma co najwyżej jeden plik/podkatalog `.git` w środku —
             // proste rekurencyjne czyszczenie wystarcza, bez zależności.
@@ -312,6 +421,9 @@ class NazwaTestowejBazyTest extends TestCase
             }
             @rmdir($katalog);
         }
+
+        $this->plikiDoUsuniecia = [];
+        $this->tmpDoUsuniecia = [];
 
         parent::tearDown();
     }

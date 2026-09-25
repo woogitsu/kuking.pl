@@ -31,8 +31,21 @@
 
 set -uo pipefail
 
-export PGPASSWORD="${PGPASSWORD:-kuking}"
-PSQL=(psql -q -U kuking -h 127.0.0.1 -v ON_ERROR_STOP=1)
+# Host, port, użytkownik I HASŁO ze środowiska/`.env` — te same, na których
+# pojadą testy. Twardy `-h 127.0.0.1` bez portu trafiał w klaster 5432 innego
+# projektu, więc ten dowód potrafił mierzyć nie tę bazę, o którą chodzi.
+#
+# Hasło stało tu zaszyte jako `kuking` i było niewidoczne lokalnie, bo nasz
+# klaster ma `trust`. Na serwerze, który hasła sprawdza (jak usługa w `ci.yml`
+# z `POSTGRES_PASSWORD: secret`), ten dowód meldował „Problemów: 2" —
+# przyczyną nie była izolacja baz, tylko brak możliwości zalogowania.
+# Ten skrypt nie chodzi dziś w CI, więc nikt tego nie zobaczył.
+BAZA_UZYTKOWNIK="${DB_USERNAME:-kuking}"
+export PGPASSWORD="${PGPASSWORD:-${DB_PASSWORD:-kuking}}"
+BAZA_HOST="${DB_HOST:-127.0.0.1}"
+BAZA_PORT="${DB_PORT:-$(sed -n 's/^[[:space:]]*DB_PORT[[:space:]]*=[[:space:]]*//p' "$(dirname "${BASH_SOURCE[0]}")/../../.env" 2>/dev/null | tail -n1)}"
+BAZA_PORT="${BAZA_PORT:-5432}"
+PSQL=(psql -q -U "${BAZA_UZYTKOWNIK}" -h "${BAZA_HOST}" -p "${BAZA_PORT}" -v ON_ERROR_STOP=1)
 
 zdane=0
 oblane=0
@@ -61,8 +74,8 @@ usun_baze() {
 
 echo "── Izolacja bazy testowej między równoległymi przebiegami (issue #66) ──"
 
-if ! pg_isready -q 2>/dev/null; then
-  echo "PostgreSQL nie odpowiada — nie ma czego dowodzić." >&2
+if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
+  echo "PostgreSQL nie odpowiada na ${BAZA_HOST}:${BAZA_PORT} — nie ma czego dowodzić." >&2
   exit 1
 fi
 

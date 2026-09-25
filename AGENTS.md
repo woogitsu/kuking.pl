@@ -491,6 +491,45 @@ Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
 Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
 Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
 
+**Nazwy bazy testowej nie wymyślasz i nie wpisujesz do `.env`.** Liczy ją
+`tests/nazwa-bazy.php`, w trzech przypadkach:
+
+| katalog | nazwa bazy |
+|---|---|
+| główny checkout (`.git` to katalog) | `kuking_test` |
+| `git worktree` (`.git` to plik) | `kuking_test_<nazwa-worktree>` |
+| kopia bez `.git` (runtime, archiwum, obraz) | `kuking_test_kat_<katalog>_<8 znaków SHA-256 ścieżki>` |
+
+Trzeci przypadek jest tym, który naprawia awarię floty: runtime powstaje
+rsynkiem z `--exclude '.git'`, więc w katalogu, w którym NAPRAWDĘ chodzą testy,
+pliku `.git` nie ma — a wcześniej każde stanowisko dostawało wtedy gołe
+`kuking_test` i wszystkie lądowały w jednej bazie. Swoją nazwę sprawdzisz
+poleceniem:
+
+```bash
+php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'
+```
+
+Jedno miejsce, którego nie wolno ruszyć bez przeliczenia: limit **43 znaków**
+na sufiks w `kuking_bezpieczny_sufiks_bazy()`. Postgres obcina identyfikator do
+63 bajtów BEZ OSTRZEŻENIA, więc dwie za długie nazwy schodzą się po cichu
+w jedną bazę. Najdłuższy przedrostek w repozytorium to `kuking_zrodlo_proby`
+(19 znaków): 19 + 1 + 43 = 63.
+
+**Przyrządy pomiarowe w `scripts/*.mjs` robią `migrate:fresh`**, czyli kasują
+całą zawartość bazy z `DB_DATABASE`. `scripts/bezpiecznik-bazy.mjs` wpuszcza
+wyłącznie jednorazową bazę pomiarową (własną bazę skryptu, jej wariant
+`_cos`, albo nazwę z rodziny `…_pomiar` / `kuking_qa_…`) i **odmawia startu
+przy nazwie, której nie rozpoznaje** — bo nie wie, czyja jest, a za chwilę
+miałby ją skasować. `kuking`, `kuking_test*`, `kuking_race*`,
+`proba_wycofania*` i `railway*` nie przejdą nigdy.
+
+**Port bierze się z `DB_PORT` albo z `.env` tej kopii**, nie z domyślnego 5432.
+`scripts/check.sh` pyta `pg_isready` dokładnie o ten port i wypisuje go
+w komunikacie; wspólną logikę trzyma `scripts/port-bazy.sh`. Porzucone bazy
+sprząta `./scripts/cleanup-test-dbs.sh` — kasuje wyłącznie te, po których
+kopia robocza zniknęła z dysku, i nigdy bazy trwającego przebiegu.
+
 **Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
 bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
 będą fałszywie zielone:

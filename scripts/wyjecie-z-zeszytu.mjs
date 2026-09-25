@@ -45,6 +45,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -52,6 +53,17 @@ import { existsSync } from 'node:fs';
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
 const BAZA_DOMYSLNA = 'kuking_wyjecie';
+
+/* BEZPIECZNIK (#736): ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy wskazanej przez `DB_DATABASE`. `ustalBazePomiarowa()` wpuszcza wylacznie
+   wlasna baze tego skryptu albo nazwe z rodziny jednorazowych, a nazwy, ktorej
+   nie rozpoznaje, NIE wpuszcza — nie wiadomo, czyja jest i co w niej stoi
+   (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na starcie: odmowa ma pasc,
+   zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/wyjecie-z-zeszytu.mjs',
+});
 
 const PROG_PRZYCISK = 48;
 const PROG_TEKST = 18;
@@ -73,7 +85,7 @@ function znajdzChromium() {
 }
 
 function env() {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+  return { ...process.env, DB_DATABASE: BAZA_POMIAROWA };
 }
 
 /*

@@ -468,7 +468,7 @@ glowna() {
   # testowej i wyścigowej — żeby w repozytorium nie było trzech reguł
   # nazywania baz, które rozjadą się przy pierwszej zmianie.
   [[ -n "${BAZA}" ]] || BAZA="$(cd "${KATALOG_REPO}" \
-    && php -r 'require "tests/bootstrap.php"; echo kuking_nazwa_bazy_wycofania(__DIR__);')"
+    && php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_bazy_wycofania(__DIR__);')"
 
   bezpiecznik_nazwy
 

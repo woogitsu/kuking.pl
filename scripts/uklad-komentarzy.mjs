@@ -50,6 +50,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 
@@ -60,6 +61,16 @@ const HASLO = 'haslo-testowe-123';
    worktree — ten skrypt robi `migrate:fresh`, więc wskazanie którejkolwiek
    z nich kasowałoby czyjąś pracę. */
 const BAZA_DOMYSLNA = 'kuking_uklad_komentarzy';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/uklad-komentarzy.mjs',
+});
 
 /* Rozmiar pisma przeglądarki uznawany za „zwykły". Chrome ma domyślnie 16 px
    i od tego liczy się „200%". */
@@ -96,7 +107,7 @@ function znajdzChromium() {
 }
 
 function env() {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+  return { ...process.env, DB_DATABASE: BAZA_POMIAROWA };
 }
 
 /*
