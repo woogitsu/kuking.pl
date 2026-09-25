@@ -1738,6 +1738,18 @@ return [
         'ustawienia_profil' => '15,10',
 
         /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
+
+        /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
          *
          * Najdroższe pojedyncze żądanie w serwisie: kolejkuje zadanie, które
