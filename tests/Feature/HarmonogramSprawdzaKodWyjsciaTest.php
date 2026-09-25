@@ -35,7 +35,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
 
             return $code;
         });
-        $mutex = Mockery::mock(EventMutex::class);
+        $mutex = self::atrapa(EventMutex::class);
         $mutex->shouldReceive('create')->once()->andReturnTrue();
         $mutex->shouldReceive('forget')->once();
         $event->mutex = $mutex;
@@ -88,7 +88,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
             // Pusta atrapa wyjścia: komunikat zostaje w samej formie „nazwa i kod”.
             $kernel->shouldReceive('output')->andReturn('');
             Artisan::swap($kernel);
-            $mutex = Mockery::mock(EventMutex::class);
+            $mutex = self::atrapa(EventMutex::class);
             $mutex->shouldReceive('create')->once()->with($event)->andReturnTrue();
             $mutex->shouldReceive('forget')->once()->with($event);
             $event->mutex = $mutex;
@@ -141,7 +141,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
         $kernel = Mockery::mock(Kernel::class);
         $kernel->shouldReceive('call')->once()->andReturn(1);
         Artisan::swap($kernel);
-        $mutex = Mockery::mock(EventMutex::class);
+        $mutex = self::atrapa(EventMutex::class);
         $mutex->shouldReceive('create')->andReturnTrue();
         $mutex->shouldReceive('forget');
         $event->mutex = $mutex;
@@ -157,7 +157,7 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
         $this->assertNotEmpty($events);
         Artisan::shouldReceive('call')->never();
         foreach ($events as $event) {
-            $mutex = Mockery::mock(EventMutex::class);
+            $mutex = self::atrapa(EventMutex::class);
             $mutex->shouldReceive('create')->once()->with($event)->andReturnFalse();
             $mutex->shouldNotReceive('forget');
             $event->mutex = $mutex;

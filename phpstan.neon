@@ -10,7 +10,7 @@
 #  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
 #  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
 #
-#  POZIOM: 2 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
+#  POZIOM: 3 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
 #  ---------------------------------------------------------------------------
 #  Issue #32 zakładało start od poziomu 5. Pierwsze uruchomienie dało na nim
 #  158 błędów, więc zaczęliśmy od 0 — świadomie nisko, ale bez baseline'u.
@@ -43,8 +43,18 @@
 #  spoza kontraktu `ConnectionInterface`, a puste listy tablicy dnia
 #  i wyszukiwarki były innym typem kolekcji niż pełne.
 #
+#  Poziom 3 (issue #1731) — 51 błędów, głównie typy zwracane, które mówiły
+#  nieprawdę: dostawcy danych opisani jako `list<…>`, a zwracający tablice
+#  z nazwanymi przypadkami; `Route::getRoutes()` iterowane jak tablica,
+#  choć kontrakt tego nie obiecuje (teraz `->getRoutes()`); wiersze
+#  `DB::query()` opisane kształtem obiektu, którego zapytanie nie daje
+#  (teraz uczciwie `stdClass` z listą pól); atrapy Mockery przez
+#  `TestCase::atrapa()` z typem klasy, którą udają; `pivot` tagu zgodny
+#  z modelem tabeli pośredniej `PostTag`; `bytes` w kształcie wariantu
+#  zdjęcia, który zapisuje `ProcessUploadedImage`.
+#
 #  GDZIE STOI NASTĘPNY PRÓG (zmierzone 25.09.2026, nie zgadnięte):
-#      poziom 3 → 51 błędów      poziom 4 → 297      poziom 5 → 336
+#      poziom 4 → 247 błędów      poziom 5 → 283
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
@@ -66,7 +76,7 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 2
+    level: 3
 
     # Rzutowania modeli żyją w metodzie `casts()` (Laravel 11+), a Larastan
     # bez tej opcji czyta wyłącznie właściwość `$casts` — `datetime` z

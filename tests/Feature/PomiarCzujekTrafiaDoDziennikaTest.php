@@ -144,7 +144,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
         // Gdy serwer nie odpowiada, komenda kończy się wcześniej. Wpis
         // z zerami byłby gorszy niż jego brak: w szeregu czasowym wyglądałby
         // jak prawdziwy pomiar mówiący „zero połączeń".
-        $polaczenie = Mockery::mock(Connection::class);
+        $polaczenie = self::atrapa(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andThrow(new \RuntimeException('padło'));
 

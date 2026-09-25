@@ -34,7 +34,7 @@ final class WeeklyActiveCooks
      * ani definicji tygodnia, ani tego, kto się liczy — tylko to, ile wierszy
      * wynikowych pokazujemy.
      *
-     * @return Collection<int, object{week_start: string, week_end: string, weekly_active_cooks: int}>
+     * @return Collection<int, \stdClass> wiersze `DB::query()`: week_start, week_end, weekly_active_cooks
      */
     public function weekly(?int $ileTygodni = null): Collection
     {

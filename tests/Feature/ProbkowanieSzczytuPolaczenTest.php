@@ -58,7 +58,7 @@ class ProbkowanieSzczytuPolaczenTest extends TestCase
      */
     private function atrapaSerwera(?int $zajete): Connection
     {
-        $polaczenie = Mockery::mock(Connection::class);
+        $polaczenie = self::atrapa(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andReturn([
             (object) ['name' => 'max_connections', 'setting' => '500'],

@@ -82,7 +82,11 @@ final class DlugoscZawieszenia
      * czytało się jako stan wyjściowy, a nie jako furtka dopisana na końcu.
      * „Bezterminowo" jest ostatnie, bo jest najsurowsze.
      *
-     * @return array<string, string>
+     * Klucze z liczbą dni (`'7'`, `'30'`) PHP i tak zamienia na liczby — w polu
+     * formularza wracają jako tekst, więc dla wyboru nie ma to znaczenia, ale
+     * typ musi to mówić (issue #1731).
+     *
+     * @return array<int|string, string>
      */
     public static function dlaFormularza(): array
     {

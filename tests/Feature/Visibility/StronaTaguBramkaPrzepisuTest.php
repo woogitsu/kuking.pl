@@ -44,7 +44,7 @@ class StronaTaguBramkaPrzepisuTest extends TestCase
      * Każdy przypadek dostaje autorkę, widza i przepis, i sam ustawia to,
      * co ma odciąć zapowiedź.
      *
-     * @return array<string, array{0: Closure(User, User, Recipe): void}>
+     * @return array<string, array{0: Closure(User, User, Recipe): mixed}>
      */
     public static function przypadki(): array
     {

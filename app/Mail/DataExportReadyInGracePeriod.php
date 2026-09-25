@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\DataExport;
+use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 
 /**
  * „Paczka gotowa, ale najpierw cofnij usunięcie konta” — list dla konta
@@ -62,7 +62,7 @@ class DataExportReadyInGracePeriod extends Mailable
     }
 
     /** Do kiedy trzeba cofnąć usunięcie, żeby paczkę jeszcze pobrać. */
-    public function deadline(): ?Carbon
+    public function deadline(): ?CarbonInterface
     {
         $graceEndsAt = $this->export->user?->deletionGraceEndsAt();
         $expiresAt = $this->export->expires_at;
@@ -74,7 +74,7 @@ class DataExportReadyInGracePeriod extends Mailable
         return $expiresAt->lt($graceEndsAt) ? $expiresAt : $graceEndsAt;
     }
 
-    private function packageExpiresFirst(?Carbon $graceEndsAt): bool
+    private function packageExpiresFirst(?CarbonInterface $graceEndsAt): bool
     {
         $expiresAt = $this->export->expires_at;
 

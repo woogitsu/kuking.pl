@@ -157,7 +157,7 @@ class Post extends Model
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
      *
-     * @return BelongsToMany<Tag, $this>
+     * @return BelongsToMany<Tag, $this, PostTag>
      */
     public function tags(): BelongsToMany
     {

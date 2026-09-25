@@ -112,7 +112,7 @@ class CollectionController extends Controller
      * plus dociągnięcie zdjęć i autorów, niezależnie od tego, czy w zeszytach
      * leży pięć rzeczy, czy pięćset (`SzynaBezWachlarzaZapytanTest`).
      *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return \Illuminate\Support\Collection<int, covariant array{href: string, nazwa: string, podpis: string, media: \App\Models\Media|null, zapisano_at: mixed}>
      */
     private function ostatnioZapisane(User $user): \Illuminate\Support\Collection
     {

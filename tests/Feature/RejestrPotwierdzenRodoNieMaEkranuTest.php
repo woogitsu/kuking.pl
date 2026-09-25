@@ -89,7 +89,7 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
         $winne = [];
         $sprawdzone = 0;
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $plik = $this->plikKontrolera($trasa->getActionName());
 
             if ($plik === null) {
@@ -190,7 +190,7 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
         // przed którym ostrzega `App\Support\NumerZadaniaRodo`.
         $wiazane = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             foreach ($trasa->signatureParameters() as $parametr) {
                 $typ = $parametr->getType();
 

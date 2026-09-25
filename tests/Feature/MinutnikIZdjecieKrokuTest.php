@@ -518,7 +518,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
     // -----------------------------------------------------------------
 
     /**
-     * @return list<array{0: string}>
+     * @return array<string, array{0: string}>
      */
     public static function bezsensowneMinutniki(): array
     {

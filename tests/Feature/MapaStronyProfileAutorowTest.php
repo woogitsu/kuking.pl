@@ -99,7 +99,7 @@ class MapaStronyProfileAutorowTest extends TestCase
      * profilu do mapy — inaczej „naprawa" polegałaby na tym, że do mapy idzie
      * każdy, kto kiedykolwiek zaczął pisać przepis.
      *
-     * @return list<array{0: string, 1: array<string, mixed>}>
+     * @return array<string, array{0: string, 1: array<string, mixed>}>
      */
     public static function niepublicznePrzepisy(): array
     {
@@ -143,7 +143,7 @@ class MapaStronyProfileAutorowTest extends TestCase
      * konto zawieszone ma w mapie ZOSTAĆ (kara za pisanie nie kasuje tego,
      * co ktoś już napisał), więc test pilnuje granicy z obu stron.
      *
-     * @return list<array{0: string, 1: bool}>
+     * @return array<string, array{0: string, 1: bool}>
      */
     public static function statusyKonta(): array
     {

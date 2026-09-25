@@ -14,6 +14,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -226,7 +227,7 @@ class SygnalyController extends Controller
      * `POZYCJI_W_GRUPIE` pozycji z każdego z nich.
      *
      * @param  LengthAwarePaginator<int, Report>  $grupy
-     * @return Collection<string, Collection<int, Report>>
+     * @return Collection<array-key, EloquentCollection<int, Report>> klucz: `autor_tresci_id` albo `'brak'`
      */
     private function pozycje(LengthAwarePaginator $grupy): Collection
     {
@@ -302,11 +303,11 @@ class SygnalyController extends Controller
      * Odnośnik ZOSTAJE. Podgląd nie zastępuje przeczytania całości przed
      * decyzją — pozwala odsiać oczywiste przypadki bez otwierania.
      *
-     * @param  Collection<string, Collection<int, Report>>  $pozycje
-     *                                                                `odnosnik` i `pusto` są w tej mapie, a nie w widoku, bo zależą od
-     *                                                                RODZAJU oznaczonej treści: „Otwórz treść i przeczytaj ją" jest zdaniem
-     *                                                                bez sensu przy zdjęciu profilowym, przy którym nie ma ani jednego słowa
-     *                                                                do przeczytania. Widok ma pokazywać, nie zgadywać.
+     * @param  Collection<array-key, EloquentCollection<int, Report>>  $pozycje
+     *                                                                           `odnosnik` i `pusto` są w tej mapie, a nie w widoku, bo zależą od
+     *                                                                           RODZAJU oznaczonej treści: „Otwórz treść i przeczytaj ją" jest zdaniem
+     *                                                                           bez sensu przy zdjęciu profilowym, przy którym nie ma ani jednego słowa
+     *                                                                           do przeczytania. Widok ma pokazywać, nie zgadywać.
      * @return array<string, array{adres: string, tekst: ?string, miniatura: ?string, odnosnik: string, pusto: string}>
      */
     private function podglady(Collection $pozycje): array

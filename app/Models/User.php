@@ -9,6 +9,7 @@ use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Notifications\UstawienieNowegoHasla;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -23,7 +24,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Notification as PowiadomienieFrameworka;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -1362,7 +1362,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * pierwszym przebiegu PO tej chwili — nigdy przed nią. Data podana
      * człowiekowi jest więc bezpieczna: do niej cofnięcie na pewno działa.
      */
-    public function deletionGraceEndsAt(): ?Carbon
+    public function deletionGraceEndsAt(): ?CarbonInterface
     {
         if ($this->status !== self::STATUS_PENDING_DELETE || $this->delete_requested_at === null) {
             return null;

@@ -31,7 +31,7 @@ class HasloKontoKomunikatyTest extends TestCase
         $nodes = $dom->query('//input[@id="'.$id.'"]');
         $this->assertCount(1, $nodes, 'Pole musi istnieć dokładnie raz: '.$id);
 
-        return $nodes->item(0);
+        return self::elementDom($nodes->item(0));
     }
 
     public static function securityErrors(): array

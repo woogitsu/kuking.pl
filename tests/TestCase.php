@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
+use Mockery;
+use Mockery\MockInterface;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -280,5 +282,30 @@ abstract class TestCase extends BaseTestCase
         }
 
         return $transport;
+    }
+
+    /**
+     * Atrapa Mockery z typem klasy, którą udaje.
+     *
+     * `Mockery::mock(Klasa::class)` zwraca dla analizy samo `MockInterface`,
+     * więc atrapa podstawiana tam, gdzie kod wymaga `Klasa` (typ zwracany
+     * metody, właściwość), była dla PHPStana obcym typem (poziom 3 — issue
+     * #1731). Tutaj jest jawne sprawdzenie, a typ mówi prawdę: to jest i atrapa,
+     * i `Klasa`.
+     *
+     * @template T of object
+     *
+     * @param  class-string<T>  $klasa
+     * @return T&MockInterface
+     */
+    protected static function atrapa(string $klasa): MockInterface
+    {
+        $atrapa = Mockery::mock($klasa);
+
+        if (! $atrapa instanceof $klasa) {
+            self::fail("Mockery nie zbudował atrapy {$klasa}.");
+        }
+
+        return $atrapa;
     }
 }

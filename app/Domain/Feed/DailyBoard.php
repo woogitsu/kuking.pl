@@ -507,7 +507,7 @@ final class DailyBoard
      * Najnowszy publiczny wpis każdego autora, najświeższe najpierw.
      *
      * @param  list<string>  $hidden
-     * @return Collection<int, object{id: string, author_id: string, published_at: string}>
+     * @return Collection<int, \stdClass> wiersze `DB::query()`: id, author_id, published_at
      */
     private function najnowszyKazdegoAutora(?User $viewer, array $hidden, int $limit): Collection
     {

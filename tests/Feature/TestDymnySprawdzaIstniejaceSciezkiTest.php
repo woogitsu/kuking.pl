@@ -103,7 +103,7 @@ class TestDymnySprawdzaIstniejaceSciezkiTest extends TestCase
 
         $trasy = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (in_array('GET', $trasa->methods(), true)) {
                 $trasy[] = '/'.ltrim($trasa->uri(), '/');
             }

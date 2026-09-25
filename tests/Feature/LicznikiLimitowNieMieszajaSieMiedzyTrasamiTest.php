@@ -83,7 +83,7 @@ class LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest extends TestCase
         // zauważy, bo objawia się to dopiero pod obciążeniem u konkretnej osoby.
         $bezPrefiksu = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if ($this->trasaPakietu($trasa->uri())) {
                 continue;
             }
@@ -126,7 +126,7 @@ class LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest extends TestCase
         // Gdyby dołączyła do niej druga trasa z innym limitem — ten test oblei.
         $wgKlucza = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             foreach ($trasa->gatherMiddleware() as $warstwa) {
                 if (! is_string($warstwa) || ! str_starts_with($warstwa, 'throttle:')) {
                     continue;
@@ -182,7 +182,7 @@ class LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest extends TestCase
         // czegoś zupełnie innego.
         $prefiksy = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             foreach ($trasa->gatherMiddleware() as $warstwa) {
                 if (is_string($warstwa) && str_starts_with($warstwa, 'throttle:')) {
                     $prefiksy[$trasa->getName() ?? $trasa->uri()] = substr($warstwa, strrpos($warstwa, ',') + 1);

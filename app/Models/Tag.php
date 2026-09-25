@@ -30,7 +30,7 @@ use Normalizer;
  * Kolumny tabeli pośredniej — są tylko wtedy, gdy tag wczytano przez
  * relację `Post::tags()` (`post_tags`) albo `User::followedTags()` (`tag_follows`):
  *
- * @property-read Pivot&object{position: int, dodany_recznie: bool, created_at: string|null} $pivot
+ * @property-read PostTag|(Pivot&object{created_at: string|null}) $pivot
  */
 class Tag extends Model
 {
@@ -137,7 +137,7 @@ class Tag extends Model
     }
 
     /**
-     * @return BelongsToMany<Post, $this>
+     * @return BelongsToMany<Post, $this, PostTag>
      */
     public function posts(): BelongsToMany
     {

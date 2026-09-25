@@ -325,7 +325,7 @@ class Media extends Model
      * kształcie. Kształt opisuje jedno miejsce — `warianty()` — i wszystko,
      * co czyta warianty, ma iść przez nie.
      *
-     * @return array{key?: string, width?: int, height?: int}|null
+     * @return array{key?: string, width?: int, height?: int, bytes?: int}|null
      */
     public function wariant(string $nazwa): ?array
     {
@@ -398,7 +398,7 @@ class Media extends Model
      * w typie, obok kodu, który go czyta — i `is_array()` sprawdza go naprawdę,
      * bo w bazie mogą leżeć wiersze sprzed każdej zmiany tego formatu.
      *
-     * @return array<string, array{key?: string, width?: int, height?: int}>
+     * @return array<string, array{key?: string, width?: int, height?: int, bytes?: int}>
      */
     private function warianty(): array
     {

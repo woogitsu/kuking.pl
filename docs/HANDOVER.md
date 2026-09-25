@@ -71,7 +71,7 @@ owner asked for it in English.
 ## 2. Where things stand
 
 - **1304 tests pass** (889 two sessions ago, 1152 one session ago), 53998
-  assertions, PHPStan clean (level 2 + Larastan, #1731), Pint clean. The suite runs
+  assertions, PHPStan clean (level 3 + Larastan, #1731), Pint clean. The suite runs
   serially — `--parallel` does not work in this container.
 - **The tag base is now a delivered dictionary, not a hand-written array**
   (D-026): `database/seeders/dane/slownik-tagow.json` (1250 canonical names,
