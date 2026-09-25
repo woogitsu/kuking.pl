@@ -114,6 +114,9 @@ final class InwentarzDanychKonta
         'created_at' => [self::EKSPORT, 'konto'],
         'updated_at' => [self::EKSPORT, 'konto'],
         'status_expires_at' => [self::EKSPORT, 'konto'],
+        // Kara odłożona na czas usuwania konta (#980) — ta sama dana co `status`.
+        'punishment_status' => [self::EKSPORT, 'konto'],
+        'punishment_expires_at' => [self::EKSPORT, 'konto'],
         'delete_requested_at' => [self::EKSPORT, 'konto'],
         'delete_scope' => [self::EKSPORT, 'konto'],
         'data_erased_at' => [self::EKSPORT, 'konto'],
