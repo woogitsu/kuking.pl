@@ -46,6 +46,12 @@ Monolit zmniejsza liczbę ruchomych części i jest bardzo dobry do pracy przez 
 - kontrolery;
 - Form Requests.
 
+Granica przyjęta w #970: **Form Request odpowiada za wejście HTTP** (rola,
+reguły, komunikaty, kolejność sprawdzeń), **akcja w `app/Domain` za regułę
+i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
+`ZapisPrzepisuRequest` + `ZapiszPrzepisZFormularza` (przepis) oraz
+`DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna).
+
 ### Application
 Use cases, np.:
 - PublishPost;
