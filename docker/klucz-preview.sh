@@ -4,7 +4,7 @@
 # =============================================================================
 #  Ten plik jest DOŁĄCZANY (`source`) przez docker/entrypoint.sh. Sam nic nie
 #  uruchamia — definiuje dwie funkcje, żeby dało się je sprawdzić testem
-#  powłoki bez stawiania kontenera (tests/skrypty/klucz-preview.sh).
+#  powłoki bez stawiania kontenera (tests/Feature/KluczPreviewSrodowiskaPrTest.php).
 #
 #  PROBLEM
 #  `APP_KEY` produkcji i staginu jest w Railway zapieczętowany (`Sealed`).
