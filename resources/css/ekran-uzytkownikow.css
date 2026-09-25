@@ -278,7 +278,9 @@
 
   .tabela-kont tbody tr:last-child td { border-bottom: 0; }
 
-  /* Cichy, drugi wiersz w komórce: `@nazwa`, przyczyna, termin. */
+  /* Cichy, drugi wiersz w komórce: `@nazwa`, przyczyna, termin. 15 px
+     zamiast 18 px z §5 — świadomy wyjątek D-262 (napis pomocniczy w panelu
+     moderacji, widoczny wyłącznie dla moderatorów). */
   .tabela-kont .drobne {
     display: block;
     font-size: var(--text-meta);
@@ -288,7 +290,9 @@
   /*
    * Plakietka stanu konta. KOLOR NIGDY NIE JEST JEDYNYM NOŚNIKIEM — w środku
    * stoi słowo („Zawieszone", „Zablokowane"), bo tak wymaga WCAG 1.4.1
-   * i tak samo wymaga zdrowy rozsądek przy odbiorcy 50+.
+   * i tak samo wymaga zdrowy rozsądek przy odbiorcy 50+. 15 px zamiast 18 px
+   * z §5 — świadomy wyjątek D-262 (napis pomocniczy w panelu moderacji,
+   * widoczny wyłącznie dla moderatorów).
    */
   .stan-konta {
     display: inline-block;

@@ -63,6 +63,7 @@ final class RequestEmailChange
         $nowyAdres = User::normalizeEmail($nowyAdres);
 
         $godzin = max(1, (int) config('kuking.account.email_change_ttl_hours'));
+        $oldAddress = (string) $user->email;
 
         // TA SAMA KOLEJNOŚĆ BLOKAD CO PRZY POTWIERDZANIU I ANULOWANIU
         // (AUTH-03 / RACE-06). Stawka jest tu mniejsza niż przy tamtych dwóch,
@@ -71,7 +72,8 @@ final class RequestEmailChange
         // równoległe zamówienia mogły więc oba dojść do `INSERT` i jedno
         // odbić się o unikalność, dając 500 zamiast przewidywalnego
         // „ostatnie zamówienie wygrywa". Pod blokadą jest jednoznacznie.
-        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin): PendingEmailChange {
+        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin, &$oldAddress): PendingEmailChange {
+            $oldAddress = (string) ($swiezy?->email ?? $user->email);
             // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
             // Nowe żądanie to nowy identyfikator, więc podpisany link
             // z poprzedniego listu przestaje wskazywać cokolwiek — a to jest
@@ -115,11 +117,12 @@ final class RequestEmailChange
             $user->profile?->display_name,
         ));
 
-        // Na STARY adres — zwykłe `notify()`, bo `users.email` jest wciąż
-        // stary i taki ma pozostać do potwierdzenia.
-        $user->notify(new ZgloszonaZmianaAdresu(
+        // Odbiorcę utrwalamy przy zleceniu. Worker może ruszyć dopiero po
+        // potwierdzeniu zmiany, gdy odtworzony User ma już inny adres (#888).
+        Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(
             AdresEmail::maska($nowyAdres),
             $zmiana->expires_at,
+            $user->profile?->display_name,
         ));
 
         return $zmiana;

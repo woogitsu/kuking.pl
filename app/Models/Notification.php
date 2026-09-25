@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -662,9 +663,16 @@ class Notification extends Model
      */
     public function scopeVisibleTo(Builder $query, User $viewer): Builder
     {
+        // `recipe.saved` NIE idzie przez filtry sprawcy (ten niżej i ten po
+        // statusie): to partia wielu osób (D-070), a `actor_id` trzyma tylko
+        // pierwszą. Ukrycie całego „A oraz 2 inne osoby…” dlatego, że autor
+        // zablokował A PO jej zapisie, gubiło B i C — i każdą kolejną osobę
+        // dopisaną do tego ukrytego wiersza (przegląd PR #1213). Ta partia
+        // ma własny warunek, po całej liście, w `widocznaPartiaZapisow()`.
         $query->whereNotExists(function (QueryBuilder $sub) use ($viewer): void {
             $sub->selectRaw('1')
                 ->from('blocks')
+                ->where('notifications.type', '!=', self::TYPE_SAVED)
                 ->where(function (QueryBuilder $warunek) use ($viewer): void {
                     $warunek
                         ->where(function (QueryBuilder $ja) use ($viewer): void {
@@ -717,12 +725,26 @@ class Notification extends Model
             $query->where('notifications.type', '!=', self::TYPE_APPEAL_FILED);
         }
 
+        // `post.first` — ta sama zasada, inna zdolność (issue #1351).
+        // Alert prowadzi do kolejki „Bez odpowiedzi", do której wstęp daje
+        // `moderate` (`BezOdpowiedziController::index()`), a odbiorcę
+        // wybiera `PublishPost` z `host_username` BEZ pytania o rolę. Po
+        // odebraniu roli, przy zawieszeniu albo gdy gospodarzem jest zwykłe
+        // konto, „Zobacz" kończyłoby się odmową. Wiersz i `first_post_events`
+        // zostają — po nadaniu roli alert wraca.
+        if (! $viewer->isModerator()) {
+            $query->where('notifications.type', '!=', self::TYPE_FIRST_POST);
+        }
+
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')
+                ->where('notifications.type', '!=', self::TYPE_SAVED)
                 ->whereColumn('sprawcy.id', 'notifications.actor_id')
                 ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
         });
+
+        $this->widocznaPartiaZapisow($query, $viewer);
 
         /*
          * POWIADOMIENIE O KOMENTARZU, KTÓREGO TREŚĆ ZNIKŁA ALBO DO KTÓREJ
@@ -903,4 +925,301 @@ class Notification extends Model
      * — nazwana stała zamiast magicznego stringa powtórzonego w SQL wyżej.
      */
     private const STATUS_TRESCI_OPUBLIKOWANA = 'published';
+
+    /**
+     * Partia zapisów (D-070) jest widoczna, dopóki JEDNA osoba z `data.savers`
+     * jest dla odbiorcy widoczna — te same dwie reguły, co filtry sprawcy
+     * w `scopeVisibleTo()` (blokada w obie strony, `User::STATUSY_UKRYWAJACE_TRESC`),
+     * tylko liczone po liście, nie po `actor_id`.
+     *
+     * Gdy niewidoczni są WSZYSCY, wiersz znika z listy i z licznika —
+     * dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokady
+     * nie kasują wiersza: odblokowanie pokazuje go z powrotem.
+     *
+     * Wiersze sprzed zbiorczych zapisów nie mają `savers` — wtedy lista to
+     * sam `actor_id`. Brak sprawcy (`actor_id IS NULL`) przechodzi zawsze,
+     * z tego samego powodu co przy filtrach wyżej.
+     */
+    private function widocznaPartiaZapisow(Builder $query, User $viewer): void
+    {
+        $query->where(function (Builder $warunek) use ($viewer): void {
+            $warunek->where('notifications.type', '!=', self::TYPE_SAVED)
+                ->orWhereNull('notifications.actor_id')
+                ->orWhereExists(function (QueryBuilder $sub) use ($viewer): void {
+                    $sub->selectRaw('1')
+                        ->fromRaw(
+                            "jsonb_array_elements_text(COALESCE(notifications.data->'savers', jsonb_build_array(notifications.actor_id))) AS zapisujacy_z_partii(id)",
+                        )
+                        ->join('users as zapisujacy', 'zapisujacy.id', '=', DB::raw('zapisujacy_z_partii.id::uuid'))
+                        ->whereNotIn('zapisujacy.status', User::STATUSY_UKRYWAJACE_TRESC)
+                        ->whereNotExists(function (QueryBuilder $blokada) use ($viewer): void {
+                            self::blokadaZOdbiorca($blokada, 'zapisujacy.id', (string) $viewer->getKey());
+                        });
+                });
+        });
+    }
+
+    /**
+     * `blocks` w obie strony między kolumną z osobą a odbiorcą — jedno
+     * miejsce dla warunku widoczności partii i dla wyboru imienia do
+     * pokazania (`zapisujacyDoPokazania()`), żeby lista i nagłówek nie
+     * rozjechały się co do tego, kto jest widoczny.
+     */
+    private static function blokadaZOdbiorca(QueryBuilder $sub, string $kolumnaOsoby, string $odbiorcaId): void
+    {
+        $sub->selectRaw('1')
+            ->from('blocks')
+            ->where(function (QueryBuilder $warunek) use ($kolumnaOsoby, $odbiorcaId): void {
+                $warunek
+                    ->where(function (QueryBuilder $ja) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $ja->where('blocks.blocker_id', $odbiorcaId)
+                            ->whereColumn('blocks.blocked_id', $kolumnaOsoby);
+                    })
+                    ->orWhere(function (QueryBuilder $on) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $on->whereColumn('blocks.blocker_id', $kolumnaOsoby)
+                            ->where('blocks.blocked_id', $odbiorcaId);
+                    });
+            });
+    }
+
+    /**
+     * Treść zbiorczego powiadomienia „X oraz Y innych osób zapisało Twój
+     * przepis" — DECYZJA WŁAŚCICIELA z 20.09.2026 (issue #906).
+     *
+     * JEDNO ŹRÓDŁO, DWÓCH ODBIORCÓW (jak `adresDocelowy()` wyżej): treść
+     * potrzebują i widok listy powiadomień, i testy, które sprawdzają
+     * dokładną polską odmianę liczebnika — dwie kopie tego samego `match`
+     * rozjechałyby się przy pierwszej poprawce.
+     *
+     * ODMIANA LICZEBNIKA JEST TU OBOWIĄZKOWA, NIE KOSMETYKĄ. „Jan oraz
+     * 1 innych osób” jest błędem językowym, którego nie wolno wysłać komuś
+     * w grupie 50+ — dokładnie ta grupa najdotkliwiej odczuwa niedbały
+     * polski (patrz `docs/brand/COPY_STYLE.md`). Polska liczba mnoga
+     * rzeczownika po liczebniku ma TRZY formy (1 / 2–4 / 5+), więc trzy
+     * formy tu stoją wprost, żadna nie jest domyślna:
+     *   1 → „1 inna osoba” + czasownik w liczbie pojedynczej,
+     *   2–4 → „N inne osoby” + czasownik w mianowniku liczby mnogiej,
+     *   5+ → „N innych osób” + czasownik zgadza się z dopełniaczem liczby
+     *        mnogiej (stąd „zapisało”, nie „zapisali” — dokładnie forma,
+     *        którą właściciel podał w decyzji, i ZARAZEM jedyna, która nie
+     *        zdradza płci żadnej z wymienionych osób — patrz „ZDANIA BEZ
+     *        ZAŁOŻENIA RODZAJU”, issue #38, w widoku listy powiadomień).
+     * Czasownik zgadza się z NAJBLIŻSZYM członem („N inne(ych) osób”), nie
+     * z pierwszą, wymienioną z nazwy osobą — to samo zjawisko widać
+     * w podanym przez właściciela wzorcu „Jan oraz 3 innych osób ZAPISAŁO”,
+     * gdzie forma nie zależy od rodzaju „Jana”.
+     *
+     * PIERWSZA OSOBA MOŻE ZNIKNĄĆ Z WIDOKU (pytanie właściciela, #906):
+     * jeśli jest zablokowana przez autora (w obie strony, jak
+     * `scopeVisibleTo()` wyżej) albo ma status z `User::STATUSY_UKRYWAJACE_TRESC`
+     * (zbanowana / czeka na usunięcie), NIE pokazujemy jej imienia — mija się
+     * to z resztą serwisu, gdzie taka osoba jest niedostępna jako autor.
+     * Miejsce przejmuje pierwsza WIDOCZNA osoba z tej samej partii. Konto
+     * USUNIĘTE (`erased`) NIE jest tu wyjątkiem — D-022 mówi wprost: tekst
+     * zostaje, choć osoby nie ma, więc pokazujemy to, co zostało po
+     * anonimizacji profilu (tak samo jak przy autorstwie treści).
+     * Niewidoczne osoby NIE znikają z liczby „innych” — licznik, nie imię,
+     * jest tu bezpieczny (D-081: „liczba, nie imiona”). Gdy niewidoczni są
+     * WSZYSCY, lista i licznik w belce w ogóle tego wiersza nie pokażą
+     * (`widocznaPartiaZapisow()`); gałąź „N osób zapisało” niżej zostaje
+     * dla wywołań spoza `scopeVisibleTo()`, żeby nigdy nie wypisać imienia.
+     */
+    public function tresc(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        [$naglowek, $koniec] = $this->czesciZapisu();
+
+        return trim("{$naglowek} {$koniec}");
+    }
+
+    /**
+     * Sam nagłówek — to, co widok pokazuje pogrubione (`<strong>`), BEZ
+     * tytułu przepisu ani końcówki zdania. Ten podział istnieje od dawna
+     * dla każdego typu powiadomienia (patrz `resources/views/pages/notifications.blade.php`:
+     * „X — ugotowane z Twojego przepisu” w `<strong>`, cytat pod spodem) —
+     * zbiorcze powiadomienie o zapisie trzyma się tego samego wzorca, żeby
+     * nie robić z siebie wyjątku w jednym miejscu w serwisie.
+     */
+    public function naglowekZapisu(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        return $this->czesciZapisu()[0];
+    }
+
+    /**
+     * Reszta zdania POZA pogrubionym nagłówkiem — cytat tytułu przepisu
+     * i końcówka. Osobna metoda, a nie sklejanie w widoku, z tego samego
+     * powodu co `naglowekZapisu()`: jedno miejsce liczy, czy to pojedynczy
+     * zapis („w swoim zeszycie.”) czy zbiorcza partia (kropka po tytule,
+     * bez „w swoim zeszycie” — dokładnie kształt z decyzji właściciela).
+     */
+    public function resztaZapisu(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        return $this->czesciZapisu()[1];
+    }
+
+    /**
+     * @return array{0: string, 1: string} [nagłówek pogrubiony, reszta zdania]
+     */
+    private function czesciZapisu(): array
+    {
+        $data = $this->data ?? [];
+        $tytul = $data['recipe_title'] ?? 'przepis';
+        $liczbaCalkowita = count($this->zapisujacy());
+        $pierwszy = $this->zapisujacyDoPokazania();
+
+        // NIKT Z PARTII NIE JEST DO WYMIENIENIA Z NAZWY (blokada/ban objęły
+        // wszystkich, do jednego zapisu włącznie) — zostaje sama liczba,
+        // bez „inne”/„innych", bo nie ma względem kogo liczyć.
+        if ($pierwszy === null) {
+            if ($liczbaCalkowita <= 1) {
+                return ['Ktoś ma Twój przepis', "„{$tytul}” w swoim zeszycie."];
+            }
+
+            $naglowek = ucfirst($this->fraza($liczbaCalkowita, liczoneWzglemInnych: false))
+                .' zapisał'.$this->koncowkaCzasownika($liczbaCalkowita)
+                .' Twój przepis';
+
+            return [$naglowek, "„{$tytul}”."];
+        }
+
+        $reszta = $liczbaCalkowita - 1;
+
+        if ($reszta <= 0) {
+            return ["{$pierwszy->displayName()} ma Twój przepis", "„{$tytul}” w swoim zeszycie."];
+        }
+
+        $naglowek = "{$pierwszy->displayName()} oraz ".$this->fraza($reszta, liczoneWzglemInnych: true)
+            .' zapisał'.$this->koncowkaCzasownika($reszta)
+            .' Twój przepis';
+
+        return [$naglowek, "„{$tytul}”."];
+    }
+
+    /**
+     * Identyfikatory osób z partii, w kolejności zapisu. Wiersze sprzed
+     * zbiorczych zapisów nie mają `savers` — wtedy to sam `actor_id`.
+     *
+     * @return list<string>
+     */
+    private function zapisujacy(): array
+    {
+        return array_values(array_filter(
+            $this->data['savers'] ?? [$this->actor_id],
+            fn ($id) => is_string($id) && $id !== '',
+        ));
+    }
+
+    /** Czy `zapisujacyDoPokazania()` już pytało bazę — `null` jest poprawnym wynikiem. */
+    private bool $zapisujacyDoPokazaniaPoliczony = false;
+
+    private ?User $zapisujacyDoPokazania = null;
+
+    /**
+     * Pierwsza osoba z partii, którą odbiorca może zobaczyć z imienia
+     * i awatarem — albo `null`, gdy nie może żadnej (D-070).
+     *
+     * JEDNO ZAPYTANIE, NIEZALEŻNIE OD WIELKOŚCI PARTII (przegląd PR #1213).
+     * Wcześniejsza wersja ładowała WSZYSTKICH zapisujących i dla każdego
+     * pytała osobno o blokadę — partia 200 osób to było ~200 zapytań na
+     * jedną pozycję listy, a widok woła nagłówek i resztę zdania osobno.
+     * Imię potrzebne jest jedno, więc blokada idzie do `NOT EXISTS`,
+     * kolejność zapisu do `array_position`, a wynik do `LIMIT 1`. Wynik
+     * jest zapamiętany na tym obiekcie.
+     *
+     * Gdy tą osobą jest `actor_id` z załadowaną już relacją (lista ładuje
+     * `actor.profile.avatar` hurtem), oddajemy TAMTEN obiekt — awatar nie
+     * kosztuje wtedy ani jednego zapytania więcej.
+     */
+    public function zapisujacyDoPokazania(): ?User
+    {
+        if ($this->zapisujacyDoPokazaniaPoliczony) {
+            return $this->zapisujacyDoPokazania;
+        }
+
+        $this->zapisujacyDoPokazaniaPoliczony = true;
+        $savers = $this->zapisujacy();
+
+        if ($savers === []) {
+            return null;
+        }
+
+        $odbiorcaId = (string) $this->user_id;
+
+        $pierwszy = User::query()
+            ->whereIn('users.id', $savers)
+            ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
+            ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
+                self::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
+            })
+            ->orderByRaw('array_position(?::uuid[], users.id)', ['{'.implode(',', $savers).'}'])
+            ->first();
+
+        if ($pierwszy !== null && $this->relationLoaded('actor') && $this->actor?->is($pierwszy)) {
+            $pierwszy = $this->actor;
+        }
+
+        return $this->zapisujacyDoPokazania = $pierwszy;
+    }
+
+    /**
+     * „1 inna osoba” / „N inne osoby” / „N innych osób” — trzy formy
+     * polskiego liczebnika, patrz `tresc()` wyżej.
+     */
+    private function fraza(int $n, bool $liczoneWzglemInnych): string
+    {
+        if (! $liczoneWzglemInnych) {
+            return match (true) {
+                $n === 1 => '1 osoba',
+                $this->wymagaFormyRzeczownikaKrotkiej($n) => "{$n} osoby",
+                default => "{$n} osób",
+            };
+        }
+
+        return match (true) {
+            $n === 1 => '1 inna osoba',
+            $this->wymagaFormyRzeczownikaKrotkiej($n) => "{$n} inne osoby",
+            default => "{$n} innych osób",
+        };
+    }
+
+    /**
+     * Czasownik po liczebniku 1 jest w liczbie pojedynczej („zapisała”),
+     * po 2–4 w mianowniku liczby mnogiej („zapisały”), a od 5 w górę
+     * zgadza się z dopełniaczem liczby mnogiej — stąd „zapisało”
+     * (nijaki, bezrodzajowy — patrz `tresc()` wyżej).
+     */
+    private function koncowkaCzasownika(int $inni): string
+    {
+        return match (true) {
+            $inni === 1 => 'a',
+            $this->wymagaFormyRzeczownikaKrotkiej($inni) => 'y',
+            default => 'o',
+        };
+    }
+
+    /**
+     * Forma "2–4" polskiego liczebnika: liczby kończące się na 2, 3 lub 4,
+     * Z WYJĄTKIEM 12–14 (te zawsze biorą formę "5+" — "12 osób", nie
+     * "12 osoby"). Reguła jest ogólna, nie tylko dla małych liczb z
+     * przykładów właściciela — partia zapisów może urosnąć znacznie
+     * powyżej czterech osób.
+     */
+    private function wymagaFormyRzeczownikaKrotkiej(int $n): bool
+    {
+        $ostatnia = $n % 10;
+        $dwieOstatnie = $n % 100;
+
+        return in_array($ostatnia, [2, 3, 4], true) && ! in_array($dwieOstatnie, [12, 13, 14], true);
+    }
 }

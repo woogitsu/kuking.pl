@@ -151,6 +151,13 @@ ORDER BY published_at DESC, id DESC
 
 Cursor pagination. Bez fanout-on-write.
 
+Kursor strony głównej jest zawsze związany z serwerowo wybranym źródłem:
+`obserwowani`, `tagi` albo `odkrywanie`. Parametr adresu tylko potwierdza
+źródło, nie pozwala go wybrać. Jeżeli między żądaniami zmieni się podstawa
+źródła (np. obserwowana osoba przestanie być obserwowana), kontynuacja wraca
+przekierowaniem do czystej pierwszej strony zamiast stosować stary kursor do
+innego zapytania.
+
 ## Zdjęcia: adresem jest trasa aplikacji
 
 ```text
