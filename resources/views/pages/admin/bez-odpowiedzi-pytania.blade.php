@@ -3,6 +3,14 @@
     <h1>Pytania bez odpowiedzi</h1>
     @include('pages.admin._bez-odpowiedzi-nawigacja')
     <p>Czeka na odpowiedź ({{ $items->total() }}). Od najstarszego pytania.</p>
+    @if($medianaReakcji !== null)
+        {{-- Osobna mediana pytań (#372): liczy tylko pierwszą główną odpowiedź
+             innej osoby. Zakładka „Wpisy” ma własną, liczoną tylko z dań. --}}
+        <p>
+            Mediana oczekiwania na odpowiedź: {{ str_replace('.', ',', (string) $medianaReakcji) }} h
+            (mediana dla pytań z ostatnich 30 dni).
+        </p>
+    @endif
     <div class="stack">
         @forelse($items as $item)
             <article class="card">

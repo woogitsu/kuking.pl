@@ -85,6 +85,48 @@ class KolejkaGospodarzaTest extends TestCase
         $this->assertNull($queue->medianPostResponseHours($host));
     }
 
+    /**
+     * Regresja #372: mediana zakładki „Wpisy” liczyła także pytania, więc
+     * szybko obsłużone pytanie zaniżało czas reakcji na dania. Każda zakładka
+     * ma teraz własną medianę.
+     */
+    public function test_mediana_wpisow_liczy_tylko_dania_a_pytania_maja_wlasna(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $host = $this->moderator();
+        $dish = Post::factory()->create(['author_id' => $this->user()->id, 'published_at' => now()->subHours(10)]);
+        Comment::factory()->create(['post_id' => $dish->id, 'author_id' => $host->id, 'created_at' => now()->subHours(6)]);
+        $question = Post::factory()->question()->create(['author_id' => $this->user()->id, 'published_at' => now()->subHours(10)]);
+        Comment::factory()->create(['post_id' => $question->id, 'author_id' => $host->id, 'created_at' => now()->subHours(9)]);
+
+        $queue = app(UnansweredContent::class);
+        $this->assertSame(4.0, $queue->medianPostResponseHours($host));
+        $this->assertSame(1.0, $queue->medianQuestionResponseHours($host));
+
+        $this->actingAs($host)->get(route('admin.unanswered'))->assertOk()->assertViewHas('medianaReakcji', 4.0);
+        $this->get(route('admin.unanswered', ['typ' => 'pytania']))->assertOk()
+            ->assertViewHas('medianaReakcji', 1.0)
+            ->assertSee('Mediana oczekiwania na odpowiedź: 1 h', false)
+            ->assertSee('mediana dla pytań z ostatnich 30 dni', false);
+    }
+
+    /** Dopisek pod cudzym komentarzem nie jest odpowiedzią na pytanie — tak jak w kolejce `questions()`. */
+    public function test_mediana_pytan_liczy_tylko_glowne_odpowiedzi(): void
+    {
+        $host = $this->moderator();
+        $answered = Post::factory()->question()->create(['author_id' => $this->user()->id, 'published_at' => now()->subHours(10)]);
+        Comment::factory()->create(['post_id' => $answered->id, 'author_id' => $host->id, 'created_at' => now()->subHours(9)]);
+        $owner = $this->user();
+        $onlyReply = Post::factory()->question()->create(['author_id' => $owner->id, 'published_at' => now()->subHours(10)]);
+        $own = Comment::factory()->create(['post_id' => $onlyReply->id, 'author_id' => $owner->id, 'created_at' => now()->subHours(9)]);
+        Comment::factory()->create(['post_id' => $onlyReply->id, 'author_id' => $host->id, 'parent_id' => $own->id, 'created_at' => now()->subHours(8)]);
+
+        $queue = app(UnansweredContent::class);
+        $this->assertSame(1.0, $queue->medianQuestionResponseHours($host));
+        $this->assertTrue($queue->questions($host)->whereKey($onlyReply->id)->exists());
+        $this->assertNull($queue->medianPostResponseHours($host));
+    }
+
     public function test_odpowiedz_z_istniejacego_formularza_zamyka_nowe_kolejki(): void
     {
         $host = $this->moderator();

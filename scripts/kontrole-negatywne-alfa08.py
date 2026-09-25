@@ -60,6 +60,7 @@ if os.environ.get("CI") != "true":
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
+UNANSWERED_CONTENT = "app/Domain/Moderation/UnansweredContent.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
 COLLECTION_TEST = "WyborZeszytuMaWalidacjeTest"
@@ -729,6 +730,13 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    # Mediana reakcji w panelu gospodarza rozdzielona na dania i pytania (#372).
+    # Pierwsza mutacja zdejmuje warunek rodzaju — pytania wracają do mediany
+    # „Wpisów”. Druga liczy pytaniom dopiski pod cudzym komentarzem jako odpowiedź.
+    ("Mediana wpisów bez warunku rodzaju", UNANSWERED_CONTENT, "test_mediana_wpisow_liczy_tylko_dania_a_pytania_maja_wlasna",
+     lambda s: replace_once(s, "            ->where('posts.kind', $kind)\n", "")),
+    ("Mediana pytań liczy dopiski jako odpowiedź", UNANSWERED_CONTENT, "test_mediana_pytan_liczy_tylko_glowne_odpowiedzi",
+     lambda s: replace_once(s, "Post::KIND_QUESTION, $this->answers()", "Post::KIND_QUESTION, $this->responses('post_id', 'posts', 'author_id')")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.

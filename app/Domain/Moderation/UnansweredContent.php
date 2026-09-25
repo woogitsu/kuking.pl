@@ -68,8 +68,7 @@ final class UnansweredContent
     public function questions(User $host): Builder
     {
         return $this->eligiblePosts($host)->where('posts.kind', Post::KIND_QUESTION)
-            ->whereNotExists($this->responses('post_id', 'posts', 'author_id')
-                ->whereNull('queue_comments.parent_id')->whereNull('queue_comments.body_removed_at'));
+            ->whereNotExists($this->answers());
     }
 
     /** @return Builder<Recipe> */
@@ -112,11 +111,30 @@ final class UnansweredContent
         return $content->whereNotExists($this->responses($foreignKey, $table, $ownerKey));
     }
 
+    /**
+     * Mediana czasu do pierwszego odzewu — tylko dania (zakładka „Wpisy”).
+     *
+     * Pytania mają osobną medianę (`medianQuestionResponseHours()`): inna
+     * definicja odzewu (tylko główna odpowiedź) i inne tempo. Wspólna liczba
+     * mieszała oba rodzaje, więc szybko obsłużone pytania zaniżały medianę
+     * wpisów, a zakładka „Pytania” nie miała żadnej (#372).
+     */
     public function medianPostResponseHours(User $host): ?float
     {
-        $first = $this->responses('post_id', 'posts', 'author_id')
-            ->select(DB::raw('MIN(queue_comments.created_at)'));
+        return $this->medianResponseHours($host, Post::KIND_DISH, $this->responses('post_id', 'posts', 'author_id'));
+    }
+
+    /** Mediana czasu do pierwszej głównej odpowiedzi innej osoby na pytanie (#372). */
+    public function medianQuestionResponseHours(User $host): ?float
+    {
+        return $this->medianResponseHours($host, Post::KIND_QUESTION, $this->answers());
+    }
+
+    private function medianResponseHours(User $host, string $kind, QueryBuilder $responses): ?float
+    {
+        $first = $responses->select(DB::raw('MIN(queue_comments.created_at)'));
         $posts = $this->eligiblePosts($host)
+            ->where('posts.kind', $kind)
             ->where('published_at', '>=', now()->subDays(30))
             ->select('published_at')->selectSub($first, 'first_response');
         $value = DB::query()->fromSub($posts, 'answered_posts')
@@ -125,6 +143,13 @@ final class UnansweredContent
             ->value('median');
 
         return $value === null ? null : round((float) $value, 1);
+    }
+
+    /** Odpowiedź na pytanie = widoczny komentarz najwyższego poziomu innej osoby z treścią. */
+    private function answers(): QueryBuilder
+    {
+        return $this->responses('post_id', 'posts', 'author_id')
+            ->whereNull('queue_comments.parent_id')->whereNull('queue_comments.body_removed_at');
     }
 
     private function responses(string $foreignKey, string $table, string $ownerKey): QueryBuilder
