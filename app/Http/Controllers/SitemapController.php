@@ -53,15 +53,24 @@ class SitemapController extends Controller
                     }
                 });
 
+            // Adres przez `Post::url()`, nie ręczne `posts.show` (#968):
+            // pytanie ma własną stronę `/pytania/{id}`, a `/wpisy/{id}` tylko
+            // na nią przekierowuje. Pytanie wchodzi też z samym tytułem —
+            // tytuł jest tam obowiązkowy i to on jest treścią. Dla zwykłych
+            // wpisów granica `body` zostaje: pusty wpis to zapowiedź przepisu.
             Post::query()
                 ->publiclyVisible()
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->whereNotNull('body')
-                ->select(['id', 'updated_at'])
+                ->where(function ($maTresc): void {
+                    // Tytułu nie trzeba sprawdzać: `posts_kind_title_check`
+                    // wymusza go przy każdym pytaniu.
+                    $maTresc->whereNotNull('body')->orWhere('kind', Post::KIND_QUESTION);
+                })
+                ->select(['id', 'kind', 'updated_at'])
                 ->chunkById(500, function ($posts) use (&$urls): void {
                     foreach ($posts as $post) {
                         $urls[] = [
-                            'loc' => route('posts.show', $post->getKey()),
+                            'loc' => $post->url(),
                             'lastmod' => $post->updated_at?->toAtomString(),
                             'priority' => '0.5',
                             'changefreq' => 'monthly',

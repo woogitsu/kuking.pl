@@ -99,6 +99,8 @@ Zasady ogólne Google (2026): JSON-LD to jedyny **rekomendowany** format (Google
 - `name`
 - `image` (URL lub `ImageObject`; min. 50 000 pikseli w iloczynie wymiarów; zalecane proporcje 16:9, 4:3 i 1:1 — Kuking i tak generuje warianty `960px`/`1600px`, patrz `MEDIA_PIPELINE.md`, więc technicznie to tani warunek do spełnienia).
 
+**Stan w kodzie (#1005):** zdjęcie w Kuking jest opcjonalne i przez chwilę po wgraniu nie jest `ready`. Wtedy strona przepisu **nie emituje `Recipe` wcale** (zostaje sam `BreadcrumbList`) — niepełny obiekt nie kwalifikuje się do wyniku rozszerzonego, a w Search Console daje błąd. Logo w zastępstwie odpada: obraz ma przedstawiać danie. `Recipe` pojawia się sam, gdy zdjęcie jest gotowe, pod tym samym adresem przepisu.
+
 **Zalecane** (podnoszą jakość rich result, nie są twarde do kwalifikacji): `author`, `datePublished`, `description`, `prepTime`, `cookTime`, `totalTime`, `recipeYield`, `recipeCategory`, `recipeCuisine`, `keywords`, `recipeIngredient`, `recipeInstructions`, `nutrition`, `video`, `aggregateRating`.
 
 **Ważna zmiana 2026:** Google usunął wsparcie dla zakresów czasu (np. „20–30 min”) w `prepTime`/`cookTime` — akceptowany jest tylko **jeden konkretny czas w ISO 8601** (`PT30M`). Kreator przepisu w Kuking już zbiera `prep_minutes integer` i `cook_minutes integer` jako pojedyncze liczby (nie zakresy) — to jest zgodne z wymogiem bez zmian w UI.
@@ -340,6 +342,8 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Wpis samo-zdjęcie bez tekstu | `index, follow`, ale **bez** promowania w sitemapie priorytetowej | Nie jest spamem, ale ma niską wartość tekstową dla Google — niech żyje dla ludzi (link, udostępnienie), nie forsować w crawl budgecie |
 | Profil z ≥1 publiczną treścią | `index, follow` + `ProfilePage` | Realna, zweryfikowana obecność |
 | Profil bez żadnej publicznej treści (świeże konto, samo „popatrzę”) | `noindex, follow` | Zero wartości dla wyszukującego, ryzyko cienkiej treści na skalę (tysiące pustych profili) |
+| Strona tagu z ≥1 wpisem widocznym dla wszystkich (`/tag/{slug}`) | `index, follow` | Realna treść; warunek = ten sam zakres co licznik w spisie tagów (D-087) |
+| Strona tagu bez publicznego wpisu (większość słownika z `TagSeeder`) | `noindex, follow`, link w spisie `/tagi` z `rel="nofollow"`, poza sitemapą | Strona zostaje dla ludzi (prawdziwe zero, „Dodaj wpis”), ale ~1400 prawie identycznych pustych stron to cienka treść na skalę (issue #1007). Wraca do indeksu sama po pierwszym publicznym wpisie |
 | Treść `visibility IN ('followers','private')` | `noindex, nofollow` + brak w sitemapie + wymagany auth do renderu | Nigdy nie może wyciec do crawlera |
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
@@ -441,6 +445,8 @@ Recipe::query()
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 
 ### 4.3 Co wchodzi do sitemapy
+
+**Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 
 Tylko URL-e z sekcji 3 oznaczone `index` — status HTTP 200, brak `noindex`, `visibility='public'`. Filtr identyczny z tym używanym do generowania meta robots, żeby nie rozjechały się dwa niezależne źródła prawdy (jedna metoda `RecipePolicy::isPubliclyIndexable()` używana w obu miejscach).
 
