@@ -35,6 +35,29 @@
     max-width: 220px;
   }
 
+  /* PRZEWIJANIE DO FOKUSU NA WYSOKIM ODNOŚNIKU AWATARA (#1033).
+     Awatar 170 px + przycisk w dwóch wierszach to przy oknie 320 px i
+     tekście 140% odnośnik wysoki na 277 px — wyższy niż pas między
+     `scroll-padding-top` (`--rezerwa-nad-belka`, 278 px) a
+     `scroll-padding-bottom` (246 px) przy oknie 740 px. Gdy Tab musi go
+     przewinąć, Chromium (CSSOM „nearest”) wyrównuje GÓRNĄ krawędź do
+     rezerwy, a dolny pierścień ląduje równo na górnej krawędzi dolnej
+     belki (zmierzone: dół pierścienia 558,9 px, belka ~559 px —
+     ZOOM_FOCUS_OCCLUDED). Na `main` odnośnik stał akurat tak, że Tab nic
+     nie przewijał; okruszki nad główką przesunęły go o wiersz niżej.
+     Rezerwa górna ma przy dużym tekście zapas nad realnym paskiem
+     (278 wobec 228 px), więc pozwalamy temu jednemu celowi stanąć bliżej
+     paska: ujemny `scroll-margin-top` rośnie ze skalą tekstu (0 przy
+     100%, −16 px przy 140%). Pierścień zostaje ~30 px pod paskiem i
+     ~15 px nad belką. Poza tym pasmem szerokości rezerwy są inne (niski
+     telefon: 0,5rem; od 64rem: bez belki) — tam nic nie zmieniamy. */
+  @media (min-width: 15.01rem) and (max-width: 63.99rem) and (min-height: 40.01rem),
+    (min-width: 30.01rem) and (max-width: 63.99rem) {
+    .marka-profil-kompozycja .profil-awatar-zmiana {
+      scroll-margin-top: min(0px, calc((1 - var(--user-text-scale, 1)) * 2.5rem));
+    }
+  }
+
   @container (min-width: 36rem) {
     .marka-profil-kompozycja .profil-glowka-tresc {
       grid-template-columns: 180px minmax(0, 1fr);
