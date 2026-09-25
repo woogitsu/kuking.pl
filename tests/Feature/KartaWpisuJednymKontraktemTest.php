@@ -14,6 +14,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -174,6 +175,14 @@ class KartaWpisuJednymKontraktemTest extends TestCase
 
     private function zapytania(User $widz, string $adres, string $klucz, int $karty): int
     {
+        // OBA POMIARY Z PUSTYM CACHE. Strona tagu trzyma liczby i kolaż
+        // w cache (`LiczbyTagowWCache`, `TagCollage`), a unieważnienie idzie
+        // po zapisie wpisu — zanim test doczepi mu temat. Bez tego pierwszy
+        // pomiar płacił za wypełnienie cache, a drugi czytał gotowe wartości
+        // (17 zapytań przy 2 kartach, 15 przy 8) i test mierzył cache,
+        // nie koszt karty.
+        Cache::flush();
+
         DB::flushQueryLog();
         DB::enableQueryLog();
         $odpowiedz = $this->actingAs($widz)->get($adres)->assertOk();
