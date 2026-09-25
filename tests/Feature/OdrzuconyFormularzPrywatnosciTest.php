@@ -114,7 +114,16 @@ class OdrzuconyFormularzPrywatnosciTest extends TestCase
             'wants_weekly_digest' => false,
         ]);
 
+        // #879/#882: formularz niesie też stan z chwili otwarcia. Bez niego
+        // zapis nie umie dowieść, że nie nadpisuje nowszej decyzji podjętej
+        // gdzie indziej (odnośnik „wypisz się", druga karta), więc jest
+        // odrzucany — mierzy to
+        // `StaryFormularzPrywatnosciTest::test_formularz_bez_stanu_poczatkowego…`.
+        // Tutaj sprawdzamy dalej to samo co przedtem: ZWYKŁY, aktualny zapis
+        // obu pól przechodzi, a odznaczenie nadal znaczy odznaczenie.
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => '0',
+            'original_memories' => '1',
             'wants_weekly_digest' => '1',
             // memories_enabled pominięte = odznaczenie.
         ])->assertRedirect()->assertSessionHasNoErrors();

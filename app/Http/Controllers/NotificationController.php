@@ -149,7 +149,13 @@ class NotificationController extends Controller
      */
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->notifications()->whereNull('read_at')->update(['read_at' => now()]);
+        $user = $request->user();
+
+        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969).
+        // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
+        // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
+        // choć człowiek nigdy ich nie zobaczył.
+        $user->notifications()->visibleTo($user)->whereNull('read_at')->update(['read_at' => now()]);
 
         return back()->with('status', 'Wszystkie powiadomienia oznaczone jako przeczytane.');
     }
