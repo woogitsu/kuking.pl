@@ -65,6 +65,7 @@ use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
+use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
@@ -801,6 +802,30 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
+
+    // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
+    // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
+    // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
+    Route::post('/wpisy/{post}/ukryj', [UkryciaController::class, 'ukryjWpis'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('posts.hide');
+    Route::delete('/wpisy/{post}/ukryj', [UkryciaController::class, 'cofnijWpis'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('posts.unhide');
+    Route::get('/@{username}/ukryj', [UkryciaController::class, 'ekranOsoby'])->name('social.hide.confirm');
+    Route::post('/@{username}/ukryj', [UkryciaController::class, 'ukryjOsobe'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('social.hide');
+    Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('social.unhide');
+    Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
+    Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('settings.hidden.keep');
+    Route::delete('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'przywroc'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('settings.hidden.restore');
 
     // BLOKADA MA WŁASNY KOSZYK, ODDZIELONY OD OBSERWOWANIA — świadomie.
     // To narzędzie bezpieczeństwa: sięga po nie ktoś, komu ktoś inny właśnie

@@ -50,6 +50,12 @@ final class SkrotyObserwowania
         return ! isset($zbiory['osoby'][$autor->getKey()]) && ! isset($zbiory['blokady'][$autor->getKey()]);
     }
 
+    /** Czy widz obserwuje autora — z tej samej pamięci, bez zapytania na kartę. */
+    public function obserwuje(User $widz, User $autor): bool
+    {
+        return isset($this->zbiory($widz)['osoby'][$autor->getKey()]);
+    }
+
     /**
      * Aktywne, jeszcze nieobserwowane tagi wpisu — w kolejności wpisu,
      * najwyżej dwa. Tylko z relacji już doładowanej przez feed: brak relacji

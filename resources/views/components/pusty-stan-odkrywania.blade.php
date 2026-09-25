@@ -3,7 +3,8 @@
 
     Rozróżnia dwie sytuacje, bo każda ma inne wyjście:
       * „nic nowego" — w serwisie naprawdę nic nie ma do pokazania;
-      * „część ukrywasz" — widz sam kogoś zablokował (od #1810 także ukrył),
+      * „część ukrywasz" — widz sam kogoś zablokował albo ukrył wpis lub osobę
+        (#1810; lista „Ukryte" prowadzi dalej do zablokowanych),
         więc pusta lista może być skutkiem JEGO decyzji. Wtedy prowadzimy
         do listy, na której może to cofnąć (AGENTS.md §8: jawne polecenie
         widza zawsze z listą do cofnięcia).
@@ -24,7 +25,7 @@
     @if($ileUkrywasz > 0)
         <p class="empty-state-title">Nic więcej do pokazania</p>
         <p class="empty-state-opis">
-            Część osób ukrywasz, więc ich wpisów tu nie widać. To widzisz tylko Ty.
+            Część wpisów albo osób ukrywasz, więc tu ich nie widać. To widzisz tylko Ty.
             Możesz to zmienić na liście ukrytych osób.
         </p>
     @else
@@ -40,7 +41,7 @@
             <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto i pokaż swoje</a>
         @endauth
         @if($ileUkrywasz > 0)
-            <a class="btn btn-secondary" href="{{ route('settings.privacy') }}#zablokowane">Zobacz, kogo ukrywasz</a>
+            <a class="btn btn-secondary" href="{{ route('settings.hidden') }}">Zobacz, co ukrywasz</a>
         @endif
         <a class="btn btn-secondary" href="#kuking-na-dzis">Przejdź do tablicy na dziś</a>
     </div>

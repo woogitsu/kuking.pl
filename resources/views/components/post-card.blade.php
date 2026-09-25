@@ -19,7 +19,22 @@
     droga do funkcji (AGENTS.md §5).
 --}}
 @props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
-@php $author = $post->author; @endphp
+@php
+    $author = $post->author;
+    // ZWINIĘTA KARTA (issue #1810, D-278). Wpis, który widz ukrył sobie,
+    // znika ze strumieni (Start, Odkrywanie, tablica, list) już w zapytaniu.
+    // Tam, gdzie człowiek przyszedł sam — profil, wyszukiwarka, link — karta
+    // zwija się do jednego zdania z „Pokaż". `?pokaz=1` na stronie TEGO
+    // wpisu rozwija go na chwilę; ukrycie zostaje.
+    $ukrytyDlaWidza = app(\App\Domain\Ukrycia\Ukrycia::class)->wpisUkryty(auth()->user(), $post)
+        && ! (request()->routeIs('posts.show') && request()->query('pokaz') === '1');
+@endphp
+@if($ukrytyDlaWidza)
+<article class="card post-card post-card-ukryty" data-wpis-ukryty>
+    <p class="m-0">Ten wpis ukrywasz tylko dla siebie.
+        <a href="{{ route('posts.show', $post) }}?pokaz=1">Pokaż</a></p>
+</article>
+@else
 <article class="card post-card">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
@@ -250,6 +265,27 @@
                                 <button type="submit" data-skrot-obserwuj="tag">Obserwuj tag: {{ $tagDoObserwowania->name }}</button>
                             </form>
                         @endforeach
+                        {{-- UKRYJ (issue #1810, D-278) — nad „Zgłoś". Ukrycie jest
+                             tylko dla widza; komunikat po akcji mówi to wprost.
+                             Osobę ukrywa się przez ekran wyboru (GET), wpis od
+                             razu — z „Cofnij" pod komunikatem. Kogoś, kogo się
+                             obserwuje, się nie ukrywa: wtedy stoi „Przestań
+                             obserwować". --}}
+                        <form method="POST" action="{{ route('posts.hide', $post) }}">
+                            @csrf
+                            <button type="submit" data-menu-akcja="ukryj-wpis">Ukryj ten wpis</button>
+                        </form>
+                        @if($widzKarty->getKey() !== $author->getKey())
+                            @if($skroty->obserwuje($widzKarty, $author))
+                                <form method="POST" action="{{ route('social.unfollow', $author->profile->username) }}">
+                                    @csrf @method('DELETE')
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $author->getKey() }}">
+                                    <button type="submit" data-menu-akcja="przestan-obserwowac">Przestań obserwować</button>
+                                </form>
+                            @else
+                                <a href="{{ route('social.hide.confirm', $author->profile->username) }}">Ukryj tę osobę</a>
+                            @endif
+                        @endif
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
                     @endcan
                 </div>
@@ -640,3 +676,4 @@
              Pasek akcji ma nieść to, po co człowiek tu przyszedł. --}}
     </div>
 </article>
+@endif

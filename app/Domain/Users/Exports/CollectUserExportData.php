@@ -11,9 +11,11 @@ use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Hide;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -166,6 +168,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'ukryte' => $this->hides($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -698,6 +701,32 @@ final class CollectUserExportData
                 'nazwa' => $tag->name,
                 'slug' => $tag->slug,
                 'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatne ukrycia (#1810, D-278) — co, czyje i do kiedy. Także wygasłe:
+     * to wciąż dane o decyzjach tej osoby. Wpis opisany początkiem treści
+     * i adresem, osoba — nazwą; bez treści cudzych wpisów w całości.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hides(User $user): array
+    {
+        return Hide::query()
+            ->where('user_id', $user->getKey())
+            ->with(['post:id,body', 'hiddenUser.profile'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (Hide $ukrycie): array => [
+                'co' => $ukrycie->post_id !== null ? 'wpis' : 'osoba',
+                'wpis' => $ukrycie->post === null ? null : [
+                    'adres' => route('posts.show', $ukrycie->post_id),
+                    'poczatek' => Str::limit(trim((string) $ukrycie->post->body), 80),
+                ],
+                'osoba' => $ukrycie->hiddenUser?->profile?->username,
+                'ukryte_od' => $this->date($ukrycie->created_at),
+                'ukryte_do' => $ukrycie->hidden_until === null ? 'na stałe' : $this->date($ukrycie->hidden_until),
             ])->all();
     }
 

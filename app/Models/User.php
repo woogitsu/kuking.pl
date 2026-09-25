@@ -714,6 +714,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Bez osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810, D-278)
+     * — dla propozycji osób i automatycznej części tablicy. Gość nic nie ukrywa.
+     *
+     * @param  Builder<User>  $query
+     */
+    public function scopeBezUkrytychPrzez(Builder $query, ?self $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.hidden_user_id', 'users.id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
      * Czy między tymi dwiema osobami istnieje blokada — w KTÓRĄKOLWIEK stronę.
      *
      * Blokada jest zawsze obustronna w skutkach: jeśli A zablokował B, to ani

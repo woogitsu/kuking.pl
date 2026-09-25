@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -200,11 +201,14 @@ final class DiscoverFeed
      */
     private function bezUkrytychPrzez($query, User $viewer): void
     {
-        $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer));
+        $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer))
+            // Prywatne ukrycia (#1810, D-278): wpis i osoba.
+            ->bezUkrytychWpisow($viewer)
+            ->bezUkrytychOsob($viewer);
     }
 
     /**
-     * Ile osób widz sam ukrywa (dziś: blokuje). Pusty stan Odkrywania mówi
+     * Ile rzeczy widz sam ukrywa: blokady i aktywne ukrycia wpisów i osób (#1810). Pusty stan Odkrywania mówi
      * wtedy „część ukrywasz" i prowadzi do listy, na której da się to cofnąć
      * (AGENTS.md §8: jawne polecenie widza zawsze z listą do cofnięcia).
      *
@@ -213,7 +217,7 @@ final class DiscoverFeed
      */
     public function ileUkrywa(User $viewer): int
     {
-        return $viewer->blocking()->count();
+        return $viewer->blocking()->count() + Hide::query()->aktywne()->where('user_id', $viewer->getKey())->count();
     }
 
     /** @return list<string> */
