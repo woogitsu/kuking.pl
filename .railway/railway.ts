@@ -720,7 +720,7 @@ export default defineRailway((ctx) => {
     KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",
   };
 
-  //  --- Odczyt bucketu kopii bazy: TYLKO scheduler --------------------------
+  //  --- Odczyt kopii bazy i zdjęć: TYLKO scheduler ------------------------
   //  Jedynym konsumentem jest `kuking:sprawdz-kopie` (`StanKopiiBazy`),
   //  uruchamiane z harmonogramu. Ani trasa HTTP, ani job tego nie czytają.
   //
@@ -733,13 +733,50 @@ export default defineRailway((ctx) => {
   //  zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie to,
   //  przed czym ta warstwa ma chronić. Kopia, którą da się zniszczyć
   //  z zaatakowanego serwisu, nie jest kopią offsite.
+  //
+  //  KOPIA ZDJĘĆ (#1497, D-257) — ta sama zasada, osobny bucket i osobny
+  //  token: `kuking-zdjecia-kopia` czyta wyłącznie `kuking:sprawdz-kopie-zdjec`
+  //  (dysk `r2_kopia_zdjec`), token ma prawo TYLKO do odczytu tego bucketu.
+  //  Komendy nie ma w harmonogramie — właściciel uruchamia ją ręcznie po
+  //  migawce (`railway ssh`, docs/infra/DR_ZDJEC_R2.md §6). Dostaje ją
+  //  scheduler, nie web: proces bez ruchu z internetu, ten sam, który już
+  //  trzyma odczyt kopii bazy. Dziś (rola `all`) i tak ląduje w `kuking.pl`.
+  //  Bez tych trzech linii zmienne ustawione w panelu nie dochodzą do
+  //  procesu po rozdzieleniu usług, a komenda odmawia (#1014).
   const kopieOdczytEnv = {
     AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
     AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
     AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
+    AWS_ZDJECIA_KOPIA_BUCKET: ctx.shared.R2_ZDJECIA_KOPIA_BUCKET,
+    AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID: ctx.shared.R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID,
+    AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY: ctx.shared.R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY,
   };
 
-  const webEnv = { ...appEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  //  --- Puls harmonogramu: TYLKO scheduler (#599, #1659) --------------------
+  //  `kuking:puls-harmonogramu` co 5 minut daje znak życia zewnętrznemu
+  //  monitorowi. Chodzi WYŁĄCZNIE z harmonogramu, więc adres dostaje tylko
+  //  scheduler. Adres zawiera token monitora — kto go zna, „karmi" monitor
+  //  i zagłusza prawdziwą awarię — więc żyje w Shared Variables („Sealed"),
+  //  nie w tym pliku. PUSTE = puls wyłączony bez błędu
+  //  (docs/infra/MONITORING_599_KROKI.md, B3).
+  const pulsHarmonogramuEnv = {
+    KUKING_PULS_HARMONOGRAMU_URL: ctx.shared.KUKING_PULS_HARMONOGRAMU_URL,
+  };
+
+  //  --- Konto gospodarza: web + scheduler (#1089, #1375) --------------------
+  //  `HostUserResolver` czyta UUID gospodarza w web (`ZalozKonto` —
+  //  auto-obserwowanie przy rejestracji, także przez Google i Facebooka;
+  //  `PublishPost` — alert pierwszego wpisu) i w schedulerze
+  //  (`kuking:policz-kukingow` → `LiczbaKukingow` → `CookEligibility`,
+  //  wykluczenie gospodarza z metryk). Worker go nie czyta.
+  //  To nie sekret, ale wartość jest RÓŻNA w każdym środowisku (UUID konta
+  //  w jego własnej bazie), więc idzie przez `ctx.shared`, nie jako stała.
+  //  PUSTE = przejściowy fallback po `KUKING_HOST_USERNAME` (docs/DEPLOYMENT.md).
+  const gospodarzEnv = {
+    KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
@@ -747,7 +784,7 @@ export default defineRailway((ctx) => {
     ...modelEnv,
     ...alarmModeratoraEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
