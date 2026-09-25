@@ -80,9 +80,11 @@ use Throwable;
  * dosyłaniu, bo `PilnyAlarmModeracyjny` niesie znacznik „miejsce już
  * zarezerwowane" i list bez rezerwacji wypadłby z rachunku puli. Po
  * wyczerpaniu sufitu stan na wierszu ZOSTAJE bez znacznika (`zalegly` albo
- * poprzedni), więc sprawa czeka w panelu, sonda `/health` nadal ją widzi,
- * a `kuking:doslij-pilne-alarmy` wyśle list, gdy sufit się odnowi. Dziennik
- * mówi, dlaczego bez listu.
+ * poprzedni), więc sprawa czeka w panelu, sonda `/health` widzi ją przez
+ * `alarm_sonda_godzin` (72 h), a `kuking:doslij-pilne-alarmy` wyśle list,
+ * gdy sufit się odnowi — najstarsze pierwsze, więc przy stałym zalewie
+ * najmłodsza sprawa może wypaść z okna sondy wciąż bez listu; w panelu
+ * zostaje. Dziennik mówi, dlaczego bez listu.
  */
 final class AlarmujModeratora
 {

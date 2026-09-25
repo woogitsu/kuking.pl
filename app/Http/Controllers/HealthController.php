@@ -512,7 +512,7 @@ class HealthController extends Controller
             'Pilnych spraw moderacyjnych bez alarmu: '.$bezAlarmu.'. '
             .($wylaczony
                 ? 'KUKING_MODEL_ALARM_EMAIL jest pusty — po wpisaniu adresu kuking:doslij-pilne-alarmy dośle je w ciągu godziny. '
-                : 'kuking:doslij-pilne-alarmy ponawia co godzinę. ')
+                : 'kuking:doslij-pilne-alarmy ponawia co godzinę. Jeśli dziennik mówi o dobowym suficie alarmów (KUKING_MODEL_ALARM_SUFIT), sprawy czekają na jego odnowienie — to nie awaria poczty. ')
             .'Obejrzyj w panelu: /admin/sygnaly',
         );
     }

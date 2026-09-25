@@ -16,7 +16,9 @@ use Illuminate\Contracts\Notifications\Dispatcher as DyspozytorPowiadomien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -221,6 +223,33 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $this->assertNull($czeka->alarm_pilny_zlecony_at);
         $this->assertSame(AlarmujModeratora::SUFIT, app(AlarmujModeratora::class)->doslij($czeka));
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+    }
+
+    /**
+     * Po pierwszej odmowie sufitu przebieg kończy partię: reszta spraw
+     * czeka bez kolejnych prób i bez ostrzeżenia w dzienniku przy każdej
+     * z nich. Wynik liczy je jako czekające na sufit, a stan zostaje
+     * „do dosłania” dla następnego przebiegu.
+     */
+    public function test_po_wyczerpaniu_sufitu_przebieg_nie_probuje_reszty_partii(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_dzienny_sufit' => 1]);
+        foreach (['partia_a', 'partia_b', 'partia_c', 'partia_d'] as $login) {
+            $this->sprawa($login);
+        }
+
+        Log::spy();
+
+        $this->artisan('kuking:doslij-pilne-alarmy')
+            ->expectsOutputToContain('Czekają na dobowy sufit alarmów (audyt B8-02): 3.')
+            ->assertSuccessful();
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(3, Report::query()->pilneDoDoslania()->count());
+        Log::shouldHaveReceived('warning')
+            ->with(Mockery::pattern('/dobowy sufit alarmów/'), Mockery::any())
+            ->once();
     }
 
     /**

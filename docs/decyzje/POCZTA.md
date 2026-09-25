@@ -230,8 +230,10 @@ wejścia kontem Facebooka) ani alarmu automatu o pilnym oznaczeniu. Teraz:
   osobny od sufitu alarmu o zgłoszeniu człowieka. Ten sam sufit obejmuje
   dosyłanie zaległych alarmów (`kuking:doslij-pilne-alarmy`, #1051). Po
   wyczerpaniu oznaczenie czeka w `/admin/sygnaly`, stan alarmu na sprawie
-  zostaje „nie dotarł" (sonda `/health` go widzi, komenda dośle list, gdy
-  sufit się odnowi), a dziennik mówi, dlaczego bez listu.
+  zostaje „nie dotarł" (sonda `/health` go widzi w oknie
+  `alarm_sonda_godzin`, 72 h; komenda dośle list, gdy sufit się odnowi —
+  przy pierwszej odmowie sufitu kończy przebieg, bez prób dla reszty
+  partii), a dziennik mówi, dlaczego bez listu.
 
 Ponowienie zadania po błędzie transportu liczy się przy liście bez rezerwacji
 tyle razy, ile razy list poszedł do transportu — tak samo liczy dostawca.

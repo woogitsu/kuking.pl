@@ -62,9 +62,19 @@ class DoslijPilneAlarmy extends Command
 
         $wyniki = [Report::ALARM_ZLECONY => 0, Report::ALARM_NIEUDANY => 0, AlarmujModeratora::JUZ_ZLECONY => 0, AlarmujModeratora::SUFIT => 0];
 
-        foreach ($sprawy as $sprawa) {
+        foreach ($sprawy->values() as $i => $sprawa) {
             $wynik = $alarm->doslij($sprawa);
             $wyniki[$wynik] = ($wyniki[$wynik] ?? 0) + 1;
+
+            // Wyczerpany sufit nie odnowi się w trakcie przebiegu. Reszta
+            // partii czeka tak samo — bez kolejnych prób i bez osobnego
+            // ostrzeżenia w dzienniku przy każdej z nich (do 50 na godzinę).
+            // Stan tych spraw się nie zmienia, więc następny przebieg je weźmie.
+            if ($wynik === AlarmujModeratora::SUFIT) {
+                $wyniki[AlarmujModeratora::SUFIT] += $sprawy->count() - $i - 1;
+
+                break;
+            }
         }
 
         $this->info(sprintf(
