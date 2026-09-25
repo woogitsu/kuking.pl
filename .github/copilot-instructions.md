@@ -14,3 +14,4 @@ Ten plik to skrót; przy jakiejkolwiek rozbieżności obowiązuje `AGENTS.md`.
 - Nie proponuj infinite scrolla — paginacja to przycisk „Pokaż więcej”.
 - Ikony i widoczne podpisy: stosuj AGENTS.md, w tym jawny wyjątek menu trzech kropek na karcie wpisu.
 - Nie proponuj SQLite w testach — schemat wymaga PostgreSQL.
+- Przed PR-em: `./scripts/check.sh` — sam `pint` i `artisan test` pomijają składnię, migracje i assety.
