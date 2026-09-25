@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Paczka z danymi pokazuje cudze rzeczy tylko wtedy, gdy widać je też w serwisie. Na listach obserwowanych i obserwujących nie ma kont zablokowanych przez moderację ani zamykanych — paczka podaje tylko, ile ich jest. Przy Waszych komentarzach i „Ugotowałem” nie ma już fragmentu ani tytułu wpisu czy przepisu, którego autor przestał Wam go pokazywać — stoi tam „treść niedostępna”, a Wasz komentarz i notatka zostają. Komentarze innych pod Waszą treścią przechodzą przez tę samą granicę co na ekranie (#1245).
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
