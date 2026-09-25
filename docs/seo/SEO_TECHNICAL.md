@@ -101,6 +101,8 @@ Zasady ogólne Google (2026): JSON-LD to jedyny **rekomendowany** format (Google
 
 **Stan w kodzie (#1005):** zdjęcie w Kuking jest opcjonalne i przez chwilę po wgraniu nie jest `ready`. Wtedy strona przepisu **nie emituje `Recipe` wcale** (zostaje sam `BreadcrumbList`) — niepełny obiekt nie kwalifikuje się do wyniku rozszerzonego, a w Search Console daje błąd. Logo w zastępstwie odpada: obraz ma przedstawiać danie. `Recipe` pojawia się sam, gdy zdjęcie jest gotowe, pod tym samym adresem przepisu.
 
+**Zdjęcia kroków (#1370):** `HowToStep.image` dostaje bezwzględny adres przetworzonego wariantu `feed` zdjęcia kroku — tylko gdy strona je pokazuje (`Media::maWariantDoPokazania('feed')`, ten sam warunek co `<x-photo>` w liście kroków). Krok bez zdjęcia albo ze zdjęciem jeszcze nieprzygotowanym ma sam `text`. Bez sztucznego `name` z numeru kroku.
+
 **Zalecane** (podnoszą jakość rich result, nie są twarde do kwalifikacji): `author`, `datePublished`, `description`, `prepTime`, `cookTime`, `totalTime`, `recipeYield`, `recipeCategory`, `recipeCuisine`, `keywords`, `recipeIngredient`, `recipeInstructions`, `nutrition`, `video`, `aggregateRating`.
 
 **Ważna zmiana 2026:** Google usunął wsparcie dla zakresów czasu (np. „20–30 min”) w `prepTime`/`cookTime` — akceptowany jest tylko **jeden konkretny czas w ISO 8601** (`PT30M`). Kreator przepisu w Kuking już zbiera `prep_minutes integer` i `cook_minutes integer` jako pojedyncze liczby (nie zakresy) — to jest zgodne z wymogiem bez zmian w UI.
@@ -296,6 +298,8 @@ Zalecany na **każdej** publicznej stronie treści (przepis, post, profil) — G
 
 Uwaga: ostatni element (bieżąca strona) może pominąć `item` — to zgodne z oficjalnym przykładem Google. Dla profilu: `Kuking → @basia_kowalska`. Dla posta: `Kuking → @basia_kowalska → [pierwsze słowa wpisu]`.
 
+**Stan w kodzie (#1033):** ścieżki budują się w `App\Support\Okruszki` i ta sama lista idzie do widocznych okruszków (`x-okruszki`) i do `BreadcrumbList` — tekst i dane nie mają jak się rozjechać. Profil: `Kuking → @nazwa`. Wpis: `Kuking → @autor → pierwsze słowa wpisu` (wpis samym zdjęciem: „Wpis z 3 września 2026” — bez UUID i bez zgadywania dania). Pytanie: `Kuking → Poradźcie → tytuł`. Przepis zostaje przy `Kuking → Świeżo z Kuking → tytuł` do rozstrzygnięcia #667. Treść niepubliczna i szkice nie emitują `BreadcrumbList`; profil — tylko gdy emituje `ProfilePage` (≥1 publiczna treść).
+
 ### 2.4 WebSite / Organization
 
 ```json
@@ -322,6 +326,8 @@ Uwaga: ostatni element (bieżąca strona) może pominąć `item` — to zgodne z
   }
 }
 ```
+
+**Stan w kodzie (#1008):** strona główna (`pages/landing.blade.php`, tylko dla gościa) emituje jeden `WebSite` z `name`, kanonicznym `url` (ten sam co `<link rel="canonical">`) i `inLanguage`. Podstrony go nie powielają. `publisher`/`Organization`, logo i `sameAs` z przykładu wyżej świadomie pominięte, dopóki adresy i logo nie są potwierdzone; `alternateName` — bo innej nazwy nie używamy.
 
 Wstaw raz, globalnie, np. w layoucie strony głównej. **`SearchAction`/„sitelinks search box” pomiń świadomie** — Google wycofał tę funkcję z wyników wyszukiwania w listopadzie 2024 r.; stare znaczniki nie szkodzą, ale dodawanie nowych nie daje dziś żadnego efektu wizualnego w SERP (może mieć znaczenie w przyszłości dla agentic search, ale to nie jest dziś priorytet MVP) `[do weryfikacji: status SearchAction w kontekście AI Mode/agentic search może się zmienić]`.
 
@@ -592,8 +598,9 @@ Konkretne wektory ryzyka dla Kuking i mitygacje:
 **Structured data:**
 - [ ] JSON-LD `Recipe` na `/przepisy/{slug}` z mapowaniem z sekcji 2.1 (bez `aggregateRating`)
 - [ ] JSON-LD `ProfilePage`+`Person` na `/@username` (tylko gdy profil ma ≥1 publiczną treść)
-- [ ] JSON-LD `BreadcrumbList` na wszystkich stronach treści
-- [ ] JSON-LD `WebSite`+`Organization` globalnie w layoucie
+- [x] JSON-LD `BreadcrumbList` na wszystkich stronach treści — przepis, wpis, pytanie, profil (#1033); widoczne okruszki z tej samej listy (`App\Support\Okruszki`). Etykieta drugiego poziomu przepisu czeka na #667
+- [x] JSON-LD `WebSite` na stronie głównej, raz, bez `SearchAction` (#1008)
+- [ ] JSON-LD `Organization` (`publisher`, logo, `sameAs`) — dopiero po potwierdzeniu prawdziwego logo i profili
 - [ ] Test JSON-LD w CI: `json_decode(..., JSON_THROW_ON_ERROR)` na każdym renderze
 - [ ] Ręczna walidacja w Google Rich Results Test przed każdym launchem większej zmiany schematu
 
