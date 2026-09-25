@@ -114,12 +114,26 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+# Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
+# zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
+# wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
+REGULY_CF = "docs/infra/cloudflare-cache-rules-597-610.json"
+REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_cache"
+REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
 # Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
 # mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 BRAMKA_CI = ".github/workflows/ci.yml"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
+# Ciężkie joby wąskiego obszaru zawężane TYLKO na PR-ach (decyzja 24.09.2026).
+# Strażnicy pytają prawdziwy skrypt bramki z `ci.yml`; mutacje dowodzą, że
+# zapalają się w obie strony: gdy job wypada przy zmianie własnego wejścia,
+# gdy zawężenie przecieka poza PR i gdy wzorzec przestaje cokolwiek zawężać.
+BRAMKA_WEJSCIA_TEST = "test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta"
+BRAMKA_POZA_PR_TEST = "test_poza_pull_requestem_kazdy_job_rusza_przy_zmianie_kodu"
+BRAMKA_OBOK_TEST = "test_na_pull_requescie_zmiana_obok_pomija_ciezkie_joby"
+WIDOK_POZA_PR_TEST = "test_poza_pull_requestem_filtr_widoku_nie_zaweza"
 # `\R` bez `u` tnie „ą" (C4 85) na pół (#1276). Strażnik czyta tokeny PHP
 # w `tests/`, `scripts/` i `app/`; mutacja przywraca stary podział w skanerze
 # poświadczeń — tym miejscu, gdzie strzępy wierszy kosztowały najwięcej.
@@ -197,6 +211,12 @@ ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
+# Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
+# kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
+KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
+ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
 # Tryb ścisły Eloquent poza produkcją (#976). Mutacja usuwa samo włączenie
 # z `AppServiceProvider` — test kontraktu ma zapalić, że ochron nie ma.
@@ -419,6 +439,55 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+def dockerfile_poza_wzorcem_obrazu(source):
+    """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
+
+    Build obrazu byłby pomijany na PR-ze zmieniającym sam Dockerfile, a ten
+    plik strażnik czyta z `ci.yml` jako wejście joba — ma zapalić.
+    """
+    return replace_once(source, "ciezki obraz '^(Dockerfile$|", "ciezki obraz '^(")
+
+
+def grupa_wyscigow_poza_wzorcem(source):
+    """KONTROLA DODATNIA: `tests/Dwa/` wypada ze wzorca `wyscigi`.
+
+    Pliki grupy strażnik zbiera z dysku (atrybut `#[Group(...)]` grupy
+    wołanej przez `--group=` w skrypcie joba) — ma zapalić.
+    """
+    return replace_once(source, "tests/(Dwa/|Support/|", "tests/(Support/|")
+
+
+def zawezanie_takze_poza_pr(source):
+    """KONTROLA DODATNIA: ciężkie joby zawężane także na `main`.
+
+    Bez warunku na zdarzenie push na `main` pomijałby build obrazu, przyrząd
+    #605 i wyścigi przy zmianie obok ich obszaru — wbrew decyzji właściciela.
+    """
+    return replace_once(
+        source,
+        'if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+        'if grep -Eq "$2" <<< "${ZMIENIONE}"; then',
+    )
+
+
+def wzorzec_przyrzadu_lapie_wszystko(source):
+    """KONTROLA UJEMNA ZAWĘŻENIA: wzorzec `obciazenie` pasuje do każdej ścieżki.
+
+    Kontrole „job rusza" przeszłyby wtedy śpiewająco, a oszczędności nie ma.
+    Strażnik zmiany obok ma zapalić.
+    """
+    return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
+
+
+def widok_zawezany_poza_pr(source):
+    """KONTROLA DODATNIA: filtr widoku zawęża także na `main`."""
+    return replace_once(
+        source,
+        """if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '""",
+        """if grep -qE '""",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -445,6 +514,16 @@ checks = [
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     dockerfile_poza_wzorcem_obrazu),
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+     grupa_wyscigow_poza_wzorcem),
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_CI, BRAMKA_POZA_PR_TEST,
+     zawezanie_takze_poza_pr),
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_CI, BRAMKA_OBOK_TEST,
+     wzorzec_przyrzadu_lapie_wszystko),
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_CI, WIDOK_POZA_PR_TEST,
+     widok_zawezany_poza_pr),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
@@ -473,6 +552,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
+     lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
      lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
     ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
@@ -481,6 +562,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
      lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing'));\n", "")),
+    ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
+     lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -493,6 +576,10 @@ run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
 run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
+run_test(BRAMKA_WEJSCIA_TEST, True)
+run_test(BRAMKA_POZA_PR_TEST, True)
+run_test(BRAMKA_OBOK_TEST, True)
+run_test(WIDOK_POZA_PR_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
@@ -503,8 +590,10 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(TRYB_SCISLY_TEST, True)
+run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
