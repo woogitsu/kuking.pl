@@ -30,7 +30,7 @@ i testów rzeczywistych skutków każdej dopuszczonej trasy.
 | Odhaczenie i cofnięcie odhaczenia | Dostępne, sesja bieżącej przeglądarki |
 | Reset postępu | Dostępny po potwierdzeniu; tylko oznaczenia bieżącego przepisu |
 | Publikacja wpisu, przepisu, „Ugotowałem” | Blokada bez zmian |
-| Zmiana hasła, wylogowanie innych urządzeń, włączenie, wyłączenie i nowe kody 2FA | Dostępne (D-259, audyt B2-04) |
+| Zmiana hasła, wylogowanie innych urządzeń, włączenie, wyłączenie i nowe kody 2FA | Dostępne (D-264, audyt B2-04) |
 
 Lista wyjątków `EnsureAccountIsActive` zawiera dokładne nazwy tras,
 nie wzorzec `collections.*` ani wyjątek dla wszystkich POST-ów.

@@ -84,7 +84,7 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
-        // D-259 (audyt B2-04): bezpieczeństwo własnego konta. Konto
+        // D-264 (audyt B2-04): bezpieczeństwo własnego konta. Konto
         // przejęte przez spamera bywa zawieszane właśnie za to, co robił
         // napastnik. Właściciel, który odzyska dostęp, musi móc zmienić
         // hasło, wylogować inne urządzenia (napastnik zostaje w sesji)
@@ -132,7 +132,7 @@ class EnsureAccountIsActive
             // co napisał.
             //
             // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa był
-            // wtedy podczas zawieszenia do odczytu (od D-259 już nie jest).
+            // wtedy podczas zawieszenia do odczytu (od D-264 już nie jest).
             // Osoba zawieszona, która wysłała
             // formularz zmiany hasła, wkładała w ten sposób `password`
             // i `current_password` do sesji, skąd `old()` wstawiało je

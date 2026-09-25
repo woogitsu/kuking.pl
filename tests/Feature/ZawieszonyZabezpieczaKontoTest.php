@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 /**
  * Zawieszone konto da się zabezpieczyć: hasło, inne urządzenia, 2FA
- * (audyt B2-04, D-259).
+ * (audyt B2-04, D-264).
  *
  * CO SIĘ DZIAŁO
  * Konto przejęte przez spamera zostaje zawieszone za to, co robił napastnik.

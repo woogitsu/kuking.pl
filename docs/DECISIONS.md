@@ -16849,7 +16849,7 @@ do wspólnego tokenu, który musi mieć dostęp do każdego z nich.
 
 ---
 
-## D-259 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
+## D-264 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2
 (bezpieczeństwo konta) · Status: **obowiązuje** · Uzupełnia D-253
