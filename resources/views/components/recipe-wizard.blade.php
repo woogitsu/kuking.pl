@@ -10,6 +10,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
+use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -691,43 +692,17 @@ new class extends Component
 
     private function validateRows(bool $changeStep = true): bool
     {
-        $this->resetErrorBag(['ingredients.*.text', 'ingredients.*.group_name', 'ingredients.*.note', 'steps.*.instruction', 'steps.*.timer_minutes']);
-        $badIngredient = false;
-        $badStep = false;
+        // Granice, komunikaty i normalizacja wierszy mają jedno nazwane
+        // źródło: `WierszePrzepisu` (issue #1387, krok 2). Tu zostaje
+        // orkiestracja: worek błędów i wybór kroku do pokazania.
+        $this->resetErrorBag(WierszePrzepisu::KLUCZE_BLEDOW);
+        $bledySkladnikow = WierszePrzepisu::bledySkladnikow($this->ingredients);
+        $bledyKrokow = WierszePrzepisu::bledyKrokow($this->steps);
+        $badIngredient = $bledySkladnikow !== [];
+        $badStep = $bledyKrokow !== [];
 
-        foreach ($this->ingredients as $index => $row) {
-            if (mb_strlen(trim((string) ($row['text'] ?? ''))) > 240) {
-                $this->addError("ingredients.{$index}.text", 'Ten składnik jest za długi. Zostaw najwyżej 240 znaków albo rozbij go na dwa wiersze.');
-                $badIngredient = true;
-            }
-
-            if (mb_strlen(trim((string) ($row['group_name'] ?? ''))) > 120) {
-                $this->addError("ingredients.{$index}.group_name", 'Nazwa grupy jest za długa. Zostaw najwyżej 120 znaków, na przykład „Ciasto”.');
-                $badIngredient = true;
-            }
-
-            if (mb_strlen(trim((string) ($row['note'] ?? ''))) > 300) {
-                $this->addError("ingredients.{$index}.note", 'Ta uwaga jest za długa. Zostaw najwyżej 300 znaków.');
-                $badIngredient = true;
-            }
-        }
-
-        foreach ($this->steps as $index => $row) {
-            if (mb_strlen(trim((string) ($row['instruction'] ?? ''))) > 4000) {
-                $this->addError("steps.{$index}.instruction", 'Ten krok jest za długi. Zostaw najwyżej 4000 znaków albo podziel go na dwa kroki.');
-                $badStep = true;
-            }
-
-            // Minutnik sprawdzamy TĄ SAMĄ bramką, która go potem przelicza
-            // (`StepTimer`), a nie osobnym zestawem reguł obok. Inaczej
-            // kreator przyjmowałby wartość, którą akcja domenowa i tak
-            // odrzuci — i odrzuci ją nad całym formularzem, a nie przy polu.
-            try {
-                StepTimer::secondsFromMinutes($row['timer_minutes'] ?? null);
-            } catch (BladDlaCzlowieka $e) {
-                $this->addError("steps.{$index}.timer_minutes", $e->getMessage());
-                $badStep = true;
-            }
+        foreach ([...$bledySkladnikow, ...$bledyKrokow] as $klucz => $komunikat) {
+            $this->addError($klucz, $komunikat);
         }
 
         if ($changeStep && $badIngredient) {
@@ -746,65 +721,22 @@ new class extends Component
     /**
      * Puste wiersze są pomijane — pusty składnik nigdy nie trafia do bazy.
      *
-     * @return list<array{text: string, group_name: ?string, note: ?string}>
+     * @return list<array{text: string, group_name: ?string, note: ?string, no_amount: bool}>
      */
     public function cleanIngredients(): array
     {
-        $clean = [];
-
-        foreach ($this->ingredients as $row) {
-            $text = trim((string) ($row['text'] ?? ''));
-
-            if ($text === '') {
-                continue;
-            }
-
-            $clean[] = [
-                'text' => mb_substr($text, 0, 240),
-                'group_name' => $this->clampOrNull($row['group_name'] ?? null, 120),
-                'note' => $this->clampOrNull($row['note'] ?? null, 300),
-                // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
-                'no_amount' => (bool) ($row['no_amount'] ?? false),
-            ];
-        }
-
-        return $clean;
+        return WierszePrzepisu::skladniki($this->ingredients);
     }
 
     /**
+     * `id` zawsze null — zdjęcie kroku niesie `mediaId` w wierszu
+     * (uzasadnienie w `WierszePrzepisu::kroki()`).
+     *
      * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string}>
      */
     public function cleanSteps(): array
     {
-        $clean = [];
-
-        foreach ($this->steps as $row) {
-            $instruction = trim((string) ($row['instruction'] ?? ''));
-
-            if ($instruction === '') {
-                continue;
-            }
-
-            $clean[] = [
-                // `id` ZAWSZE null, i to jest świadome.
-                //
-                // Formularz bez JavaScriptu musi odesłać identyfikator kroku,
-                // bo zdjęcia nie umie przysłać drugi raz. Kreator zdjęcie
-                // NIESIE — `mediaId` siedzi w wierszu i przeżywa każde
-                // przestawienie kolejności, bo `swapRows()` przenosi cały
-                // wiersz. Podanie tu `id` dodałoby DRUGĄ drogę do tego samego
-                // zdjęcia, a przy pierwszym rozjeździe między nimi wygrywałaby
-                // ta, o której nikt nie pamięta.
-                'id' => null,
-                'instruction' => mb_substr($instruction, 0, 4000),
-                'timer_minutes' => (string) ($row['timer_minutes'] ?? ''),
-                // Brak `mediaId` znaczy tu „bez zdjęcia" wprost: nie ma `id`,
-                // z którego dałoby się cokolwiek odziedziczyć.
-                'media_id' => $row['mediaId'] ?? null,
-            ];
-        }
-
-        return $clean;
+        return WierszePrzepisu::kroki($this->steps);
     }
 
     /**
@@ -972,13 +904,6 @@ new class extends Component
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
-    }
-
-    private function clampOrNull(mixed $value, int $length): ?string
-    {
-        $trimmed = trim((string) $value);
-
-        return $trimmed === '' ? null : mb_substr($trimmed, 0, $length);
     }
 
     private function numberOrNull(string $value): ?float
