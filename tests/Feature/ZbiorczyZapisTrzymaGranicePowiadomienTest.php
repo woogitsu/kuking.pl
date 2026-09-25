@@ -6,10 +6,12 @@ namespace Tests\Feature;
 
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Social\Actions\BlockUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -45,14 +47,14 @@ class ZbiorczyZapisTrzymaGranicePowiadomienTest extends TestCase
         // (Każda osoba zapisuje RAZ: drugi zeszyt tej samej osoby wraca
         // wcześniej, jeszcze przed granicami, i nic by tu nie zmierzył.)
         $this->zapisz($pierwsza, $przepis);
-        $this->zapisz($zablokowana, $przepis);
+        $this->zapiszOdmowa($zablokowana, $przepis);
 
         $partia = $this->jedynaPartia($autor);
         $this->assertSame([$pierwsza->getKey()], $partia->data['savers']);
         $this->assertSame(0, $partia->data['others_count']);
 
         // Sama, bez otwartej partii — nowy wiersz też nie powstaje.
-        $this->zapisz($zablokowana, $drugiPrzepis);
+        $this->zapiszOdmowa($zablokowana, $drugiPrzepis);
         $this->assertSame(1, $this->ileZapisow($autor));
     }
 
@@ -68,10 +70,10 @@ class ZbiorczyZapisTrzymaGranicePowiadomienTest extends TestCase
         app(BlockUser::class)->handle($blokujaca, $autor);
 
         $this->zapisz($pierwsza, $przepis);
-        $this->zapisz($blokujaca, $przepis);
+        $this->zapiszOdmowa($blokujaca, $przepis);
         $this->assertSame([$pierwsza->getKey()], $this->jedynaPartia($autor)->data['savers']);
 
-        $this->zapisz($blokujaca, $drugiPrzepis);
+        $this->zapiszOdmowa($blokujaca, $drugiPrzepis);
         $this->assertSame(1, $this->ileZapisow($autor));
     }
 
@@ -126,6 +128,26 @@ class ZbiorczyZapisTrzymaGranicePowiadomienTest extends TestCase
     private function zapisz(User $kto, Recipe $przepis): void
     {
         app(SaveRecipeToCollection::class)->handle($kto, $przepis);
+    }
+
+    /**
+     * Blokada w którąkolwiek stronę odcina już SAM zapis (`ZamekZapisuDoZeszytu`
+     * pyta Policy pod zamkami) — więc tym bardziej powiadomienie i dopisanie
+     * do partii. Odmowa ma być zdaniem dla człowieka, a zeszyt ma zostać pusty.
+     */
+    private function zapiszOdmowa(User $kto, Recipe $przepis): void
+    {
+        try {
+            $this->zapisz($kto, $przepis);
+            $this->fail('Zapis przez blokadę miał zostać odrzucony.');
+        } catch (BladDlaCzlowieka) {
+            // oczekiwane
+        }
+
+        $this->assertSame(0, DB::table('collection_items')
+            ->where('recipe_id', $przepis->getKey())
+            ->whereIn('collection_id', $kto->collections()->select('id'))
+            ->count());
     }
 
     private function ileZapisow(User $autor): int
