@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\MailFailure;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\ZgloszonaZmianaAdresu;
 use App\Poczta\PowodOdmowy;
 use App\Poczta\ZapiszNieudanyList;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -107,6 +109,27 @@ class NieudanyListZostawiaSladTest extends TestCase
         $this->assertSame($osoba->getKey(), $slad->user_id, 'Bez `user_id` właściciel nie wie, do kogo napisać.');
         $this->assertNull($slad->zauwazony_at, 'Świeży ślad ma być NIEODHACZONY, inaczej /health nic nie powie.');
         $this->assertNotNull($slad->komunikat);
+    }
+
+    /**
+     * List wysłany „na adres" (`Notification::route()`) też zostawia ślad —
+     * ale BEZ `user_id`. Tak idzie ostrzeżenie o zmianie adresu (#888):
+     * odbiorcą jest `AnonymousNotifiable`, nie konto, więc `ktoCzekal()`
+     * świadomie nie zgaduje. Właściciel widzi rodzaj listu i porę, a adres
+     * zostaje w `failed_jobs` (`php artisan queue:failed`).
+     */
+    public function test_list_na_adres_zostawia_slad_bez_konta(): void
+    {
+        Http::fake([self::ADRES_API => $this->odpowiedz429()]);
+
+        $this->oczekujOdmowy(fn () => Notification::route('mail', 'stary@example.test')
+            ->notify(new ZgloszonaZmianaAdresu('n***@example.test', now()->addDay(), 'Basia')));
+
+        $slad = MailFailure::query()->sole();
+
+        $this->assertSame(ZgloszonaZmianaAdresu::class, $slad->rodzaj);
+        $this->assertSame(PowodOdmowy::LIMIT_DOBOWY, $slad->powod);
+        $this->assertNull($slad->user_id, 'Odbiorca „na adres" nie jest kontem — nie wolno go zgadywać.');
     }
 
     /** HTTP 500 to awaria przejściowa: powtórzenie ma sens i tekst dla człowieka to mówi. */
