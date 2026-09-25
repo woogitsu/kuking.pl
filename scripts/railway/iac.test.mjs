@@ -132,12 +132,22 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (worker && !(worker.deploy?.drainingSeconds >= limitZdjec)) {
       b.push(`worker: drainingSeconds=${worker.deploy?.drainingSeconds} krótszy niż limit zadania zdjęć ${limitZdjec} s`);
     }
-    // Te same zmienne w trzech serwisach, poza APP_ROLE. Zmienna dopisana
-    // tylko do web (np. klucz R2) daje workera, który pada na pierwszym zdjęciu.
+    // Od #1459 (#1013) role NIE mają identycznych zmiennych: każda dostaje
+    // rdzeń + tylko swoje sekrety (web: logowanie/Turnstile, worker: klucz
+    // modelu, scheduler: odczyt kopii). Pilnujemy więc dwóch rzeczy:
+    //  1. rdzeń jest w KAŻDEJ roli — zmienna rdzenia dopisana tylko do web
+    //     (np. klucz R2) daje workera, który pada na pierwszym zdjęciu;
+    //  2. zmienna obecna w dwóch rolach ma w obu tę samą wartość.
+    // Pełny podział na role pilnuje tests/Feature/ZmienneRailwayaPerRolaTest.php.
     if (www) {
-      const bezRoli = (s) => JSON.stringify(Object.entries(s.variables ?? {}).filter(([k]) => k !== "APP_ROLE").sort());
+      const RDZEN = /^(APP_(?!ROLE$)|DB_|AWS_|FILESYSTEM_DISK$|LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK$|KUKING_EXPORT_DISK$|QUEUE_CONNECTION$|CACHE_STORE$|SESSION_|LOG_|MAIL_MAILER$|MAIL_FROM_ADDRESS$)/;
+      const zm = (s) => s.variables ?? {};
       for (const s of aplikacja) {
-        if (s !== www && bezRoli(s) !== bezRoli(www)) b.push(`${s.name}: zmienne różnią się od serwisu WWW (poza APP_ROLE)`);
+        if (s === www) continue;
+        const brak = Object.keys(zm(www)).filter((k) => RDZEN.test(k) && !(k in zm(s)));
+        if (brak.length) b.push(`${s.name}: brak zmiennych rdzenia obecnych w serwisie WWW (${brak.sort().join(", ")})`);
+        const rozne = Object.keys(zm(s)).filter((k) => k !== "APP_ROLE" && k in zm(www) && JSON.stringify(zm(s)[k]) !== JSON.stringify(zm(www)[k]));
+        if (rozne.length) b.push(`${s.name}: inna wartość niż w serwisie WWW (${rozne.sort().join(", ")})`);
         if (s !== www && JSON.stringify([s.source, s.build]) !== JSON.stringify([www.source, www.build])) {
           b.push(`${s.name}: inne źródło albo build niż serwis WWW — role mają chodzić na jednym obrazie`);
         }
@@ -203,6 +213,7 @@ const MUTACJE = [
   ["domena na workerze", PROD, (g) => { usluga(g, "worker").networking = { customDomains: { "kuking.pl": { port: 8080 } } }; }],
   ["healthcheck HTTP na harmonogramie", PROD, (g) => { usluga(g, "scheduler").deploy.healthcheckPath = "/health"; }],
   ["zmienna tylko w web", PROD, (g) => { delete usluga(g, "worker").variables.AWS_BUCKET; }],
+  ["inna wartość zmiennej rdzenia w harmonogramie", PROD, (g) => { usluga(g, "scheduler").variables.AWS_BUCKET = { value: "inny-bucket" }; }],
   ["worker bez czasu na zdjęcie", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 30; }],
   ["worker bez zapasu po zadaniu zdjęć", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 120; }],
   ["rola all z oknem serwisu WWW", STAGING, (g) => { usluga(g, "kuking.pl").deploy.drainingSeconds = 30; }],
