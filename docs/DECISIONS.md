@@ -16212,6 +16212,22 @@ Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
 jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
 klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
 
+**Uzupełnienie (#1429, #1530, #1573, 24 września 2026).** Trzy kolejne
+wywołania przypisane do klas:
+
+- `data.export_requested` — **klasa 2**. Autorytatywny ślad to wiersz
+  `data_exports` i zadanie w `jobs`, zatwierdzane razem (A02).
+- `user.blocked` — **klasa 2**, zgodnie z D-090 i D-080 („blokada musi się
+  udać zawsze"). Autorytatywny ślad to wiersz `blocks` z `created_at`.
+- `account.login_link_used` — **klasa 1**. Tu trwałym skutkiem jest
+  zużycie jednorazowego poświadczenia, więc wpis stoi w transakcji
+  `ZamekKonta` razem z `delete()` tokenu. Awaria cofa oba zapisy, sesja
+  ani etap 2FA nie powstają, a człowiek dostaje „link nadal działa, kliknij
+  jeszcze raz". Samej sesji HTTP transakcja nie obejmuje.
+
+Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
+i `LogowanieLinkiemTest` (sekcja #1530).
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
@@ -16784,10 +16800,14 @@ po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
 otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
 urośnie do tysięcy.
 
-**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
-w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
-kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
-w `PriorytetSprawy::MAPOWANIE`.
+**`scam` jako P1 — POTWIERDZONE PRZEZ WŁAŚCICIELA 25 września 2026.** Tabela
+SLA w podręczniku nie miała tej pozycji; P1 był moim osądem (oszustwo trwa
+i dotyka kolejnych ludzi, dopóki wisi), nie decyzją. Właściciel potwierdził
+`scam` → P1 bez zmian w kodzie: `PriorytetSprawy::MAPOWANIE` już miało
+`'scam' => self::P1`, więc to potwierdzenie istniejącego zachowania, nie
+nowa linijka. Wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` §3 dopisano
+o „oszustwo (scam)", a komentarz przy `MAPOWANIE`, mówiący że `scam` nie ma
+pozycji w podręczniku, przestał być prawdziwy i został poprawiony.
 
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
@@ -17057,3 +17077,66 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia.
+---
+
+## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
+moderacji (widoczny wyłącznie dla moderatorów) trzy miejsca z tekstem
+poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
+D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
+stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
+w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
+trzy miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
+w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
+a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
+serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
+
+### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
+
+`AGENTS.md` §5 zostaje dokładnie taki, jaki jest, wszędzie indziej. Minimum
+18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
+widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
+w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów
+pomocniczych w panelu moderacji, nie przycisków: `.btn` i inne cele dotyku
+w tym panelu mają nadal ≥ 48 px, bez zmian.
+
+### ZAKRES WYJĄTKU — WYŁĄCZNIE TE SELEKTORY
+
+- `.tabela-kont .drobne` — `resources/css/ekran-uzytkownikow.css` —
+  drugi, cichy wiersz w komórce tabeli kont („@nazwa", przyczyna, termin);
+  `--text-meta` (15 px).
+- `.stan-konta` — `resources/css/ekran-uzytkownikow.css` — plakietka stanu
+  konta („Zawieszone", „Zablokowane"); `--text-meta` (15 px). Kolor nadal
+  nigdy nie jest jedynym nośnikiem informacji — słowo w środku zostaje.
+- `.sygnal-podglad-cytat` — `resources/css/app.css` — cytat cudzej treści
+  w podglądzie sygnału, o jedno kliknięcie od pełnego rozmiaru;
+  `--text-help` (16 px). Komentarz przy tej regule błędnie powoływał się
+  na D-051 — poprawiony na odwołanie do tego wpisu.
+- `.side-nav-moderacja-naglowek` — `resources/css/app.css` — samodzielny
+  nagłówek sekcji „Moderacja" w bocznej nawigacji, wersalikami;
+  `--text-help` (16 px).
+
+Nigdzie indziej. W szczególności: publiczne widoki odwołań i zgłoszeń,
+ekran „Czytelność", i każdy inny ekran panelu spoza tej listy — tam
+minimum 18 px obowiązuje bez wyjątku.
+
+### CO Z TYM ZROBIONO W KODZIE
+
+W `resources/css/app.css` zamieniono błędne powołanie na D-051 przy
+`.sygnal-podglad-cytat` na powołanie na D-262 i dopisano odwołanie do
+D-262 przy `.side-nav-moderacja-naglowek`. W `resources/css/ekran-uzytkownikow.css`
+dopisano odwołanie do D-262 przy `.tabela-kont .drobne` i `.stan-konta`.
+Strażnik `tests/Feature/MinimalnyRozmiarTekstuTest.php` pilnuje ZAMKNIĘTEJ
+listy `SAMODZIELNE_ETYKIETY`, w której żaden z tych czterech selektorów nie
+stał ani wcześniej, ani teraz — nie jest to strażnik z otwartą listą
+wyjątków, więc nie ma tu nic do dopisania; gdyby ktoś kiedyś przepisał go
+na skaner całego CSS, te cztery selektory muszą wtedy dostać jawny wpis na
+liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
+
+### Wycofanie
+Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
+ten wpis. Nic w bazie ani w migracjach się nie zmienia.
