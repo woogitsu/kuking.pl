@@ -16,9 +16,24 @@ const testedScript = process.env.PHOTO_FULL_BUNDLE
     : preview;
 const files = ['A', 'B', 'C'].map(name => ({name: `${name}.png`, mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')}));
 const results = [];
+// Skrypty z zapisanego HTML usuwa parser przeglądarki, nie wyrażenie regularne:
+// DOMParser niczego nie wykonuje, a drzewo DOM nie przepuści `</script >`
+// ani sklejonych po wycięciu znaczników.
+let parserPage;
+async function fixtureHtml(form) {
+    parserPage ??= await browser.newPage();
+    return parserPage.evaluate(({raw, css}) => {
+        const doc = new DOMParser().parseFromString(raw, 'text/html');
+        for (const script of doc.querySelectorAll('script')) script.remove();
+        const style = doc.createElement('style');
+        style.textContent = css;
+        doc.head.append(style);
+        return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+    }, {raw: readFileSync(`output/playwright/${form}.html`, 'utf8'), css});
+}
 async function open(form, options = {}) {
+    const html = await fixtureHtml(form);
     const page = await browser.newPage({viewport: {width: 320, height: 800}, ...options});
-    const html = readFileSync(`output/playwright/${form}.html`, 'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace('</head>', `<style>${css}</style></head>`);
     await page.route('**/*', route => route.fulfill({status: 200, contentType: 'text/html', body: route.request().url() === 'http://kuking.test/form' ? html : 'Zapisano próbę.'}));
     page.setDefaultTimeout(10000);
     await page.goto('http://kuking.test/form');
