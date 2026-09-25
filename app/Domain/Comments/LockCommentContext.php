@@ -77,7 +77,9 @@ final class LockCommentContext
                         $freshSubject->setRelation('recipe', $recipe !== null && ! $recipe->trashed() ? $recipe : null);
                     }
 
-                    $ability = $freshSubject instanceof Post ? 'comment' : 'view';
+                    // Wpis i wykonanie mają osobną zdolność `comment` (wykonanie
+                    // zbanowanego kucharza da się skomentować — D-261); przepis — `view`.
+                    $ability = $freshSubject instanceof Recipe ? 'view' : 'comment';
                     if (! $freshAuthor->isActive()
                         || ! Gate::forUser($freshAuthor)->allows($ability, $freshSubject)
                         || $freshAuthor->hasBlockRelationWith($users[$ownerId])) {

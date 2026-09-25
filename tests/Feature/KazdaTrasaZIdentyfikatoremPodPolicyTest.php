@@ -484,6 +484,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
+        $zeszyt->recipes()->attach($przepis->getKey());
 
         // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
         // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
@@ -822,6 +824,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
         $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
             route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
+        // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
+        $dodaj('collections.note', 'notatka przy zapisie', 'patch',
+            route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
