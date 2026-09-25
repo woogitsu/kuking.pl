@@ -28,11 +28,12 @@ use Illuminate\Support\Facades\DB;
  * padnie harmonogram; zadanie czyści co noc, nawet gdy ruchu nie ma. Wyłączenie
  * loterii zabrałoby jedną z tych dwóch dróg i niczego by nie dało.
  *
- * DLACZEGO ZWYKŁY MASOWY `DELETE`, A NIE PĘTLA PER WIERSZ
+ * DLACZEGO `DELETE` PARTIAMI, A NIE PĘTLA PER WIERSZ
  * Ten sam powód co przy `PrzedawnioneWpisyAudytu`: wiersz `sessions` nie ma
- * żadnego odpowiednika po stronie storage, a predykat to wyłącznie wiek
- * wiersza, więc przerwanie w połowie niczego nie psuje — kolejny przebieg
- * dobierze resztę.
+ * żadnego odpowiednika po stronie storage. Partie po kluczu sesji
+ * (`UsuwanieWPartiach`, #1657) powtarzają warunek wieku w każdym `DELETE`,
+ * więc sesja, która między wyborem partii a usunięciem znów była aktywna,
+ * zostaje.
  */
 final class PrzedawnioneSesje
 {
@@ -68,10 +69,12 @@ final class PrzedawnioneSesje
         // zapisuje ją `DatabaseSessionHandler`.
         $prog = now()->subDays($dni)->getTimestamp();
 
-        $doSkasowania = DB::table((string) config('session.table', 'sessions'))
-            ->where('last_activity', '<', $prog);
+        $tabela = (string) config('session.table', 'sessions');
+        $doSkasowania = fn () => DB::table($tabela)->where('last_activity', '<', $prog);
 
-        $skasowano = $naSucho ? $doSkasowania->count() : $doSkasowania->delete();
+        $skasowano = $naSucho
+            ? $doSkasowania()->count()
+            : UsuwanieWPartiach::zKonfiguracji()->usun($doSkasowania, 'id', $tabela);
 
         return [
             'skasowano' => $skasowano,
