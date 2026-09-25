@@ -3254,7 +3254,7 @@ czyli dowiaduje się o niej wyłącznie ten, kto czyta pocztę pod tym adresem
 Potwierdzenie, przycisk „Anuluj zmianę", **zmiana albo reset hasła** (bo list
 ostrzegawczy do starego adresu radzi właśnie to i ta rada musi być prawdziwa),
 kolejne żądanie tej samej osoby, anonimizacja konta (`EraseAccountData`) oraz
-wygaśnięcie — `kuking:sprzataj-zmiany-adresu`, harmonogram codziennie o 04:40
+wygaśnięcie — `kuking:sprzataj-zmiany-adresu`, harmonogram codziennie o 04:50
 (`App\Domain\Compliance\PrzedawnioneZmianyAdresu`).
 
 Termin stoi w kolumnie, a **nie** jest liczony przy odczycie — dzięki temu nie

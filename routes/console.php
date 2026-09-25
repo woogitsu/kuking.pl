@@ -411,7 +411,8 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
 // w godzinę, bez niczyjej ręki.
 //
 // Minuta 35: o 00 tykają zdejmowanie kar i licznik społeczności, o 25 budżet
-// połączeń (uzasadnienie rozsunięcia przy sprzątaniu zmian adresu).
+// połączeń, o 45 dosyłka potwierdzeń zgłoszeń (uzasadnienie rozsunięcia przy
+// sprzątaniu zmian adresu).
 // Blokada 50 minut — reguła „co godzinę → 50" z nagłówka tego pliku.
 // Wyścigu dwóch przebiegów i tak pilnuje baza (`AlarmujModeratora::doslij()`).
 //
@@ -495,9 +496,11 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
 // jest obowiązkiem, nie uprzejmością.
 //
 // CO GODZINĘ, nie raz na dobę: przepis mówi „bez zbędnej zwłoki", a zaległość
-// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 35:
-// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`; nocne
-// pasmo sprzątania też omijamy — cała ta lista jest świadomie porozsuwana.
+// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 45:
+// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`, 35 —
+// `kuking:doslij-pilne-alarmy`. Do 25.09.2026 stało tu 35: dwa PR-y z tego
+// samego dnia (#1051 i D-252) wybrały tę samą „wolną" minutę niezależnie.
+// Pilnuje tego `HarmonogramBezKolizjiTerminowTest`.
 //
 // `onOneServer()` — jak każde zadanie w tym pliku (#595): przy wdrożeniu dwa
 // kontenery nie odpalą tego samego terminu. Przed dublem potwierdzenia chroni
@@ -516,6 +519,6 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
 // (kontrola dodatnia) na udanym.
 Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
     ->name('kuking:dosylaj-potwierdzenia-zgloszen')
-    ->hourlyAt(35)
+    ->hourlyAt(45)
     ->onOneServer()
     ->withoutOverlapping(50);

@@ -16415,8 +16415,10 @@ a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
 
 **TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
 wcześniej nie wyszły.** Robi to komenda
-`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
-godziny; 25 zajmuje `kuking:budzet-polaczen`).
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 45 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`, 35 — `kuking:doslij-pilne-alarmy`.
+Pierwotnie stała tu minuta 35; przeniesiona 25.09.2026 w audycie po fali
+scaleń, bo tego samego dnia tę minutę zajęła też dosyłka pilnych alarmów).
 
 - **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
   akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
