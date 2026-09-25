@@ -86,31 +86,39 @@ class ZawieszonyModeratorBezUprawnienTest extends TestCase
     /**
      * Policy POZA trasą `/admin` — drugi endpoint nie może ominąć zakazu.
      */
-    public function test_zawieszony_moderator_nie_widzi_cudzego_szkicu_ani_prywatnego_zdjecia(): void
+    public function test_zawieszony_moderator_nie_widzi_ukrytego_przepisu_ani_jego_zdjecia(): void
     {
+        // Przepis UKRYTY, a nie szkic: szkicu nie widzi nawet czynny
+        // moderator (#1359), więc na szkicu ten test nie miałby kontroli
+        // dodatniej. Zdjęcie jest przypięte do tego przepisu — bez rodzica
+        // moderator go nie widzi w ogóle (#1360).
         $autorka = $this->user('autorka');
-        $szkic = Recipe::factory()->draft()->create(['author_id' => $autorka->getKey()]);
         $zdjecie = Media::factory()->create([
             'owner_id' => $autorka->getKey(),
             'status' => Media::STATUS_READY,
+        ]);
+        $ukryty = Recipe::factory()->create([
+            'author_id' => $autorka->getKey(),
+            'status' => Recipe::STATUS_HIDDEN,
+            'hero_media_id' => $zdjecie->getKey(),
         ]);
         $dostep = app(DostepDoZdjecia::class);
 
         $moderator = $this->moderator();
 
-        $this->assertTrue(Gate::forUser($moderator)->allows('view', $szkic), 'Czynny moderator nie widzi szkicu.');
-        $this->assertTrue($dostep->moze($moderator, $zdjecie), 'Czynny moderator nie widzi zdjęcia.');
+        $this->assertTrue(Gate::forUser($moderator)->allows('view', $ukryty), 'Czynny moderator nie widzi ukrytego przepisu.');
+        $this->assertTrue($dostep->moze($moderator, $zdjecie), 'Czynny moderator nie widzi zdjęcia ukrytego przepisu.');
 
         $moderator->suspend(now()->addDays(3));
         $moderator->refresh();
 
         $this->assertFalse(
-            Gate::forUser($moderator)->allows('view', $szkic),
-            'Zawieszony moderator dalej otwiera cudzy szkic przez RecipePolicy.',
+            Gate::forUser($moderator)->allows('view', $ukryty),
+            'Zawieszony moderator dalej otwiera ukryty przepis przez RecipePolicy.',
         );
         $this->assertFalse(
             $dostep->moze($moderator, $zdjecie),
-            'Zawieszony moderator dalej otwiera cudze nieprzypięte zdjęcie.',
+            'Zawieszony moderator dalej otwiera zdjęcie ukrytego przepisu.',
         );
     }
 
