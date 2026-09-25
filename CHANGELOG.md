@@ -13,6 +13,7 @@
 - Przy każdym polu hasła jest przycisk „Pokaż hasło”, który odsłania wpisane hasło, żeby przed wysłaniem sprawdzić literówkę albo włączony Caps Lock. Drugie naciśnięcie („Ukryj hasło”) znów je zasłania, a przy wysyłaniu formularza hasło zasłania się samo. Menedżer haseł i wklejanie działają jak dotąd (#948).
 
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
+- Wyszukiwanie w zakresie „Wszystko” bez wyników mówi teraz, że nie znaleźliśmy ani przepisu, ani osoby — wcześniej wspominało tylko o przepisie, choć szukało też ludzi. Podpowiada, żeby sprawdzić pisownię albo wpisać krócej (#944).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
 - Ekran „Potwierdź swój adres e-mail” nie obiecuje już wiadomości, gdy serwis nie wysyła poczty. Zamiast „Wysłaliśmy wiadomość” i rady o folderze „Spam” mówi, że wiadomość nie przyjdzie, i podaje adres, pod którym człowiek pomoże potwierdzić adres inaczej. Przycisk „Wyślij wiadomość jeszcze raz” pokazuje się tylko wtedy, gdy list naprawdę może wyjść (#1335).
