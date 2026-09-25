@@ -17,6 +17,7 @@ use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -24,7 +25,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -104,13 +105,22 @@ try {
         'delete_collection' => (bool) Collection::query()->findOrFail($args['collection'])->delete(),
         'moderate' => (function () use ($actor, $args): int {
             Auth::setUser($actor);
-            $request = Request::create('/admin/zgloszenia/'.$args['report'], 'POST', [
+            $report = Report::query()->findOrFail($args['report']);
+            // Wejście przez ten sam FormRequest co trasa (#970, krok 2):
+            // `decide()` przyjmuje `DecyzjaModeracyjnaRequest`, a rola, własna
+            // sprawa, stan zgłoszenia i reguły pól są sprawdzane przed kontrolerem.
+            $request = DecyzjaModeracyjnaRequest::create('/admin/zgloszenia/'.$args['report'], 'POST', [
                 'action' => $args['decision'], 'reason_code' => 'spam', 'user_message' => 'Decyzja w sprawie treści.',
             ]);
+            $request->setContainer(app())->setRedirector(app('redirect'));
             $request->setUserResolver(fn () => $actor);
             $request->setLaravelSession(app('session.store'));
+            $route = (new Route('POST', '/admin/zgloszenia/{report}', []))->bind($request);
+            $route->setParameter('report', $report);
+            $request->setRouteResolver(fn () => $route);
+            $request->validateResolved();
 
-            return app(ModerationController::class)->decide($request, Report::query()->findOrFail($args['report']))->getStatusCode();
+            return app(ModerationController::class)->decide($request, $report)->getStatusCode();
         })(),
         default => throw new RuntimeException('Nieznany scenariusz.'),
     };
