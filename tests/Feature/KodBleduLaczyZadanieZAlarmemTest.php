@@ -8,6 +8,7 @@ use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\NormalizeForwardedFor;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -66,6 +67,10 @@ final class KodBleduLaczyZadanieZAlarmemTest extends TestCase
         $ids = [];
         $fingerprints = [];
         foreach ([1, 2] as $attempt) {
+            // Ten sam odcisk w oknie `SeriaAlarmow` dałby jedną wiadomość
+            // (#599, `SeriaIdentycznychAlarmowTest`). Tu mierzymy korelację
+            // KAŻDEJ wiadomości, więc zaczynamy każdą próbę bez pamięci serii.
+            Cache::flush();
             $response = $this->get('/_test/korelacja', ['X-Request-ID' => '11111111-1111-4111-8111-111111111111']);
             $response->assertStatus(500);
             $id = $response->headers->get('X-Request-ID');

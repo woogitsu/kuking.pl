@@ -2032,6 +2032,19 @@ return [
     */
     'monitoring' => [
         'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+
+        // Seria identycznych alarmów (#599, `App\Domain\Monitoring\SeriaAlarmow`):
+        // ten sam odcisk błędu idzie na webhook najwyżej raz na tyle minut,
+        // a następna wiadomość niesie liczbę pominiętych powtórzeń. Dziennik
+        // serwera dostaje każde wystąpienie niezależnie od tej liczby.
+        'seria_okno_minut' => (int) env('KUKING_SERIA_ALARMOW_OKNO_MINUT', 15),
+
+        // Łączny czas zapytań SQL jednego żądania HTTP, po którym zapisujemy
+        // ostrzeżenie w dzienniku i dzwonimy (`App\Domain\Monitoring\CzasZapytan`).
+        // 1000 ms to wartość STARTOWA, nie zmierzona: po tygodniu odczytów
+        // `czas_bazy_ms` z dziennika ustaw ją nad p99 zwykłego ruchu.
+        // 0 = pomiar wyłączony.
+        'czas_bazy_prog_ms' => (int) env('KUKING_CZAS_BAZY_PROG_MS', 1000),
     ],
 
     /*

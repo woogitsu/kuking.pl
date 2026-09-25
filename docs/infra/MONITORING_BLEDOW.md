@@ -243,15 +243,44 @@ niczego więcej nie zastępuje.
 
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 
-- **Nie grupuje powtórzeń.** Ten sam błąd wywalający się 50 razy na minutę
-  (np. zepsute zapytanie na często odwiedzanej stronie) to 50 wiadomości.
-  Sentry grupuje i pokazuje „x50" — to jest jeden z powodów, dla których jest
-  docelowym wyborem, nie tymczasowym.
+- **Grupuje tylko najprościej (od 25 września 2026, #599).** Ten sam odcisk
+  (klasa|plik|linia) idzie na kanał najwyżej raz na
+  `KUKING_SERIA_ALARMOW_OKNO_MINUT` (domyślnie 15), a pierwsza wiadomość po
+  oknie ma linię „powtórzeń od poprzedniej wiadomości (nie wysłanych osobno):
+  N". Inny odcisk przechodzi od razu. Webhook, który odpowie 429/500 albo nie
+  odpowie, nie kupuje okna — dostaje minutę przerwy, żeby burza nie wołała
+  martwego kanału przy każdym żądaniu. Dziennik serwera dostaje każde
+  wystąpienie jak dotąd. Kontrakt: `App\Domain\Monitoring\SeriaAlarmow`,
+  test: `SeriaIdentycznychAlarmowTest`. Sentry grupuje mądrzej (per wydanie,
+  z wykresem) — to nadal jeden z powodów, dla których jest docelowym wyborem.
 - **Nie ma dashboardu ani historii poza tym, co zostaje na kanale Discorda.**
 - **Nie łapie błędów JavaScriptu w przeglądarce** — tylko wyjątki po stronie
   serwera PHP.
 - **Nie mówi, ilu ludzi to dotknęło** ani czy to jest ten sam człowiek, czy
   stu różnych.
+
+### Od 25 września 2026: wolna baza i zły sekret Turnstile (#599)
+
+**Łączny czas zapytań SQL jednego żądania HTTP.** `App\Domain\Monitoring\CzasZapytan`
+rejestruje `DB::whenQueryingForLongerThan()` z progiem
+`KUKING_CZAS_BAZY_PROG_MS` (domyślnie 1000 ms, `0` wyłącza). Łapie jedno wolne
+zapytanie i N+1 ze stu szybkich. Po wysłaniu odpowiedzi zapisuje w dzienniku
+jedno ostrzeżenie na żądanie („Łączny czas zapytań SQL żądania przekroczył
+próg.”, pola `trasa`, `czas_bazy_ms`, `prog_ms`) i dzwoni na ten kanał —
+przez `SeriaAlarmow`, więc sto wolnych wejść na tę samą trasę to jedna
+wiadomość. Wychodzi WZORZEC trasy (`GET /przepisy/{recipe}`), nigdy SQL,
+parametry, query string ani adres. Mierzy wyłącznie żądania HTTP; komendy
+i worker kolejki nie są objęte (suma z wielu zadań nie byłaby czasem „jednego
+żądania”). 1000 ms to wartość startowa: po tygodniu odczytów `czas_bazy_ms`
+ustaw próg nad p99 zwykłego ruchu.
+
+**Zły sekret Turnstile.** `invalid-input-secret`, `missing-input-secret`
+i `bad-request` z `siteverify` otwierają epizod `AlarmTurnstile` (ta sama
+maszyna co czujki kolejki i połączeń: jedna wiadomość, cisza 6 h, jedno
+odwołanie po pierwszej udanej weryfikacji albo odrzuconym tokenie). Formularz
+dalej przechodzi (D-050). `internal-error` to awaria u Cloudflare, nie nasza
+konfiguracja — nie dzwoni. `/health` nadal widzi tylko obecność kluczy;
+o ich poprawności mówi dopiero ten alarm.
 
 ### Od 10 września 2026: ten sam kanał dzwoni też o awariach, których żaden błąd 500 nie wywoła
 

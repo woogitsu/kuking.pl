@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Turnstile;
 
+use App\Domain\Monitoring\AlarmTurnstile;
 use App\Support\Turnstile;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -67,6 +68,18 @@ final class KlientTurnstile
         'internal-error',
     ];
 
+    /**
+     * Podzbiór powyższych, który znaczy „konfiguracja po naszej stronie jest
+     * zła" i otwiera epizod `AlarmTurnstile` (#599).
+     *
+     * @var list<string>
+     */
+    private const KODY_ZLEJ_KONFIGURACJI = [
+        'missing-input-secret',
+        'invalid-input-secret',
+        'bad-request',
+    ];
+
     public function sprawdz(string $token, ?string $ip = null): WynikTurnstile
     {
         if (! Turnstile::skonfigurowany()) {
@@ -116,6 +129,8 @@ final class KlientTurnstile
         $sukces = $odpowiedz->json('success');
 
         if ($sukces === true) {
+            $this->alarm(static fn (AlarmTurnstile $alarm): bool => $alarm->dziala());
+
             return WynikTurnstile::Przeszedl;
         }
 
@@ -137,6 +152,13 @@ final class KlientTurnstile
                 'co_zrobic' => 'Sprawdź TURNSTILE_SECRET_KEY w Railway (musi być Secret Key tego samego widgetu co Site Key).',
             ]);
 
+            // Sama linia w dzienniku to za mało: `/health` widzi tylko
+            // OBECNOŚĆ kluczy i dalej mówi „ok" (#599). `internal-error`
+            // jest awarią u Cloudflare, nie naszą konfiguracją — nie dzwoni.
+            if (array_intersect($kody, self::KODY_ZLEJ_KONFIGURACJI) !== []) {
+                $this->alarm(static fn (AlarmTurnstile $alarm): bool => $alarm->zlaKonfiguracja());
+            }
+
             return WynikTurnstile::Nierozstrzygniety;
         }
 
@@ -150,6 +172,9 @@ final class KlientTurnstile
         // odpowiedzieć na pytanie „czy ktoś nas w ogóle atakuje" — bez adresu
         // IP i bez treści formularza (AGENTS.md §7).
         Log::info('Turnstile odrzucił token.', ['kody' => $kody]);
+        // Cloudflare ocenił TOKEN, więc przyjął nasz sekret — zły sekret
+        // już nie trwa, nawet jeśli nikt jeszcze nie przeszedł weryfikacji.
+        $this->alarm(static fn (AlarmTurnstile $alarm): bool => $alarm->dziala());
 
         return WynikTurnstile::Odrzucony;
     }
@@ -165,6 +190,22 @@ final class KlientTurnstile
         Log::warning($powod.' Formularz przepuszczamy — zostają limity zapytań.', $kontekst);
 
         return WynikTurnstile::Nierozstrzygniety;
+    }
+
+    /**
+     * Alarm nie ma prawa wywrócić wysłania formularza — ta sama zasada, co
+     * cała reszta tego klienta.
+     *
+     * @param  \Closure(AlarmTurnstile): bool  $co
+     */
+    private function alarm(\Closure $co): void
+    {
+        try {
+            $co(app(AlarmTurnstile::class));
+        } catch (Throwable) {
+            // Stan alarmu przepadnie, formularz przejdzie. Linia w dzienniku
+            // (dla złego sekretu) została zapisana wyżej.
+        }
     }
 
     /**

@@ -10,6 +10,7 @@ use Illuminate\Queue\Events\JobAttempted;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Worker;
 use Illuminate\Queue\WorkerOptions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -184,6 +185,9 @@ final class KorelacjaKolejkiTest extends TestCase
         });
         $worker = app('queue.worker');
         for ($i = 0; $i < 2; $i++) {
+            // Obie próby mają ten sam odcisk; bez tego `SeriaAlarmow` (#599)
+            // wysłałaby jedną wiadomość, a tu mierzymy korelację każdej próby.
+            Cache::flush();
             $worker->runNextJob('database', $this->queueName, new WorkerOptions(sleep: 0, maxTries: 2, backoff: 0));
             Log::warning('after-failed-job');
         }

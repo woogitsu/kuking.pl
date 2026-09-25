@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Monitoring (dla prowadzących serwis): seria identycznych błędów 500 daje na kanale alarmowym jedną wiadomość na kwadrans z liczbą powtórzeń zamiast wiadomości przy każdym wystąpieniu; nowy alarm o żądaniach, w których zapytania do bazy trwały łącznie dłużej niż próg; alarm, gdy Cloudflare odrzuca nasz sekret Turnstile i formularze przechodzą bez weryfikacji (#599).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

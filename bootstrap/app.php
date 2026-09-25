@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Monitoring\SeriaAlarmow;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
@@ -16,6 +17,7 @@ use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Logging\QueueCorrelation;
+use App\Logging\WebhookBleduHandler;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -548,10 +550,25 @@ return Application::configure(basePath: dirname(__DIR__))
             // z komunikatem, który przy `QueryException` niesie e-mail i hash
             // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
             // go tu wkładać.
-            Log::channel('blad_webhook')->error($e::class, [
-                'exception' => $e,
-                ...app(QueueCorrelation::class)->forException($e),
-            ]);
+            // SERIA IDENTYCZNYCH BŁĘDÓW = JEDNA WIADOMOŚĆ NA OKNO (#599).
+            // Odcisk to klasa|plik|linia — bez komunikatu i bez adresu.
+            // Dziennik serwera dostaje każde wystąpienie i tak (raport
+            // domyślny Laravela), ograniczamy wyłącznie zewnętrzny kanał.
+            // Pełny kontrakt: `App\Domain\Monitoring\SeriaAlarmow`.
+            app(SeriaAlarmow::class)->zglos(
+                'wyjatek:'.WebhookBleduHandler::odcisk($e),
+                (int) config('kuking.monitoring.seria_okno_minut'),
+                function (int $pominiete) use ($e): bool {
+                    WebhookBleduHandler::zapomnijOstatniaWysylke();
+                    Log::channel('blad_webhook')->error($e::class, [
+                        'exception' => $e,
+                        'pominiete_powtorzenia' => $pominiete,
+                        ...app(QueueCorrelation::class)->forException($e),
+                    ]);
+
+                    return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+                },
+            );
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go
