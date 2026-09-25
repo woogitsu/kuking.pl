@@ -49,7 +49,7 @@ class PulsHarmonogramuTest extends TestCase
     {
         config()->set('kuking.monitoring.puls_harmonogramu_url', self::ADRES);
         Http::fake([self::ADRES => Http::response('nie', 503)]);
-        Log::spy();
+        $dziennik = Log::spy();
 
         // Niezerowy kod: `Harmonogram` zamienia go w porażkę zadania, a ta
         // w wpis błędu — czyli w coś, co da się zauważyć.
@@ -57,7 +57,7 @@ class PulsHarmonogramuTest extends TestCase
             ->doesntExpectOutputToContain('TAJNY-TOKEN')
             ->assertExitCode(1);
 
-        Log::shouldHaveReceived('warning')->withArgs(function (string $wiadomosc, array $kontekst = []): bool {
+        $dziennik->shouldHaveReceived('warning')->withArgs(function (string $wiadomosc, array $kontekst = []): bool {
             $this->assertSame(503, $kontekst['status'] ?? null);
             $this->assertFalse(str_contains($wiadomosc.json_encode($kontekst), 'TAJNY-TOKEN'), 'Token pulsu wyciekł do dziennika.');
 
@@ -70,11 +70,11 @@ class PulsHarmonogramuTest extends TestCase
     {
         config()->set('kuking.monitoring.puls_harmonogramu_url', self::ADRES);
         Http::fake(fn () => throw new ConnectionException('cURL error 6 dla '.self::ADRES));
-        Log::spy();
+        $dziennik = Log::spy();
 
         $this->artisan('kuking:puls-harmonogramu')->assertExitCode(1);
 
-        Log::shouldHaveReceived('warning')->withArgs(
+        $dziennik->shouldHaveReceived('warning')->withArgs(
             fn (string $wiadomosc, array $kontekst = []): bool => ! str_contains($wiadomosc.json_encode($kontekst), 'TAJNY-TOKEN'),
         )->once();
     }
