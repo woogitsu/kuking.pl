@@ -64,6 +64,39 @@ final class SearchQuery
             : $phrase;
     }
 
+    /**
+     * Wspólny kontrakt: czy TA fraza w ogóle coś przeszuka (issue #1050).
+     *
+     * Fraza wchodzi tu PO obcięciu białych znaków i — dla ludzi — PO zdjęciu
+     * `@`, czyli dokładnie w takiej postaci, w jakiej `recipes()`/`people()`
+     * i tak by ją odrzuciły. Dwa powody odrzucenia, jedna odpowiedź:
+     *
+     * 1. Krócej niż dwa znaki — próg sprzed tego issue, bez zmian.
+     * 2. Co najmniej dwa znaki na wejściu, ale PO `normalize()` (czyli
+     *    `Str::ascii()`, tak samo jak kolumna `*_search` w bazie) zostaje
+     *    mniej niż dwa. `Str::ascii()` transliteruje przez
+     *    `voku/portable-ascii` z domyślnym `remove_unsupported_chars=true` —
+     *    znak spoza jego tablicy (np. samo emoji) po prostu znika. Bez tej
+     *    kontroli `recipes()`/`people()` budowały dla PUSTEGO wyniku wzorzec
+     *    `LIKE '%%'`, czyli dopasowanie do WSZYSTKIEGO zamiast do niczego.
+     *
+     *    ZOSTAJE JEDEN ZNAK, NIE ZERO — TA SAMA ODPOWIEDŹ.
+     *    Próg dwóch znaków ma sens wobec tego, co NAPRAWDĘ trafia do
+     *    zapytania — czyli wobec frazy PO normalizacji, na której stoi
+     *    indeks. Fraza, która na wejściu ma dwa znaki, ale jeden z nich
+     *    normalizacja usuwa, i tak kończy jako wyszukiwanie JEDNEGO znaku —
+     *    dokładnie tej klasy zapytań, przed którą próg miał chronić. Inny
+     *    próg dla „przed" i „po" normalizacji byłby niespójny bez powodu.
+     *
+     * Jedna metoda zasila `recipes()`, `people()` i stan OBU kontrolerów
+     * (`/szukaj`, onboarding „znajdź znajomych") — osobne kopie tego samego
+     * warunku to dokładnie ten rozjazd, który ten kontrakt ma wykluczyć.
+     */
+    public static function jestPrzeszukiwalna(string $phrase): bool
+    {
+        return mb_strlen($phrase) >= 2 && mb_strlen(self::normalize($phrase)) >= 2;
+    }
+
     // PRÓG PODOBIEŃSTWA MIESZKA W `App\Support\ProgPodobienstwa`, nie tutaj.
     //
     // Do 7 września 2026 stała `SIMILARITY_THRESHOLD = 0.12` była w tym pliku
@@ -167,11 +200,13 @@ final class SearchQuery
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
 
-        if (mb_strlen($phrase) < 2) {
+        // Krócej niż dwa znaki ALBO krócej niż dwa PO normalizacji — jedna kontrola
+        // dla obu powodów (issue #1050), patrz komentarz `jestPrzeszukiwalna()`.
+        if (! self::jestPrzeszukiwalna($phrase)) {
             return new Collection;
         }
 
-        $needle = $this->normalize($phrase);
+        $needle = self::normalize($phrase);
 
         // Metaznaki LIKE (`%`, `_`, znak ucieczki `\`) z frazy MUSZĄ zostać
         // dosłownym tekstem, nie operatorem wzorca (issue #753). Wyłącznie
@@ -309,11 +344,13 @@ final class SearchQuery
         self::phraseValidator($phrase)->validate();
         $phrase = self::peoplePhrase($phrase);
 
-        if (mb_strlen($phrase) < 2) {
+        // Krócej niż dwa znaki ALBO krócej niż dwa PO normalizacji — jedna kontrola
+        // dla obu powodów (issue #1050), patrz komentarz `jestPrzeszukiwalna()`.
+        if (! self::jestPrzeszukiwalna($phrase)) {
             return new Collection;
         }
 
-        $needle = $this->normalize($phrase);
+        $needle = self::normalize($phrase);
 
         // Metaznaki LIKE dosłownie — patrz komentarz w recipes() (issue #753).
         // Ta metoda nie ma gałęzi trigramowej, więc CAŁY `$needle` idzie
@@ -422,7 +459,7 @@ final class SearchQuery
      * diakrytycznymi. Obie publiczne metody sprawdzają długość PRZED
      * zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć całego tekstu (#885).
      */
-    private function normalize(string $phrase): string
+    private static function normalize(string $phrase): string
     {
         return mb_strtolower(Str::ascii($phrase));
     }

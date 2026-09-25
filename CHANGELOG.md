@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wyszukiwarka nie pokazuje już przypadkowych wyników dla frazy, która po usunięciu polskich znaków i emoji staje się pusta (np. samo emoji) — zamiast tego prosi o wpisanie co najmniej dwóch znaków, tak samo jak przy zwykłej za krótkiej frazie, i nie zapisuje wtedy pozornie skutecznego wyszukiwania (#1050).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

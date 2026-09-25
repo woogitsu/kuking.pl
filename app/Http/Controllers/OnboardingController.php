@@ -130,11 +130,12 @@ class OnboardingController extends Controller
         // GET również ma granicę kosztu, niezależną od walidacji zapisu.
         $selected = array_slice($selected, 0, 50);
 
-        // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
-        // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
-        // w ogóle nie odpytuje bazy), inaczej ekran pokazałby „nic nie
-        // znaleźliśmy" tam, gdzie baza w ogóle nie została zapytana.
-        $zaKrotka = $phrase !== '' && mb_strlen(SearchQuery::peoplePhrase($phrase)) < 2;
+        // Ten sam kontrakt co `SearchController` — `jestPrzeszukiwalna()`
+        // MUSI się zgadzać z tym, co i tak robi `SearchQuery::people()`
+        // (krócej niż 2 znaki ALBO pusta po normalizacji, #1050, w ogóle
+        // nie odpytuje bazy), inaczej ekran pokazałby „nic nie znaleźliśmy"
+        // tam, gdzie baza w ogóle nie została zapytana.
+        $zaKrotka = $phrase !== '' && ! SearchQuery::jestPrzeszukiwalna(SearchQuery::peoplePhrase($phrase));
 
         $wynikiWyszukiwania = null;
 
