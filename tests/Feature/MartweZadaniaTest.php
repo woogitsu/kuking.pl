@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\LoginLinkToken;
 use App\Models\Profile;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
@@ -339,7 +340,8 @@ class MartweZadaniaTest extends TestCase
     public function test_zeton_nie_pojawia_sie_na_ekranie_w_zadnej_galezi(): void
     {
         $zetonHasla = 'ZETON-RESETU-DO-TESTU-9f3a1c';
-        $zetonLinku = 'ZETON-LOGOWANIA-DO-TESTU-4b7e';
+        // 64 znaki [A-Za-z0-9] — inaczej `LoginLinkToken` nie uzna go za żeton.
+        $zetonLinku = str_pad('ZETONLOGOWANIADOTESTU4b7e', LoginLinkToken::DLUGOSC_TOKENU, '0');
         $zetonWNieczytelnym = 'ZETON-W-NIECZYTELNYM-WIERSZU-77b2';
 
         $maria = $this->konto('maria@przyklad.pl', 'Maria');
@@ -529,8 +531,19 @@ class MartweZadaniaTest extends TestCase
     }
 
     /** Prawdziwy nieudany list z linkiem do zalogowania (żeton ważny 30 min). */
-    private function nieudanyLinkDoLogowania(User $uzytkownik, string $zeton = 'zeton-linku-do-testu'): void
+    private function nieudanyLinkDoLogowania(User $uzytkownik, ?string $zeton = null): void
     {
+        // Wiersz żetonu ma istnieć, żeby awaria dotyczyła transportu, a nie
+        // strażnika ważności w `LinkDoLogowania::shouldSend` (#889).
+        $zeton ??= str_pad('zetonlinkudotestu', LoginLinkToken::DLUGOSC_TOKENU, '0');
+        LoginLinkToken::query()->where('user_id', $uzytkownik->id)->delete();
+        (new LoginLinkToken)->forceFill([
+            'user_id' => $uzytkownik->id,
+            'token_hash' => LoginLinkToken::skrot($zeton),
+            'created_at' => now(),
+            'expires_at' => now()->addMinutes((int) config('kuking.login_link.waznosc_minut')),
+        ])->save();
+
         $uzytkownik->notify(new LinkDoLogowania($zeton));
 
         $this->przepracujJedno();

@@ -219,6 +219,20 @@
                @if($required) required @endif
                @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                @if($error) aria-invalid="true" @endif>
+        @if($type === 'password' && $binding === null)
+            {{--
+                „POKAŻ HASŁO” (issue #948). Przycisk stoi w HTML-u z atrybutem
+                `hidden` i odsłania go dopiero `resources/js/pokaz-haslo.js`.
+                Bez skryptu nie ma więc martwego przycisku (D-053), a pole
+                działa jak dotąd: zamaskowane, z tym samym `autocomplete`.
+                Tekst dopięty dla czytnika ekranu odróżnia kilka pól na jednej
+                stronie („Pokaż hasło: Obecne hasło”, „Pokaż hasło: Nowe
+                hasło”), a zaczyna się od widocznego napisu (WCAG 2.5.3).
+            --}}
+            <button class="btn btn-secondary pokaz-haslo" type="button" hidden
+                    data-pokaz-haslo aria-controls="{{ $id }}" aria-pressed="false"><span data-pokaz-haslo-napis>Pokaż hasło</span><span class="visually-hidden">: {{ $label }}</span></button>
+            <span class="visually-hidden" aria-live="polite" data-pokaz-haslo-stan></span>
+        @endif
     @endif
 
     @if($licznikZnakow)
