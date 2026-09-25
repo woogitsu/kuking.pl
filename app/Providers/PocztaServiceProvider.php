@@ -8,6 +8,7 @@ use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Poczta\PoliczListBezRezerwacji;
 use App\Poczta\TransportEmailLabs;
 use App\Poczta\ZapiszNieudanyList;
+use App\Support\DozwolonyHostApi;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\MailManager;
 use Illuminate\Queue\Events\JobFailed;
@@ -41,6 +42,18 @@ class PocztaServiceProvider extends ServiceProvider
 {
     /** Adres wysyłkowy API EmailLabs (OpenAPI: `servers[0].url` + `/v2.1/email`). */
     public const ADRES_API = 'https://api.emaillabs.io/v2.1/email';
+
+    /**
+     * Jedyne hosty, którym wolno dać klucze EmailLabs i treść listu (#991).
+     * Starsze API `api.emaillabs.net.pl` (v1) ma inny kształt żądania, więc
+     * tego transportu i tak by nie przyjęło — na liście go nie ma.
+     *
+     * @var list<string>
+     */
+    public const HOSTY_API = ['api.emaillabs.io'];
+
+    /** Jedyna ścieżka, pod którą transport wysyła list (D-250). */
+    public const SCIEZKA_API = '#^/v2\\.1/email$#';
 
     /**
      * Sekundy. Wysyłka idzie z workera kolejki, więc czekanie nie blokuje
@@ -177,6 +190,14 @@ class PocztaServiceProvider extends ServiceProvider
 
         if (! str_starts_with($adresApi, 'https://')) {
             throw BrakKonfiguracjiEmailLabs::zlyAdresApi('EMAILLABS_ENDPOINT');
+        }
+
+        // Sam HTTPS nie wystarcza: klucze i treść listu szłyby na DOWOLNY
+        // host z tej zmiennej. Odmowa przy budowie, nie przy pierwszym liście.
+        $powod = DozwolonyHostApi::powod($adresApi, self::HOSTY_API, self::SCIEZKA_API);
+
+        if ($powod !== null) {
+            throw BrakKonfiguracjiEmailLabs::obcyHostApi('EMAILLABS_ENDPOINT', $powod);
         }
 
         $dziennik = $this->app->make('log');
