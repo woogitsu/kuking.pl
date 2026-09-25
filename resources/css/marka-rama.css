@@ -148,7 +148,56 @@
 [data-marka] .marka-start-kroki a,
 [data-marka] .marka-start-zaufanie a { display: inline-flex; min-height: 48px; align-items: center; }
 [data-marka] .marka-start-zaufanie { margin-top: calc(32px * var(--user-layout-scale, 1)); padding: calc(24px * var(--user-layout-scale, 1)); background: var(--color-surface-raised); border-radius: 20px; }
-[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-pod-belka) + calc(24px * var(--user-layout-scale, 1))); }
+/* Dolne wypełnienie stopki: rezerwa na PRZYPIĘTĄ BELKĘ — tylko wtedy, gdy
+   belka naprawdę stoi na ekranie (`--rezerwa-ukladu-dol`, wyprowadzenie
+   niżej) — plus 16 px oddechu. Bez belki koniec strony to koniec stopki.
+   Nie `--rezerwa-pod-belka`: ten token opisuje przewijanie
+   (`scroll-padding-bottom`), a nie miejsce w przepływie. */
+[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-ukladu-dol, 0px) + calc(16px * var(--user-layout-scale, 1))); }
+/* MIEJSCE NA PRZYCISK „WYGLĄD" JEST Z BOKU, NIE POD STOPKĄ (24.09).
+   Przycisk stoi `fixed` w prawym dolnym rogu, więc na samym końcu strony
+   wypada na wysokości paska technicznego. Do 24.09 zostawialiśmy mu 68 px
+   pod stopką na KAŻDEJ szerokości — to był biały pas, który właściciel
+   zgłosił jako „za duża stopka". Teraz pasek techniczny kończy się przed
+   przyciskiem: prawe wypełnienie = odstęp przycisku od krawędzi okna
+   (`--spacing-3`, ten sam co w `right` w `szybki-wyglad.css`) + jego
+   zmierzona szerokość (≈ 7,5rem z napisem „Aa · Wygląd" przy skali 100%,
+   rośnie ze skalą tekstu) + odstęp. Wersja stoi przy przycisku motywu,
+   a nie na prawym końcu paska, bo prawy koniec należy do przycisku.
+   Pilnuje tego `scripts/stopka-pusty-pas.mjs` (przycisk nie leży na treści).
+   SUFIT 50% (24.09, CI #1250): rezerwa rośnie ze skalą i z `rem`, a szerokość
+   paska nie. Przy 414 px, czcionce przeglądarki 32 px i skali 140% wychodziło
+   382 px wypełnienia na pasek szeroki na 350 px — pasek rozpychał się poza
+   ekran i strona przewijała się w poziomie o 16 px (`nawigacja-etykiety.mjs`,
+   `kompozycje-marki.mjs`). Procent w `padding` liczy się od szerokości
+   `.site-footer-inner`, więc połowa paska zostaje zawsze na motyw i wersję.
+   Przy skali 100% i czcionce 16 px sufit nie działa nigdzie; przy 140%
+   ścina tylko 414 px (191 → 175 px), a przycisk nadal nie leży na treści. */
+[data-marka] .site-footer-pasek {
+  padding-right: min(calc(var(--spacing-3) + 8rem * var(--user-text-scale, 1)), 50%);
+}
+[data-marka] .site-footer-pasek .site-version { margin-left: 0; }
+/* Do 400px przycisk pokazuje samo „Wygląd" (bez „Aa · ", `szybki-wyglad.css`),
+   więc jest węższy, a pasek i tak kończy się 32 px przed krawędzią okna
+   (wypełnienie stopki + margines `.site-footer-inner`). Rezerwa = szerokość
+   przycisku (34 px ramki i wypełnienia + napis ≈ 4,25rem × skala) + 12 px
+   jego odstępu od krawędzi − te 32 px + 16 px luzu. Przy 390 px i skali
+   100% to 98 px zamiast 140 — tyle, że wersja mieści się obok motywu. */
+@media (max-width: 400px) {
+  [data-marka] .site-footer-pasek { padding-right: min(calc(30px + 4.25rem * var(--user-text-scale, 1)), 50%); }
+}
+/* GDY Z BOKU SIĘ NIE MIEŚCI — POD PASKIEM (#1525). Przy czcionce
+   przeglądarki 32 px przycisk ma 220–336 px, więcej niż pół paska (sufit
+   wyżej), i na końcu strony leżał na motywie i wersji. `szybki-wyglad.js`
+   ustawia wtedy `data-wyglad-pod-paskiem` i zmierzoną wysokość przycisku
+   z odstępem od dołu okna (`--wyglad-wysokosc`); stopka dostaje tyle
+   miejsca pod paskiem plus 8 px luzu. Przy zwykłym piśmie atrybutu nie ma,
+   więc pusty pas pod stopką nie wraca. Bez skryptu przycisk stoi
+   w przepływie strony i niczego nie przykrywa — rezerwa nie jest potrzebna.
+   Pilnuje `scripts/stopka-pusty-pas.mjs` (czcionka 32 px, kontrola ujemna). */
+:root[data-wyglad-pod-paskiem] [data-marka] .site-footer {
+  padding-bottom: calc(var(--rezerwa-ukladu-dol, 0px) + var(--wyglad-wysokosc, 72px) + 8px);
+}
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {
   left: calc(8px + var(--safe-left));
@@ -227,6 +276,36 @@
 :root:has(body[data-marka]) {
   --rezerwa-pod-belka: calc(11rem * var(--user-text-scale, 1));
   --rezerwa-nad-belka: calc(9rem + 6rem * var(--user-text-scale, 1));
+}
+
+/*
+ * REZERWA UKŁADU — JEDYNA, KTÓRA ZAJMUJE MIEJSCE W DOKUMENCIE.
+ *
+ * `--rezerwa-pod-belka` opisuje PRZEWIJANIE (`scroll-padding-bottom`
+ * w `app.css`) i nic nie rysuje. `--rezerwa-ukladu-dol` mówi, ile PUSTEGO
+ * MIEJSCA dokładamy na końcu strony — wydawana w jednym miejscu,
+ * w `padding-bottom` stopki, bo stopka jest ostatnia w dokumencie.
+ *
+ * HISTORIA LICZB (Chromium, gość, skala 100%, `scripts/stopka-pusty-pas.mjs`):
+ *  - do 22.09: 456 px pustki pod stopką przy 320–768 px (rezerwa 176 px
+ *    policzona dwa razy: w stopce i w `body`), 104 px na desktopie
+ *    (80 px szarego `body` + 24 px białego w stopce);
+ *  - #1250 w pierwszej wersji: 92 px wszędzie — rezerwa na przycisk
+ *    „Wygląd" pod stopką. Właściciel 24.09: „za dużo";
+ *  - teraz: 16 px. Przycisk „Wygląd" ma miejsce z boku paska (wyżej).
+ *
+ * WARUNKIEM JEST OBECNOŚĆ BELKI. Gość belki nie ma (`@auth` w layoucie),
+ * od 64rem nie ma jej nikt — rezerwa wynosi wtedy 0.
+ *
+ * WYSOKOŚĆ BELKI JEST ZMIERZONA, NIE ZGADNIĘTA. `szybki-wyglad.js` ustawia
+ * `--rezerwa-belki` na rzeczywistą wysokość przypiętej belki (94 px przy
+ * skali 100%, 162 px, gdy przy 320 px i tekście 140% zawija się na dwa
+ * wiersze) albo 0, gdy belki nie widać. Bez skryptu zostaje zapasowe
+ * `--rezerwa-pod-belka` (11rem × skala) — hojniej, ale nadal raz.
+ */
+:root { --rezerwa-ukladu-dol: 0px; }
+:root:has(body[data-marka] .bottom-nav) {
+  --rezerwa-ukladu-dol: var(--rezerwa-belki, var(--rezerwa-pod-belka));
 }
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
   /* Zostaje tylko miejsce na pierścień fokusu, nie wysokość przewiniętego nagłówka. */
