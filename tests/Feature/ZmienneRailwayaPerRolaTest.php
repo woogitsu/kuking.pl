@@ -190,6 +190,8 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
+        'TURNSTILE_HOSTY_STAGINGU' => 'Pusto = token Turnstile tylko z hosta `APP_URL` (#992); ustawiane ręcznie '
+            .'wyłącznie na stagingu, który odpowiada też pod innym hostem. Na produkcji zostaje puste.',
 
         // --- Domyślne połączenie Laravela jest poprawne (null = domyślne) ----
         'CACHE_STORAGE_DISK' => 'Cache stoi na bazie (`CACHE_STORE=database`); dysk cache nieużywany.',
