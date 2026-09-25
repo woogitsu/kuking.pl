@@ -1102,14 +1102,20 @@ element serwisu; usunięcie kont zabrałoby treść, do której realni
 użytkownicy mogli już coś dopisać (komentarz, „Ugotowałem"). Decyzja
 właściciela, do podjęcia przed otwarciem rejestracji.
 
-**Rollback:** `down()` zdejmuje kolumnę. Nic poza etykietą w interfejsie
-i wykluczeniem z WAC nie czyta `is_seeded`, więc rollback nie kasuje żadnego
-wiersza `users`/`posts`/`recipes`/`comments` — dwanaście kont z pliku staje
-się po prostu nie do odróżnienia od kont zwykłych, a ich treść (i wpływ na
-WAC) wraca do tego, jak wygląda dla każdego innego konta. To jest znany,
-opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
-rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
-co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
+**Rollback — odmawia, gdy są konta z pliku (D-088, audyt B3 W4).** `down()`
+zdejmuje kolumnę tylko wtedy, gdy żadne konto nie ma `is_seeded = true`.
+Inaczej rzuca wyjątek z liczbą takich kont i instrukcją, co zrobić ręcznie
+(wycofać sam kod; a przy cofaniu schematu najpierw zapisać
+`SELECT id FROM users WHERE is_seeded = true` i odtworzyć to po powrocie).
+Powód: po cichym cofnięciu kolejny `migrate` przywraca kolumnę z
+`DEFAULT false`, więc persony stają się nie do odróżnienia od ludzi — bez
+etykiety, w WAC i „Liczbie Kukingów" (`CookEligibility`, `LiczbaKukingow`),
+w liście kont dotkniętych naprawą #317 (`KontaBezPotwierdzonegoAdresu`).
+Wcześniej ochroną było tylko zdanie w tym dokumencie, a AGENTS.md §6 mówi
+wprost, że to nie jest zabezpieczenie. Sprawdzenie idzie pod
+`LOCK TABLE users IN ACCESS EXCLUSIVE MODE`, w transakcji migracji. Świeża
+baza i baza bez kont z pliku przechodzą bez pytania. Test odmowy i dwie
+kontrole dodatnie: `tests/Feature/CofniecieMigracjiNieGubiKontZalazkowychTest.php`.
 
 #### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
 
