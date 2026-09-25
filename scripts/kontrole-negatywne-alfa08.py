@@ -197,6 +197,11 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # zwrot miejsca do wspólnej puli poczty.
 BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
 BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+# Klucz preview środowiska PR (#975). Zachowanie skryptu mierzą testy
+# behawioralne; ten wpis pilnuje jedynego testu czytającego entrypoint —
+# mutacja odcina wywołanie przed odmową startu i ma go zapalić.
+ENTRYPOINT = "docker/entrypoint.sh"
+KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 # Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
 # akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
 # `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
@@ -541,6 +546,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
+     lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -568,6 +575,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(KLUCZ_PREVIEW_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

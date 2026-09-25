@@ -175,7 +175,11 @@ export default defineRailway((ctx) => {
     APP_NAME: "Kuking",
     APP_ENV: isProduction ? "production" : "staging",
     APP_DEBUG: "false", // NIGDY "true" na czymkolwiek dostępnym z internetu
-    APP_KEY: ctx.shared.APP_KEY, // inny dla każdego środowiska
+    // Inny dla każdego środowiska. W `pr-*` ta referencja jest PUSTA: klucz
+    // staginu jest `Sealed`, a Railway nie kopiuje takich zmiennych do PR
+    // Environments. Preview dostaje wtedy losowy klucz kontenera z
+    // docker/klucz-preview.sh (#975) — nie odpieczętowuj klucza staginu.
+    APP_KEY: ctx.shared.APP_KEY,
     APP_URL: isProduction
       ? "https://kuking.pl"
       : isStaging
