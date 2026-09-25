@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\KomunikatZaDuzaWysylka;
+use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
@@ -20,6 +22,7 @@ use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
@@ -120,7 +123,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->odswiezajLicznikiKolejek();
 
+        // Mapa strony nie może ogłaszać treści, która przestała być
+        // publiczna (issue #1006) — opis w `App\Support\MapaStrony`.
+        MapaStrony::zarejestrujHaki();
+
         $this->zapisujWSesjiTylkoZgrubnyAdres();
+
+        // Issue #993: osierocone pliki pośrednie eksportu sprząta pętla
+        // workera, na dysku, na którym powstały — nie tylko start następnego
+        // eksportu. Dławik i uzasadnienie w `ExportTempDirectory::sweepStaleIfDue()`.
+        Event::listen(Looping::class, fn () => ExportTempDirectory::sweepStaleIfDue());
     }
 
     /**

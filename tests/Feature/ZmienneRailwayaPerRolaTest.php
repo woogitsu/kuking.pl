@@ -143,6 +143,29 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         ],
         'AWS_KOPIE_ACCESS_KEY_ID' => ['role' => ['scheduler'], 'powod' => 'Jak AWS_KOPIE_BUCKET.'],
         'AWS_KOPIE_SECRET_ACCESS_KEY' => ['role' => ['scheduler'], 'powod' => 'Jak AWS_KOPIE_BUCKET.'],
+        'AWS_ZDJECIA_KOPIA_BUCKET' => [
+            'role' => ['scheduler'],
+            'powod' => 'Dysk `r2_kopia_zdjec` czyta wyłącznie `kuking:sprawdz-kopie-zdjec` (#1497, D-257), '
+                .'uruchamiane ręcznie po migawce w konsoli schedulera — proces bez ruchu z internetu, '
+                .'jak odczyt kopii bazy. Token tylko do odczytu tego bucketu.',
+        ],
+        'AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID' => ['role' => ['scheduler'], 'powod' => 'Jak AWS_ZDJECIA_KOPIA_BUCKET.'],
+        'AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY' => ['role' => ['scheduler'], 'powod' => 'Jak AWS_ZDJECIA_KOPIA_BUCKET.'],
+        'KUKING_PULS_HARMONOGRAMU_URL' => [
+            'role' => ['scheduler'],
+            'powod' => '`kuking:puls-harmonogramu` z harmonogramu (#599, #1659); adres zawiera token monitora.',
+        ],
+        'KUKING_EDGE_TOKEN' => [
+            'role' => ['web'],
+            'powod' => 'Bramka tokenu krawędzi Cloudflare (`TokenKrawedzi`, `NormalizeForwardedFor`) — tylko żądania HTTP.',
+        ],
+        'KUKING_EDGE_TOKEN_POPRZEDNI' => ['role' => ['web'], 'powod' => 'Jak KUKING_EDGE_TOKEN, na czas rotacji sekretu.'],
+        'KUKING_HOST_USER_ID' => [
+            'role' => ['web', 'scheduler'],
+            'powod' => '`HostUserResolver` (#1089, #1375). Web: `ZalozKonto` (auto-obserwowanie przy rejestracji, '
+                .'też przez Google/Facebooka) i `PublishPost` (alert pierwszego wpisu). Scheduler: '
+                .'`kuking:policz-kukingow` → `LiczbaKukingow` → `CookEligibility`. UUID różny w każdym środowisku.',
+        ],
     ];
 
     /**
@@ -612,10 +635,13 @@ class ZmienneRailwayaPerRolaTest extends TestCase
 
     private function envUslugi(string $kod, string $nazwa): string
     {
-        $poczatek = strpos($kod, 'service("'.$nazwa.'"');
-        $this->assertNotFalse($poczatek, "Brak deklaracji serwisu `{$nazwa}` w railway.ts.");
+        // Serwis WWW nazywa się jak serwis produkcji (`kuking.pl`), więc w railway.ts
+        // stoi jako `service(NAZWA_SERWISU_WWW, …)`, nie `service("web", …)`.
+        $igla = $nazwa === 'web' ? 'service(NAZWA_SERWISU_WWW' : 'service("'.$nazwa.'"';
+        $poczatek = strpos($kod, $igla);
+        $this->assertNotFalse($poczatek, "Brak deklaracji serwisu `{$nazwa}` w railway.ts (szukano `{$igla}`).");
 
-        $nastepny = strpos($kod, 'service("', $poczatek + 1);
+        $nastepny = strpos($kod, 'service(', $poczatek + 1);
         $blok = substr($kod, $poczatek, $nastepny === false ? null : $nastepny - $poczatek);
 
         $this->assertSame(
