@@ -29,11 +29,15 @@ use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
 use App\Models\Comment;
+use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
@@ -47,6 +51,8 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -310,6 +316,51 @@ try {
 
             return $bledy === null ? 'ok' : implode(' ', $bledy->all());
         })(),
+
+        // Ustawienie nowego hasła PRAWDZIWYM kontrolerem (#1358): zmiana
+        // w ustawieniach albo reset linkiem. Bariera przyrządu staje zaraz
+        // po zapisie `users.password` — w oknie, w którym stary kod miał
+        // hasło już zatwierdzone, a zamówioną zmianę adresu jeszcze żywą.
+        // Kontroler, a nie akcja, bo test ma pęknąć także wtedy, gdy ktoś
+        // wróci do zapisu hasła poza akcją.
+        'ustaw-haslo' => (function () use ($argumenty): array {
+            Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_starts_with($query->sql, 'update "users" set "password"')) {
+                    DB::select('SELECT pg_advisory_xact_lock(1358, 1)');
+                }
+            });
+
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            $haslo = ['password' => $argumenty['haslo'], 'password_confirmation' => $argumenty['haslo']];
+
+            [$request, $kontroler, $metoda] = $argumenty['droga'] === 'zmiana'
+                ? [Request::create('/', 'PUT', ['current_password' => $argumenty['obecne'], ...$haslo]), SecuritySettingsController::class, 'updatePassword']
+                : [Request::create('/', 'POST', ['token' => $argumenty['token'], 'email' => $argumenty['email'], ...$haslo]), PasswordResetController::class, 'reset'];
+
+            // Kolejność ma znaczenie: podmiana `request` w kontenerze
+            // przestawia rozwiązywanie użytkownika na guarda.
+            $request->setLaravelSession(app('session.store'));
+            app()->instance('request', $request);
+
+            if ($argumenty['droga'] === 'zmiana') {
+                Auth::guard('web')->setUser($konto);
+            }
+
+            app()->call([app($kontroler), $metoda], ['request' => $request]);
+
+            /** @var ViewErrorBag|null $bledy */
+            $bledy = $request->session()->get('errors');
+
+            return ['bledy' => $bledy?->all() ?? []];
+        })(),
+
+        // Potwierdzenie zamówionej zmiany adresu — ta sama akcja, którą woła
+        // `EmailSettingsController::confirm()` z wierszem odczytanym przed nią.
+        'potwierdz-adres' => app(ConfirmEmailChange::class)->handle(
+            User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+            PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
+        ),
 
         // Komenda obchodząca zaległe potwierdzenia zgłoszeń (issue #797).
         // Wołamy PRAWDZIWĄ komendę przez Artisana, nie jej wnętrzności —
