@@ -130,10 +130,12 @@ set -Eeuo pipefail
 # migracjach). Próg ma łapać zrzut z INNEJ albo pustej bazy, a nie oblewać się
 # przy każdym dołożeniu migracji. Wartość „ile jest dziś” nie jest progiem:
 # byłaby testem, który trzeba poprawiać przy każdej zmianie schematu, a taki
-# test po trzecim razie podnosi się bez czytania.
+# test po trzecim razie podnosi się bez czytania. Wyjątek: próg wyzwalaczy
+# równa się liczbie wyzwalaczy gwarancji z `WYZWALACZE_WYMAGANE` (od #996 —
+# cztery), bo zrzut bez któregokolwiek z nich jest bezwartościowy.
 MIN_BAJTOW="${PROBA_MIN_BAJTOW:-20000}"
 MIN_TABEL="${PROBA_MIN_TABEL:-20}"
-MIN_WYZWALACZY="${PROBA_MIN_WYZWALACZY:-3}"
+MIN_WYZWALACZY="${PROBA_MIN_WYZWALACZY:-4}"
 MIN_CHECK="${PROBA_MIN_CHECK:-40}"
 MIN_UNIQUE="${PROBA_MIN_UNIQUE:-15}"
 MIN_KLUCZY_OBCYCH="${PROBA_MIN_KLUCZY_OBCYCH:-30}"
