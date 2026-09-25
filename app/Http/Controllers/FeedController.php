@@ -233,9 +233,12 @@ class FeedController extends Controller
         }
 
         // Tagi i odkrywanie na Starcie niosą też własne wpisy (issue #1318).
-        // Tak jak przy obserwowanych: strona z samych własnych wpisów zostaje
-        // przy tagach tylko wtedy, gdy tagi nadal mają cudzą treść —
-        // własny wpis nie może sam blokować przejścia do odkrywania.
+        // Własny wpis BEZ obserwowanego tagu (doklejony przez `zWlasnymi`)
+        // nie może sam trzymać Startu przy tagach: strona z samych takich
+        // wpisów zostaje przy tagach tylko wtedy, gdy `maTresci()` widzi
+        // treść tagów. Własny OPUBLIKOWANY wpis Z tagiem `maTresci()` liczy
+        // jak każdą treść tagu — świadomie, patrz kontrola dodatnia
+        // `FeedTagowTylkoOpublikowaneTest` (#1338).
         if ($zrodlo === 'tagi') {
             $posts = $this->tagFeed->paginate($user, zWlasnymi: true);
 
