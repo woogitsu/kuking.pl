@@ -2443,8 +2443,11 @@ kopia tabeli).
 `open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
 Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
-`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
-harmonogram codziennie o 04:30.
+`moderation_actions` i `appeals`, w jednej komendzie, harmonogram codziennie
+o 04:30. Kasuje partiami po 500 identyfikatorów (partia w transakcji; gdy
+padnie — powtórka wiersz po wierszu) i najwyżej 20 000 wierszy z każdej
+tabeli na przebieg; resztę bierze następna noc, a ostrzeżenie w dzienniku
+mówi, ile jej zostało (issue #998).
 
 **`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
 `2026_09_07_910000_add_numer_sprawy_to_reports`).
