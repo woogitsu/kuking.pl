@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -106,6 +107,19 @@ class Media extends Model
             'width' => 'integer',
             'height' => 'integer',
         ];
+    }
+
+    /**
+     * Zdjęcie, które stało się gotowe (albo przestało), zmienia kolaż
+     * tagów swoich wpisów — cache gościa czyści `UniewaznijCacheTagow`.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $media): void {
+            if ($media->wasChanged('status')) {
+                UniewaznijCacheTagow::poZmianieZdjecia($media);
+            }
+        });
     }
 
     /**
