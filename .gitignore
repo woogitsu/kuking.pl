@@ -65,6 +65,8 @@ Thumbs.db
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
 
+# Skompilowany Python z uruchomień skryptów kontrolnych.
+__pycache__/
 # Zrzuty bazy (audyt A5-17). `git add .` po `pg_dump` do katalogu repozytorium
 # wciągał zrzut z danymi osobowymi. `*.sql` TYLKO w korzeniu i w `storage/`
 # — w `database/reference/`, `docs/obciazenie/` i `scripts/` leżą śledzone,
