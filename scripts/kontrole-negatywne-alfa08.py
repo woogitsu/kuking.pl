@@ -224,6 +224,10 @@ STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
+# Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
+# w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
+ZMIANA_ROLI = "app/Domain/Users/Actions/ChangeUserRole.php"
+AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -248,9 +252,17 @@ WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) 
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
 # zdejmuje ten rethrow — oba testy mają oblać na braku wyjątku.
+#
+# Kotwica obejmuje `usunOsieroconaPaczke()` (audyt B5 pkt 4, PR #1721): ten
+# wiersz stanął między `markFailed()` a `throw $e`, a stara kotwica
+# („markFailed, pusta linia, throw”) przestała pasować — replace_once rzucał
+# RuntimeError i cały krok „Kontrole negatywne” padał na main. Mutacja zdejmuje
+# nadal WYŁĄCZNIE rethrow; sprzątanie osieroconej paczki zostaje nietknięte,
+# żeby kontrola dowodziła jednej rzeczy: że testy łapią brak wyjątku.
 EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
-EKSPORT_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n\n            throw $e;\n"
+EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
+EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 
 
 def digest(path):
@@ -574,7 +586,7 @@ checks = [
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, "    ...modelEnv,\n", "")),
     ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv };")),
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv, ")),
     # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
     # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
@@ -605,6 +617,8 @@ checks = [
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Awans roli bez odwołania sesji", ZMIANA_ROLI, AWANS_ROLI_TEST,
+     lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
@@ -616,7 +630,7 @@ checks = [
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
-     lambda s: replace_once(s, EKSPORT_RETHROW, "            $this->markFailed($export, $this->reasonFor($e));\n\n")),
+     lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -624,6 +638,20 @@ checks = [
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
 ]
+
+# PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
+# Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po kilku
+# minutach, anonimowym „nie znalazła dokładnie jednego miejsca” — bez nazwy
+# kontroli. Czytanie w logu ~500 linii oczekiwanych porażek (np. „Format UUID”
+# celowo daje 500 w WyborZeszytuMaWalidacjeTest) wyglądało jak regresja w kodzie.
+# Tu nic nie jest zapisywane na dysk; błąd mówi, KTÓRA kontrola i w jakim pliku.
+for label, filename, _test, mutate in checks:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
 
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
@@ -651,6 +679,7 @@ run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(AWANS_ROLI_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
