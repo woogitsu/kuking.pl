@@ -287,7 +287,7 @@ class TwoFactorAuthenticator
             }
 
             $hashe = $swiezy->two_factor_backup_codes ?? [];
-            $znormalizowany = Str::upper(trim($podanyKod));
+            $znormalizowany = self::normalizujKodZapasowy($podanyKod);
 
             foreach ($hashe as $indeks => $hash) {
                 // `Hash::check` na bcroście jest CELOWO wolne (~50-100 ms na
@@ -323,7 +323,7 @@ class TwoFactorAuthenticator
      */
     public function backupCodeMatches(User $user, string $podanyKod): bool
     {
-        $znormalizowany = Str::upper(trim($podanyKod));
+        $znormalizowany = self::normalizujKodZapasowy($podanyKod);
 
         foreach ($user->two_factor_backup_codes ?? [] as $hash) {
             if (Hash::check($znormalizowany, $hash)) {
@@ -332,6 +332,28 @@ class TwoFactorAuthenticator
         }
 
         return false;
+    }
+
+    /**
+     * Kod zapasowy w postaci, w jakiej go zahaszowano (issue #875).
+     *
+     * Człowiek przepisuje kod z kartki: dopisuje spację, gubi myślnik albo
+     * wstawia pauzę z autokorekty. Wycinamy więc odstępy i wszelkie kreski,
+     * zmieniamy litery na wielkie i wstawiamy myślnik tam, gdzie wstawił go
+     * generator: po 4 znakach w starym formacie „XXXX-XXXX”, po 5 w nowym
+     * „XXXXX-XXXXX”. Samych znaków NIE zamieniamy (0↔O, 1↔I) — stare kody
+     * mogą zawierać oba i zmieniłoby to ich znaczenie. Inna długość zostaje
+     * jak dawniej (wielkie litery, bez skrajnych spacji).
+     */
+    private static function normalizujKodZapasowy(string $podanyKod): string
+    {
+        $zwarty = Str::upper((string) preg_replace('/[\s\-\x{2010}-\x{2015}\x{2212}]+/u', '', $podanyKod));
+
+        return match (mb_strlen($zwarty)) {
+            8 => mb_substr($zwarty, 0, 4).'-'.mb_substr($zwarty, 4),
+            10 => mb_substr($zwarty, 0, 5).'-'.mb_substr($zwarty, 5),
+            default => Str::upper(trim($podanyKod)),
+        };
     }
 
     /**
