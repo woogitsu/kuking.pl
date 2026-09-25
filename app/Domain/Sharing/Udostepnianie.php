@@ -6,6 +6,7 @@ namespace App\Domain\Sharing;
 
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Support\AdresKanoniczny;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -86,12 +87,19 @@ final class Udostepnianie
         };
     }
 
-    /** Adres, który dostanie odbiorca. Zawsze bezwzględny i bez parametrów. */
+    /**
+     * Adres, który dostanie odbiorca. Zawsze bezwzględny i bez parametrów.
+     *
+     * Host z `APP_URL`, nie z żądania (issue #1369): wejście przez `www`
+     * dawałoby linki WhatsApp, e-mail i Facebook z `www`, a sitemapa
+     * i canonical wskazują apex — jedna treść zbierałaby udostępnienia
+     * pod dwoma adresami.
+     */
     public function adres(Model $tresc): string
     {
-        return $tresc instanceof Recipe
+        return AdresKanoniczny::zbuduj(fn (): string => $tresc instanceof Recipe
             ? route('recipes.show', $tresc)
-            : $tresc->url();
+            : $tresc->url());
     }
 
     /**

@@ -44,6 +44,19 @@
         @if($selectionExpired)
             <p role="status">Wybór osób wygasł. Zaznacz je ponownie albo pomiń ten krok.</p>
         @endif
+        @if($zmienionePrzyWyborze !== [])
+            {{-- #1340: jak komunikat po zapisie w `saveFollows()` — cicho
+                 odznaczona osoba wygląda jak zaznaczenie, którego nie było. --}}
+            <p role="status">
+                @if(count($zmienionePrzyWyborze) === 1)
+                    Nazwa „{{ $zmienionePrzyWyborze[0] }}” należy teraz do innej osoby, więc jej nie zaznaczyliśmy.
+                    Jeśli nadal chcesz ją obserwować, sprawdź, czy to właściwa osoba, i zaznacz ją ponownie.
+                @else
+                    Te nazwy należą teraz do innych osób, więc ich nie zaznaczyliśmy: {{ implode(', ', $zmienionePrzyWyborze) }}.
+                    Jeśli nadal chcesz je obserwować, sprawdź, czy to właściwe osoby, i zaznacz je ponownie.
+                @endif
+            </p>
+        @endif
         <div class="ramka-pomocnicza mb-6">
             <h2>Znasz już kogoś w <x-kuking-word />?</h2>
             <p class="mb-4">
