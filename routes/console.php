@@ -252,6 +252,18 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
+// jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
+// prośby, z której nikt nie skorzystał, zostaje bez terminu — także w kopiach.
+// Żeton przestaje działać po `auth.passwords.users.expire` minutach sam; to
+// zadanie zabiera już tylko dane osobowe bez zastosowania.
+Harmonogram::artisan('kuking:sprzataj-resety-hasel')
+    ->name('kuking:sprzataj-resety-hasel')
+    ->dailyAt('05:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
