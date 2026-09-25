@@ -55,6 +55,9 @@ function limitZadaniaZdjec() {
   return Number(trafienie[1]);
 }
 
+/** Sekundy na zamknięcie procesu po dokończeniu zadania (audyt B8-03). */
+const ZAPAS_ZAMKNIECIA_S = 10;
+
 const ROLA = (s) => s.deploy?.startCommand?.split(" ").at(-1);
 const zmienna = (s, k) => s.variables?.[k];
 
@@ -112,6 +115,11 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (produkcja && s.deploy?.sleepApplication !== false) b.push(`${s.name}: usypianie na produkcji`);
     if (!(s.deploy?.limitOverride?.containers?.memoryBytes > 0)) b.push(`${s.name}: brak limitu pamięci`);
     if (!(s.deploy?.drainingSeconds > 0)) b.push(`${s.name}: brak drainingSeconds — SIGKILL od razu po SIGTERM`);
+    // Rola z `queue:work` (worker albo all) musi dać dokończyć zdjęcie z zapasem
+    // na zamknięcie procesu — inaczej ubite zadanie wisi do `retry_after` (B8-03).
+    if ((rola === "worker" || rola === "all") && !(s.deploy?.drainingSeconds >= limitZdjec + ZAPAS_ZAMKNIECIA_S)) {
+      b.push(`${s.name}: rola ${rola}, drainingSeconds=${s.deploy?.drainingSeconds} krótszy niż limit zadania zdjęć ${limitZdjec} s + ${ZAPAS_ZAMKNIECIA_S} s zapasu`);
+    }
     if (s.variables?.DB_URL?.resource !== "database.Postgres") b.push(`${s.name}: DB_URL nie wskazuje database.Postgres`);
   }
 
@@ -196,6 +204,8 @@ const MUTACJE = [
   ["healthcheck HTTP na harmonogramie", PROD, (g) => { usluga(g, "scheduler").deploy.healthcheckPath = "/health"; }],
   ["zmienna tylko w web", PROD, (g) => { delete usluga(g, "worker").variables.AWS_BUCKET; }],
   ["worker bez czasu na zdjęcie", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 30; }],
+  ["worker bez zapasu po zadaniu zdjęć", PROD, (g) => { usluga(g, "worker").deploy.drainingSeconds = 120; }],
+  ["rola all z oknem serwisu WWW", STAGING, (g) => { usluga(g, "kuking.pl").deploy.drainingSeconds = 30; }],
   ["usypianie workera", PROD, (g) => { usluga(g, "worker").deploy.sleepApplication = true; }],
   ["worker w innym regionie", PROD, (g) => { usluga(g, "worker").deploy.region = "us-west2"; }],
   ["worker z innej gałęzi", PROD, (g) => { usluga(g, "worker").source = { ...usluga(g, "worker").source, branch: "staging" }; }],
