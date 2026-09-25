@@ -83,7 +83,7 @@ class CzyszczenieNieudanychZadanTest extends TestCase
 
         $zadanie = collect(app(Schedule::class)->events())->firstWhere('description', 'queue:prune-failed');
         $this->assertInstanceOf(CallbackEvent::class, $zadanie);
-        $kod = $this->app->call($this->callback($zadanie));
+        $kod = $this->app->call($this->domkniecieZadania($zadanie));
 
         $this->assertSame(0, $kod);
         $zostaly = DB::table('failed_jobs')->pluck('uuid')->all();
@@ -102,7 +102,7 @@ class CzyszczenieNieudanychZadanTest extends TestCase
             return ['to nie jest CallbackEvent (Schedule::command() wymaga proc_open)'];
         }
 
-        $zmienne = (new ReflectionFunction($this->callback($event)))->getStaticVariables();
+        $zmienne = (new ReflectionFunction($this->domkniecieZadania($event)))->getStaticVariables();
         if (($zmienne['komenda'] ?? null) !== 'queue:prune-failed') {
             $bledy[] = 'komenda: '.var_export($zmienne['komenda'] ?? null, true);
         }
@@ -122,7 +122,7 @@ class CzyszczenieNieudanychZadanTest extends TestCase
         return $bledy;
     }
 
-    private function callback(CallbackEvent $event): Closure
+    private function domkniecieZadania(CallbackEvent $event): Closure
     {
         $callback = (new ReflectionProperty(CallbackEvent::class, 'callback'))->getValue($event);
         $this->assertInstanceOf(Closure::class, $callback);
@@ -133,13 +133,15 @@ class CzyszczenieNieudanychZadanTest extends TestCase
     /**
      * Ten sam kształt domknięcia co `Harmonogram::wykonaj()` — zmienne
      * `$komenda` i `$parametry` — ale bez uruchamiania czegokolwiek.
+     * Obie zmienne są użyte w ciele, żeby Pint (`lambda_not_used_import`)
+     * nie wyciął ich z `use` — test czyta je przez `getStaticVariables()`.
      *
      * @param  array<string, mixed>  $parametry
      */
     private function domkniecie(string $komenda, array $parametry): Closure
     {
         return function () use ($komenda, $parametry): int {
-            return 0;
+            return strlen($komenda) + count($parametry) > 0 ? 0 : 1;
         };
     }
 

@@ -92,6 +92,19 @@ final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldB
     use Queueable;
 
     /**
+     * Kolejka `high` (audyt B8-06): ten list wpuszcza człowieka na konto
+     * i ma krótki termin ważności, więc nie staje w FIFO za podsumowaniem
+     * tygodnia na `default`. Worker czyta `high` pierwszą (`docker/entrypoint.sh`,
+     * pilnuje `UmowaKolejkiTest`).
+     *
+     * @return array<string, string>
+     */
+    public function viaQueues(): array
+    {
+        return ['mail' => 'high'];
+    }
+
+    /**
      * @param  User  $notifiable
      */
     public function toMail($notifiable): MailMessage
