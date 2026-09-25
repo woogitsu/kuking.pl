@@ -1102,14 +1102,20 @@ element serwisu; usunięcie kont zabrałoby treść, do której realni
 użytkownicy mogli już coś dopisać (komentarz, „Ugotowałem"). Decyzja
 właściciela, do podjęcia przed otwarciem rejestracji.
 
-**Rollback:** `down()` zdejmuje kolumnę. Nic poza etykietą w interfejsie
-i wykluczeniem z WAC nie czyta `is_seeded`, więc rollback nie kasuje żadnego
-wiersza `users`/`posts`/`recipes`/`comments` — dwanaście kont z pliku staje
-się po prostu nie do odróżnienia od kont zwykłych, a ich treść (i wpływ na
-WAC) wraca do tego, jak wygląda dla każdego innego konta. To jest znany,
-opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
-rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
-co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
+**Rollback — odmawia, gdy są konta z pliku (D-088, audyt B3 W4).** `down()`
+zdejmuje kolumnę tylko wtedy, gdy żadne konto nie ma `is_seeded = true`.
+Inaczej rzuca wyjątek z liczbą takich kont i instrukcją, co zrobić ręcznie
+(wycofać sam kod; a przy cofaniu schematu najpierw zapisać
+`SELECT id FROM users WHERE is_seeded = true` i odtworzyć to po powrocie).
+Powód: po cichym cofnięciu kolejny `migrate` przywraca kolumnę z
+`DEFAULT false`, więc persony stają się nie do odróżnienia od ludzi — bez
+etykiety, w WAC i „Liczbie Kukingów" (`CookEligibility`, `LiczbaKukingow`),
+w liście kont dotkniętych naprawą #317 (`KontaBezPotwierdzonegoAdresu`).
+Wcześniej ochroną było tylko zdanie w tym dokumencie, a AGENTS.md §6 mówi
+wprost, że to nie jest zabezpieczenie. Sprawdzenie idzie pod
+`LOCK TABLE users IN ACCESS EXCLUSIVE MODE`, w transakcji migracji. Świeża
+baza i baza bez kont z pliku przechodzą bez pytania. Test odmowy i dwie
+kontrole dodatnie: `tests/Feature/CofniecieMigracjiNieGubiKontZalazkowychTest.php`.
 
 #### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
 
@@ -1952,6 +1958,12 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+
+**Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
+zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
+powiadomień), puste pole zapisuje NULL, limit 500 znaków pilnowany w akcji,
+nie tylko w kolumnie. Notatkę rysuje `x-notatka-zapisu` tylko właścicielowi
+zeszytu. Bez migracji.
 
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
@@ -4228,7 +4240,7 @@ wskazuje na nią kolumną `failed_job_uuid`.
 | `rodzaj` | `displayName` z payloadu, czyli **klasa powiadomienia** (`App\Notifications\PotwierdzenieAdresu`). To ona mówi, CO przepadło. |
 | `kolejka` | `high` \| `default` \| `low`. |
 | `prob` | Ile prób wykonał worker (na produkcji 3, w trybie `sync` 1), CHECK `mail_failures_prob_check`. |
-| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. |
+| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. Wymazanie konta (`EraseAccountData`) jawnie ustawia `NULL` — kaskada klucza nie zadziała, bo kont się nie kasuje (D-022; audyt B5 pkt 9). |
 | `komunikat` | Powód po redakcji (`App\Poczta\BezpiecznyKomunikat`): jedna linia, bez adresów e-mail, przycięta. |
 | `failed_at` | Kiedy list przepadł. Zapisane wprost, nie jako `created_at` — wiersz opisuje zdarzenie, nie encję (stąd brak `timestampsTz()`). |
 | `zauwazony_at` | „Właściciel to przeczytał" (`kuking:nieudane-listy --odhacz`). Dopóki `NULL`, `/health` zgłasza `degraded`. Jedyna kolumna, którą się tu aktualizuje. CHECK `mail_failures_zauwazony_po_awarii_check`: nie może być wcześniejsze niż `failed_at`. |
