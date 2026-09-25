@@ -252,6 +252,17 @@ faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
 
 ## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
 
+> **SPROSTOWANIE Z 24 IX 2026 (D-257).** Kroki 1–2a niżej zakładały jeden
+> bucket kopii z kopią **lustrzaną** i lifecycle „usuń po 31 dniach od
+> zapisu”. W kopii lustrzanej wiek obiektu liczy się od jego zapisu do
+> kopii, więc lifecycle kasowałby **każde zdjęcie starsze niż 31 dni**,
+> a rygiel z warunkiem wieku chroniłby tylko obiekty młodsze niż 30 dni.
+> Obowiązujący układ to **datowane migawki** (`migawka-RRRR-MM-DD/`).
+> Runbook krok po kroku, tokeny, koszt, próby i RPO/RTO:
+> **`docs/infra/DR_ZDJEC_R2.md`**. Reszta tej sekcji (dlaczego nie rygiel
+> na oryginałach, rygiel ≠ koniec retencji, pogodzenie z RODO) nadal
+> obowiązuje.
+
 **Stan na 18 IX 2026: nic nie zostało założone ani zmienione.** To jest
 procedura gotowa do wykonania, nie jej wykonanie. Panel Cloudflare jest poza
 zasięgiem tej sesji (§5), a nawet gdyby nie był — ta decyzja ma skutki prawne
