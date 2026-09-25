@@ -501,6 +501,22 @@ class PostController extends Controller
         }
         $this->authorize('view', $post);
 
+        // PYTANIE MA JEDEN ADRES: `/pytania/{id}` (#968). Pod `/wpisy/{id}`
+        // też się renderowało, więc wyszukiwarka dostawała dwie
+        // samokanoniczne kopie tej samej rozmowy. Przekierowanie stoi PO
+        // `authorize()` — pytanie prywatne albo ukryte za flagą dostaje tu
+        // to samo 403 co dotąd, zamiast zdradzać swój adres.
+        //
+        // `reflash()`, bo część akcji (edycja, komentarz) odsyła na
+        // `posts.show` z komunikatem — bez tego człowiek traciłby „Zapisane"
+        // albo błąd formularza na drugim skoku.
+        if ($post->kind === Post::KIND_QUESTION && ! $request->routeIs('questions.show')) {
+            $request->session()->reflash();
+            $query = $request->getQueryString();
+
+            return redirect()->to($post->url().($query ? '?'.$query : ''), 301);
+        }
+
         // Wariant ROZSZERZONY kontraktu karty (#1037, `Post::scopeDlaKarty()`):
         // te same relacje co `Post::RELACJE_KARTY`, ale przepis w całości
         // i z autorem, bo niżej stoi `RecipePolicy::view()`.
