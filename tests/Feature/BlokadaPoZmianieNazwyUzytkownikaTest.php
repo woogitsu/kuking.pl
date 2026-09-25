@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Block;
 use App\Models\Profile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -86,5 +87,37 @@ class BlokadaPoZmianieNazwyUzytkownikaTest extends TestCase
         $this->actingAs($basia)->post(route('social.block', 'marek'))->assertSessionDoesntHaveErrors();
 
         $this->assertTrue($basia->fresh()->hasBlockRelationWith($marek->fresh()));
+    }
+
+    /**
+     * #1819: pytanie „Zablokować?” nie odmienia nazwy konta.
+     *
+     * Poprzednio widok składał `'Zablokować '.$display_name.'?'` — dla nazwy
+     * w mianowniku poprawna polska odmiana wymaga biernika („Zablokować
+     * Anię?”), więc dowolna inna nazwa dawała niegramatyczne zdanie
+     * („Zablokować Marek?”, „Zablokować Żaneta?”). Nazwy tutaj są WROGIE
+     * (docs/PULAPKI_TESTOW.md): żadna z nich nie ma przypadkiem takiej samej
+     * formy w mianowniku i bierniku, więc test na samym „Anię"/„Anna"
+     * przechodziłby nawet dla zepsutego kodu.
+     */
+    public function test_pytanie_o_blokade_nie_odmienia_nazwy_konta(): void
+    {
+        foreach (['Marek', 'Żaneta', 'Krzysztof'] as $nazwa) {
+            $widz = $this->user('widzaca_'.Str::lower($nazwa));
+            $wlasciciel = $this->user('do_zablokowania_'.Str::lower($nazwa), ['display_name' => $nazwa]);
+
+            $odpowiedz = $this->actingAs($widz)
+                ->get(route('profile.show', $wlasciciel->profile->username))
+                ->assertOk();
+
+            // Pytanie samo w sobie jest kompletnym zdaniem, bez odmienionej
+            // nazwy — a nazwa stoi osobno, dosłownie, w mianowniku.
+            $odpowiedz->assertSee('Zablokować tę osobę?');
+            $odpowiedz->assertSee($nazwa);
+
+            // Żadna z tych konstrukcji nie ma prawa się pojawić — to jest
+            // dokładnie błąd sprzed poprawki, tylko dla innej nazwy.
+            $odpowiedz->assertDontSee('Zablokować '.$nazwa.'?');
+        }
     }
 }
