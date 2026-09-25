@@ -86,7 +86,14 @@ Przeczytaj w tej kolejności:
    drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
-   Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
+   Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem.
+   Od 25.09.2026 to **indeks**: każda decyzja jest osobnym plikiem
+   `docs/decyzje/D-NNN-krotki-slug.md`. **Nowa decyzja = nowy plik**
+   (numer: `php scripts/decyzje-indeks.php --nastepny`), potem
+   `php scripts/decyzje-indeks.php` odświeża tabelę — nigdy nie dopisuj treści
+   decyzji do `docs/DECISIONS.md`. Pilnuje tego `DziennikDecyzjiZgodnyZIndeksemTest`.
+   Gałąź sprzed podziału z nowym wpisem w starym dzienniku przenosi go według
+   [`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`](docs/flota/PRZENIESIENIE_PO_PODZIALE.md);
 9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
 
 Jeśli pracujesz nad marką lub wyglądem: najpierw

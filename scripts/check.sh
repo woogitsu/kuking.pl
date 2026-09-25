@@ -134,6 +134,16 @@ else
     zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
 fi
 
+# --- 3d. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem ---------
+# Od 25.09.2026 jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem
+# generowanym z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.
+krok "Dziennik decyzji"
+if php scripts/decyzje-indeks.php --sprawdz >/dev/null 2>&1; then
+    ok "Numery unikalne, indeks zgodny z plikami"
+else
+    zle "Dziennik decyzji ma usterki — uruchom: php scripts/decyzje-indeks.php --sprawdz"
+fi
+
 # --- 3c'. Topologia Railway (#595) -----------------------------------------
 # Kompiluje .railway/railway.ts lokalnym SDK (bez połączenia z Railwayem)
 # i sprawdza role, nazwy żywych zasobów, migracje w jednym serwisie,
