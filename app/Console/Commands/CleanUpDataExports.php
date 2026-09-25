@@ -110,7 +110,7 @@ class CleanUpDataExports extends Command
             // całego konta. Kod ≠ 0 jest jedynym sygnałem, który widzi
             // harmonogram: `Harmonogram::artisan()` zamienia go w wyjątek.
             $this->error('Nie udało się usunąć '.$this->paczki($nieudane)
-                .' (kandydatów: '.$expired->count().', usunięto: '.$removed.', błędy: '.$nieudane.').'
+                .' (kandydatów: '.$znalezione.', usunięto: '.$removed.', błędy: '.$nieudane.').'
                 .' Adresy zachowane — następne uruchomienie spróbuje ponownie. Szczegóły w logu.');
 
             return self::FAILURE;
