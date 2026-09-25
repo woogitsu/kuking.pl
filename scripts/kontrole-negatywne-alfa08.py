@@ -486,6 +486,10 @@ def widok_zawezany_poza_pr(source):
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
+    # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
+    # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
+    ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
+     lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
     ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
