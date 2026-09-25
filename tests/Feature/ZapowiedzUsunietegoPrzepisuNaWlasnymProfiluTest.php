@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Models\Comment;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,10 +43,13 @@ class ZapowiedzUsunietegoPrzepisuNaWlasnymProfiluTest extends TestCase
         $prywatny = Recipe::factory()->create(['author_id' => $autor->id, 'title' => 'Mój prywatny pasztet', 'visibility' => 'private']);
         WpisWskazujacyPrzepis::dopisz($prywatny);
         $zTrescia = Post::factory()->create(['author_id' => $autor->id, 'recipe_id' => $przepis->id, 'body' => 'Mój opis zostaje']);
+        // Wpis bez opisu, ale z własnym zdjęciem, też nie jest zapowiedzią.
+        $zeZdjeciem = Post::factory()->create(['author_id' => $autor->id, 'recipe_id' => $przepis->id, 'body' => '']);
+        $zeZdjeciem->media()->attach(Media::factory()->create(['owner_id' => $autor->id]), ['position' => 0]);
 
         $profil = route('profile.show', $autor->profile->username);
         $przed = $this->actingAs($autor)->get($profil)->assertOk();
-        $this->assertSame(4, $przed->viewData('posts')->total());
+        $this->assertSame(5, $przed->viewData('posts')->total());
 
         $this->actingAs($autor)->delete(route('recipes.destroy', $przepis->slug))->assertRedirect();
         $this->assertSoftDeleted($przepis);
@@ -53,10 +57,11 @@ class ZapowiedzUsunietegoPrzepisuNaWlasnymProfiluTest extends TestCase
         $po = $this->actingAs($autor)->get($profil)->assertOk();
         $html = $po->getContent();
         $this->assertStringNotContainsString(route('posts.show', $zapowiedz), $html, 'Martwa karta z linkiem do 403.');
-        $this->assertSame(3, $po->viewData('posts')->total());
-        $this->assertSame(3, $po->viewData('stats')['posts']);
+        $this->assertSame(4, $po->viewData('posts')->total());
+        $this->assertSame(4, $po->viewData('stats')['posts']);
         $this->assertSame([(int) now()->year], $po->viewData('lata')->all());
         $po->assertSee($zwykly->body)->assertSee($prywatny->title)->assertSee($zTrescia->body);
+        $this->assertStringContainsString(route('posts.show', $zeZdjeciem), $html, 'Wpis z własnym zdjęciem zniknął.');
 
         // Adres zapowiedzi dalej odmawia, a dane nie zginęły.
         $this->actingAs($autor)->get(route('posts.show', $zapowiedz))->assertForbidden();
