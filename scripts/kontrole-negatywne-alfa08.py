@@ -218,6 +218,18 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
+# wykonuje `.railway/railway.ts` Z GAŁĘZI PR-a z tokenem
+# RAILWAY_TOKEN_PRODUCTION; mutacja zdejmuje `environment: production` z
+# joba `plan` (i tylko z niego — kotwica bierze fragment poprzedzający
+# unikalny dla `plan`, żeby nie ruszyć tego samego ustawienia w `apply`).
+PLAN_IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+PLAN_IAC_TEST = "PlanIacBramkaProdukcjiTest"
+PLAN_IAC_ENVIRONMENT = (
+    "    # przejrzał diff `.railway/**`.\n"
+    "    environment: production\n"
+)
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -483,6 +495,22 @@ def widok_zawezany_poza_pr(source):
     )
 
 
+def plan_iac_bez_bramki_produkcji(source):
+    """KONTROLA DODATNIA: zdejmij `environment: production` z joba `plan`.
+
+    Job dalej wykonuje `.railway/railway.ts` z gałęzi PR-a, z tokenem
+    RAILWAY_TOKEN_PRODUCTION, ale bez zgody recenzenta — dokładnie luka
+    z audytu B10-01.
+    `job_plan_wymaga_srodowiska_production_przed_wykonaniem_kodu_z_pr`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        PLAN_IAC_ENVIRONMENT,
+        "    # przejrzał diff `.railway/**`.\n",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -557,6 +585,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
+     plan_iac_bez_bramki_produkcji),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -586,6 +616,7 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(PLAN_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
