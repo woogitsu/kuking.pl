@@ -53,7 +53,7 @@
              * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
              *
              * Bierzemy go z mapy policzonej JEDNYM zapytaniem na całą stronę
-             * (`Notification::zyweWycinkiKomentarzy()`), a nie z `data.excerpt`.
+             * (`WycinkiKomentarzy::zywe()`), a nie z `data.excerpt`.
              * Zamrożona kopia z chwili publikacji cytowała treść sprzed
              * poprawki autora; stare wiersze dalej ją mają w bazie i właśnie
              * dlatego NIE MA tu planu zapasowego „weź `data.excerpt`, gdy mapa

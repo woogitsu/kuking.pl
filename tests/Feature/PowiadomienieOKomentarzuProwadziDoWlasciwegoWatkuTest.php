@@ -19,7 +19,7 @@ use Tests\TestCase;
  * nie mieściła się w zwróconym HTML, a powiadomienie było już oznaczone jako
  * przeczytane.
  *
- * `Notification::urlDoKomentarza()` liczy teraz stronę PO WIDOCZNOŚCI DLA
+ * `CelPowiadomienia::adresKomentarza()` liczy teraz stronę PO WIDOCZNOŚCI DLA
  * ODBIORCY w chwili kliknięcia (nie po numerze zapisanym przy publikacji)
  * i dokleja kotwicę `#komentarz-{uuid}` wskazującą samą wypowiedź.
  */

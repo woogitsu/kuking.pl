@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
@@ -24,7 +25,7 @@ use Tests\TestCase;
  * UWAGA NA DAWNE ZDANIE W TYM MIEJSCU. Stało tu „powiadomienie jest MIGAWKĄ
  * zdarzenia z przeszłości" i od 20 września 2026 (#758, D-229) nie jest to
  * już prawda o WYCINKU TREŚCI: wycinek liczy się przy wyświetlaniu,
- * z aktualnego komentarza (`Notification::zyweWycinkiKomentarzy()`), bo
+ * z aktualnego komentarza (`app(WycinkiKomentarzy::class)->zywe()`), bo
  * powiadomienie ma cytować to, co w wątku stoi dziś, a nie zdanie sprzed
  * poprawki autora. Migawką pozostaje reszta wiersza: typ, sprawca, data
  * i `read_at`. Granice sprawdzane w tej klasie tamta decyzja uchyla

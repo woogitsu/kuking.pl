@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
@@ -111,7 +112,7 @@ class QuestionNotificationContextTest extends TestCase
         $actor = $this->user();
         $this->actingAs($owner);
         // Mierzymy koszt SAMYCH TYTUŁÓW i WYCINKÓW — `QuestionNotificationContext::titles()`
-        // oraz `Notification::zyweWycinkiKomentarzy()` (D-229) na tych powiadomieniach,
+        // oraz `app(WycinkiKomentarzy::class)->zywe()` (D-229) na tych powiadomieniach,
         // które dostaje kontroler — a nie całej odpowiedzi, która ma własne strażniki N+1.
         $counts = [];
         $excerptCounts = [];
@@ -126,7 +127,7 @@ class QuestionNotificationContextTest extends TestCase
             $titles = app(QuestionNotificationContext::class)->titles($page, $owner);
             $counts[] = count(DB::getQueryLog());
             DB::flushQueryLog();
-            $excerpts = Notification::zyweWycinkiKomentarzy($page);
+            $excerpts = app(WycinkiKomentarzy::class)->zywe($page);
             $excerptCounts[] = count(DB::getQueryLog());
             DB::disableQueryLog();
             $expected = array_sum(array_slice([2, 18], 0, count($counts)));

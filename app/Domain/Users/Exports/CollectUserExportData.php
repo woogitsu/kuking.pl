@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -565,7 +566,7 @@ final class CollectUserExportData
         // opisywalby stan, ktorego w bazie juz nie ma. Jedno zapytanie na
         // CALY eksport, nie jedno na powiadomienie - pozycji bywa tu wiecej
         // niz trzydziesci mieszczace sie na ekranie (D-196).
-        $wycinki = Notification::zyweWycinkiKomentarzy($notifications);
+        $wycinki = app(WycinkiKomentarzy::class)->zywe($notifications);
 
         return $notifications->map(function ($notification) use ($wycinki): array {
             $data = is_array($notification->data) ? $notification->data : [];

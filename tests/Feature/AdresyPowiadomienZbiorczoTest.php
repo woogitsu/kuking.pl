@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
@@ -65,7 +66,7 @@ class AdresyPowiadomienZbiorczoTest extends TestCase
             DB::enableQueryLog();
             DB::flushQueryLog();
             try {
-                $urls = Notification::destinationUrls(array_slice($notifications, 0, $size), $viewer);
+                $urls = app(CelPowiadomienia::class)->adresy(array_slice($notifications, 0, $size), $viewer);
                 $queries = count(DB::getQueryLog());
             } finally {
                 DB::disableQueryLog();
@@ -90,7 +91,7 @@ class AdresyPowiadomienZbiorczoTest extends TestCase
         }
         $this->assertLessThan($root->id, $first->id);
         $notification = $this->notification($viewer, $root);
-        $resolve = fn () => Notification::destinationUrls([$notification], $viewer)[$notification->id];
+        $resolve = fn () => app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id];
         $this->assertSame($post->url().'?komentarze=2#komentarz-'.$root->id, $resolve());
         foreach ([[$viewer, $other], [$other, $viewer]] as [$blocker, $blocked]) {
             DB::table('blocks')->insert(['blocker_id' => $blocker->id, 'blocked_id' => $blocked->id, 'created_at' => now()]);
@@ -111,14 +112,14 @@ class AdresyPowiadomienZbiorczoTest extends TestCase
         $root = $this->comment($viewer, ['post_id' => $post->id]);
         $reply = $this->comment($viewer, ['post_id' => $post->id, 'parent_id' => $root->id]);
         $notification = $this->notification($viewer, $reply);
-        $this->assertSame($post->url().'#komentarz-'.$reply->id, Notification::destinationUrls([$notification], $viewer)[$notification->id]);
+        $this->assertSame($post->url().'#komentarz-'.$reply->id, app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
         $root->delete();
-        $this->assertSame('/adres-zapasowy', Notification::destinationUrls([$notification], $viewer)[$notification->id]);
+        $this->assertSame('/adres-zapasowy', app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
         $root->restore();
         $post->delete();
-        $this->assertSame('/adres-zapasowy', Notification::destinationUrls([$notification], $viewer)[$notification->id]);
+        $this->assertSame('/adres-zapasowy', app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
         $notification->data = [];
-        $this->assertSame([$notification->id => null], Notification::destinationUrls([$notification], $viewer));
-        $this->assertSame([], Notification::destinationUrls([], $viewer));
+        $this->assertSame([$notification->id => null], app(CelPowiadomienia::class)->adresy([$notification], $viewer));
+        $this->assertSame([], app(CelPowiadomienia::class)->adresy([], $viewer));
     }
 }

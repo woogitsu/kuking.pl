@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\Comment;
@@ -265,14 +266,14 @@ class PowiadomienieSledziTrescKomentarzaTest extends TestCase
         $dwa = Notification::query()->where('user_id', $odbiorca->getKey())->get();
         $wycinkiDwa = [];
         $maloZapytan = $this->policzZapytania(function () use ($dwa, &$wycinkiDwa): void {
-            $wycinkiDwa = Notification::zyweWycinkiKomentarzy($dwa);
+            $wycinkiDwa = app(WycinkiKomentarzy::class)->zywe($dwa);
         });
 
         $this->komentarze($wpis, 10);
         $dwanascie = Notification::query()->where('user_id', $odbiorca->getKey())->get();
         $wycinkiDwanascie = [];
         $duzoZapytan = $this->policzZapytania(function () use ($dwanascie, &$wycinkiDwanascie): void {
-            $wycinkiDwanascie = Notification::zyweWycinkiKomentarzy($dwanascie);
+            $wycinkiDwanascie = app(WycinkiKomentarzy::class)->zywe($dwanascie);
         });
 
         $this->assertCount(2, $wycinkiDwa, 'Pomiar bez wycinków mierzyłby pustą pętlę.');

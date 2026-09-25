@@ -124,10 +124,18 @@ Zasada dla kolejnych modułów: jeśli zapytanie zbiorcze musi odtworzyć reguł
 z Policy, reguła trafia do specyfikacji w `app/Domain`, a obok powstaje test
 równoważności z Policy — nie kolejna prywatna kopia w modelu albo kontrolerze.
 
+Etap 2 (#1687): dokąd prowadzi powiadomienie i co pokazuje jego wycinek też
+nie należy do modelu. `Domain/Notifications/CelPowiadomienia` liczy adres
+„Zobacz" dla jednego powiadomienia (`adres()`, wejście przez
+`Notification::adresDocelowy()`) i dla całej strony jednym odczytem
+komentarzy (`adresy()`, #833); `Domain/Notifications/WycinkiKomentarzy`
+czyta żywe wycinki komentarzy (D-229) dla listy i eksportu. Obie klasy
+dostają powiadomienia, które już przeszły przez `WidocznoscPowiadomien`.
+
 Jeszcze niezrobione w ramach #1687 (kolejne etapy): wspólna specyfikacja dla
 list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od
-Policy m.in. statusem konta autora), wydzielenie z modelu `Notification`
-wyznaczania adresów i wycinków (resolver celu) oraz retencji.
+Policy m.in. statusem konta autora) oraz wydzielenie z modelu `Notification`
+retencji (`terminOchronyOdwolawczej()`).
 
 ## Queue
 

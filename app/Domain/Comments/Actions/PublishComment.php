@@ -159,7 +159,7 @@ final class PublishComment
                     'comment_id' => $comment->getKey(),
                     // BEZ `excerpt` — ISSUE #758, D-229. Wycinek treści liczy
                     // się przy WYŚWIETLANIU, z aktualnego komentarza
-                    // (`Notification::zyweWycinkiKomentarzy()`). Kopia
+                    // (`WycinkiKomentarzy::zywe()`). Kopia
                     // zapisana tutaj byłaby drugim źródłem prawdy i po
                     // poprawce autora cytowałaby zdanie, którego już nie ma.
                     'url' => $this->urlFor($subject),
