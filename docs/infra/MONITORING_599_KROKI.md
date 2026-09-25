@@ -63,8 +63,10 @@ na adres stagingu, zatrzymaj serwis stagingu w Railway na 5 minut, potwierdź,
 1. U dostawcy z B2 (albo w Healthchecks.io) załóż monitor typu
    *heartbeat* / *cron job*: oczekiwany sygnał **co 5 minut**, tolerancja
    (*grace*) **10 minut**. Dostawca da adres z tokenem.
-2. W Railway ustaw `KUKING_PULS_HARMONOGRAMU_URL` na ten adres — w usłudze,
-   w której chodzi harmonogram (dziś rola `all`; po #595 rola `scheduler`).
+2. W Railway ustaw `KUKING_PULS_HARMONOGRAMU_URL` na ten adres jako
+   **Shared Variable** środowiska („Sealed”). `railway.ts` przekazuje ją
+   tylko usłudze, w której chodzi harmonogram (dziś rola `all`; po #595 rola
+   `scheduler`); wpisana wprost w serwisie po rozdzieleniu nie dojdzie.
    Adres ma być `https://`; inny komenda odrzuci bez wysyłania.
    **Nie wpisuj go do repozytorium ani do issue** — kto zna adres, może
    „karmić" monitor i zagłuszyć prawdziwą awarię.
