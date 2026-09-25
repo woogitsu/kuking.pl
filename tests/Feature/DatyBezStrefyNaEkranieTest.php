@@ -12,6 +12,7 @@ use App\Notifications\PotwierdzenieAdresu;
 use App\Poczta\PowodOdmowy;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -54,6 +55,18 @@ class DatyBezStrefyNaEkranieTest extends TestCase
         $moment = CarbonImmutable::parse($utc, 'UTC');
         // „Teraz" chwilę po odmowie, żeby ślad mieścił się w oknie informacji.
         CarbonImmutable::setTestNow($moment->addMinutes(10));
+
+        // Zdanie o nieudanej wysyłce pojawia się tylko przy działającej
+        // poczcie (`Poczta::dziala()`); sterownik `array` z suity się nie
+        // liczy. Ta sama konfiguracja co w `NieudanyListZostawiaSladTest`.
+        config([
+            'mail.default' => 'emaillabs',
+            'services.emaillabs.key' => 'klucz-aplikacji-do-testu',
+            'services.emaillabs.secret' => 'klucz-autoryzacyjny-do-testu',
+            'services.emaillabs.smtp_account' => '1.kuking.smtp',
+            'services.emaillabs.tracking' => false,
+        ]);
+        Mail::purge('emaillabs');
 
         $osoba = User::factory()->unverified()->create();
 
