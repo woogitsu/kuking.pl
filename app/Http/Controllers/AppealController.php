@@ -195,12 +195,25 @@ class AppealController extends Controller
      */
     private function ostatniaDecyzjaDoOdwolania(User $osoba): ?ModerationAction
     {
+        // Bez pobierania całej historii decyzji tej osoby (issue #999).
+        // Termin rozstrzyga nadal `isAppealable()` — SQL tylko odcina
+        // decyzje, którym termin na pewno minął. Granica jest celowo
+        // luźniejsza o kilka dni: `appealDeadline()` dodaje miesiące
+        // z przepełnieniem (31 sierpnia + 6 miesięcy = 3 marca), więc
+        // odcięcie równo sześć miesięcy wstecz zgubiłoby takie decyzje.
+        $najstarszaMozliwa = now()->subDays((int) config('kuking.moderation.appeal_days'))
+            ->min(now()->subMonthsNoOverflow(6)->subDays(4));
+
+        // `cursor()` + `first()`: modele powstają po jednym i przestają
+        // powstawać przy pierwszej decyzji w terminie — zwykle najnowszej.
         return ModerationAction::query()
             ->where('subject_user_id', $osoba->getKey())
             ->whereIn('action', ModerationAction::ODWOLYWALNE)
+            ->where('created_at', '>=', $najstarszaMozliwa)
             ->whereDoesntHave('authorAppeal')
             ->orderByDesc('created_at')
-            ->get()
+            ->orderByDesc('id')
+            ->cursor()
             ->first(fn (ModerationAction $decyzja): bool => $decyzja->isAppealable());
     }
 
