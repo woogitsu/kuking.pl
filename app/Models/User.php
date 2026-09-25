@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Notifications\Notification as PowiadomienieFrameworka;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -915,6 +916,38 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // w service providerze: wtedy widać z modelu, co ta osoba naprawdę
     // dostanie, a `Notification::fake()` w testach widzi nasze klasy.
     // ---------------------------------------------------------------------
+
+    /**
+     * ADRES DLA POCZTY Z `notify()` — SPRAWDZANY W CHWILI WYSYŁKI (audyt B8-05).
+     *
+     * List z kolejki wychodzi minuty po zleceniu, a model jest wtedy czytany
+     * z bazy na nowo. Konto, które w międzyczasie zamknięto, nie dostaje
+     * listu: `null` zatrzymuje `MailChannel` przed zbudowaniem wiadomości.
+     *
+     *   - `erased` — adres to `usuniete+{id}@konto.kuking.pl`, czyli NASZA
+     *     domena; list byłby odbiciem u nadawcy i kosztem reputacji;
+     *   - `banned` — do serwisu i tak nie wejdzie, a link logowania, reset
+     *     hasła czy ostrzeżenie o próbie wejścia nie mają dokąd prowadzić;
+     *   - `pending_delete` — tak samo, Z JEDNYM WYJĄTKIEM: listem „ustaw nowe
+     *     hasło". Strona „Cofnij usunięcie konta" wymaga hasła i obiecuje,
+     *     że odzyskiwanie hasła działa niezależnie od stanu konta — bez tego
+     *     listu ktoś, kto zapomniał hasła, straciłby konto po karencji.
+     *
+     * Dotyczy wyłącznie `notify()`. `Mail::to($user->email)` (eksport,
+     * podsumowanie tygodnia) omija tę metodę i pilnuje stanu u siebie.
+     */
+    public function routeNotificationForMail(?PowiadomienieFrameworka $notification = null): ?string
+    {
+        if ($this->status === self::STATUS_ERASED || $this->status === self::STATUS_BANNED) {
+            return null;
+        }
+
+        if ($this->status === self::STATUS_PENDING_DELETE && ! $notification instanceof UstawienieNowegoHasla) {
+            return null;
+        }
+
+        return $this->email;
+    }
 
     /**
      * @param  string  $token

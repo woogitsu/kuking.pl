@@ -14,6 +14,7 @@ use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\TagHighlight;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\Request;
@@ -171,6 +172,7 @@ class FeedController extends Controller
             'greeting' => $this->pytanieDnia($user),
             'pierwszeKroki' => $user->onboardingDoDokonczenia(),
             'zeszyt' => $zeszyt,
+            'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),

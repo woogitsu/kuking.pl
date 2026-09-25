@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\KolejkaController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
+use App\Http\Controllers\Admin\TagHighlightController;
 use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
@@ -1177,6 +1178,15 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.tag-promotions.destroy');
+    // Tag tygodnia (issue #18) — za flagą `kuking.tag_tygodnia.wlaczony`,
+    // sprawdzaną w kontrolerze (wyłączona = 404).
+    Route::post('/tag-tygodnia', [TagHighlightController::class, 'store'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.tag-highlights.store');
+    Route::delete('/tag-tygodnia/{wyroznienie}', [TagHighlightController::class, 'destroy'])
+        ->whereUuid('wyroznienie')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.tag-highlights.destroy');
 
     /*
      * Konta użytkowników — lista do wglądu i karta pojedynczego konta.
