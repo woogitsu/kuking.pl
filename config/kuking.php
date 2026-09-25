@@ -190,9 +190,10 @@ return [
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
          * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
-         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
-         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
-         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie i kończy się
+         * sukcesem; na produkcji odkłada przy tym adresy do tabeli
+         * `zalegle_czyszczenia_cdn`, skąd `kuking:wyczysc-zalegle-cdn`
+         * wyśle je po uzupełnieniu zmiennych (#959). Sygnałem, który dociera, jest
          * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
          * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
          * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
@@ -442,6 +443,18 @@ return [
         // żeby wygląd nie mrugnął z powrotem do jasnego, gdyby ta sama osoba
         // wylogowała się na tym samym urządzeniu.
         'cookie' => 'motyw',
+    ],
+
+    'html_cache' => [
+        // Ile sekund brzeg Cloudflare może trzymać HTML landingu, przepisu
+        // i profilu dla gościa BEZ żadnego ciasteczka (#610). 0 = wyłączone
+        // i to jest wartość domyślna: aplikacja zakłada wtedy sesję i wysyła
+        // `private, no-store` jak przed #610. Kod obcina wartość do 300 s
+        // (`PublicznyHtmlGoscia::MAKS_SEKUND`), bo tyle najwyżej trwa okno,
+        // w którym przepis przełączony na prywatny, ukryty przez moderację
+        // albo usunięty może być jeszcze widoczny z brzegu.
+        // Reguła brzegu i plan wycofania: docs/infra/CLOUDFLARE_CACHE_597_610.md.
+        'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
     ],
 
     'account' => [
