@@ -14,6 +14,7 @@
 - Strona główna nie zostaje pusta, gdy tuż przed jej otwarciem przestaliście kogoś obserwować, zablokowaliście kogoś albo zniknął ostatni wpis z Waszych tagów. Zamiast pustego ekranu pokazuje wtedy wpisy z tagów albo „Świeżo z Kuking” (#983).
 - „Świeżo z Kuking” i strona powitalna pokazują najwyżej jeden wpis od każdej osoby — jej najnowszy, który możecie zobaczyć. Jedna bardzo aktywna osoba nie zasłania już całej reszty, a kolejność nadal jest po prostu od najnowszych (#940).
 - Chwilowa usterka po naszej stronie nie psuje już trzech rzeczy: jednorazowy link do logowania nie przepada, gdy wejście się nie udało — ekran mówi, że link nadal działa i wystarczy kliknąć „Zaloguj mnie” jeszcze raz (#1530); prośba o paczkę z danymi, która została przyjęta, kończy się potwierdzeniem zamiast komunikatu o błędzie (#1429); zablokowanie osoby kończy się komunikatem o blokadzie, a nie o błędzie, gdy blokada naprawdę zadziałała (#1573).
+- Dla osób rozwijających serwis: kontrola `./scripts/check.sh` sprawdza bazę na porcie z `DB_PORT` (bez niej — na 5432, jak dotąd), więc przy własnej bazie testowej na innym porcie nie melduje już gotowości cudzego serwera. Niczego nie trzeba eksportować, a lokalny klaster na porcie domyślnym skrypt nadal sam uruchamia (#732).
 
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
