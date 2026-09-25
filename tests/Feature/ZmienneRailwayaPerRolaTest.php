@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionClass;
 use Tests\TestCase;
 
 /**
@@ -538,9 +540,24 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             }
         }
 
+        // Komendy frameworka (np. `queue:prune-failed`) nie leżą
+        // w `app/Console/Commands`, ale też wykonują się W PROCESIE
+        // schedulera. Plik bierzemy z rejestru Artisana i sprawdzamy tak samo
+        // jak nasze — bez listy wyjątków, która mogłaby przepuścić mailer.
+        $zarejestrowane = Artisan::all();
+        foreach ($nazwy as $nazwa) {
+            if (isset($pliki[$nazwa]) || ! isset($zarejestrowane[$nazwa])) {
+                continue;
+            }
+            $plik = (new ReflectionClass($zarejestrowane[$nazwa]))->getFileName();
+            if (is_string($plik)) {
+                $pliki[$nazwa] = $plik;
+            }
+        }
+
         $wynik = [];
         foreach ($nazwy as $nazwa) {
-            $this->assertArrayHasKey($nazwa, $pliki, "Nie znalazłem klasy komendy `{$nazwa}` w `app/Console/Commands`.");
+            $this->assertArrayHasKey($nazwa, $pliki, "Nie znalazłem klasy komendy `{$nazwa}` ani w `app/Console/Commands`, ani w rejestrze Artisana.");
 
             // Komentarze wycina tokenizer PHP, nie wyrażenie na liniach:
             // `preg_split('/\R/')` bez `/u` tnie polskie „ą" (bajty C4 85,
