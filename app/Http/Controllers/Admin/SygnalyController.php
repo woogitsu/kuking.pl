@@ -260,7 +260,8 @@ class SygnalyController extends Controller
      * Pozycje należące do grup z TEJ strony — jedno zapytanie na całą stronę.
      *
      * Nie `N+1` po grupach i nie pobranie wszystkich otwartych oznaczeń:
-     * pytamy dokładnie o konta, które i tak wyświetlamy.
+     * pytamy dokładnie o konta, które i tak wyświetlamy, i najwyżej
+     * `POZYCJI_W_GRUPIE` pozycji z każdego z nich.
      *
      * @param  LengthAwarePaginator<int, Report>  $grupy
      * @return Collection<string, Collection<int, Report>>
@@ -283,7 +284,17 @@ class SygnalyController extends Controller
             return collect();
         }
 
-        return $this->otwarte()
+        // Kolejność w grupie — ta sama w oknie i na zewnątrz, żeby pierwsze
+        // dziesięć z `ROW_NUMBER()` było dokładnie tymi dziesięcioma, które
+        // widok wypisze.
+        $kolejnosc = $this->wagaCase().' DESC, created_at DESC, id DESC';
+
+        // Limit NA GRUPĘ w SQL (issue #1060): grupa bywa liczona w setkach,
+        // a widok rozwija `POZYCJI_W_GRUPIE`. Reszta grupy nie wychodzi
+        // z bazy — ile jej jest, mówi już `COUNT(*)` z `grupy()`.
+        // `PARTITION BY` traktuje NULL jak jedną wartość, więc pozycje bez
+        // autora dostają jedną wspólną grupę, tak jak w `GROUP BY` wyżej.
+        $ponumerowane = $this->otwarte()
             ->where(function ($query) use ($autorzy, $bezAutora): void {
                 if ($autorzy !== []) {
                     $query->whereIn('autor_tresci_id', $autorzy);
@@ -293,9 +304,13 @@ class SygnalyController extends Controller
                     $query->orWhereNull('autor_tresci_id');
                 }
             })
-            ->orderByRaw($this->wagaCase().' DESC')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->select('reports.*')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY autor_tresci_id ORDER BY '.$kolejnosc.') AS nr_w_grupie');
+
+        return Report::query()
+            ->fromSub($ponumerowane, 'reports')
+            ->where('nr_w_grupie', '<=', self::POZYCJI_W_GRUPIE)
+            ->orderByRaw($kolejnosc)
             ->get()
             ->groupBy(static fn (Report $r): string => (string) ($r->autor_tresci_id ?? 'brak'));
     }

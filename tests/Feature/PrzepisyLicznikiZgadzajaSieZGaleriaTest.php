@@ -171,7 +171,8 @@ class PrzepisyLicznikiZgadzajaSieZGaleriaTest extends TestCase
 
     private function przepis(User $autor, string $slug): Recipe
     {
-        return Recipe::factory()->for($autor, 'author')->create([
+        // Ze zdjęciem: bez niego strona nie wystawia `Recipe` (#1005).
+        return Recipe::factory()->for($autor, 'author')->zeZdjeciem()->create([
             'visibility' => 'public',
             'status' => Recipe::STATUS_PUBLISHED,
             'published_at' => now()->subDay(),
