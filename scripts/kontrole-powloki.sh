@@ -51,6 +51,9 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 #  * kopia-bazy — kopia bazy to skrypt powłoki w obrazie bez PHP (D-043), więc
 #    żaden test PHPUnit jej nie dotknie; to dziś JEDYNA planowana kopia bazy.
 #    Wymaga klienta `pg_restore` 18 (w CI doinstalowuje go krok joba `lint`);
+#  * php-ini-slady — obraz FrankenPHP nie ma php.ini-production; bez tej
+#    dyrektywy w docker/php.ini ślady wyjątków niosą prefiksy argumentów,
+#    także sekretów (#1357);
 #  * kontrola-ujemna — przyrząd `scripts/kontrola-ujemna.sh` pilnuje, żeby
 #    mutacja, która nie trafiła, nie udawała wykonanej kontroli. Bez własnej
 #    kontroli ujemnej byłby tym, co naprawia (PULAPKI_TESTOW §5);
@@ -65,6 +68,8 @@ while IFS='|' read -r test opis; do
     fi
 done <<'LISTA'
 tests/skrypty/entrypoint-nadzor.sh|Testy entrypointu oblewają
+tests/skrypty/preflight-bazy.sh|Preflight bazy w entrypoincie oblewa
+tests/skrypty/php-ini-slady.sh|Ślady wyjątków w docker/php.ini niosą argumenty
 tests/skrypty/kopia-bazy.sh|Testy kopii bazy oblewają
 tests/skrypty/cache-assetow.sh|Sonda cache oblewa
 tests/skrypty/kontrola-ujemna.sh|Przyrząd kontroli ujemnych oblewa

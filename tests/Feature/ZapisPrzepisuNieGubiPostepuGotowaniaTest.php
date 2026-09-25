@@ -119,7 +119,7 @@ class ZapisPrzepisuNieGubiPostepuGotowaniaTest extends TestCase
         $krok1 = $przepis->steps()->orderBy('position')->first();
 
         $this->actingAs($gotujacy)
-            ->post(route('cooking.zaznacz', $przepis->slug), ['krok' => 1, 'zrobiono' => 1])
+            ->post(route('cooking.zaznacz', $przepis->slug), ['krok' => 1, 'krok_id' => $krok1->getKey(), 'zrobiono' => 1])
             ->assertRedirect();
 
         $this->actingAs($gotujacy)
