@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\TokenKrawedzi;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -73,10 +74,19 @@ use Symfony\Component\HttpFoundation\Response;
  * klient. Licząc od prawej trafimy wtedy w jego ostatni wpis. Kod tego nie
  * rozstrzygnie, bo nie ma jak odróżnić „przyszło przez nasz brzeg" od
  * „przyszło z pominięciem brzegu" — do tego służy token krawędziowy
- * (`X-Kuking-Edge-Token`, Blok B w `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`),
- * którego bez panelu Cloudflare nie da się wdrożyć. Ten middleware zamyka
- * połowę aplikacyjną: podrobiony prefiks nagłówka przestaje cokolwiek zmieniać
- * dla ruchu idącego właściwą drogą.
+ * (`X-Kuking-Edge-Token`, Blok B w `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`).
+ * Ten middleware zamyka połowę aplikacyjną: podrobiony prefiks nagłówka
+ * przestaje cokolwiek zmieniać dla ruchu idącego właściwą drogą.
+ *
+ * TOKEN SPRAWDZAMY TUTAJ, NA SAMYM POCZĄTKU (issue #1306)
+ * Kod tokenu żyje w `App\Support\TokenKrawedzi`, ale woła go ta klasa,
+ * bo ona jest PIERWSZA w stosie globalnym — przed nią nic nie czyta
+ * nagłówków od proxy. Bez skonfigurowanego sekretu i w trybie obserwacji
+ * zachowanie jest takie jak przedtem (obserwacja dopisuje tylko log).
+ * W trybie egzekwowania żądanie bez ważnego tokenu dostaje 403, a sonda
+ * zdrowia, którą wolno wpuścić bez tokenu, traci wszystkie `X-Forwarded-*`
+ * — nic, co przyszło z pominięciem Cloudflare, nie zmienia `$request->ip()`
+ * ani schematu.
  *
  * DLACZEGO OSOBNY MIDDLEWARE PRZED `TrustProxies`, A NIE PODMIANA TAMTEGO
  * `TrustProxies` robi jeszcze jedną potrzebną rzecz: `X-Forwarded-Proto`.
@@ -90,8 +100,42 @@ class NormalizeForwardedFor
 {
     private const NAGLOWEK = 'X-Forwarded-For';
 
+    /** Nagłówki od proxy, którym ufa `TrustProxies` (patrz `bootstrap/app.php`). */
+    private const NAGLOWKI_PROXY = ['X-Forwarded-For', 'X-Forwarded-Proto', 'X-Forwarded-Port'];
+
     public function handle(Request $request, Closure $next): Response
     {
+        $werdykt = TokenKrawedzi::sprawdz($request);
+        $egzekwowanie = TokenKrawedzi::egzekwowanie();
+
+        if ($werdykt === TokenKrawedzi::WYLACZONY && $egzekwowanie) {
+            // Tryb blokujący bez sekretu nie ma z czym porównać. Nie odcinamy
+            // serwisu, ale głośno mówimy, że ochrony nie ma.
+            Log::warning('Token krawędzi: tryb egzekwowania bez KUKING_EDGE_TOKEN — bramka nie działa');
+        }
+
+        if ($werdykt === TokenKrawedzi::BRAK || $werdykt === TokenKrawedzi::NIEZGODNY) {
+            // Bez adresu, ścieżki i wartości nagłówka (AGENTS.md §7).
+            Log::warning('Token krawędzi: żądanie bez ważnego tokenu', [
+                'powod' => $werdykt,
+                'tryb' => $egzekwowanie ? TokenKrawedzi::TRYB_EGZEKWOWANIE : TokenKrawedzi::TRYB_OBSERWACJA,
+            ]);
+
+            if ($egzekwowanie) {
+                if (! TokenKrawedzi::wolnoBezTokenu($request)) {
+                    return response('Wejdź na Kuking przez adres https://kuking.pl.', 403, [
+                        'Content-Type' => 'text/plain; charset=UTF-8',
+                        'Cache-Control' => 'no-store',
+                        'X-Content-Type-Options' => 'nosniff',
+                    ]);
+                }
+
+                $this->usunNaglowkiProxy($request);
+
+                return $next($request);
+            }
+        }
+
         $wpisy = $this->wpisyNaglowka($request);
         $przeskoki = max(0, (int) config('proxy.zaufane_przeskoki', 1));
 
@@ -126,6 +170,17 @@ class NormalizeForwardedFor
         $request->server->set('HTTP_X_FORWARDED_FOR', $adres);
 
         return $next($request);
+    }
+
+    /**
+     * Żądanie spoza Cloudflare nie ma prawa wpłynąć na adres ani schemat.
+     */
+    private function usunNaglowkiProxy(Request $request): void
+    {
+        foreach (self::NAGLOWKI_PROXY as $naglowek) {
+            $request->headers->remove($naglowek);
+            $request->server->remove('HTTP_'.strtoupper(str_replace('-', '_', $naglowek)));
+        }
     }
 
     /**
