@@ -15,6 +15,10 @@
     'title' => null,
     'description' => null,
     'noindex' => false,
+    // `noindex, follow` — strona dla ludzi, ale bez treści dla wyszukiwarki,
+    // z linkami, po których robot ma iść dalej (pusty tag, issue #1007).
+    // Zwykłe `noindex` zostaje `noindex, nofollow` jak dotąd.
+    'noindexFollow' => false,
     // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
     // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
@@ -261,6 +265,8 @@
 
     @if($noindex)
         <meta name="robots" content="noindex, nofollow">
+    @elseif($noindexFollow)
+        <meta name="robots" content="noindex, follow">
     @endif
 
     <meta property="og:site_name" content="Kuking">
