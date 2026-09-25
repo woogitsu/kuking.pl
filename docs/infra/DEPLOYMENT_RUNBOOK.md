@@ -910,12 +910,52 @@ daje nazwę nadawcy „<gospodarz> z Kuking" złożoną w `config/mail.php`;
 ustawiona — cicho odwraca decyzję produktową o podpisywaniu listów imieniem
 (`docs/infra/POCZTA_URUCHOMIENIE.md` §5).
 
-### Środowisko `staging`
+### Środowisko `staging` — ODŁOŻONE (decyzja właściciela 25.09.2026)
 
-→ Górny wybierak środowiska → **+ New Environment** → **Duplicate**
-z `production` → nazwa `staging`
+> **Na razie BEZ stagingu — pracujemy od razu na produkcji
+> (`www.kuking.pl`).** Kroki stagingowe z tego dokumentu (ta sekcja,
+> „Powtórz dla staginu” w KROKU 9, buckety i token `-staging` w KROKU 2,
+> drugi `APP_KEY` w KROKU 7, wzmianki o stagingu w 8A–8F i próby na
+> stagingu w `CLOUDFLARE_CACHE_597_610.md`) są **odłożone** do nowej decyzji
+> właściciela — nie wykonuj ich w ramach bramki alfy. Kolejność kroków:
+> `docs/infra/LISTA_KROKOW_ALFA.md`.
+>
+> **Sprzeczność usunięta 25.09:** ta sekcja kazała dotąd zakładać staging
+> przez **Duplicate** z `production`. Duplikat kopiuje sekrety produkcji
+> (`PRZELACZENIE_NA_3_SERWISY_595.md` krok 1, #975). Gdy staging wróci —
+> **New Environment, puste**, i własne wartości według tabeli niżej.
 
-Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
+#### Zamiast stagingu — zabezpieczenia na produkcji przed `railway config apply`
+
+Bez stagingu pierwsze `apply` na produkcji jest jednocześnie próbą. Dlatego
+przed nim **wszystkie cztery** (szczegóły: `LISTA_KROKOW_ALFA.md` B1):
+
+1. **Ręczny zrzut bazy i próba odtworzenia** — nie starszy niż 24 h przed
+   apply: `docs/infra/DR594_PIERWSZY_ZRZUT_WLASCICIEL.md` kroki 0–7
+   (zrzut szyfrowany, odtworzenie na świeżym lokalnym klastrze z kodem 0,
+   protokół). Zrzut, którego nie odtworzono, nie jest kopią — bez udanego
+   odtworzenia **stop**.
+2. **`railway config plan` bez niespodzianek** — w tym samym oknie co apply.
+   Każdy wiersz planu musi mieć swoje „oczekiwane” w tabeli
+   `PRZELACZENIE_NA_3_SERWISY_595.md` krok 2. Wiersz spoza tabeli = **stop**.
+   Plan zapisz poza repo.
+3. **Okno serwisowe** — pora najmniejszego ruchu (z *Metrics*), 60 minut
+   bez innych zajęć, działający monitor dostępności (KROK 11.5) z alarmem
+   na telefon; jeśli są już użytkownicy — informacja dzień wcześniej.
+4. **Plan cofnięcia spisany przed apply** — cofnięcie roli w panelu
+   (Start Command `… kuking-entrypoint all`, `APP_ROLE=all`, potem usunięcie
+   `worker` i `scheduler`), cofnięcie trwałe PR-em
+   (`PRODUCTION_SPLIT_SERVICES = false`), a dla danych — odtworzenie ze
+   zrzutu z punktu 1 (`KOPIE_I_ODTWORZENIE.md` §4). Próg cofnięcia ustal
+   z góry: `/health` ≠ 200 dłużej niż 5 minut albo nieudane wgranie zdjęcia
+   → cofasz, nie debugujesz na żywo.
+
+#### Na później: staging z własnymi wartościami
+
+→ Górny wybierak środowiska → **+ New Environment** → **puste** (nie
+*Duplicate*) → nazwa `staging`
+
+Następnie wpisz w `staging` **własne**, nieprodukcyjne wartości:
 
 | Zmienna | Wartość dla staginu |
 |---|---|
@@ -1840,15 +1880,9 @@ nie tę listę.
 railway config apply
 ```
 
-Powtórz dla staginu:
-
-```bash
-railway link --environment staging
-railway config plan
-railway config apply
-
-railway link --environment production   # wróć na produkcję
-```
+~~Powtórz dla staginu~~ — **odłożone** (decyzja 25.09.2026, §8
+„Środowisko `staging`”). Zamiast próby na stagingu: zabezpieczenia na
+produkcji z tej samej sekcji §8 — **przed** `railway config apply` wyżej.
 
 **Jeśli `plan` odrzuci któreś pole** (`limitOverride`, `drainingSeconds`,
 `sleepApplication`, `checkSuites`): usuń je z `railway.ts` i ustaw ręcznie
@@ -2287,12 +2321,14 @@ W środowisku `staging`: **Serverless ON** dla `web`.
 
 | Pole | Wartość na start |
 |---|---|
-| Soft limit (e-mail) | **$25** |
-| Hard limit (zatrzymanie) | **$60** |
+| Soft limit (alert e-mail) | **$60** |
+| Hard limit (zatrzymanie) | **$100** |
 
-> **`[POTRZEBNE OD WŁAŚCICIELA — decyzja]`** Hard limit **wyłącza serwisy**
-> po przekroczeniu. Chroni przed rachunkiem-niespodzianką, ale oznacza
-> przestój. Ustaw go z zapasem 3× nad spodziewanym rachunkiem.
+> **Decyzja właściciela 25.09.2026:** 100 USD twardo + alert przy 60 USD.
+> Poprzednie 25/60 USD były sprzed rozbicia na trzy serwisy (szacunek
+> 40–65 USD/mies., komentarz w `railway.ts`) i mogłyby wyłączyć produkcję
+> w zwykłym miesiącu. Hard limit **wyłącza serwisy** po przekroczeniu —
+> alert przy 60 USD to sygnał do przeglądu zasobów, zanim do tego dojdzie.
 
 ---
 

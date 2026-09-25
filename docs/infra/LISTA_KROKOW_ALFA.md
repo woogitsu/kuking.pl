@@ -17,6 +17,19 @@ odczyt, same nazwy zmiennych, `valuesRedacted: true`):
   `KUKING_HOST_USER_ID`, `KUKING_EDGE_TOKEN`, `AWS_KOPIE_*`, `R2_KOPIE_*`,
   `KOPIA_KLUCZ_PUBLICZNY`.
 
+**Decyzje właściciela z 25.09.2026 (wiążą ten dokument):**
+
+1. **Na razie BEZ stagingu.** Pracujemy od razu na produkcji
+   (`www.kuking.pl`). Kroki stagingowe (A7, A8, dawny B1, E5 i części C3–C5,
+   F2) są **odłożone** — nie „do zrobienia później w tej kolejce”, tylko
+   poza bramką alfy, do nowej decyzji. W ich miejsce wchodzą zabezpieczenia
+   na produkcji: **B1** niżej (zrzut i próba odtworzenia przed apply, plan
+   bez niespodzianek, okno serwisowe, plan cofnięcia). Ten sam zapis jest
+   w `DEPLOYMENT_RUNBOOK.md` §8 „Środowisko `staging`”.
+2. **Limit wydatków Railway: 100 USD twardo + alert przy 60 USD** (A3).
+3. **Zmienne tylko-w-panelu i brakujące w `railway.ts` idą do pliku**
+   (A4) — gałąź `claude/railway-ts-zmienne-z-panelu` (PR do otwarcia).
+
 **Czego ten dokument NIE robi:** niczego nie zmienia w Railway, Cloudflare
 ani GitHubie. Każdy krok jest stanem panelu, który trzeba wykonać i zapisać
 z datą w podanym issue. Szczegóły kliknięć są w dokumentach źródłowych —
@@ -49,16 +62,16 @@ poprzedzić `apply`. Wykonuj w tej kolejności:
 | 5 | E2 zewnętrzny monitor dostępności | 15 min | E3 | #599, obserwacja apply |
 | 6 | D1 ręczny zrzut produkcji i odtworzenie | 45 min | A1 | **warunek apply**, #594 |
 | 7 | F1 umówienie prawnika (start równoległy, długi czas oczekiwania) | 30 min | — | #8, D9, C2 |
-| 8 | A3 budżet i limit Railway | 10 min | — | #595 (zgoda na koszt), #599 |
-| 9 | A4 decyzja o zmiennych tylko-w-panelu | 15 min (+ PR) | A1 | B2 bez „stop” |
+| 8 | A3 budżet i limit Railway (100 USD twardo, alert 60 USD) | 10 min | — | #595 (zgoda na koszt), #599 |
+| 9 | A4 zmienne tylko-w-panelu — scalić PR z gałęzi `claude/railway-ts-zmienne-z-panelu` | 15 min | A1 | B2 bez „stop” |
 | 10 | D2–D3 bucket kopii, tokeny, zmienne kopii | 30 min | D1 (klucz) | apply bez martwego `kopia-bazy`, #193 |
 | 11 | A5 Shared Variables produkcji | 45–60 min | A1, A4, D3 | **B2**, #595, #1013 |
 | 12 | A6 GitHub: zmienne, sekret, środowisko | 15 min | A1 | B3 z GitHuba |
-| 13 | A7 środowisko `staging` | 60–90 min | A5 (wzór listy) | B1, C4, E5, #975 |
-| 14 | A8 PR Environments (#975) | 5 min | A7 | #975 |
+| 13 | ~~A7 środowisko `staging`~~ — **odłożone** (decyzja 25.09) | — | — | — |
+| 14 | ~~A8 PR Environments (#975)~~ — **odłożone** razem z A7; przełącznik zostaje OFF | — | — | — |
 | 15 | E6 zrzuty metryk „przed” | 10 min | — | #599 porównanie |
-| 16 | B1 próba rozbicia na stagingu | 60 min | A7 | B2 |
-| 17 | B2 plan produkcji i czytanie | 30 min | A5, A4, D1, B1 | B3 |
+| 16 | B1 zabezpieczenia na produkcji zamiast stagingu: okno serwisowe, plan cofnięcia, zrzut ≤ 24 h | 30 min | D1, E1–E2 | B2 |
+| 17 | B2 plan produkcji i czytanie — bez niespodzianek | 30 min | A5, A4, D1, B1 | B3 |
 | 18 | B3 apply produkcji | 15 min + wdrożenie | B2 | #595, #600, #599 |
 | 19 | B4 weryfikacja po apply (+ odbiór #601) | 30 min | B3 | #595, #601 |
 | 20 | B5 ustawienia ręczne po apply | 15 min | B3 | #595 |
@@ -67,14 +80,14 @@ poprzedzić `apply`. Wykonuj w tej kolejności:
 | 23 | B6 odczyt budżetu połączeń | 15 min | B3 | #598, #600 |
 | 24 | C1 przegląd strefy Cloudflare (odczyt) | 20 min | — | C3–C6 |
 | 25 | C2 ustawienia bucketów R2 | 30 min | C1 | C3, #120, #619 |
-| 26 | C3 bramka R2 na produkcji + punkty ręczne na stagingu | 75 min | C2, B3, A7 | **#120**, stabilny upload |
+| 26 | C3 bramka R2 na produkcji (punkty ręczne z konta testowego; „zły sekret” odłożony) | 60 min | C2, B3 | **#120**, stabilny upload |
 | 27 | D5 nazajutrz: czujka kopii | 5 min | D4 + 1 noc | #193 |
 | 28 | D6 odtworzenie z bucketu, RPO/RTO | 45 min | D5 | **#193, #594** |
-| 29 | E5 próby alarmów na stagingu | 40 min | A7, E2, E4 | #599 |
+| 29 | ~~E5 próby alarmów na stagingu~~ — **odłożone**; na produkcji tylko E1 i monitor z E2 | — | — | — |
 | 30 | F2 moderacja działa | 20 min | B3 | bramka „moderation działa” |
-| 31 | F3 testy 50+ (13 sesji) | 2+ tygodnie | A7 albo produkcja, E1, D1 | **#15**, #119 |
+| 31 | F3 testy 50+ (13 sesji) | 2+ tygodnie | produkcja, E1, D1 | **#15**, #119 |
 | 32 | F4 pierwsze 20 osób | tygodnie | F3 bez blokerów, D6, C3 | **#29** |
-| 33 | C4 cache zdjęć (#597) | 45 min | C1, A7 | #597 |
+| 33 | C4 cache zdjęć (#597) | 45 min | C1 | #597 |
 | 34 | C6 token krawędzi (#1306) | 30 min + 1 doba | B3, C1 | #1306 |
 | 35 | C5 cache HTML (#610) | 45 min | C4 | #610 |
 | 36 | D7–D9 kopia zdjęć, PITR, HA | — | F1 (zdanie w polityce) | #617, #604 |
@@ -119,12 +132,16 @@ się na bramkę.
 ### A3. Budżet i limit wydatków Railway
 
 - **Gdzie:** Railway → *Workspace Settings → Usage → Usage Limits*.
-- **Co ustawić:** soft limit (e-mail) i hard limit. **Decyzja właściciela:**
-  rozbicie na trzy serwisy to szacunkowo 40–65 USD/mies. zamiast 12–18
-  (komentarz w `railway.ts`, #595). Wartości 25/60 USD z `DEPLOYMENT_RUNBOOK.md`
-  §12 są **sprzed rozbicia** — hard limit 60 USD mógłby wyłączyć produkcję
-  w zwykłym miesiącu. Hard limit ustaw z zapasem nad nowym szacunkiem.
-- **Sprawdzenie:** panel pokazuje oba progi i adres e-mail powiadomień.
+- **Co ustawić (decyzja właściciela 25.09.2026):** **hard limit 100 USD**
+  i **alert (soft limit, e-mail) przy 60 USD**. Tło: rozbicie na trzy
+  serwisy to szacunkowo 40–65 USD/mies. zamiast 12–18 (komentarz
+  w `railway.ts`, #595), więc dawne 25/60 USD z `DEPLOYMENT_RUNBOOK.md` §12
+  mogłyby wyłączyć produkcję w zwykłym miesiącu. Bez stagingu nie ma drugiego
+  środowiska do opłacenia. Runbook §12 poprawiony na te same liczby.
+- **Sprawdzenie:** panel pokazuje 100 USD (hard) i 60 USD (alert) oraz adres
+  e-mail powiadomień. Alert przy 60 USD przyjdzie w miesiącu, w którym
+  rachunek dojdzie do górnej granicy szacunku — to sygnał do przeglądu
+  zasobów (E6), nie awaria.
 - **Czas:** 10 min. **Odblokowuje:** #595 (zgoda na koszt), #599 (budżet
   kosztów). **Ryzyko / cofnięcie:** hard limit **zatrzymuje serwisy** —
   cofnięcie: podnieś limit w tym samym miejscu.
@@ -134,19 +151,31 @@ się na bramkę.
 `railway config apply` ustawia zestaw zmiennych z pliku. Zmienna, która
 stoi dziś w serwisie, a nie ma jej w `railway.ts`, pojawi się w planie jako
 **usunięcie** (w `PRZELACZENIE_NA_3_SERWISY_595.md` krok 2 to „stop”).
-Odczyt z 25.09 pokazuje trzy takie nazwy:
+Odczyt z 25.09 pokazuje trzy takie nazwy. **Decyzja właściciela 25.09:**
+dopisać je do `railway.ts` do ról, które je czytają, razem z trzema
+zmiennymi czytanymi przez kod, których w pliku nie było — gałąź
+`claude/railway-ts-zmienne-z-panelu` (**PR do otwarcia i scalenia przed B2**):
 
-| Zmienna | Co się stanie po apply | Decyzja |
-|---|---|---|
-| `KUKING_QUESTIONS_ENABLED` | wróci do domyślnego `false` (`config/kuking.php`) — pytania „Poradźcie” znikną, jeśli dziś są włączone | odczytaj wartość w panelu; jeśli `true` → **[kod — brak PR]** dopisać do `appEnv` w `railway.ts` przed B2 |
-| `KUKING_MEDIA_DISK` | wraca do `FILESYSTEM_DISK`, które plik ustawia na `r2` | jeśli dziś `r2` — usunięcie jest bez skutku, zapisz to świadomie; inna wartość → **stop**, wyjaśnić |
-| `TRUSTED_PROXIES` | znika | **usunięcie zamierzone** (komentarz SEC-01 w `railway.ts`: aplikacja nigdy jej nie czytała) |
+| Zmienna | W `railway.ts` | Role | Uzasadnienie |
+|---|---|---|---|
+| `KUKING_QUESTIONS_ENABLED` | `"true"` | web, worker, scheduler | produkcja 25.09: `/pytania` → 200 „Poradźcie” (pomiar z zewnątrz), więc flaga jest dziś włączona; `false` wyłączyłby dział przy apply |
+| `KUKING_MEDIA_DISK` | `"r2"` | web, worker, scheduler | powtarza `FILESYSTEM_DISK`; zdjęcia produkcji idą dziś przez bucket wariantów R2, co config wybiera tylko przy dysku `r2` |
+| `KUKING_EDGE_TRYB` | `ctx.shared` | web | pusto = `obserwacja` (dziś); potrzebne do C6 krok 4 |
+| `KUKING_HTML_EDGE_CACHE_SECONDS` | `ctx.shared` | web | pusto = 0 (dziś `no-store, private`); C5 |
+| `KUKING_R2_PUBLICZNE_ADRESY` | `ctx.shared` | web | pusto = bramka mówi `NIE WIEMY`; C3 |
+| `TRUSTED_PROXIES` | **brak — świadomie** | żadna | nie czyta jej żaden kod (SEC-01); rola „wg tego, kto czyta” jest pusta. **Usunięcie w planie jest zamierzone** i nic nie zmienia |
+
+- **Przed B2 sprawdź w panelu** (wartości widać, nic nie jest zapieczętowane):
+  `KUKING_QUESTIONS_ENABLED` = `true` i `KUKING_MEDIA_DISK` = `r2`. Inna
+  wartość — **stop**, popraw PR, zanim zrobisz plan (wartości nie były
+  czytane przez agenta, tylko wywnioskowane z zachowania strony).
 
 - **Gdzie:** Railway → `kuking.pl` → *Variables* (wartości są dziś widoczne,
   bo nic nie jest zapieczętowane).
-- **Czas:** 15 min, plus ewentualny PR. **Odblokowuje:** B2 bez „stop”.
-- **Ryzyko / cofnięcie:** decyzja jest odwracalna — zmienną można po apply
-  wpisać ręcznie, ale następny apply znów ją usunie, dopóki nie trafi do pliku.
+- **Czas:** 15 min (odczyt dwóch wartości + scalenie PR-a). **Odblokowuje:**
+  B2 bez „stop”.
+- **Ryzyko / cofnięcie:** zmienną można po apply wpisać ręcznie, ale
+  następny apply znów ją nadpisze — trwała zmiana idzie PR-em.
 
 ### A5. Shared Variables środowiska `production`
 
@@ -208,20 +237,23 @@ nie tworzy jej; brak nazwy po apply = pusta wartość w nowych serwisach.
 - **Ryzyko / cofnięcie:** `KUKING_DEPLOY_ENABLED=false` wyłącza wszystkie
   automatyczne operacje; sekret można usunąć.
 
-### A7. Środowisko `staging`
+### A7. Środowisko `staging` — **ODŁOŻONE (decyzja właściciela 25.09.2026)**
+
+Na razie nie zakładamy stagingu. Zabezpieczenia, które miał dawać, przejmuje
+B1 (na produkcji). Opis niżej zostaje jako wzór na dzień, w którym właściciel
+wróci do tej decyzji — **nie wykonuj go w ramach bramki alfy.**
 
 - **Gdzie:** Railway → wybierak środowisk → *New Environment* → `staging`,
-  **puste, nie „Duplicate production”**. (`DEPLOYMENT_RUNBOOK.md` §8 każe
-  duplikować — to jest sprzeczne z `PRZELACZENIE_NA_3_SERWISY_595.md`
-  krok 1 i z #975: duplikat kopiuje sekrety produkcji. Wiąże nowszy
-  dokument.)
+  **puste, nie „Duplicate production”** (duplikat kopiuje sekrety
+  produkcji — `PRZELACZENIE_NA_3_SERWISY_595.md` krok 1, #975;
+  `DEPLOYMENT_RUNBOOK.md` §8 poprawiony 25.09 na to samo).
 - **Co ustawić:** Shared Variables stagingu z tą samą listą nazw co A5, ale
   **własne wartości**: drugi `APP_KEY`, buckety `kuking-oryginaly-staging`,
   `kuking-media-staging`, `kuking-eksporty-staging` z osobnym tokenem R2
   (Cloudflare → R2 → *Create bucket*, jurysdykcja **EU**; *Manage API
   Tokens* → token tylko na te trzy buckety), pozostałe sekrety puste albo
   testowe — **nigdy produkcyjne**. Gałąź `staging` w repo. Po pierwszym
-  apply stagingu (B1): *Custom Domain* `staging.kuking.pl` na serwisie WWW
+  apply stagingu (`KUKING_IAC_STAGING_ROZBITY=true railway config plan/apply`): *Custom Domain* `staging.kuking.pl` na serwisie WWW
   i w Cloudflare DNS rekord CNAME (proxied) + TXT `_railway.staging`.
   *Serverless* ON dla WWW stagingu.
 - **Sprawdzenie:** `curl -s https://staging.kuking.pl/health` → 200;
@@ -232,10 +264,16 @@ nie tworzy jej; brak nazwy po apply = pusta wartość w nowych serwisach.
 - **Ryzyko:** koszt (Serverless go ogranicza); pomyłka w bucketach =
   staging pisze do produkcji. **Cofnięcie:** usunięcie środowiska
   `staging` w *Project Settings → Environments* (nie dotyka produkcji).
-- **Jeśli świadomie pomijasz staging:** zapisz to w #595 z datą. Wtedy B1,
-  C4 i E5 nie mają gdzie się odbyć przed produkcją.
+- **Pominięcie stagingu jest decyzją z 25.09** — zapisz ją w #595 z datą.
+  Skutek: próba rozbicia, reguły cache (C4, C5) i próby alarmów (E5) nie mają
+  gdzie się odbyć przed produkcją; B1 opisuje, czym to zastępujemy.
 
-### A8. PR Environments (#975)
+### A8. PR Environments (#975) — **ODŁOŻONE razem z A7**
+
+Bazą środowisk PR ma być `staging`, a tego nie ma. **Nie ustawiaj bazy na
+`production`** — środowisko PR kopiuje zmienne bazy, czyli sekrety
+produkcji. Do powrotu stagingu przełącznik *Enable PR Environments* zostaje
+**OFF**. Opis niżej — na później.
 
 - **Gdzie:** Railway → *Project Settings → Environments*.
 - **Co ustawić:** *Enable PR Environments* ON, **Base environment:
@@ -255,18 +293,42 @@ nie tworzy jej; brak nazwy po apply = pusta wartość w nowych serwisach.
 Procedura źródłowa: `docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`. Warunki:
 A1–A5 zrobione, **D1 zrobione** (żadnego apply bez kopii bazy —
 `DEPLOYMENT_RUNBOOK.md` KROK 9), E1–E2 zrobione (awaria w trakcie apply
-ma kogoś obudzić), okno małego ruchu, CLI ≥ 5.42.1.
+ma kogoś obudzić), B1 zrobione, CLI ≥ 5.42.1.
 
-### B1. Próba na stagingu
+### B1. Zabezpieczenia na produkcji — zamiast próby na stagingu
 
-- **Gdzie:** terminal, `railway link` → `staging`.
-- **Co:** `KUKING_IAC_STAGING_ROZBITY=true railway config plan`, potem
-  `… apply` interaktywnie, bez `--yes`.
-- **Sprawdzenie:** weryfikacja jak w B4 na stagingu: wgranie zdjęcia,
-  harmonogram w logach schedulera, restart workera w trakcie zadania.
-- **Czas:** 60 min. **Odblokowuje:** B2.
-- **Cofnięcie:** plan/apply **bez** zmiennej — usuwa `worker`
-  i `scheduler` tylko na stagingu.
+Decyzja z 25.09: bez stagingu. Pierwsze `apply` jest więc jednocześnie
+próbą — dlatego przed nim cztery rzeczy, **wszystkie**:
+
+1. **Świeży ręczny zrzut i próba odtworzenia** — D1, wykonane **nie
+   wcześniej niż 24 h przed** B3 (starszy zrzut: powtórz D1 kroki 3–6).
+   Protokół z kodem 0 odtworzenia, liczbą tabel i datą — w #595.
+   Bez udanego odtworzenia **stop**: zrzut, którego nie odtworzono, nie
+   jest kopią.
+2. **`railway config plan` bez niespodzianek** — B2. Każdy wiersz planu ma
+   swoje „oczekiwane” w tabeli B2 / `PRZELACZENIE_NA_3_SERWISY_595.md`
+   krok 2; wiersz, którego tam nie ma, to **stop**, nie „pewnie w porządku”.
+   Plan robisz **w tym samym oknie** co apply — plan sprzed dnia nie
+   opisuje dzisiejszego stanu panelu.
+3. **Okno serwisowe** — pora najmniejszego ruchu (z *Metrics* serwisu
+   `kuking.pl` z ostatniego tygodnia; zwykle wcześnie rano), 60 minut
+   zarezerwowane bez innych zajęć, nikt z testerów w trakcie sesji (F3).
+   Monitor z E2 działa i alarmuje na Twój telefon. Jeśli przed zaproszeniem
+   ludzi — wystarczy zapis godziny w #595; jeśli już są użytkownicy —
+   krótka informacja dzień wcześniej, że przez kilka minut strona może nie
+   odpowiadać.
+4. **Plan cofnięcia spisany przed apply** — B3 „Cofnięcie A” (panel,
+   minuty) i „Cofnięcie B” (PR, trwałe) wydrukowane albo otwarte obok;
+   do tego ścieżka danych: gdyby coś naruszyło bazę, odtworzenie ze zrzutu
+   z punktu 1 według `KOPIE_I_ODTWORZENIE.md` §4. Ustal z góry **próg
+   cofnięcia**: `/health` ≠ 200 dłużej niż 5 minut po wdrożeniu albo
+   nieudane wgranie zdjęcia w B4 pkt 5 → cofasz, nie debugujesz na żywo.
+
+- **Sprawdzenie:** w #595 cztery wpisy z datą: protokół zrzutu/odtworzenia,
+  plik planu (poza repo), godzina okna, próg cofnięcia.
+- **Czas:** 30 min (bez D1). **Odblokowuje:** B2, B3.
+- **Ryzyko / cofnięcie:** same czynności przygotowawcze niczego nie
+  zmieniają.
 
 ### B2. Plan produkcji i jego czytanie
 
@@ -275,8 +337,9 @@ ma kogoś obudzić), okno małego ruchu, CLI ≥ 5.42.1.
   pokazał włączone „Wait for CI”).
 - **Oczekiwane:** `kuking.pl` — zmiana w miejscu na rolę `web`;
   `worker`, `scheduler` — utworzenie; `Postgres` — bez zmian; domeny — bez
-  zmian; `kopia-bazy` — utworzenie; usunięcia zmiennych — tylko te
-  zaakceptowane w A4.
+  zmian; `kopia-bazy` — utworzenie; usunięcie zmiennej — wyłącznie
+  `TRUSTED_PROXIES` (A4); `KUKING_QUESTIONS_ENABLED` i `KUKING_MEDIA_DISK`
+  bez zmiany wartości.
 - **Stop, gdy:** utworzenie/usunięcie `kuking.pl` albo `Postgres`, zmiana
   obrazu/regionu/wolumenu bazy, zmiana domen, usunięcie zmiennej spoza A4,
   wyłączenie `checkSuites`. Wiersz `kopia-bazy` bez wypełnionych `R2_KOPIE_*`
@@ -389,21 +452,22 @@ ma kogoś obudzić), okno małego ruchu, CLI ≥ 5.42.1.
 
 ### C3. Bramka R2 (#120)
 
-- **Gdzie:** Railway → `kuking.pl` → *Variables* + terminal.
-- **Co ustawić:** `KUKING_R2_PUBLICZNE_ADRESY` = **wszystkie** adresy z C2,
-  z `https://`, także wyłączone. Uwaga: tej zmiennej nie ma w `railway.ts` —
-  kolejny apply zaproponuje jej usunięcie. Ustaw ją **tymczasowo** na
-  czas bramki i usuń po zapisaniu wyniku, albo dopisz do pliku
-  (**[kod — brak PR]**).
+- **Gdzie:** Railway → `production` → *Shared Variables* + terminal.
+- **Co ustawić:** Shared Variable `KUKING_R2_PUBLICZNE_ADRESY` = **wszystkie**
+  adresy z C2, z `https://`, także wyłączone. Po scaleniu PR-a z A4
+  `railway.ts` przekazuje ją serwisowi WWW (`ctx.shared`), więc apply jej nie
+  usunie. Nie wpisuj jej jako zmiennej serwisu — tę apply nadpisze.
 - **Co uruchomić:** upewnij się, że jest gotowe zdjęcie (`media.status =
   ready`), potem
   `railway ssh --service kuking.pl -- php artisan kuking:bramka-r2 --zapis`.
 - **Sprawdzenie:** ostatnia linia „Część serwerowa bramki PRZESZŁA
   w całości”, kod 0, po jednej linii z kodem odpowiedzi na każdy
-  zadeklarowany adres. Wynik z datą do `BRAMKA_R2.md` §3. Punkty 7, 8, 11, 12
-  (plik ~14,9 MB, cztery prawdziwe formaty, kasowanie zabiera warianty, zły
-  sekret) — **na stagingu**, nie na produkcji.
-- **Czas:** 45 min produkcja + 30 min staging. **Odblokowuje:** #120,
+  zadeklarowany adres. Wynik z datą do `BRAMKA_R2.md` §3. Punkty 7, 8, 11
+  (plik ~14,9 MB, cztery prawdziwe formaty, kasowanie zabiera warianty) —
+  **na produkcji, z konta testowego**, w oknie małego ruchu; wpisy testowe
+  usuń od razu po sprawdzeniu. Punkt 12 (zły sekret) **odłożony** razem ze
+  stagingiem — na produkcji oznaczałby celowe zepsucie wgrywania.
+- **Czas:** 60 min. **Odblokowuje:** #120,
   warunek „stabilny upload”.
 - **Ryzyko / cofnięcie:** komenda z `--zapis` zapisuje i kasuje jeden obiekt
   próbny; zmienna jest czytana tylko przez bramkę. Usunięcie zmiennej =
@@ -415,26 +479,27 @@ ma kogoś obudzić), okno małego ruchu, CLI ≥ 5.42.1.
   `docs/infra/cloudflare-cache-rules-597-610.json`, kroki:
   `CLOUDFLARE_CACHE_597_610.md` „Krok po kroku w panelu — zdjęcia”.
 - **Kolejność:** (1) reguła ochronna BYPASS — od razu, ma być **ostatnia**;
-  (2) reguła zdjęć jako Draft; (3) staging (`staging.kuking.pl`
-  w wyrażeniach), sonda `CACHE_KIND=media`; (4) produkcja, dwa `curl`
-  z filtrem `cf-cache-status|cache-control|set-cookie` (bez `location`).
+  (2) reguła zdjęć jako Draft; (3) ~~staging~~ — **odłożone** (25.09);
+  (4) produkcja w oknie małego ruchu, dwa `curl` z filtrem
+  `cf-cache-status|cache-control|set-cookie` (bez `location`) i sonda
+  `CACHE_KIND=media`; przy pierwszym odchyleniu — cofnięcie niżej.
 - **Sprawdzenie:** drugie anonimowe pobranie `HIT`, zalogowany
   `BYPASS`/`DYNAMIC` z `private, no-store`, 404 dla anonima na prywatnym
   zdjęciu, brak `Set-Cookie`.
-- **Czas:** 45 min. **Zależy od:** C1, A7. **Odblokowuje:** #597.
+- **Czas:** 45 min. **Zależy od:** C1. **Odblokowuje:** #597.
 - **Cofnięcie:** wyłącz regułę zdjęć → *Purge Cache* prefiksem
   `kuking.pl/zdjecia/`; BYPASS zostaw. Szybsze odcięcie podpisów:
   `KUKING_MEDIA_PUBLIC_SIGNED_URL_MINUTES=5` + redeploy.
 
 ### C5. Cache HTML gościa (#610) — nie blokuje alfy
 
-- **Co:** `KUKING_HTML_EDGE_CACHE_SECONDS=120` najpierw na stagingu, reguła
-  „HTML gościa” przed końcowym BYPASS, sonda `CACHE_KIND=html`, potem
-  produkcja. Okno nieświeżości 120 s wymaga świadomej akceptacji
+- **Co:** Shared Variable `KUKING_HTML_EDGE_CACHE_SECONDS=120` (staging
+  **odłożony** — od razu produkcja, w oknie małego ruchu), reguła „HTML
+  gościa” przed końcowym BYPASS, sonda `CACHE_KIND=html`. Okno
+  nieświeżości 120 s wymaga świadomej akceptacji
   (`CLOUDFLARE_CACHE_597_610.md` §#610).
-- **Zależność od IaC:** zmiennej nie ma w `railway.ts` — kolejny apply ją
-  usunie (bezpieczny kierunek: cache HTML się wyłącza). Trwale:
-  **[kod — brak PR]**.
+- **Zależność od IaC:** po scaleniu PR-a z A4 zmienna idzie do WWW przez
+  `ctx.shared` — ustawiaj ją w *Shared Variables*, nie w serwisie.
 - **Czas:** 45 min. **Zależy od:** C4. **Odblokowuje:** #610.
 - **Cofnięcie:** wyłącz regułę → purge → zmienna `0` + redeploy.
 
@@ -451,8 +516,8 @@ i `_POPRZEDNI` do WWW. Kolejność z `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`
    ustaw `X-Kuking-Edge-Token` na **wszystkich** żądaniach do `kuking.pl`
    (inaczej monitor `/health` dostanie 403 po włączeniu egzekwowania).
 3. Doba obserwacji: logi bez ostrzeżeń o brakującym tokenie.
-4. Tryb `egzekwowanie`: `KUKING_EDGE_TRYB` nie jest przekazywane przez
-   `railway.ts` — **[kod — brak PR]**.
+4. Tryb `egzekwowanie`: Shared Variable `KUKING_EDGE_TRYB=egzekwowanie`,
+   redeploy WWW (przekazywanie przez `railway.ts` — PR z A4).
 
 - **Sprawdzenie:** Railway nie ma domeny `*.up.railway.app` (odczyt 25.09:
   `serviceDomains` puste) — zapisz to w #1306 jako potwierdzenie, a nie
@@ -612,7 +677,11 @@ i `_POPRZEDNI` do WWW. Kolejność z `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`
   w której chodzi harmonogram). **Odblokowuje:** #599 (stojący scheduler).
 - **Cofnięcie:** usunięcie zmiennej — komenda przestaje wysyłać.
 
-### E5. Próby alarmów na stagingu
+### E5. Próby alarmów na stagingu — **ODŁOŻONE razem z A7**
+
+Bez stagingu zostają próby, które niczego nie psują: E1
+(`kuking:sprawdz-alarm`) i E2 (monitor dostępności). Celowego zatrzymania
+serwisu nie robimy — **także nie na produkcji**. Opis niżej — na później.
 
 - **Co:** osobny monitor dostępności i osobny heartbeat na stagingu;
   zatrzymaj WWW stagingu na 5 min → alarm i powrót; zatrzymaj scheduler
@@ -662,7 +731,8 @@ i `_POPRZEDNI` do WWW. Kolejność z `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`
 - **Co:** `railway ssh --service worker -- php artisan kuking:sprawdz-model`
   (KROK 8B runbooka) — klucz OpenAI jest w serwisie, czy działa, nie
   wiadomo; skrzynka z `KUKING_MODEL_ALARM_EMAIL` jest czytana; jedno zgłoszenie
-  próbne na stagingu → pozycja w panelu moderacji i list do moderatora.
+  próbne na produkcji, między dwoma kontami testowymi (staging odłożony) →
+  pozycja w panelu moderacji i list do moderatora; zamknij je od razu.
   `KUKING_HOST_USER_ID` ustawione (A5), żeby alert pierwszego wpisu trafiał
   do gospodarza.
 - **Czas:** 20 min. **Zależy od:** B3. **Odblokowuje:** warunek „moderation
@@ -684,7 +754,7 @@ i `_POPRZEDNI` do WWW. Kolejność z `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`
   (zdjęcie z aparatu, ze Zdjęć, z Plików) i co zrobił po komunikacie o HEIC.
 - **Sprawdzenie:** lista problemów „problem | ilu z 13 | bloker? | zadanie”,
   każdy bloker jako issue `obszar: ux`.
-- **Zależy od:** A7 albo produkcja, E1, D1 (nie zapraszać na bazę bez kopii).
+- **Zależy od:** produkcja (staging odłożony), E1, D1 (nie zapraszać na bazę bez kopii).
 - **Odblokowuje:** #15, warunek „brak blokerów UX”, #119 (test urządzeń),
   #29 (Bramka A: blokery = 0).
 
@@ -723,12 +793,13 @@ osobami (F1, #8).
 **W otwartych PR-ach:** #1595, #1624, #1697, #1707 (A6), #1622 (B5),
 #1672 (E2), #1681 (C2, F1), #1698 (F2), #1719 (D1, D6, F1), #1725 (F1).
 
+**Na gałęzi, PR do otwarcia:** `claude/railway-ts-zmienne-z-panelu` —
+`KUKING_QUESTIONS_ENABLED`, `KUKING_MEDIA_DISK`, `KUKING_EDGE_TRYB`,
+`KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_R2_PUBLICZNE_ADRESY` w `railway.ts`
+(A4, C3, C5, C6).
+
 **Bez PR-a** (do zlecenia, jeśli decyzja zapadnie):
 
-- `KUKING_QUESTIONS_ENABLED` w `appEnv` `railway.ts`, jeśli dziś `true` (A4);
-- `KUKING_R2_PUBLICZNE_ADRESY` w `railway.ts`, jeśli ma zostać na stałe (C3);
-- `KUKING_HTML_EDGE_CACHE_SECONDS` w `railway.ts` (C5);
-- `KUKING_EDGE_TRYB` w `railway.ts` przed egzekwowaniem tokenu (C6);
 - `deploy.yml` job `operate` restartujący także `worker` i `scheduler` (B5);
 - zamknięcie rejestracji na zaproszenia, jeśli taka decyzja (F1).
 
