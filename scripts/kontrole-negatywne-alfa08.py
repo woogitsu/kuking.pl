@@ -229,6 +229,11 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # zwrot miejsca do wspólnej puli poczty.
 BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
 BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
+# Klucz preview środowiska PR (#975). Zachowanie skryptu mierzą testy
+# behawioralne; ten wpis pilnuje jedynego testu czytającego entrypoint —
+# mutacja odcina wywołanie przed odmową startu i ma go zapalić.
+ENTRYPOINT = "docker/entrypoint.sh"
+KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 # Akcja zapisu do zeszytu sama sprawdza prawo do zeszytu (#942). Test woła
 # akcję BEZPOŚREDNIO, z pominięciem kontrolera, więc walidacja
 # `collection_id` w kontrolerze go nie ratuje. Mutacja zdejmuje `authorize`
@@ -636,6 +641,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
+     lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
      lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
     ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
@@ -696,6 +703,7 @@ run_test(AWANS_ROLI_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
+run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(FONTY_TEST, True)
 run_test(BEZPIECZNY_OBSZAR_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
