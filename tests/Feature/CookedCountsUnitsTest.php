@@ -114,7 +114,9 @@ class CookedCountsUnitsTest extends TestCase
 
     private function publishedRecipe(): Recipe
     {
-        return Recipe::factory()->create([
+        // Ze zdjęciem: bez niego strona nie wystawia `Recipe` (#1005),
+        // a testy sprawdzają też `userInteractionCount` w JSON-LD.
+        return Recipe::factory()->zeZdjeciem()->create([
             'author_id' => $this->user('autor')->getKey(),
             'status' => Recipe::STATUS_PUBLISHED,
             'visibility' => 'public',
