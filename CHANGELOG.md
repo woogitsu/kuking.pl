@@ -2,23 +2,31 @@
 
 ## Nieopublikowane
 
+- Na stronie powiadomień przycisk „Oznacz wszystkie jako przeczytane” pojawia się tylko wtedy, gdy są nieprzeczytane powiadomienia. Jeśli między wczytaniem strony a kliknięciem wszystko zostało już przeczytane (np. w drugiej karcie), strona mówi, że nie było nic do oznaczenia, zamiast potwierdzać zmianę, której nie było (#1402).
+- Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
+- Strona główna nie zostaje pusta, gdy tuż przed jej otwarciem przestaliście kogoś obserwować, zablokowaliście kogoś albo zniknął ostatni wpis z Waszych tagów. Zamiast pustego ekranu pokazuje wtedy wpisy z tagów albo „Świeżo z Kuking” (#983).
 - Gdy przyznajemy rację osobie, która odwołała się od decyzji o pozostawieniu zgłoszonej treści, od razu podejmujemy nową decyzję — na przykład usuwamy treść albo blokujemy konto. Odpowiedź „Zmieniamy naszą decyzję” mówi też, co stało się ze zgłoszoną treścią, a autor dostaje uzasadnienie i może się od tej decyzji odwołać.
 - Cofnięcie starego zawieszenia po odwołaniu nie zdejmuje już późniejszej, osobnej blokady konta. Osoba dostaje w odpowiedzi jasne zdanie, że decyzję cofnęliśmy, ale konto pozostaje zablokowane na podstawie innej decyzji, od której może się odwołać osobno. Cofnięta blokada nie wraca też, gdy osoba zgłosiła usunięcie konta, a potem z niego zrezygnowała.
 - Dwie osoby rozpatrujące to samo odwołanie w tej samej chwili nie wydadzą już dwóch sprzecznych odpowiedzi. Druga dostaje komunikat, że sprawa jest już rozpatrzona, a skutek i odpowiedź zapisują się razem albo wcale.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
+- Gdy dwie osoby w tej samej chwili zmieniają nazwę użytkownika na tę samą wolną nazwę, osoba, która zapisze drugą, nie widzi już błędu serwera. Wraca do formularza z komunikatem „Ta nazwa jest już zajęta — wybierz inną”, a imię, opis, region i specjalność zostają tak, jak je wpisała (#887).
 - Przy każdym polu hasła jest przycisk „Pokaż hasło”, który odsłania wpisane hasło, żeby przed wysłaniem sprawdzić literówkę albo włączony Caps Lock. Drugie naciśnięcie („Ukryj hasło”) znów je zasłania, a przy wysyłaniu formularza hasło zasłania się samo. Menedżer haseł i wklejanie działają jak dotąd (#948).
 
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 
 - Zakładka „Przepisy” na profilu wczytuje się szybciej: podpis autora na kartach przepisów jest pobierany raz dla całej strony, a nie osobno dla każdej karty. Kolejność i liczba przepisów na stronie się nie zmieniają (#1374).
+- Ekran „Potwierdź swój adres e-mail” nie obiecuje już wiadomości, gdy serwis nie wysyła poczty. Zamiast „Wysłaliśmy wiadomość” i rady o folderze „Spam” mówi, że wiadomość nie przyjdzie, i podaje adres, pod którym człowiek pomoże potwierdzić adres inaczej. Przycisk „Wyślij wiadomość jeszcze raz” pokazuje się tylko wtedy, gdy list naprawdę może wyjść (#1335).
+- Kontrola poczty (`/health`, `kuking:sprawdz-poczte` i formularze wysyłające listy) nie uznaje już za działającą pocztę łańcucha `failover` ani `roundrobin`, w którym jest zapis do dziennika (`log`) albo do pamięci (`array`) — także pod własną nazwą mailera. Domyślny wpis `failover` wysyła teraz przez EmailLabs, a w zapasie przez SMTP, zamiast kończyć się dziennikiem (#1084).
 
+- Panel moderacji: na liście oznaczeń automatu liczby przy zakładkach „Nowe”, „W trakcie” i „Rozpatrzone” liczą oznaczenia automatu, a nie zgłoszenia od ludzi. Liczba w zakładce zgadza się z liczbą pozycji, które pokaże jej kliknięcie (#990).
 - Na kroku „Kogo chcesz obserwować?” osoba znaleziona wyszukiwarką nie powtarza się już w „Osobach, które polecamy” — jej miejsce na liście polecanych zajmuje następna osoba (#1299). Gdy po błędzie w formularzu wracają Wasze zaznaczenia, nazwa, która w międzyczasie przeszła na inne konto, nie wraca zaznaczona przy nowej osobie; ekran mówi o tym wprost, a reszta zaznaczeń zostaje (#1340).
 - Wyszukiwarka znajduje teraz przepisy, które możecie otworzyć: osoba obserwująca autora znajdzie jego przepis „dla obserwujących”, a autor — własny przepis „tylko dla mnie”. Takie wyniki mają na karcie plakietkę „Tylko dla obserwujących” albo „Tylko dla mnie”. Gość i osoba nieobserwująca nadal widzą w wynikach wyłącznie przepisy publiczne, a szkice nie trafiają do wyników (#1320).
 - Pytanie ma teraz jeden adres — stronę w dziale pytań. Stary odnośnik do pytania jako zwykłego wpisu przenosi na właściwą stronę, a mapa strony dla wyszukiwarek podaje pytania pod ich własnym adresem — także te, które mają sam tytuł (#968).
 - Strona przepisu bez gotowego zdjęcia nie wysyła już wyszukiwarkom niepełnych danych o przepisie. Gdy zdjęcie się przygotuje, dane pojawią się same (#1005).
 - Po potwierdzeniu nowego adresu e-mail komunikat mówi wprost, że inne urządzenia zostały wylogowane, a stare odnośniki do logowania i do ustawienia hasła przestały działać. Link do ustawienia hasła wysłany wcześniej na stary adres jest teraz kasowany, a bieżąca przeglądarka dostaje nowy identyfikator sesji (#979).
+- Strona tagu, który nie ma jeszcze żadnego wpisu widocznego dla wszystkich, nie jest już indeksowana przez wyszukiwarki (`noindex, follow`), a link do niej w spisie tagów ma `rel="nofollow"`. Dla ludzi nic się nie zmienia: strona działa, pokazuje prawdziwe zero i zaprasza do dodania pierwszego wpisu. Po pierwszym publicznym wpisie strona wraca do indeksu sama.
 - Liczba wpisów przy tagu w spisie tagów nie liczy już zapowiedzi przepisu, którego nie widać publicznie — przepisu tylko dla obserwujących, prywatnego, ukrytego albo usuniętego. Liczba zgadza się teraz z tym, co gość zobaczy na stronie tagu.
 - Adres strony, z której pochodzi przepis, musi zaczynać się od http:// albo https:// — w kreatorze i w formularzu „Dopisz szczegóły”. Adres zapisany wcześniej w innej postaci nie blokuje poprawiania przepisu, ale nie jest już pokazywany jako odnośnik.
 - Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
@@ -27,6 +35,8 @@
 - Stopka jest wyraźnie niższa, a pod nią nie ma już pustego szarego pasa — strona kończy się tam, gdzie stopka, a miejsce na dolną belkę nawigacji zostaje tylko wtedy, gdy belka naprawdę jest na ekranie.
 - Przy bardzo dużym tekście w przeglądarce przycisk „Wygląd” nie zasłania już na końcu strony przełącznika jasnego i ciemnego wyglądu ani numeru wersji w stopce — stopka zostawia mu miejsce pod spodem.
 - Paczka z danymi nie zawiera już cudzego przepisu z zeszytu, którego autor przestał go Wam pokazywać — bo zmienił go na prywatny, ukryła go moderacja, jest blokada albo konto autora jest zamknięte. Taki przepis nie ma w paczce tytułu, autora ani Waszej notatki; każdy zeszyt podaje tylko, ile takich pozycji jest. Zapis w zeszycie zostaje, więc gdy autor znów udostępni przepis, wróci on w kolejnej paczce.
+- „Oznacz wszystkie jako przeczytane” działa tylko na powiadomieniach, które widać na liście. Powiadomienie od osoby, z którą jest blokada, zostaje nieprzeczytane — po odblokowaniu wraca jako nowe, a nie jako coś, co już przeczytaliście.
+- Szukanie znajomych w pierwszych krokach po rejestracji nie traci miejsca na Wasz własny profil. Gdy pasuje więcej niż pięć osób, widać pięć z nich i podpowiedź, żeby wpisać dokładniejsze imię.
 - Dalsze strony profilu, spisu tagów, Odkrywaj i Poradźcie oraz zakładki profilu i filtry Poradźcie mają własny adres kanoniczny i własny adres w karcie udostępniania. Wyszukiwarka nie traktuje już ich jako kopii pierwszej strony, a dopiski śledzące (np. utm) dalej są z adresu usuwane.
 - Profil otwarty z inną wielkością liter w nazwie (np. `/@basia_1971` zamiast `/@Basia_1971`) i każda strona otwarta przez `www` wskazują wyszukiwarce i karcie udostępniania jeden adres: zapisaną nazwę na `kuking.pl`. Stare linki dalej działają. Linki z przycisku „Podziel się” (WhatsApp, e-mail, Facebook) też prowadzą zawsze na `kuking.pl`, nawet gdy strona była otwarta przez `www`.
 
@@ -179,6 +189,7 @@
 ## Przygotowane — bezpieczeństwo logowania (#584)
 
 - Wylogowanie innych urządzeń unieważnia również ich zapamiętane logowanie. Bieżąca sesja pozostaje aktywna; po jej utracie trzeba zalogować się ponownie. Ta sama ochrona obejmuje zmianę i reset hasła oraz decyzje o zamknięciu lub zawieszeniu konta.
+
 ## Alfa 0.40 — wygląd panelu moderacji
 
 - Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).

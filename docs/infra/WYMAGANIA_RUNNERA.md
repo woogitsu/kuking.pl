@@ -61,6 +61,16 @@ trafiałyby także na nią.
 > `woogitsu-linux-*` ma znowu przyjmować joby, trzeba poprawić tę zmienną;
 > samo `ci.yml` jest na to gotowe.
 
+> **Od 25.09.2026: dwie DODATKOWE etykiety rezerwują runnery dla `main`
+> (D-266).** Niezależnie od kompletu sześciu etykiet wyżej, **dwa** runnery
+> z tej puli mają dostać jeszcze etykietę `kuking-main` (wyłącznie dla
+> przebiegów push na `main` — patrz `CI_RUNS_ON_MAIN` w `ci.yml` i w
+> `SELF_HOSTED_RUNNER.md`), a **pozostałe** etykietę `kuking-pr` (PR-y
+> i `staging`). Kolejność ma znaczenie: najpierw etykiety na runnerach,
+> dopiero potem zmienne repozytorium `CI_RUNS_ON_MAIN`/`CI_RUNS_ON` —
+> w odwrotnej kolejności joby wiszą w „Queued" bez runnera, który nosi
+> żądaną etykietę.
+
 ---
 
 ## 2. Port Postgresa jest DYNAMICZNY — wiele runnerów na jednej maszynie jest OK

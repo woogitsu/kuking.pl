@@ -36,6 +36,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -59,6 +60,24 @@ function barieraPoLiczeniuAdministratorow(): void
             && str_contains($query->sql, '"status" =')
             && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
             DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
+/**
+ * Bariera #887: uczestnik staje PO rzeczywistym zapytaniu reguły
+ * `UsernameNotTaken` o zajętość nazwy, a PRZED zapisem profilu. Żądanie nie
+ * jest w transakcji, więc blokada doradcza trwa tylko jedno zapytanie —
+ * wystarcza, żeby oba żądania przeczytały „wolna", zanim którekolwiek zapisze.
+ */
+function barieraPoSprawdzeniuNazwy(): void
+{
+    $juz = false;
+
+    DB::listen(static function (QueryExecuted $query) use (&$juz): void {
+        if (! $juz && str_contains($query->sql, 'lower(username) = ?') && str_contains($query->sql, 'exists(')) {
+            $juz = true;
+            DB::select('SELECT pg_advisory_xact_lock(887, 1)');
         }
     });
 }
@@ -277,6 +296,38 @@ try {
             reason: 'spam',
             details: 'To jest reklama.',
         )->getKey(),
+
+        // Zmiana profilu przez PRAWDZIWE żądanie HTTP (#887): cały stos
+        // middleware, walidacja i kontroler, a na koniec to, co zobaczyłby
+        // człowiek — kod odpowiedzi, błąd pola i odłożone dane formularza.
+        'zmien-profil' => (function () use ($argumenty): array {
+            barieraPoSprawdzeniuNazwy();
+            $konto = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::guard('web')->setUser($konto);
+
+            $zadanie = Request::create(url('/ustawienia/profil'), 'PUT', [
+                'display_name' => 'Barbara',
+                'username' => $argumenty['nazwa'],
+                'bio' => 'Gotuję od czterdziestu lat.',
+                'region' => 'Podkarpacie',
+                'speciality' => 'zupy i kiszonki',
+            ], [], [], ['HTTP_REFERER' => url('/ustawienia/profil')]);
+
+            $odpowiedz = app(HttpKernel::class)->handle($zadanie);
+            $sesja = $zadanie->hasSession() ? $zadanie->session() : null;
+            $bledy = $sesja?->get('errors');
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                // Sesja ma `serialization => json`, więc po zapisie worek
+                // błędów wraca jako tablica, a nie `ViewErrorBag`.
+                'blad' => is_object($bledy)
+                    ? $bledy->first('username')
+                    : ($bledy['default']['messages']['username'][0] ?? null),
+                'stare' => $sesja?->get('_old_input'),
+                'zapisane' => $sesja?->get('status'),
+            ];
+        })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
