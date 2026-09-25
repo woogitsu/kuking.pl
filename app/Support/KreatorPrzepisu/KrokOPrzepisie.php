@@ -127,7 +127,9 @@ final class KrokOPrzepisie
             // Krok 0,01 (setne) — ta sama reguła co `ZapisPrzepisuRequest`
             // (decyzja właściciela z 20.09.2026, issue #750). Bez `decimal:0,2`
             // kreator zapisywał 1,255 po cichu jako 1,26 (kolumna decimal(6,2)).
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
+            // `bail`: „cztery” ma dostać JEDNO zdanie (liczba), a nie drugie
+            // o setnych — `decimal` też odrzuca tekst.
+            'servings' => ['bail', 'nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
