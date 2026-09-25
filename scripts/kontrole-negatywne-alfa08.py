@@ -251,6 +251,10 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# #1289: odnośnik „Zobacz…” na landingu nie może prowadzić gościa do trasy
+# z grupy `auth`. Mutacja przywraca stary cel pod nową etykietą.
+LANDING = "resources/views/pages/landing.blade.php"
+LANDING_PODGLAD_TEST = "test_odnosniki_podgladu_na_landingu_nie_odsylaja_goscia_do_logowania"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -709,6 +713,8 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Landing: podgląd prowadzi do trasy auth", LANDING, LANDING_PODGLAD_TEST,
+     lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -777,6 +783,7 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LANDING_PODGLAD_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)

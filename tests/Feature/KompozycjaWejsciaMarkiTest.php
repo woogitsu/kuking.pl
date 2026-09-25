@@ -47,9 +47,10 @@ class KompozycjaWejsciaMarkiTest extends TestCase
         $dom = new DOMXPath($document);
         $cards = $dom->query('//*[@aria-labelledby="wlasne-tresci-tytul"]//*[contains(@class,"marka-wlasnosc-karty")]/article');
         $this->assertSame(3, $cards->length);
-        foreach (['collections.index', 'posts.create'] as $i => $route) {
-            $this->assertSame(route($route), $dom->query('.//a', $cards->item($i))->item(0)->getAttribute('href'));
-        }
+        // #1289: karta zeszytu nie udaje, że gość zajrzy do zeszytu bez konta,
+        // a karta widoczności prowadzi do publicznej Pomocy, nie za logowanie.
+        $this->assertSame(0, $dom->query('.//a', $cards->item(0))->length);
+        $this->assertSame(route('help').'#kto-widzi', $dom->query('.//a', $cards->item(1))->item(0)->getAttribute('href'));
         $this->assertStringContainsString('przygotujemy ją i damy znać', $cards->item(2)->textContent);
         $this->assertStringContainsString('Otworzysz ją na swoim komputerze', $cards->item(2)->textContent);
         $this->assertSame(0, $dom->query('.//button|.//form', $cards->item(2))->length, 'Informacja nie może udawać wykonania eksportu.');
