@@ -211,7 +211,13 @@ class DataSettingsController extends Controller
             return $this->odpowiedzNaTrwajacy($aktywny);
         }
 
-        AuditLogEntry::record('data.export_requested', $user, $user, ip: $request->ip());
+        // WPIS POMOCNICZY ZA TRANSAKCJĄ (D-249, klasa 2; #1429). Autorytatywny
+        // ślad przyjęcia żądania to wiersz `data_exports` z `created_at`
+        // i zadanie w `jobs` — oba już zatwierdzone. Awaria dziennika nie
+        // cofnie paczki, więc 500 byłoby tu nieprawdą, a ponowienie trafiłoby
+        // w „już przygotowujemy" i wpisu i tak nie uzupełniło. Brak idzie do
+        // `report()` z nazwą zdarzenia; człowiek dostaje potwierdzenie.
+        AuditLogEntry::recordBezWywracania('data.export_requested', $user, $user, ip: $request->ip());
 
         return back()->with('status',
             'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut. '
