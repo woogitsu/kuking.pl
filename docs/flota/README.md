@@ -16,6 +16,13 @@ zapis metody pomiaru, nie jako polecenie do uruchomienia. To samo dotyczy
 całego [`zapis/`](./zapis/): to dziennik i dowody z konkretnych godzin, nie
 instrukcja na dziś.
 
+## Sesja główna w chmurze (claude.ai/code)
+
+Jeśli koordynujesz równoległe sesje Claude Code w chmurze, czytaj najpierw
+[`chmura/SESJA_GLOWNA.md`](./chmura/SESJA_GLOWNA.md): wznawianie pracy bez pytania,
+limit sesji, kontrola pełnej listy, przegląd przed PR-em i scalanie paczkami.
+Narzędzia z [`chmura/`](./chmura/) działają w chmurze. Nie dotyczy ich zastrzeżenie o `narzedzia/`.
+
 ## Czytaj w tej kolejności
 
 1. **[`ZASADY_FLOTY.md`](./ZASADY_FLOTY.md)** — obowiązkowe dla każdego agenta.
