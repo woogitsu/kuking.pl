@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Models\Collection;
-use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -23,7 +22,7 @@ use Illuminate\Support\Facades\Gate;
  */
 final class SaveRecipeToCollection
 {
-    public function __construct(private readonly NotifyUser $notify) {}
+    public function __construct(private readonly NotifyRecipeSaved $notify) {}
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {
@@ -86,20 +85,38 @@ final class SaveRecipeToCollection
             return $collection;
         }
 
-        // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
-        // To jedno z najprzyjemniejszych powiadomień w serwisie.
-        if ($user->isActive()) {
-            $this->notify->handle(
-                recipient: $recipe->author,
-                type: Notification::TYPE_SAVED,
-                actor: $user,
-                data: [
-                    'recipe_id' => $recipe->getKey(),
-                    'recipe_title' => $recipe->title,
-                    'recipe_slug' => $recipe->slug,
-                ],
-            );
+        // JEDNA OSOBA, KILKA SWOICH ZESZYTÓW = JEDEN ZAPIS (issue #906,
+        // decyzja właściciela z 20.09.2026). Klucz główny na
+        // `collection_items` broni tylko PARY (zeszyt, przepis) — ta sama
+        // osoba, ten sam przepis, ale DRUGI jej zeszyt, przechodzi przez
+        // niego bez przeszkód, więc dopiero tutaj liczymy, ile WŁASNYCH
+        // zeszytów tej osoby ma już ten przepis. Więcej niż jeden (ten,
+        // do którego dopiero co dopisaliśmy) znaczy, że powiadomienie za tę
+        // osobę już poszło przy jej pierwszym zeszycie — nowe by je
+        // zdublowało.
+        //
+        // Liczymy POD blokadą partii (przegląd PR #1213): dwa równoległe
+        // zapisy tej samej osoby do dwóch jej zeszytów bez niej oba widzą
+        // tylko własny, niezatwierdzony wiersz, oba liczą „1” i oba uznają
+        // się za pierwszy zapis. Z blokadą drugi liczy dopiero po
+        // zatwierdzeniu pierwszego i widzi „2”. Jesteśmy w transakcji
+        // z `handle()`, więc blokada trzyma do jej końca.
+        $this->notify->zablokujPartie($recipe);
+
+        $wlasneZeszytyZTymPrzepisem = $user->collections()
+            ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+            ->count();
+
+        if ($wlasneZeszytyZTymPrzepisem > 1) {
+            return $collection;
         }
+
+        // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
+        // To jedno z najprzyjemniejszych powiadomień w serwisie — pierwsza
+        // osoba dostaje je natychmiast, kolejne różne osoby dokładają się
+        // do tej samej, jeszcze nieprzeczytanej wiadomości
+        // (`NotifyRecipeSaved`, issue #906).
+        $this->notify->handle($user, $recipe);
 
         return $collection;
     }
@@ -162,6 +179,11 @@ final class SaveRecipeToCollection
             $zeszyt->recipes()->detach($recipe->getKey());
         }
 
+        // Wyjęcie z JEDNEGO zeszytu nie wycofuje zapisu, dopóki przepis
+        // leży w innym zeszycie tej osoby — powiadomienie za nią poszło
+        // raz (#906) i zostaje, póki jej zapis trwa gdziekolwiek.
+        $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+
         return $zdjete;
     }
 
@@ -178,35 +200,86 @@ final class SaveRecipeToCollection
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int
     {
-        $wrocilo = 0;
+        // Pod blokadą partii, jak zapis i wycofanie (#906): „czy przepis
+        // leżał już gdzieś u tej osoby” i dopisanie jej do partii muszą być
+        // jednym krokiem względem równoległego zapisu do innego zeszytu.
+        return DB::transaction(function () use ($user, $recipe, $zdjete): int {
+            $this->notify->zablokujPartie($recipe);
 
-        foreach ($zdjete as $pozycja) {
-            // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
-            $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+            $lezalGdzies = $user->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+                ->exists();
 
-            if ($zeszyt === null) {
-                continue;
+            $wrocilo = 0;
+
+            foreach ($zdjete as $pozycja) {
+                // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
+                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+
+                if ($zeszyt === null) {
+                    continue;
+                }
+
+                // Ktoś mógł zapisać przepis ponownie, zanim kliknął powrót —
+                // wtedy zostawiamy to, co jest, zamiast nadpisywać świeższy wiersz.
+                if ($zeszyt->recipes()->whereKey($recipe->getKey())->exists()) {
+                    continue;
+                }
+
+                try {
+                    // Punkt zapisu: w PostgreSQL błąd klucza w transakcji
+                    // unieważnia ją całą, więc łapiemy go tylko wewnątrz
+                    // zagnieżdżonej (SAVEPOINT), jak przy zwykłym zapisie.
+                    DB::transaction(fn () => $zeszyt->recipes()->attach($recipe->getKey(), [
+                        'note' => $pozycja['note'] ?? null,
+                        'created_at' => $pozycja['created_at'] ?? now(),
+                    ]));
+                } catch (UniqueConstraintViolationException) {
+                    // Dwa kliknięcia „wróć" naraz — dla człowieka to jeden powrót.
+                    continue;
+                }
+
+                $wrocilo++;
             }
 
-            // Ktoś mógł zapisać przepis ponownie, zanim kliknął powrót —
-            // wtedy zostawiamy to, co jest, zamiast nadpisywać świeższy wiersz.
-            if ($zeszyt->recipes()->whereKey($recipe->getKey())->exists()) {
-                continue;
+            // Powrót, po którym przepis znów leży u osoby, która nie miała go
+            // nigdzie, to dla autora ZAPIS od nowa (D-070): `remove()` wycofał
+            // jej udział z partii, więc bez tego „Cofnij” oddawałoby przepis
+            // do zeszytu, a powiadomienie o nim zostawiało zniknięte. Powrót
+            // do jednego z kilku zeszytów niczego w partii nie zmienia — jak
+            // zapis do drugiego zeszytu. Granice (aktywne konto, blokada,
+            // własny przepis) sprawdza `NotifyRecipeSaved::handle()`.
+            if ($wrocilo > 0 && ! $lezalGdzies) {
+                $this->notify->handle($user, $recipe);
             }
 
-            try {
-                $zeszyt->recipes()->attach($recipe->getKey(), [
-                    'note' => $pozycja['note'] ?? null,
-                    'created_at' => $pozycja['created_at'] ?? now(),
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                // Dwa kliknięcia „wróć" naraz — dla człowieka to jeden powrót.
-                continue;
+            return $wrocilo;
+        });
+    }
+
+    /**
+     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
+     * zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
+     * Tylko gdy przepisu nie ma już w ŻADNYM jej zeszycie: to lustro
+     * warunku z zapisu, który powiadamia wyłącznie przy pierwszym zeszycie.
+     */
+    private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
+    {
+        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
+        // został” i wycofanie z partii muszą być jednym krokiem względem
+        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
+        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
+        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
+        DB::transaction(function () use ($user, $recipe): void {
+            $this->notify->zablokujPartie($recipe);
+
+            $zostal = $user->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+                ->exists();
+
+            if (! $zostal) {
+                $this->notify->cofnij($user, $recipe);
             }
-
-            $wrocilo++;
-        }
-
-        return $wrocilo;
+        });
     }
 }
