@@ -4591,6 +4591,12 @@ razem z gałęzią `@case` w widoku powiadomień.
 
 **Data:** 10 września 2026 · Issue #237 · Status: **obowiązuje**
 
+> **Adnotacja (25 września 2026, B6-06):** **D-240** (22 września 2026)
+> uchyla tę decyzję w części „zdjęcie profilowe idzie do modelu" — awatar
+> **nie** wychodzi do OpenAI (`app/Jobs/PrzeanalizujAwatar.php`, celowo
+> pusty job). Część o celu oznaczenia (`target_type = 'media'`) i o tym,
+> że awatar jest ważniejszy do ochrony niż wpis, zostaje w mocy.
+
 Pytanie właściciela było jednozdaniowe: *„czy zdjęcie profilowe jest
 przetwarzane przez moderation omni model?"*. Odpowiedź brzmiała **nie** —
 i to była luka większa, niż wyglądała.
@@ -15373,6 +15379,13 @@ o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
 komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
 powiadomienia i nie przywraca `read_at` do `null`.
 
+> **Adnotacja (25 września 2026, B6-07):** zdanie powyżej o ponownej
+> analizie przestało być prawdziwe — **D-256** (24 września 2026, #909)
+> zastąpiła je w tej części: `CommentController::update()` zleca
+> `PrzeanalizujTresc::dlaKomentarza()`, gdy edycja rzeczywiście zmienia
+> tekst komentarza. Reszta zdania (brak nowego powiadomienia, `read_at`
+> bez zmiany) obowiązuje bez zmian.
+
 Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
 komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
 komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
@@ -15590,7 +15603,8 @@ krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
 i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
 
 Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
-(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+(#1164), D-228 (#966, numer na gałęzi, nie na `main`), D-229 (#1180), D-230
+(#1168) są zajęte, a D-232 jest
 zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
 
 Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
@@ -15687,10 +15701,15 @@ jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 ## D-239 — Wspólny licznik całej poczty i kolejność wygaszania (#732, 22 września 2026)
 
 > Numer: gałąź `fix/732-wspolny-licznik-poczty` niosła tę decyzję jako D-225,
-> a ten numer (i D-226, D-227) zajęły w międzyczasie inne decyzje na `main`.
-> D-239 to pierwszy numer wolny na `origin/main` i na wszystkich gałęziach
-> zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź, której numeru
-> nie ma jeszcze na `main`). Treść to intencja tamtej gałęzi przeniesiona na
+> a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
+> bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
+> na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
+> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
+> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
+> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
+> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
+> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
 Do tej zmiany każda funkcja wysyłająca wiele listów miała własny sufit dobowy
@@ -16009,7 +16028,8 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 „Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
 
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
-D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
+gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
 wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
 strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
@@ -16782,8 +16802,15 @@ Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
 ## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
 
-**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
-(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+**Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
+(potwierdzone przez właściciela 25 września 2026 — zmienia jeden wiersz
+„ODŁOŻONE” z D-052)
+
+**Potwierdzenie właściciela (25 września 2026):** treść decyzji z
+24 września obowiązuje bez zmian. Audyt dokumentacji B6 (znalezisko
+B6-12) zwrócił uwagę, że commit wszedł na `main` (#909), zanim wpis dostał
+status inny niż „do decyzji właściciela” — właściciel potwierdza tę treść
+zamiast wycofywać commit.
 
 **Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
 opublikowanego komentarza, `CommentController::update()` zleca
@@ -16870,6 +16897,105 @@ Dowody: `tests/Feature/PoswiadczeniaBucketowR2Test.php`,
 Odwrócić commit. Schemat bazy się nie zmienia. Zmienne `AWS_*_ACCESS_KEY_ID`
 per bucket trzeba wtedy usunąć z Railway. Bez nich wszystkie buckety wracają
 do wspólnego tokenu, który musi mieć dostęp do każdego z nich.
+
+## D-266 — Dwa runnery zarezerwowane dla `main`: `CI_RUNS_ON_MAIN` przed `CI_RUNS_ON`, ciąg dalszy D-121 (25 września 2026)
+
+**Data:** 25 września 2026 · Status: **obowiązuje** · Ciąg dalszy **D-121**
+
+**Problem.** Pula `CI_RUNS_ON` jest wspólna dla PR-ów i dla `main`. CI na
+`main` jest jedynym momentem, po którym Railway wdraża („Wait for CI") —
+a przy kilku PR-ach naraz przebiegi `main`-a stały w TEJ SAMEJ kolejce co
+PR-y i czekały na wolną maszynę razem z nimi. Wdrożenie na produkcję
+głodniało przez ruch, który z produkcją nie ma nic wspólnego.
+
+**Decyzja.** Właściciel oznaczył **dwa** runnery z puli `woogitsu-linux-*`
+dodatkową etykietą `kuking-main` (wyłącznie dla przebiegów `main`-a),
+a pozostałe etykietą `kuking-pr` (PR-y i `staging`). W `.github/workflows/
+ci.yml` każdy job, który czyta `CI_RUNS_ON`, dla przebiegu będącego
+PRAWDZIWYM pushem na `main` (`github.ref == 'refs/heads/main' &&
+github.event_name == 'push'` — nie dla PR-a do `main`, gdzie `github.ref` to
+`refs/pull/<n>/merge`, i CELOWO nie dla ręcznego `workflow_dispatch` na tej
+gałęzi) sięga NAJPIERW po `CI_RUNS_ON_MAIN`, dopiero bez niej po `CI_RUNS_ON`:
+
+```yaml
+runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+```
+
+Job przeglądarkowy `port_funkcje` ma analogiczną, osobną parę
+(`CI_RUNS_ON_BROWSER_MAIN` / `CI_RUNS_ON_BROWSER`), z tego samego powodu, dla
+którego ma już dziś osobną zmienną od zwykłych jobów (własne środowisko
+docelowe, patrz nagłówek `ci.yml`, blok „JOB PRZEGLĄDARKOWY").
+
+Bez żadnej z tych dwóch nowych zmiennych zachowanie jest DOKŁADNIE takie jak
+dziś (`vars.CI_RUNS_ON || '"ubuntu-latest"'`) — zmiana jest bezpieczna, zanim
+właściciel ustawi zmienne.
+
+**Dlaczego nie tylko `deploy.yml`.** Bramką deployu jest `ci.yml` (Railway
+czeka na jego check suite), nie `deploy.yml` (ten reaguje na
+`deployment_status`, już PO deployu — smoke testy). `deploy.yml`,
+`preview.yml` i `railway-iac.yml` NIE uruchamiają się pushem na `main` (kolejno:
+`deployment_status`, `pull_request`, `pull_request`), więc warunek main-a
+w nich nigdy by nie trafił — dopisanie go byłoby martwym kodem. Zostają przy
+samym `CI_RUNS_ON`.
+
+**Kolejność wdrożenia, nie do odwrócenia:**
+1. Właściciel oznacza fizycznie DWA runnery etykietą `kuking-main`,
+   a pozostałe etykietą `kuking-pr` (GitHub → Settings → Actions → Runners).
+2. Dopiero POTEM ustawia zmienne repozytorium `CI_RUNS_ON_MAIN` i `CI_RUNS_ON`
+   (Settings → Secrets and variables → Actions → Variables), przykładowo:
+
+```text
+CI_RUNS_ON_MAIN = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-main"]
+CI_RUNS_ON      = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-pr"]
+```
+
+W odwrotnej kolejności zmienna wskazywałaby etykietę, której żaden runner
+jeszcze nie nosi — GitHub Actions nie odrzuca wtedy joba, tylko trzyma go
+w „Queued" bez końca, a przez „Wait for CI" stoi wtedy i wdrożenie (ten sam
+koszt co offline'owa pula, D-121).
+
+**Co musiałoby się stać, żeby to zmienić:** flota przestaje dzielić maszynę
+z runnerami CI (wtedy rezerwacja main-a przestaje być potrzebna) albo
+właściciel uzna, że dwa runnery to za mało/za dużo dla `main`.
+
+Dowody: `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`
+(`test_joby_ci_rezerwuja_zmienna_ci_runs_on_main` i rozszerzone porównanie
+dokument-kod).
+
+### Wycofanie
+Odwrócić commit w `.github/workflows/ci.yml`. Schemat bazy się nie zmienia.
+Zmienne `CI_RUNS_ON_MAIN`/`CI_RUNS_ON_BROWSER_MAIN` w ustawieniach
+repozytorium przestają być czytane i można je skasować; etykiety
+`kuking-main`/`kuking-pr` na runnerach mogą zostać bez efektu.
+
+## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)
+
+**Decyzja właściciela z 25 września 2026.** Gdy „Usuń z zeszytu” przy
+przepisie zdjęłoby go z więcej niż jednego zeszytu tej osoby, serwis
+najpierw pyta. Odwracalność („Przywróć do zeszytu” z notatkami, D-242) tego
+nie zastępuje: przycisk powrotu żyje jedno kliknięcie i znika przy
+następnym wyjęciu, a notatka, która przepadła, bo ktoś nie zauważył
+przycisku, przepadła naprawdę.
+
+### Jak to działa
+- To samo `DELETE collections.unsave` bez `collection_id`, gdy przepis leży
+  w ≥ 2 zeszytach, **oddaje stronę potwierdzenia** zamiast wyjmować
+  (`pages/collections/potwierdz-wyjecie-ze-wszystkich.blade.php`). Bez
+  JavaScriptu, bez nowej trasy; reguła stoi po stronie serwera, więc chroni
+  też stronę narysowaną, zanim przepis trafił do drugiego zeszytu.
+- Strona mówi, z ilu zeszytów zejdzie przepis i ile notatek zniknie, daje
+  „Usuń tylko z zeszytu „…”” dla każdego zeszytu, „Nie usuwaj — wróć”
+  i — odsunięte, za kreską — „Tak, usuń ze wszystkich N zeszytów”
+  (`potwierdzam_wszystkie=1`).
+- Po akcji zostaje komunikat z liczbą i „Przywróć do zeszytu” (D-242).
+- Jeden zeszyt albo wskazany `collection_id` — bez pytania, jak dotąd.
+
+### Czego to nie zmienia
+Wpisy (`collections.unsave-post`) działają jak dotąd; ta decyzja dotyczy
+przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia.
 
 ---
 

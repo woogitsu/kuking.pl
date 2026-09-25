@@ -18,6 +18,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\Tag;
+use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -569,6 +570,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $tagPromowanyDoKasacji = Tag::factory()->create();
         TagPromotion::create(['tag_id' => $tagPromowany->getKey(), 'position' => 1]);
         TagPromotion::create(['tag_id' => $tagPromowanyDoKasacji->getKey(), 'position' => 2]);
+        // Tag tygodnia (#18) stoi za flagą; mierzymy trasę przy włączonej,
+        // bo przy wyłączonej odmawia każdemu i nie ma czego mierzyć.
+        config(['kuking.tag_tygodnia.wlaczony' => true]);
+        $wyroznienieTagu = TagHighlight::create(['tag_id' => $tag->getKey(), 'starts_on' => '2026-11-16', 'ends_on' => '2026-11-22']);
 
         $this->zmianaAdresu = new PendingEmailChange;
         $this->zmianaAdresu->user_id = $wlasciciel->getKey();
@@ -642,6 +647,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.tag-promotions.update', $tagPromowany), ['position' => 3], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-promotions.destroy', 'zdjęcie promocji tagu', 'delete',
             route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
+            route('admin.tag-highlights.destroy', $wyroznienieTagu), [], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);
@@ -848,8 +855,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Bramką nie jest `authorize()`, tylko `DostepDoZdjecia` pytające
         // `Gate` o Policy RODZICA — dlatego ta trasa musi być zmierzona
         // żądaniem, a nie odhaczona w skanie po nazwie funkcji.
+        // Moderator ma tu ODMOWĘ, tak samo jak na stronie tego wpisu: sama
+        // rola nie otwiera już bajtów każdego zdjęcia (#1360, AUTHZ-02).
         $dodaj('media.show', 'zdjęcie z prywatnego wpisu', 'get',
-            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
 
         // ─── API (D-272) ─────────────────────────────────────────────────
         // Te same zasoby co wiersze WWW wyżej i ta sama Policy. Różnica
