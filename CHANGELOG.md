@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Komunikaty błędów w formularzu zgłoszenia treści niezgodnej z prawem, w „Napisz do nas” i przy zdjęciu kroku przepisu nazywają pole tak, jak stoi na ekranie — zamiast „target url” albo „steps.0.photo”. Źle wpisane obecne hasło przy zmianie adresu e-mail dostaje wskazówkę: „Wpisz swoje obecne hasło — to, którym logujesz się dziś”.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 

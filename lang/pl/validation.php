@@ -61,7 +61,8 @@ return [
     'can' => 'Wartość w polu „:attribute” jest niedozwolona.',
     'confirmed' => 'Powtórzone pole „:attribute” nie zgadza się z pierwszym. Wpisz to samo w obu polach.',
     'contains' => 'W polu „:attribute” brakuje wymaganej wartości.',
-    'current_password' => 'To hasło jest nieprawidłowe.',
+    // Mówi, co zrobić (AGENTS.md §5) — tak samo jak `EmailSettingsController`.
+    'current_password' => 'To hasło nie pasuje do konta. Wpisz swoje obecne hasło — to, którym logujesz się dziś.',
     'date' => 'Pole „:attribute” musi być poprawną datą.',
     'date_equals' => 'Data w polu „:attribute” musi być równa :date.',
     'date_format' => 'Data w polu „:attribute” musi mieć format :format.',
@@ -310,6 +311,17 @@ return [
         'details' => 'to, co chcesz dopisać',
         'outcome' => 'rozstrzygnięcie',
         'decision_note' => 'uzasadnienie decyzji',
+        'current_password' => 'obecne hasło',
+        // Formularz zgłoszenia treści niezgodnej z prawem (DSA) i „Napisz do
+        // nas”. Bez tych wpisów reguły `max` pokazywały „Pole «target url»
+        // jest za długie” — techniczną nazwę na formularzu prawnym (audyt B9).
+        'target_url' => 'adres strony z tą treścią',
+        'notifier_name' => 'imię i nazwisko albo nazwa instytucji',
+        'notifier_email' => 'adres e-mail',
+        'contact_email' => 'Twój adres e-mail',
+        // Bez tego wpisu komunikat reguły `uploaded` mówił „…w polu
+        // «steps.0.photo»”.
+        'steps.*.photo' => 'zdjęcie kroku',
     ],
 
 ];
