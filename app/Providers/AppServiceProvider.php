@@ -10,6 +10,7 @@ use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
@@ -20,6 +21,8 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Events\MigrationEnded;
+use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
@@ -74,6 +77,12 @@ class AppServiceProvider extends ServiceProvider
                 GeneracjaSesji::zapamietaj($guard->getSession(), $zdarzenie->user);
             }
         });
+
+        // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
+        // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce
+        // całego ruchu serwisu. Uzasadnienie w `LimitBlokadMigracji`.
+        Event::listen(MigrationStarted::class, [LimitBlokadMigracji::class, 'przyStarcie']);
+        Event::listen(MigrationEnded::class, [LimitBlokadMigracji::class, 'przyKoncu']);
 
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,

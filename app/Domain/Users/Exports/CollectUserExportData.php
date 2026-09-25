@@ -204,8 +204,8 @@ final class CollectUserExportData
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),
-            // Kara odłożona na czas usuwania konta (#980): `status` mówi wtedy
-            // o usuwaniu, a zawieszenie albo blokada czeka tutaj.
+            // Kara odłożona na czas usuwania konta (#980): dopóki konto jest
+            // w cyklu usunięcia, `status_konta` mówi o usuwaniu, a kara czeka tu.
             'kara_odlozona' => $user->punishment_status,
             'kara_odlozona_do' => $this->date($user->punishment_expires_at),
             'motyw' => $user->theme,
