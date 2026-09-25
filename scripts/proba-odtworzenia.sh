@@ -97,10 +97,12 @@
 #        (albo potwierdzenie nie zgadza się z tym, co stoi pod adresem)
 #    30  nie udało się założyć bazy próbnej
 #    40  zrzutu nie ma albo jest za mały (pusta kopia!)
-#    41  pg_restore nie potrafi odczytać archiwum
+#    41  pg_restore nie potrafi odczytać archiwum (spisu albo CAŁOŚCI —
+#        sprawdzane przed `CREATE DATABASE`)
 #    42  w archiwum jest za mało tabel
 #    43  odszyfrowanie `.cms` nie udało się
-#    44  odszyfrowany zrzut nie zgadza się ze skrótem z pliku `.meta`
+#    44  zrzut (odszyfrowany albo jawny) nie zgadza się ze skrótem
+#        z pliku `.meta` — sprawdzane przed `CREATE DATABASE`
 #    50  pg_restore zakończył się błędem
 #    60  w odtworzonej bazie jest za mało tabel
 #    61  nazwanej tabeli nie ma w odtworzonej bazie
@@ -172,6 +174,9 @@ TABEL_POROWNANYCH=0
 WIERSZY_W_ZRODLE=0
 WIERSZY_W_PROBIE=0
 MIGRACJI_WYKONANYCH=0
+# Czy skrót z `.meta` został porównany. Trafia do podsumowania, bo to jedyna
+# kontrola, która łapie zrzut zmieniony bez naruszenia struktury archiwum.
+STAN_SKROTU='NIE SPRAWDZONY'
 
 ZIELONY=$'\033[0;32m'
 CZERWONY=$'\033[0;31m'
@@ -810,6 +815,7 @@ przygotuj_zrzut() {
 
   if [[ "${PLIK_ZRZUTU}" != *.cms ]]; then
     ZRZUT_JAWNY="${PLIK_ZRZUTU}"
+    sprawdz_skrot_z_meta
     return 0
   fi
 
@@ -854,13 +860,22 @@ przygotuj_zrzut() {
 #  bazy i po wlaniu do niej części danych, i z komunikatem wskazującym na
 #  serwer, a nie na uszkodzony plik.
 #
-#  Skrót jawnego zrzutu jest zapisywany w pliku `.meta` obok kopii (§7.2)
-#  przez OBA skrypty kopii. Do tej pory nikt go nie czytał. Teraz czyta go ta
-#  funkcja — i uszkodzona kopia zatrzymuje się TU, zanim cokolwiek powstanie.
+#  ZMIERZONE 24.09.2026 (#594) — TO SAMO DLA ZRZUTU JAWNEGO. Do tego dnia skrót
+#  sprawdzany był wyłącznie po odszyfrowaniu `.cms`. Jawny zrzut z
+#  `kopia-lokalna.sh` bez klucza — czyli DOKŁADNIE pierwsza kopia właściciela
+#  (§8.1, zanim istnieje para kluczy) — ma w `.meta` pole `sha256_pliku`,
+#  którego nikt nie czytał. Zrzut z czterema bajtami nadpisanymi w 3/4
+#  długości przeszedł spis, pełny odczyt i `pg_restore` bez błędu, a cała próba
+#  skończyła się napisem PRÓBA ODTWORZENIA ZALICZONA. Tak samo zrzut
+#  z doklejonymi bajtami. Teraz oba zatrzymują się tu, kodem 44.
+#
+#  Pole: dla `.cms` — `sha256_jawnego` (skrót treści przed szyfrowaniem).
+#  Dla jawnego `.dump` — `sha256_pliku`, a gdy go nie ma, `sha256_jawnego`
+#  (zrzut odszyfrowany ręcznie według §7.4, obok `.meta` z bucketu).
 #
 #  Brak `.meta` nie jest błędem: kopia sprzed tej zmiany i ręczny `pg_dump`
-#  go nie mają. Wtedy mówimy wprost, że tej kontroli nie było — cicho
-#  pominięta kontrola jest gorsza od jej braku.
+#  go nie mają. Wtedy mówimy wprost, że tej kontroli nie było — w logu i w
+#  podsumowaniu. Cicho pominięta kontrola jest gorsza od jej braku.
 # =============================================================================
 sprawdz_skrot_z_meta() {
   local meta="${PLIK_ZRZUTU%.cms}"
@@ -868,14 +883,21 @@ sprawdz_skrot_z_meta() {
 
   if [[ ! -r "${meta}" ]]; then
     log "OSTRZEŻENIE: nie ma pliku ${meta##*/} — skrótu zrzutu NIE MAM z czym porównać."
+    STAN_SKROTU="NIE SPRAWDZONY (brak ${meta##*/})"
     return 0
   fi
 
-  local oczekiwany
-  oczekiwany="$(sed -n -E 's/^sha256_jawnego:[[:space:]]*([0-9a-f]{64}).*/\1/p' "${meta}" | head -1)"
+  local oczekiwany='' pole
+  local pola=(sha256_jawnego)
+  [[ "${PLIK_ZRZUTU}" == *.cms ]] || pola=(sha256_pliku sha256_jawnego)
+  for pole in "${pola[@]}"; do
+    oczekiwany="$(sed -n -E "s/^${pole}:[[:space:]]*([0-9a-f]{64}).*/\1/p" "${meta}" | head -1)"
+    [[ -z "${oczekiwany}" ]] || break
+  done
 
   if [[ -z "${oczekiwany}" ]]; then
-    log "OSTRZEŻENIE: w ${meta##*/} nie ma pola sha256_jawnego — skrótu nie porównuję."
+    log "OSTRZEŻENIE: w ${meta##*/} nie ma pola ${pola[*]} — skrótu nie porównuję."
+    STAN_SKROTU="NIE SPRAWDZONY (w ${meta##*/} brak pola ze skrótem)"
     return 0
   fi
 
@@ -884,15 +906,17 @@ sprawdz_skrot_z_meta() {
 
   if [[ "${policzony}" != "${oczekiwany}" ]]; then
     padnij 44 \
-      'Odszyfrowany zrzut NIE ZGADZA SIĘ ze skrótem z pliku .meta.' \
+      "Zrzut NIE ZGADZA SIĘ ze skrótem z pliku .meta (pole ${pole})." \
       "  w .meta:    ${oczekiwany}" \
       "  policzony:  ${policzony}" \
-      'Szyfrogram jest uszkodzony (AES-CBC odszyfrowuje śmieci BEZ BŁĘDU) albo' \
+      'Plik zmienił się po zrobieniu kopii (uszkodzony nośnik, przerwane' \
+      'kopiowanie, a dla .cms: AES-CBC odszyfrowuje śmieci BEZ BŁĘDU) albo' \
       'plik .meta należy do innej kopii. NIE ODTWARZAM — nic jeszcze nie' \
       'powstało, więc nie ma czego sprzątać.'
   fi
 
-  ok "skrót odszyfrowanego zrzutu zgadza się z .meta (${policzony:0:16}…)"
+  STAN_SKROTU="zgodny z ${meta##*/} (${pole})"
+  ok "skrót zrzutu zgadza się z .meta (${pole}, ${policzony:0:16}…)"
 }
 
 # =============================================================================
@@ -912,6 +936,23 @@ przeczytaj_spis() {
       'Plik jest uszkodzony, obcięty albo to nie jest zrzut w formacie custom.' \
       'Sprawdź sha256 wobec pola `sha256_jawnego` z pliku .meta — jeśli się nie' \
       'zgadza, plik zepsuł się po drodze i trzeba pobrać go jeszcze raz.'
+  fi
+
+  # PEŁNY ODCZYT, NIE SAM SPIS. `--list` czyta katalog z początku pliku
+  # i bloków danych nie dotyka: zmierzone 24.09.2026 — zrzut obcięty do 99%
+  # przechodził spis z kodem 0, skrypt ZAKŁADAŁ bazę próbną, a padał dopiero
+  # na `pg_restore` (kod 50) z komunikatem o rozszerzeniach serwera, czyli
+  # wskazując nie tę przyczynę. Rozpakowanie każdego bloku do /dev/null
+  # (tak samo jak `weryfikuj_zrzut()` w `docker/kopia/kopia-bazy.sh`) łapie
+  # to TU, zanim cokolwiek powstanie, i nie zostawia jawnego SQL-a na dysku.
+  if ! pg_restore --file=/dev/null "${ZRZUT_JAWNY}" 2>"${KATALOG_ROBOCZY}/blad.txt"; then
+    sed 's/^/  pg_restore: /' "${KATALOG_ROBOCZY}/blad.txt" >&2
+    padnij 41 \
+      'pg_restore nie potrafi odczytać tego archiwum do końca.' \
+      'Spis treści jest cały, ale bloki danych nie: plik jest obcięty albo' \
+      'uszkodzony w środku (przerwane pobieranie, pełny dysk, zły nośnik).' \
+      'Porównaj sha256 z polem `sha256_pliku`/`sha256_jawnego` w .meta i pobierz' \
+      'plik jeszcze raz. Baza próbna NIE została założona.'
   fi
 
   spis="$(cat "${plik_bledu}")"
@@ -1252,7 +1293,7 @@ sprawdz_migracje() {
   local wyjscie
   # DB_URL przebija DB_HOST/DB_DATABASE w `config/database.php`, więc jednym
   # przestawieniem kierujemy artisana na bazę PRÓBNĄ i tylko na nią.
-  if ! wyjscie="$(cd "${KATALOG_REPO}" && DB_URL="${DSN_PROBNY}" DB_DATABASE='' \
+  if ! wyjscie="$(cd "${KATALOG_REPO}" && DB_URL="${DSN_PROBNY}" DB_DATABASE='' DB_PASSWORD='' \
     php artisan migrate:status --no-ansi 2>&1)"; then
     padnij 64 \
       'php artisan migrate:status nie wykonał się na odtworzonej bazie.' \
@@ -1653,6 +1694,7 @@ main() {
   printf '  zrzut:              %s\n' "${PLIK_ZRZUTU##*/}" >&2
   printf '  tabel w archiwum:   %s\n' "${TABEL_W_ARCHIWUM}" >&2
   printf '  tabel w bazie:      %s\n' "${TABEL_W_BAZIE}" >&2
+  printf '  skrót z .meta:      %s\n' "${STAN_SKROTU}" >&2
   printf '  czas odszyfrowania: %s s\n' "${CZAS_ODSZYFROWANIA}" >&2
   printf '  czas odtworzenia:   %s s   %s← to jest zmierzone RTO tej warstwy%s\n' \
     "${CZAS_ODTWORZENIA}" "${ZOLTY}" "${RESET}" >&2
