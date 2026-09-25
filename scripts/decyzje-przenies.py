@@ -59,8 +59,12 @@ def slug(tytul, slow=6, najwiecej=50):
     return "-".join(wynik) or "wpis"
 
 
-def wpisy(tresc):
-    """{klucz: (nagłówek, treść)} ze starego, jednoplikowego dziennika."""
+def wpisy(tresc, duble=None):
+    """{klucz: (nagłówek, treść)} ze starego, jednoplikowego dziennika.
+
+    Ten sam numer dwa razy (konflikt „weź obie strony” na gałęzi) trafia do
+    `duble` — tego nie rozstrzygnie żaden automat.
+    """
     linie = tresc.split("\n")
     poczatki = [i for i, linia in enumerate(linie) if linia.startswith("## ")]
     wynik = {}
@@ -70,7 +74,10 @@ def wpisy(tresc):
             kawalek.pop()
         m = NAGLOWEK.match(kawalek[0])
         if m:
-            wynik[m.group(1) or m.group(4)] = (kawalek[0], "\n".join(kawalek) + "\n")
+            klucz = m.group(1) or m.group(4)
+            if klucz in wynik and duble is not None:
+                duble.add(klucz)
+            wynik[klucz] = (kawalek[0], "\n".join(kawalek) + "\n")
     return wynik
 
 
@@ -118,11 +125,15 @@ def main():
         print(f"{arg.z}:{DZIENNIK} nie jest starym dziennikiem — nie ma czego przenosić.")
         return 0
     stare = wpisy(git("show", f"{baza}:{DZIENNIK}").stdout)
-    galaz = wpisy(z_galezi.stdout)
+    duble = set()
+    galaz = wpisy(z_galezi.stdout, duble)
 
-    reczne = []
-    zrobione = []
+    reczne = sorted(duble)
+    zrobione = [f"{k}: w dzienniku gałęzi ten numer stoi DWA razy — rozdziel ręcznie, pliku nie ruszono"
+                for k in reczne]
     for klucz, (naglowek, tresc) in galaz.items():
+        if klucz in duble:
+            continue
         if klucz in stare and stare[klucz][1] == tresc:
             continue  # gałąź tego wpisu nie ruszała
 
