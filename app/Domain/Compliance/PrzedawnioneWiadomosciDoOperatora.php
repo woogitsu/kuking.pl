@@ -90,27 +90,25 @@ final class PrzedawnioneWiadomosciDoOperatora
      * (zmiana polityki prywatności), nie poprawka ekranu. `posprzataj()`
      * wyżej NIE ZMIENIŁO SIĘ ani o jedną datę.
      *
-     * DLACZEGO `addMonthsNoOverflow`, A NIE DRUGA KOPIA PROGU LICZONA OD
-     * „TERAZ" Wprost odwrócić `subMonthsNoOverflow(teraz, N)` względem
-     * `teraz` się nie da (to `teraz`, nie `handled_at`, jest tam zmienną) —
-     * ale odpowiedź na pytanie „kiedy TA wiadomość stanie się kandydatem"
-     * to dokładnie „kiedy `teraz` przekroczy `handled_at + N miesięcy`",
-     * licząc TYM SAMYM sposobem klamrowania końca miesiąca co
-     * `subMonthsNoOverflow` (Carbon używa go symetrycznie w obie strony).
-     * Dla zwykłych dat (nie 29 lutego) obie operacje są się wzajemnie
-     * odwrotne co do dnia — test `RetencjaWiadomosciDoOperatoraTest`
-     * i próba `TerminUsunieciaKorespondencjiTest` dowodzą tego, uruchamiając
-     * `posprzataj()` naprawdę w dniu przed i w dniu tego terminu, a nie
-     * tylko licząc daty.
+     * JAK LICZONY JEST TERMIN (#1345). Termin to NAJWCZEŚNIEJSZA chwila
+     * `teraz`, w której próg `progRetencji(N, teraz)` przekracza
+     * `handled_at` — czyli chwila, od której `posprzataj()` naprawdę bierze
+     * tę sprawę. `addMonthsNoOverflow` NIE jest odwrotnością
+     * `subMonthsNoOverflow` przy końcu miesiąca: 31 stycznia + 1 miesiąc
+     * daje 28 lutego, a sprzątanie 28 lutego liczy próg 28 stycznia i sprawy
+     * nie rusza; próg przeskakuje za 31 stycznia dopiero o północy 1 marca.
+     * To samo przy 31.01 + 3 (30 kwietnia → 1 maja), 30.03 + 11 i 29 lutego
+     * + 12. Wcześniejsza wersja tej metody pokazywała wtedy termin o dzień
+     * (albo kilka godzin) za wcześnie.
      *
-     * Jedyny znany wyjątek: wiadomość załatwiona 29 lutego roku
-     * przestępnego — `addMonthsNoOverflow(12)` wyląduje na 28 lutego roku
-     * zwykłego, dzień PRZED tym, jak faktycznie policzy próg
-     * `subMonthsNoOverflow` uruchomiony dokładnie w południe 29 lutego (dnia,
-     * który w tamtym roku nie istnieje). Błąd myli się w stronę „termin
-     * pokazany wcześniej niż rzeczywisty" — czyli ostrzega za wcześnie,
-     * nigdy za późno. To jedyny dopuszczalny kierunek pomyłki przy retencji
-     * (ta sama zasada, co przy samym `subMonthsNoOverflow`, A6-04).
+     * Dlatego: kandydat `handled_at + N` i sprawdzenie TYM SAMYM progiem,
+     * którego używa `posprzataj()`. Gdy próg w chwili kandydata nie sięga
+     * `handled_at`, kandydat wylądował na przyciętym końcu miesiąca — a próg
+     * przez resztę tego dnia zostaje w miesiącu `handled_at` na dniu
+     * mniejszym niż dzień `handled_at`, i przeskakuje za niego dokładnie
+     * o północy pierwszego dnia następnego miesiąca. `RetencjaTerminuNaKoncuMiesiacaTest`
+     * pilnuje tego, uruchamiając `posprzataj()` minutę przed i minutę po
+     * pokazanym terminie.
      */
     public function terminUsuniecia(ContactMessage $wiadomosc): ?CarbonInterface
     {
@@ -120,6 +118,12 @@ final class PrzedawnioneWiadomosciDoOperatora
 
         $miesiace = (int) config('kuking.kontakt.retention_months');
 
-        return $wiadomosc->handled_at->copy()->addMonthsNoOverflow($miesiace);
+        $termin = $wiadomosc->handled_at->copy()->addMonthsNoOverflow($miesiace);
+
+        if (self::progRetencji($miesiace, $termin)->lessThan($wiadomosc->handled_at)) {
+            $termin = $termin->copy()->addDay()->startOfDay();
+        }
+
+        return $termin;
     }
 }

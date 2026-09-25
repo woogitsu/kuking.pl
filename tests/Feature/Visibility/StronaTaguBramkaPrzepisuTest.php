@@ -14,6 +14,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -137,6 +138,10 @@ class StronaTaguBramkaPrzepisuTest extends TestCase
 
     private function licznik(Tag $tag, ?User $widz): int
     {
+        // Liczby spisu leżą w cache (audyt B4 W2); ten test sprawdza regułę
+        // liczenia po każdej zmianie przepisu, nie świeżość cache.
+        Cache::flush();
+
         $odp = $widz === null ? $this->get(route('tags.index')) : $this->actingAs($widz)->get(route('tags.index'));
 
         return (int) $odp->assertOk()->viewData('tagi')->getCollection()->firstWhere('id', $tag->getKey())->posts_count;
