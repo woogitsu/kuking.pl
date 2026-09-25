@@ -46,7 +46,21 @@ class OkruszkiWpisowPytanIProfiliTest extends TestCase
             ['position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
             ['position' => 2, 'name' => '@'.$nazwa],
         ], $this->sciezka($html));
-        $this->assertSame([['Kuking', route('landing')]], $this->widoczneOkruszki($html));
+        $this->assertSame([['Start', route('landing')]], $this->widoczneOkruszki($html));
+    }
+
+    public function test_zalogowany_wraca_okruszkiem_na_swoj_start_a_json_ld_zostaje_przy_serwisie(): void
+    {
+        $wpis = Post::factory()->create();
+        $nazwa = $wpis->author->profile->username;
+        $html = $this->actingAs($wpis->author)->get(route('profile.show', $nazwa))->assertOk()->getContent();
+
+        // Jak okruszek przepisu: „Start” prowadzi zalogowanego do `home`.
+        $this->assertSame([['Start', route('home')]], $this->widoczneOkruszki($html));
+        $this->assertSame(
+            ['position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
+            $this->sciezka($html)[0],
+        );
     }
 
     public function test_wpis_prowadzi_przez_profil_autora_i_ma_uczciwa_nazwe(): void
@@ -63,7 +77,7 @@ class OkruszkiWpisowPytanIProfiliTest extends TestCase
         ], $sciezka);
         $this->assertStringNotContainsString((string) $wpis->getKey(), $sciezka[2]['name']);
         $this->assertSame([
-            ['Kuking', route('landing')],
+            ['Start', route('landing')],
             ['@'.$nazwa, route('profile.show', $nazwa)],
         ], $this->widoczneOkruszki($html));
 
@@ -92,7 +106,7 @@ class OkruszkiWpisowPytanIProfiliTest extends TestCase
             ['position' => 3, 'name' => 'Czym zagęścić żurek?'],
         ], $this->sciezka($html));
         $this->assertSame([
-            ['Kuking', route('landing')],
+            ['Start', route('landing')],
             ['Poradźcie', route('questions.index')],
         ], $this->widoczneOkruszki($html));
         $this->get(route('questions.index'))->assertOk();
