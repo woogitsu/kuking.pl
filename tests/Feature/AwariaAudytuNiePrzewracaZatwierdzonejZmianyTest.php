@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
+use App\Models\Block;
+use App\Models\DataExport;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Post;
@@ -379,5 +381,87 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
             ->pluck('id')
             ->map(static fn ($id): string => (string) $id)
             ->all();
+    }
+
+    // ------------------------------------------------------------------
+    // #1429 — zlecenie eksportu danych
+    // ------------------------------------------------------------------
+
+    /**
+     * Rekord `data_exports` i zadanie w `jobs` zatwierdzają się razem (A02);
+     * wpis `data.export_requested` stoi za nimi jako pomocniczy. Kolejka
+     * bazodanowa jak na produkcji — przy `sync` nie byłoby czego liczyć.
+     */
+    public function test_awaria_audytu_eksportu_potwierdza_przyjecie_zamiast_500(): void
+    {
+        config(['queue.default' => 'database']);
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $this->zepsujWpis('data.export_requested');
+
+        $odpowiedz = $this->actingAs($basia)->post(route('settings.data.export'))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertStringContainsString('Przygotowujemy paczkę', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertSame(1, DataExport::query()->where('user_id', $basia->getKey())->count());
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertSame(0, $this->wpisy('data.export_requested'));
+        $this->assertZgloszonoBrakWpisu('data.export_requested');
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), '„data.export_requested"')
+            && ! str_contains($e->getMessage(), $basia->email));
+    }
+
+    public function test_kontrola_dodatnia_eksport_bez_awarii_zapisuje_wpis(): void
+    {
+        config(['queue.default' => 'database']);
+        Exceptions::fake();
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)->post(route('settings.data.export'))->assertRedirect();
+
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertSame(1, $this->wpisy('data.export_requested'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    // ------------------------------------------------------------------
+    // #1573 — blokada
+    // ------------------------------------------------------------------
+
+    /**
+     * Blokada ma się udać zawsze (D-080, D-090): jej autorytatywny ślad to
+     * wiersz `blocks`. Awaria dziennika nie zamienia jej w „nie udało się",
+     * a oba odcięcia obserwowania zostają.
+     */
+    public function test_awaria_audytu_blokady_zostawia_blokade_i_mowi_o_sukcesie(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zenek = $this->user('zenek');
+        $basia->following()->attach($zenek->getKey(), ['created_at' => now()]);
+        $zenek->following()->attach($basia->getKey(), ['created_at' => now()]);
+        $this->zepsujWpis('user.blocked');
+
+        $odpowiedz = $this->actingAs($basia)->post(route('social.block', ['username' => 'zenek']))
+            ->assertRedirect(route('home'))->assertSessionHasNoErrors();
+
+        $this->assertStringContainsString('Zablokowano', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertTrue(Block::query()->where('blocker_id', $basia->getKey())->where('blocked_id', $zenek->getKey())->exists());
+        $this->assertSame(0, DB::table('follows')->count());
+        $this->assertSame(0, $this->wpisy('user.blocked'));
+        $this->assertZgloszonoBrakWpisu('user.blocked');
+    }
+
+    public function test_kontrola_dodatnia_blokada_bez_awarii_zapisuje_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $this->user('zenek');
+
+        $this->actingAs($basia)->post(route('social.block', ['username' => 'zenek']))->assertRedirect(route('home'));
+
+        $this->assertSame(1, Block::query()->count());
+        $this->assertSame(1, $this->wpisy('user.blocked'));
+        $this->assertNieZgloszonoBrakuWpisu();
     }
 }
