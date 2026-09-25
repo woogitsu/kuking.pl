@@ -307,6 +307,14 @@ class ApplySecurityHeaders
 
     private function shouldNotIndex(Request $request): bool
     {
+        // Zeszyt pod własnym adresem sam decyduje o indeksowaniu (issue #965):
+        // publiczny ma być w indeksie, prywatny dostaje `noindex` w widoku,
+        // a obcy widz i tak dostaje 403. Bez tego wyjątku przedrostek
+        // `zeszyt` niżej dokładał `noindex` także zeszytowi „Wszyscy".
+        if ($request->routeIs('collections.show')) {
+            return false;
+        }
+
         foreach (['szukaj', 'home', 'dodaj', 'powiadomienia', 'ustawienia', 'zeszyt', 'admin', 'zglos', 'witaj'] as $prefix) {
             if ($request->is($prefix, $prefix.'/*')) {
                 return true;

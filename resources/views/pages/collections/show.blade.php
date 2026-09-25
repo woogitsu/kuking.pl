@@ -1,4 +1,20 @@
-<x-layout :title="$collection->name" :noindex="! $collection->isPublic()">
+{{--
+    OPIS DLA WYSZUKIWARKI I PODGLĄDU LINKU (issue #965). Publiczny zeszyt jest
+    od tej zmiany dostępny bez konta, więc trafia do indeksu i do podglądów
+    linków wysłanych rodzinie. Prywatny ma `noindex` i opisu nie potrzebuje —
+    nie oddajemy go nawet w nagłówku strony.
+--}}
+@php
+    $opisStrony = $collection->isPublic()
+        ? \Illuminate\Support\Str::limit(
+            trim((string) $collection->description) !== ''
+                ? trim((string) $collection->description)
+                : 'Zeszyt „'.$collection->name.'” — przepisy i wpisy zebrane'.($collection->owner ? ' przez '.$collection->owner->displayName() : '').' w Kuking.',
+            160,
+        )
+        : null;
+@endphp
+<x-layout :title="$collection->name" :noindex="! $collection->isPublic()" :description="$opisStrony">
     {{--
         PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
 
@@ -101,6 +117,24 @@
             </p>
         @endif
     @endif
+
+    @guest
+        {{--
+            GOŚĆ NIE DOSTAJE ŻADNEJ AKCJI ZA LOGOWANIEM (issue #965).
+
+            Zeszyt „Wszyscy" otwiera się bez konta, ale zapisywanie i własne
+            zeszyty wymagają konta. Zamiast przycisku, który przerzuca
+            na logowanie bez słowa wyjaśnienia, mówimy wprost, co trzeba zrobić.
+        --}}
+        <section class="panel-formularza mt-8" data-rola="zeszyt-gosc">
+            <h2>Chcesz mieć własny zeszyt?</h2>
+            <p>Zaloguj się albo załóż konto, a zapiszesz ulubione przepisy we własnym zeszycie.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route('login') }}">Zaloguj się</a>
+                <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto</a>
+            </div>
+        </section>
+    @endguest
 
     @if(auth()->id() === $collection->owner_id)
         {{--

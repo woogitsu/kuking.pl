@@ -15,6 +15,8 @@
 - „Świeżo z Kuking” i strona powitalna pokazują najwyżej jeden wpis od każdej osoby — jej najnowszy, który możecie zobaczyć. Jedna bardzo aktywna osoba nie zasłania już całej reszty, a kolejność nadal jest po prostu od najnowszych (#940).
 - Chwilowa usterka po naszej stronie nie psuje już trzech rzeczy: jednorazowy link do logowania nie przepada, gdy wejście się nie udało — ekran mówi, że link nadal działa i wystarczy kliknąć „Zaloguj mnie” jeszcze raz (#1530); prośba o paczkę z danymi, która została przyjęta, kończy się potwierdzeniem zamiast komunikatu o błędzie (#1429); zablokowanie osoby kończy się komunikatem o blokadzie, a nie o błędzie, gdy blokada naprawdę zadziałała (#1573).
 
+- Zeszyt ustawiony na „Wszyscy” otwiera się teraz także bez konta — można wysłać link rodzinie. Osoba niezalogowana widzi w nim tylko publiczne przepisy i wpisy, a zamiast przycisków zapisu dostaje „Zaloguj się” albo „Załóż konto”. Zeszyt ustawiony na „Tylko ja” (także domyślny, dopóki nie zmienisz go na „Wszyscy”) nadal widzi tylko właściciel.
+- Wyniki wyszukiwania nie są już blokowane w robots.txt, dzięki czemu wyszukiwarka może odczytać, że nie należy ich indeksować.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).

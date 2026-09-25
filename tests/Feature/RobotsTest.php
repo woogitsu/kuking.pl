@@ -20,8 +20,8 @@ use Tests\TestCase;
  * do każdej odpowiedzi aplikacji.
  *
  * Skutek: znikała linia `Sitemap:` (Google nie dowiadywał się, gdzie jest
- * mapa) i wszystkie `Disallow` — wyszukiwarka indeksowała `/szukaj`,
- * `/ustawienia`, `/zeszyt` i `/admin`.
+ * mapa) i wszystkie `Disallow` — wyszukiwarka indeksowała `/ustawienia`
+ * i `/admin`. (`/szukaj` celowo nie ma `Disallow` — patrz issue #964 niżej.)
  */
 class RobotsTest extends TestCase
 {
@@ -51,9 +51,52 @@ class RobotsTest extends TestCase
         // Kontroler wypisywał wcześniej `/search`, `/home` i `/add` — czyli
         // adresy, których w Kuking nie ma. Wyszukiwarka i ekran dodawania
         // NIE BYŁY wyłączone z indeksowania, a plik twierdził, że są.
-        foreach (['/szukaj', '/dodaj', '/witaj', '/ustawienia', '/zeszyt', '/admin', '/zglos'] as $adres) {
+        foreach (['/dodaj', '/witaj', '/ustawienia', '/admin', '/zglos'] as $adres) {
             $this->assertStringContainsString("Disallow: {$adres}", $tresc);
         }
+    }
+
+    public function test_robot_moze_wejsc_na_szukaj_a_strona_kaze_jej_nie_indeksowac(): void
+    {
+        // ODWRÓCONE PO ISSUE #964. Ten test wymagał kiedyś linii
+        // `Disallow: /szukaj` i utrwalał sprzeczność: `/szukaj` wysyła
+        // `noindex`, ale robot, któremu robots.txt zabrania wejścia, nigdy tej
+        // reguły nie zobaczy — a adres odkryty z zewnętrznego linku zostaje
+        // w indeksie jako goły URL. Google Search Central: `noindex` działa
+        // tylko na stronie NIEzablokowanej w robots.txt
+        // (https://developers.google.com/search/docs/crawling-indexing/block-indexing),
+        // tak samo `docs/seo/SEO_TECHNICAL.md` §1.3 i §3.1.
+        //
+        // Obie strony kontraktu w jednym teście: robot może wejść, a odpowiedź
+        // każe nie indeksować. Ponowne dopisanie `Disallow: /szukaj` oblewa
+        // pierwszą asercję.
+        $tresc = $this->get('/robots.txt')->assertOk()->getContent();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '~^Disallow:\s*/szukaj~mi',
+            (string) $tresc,
+            'robots.txt blokuje /szukaj — robot nie odczyta wtedy noindex tej strony (issue #964).',
+        );
+
+        foreach ([route('search'), route('search', ['q' => 'rosol'])] as $adres) {
+            $this->get($adres)
+                ->assertOk()
+                ->assertSee('<meta name="robots" content="noindex', false)
+                ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+    }
+
+    public function test_publiczny_zeszyt_nie_jest_zablokowany_przedrostkiem(): void
+    {
+        // Issue #965: `Disallow: /zeszyt` jako przedrostek blokował też
+        // `/zeszyt/{uuid}` — publiczny zeszyt „Wszyscy". Zostaje zablokowana
+        // sama lista (za logowaniem) i podstrony zeszytu (edycja).
+        $linie = explode("\n", (string) $this->get('/robots.txt')->getContent());
+
+        $this->assertNotContains('Disallow: /zeszyt', $linie);
+        $this->assertNotContains('Disallow: /zeszyt/', $linie);
+        $this->assertContains('Disallow: /zeszyt$', $linie);
+        $this->assertContains('Disallow: /zeszyt/*/', $linie);
     }
 
     public function test_zaden_statyczny_plik_nie_przykrywa_trasy_aplikacji(): void
