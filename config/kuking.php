@@ -2371,6 +2371,12 @@ return [
         // Najwięcej maili urodzinowych na dobę. Nadmiar nie przepada
         // po cichu — komenda mówi, ile osób nie dostało listu.
         'mail_dzienny_sufit' => (int) env('KUKING_URODZINY_MAIL_DZIENNY_SUFIT', 20),
+
+        // Przypomnienie obserwującym (etap d): najwięcej tylu powiadomień
+        // „Dziś urodziny: …" na jednego odbiorcę na dobę. Osoba obserwująca
+        // wiele kont nie dostaje lawiny w jeden dzień; nadmiar przepada
+        // (to informacja o dniu, a nie wiadomość do odłożenia na jutro).
+        'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
     ],
 
     'zgody' => [

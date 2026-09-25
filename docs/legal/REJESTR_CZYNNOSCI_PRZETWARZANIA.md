@@ -382,11 +382,17 @@ egzekwuje.
   z celem `zyczenia_urodzinowe` (D-072). Dane: adres e-mail i dzień
   ostatniej wysyłki (`users.birthday_email_sent_on`). Wycofanie: odnośnik
   w liście bez logowania, odznaczenie pola albo „Usuń datę”.
+- **Przypomnienie obserwującym (etap d):** tylko po jawnym włączeniu
+  (`users.birthday_visible_to_followers`, domyślnie `false`). Wtedy
+  w dniu urodzin obserwujący dostają powiadomienie w serwisie
+  (`notifications`, typ `birthday.today`, retencja jak §3.11) — bez roku,
+  bez wpisu w feedzie. Kategoria odbiorców: osoby obserwujące.
 - **Odbiorcy:** Railway; przy liście także EmailLabs.
 - **Termin usunięcia:** do usunięcia daty przez osobę albo do wymazania
   konta (`EraseAccountData` zeruje daty i dzień wysyłki oraz wycofuje zgodę
   z wpisem w dzienniku). W eksporcie: `konto.urodziny`,
-  `konto.pokazuj_zyczenia_urodzinowe`, `konto.chce_zyczen_urodzinowych_mailem`.
+  `konto.pokazuj_zyczenia_urodzinowe`, `konto.chce_zyczen_urodzinowych_mailem`,
+  `konto.pokazuj_urodziny_obserwujacym`.
 
 ---
 

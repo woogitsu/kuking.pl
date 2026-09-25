@@ -37,8 +37,8 @@ final class UstawUrodziny
     }
 
     /**
-     * „Usuń datę" wyłącza też wszystko, co od daty zależy: zgoda na mail
-     * z życzeniami zostaje wycofana (z wpisem w dzienniku zgód), żeby po
+     * „Usuń datę" wyłącza też wszystko, co od daty zależy: przypomnienie
+     * obserwującym gaśnie, a zgoda na mail z życzeniami zostaje wycofana (z wpisem w dzienniku zgód), żeby po
      * ponownym podaniu daty list nie wrócił bez nowej decyzji.
      */
     public function usun(User $user): void
@@ -47,6 +47,7 @@ final class UstawUrodziny
             $user->forceFill([
                 'birthday_day' => null,
                 'birthday_month' => null,
+                'birthday_visible_to_followers' => false,
             ])->save();
 
             $this->zgodaNaMail->handle($user, false, WpisZgody::ZRODLO_USTAWIENIA);

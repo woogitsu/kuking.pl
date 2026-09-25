@@ -326,6 +326,7 @@ final class EraseAccountData
                 'birthday_day' => null,
                 'birthday_month' => null,
                 'wants_birthday_email' => false,
+                'birthday_visible_to_followers' => false,
                 'birthday_email_sent_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy

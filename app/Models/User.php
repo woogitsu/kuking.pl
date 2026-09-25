@@ -346,6 +346,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
             'wants_birthday_email' => 'boolean',
             'birthday_email_sent_on' => 'date',
+            'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko

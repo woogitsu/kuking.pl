@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Wybory przy dacie urodzin: życzenia na stronie (etap b) i zgoda na mail
- * (etap c) — jednym zapisem, pod jedną blokadą.
+ * Wybory przy dacie urodzin: życzenia na stronie (etap b), zgoda na mail
+ * (etap c) i przypomnienie obserwującym (etap d) — jednym zapisem, pod jedną
+ * blokadą.
  *
  * STAN Z CHWILI OTWARCIA FORMULARZA (jak w ustawieniach prywatności, #879).
  * Formularz niesie zgodę, więc otwarty wczoraj nie może dziś po cichu zapisać
@@ -23,9 +24,9 @@ final class ZapiszWyboryUrodzin
 {
     public function __construct(private readonly PrzestawZgodeNaZyczeniaMailem $zgoda) {}
 
-    public function handle(User $user, bool $zyczenia, bool $mail, bool $mailPrzyOtwarciu): void
+    public function handle(User $user, bool $zyczenia, bool $mail, bool $mailPrzyOtwarciu, bool $obserwujacym = false): void
     {
-        DB::transaction(function () use ($user, $zyczenia, $mail, $mailPrzyOtwarciu): void {
+        DB::transaction(function () use ($user, $zyczenia, $mail, $mailPrzyOtwarciu, $obserwujacym): void {
             $current = User::query()->lockForUpdate()->findOrFail($user->getKey());
 
             if ((bool) $current->wants_birthday_email !== $mailPrzyOtwarciu) {
@@ -34,7 +35,11 @@ final class ZapiszWyboryUrodzin
                 ]);
             }
 
-            $current->forceFill(['birthday_wishes_enabled' => $zyczenia])->save();
+            $current->forceFill([
+                'birthday_wishes_enabled' => $zyczenia,
+                // Etap d: przypomnienie obserwującym — tylko po jawnym włączeniu.
+                'birthday_visible_to_followers' => $obserwujacym,
+            ])->save();
             $this->zgoda->handle($current, $mail, WpisZgody::ZRODLO_USTAWIENIA);
             $user->setRawAttributes($current->getAttributes(), true);
         });

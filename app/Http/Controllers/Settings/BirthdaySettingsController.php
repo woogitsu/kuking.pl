@@ -69,14 +69,16 @@ class BirthdaySettingsController extends Controller
     public function preferences(Request $request, ZapiszWyboryUrodzin $wybory): RedirectResponse
     {
         // Odznaczony checkbox nie przychodzi w żądaniu — brak pola znaczy „nie".
-        $request->mergeIfMissing(['birthday_wishes_enabled' => '0', 'wants_birthday_email' => '0']);
+        $request->mergeIfMissing(['birthday_wishes_enabled' => '0', 'wants_birthday_email' => '0', 'birthday_visible_to_followers' => '0']);
         $request->validate([
             'birthday_wishes_enabled' => ['boolean'],
             'wants_birthday_email' => ['boolean'],
+            'birthday_visible_to_followers' => ['boolean'],
             'original_birthday_email' => ['required', 'boolean'],
         ], [
             'birthday_wishes_enabled.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
             'wants_birthday_email.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
+            'birthday_visible_to_followers.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
             'original_birthday_email.*' => 'Otwórz aktualne ustawienia i wybierz ponownie zgodę na e-mail z życzeniami.',
         ]);
 
@@ -85,6 +87,7 @@ class BirthdaySettingsController extends Controller
             $request->boolean('birthday_wishes_enabled'),
             $request->boolean('wants_birthday_email'),
             $request->boolean('original_birthday_email'),
+            $request->boolean('birthday_visible_to_followers'),
         );
 
         return back()->with('status', 'Zapisane.');

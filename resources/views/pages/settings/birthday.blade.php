@@ -11,7 +11,7 @@
 
     <p>
         Jeśli chcesz, podaj dzień i miesiąc urodzin. Roku nie potrzebujemy.
-        Datę widzisz tylko Ty — nie ma jej na Twoim profilu.
+        Datę widzisz tylko Ty — nie ma jej na Twoim profilu. Obserwującym pokażemy ją tylko wtedy, gdy włączysz to niżej.
     </p>
 
     <x-error-summary />
@@ -113,6 +113,25 @@
                 @if($errors->has('wants_birthday_email'))
                     <p><a href="{{ route('settings.birthday') }}">Otwórz aktualne ustawienia</a> i wybierz ponownie.</p>
                 @endif
+            </div>
+
+            {{-- PRZYPOMNIENIE OBSERWUJĄCYM (etap d) — domyślnie wyłączone, bo to
+                 jedyne miejsce, w którym data wychodzi poza właściciela konta,
+                 a obserwować może każdy bez akceptacji. Powiadomienie, nie
+                 wpis w feedzie. --}}
+            <div class="field @error('birthday_visible_to_followers') has-error @enderror mt-4">
+                <label class="choice" for="f-birthday_visible_to_followers">
+                    <input id="f-birthday_visible_to_followers" type="checkbox" name="birthday_visible_to_followers" value="1"
+                           @error('birthday_visible_to_followers') aria-invalid="true" aria-describedby="f-birthday_visible_to_followers-error" @enderror
+                           @checked($poBledzieWyborow ? old('birthday_visible_to_followers', false) : $user->birthday_visible_to_followers)>
+                    <span>
+                        <span class="choice-label">Pokaż moje urodziny obserwującym</span>
+                        <span class="choice-help">W dniu urodzin osoby, które Cię obserwują, zobaczą w powiadomieniach „Dziś urodziny: {{ $user->displayName() }}”. Bez roku i bez wpisu na Twoim profilu. Obserwować może każdy, kto ma konto — zaznacz to pole tylko, jeśli Ci to odpowiada.</span>
+                    </span>
+                </label>
+                @error('birthday_visible_to_followers')
+                    <span class="field-error" id="f-birthday_visible_to_followers-error">{{ $message }}</span>
+                @enderror
             </div>
 
             <button class="btn btn-primary mt-4" type="submit">Zapisz wybory</button>

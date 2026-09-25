@@ -1944,6 +1944,21 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
   `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
 
+**Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
+
+- **`users.birthday_visible_to_followers`** (`boolean NOT NULL DEFAULT false`) —
+  „Pokaż moje urodziny obserwującym”. Tylko po jawnym włączeniu (decyzja
+  właściciela). `kuking:przypomnij-o-urodzinach` (harmonogram 07:50 UTC)
+  tworzy wtedy obserwującym powiadomienie `notifications.type =
+  'birthday.today'` z `actor_id` = solenizant: najwyżej jedno na parę na dobę,
+  najwyżej `kuking.urodziny.przypomnienia_na_odbiorce_dziennie` (3) na odbiorcę
+  na dobę, nigdy w ciszy nocnej (21–8, klucze
+  `kuking.notifications.zewnetrzne.cisza_*`). **Nie jest to wpis w feedzie.**
+  „Usuń datę” i wymazanie konta ustawiają `false`. Eksport:
+  `konto.pokazuj_urodziny_obserwujacym`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `true` (D-088:
+  decyzja o widoczności). Test: `tests/Feature/PrzypomnienieOUrodzinachTest.php`.
+
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 

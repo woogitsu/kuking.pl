@@ -501,6 +501,17 @@ Harmonogram::artisan('kuking:wyslij-zyczenia-urodzinowe')
     ->onOneServer()
     ->withoutOverlapping(60);
 
+// Przypomnienie „Dziś urodziny: …" dla obserwujących (issue #1755, etap d) —
+// tylko u osób, które to same włączyły; powiadomienie w serwisie, nie wpis
+// w feedzie. 07:50 UTC to w Polsce 8:50 zimą i 9:50 latem, czyli zawsze po
+// ciszy nocnej (21–8); komenda i tak sprawdza ciszę sama. Limit na odbiorcę
+// i jedno przypomnienie na parę na dobę pilnuje komenda, nie harmonogram.
+Harmonogram::artisan('kuking:przypomnij-o-urodzinach')
+    ->name('kuking:przypomnij-o-urodzinach')
+    ->dailyAt('07:50')
+    ->onOneServer()
+    ->withoutOverlapping(60);
+
 // Dosyłka zaległych potwierdzeń przyjęcia zgłoszenia (issue #797, D-252 —
 // decyzja właściciela z 23.09.2026, DSA art. 16 ust. 4).
 //

@@ -121,6 +121,16 @@ class Notification extends Model
     public const TYPE_FIRST_POST = 'post.first';
 
     /**
+     * „Dziś urodziny: Ania" (issue #1755, etap d). Aktorem jest solenizant.
+     * Powstaje TYLKO, gdy solenizant sam włączył
+     * `users.birthday_visible_to_followers`, najwyżej raz na dobę na parę
+     * (odbiorca, solenizant) i w dobowym limicie na odbiorcę
+     * (`kuking.urodziny.przypomnienia_na_odbiorce_dziennie`). Nie jest wpisem
+     * w feedzie — feed obserwowanych zostaje chronologiczny, bez wstawek.
+     */
+    public const TYPE_BIRTHDAY = 'birthday.today';
+
+    /**
      * Typy powiadomień WYŁĄCZONE Z OGÓLNEGO OKRESU RETENCJI (issue #19,
      * docs/decyzje/ADR_RETENCJE.md §5.2, §5.6) — kolizja trzymiesięcznej
      * retencji (`config('kuking.notifications.retention_months')`) z
@@ -339,6 +349,11 @@ class Notification extends Model
             // do INNEJ osoby niż ta, którą powiadomienie opisuje. Brak
             // profilu = brak celu, nigdy zgadywanie po starej nazwie.
             self::TYPE_FOLLOW => is_string($nazwa = $this->actor?->profile?->username) && $nazwa !== ''
+                ? route('profile.show', $nazwa)
+                : null,
+            // Urodziny (#1755) — na AKTUALNY profil solenizanta, jak przy
+            // obserwowaniu: po `actor_id`, nie po nazwie zapamiętanej w `data`.
+            self::TYPE_BIRTHDAY => is_string($nazwa = $this->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),

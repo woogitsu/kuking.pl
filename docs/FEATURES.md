@@ -38,6 +38,9 @@ w `/ustawienia/prywatnosc`, a pojedyncze wspomnienie chowa przycisk przy nim.
 Urodziny (#1755): opcjonalny dzień i miesiąc bez roku w `/ustawienia/urodziny`.
 W dniu urodzin (strefa Europe/Warsaw, 29.02 → 28.02 w latach nieprzestępnych)
 na `/home` jedno zdanie z życzeniami od gospodarza, z wyłącznikiem przy dacie.
+Mail z życzeniami tylko za osobną zgodą, w sufitach poczty. Przypomnienie
+obserwującym („Dziś urodziny: …”) tylko po włączeniu przez solenizanta, jako
+powiadomienie w serwisie w dobowym limicie i poza ciszą nocną — nie w feedzie.
 
 ### Wpis
 - zdjęcie lub kilka zdjęć;

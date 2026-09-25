@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- W ustawieniach urodzin można włączyć „Pokaż moje urodziny obserwującym” (domyślnie wyłączone). Wtedy w dniu urodzin osoby, które Was obserwują, dostają w powiadomieniach „Dziś urodziny: …” — bez roku, najwyżej kilka takich powiadomień dziennie, nigdy w nocy i nigdy jako wpis w feedzie (#1755).
+
 - W ustawieniach urodzin można osobno zgodzić się na e-mail z życzeniami. List wychodzi raz w roku, rano, tylko do osób, które zaznaczyły tę zgodę, i mieści się w dobowych limitach poczty. Na dole listu jest odnośnik, który wypisuje jednym kliknięciem, bez logowania. Wysyłkę włącza zmienna `KUKING_URODZINY_MAIL_WLACZONY` (#1755).
 
 - W dniu urodzin na stronie głównej pojawia się jedno zdanie z życzeniami od gospodarza. Widzi je tylko solenizant, bez maila i bez powiadomienia. Urodziny 29 lutego obchodzimy 28 lutego w latach nieprzestępnych. Życzenia można wyłączyć przy dacie, w Ustawieniach → Urodziny (#1755).

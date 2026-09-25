@@ -68,6 +68,7 @@
                 \App\Models\Notification::TYPE_REPLY,
                 \App\Models\Notification::TYPE_FOLLOW,
                 \App\Models\Notification::TYPE_SAVED,
+                \App\Models\Notification::TYPE_BIRTHDAY,
             ], true);
 
             /*
@@ -181,6 +182,12 @@
                             @case(\App\Models\Notification::TYPE_SAVED)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
                                 „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
+                                @break
+                            @case(\App\Models\Notification::TYPE_BIRTHDAY)
+                                {{-- Urodziny osoby obserwowanej (#1755, etap d). Tylko
+                                     wtedy, gdy ona sama to włączyła. Bez roku, bez
+                                     rodzaju, bez zachęty do czegokolwiek. --}}
+                                <strong>Dziś urodziny: {{ $actor?->displayName() ?? 'ktoś, kogo obserwujesz' }}.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
