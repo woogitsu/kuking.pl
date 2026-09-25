@@ -222,6 +222,12 @@ CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_asset
 # klasy, której nie ma, i stałej, której model nie definiuje.
 REJESTR_WYJATKOW = "tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php"
 REJESTR_WYJATKOW_TEST = "test_rejestr_nazywa_tylko_istniejace_klasy_i_stale"
+# Wiersz `media` i zadanie przetwarzania w jednej transakcji (issue #1456).
+# Test wymusza fizyczną odmowę INSERT-u do `jobs`; mutacja wynosi dispatch
+# z powrotem ZA granicę transakcji i kompensacji — test ma wtedy oblać, bo
+# zostaje wiersz `pending` bez zadania i pliki w buckecie.
+STORE_UPLOADED_IMAGE = "app/Domain/Media/Actions/StoreUploadedImage.php"
+ZLECENIE_ZDJECIA_TEST = "ZlecenieZdjeciaWTransakcjiTest"
 
 # Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
 # jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
@@ -475,6 +481,15 @@ def bez_digestu_obrazu_kopii(source):
     return source[:start] + "FROM postgres:18" + source[end:]
 
 
+def dispatch_zdjecia_poza_transakcja(source):
+    source = replace_once(source, "ProcessUploadedImage::dispatch($media->getKey());", "null;")
+    return replace_once(
+        source,
+        "            throw $e;\n        }\n\n        return $media;",
+        "            throw $e;\n        }\n\n        ProcessUploadedImage::dispatch($media->getKey());\n\n        return $media;",
+    )
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -663,6 +678,8 @@ checks = [
      lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
     ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
      lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
+    ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
+     dispatch_zdjecia_poza_transakcja),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
@@ -734,6 +751,7 @@ run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
+run_test(ZLECENIE_ZDJECIA_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
