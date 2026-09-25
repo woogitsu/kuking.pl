@@ -13,13 +13,13 @@ use App\Models\AuditLogEntry;
  * `created_at`, Z WYJĄTKIEM kategorii z `AuditLogEntry::NIGDY_NIE_KASUJ` —
  * te NIGDY nie są kandydatem do usunięcia, niezależnie od wieku wiersza.
  *
- * DLACZEGO ZWYKŁY MASOWY `DELETE`, A NIE PĘTLA PER WIERSZ
+ * DLACZEGO `DELETE` PARTIAMI, A NIE PĘTLA PER WIERSZ
  * Ten sam powód co przy `PrzedawnioneSygnaly` (product_signals): wiersz
- * `audit_log` nie ma żadnego odpowiednika po stronie storage, więc jeden
- * `DELETE ... WHERE created_at < ? AND action NOT IN (...)` jest i szybszy,
- * i równie bezpieczny na przerwanie w połowie — baza sama gwarantuje
- * atomowość jednego zapytania, a predykat to wyłącznie wiek wiersza, więc
- * kolejny przebieg po prostu dobierze to, co zostało.
+ * `audit_log` nie ma żadnego odpowiednika po stronie storage, więc
+ * `DELETE ... WHERE created_at < ? AND action NOT IN (...) AND id IN (...)`
+ * po partii identyfikatorów (`UsuwanieWPartiach`, #1657). Predykat z
+ * `NIGDY_NIE_KASUJ` jest powtórzony w każdym `DELETE`, a zatwierdzona partia
+ * zostaje po przerwaniu — następny przebieg dobiera resztę naprawdę.
  */
 final class PrzedawnioneWpisyAudytu
 {
@@ -44,11 +44,13 @@ final class PrzedawnioneWpisyAudytu
             ->whereIn('action', AuditLogEntry::NIGDY_NIE_KASUJ)
             ->count();
 
-        $doSkasowania = AuditLogEntry::query()
+        $doSkasowania = fn () => AuditLogEntry::query()
             ->where('created_at', '<', $prog)
             ->whereNotIn('action', AuditLogEntry::NIGDY_NIE_KASUJ);
 
-        $skasowano = $naSucho ? $doSkasowania->count() : $doSkasowania->delete();
+        $skasowano = $naSucho
+            ? $doSkasowania()->count()
+            : UsuwanieWPartiach::zKonfiguracji()->usun($doSkasowania, 'id', 'audit_log');
 
         // SKRÓT IP WE WPISACH DOWODOWYCH ŻYJE TYLE, CO ZWYKŁY DZIENNIK (audyt
         // B5, znalezisko 10). Wpis `NIGDY_NIE_KASUJ` zostaje na zawsze — ale
