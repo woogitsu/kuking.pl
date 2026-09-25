@@ -1,4 +1,8 @@
-@php $p = $profile; @endphp
+@php
+    $p = $profile;
+    // Jedna lista dla okruszków i `BreadcrumbList` (#1033).
+    $okruszki = \App\Support\Okruszki::dlaProfilu($p);
+@endphp
 <x-layout
     :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
@@ -26,8 +30,11 @@
             ];
             @endphp
             <x-json-ld :data="$profileJsonLd" />
+            <x-json-ld :data="\App\Support\Okruszki::jsonLd($okruszki)" />
         @endif
     </x-slot:head>
+
+    <x-okruszki :elementy="$okruszki" />
 
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
