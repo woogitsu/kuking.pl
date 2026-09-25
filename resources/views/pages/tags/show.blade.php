@@ -44,13 +44,31 @@
      * Nie mówimy niczego o cudzych wpisach — o tym, czego nie widać, nie
      * informujemy nawet półsłówkiem.
      */
-    $wlasneNiepubliczne = auth()->check()
+    $wlasneNiepubliczneWpisy = auth()->check()
         ? $posts->getCollection()
             ->filter(fn ($post) => $post->author_id === auth()->id()
                 && ($post->visibility !== \App\Models\Post::VISIBILITY_PUBLIC
                     || $post->status !== \App\Models\Post::STATUS_PUBLISHED))
-            ->count()
-        : 0;
+        : collect();
+    $wlasneNiepubliczne = $wlasneNiepubliczneWpisy->count();
+
+    /*
+     * „WIDZISZ TYLKO TY" WOLNO NAPISAĆ TYLKO O WPISIE PRYWATNYM (#1392).
+     *
+     * Wpis „tylko dla obserwujących" widzą też obserwujący autora
+     * (`PostPolicy::view()`), więc wspólne zdanie dla obu widoczności
+     * wprowadzało autora w błąd co do prywatności jego treści. Przy grupie
+     * mieszanej mówimy neutralnie „nie są widoczne dla wszystkich".
+     */
+    $wszystkiePrywatne = $wlasneNiepubliczne > 0 && $wlasneNiepubliczneWpisy
+        ->every(fn ($post) => $post->visibility === \App\Models\Post::VISIBILITY_PRIVATE);
+    $wszystkieDlaObserwujacych = $wlasneNiepubliczne > 0 && $wlasneNiepubliczneWpisy
+        ->every(fn ($post) => $post->visibility === \App\Models\Post::VISIBILITY_FOLLOWERS
+            && $post->status === \App\Models\Post::STATUS_PUBLISHED);
+    $n = $wlasneNiepubliczne;
+    $mnogaOd2Do4 = $n % 10 >= 2 && $n % 10 <= 4 && ($n % 100 < 12 || $n % 100 > 14);
+    $twojeWpisy = $n === 1 ? 'Jeden Twój wpis' : ($mnogaOd2Do4 ? "{$n} Twoje wpisy" : "{$n} Twoich wpisów");
+    $niewidoczne = $n === 1 ? 'nie jest widoczny' : ($mnogaOd2Do4 ? 'nie są widoczne' : 'nie jest widocznych');
 @endphp
 <x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)" :noindex-follow="! $indeksowalny">
     <p class="meta mb-2">
@@ -72,13 +90,15 @@
              a twardy standard UX 50+ z AGENTS.md §7 to minimum 18 px.
              Ten sam wniosek padł w review #681 przy podpisie autora zdjęcia. --}}
         <p data-wlasne-niepubliczne>
-            @if($wlasneNiepubliczne === 1)
-                Jeden Twój wpis z tym tagiem widzisz tylko Ty.
+            @if($wszystkiePrywatne)
+                {{ $twojeWpisy }} z tym tagiem widzisz tylko Ty.
+            @elseif($wszystkieDlaObserwujacych)
+                {{ $twojeWpisy }} z tym tagiem widzą tylko osoby, które Cię obserwują, i Ty.
             @else
-                {{ $wlasneNiepubliczne }} Twoje wpisy z tym tagiem widzisz tylko Ty.
+                {{ $twojeWpisy }} z tym tagiem {{ $niewidoczne }} dla wszystkich.
             @endif
-            W spisie tagów liczymy wpisy widoczne dla wszystkich, więc ten
-            {{ $wlasneNiepubliczne === 1 ? 'wpis' : 'wpisy' }} się tam nie liczy{{ $wlasneNiepubliczne === 1 ? '' : 'ą' }}.
+            W spisie tagów liczymy wpisy widoczne dla wszystkich, więc
+            {{ $n === 1 ? 'ten wpis się tam nie liczy' : 'te wpisy się tam nie liczą' }}.
             Możesz to zmienić w ustawieniach widoczności wpisu.
         </p>
     @endif
