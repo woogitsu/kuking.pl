@@ -221,10 +221,13 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
                                 {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść
-                                     napisana przez moderatora. Starsze powiadomienia
-                                     (usunięcie komentarza przez autora treści) nie mają
-                                     `title` — dla nich zostaje dawny nagłówek. --}}
-                                <strong>{{ $data['title'] ?? 'Wiadomość od moderacji Kuking.' }}</strong>
+                                     napisana przez moderatora. Obie drogi moderacji
+                                     (`NotifyModerationDecision`, `NotifyAppealOutcome`)
+                                     zawsze zapisują `title`. Bez niego są tylko starsze
+                                     powiadomienia o komentarzu usuniętym przez autora
+                                     treści — tej decyzji moderacja nie podjęła, więc
+                                     nagłówek nie może mówić „od moderacji” (audyt B9). --}}
+                                <strong>{{ $data['title'] ?? 'Wiadomość od Kuking.' }}</strong>
                                 {{ $data['message'] ?? '' }}
                                 {{-- Prawo do odwołania (DSA art. 17) musi być NAPISANE,
                                      nie domyślne. Adres bierzemy z konfiguracji, żeby
