@@ -147,6 +147,26 @@ const NAZWA_BAZY = "Postgres";
  */
 const PRODUCTION_SPLIT_SERVICES = true;
 
+/**
+ * OKNO ZAMKNIĘCIA KONTENERA, W KTÓRYM CHODZI `queue:work` (role `worker`
+ * i `all`), w sekundach (audyt B8-03).
+ *
+ * 130 = `ProcessUploadedImage::$timeout` (120 s, najdłuższe zadanie, na które
+ * ktoś czeka na ekranie) + 10 s na zamknięcie procesu. Wcześniej worker miał
+ * 120 (równo z limitem, bez zapasu), a rola `all` — 30.
+ *
+ * CZEGO TO NIE POKRYWA: `GenerateUserExport` ma 900 s. Zadanie ubite przy
+ * wdrożeniu wraca po `retry_after` (`config/queue.php`, 960 s) — paczkę
+ * i tak dostaje się e-mailem, więc kwadrans opóźnienia jest do przyjęcia,
+ * a kontener, który przy każdym z kilkudziesięciu deployów na dobę czeka
+ * kwadrans na zamknięcie, nie jest. Krótszy `retry_after` dla kolejek bez
+ * eksportu wymaga osobnego połączenia i osobnego procesu `queue:work`
+ * (worker czyta jedno połączenie) — patrz #1030.
+ *
+ * Pilnuje `scripts/railway/iac.test.mjs` (limit czytany z kodu zadania).
+ */
+const ZAMKNIECIE_Z_KOLEJKA_S = 130;
+
 // =============================================================================
 export default defineRailway((ctx) => {
   // ---------------------------------------------------------------------------
@@ -576,6 +596,13 @@ export default defineRailway((ctx) => {
     TURNSTILE_SITE_KEY: ctx.shared.TURNSTILE_SITE_KEY,
     TURNSTILE_SECRET_KEY: ctx.shared.TURNSTILE_SECRET_KEY,
 
+    // --- Token krawędzi Cloudflare (config/proxy.php, App\Support\TokenKrawedzi) ---
+    // Nagłówek X-Kuking-Edge-Token od Cloudflare potwierdza, że żądanie przyszło
+    // przez krawędź. Czyta go wyłącznie web (żądania HTTP). PUSTE = bramka
+    // wyłączona. `_POPRZEDNI` tylko na czas rotacji. Oba sekrety — „Sealed".
+    KUKING_EDGE_TOKEN: ctx.shared.KUKING_EDGE_TOKEN,
+    KUKING_EDGE_TOKEN_POPRZEDNI: ctx.shared.KUKING_EDGE_TOKEN_POPRZEDNI,
+
     // --- Wejście kontem Google (D-069, issue #258) ----------------------------
     // Dodatkowa droga wejścia obok hasła i wiadomości z linkiem. Oba klucze
     // idą przez `ctx.shared`, bo powstają w Google Cloud Console i są
@@ -704,7 +731,7 @@ export default defineRailway((ctx) => {
     KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",
   };
 
-  //  --- Odczyt bucketu kopii bazy: TYLKO scheduler --------------------------
+  //  --- Odczyt kopii bazy i zdjęć: TYLKO scheduler ------------------------
   //  Jedynym konsumentem jest `kuking:sprawdz-kopie` (`StanKopiiBazy`),
   //  uruchamiane z harmonogramu. Ani trasa HTTP, ani job tego nie czytają.
   //
@@ -717,13 +744,50 @@ export default defineRailway((ctx) => {
   //  zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie to,
   //  przed czym ta warstwa ma chronić. Kopia, którą da się zniszczyć
   //  z zaatakowanego serwisu, nie jest kopią offsite.
+  //
+  //  KOPIA ZDJĘĆ (#1497, D-257) — ta sama zasada, osobny bucket i osobny
+  //  token: `kuking-zdjecia-kopia` czyta wyłącznie `kuking:sprawdz-kopie-zdjec`
+  //  (dysk `r2_kopia_zdjec`), token ma prawo TYLKO do odczytu tego bucketu.
+  //  Komendy nie ma w harmonogramie — właściciel uruchamia ją ręcznie po
+  //  migawce (`railway ssh`, docs/infra/DR_ZDJEC_R2.md §6). Dostaje ją
+  //  scheduler, nie web: proces bez ruchu z internetu, ten sam, który już
+  //  trzyma odczyt kopii bazy. Dziś (rola `all`) i tak ląduje w `kuking.pl`.
+  //  Bez tych trzech linii zmienne ustawione w panelu nie dochodzą do
+  //  procesu po rozdzieleniu usług, a komenda odmawia (#1014).
   const kopieOdczytEnv = {
     AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
     AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
     AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
+    AWS_ZDJECIA_KOPIA_BUCKET: ctx.shared.R2_ZDJECIA_KOPIA_BUCKET,
+    AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID: ctx.shared.R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID,
+    AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY: ctx.shared.R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY,
   };
 
-  const webEnv = { ...appEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  //  --- Puls harmonogramu: TYLKO scheduler (#599, #1659) --------------------
+  //  `kuking:puls-harmonogramu` co 5 minut daje znak życia zewnętrznemu
+  //  monitorowi. Chodzi WYŁĄCZNIE z harmonogramu, więc adres dostaje tylko
+  //  scheduler. Adres zawiera token monitora — kto go zna, „karmi" monitor
+  //  i zagłusza prawdziwą awarię — więc żyje w Shared Variables („Sealed"),
+  //  nie w tym pliku. PUSTE = puls wyłączony bez błędu
+  //  (docs/infra/MONITORING_599_KROKI.md, B3).
+  const pulsHarmonogramuEnv = {
+    KUKING_PULS_HARMONOGRAMU_URL: ctx.shared.KUKING_PULS_HARMONOGRAMU_URL,
+  };
+
+  //  --- Konto gospodarza: web + scheduler (#1089, #1375) --------------------
+  //  `HostUserResolver` czyta UUID gospodarza w web (`ZalozKonto` —
+  //  auto-obserwowanie przy rejestracji, także przez Google i Facebooka;
+  //  `PublishPost` — alert pierwszego wpisu) i w schedulerze
+  //  (`kuking:policz-kukingow` → `LiczbaKukingow` → `CookEligibility`,
+  //  wykluczenie gospodarza z metryk). Worker go nie czyta.
+  //  To nie sekret, ale wartość jest RÓŻNA w każdym środowisku (UUID konta
+  //  w jego własnej bazie), więc idzie przez `ctx.shared`, nie jako stała.
+  //  PUSTE = przejściowy fallback po `KUKING_HOST_USERNAME` (docs/DEPLOYMENT.md).
+  const gospodarzEnv = {
+    KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
@@ -731,7 +795,7 @@ export default defineRailway((ctx) => {
     ...modelEnv,
     ...alarmModeratoraEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
@@ -791,6 +855,8 @@ export default defineRailway((ctx) => {
   //  watchPatterns: przebudowuj tylko, gdy zmieniło się coś, co wpływa na
   //  obraz. Zmiana README albo docs/ nie musi kosztować buildu (a build
   //  kosztuje minuty i pieniądze). Wymagane też przez Focused PR Environments.
+  //  Każdy wpis korzenia, który `COPY . .` wnosi do obrazu, ma tu wzorzec
+  //  albo powód w rejestrze `W_OBRAZIE_BEZ_WPLYWU` (scripts/railway/iac.test.mjs).
   // ---------------------------------------------------------------------------
   const build = {
     builder: "DOCKERFILE" as const,
@@ -803,12 +869,18 @@ export default defineRailway((ctx) => {
       "public/**",
       "resources/**",
       "routes/**",
+      // Komunikaty po polsku (walidacja, hasła). Do 25.09.2026 brakowało
+      // tego wpisu: poprawka samego tekstu błędu nie uruchamiała wdrożenia
+      // (audyt B10-05).
+      "lang/**",
       "docker/**",
       "Dockerfile",
       "composer.json",
       "composer.lock",
       "package.json",
       "package-lock.json",
+      // `ignore-scripts=true` dla `npm ci` w etapie assets — zmienia build.
+      ".npmrc",
       "vite.config.js",
       "artisan",
     ],
@@ -945,8 +1017,14 @@ export default defineRailway((ctx) => {
       //  Graceful shutdown. Railway wysyła SIGTERM i czeka `drainingSeconds`,
       //  zanim ubije kontener. Caddy w tym czasie dokańcza otwarte requesty.
       //  30 s z zapasem pokrywa najdłuższy sensowny request HTTP.
+      //
+      //  W ROLI `all` TEN SAM KONTENER TRZYMA `queue:work` (audyt B8-03).
+      //  30 s ubijało przetwarzanie zdjęcia (limit 120 s) w połowie:
+      //  `failed()` się nie wykonywał, a rezerwacja wisiała w `jobs` do
+      //  `retry_after` (960 s) — zdjęcie „za chwilę" przez 16 minut i zużyta
+      //  próba. Dlatego `all` dostaje to samo okno co worker.
       // -----------------------------------------------------------------------
-      drainingSeconds: 30,
+      drainingSeconds: splitServices ? 30 : ZAMKNIECIE_Z_KOLEJKA_S,
 
       // -----------------------------------------------------------------------
       //  Serverless (dawniej App Sleeping): usypia serwis po ~5-10 min bez
@@ -1031,10 +1109,9 @@ export default defineRailway((ctx) => {
       restartPolicyMaxRetries: 10,
 
       // Worker dostaje DŁUGIE okno na zamknięcie: `queue:work` reaguje na
-      // SIGTERM dokańczając bieżący job (dzięki rozszerzeniu pcntl). 120 s
-      // wystarcza na przetworzenie nawet dużego zdjęcia, więc deploy nie
-      // porzuca zadania w połowie.
-      drainingSeconds: 120,
+      // SIGTERM dokańczając bieżący job (dzięki rozszerzeniu pcntl).
+      // Uzasadnienie liczby przy `ZAMKNIECIE_Z_KOLEJKA_S`.
+      drainingSeconds: ZAMKNIECIE_Z_KOLEJKA_S,
 
       // Worker NIE MOŻE być usypiany — kolejka musi być odbierana ciągle,
       // a Serverless usypia po braku ruchu wychodzącego.
