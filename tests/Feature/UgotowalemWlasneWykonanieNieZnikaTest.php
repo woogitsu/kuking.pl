@@ -154,7 +154,7 @@ class UgotowalemWlasneWykonanieNieZnikaTest extends TestCase
 
     /**
      * Własne wykonanie otwiera się kucharzowi mimo blokady z autorem przepisu,
-     * ale bez tytułu i adresu przepisu (D-259).
+     * ale bez tytułu i adresu przepisu (D-265).
      *
      * Karta wykonania renderuje tytuł i adres przepisu, czyli treść AUTORA
      * PRZEPISU. Blokada ma pierwszeństwo (`AGENTS.md` §4) wobec TEJ treści,

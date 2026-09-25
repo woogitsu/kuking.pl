@@ -102,7 +102,7 @@ class WykonaniePoBlokadzieAutoraPrzepisuTest extends TestCase
     }
 
     /**
-     * Gałąź moderatora jest osobna od gałęzi kucharza: furtka D-259 dotyczy
+     * Gałąź moderatora jest osobna od gałęzi kucharza: furtka D-265 dotyczy
      * wyłącznie kucharza, a moderatora blokada z autorem przepisu dalej
      * zatrzymuje na wejściu — w obie strony.
      */

@@ -828,7 +828,7 @@ class Notification extends Model
      * `recipe_id IS NULL`, więc po ukryciu przepisu kucharz otwierał kartę
      * wykonania z komentarzem, a powiadomienie o tym komentarzu znikało
      * z listy i z licznika. Blokada kucharza z autorem przepisu też tej
-     * gałęzi NIE zamyka (#1394, D-259): Policy wpuszcza kucharza do własnego
+     * gałęzi NIE zamyka (#1394, D-265): Policy wpuszcza kucharza do własnego
      * wykonania mimo takiej blokady, a granicę trzyma widok (karta bez
      * tytułu i adresu przepisu) i `Comment::widoczneDla()`. Zmiana tej
      * reguły w Policy wymaga zmiany tutaj.

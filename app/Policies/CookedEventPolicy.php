@@ -66,7 +66,7 @@ class CookedEventPolicy
         //
         // Moderator z tego samego powodu co wszędzie — ma zaglądać z urzędu.
         //
-        // BLOKADA Z AUTOREM PRZEPISU — FURTKA DLA KUCHARZA ZOSTAJE (#1394, D-259).
+        // BLOKADA Z AUTOREM PRZEPISU — FURTKA DLA KUCHARZA ZOSTAJE (#1394, D-265).
         //
         // Wcześniej blokada z autorem przepisu zamykała tę furtkę także
         // kucharzowi, bo karta wykonania renderowała TYTUŁ i ADRES przepisu,

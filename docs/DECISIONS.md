@@ -16795,7 +16795,7 @@ wyłącznik, odrzucone nie wraca).
 Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
 edycji zostają w kolejce jak każde inne.
 
-## D-259 — Własne „Ugotowałem” otwiera się kucharzowi mimo blokady z autorem przepisu; przepis zostaje zamknięty (#1394, PR #1503, 24 września 2026)
+## D-265 — Własne „Ugotowałem” otwiera się kucharzowi mimo blokady z autorem przepisu; przepis zostaje zamknięty (#1394, PR #1503, 24 września 2026)
 
 **Data:** 24 września 2026 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
 

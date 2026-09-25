@@ -56,7 +56,7 @@ oczekuj: zbanowanego|Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/Visibility/KomusWyszloWidocznoscTest.php
 ocena:
 ---
-# D-259 (#1394): kucharz wchodzi we WLASNE wykonanie takze przy blokadzie
+# D-265 (#1394): kucharz wchodzi we WLASNE wykonanie takze przy blokadzie
 # z autorem przepisu. Bez tej galezi kucharz spada do dalszych warunkow,
 # a przy blokadzie dostaje 403 na szczegole i zdjeciu — martwy przycisk
 # „Zobacz i skomentuj" na wlasnej zakladce „Ugotowane".
@@ -68,7 +68,7 @@ oczekuj: Failed asserting|403|blokad
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
 ocena:
 ---
-# D-259 (#1394): furtka dla kucharza NIE obejmuje moderatora. Moderator
+# D-265 (#1394): furtka dla kucharza NIE obejmuje moderatora. Moderator
 # z blokada z autorem przepisu dalej nie wchodzi w cudze wykonanie.
 nazwa: moderator z blokada z autorem przepisu nie wchodzi w cudze wykonanie
 plik: app/Policies/CookedEventPolicy.php
@@ -78,7 +78,7 @@ oczekuj: Failed asserting|403
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php
 ocena:
 ---
-# #1385 + D-259: lista powiadomien odtwarza `CookedEventPolicy::view()` dla
+# #1385 + D-265: lista powiadomien odtwarza `CookedEventPolicy::view()` dla
 # wlasciciela wykonania — takze przy ukrytym przepisie i przy blokadzie
 # z autorem przepisu. Bez tej galezi karta sie otwiera, a powiadomienie
 # o komentarzu pod nia znika z listy i z licznika.

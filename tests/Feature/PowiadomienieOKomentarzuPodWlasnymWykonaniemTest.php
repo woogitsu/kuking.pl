@@ -99,7 +99,7 @@ class PowiadomienieOKomentarzuPodWlasnymWykonaniemTest extends TestCase
 
         app(BlockUser::class)->handle($kucharz, $autorka);
 
-        // D-259 (#1394): własne wykonanie otwiera się kucharzowi mimo blokady
+        // D-265 (#1394): własne wykonanie otwiera się kucharzowi mimo blokady
         // z autorem przepisu — więc powiadomienie o komentarzu pod nim zostaje.
         // Lista i Policy odpowiadają tak samo.
         $this->actingAs($kucharz->refresh())
