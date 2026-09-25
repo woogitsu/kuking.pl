@@ -35,7 +35,7 @@ class FirstPostConcurrentAtomicTest extends TestDwochPolaczen
         try {
             foreach ($keys as $index => $key) {
                 $process = new Process([PHP_BINARY, 'tests/Dwa/bin/publishAtomic1009.php', $author->id,
-                    $host->profile->username, $key, $index === 0 ? (string) $barrier : '0'],
+                    $host->id, $key, $index === 0 ? (string) $barrier : '0'],
                     base_path(), ['APP_BASE_PATH' => base_path(), 'DB_DATABASE' => $this->baza], timeout: 30);
                 $process->start();
                 $processes[] = $process;

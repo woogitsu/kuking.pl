@@ -853,6 +853,53 @@ Ten sam wzorzec „stan, nie zmiana ani zegar” opisuje §14 i wspólny pomocni
 `scripts/lib/stan-ustalony.mjs` z PR #1472. Gdy oba są na `main`,
 `poczekajNaMotywCiemny` można przenieść na `wymagajStanu` — warunek zostaje ten sam.
 
+## 17. Pierścień fokusu zmierzony klatkę po Tab to jeszcze nie pierścień
+
+Numer 17, bo §14 i §15 wnosi PR #1472 (`claude/f1-niestabilne-kontrole`),
+a §16 — PR z `claude/f3-axe-motyw-ciemny`. Przy scalaniu zachowaj wszystkie
+wpisy w kolejności numerów.
+
+`sprawdzTab` w `scripts/zoom-marki.mjs` (woła go też
+`scripts/nawigacja-niski-widok.mjs`, kontrola #492) po każdym Tab czekał
+klatkę, potem na animacje `activeElement` z limitem 500 ms, potem drugą
+klatkę; bez JS — czas animacji + 34 ms w Node. CI PR #1372 (zmieniał tylko
+backend digestu) padł na `/home`, przycisk „Poprzednie zdjęcie”:
+`ZOOM_FOCUS_CONTRAST {"contrast":0,"color":"rgb(244, 245, 241)","ring":null}`
+— fokus już był, pierścienia jeszcze nie. Pomiar nie niósł stylu, więc
+z logu nie da się rozstrzygnąć, co nie zdążyło: styl `:focus-visible`,
+przejście `box-shadow` z `none` (przy `prefers-reduced-motion` skrócone do
+0.01ms, ale nie wyłączone — pierwsza klatka to warstwy o rozstawie 0px, słusznie
+nie uznawane za pierścień), czy przewinięcie karuzeli do elementu. Każde z
+nich na zdławionym runnerze wychodzi poza stałe okno. Stała `waitForTimeout(40)`
+w `dolTab` (dolny pasek, ta sama kontrola) miała ten sam kształt.
+
+Odtworzone na statycznej stronie: pierścień dokładany 700 ms po `focusin` —
+stara wersja `sprawdzTab` pada z tym samym `ZOOM_FOCUS_CONTRAST … "ring":null`,
+nowa przechodzi.
+
+### Co robić
+
+**Czekaj na ustalony fokus, potem mierz.** `poczekajNaFokus` (eksport
+z `zoom-marki.mjs`) próbkuje co 20 ms z Node, aż: fokus jest na elemencie
+mierzonym (`[data-pomiar-tab]`, w `dolTab` `.bottom-nav a[href]`), element ma
+niepustą obwódkę albo `box-shadow`, nie ma na nim trwającej skończonej
+animacji ani przejścia i jego prostokąt jest ten sam w dwóch kolejnych
+próbkach (przewijanie się skończyło). Fokus poza elementami mierzonymi nie
+czeka. Z Node, a nie `waitForFunction(polling: 'raf')`, bo ta sama ścieżka
+służy kontekstowi bez JS.
+
+**Limit to bezpiecznik, ocena bez zmian.** Po 4 s pomocnik nie rzuca —
+oddaje zmierzony stan, a pomiar ocenia jak dotąd: pierścień istnieje
+i kontrast ≥ 3. Kontrole ujemne bez pierścienia dalej kończą się
+`ZOOM_FOCUS_CONTRAST` (sprawdzone z JS i bez JS: po ~4 s, komunikat jak
+w CI), a przezroczysta obwódka — od razu, bo styl obwódki jest niepusty.
+Każdy komunikat `ZOOM_FOCUS_*` i `N492_DOL_TAB` niesie `oczekiwanie`:
+`activeElement`, obwódkę, `box-shadow`, `transition`, trwające przejścia,
+czy stan się ustalił i po ilu ms.
+
+Wzorzec ten sam co §14 i `scripts/lib/stan-ustalony.mjs` z PR #1472; tu
+lokalnie, bo pomocnik powstał, zanim ten plik trafił na `main`.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
