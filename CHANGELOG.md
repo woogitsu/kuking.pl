@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Infrastruktura: `.railway/railway.ts` opisuje teraz zmienne, które stały tylko w panelu Railwaya albo nie było ich nigdzie — `KUKING_QUESTIONS_ENABLED` i `KUKING_MEDIA_DISK` (wszystkie role), `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS` i `KUKING_R2_PUBLICZNE_ADRESY` (tylko serwis WWW, jako Shared Variables). Pierwsze `railway config apply` nie wyłączy już po cichu działu „Poradźcie”. Martwe `TRUSTED_PROXIES` świadomie zostaje poza plikiem (SEC-01).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - Metryczka sprawy na ekranie odwołań (`/admin/odwolania`) miała 16 px i powoływała się na wyjątek D-051, który jej nie obejmuje — ten wyjątek dotyczy wyłącznie metryczki wersji w stopce. Metryczka wraca do 18 px.

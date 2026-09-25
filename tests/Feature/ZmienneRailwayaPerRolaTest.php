@@ -160,6 +160,20 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'powod' => 'Bramka tokenu krawędzi Cloudflare (`TokenKrawedzi`, `NormalizeForwardedFor`) — tylko żądania HTTP.',
         ],
         'KUKING_EDGE_TOKEN_POPRZEDNI' => ['role' => ['web'], 'powod' => 'Jak KUKING_EDGE_TOKEN, na czas rotacji sekretu.'],
+        'KUKING_EDGE_TRYB' => [
+            'role' => ['web'],
+            'powod' => 'Tryb bramki tokenu krawędzi (`TokenKrawedzi::egzekwuje()`, `config/proxy.php`) — tylko żądania HTTP. '
+                .'Pusto = obserwacja, jak wartość domyślna.',
+        ],
+        'KUKING_HTML_EDGE_CACHE_SECONDS' => [
+            'role' => ['web'],
+            'powod' => 'Nagłówek cache HTML dla gościa (`PublicznyHtmlGoscia`, #610) — tylko odpowiedzi HTTP. Pusto = 0.',
+        ],
+        'KUKING_R2_PUBLICZNE_ADRESY' => [
+            'role' => ['web'],
+            'powod' => 'Wejście bramki `kuking:bramka-r2` (`docs/infra/BRAMKA_R2.md`), uruchamianej `railway ssh` '
+                .'w serwisie WWW. Adresy różne per środowisko, więc Shared Variable.',
+        ],
         'KUKING_HOST_USER_ID' => [
             'role' => ['web', 'scheduler'],
             'powod' => '`HostUserResolver` (#1089, #1375). Web: `ZalozKonto` (auto-obserwowanie przy rejestracji, '
@@ -183,8 +197,6 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'KUKING_TEST_USERNAMES' => 'Opcjonalna lista kont testowych dla metryki; pusto = metryka liczy wszystkich.',
         'KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS' => 'Świadomie bez wartości: pusto = komenda odmawia kasowania, '
             .'dopóki właściciel nie ustali okresu.',
-        'KUKING_R2_PUBLICZNE_ADRESY' => 'Wejście ręcznie uruchamianej bramki R2 (`docs/infra/BRAMKA_R2.md`); '
-            .'adresy żyją w panelu Cloudflare.',
         'AWS_LEGACY_BUCKET' => 'Stary, jeden bucket (dysk `r2_legacy`) — ustawiany ręcznie tylko tam, gdzie '
             .'jest jeszcze w użyciu, do końca `kuking:przenies-zdjecia` (#120).',
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
@@ -226,6 +238,34 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'SLACK_BOT_USER_OAUTH_TOKEN' => 'Powiadomienia Slack nieużywane.',
         'SLACK_BOT_USER_DEFAULT_CHANNEL' => 'Powiadomienia Slack nieużywane.',
     ];
+
+    /**
+     * Zmienne z wartością wpisaną w `railway.ts` (nie `ctx.shared`), które do
+     * 25.09.2026 stały tylko w panelu serwisu `kuking.pl` — pierwszy `railway
+     * config apply` by je usunął. Rola → dokładna wartość. Rola spoza listy
+     * NIE MOŻE ich dostać (poza `all`, która dostaje sumę).
+     *
+     * @var array<string, array{role: list<string>, wartosc: string, powod: string}>
+     */
+    private const JAWNE_Z_PANELU = [
+        'KUKING_QUESTIONS_ENABLED' => [
+            'role' => ['web', 'worker', 'scheduler'],
+            'wartosc' => '"true"',
+            'powod' => 'Flagę czyta model (`Post`, `Notification`, `PostPolicy`) w każdej roli. '
+                .'Produkcja 25.09.2026: `/pytania` → 200, więc `true`; `false` wyłączyłby „Poradźcie" przy apply.',
+        ],
+        'KUKING_MEDIA_DISK' => [
+            'role' => ['web', 'worker', 'scheduler'],
+            'wartosc' => '"r2"',
+            'powod' => 'Dysk oryginałów: web zapisuje, worker przetwarza, scheduler sprząta. Musi równać się FILESYSTEM_DISK.',
+        ],
+    ];
+
+    /**
+     * Zmienne z panelu, których `railway.ts` ŚWIADOMIE nie przekazuje, bo nie
+     * czyta ich żaden kod — plan pokaże ich usunięcie i to jest oczekiwane.
+     */
+    private const MARTWE_Z_PANELU = ['TRUSTED_PROXIES'];
 
     /**
      * Sekrety przekazywane WYŁĄCZNIE na produkcji: `isProduction ? ctx.shared.X : ""`.
@@ -414,6 +454,60 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             array_keys($widziane),
             'Nie znalazłem w żadnej roli którejś ze zmiennych TYLKO_PRODUKCJA — parser zgubił blok albo zmienną.',
         );
+    }
+
+    /**
+     * Regresja 25.09.2026: zmienne ustawione tylko w panelu Railwaya znikają
+     * przy pierwszym `railway config apply` (plik opisuje CAŁY zestaw
+     * zmiennych usługi). `KUKING_QUESTIONS_ENABLED` wyłączyłaby po cichu
+     * „Poradźcie", `KUKING_MEDIA_DISK` — zostawiła dysk zdjęć na wartości
+     * wyprowadzonej zamiast jawnej.
+     */
+    #[Test]
+    public function zmienne_z_panelu_sa_w_railway_w_swoich_rolach(): void
+    {
+        $role = $this->zmienneRol();
+
+        foreach (self::JAWNE_Z_PANELU as $zmienna => $wpis) {
+            $this->assertNotSame('', trim($wpis['powod']), "{$zmienna} nie ma powodu.");
+            $this->assertContains($zmienna, $this->zmienneConfig(), "{$zmienna} nie jest czytana w `config/*.php`.");
+
+            foreach (self::ROLE_ROZDZIELONE as $rola) {
+                if (in_array($rola, $wpis['role'], true)) {
+                    $this->assertSame(
+                        $wpis['wartosc'],
+                        $role[$rola][$zmienna] ?? null,
+                        "Rola `{$rola}` nie dostaje {$zmienna}={$wpis['wartosc']} w `railway.ts`. "
+                        .'Zmienna stoi dziś tylko w panelu — `railway config apply` ją usunie. Powód: '.$wpis['powod'],
+                    );
+                } else {
+                    $this->assertArrayNotHasKey($zmienna, $role[$rola], "Rola `{$rola}` nie czyta {$zmienna}.");
+                }
+            }
+
+            $this->assertSame($wpis['wartosc'], $role['all'][$zmienna] ?? null, "Rola `all` nie dostaje {$zmienna}.");
+        }
+
+        $this->assertSame(
+            $role['web']['FILESYSTEM_DISK'] ?? null,
+            $role['web']['KUKING_MEDIA_DISK'] ?? null,
+            'KUKING_MEDIA_DISK ma powtarzać FILESYSTEM_DISK — inaczej oryginały i pliki kreatora lądują na różnych dyskach.',
+        );
+
+        foreach (self::MARTWE_Z_PANELU as $zmienna) {
+            $this->assertNotContains(
+                $zmienna,
+                $this->zmienneConfig(),
+                "{$zmienna} jest teraz czytana w `config/*.php` — przestała być martwa; dopisz ją do roli, która ją czyta.",
+            );
+            foreach ($role as $rola => $zmienne) {
+                $this->assertArrayNotHasKey(
+                    $zmienna,
+                    $zmienne,
+                    "{$zmienna} wróciła do roli `{$rola}`, choć nie czyta jej żaden kod (SEC-01) — to przełącznik-atrapa.",
+                );
+            }
+        }
     }
 
     #[Test]
