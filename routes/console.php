@@ -252,6 +252,17 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:30 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Dziennik wymazań kont POZA bazą (audyt B5, znalezisko 3): dopisuje wpisy,
+// których zapis przy wymazaniu się nie udał, i kasuje wpisy starsze niż
+// najstarsza kopia bazy. Wejście procedury „wymaż ponownie” po odtworzeniu
+// kopii (`kuking:wymaz-ponownie`, docs/infra/KOPIE_I_ODTWORZENIE.md).
+Harmonogram::artisan('kuking:dziennik-wymazan')
+    ->name('kuking:dziennik-wymazan')
+    ->dailyAt('05:30')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie

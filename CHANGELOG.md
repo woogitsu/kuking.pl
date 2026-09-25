@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Usunięte konto nie wraca, gdyby serwis trzeba było przywrócić z kopii zapasowej sprzed jego usunięcia: przed ponownym uruchomieniem serwisu usuwamy je jeszcze raz, z tym samym wybranym zakresem. Polityka prywatności mówi o tym w części o usunięciu konta.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
