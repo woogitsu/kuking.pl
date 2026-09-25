@@ -147,8 +147,9 @@ final class ZalozKonto
              * Facebook nie oddaje `email_verified`, więc nie ma czego
              * przeczytać: konto powstaje z adresem niepotwierdzonym
              * i przechodzi naszą zwykłą ścieżkę potwierdzenia, dokładnie jak
-             * przy rejestracji hasłem. Pilnuje tego wywołanie w
-             * `FacebookLoginController::finish()`, a nie warunek tutaj —
+             * przy rejestracji hasłem. Pilnuje tego mapowanie w
+             * `DostawcaWejsciaFacebook::tozsamosc()` (zawsze
+             * `emailPotwierdzony: false`, #1035), a nie warunek tutaj —
              * bo warunek tutaj byłby drugą kopią tej samej reguły i pierwsza
              * osoba, która doda trzeciego dostawcę, musiałaby ją znaleźć.
              */
