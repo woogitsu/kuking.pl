@@ -84,6 +84,17 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
+        // D-259 (audyt B2-04): bezpieczeństwo własnego konta. Konto
+        // przejęte przez spamera bywa zawieszane właśnie za to, co robił
+        // napastnik. Właściciel, który odzyska dostęp, musi móc zmienić
+        // hasło, wylogować inne urządzenia (napastnik zostaje w sesji)
+        // i przestawić 2FA — od razu, nie po końcu kary. Te trasy niczego
+        // nie publikują.
+        'settings.security.password',
+        'settings.security.logout-others',
+        'settings.two_factor.confirm',
+        'settings.two_factor.disable',
+        'settings.two_factor.regenerate',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -120,8 +131,9 @@ class EnsureAccountIsActive
             // ZAMIERZONA, a mimo to nie ma powodu karać człowieka utratą tego,
             // co napisał.
             //
-            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa jest
-            // podczas zawieszenia do odczytu. Osoba zawieszona, która wysłała
+            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa był
+            // wtedy podczas zawieszenia do odczytu (od D-259 już nie jest).
+            // Osoba zawieszona, która wysłała
             // formularz zmiany hasła, wkładała w ten sposób `password`
             // i `current_password` do sesji, skąd `old()` wstawiało je
             // z powrotem do `value=` pola typu password. Sesja jest na

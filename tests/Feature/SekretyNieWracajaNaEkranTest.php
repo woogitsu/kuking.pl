@@ -68,9 +68,10 @@ class SekretyNieWracajaNaEkranTest extends TestCase
 
     public function test_zawieszone_konto_nie_odklada_hasla_do_sesji(): void
     {
-        // SEC-03. Ekran bezpieczeństwa jest podczas zawieszenia do ODCZYTU,
-        // więc osoba zawieszona może wysłać formularz zmiany hasła — i wtedy
-        // to middleware, nie kontroler, decyduje, co zostaje z jej żądania.
+        // SEC-03. Ekran bezpieczeństwa był podczas zawieszenia do ODCZYTU
+        // i to middleware decydowało, co zostaje z żądania. Od D-259 zmiana
+        // hasła przechodzi do kontrolera — hasło nadal nie może wrócić
+        // do sesji ani na ekran, niezależnie od tego, kto odmawia.
         $osoba = $this->user('zawieszony');
         $osoba->forceFill([
             'status' => User::STATUS_SUSPENDED,
