@@ -347,8 +347,17 @@
 
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
+
+                    A gdy jest co przywracać, ale nie widzącemu moderatorowi
+                    (issue #1748): treść ukrył administrator, a regułę rangi
+                    B2-01 czyta stąd `RestoreContent::wolnoCofnac()` — ten
+                    sam warunek, którego backend i tak by pilnował, gdyby
+                    ten przycisk tu jednak stał. Miejsce przycisku zajmuje
+                    wtedy krótka informacja, kto ukrył i kto jedyny może
+                    przywrócić — zamiast martwego przycisku wbrew UX 50+.
                 --}}
-                @if($przywracalne[$report->id] ?? false)
+                @php($przywrocenie = $przywracalne[$report->id] ?? null)
+                @if($przywrocenie === \App\Http\Controllers\Admin\ModerationController::PRZYWROCENIE_WIDOCZNE)
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
                         {{-- Ten sam identyfikator wiersza co w formularzu decyzji
@@ -373,6 +382,10 @@
 
                         <button class="btn btn-secondary" type="submit">Przywróć treść</button>
                     </form>
+                @elseif($przywrocenie === \App\Http\Controllers\Admin\ModerationController::PRZYWROCENIE_TYLKO_ADMIN)
+                    <p class="meta mt-4">
+                        <strong>Ukrył administrator.</strong> Przywrócić tę treść może tylko administrator — przekaż mu sprawę.
+                    </p>
                 @endif
             @endif
         </article>

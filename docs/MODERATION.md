@@ -195,7 +195,11 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   przy „cofam” po odwołaniu. Komentarz usunięty przez właściciela wpisu nie
   wraca więc decyzją moderatora.
 - Decyzję administratora cofa tylko administrator — ta sama reguła rangi co
-  przy zdejmowaniu (`UserPolicy::takeDownContentOf`).
+  przy zdejmowaniu (`UserPolicy::takeDownContentOf`). Widok kolejki
+  (`ModerationController::przywracalne()`) czyta tę regułę z
+  `RestoreContent::wolnoCofnac()`, nie kopiuje jej: moderator przy treści
+  ukrytej przez administratora nie widzi przycisku „Przywróć treść”, tylko
+  informację, kto ją ukrył (issue #1748).
 
 ## Co dostaje ZGŁASZAJĄCY (issue #10, DSA art. 16 ust. 4 i 5)
 

@@ -27,6 +27,18 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
+    /**
+     * Wartości `$przywracalne[$report->id]` w widoku kolejki (issue #1748).
+     *
+     * `TYLKO_ADMIN` zamiast pominięcia zgłoszenia w ogóle: bez tego widok nie
+     * umiałby odróżnić „nic tu nie ma do przywrócenia” od „jest, ale nie
+     * Twoją rolą” — moderator nie zobaczyłby ani przycisku, ani wyjaśnienia,
+     * dlaczego go nie ma.
+     */
+    public const PRZYWROCENIE_WIDOCZNE = 'widoczne';
+
+    public const PRZYWROCENIE_TYLKO_ADMIN = 'tylko_admin';
+
     public function __construct(
         private readonly RozstrzygnijZgloszenie $rozstrzygnij,
         private readonly RestoreContent $przywroc,
@@ -121,8 +133,9 @@ class ModerationController extends Controller
             'status' => $status,
             'zrodlo' => $zrodlo,
             'reports' => $reports,
-            // Które zgłoszenia da się dziś cofnąć (issue #65).
-            'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Które zgłoszenia da się dziś cofnąć (issue #65) i czy WIDZĄCY
+            // ekran ma do tego prawo (issue #1748).
+            'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -261,9 +274,11 @@ class ModerationController extends Controller
      * Optymalizacja tego miejsca kosztowałaby więcej czytelności niż daje.
      *
      * @param  list<Report>  $reports
-     * @return array<string, true> klucz: id zgłoszenia
+     * @return array<string, string> klucz: id zgłoszenia, wartość: jedna
+     *                                z `self::PRZYWROCENIE_WIDOCZNE` /
+     *                                `self::PRZYWROCENIE_TYLKO_ADMIN`
      */
-    private function przywracalne(array $reports): array
+    private function przywracalne(array $reports, User $widzacy): array
     {
         if ($reports === []) {
             return [];
@@ -287,11 +302,25 @@ class ModerationController extends Controller
             $usunieta = method_exists($cel, 'trashed') && $cel->trashed();
             $schowana = ModeratedContent::jestUkryta($cel) || $usunieta;
 
+            if (! $schowana) {
+                continue;
+            }
+
             // Treść schowana przez autora albo właściciela wpisu nie dostaje
             // przycisku — `RestoreContent` i tak by odmówił (B2-01).
-            if ($schowana && RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta) !== null) {
-                $wynik[(string) $decyzja->report_id] = true;
+            $zdjecie = RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta);
+
+            if ($zdjecie === null) {
+                continue;
             }
+
+            // Ta sama reguła rangi co w `RestoreContent::handle()` — nie jej
+            // kopia (issue #1748). Moderator przy treści ukrytej przez
+            // administratora dostaje `TYLKO_ADMIN`: widok zamiast martwego
+            // przycisku pokazuje, kto ukrył i kto jedyny może przywrócić.
+            $wynik[(string) $decyzja->report_id] = RestoreContent::wolnoCofnac($widzacy, $zdjecie)
+                ? self::PRZYWROCENIE_WIDOCZNE
+                : self::PRZYWROCENIE_TYLKO_ADMIN;
         }
 
         return $wynik;
