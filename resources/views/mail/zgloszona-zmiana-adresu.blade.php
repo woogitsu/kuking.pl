@@ -1,13 +1,14 @@
 {{--
     E-mail „Ktoś prosi o zmianę adresu e-mail Twojego konta" (issue #195) —
-    idzie na STARY, wciąż obowiązujący adres.
+    idzie na STARY adres, utrwalony w chwili prośby (#888).
 
     To jest jedyne ostrzeżenie, jakie dostanie osoba, której konto ktoś
     właśnie próbuje przejąć. Ton: poziom „poważny" z docs/brand/COPY_STYLE.md
     — zero żartów, zero gry słowem kuKING, zero emoji.
 
-    Kolejność zdań jest przemyślana: najpierw „nic się nie zmieniło", potem
-    „jeśli to Ty", na końcu „jeśli to nie Ty". Odwrotna kolejność zaczynałaby
+    Kolejność zdań jest przemyślana: najpierw „sama prośba nie zmienia
+    adresu" (list idzie kolejką, więc nie obiecuje stanu konta w chwili
+    czytania — #888), potem „jeśli to Ty", na końcu „jeśli to nie Ty". Odwrotna kolejność zaczynałaby
     list od straszenia kogoś, kto po prostu sam poprosił o zmianę.
 --}}
 <!DOCTYPE html>
@@ -40,21 +41,23 @@
                         </p>
 
                         <p style="margin:0 0 24px;">
-                            <strong>Na razie nic się nie zmieniło.</strong> Twoje konto nadal
-                            działa na tym adresie: tu przychodzą wiadomości, tym adresem się
-                            logujesz i tym odzyskujesz hasło.
+                            <strong>Sama prośba nie zmienia adresu konta.</strong> Zmiana wymaga
+                            potwierdzenia odnośnikiem wysłanym na nowy adres. Ten list może
+                            dotrzeć z opóźnieniem, już po potwierdzeniu zmiany.
                         </p>
 
                         <p style="margin:0 0 12px;font-size:18px;color:#555E53;">
                             <strong>Jeśli to Ty</strong> — nic nie musisz tutaj robić. Wysłaliśmy
                             list z odnośnikiem na tamten nowy adres; adres zmieni się dopiero po
-                            kliknięciu w niego. Prośba jest ważna do {{ $waznyDo }}.
+                            kliknięciu w niego. Termin potwierdzenia: {{ $waznyDo }}.
                         </p>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             <strong>Jeśli to nie Ty</strong> — ktoś obcy mógł dostać się do
-                            Twojego konta. Zmień hasło. Zmiana hasła od razu unieważnia tę prośbę
-                            i wylogowuje wszystkie inne urządzenia.
+                            Twojego konta. Zmień hasło. Zmiana hasła unieważnia niepotwierdzoną
+                            prośbę i wylogowuje wszystkie inne urządzenia. Jeśli zmiana została
+                            już potwierdzona i nie możesz wejść na konto, napisz do nas:
+                            {{ config('kuking.community.contact_email') }}.
                         </p>
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">

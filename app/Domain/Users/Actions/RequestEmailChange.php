@@ -71,7 +71,13 @@ final class RequestEmailChange
         // równoległe zamówienia mogły więc oba dojść do `INSERT` i jedno
         // odbić się o unikalność, dając 500 zamiast przewidywalnego
         // „ostatnie zamówienie wygrywa". Pod blokadą jest jednoznacznie.
-        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin): PendingEmailChange {
+        $staryAdres = (string) $user->email;
+
+        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin, &$staryAdres): PendingEmailChange {
+            // Adres ostrzeżenia czytamy z wiersza pod blokadą — to jest adres
+            // konta w chwili prośby, niezależny od tego, co stanie się potem.
+            $staryAdres = (string) ($swiezy?->email ?? $user->email);
+
             // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
             // Nowe żądanie to nowy identyfikator, więc podpisany link
             // z poprzedniego listu przestaje wskazywać cokolwiek — a to jest
@@ -115,11 +121,17 @@ final class RequestEmailChange
             $user->profile?->display_name,
         ));
 
-        // Na STARY adres — zwykłe `notify()`, bo `users.email` jest wciąż
-        // stary i taki ma pozostać do potwierdzenia.
-        $user->notify(new ZgloszonaZmianaAdresu(
+        // Na STARY adres — utrwalony tutaj, a NIE przez `$user->notify()`
+        // (#888). Powiadomienie idzie kolejką, a `SendQueuedNotifications`
+        // odtwarza odbiorcę `User` z bazy dopiero przy wykonaniu. Gdy worker
+        // ruszy po potwierdzeniu zmiany (opóźnienie, ponowienie, kilka
+        // workerów), `users.email` jest już NOWY i ostrzeżenie trafiłoby do
+        // skrzynki napastnika zamiast do właściciela. Imię też jest kopią:
+        // worker nie sięga do profilu.
+        Notification::route('mail', $staryAdres)->notify(new ZgloszonaZmianaAdresu(
             AdresEmail::maska($nowyAdres),
             $zmiana->expires_at,
+            $user->profile?->display_name,
         ));
 
         return $zmiana;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Models\User;
 use App\Support\Czas;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
@@ -28,8 +27,9 @@ use Illuminate\Notifications\Notification;
  *
  * Dlatego mówi trzy rzeczy w tej kolejności:
  *
- *  1. NIC SIĘ JESZCZE NIE ZMIENIŁO — konto nadal działa na tym adresie.
- *     To zdejmuje panikę i jest prawdą (`users.email` jest nietknięty);
+ *  1. SAMA PROŚBA NIE ZMIENIA ADRESU — potrzebne jest potwierdzenie z nowej
+ *     skrzynki. List NIE obiecuje „nic się nie zmieniło": idzie kolejką
+ *     i może dotrzeć już po potwierdzeniu (#888);
  *  2. jeśli to Ty — nie musisz nic robić, list poszedł też na tamten adres;
  *  3. jeśli to NIE Ty — zmień hasło. Zmiana hasła unieważnia to żądanie
  *     (`App\Domain\Users\Actions\CancelEmailChange`), więc ta rada
@@ -54,6 +54,9 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
     public function __construct(
         private readonly string $nowyAdresSkrot,
         private readonly CarbonInterface $waznyDo,
+        // Kopia z chwili prośby — odbiorcą jest adres (`Notification::route`,
+        // #888), nie konto, więc przy wysyłce nie ma skąd wziąć profilu.
+        private readonly ?string $displayName = null,
     ) {}
 
     /** @return list<string> */
@@ -62,17 +65,14 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    /**
-     * @param  User  $notifiable
-     */
-    public function toMail($notifiable): MailMessage
+    public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject('Ktoś prosi o zmianę adresu e-mail Twojego konta w Kuking')
             ->view('mail.zgloszona-zmiana-adresu', [
                 'nowyAdresSkrot' => $this->nowyAdresSkrot,
                 'waznyDo' => Czas::data($this->waznyDo, 'j F Y, H:i'),
-                'displayName' => $notifiable->profile?->display_name,
+                'displayName' => $this->displayName,
                 'linkHaslo' => route('settings.security'),
             ]);
     }

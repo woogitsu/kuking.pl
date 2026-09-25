@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Ostrzeżenie „Ktoś prosi o zmianę adresu e-mail” zawsze trafia na adres, który konto miało w chwili prośby — także gdy list wyjdzie z opóźnieniem, już po potwierdzeniu zmiany. List nie obiecuje już, że „nic się nie zmieniło”, i mówi, gdzie napisać, jeśli zmiana została potwierdzona bez Waszej wiedzy (#888).
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
 - List z linkiem do zalogowania, który utknął w kolejce dłużej niż ważność linku, już nie wychodzi — zamiast martwego linku wystarczy poprosić o nowy. List, który wychodzi z opóźnieniem, mówi, ile minut naprawdę zostało, zamiast obiecywać pełne pół godziny (#889). Gdy formularz logowania linkiem prosi „Kliknij „Wyślij mi link” jeszcze raz”, wpisany adres e-mail zostaje w polu (#890).
