@@ -113,15 +113,20 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
             'kuking.media.cdn_purge.endpoint' => 'https://przechwyt.example.com/client/v4/zones/{zone}/purge_cache',
         ]);
 
-        $odpowiedz = $this->get('/health')
+        $szczegoly = $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.cdn.ok', false)
             ->assertJsonPath('checks.cdn.error', 'czyszczenie_cdn_zly_adres');
 
         $this->assertContains('czyszczenie_cdn_zly_adres', HealthController::POWODY);
-        $this->assertStringNotContainsString('przechwyt', (string) $odpowiedz->getContent());
-        $this->assertStringNotContainsString('udawany-token', (string) $odpowiedz->getContent());
+
+        // Ani odpowiedź z tokenem, ani publiczna (bez `checks`, A5-05) nie
+        // niesie adresu ani tokenu.
+        foreach ([$szczegoly, $this->get('/health')->assertOk()->assertJsonPath('status', 'degraded')] as $odpowiedz) {
+            $this->assertStringNotContainsString('przechwyt', (string) $odpowiedz->getContent());
+            $this->assertStringNotContainsString('udawany-token', (string) $odpowiedz->getContent());
+        }
     }
 
     /**
