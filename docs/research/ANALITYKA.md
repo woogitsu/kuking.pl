@@ -83,6 +83,27 @@ bez zmian**:
 - `would_make_again rate` — jakość, nie zasięg;
 - `save → cooked w 30 dni` — czy zapis kończy się realnym gotowaniem.
 
+**`would_make_again rate` w `kuking:raport` (issue #1509).** Pole ma trzy
+stany: `true` („zrobię ponownie”), `false` („raczej nie powtórzę”) i `NULL`
+(brak odpowiedzi albo odpowiedź wycofana, #767). `NULL` nie jest „nie”.
+Raport (`App\Domain\Analytics\ZrobiePonownie`) podaje:
+
+- liczby `tak`, `nie`, `brak odpowiedzi` osobno;
+- odsetek odpowiedzi = `(tak + nie) / wszystkie wykonania`;
+- odsetek „tak” = `tak / (tak + nie)` — `NULL` jest poza mianownikiem;
+  poniżej 20 odpowiedzi raport pisze „za mało danych” zamiast procentu.
+
+Jednostką jest **każde realne wykonanie** (wiersz `cooked_events`), także
+powtórne gotowanie tego samego przepisu przez tę samą osobę — raport pyta,
+jak często gotowanie kończy się chęcią powtórki, a D-005 traktuje każde
+wykonanie jako osobne wydarzenie. Okno: ostatnie 30 dni wstecz od chwili
+liczenia, po `cooked_at` (przedział chwil `timestamptz`, więc strefa czasowa
+nie przesuwa granicy). Cudze przepisy (`recipes.author_id <> user_id`)
+i własne liczą się osobno; przepis ukryty moderacyjnie zostaje w liczbach;
+gotujący z `CookEligibility` (gospodarz, konta testowe, zalążkowe,
+zamknięte) są wyłączeni. Wynik jest tylko zbiorczy — bez nazw, tytułów,
+notatek i bez rankingu przepisów lub autorów.
+
 **Liczba główna: WAC.** Liczby pomocnicze, w tej kolejności ważności:
 
 1. `% kont, które w tygodniu cokolwiek opublikowały` (post LUB przepis LUB
