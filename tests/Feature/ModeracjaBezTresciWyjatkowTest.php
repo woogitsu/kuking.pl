@@ -10,6 +10,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Moderacja\KlientOpenAI;
+use App\Moderacja\ModelChwilowoNiedostepny;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -133,7 +134,15 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
     {
         Http::fake(['*' => Http::response(self::FOREIGN_MESSAGE, 503)]);
 
-        $this->assertNull(app(KlientOpenAI::class)->ocenTekst('Próba'));
+        // 503 to awaria przejściowa (#1662): klient rzuca do ponowienia,
+        // ale dziennik nadal dostaje sam status, bez ciała odpowiedzi.
+        try {
+            app(KlientOpenAI::class)->ocenTekst('Próba');
+            $this->fail('HTTP 503 nie został oddany do ponowienia.');
+        } catch (ModelChwilowoNiedostepny $wyjatek) {
+            $this->assertStringNotContainsString('CONTROLLED_FOREIGN_EXCEPTION', $wyjatek->getMessage());
+        }
+
         Http::assertSentCount(1);
         $this->assertSame([
             ['Model moderacji odpowiedział błędem.', ['czego' => 'tekst', 'status' => 503]],

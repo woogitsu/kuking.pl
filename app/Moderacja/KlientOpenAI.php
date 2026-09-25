@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Moderacja;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -39,11 +41,26 @@ use Throwable;
  * AWARIA PO TAMTEJ STRONIE NIE MOŻE NICZEGO WSTRZYMAĆ. Publikacja wpisu
  * dzieje się w zupełnie innym żądaniu (analiza chodzi w kolejce), więc
  * najgorsze, co może zrobić timeout, to brak jednej pozycji w kolejce
- * moderatora. Dlatego każdy błąd kończy się `null` i ostrzeżeniem w logu,
- * nigdy wyjątkiem lecącym dalej.
+ * moderatora. Każdy błąd zostawia ostrzeżenie w logu.
+ *
+ * TRZY WYNIKI, NIE DWA (#1662). Do września 2026 każda porażka kończyła się
+ * `null`, więc jednorazowy timeout albo 429 wyglądał dla zadania tak samo
+ * jak brak klucza — i treść na zawsze zostawała bez oceny. Teraz:
+ *  - `WynikOceny` — ocena wykonana, także bez trafień;
+ *  - `null` — oceny nie ma i ponowienie jej nie da (brak klucza, 4xx,
+ *    odpowiedź w nieznanym kształcie);
+ *  - `ModelChwilowoNiedostepny` — timeout, zerwane połączenie, 429 albo
+ *    przejściowe 5xx. Ponawia ZADANIE (`PrzeanalizujTresc`), nie ten klient:
+ *    ponowienie w środku żądania zjadałoby 30-sekundowy budżet zadania.
  */
 final class KlientOpenAI
 {
+    /**
+     * Statusy, po których ponowienie ma sens (#1662): limit zapytań i awarie
+     * bramy/usługi. Reszta 4xx (zły klucz, złe żądanie) i 501 nie miną same.
+     */
+    private const STATUSY_PRZEJSCIOWE = [429, 500, 502, 503, 504];
+
     public static function oceniamy(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
@@ -54,9 +71,11 @@ final class KlientOpenAI
      * Ocena tekstu.
      *
      * @return ?WynikOceny `null` znaczy „nie wiemy" — funkcja wyłączona,
-     *                     awaria albo odpowiedź w nieznanym kształcie.
+     *                     trwała awaria albo odpowiedź w nieznanym kształcie.
      *                     Nigdy „treść jest w porządku": pusty `WynikOceny`
      *                     mówiłby coś, czego nie sprawdziliśmy.
+     *
+     * @throws ModelChwilowoNiedostepny przy awarii, która może minąć (#1662)
      */
     public function ocenTekst(string $tekst): ?WynikOceny
     {
@@ -80,6 +99,8 @@ final class KlientOpenAI
      * (`AGENTS.md` §7, pipeline zdjęć). Wariant powstaje przez przekodowanie,
      * więc metadanych już nie ma — i to jest jedyna postać, w jakiej wolno
      * wypuścić czyjeś zdjęcie poza nasz serwer.
+     *
+     * @throws ModelChwilowoNiedostepny przy awarii, która może minąć (#1662)
      */
     public function ocenObraz(string $dataUri): ?WynikOceny
     {
@@ -95,6 +116,8 @@ final class KlientOpenAI
 
     /**
      * @param  list<array<string, mixed>>  $wejscie
+     *
+     * @throws ModelChwilowoNiedostepny
      */
     private function zapytaj(array $wejscie, string $czego): ?WynikOceny
     {
@@ -121,6 +144,12 @@ final class KlientOpenAI
                 ...ExceptionContext::forStage($blad, 'openai_transport'),
             ]);
 
+            // Timeout i zerwane połączenie mijają same (#1662). Inny wyjątek
+            // to błąd po naszej stronie — ponowienie dałoby ten sam wynik.
+            if ($blad instanceof ConnectionException) {
+                throw new ModelChwilowoNiedostepny;
+            }
+
             return null;
         }
 
@@ -130,10 +159,26 @@ final class KlientOpenAI
                 'status' => $odpowiedz->status(),
             ]);
 
+            if (in_array($odpowiedz->status(), self::STATUSY_PRZEJSCIOWE, true)) {
+                throw new ModelChwilowoNiedostepny($this->ponowZa($odpowiedz));
+            }
+
             return null;
         }
 
         return $this->zwynik((array) $odpowiedz->json(), $czego);
+    }
+
+    /**
+     * `Retry-After` w sekundach — albo `null`. Postać z datą HTTP pomijamy:
+     * zadanie i tak ma własne opóźnienie, a zły zegar dostawcy nie może
+     * odsunąć oceny o dowolnie długi czas.
+     */
+    private function ponowZa(Response $odpowiedz): ?int
+    {
+        $naglowek = trim($odpowiedz->header('Retry-After'));
+
+        return $naglowek !== '' && ctype_digit($naglowek) ? (int) $naglowek : null;
     }
 
     /**

@@ -348,6 +348,18 @@ Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
   publikacja dzieje się w innym żądaniu, a każdy błąd kończy się brakiem
   jednej pozycji w kolejce (sprawdza to
   `ModeracjaModelemTest::test_awaria_openai_nie_ma_zadnego_skutku`);
+- **awaria przejściowa jest ponawiana (#1662)** — timeout, zerwane
+  połączenie, HTTP 429 i 500/502/503/504 kończą się
+  `ModelChwilowoNiedostepny`, a `PrzeanalizujTresc` wraca do kolejki
+  (najwyżej 3 próby, opóźnienie ok. 30 s i 120 s z rozrzutem do 20%,
+  `Retry-After` w sekundach wydłuża je do najwyżej 600 s). Między próbami
+  nic nie jest zapisywane, a każda próba od nowa sprawdza status,
+  widoczność i `GranicaWysylki`. Po trzeciej porażce lokalne sygnały są
+  zapisane bez oceny modelu, w dzienniku zostaje
+  `stage=openai_retries_exhausted`, a zadanie trafia do `failed_jobs`.
+  Pozostałe 4xx, 501, brak klucza i odpowiedź w nieznanym kształcie nie są
+  ponawiane. Każda próba ma własny limit 30 s — ponowienia nie wydłużają
+  jednego uruchomienia (#829). Testy: `ModeracjaPonowienieModeluTest`;
 - do API nie idzie NIC identyfikującego autora: ani adres e-mail, ani nazwa
   konta, ani identyfikator wpisu, ani adres IP. Pilnuje tego test
   `test_do_openai_nie_wychodzi_nic_identyfikujacego_autora`;

@@ -11,10 +11,12 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Moderacja\ExceptionContext;
 use App\Moderacja\GranicaWysylki;
+use App\Moderacja\ModelChwilowoNiedostepny;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -29,13 +31,20 @@ use Throwable;
  * żądania HTTP znaczyłoby, że im więcej ludzi publikuje, tym wolniej im się
  * publikuje. Kolejka `low` odsuwa to za wszystko, co robi człowiek.
  *
- * ZAWODZI CICHO I W DOBRĄ STRONĘ
+ * ZAWODZI W DOBRĄ STRONĘ
  * Wyjątek w analizie NIE MOŻE mieć żadnego skutku dla autora — jego wpis
  * został opublikowany dawno temu, w innym żądaniu. Dlatego `handle()` łapie
  * wszystko, zapisuje w logu i kończy się powodzeniem: ponawianie analizy
  * treści, która się nie zmieniła, dałoby ten sam błąd trzy razy i trzy wpisy
  * w logu zamiast jednego. Nierozpoznany spam jest kosztem, który da się
  * odrobić zgłoszeniem od człowieka; zablokowana kolejka nie jest.
+ *
+ * JEDEN WYJĄTEK OD TEJ REGUŁY: CHWILOWA AWARIA MODELU (#1662)
+ * Timeout, 429 i 5xx u dostawcy NIE są „tym samym błędem za każdym razem"
+ * — mijają. Do września 2026 kończyły zadanie jak pełny sukces i treść na
+ * zawsze zostawała bez oceny modelem. Teraz zadanie wraca do kolejki
+ * (`release()`) z rosnącym opóźnieniem i losowym rozrzutem, najwyżej
+ * `PROBY` razy. Szczegóły przy `handle()`.
  *
  * CO SIĘ DZIEJE PRZY WYŁĄCZONYM AUTOMACIE
  * `KUKING_SYGNALY_AUTOMATU=false` zatrzymuje zadanie na pierwszej linijce.
@@ -48,13 +57,25 @@ class PrzeanalizujTresc implements ShouldQueue
     use Queueable;
 
     /**
-     * JEDNA PRÓBA, ŚWIADOMIE.
+     * Ile razy najwyżej pytamy model o tę samą treść (#1662).
      *
-     * Analiza jest czysto obliczeniowa i deterministyczna: jeśli padła raz,
-     * padnie tak samo drugi i trzeci raz. Powtarzanie kosztuje trzy razy
-     * więcej pracy workera dokładnie wtedy, gdy coś jest zepsute.
+     * Ponawia się WYŁĄCZNIE chwilowa awaria modelu (`ModelChwilowoNiedostepny`).
+     * Błąd lokalnej analizy dalej kończy zadanie za pierwszym razem: ta część
+     * jest obliczeniowa i deterministyczna, więc padłaby tak samo.
+     *
+     * BUDŻET CZASU (#829): każda próba ma własne `$timeout` i NIE doklejamy
+     * ponowień do jednego uruchomienia — klient HTTP nie ma `retry()`. Między
+     * próbami zadanie leży w kolejce i nie zajmuje workera.
      */
-    public int $tries = 1;
+    public const PROBY = 3;
+
+    /** Opóźnienia przed 2. i 3. próbą, w sekundach, przed rozrzutem. */
+    private const OPOZNIENIA = [30, 120];
+
+    /** `Retry-After` dłuższy niż to nie odsuwa oceny w nieskończoność. */
+    private const NAJDLUZSZE_OPOZNIENIE = 600;
+
+    public int $tries = self::PROBY;
 
     public int $timeout = 30;
 
@@ -100,6 +121,19 @@ class PrzeanalizujTresc implements ShouldQueue
      * `reports_jeden_automat_na_tresc` przepuściłby tylko pierwsze — czyli
      * to, które akurat wygrało wyścig. Ocena modelu potrafiłaby wtedy
      * przepaść dlatego, że wpis zawierał numer telefonu.
+     *
+     * Z TEGO SAMEGO POWODU PRZY CHWILOWEJ AWARII MODELU NIE ZAPISUJEMY NIC
+     * (#1662). Oznaczenie postawione z samych lokalnych sygnałów zamknęłoby
+     * drogę ocenie modelu z następnej próby (jedno oznaczenie na treść).
+     * Zadanie wraca więc do kolejki i przy następnej próbie liczy wszystko od
+     * nowa: znowu pyta o treść, o jej widoczność i o `GranicaWysylki`, bo
+     * w tym czasie wpis mógł zniknąć albo stać się prywatny.
+     *
+     * Lokalne sygnały nie giną: jeśli ostatnia próba też trafi na awarię,
+     * zapisujemy je bez oceny modelu, a zadanie oznaczamy jako nieudane
+     * (`failed_jobs`) — to jest ślad operacyjny, że model tej treści nie
+     * ocenił. Drugiego oznaczenia ani drugiego alarmu nie będzie, nawet po
+     * `queue:retry`: pilnuje tego `OznaczDoPrzegladu`.
      */
     public function handle(
         WykrywaczSygnalow $wykrywacz,
@@ -122,7 +156,23 @@ class PrzeanalizujTresc implements ShouldQueue
                 return;
             }
 
-            $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
+            $lokalne = $wykrywacz->dla($tresc);
+            $awariaModelu = null;
+
+            try {
+                $modelowe = $model->dla($tresc);
+            } catch (ModelChwilowoNiedostepny $awaria) {
+                if ($this->attempts() < self::PROBY && $this->wroci()) {
+                    $this->release($this->opoznienie($awaria));
+
+                    return;
+                }
+
+                $awariaModelu = $awaria;
+                $modelowe = [];
+            }
+
+            $sygnaly = array_merge($lokalne, $modelowe);
 
             // Ocena modelem trwa sekundy. Treść, która w tym czasie stała się
             // prywatna, nie trafia też przed moderatora (D-240).
@@ -135,6 +185,17 @@ class PrzeanalizujTresc implements ShouldQueue
             if ($oznaczenie !== null) {
                 $alarm->handle($oznaczenie, $sygnaly);
             }
+
+            if ($awariaModelu !== null) {
+                Log::warning('Ocena modelem nie doszła do skutku mimo ponowień. Treść NIE została sprawdzona przez model.', [
+                    'typ' => $this->typ,
+                    'id' => $this->id,
+                    'proby' => $this->attempts(),
+                    'stage' => 'openai_retries_exhausted',
+                ]);
+
+                $this->fail($awariaModelu);
+            }
         } catch (Throwable $blad) {
             // Bez treści analizowanego wpisu w logu — to jest cudzy tekst,
             // a log błędów nie jest miejscem na treści użytkowników
@@ -145,6 +206,29 @@ class PrzeanalizujTresc implements ShouldQueue
                 ...ExceptionContext::forStage($blad, 'content_analysis'),
             ]);
         }
+    }
+
+    /**
+     * Czy wydane zadanie naprawdę wróci. Na kolejce `sync` (lokalnie, testy)
+     * `release()` niczego nie planuje — każda próba jest tam ostatnia, bo
+     * inaczej lokalne sygnały czekałyby na próbę, która nie nadejdzie.
+     */
+    private function wroci(): bool
+    {
+        return $this->job !== null && ! $this->job instanceof SyncJob;
+    }
+
+    /**
+     * Opóźnienie przed kolejną próbą: rosnące, z rozrzutem do 20%, żeby fala
+     * zadań po jednej awarii nie wróciła do dostawcy w tej samej sekundzie.
+     * `Retry-After` wydłuża je, nigdy nie skraca.
+     */
+    private function opoznienie(ModelChwilowoNiedostepny $awaria): int
+    {
+        $podstawa = self::OPOZNIENIA[min($this->attempts(), count(self::OPOZNIENIA)) - 1];
+        $podstawa = max($podstawa, $awaria->ponowZaSekund ?? 0);
+
+        return min(self::NAJDLUZSZE_OPOZNIENIE, $podstawa + random_int(0, intdiv($podstawa, 5)));
     }
 
     /**
