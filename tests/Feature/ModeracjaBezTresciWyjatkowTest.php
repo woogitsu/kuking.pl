@@ -93,6 +93,45 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
         $this->assertSame([], app(OcenaModelem::class)->dla($post));
         Http::assertNothingSent();
         $this->assertSafeRecord('Nie udało się przygotować zdjęcia do oceny modelem.', 'image_preparation');
+        // #1354: bez UUID operator nie ustali, które zdjęcie ominęło ocenę.
+        $this->assertSame((string) $media->getKey(), $this->records[0][1]['media_id'] ?? null);
+    }
+
+    /**
+     * Kontrola dodatnia do #1354: przy dwóch zdjęciach wpisu log wskazuje
+     * UUID tego, które się nie przygotowało — nie sąsiedniego — a zdrowa
+     * miniatura dalej idzie do oceny (jedno żądanie do atrapy).
+     */
+    public function test_log_przygotowania_wskazuje_tylko_zepsute_zdjecie(): void
+    {
+        $zepsute = $this->media();
+        $zdrowe = $this->media('media/zdrowe_thumb.webp');
+        $post = Post::create([
+            'author_id' => $zepsute->owner_id,
+            'body' => '',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+        $post->media()->attach([$zepsute->getKey() => ['position' => 0], $zdrowe->getKey() => ['position' => 1]]);
+
+        $obraz = imagecreatetruecolor(320, 240);
+        ob_start();
+        imagejpeg($obraz);
+        $jpeg = (string) ob_get_clean();
+
+        Storage::shouldReceive('disk')->twice()->with('public')->andReturnSelf();
+        Storage::shouldReceive('get')->once()->with('media/proba_thumb.webp')
+            ->andThrow(new RuntimeException(self::FOREIGN_MESSAGE, 123456));
+        Storage::shouldReceive('get')->once()->with('media/zdrowe_thumb.webp')->andReturn($jpeg);
+        Http::fake(['*' => Http::response(['results' => [['category_scores' => ['hate' => 0.01]]]])]);
+
+        app(OcenaModelem::class)->dla($post);
+
+        Http::assertSentCount(1);
+        $this->assertSafeRecord('Nie udało się przygotować zdjęcia do oceny modelem.', 'image_preparation');
+        $this->assertSame((string) $zepsute->getKey(), $this->records[0][1]['media_id'] ?? null);
+        $this->assertStringNotContainsString((string) $zdrowe->getKey(), json_encode($this->records, JSON_THROW_ON_ERROR));
     }
 
     public function test_zewnetrzny_catch_analizy_tresci_nie_loguje_wyjatku(): void
@@ -149,14 +188,14 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
         ], $this->records);
     }
 
-    private function media(): Media
+    private function media(string $miniatura = 'media/proba_thumb.webp'): Media
     {
         return Media::factory()->create([
             'owner_id' => $this->user()->getKey(),
             'disk' => 'public',
             'variants_disk' => 'public',
             'status' => Media::STATUS_READY,
-            'metadata' => ['variants' => ['thumb' => ['key' => 'media/proba_thumb.webp', 'width' => 320, 'height' => 320]]],
+            'metadata' => ['variants' => ['thumb' => ['key' => $miniatura, 'width' => 320, 'height' => 320]]],
         ]);
     }
 

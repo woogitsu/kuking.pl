@@ -160,11 +160,13 @@ final class OcenaModelem
      * 1. bierzemy WARIANT `thumb`, nie oryginał. Oryginał niesie pełny EXIF,
      *    czyli współrzędne GPS kuchni, w której zrobiono zdjęcie
      *    (`AGENTS.md` §7). Wariant powstał przez przekodowanie, więc
-     *    metadanych już nie ma;
+     *    metadanych już nie ma — ale na tym nie polegamy (punkt 2);
      * 2. przekodowujemy go jeszcze raz do JPEG. Warianty zapisujemy w WebP,
      *    a formatem, o którym wiadomo, że API go przyjmie, jest JPEG —
      *    zamiana 320-pikselowej miniatury kosztuje ułamek sekundy i zdejmuje
-     *    całą klasę cichych awarii („model milczy, bo nie rozumie formatu");
+     *    całą klasę cichych awarii („model milczy, bo nie rozumie formatu").
+     *    Przy okazji jest to granica metadanych: GD zapisuje same piksele,
+     *    bez EXIF i XMP, nawet gdy miniatura je miała (#912);
      * 3. wysyłamy `data:`, nie adres. Nasze zdjęcia stoją w prywatnym
      *    buckecie za polityką dostępu — publiczny adres dla OpenAI musiałby
      *    być publiczny także dla wszystkich innych.
@@ -226,10 +228,13 @@ final class OcenaModelem
 
             $jpeg = (string) ImageManager::gd()->read($bajty)->toJpeg(quality: 80);
         } catch (Throwable $blad) {
-            // Bez identyfikatora zdjęcia w treści komunikatu i bez samych
-            // bajtów — to jest cudza fotografia, a dziennik błędów nie jest
-            // miejscem na treści użytkowników.
+            // Bez bajtów, adresu i wiadomości wyjątku — to jest cudza
+            // fotografia, a dziennik błędów nie jest miejscem na treści
+            // użytkowników. Wewnętrzny UUID zdjęcia zostaje w kontekście
+            // (#1354): bez niego operator nie ustali, które zdjęcie ominęło
+            // ocenę, a UUID nie jest treścią ani daną kontaktową.
             Log::warning('Nie udało się przygotować zdjęcia do oceny modelem.', [
+                'media_id' => (string) $media->getKey(),
                 ...ExceptionContext::forStage($blad, 'image_preparation'),
             ]);
 
