@@ -1,0 +1,16 @@
+{
+  "nazwa": "843",
+  "plik": "app/Models/ContactMessage.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "de754df2e08865a8ada62877cb14269a",
+  "md5_po_mutacji": "e723e042e45bff729a384e5e33c3885e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Failed asserting|Session has unexpected errors|The following errors occurred",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:13:28Z"
+}
