@@ -8,6 +8,7 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\ZapisyWpisu;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -469,7 +470,13 @@ class CollectionController extends Controller
             }
         }
 
-        $target = $this->save->handle($request->user(), $model, $collection);
+        try {
+            $target = $this->save->handle($request->user(), $model, $collection);
+        } catch (BladDlaCzlowieka $e) {
+            // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
+            // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
+            return back()->withErrors(['collection_id' => $e->getMessage()]);
+        }
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
@@ -547,7 +554,13 @@ class CollectionController extends Controller
             }
         }
 
-        $target = $this->savePost->handle($request->user(), $post, $collection);
+        try {
+            $target = $this->savePost->handle($request->user(), $post, $collection);
+        } catch (BladDlaCzlowieka $e) {
+            // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
+            // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
+            return back()->withErrors(['collection_id' => $e->getMessage()]);
+        }
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
