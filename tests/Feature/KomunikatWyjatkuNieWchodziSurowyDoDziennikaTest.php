@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -137,16 +136,23 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
 
         $sql = 'insert into "dziennik_zgod" ("email") values (?)';
 
-        DB::shouldReceive('transaction')->andThrow(
-            new QueryException('pgsql', $sql, ['basia@example.com'], new RuntimeException('SQLSTATE[23505]')),
-        );
-
         $dziennik = Log::spy();
 
         // KONTROLA DODATNIA: mimo awarii dziennika zgód sama zgoda ma zostać
         // wycofana i akcja ma oddać `true` — to jest jej obietnica wobec
         // człowieka, który kliknął „nie chcę więcej".
-        $this->assertTrue((new PrzestawZgodeNaDigest)->handle($basia, false, WpisZgody::ZRODLO_USTAWIENIA));
+        // Awaria dotyczy zapisu dowodu, nie transakcji chroniącej konto.
+        $dispatcher = WpisZgody::getEventDispatcher();
+        WpisZgody::setEventDispatcher(clone $dispatcher);
+        try {
+            WpisZgody::creating(static function () use ($sql): never {
+                throw new QueryException('pgsql', $sql, ['basia@example.com'], new RuntimeException('SQLSTATE[23505]'));
+            });
+            $this->assertTrue((new PrzestawZgodeNaDigest)->handle($basia, false, WpisZgody::ZRODLO_USTAWIENIA));
+        } finally {
+            WpisZgody::setEventDispatcher($dispatcher);
+        }
+        $this->assertFalse($basia->fresh()->wants_weekly_digest);
 
         $dziennik->shouldHaveReceived('error')
             ->withArgs(function (string $wiadomosc, array $kontekst) use ($sql): bool {
