@@ -9,6 +9,7 @@ use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
+use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -102,6 +103,10 @@ class AppServiceProvider extends ServiceProvider
         $this->zdejmijAdresZLinkuResetu();
 
         $this->odswiezajLicznikiKolejek();
+
+        // Mapa strony nie może ogłaszać treści, która przestała być
+        // publiczna (issue #1006) — opis w `App\Support\MapaStrony`.
+        MapaStrony::zarejestrujHaki();
 
         $this->zapisujWSesjiTylkoZgrubnyAdres();
     }
