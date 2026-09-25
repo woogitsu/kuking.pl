@@ -54,6 +54,9 @@
     <p class="meta mb-5">
         {{ $collection->isPublic() ? 'Ten zeszyt widzą wszyscy.' : 'Ten zeszyt widzisz tylko Ty.' }}
     </p>
+    {{-- Błąd notatki (#978) ma własny worek, żeby nie mieszać się z błędem
+         wyboru zeszytu, który layout pokazuje osobno. --}}
+    <x-error-summary :error-bag="\App\Domain\Collections\Actions\UpdateCollectionItemNote::WOREK_BLEDOW" />
 
     @if($recipes->count() === 0 && ($posts ?? collect())->count() === 0 && ($niewidoczne ?? 0) === 0)
         <x-empty-state title="W tym zeszycie nic jeszcze nie ma" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])" />
@@ -62,7 +65,12 @@
             <h2>Przepisy</h2>
             <div class="marka-zeszyt-przepisy">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" uklad="kafel" />
+                    {{-- Opakowanie jest pozycją siatki: pod kartą właściciel
+                         ma swoją notatkę (#978). --}}
+                    <div class="marka-zeszyt-pozycja">
+                        <x-recipe-card :recipe="$recipe" uklad="kafel" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" />
+                    </div>
                 @endforeach
             </div>
             <x-show-more :paginator="$recipes" czego="przepisów" />
@@ -78,7 +86,10 @@
                     {{-- `:zeszyt` daje karcie kontekst TEGO zeszytu, więc
                          zamiast odnośnika „Masz to w zeszycie" pokazuje
                          przycisk usuwający TYLKO stąd (issue #775, #776). --}}
-                    <x-post-card :post="$post" :zeszyt="$collection" />
+                    <div class="marka-zeszyt-pozycja">
+                        <x-post-card :post="$post" :zeszyt="$collection" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" />
+                    </div>
                 @endforeach
             </div>
             <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
