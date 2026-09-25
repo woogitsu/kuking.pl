@@ -154,6 +154,13 @@ class TagPromotionController extends Controller
     {
         $this->authorize('moderate', User::class);
 
+        // Akcja destrukcyjna (AGENTS.md §5) — jak przy tagu tygodnia: bez
+        // `potwierdzam=1` z rozwiniętego pytania nic nie znika.
+        if (! $request->boolean('potwierdzam')) {
+            return redirect()->route('admin.tag-promotions')
+                ->with('status', "Nic nie zmieniono. Żeby zdjąć „{$tag->name}” z promowanych, kliknij „Zdejmij z promowanych” i potwierdź.");
+        }
+
         // Usunięcie promocji NIE kasuje tagu — tag żyje dalej jako zwykły,
         // otwarty tag, dokładnie jak wycofanie Tematu nie kasowało wpisów.
         $tag->promotion?->delete();

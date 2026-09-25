@@ -88,7 +88,7 @@ class TagiPromowaneAdminTest extends TestCase
         TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => 0]);
 
         $this->actingAs($this->user('basia'))
-            ->delete(route('admin.tag-promotions.destroy', $tag))
+            ->delete(route('admin.tag-promotions.destroy', $tag), ['potwierdzam' => '1'])
             ->assertNotFound();
 
         $this->assertNotNull($tag->fresh()->promotion, 'Zwykły użytkownik zdołał usunąć promocję tagu.');
@@ -194,12 +194,44 @@ class TagiPromowaneAdminTest extends TestCase
         TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => 0]);
 
         $this->actingAs($this->moderator())
-            ->delete(route('admin.tag-promotions.destroy', $tag))
+            ->delete(route('admin.tag-promotions.destroy', $tag), ['potwierdzam' => '1'])
             ->assertRedirect(route('admin.tag-promotions'));
 
         $this->assertNull($tag->fresh()->promotion);
         // Sam tag zostaje — usunięcie promocji nie jest usunięciem tagu.
         $this->assertNotNull(Tag::find($tag->getKey()));
+    }
+
+    /**
+     * Audyt po fali 25.09, pkt 10: „Zdejmij z promowanych” to akcja
+     * destrukcyjna (AGENTS.md §5). Żądanie bez potwierdzenia nic nie zdejmuje.
+     */
+    public function test_zdjecie_z_promowanych_bez_potwierdzenia_nic_nie_zmienia(): void
+    {
+        $tag = $this->tag('sernik', 'Sernik');
+        TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => 0, 'note' => 'Na święta']);
+
+        $this->actingAs($this->moderator())
+            ->delete(route('admin.tag-promotions.destroy', $tag))
+            ->assertRedirect(route('admin.tag-promotions'))
+            ->assertSessionHas('status', fn ($s) => str_starts_with($s, 'Nic nie zmieniono.'));
+
+        $this->assertNotNull($tag->fresh()->promotion, 'Promocja zniknęła bez potwierdzenia.');
+        $this->assertDatabaseMissing('audit_log', ['action' => 'tag_promotion.removed']);
+    }
+
+    public function test_zdjecie_z_promowanych_stoi_za_pytaniem_z_potwierdzeniem(): void
+    {
+        $tag = $this->tag('sernik', 'Sernik');
+        TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => 0]);
+
+        $this->actingAs($this->moderator())
+            ->get(route('admin.tag-promotions'))
+            ->assertOk()
+            ->assertSee('<details class="confirm">', false)
+            ->assertSee('Zdjąć „Sernik” z promowanych?', false)
+            ->assertSee('name="potwierdzam" value="1"', false)
+            ->assertSee('Tak, zdejmij z promowanych');
     }
 
     public function test_panel_pokazuje_promowane_tagi_w_kolejnosci(): void
