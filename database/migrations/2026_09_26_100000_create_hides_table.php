@@ -70,9 +70,9 @@ return new class extends Migration
             if ($aktywne > 0) {
                 throw new RuntimeException(
                     "Nie cofam tabeli hides: {$aktywne} aktywnych ukryć. Zrzucenie tabeli przywróciłoby ludziom "
-                    .'na ekran wpisy i osoby, które sami schowali (D-088). Jeśli rollback jest konieczny, najpierw '
+                    .'na ekran wpisy i osoby, które sami schowali (D-088). CO ZROBIĆ: najpierw '
                     .'zrób kopię: \\copy hides TO hides.csv CSV HEADER, uzgodnij z właścicielem, czy ukrycia mają '
-                    .'wrócić po ponownym wdrożeniu, i dopiero wtedy usuń wiersze ręcznie.'
+                    .'wrócić po ponownym wdrożeniu, i dopiero wtedy usuń wiersze ręcznie.',
                 );
             }
         }

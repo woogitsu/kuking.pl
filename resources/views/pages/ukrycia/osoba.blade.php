@@ -51,7 +51,7 @@
                 <input type="hidden" name="oczekiwany_id" value="{{ $osoba->getKey() }}">
                 <input type="hidden" name="wroc" value="{{ $wroc }}">
                 <button class="btn btn-primary" type="submit">Ukryj tę osobę</button>
-                <a class="btn btn-secondary" href="{{ $wroc }}">Nie ukrywaj</a>
+                <a class="btn btn-secondary" href="{{ $wroc }}">Anuluj</a>
             </form>
         </section>
     @endif

@@ -9,6 +9,8 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Domain\Users\Exports\CollectUserExportData;
+use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\DailyPick;
 use App\Models\Hide;
 use App\Models\Notification;
@@ -72,7 +74,8 @@ class UkryjWpisIOsobeTest extends TestCase
         $odpowiedz = $this->actingAs($widz)->from(route('home'))->post(route('posts.hide', $ukryty))->assertRedirect(route('home'));
         $data = Czas::data(now()->addDays(30), 'j F Y');
         $odpowiedz->assertSessionHas('status', "Ukryliśmy ten wpis tylko dla Ciebie do {$data}. Inni widzą go jak dotąd.");
-        $this->assertSame('Cofnij', $odpowiedz->getSession()->get('status_powrot')['etykieta']);
+        $powrot = $odpowiedz->getSession()->get('status_powrot');
+        $this->assertSame('Cofnij', $powrot['etykieta']);
 
         // Strumienie z kartą: Start (obserwowani), Odkrywanie, tablica z wyborem gospodarza, list.
         $this->assertSame(['Zupa zostaje'], collect(app(FollowingFeed::class)->paginate($widz)->items())->pluck('body')->all());
@@ -86,17 +89,16 @@ class UkryjWpisIOsobeTest extends TestCase
         $this->assertContains('Kapusta do ukrycia', $this->odkrywanie($this->user('inna')));
 
         // Pod linkiem karta się zwija; `?pokaz=1` rozwija ją na chwilę.
-        $this->get(route('posts.show', $ukryty))->assertOk()
-            ->assertSee('Ten wpis ukrywasz tylko dla siebie.')
-            ->assertDontSee('Kapusta do ukrycia');
-        $this->get(route('posts.show', $ukryty).'?pokaz=1')->assertOk()->assertSee('Kapusta do ukrycia');
+        $strona = $this->get(route('posts.show', $ukryty))->assertOk()->assertSee('Ten wpis ukrywasz tylko dla siebie.');
+        $this->assertStringNotContainsString('Kapusta do ukrycia', $this->tekstRozwinietychKart((string) $strona->getContent()));
+        $rozwinieta = $this->get(route('posts.show', $ukryty).'?pokaz=1')->assertOk()->getContent();
+        $this->assertStringContainsString('Kapusta do ukrycia', $this->tekstRozwinietychKart((string) $rozwinieta));
         // Na profilu też zwinięty, a nie wycięty.
         $this->get(route('profile.show', $autorka->profile->username))->assertOk()
             ->assertSee('Ten wpis ukrywasz tylko dla siebie.')
             ->assertSee('Zupa zostaje');
 
         // „Cofnij" przywraca od razu.
-        $powrot = $odpowiedz->getSession()->get('status_powrot');
         $this->from(route('home'))->post($powrot['akcja'], $powrot['pola'])->assertSessionHas('status', 'Ten wpis znów widzisz.');
         $this->assertContains('Kapusta do ukrycia', $this->odkrywanie($widz));
     }
@@ -264,13 +266,32 @@ class UkryjWpisIOsobeTest extends TestCase
         $this->actingAs($widz)->post(route('posts.hide', $wpis));
         $this->post(route('social.hide', $ukrywana->profile->username));
 
-        $paczka = app(\App\Domain\Users\Exports\CollectUserExportData::class)->handle($widz->fresh());
+        $paczka = $this->paczka($widz->fresh());
         $this->assertCount(2, $paczka['ukryte']);
         $this->assertEqualsCanonicalizing(['wpis', 'osoba'], array_column($paczka['ukryte'], 'co'));
         $this->assertContains('ukrywana', array_column($paczka['ukryte'], 'osoba'));
 
-        $jejPaczka = app(\App\Domain\Users\Exports\CollectUserExportData::class)->handle($ukrywana->fresh());
+        $jejPaczka = $this->paczka($ukrywana->fresh());
         $this->assertSame([], $jejPaczka['ukryte']);
         $this->assertStringNotContainsString('widz', json_encode($jejPaczka['ukryte']));
+    }
+
+    /** @return array<string, mixed> */
+    private function paczka(User $user): array
+    {
+        return app(CollectUserExportData::class)->handle($user, new ExportPhotoPlan($user), now());
+    }
+
+    /** Karty wpisów na stronie, które NIE są zwinięte — ich tekst. */
+    private function tekstRozwinietychKart(string $html): string
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $tekst = '';
+        foreach ((new \DOMXPath($dom))->query("//article[contains(concat(' ', normalize-space(@class), ' '), ' post-card ') and not(@data-wpis-ukryty)]") as $karta) {
+            $tekst .= $karta->textContent;
+        }
+
+        return $tekst;
     }
 }

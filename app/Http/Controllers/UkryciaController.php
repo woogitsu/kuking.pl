@@ -60,6 +60,10 @@ class UkryciaController extends Controller
 
     public function cofnijWpis(Request $request, Post $post): RedirectResponse
     {
+        // Wiersz i tak należy do widza (szukany po parze), ale adres wskazuje
+        // wpis — więc najpierw Policy (AGENTS.md §7). Wpis, którego widz już
+        // nie widzi, przywróci z listy „Ukryte”.
+        $this->authorize('view', $post);
         $this->zmien->cofnijWpis($request->user(), $post);
 
         return back()->with('status', 'Ten wpis znów widzisz.');
@@ -90,6 +94,7 @@ class UkryciaController extends Controller
     {
         $osoba = $this->osoba($username);
         $this->authorize('viewProfile', $osoba);
+        abort_if($osoba->getKey() === $request->user()->getKey(), 404);
 
         if ($request->filled('oczekiwany_id') && (string) $request->input('oczekiwany_id') !== (string) $osoba->getKey()) {
             return back()->withErrors(['ukrycie' => 'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.']);
