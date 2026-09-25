@@ -48,7 +48,7 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 | Dostawca | Do czego służy | Gdzie przechowywane są dane |
 |---|---|---|
 | Railway | Hosting serwera i bazy danych oraz przechowywanie dziennika serwera | Serwer i baza danych: Unia Europejska. Nie potwierdziliśmy jeszcze, w jakim kraju Railway przechowuje dziennik serwera |
-| Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska. Zdjęcia leżą w części Cloudflare R2 zastrzeżonej dla Unii Europejskiej, a serwis nie połączy się z magazynem zdjęć poza tą częścią. Dotyczy to miejsca przechowywania — nie obiecujemy, którędy zdjęcie biegnie przez sieć Cloudflare, gdy je oglądasz |
+| Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska — magazyn z ograniczeniem do jurysdykcji UE, sprawdzone 25 września 2026 |
 | EmailLabs (Vercom S.A.) | Wysyłka poczty: potwierdzenie adresu, przypomnienie hasła, powiadomienia. Rejestruje też otwarcia listów — patrz akapit niżej | Unia Europejska (Polska) |
 | Cloudflare Turnstile | Sprawdzenie, czy formularz wypełnia człowiek, a nie automat | Cloudflare, Inc. (USA) — patrz akapit o przekazywaniu poza EOG |
 | Cloudflare Web Analytics | Statystyka odwiedzin: ile osób weszło na stronę, które strony oglądały i z jakiego miejsca w internecie do nas trafiły | Cloudflare, Inc. (USA) — **ta sama spółka co wyżej**, patrz akapit o przekazywaniu poza EOG |
