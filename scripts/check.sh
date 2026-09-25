@@ -114,6 +114,10 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
+elif ! python3 scripts/kontrole-negatywne-alfa08.py --lista >/dev/null 2>&1; then
+    # Tryb suchy katalogu kontroli negatywnych (PR #1478): import każdego pliku,
+    # unikalne nazwy, brak wpisów w starym punkcie wejścia. Bez bazy i mutacji.
+    zle "Katalog kontroli negatywnych odmawia — uruchom: python3 scripts/kontrole-negatywne-alfa08.py --lista"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
@@ -132,6 +136,21 @@ elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
     ok "Regresje i kontrole ujemne przyrządu przechodzą"
 else
     zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
+fi
+
+# --- 3c'. Topologia Railway (#595) -----------------------------------------
+# Kompiluje .railway/railway.ts lokalnym SDK (bez połączenia z Railwayem)
+# i sprawdza role, nazwy żywych zasobów, migracje w jednym serwisie,
+# jeden harmonogram i zgodność zmiennych. Nie zastępuje `railway config plan`.
+krok "Topologia Railway (#595)"
+if ! command -v node >/dev/null 2>&1; then
+    zle "Brak node — nie sprawdzono topologii Railway (to jest brak kontroli, nie sukces)"
+elif [ ! -d node_modules/railway ]; then
+    zle "Brak node_modules/railway — uruchom: npm ci"
+elif node --test scripts/railway/iac.test.mjs >/dev/null 2>&1; then
+    ok "Graf IaC produkcji i stagingu zgodny z zamierzoną topologią"
+else
+    zle "Topologia Railway niezgodna — uruchom: node --test scripts/railway/iac.test.mjs"
 fi
 
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------

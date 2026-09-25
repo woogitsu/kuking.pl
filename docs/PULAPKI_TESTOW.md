@@ -101,6 +101,20 @@ $this->assertGreaterThan(100, $przeskanowane, 'Skan nie czyta plików — zła �
 Bez tej asercji przeniesienie katalogu wyłącza test bez jednego czerwonego
 przebiegu.
 
+## 2b. Skaner może zobaczyć tylko część dużego katalogu
+
+**Złapała: #1303, strażnik odnośników w dzienniku decyzji.** Na środowisku
+WSL/Windows `RecursiveDirectoryIterator` odczytał 143 z 696 pozycji w
+`tests/Feature`. `scandir()` zwrócił 698 pozycji wraz z `.` i `..`. Strażnik
+uznał przez to 23 istniejące klasy testowe za martwe referencje i blokował
+pełną kontrolę repozytorium. Jedna z rzekomo martwych klas, `KartaWpisuTest`,
+istniała i miała wskazaną metodę.
+
+**Co robić:** gdy test skanuje katalog, porównaj listę odczytanych plików z
+niezależnym spisem nazw w tym katalogu. Sam próg „ponad 100 plików” nie
+wystarczy, jeśli rzeczywistych plików jest kilkaset. Nie poprawiaj poprawnych
+odnośników w dokumentacji w odpowiedzi na niepełny skan.
+
 ---
 
 ## 3. Twój sabotaż może być za słaby — i uznasz dobry test za atrapę
@@ -724,6 +738,108 @@ ruszają. Mylenie go z powiększeniem pisma w przeglądarce to osobna pomyłka �
 i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
 tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
 (`tokens.css` daje 70/80/90/112/125/140).
+
+## 14. Stałe oczekiwanie mierzy szybkość maszyny, nie stronę
+
+`waitForTimeout(300)`, „dwie klatki `requestAnimationFrame`” albo „trzy klatki”
+przed pomiarem przechodzą na szybkiej maszynie i oblewają na zajętej —
+a ponowienie na innym runnerze znów przechodzi. 24 września 2026 w ten sposób
+padały trzy różne kontrole (pasek przewijany, `P581_SKALA_MOTYW`,
+`skala-proporcje` z „tekst: 16 zamiast 18”), każda raz na kilkadziesiąt
+przebiegów.
+
+**Przy `reducedMotion: 'reduce'` przejście ma KAŻDA właściwość.** `tokens.css`
+skraca w `prefers-reduced-motion` czas przejść do `0.01ms` na `*`, a domyślne
+`transition-property` to `all`. Zmiana `data-theme` albo `data-text-scale`
+startuje więc przejście koloru, tła i rozmiaru pisma na każdym elemencie.
+Zmierzone lokalnie (Chromium 141): sześć przejść, po pierwszej klatce
+`getComputedStyle` oddaje jeszcze STARE wartości, ostatnie przejście znika
+w czwartej. Sonda z `transition: none` widzi wartość docelową od razu —
+dlatego w artefakcie porażki P581 tokeny były już ciemne, a body i karta
+nawigacji jeszcze jasne.
+
+Dławienie CPU przez CDP (`Emulation.setCPUThrottlingRate` 4–6) tego NIE
+odtwarza: spowalnia wątek główny równo, razem z klatkami. Odtwarza to
+dopiero wydłużenie samych przejść — stara wersja `skala-proporcje` oblewa
+wtedy dokładnie tym komunikatem, który widziało CI.
+
+### Co robić
+
+Czekaj na **stan**, nie na zegar: `scripts/lib/stan-ustalony.mjs`
+(`poczekajNaStan`, `wymagajStanu`) czeka co klatkę, aż strona osiągnie
+oczekiwaną wartość i nie ma w niej trwającego przejścia CSS
+(`getAnimations()` + `CSSTransition`). Limit czasu jest bezpiecznikiem,
+a porażka niesie zmierzone wartości. Gdy sprawdzasz BRAK zmiany (pasek NIE
+chowa się przy otwartym menu), najpierw upewnij się, że strona obsłużyła
+zdarzenie — w `pasek-przewijany.mjs` dwie klatki po `scroll` — dopiero potem
+czekaj na koniec przejść i mierz.
+
+**Warunek przekazuj jako funkcję, nie łańcuch.** `waitForFunction('…')`
+strona wykonuje jak `eval`, a CSP aplikacji (bez `unsafe-eval`) to odrzuca.
+Wstrzyknięty `<style>` też odrzuca (`style-src` z nonce) — próba z sabotażem
+CSS bez `bypassCSP: true` „przechodzi”, bo sabotażu w ogóle nie było.
+
+## 15. Porównanie odsetków milknie na krańcu przedziału
+
+Kontrola „porzucone żądania są w mianowniku” (`przyrzad-605.test.mjs`)
+porównywała `blad_procent` z porzuconymi i bez nich. Przy zerze poprawnych
+odpowiedzi oba ułamki wynoszą 100% — i kontrola dodatnia oblała poprawny
+przyrząd, a kontrola ujemna uznała zepsuty za dobry. Seria losuje mieszankę
+scenariuszy, a na wolnym runnerze wysyła mniej żądań, więc taki przebieg
+się zdarza.
+
+Gdy wielkość może utknąć na granicy (0% albo 100%), rozstrzygaj na
+**liczbach bezwzględnych**, z których odsetek powstaje (`nieudanych ===
+wysłane + porzucone − poprawne`), a porównanie odsetków zostaw tam, gdzie
+matematycznie coś znaczy. Krańcowy przypadek sprawdź wprost na liczbach,
+skoro losowa seria nie trafi w niego na żądanie.
+
+## 17. Pierścień fokusu zmierzony klatkę po Tab to jeszcze nie pierścień
+
+Numer 17, bo §14 i §15 wnosi PR #1472 (`claude/f1-niestabilne-kontrole`),
+a §16 — PR z `claude/f3-axe-motyw-ciemny`. Przy scalaniu zachowaj wszystkie
+wpisy w kolejności numerów.
+
+`sprawdzTab` w `scripts/zoom-marki.mjs` (woła go też
+`scripts/nawigacja-niski-widok.mjs`, kontrola #492) po każdym Tab czekał
+klatkę, potem na animacje `activeElement` z limitem 500 ms, potem drugą
+klatkę; bez JS — czas animacji + 34 ms w Node. CI PR #1372 (zmieniał tylko
+backend digestu) padł na `/home`, przycisk „Poprzednie zdjęcie”:
+`ZOOM_FOCUS_CONTRAST {"contrast":0,"color":"rgb(244, 245, 241)","ring":null}`
+— fokus już był, pierścienia jeszcze nie. Pomiar nie niósł stylu, więc
+z logu nie da się rozstrzygnąć, co nie zdążyło: styl `:focus-visible`,
+przejście `box-shadow` z `none` (przy `prefers-reduced-motion` skrócone do
+0.01ms, ale nie wyłączone — pierwsza klatka to warstwy o rozstawie 0px, słusznie
+nie uznawane za pierścień), czy przewinięcie karuzeli do elementu. Każde z
+nich na zdławionym runnerze wychodzi poza stałe okno. Stała `waitForTimeout(40)`
+w `dolTab` (dolny pasek, ta sama kontrola) miała ten sam kształt.
+
+Odtworzone na statycznej stronie: pierścień dokładany 700 ms po `focusin` —
+stara wersja `sprawdzTab` pada z tym samym `ZOOM_FOCUS_CONTRAST … "ring":null`,
+nowa przechodzi.
+
+### Co robić
+
+**Czekaj na ustalony fokus, potem mierz.** `poczekajNaFokus` (eksport
+z `zoom-marki.mjs`) próbkuje co 20 ms z Node, aż: fokus jest na elemencie
+mierzonym (`[data-pomiar-tab]`, w `dolTab` `.bottom-nav a[href]`), element ma
+niepustą obwódkę albo `box-shadow`, nie ma na nim trwającej skończonej
+animacji ani przejścia i jego prostokąt jest ten sam w dwóch kolejnych
+próbkach (przewijanie się skończyło). Fokus poza elementami mierzonymi nie
+czeka. Z Node, a nie `waitForFunction(polling: 'raf')`, bo ta sama ścieżka
+służy kontekstowi bez JS.
+
+**Limit to bezpiecznik, ocena bez zmian.** Po 4 s pomocnik nie rzuca —
+oddaje zmierzony stan, a pomiar ocenia jak dotąd: pierścień istnieje
+i kontrast ≥ 3. Kontrole ujemne bez pierścienia dalej kończą się
+`ZOOM_FOCUS_CONTRAST` (sprawdzone z JS i bez JS: po ~4 s, komunikat jak
+w CI), a przezroczysta obwódka — od razu, bo styl obwódki jest niepusty.
+Każdy komunikat `ZOOM_FOCUS_*` i `N492_DOL_TAB` niesie `oczekiwanie`:
+`activeElement`, obwódkę, `box-shadow`, `transition`, trwające przejścia,
+czy stan się ustalił i po ilu ms.
+
+Wzorzec ten sam co §14 i `scripts/lib/stan-ustalony.mjs` z PR #1472; tu
+lokalnie, bo pomocnik powstał, zanim ten plik trafił na `main`.
 
 ## Skąd ta lista
 

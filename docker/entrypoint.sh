@@ -129,32 +129,30 @@ php /app/artisan view:clear   --no-interaction >/dev/null
 php /app/artisan event:clear  --no-interaction >/dev/null
 
 # -----------------------------------------------------------------------------
-#  `cache:clear` JEST INNY: przy CACHE_STORE=database uderza w tabelę `cache`.
+#  `cache:clear` CELOWO NIE WYSTĘPUJE — ani samo, ani w `optimize:clear`.
 #
-#  Wcześniej stało tu `optimize:clear`, które woła cache:clear w środku.
-#  Przy `set -Eeuo pipefail` wyjątek z bazy kończył cały skrypt, więc kontener
-#  padał — i wstawał, i padał, w pętli. Zaobserwowane na produkcji przy
-#  pierwszym wdrożeniu, zanim wykonały się migracje:
+#  Przy CACHE_STORE=database tabela `cache` NIE jest odtwarzalną kopią
+#  czegokolwiek. Leży w niej stan, który ma przeżyć restart:
+#    - liczniki `RateLimiter` (próby hasła, kodu 2FA, linki logowania,
+#      ponowienia potwierdzeń, formularz zgłoszenia DSA),
+#    - dobowy sufit listów `DziennyBudzetListow` (D-076),
+#    - okna deduplikacji alarmów i listów o próbie wejścia kontem Facebooka.
+#  Do 25 września 2026 stało tu `cache:clear` przy KAŻDYM starcie web, workera
+#  i schedulera, a wdrożeń jest kilkadziesiąt na dobę. Każdy deploy dawał
+#  zgadującemu kod 2FA nową pulę prób i zerował dobowy licznik poczty
+#  (audyt B10-03 = B8-01).
 #
-#      SQLSTATE[42P01]: Undefined table: relation "cache" does not exist
-#
-#  Aplikacja nie wstawała nawet po to, żeby pokazać, co jest nie tak.
-#  Healthcheck nie miał czego odpytać, a w panelu było samo „CRASHED".
-#
-#  Niedostępny cache NIE JEST powodem, żeby nie uruchomić serwisu. Cache jest
-#  z definicji odtwarzalny — najgorsze, co się stanie, to wolniejsze pierwsze
-#  żądania. Dlatego to jedno polecenie ma prawo się nie udać, ale musi
-#  o tym GŁOŚNO powiedzieć w logu.
+#  Czyszczenie nie jest też potrzebne po deployu: pliki konfiguracji, tras,
+#  zdarzeń i widoków czyszczą `*:clear` wyżej i przebudowuje `optimize` niżej.
+#  Wpisy treści w cache (`LiczbaKukingow`, `KolejkiPanelu`) przelicza
+#  harmonogram, a ich odczyt znosi wpis ze starszego wdrożenia. Gdyby kiedyś
+#  wpis z poprzedniej wersji kodu naprawdę szkodził — usuń NAZWANY klucz
+#  (`Cache::forget('...')`) albo zmień jego nazwę, nigdy całą tabelę.
+#  Pilnuje tego `tests/Feature/StartKonteneraNieCzysciCacheTest.php`.
 # -----------------------------------------------------------------------------
-if ! php /app/artisan cache:clear --no-interaction >/dev/null 2>&1; then
-  log "OSTRZEŻENIE: nie udało się wyczyścić cache aplikacji."
-  log "  Najczęstsza przyczyna: brak tabeli 'cache', czyli niewykonane migracje."
-  log "  Startuję dalej — cache jest odtwarzalny, a serwis ma wstać i dać się zdiagnozować."
-fi
 
-# `optimize` zostaje BEZ tolerancji na błąd. Tu jest odwrotnie niż wyżej:
-# nieudane zapieczenie konfiguracji, tras i widoków znaczy, że aplikacja
-# naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
+# `optimize` jest BEZ tolerancji na błąd: nieudane zapieczenie konfiguracji,
+# tras i widoków znaczy, że aplikacja naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
 # deploy, zamiast wpuszczać ruch na coś zepsutego.
 php /app/artisan optimize --no-interaction
 
@@ -412,22 +410,35 @@ start_scheduler() {
 #  Wypadało wtedy całe `:SS` na granicy minuty — a jeśli wypadła 03:40, to
 #  `dailyAt('03:40')` nie wykonał się tego dnia wcale, bez żadnego śladu w logu.
 #
-#  Po każdym przebiegu śpimy do początku NASTĘPNEJ minuty, tak jak cron.
-#  Przebieg dłuższy niż minuta (zadania wykonują się sekwencyjnie w tym
-#  procesie) dalej gubi minuty, które przespał — to koszt braku `proc_open`,
-#  dlatego zadania w routes/console.php są rozsunięte o dziesięć minut.
+#  Po krótkim przebiegu śpimy do początku NASTĘPNEJ minuty, tak jak cron.
+#  Minutę liczymy z `date +%s`, więc sen kończy się na granicy zegara.
+#
+#  PRZEBIEG DŁUŻSZY NIŻ MINUTA. Zadania wykonują się sekwencyjnie w tym
+#  procesie (brak `proc_open`), więc drugi `schedule:run` nigdy nie rusza
+#  równolegle — pętla czeka na koniec poprzedniego. Jeśli skończył się już
+#  w NOWEJ minucie, ta minuta jeszcze nie była sprawdzona: ruszamy od razu,
+#  bez snu. `schedule:run` bierze godzinę startu, więc zadanie z tej minuty
+#  (np. `dailyAt('03:40')` po przebiegu 03:39:00–03:40:05) się wykona.
+#  Sen do kolejnej granicy przespałby ją i zadanie czekałoby dobę (#1355).
+#  Minuty CAŁE przespane przez długi przebieg są stracone; trafiają do logu
+#  jako OSTRZEŻENIE z liczbą, żeby było widać, co mogło się nie wykonać.
+#  Dwa starty w tej samej minucie są niemożliwe: każdy start wypada w minucie
+#  późniejszej niż poprzedni.
 # -----------------------------------------------------------------------------
-sekundy_do_pelnej_minuty() {
-  local sekunda
-  sekunda="$(date +%S)"
-  # 10# — „08” i „09” to dla basha błędne liczby ósemkowe.
-  echo $(( 60 - 10#${sekunda} ))
-}
-
 petla_harmonogramu() {
+  local start koniec pominiete
   while true; do
+    start="$(date +%s)"
     harmonogram_raz
-    sleep "$(sekundy_do_pelnej_minuty)"
+    koniec="$(date +%s)"
+    if (( koniec / 60 == start / 60 )); then
+      sleep "$(( 60 - koniec % 60 ))"
+      continue
+    fi
+    pominiete=$(( koniec / 60 - start / 60 - 1 ))
+    if (( pominiete > 0 )); then
+      log "OSTRZEŻENIE: przebieg harmonogramu trwał $(( koniec - start )) s — pominięte minuty: ${pominiete}. Zadania z tych minut nie wykonały się; sprawdź, które zadanie jest za długie."
+    fi
   done
 }
 

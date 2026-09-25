@@ -49,7 +49,8 @@ Artisan::command('inspire', function () {
 // `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
 // `proc_open` nie jest potrzebny. KAŻDE zadanie idzie przez jeden adapter,
 // `Harmonogram::artisan()`: kod ≠ 0 zamienia on w wyjątek z nazwą
-// komendy i kodem, bo `CallbackEvent` nie rozpoznaje liczby 1 jako błędu (#835).
+// komendy, kodem i zamaskowanym ogonem jej wyjścia, bo `CallbackEvent`
+// nie rozpoznaje liczby 1 jako błędu (#835).
 // Nie pisz tu gołego `Schedule::call(fn () => Artisan::call(...))` — pilnuje
 // tego `HarmonogramSprawdzaKodWyjsciaTest`.
 //
@@ -251,6 +252,18 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
+// jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
+// prośby, z której nikt nie skorzystał, zostaje bez terminu — także w kopiach.
+// Żeton przestaje działać po `auth.passwords.users.expire` minutach sam; to
+// zadanie zabiera już tylko dane osobowe bez zastosowania.
+Harmonogram::artisan('kuking:sprzataj-resety-hasel')
+    ->name('kuking:sprzataj-resety-hasel')
+    ->dailyAt('05:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
@@ -313,6 +326,31 @@ Harmonogram::artisan('kuking:budzet-polaczen')
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->name('kuking:sprawdz-kolejke')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
+// Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
+// stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak
+// spokój. Dlatego co 5 minut znak życia do ZEWNĘTRZNEGO monitora, który
+// alarmuje, gdy znak nie przyjdzie. Bez `KUKING_PULS_HARMONOGRAMU_URL` nie
+// wysyła nic (zero efektu). Co 5 minut: monitor z oknem 15 minut dostaje
+// trzy szanse, więc jedno zgubione żądanie nie budzi nikogo w nocy.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:puls-harmonogramu')
+    ->name('kuking:puls-harmonogramu')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
+// Zaległe czyszczenie cache CDN (issue #959). Adresy skasowanych zdjęć, których
+// `PurgePublicMediaCache` nie wyczyścił — bo nie było konfiguracji Cloudflare
+// albo zadanie wyczerpało próby — czekają w `zalegle_czyszczenia_cdn`. Bez
+// konfiguracji komenda nic nie wysyła i kończy się sukcesem (świeci `/health`).
+// Co kwadrans: każdy wiersz to zdjęcie, które może się jeszcze otwierać.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:wyczysc-zalegle-cdn')
+    ->name('kuking:wyczysc-zalegle-cdn')
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping(10);
@@ -421,3 +459,39 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->onOneServer()
     ->withoutOverlapping(120);
+
+// Dosyłka zaległych potwierdzeń przyjęcia zgłoszenia (issue #797, D-252 —
+// decyzja właściciela z 23.09.2026, DSA art. 16 ust. 4).
+//
+// Potwierdzenie stoi poza transakcją zapisu sprawy — celowo, żeby awaria
+// powiadomienia nie zabrała człowiekowi zgłoszenia. Sprawa, do której ktoś
+// wróci, dokańcza potwierdzenie sama (`ReportContent::dokonczPotwierdzenie()`).
+// Sprawa, do której NIKT nie wróci, zostawała bez potwierdzenia na zawsze —
+// i to obchodzi to zadanie. Przy DSA art. 16 ust. 4 potwierdzenie przyjęcia
+// jest obowiązkiem, nie uprzejmością.
+//
+// CO GODZINĘ, nie raz na dobę: przepis mówi „bez zbędnej zwłoki", a zaległość
+// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 35:
+// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`; nocne
+// pasmo sprzątania też omijamy — cała ta lista jest świadomie porozsuwana.
+//
+// `onOneServer()` — jak każde zadanie w tym pliku (#595): przy wdrożeniu dwa
+// kontenery nie odpalą tego samego terminu. Przed dublem potwierdzenia chroni
+// jednak nie harmonogram, tylko warunkowy `UPDATE ... WHERE receipt_sent_at
+// IS NULL` w `NotifyReporterReceipt` — blokady są tu drugą linią.
+// `withoutOverlapping(50)` — reguła #1002 dla zadań co godzinę: blokada
+// wygasa przed następnym terminem, a jest dłuższa niż przebieg (partia
+// `--ile=200` to 200 krótkich transakcji).
+//
+// KOD WYJŚCIA ZAMIENIA W WYJĄTEK wspólny adapter `Harmonogram::artisan()`
+// (#835): `CallbackEvent` uznaje za porażkę tylko wyjątek albo `false`,
+// a liczba zwrócona przez `Artisan::call()`, także 1, przechodziłaby jako
+// sukces. Wyjątek oznacza przebieg jako nieudany (`ScheduledTaskFailed`)
+// i trafia do zgłaszania błędów. Pilnują tego dwa testy
+// w `DosylkaZaleglychPotwierdzenTest`: jeden na nieudanym przebiegu, drugi
+// (kontrola dodatnia) na udanym.
+Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
+    ->name('kuking:dosylaj-potwierdzenia-zgloszen')
+    ->hourlyAt(35)
+    ->onOneServer()
+    ->withoutOverlapping(50);

@@ -155,7 +155,8 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # 15, nie 10: sonda wydania (#1012) czeka na przełączenie ruchu najwyżej
     # SONDA_PROBY × (SONDA_ODSTEP + limit curl) ≈ 7,5 minuty, a reszta testu
-    # dymnego potrzebuje swoich dwóch-trzech.
+    # dymnego potrzebuje swoich dwóch-trzech (z końcową sondą: najwyżej
+    # 3 × (15 s curl + 5 s) = minuta).
     timeout-minutes: 15
 
     # -----------------------------------------------------------------------
@@ -396,9 +397,11 @@ jobs:
           fi
 
           # Wydanie mogło zostać podmienione W TRAKCIE sprawdzeń — wtedy część
-          # z nich opisuje cudzy commit. Jedna próba, bez czekania.
+          # z nich opisuje cudzy commit. Stała tu JEDNA próba: chwilowe 502
+          # brzegu albo zgubiony pakiet oblewały całe wdrożenie. Teraz 3 próby
+          # co 5 s; każda nieudana mówi, która i dlaczego padła.
           echo "--- Wydanie po testach ---"
-          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1
+          sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1
           echo "potwierdzony=${SONDA_POTWIERDZONY}" >> "$GITHUB_OUTPUT"
 
           exit $fail
@@ -635,10 +638,13 @@ jobs:
           echo "Jeśli ostatni deploy zawierał migrację destrukcyjną"
           echo "(DROP COLUMN / RENAME), rollback kodu NIE naprawi bazy."
           echo ""
-          echo "I NIE MA DO CZEGO WRÓCIĆ: PITR i Volume Backups to funkcje"
-          echo "planu Pro. Na Free i Hobby Railway nie robi ZADNEJ kopii."
-          echo "Jedyna kopia to zrzut z issue #193 — jesli jeszcze nie"
-          echo "istnieje, utrata danych jest bezpowrotna (D-043)."
+          echo "PRZED odtwarzaniem bazy sprawdź stan kopii i procedurę:"
+          echo "  docs/infra/KOPIE_I_ODTWORZENIE.md, §3(b) 'Utracona cała baza'"
+          echo "  docs/infra/KOPIE_I_ODTWORZENIE.md, §5.3 (co Railway realnie"
+          echo "  oferuje na tym projekcie — sprawdź w panelu, nie zakładaj z góry)."
+          echo "Jedyna POTWIERDZONA kopia offsite to zrzut z issue #193 —"
+          echo "jesli jeszcze nie istnieje, utrata danych może być bezpowrotna"
+          echo "(D-043)."
           echo ""
           echo "Wykonaj rollback w panelu Railway:"
           echo "  Service $APP_SERVICE → Deployments → poprzedni udany → ... → Redeploy"

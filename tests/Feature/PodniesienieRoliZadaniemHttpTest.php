@@ -11,6 +11,8 @@ use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Models\Tag;
+use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -179,6 +181,31 @@ class PodniesienieRoliZadaniemHttpTest extends TestCase
 
     /**
      * ATAK 1-8: wszystkie trasy przyjmujące dane profilu i ustawień.
+     *
+     * KAŻDA PRÓBA MA WŁASNĄ KONTROLĘ DODATNIĄ (issue #1353).
+     *
+     * `assertNieOdbite()` przepuszcza 302, a 302 to także odpowiedź na błąd
+     * walidacji. Wcześniej ta pętla sprawdzała po każdym żądaniu tylko
+     * „konto się nie zmieniło" — co przechodzi tak samo, gdy formularz
+     * odrzucił dane i niczego nie zapisał. `PUT /ustawienia/tagi` bez
+     * `form_scope` robił dokładnie to: 302 z błędem, zielony test, zero
+     * zmierzonej obrony. Dlatego każda próba:
+     *
+     *  - wysyła formularz, który DOZWOLONE pole naprawdę zmienia (wartość
+     *    inna niż domyślna, inaczej „zapisało się" i „nic się nie stało"
+     *    wyglądają tak samo);
+     *  - sprawdza `assertSessionHasNoErrors()`;
+     *  - sprawdza własny skutek w bazie (czwarty element tablicy).
+     *
+     * Kontrola dodatnia (zmierzona 24.09.2026, `tests/mutacje/fillable.txt`):
+     * reguła `'wants_weekly_digest' => ['required', 'in:tak']`
+     * w `PrivacySettingsController` albo `min:500` dla `message`
+     * w `NapiszDoNasController` wywraca ten test („Session has unexpected
+     * errors"). Poprzednia wersja pętli obie mutacje przeżywała, a na `PUT
+     * /ustawienia/tagi` już na czystym `main` dostawała 302 z błędem.
+     *
+     * `*_trasy_tresci_*` nie potrzebuje tej zmiany: każda próba tam kotwiczy
+     * się na rekordzie, który musiał powstać.
      */
     public function test_zadna_trasa_profilu_i_ustawien_nie_podnosi_roli_ani_stanu_konta(): void
     {
@@ -186,43 +213,63 @@ class PodniesienieRoliZadaniemHttpTest extends TestCase
         $ofiara = $this->user('ofiara');
         $dodatki = $this->dodatki($ofiara);
 
+        $skale = config('kuking.text.scales');
+        $skala = end($skale);
+        $motyw = 'dark';
+        $this->assertNotSame(config('kuking.theme.default'), $motyw, 'Motyw próby musi różnić się od domyślnego.');
+
+        $zupy = $this->tagPromowany('zupy', 'Zupy', 1);
+        $ciasta = $this->tagPromowany('ciasta', 'Ciasta', 2);
+        $zakresTagow = $this->actingAs($napastnik)->get('/ustawienia/tagi')->viewData('formScope');
+
         $proby = [
             'PUT /ustawienia/profil' => ['put', '/ustawienia/profil', [
-                'display_name' => 'Basia',
+                'display_name' => 'Basia z pętli',
                 'username' => 'basia_napastniczka',
                 'bio' => 'Gotuję od zawsze.',
-            ]],
+            ], fn (User $n) => $this->assertSame('Basia z pętli', $n->profile->display_name)],
             'PUT /ustawienia/czytelnosc' => ['put', '/ustawienia/czytelnosc', [
-                'text_scale' => config('kuking.text.scales')[0],
-            ]],
+                'text_scale' => $skala,
+            ], fn (User $n) => $this->assertSame($skala, $n->text_scale)],
+            // `original_*` to stan, który formularz widział przy otwarciu
+            // (#880) — bez nich zapis odmawia jako formularz nieaktualny.
             'PUT /ustawienia/prywatnosc' => ['put', '/ustawienia/prywatnosc', [
                 'wants_weekly_digest' => '1',
-                'memories_enabled' => '1',
-            ]],
+                'memories_enabled' => '0',
+                'original_digest' => (int) $napastnik->wants_weekly_digest,
+                'original_memories' => (int) $napastnik->memories_enabled,
+            ], fn (User $n) => $this->assertFalse((bool) $n->memories_enabled)],
             'POST /motyw' => ['post', '/motyw', [
-                'theme' => config('kuking.theme.options')[0],
-            ]],
+                'theme' => $motyw,
+            ], fn (User $n) => $this->assertSame($motyw, $n->theme)],
             'PUT /ustawienia/tagi' => ['put', '/ustawienia/tagi', [
-                'tags' => [],
-            ]],
+                'form_scope' => $zakresTagow,
+                'tags' => [$zupy->getKey()],
+            ], fn (User $n) => $this->assertTrue($n->isFollowingTag($zupy))],
             'POST /witaj/zainteresowania' => ['post', '/witaj/zainteresowania', [
-                'tags' => [],
-            ]],
+                'tags' => [$ciasta->getKey()],
+            ], fn (User $n) => $this->assertTrue($n->isFollowingTag($ciasta))],
             'POST /witaj/ludzie' => ['post', '/witaj/ludzie', [
-                'follow' => [],
-            ]],
+                'follow' => ['ofiara'],
+            ], fn (User $n) => $this->assertTrue($n->isFollowing($ofiara))],
             'POST /napisz-do-nas' => ['post', '/napisz-do-nas', [
                 'kind' => ContactMessage::KIND_INNE,
                 'message' => 'Dzień dobry, mam pytanie o zeszyt.',
                 'contact_email' => 'basia@example.test',
-            ]],
+            ], fn (User $n) => $this->assertSame(1, ContactMessage::query()->where('user_id', $n->getKey())->count())],
         ];
 
-        foreach ($proby as $nazwa => [$metoda, $adres, $formularz]) {
+        $wykonanych = 0;
+
+        foreach ($proby as $nazwa => [$metoda, $adres, $formularz, $skutek]) {
             $odpowiedz = $this->actingAs($napastnik)->{$metoda}($adres, array_merge($dodatki, $formularz));
 
             $this->assertNieOdbite($odpowiedz, $nazwa);
+            // 302 po błędzie walidacji to nie jest „doszło do zapisu".
+            $odpowiedz->assertSessionHasNoErrors();
+            $skutek($napastnik->fresh());
             $this->assertKontoNietkniete($napastnik, $nazwa);
+            $wykonanych++;
         }
 
         // PUŁAPKA 2: pętla, która nie wykonała ani jednej próby, wygląda
@@ -230,9 +277,17 @@ class PodniesienieRoliZadaniemHttpTest extends TestCase
         // obroniły.
         $this->assertGreaterThanOrEqual(
             8,
-            count($proby),
+            $wykonanych,
             'Lista prób się skurczyła — ten test nie atakuje już tego, co obiecuje.',
         );
+    }
+
+    private function tagPromowany(string $slug, string $nazwa, int $pozycja): Tag
+    {
+        $tag = Tag::create(['slug' => $slug, 'name' => $nazwa, 'normalized_name' => mb_strtolower($nazwa)]);
+        TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => $pozycja]);
+
+        return $tag;
     }
 
     /**

@@ -190,9 +190,10 @@ return [
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
          * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
-         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
-         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
-         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie i kończy się
+         * sukcesem; na produkcji odkłada przy tym adresy do tabeli
+         * `zalegle_czyszczenia_cdn`, skąd `kuking:wyczysc-zalegle-cdn`
+         * wyśle je po uzupełnieniu zmiennych (#959). Sygnałem, który dociera, jest
          * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
          * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
          * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
@@ -442,6 +443,18 @@ return [
         // żeby wygląd nie mrugnął z powrotem do jasnego, gdyby ta sama osoba
         // wylogowała się na tym samym urządzeniu.
         'cookie' => 'motyw',
+    ],
+
+    'html_cache' => [
+        // Ile sekund brzeg Cloudflare może trzymać HTML landingu, przepisu
+        // i profilu dla gościa BEZ żadnego ciasteczka (#610). 0 = wyłączone
+        // i to jest wartość domyślna: aplikacja zakłada wtedy sesję i wysyła
+        // `private, no-store` jak przed #610. Kod obcina wartość do 300 s
+        // (`PublicznyHtmlGoscia::MAKS_SEKUND`), bo tyle najwyżej trwa okno,
+        // w którym przepis przełączony na prywatny, ukryty przez moderację
+        // albo usunięty może być jeszcze widoczny z brzegu.
+        // Reguła brzegu i plan wycofania: docs/infra/CLOUDFLARE_CACHE_597_610.md.
+        'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
     ],
 
     'account' => [
@@ -1969,6 +1982,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puls harmonogramu do zewnętrznego monitora — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | Adres monitora typu „dead man's switch" (np. Healthchecks.io, Better
+    | Stack Heartbeat, UptimeRobot Heartbeat). `kuking:puls-harmonogramu`
+    | woła go co 5 minut; monitor alarmuje, gdy znak życia nie przyjdzie.
+    | Pusty = wyłączone: nic nie jest wysyłane. Adres jest sekretem (zawiera
+    | token), więc trzymaj go w zmiennych Railway, nie w repozytorium.
+    | Kroki: docs/infra/MONITORING_599_KROKI.md.
+    */
+    'monitoring' => [
+        'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
@@ -2679,10 +2708,14 @@ return [
         //
         // To jest decyzja podjęta ZA CZŁOWIEKA, więc obowiązkowo z widoczną
         // możliwością cofnięcia — przycisk „Nie obserwuj" na profilu istnieje.
-        // Pusta wartość wyłącza mechanizm całkowicie.
-        //
-        // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
-        // a nazwa jest tym, co widać i co da się sprawdzić okiem.
+        // Stabilna tożsamość gospodarza. UUID nie zmienia się razem z nazwą
+        // profilu i nie może zostać przejęty przez inne konto (#1089).
+        // Pusta wartość uruchamia wyłącznie zgodność przejściową po nazwie.
+        'host_user_id' => env('KUKING_HOST_USER_ID', ''),
+
+        // ZGODNOŚĆ PRZEJŚCIOWA dla wdrożeń sprzed #1089. Po ustawieniu UUID
+        // ta wartość nie wybiera gospodarza; zostaje na czas bezpiecznego
+        // przejścia i może zostać usunięta w osobnym wdrożeniu.
         'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
 
         // IMIĘ GOSPODARZA — podpis, który czyta CZŁOWIEK, nie konto.
@@ -2692,10 +2725,8 @@ return [
         // Decyzja właściciela: gospodarzem jest **Ula** (patrz
         // `docs/DECISIONS.md` — wpis o imieniu gospodarza).
         //
-        // TO NIE JEST TO SAMO CO `host_username` WYŻEJ. `host_username` to
-        // nazwa konta, którą czyta MECHANIZM (auto-obserwowanie przy
-        // rejestracji, `RegisterController::zaobserwujGospodarza()`) i która
-        // musi dać się znaleźć w bazie (`Profile::where('username', ...)`).
+        // TO NIE JEST TO SAMO CO `host_user_id` WYŻEJ. `host_user_id` to
+        // stabilny identyfikator konta czytany przez mechanizmy społeczności.
         // `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem
         // — nadawca maila (`docs/brand/COPY_STYLE.md` §6 „nadawca",
         // `docs/product/RETENTION_LOOPS.md` §4 „imię gospodarza + „z

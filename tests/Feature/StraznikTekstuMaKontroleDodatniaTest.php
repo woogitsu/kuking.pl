@@ -263,6 +263,29 @@ class StraznikTekstuMaKontroleDodatniaTest extends TestCase
         $this->assertSame(['Pierwsza', "Druga \\'z\\' cudzysłowem", 'Pierwsza'], $this->nazwyKontroli($tresc));
     }
 
+    /**
+     * Punkt wejścia jest cienki (podział z 25.09.2026, PR #1478). Gałąź sprzed
+     * podziału, scalona z „weź moje" w konflikcie, przywróciłaby tu stary
+     * monolit: CI dalej by świecił na zielono, ale puszczał tylko wpisy
+     * z monolitu, a cały katalog — w ciszy nie. Samokontrola w samym punkcie
+     * wejścia zniknęłaby razem z nim, więc ta reguła stoi w PHPUnit.
+     */
+    public function test_punkt_wejscia_kontroli_nie_ma_wpisow_w_starym_ukladzie(): void
+    {
+        $tresc = $this->plik(self::URUCHOMIENIE);
+
+        preg_match_all('/^(checks\s*=|run_test\(|def |[A-Z][A-Z0-9_]*\s*=)/m', $tresc, $trafienia);
+
+        $this->assertSame([], $trafienia[0], implode("\n", [
+            self::URUCHOMIENIE.' ma wpisy kontroli w starym układzie (stałe, `checks`, `run_test`, funkcje mutacji).',
+            'Przenieś każdy wpis do nowego pliku '.self::MECHANIZM.'/kNN_<obszar>.py według README.md,',
+            'a punkt wejścia weź z main: git checkout origin/main -- '.self::URUCHOMIENIE,
+            'Kroki: docs/flota/PRZENIESIENIE_PO_PODZIALE.md',
+        ]));
+
+        $this->assertStringContainsString('_narzedzia.uruchom()', $tresc, 'Punkt wejścia nie woła katalogu kontroli.');
+    }
+
     // ---------------------------------------------------------------- pomocnicze
 
     /** @return list<string> pliki kontroli w kolejności, w jakiej uruchamia je Python */

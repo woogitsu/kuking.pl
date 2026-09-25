@@ -66,7 +66,16 @@ class CommentPolicy
             return false;
         }
 
-        // 4. Rodzic. Dokładnie jeden z trzech (CHECK w bazie,
+        // 4. Korzeń wątku (issue #1396). Strona ładuje odpowiedzi WYŁĄCZNIE
+        //    przez widoczny komentarz główny — ukryty korzeń zabiera ze sobą
+        //    całą gałąź. Bramka pojedynczej treści musi odpowiadać tak samo,
+        //    inaczej odpowiedź niewidoczna w rozmowie daje się zgłosić (i tym
+        //    samym potwierdzić) pod własnym identyfikatorem.
+        if ($comment->parent_id !== null && ! $this->korzenWidoczny($user, $comment, $jestAutorem)) {
+            return false;
+        }
+
+        // 5. Rodzic. Dokładnie jeden z trzech (CHECK w bazie,
         //    `Comment::subject()`), więc `null` nie powinno się zdarzyć —
         //    a jeśli się zdarzy, odmawiamy, zamiast zgadywać.
         $subject = $comment->subject();
@@ -77,6 +86,47 @@ class CommentPolicy
             $subject instanceof CookedEvent => app(CookedEventPolicy::class)->view($user, $subject),
             default => false,
         };
+    }
+
+    /**
+     * Czy korzeń wątku nie chowa tej odpowiedzi przed widzem.
+     *
+     * Te same granice co w `view()` — blokada, konto autora, status, a do
+     * tego usunięcie korzenia — ale furtki liczone są względem ODPOWIEDZI:
+     * jej autor zachowuje dostęp do własnej wypowiedzi (odwołanie, DSA
+     * art. 20), moderator widzi gałąź ukrytą przez moderację lub pod kontem
+     * zbanowanym. Autor samego korzenia NIE dostaje furtki do cudzych
+     * odpowiedzi — lista też mu ich nie pokazuje. Blokada nie ma furtki dla
+     * moderatora, dokładnie jak w regule 1.
+     */
+    private function korzenWidoczny(?User $user, Comment $odpowiedz, bool $jestAutoremOdpowiedzi): bool
+    {
+        if ($jestAutoremOdpowiedzi) {
+            return true;
+        }
+
+        $korzen = Comment::withTrashed()->with('author')->find($odpowiedz->parent_id);
+
+        // Brak korzenia albo korzeń usunięty — gałęzi nie ma na stronie.
+        if ($korzen === null || $korzen->trashed()) {
+            return false;
+        }
+
+        $autorKorzenia = $korzen->author;
+
+        if ($user !== null && $autorKorzenia !== null && $user->hasBlockRelationWith($autorKorzenia)) {
+            return false;
+        }
+
+        if ($user !== null && $user->isModerator()) {
+            return true;
+        }
+
+        if ($autorKorzenia !== null && ! $autorKorzenia->jestDostepnyJakoAutor()) {
+            return false;
+        }
+
+        return $korzen->status === Comment::STATUS_PUBLISHED;
     }
 
     public function update(User $user, Comment $comment): bool
@@ -116,9 +166,20 @@ class CommentPolicy
      * Issue #932: moderator NIE usuwa tędy cudzego komentarza, nawet z 2FA.
      * Cudzy komentarz zdejmuje się decyzją „Usuń" w `/admin/zgloszenia`
      * — z uzasadnieniem, wpisem w `moderation_actions` i odwołaniem.
+     *
+     * Komentarza ukrytego albo zdjętego przez moderację nie usuwa nikt
+     * (issue #937) — autorowi zostaje odwołanie.
      */
     public function delete(User $user, Comment $comment): bool
     {
+        // Issue #937: po decyzji moderatora komentarz jest zamrożony także dla
+        // usunięcia. Przy odpowiedziach `DeleteComment` nadpisuje `body`
+        // placeholderem, więc autor albo autor wpisu kasowałby treść, którą
+        // moderator ocenił — a odwołanie (DSA art. 20) dotyczy właśnie jej.
+        if ($comment->status !== Comment::STATUS_PUBLISHED) {
+            return false;
+        }
+
         if ($user->getKey() === $comment->author_id) {
             return true;
         }

@@ -52,6 +52,9 @@ Konto:
   **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
+- `punishment_status`, `punishment_expires_at` — kara (`suspended`/`banned`)
+  ODŁOŻONA na czas cyklu usunięcia konta (issue #980, patrz niżej). Pola
+  sterujące: poza `$fillable`, zapisuje je wyłącznie `User` pod blokadą;
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
@@ -395,6 +398,45 @@ KUKING_ROLLBACK_KASUJ_TERMINY_KAR=true php artisan migrate:rollback
 
 Pilnuje tego `CofniecieMigracjiNieRobiKaryBezterminowejTest` (odmowa + dwie
 kontrole dodatnie).
+
+#### `punishment_status` — kara odłożona na czas usuwania konta (issue #980)
+
+Migracja `2026_09_24_100000_add_punishment_status_to_users`.
+
+`status` niósł dwa niezależne procesy — karę moderacyjną i cykl usunięcia —
+a każda operacja nadpisywała go bez patrzenia na drugi: ban po zgłoszeniu
+usunięcia wyjmował konto spod `kuking:usun-wygasle-konta` (ten wybiera
+`status = 'pending_delete'`), a zgłoszenie usunięcia po banie gubiło karę
+(cofnięcie usunięcia stawiało `active`).
+
+**Kontrakt.** Dopóki konto jest w cyklu usunięcia (`pending_delete`,
+`erased`), `status` mówi o usuwaniu, a kara czeka tutaj. Macierz przejść
+(`App\Models\User`, każde przejście na świeżym wierszu pod `ZamekKonta`):
+
+| Stan przed | `suspend()`/`ban()` | `markForDeletion()` | `cancelDeletion()` | `reinstate()` |
+|---|---|---|---|---|
+| `active` | `status` = kara | `pending_delete` | — | — |
+| `suspended`/`banned` | `status` = kara | `pending_delete`, kara → `punishment_*` | — | `active` |
+| `pending_delete` | kara → `punishment_*` | odmowa (`BladDlaCzlowieka`) | `status` = odłożona kara albo `active` | zeruje `punishment_*` |
+| `erased` | kara → `punishment_*` | odmowa | (odmawia `CancelAccountDeletion`) | zeruje `punishment_*` |
+
+Wymazanie danych zostawia `punishment_status` na wierszu jako zapis stanu
+konta w chwili wymazania; autorytatywny zapis decyzji żyje
+w `moderation_actions` (retencja: `docs/decyzje/ADR_RETENCJE.md`).
+Mechanizmu blokady ponownej rejestracji w projekcie nie ma i ta migracja go
+nie wprowadza.
+
+```sql
+CHECK (punishment_status IS NULL OR punishment_status IN ('suspended','banned'))  -- users_punishment_status_check
+CHECK (punishment_status IS NULL OR status IN ('pending_delete','erased'))        -- users_punishment_status_deletion_check
+CHECK (punishment_expires_at IS NULL OR punishment_status = 'suspended')           -- users_punishment_expires_at_check
+```
+
+**Rollback ODMAWIA** (D-088), gdy choć jedno konto ma odłożoną karę: stary
+schemat nie ma gdzie jej zapisać, a stary kod przy cofnięciu usunięcia
+ustawiłby `active`. Bez takich kont cofnięcie przechodzi i nic nie ginie.
+Testy: `BanIUsuniecieKontaNieNadpisujaSieTest`,
+`tests/Dwa/BanIUsuniecieKontaRownolegleTest`.
 
 #### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
 
@@ -2039,6 +2081,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
+
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
 „Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
@@ -2186,12 +2257,26 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez gospodarza wskazanego `KUKING_HOST_USERNAME` w chwili
+migracji (migracja wdrożona przed #1089 — nie jest modyfikowana). Nie wysyła
+alertów. Od #1089 kod aplikacji rozpoznaje gospodarza po stabilnym
+`KUKING_HOST_USER_ID` (fallback po nazwie tylko przy pustym UUID); nowe wiersze
+zapisuje `PublishPost`, więc backfill nie jest liczony ponownie.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia (instrukcja krok po kroku: `docs/DEPLOYMENT.md`, „Konto
+gospodarza"): przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Rollback tej migracji odtwarza backfill po `KUKING_HOST_USERNAME`; po zmianie
+nazwy gospodarza może świadomie odmówić (D-088) — dane zostają.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.
@@ -2401,8 +2486,11 @@ kopia tabeli).
 `open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
 Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
-`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
-harmonogram codziennie o 04:30.
+`moderation_actions` i `appeals`, w jednej komendzie, harmonogram codziennie
+o 04:30. Kasuje partiami po 500 identyfikatorów (partia w transakcji; gdy
+padnie — powtórka wiersz po wierszu) i najwyżej 20 000 wierszy z każdej
+tabeli na przebieg; resztę bierze następna noc, a ostrzeżenie w dzienniku
+mówi, ile jej zostało (issue #998).
 
 **`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
 `2026_09_07_910000_add_numer_sprawy_to_reports`).
@@ -3315,6 +3403,23 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
 
+**Plik bez wiersza (audyt B5 pkt 4, 25.09.2026).** `GenerateUserExport` wgrywa
+ZIP przed `finalize()`, więc próba, która padła pomiędzy, zostawiała w magazynie
+paczkę pod kluczem nieznanym wierszowi (`failed`, `object_key IS NULL`). Teraz:
+catch i `failed()` kasują `ExportFileNames::objectKey($export)` (klucz da się
+policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
+7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
+`eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
+Bez zmiany schematu.
+
+### password_reset_tokens (tabela Laravela)
+
+Kluczowana **adresem e-mail zapisanym jawnie** (`email`, `token` — bcrypt,
+`created_at`). Retencja (audyt B5 pkt 6): `kuking:sprzataj-resety-hasel` (to samo co `auth:clear-resets`) codziennie
+o 05:40 kasuje żetony starsze niż `auth.passwords.users.expire`; wymazanie
+konta (`EraseAccountData`) kasuje wiersz po `lower(email)` sprzed
+anonimizacji, zmiana adresu (`ConfirmEmailChange`) — po starym adresie.
+
 #### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
 
 List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
@@ -3789,12 +3894,25 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
-| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
+| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` wymusza: status `new` MUSI mieć `num_nonnulls(handled_by, handled_at) = 0`, a status inny niż `new` MUSI mieć `handled_at IS NOT NULL`. `handled_by` ma `nullOnDelete()` — usunięcie konta operatora zeruje tę kolumnę i nie wywraca bazy (poprawka w `2026_09_24_100000_allow_null_handled_by_on_contact_messages`, #844). `handled_at` pozostaje nienaruszone, bo od niego liczy się retencja. |
 | `handler_note` | Notatka operatora, widoczna wyłącznie w panelu. |
+| `version` | Licznik wersji notatki i stanu, `bigint NOT NULL DEFAULT 0`, poza `$fillable`. Migracja `2026_09_24_110000_add_contact_message_version` (#846). `UpdateContactMessage` porównuje wersję formularza pod blokadą wiersza, a notatkę, stan i licznik zapisuje atomowo. Sama edycja notatki nie zmienia `handled_at` ani `handled_by` (#843). |
+
+**Wycofanie licznika wersji:** usunięcie kolumny nie zmienia treści ani dat.
+Na czas rollbacku wyłącz zapis w panelu i unieważnij otwarte sesje/formularze;
+ponowne wdrożenie zaczyna licznik od zera i nie może przyjąć starej karty.
 
 Indeksy: `contact_messages_status_created_idx (status, created_at, id)` —
 kolejka; `contact_messages_handled_at_idx (handled_at) WHERE handled_at IS
 NOT NULL` — nocna retencja.
+
+**Wycofanie poprawki #844:** migracja
+`2026_09_24_100000_allow_null_handled_by_on_contact_messages` przywraca stary
+CHECK tylko wtedy, gdy nie ma obsłużonych wiadomości bez operatora.
+W przeciwnym razie odmawia; pozostaw migrację i wycofaj sam kod aplikacji.
+Nie usuwaj historii i nie przypisuj przypadkowego operatora dla rollbacku.
+Decyzja właściciela z 20 września 2026: po fizycznym usunięciu operatora
+zachowujemy wiadomość i datę, usuwamy tylko powiązanie z kontem.
 
 **Retencja:** `config('kuking.kontakt.retention_months')` (domyślnie 12)
 miesięcy od `handled_at`, komenda `kuking:sprzataj-wiadomosci`, harmonogram
@@ -3836,6 +3954,24 @@ opowiedzieć.
 | `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |
 | `sent_at` | Kiedy dostawca potwierdził przyjęcie. CHECK `contact_message_replies_sent_complete` wiąże to ze stanem: `wyslana` MUSI mieć `sent_at`, każdy inny stan NIE MOŻE go mieć. |
 | `error` | Powód odmowy, przepuszczony przez redakcję adresów (`WyslijOdpowiedz::bezpiecznyPowod()` — ta sama lekcja co audyt A6-01). Ma odpowiadać moderatorowi na pytanie „co teraz zrobić", nie przechowywać cudzych danych. |
+| `reply_key` | UUID jednego wysłania odpowiedzi. `UNIQUE (contact_message_id, reply_key)`; `NULL` tylko w historycznych wierszach. Poza `$fillable`, zapis przez akcję domenową. Powtórzony klucz odczytuje istniejący wynik; zmieniona treść lub autor z tym samym kluczem są odrzucani. |
+| `sending_started_at` | Nullable `timestamptz`, atomowa rezerwacja przez `UPDATE ... WHERE sending_started_at IS NULL`, zatwierdzona przed pocztą. Ustawiony znacznik wyklucza ponowną wysyłkę tego formularza, również przy niepewnym wyniku. |
+| `audit_recorded_at` | Nullable `timestamptz`; znacznik i wpis `audit_log` powstają w jednej transakcji. Brak znacznika po awarii pozwala dokończyć audyt na ponowionym POST lub po wejściu na kartę. Retencja audytu nie zeruje znacznika. |
+
+Znaczniki dodaje `2026_09_24_120000_add_contact_reply_delivery_markers` (#839).
+Historyczne odpowiedzi dostają oba znaczniki z `created_at`; nie wysyłamy ich
+ani nie tworzymy ponownie dawnych wpisów audytu. `down()` odmawia, jeśli jest
+choć jeden niepusty `reply_key`, bo jego utrata umożliwiłaby duplikaty.
+Bez nowych kluczy rollback usuwa wyłącznie nowe kolumny i indeks. Przy danych
+zachowaj migrację i ochronę ponowień; nie kasuj kluczy dla wymuszenia rollbacku.
+
+Po potwierdzonej odmowie poczty stan to `nieudana`. Zerwane połączenie albo
+brak jednoznacznej odpowiedzi zachowuje `w_toku`, z ograniczonym,
+zredagowanym powodem (#840). `OdmowaEmailLabs::isConfirmedRejection()` niesie
+pewność odmowy oddzielnie od kategorii awarii; pozostałych wyjątków nie
+traktujemy jako dowodu niewysłania. Nowa świadoma próba ma nowy klucz;
+przy niepewności operator najpierw sprawdza dostawcę. Nie jest to gwarancja
+dokładnie jednego doręczenia przez zewnętrzną pocztę.
 
 **Czego tu świadomie NIE MA: adresu, na który list poszedł.** Adres jest już
 w bazie raz — `contact_messages.contact_email` (gość) albo `users.email`
@@ -4026,6 +4162,35 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### zalegle_czyszczenia_cdn
+
+Adresy skasowanych zdjęć, których cache CDN **jeszcze nie wyczyszczono**,
+migracja `2026_09_24_100000_utworz_zalegle_czyszczenia_cdn` (issue #959).
+Do niej `PurgePublicMediaCache` bez `CLOUDFLARE_ZONE_ID` albo
+`CLOUDFLARE_PURGE_TOKEN` kończył się sukcesem z samym ostrzeżeniem w logu,
+a po uzupełnieniu zmiennych nikt nie wiedział, co dokończyć.
+
+| Kolumna | Opis |
+|---|---|
+| `id bigserial` | Kolejność odkładania — `kuking:wyczysc-zalegle-cdn` bierze najstarsze. |
+| `adres varchar(2048) NOT NULL` | Pełny publiczny adres wariantu. **UNIKALNY** (`zalegle_czyszczenia_cdn_adres_unique`): czyszczenie jest idempotentne, drugie odłożenie nic nie dodaje (`insertOrIgnore`). CHECK `zalegle_czyszczenia_cdn_adres_http_check`: `adres ~ '^https?://'` — adresu względnego Cloudflare nie wyczyści nigdy. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy odłożono. |
+
+Kto pisze: zadanie na **produkcji** bez konfiguracji oraz `failed()` po
+wyczerpaniu prób (wszędzie). Kto kasuje: wyłącznie
+`ZalegleCzyszczeniaCdn::wyczysc()` — **po** potwierdzeniu Cloudflare
+(`success: true` dla każdej partii). Porażka zostawia wiersze na następny
+przebieg (co kwadrans). `/health` → `cdn_zalegle` = `czyszczenie_cdn_zalegle`,
+dopóki tabela nie jest pusta.
+
+**Rollback odmawia przy niepustej tabeli (D-088):** każdy wiersz to zdjęcie,
+które może się jeszcze otwierać z cache — często po wymazaniu konta albo
+decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
+`php artisan kuking:wyczysc-zalegle-cdn`, potem wycofuj. Pusta tabela znika
+bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
+z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
+`tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
 ### sessions
 
@@ -4646,6 +4811,59 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+### G. Jak zmierzyć szczyt — kroki dla właściciela (dopisane 25.09.2026)
+
+Definicja gotowości #598 wymaga **zmierzonego** szczytu, a §C daje tylko
+policzony (16 z zapasem, 13 w oknie wdrożenia). Czujka godzinna go nie
+złapie: próbkuje raz na godzinę o :25, a okno wdrożenia trwa minutę–dwie.
+Dlatego są trzy narzędzia — wszystkie tylko do odczytu, żadne nie dzwoni
+na webhook i żadne nie zmienia konfiguracji:
+
+| Narzędzie | Co mierzy | Gdzie chodzi |
+|---|---|---|
+| `scripts/szczyt-polaczen-z-dziennika.php` | min / mediana / **max** z szeregu czujki godzinnej i z okien `--probki` | lokalnie, na pliku wyeksportowanym z dziennika Railway |
+| `php artisan kuking:budzet-polaczen --probki=N --odstep=S` | szczyt w oknie N próbek co S s (max 3600 próbek, odstęp 1–60 s); jedna linia `kuking:budzet-polaczen:szczyt {...}` do kanału `pomiary` na końcu | konsola kontenera aplikacji |
+| `scripts/szczyt-polaczen.sql` + `\watch 1` | to samo zapytanie co czujka, co sekundę | psql w usłudze Postgres — **przeżywa wdrożenie aplikacji** |
+
+**Krok 1 — szczyt zwykłego ruchu (ok. 10 minut, raz w tygodniu przez miesiąc).**
+Railway → serwis aplikacji → *Logs*, filtr `kuking:budzet-polaczen`, okno
+możliwie długie (retencja zależy od planu). Skopiuj wynik do pliku
+i uruchom lokalnie:
+
+```bash
+php scripts/szczyt-polaczen-z-dziennika.php dziennik-598.txt
+```
+
+Kod wyjścia **2** znaczy „w pliku nie ma ani jednej linii pomiaru" —
+czyli szeregu nie ma (np. wrócił problem z §F), a **nie** „zapas jest".
+Zapisz tu datę, liczbę pomiarów, MAX i chwilę MAX.
+
+**Krok 2 — szczyt w oknie wdrożenia (ok. 10 minut, przy zwykłym wdrożeniu).**
+Wariant preferowany, bo konsola nie ginie razem ze starym kontenerem:
+otwórz psql w usłudze **Postgres** (nie w aplikacji), wklej zawartość
+`scripts/szczyt-polaczen.sql`, w nowej linii wpisz `\watch 1`, a potem
+uruchom zwykłe wdrożenie aplikacji. Po jego zakończeniu i minucie spokoju
+przerwij `Ctrl+C` i zanotuj największą wartość `zajete_serwer`.
+Nie wystawiaj w tym celu publicznego portu bazy (proxy TCP) — jeśli
+psql w usłudze Postgres nie jest dostępny, użyj wariantu z konsolą aplikacji.
+
+Wariant z konsolą aplikacji: `php artisan kuking:budzet-polaczen --probki=300`
+(5 minut). Uruchomiony w kontenerze, który wdrożenie zastępuje, zostanie
+przerwany razem z nim — wtedy linia podsumowania do dziennika nie powstanie,
+ale wiersze `próbka i/N` wypisane w terminalu zostają i to je się notuje.
+
+**Krok 3 — decyzja.** Zmierzony MAX porównaj z §D: poniżej 50 — progi
+zostają, #600 nie ma liczb za PgBouncerem; powyżej 50 w spokojnym ruchu —
+szukać wycieku albo nieznanych procesów, zanim doda się replikę. Ten sam
+MAX wpisz w #598 z datą i SHA wdrożenia.
+
+**Czego ta sekcja nie dowodzi.** Dostępność psql w usłudze Postgres
+na Railway i dokładna nazwa przycisku konsoli **nie były sprawdzone**
+w sesji, która to pisała — tylko zapytanie (test na PostgreSQL 18)
+i oba narzędzia PHP (`ProbkowanieSzczytuPolaczenTest`,
+`SzczytPolaczenZDziennikaTest`). Wycofanie: odwrócenie commita; nie ma
+migracji ani zmiennych środowiskowych.
 
 ## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
 

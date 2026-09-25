@@ -82,7 +82,8 @@ Przeczytaj w tej kolejności:
 4. `docs/UX_50_PLUS.md` — twardy standard interfejsu,
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
-7. `docs/ROADMAP.md` — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
+   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
@@ -582,6 +583,10 @@ nowy plik `scripts/kontrole_negatywne/<nazwa>.py` według wzoru z
 mutacja, test, który ma po niej oblać, kontrola dodatnia. Wspólnych plików
 nie ruszasz. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
 klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
+`scripts/kontrole-negatywne-alfa08.py` to tylko punkt wejścia (od 25.09.2026):
+wpis dopisany tam w starym układzie kończy się odmową z instrukcją. Gałąź
+sprzed podziału przenosi wpisy według
+[`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`](docs/flota/PRZENIESIENIE_PO_PODZIALE.md).
 
 ### Issues
 
@@ -589,6 +594,21 @@ Praca idzie **po kolei, z issues**. Etykiety priorytetu: `P0` → `P1` → `P2`,
 kolejność merytoryczna z `docs/ROADMAP.md`. Nowe pomysły zapisuj jako issue
 z opisem, uzasadnieniem i kryteriami akceptacji — nie dokładaj ich
 do niepowiązanego PR-a.
+
+### Praca równoległa wielu sesji (flota)
+
+Jeśli prowadzisz albo koordynujesz równoległe sesje Claude Code w chmurze,
+czyli jesteś **sesją główną**, pracujesz według
+[`docs/flota/chmura/SESJA_GLOWNA.md`](docs/flota/chmura/SESJA_GLOWNA.md).
+Tam jest opisane:
+- wznawianie pracy bez pytania;
+- limit i dokładanie sesji;
+- kontrola pełnej listy sesji;
+- przegląd kodu przed PR-em;
+- zamykanie issues z dowodem;
+- scalanie paczkami.
+
+Sesja robocza nie otwiera PR-ów. Pushuje swoją gałąź i kończy raportem.
 
 ---
 

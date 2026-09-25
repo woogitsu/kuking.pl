@@ -307,7 +307,7 @@ LICZBA_PODMIAN="$(ZAMIEN="$ZAMIEN" NA="$NA" php -r '
     echo $ile;
 ' "$KOPIA" "$PLIK" 2>/dev/null)"
 
-if ! printf '%s' "$LICZBA_PODMIAN" | grep -qE '^[0-9]+$'; then
+if ! grep -qE '^[0-9]+$' <<< "$LICZBA_PODMIAN"; then
     zle "Nie udało się wykonać podmiany (PHP nie zwrócił liczby). Nic nie zmieniono."
     WERDYKT="BLAD_UZYCIA"
     zapisz_json "$WERDYKT"

@@ -1863,11 +1863,16 @@ osoba w przycisku myli.
 gospodarza w e-mailach. Bez prawdziwego imienia digest traci większość swojej
 wartości". Rozstrzygnięcie: **Ula**.
 
-**To nie jest to samo pole, co `host_username`.** `host_username`
-(dziś `woogitsu`) to nazwa KONTA, którą czyta mechanizm — auto-obserwowanie
-gospodarza przy rejestracji — i która musi dać się znaleźć w bazie.
-`host_name` to imię, którym serwis PODPISUJE się przed człowiekiem. Dwie różne
-rzeczy, dwa pola, jeden plik.
+**To nie jest to samo pole, co `host_user_id`.** `host_user_id` to stabilny
+UUID KONTA, który czytają mechanizmy auto-obserwowania, alertu pierwszego
+wpisu i wykluczeń analitycznych. Nazwa profilu jest edytowalnym adresem i nie
+może być tożsamością gospodarza: po przemianowaniu może przejąć ją inna osoba
+(#1089). `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem.
+
+`host_username` zostaje wyłącznie jako zgodność przejściowa dla wdrożeń sprzed
+#1089. Jest czytane tylko przy pustym `host_user_id`. Ustawiony, lecz błędny
+UUID nie cofa się do nazwy — takie cofnięcie mogłoby oddać funkcję gospodarza
+osobie, która przejęła dawny adres profilu.
 
 Imię mieszka w jednym miejscu, `config('kuking.community.host_name')`, i stamtąd
 składa się nazwa nadawcy poczty („Ula z Kuking"). Nie jest wpisane osobno
@@ -1880,7 +1885,7 @@ po staremu — trzeba ją usunąć albo zaktualizować ręcznie.
 
 **Zmiana wymaga:** zmiany osoby, która prowadzi społeczność.
 
-📄 `config/kuking.php` (`community.host_name`) · `config/mail.php` ·
+📄 `config/kuking.php` (`community.host_user_id`, `community.host_name`) · `config/mail.php` ·
 `docs/brand/COPY_STYLE.md` §6 · `docs/product/RETENTION_LOOPS.md` §4
 
 ---
@@ -3207,6 +3212,7 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
+Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -4560,6 +4566,12 @@ razem z gałęzią `@case` w widoku powiadomień.
 ## D-061 · Zdjęcie profilowe przechodzi przez model, a celem oznaczenia jest PLIK, nie konto
 
 **Data:** 10 września 2026 · Issue #237 · Status: **obowiązuje**
+
+> **Adnotacja (25 września 2026, B6-06):** **D-240** (22 września 2026)
+> uchyla tę decyzję w części „zdjęcie profilowe idzie do modelu" — awatar
+> **nie** wychodzi do OpenAI (`app/Jobs/PrzeanalizujAwatar.php`, celowo
+> pusty job). Część o celu oznaczenia (`target_type = 'media'`) i o tym,
+> że awatar jest ważniejszy do ochrony niż wpis, zostaje w mocy.
 
 Pytanie właściciela było jednozdaniowe: *„czy zdjęcie profilowe jest
 przetwarzane przez moderation omni model?"*. Odpowiedź brzmiała **nie** —
@@ -15343,6 +15355,13 @@ o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
 komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
 powiadomienia i nie przywraca `read_at` do `null`.
 
+> **Adnotacja (25 września 2026, B6-07):** zdanie powyżej o ponownej
+> analizie przestało być prawdziwe — **D-256** (24 września 2026, #909)
+> zastąpiła je w tej części: `CommentController::update()` zleca
+> `PrzeanalizujTresc::dlaKomentarza()`, gdy edycja rzeczywiście zmienia
+> tekst komentarza. Reszta zdania (brak nowego powiadomienia, `read_at`
+> bez zmiany) obowiązuje bez zmian.
+
 Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
 komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
 komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
@@ -15560,7 +15579,8 @@ krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
 i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
 
 Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
-(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+(#1164), D-228 (#966, numer na gałęzi, nie na `main`), D-229 (#1180), D-230
+(#1168) są zajęte, a D-232 jest
 zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
 
 Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
@@ -15657,10 +15677,15 @@ jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 ## D-239 — Wspólny licznik całej poczty i kolejność wygaszania (#732, 22 września 2026)
 
 > Numer: gałąź `fix/732-wspolny-licznik-poczty` niosła tę decyzję jako D-225,
-> a ten numer (i D-226, D-227) zajęły w międzyczasie inne decyzje na `main`.
-> D-239 to pierwszy numer wolny na `origin/main` i na wszystkich gałęziach
-> zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź, której numeru
-> nie ma jeszcze na `main`). Treść to intencja tamtej gałęzi przeniesiona na
+> a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
+> bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
+> na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
+> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
+> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
+> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
+> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
+> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
 Do tej zmiany każda funkcja wysyłająca wiele listów miała własny sufit dobowy
@@ -15979,7 +16004,8 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 „Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
 
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
-D-243 przez inne gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
+D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
+gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
 wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
 strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
@@ -16017,6 +16043,12 @@ odwołania.
    Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
    i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
    bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+   **Uzupełnienie (#1408, 24 września 2026):** stroną sprawy jest też ten,
+   KOGO ona dotyczy. Zgłoszenia własnej treści albo własnego profilu nie
+   rozstrzyga ani moderator, ani administrator — reguła rangi blokowała
+   tylko karę na sobie, a „Bez działania” pozwalało oddalić skargę na siebie.
+   Autora wyznacza `ModeratedContent::osoba()`, cel szukany razem z miękko
+   usuniętymi.
 2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
    `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
    administrator także moderatorów. **Konta administratora nie zawiesza ani
@@ -16261,6 +16293,84 @@ wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
 komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
+
+---
+
+## D-252 — Aplikacja sama dosyła zaległe potwierdzenia przyjęcia zgłoszeń, co godzinę (#797, DSA art. 16 ust. 4, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+### Problem
+
+Potwierdzenie przyjęcia zgłoszenia (powiadomienie w serwisie
+`report.received` + znacznik `reports.receipt_sent_at`) powstaje POZA
+transakcją zapisu sprawy — celowo, żeby awaria powiadomienia nie zabrała
+człowiekowi przyjętego zgłoszenia. Awaria zostawia sprawę z pustym
+znacznikiem. Dokańczał ją tylko powrót człowieka do tej samej sprawy;
+sprawa, do której nikt nie wraca, zostawała bez potwierdzenia na zawsze,
+a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
+
+### Decyzja
+
+**TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
+wcześniej nie wyszły.** Robi to komenda
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`).
+
+- **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
+  akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
+  warunkowy `UPDATE ... WHERE receipt_sent_at IS NULL` w jednej transakcji
+  z utworzeniem powiadomienia. Gdy dosyłka zbiegnie się z człowiekiem
+  wracającym do tej samej sprawy, wiersz dostaje dokładnie jedno
+  potwierdzenie — ten jeden przeplot mierzy
+  `tests/Dwa/DosylkaNieDublujePotwierdzeniaTest` na dwóch połączeniach.
+  Dwóch przebiegów dosyłki naraz nikt nie mierzy osobno: nie dopuszczają
+  ich `onOneServer()` i `withoutOverlapping(50)`, a gdyby do nich doszło,
+  chroni ten sam warunkowy `UPDATE`.
+- **Partiami.** `--ile` (domyślnie 200) ogranicza jeden przebieg,
+  najstarsze sprawy idą pierwsze, reszta czeka na następną godzinę.
+- **Sprawa, która pada stale, nie zatyka kolejki.** Porażki są liczone
+  per sprawa (cache, klucz `kuking:dosylka-potwierdzen:porazki`, 30 dni);
+  po 3 porażkach z rzędu sprawa idzie na koniec kolejki i dostaje próbę
+  dopiero, gdy w partii zostaje miejsce po sprawach zdrowych. Nie przepada:
+  dalej liczy się jako zaległość, a jej porażka dalej daje kod ≠ 0. Udana
+  próba albo zniknięcie zaległości zeruje licznik. Licznik nie jest
+  w kolumnie, bo to stan roboczy dosyłki, nie fakt o sprawie — jego utrata
+  kosztuje tylko kilka dodatkowych prób.
+- **Nie jest zaległością** (i nie wchodzi do licznika): zgłoszenie bez
+  konta (droga prawna ma własne potwierdzenie mailowe), zgłaszający
+  z kontem wymazanym (brak czytelnika), sprawa, której rozstrzygnięcie
+  (art. 16 ust. 5, `decision_sent_at`) już doszło — potwierdzenie mówi
+  „sprawdzimy i napiszemy, co postanowiliśmy", więc po decyzji byłoby
+  nieprawdą, a informacja o decyzji niesie ten sam numer sprawy. Warunek
+  decyzji stoi także w samym zamku, więc decyzja doręczona w trakcie
+  przebiegu wygrywa. Sprawa rozstrzygnięta BEZ doręczonej decyzji
+  potwierdzenie dostaje — to wtedy jedyny ślad, że zgłoszenie doszło.
+- **Ping skasowany przez retencję nie jest zaległością** — komenda pyta
+  o znacznik, nigdy o istnienie powiadomienia.
+- **Porażka widoczna.** Awaria jednej sprawy nie zatrzymuje partii, ale
+  komenda kończy się kodem ≠ 0, a wspólny adapter
+  `App\Support\Harmonogram::artisan()` zamienia go w wyjątek (#835). Zadanie ma `onOneServer()` (#595)
+  i `withoutOverlapping(50)` (#1002).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Górnej granicy wieku sprawy: komenda dośle potwierdzenie także do
+zgłoszenia sprzed roku. „Od kiedy jest za późno" wymaga osobnej decyzji.
+Nie dotyczy też informacji o rozstrzygnięciu, która nie doszła —
+to osobna zaległość bez własnej dosyłki.
+
+### Dowód
+
+`tests/Feature/DosylkaZaleglychPotwierdzenTest.php`,
+`tests/Dwa/DosylkaNieDublujePotwierdzeniaTest.php`.
+
+### Wycofanie
+
+Usunąć zadanie z `routes/console.php` (komenda może zostać do ręcznego
+użycia). Schemat się nie zmienia; wysłanych powiadomień nie trzeba cofać.
+
+---
 
 ## D-253 — Decyzja właściciela #926: prywatne czynności podczas zawieszenia (20 września 2026)
 
@@ -16665,3 +16775,171 @@ Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
+
+## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
+(potwierdzone przez właściciela 25 września 2026 — zmienia jeden wiersz
+„ODŁOŻONE” z D-052)
+
+**Potwierdzenie właściciela (25 września 2026):** treść decyzji z
+24 września obowiązuje bez zmian. Audyt dokumentacji B6 (znalezisko
+B6-12) zwrócił uwagę, że commit wszedł na `main` (#909), zanim wpis dostał
+status inny niż „do decyzji właściciela” — właściciel potwierdza tę treść
+zamiast wycofywać commit.
+
+**Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
+opublikowanego komentarza, `CommentController::update()` zleca
+`PrzeanalizujTresc::dlaKomentarza()` — to samo zadanie, w tej samej kolejce
+`low`, co po publikacji. Zapis bez zmiany (`wasChanged('body')` fałszywe)
+nic nie zleca. Wpisy i przepisy zostają bez zmian.
+
+**Dlaczego.** D-052 odłożył ponowną analizę po edycji „ze świadomą luką”,
+z dwóch powodów. Oba przy komentarzu nie trzymają:
+
+1. *Obietnica „odrzucone nie wraca”* — nienaruszona. Zadanie kończy się
+   w `OznaczDoPrzegladu`, a tam `juzOgladane()` i indeks
+   `reports_jeden_automat_na_tresc` przepuszczają jedno oznaczenie na
+   komentarz, na zawsze. Edycja NIE otwiera sprawy odrzuconej i nie stawia
+   drugiej pozycji przy otwartej (moderator i tak ogląda aktualny tekst).
+2. *Koszt zadania za każdą literówkę* — ograniczony: okno 15 minut, limit
+   trasy `comment`, tylko rzeczywista zmiana. Kilka szybkich poprawek daje
+   kilka zadań, ale każde czyta komentarz po ID, więc każde ocenia
+   najnowszy tekst, a wynik to najwyżej jedna pozycja w kolejce.
+
+Luka była najtańszym obejściem wykrywacza: neutralny komentarz → zakończona
+analiza → dopisany spam.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+treść zostaje opublikowana, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji — zadanie ogląda tylko opublikowany komentarz.
+
+**Znana granica.** Komentarz, którego oznaczenie moderator już odrzucił,
+po edycji nie wraca do kolejki automatu — to cena obietnicy z D-052.
+Zostaje zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiKomentarzaTest.php` (zakończona
+pierwsza analiza, pierwsze zadanie wciąż w kolejce, zapis bez zmiany,
+wyłącznik, odrzucone nie wraca).
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.
+
+## D-257 — Zdjęcia w R2: token per bucket w aplikacji, kopia jako datowane migawki poza jej zasięgiem (#617, 24 września 2026)
+
+**Data:** 24 września 2026 · Status: **część w kodzie obowiązuje po scaleniu; strategia kopii czeka na decyzję właściciela** (runbook: `docs/infra/DR_ZDJEC_R2.md`)
+
+**Co (w kodzie).**
+
+1. Każdy bucket zdjęć i paczek może mieć własną parę tokenu R2:
+   `AWS_ORIGINALS_*` (`r2`), `AWS_PUBLIC_*` (`r2_publiczne`), `AWS_LEGACY_*`
+   (`r2_legacy`), `AWS_EXPORTS_*` (`r2_eksporty`). Bez pary bucket bierze
+   wspólne `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, tak jak przed zmianą.
+   Połowa pary to wyjątek przy ładowaniu konfiguracji z nazwą brakującej
+   zmiennej, a nie cichy powrót do wspólnego tokenu.
+2. Dysk `r2_kopia_zdjec` (sterownik `s3`, własna para
+   `AWS_ZDJECIA_KOPIA_*`, token **tylko do odczytu**) i komenda
+   `kuking:sprawdz-kopie-zdjec` porównująca wiersze `media` z migawką kopii.
+   Komenda niczego nie zapisuje i odmawia pracy bez własnej pary tokenu.
+   Pusty klucz s3 znaczy, że AWS SDK sięga po `AWS_ACCESS_KEY_ID` ze
+   środowiska, czyli po token aplikacji.
+
+**Dlaczego aplikacja NIE traci prawa kasowania.** `EraseAccountData` usuwa
+zdjęcia natychmiast. Sprzątanie osieroconych i kompensacja nieudanego
+wgrania też kasują. Kolejka z opóźnieniem albo „kosz” w tym samym buckecie
+nie odbiera tokenowi prawa `DELETE` (przeniesienie to kopia plus `DELETE`),
+a opóźnia usunięcie danych. Przed logicznym usunięciem chroni wyłącznie
+kopia, do której aplikacja nie ma prawa zapisu.
+
+**Co (rekomendacja, do decyzji właściciela).** Osobny bucket
+`kuking-zdjecia-kopia` z jurysdykcją EU, bez domeny. Kopia to **datowane
+migawki** `migawka-RRRR-MM-DD/{oryginaly,warianty}/`, robione przez proces
+poza aplikacją. Rygiel dotyczy wieku (30 dni), lifecycle kasuje po 31 dniach.
+To prostuje §6a `LOKALIZACJA_DANYCH_R2.md`: przy kopii lustrzanej ten sam
+lifecycle wygasiłby każde zdjęcie starsze niż 31 dni, a rygiel chroniłby
+tylko obiekty młodsze niż 30 dni. Zdjęcie usunięte przez użytkownika
+znika z kopii najpóźniej po ok. 32 dniach i nigdy nie jest przywracane:
+lista odtworzenia pochodzi z bazy.
+
+**Co musiałoby się stać, żeby to zmienić:** inny dostawca kopii, prawo
+„zapis bez kasowania” w tokenach R2 albo zmiana procedury usuwania danych.
+
+Dowody: `tests/Feature/PoswiadczeniaBucketowR2Test.php`,
+`tests/Feature/KopiaZdjecSprawdzanaTylkoOdczytemTest.php`.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia. Zmienne `AWS_*_ACCESS_KEY_ID`
+per bucket trzeba wtedy usunąć z Railway. Bez nich wszystkie buckety wracają
+do wspólnego tokenu, który musi mieć dostęp do każdego z nich.
+
+## D-266 — Dwa runnery zarezerwowane dla `main`: `CI_RUNS_ON_MAIN` przed `CI_RUNS_ON`, ciąg dalszy D-121 (25 września 2026)
+
+**Data:** 25 września 2026 · Status: **obowiązuje** · Ciąg dalszy **D-121**
+
+**Problem.** Pula `CI_RUNS_ON` jest wspólna dla PR-ów i dla `main`. CI na
+`main` jest jedynym momentem, po którym Railway wdraża („Wait for CI") —
+a przy kilku PR-ach naraz przebiegi `main`-a stały w TEJ SAMEJ kolejce co
+PR-y i czekały na wolną maszynę razem z nimi. Wdrożenie na produkcję
+głodniało przez ruch, który z produkcją nie ma nic wspólnego.
+
+**Decyzja.** Właściciel oznaczył **dwa** runnery z puli `woogitsu-linux-*`
+dodatkową etykietą `kuking-main` (wyłącznie dla przebiegów `main`-a),
+a pozostałe etykietą `kuking-pr` (PR-y i `staging`). W `.github/workflows/
+ci.yml` każdy job, który czyta `CI_RUNS_ON`, dla przebiegu będącego
+PRAWDZIWYM pushem na `main` (`github.ref == 'refs/heads/main' &&
+github.event_name == 'push'` — nie dla PR-a do `main`, gdzie `github.ref` to
+`refs/pull/<n>/merge`, i CELOWO nie dla ręcznego `workflow_dispatch` na tej
+gałęzi) sięga NAJPIERW po `CI_RUNS_ON_MAIN`, dopiero bez niej po `CI_RUNS_ON`:
+
+```yaml
+runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+```
+
+Job przeglądarkowy `port_funkcje` ma analogiczną, osobną parę
+(`CI_RUNS_ON_BROWSER_MAIN` / `CI_RUNS_ON_BROWSER`), z tego samego powodu, dla
+którego ma już dziś osobną zmienną od zwykłych jobów (własne środowisko
+docelowe, patrz nagłówek `ci.yml`, blok „JOB PRZEGLĄDARKOWY").
+
+Bez żadnej z tych dwóch nowych zmiennych zachowanie jest DOKŁADNIE takie jak
+dziś (`vars.CI_RUNS_ON || '"ubuntu-latest"'`) — zmiana jest bezpieczna, zanim
+właściciel ustawi zmienne.
+
+**Dlaczego nie tylko `deploy.yml`.** Bramką deployu jest `ci.yml` (Railway
+czeka na jego check suite), nie `deploy.yml` (ten reaguje na
+`deployment_status`, już PO deployu — smoke testy). `deploy.yml`,
+`preview.yml` i `railway-iac.yml` NIE uruchamiają się pushem na `main` (kolejno:
+`deployment_status`, `pull_request`, `pull_request`), więc warunek main-a
+w nich nigdy by nie trafił — dopisanie go byłoby martwym kodem. Zostają przy
+samym `CI_RUNS_ON`.
+
+**Kolejność wdrożenia, nie do odwrócenia:**
+1. Właściciel oznacza fizycznie DWA runnery etykietą `kuking-main`,
+   a pozostałe etykietą `kuking-pr` (GitHub → Settings → Actions → Runners).
+2. Dopiero POTEM ustawia zmienne repozytorium `CI_RUNS_ON_MAIN` i `CI_RUNS_ON`
+   (Settings → Secrets and variables → Actions → Variables), przykładowo:
+
+```text
+CI_RUNS_ON_MAIN = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-main"]
+CI_RUNS_ON      = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070","kuking-pr"]
+```
+
+W odwrotnej kolejności zmienna wskazywałaby etykietę, której żaden runner
+jeszcze nie nosi — GitHub Actions nie odrzuca wtedy joba, tylko trzyma go
+w „Queued" bez końca, a przez „Wait for CI" stoi wtedy i wdrożenie (ten sam
+koszt co offline'owa pula, D-121).
+
+**Co musiałoby się stać, żeby to zmienić:** flota przestaje dzielić maszynę
+z runnerami CI (wtedy rezerwacja main-a przestaje być potrzebna) albo
+właściciel uzna, że dwa runnery to za mało/za dużo dla `main`.
+
+Dowody: `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`
+(`test_joby_ci_rezerwuja_zmienna_ci_runs_on_main` i rozszerzone porównanie
+dokument-kod).
+
+### Wycofanie
+Odwrócić commit w `.github/workflows/ci.yml`. Schemat bazy się nie zmienia.
+Zmienne `CI_RUNS_ON_MAIN`/`CI_RUNS_ON_BROWSER_MAIN` w ustawieniach
+repozytorium przestają być czytane i można je skasować; etykiety
+`kuking-main`/`kuking-pr` na runnerach mogą zostać bez efektu.

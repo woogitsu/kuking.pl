@@ -24,6 +24,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -39,9 +40,6 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
-    private const WLASNA_SPRAWA = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
-        .'Nikt nie decyduje we własnej sprawie.';
-
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
@@ -140,13 +138,15 @@ class ModerationController extends Controller
             // Które zgłoszenia da się dziś cofnąć (issue #65).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
-            // nimi. Bez tego samego warunku o źródle „Nowe (14)" oznaczałoby
-            // czternaście spraw, z których widać cztery — a moderator nie ma
-            // jak się dowiedzieć, że reszta jest na innym ekranie.
+            // nimi — z tym samym warunkiem o źródle, także przy
+            // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
+            // `zrodlo`, więc jej liczba ma mówić, ile pozycji otworzy.
+            // Liczone od ludzi przy widoku automatu dawały „Nowe (0)" nad
+            // trzema oznaczeniami albo „Nowe (14)" nad czterema.
             'counts' => [
-                'open' => $this->odLudzi(Report::STATUS_OPEN),
-                'reviewing' => $this->odLudzi(Report::STATUS_REVIEWING),
-                'resolved' => $this->odLudzi(Report::STATUS_RESOLVED),
+                'open' => $this->zeZrodla($zrodlo, Report::STATUS_OPEN),
+                'reviewing' => $this->zeZrodla($zrodlo, Report::STATUS_REVIEWING),
+                'resolved' => $this->zeZrodla($zrodlo, Report::STATUS_RESOLVED),
             ],
             // Ile czeka po drugiej stronie — odnośnik na ekranie zgłoszeń
             // ma powiedzieć, ile tam jest, zanim człowiek tam kliknie.
@@ -157,11 +157,15 @@ class ModerationController extends Controller
         ]);
     }
 
-    /** Zgłoszenia OD LUDZI w danym stanie — bez oznaczeń automatu, tak jak lista wyżej. */
-    private function odLudzi(string $status): int
+    /** Sprawy z bieżącego źródła (ludzie albo automat) w danym stanie — ten sam warunek, co lista wyżej. */
+    private function zeZrodla(string $zrodlo, string $status): int
     {
         return Report::query()
-            ->where('source', '!=', Report::SOURCE_AUTOMAT)
+            ->when(
+                $zrodlo === Report::SOURCE_AUTOMAT,
+                fn ($query) => $query->where('source', Report::SOURCE_AUTOMAT),
+                fn ($query) => $query->where('source', '!=', Report::SOURCE_AUTOMAT),
+            )
             ->where('status', $status)
             ->count();
     }
@@ -173,8 +177,10 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
-        if ($request->user()->cannot('decide', $report)) {
-            return back()->withInput()->withErrors(['action' => self::WLASNA_SPRAWA]);
+        $wlasnaSprawa = Gate::forUser($request->user())->inspect('decide', $report);
+
+        if ($wlasnaSprawa->denied()) {
+            return back()->withInput()->withErrors(['action' => $wlasnaSprawa->message()]);
         }
 
         if ($report->status !== Report::STATUS_OPEN) {
@@ -362,8 +368,10 @@ class ModerationController extends Controller
 
             // Ta sama reguła co na wejściu, ale już na zablokowanym wierszu:
             // wynik ma zależeć od stanu, pod którym zapada decyzja (#1408).
-            if ($moderator->cannot('decide', $zablokowane)) {
-                throw ValidationException::withMessages(['action' => self::WLASNA_SPRAWA]);
+            $wlasnaSprawa = Gate::forUser($moderator)->inspect('decide', $zablokowane);
+
+            if ($wlasnaSprawa->denied()) {
+                throw ValidationException::withMessages(['action' => $wlasnaSprawa->message()]);
             }
 
             // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej

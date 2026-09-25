@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Exceptions\DataExportStorageFailure;
 use App\Jobs\GenerateUserExport;
 use App\Mail\DataExportReady;
 use App\Models\Comment;
@@ -18,6 +19,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -531,12 +533,7 @@ class DataExportTest extends TestCase
         // Dysk, którego nie ma w konfiguracji — realny odpowiednik awarii storage.
         config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
 
-        try {
-            (new GenerateUserExport((string) $export->getKey()))->handle();
-            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
-        } catch (\Throwable) {
-            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
-        }
+        $this->uruchomJobOczekujacAwariiMagazynu($export);
 
         $export->refresh();
 
@@ -580,12 +577,7 @@ class DataExportTest extends TestCase
         // wylądowałyby wprost w failure_reason i na ekranie ustawień.
         config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
 
-        try {
-            (new GenerateUserExport((string) $export->getKey()))->handle();
-            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
-        } catch (\Throwable) {
-            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
-        }
+        $this->uruchomJobOczekujacAwariiMagazynu($export);
 
         $export->refresh();
 
@@ -597,6 +589,32 @@ class DataExportTest extends TestCase
         $this->assertStringNotContainsString('Exception', $powod);
         $this->assertStringNotContainsString('dysk-ktorego-nie-ma', $powod);
         $this->assertStringNotContainsString(sys_get_temp_dir(), $powod);
+    }
+
+    /**
+     * Uruchamia job i wymaga, żeby awaria magazynu DOTARŁA do kolejki (#822).
+     *
+     * Wcześniej stało tu `try { handle(); $this->fail(...); } catch (\Throwable) {}`.
+     * `fail()` rzuca `AssertionFailedError`, który też jest `Throwable` — więc
+     * catch połykał własną asercję testu. Job, który zapisałby `failed`, ale
+     * zgubił `throw $e` po `markFailed()`, przechodził: kolejka nie dowiedziałaby
+     * się o porażce i nie ponowiła zadania. Teraz łapiemy wyłącznie oczekiwany
+     * typ, a brak wyjątku sprawdzamy POZA blokiem catch.
+     */
+    private function uruchomJobOczekujacAwariiMagazynu(DataExport $export): void
+    {
+        $wyjatek = null;
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+        } catch (DataExportStorageFailure $e) {
+            $wyjatek = $e;
+        }
+
+        $this->assertNotNull(
+            $wyjatek,
+            'Job powinien przekazać wyjątek kolejce, żeby zapisała porażkę i mogła ponowić zadanie.',
+        );
     }
 
     public function test_widok_pokazuje_ludzki_tekst_powodu_a_nie_kod(): void
@@ -695,6 +713,95 @@ class DataExportTest extends TestCase
 
         Storage::disk('local')->assertExists((string) $export->object_key);
         $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
+    }
+
+    public function test_usunieta_paczka_nie_wraca_w_kolejnym_przebiegu_ani_w_podgladzie(): void
+    {
+        $export = $this->runExportFor($this->user('basia'));
+        $export->update(['expires_at' => now()->subDay()]);
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutputToContain('Usunięto: '.$export->getKey())
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-eksporty', ['--dry-run' => true])
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+
+        $export->refresh();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->status);
+        $this->assertNull($export->disk);
+        $this->assertNull($export->object_key);
+        $this->assertDatabaseHas('data_exports', ['id' => $export->getKey()]);
+    }
+
+    public function test_sprzatanie_przechodzi_przez_wiecej_niz_jedna_partie_bez_pominiec(): void
+    {
+        Storage::fake('local');
+        $user = $this->user('basia');
+        $ile = 105;
+
+        foreach (range(1, $ile) as $i) {
+            $key = 'eksporty/partia-'.$i.'.zip';
+            Storage::disk('local')->put($key, 'paczka '.$i);
+            DataExport::create([
+                'user_id' => $user->getKey(),
+                'status' => DataExport::STATUS_READY,
+                'disk' => 'local',
+                'object_key' => $key,
+                'bytes' => 8,
+                // Kolejność terminów celowo nie odpowiada UUID-om.
+                'expires_at' => now()->subMinutes(($i * 37) % 101 + 1),
+            ]);
+        }
+
+        $selectyEksportow = [];
+        DB::listen(function ($query) use (&$selectyEksportow): void {
+            if (str_starts_with($query->sql, 'select') && str_contains($query->sql, 'from "data_exports"')) {
+                $selectyEksportow[] = $query->sql;
+            }
+        });
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Gotowe. Usunięto 105 wygasłych paczek.')
+            ->assertSuccessful();
+
+        $selectyKomendy = $selectyEksportow;
+        $this->assertGreaterThanOrEqual(2, count($selectyKomendy));
+        foreach ($selectyKomendy as $sql) {
+            $this->assertStringContainsString('limit 100', $sql);
+        }
+
+        $this->assertSame($ile, DataExport::query()->where('status', DataExport::STATUS_EXPIRED)->count());
+        $this->assertSame(0, DataExport::query()->whereNotNull('object_key')->count());
+        $this->assertSame([], Storage::disk('local')->allFiles('eksporty'));
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
+    }
+
+    public function test_gotowy_rekord_bez_pliku_jest_domykany_tylko_raz(): void
+    {
+        $export = DataExport::create([
+            'user_id' => $this->user('basia')->getKey(),
+            'status' => DataExport::STATUS_READY,
+            'disk' => null,
+            'object_key' => null,
+            'bytes' => null,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        $this->assertSame(DataExport::STATUS_EXPIRED, $export->refresh()->status);
+
+        $this->artisan('kuking:sprzataj-eksporty')
+            ->expectsOutput('Nie ma wygasłych paczek do usunięcia.')
+            ->assertSuccessful();
     }
 
     // -----------------------------------------------------------------

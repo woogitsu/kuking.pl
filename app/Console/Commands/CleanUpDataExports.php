@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Users\Exports\ExportFileNames;
 use App\Models\DataExport;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -36,20 +37,30 @@ class CleanUpDataExports extends Command
         $expired = DataExport::query()
             ->whereNotNull('expires_at')
             ->where('expires_at', '<', now())
-            ->whereIn('status', [DataExport::STATUS_READY, DataExport::STATUS_EXPIRED])
-            ->orderBy('expires_at')
-            ->get();
+            ->where(function ($query): void {
+                $query->where('status', DataExport::STATUS_READY)
+                    ->orWhere(function ($query): void {
+                        $query->where('status', DataExport::STATUS_EXPIRED)
+                            ->whereNotNull('disk')
+                            ->whereNotNull('object_key');
+                    });
+            })
+            // UUID jest stabilnym kursorem. Nie używamy offsetu: każdy udany
+            // przebieg zmienia rekord tak, że wypada on ze zbioru retry.
+            // `lazyById` trzyma w pamięci najwyżej jedną partię, a nie całą
+            // historię eksportów.
+            ->lazyById(100);
 
-        if ($expired->isEmpty()) {
-            $this->info('Nie ma wygasłych paczek do usunięcia.');
-
-            return self::SUCCESS;
+        if (! $dryRun) {
+            $this->skasujNiedokonczone();
         }
 
         $removed = 0;
         $nieudane = 0;
+        $znalezione = 0;
 
         foreach ($expired as $export) {
+            $znalezione++;
             $label = $export->getKey().' (wygasła '.$export->expires_at->format('Y-m-d H:i').')';
 
             if ($dryRun) {
@@ -92,6 +103,12 @@ class CleanUpDataExports extends Command
             }
         }
 
+        if ($znalezione === 0) {
+            $this->info('Nie ma wygasłych paczek do usunięcia.');
+
+            return self::SUCCESS;
+        }
+
         if ($nieudane > 0) {
             // `warn`, nie `line`: to musi być widoczne w logu harmonogramu.
             // Paczka, której nie udało się usunąć, leży dalej w storage
@@ -101,7 +118,7 @@ class CleanUpDataExports extends Command
         }
 
         $this->info($dryRun
-            ? 'Tryb podglądu: znaleziono '.$this->paczki($expired->count()).'.'
+            ? 'Tryb podglądu: znaleziono '.$this->paczki($znalezione).'.'
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
@@ -122,10 +139,23 @@ class CleanUpDataExports extends Command
      */
     private function skasujPlik(DataExport $export): bool
     {
-        if ($export->disk === null || $export->object_key === null) {
+        if ($export->disk === null && $export->object_key === null) {
             // Nie ma czego kasować — plik zniknął przy wcześniejszym przebiegu
             // albo nigdy nie powstał. To jest sukces, nie awaria.
             return true;
+        }
+
+        if ($export->disk === null || $export->object_key === null) {
+            // Połowa adresu nie pozwala ani znaleźć pliku, ani uczciwie
+            // stwierdzić, że go nie ma. Zachowujemy to, co zostało, i
+            // zostawiamy ślad operatorowi zamiast udawać udane kasowanie.
+            Log::error('Paczka z danymi ma niepełny adres pliku', [
+                'data_export_id' => $export->getKey(),
+                'disk' => $export->disk,
+                'object_key' => $export->object_key,
+            ]);
+
+            return false;
         }
 
         try {
@@ -156,6 +186,37 @@ class CleanUpDataExports extends Command
 
             return false;
         }
+    }
+
+    /**
+     * SIATKA POD NIEUDANE PRÓBY (audyt B5, znalezisko 4).
+     *
+     * Próba, która wgrała plik i padła przed `finalize()`, zostawia `failed`
+     * bez `object_key`. Job kasuje taki plik sam (`GenerateUserExport::
+     * usunOsieroconaPaczke()`), ale proces zabity bez `failed()` tego nie
+     * zrobi. Klucz da się policzyć, a kasowanie nieistniejącego obiektu nic
+     * nie robi — więc co noc przechodzimy po `failed` z ostatnich 7 dni
+     * (starsze przeszły już przez wcześniejsze noce). Godzina karencji, żeby
+     * nie ścigać się z ponowieniem, które właśnie wgrywa ten sam klucz.
+     */
+    private function skasujNiedokonczone(): void
+    {
+        DataExport::query()
+            ->where('status', DataExport::STATUS_FAILED)
+            ->whereNull('object_key')
+            ->where('updated_at', '<', now()->subHour())
+            ->where('updated_at', '>=', now()->subDays(7))
+            ->lazyById(100)
+            ->each(function (DataExport $export): void {
+                try {
+                    Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
+                } catch (Throwable $e) {
+                    Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
+                        'data_export_id' => $export->getKey(),
+                        'wyjatek' => $e::class,
+                    ]);
+                }
+            });
     }
 
     private function paczki(int $n): string

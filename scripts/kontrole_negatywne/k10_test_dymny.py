@@ -28,9 +28,56 @@ def stara_sonda_https(source):
     )
 
 
+def test_dymny_bez_sondy_wydania(source):
+    """KONTROLA DODATNIA: zdejmij sondę wydania sprzed sprawdzeń.
+
+    `test_dymny_najpierw_potwierdza_pelny_sha_zdarzenia` ma zapalić (#1012):
+    bez niej test dymny zdarzenia A znów sprawdza wydanie B.
+    """
+    return replace_once(
+        source,
+        '          if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then\n'
+        '            echo "::error title=Pod adresem działa inne wydanie::Oczekiwano ${OCZEKIWANY_SHA}, otrzymano ${SONDA_OTRZYMANY:-nic}. Test dymny nie sprawdza cudzego wydania."\n'
+        '            exit 1\n'
+        '          fi\n',
+        "",
+    )
+
+
+def koncowa_sonda_jedna_proba(source):
+    """KONTROLA DODATNIA: końcowa sonda wydania znów z jedną próbą.
+
+    Ten sam test (#1012, przegląd #1439) ma zapalić: jedna chwilowa porażka
+    sieci po testach oblewała całe wdrożenie.
+    """
+    return replace_once(
+        source,
+        '          sonda_wydanie_koncowa "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+        '          SONDA_PROBY=1 sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA" || fail=1\n',
+    )
+
+
+def akcja_rollback_wraca(source):
+    """KONTROLA DODATNIA: przywróć akcję `rollback`, która niczego nie cofa.
+
+    `zadna_akcja_nie_nazywa_sie_rollback_skoro_nic_nie_cofa` ma zapalić (#974).
+    """
+    return replace_once(
+        source,
+        "options: [smoke, migrate, redeploy, instrukcja-cofniecia]",
+        "options: [smoke, migrate, redeploy, rollback]",
+    )
+
+
 KONTROLE_DODATNIE = [WDROZENIE_TEST]
 
 KONTROLE = [
     Kontrola("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
              stara_sonda_https),
+    Kontrola("Test dymny bez sondy wydania przed sprawdzeniami", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+             test_dymny_bez_sondy_wydania),
+    Kontrola("Końcowa sonda wydania z jedną próbą", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+             koncowa_sonda_jedna_proba),
+    Kontrola("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+             akcja_rollback_wraca),
 ]

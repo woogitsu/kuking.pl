@@ -16,6 +16,8 @@ from kontrole_negatywne._narzedzia import ROOT, Kontrola, replace_once
 STRAZNIK_TEKSTU_TEST = "StraznikTekstuMaKontroleDodatniaTest"
 STRAZNIK_SAM_PLIK = Path(__file__).resolve().relative_to(ROOT).as_posix()
 STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
+PUNKT_WEJSCIA = "scripts/kontrole-negatywne-alfa08.py"
+PUNKT_WEJSCIA_TEST = "test_punkt_wejscia_kontroli_nie_ma_wpisow_w_starym_ukladzie"
 
 
 def bez_wpisu_dla_straznika(source):
@@ -49,6 +51,16 @@ def bez_znacznika_odstepstwa(source):
     return source[:start] + source[end:]
 
 
+def stary_monolit_w_punkcie_wejscia(source):
+    """KONTROLA DODATNIA 3: dopisz do punktu wejścia listę `checks` jak sprzed podziału.
+
+    Tak wygląda gałąź sprzed 25.09.2026 scalona z „weź moje". Proces kontroli
+    ma już punkt wejścia w pamięci, więc mutacja nie rusza bieżącego przebiegu;
+    strażnik ma zapalić w PHPUnit.
+    """
+    return replace_once(source, "\nfrom kontrole_negatywne import _narzedzia", "\nchecks = []\n\nfrom kontrole_negatywne import _narzedzia")
+
+
 KONTROLE_DODATNIE = [STRAZNIK_TEKSTU_TEST]
 
 KONTROLE = [
@@ -56,4 +68,6 @@ KONTROLE = [
              bez_wpisu_dla_straznika),
     Kontrola("Odstępstwo bez znacznika", STRAZNIK_PLIK_ODSTEPSTWA, STRAZNIK_TEKSTU_TEST,
              bez_znacznika_odstepstwa),
+    Kontrola("Stary monolit w punkcie wejścia", PUNKT_WEJSCIA, PUNKT_WEJSCIA_TEST,
+             stary_monolit_w_punkcie_wejscia),
 ]

@@ -67,3 +67,13 @@ KUKING_KONTROLE_LOKALNIE=1 python3 scripts/kontrole-negatywne-alfa08.py
 
 Pełny przebieg pisze po źródłach i kasuje bazę testów, więc lokalnie wymaga
 jawnej zgody i własnej bazy (nigdy portu 5432). W CI rusza sam.
+
+## Gałąź sprzed podziału (dopisywała do starego pliku)
+
+Scalenie main daje konflikt w `scripts/kontrole-negatywne-alfa08.py`.
+Weź punkt wejścia z main (`git checkout origin/main -- scripts/kontrole-negatywne-alfa08.py`),
+a każdy swój wpis — stałe, funkcję mutacji, krotkę z `checks` i `run_test(...)` —
+przenieś do nowego pliku `kNN_<obszar>.py` według wzoru wyżej: krotka
+`("nazwa", PLIK, TEST, mutacja)` staje się `Kontrola("nazwa", PLIK, TEST, mutacja)`,
+a `run_test(TEST, True)` — pozycją w `KONTROLE_DODATNIE`. Pełne kroki:
+`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`.
