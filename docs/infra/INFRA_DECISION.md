@@ -340,6 +340,10 @@ są bezwartościowe, a osobny bucket na każdy PR to bałagan), projekt Sentry
 
 Plik `railway.ts` ma jeden przełącznik: `PRODUCTION_SPLIT_SERVICES`.
 
+Przełączenie żywej produkcji (pierwszy `railway config apply`, nazwy
+istniejących zasobów, czytanie planu, cofnięcie):
+[PRZELACZENIE_NA_3_SERWISY_595.md](./PRZELACZENIE_NA_3_SERWISY_595.md).
+
 ### Faza alfa (`false`) — produkcja jako jeden serwis
 
 Jeden kontener w trybie `APP_ROLE=all` uruchamia FrankenPHP, `queue:work`
