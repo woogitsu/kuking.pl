@@ -65,6 +65,20 @@
         </section>
     @endif
 
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
+        </section>
+    @endif
+
     @if($wspomnienie ?? null)
         {{--
             „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).

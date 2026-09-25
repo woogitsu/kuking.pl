@@ -78,7 +78,7 @@
                        @checked(session()->hasOldInput() ? old('memories_enabled', false) : auth()->user()->memories_enabled)>
                 <span>
                     <span class="choice-label">Przypominaj mi moje wpisy z tego dnia w poprzednich latach</span>
-                    <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
+                    <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia, a w rocznicę założenia konta jedno zdanie od nas. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
                 </span>
             </label>
             @if($errors->hasAny(['memories_enabled', 'original_memories']))
