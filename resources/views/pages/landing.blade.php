@@ -7,6 +7,29 @@
     title="Pokaż, co dziś ugotowałeś"
     description="Kuking to polska społeczność ludzi, którzy naprawdę gotują. Wrzuć zdjęcie obiadu, zapisz przepisy po mamie i zobacz, komu z Twojego przepisu wyszło.">
 
+    {{--
+        NAZWA SERWISU DLA WYSZUKIWARKI (#1008). Google bierze nazwę witryny
+        przede wszystkim z `WebSite` na stronie głównej — dlatego stoi TU,
+        a nie w layoucie powtarzanym przez każdą podstronę. `url` to ten sam
+        adres co `<link rel="canonical">` strony głównej.
+        Świadomie bez `SearchAction` (Google wycofał pole wyszukiwania
+        w wynikach), bez `alternateName` (nie używamy innej nazwy) i bez
+        `publisher`/`sameAs`, dopóki logo i profile nie są potwierdzone
+        (docs/seo/SEO_TECHNICAL.md §2.4).
+    --}}
+    <x-slot:head>
+        @php
+            $websiteJsonLd = [
+                '@context' => 'https://schema.org',
+                '@type' => 'WebSite',
+                'name' => 'Kuking',
+                'url' => route('landing'),
+                'inLanguage' => 'pl-PL',
+            ];
+        @endphp
+        <x-json-ld :data="$websiteJsonLd" />
+    </x-slot:head>
+
     {{-- 1. HASŁO ------------------------------------------------------- --}}
     <section class="pas">
         <div class="pas-wnetrze hero">

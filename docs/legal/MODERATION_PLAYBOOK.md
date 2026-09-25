@@ -70,11 +70,11 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 | Priorytet | Co się kwalifikuje | Cel czasowy reakcji |
 |---|---|---|
 | P0 — krytyczny | CSAM, groźby zagrażające życiu, aktywny doxxing | Natychmiast po zauważeniu, maks. kilka godzin, poza kolejnością wszystkiego innego |
-| P1 — pilny | Nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość | W ciągu 24 godzin w dni robocze |
+| P1 — pilny | Nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość, oszustwo (scam) | W ciągu 24 godzin w dni robocze |
 | P2 — standardowy | Spam, prawa autorskie, niebezpieczne porady, podszywanie | W ciągu 72 godzin |
 | P3 — niski | Drobne naruszenia stylu/tonu, wątpliwe kategorie | W ciągu 7 dni, mogą czekać na tygodniowy przegląd |
 
-**Priorytet jest już w narzędziu — od 22 września 2026 (D-236).** Zdanie, które tu stało („priorytetu nie ma w narzędziu… sprawa P0 sprzed dwóch dni leży niżej niż spam sprzed godziny"), opisywało stan sprzed tej zmiany i przestało być prawdziwe.
+**Priorytet jest już w narzędziu — od 22 września 2026 (D-236).** Zdanie, które tu stało („priorytetu nie ma w narzędziu… sprawa P0 sprzed dwóch dni leży niżej niż spam sprzed godziny"), opisywało stan sprzed tej zmiany i przestało być prawdziwe. `scam` → P1 był przy scaleniu D-236 osądem autora zmiany, bez pozycji w tej tabeli; właściciel potwierdził go 25 września 2026 (D-236) i tabela wyżej ma go już dopisanego do wiersza P1.
 
 Kolejka `/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`. Priorytet **liczy się z danych** (`App\Domain\Moderation\PriorytetSprawy`) — z kategorii wybranej przez zgłaszającego i z tego, czy zgłoszenie przyszło drogą prawną z DSA art. 16. **Nadal nie ma kolumny `priorytet`** i nie da się go zmienić ręcznie; to reguła w kodzie, nie pole w bazie. Sprawy P0 i P1 mają na karcie napis („Nie może czekać", „Na dziś”).
 
