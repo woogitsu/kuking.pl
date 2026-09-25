@@ -1427,6 +1427,10 @@ od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
 `nullOnDelete`) i **nie zmienia się tą pracą ani o jeden bajt** — zmienia się
 to, kto ją wypełnia i co z niej wynika. Nie ma tu migracji, bo nie ma zmiany
 schematu.
+Indeks `posts_recipe_idx (recipe_id) WHERE recipe_id IS NOT NULL` doszedł
+później, osobną migracją (`2026_09_25_100000_…`, rozdział „Indeksy kluczy
+obcych na gorących ścieżkach” niżej). Świadomie **nie** `UNIQUE`: `PublishPost`
+też ustawia `recipe_id`, więc jeden przepis może mieć wiele wpisów.
 
 Od issue #368 publikacja przepisu tworzy dokładnie JEDEN wiersz `posts`
 z `recipe_id` wskazującym przepis, `body = null` i bez ani jednego wiersza
@@ -3779,6 +3783,10 @@ Indeksy: `product_signals_name_time_idx (signal_name, occurred_at DESC)` —
 dashboard „upload error rate" (`docs/seo/ANALYTICS.md` §6);
 `product_signals_occurred_idx (occurred_at)` — retencja poniżej, która nie
 filtruje po `signal_name`.
+`product_signals_user_signal_idx (user_id, signal_name) WHERE user_id IS NOT NULL`
+— `RecordPromptShown` pyta po koncie i sygnale pod blokadą wiersza `users`
+(migracja `2026_09_25_100000_…`, rozdział „Indeksy kluczy obcych na gorących
+ścieżkach” niżej).
 
 **Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
 90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
@@ -3796,7 +3804,7 @@ uda.
 **Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
 telemetryczne, nie dane, na podstawie których podjęto decyzję.
 
-### tags + tag_aliases + post_tags + tag_follows + tag_promotions
+### tags + tag_aliases + post_tags + tag_follows + tag_promotions + tag_highlights
 
 Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
 `2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
@@ -3913,6 +3921,20 @@ odpowiednik `topics.description`). Panel: `Admin\TagPromotionController`,
 za tą samą bramką co „kuKINGi na dziś" (`Gate` `moderate` na `User`).
 „Kto i kiedy" zmienił listę zapisuje `audit_log`, bez osobnej kolumny
 `promoted_by` — ten sam wzorzec co `daily_board.updated`.
+
+`tag_highlights` (issue #18, migracja `2026_09_25_100000_create_tag_highlights_table`)
+— **tag tygodnia**: zwykły tag wyróżniony na dni `starts_on`–`ends_on`
+(`date`, dzień w strefie `kuking.strefa`), z opcjonalną `note` (200 znaków).
+Osobna tabela, bo `tag_promotions` ma klucz `tag_id` i nie uniesie historii
+ani powrotu tego samego tagu za rok. `id` UUID, FK `tag_id` → `tags`
+`ON DELETE CASCADE`. W bazie: CHECK `ends_on >= starts_on` i
+`EXCLUDE USING gist (daterange(starts_on, ends_on, '[]') WITH &&)` —
+dwa wyróżnienia nie nachodzą na siebie, więc bieżące jest najwyżej jedno.
+Czyta `TagHighlight::doPokazania()` (blok na `/home`), pisze
+`Admin\TagHighlightController` (audyt `tag_highlight.added`/`.removed`).
+Całość za flagą `KUKING_TAG_TYGODNIA` (domyślnie wyłączona).
+**Rollback:** `DROP TABLE` bez strażnika D-088 — to plan redakcyjny, nie
+zgoda ani prywatność; ginie plan i archiwum wyróżnień, tagi i wpisy zostają.
 
 Indeksy trigramowe (Postgres, na `kuking_normalize()` z migracji
 `2026_09_05_001300_fix_search_indexes`): `tags_name_trgm_idx`,
@@ -4656,6 +4678,47 @@ Dlaczego akurat te dwie kolumny, a nie „każda kolumna tekstowa z UNIQUE":
 to są jedyne dwie, po których człowiek **wraca do własnego konta**. Duplikat
 tutaj nie jest brzydkim wierszem w tabeli, tylko drugim kontem tej samej
 osoby albo cudzym profilem pod adresem, który ktoś rozdał znajomym.
+
+## Indeksy kluczy obcych na gorących ścieżkach (audyt B3 W1/W2/W5, B4 W4/W5/N13)
+
+PostgreSQL nie zakłada indeksu na kolumnie klucza obcego sam. Migracja
+`2026_09_25_100000_indeksy_kluczy_obcych_na_goracych_sciezkach` dokłada go
+tam, gdzie pytamy przy każdym żądaniu albo pod blokadą:
+
+| Indeks | Na czym | Kto po nim pyta |
+|---|---|---|
+| `post_media_media_idx` | `post_media (media_id)` | `DostepDoZdjecia` przy każdym wydaniu zdjęcia, `KasujZdjecie`, `OsieroconeZdjecia`, kontrola FK przy `DELETE FROM media` |
+| `cooked_event_media_media_idx` | `cooked_event_media (media_id)` | j.w. |
+| `profiles_avatar_media_idx` | `profiles (avatar_media_id) WHERE avatar_media_id IS NOT NULL` | j.w. |
+| `recipes_hero_media_idx` | `recipes (hero_media_id) WHERE hero_media_id IS NOT NULL` | j.w.; `OR` ze skanem kartki rozwiązuje `BitmapOr` |
+| `recipes_source_scan_media_idx` | `recipes (source_scan_media_id) WHERE source_scan_media_id IS NOT NULL` | j.w. |
+| `recipe_steps_media_idx` | `recipe_steps (media_id) WHERE media_id IS NOT NULL` | j.w. |
+| `posts_recipe_idx` | `posts (recipe_id) WHERE recipe_id IS NOT NULL` | `WpisWskazujacyPrzepis` pod `FOR UPDATE` przepisu, `ON DELETE SET NULL` |
+| `notifications_actor_idx` | `notifications (actor_id) WHERE actor_id IS NOT NULL` | `ON DELETE SET NULL` przy usunięciu konta |
+| `product_signals_user_signal_idx` | `product_signals (user_id, signal_name) WHERE user_id IS NOT NULL` | `RecordPromptShown` pod blokadą konta |
+
+`post_media.media_id` i `cooked_event_media.media_id` były wcześniej w indeksie
+tylko jako **druga** kolumna klucza głównego — to nie zawęża wyszukiwania po
+`media_id`. Liczy się kolumna **wiodąca**.
+
+Pilnuje tego `tests/Feature/IndeksyKluczyObcychNaGoracychSciezkachTest.php`:
+przechodzi po `DostepDoZdjecia::ODWOLANIA` (a nie po liście przepisanej
+z palca), więc nowa kolumna wskazująca na `media` bez indeksu wiodącego oblewa
+test.
+
+Indeksy powstają przez `CREATE INDEX CONCURRENTLY` w migracji z
+`$withinTransaction = false`, bo tabele są gorące, a zwykłe `CREATE INDEX`
+wstrzymuje zapisy na czas budowy. Niedokończony (INVALID) indeks po przerwanej
+budowie migracja zdejmuje i buduje od nowa.
+
+**Rollback:** `down()` zdejmuje wszystkie dziewięć indeksów
+(`DROP INDEX CONCURRENTLY IF EXISTS`). Bezstratnie — indeks nie niesie danych
+ani decyzji człowieka, więc D-088 nie ma tu czego chronić; wracają tylko skany.
+
+Pozostałe klucze obce bez indeksu wiodącego (audyt B3 N1: m.in.
+`recipe_versions.editor_id`, `moderation_actions.moderator_id`,
+`tozsamosci_zewnetrzne.user_id`) dotyczą rodziców kasowanych rzadko albo nigdy
+i świadomie zostały poza tą migracją.
 
 ## Normalizacja adresu e-mail
 
