@@ -62,7 +62,15 @@
 		# czyli w praktyce wygrywał ten plik. Pilnuje tego teraz
 		# CaddySpojnyZNaglowkamiLaravelaTest (ustalenie W7-11).
 		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
+		# `?` = ustaw TYLKO, gdy odpowiedź nie ma już tego nagłówka (audyt
+		# A5-01). Laravel wysyła `no-referrer` na stronach z sekretem w adresie
+		# (`/nowe-haslo/{token}`, `/logowanie/link/{token}`, zaproszenia) —
+		# patrz ApplySecurityHeaders i #1052. Zwykłe `set` tutaj tę decyzję
+		# nadpisywało: blok zawiera usunięcia (`-Server`), więc Caddy odracza
+		# wszystkie operacje do chwili zapisu odpowiedzi i jego wartość
+		# wygrywa z aplikacją. Domyślna wartość zostaje dla plików, które
+		# Caddy serwuje sam, z pominięciem PHP.
+		?Referrer-Policy "strict-origin-when-cross-origin"
 		Cross-Origin-Opener-Policy "same-origin"
 		# CSP celowo NIE tutaj — Livewire wstrzykuje inline skrypty i CSP
 		# trzeba dopiąć z nonce w middleware Laravela, nie na poziomie serwera.

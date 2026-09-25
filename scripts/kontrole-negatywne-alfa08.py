@@ -190,6 +190,10 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 # manifestowi bez hasha roczny cache — i test ma zapalić.
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
+# Referrer-Policy w Caddy tylko jako wartość domyślna (audyt A5-01, #1052).
+# Mutacja zdejmuje prefiks `?`, czyli wraca do `set`, które przez odroczenie
+# operacji nadpisywało `no-referrer` ze stron z sekretem w adresie.
+REFERRER_CADDY_TEST = "test_naglowek_zalezny_od_strony_jest_w_caddy_tylko_wartoscia_domyslna"
 
 # Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
 # jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
@@ -543,6 +547,8 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Referrer-Policy w Caddy nadpisuje decyzję aplikacji", CADDYFILE, REFERRER_CADDY_TEST,
+     lambda s: replace_once(s, '\t?Referrer-Policy "', '\tReferrer-Policy "')),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
@@ -582,6 +588,7 @@ run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(REFERRER_CADDY_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
