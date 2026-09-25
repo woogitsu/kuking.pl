@@ -11,6 +11,8 @@ use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Domain\Users\OstatniAdministrator;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -22,6 +24,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -37,9 +40,6 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
-    private const WLASNA_SPRAWA = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
-        .'Nikt nie decyduje we własnej sprawie.';
-
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
@@ -171,8 +171,10 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
-        if ($request->user()->cannot('decide', $report)) {
-            return back()->withInput()->withErrors(['action' => self::WLASNA_SPRAWA]);
+        $wlasnaSprawa = Gate::forUser($request->user())->inspect('decide', $report);
+
+        if ($wlasnaSprawa->denied()) {
+            return back()->withInput()->withErrors(['action' => $wlasnaSprawa->message()]);
         }
 
         if ($report->status !== Report::STATUS_OPEN) {
@@ -344,6 +346,14 @@ class ModerationController extends Controller
          * wyjść, jeśli zapis się nie powiedzie.
          */
         $wynik = DB::transaction(function () use ($request, $report, $data, $moderator, $termin) {
+            // Kara na koncie idzie pod wspólny zamek ostatniego administratora
+            // (#1016) PRZED pierwszym zapisem: INSERT do `moderation_actions`
+            // bierze `FOR KEY SHARE` na wierszu osoby i zamek wzięty po nim
+            // zakleszczyłby się z równoległą zmianą roli.
+            if (in_array($data['action'], [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
+                OstatniAdministrator::zablokuj();
+            }
+
             $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
             if ($zablokowane === null || $zablokowane->status !== Report::STATUS_OPEN) {
@@ -352,8 +362,10 @@ class ModerationController extends Controller
 
             // Ta sama reguła co na wejściu, ale już na zablokowanym wierszu:
             // wynik ma zależeć od stanu, pod którym zapada decyzja (#1408).
-            if ($moderator->cannot('decide', $zablokowane)) {
-                throw ValidationException::withMessages(['action' => self::WLASNA_SPRAWA]);
+            $wlasnaSprawa = Gate::forUser($moderator)->inspect('decide', $zablokowane);
+
+            if ($wlasnaSprawa->denied()) {
+                throw ValidationException::withMessages(['action' => $wlasnaSprawa->message()]);
             }
 
             // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
@@ -414,7 +426,13 @@ class ModerationController extends Controller
                 'user_message' => $data['user_message'] ?? null,
             ]);
 
-            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            // Odmowa strażnika wycofuje decyzję razem z transakcją: nie
+            // zostaje ani wpis, ani powiadomienie o karze, której nie było.
+            try {
+                $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+            } catch (OdmowaOstatniegoAdministratora $odmowa) {
+                throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+            }
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
             // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora

@@ -51,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
         // i to zaleca dokumentacja Laravela.
         Storage::extend('r2', fn ($app, array $konfiguracja) => DyskR2::utworz($konfiguracja));
 
+        // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
+        // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
+        Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,
         // wbudowany middleware `ValidatePostSize`, uruchamiany przed

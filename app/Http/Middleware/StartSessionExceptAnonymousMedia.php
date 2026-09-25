@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\PublicznyHtmlGoscia;
 use Closure;
 use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Middleware\StartSession;
@@ -25,6 +26,17 @@ class StartSessionExceptAnonymousMedia extends StartSession
             // ShareErrorsFromSession potrzebuje magazynu, także dla strony
             // odmowy. Ten magazyn nie jest odczytywany ani zapisywany w bazie.
             $request->setLaravelSession(new Store('anonymous-media', new ArraySessionHandler(1)));
+
+            return $next($request);
+        }
+
+        // #610: landing, przepis i profil dla gościa bez żadnego ciasteczka —
+        // tylko gdy właściciel włączył cache HTML. Ten sam pusty magazyn co
+        // wyżej: widok nie zobaczy komunikatu flash ani `old()`, bo gość bez
+        // ciasteczka i tak nie ma sesji, z której by je wziął.
+        if (PublicznyHtmlGoscia::kwalifikuje($request)) {
+            $request->attributes->set(PublicznyHtmlGoscia::ATRYBUT, true);
+            $request->setLaravelSession(new Store('anonymous-html', new ArraySessionHandler(1)));
 
             return $next($request);
         }
