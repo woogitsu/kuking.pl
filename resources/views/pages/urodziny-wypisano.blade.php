@@ -1,8 +1,8 @@
 {{--
-    Ekran po kliknięciu „Nie chcę więcej takich listów" w liście z życzeniami
-    (issue #1755, etap c). Rzecz jest już zrobiona, zanim ta strona się
-    wyświetli — pierwsze zdanie mówi to w czasie przeszłym. `noindex`, bo
-    adres niesie podpis związany z konkretnym kontem.
+    Ekran po wypisaniu z listu z życzeniami (issue #1755, D-269). Rzecz jest
+    już zrobiona — pierwsze zdanie mówi to w czasie przeszłym. Przycisk
+    powrotny na tej samej stronie: naprawa pomyłki jednym kliknięciem, bez
+    logowania. `noindex`, bo adres niesie podpis związany z kontem.
 --}}
 <x-layout title="Wypisano z listu z życzeniami" :noindex="true">
     <h1>Nie wyślemy już listu z życzeniami</h1>
@@ -11,9 +11,11 @@
             Zgoda na e-mail z życzeniami urodzinowymi jest wycofana. O nic nie zapytamy.
         </p>
         <p class="mb-0">
-            Twoje konto, wpisy i przepisy zostają bez zmian. Jeśli to pomyłka,
-            zaznacz zgodę ponownie w <a href="{{ route('settings.birthday') }}">ustawieniach urodzin</a>
-            (trzeba się zalogować).
+            Twoje konto, wpisy i przepisy zostają bez zmian — wyłączyliśmy tylko ten jeden list.
         </p>
     </div>
+    <form method="POST" action="{{ $powrot }}">
+        @csrf
+        <button class="btn btn-secondary" type="submit">Jednak chcę go dostawać</button>
+    </form>
 </x-layout>

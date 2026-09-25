@@ -24,7 +24,7 @@
                         <p style="margin:0;font-size:18px;color:#555E53;">
                             Dostajesz ten list, bo w ustawieniach urodzin zaznaczono zgodę na e-mail z życzeniami.
                             <a href="{{ $wypisz }}" style="color:#555E53;">Nie chcę więcej takich listów</a>
-                            — jedno kliknięcie, bez logowania.
+                            — bez logowania.
                             Datę i wybory zmienisz w <a href="{{ $ustawienia }}" style="color:#555E53;">ustawieniach urodzin</a>.
                         </p>
                     </td>

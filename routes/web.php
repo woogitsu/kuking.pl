@@ -181,13 +181,18 @@ Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodn
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('podsumowanie.wracam');
 
-// Wypisanie z listu z życzeniami urodzinowymi (issue #1755, etap c). Poza
-// `auth` z tego samego powodu co wypisanie z podsumowania wyżej: jednym
-// kliknięciem, bez logowania. Autoryzacją jest podpis. Tylko GET — list nie
-// ma nagłówka `List-Unsubscribe-Post`, więc nie potrzeba wyjątku z CSRF.
-Route::get('/urodziny/wypisz/{user}', UrodzinyWypiszController::class)
+// Wypisanie z listu z życzeniami urodzinowymi (issue #1755, D-269). Poza
+// `auth` z tego samego powodu co wypisanie z podsumowania wyżej: bez
+// logowania. Autoryzacją jest podpis. GET tylko pyta (strona z przyciskiem),
+// zgodę wycofuje POST z tokenem CSRF z tej strony — dlatego bez wyjątku
+// z CSRF i bez nagłówka `List-Unsubscribe-Post` w liście. „Jednak chcę"
+// włącza zgodę z powrotem, też wyłącznie POST-em.
+Route::match(['get', 'post'], '/urodziny/wypisz/{user}', [UrodzinyWypiszController::class, 'wypisz'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('urodziny.wypisz');
+Route::post('/urodziny/wracam/{user}', [UrodzinyWypiszController::class, 'wracam'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('urodziny.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć

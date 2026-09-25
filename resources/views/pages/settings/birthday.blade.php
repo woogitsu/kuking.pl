@@ -104,7 +104,7 @@
                            @checked($poBledzieWyborow ? old('wants_birthday_email', false) : $user->wants_birthday_email)>
                     <span>
                         <span class="choice-label">Chcę dostać e-mail z życzeniami w dniu urodzin</span>
-                        <span class="choice-help">Jeden krótki list raz w roku, rano. Wysyłamy go tylko wtedy, gdy zaznaczysz to pole. Wypisać się możesz jednym kliknięciem na dole listu, bez logowania.</span>
+                        <span class="choice-help">Jeden krótki list raz w roku, rano. Wysyłamy go tylko wtedy, gdy zaznaczysz to pole. Wypisać się możesz odnośnikiem na dole listu, bez logowania.</span>
                     </span>
                 </label>
                 @error('wants_birthday_email')

@@ -175,13 +175,33 @@ class ZyczeniaUrodzinoweMailemTest extends TestCase
         $this->assertSame(0, WpisZgody::query()->where('cel', WpisZgody::CEL_ZYCZENIA_URODZINOWE)->count());
     }
 
-    public function test_odnosnik_w_liscie_wypisuje_bez_logowania_z_dowodem(): void
+    /**
+     * Decyzja właściciela (D-269, wzorem #1403): samo otwarcie odnośnika
+     * NICZEGO nie zmienia — skanery linków w poczcie firmowej otwierają adresy
+     * z listów same. GET pokazuje pytanie z przyciskiem.
+     */
+    public function test_sam_get_odnosnika_nie_wypisuje(): void
     {
         $basia = $this->osoba('basia');
 
         $this->get(OdnosnikWypisaniaZUrodzin::dla($basia))
             ->assertOk()
-            ->assertSee('Nie wyślemy już listu z życzeniami', escape: false);
+            ->assertSee('Nic jeszcze nie zmieniliśmy', escape: false)
+            ->assertSee('Tak, nie wysyłajcie mi go', escape: false);
+
+        $this->assertTrue($basia->fresh()->wants_birthday_email, 'Sam GET wypisał z listu — skaner linków zrobiłby to za człowieka.');
+        $this->assertSame(0, WpisZgody::query()->where('cel', WpisZgody::CEL_ZYCZENIA_URODZINOWE)->count());
+    }
+
+    public function test_przycisk_wypisuje_bez_logowania_z_dowodem_i_daje_jednak_chce(): void
+    {
+        $basia = $this->osoba('basia');
+
+        $this->post(OdnosnikWypisaniaZUrodzin::dla($basia))
+            ->assertOk()
+            ->assertSee('Nie wyślemy już listu z życzeniami', escape: false)
+            ->assertSee('Jednak chcę go dostawać', escape: false)
+            ->assertSee(e(OdnosnikWypisaniaZUrodzin::powrotDla($basia)), escape: false);
 
         $this->assertFalse($basia->fresh()->wants_birthday_email);
         $this->assertSame(1, WpisZgody::query()
@@ -190,6 +210,29 @@ class ZyczeniaUrodzinoweMailemTest extends TestCase
             ->where('czynnosc', WpisZgody::WYCOFANA)
             ->where('zrodlo', WpisZgody::ZRODLO_LINK_WYPISANIA)
             ->count());
+
+        // „Jednak chcę" — zgoda wraca, z nowym wpisem w dzienniku.
+        $this->post(OdnosnikWypisaniaZUrodzin::powrotDla($basia))
+            ->assertOk()
+            ->assertSee('List z życzeniami przyjdzie', escape: false);
+
+        $this->assertTrue($basia->fresh()->wants_birthday_email);
+        $this->assertSame(1, WpisZgody::query()
+            ->where('user_id', $basia->getKey())
+            ->where('cel', WpisZgody::CEL_ZYCZENIA_URODZINOWE)
+            ->where('czynnosc', WpisZgody::UDZIELONA)
+            ->where('zrodlo', WpisZgody::ZRODLO_LINK_POWROTNY)
+            ->count());
+    }
+
+    public function test_powrot_przyjmuje_tylko_post_z_podpisem(): void
+    {
+        $basia = $this->osoba('basia', zgoda: false);
+
+        $this->get(OdnosnikWypisaniaZUrodzin::powrotDla($basia))->assertStatus(405);
+        $this->post(route('urodziny.wracam', $basia))->assertForbidden();
+
+        $this->assertFalse($basia->fresh()->wants_birthday_email);
     }
 
     public function test_sam_identyfikator_bez_podpisu_nie_wypisuje(): void
@@ -197,6 +240,7 @@ class ZyczeniaUrodzinoweMailemTest extends TestCase
         $basia = $this->osoba('basia');
 
         $this->get(route('urodziny.wypisz', $basia))->assertForbidden();
+        $this->post(route('urodziny.wypisz', $basia))->assertForbidden();
 
         $this->assertTrue($basia->fresh()->wants_birthday_email);
     }

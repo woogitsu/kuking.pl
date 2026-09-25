@@ -8,15 +8,23 @@ use App\Models\User;
 use Illuminate\Support\Facades\URL;
 
 /**
- * Podpisany odnośnik „wypisz mnie" w liście z życzeniami (issue #1755, etap c).
+ * Podpisane odnośniki listu z życzeniami (issue #1755, etap c, D-269).
  *
- * Działa bez logowania — autoryzacją jest podpis aplikacji, nie identyfikator
- * w adresie (AGENTS.md §7), tak jak `App\Domain\Digest\OdnosnikWypisania`.
+ * Działają bez logowania — autoryzacją jest podpis aplikacji, nie
+ * identyfikator w adresie (AGENTS.md §7), tak jak
+ * `App\Domain\Digest\OdnosnikWypisania`.
  */
 final class OdnosnikWypisaniaZUrodzin
 {
+    /** Wypisanie: GET pokazuje pytanie, zapisuje wyłącznie POST. */
     public static function dla(User $odbiorca): string
     {
         return URL::signedRoute('urodziny.wypisz', ['user' => $odbiorca->getKey()]);
+    }
+
+    /** „Jednak chcę": przycisk na stronie po wypisaniu (tylko POST). */
+    public static function powrotDla(User $odbiorca): string
+    {
+        return URL::signedRoute('urodziny.wracam', ['user' => $odbiorca->getKey()]);
     }
 }

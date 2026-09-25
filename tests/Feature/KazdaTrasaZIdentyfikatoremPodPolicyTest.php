@@ -705,6 +705,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // podpis jest jedyną autoryzacją, wiersz „bez podpisu" niżej.
         $dodaj('urodziny.wypisz', 'wypisanie z listu urodzinowego (podpisany link)', 'get',
             URL::signedRoute('urodziny.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        $dodaj('urodziny.wracam', 'powrót do listu urodzinowego (podpisany link)', 'post',
+            URL::signedRoute('urodziny.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('settings.email.confirm', 'potwierdzenie zmiany adresu', 'get',
             URL::signedRoute('settings.email.confirm', ['zmiana' => $this->zmianaAdresu->getKey()]), [],
             [$W, $C, $C, $C, $O]);
@@ -852,6 +854,17 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'opis' => 'wypisanie z podsumowania BEZ podpisu',
             'metoda' => 'get',
             'url' => route('podsumowanie.wypisz', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'urodziny.wracam',
+            'opis' => 'powrót do listu urodzinowego BEZ podpisu',
+            'metoda' => 'post',
+            'url' => route('urodziny.wracam', $wlasciciel),
             'dane' => [],
             'oczekiwania' => array_combine(
                 ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
