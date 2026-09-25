@@ -329,8 +329,13 @@
    obraz. Warunek szerokości `30rem` wyżej tego nie łapie. Próg 25rem to ten
    sam niski próg co przy `.topbar` w app.css (D-107); tablet 768×500 BEZ
    klawiatury zostaje przypięty — ma 335 px treści między belkami. Stoi PO
-   regule 64rem, żeby zerować także rezerwy komputera. */
-@media (max-height: 25rem) {
+   regule 64rem, żeby zerować także rezerwy komputera.
+   `width > 30rem`: węższe okno o tej wysokości odpina już reguła
+   `(max-width: 30rem) and (max-height: 40rem)` wyżej. Bez tego warunku ten
+   blok dublowałby ją przy 320 px i dużej czcionce przeglądarki (25rem przy
+   32 px to 800 px), a kontrole ujemne N492 w `scripts/nawigacja-niski-widok.mjs`
+   psujące tamtą regułę przestałyby cokolwiek wykrywać. */
+@media (width > 30rem) and (max-height: 25rem) {
   [data-marka] .marka-topbar { position: relative; top: 0; }
   [data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + env(safe-area-inset-bottom, calc(0px * var(--user-layout-scale, 1)))); }
   :root:has(body[data-marka]) { --rezerwa-nad-belka: .5rem; --rezerwa-pod-belka: 0rem; scroll-padding-bottom: .5rem; }

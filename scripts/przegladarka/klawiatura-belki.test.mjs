@@ -26,7 +26,7 @@
  *  reprezentatywny: te same klasy ramy co w layoucie, bez Laravela.
  *
  *  KONTROLA UJEMNA jest w samym teście: ten sam pomiar na arkuszu z wyłączoną
- *  regułą `@media (max-height: 25rem)` z `marka-rama.css` MUSI wykryć pole
+ *  regułą `@media (width > 30rem) and (max-height: 25rem)` z `marka-rama.css` MUSI wykryć pole
  *  zasłonięte belką — inaczej test niczego nie pilnuje.
  * =============================================================================
  */
@@ -37,7 +37,7 @@ import { chromium } from 'playwright';
 
 const manifest = JSON.parse(readFileSync('public/build/manifest.json', 'utf8'));
 const css = readFileSync(`public/build/${manifest['resources/css/app.css'].file}`, 'utf8');
-const REGULA = '@media (height<=25rem){';
+const REGULA = '@media ((width>30rem)) and (height<=25rem){';
 assert.equal(css.split(REGULA).length, 2, `Zbudowany arkusz ma mieć dokładnie jedną regułę ${REGULA} (marka-rama.css, #947).`);
 
 const layout = readFileSync('resources/views/components/layout.blade.php', 'utf8');

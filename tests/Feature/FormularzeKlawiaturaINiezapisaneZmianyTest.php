@@ -20,7 +20,7 @@ use Tests\TestCase;
  * Zoom nie może zostać przy tym zablokowany. Geometrię pola z fokusem i belek
  * przy zmniejszonym oknie (390×844, 844×390, 768×500) mierzy w Chromium
  * `scripts/przegladarka/klawiatura-belki.test.mjs` — razem z regułą
- * `@media (max-height: 25rem)` z `marka-rama.css`, która odpina belki przy
+ * `@media (width > 30rem) and (max-height: 25rem)` z `marka-rama.css`, która odpina belki przy
  * niskim oknie niezależnie od szerokości.
  *
  * #899 — oba odnośniki z „Dopisz szczegóły” do kreatora są zwykłym GET-em,
