@@ -87,7 +87,7 @@ fi
 # „proces się skończył" od „proces padł".
 krok "Skrypty powłoki"
 _bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for _skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$_skrypt" ] || continue
     bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
 done

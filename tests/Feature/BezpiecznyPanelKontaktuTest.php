@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Mail\OdpowiedzNaWiadomosc;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
+use App\Providers\PocztaServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -90,7 +91,10 @@ class BezpiecznyPanelKontaktuTest extends TestCase
             'services.emaillabs.key' => 'test-key-12345',
             'services.emaillabs.secret' => 'test-secret-12345',
             'services.emaillabs.smtp_account' => 'test.smtp',
-            'services.emaillabs.endpoint' => 'https://example.invalid/mail',
+            // Jedyny adres, któremu transport da klucze (#991, D-250); obcy
+            // host zatrzymałby wysyłkę przed siecią i test nie mierzyłby
+            // zerwanego połączenia. Żądanie i tak przechwytuje `Http::fake`.
+            'services.emaillabs.endpoint' => PocztaServiceProvider::ADRES_API,
         ]);
         Mail::purge('emaillabs');
         Http::preventStrayRequests();
