@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -58,6 +59,11 @@ class LicznikZapisowBezWachlarzaZapytanTest extends TestCase
 
     private function policzZapytania(callable $akcja): int
     {
+        // Każdy pomiar na zimno: kandydaci tablicy „Kuking na dziś” leżą
+        // w cache (audyt B4 W1). Bez tego drugi pomiar byłby tańszy o samo
+        // liczenie kandydatów, a nie o brak wachlarza zapytań.
+        Cache::flush();
+
         $ile = 0;
         DB::listen(function () use (&$ile): void {
             $ile++;
