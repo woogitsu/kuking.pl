@@ -11,6 +11,7 @@ use App\Models\TagPromotion;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -127,6 +128,9 @@ class TagPublicStatsPagesTest extends TestCase
 
     private function measuredIndex(): array
     {
+        // Pomiar na zimno: liczby tagów leżą w cache (audyt B4 W2), a ten
+        // test mierzy koszt ich policzenia, nie odczytu z cache.
+        Cache::flush();
         DB::enableQueryLog();
         DB::flushQueryLog();
         try {

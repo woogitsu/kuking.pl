@@ -9,8 +9,10 @@ use App\Domain\Social\Actions\FollowUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -173,23 +175,43 @@ class ZamekParyObejmujeBlokowanieTest extends TestCase
         $basia = $this->user('basia');
         $marek = $this->user('marek');
 
-        $poziomWTrakcie = null;
+        // NIE PO POZIOMIE TRANSAKCJI W CHWILI WPISU. Od #1573 wpis idzie przez
+        // `recordBezWywracania()`, który sam otwiera punkt zapisu — więc
+        // „poza blokadą" to poziom 2 (RefreshDatabase + ten punkt), czyli
+        // tyle samo, co gołe `record()` WEWNĄTRZ blokady. Mierzymy więc to,
+        // o co naprawdę chodzi: czy transakcja, w której wszedł wiersz
+        // `blocks`, była już zatwierdzona, zanim poszedł INSERT wpisu.
+        // „Zatwierdzona" = poziom wrócił do tego sprzed akcji: `firstOrCreate`
+        // otwiera własny punkt zapisu, więc samo zejście o jeden poziom niżej
+        // niż przy INSERT-cie blokady niczego jeszcze nie zatwierdza.
+        $poziomBazowy = DB::transactionLevel();
+        $poziomBlokady = null;
+        $blokadaZatwierdzona = false;
+        $zatwierdzonaPrzedWpisem = null;
 
-        DB::listen(function (QueryExecuted $zapytanie) use (&$poziomWTrakcie): void {
+        Event::listen(TransactionCommitted::class, function () use ($poziomBazowy, &$poziomBlokady, &$blokadaZatwierdzona): void {
+            if ($poziomBlokady !== null && DB::transactionLevel() <= $poziomBazowy) {
+                $blokadaZatwierdzona = true;
+            }
+        });
+
+        DB::listen(function (QueryExecuted $zapytanie) use (&$poziomBlokady, &$blokadaZatwierdzona, &$zatwierdzonaPrzedWpisem): void {
+            if (str_starts_with($zapytanie->sql, 'insert into "blocks"')) {
+                $poziomBlokady = DB::transactionLevel();
+            }
+
             if (str_starts_with($zapytanie->sql, 'insert into "audit_log"')) {
-                $poziomWTrakcie = DB::transactionLevel();
+                $zatwierdzonaPrzedWpisem = $blokadaZatwierdzona;
             }
         });
 
         app(BlockUser::class)->handle($basia, $marek);
 
-        $this->assertNotNull($poziomWTrakcie, 'Nie zapisano wpisu audytowego — test mierzy nie to, co trzeba.');
+        $this->assertNotNull($poziomBlokady, 'Nie zapisano blokady — test mierzy nie to, co trzeba.');
+        $this->assertNotNull($zatwierdzonaPrzedWpisem, 'Nie zapisano wpisu audytowego — test mierzy nie to, co trzeba.');
 
-        // `RefreshDatabase` trzyma cały test w jednej transakcji, więc
-        // poziomem „poza transakcją blokady" jest 1, a nie 0.
-        $this->assertSame(
-            1,
-            $poziomWTrakcie,
+        $this->assertTrue(
+            $zatwierdzonaPrzedWpisem,
             'Wpis audytowy powstaje wewnątrz transakcji blokady — wycofanie blokady skasowałoby też ślad.',
         );
     }
