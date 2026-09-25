@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Questions;
 
+use App\Models\Comment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
@@ -35,5 +36,17 @@ final class OdpowiedzNaPytanie
         $komentarze->whereNull($tabela.'.parent_id')
             ->whereNull($tabela.'.body_removed_at')
             ->whereColumn($tabela.'.author_id', '!=', $autorPytania);
+    }
+
+    /**
+     * Ten sam warunek co `zawez()`, dla już wczytanego modelu — potrzebny
+     * tam, gdzie komentarze są już kolekcją w pamięci (np. dane strukturalne
+     * `QAPage` na stronie pytania, #372), a nie zapytaniem do bazy.
+     */
+    public static function pasuje(Comment $komentarz, string $autorPytaniaId): bool
+    {
+        return $komentarz->parent_id === null
+            && $komentarz->body_removed_at === null
+            && $komentarz->author_id !== $autorPytaniaId;
     }
 }
