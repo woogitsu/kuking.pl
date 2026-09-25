@@ -200,7 +200,7 @@ function daneStartowe() {
     $ania = App\\Models\\User::whereHas('profile', fn($q) => $q->where('username', 'ania'))->firstOrFail();
     $obserwowani = $ania->following()->pluck('users.id')->all();
     $inny = App\\Models\\User::whereNotIn('id', array_merge($obserwowani, [$ania->getKey()]))
-        ->whereHas('profile')->get()->first(fn($u) => $u->profile?->username);
+        ->whereHas('profile')->with('profile')->get()->first(fn($u) => $u->profile?->username);
     $obserwowaneTagi = $ania->followedTags()->pluck('tags.slug')->all();
     $tag = App\\Models\\Tag::whereNotIn('slug', $obserwowaneTagi)->value('slug');
     $post = App\\Models\\Post::whereNotNull('published_at')

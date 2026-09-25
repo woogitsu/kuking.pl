@@ -1827,7 +1827,7 @@ const kolejkiPanelu = (() => {
     // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
     + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
     + "->whereKeyNot($m)->orderBy('id')->value('id'); "
-    + "$wpisy = App\\Models\\Post::publiclyVisible()"
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->with('author')"
     + "->orderByDesc('published_at')->orderByDesc('id')->get(); "
     + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
     // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
@@ -1934,7 +1934,7 @@ const tablicaDnia = (() => {
     + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->orderBy('id')->get() as $u) { "
     + "$ile = 0; "
     + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
-    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get() as $p) { "
+    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->with('media')->get() as $p) { "
     + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
     + "if ($ile >= 3) { $osoba = $u; break; } } "
     // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.

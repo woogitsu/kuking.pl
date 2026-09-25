@@ -133,7 +133,7 @@ class TrybScislyEloquentTest extends TestCase
         $this->assertTrue(Model::preventsSilentlyDiscardingAttributes(), 'Staging nie wykrywa pól spoza $fillable.');
         $this->assertTrue(Model::preventsAccessingMissingAttributes(), 'Staging nie wykrywa odczytu niepobranej kolumny.');
 
-        Log::spy();
+        $dziennik = Log::spy();
 
         // Leniwe ładowanie: relacja doładowuje się jak w produkcji, zamiast wyjątku.
         $przepisy = Recipe::query()->get();
@@ -148,11 +148,11 @@ class TrybScislyEloquentTest extends TestCase
         $this->assertSame(Post::KIND_DISH, $wpis->kind, 'Pole sterujące przeszło masowym przypisaniem na stagingu.');
         $this->assertSame('Podrzucony rodzaj.', $wpis->body);
 
-        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'leniwe ładowanie')
+        $dziennik->shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'leniwe ładowanie')
             && $kontekst === ['model' => Recipe::class, 'relacja' => 'author']);
-        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'niepobranej kolumny')
+        $dziennik->shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'niepobranej kolumny')
             && $kontekst === ['model' => User::class, 'kolumna' => 'locale']);
-        Log::shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'spoza $fillable')
+        $dziennik->shouldHaveReceived('warning')->withArgs(fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'spoza $fillable')
             && $kontekst === ['model' => Post::class, 'pola' => ['kind']]);
     }
 
