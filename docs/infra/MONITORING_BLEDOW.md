@@ -917,3 +917,55 @@ wejściu i nie zależy od poziomu logowania ani od `LOG_BLAD_WEBHOOK_URL`.
 adres i liczba różnych osób zostają w komendach, bo tam wymagają decyzji
 człowieka i nie wychodzą do przeglądarki. Nie rozlicza też tabeli: `/health`
 będzie mówić `degraded`, dopóki ktoś świadomie tych wierszy nie usunie.
+
+---
+
+## 8. Sonda `alarmy_moderacji` — pilny alarm moderacyjny nie dotarł (issue #1051)
+
+Sprawa **pilna** to oznaczenie automatu w jednej z dwóch kategorii, przy
+których doba zwłoki jest realną szkodą: treść seksualna i cokolwiek
+dotyczącego dziecka (D-055). O takiej sprawie ma natychmiast wyjść list na
+`KUKING_MODEL_ALARM_EMAIL`. Gdy nie wyszedł, wiersz w `reports` ma
+`alarm_pilny_stan` = `zalegly` / `nieudany` / `bez_adresu`
+i pusty `alarm_pilny_zlecony_at`, a `/health` zwraca `status: degraded`
+(kod 200 — sonda nie jest krytyczna i nie restartuje serwisu).
+
+| Kod w `checks.alarmy_moderacji.error` | Co znaczy | Co zrobić |
+|---|---|---|
+| `kanal_alarmowy_wylaczony` | Jest otwarta pilna sprawa bez alarmu, a `KUKING_MODEL_ALARM_EMAIL` jest **pusty** — kanał alarmowy nie istnieje. To nie jest błąd kodu i nie naprawi go ponowienie. | Wpisz adres w zmiennych usługi na Railway i wdróż. **Nic więcej:** komenda `kuking:doslij-pilne-alarmy` (co godzinę, minuta 35) dośle zaległe listy sama, najpóźniej w godzinę, a sonda zgaśnie po jej przebiegu. Do tego czasu kod zmieni się na `pilny_alarm_nie_dotarl` — to znaczy „adres jest, list jeszcze czeka na przebieg", nie nowa awaria. Obejrzyj sprawy w `/admin/sygnaly` — nie czekaj na list. |
+| `pilny_alarm_nie_dotarl` | Adres jest ustawiony, a pilna sprawa nadal nie ma zleconego alarmu: worker zginął między zapisem sprawy a listem (`zalegly`) albo zlecenie listu rzuciło wyjątkiem (`nieudany`, wyjątek poszedł do `report()`). | Otwórz `/admin/sygnaly` i obejrzyj sprawę od razu. Komenda ponawia co godzinę; jeśli kod trzyma się dłużej niż godzinę, zlecenie listu pada za każdym razem — przebieg harmonogramu kończy się wtedy błędem (kod 1) i trafia do zgłaszania błędów. Sprawdź pocztę (`checks.poczta`, `checks.listy`) i log. Ręcznie: `php artisan kuking:doslij-pilne-alarmy`. |
+| `slad_alarmow_niesprawdzalny` | Nie dało się zapytać o ślad — najczęściej kolumn `reports.alarm_pilny_*` jeszcze nie ma (kod wdrożony przed migracją). | Dokończ migrację. |
+
+### Kiedy sonda gaśnie — reguła
+
+Liczy się wyłącznie sprawa, która jest jednocześnie:
+
+1. **otwarta** (`open`, `triage`, `reviewing`) — zamknięcie sprawy w panelu
+   (rozstrzygnięcie albo „to nic takiego") gasi sondę. Człowiek ją obejrzał,
+   pytanie „czy ktoś o niej wie" ma odpowiedź. Ślad, że kanał wtedy nie
+   zadziałał, zostaje w bazie (`Report::pilneBezAlarmu()`);
+2. **młodsza niż 72 godziny** od powstania
+   (`kuking.moderation.model.alarm_sonda_godzin`). 72, nie 24 — sprawa
+   z piątku wieczorem świeci jeszcze w poniedziałek rano. Starsza sprawa
+   nadal leży w kolejce panelu i w porannym podsumowaniu automatu, a komenda
+   nadal próbuje ją dosłać; sonda przestaje tylko trzymać `degraded`.
+   Światło, którego nie da się zgasić inaczej niż SQL-em, operator uczy się
+   ignorować.
+
+Komenda i sonda patrzą na ten sam zbiór (`Report::pilneDoDoslania()`),
+żeby nie było sprawy, przy której sonda świeci, a komenda jej nie ruszy.
+Kod powodu wynika z **bieżącej** konfiguracji, nie z zapisanego stanu —
+po wpisaniu adresu sonda nie odsyła już do ustawień, które są poprawione.
+
+### Dlaczego nie wyjdą dwa listy o tej samej sprawie
+
+`AlarmujModeratora::doslij()` zajmuje wiersz warunkowym `UPDATE` i zleca
+list w tej samej transakcji (kolejka `database` — zadanie wysyłki to wiersz
+w `jobs` tej samej bazy). Dwa przebiegi naraz (stary i nowy kontener przy
+wdrożeniu) — dostaje go dokładnie jeden. Awaria zlecenia cofa zajęcie
+i zostawia stan `nieudany` do następnego przebiegu. Limit partii:
+`kuking.moderation.model.alarm_partia` (50) — żeby dzień z długą awarią
+kanału nie zjadł dobowego limitu poczty.
+
+Testy: `tests/Feature/DosylaniePilnychAlarmowTest.php`,
+`tests/Feature/PilnyAlarmModeracyjnyNieGinieTest.php`.
