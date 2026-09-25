@@ -1,0 +1,16 @@
+{
+  "nazwa": "#844: SET NULL",
+  "plik": "database/migrations/2026_09_20_140000_allow_null_handled_by_on_contact_messages.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "8576b950deb07102436c1f379dca3114",
+  "md5_po_mutacji": "ef8a4bdae629e016f7e99658c5714b3e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 2)",
+  "oczekiwana_przyczyna": "contact_messages_handled_complete",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:14:25Z"
+}
