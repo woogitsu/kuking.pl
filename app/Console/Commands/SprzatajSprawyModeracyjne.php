@@ -66,6 +66,13 @@ class SprzatajSprawyModeracyjne extends Command
             return self::FAILURE;
         }
 
+        if ($raport->pozostaloNaKolejnyPrzebieg > 0) {
+            $this->warn(
+                "Zostaje na następny przebieg: {$raport->pozostaloNaKolejnyPrzebieg} "
+                .'(limit jednego przebiegu albo błędy opisane wyżej).',
+            );
+        }
+
         return self::SUCCESS;
     }
 }
