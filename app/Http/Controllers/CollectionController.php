@@ -735,7 +735,9 @@ class CollectionController extends Controller
 
     private function odciskNiedostepnych(Request $request, Collection $collection): ?string
     {
-        if ($request->user()?->getKey() !== $collection->owner_id) {
+        // Ta sama bramka co przy wykonaniu (`update`): zawieszone konto nie
+        // porządkuje zeszytu publicznego, więc nie dostaje martwego przycisku.
+        if (! $request->user()?->can('update', $collection)) {
             return null;
         }
 
