@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Moderation\KolejkiPanelu;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
@@ -132,13 +133,22 @@ class SygnalyController extends Controller
                         'reason_code' => self::POWOD_ODRZUCENIA,
                         'note' => $dane['note'] ?? 'Automat się pomylił — treść zostaje bez zmian.',
                     ]);
+                }
 
-                    $oznaczenie->update([
+                // JEDEN masowy UPDATE zamiast zapisu po wierszu (audyt B4 W3).
+                // Zapis po wierszu odpalał hak `saved` i przeliczał liczniki
+                // panelu przy KAŻDYM oznaczeniu — pod blokadą całej grupy.
+                // Masowy UPDATE nie odpala zdarzeń modelu, więc liczniki
+                // odświeżamy jawnie, raz, po commicie.
+                if ($oznaczenia->isNotEmpty()) {
+                    Report::query()->whereKey($oznaczenia->modelKeys())->update([
                         'status' => Report::STATUS_REJECTED,
                         'resolution_note' => $dane['note'] ?? null,
                         'resolved_by' => $moderator->getKey(),
                         'resolved_at' => now(),
                     ]);
+
+                    app(KolejkiPanelu::class)->odswiez();
                 }
 
                 $ile = $oznaczenia->count();

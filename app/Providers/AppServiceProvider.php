@@ -28,7 +28,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Singleton, bo `odswiez()` trzyma flagę „już zaplanowane na commit"
+        // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
+        $this->app->singleton(KolejkiPanelu::class);
     }
 
     /**
@@ -214,8 +216,10 @@ class AppServiceProvider extends ServiceProvider
      * `Appeal`, `Report` i `ContactMessage` to tabele, w których pojawienie
      * się i zamknięcie sprawy MA być widoczne od razu: licznik, który
      * pokazuje „1" po zamknięciu ostatniej sprawy, kłamie raz i traci
-     * zaufanie na zawsze. Zmieniają się kilka razy na dobę, więc pięć
-     * `COUNT(*)` przy takim zapisie jest niewidoczne.
+     * zaufanie na zawsze. Hak liczy tylko cztery tanie `COUNT(*)`, po
+     * commicie i raz na transakcję — sygnały automatu przychodzą falami
+     * (audyt B4 W3, `KolejkiPanelu::odswiez()`). Drogie „Bez odpowiedzi"
+     * zostaje harmonogramowi.
      *
      * `Post` i `Comment` haka NIE MAJĄ świadomie — publikacja wpisu
      * i komentarz to główna akcja produktu (AGENTS.md §1) i nie dokładamy

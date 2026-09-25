@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Panel moderacji: kolejka „Bez odpowiedzi” pokazuje wpisy, przepisy, pytania i wykonania z ostatnich 14 dni. Starsze treści bez odzewu nie zasłaniają już na górze listy tego, na co odpowiedź dziś jeszcze coś zmienia. Zamknięcie dużej grupy oznaczeń automatu („To nic takiego”) działa szybciej.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
