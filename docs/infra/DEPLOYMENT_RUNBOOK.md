@@ -2075,6 +2075,9 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 # Oczekiwane: 0
 # Wynik > 0 znaczy, że strona błędu ujawnia zmienne środowiskowe. Natychmiast
 # ustaw APP_DEBUG=false i zredeployuj.
+# Od audytu B10-04 to samo mówi /health na produkcji: checks.debug.error =
+# debug_wlaczony (APP_DEBUG=true) i checks.sesja.error = sesja_bez_secure
+# (jawne SESSION_SECURE_COOKIE=false; bez zmiennej produkcja ma Secure).
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
