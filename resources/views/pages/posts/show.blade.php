@@ -2,6 +2,8 @@
     $isPublic = $post->visibility === 'public' && $post->isPublished();
     // Tytuł z treści wpisu, nie „Imię — wpis" (issue #967).
     $tytulWpisu = \App\Support\TytulStronyWpisu::tytul($post);
+    // Jedna lista dla okruszków i `BreadcrumbList` (#1033).
+    $okruszki = \App\Support\Okruszki::dlaWpisu($post);
 @endphp
 <x-layout
     :title="$tytulWpisu"
@@ -11,6 +13,16 @@
          wklejony w Messengera nie pokazuje NICZEGO poza imieniem autora. --}}
     :image="$isPublic ? $post->media->first() : null"
     ogType="article">
+
+    {{-- Dane o ścieżce tylko dla wpisu publicznego — szkic i wpis dla
+         znajomych nie zdradzają w znaczniku ani treści, ani autora. --}}
+    @if($isPublic)
+        <x-slot:head>
+            <x-json-ld :data="\App\Support\Okruszki::jsonLd($okruszki)" />
+        </x-slot:head>
+    @endif
+
+    <x-okruszki :elementy="$okruszki" />
 
     {{-- Jeden H1 nazywający wpis (#967). Ukryty dla oka, bo karta niżej
          pokazuje tę samą treść w całości — widoczny powtórzyłby jej początek
