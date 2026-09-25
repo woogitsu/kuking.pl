@@ -84,6 +84,10 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
+        // D-270: odcięcie telefonu od konta tylko ODBIERA dostęp — zawieszenie
+        // nie może zostawić człowieka z zalogowanym, zgubionym urządzeniem.
+        'settings.devices.destroy',
+        'settings.devices.destroy-all',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -133,7 +137,7 @@ class EnsureAccountIsActive
             // z pamięci, nie tekst, którego szkoda.
             return back()
                 ->withInput(OdzyskiwalneDane::zZadania($request))
-                ->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
+                ->withErrors(['konto' => self::komunikatZawieszenia($user)]);
         }
 
         return $next($request);
@@ -156,7 +160,7 @@ class EnsureAccountIsActive
         return ! in_array($request->route()?->getName(), self::DOZWOLONE_MIMO_ZAWIESZENIA, true);
     }
 
-    private function komunikatZawieszenia(User $user): string
+    public static function komunikatZawieszenia(User $user): string
     {
         // Bez gry słowem „kuKING" — D-009 zabrania jej w wiadomościach
         // moderacyjnych i komunikatach błędu.

@@ -683,6 +683,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             ]), [], [$W, $O, $O, $O, $O]);
         $dodaj('notifications.open', 'otwarcie cudzego powiadomienia', 'post',
             route('notifications.open', $powiadomienie), [], [$W, $O, $O, $O, $O]);
+        // Token aplikacji mobilnej (D-270): odciąć go może tylko właściciel
+        // konta — moderator też nie (`PersonalAccessTokenPolicy`).
+        $dodaj('settings.devices.destroy', 'odcięcie cudzego urządzenia', 'delete',
+            route('settings.devices.destroy', $wlasciciel->createToken('Telefon')->accessToken), [], [$W, $O, $O, $O, $O]);
         $dodaj('settings.data.download', 'pobranie paczki RODO', 'get',
             URL::temporarySignedRoute('settings.data.download', now()->addHour(), ['export' => $this->paczka->getKey()]),
             [], [$W, $O, $O, $O, $O]);

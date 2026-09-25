@@ -3154,6 +3154,29 @@ return [
             'na_token' => '120,1',
             'na_adres' => '300,1',
         ],
+
+        /*
+         * ILE MINUT ŻYJE WYZWANIE DRUGIEGO KROKU (konto z 2FA).
+         *
+         * Po haśle aplikacja dostaje zaszyfrowane „wyzwanie" zamiast tokenu
+         * (`App\Domain\Api\WyzwanieDwuetapowe`) i ma tyle czasu na kod.
+         * Dziesięć, nie pięć: osoba 50+ przełącza się do aplikacji
+         * z kodami, szuka właściwego wpisu i przepisuje sześć cyfr — a kod
+         * z aplikacji zmienia się co 30 sekund, więc pośpiech tylko szkodzi.
+         * Wyzwanie samo niczego nie otwiera: bez kodu jest bezużyteczne,
+         * a zmiana hasła albo stanu konta unieważnia je od razu.
+         */
+        'wyzwanie_minut' => 10,
+
+        /*
+         * ILE URZĄDZEŃ NA JEDNO KONTO. Kolejne logowanie ponad ten próg
+         * odwołuje token używany najdawniej (`WydajTokenAplikacji`).
+         *
+         * Dziesięć mieści telefon, tablet i kilka reinstalacji aplikacji —
+         * a zamyka drogę do tysięcy tokenów na jednym koncie przez skrypt
+         * logujący się w pętli poprawnym hasłem.
+         */
+        'max_urzadzen' => 10,
     ],
 
     'demo' => [
