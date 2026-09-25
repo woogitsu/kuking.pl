@@ -22,14 +22,14 @@ use Throwable;
  * decyzji moderacyjnej ma obowiązywać (DSA art. 20 ust. 1). Powiadomienie
  * o decyzji niesie jedyny w serwisie link „Odwołaj się" — wygaszenie go po
  * ogólnym okresie odbierałoby prawo, które jeszcze obowiązuje. Dla tych
- * typów WŁASNY termin to `Notification::terminOchronyOdwolawczej()`
+ * typów WŁASNY termin to `TerminOchronyOdwolawczej::dla()`
  * (`ModerationAction::appealDeadline()` powiązanej decyzji), NIE liczba
  * z configu — więc ta klasa sprawdza je JEDNO PO JEDNYM (Wzorzec C), a nie
  * partiami (`UsuwanieWPartiach`, #1657), jak resztę tabeli.
  *
  * Powiadomienie, którego powiązanej decyzji nie da się ustalić (odniesienie
  * puste albo skasowane), NIE jest kasowane automatycznie — patrz komentarz
- * `Notification::terminOchronyOdwolawczej()`. To nie powinno się zdarzać
+ * `TerminOchronyOdwolawczej::dla()`. To nie powinno się zdarzać
  * w praktyce (obaj producenci `TYPE_MODERATION`, `NotifyModerationDecision`
  * i `NotifyAppealOutcome`, zawsze zapisują odniesienie), ale błąd w tym
  * miejscu ma kosztować "zostaje o kilka miesięcy dłużej", nie "zniknęło,
@@ -37,6 +37,8 @@ use Throwable;
  */
 final class PrzedawnionePowiadomienia
 {
+    public function __construct(private readonly TerminOchronyOdwolawczej $terminOchrony = new TerminOchronyOdwolawczej) {}
+
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiPowiadomien
     {
         // `subMonthsNoOverflow`, NIE `subMonths` — A6-04.
@@ -108,7 +110,7 @@ final class PrzedawnionePowiadomienia
         $nieudane = 0;
 
         foreach ($kandydaci as $powiadomienie) {
-            $termin = $powiadomienie->terminOchronyOdwolawczej();
+            $termin = $this->terminOchrony->dla($powiadomienie);
 
             if ($termin === null) {
                 $bezDecyzji++;

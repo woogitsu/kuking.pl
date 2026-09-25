@@ -67,7 +67,7 @@ final class NotifyReporterDecision
                 'naglowek' => $skutek['naglowek'],
                 'reszta' => $skutek['reszta'],
                 // Odniesienie do decyzji. Z niego retencja liczy termin
-                // ochrony (`Notification::terminOchronyOdwolawczej()`) —
+                // ochrony (`TerminOchronyOdwolawczej::dla()`) —
                 // bez niego to powiadomienie zniknęłoby po ogólnych trzech
                 // miesiącach razem z pouczeniem.
                 'action_id' => (string) $decyzja->getKey(),

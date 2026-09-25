@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\WidocznoscPowiadomien;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -134,7 +133,7 @@ class Notification extends Model
      * termin ważności tego powiadomienia nie jest liczbą tego configu, tylko
      * terminem na odwołanie od decyzji, do której się odnosi. Gdy ten termin
      * minie, powiadomienie wraca do bycia zwykłym kandydatem do usunięcia —
-     * patrz `terminOchronyOdwolawczej()` niżej i
+     * patrz `App\Domain\Compliance\TerminOchronyOdwolawczej::dla()` i
      * `App\Domain\Compliance\PrzedawnionePowiadomienia`.
      *
      * `TYPE_MODERATION` — JEDYNY typ, którym serwis niesie: (a) decyzję
@@ -167,7 +166,7 @@ class Notification extends Model
      * `TYPE_REPORT_RECEIVED` ŚWIADOMIE TU NIE JEST i nie jest to
      * przeoczenie. Potwierdzenie przyjęcia nie niesie decyzji ani pouczenia,
      * więc nie ma terminu odwołania, którym można by je mierzyć —
-     * `terminOchronyOdwolawczej()` zwracałoby dla niego `null` w każdym
+     * `TerminOchronyOdwolawczej::dla()` zwracałoby dla niego `null` w każdym
      * przebiegu, a `PrzedawnionePowiadomienia` traktuje `null` jako „nie
      * wiadomo, zostaw i zapisz ostrzeżenie w logu". Wpis wisiałby więc
      * wiecznie, produkując ostrzeżenie za każdym sprzątaniem — wyłączenie
@@ -263,53 +262,6 @@ class Notification extends Model
     public function zapamietajIstnienieWykonania(bool $istnieje): void
     {
         $this->wykonanieIstnieje = $istnieje;
-    }
-
-    /**
-     * Termin, do którego retencja (issue #19, ADR §5.2/§5.6) NIE MOŻE
-     * skasować tego powiadomienia — wyłącznie dla typów z
-     * `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`. `null` dla pozostałych
-     * typów znaczy „brak wydłużenia — obowiązuje ogólny okres wprost",
-     * NIE „można skasować natychmiast".
-     *
-     * `null` wraca też, gdy powiązanej decyzji moderacyjnej nie da się
-     * ustalić (odniesienie puste albo wiersz już nie istnieje) — retencja
-     * (`PrzedawnionePowiadomienia`) świadomie NIE zgaduje w tej sytuacji:
-     * traktuje `null` jak "nie wiadomo, więc nie kasujemy w tym przebiegu",
-     * dokładnie tak samo, jak błąd kasowania w `PrzedawnioneSprawyModeracyjne`
-     * nie może "zgadywać", że się udało.
-     */
-    public function terminOchronyOdwolawczej(): ?CarbonInterface
-    {
-        if (! in_array($this->type, self::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA, true)) {
-            return null;
-        }
-
-        return $this->decyzjaModeracyjnaDlaRetencji()?->appealDeadline();
-    }
-
-    /**
-     * `ModerationAction`, z którą to powiadomienie jest związane — przez
-     * `data.action_id` wprost (`NotifyModerationDecision`) albo przez
-     * `data.appeal_id` → `Appeal::moderationAction()` (`NotifyAppealOutcome`).
-     * Patrz komentarz `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` po pełne
-     * uzasadnienie obu ścieżek.
-     */
-    private function decyzjaModeracyjnaDlaRetencji(): ?ModerationAction
-    {
-        $akcjaId = $this->data['action_id'] ?? null;
-
-        if (is_string($akcjaId) && $akcjaId !== '') {
-            return ModerationAction::find($akcjaId);
-        }
-
-        $odwolanieId = $this->data['appeal_id'] ?? null;
-
-        if (is_string($odwolanieId) && $odwolanieId !== '') {
-            return Appeal::find($odwolanieId)?->moderationAction;
-        }
-
-        return null;
     }
 
     /**

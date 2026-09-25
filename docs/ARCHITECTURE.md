@@ -132,10 +132,14 @@ komentarzy (`adresy()`, #833); `Domain/Notifications/WycinkiKomentarzy`
 czyta żywe wycinki komentarzy (D-229) dla listy i eksportu. Obie klasy
 dostają powiadomienia, które już przeszły przez `WidocznoscPowiadomien`.
 
-Jeszcze niezrobione w ramach #1687 (kolejne etapy): wspólna specyfikacja dla
-list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od
-Policy m.in. statusem konta autora) oraz wydzielenie z modelu `Notification`
-retencji (`terminOchronyOdwolawczej()`).
+Etap 3 (#1687): termin ochrony odwoławczej powiadomienia (retencja, ADR
+§5.2) liczy `Domain/Compliance/TerminOchronyOdwolawczej`, obok jedynego
+odbiorcy — `PrzedawnionePowiadomienia`. Przy modelu zostaje tylko lista
+typów z własnym terminem (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`).
+
+Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
+(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
+m.in. statusem konta autora).
 
 ## Queue
 

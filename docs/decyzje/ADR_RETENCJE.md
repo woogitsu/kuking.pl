@@ -442,7 +442,7 @@ nadal jest spełniona po skróceniu.
 | **Wyjątek — własny, dłuższy termin** | Typy z `App\Models\Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` (dziś: `TYPE_MODERATION` — decyzja moderacyjna I wynik odwołania) żyją do `ModerationAction::appealDeadline()` powiązanej decyzji (co najmniej 6 miesięcy, DSA art. 20 ust. 1), NIE wg tej liczby. Patrz akapit „Kolizja z prawem do odwołania" niżej — to jest NOWA treść tej sekcji, dodana w drugiej turze (§10), nie było jej w pierwszej wersji ADR-u. |
 | **Co robi automat** | Dwuczęściowy: Wzorzec B dla typów spoza wyjątku (`DELETE FROM notifications WHERE created_at < próg AND type NOT IN (wyjątki)`); Wzorzec C (transakcja/sprawdzenie per wiersz) dla typów z wyjątku — każdy sprawdzany osobno wg WŁASNEGO `appealDeadline()`, bo to nie jest jedna liczba dla całej grupy. |
 | **Harmonogram** | Codziennie w nocy, 04:20 — `routes/console.php`. |
-| **Błąd** | Zwykłe: jak w §5.1. Moderacyjne: błąd kasowania pojedynczego wiersza logowany i pomijany (retry następnego dnia); powiadomienie, którego powiązanej decyzji nie da się ustalić, NIE jest kasowane (patrz `Notification::terminOchronyOdwolawczej()`) — zostaje do wyjaśnienia zamiast zniknąć bez śladu. |
+| **Błąd** | Zwykłe: jak w §5.1. Moderacyjne: błąd kasowania pojedynczego wiersza logowany i pomijany (retry następnego dnia); powiadomienie, którego powiązanej decyzji nie da się ustalić, NIE jest kasowane (patrz `TerminOchronyOdwolawczej::dla()`) — zostaje do wyjaśnienia zamiast zniknąć bez śladu. |
 
 **KOLIZJA Z PRAWEM DO ODWOŁANIA (DSA ART. 20 UST. 1) — dodane w drugiej
 turze, §10.** Trzy miesiące ogólnej retencji są KRÓTSZE niż sześć miesięcy,
