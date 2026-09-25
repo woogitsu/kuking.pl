@@ -145,13 +145,19 @@ final class AlarmujModeratora
                 : self::JUZ_ZLECONY;
         }
 
-        if (! $this->zarezerwujMiejsce($oznaczenie)) {
+        $miejsce = $this->zarezerwujMiejsce($oznaczenie);
+
+        if ($miejsce === null) {
             return self::SUFIT;
         }
 
         try {
             Notification::route('mail', $adres)->notify(new PilnyAlarmModeracyjny($oznaczenie));
         } catch (Throwable $awaria) {
+            // Zadanie wysyłki nie powstało, więc list nie wyjdzie — miejsce
+            // wraca do sufitu i do wspólnej puli (ta sama reguła co #1393).
+            $miejsce->zwolnij();
+
             /*
              * WYJĄTEK NIE LECI DALEJ, ALE TEŻ NIE GINIE.
              *
@@ -194,8 +200,11 @@ final class AlarmujModeratora
      *
      * SUFIT (audyt B8-02) SPRAWDZAMY PRZED TRANSAKCJĄ: rezerwacja w puli to
      * blokada i licznik w cache, nie wiersz sprawy — nie mieszamy jej
-     * z warunkowym `UPDATE`. Przegrany wyścig dwóch przebiegów kosztuje co
-     * najwyżej jedno miejsce w suficie, nigdy list poza nim.
+     * z warunkowym `UPDATE`. Gdy list jednak nie wychodzi (przegrany wyścig,
+     * sprawa zamknięta w międzyczasie, awaria zlecenia cofnięta razem
+     * z transakcją), miejsce wraca przez `zwolnij()` — inaczej każdy
+     * przegrany przebieg zjadałby miejsce w suficie i we wspólnej puli
+     * logowania do końca doby, nie wysławszy listu. Nigdy list poza sufitem.
      *
      * @return string `Report::ALARM_ZLECONY`, `Report::ALARM_BEZ_ADRESU`,
      *                `Report::ALARM_NIEUDANY`, `self::SUFIT` (stan na wierszu
@@ -212,7 +221,9 @@ final class AlarmujModeratora
             return Report::ALARM_BEZ_ADRESU;
         }
 
-        if (! $this->zarezerwujMiejsce($oznaczenie)) {
+        $miejsce = $this->zarezerwujMiejsce($oznaczenie);
+
+        if ($miejsce === null) {
             return self::SUFIT;
         }
 
@@ -240,6 +251,8 @@ final class AlarmujModeratora
         } catch (Throwable $awaria) {
             // Transakcja cofnęła znacznik — wiersz wraca do „nie dotarł"
             // i następny przebieg spróbuje znowu. Powód wyjątku jak w `handle()`.
+            // Zadanie wysyłki cofnęło się razem z nim, więc miejsce też wraca.
+            $miejsce->zwolnij();
             report($awaria);
             $oznaczenie->refresh();
 
@@ -249,6 +262,7 @@ final class AlarmujModeratora
         }
 
         if (! $zajete) {
+            $miejsce->zwolnij();
             $oznaczenie->refresh();
 
             return self::JUZ_ZLECONY;
@@ -261,11 +275,17 @@ final class AlarmujModeratora
      * Miejsce w dobowym suficie alarmów automatu i we wspólnej puli poczty
      * (audyt B8-02). Odmowa zostawia ślad w dzienniku — bez treści i bez
      * danych autora, sam numer oznaczenia.
+     *
+     * Zwraca obiekt budżetu, bo `zwolnij()` oddaje tylko rezerwację zrobioną
+     * TYM obiektem (doba rezerwacji, #1061) — nowy obiekt nie miałby czego
+     * oddać.
      */
-    private function zarezerwujMiejsce(Report $oznaczenie): bool
+    private function zarezerwujMiejsce(Report $oznaczenie): ?DziennyBudzetListow
     {
-        if (DziennyBudzetListow::dlaAlarmuAutomatu()->sprobujZarezerwowac()) {
-            return true;
+        $budzet = DziennyBudzetListow::dlaAlarmuAutomatu();
+
+        if ($budzet->sprobujZarezerwowac()) {
+            return $budzet;
         }
 
         Log::warning('Pilne oznaczenie automatu bez listu alarmowego: dobowy sufit alarmów albo pula poczty wyczerpane.', [
@@ -273,7 +293,7 @@ final class AlarmujModeratora
             'co_zrobic' => 'Sprawdź kolejkę /admin/sygnaly — oznaczenie tam czeka.',
         ]);
 
-        return false;
+        return null;
     }
 
     /**

@@ -108,6 +108,11 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $this->assertSame(AlarmujModeratora::JUZ_ZLECONY, $alarm->doslij($drugi));
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+
+        // Przegrany przebieg nie wysłał listu, więc nie zjada miejsca ani
+        // w dobowym suficie alarmów, ani we wspólnej puli logowania (B8-02).
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte(), 'Przegrany wyścig zjadł miejsce w suficie bez listu.');
+        $this->assertSame(1, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(), 'Przegrany wyścig zjadł miejsce we wspólnej puli bez listu.');
     }
 
     /** Kontrola dodatnia wyścigu: bez zajętego wiersza drugi przebieg JEST w stanie wysłać. */
@@ -161,6 +166,8 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $sprawa->refresh();
         $this->assertSame(Report::ALARM_NIEUDANY, $sprawa->alarm_pilny_stan);
         $this->assertNull($sprawa->alarm_pilny_zlecony_at, 'Wycofana transakcja zostawiła znacznik bez listu.');
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte(), 'Wycofane zlecenie zjadło miejsce w suficie bez listu.');
+        $this->assertSame(0, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(), 'Wycofane zlecenie zjadło miejsce we wspólnej puli bez listu.');
 
         // Poczta wraca — następna godzina dosyła sama.
         $this->app->bind(DyspozytorPowiadomien::class, fn ($app) => $app->make(ChannelManager::class));
@@ -169,6 +176,7 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
         $this->assertSame(Report::ALARM_ZLECONY, $sprawa->refresh()->alarm_pilny_stan);
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte());
     }
 
     public function test_limit_partii(): void
@@ -187,10 +195,6 @@ class DosylaniePilnychAlarmowTest extends TestCase
     }
 
     /**
-     * Okno sondy: otwarta sprawa bez alarmu świeci przez
-     * `alarm_sonda_godzin` (72 h), potem gaśnie. Obie strony granicy.
-     */
-    /**
      * Audyt B8-02 po scaleniu z #1051: dosyłanie też idzie spod dobowego
      * sufitu alarmów automatu. `PilnyAlarmModeracyjny` niesie znacznik
      * rezerwacji, więc list bez niej wypadłby z rachunku puli. Po
@@ -201,8 +205,8 @@ class DosylaniePilnychAlarmowTest extends TestCase
     {
         Notification::fake();
         config(['kuking.moderation.model.alarm_dzienny_sufit' => 1]);
-        $pierwsza = $this->sprawa('sufit-pierwsza');
-        $druga = $this->sprawa('sufit-druga');
+        $pierwsza = $this->sprawa('sufit_pierwsza');
+        $druga = $this->sprawa('sufit_druga');
 
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
 
@@ -219,6 +223,10 @@ class DosylaniePilnychAlarmowTest extends TestCase
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
     }
 
+    /**
+     * Okno sondy: otwarta sprawa bez alarmu świeci przez
+     * `alarm_sonda_godzin` (72 h), potem gaśnie. Obie strony granicy.
+     */
     public function test_sonda_gasnie_po_oknie_czasu(): void
     {
         $sprawa = $this->sprawa('okno');
