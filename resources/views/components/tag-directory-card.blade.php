@@ -1,6 +1,9 @@
 @props(['tag', 'photo' => null, 'stats'])
 
-<a class="tag-directory-card {{ $photo ? 'tag-directory-card--photo' : '' }}" href="{{ route('tags.show', $tag) }}">
+{{-- `rel="nofollow"` przy tagu bez publicznego wpisu (issue #1007): link zostaje
+     dla ludzi (D-087, prawdziwe zero), ale robot nie jest zapraszany na
+     ~1400 pustych stron. Sama strona i tak ma `noindex, follow`. --}}
+<a class="tag-directory-card {{ $photo ? 'tag-directory-card--photo' : '' }}" href="{{ route('tags.show', $tag) }}" @if($tag->posts_count === 0) rel="nofollow" @endif>
     @if($photo)
         {{-- Karta ma ~320–380 px (`minmax(20rem, 1fr)`, marka-tagi.css), a stron
              bywa 100 kart — `srcset` z prawdziwych szerokości pozwala nie brać
