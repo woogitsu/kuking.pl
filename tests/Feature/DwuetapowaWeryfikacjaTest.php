@@ -413,11 +413,10 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $basia->confirmTwoFactor($this->totp()->hashBackupCodes(['ABCD-1234']));
         $basia->refresh();
 
-        $kody = $this->actingAs($basia)
+        $odpowiedz = $this->actingAs($basia)
             ->post(route('settings.two_factor.regenerate'), ['password' => 'haslo-testowe-123'])
-            ->assertRedirect()
-            ->getSession()
-            ->get('kody_zapasowe');
+            ->assertRedirect();
+        $kody = self::sesjaPrzekierowania($odpowiedz)->get('kody_zapasowe');
 
         $this->assertIsArray($kody);
         $this->assertNotEmpty($kody);

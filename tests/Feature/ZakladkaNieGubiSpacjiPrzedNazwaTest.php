@@ -94,9 +94,6 @@ class ZakladkaNieGubiSpacjiPrzedNazwaTest extends TestCase
         ];
     }
 
-    /**
-     * @param  array{0: string, 1: string}  $ekran
-     */
     #[DataProvider('ekrany')]
     public function test_zadna_zakladka_nie_ma_etykiety_rozcietej_elementem(string $nazwaEkranu, string $adres): void
     {

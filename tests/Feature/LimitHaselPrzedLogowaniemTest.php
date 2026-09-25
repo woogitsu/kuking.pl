@@ -109,7 +109,7 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
      */
     private function komunikat(TestResponse $odpowiedz): string
     {
-        $bledy = $odpowiedz->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
 
         if ($bledy instanceof ViewErrorBag || $bledy instanceof MessageBag) {
             return (string) $bledy->first('login');

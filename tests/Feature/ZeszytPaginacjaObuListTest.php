@@ -412,7 +412,7 @@ final class ZeszytPaginacjaObuListTest extends TestCase
         $this->assertSame(1, $sekcje->length, 'Ekran zeszytu ma dokładnie jedną sekcję `.marka-zeszyt`.');
 
         $linki = [];
-        foreach ($xpath->query('.//a[starts-with(normalize-space(.), "Pokaż więcej")]', $sekcje->item(0)) as $link) {
+        foreach (self::elementyDom($xpath->query('.//a[starts-with(normalize-space(.), "Pokaż więcej")]', $sekcje->item(0))) as $link) {
             $linki[trim((string) preg_replace('/\s+/u', ' ', $link->textContent))] = $link->getAttribute('href');
         }
 

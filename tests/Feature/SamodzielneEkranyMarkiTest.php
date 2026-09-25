@@ -23,8 +23,8 @@ class SamodzielneEkranyMarkiTest extends TestCase
             $html = view('errors.'.$code)->render();
             $dom = $this->document($html);
             $this->assertSame(1, $dom->query('//main/h1')->length);
-            $this->assertSame('/', $dom->query('//main//a')->item(0)->getAttribute('href'));
-            $this->assertSame('proba-samodzielnej-strony', $dom->query('//style')->item(0)->getAttribute('nonce'));
+            $this->assertSame('/', self::elementDom($dom->query('//main//a')->item(0))->getAttribute('href'));
+            $this->assertSame('proba-samodzielnej-strony', self::elementDom($dom->query('//style')->item(0))->getAttribute('nonce'));
             $this->assertSame(0, $dom->query('//script | //link')->length);
             $this->assertBrand($dom->query('//style')->item(0)->textContent);
             $this->assertDoesNotMatchRegularExpression('/już o niej wiemy|są bezpieczne|Wrócimy dziś|za kwadrans/u', $html);
@@ -35,7 +35,7 @@ class SamodzielneEkranyMarkiTest extends TestCase
     {
         $dom = $this->document(file_get_contents(public_path('offline.html')));
         $this->assertSame('Nie ma teraz połączenia z internetem', trim($dom->query('//main/h1')->item(0)->textContent));
-        $this->assertSame('/home', $dom->query('//main//a')->item(0)->getAttribute('href'));
+        $this->assertSame('/home', self::elementDom($dom->query('//main//a')->item(0))->getAttribute('href'));
         $this->assertSame(0, $dom->query('//script | //link')->length);
         $css = $dom->query('//style')->item(0)->textContent;
         $this->assertBrand($css);

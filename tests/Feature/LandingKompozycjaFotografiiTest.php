@@ -21,16 +21,16 @@ class LandingKompozycjaFotografiiTest extends TestCase
         $dom = $this->landing();
         $steps = $dom->query('//*[@id="jak-dziala"]');
         $this->assertSame(1, $steps->length);
-        $this->assertSame('Jak działa', $steps->item(0)->getAttribute('aria-label'));
+        $this->assertSame('Jak działa', self::elementDom($steps->item(0))->getAttribute('aria-label'));
         $heading = $dom->query('.//h2', $steps->item(0))->item(0);
         $this->assertMatchesRegularExpression('/^Zdjęcie\. Kilka słów\.\s*I rozmowa przy okazji\.$/u', $this->tekst($heading->textContent));
         $links = $dom->query('.//ol/li//a', $steps->item(0));
         $this->assertSame(3, $links->length);
         foreach (['posts.create', 'recipes.create', 'discover'] as $i => $route) {
-            $this->assertSame(route($route), $links->item($i)->getAttribute('href'));
+            $this->assertSame(route($route), self::elementDom($links->item($i))->getAttribute('href'));
         }
         $next = $dom->query('following-sibling::section[1]', $steps->item(0));
-        $this->assertSame('ugotowalem', $next->item(0)?->getAttribute('id'));
+        $this->assertSame('ugotowalem', self::elementDom($next->item(0))?->getAttribute('id'));
         $this->assertMatchesRegularExpression('/^Twój przepis\.\s*Czyjś dobry obiad\.$/u', $this->tekst($dom->query('//*[@id="ugotowalem"]//h2')->item(0)?->textContent ?? ''));
         $this->assertSame(1, $dom->query('//*[@id="ugotowalem"]/following-sibling::section[1]//*[@id="kuking-na-dzis"]')->length);
         $this->assertSame(0, $dom->query('//*[@id="ugotowalem"]//figure')->length);
@@ -55,17 +55,17 @@ class LandingKompozycjaFotografiiTest extends TestCase
         $this->assertSame(1, $figures->length);
         $photo = $dom->query('.//img', $figures->item(0));
         $this->assertSame(1, $photo->length);
-        $this->assertSame($first[1]->url('feed'), $photo->item(0)->getAttribute('src'));
-        $this->assertSame('', $photo->item(0)->getAttribute('alt'));
+        $this->assertSame($first[1]->url('feed'), self::elementDom($photo->item(0))->getAttribute('src'));
+        $this->assertSame('', self::elementDom($photo->item(0))->getAttribute('alt'));
         $this->assertSame('Zdjęcie: Autor fotografii 0', rtrim($this->tekst($dom->query('.//figcaption', $figures->item(0))->item(0)?->textContent ?? ''), '.'));
         $this->assertSame(0, $dom->query('ancestor-or-self::*[@aria-hidden="true"]', $figures->item(0))->length);
         $first[0]->update(['visibility' => Post::VISIBILITY_PRIVATE]);
         $dom = $this->landing();
         $figures = $dom->query('//*[@id="ugotowalem"]//figure');
         $this->assertSame(1, $figures->length);
-        $this->assertSame($remaining[1][1]->url('feed'), $dom->query('.//img', $figures->item(0))->item(0)->getAttribute('src'));
+        $this->assertSame($remaining[1][1]->url('feed'), self::elementDom($dom->query('.//img', $figures->item(0))->item(0))->getAttribute('src'));
         $this->assertSame('Zdjęcie: Autor fotografii 1', rtrim($this->tekst($dom->query('.//figcaption', $figures->item(0))->item(0)->textContent), '.'));
-        foreach ($dom->query('//img') as $image) {
+        foreach (self::elementyDom($dom->query('//img')) as $image) {
             $this->assertNotContains($image->getAttribute('src'), [$first[1]->url('feed'), $first[1]->url('thumb')]);
         }
         foreach ($remaining as [$post]) {

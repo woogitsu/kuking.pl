@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Security;
 
 use App\Models\User;
-use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Ile kont nie ma potwierdzonego adresu e-mail — i ilu ludzi naprawdę

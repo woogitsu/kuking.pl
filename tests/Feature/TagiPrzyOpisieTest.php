@@ -55,8 +55,8 @@ class TagiPrzyOpisieTest extends TestCase
         $this->assertSame(1, $xpath->query('.//input[@name="tag_names[]" and @value="'.$name.'"]', $section->item(0))->length);
         $remove = $xpath->query('.//button[@name="usun_tag" and @value="'.$name.'"]', $section->item(0));
         $this->assertSame(1, $remove->length);
-        $this->assertSame('submit', $remove->item(0)->getAttribute('type'));
-        $this->assertTrue($remove->item(0)->hasAttribute('formnovalidate'));
+        $this->assertSame('submit', self::elementDom($remove->item(0))->getAttribute('type'));
+        $this->assertTrue(self::elementDom($remove->item(0))->hasAttribute('formnovalidate'));
         $this->assertSame(0, $xpath->query('.//details[@open]', $section->item(0))->length);
         $this->assertSame(1, $xpath->query('.//details//button[@name="szukaj_tagu"]', $section->item(0))->length);
     }

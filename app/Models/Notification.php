@@ -209,11 +209,17 @@ class Notification extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actor_id');
@@ -517,10 +523,13 @@ class Notification extends Model
                 if ($pageSize < 1) {
                     continue;
                 }
+                // `kind`, `slug` i `preceding_count` to kolumny z `select()`
+                // wyżej (złączenia i podzapytanie), nie z tabeli `comments` —
+                // stąd `getAttribute()` zamiast właściwości modelu.
                 $subject = $comment->post_id !== null
-                    ? (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind])
-                    : (new Recipe)->forceFill(['slug' => $comment->slug]);
-                $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
+                    ? (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->getAttribute('kind')])
+                    : (new Recipe)->forceFill(['slug' => $comment->getAttribute('slug')]);
+                $page = intdiv((int) $comment->getAttribute('preceding_count'), $pageSize) + 1;
             }
 
             $url = $subject->url();

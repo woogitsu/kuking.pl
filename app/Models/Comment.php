@@ -126,16 +126,25 @@ class Comment extends Model
         'status',
     ];
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    /**
+     * @return HasMany<self, $this>
+     */
     public function replies(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')
@@ -143,16 +152,25 @@ class Comment extends Model
             ->oldest();
     }
 
+    /**
+     * @return BelongsTo<Post, $this>
+     */
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsTo<CookedEvent, $this>
+     */
     public function cookedEvent(): BelongsTo
     {
         return $this->belongsTo(CookedEvent::class);

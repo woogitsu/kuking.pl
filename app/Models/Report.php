@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Support\NumerSprawy;
-use Database\Factories\ReportFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * Kolumny śladu pilnego alarmu — migracja `dodaj_slad_pilnego_alarmu_do_reports`
+ * podaje ich nazwy stałymi klasy, a takich Larastan nie odczyta (#1731).
+ *
+ * @property string|null $alarm_pilny_stan jedna z `Report::ALARM_*`
+ * @property Carbon|null $alarm_pilny_zlecony_at
+ */
 class Report extends Model
 {
-    /** @use HasFactory<ReportFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     public const STATUS_OPEN = 'open';
@@ -286,6 +289,9 @@ class Report extends Model
      * odpowiada więc na pytanie „czy kanał alarmowy zadziałał" i zostaje
      * dowodem w bazie. Co da się jeszcze dosłać i o co pyta sonda — to
      * `pilneDoDoslania()` niżej, już tylko dla spraw otwartych.
+     *
+     * @param  Builder<Report>  $zapytanie
+     * @return Builder<Report>
      */
     public function scopePilneBezAlarmu(Builder $zapytanie): Builder
     {
@@ -307,6 +313,9 @@ class Report extends Model
      * w `/health` (z oknem czasu, patrz `HealthController::sprawdzPilneAlarmy()`).
      * Sonda, która świeci przy sprawie, której komenda nie ruszy, świeciłaby
      * wiecznie — a gasić ją dałoby się tylko ręcznym SQL-em.
+     *
+     * @param  Builder<Report>  $zapytanie
+     * @return Builder<Report>
      */
     public function scopePilneDoDoslania(Builder $zapytanie): Builder
     {
@@ -316,11 +325,17 @@ class Report extends Model
             ->whereIn('status', self::STATUSY_OTWARTE);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function reporter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reporter_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function resolver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by');
@@ -333,6 +348,8 @@ class Report extends Model
      * skasowane" (`nullOnDelete`). Kolejka automatu obsługuje oba przypadki
      * jednakowo: grupa bez autora zostaje pozycją do przejrzenia, a nie
      * pustym miejscem na ekranie.
+     *
+     * @return BelongsTo<User, $this>
      */
     public function autorTresci(): BelongsTo
     {

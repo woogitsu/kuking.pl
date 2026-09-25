@@ -41,7 +41,7 @@ class KompozycjaZainteresowanTest extends TestCase
         $this->assertSame(1, $xpath->query($form.'/input[@name="_token"]')->length);
         $inputs = $xpath->query($form.'//fieldset//label[contains(@class,"onboarding-interest-tile")]/input[@type="checkbox" and @name="tags[]"]');
         $actual = [];
-        foreach ($inputs as $input) {
+        foreach (self::elementyDom($inputs) as $input) {
             $actual[] = $input->getAttribute('value');
             $this->assertSame(1, $xpath->query('following-sibling::span[contains(@class,"onboarding-interest-name")]', $input)->length);
         }

@@ -13,6 +13,7 @@ use App\Models\Post;
 use App\Models\ProductSignal;
 use App\Models\Recipe;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
@@ -318,6 +319,12 @@ class TygodniowePodsumowanieTest extends TestCase
         $opoznienia = [];
 
         Mail::assertQueued(PodsumowanieTygodnia::class, function (PodsumowanieTygodnia $list) use (&$opoznienia): bool {
+            // `delay` może być też liczbą sekund albo `DateInterval`; komenda
+            // podaje datę, a porównanie niżej działa tylko na dacie (#1731).
+            if (! $list->delay instanceof CarbonInterface) {
+                self::fail('List z paczki nie ma terminu wysyłki jako daty — dostał: '.get_debug_type($list->delay).'.');
+            }
+
             $opoznienia[] = $list->delay;
 
             return true;

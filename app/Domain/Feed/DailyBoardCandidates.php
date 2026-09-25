@@ -33,10 +33,23 @@ final class DailyBoardCandidates
         $pattern = '%'.addcslashes($search, '\\%_').'%';
 
         return $this->people($moderator)
-            ->whereHas('posts', fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisem(null))
+            ->whereHas('posts', $this->wpisWidocznyPublicznie(...))
             ->when($search !== '', fn (Builder $query) => $query->whereHas('profile', fn (Builder $profile) => $profile
                 ->where(fn (Builder $names) => $names->where('display_name', 'ilike', $pattern)->orWhere('username', 'ilike', $pattern))))
-            ->withMax(['posts as latest_publication' => fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisem(null)], 'published_at')
+            ->withMax(['posts as latest_publication' => $this->wpisWidocznyPublicznie(...)], 'published_at')
             ->orderByDesc('latest_publication')->orderBy('id');
+    }
+
+    /**
+     * Jeden warunek dla `whereHas()` i `withMax()` wyżej — osoba jest na liście
+     * i sortuje się po tym samym zbiorze wpisów. Jawny `Builder<Post>`, bo
+     * domknięcie w tablicy `withMax()` nie niesie typu modelu (issue #1731).
+     *
+     * @param  Builder<Post>  $query
+     * @return Builder<Post>
+     */
+    private function wpisWidocznyPublicznie(Builder $query): Builder
+    {
+        return $query->publiclyVisible()->zWidocznymPrzepisem(null);
     }
 }

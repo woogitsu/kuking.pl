@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
 use ReflectionMethod;
-use SplFileInfo;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 use Tests\TestCase;
 
 /**

@@ -48,7 +48,7 @@ class KompozycjaWejsciaMarkiTest extends TestCase
         $cards = $dom->query('//*[@aria-labelledby="wlasne-tresci-tytul"]//*[contains(@class,"marka-wlasnosc-karty")]/article');
         $this->assertSame(3, $cards->length);
         foreach (['collections.index', 'posts.create'] as $i => $route) {
-            $this->assertSame(route($route), $dom->query('.//a', $cards->item($i))->item(0)->getAttribute('href'));
+            $this->assertSame(route($route), self::elementDom($dom->query('.//a', $cards->item($i))->item(0))->getAttribute('href'));
         }
         $this->assertStringContainsString('przygotujemy ją i damy znać', $cards->item(2)->textContent);
         $this->assertStringContainsString('Otworzysz ją na swoim komputerze', $cards->item(2)->textContent);

@@ -154,6 +154,12 @@ class UmowaKolejkiTest extends TestCase
         foreach ($this->instancje() as $klasa => $zadanie) {
             $oczekiwana = self::ZADANIA[$klasa];
 
+            // `ShouldQueue` nie ma pola `$queue` — daje je dopiero `Queueable`.
+            // Bez niego zadaniu nie da się ustawić kolejki (issue #1731).
+            if (! property_exists($zadanie, 'queue')) {
+                self::fail(class_basename($klasa).' nie ma pola $queue (brak `Queueable`) — nie da się mu ustawić kolejki.');
+            }
+
             $this->assertSame(
                 $oczekiwana,
                 $zadanie->queue,

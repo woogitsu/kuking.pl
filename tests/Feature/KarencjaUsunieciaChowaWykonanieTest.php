@@ -108,7 +108,7 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
         // teoria: pierwsza wersja tego testu padła na `first() on array`.
         // Ten sam rozdział robi już `PodrobionyNaglowekProxyTest`; biorę
         // stamtąd wzorzec, zamiast wymyślać drugi.
-        $bledy = $odpowiedz->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
 
         $tekst = match (true) {
             $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => (string) $bledy->first('login'),

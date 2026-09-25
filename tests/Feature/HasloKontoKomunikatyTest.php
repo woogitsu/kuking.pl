@@ -60,10 +60,10 @@ class HasloKontoKomunikatyTest extends TestCase
         $this->assertCount(1, $invalid, 'Błąd musi oznaczać tylko użyte pole.');
         $input = $this->field($dom, 'f-'.$field);
         $this->assertSame($input, $invalid->item(0));
-        $this->assertSame($route, $dom->query('ancestor::form', $input)->item(0)->getAttribute('action'));
+        $this->assertSame($route, self::elementDom($dom->query('ancestor::form', $input)->item(0))->getAttribute('action'));
         $this->assertStringContainsString('f-'.$field.'-error', $input->getAttribute('aria-describedby'));
         $this->assertCount(1, $dom->query('//div[@role="alert"]//a[@href="#f-'.$field.'"]'));
-        foreach ($dom->query('//input[@type="password"]') as $password) {
+        foreach (self::elementyDom($dom->query('//input[@type="password"]')) as $password) {
             $this->assertSame('', $password->getAttribute('value'));
         }
     }
@@ -91,9 +91,9 @@ class HasloKontoKomunikatyTest extends TestCase
         $this->assertNull($user->fresh()->delete_scope);
         $html = $this->get(route('settings.data'))->assertOk()->getContent();
         $dom = $this->dom($html);
-        $choice = $dom->query('//input[@name="usun_tresci"]')->item(0);
+        $choice = self::elementDom($dom->query('//input[@name="usun_tresci"]')->item(0));
         $this->assertSame($everything, $choice->hasAttribute('checked'), 'Zakres usunięcia nie może zniknąć.');
-        $this->assertSame('', $dom->query('//input[@name="password"]')->item(0)->getAttribute('value'));
+        $this->assertSame('', self::elementDom($dom->query('//input[@name="password"]')->item(0))->getAttribute('value'));
         $retry = ['password' => 'haslo-testowe-123', 'confirm' => '1'];
         if ($choice->hasAttribute('checked')) {
             $retry['usun_tresci'] = $choice->getAttribute('value');

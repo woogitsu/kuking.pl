@@ -194,17 +194,26 @@ class ModerationAction extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function moderator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'moderator_id');
     }
 
+    /**
+     * @return BelongsTo<Report, $this>
+     */
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);
     }
 
     /** Osoba, której ta decyzja dotyczy — autor treści albo zgłoszone konto. */
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function subject(): BelongsTo
     {
         return $this->belongsTo(User::class, 'subject_user_id');
@@ -222,6 +231,8 @@ class ModerationAction extends Model
      * bierze dowolny pasujący wiersz, więc odwołanie zgłaszającego
      * potrafiłoby fałszywie „zająć" to miejsce i zablokować autorowi jego
      * własne, niepowiązane prawo do odwołania.
+     *
+     * @return HasOne<Appeal, $this>
      */
     public function authorAppeal(): HasOne
     {
@@ -231,6 +242,8 @@ class ModerationAction extends Model
     /**
      * Odwołanie ZGŁASZAJĄCEGO od tej decyzji (issue #23, DSA art. 20 ust. 1).
      * Najwyżej jedno — ten sam `UNIQUE` co wyżej.
+     *
+     * @return HasOne<Appeal, $this>
      */
     public function reporterAppeal(): HasOne
     {

@@ -49,11 +49,11 @@ class PotwierdzenieAdresuBezPocztyTest extends TestCase
         config(['mail.default' => $sterownik]);
         $basia = $this->user('basia', ['email_verified_at' => null]);
 
-        $status = (string) $this->actingAs($basia)
+        $odpowiedz = $this->actingAs($basia)
             ->from(route('verification.notice'))
             ->post(route('verification.send'))
-            ->assertRedirect(route('verification.notice'))
-            ->getSession()->get('status', '');
+            ->assertRedirect(route('verification.notice'));
+        $status = (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
 
         $this->assertStringNotContainsString('Wysłaliśmy', $status, 'Odpowiedź obiecuje list, który nie wyjdzie.');
         $this->assertStringNotContainsString('Spam', $status, 'Odpowiedź każe szukać listu, którego nie ma.');
@@ -85,10 +85,10 @@ class PotwierdzenieAdresuBezPocztyTest extends TestCase
             ->assertSee('Zajrzyj do folderu „Spam”', false)
             ->assertDontSee('Wiadomość z potwierdzeniem nie przyjdzie.', false);
 
-        $status = (string) $this->actingAs($basia)
+        $odpowiedz = $this->actingAs($basia)
             ->from(route('verification.notice'))
-            ->post(route('verification.send'))
-            ->getSession()->get('status', '');
+            ->post(route('verification.send'));
+        $status = (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
 
         $this->assertStringContainsString('Wysłaliśmy wiadomość jeszcze raz', $status);
         Notification::assertSentToTimes($basia, PotwierdzenieAdresu::class, 1);

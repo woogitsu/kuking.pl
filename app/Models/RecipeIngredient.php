@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\RecipeIngredientFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -20,9 +18,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class RecipeIngredient extends Model
 {
-    /** @use HasFactory<RecipeIngredientFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     public $timestamps = false;
@@ -57,16 +52,25 @@ class RecipeIngredient extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsTo<Ingredient, $this>
+     */
     public function ingredient(): BelongsTo
     {
         return $this->belongsTo(Ingredient::class);
     }
 
+    /**
+     * @return BelongsTo<Unit, $this>
+     */
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);

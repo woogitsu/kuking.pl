@@ -171,6 +171,6 @@ class TerminResetuIZaproszeniaWKolejceTest extends TestCase
 
     private function html(): string
     {
-        return app('mailer')->getSymfonyTransport()->messages()->sole()->getOriginalMessage()->getHtmlBody();
+        return self::transportTablicowy()->messages()->sole()->getOriginalMessage()->getHtmlBody();
     }
 }

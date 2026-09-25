@@ -464,8 +464,8 @@ class ZmianaAdresuEmailTest extends TestCase
         $zajety->assertRedirect(route('settings.email'))->assertSessionHasNoErrors();
 
         $this->assertSame(
-            $wolny->getSession()->get('status'),
-            $zajety->getSession()->get('status'),
+            self::sesjaPrzekierowania($wolny)->get('status'),
+            self::sesjaPrzekierowania($zajety)->get('status'),
             'Odpowiedź różni się dla adresu zajętego i wolnego — formularz zamienia się w wyrocznię '
             .'„kto ma konto w Kuking".',
         );

@@ -37,6 +37,9 @@ class TagPromotion extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Tag, $this>
+     */
     public function tag(): BelongsTo
     {
         return $this->belongsTo(Tag::class);

@@ -22,7 +22,7 @@ final class NowyZeszytDokonczenieTest extends TestCase
             @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
             $links = (new \DOMXPath($dom))->query('//a[normalize-space(.)="Załóż nowy zeszyt"]');
             $this->assertSame(1, $links->length);
-            $createUrl = $links->item(0)->getAttribute('href');
+            $createUrl = self::elementDom($links->item(0))->getAttribute('href');
             parse_str((string) parse_url($createUrl, PHP_URL_QUERY), $context);
             $this->assertSame((string) $content->id, $context['save_id'] ?? null, 'Droga zakładania zeszytu musi zachować konkretną treść.');
             $page = $this->get($createUrl)->assertOk();
@@ -35,9 +35,9 @@ final class NowyZeszytDokonczenieTest extends TestCase
             @$dom->loadHTML('<?xml encoding="UTF-8">'.$continuation->getContent());
             $forms = (new \DOMXPath($dom))->query('//form[@data-dokoncz-zapis]');
             $this->assertSame(1, $forms->length);
-            $form = $forms->item(0);
+            $form = self::elementDom($forms->item(0));
             $fields = [];
-            foreach ((new \DOMXPath($dom))->query('.//input[@name]', $form) as $input) {
+            foreach (self::elementyDom((new \DOMXPath($dom))->query('.//input[@name]', $form)) as $input) {
                 $fields[$input->getAttribute('name')] = $input->getAttribute('value');
             }
             $this->post($form->getAttribute('action'), $fields)->assertRedirect(route('collections.show', $book));

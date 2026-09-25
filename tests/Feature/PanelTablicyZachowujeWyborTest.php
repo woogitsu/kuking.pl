@@ -139,7 +139,7 @@ class PanelTablicyZachowujeWyborTest extends TestCase
         $form['osoby'] = [$a->id];
         $form['notatki'][$a->id] = 'Pierwsza notatka';
         $form['szukaj'] = $b->profile->username;
-        $form['przegladaj'] = $button->item(0)->getAttribute('value');
+        $form['przegladaj'] = self::elementDom($button->item(0))->getAttribute('value');
         $browse = $this->from(route('admin.daily-board'))->put(route('admin.daily-board'), $form)
             ->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame(0, DailyPick::count(), 'Przeglądanie zapisało niezatwierdzony wybór.');
@@ -200,7 +200,7 @@ class PanelTablicyZachowujeWyborTest extends TestCase
         @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
         $xpath = new DOMXPath($document);
         $parts = [];
-        foreach ($xpath->query('//form[.//input[@name="_method" and @value="PUT"]]//input[@name]') as $input) {
+        foreach (self::elementyDom($xpath->query('//form[.//input[@name="_method" and @value="PUT"]]//input[@name]')) as $input) {
             if ($input->getAttribute('type') === 'checkbox' && ! $input->hasAttribute('checked')) {
                 continue;
             }

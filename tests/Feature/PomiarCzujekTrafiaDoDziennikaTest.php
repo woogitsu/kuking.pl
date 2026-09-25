@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Connection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Logger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,7 @@ use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
 use Monolog\Level as MonologLevel;
+use Monolog\Logger as MonologLogger;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
 use Tests\TestCase;
@@ -142,7 +144,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
         // Gdy serwer nie odpowiada, komenda kończy się wcześniej. Wpis
         // z zerami byłby gorszy niż jego brak: w szeregu czasowym wyglądałby
         // jak prawdziwy pomiar mówiący „zero połączeń".
-        $polaczenie = Mockery::mock(ConnectionInterface::class);
+        $polaczenie = Mockery::mock(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andThrow(new \RuntimeException('padło'));
 
@@ -256,7 +258,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
         config()->set('logging.channels.stderr.level', 'warning');
 
         $this->assertTrue(
-            Log::channel('pomiary')->getLogger()->isHandling(MonologLevel::Info),
+            $this->monolog('pomiary')->isHandling(MonologLevel::Info),
             'Kanał `pomiary` przestał przepuszczać `info` — szereg czasowy '
             .'czujek znowu przepada po cichu, dokładnie jak przed 19.09.2026.',
         );
@@ -272,13 +274,13 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
         config()->set('logging.channels.stderr.level', 'warning');
 
         $this->assertFalse(
-            Log::channel('stderr')->getLogger()->isHandling(MonologLevel::Info),
+            $this->monolog('stderr')->isHandling(MonologLevel::Info),
             'Kanał `stderr` przy LOG_LEVEL=warning przepuścił `info` — '
             .'kontrola ujemna nie odróżnia już kanałów i nic nie pilnuje.',
         );
 
         $this->assertTrue(
-            Log::channel('stderr')->getLogger()->isHandling(MonologLevel::Warning),
+            $this->monolog('stderr')->isHandling(MonologLevel::Warning),
             'Kanał `stderr` przestał przepuszczać `warning` — to już nie jest '
             .'ten sam mechanizm i kontrola ujemna mierzy coś innego.',
         );
@@ -297,5 +299,21 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
             'Poziom kanału `pomiary` ma być wpisany na sztywno jako `info` — '
             .'tak jak `blad_webhook` ma na sztywno `error`.',
         );
+    }
+
+    /**
+     * Monolog pod kanałem Laravela. `Log::channel()` zwraca według kontraktu
+     * `Psr\Log\LoggerInterface`, a `getLogger()` ma dopiero
+     * `Illuminate\Log\Logger` — stąd jawne sprawdzenie (issue #1731).
+     */
+    private function monolog(string $kanal): MonologLogger
+    {
+        $logger = Log::channel($kanal);
+
+        if (! $logger instanceof Logger || ! $logger->getLogger() instanceof MonologLogger) {
+            self::fail("Kanał `{$kanal}` nie jest już Monologiem pod loggerem Laravela — test nie ma czego sprawdzać.");
+        }
+
+        return $logger->getLogger();
     }
 }

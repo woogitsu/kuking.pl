@@ -7,7 +7,7 @@ namespace App\Domain\Feed;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Pagination\CursorPaginator;
 
 /**
  * Feed tagów — wpisy z tagów, które ta osoba obserwuje (D-021, zastępuje

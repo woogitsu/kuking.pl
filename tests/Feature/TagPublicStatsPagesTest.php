@@ -87,7 +87,7 @@ class TagPublicStatsPagesTest extends TestCase
 
         $more = $xpath->query('//main//a[contains(normalize-space(.), "Pokaż więcej")]');
         $this->assertSame(1, $more->length);
-        $next = $this->xpath($this->get($more->item(0)->getAttribute('href'))->assertOk()->getContent());
+        $next = $this->xpath($this->get(self::elementDom($more->item(0))->getAttribute('href'))->assertOk()->getContent());
         $this->assertSame([route('tags.show', $z)], $this->hrefs($next, '//nav[@aria-label="Wszystkie tagi, alfabetycznie"]/a'));
         $this->assertSame([route('tags.show', $z), route('tags.show', $a)], $this->hrefs($next, '//nav[@aria-label="Polecane tagi"]/a'));
     }
@@ -163,7 +163,7 @@ class TagPublicStatsPagesTest extends TestCase
     private function hrefs(DOMXPath $xpath, string $selector): array
     {
         $result = [];
-        foreach ($xpath->query($selector) as $node) {
+        foreach (self::elementyDom($xpath->query($selector)) as $node) {
             $result[] = $node->getAttribute('href');
         }
 

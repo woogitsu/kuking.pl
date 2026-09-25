@@ -91,7 +91,7 @@ class LimitZnakowKomentarzaWidocznyPrzedWyslaniemTest extends TestCase
         $this->assertDatabaseMissing('comments', ['body' => $czteryTysiaceJeden]);
 
         // Komunikat mówi, co zrobić — nie tylko „za długo" (AGENTS.md, UX 50+).
-        $bledy = $odpowiedz->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
         $this->assertStringContainsString('4000 znak', $bledy->first('body'));
     }
 }

@@ -107,7 +107,6 @@ class ZgodaNaPrzegladNieJestDomyslnaTest extends TestCase
                 'original_memories' => (int) $konto->fresh()->memories_enabled,
 
                 'wants_weekly_digest' => '1',
-                'profile_visibility' => $konto->profile_visibility,
             ])
             ->assertRedirect();
 

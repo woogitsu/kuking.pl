@@ -183,7 +183,11 @@ class SygnalyController extends Controller
             : 'Zamknięte — '.$ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.');
     }
 
-    /** Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka". */
+    /**
+     * Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka".
+     *
+     * @return Builder<Report>
+     */
     private function otwarte(): Builder
     {
         return Report::query()

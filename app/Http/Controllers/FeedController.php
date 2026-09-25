@@ -16,9 +16,9 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\TagHighlight;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\CursorPaginator;
 use Illuminate\View\View;
 
 class FeedController extends Controller

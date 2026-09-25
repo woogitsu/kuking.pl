@@ -27,7 +27,7 @@ final class PokazHasloTest extends TestCase
         $xpath = new \DOMXPath($dom);
         $pary = [];
 
-        foreach ($xpath->query('//input[@type="password"]') as $input) {
+        foreach (self::elementyDom($xpath->query('//input[@type="password"]')) as $input) {
             $buttons = $xpath->query('//button[@data-pokaz-haslo][@aria-controls="'.$input->getAttribute('id').'"]');
             $this->assertSame(1, $buttons->length, 'Pole '.$input->getAttribute('id').' musi mieć dokładnie jeden przełącznik.');
             $pary[] = ['input' => $input, 'button' => $buttons->item(0)];

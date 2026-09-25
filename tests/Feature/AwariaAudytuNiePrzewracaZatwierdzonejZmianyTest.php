@@ -386,7 +386,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $odpowiedz = $this->actingAs($basia)->post(route('settings.data.export'))
             ->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertStringContainsString('Przygotowujemy paczkę', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertStringContainsString('Przygotowujemy paczkę', (string) self::sesjaPrzekierowania($odpowiedz)->get('status'));
         $this->assertSame(1, DataExport::query()->where('user_id', $basia->getKey())->count());
         $this->assertSame(1, DB::table('jobs')->count());
         $this->assertSame(0, $this->wpisy('data.export_requested'));
@@ -429,7 +429,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $odpowiedz = $this->actingAs($basia)->post(route('social.block', ['username' => 'zenek']))
             ->assertRedirect(route('home'))->assertSessionHasNoErrors();
 
-        $this->assertStringContainsString('Zablokowano', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertStringContainsString('Zablokowano', (string) self::sesjaPrzekierowania($odpowiedz)->get('status'));
         $this->assertTrue(Block::query()->where('blocker_id', $basia->getKey())->where('blocked_id', $zenek->getKey())->exists());
         $this->assertSame(0, DB::table('follows')->count());
         $this->assertSame(0, $this->wpisy('user.blocked'));

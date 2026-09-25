@@ -9,6 +9,7 @@ use App\Domain\Tags\LiczbyTagowWCache;
 use App\Domain\Tags\TagCollage;
 use App\Models\Post;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -201,10 +202,8 @@ class TagController extends Controller
      * Wpisy widoczne dla KAŻDEGO — liczba w spisie tagów (D-087) i warunek
      * indeksowania strony tagu (issue #1007) muszą znaczyć to samo.
      *
-     * @template TQuery of \Illuminate\Database\Eloquent\Builder
-     *
-     * @param  TQuery  $query
-     * @return TQuery
+     * @param  Builder<Post>  $query
+     * @return Builder<Post>
      */
     private function tylkoPubliczne($query)
     {

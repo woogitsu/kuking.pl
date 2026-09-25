@@ -84,16 +84,16 @@ class PomiarFeeduGraniceTest extends TestCase
         $this->assertSame(User::STATUS_SUSPENDED, $zawieszony->fresh()->status);
 
         $feed = app(FollowingFeed::class)->paginate($widz->fresh(), 100);
-        $this->assertSame([$zPrzepisem->id, $publiczny->id, $obserwujacy->id, $wlasny->id], $feed->getCollection()->modelKeys());
+        $this->assertSame([$zPrzepisem->id, $publiczny->id, $obserwujacy->id, $wlasny->id], $feed->getCollection()->pluck('id')->all());
         $this->assertFalse(app(FollowingFeed::class)->isEmptyFor($widz->fresh()));
         $wpis = $feed->getCollection()->firstWhere('id', $publiczny->id);
         $this->assertSame(3, (int) $wpis->comments_count); // Autor, widz, obcy.
-        $this->assertSame(2, (int) $wpis->zapisow_count); // Widz i obcy, mimo dwóch zeszytów.
-        $this->assertTrue((bool) $wpis->czy_zapisany);
+        $this->assertSame(2, (int) $wpis->getAttribute('zapisow_count')); // Widz i obcy, mimo dwóch zeszytów.
+        $this->assertTrue((bool) $wpis->getAttribute('czy_zapisany'));
         $moj = $feed->getCollection()->firstWhere('id', $wlasny->id);
-        $this->assertSame(1, (int) $moj->zapisow_count);
-        $this->assertTrue((bool) $moj->czy_zapisany);
-        $this->assertFalse((bool) $feed->getCollection()->firstWhere('id', $obserwujacy->id)->czy_zapisany);
+        $this->assertSame(1, (int) $moj->getAttribute('zapisow_count'));
+        $this->assertTrue((bool) $moj->getAttribute('czy_zapisany'));
+        $this->assertFalse((bool) $feed->getCollection()->firstWhere('id', $obserwujacy->id)->getAttribute('czy_zapisany'));
         foreach ($feed->items() as $item) {
             foreach (['author', 'media', 'recipe', 'tags'] as $relation) {
                 $this->assertTrue($item->relationLoaded($relation), $relation);
@@ -118,23 +118,23 @@ class PomiarFeeduGraniceTest extends TestCase
         try {
             CursorPaginator::currentCursorResolver(fn () => null);
             $pierwsza = app(FollowingFeed::class)->paginate($widz, 2);
-            $this->assertSame([$this->id(5), $this->id(4)], $pierwsza->getCollection()->modelKeys());
+            $this->assertSame([$this->id(5), $this->id(4)], $pierwsza->getCollection()->pluck('id')->all());
             $cursor = $pierwsza->nextCursor();
             $this->assertNotNull($cursor);
             CursorPaginator::currentCursorResolver(fn () => Cursor::fromEncoded($cursor->encode()));
             $druga = app(FollowingFeed::class)->paginate($widz, 2);
-            $this->assertSame([$this->id(3), $this->id(2)], $druga->getCollection()->modelKeys());
+            $this->assertSame([$this->id(3), $this->id(2)], $druga->getCollection()->pluck('id')->all());
             $next = $druga->nextCursor();
             $previous = $druga->previousCursor();
             $this->assertNotNull($next);
             $this->assertNotNull($previous);
             CursorPaginator::currentCursorResolver(fn () => Cursor::fromEncoded($next->encode()));
             $trzecia = app(FollowingFeed::class)->paginate($widz, 2);
-            $this->assertSame([$this->id(1)], $trzecia->getCollection()->modelKeys());
+            $this->assertSame([$this->id(1)], $trzecia->getCollection()->pluck('id')->all());
             $this->assertNull($trzecia->nextCursor());
             CursorPaginator::currentCursorResolver(fn () => Cursor::fromEncoded($previous->encode()));
             $powrot = app(FollowingFeed::class)->paginate($widz, 2);
-            $this->assertSame([$this->id(5), $this->id(4)], $powrot->getCollection()->modelKeys());
+            $this->assertSame([$this->id(5), $this->id(4)], $powrot->getCollection()->pluck('id')->all());
         } finally {
             // Przywrócenie resolverów Laravela, nie pozostawienie ostatniego kursora w suicie.
             PaginationState::resolveUsing($this->app);
@@ -146,7 +146,7 @@ class PomiarFeeduGraniceTest extends TestCase
         $widz = $this->user();
         $wpis = $this->wpis($widz, 1);
         $feed = app(FollowingFeed::class);
-        $this->assertSame([$wpis->id], $feed->paginate($widz)->getCollection()->modelKeys());
+        $this->assertSame([$wpis->id], $feed->paginate($widz)->getCollection()->pluck('id')->all());
         $this->assertTrue($feed->isEmptyFor($widz));
         $autor = $this->user();
         app(FollowUser::class)->handle($widz, $autor);
@@ -154,7 +154,7 @@ class PomiarFeeduGraniceTest extends TestCase
         $this->assertTrue($feed->isEmptyFor($widz->fresh()));
         $widoczny = $this->wpis($autor, 3);
         $this->assertFalse($feed->isEmptyFor($widz->fresh()));
-        $this->assertSame([$widoczny->id, $wpis->id], $feed->paginate($widz->fresh())->getCollection()->modelKeys());
+        $this->assertSame([$widoczny->id, $wpis->id], $feed->paginate($widz->fresh())->getCollection()->pluck('id')->all());
     }
 
     private function id(int $numer): string

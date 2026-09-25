@@ -93,7 +93,7 @@ class KomentarzMowiTakSamoWszedzieTest extends TestCase
 
             $this->assertStringContainsString(
                 self::KOMUNIKAT,
-                $this->tekstBledu($odpowiedz->getSession()->get('errors')),
+                $this->tekstBledu(self::sesjaPrzekierowania($odpowiedz)->get('errors')),
                 "Ekran „{$nazwa}” mówi o za długim komentarzu inaczej niż pozostałe.",
             );
         }
@@ -116,7 +116,7 @@ class KomentarzMowiTakSamoWszedzieTest extends TestCase
 
             $this->assertStringContainsString(
                 'Napisz coś, zanim wyślesz komentarz.',
-                $this->tekstBledu($odpowiedz->getSession()->get('errors')),
+                $this->tekstBledu(self::sesjaPrzekierowania($odpowiedz)->get('errors')),
             );
         }
     }

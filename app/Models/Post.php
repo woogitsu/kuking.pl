@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -22,6 +23,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * @property string $kind
  * @property string|null $title
+ *
+ * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy wpis
+ * wczytano przez `Collection::posts()`:
+ * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
  */
 class Post extends Model
 {
@@ -97,11 +102,17 @@ class Post extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
@@ -117,6 +128,9 @@ class Post extends Model
         return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
+    /**
+     * @return BelongsToMany<Media, $this>
+     */
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'post_media')
@@ -142,6 +156,8 @@ class Post extends Model
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
+     *
+     * @return BelongsToMany<Tag, $this>
      */
     public function tags(): BelongsToMany
     {
@@ -151,6 +167,9 @@ class Post extends Model
             ->orderBy('post_tags.position');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa
@@ -164,6 +183,9 @@ class Post extends Model
             ->orderBy('id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function allComments(): HasMany
     {
         return $this->hasMany(Comment::class);
@@ -178,11 +200,25 @@ class Post extends Model
      */
     public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
     {
-        $query->withCount(['comments' => fn (Builder $comments) => $comments
+        $query->withCount(['comments' => fn (Builder $comments) => self::komentarzeDoLicznika($comments, $viewer)]);
+    }
+
+    /**
+     * Warunek licznika z `scopeWithVisibleCommentCount()`. Osobna metoda, bo
+     * domknięcie w tablicy `withCount()` nie niesie typu modelu, a tu stoi
+     * zakres `Comment::widoczneDla()` — z jawnym `Builder<Comment>` analiza
+     * sprawdza, że taki zakres istnieje (issue #1731).
+     *
+     * @param  Builder<Comment>  $comments
+     * @return Builder<Comment>
+     */
+    private static function komentarzeDoLicznika(Builder $comments, ?User $viewer): Builder
+    {
+        return $comments
             ->widoczneDla($viewer)
             ->where(fn (Builder $counted) => $counted
                 ->whereNull('comments.body_removed_at')
-                ->orWhere('posts.kind', self::KIND_DISH))]);
+                ->orWhere('posts.kind', self::KIND_DISH));
     }
 
     /** @param  Builder<Post>  $query */

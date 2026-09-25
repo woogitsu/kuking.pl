@@ -43,7 +43,7 @@ class PytanieNaTablicyDniaTest extends TestCase
         $cards = $xpath->query('//section[@aria-labelledby="kuking-na-dzis"]//li[@class="kuking-board-post"]');
         $this->assertSame(1, $cards->length);
         $this->assertStringContainsString($post->title, $cards->item(0)->textContent, 'Karta pytania pomija tytuł.');
-        $link = $xpath->query('.//a', $cards->item(0))->item(0);
+        $link = self::elementDom($xpath->query('.//a', $cards->item(0))->item(0));
         $this->assertSame($post->url(), $link->getAttribute('href'));
         $this->assertStringContainsString($post->title, $link->getAttribute('aria-label'));
         $headings = $xpath->query('//section[@aria-labelledby="kuking-na-dzis"]//h3');

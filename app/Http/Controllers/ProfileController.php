@@ -75,7 +75,7 @@ class ProfileController extends Controller
         // filtr co archiwum chroni treści prywatne i dla obserwujących.
         $zdjeciaSzyny = ! $isOwner && $zeszytySzyny->isEmpty() && $tagiSzyny->isEmpty()
             ? $owner->posts()->published()
-                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
                 ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
                 ->with(['media' => fn ($query) => $query->where('status', Media::STATUS_READY)])
                 ->latest('published_at')->latest('id')->limit(3)->get()
@@ -116,7 +116,7 @@ class ProfileController extends Controller
                 : null,
             'stats' => [
                 'posts' => $owner->posts()->published()
-                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
+                    ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
                 'recipes' => $owner->recipes()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
                 'cooked' => $owner->cookedEvents()
@@ -177,7 +177,7 @@ class ProfileController extends Controller
      * ZAWARTOŚĆ wpisów prywatnych — dokładnie ten sam kształt wycieku co
      * tytuł przepisu w liście wykonań (patrz `tylkoZWidocznychPrzepisow()`).
      * Dlatego podzapytanie przechodzi przez `published()` i przez ten sam
-     * `tylkoWidoczne()`, którym idzie archiwum obok.
+     * `tylkoWidoczneWpisy()`, którym idzie archiwum obok.
      *
      * BEZ SORTOWANIA PO LICZBIE WPISÓW, alfabetycznie. „Najczęstszy tag tej
      * osoby" jest miarą aktywności, a `AGENTS.md` §12 nie chce liczników
@@ -195,7 +195,7 @@ class ProfileController extends Controller
             ->whereHas('posts', function ($query) use ($owner, $viewer, $isOwner): void {
                 $query->where('posts.author_id', $owner->getKey())->published();
 
-                $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+                $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner);
             })
             ->orderBy('name')
             ->limit(6)
@@ -207,7 +207,7 @@ class ProfileController extends Controller
     {
         return $owner->posts()
             ->published()
-            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
             // `at time zone`, a nie samo `extract(year from …)`. `published_at`
             // jest kolumną `timestamptz`, więc gołe `extract()` czyta rok w UTC,
             // a człowiek widzi przy tym wpisie datę lokalną (`App\Support\Czas`).
@@ -262,7 +262,7 @@ class ProfileController extends Controller
     {
         return $owner->posts()
             ->published()
-            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
             // Ta sama strefa co filtr w `postsFor()` — inaczej lista lat i lista
             // wpisów odpowiadałyby na to samo pytanie inaczej, i rok kliknięty
             // z listy potrafiłby nie mieć ani jednego wpisu.
@@ -314,14 +314,17 @@ class ProfileController extends Controller
      * i sam liczy „własny przepis widza" — dlatego wolno go wywołać po
      * `$isOwner`, nie zamiast.
      *
-     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * Dla wpisów wołaj `tylkoWidoczneWpisy()` — ta metoda sama zna tylko
+     * widoczność względem autora, wspólną dla obu rodzajów treści. Podział
+     * na dwie metody (issue #1731) zastąpił `instanceof Post` na modelu
+     * zapytania: tamto sprawdzenie działało dopiero w czasie wykonania,
+     * a typ `Builder<Post>` zapisuje tę samą granicę jawnie w sygnaturze
+     * (od poziomu 5 PHPStan sprawdza ją przy każdym wywołaniu).
+     *
+     * @param  Builder<Post>|Builder<Recipe>  $query
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
-        if ($query->getModel() instanceof Post) {
-            $query->enabledKinds();
-        }
-
         if ($isOwner) {
             return;
         }
@@ -334,34 +337,51 @@ class ProfileController extends Controller
         }
 
         $query->whereIn('visibility', $widocznosci);
+    }
 
-        // Bramka PRZEPISU — patrz akapit w opisie metody. Tylko dla `Post`:
-        // zakładka „Przepisy" pyta wprost o `Recipe` i ma tu już swój warunek
-        // wyżej, a `recipes.recipe_id` nie istnieje.
-        if ($query->getModel() instanceof Post) {
-            $query->zWidocznymPrzepisem($viewer);
+    /**
+     * `tylkoWidoczne()` plus bramki, które istnieją tylko dla WPISÓW: włączone
+     * rodzaje wpisów i widoczność PRZEPISU, na który wpis wskazuje — opis obu
+     * granic przy `tylkoWidoczne()`. Tym idzie każde z sześciu zapytań
+     * o wpisy na tym ekranie.
+     *
+     * @param  Builder<Post>  $query
+     */
+    private function tylkoWidoczneWpisy($query, $owner, $viewer, bool $isOwner): void
+    {
+        $query->enabledKinds();
 
-            // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
-            //
-            // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
-            // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
-            // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
-            // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
-            // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
-            // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
-            // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
-            // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
-            // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
-            // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
-            // bo obie pytały o kogo innego.
-            //
-            // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
-            // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
-            // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
-            // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
-            $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
-                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
+        $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+
+        if ($isOwner) {
+            return;
         }
+
+        // Bramka PRZEPISU — patrz akapit w opisie `tylkoWidoczne()`. Tylko dla
+        // wpisów: zakładka „Przepisy" pyta wprost o `Recipe`, jej granicą jest
+        // `visibility` samego przepisu, a `recipes.recipe_id` nie istnieje.
+        $query->zWidocznymPrzepisem($viewer);
+
+        // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
+        //
+        // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
+        // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
+        // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
+        // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
+        // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
+        // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
+        // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
+        // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
+        // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
+        // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
+        // bo obie pytały o kogo innego.
+        //
+        // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
+        // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
+        // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
+        // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
+        $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+            ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 
     /**
@@ -394,7 +414,7 @@ class ProfileController extends Controller
      * `$owner` nie jest już potrzebny i dlatego go tu nie ma — parametr,
      * który wygląda na używany, a nie jest, to zaproszenie do pomyłki.
      *
-     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * @param  Builder<CookedEvent>  $query
      */
     private function tylkoZWidocznychPrzepisow($query, $viewer, bool $isOwner): void
     {

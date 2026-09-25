@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Polaczenia\StanPolaczenBazy;
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -56,9 +56,9 @@ class ProbkowanieSzczytuPolaczenTest extends TestCase
      * progi i ocena stanu idą PRAWDZIWYM kodem, tak jak na produkcji.
      * `null` = serwer nie odpowiada na zapytanie o liczby.
      */
-    private function atrapaSerwera(?int $zajete): ConnectionInterface
+    private function atrapaSerwera(?int $zajete): Connection
     {
-        $polaczenie = Mockery::mock(ConnectionInterface::class);
+        $polaczenie = Mockery::mock(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andReturn([
             (object) ['name' => 'max_connections', 'setting' => '500'],
@@ -87,7 +87,7 @@ class ProbkowanieSzczytuPolaczenTest extends TestCase
     private function kolejnePomiary(?int ...$zajete): void
     {
         DB::partialMock()->shouldReceive('connection')->withNoArgs()->andReturn(
-            ...array_map(fn (?int $z): ConnectionInterface => $this->atrapaSerwera($z), $zajete),
+            ...array_map(fn (?int $z): Connection => $this->atrapaSerwera($z), $zajete),
         );
     }
 

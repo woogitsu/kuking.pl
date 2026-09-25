@@ -84,17 +84,23 @@ class BezOdpowiedziController extends Controller
         // przestanie na niego zaglądać.
         $pierwszeWpisy = $this->queue->firstPostIds($request->user(), $wpisy->pluck('author_id')->unique()->all());
 
+        // Trzy atrybuty doliczane tylko na potrzeby tego ekranu — nie ma ich
+        // w tabeli `posts`, więc zapis i odczyt idą jawnie przez
+        // `setAttribute()`/`getAttribute()`, a nie przez udawane kolumny
+        // modelu (issue #1731). Widok czyta je jak zwykle: `$wpis->pilnosc`.
         $wpisy = $wpisy->map(function (Post $wpis) use ($pierwszeWpisy): Post {
-            $wpis->toPierwszyWpis = ($pierwszeWpisy[$wpis->author_id] ?? null) === $wpis->getKey();
-            $wpis->godzinCzekania = (int) $wpis->published_at->diffInHours(now());
-            $wpis->pilnosc = match (true) {
-                $wpis->godzinCzekania >= self::ALARM_OD_GODZIN => 'alarm',
-                $wpis->godzinCzekania >= self::UWAGA_OD_GODZIN => 'uwaga',
+            $godzinCzekania = (int) $wpis->published_at->diffInHours(now());
+
+            $wpis->setAttribute('toPierwszyWpis', ($pierwszeWpisy[$wpis->author_id] ?? null) === $wpis->getKey());
+            $wpis->setAttribute('godzinCzekania', $godzinCzekania);
+            $wpis->setAttribute('pilnosc', match (true) {
+                $godzinCzekania >= self::ALARM_OD_GODZIN => 'alarm',
+                $godzinCzekania >= self::UWAGA_OD_GODZIN => 'uwaga',
                 default => 'spokojnie',
-            };
+            });
 
             return $wpis;
-        })->sortByDesc(fn (Post $wpis) => [$wpis->toPierwszyWpis ? 1 : 0, -$wpis->published_at->timestamp])
+        })->sortByDesc(fn (Post $wpis) => [$wpis->getAttribute('toPierwszyWpis') ? 1 : 0, -$wpis->published_at->timestamp])
             ->values();
 
         return view('pages.admin.bez-odpowiedzi', [

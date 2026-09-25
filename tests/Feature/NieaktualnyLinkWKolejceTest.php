@@ -75,7 +75,7 @@ class NieaktualnyLinkWKolejceTest extends TestCase
         $before = LoginLinkToken::sole()->getAttributes();
         unserialize($new)->handle(app(ChannelManager::class));
         unserialize($old)->handle(app(ChannelManager::class));
-        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages(), 'Zastąpiony link nie może być wysłany.');
+        $this->assertCount(1, self::transportTablicowy()->messages(), 'Zastąpiony link nie może być wysłany.');
         $this->assertSame($before, LoginLinkToken::sole()->getAttributes());
     }
 
@@ -93,10 +93,10 @@ class NieaktualnyLinkWKolejceTest extends TestCase
         $row->save();
         $payload = serialize(new SendQueuedNotifications($user, new LinkDoLogowania($token), ['mail']));
         unserialize($payload)->handle(app(ChannelManager::class));
-        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages());
+        $this->assertCount(1, self::transportTablicowy()->messages());
         $this->travel(31)->minutes();
         unserialize($payload)->handle(app(ChannelManager::class));
-        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages(), 'Stary job bez terminu też nie wysyła wygasłego linku.');
+        $this->assertCount(1, self::transportTablicowy()->messages(), 'Stary job bez terminu też nie wysyła wygasłego linku.');
     }
 
     public function test_przekazany_wczesniejszy_termin_tez_zamyka_wysylke(): void
@@ -113,10 +113,10 @@ class NieaktualnyLinkWKolejceTest extends TestCase
         $row->save();
         $payload = serialize(new SendQueuedNotifications($user, new LinkDoLogowania($token, now()->addMinute()), ['mail']));
         unserialize($payload)->handle(app(ChannelManager::class));
-        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages());
+        $this->assertCount(1, self::transportTablicowy()->messages());
         $this->travel(60)->seconds();
         $this->assertTrue($row->fresh()->jestWazny());
         unserialize($payload)->handle(app(ChannelManager::class));
-        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages());
+        $this->assertCount(1, self::transportTablicowy()->messages());
     }
 }

@@ -171,7 +171,7 @@ class SpisTematowTest extends TestCase
         $karty = $xpath->query('//nav[@aria-label="Polecane tagi"]/a');
         $this->assertSame(3, $karty->length);
         foreach ([[$zupy, 'Zupy', '(5 wpisów)'], [$barszcz, 'Barszcz', '(1 wpis)'], [$salatki, 'Salatki', '(8 wpisów)']] as $i => [$tag, $nazwa, $licznik]) {
-            $karta = $karty->item($i);
+            $karta = self::elementDom($karty->item($i));
             $this->assertSame(route('tags.show', $tag), $karta->getAttribute('href'), 'Kolejność kart musi odpowiadać pozycji gospodarza.');
             $this->assertSame($nazwa, trim($xpath->query('.//strong', $karta)->item(0)->textContent));
             $this->assertStringContainsString($licznik, trim(preg_replace('/\s+/u', ' ', $karta->textContent)));

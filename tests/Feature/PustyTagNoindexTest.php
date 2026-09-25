@@ -71,7 +71,7 @@ class PustyTagNoindexTest extends TestCase
             route('tags.show', $tag),
         ))->item(0);
 
-        return $link === null ? null : $link->getAttribute('rel');
+        return $link === null ? null : self::elementDom($link)->getAttribute('rel');
     }
 
     public function test_pusty_tag_dziala_dla_ludzi_ale_ma_noindex_follow(): void

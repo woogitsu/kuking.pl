@@ -136,6 +136,6 @@ final class ZeszytUsuwaZapisanyWpisTest extends TestCase
         $xpath = new \DOMXPath($form->ownerDocument);
         $nodes = $xpath->query('.//input[@name="'.$name.'"]', $form);
 
-        return $nodes->length > 0 ? $nodes->item(0)->getAttribute('value') : null;
+        return $nodes->length > 0 ? self::elementDom($nodes->item(0))->getAttribute('value') : null;
     }
 }

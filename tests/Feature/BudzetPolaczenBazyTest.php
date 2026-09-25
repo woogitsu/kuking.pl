@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Polaczenia\AlarmPolaczen;
 use App\Domain\Polaczenia\StanPolaczenBazy;
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Connection;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -167,9 +167,9 @@ class BudzetPolaczenBazyTest extends TestCase
      * gdzie prawdziwego serwera nie da się doprowadzić do badanego stanu bez
      * otwarcia setek połączeń do klastra współdzielonego z innymi testami.
      */
-    private function atrapaSerwera(int $maxConnections, int $rezerwaSuperusera, int $zajete): ConnectionInterface
+    private function atrapaSerwera(int $maxConnections, int $rezerwaSuperusera, int $zajete): Connection
     {
-        $polaczenie = Mockery::mock(ConnectionInterface::class);
+        $polaczenie = Mockery::mock(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andReturn([
             (object) ['name' => 'max_connections', 'setting' => (string) $maxConnections],
@@ -206,7 +206,7 @@ class BudzetPolaczenBazyTest extends TestCase
     #[Test]
     public function niedostepny_serwer_daje_stan_niedostepny_i_nie_wynosi_komunikatu_wyjatku(): void
     {
-        $polaczenie = Mockery::mock(ConnectionInterface::class);
+        $polaczenie = Mockery::mock(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
         $polaczenie->shouldReceive('select')->andThrow(
             new RuntimeException('SQLSTATE[08006] host=tajny-host.internal user=kuking password=sekret'),
@@ -229,7 +229,7 @@ class BudzetPolaczenBazyTest extends TestCase
     #[Test]
     public function polaczenie_inne_niz_postgres_nie_udaje_pomiaru(): void
     {
-        $polaczenie = Mockery::mock(ConnectionInterface::class);
+        $polaczenie = Mockery::mock(Connection::class);
         $polaczenie->shouldReceive('getDriverName')->andReturn('sqlite');
 
         $wynik = app(StanPolaczenBazy::class)->sprawdz($polaczenie);

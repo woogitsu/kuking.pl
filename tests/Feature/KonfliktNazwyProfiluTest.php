@@ -40,11 +40,10 @@ class KonfliktNazwyProfiluTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
         $xpath = new \DOMXPath($dom);
         foreach ($data as $key => $value) {
-            $field = $xpath->query('//*[@name="'.$key.'"]')->item(0);
-            $this->assertNotNull($field);
+            $field = self::elementDom($xpath->query('//*[@name="'.$key.'"]')->item(0));
             $this->assertSame($value, $field->nodeName === 'textarea' ? $field->textContent : $field->getAttribute('value'));
         }
-        $this->assertSame('true', $xpath->query('//*[@name="username"]')->item(0)->getAttribute('aria-invalid'), $dom->saveHTML($xpath->query('//*[@name="username"]')->item(0)));
+        $this->assertSame('true', self::elementDom($xpath->query('//*[@name="username"]')->item(0))->getAttribute('aria-invalid'), $dom->saveHTML($xpath->query('//*[@name="username"]')->item(0)));
         $this->assertSame(1, $xpath->query('//*[@role="alert"]//a[@href="#f-username"]')->length);
         $this->assertStringContainsString('Spróbuj dodać coś na końcu.', $html);
     }

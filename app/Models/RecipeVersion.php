@@ -37,11 +37,17 @@ class RecipeVersion extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function editor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'editor_id');

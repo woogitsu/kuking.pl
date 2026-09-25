@@ -63,8 +63,7 @@ class OdmowaBudzetuZachowujeAdresTest extends TestCase
         $html = $this->get(route('login.link'))->assertOk()->getContent();
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
-        $input = (new \DOMXPath($dom))->query('//input[@name="email"]')->item(0);
-        $this->assertNotNull($input);
+        $input = self::elementDom((new \DOMXPath($dom))->query('//input[@name="email"]')->item(0));
         $this->assertSame($user->email, $input->getAttribute('value'));
         if ($contention) {
             $this->from(route('login.link'))->post(route('login.link.send'), [

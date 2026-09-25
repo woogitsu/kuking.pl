@@ -8,8 +8,12 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
 
 abstract class TestCase extends BaseTestCase
@@ -195,5 +199,86 @@ abstract class TestCase extends BaseTestCase
                 var_export($wartosc, true), $sekundy, $sekundy - 1,
             ),
         );
+    }
+
+    /**
+     * Węzeł z `DOMXPath::query()` jako ELEMENT HTML — albo czytelna porażka.
+     *
+     * `query()` oddaje `DOMNodeList<DOMNode>`, a `getAttribute()` ma dopiero
+     * `DOMElement`. Wołane wprost na `->item(0)` działało, dopóki selektor
+     * trafiał w element; gdy nie trafiał (zmieniony widok), test kończył się
+     * „Call to a member function getAttribute() on null" zamiast zdaniem,
+     * czego zabrakło. Analiza (PHPStan, poziom 2 — issue #1731) zgłaszała
+     * to samo w ponad stu miejscach.
+     */
+    protected static function elementDom(?\DOMNode $wezel, string $komunikat = 'Zapytanie XPath nie zwróciło elementu HTML — układ strony się zmienił.'): \DOMElement
+    {
+        if (! $wezel instanceof \DOMElement) {
+            self::fail($komunikat.' Dostałem: '.($wezel === null ? 'nic' : $wezel::class).'.');
+        }
+
+        return $wezel;
+    }
+
+    /**
+     * Wszystkie węzły wyniku jako elementy HTML — patrz `elementDom()`.
+     *
+     * @param  iterable<\DOMNode>  $wezly
+     * @return list<\DOMElement>
+     */
+    protected static function elementyDom(iterable $wezly): array
+    {
+        $elementy = [];
+
+        foreach ($wezly as $wezel) {
+            $elementy[] = self::elementDom($wezel);
+        }
+
+        return $elementy;
+    }
+
+    /**
+     * Sesja przekierowania z odpowiedzi testowej.
+     *
+     * `getSession()` ma tylko `Illuminate\Http\RedirectResponse` — test,
+     * który ją woła, zakłada więc, że dostał przekierowanie. Dotąd było to
+     * założenie ukryte za `__call()` odpowiedzi testowej (PHPStan, poziom 2 —
+     * issue #1731): gdyby trasa zaczęła odpowiadać stroną zamiast
+     * przekierowania, test padłby na „undefined method" zamiast powiedzieć,
+     * co się zmieniło.
+     */
+    protected static function sesjaPrzekierowania(TestResponse $odpowiedz): Store
+    {
+        $przekierowanie = $odpowiedz->baseResponse;
+
+        if (! $przekierowanie instanceof RedirectResponse) {
+            self::fail('Oczekiwano przekierowania z sesją, a odpowiedź to '.$przekierowanie::class.' (HTTP '.$przekierowanie->getStatusCode().').');
+        }
+
+        $sesja = $przekierowanie->getSession();
+
+        if ($sesja === null) {
+            self::fail('Przekierowanie nie ma przypiętej sesji.');
+        }
+
+        return $sesja;
+    }
+
+    /**
+     * Transport poczty w testach — `MAIL_MAILER=array` z phpunit.xml.
+     *
+     * `messages()` ma tylko `ArrayTransport`; wołane wprost na
+     * `getSymfonyTransport()` działało wyłącznie dzięki konfiguracji
+     * i przy innym mailerze kończyło się „undefined method" (issue #1731).
+     */
+    protected static function transportTablicowy(): ArrayTransport
+    {
+        $transport = app('mailer')->getSymfonyTransport();
+
+        if (! $transport instanceof ArrayTransport) {
+            self::fail('Testy wysyłki czytają listy z transportu `array`, a skonfigurowany jest '.$transport::class.'.');
+        }
+
+        return $transport;
     }
 }

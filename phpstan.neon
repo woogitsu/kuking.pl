@@ -10,35 +10,41 @@
 #  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
 #  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
 #
-#  POZIOM: 1 (docelowo 8 — issue #32, audyt F-11)
+#  POZIOM: 2 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
 #  ---------------------------------------------------------------------------
 #  Issue #32 zakładało start od poziomu 5. Pierwsze uruchomienie dało na nim
 #  158 błędów, więc zaczęliśmy od 0 — świadomie nisko, ale bez baseline'u.
 #
 #  Baseline z dziesiątkami wyjątków byłby GORSZY niż uczciwie niski poziom:
 #  usypia, bo wygląda na „przeanalizowane", a każdy wyciszony błąd znika
-#  z pola widzenia na zawsze. Ta zasada zostaje.
+#  z pola widzenia na zawsze. Ta zasada zostaje. Każdy kolejny poziom to
+#  osobna gałąź z poprawkami W KODZIE — bez `@phpstan-ignore`, bez baseline'u.
 #
-#  Poziom 1 kosztował cztery poprawki i wszystkie były realną robotą, nie
-#  uciszaniem analizatora:
+#  Poziom 1 kosztował cztery poprawki (`Media::warianty()` z jawnym typem,
+#  szpieg `Log` w zmiennej w `PolitykaBezpieczenstwaTest`).
 #
-#    - `App\Models\Media` (3 błędy): `metadata` to JSONB rzutowane na tablicę,
-#      więc dla analizy było tablicą o nieznanej zawartości. Kształt wariantów
-#      opisywał wyłącznie komentarz w `ProcessUploadedImage`, a trzy metody
-#      czytały go na trzy sposoby. Teraz jest jedna metoda `warianty()`
-#      z jawnym typem zwracanym i prawdziwym `is_array()` — w bazie mogą leżeć
-#      wiersze sprzed każdej zmiany tego formatu.
+#  Poziom 2 (issue #1731) zaczynał od 882 błędów, a nie od zmierzonych
+#  wcześniej 172 — kod urósł. Prawie wszystkie miały trzy przyczyny i każda
+#  była brakiem wiedzy w typach, nie w analizatorze:
 #
-#    - `PolitykaBezpieczenstwaTest` (1 błąd): `Log::shouldHaveReceived()`
-#      działa w czasie wykonania (fasada przekazuje wywołanie do obiektu
-#      Mockery), ale analiza widzi samą fasadę. Szpieg trafił do zmiennej.
+#    - relacje bez generyków (`@return BelongsTo<User, $this>`) — 94 metody.
+#      Bez nich `$post->author` był dla analizy gołym `Model` i każde pole
+#      autora „nie istniało";
+#    - `parseModelCastsMethod: true` niżej — rzutowania żyją w metodzie
+#      `casts()`, a Larastan domyślnie czyta tylko właściwość `$casts`, więc
+#      `expires_at` był napisem zamiast daty;
+#    - zakresy w domknięciach `whereHas('relacja', fn ($q) => …)` — patrz
+#      `Tests\PHPStan\DomkniecieRelacjiExtension` w `services` niżej.
 #
-#  GDZIE STOI NASTĘPNY PRÓG (zmierzone, nie zgadnięte):
-#      poziom 2 → 172 błędy      poziom 3 → 194
-#      poziom 4 → 232            poziom 5 → 299
+#  Reszta to były prawdziwe znaleziska, m.in.: test polityki prywatności
+#  porównywał pusty napis i przechodził zawsze, trzy `assertStatus()`
+#  i jedno `assertJsonPath()` gubiły po cichu komunikat, sześć modeli miało
+#  `HasFactory` z fabryką, której nie ma, `StanPolaczenBazy` wołał metodę
+#  spoza kontraktu `ConnectionInterface`, a puste listy tablicy dnia
+#  i wyszukiwarki były innym typem kolekcji niż pełne.
 #
-#  Skok z 0 na 1 był tani, z 1 na 2 nie jest. To osobna praca i należy do
-#  issue #32 — nie do PR-a, który akurat przechodził obok.
+#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 25.09.2026, nie zgadnięte):
+#      poziom 3 → 51 błędów      poziom 4 → 297      poziom 5 → 336
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
@@ -60,7 +66,12 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 1
+    level: 2
+
+    # Rzutowania modeli żyją w metodzie `casts()` (Laravel 11+), a Larastan
+    # bez tej opcji czyta wyłącznie właściwość `$casts` — `datetime` z
+    # `casts()` był dla analizy zwykłym napisem (issue #1731).
+    parseModelCastsMethod: true
 
     bootstrapFiles:
         - phpstan-bootstrap.php
@@ -101,3 +112,13 @@ parameters:
         -
             identifier: larastan.noEnvCallsOutsideOfConfig
             path: tests/*
+
+services:
+    # Typ zapytania w domknięciu `whereHas('relacja', fn ($q) => …)` —
+    # uzasadnienie w komentarzu klasy (issue #1731). Rozszerza wiedzę
+    # analizatora o nasze relacje; niczego nie wycisza.
+    -
+        class: Tests\PHPStan\DomkniecieRelacjiExtension
+        tags:
+            - phpstan.methodParameterClosureTypeExtension
+            - phpstan.staticMethodParameterClosureTypeExtension

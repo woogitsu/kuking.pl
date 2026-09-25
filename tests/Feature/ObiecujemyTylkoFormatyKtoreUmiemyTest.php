@@ -234,7 +234,7 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
             $odpowiedz->assertSessionHasErrors('photos.0');
             $odpowiedz->assertRedirect(route('posts.create'));
 
-            $bledy = $odpowiedz->baseResponse->getSession()->get('errors');
+            $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
             $komunikat = (string) $bledy->get('photos.0')[0];
 
             $this->assertStringContainsString('HEIC', $komunikat);
@@ -288,7 +288,7 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
 
             $odpowiedz->assertSessionHasErrors('photos.0');
 
-            $bledy = $odpowiedz->baseResponse->getSession()->get('errors');
+            $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
             $komunikat = (string) $bledy->get('photos.0')[0];
 
             // TO JEST GŁÓWNA ASERCJA TEGO TESTU. Żadnej bezwarunkowej obietnicy

@@ -266,7 +266,7 @@ class EkranZaproszeniaTest extends TestCase
         // Komunikat mówi, CO ZROBIĆ, a nie samo „zrobione".
         $this->assertStringContainsString(
             'Wpisz adres e-mail',
-            (string) $odpowiedz->getSession()->get('status', ''),
+            (string) self::sesjaPrzekierowania($odpowiedz)->get('status', ''),
         );
     }
 

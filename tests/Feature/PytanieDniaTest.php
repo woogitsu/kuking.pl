@@ -55,8 +55,8 @@ class PytanieDniaTest extends TestCase
         $dom = $this->ekran('Halina');
         $composer = $dom->query('//a[contains(concat(" ", normalize-space(@class), " "), " composer ")]');
         $this->assertSame(1, $composer->length);
-        $this->assertSame('Co dziś gotujesz? Dodaj zdjęcie', $composer->item(0)->getAttribute('aria-label'));
-        $this->assertSame(route('posts.create'), $composer->item(0)->getAttribute('href'));
+        $this->assertSame('Co dziś gotujesz? Dodaj zdjęcie', self::elementDom($composer->item(0))->getAttribute('aria-label'));
+        $this->assertSame(route('posts.create'), self::elementDom($composer->item(0))->getAttribute('href'));
         $this->assertSame(1, $dom->query('preceding::h1', $composer->item(0))->length);
         $title = $dom->query('.//*[contains(concat(" ", normalize-space(@class), " "), " composer-title ")]', $composer->item(0));
         $this->assertSame(1, $title->length);

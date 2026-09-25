@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Str;
 use Normalizer;
 
@@ -25,6 +26,11 @@ use Normalizer;
  * — ten sam powód, dla którego `User::$fillable` nie ma `status` ani `role`
  * (AGENTS.md §7). Masowy zapis z formularza nie ma jak po cichu scalić
  * albo ukryć tagu.
+ *
+ * Kolumny tabeli pośredniej — są tylko wtedy, gdy tag wczytano przez
+ * relację `Post::tags()` (`post_tags`) albo `User::followedTags()` (`tag_follows`):
+ *
+ * @property-read Pivot&object{position: int, dodany_recznie: bool, created_at: string|null} $pivot
  */
 class Tag extends Model
 {
@@ -130,6 +136,9 @@ class Tag extends Model
         return self::znormalizujNazwe((string) ($this->normalized_name ?? $this->name));
     }
 
+    /**
+     * @return BelongsToMany<Post, $this>
+     */
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_tags')
@@ -138,29 +147,44 @@ class Tag extends Model
             ->orderBy('post_tags.position');
     }
 
+    /**
+     * @return BelongsToMany<User, $this>
+     */
     public function followers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'tag_follows')
             ->withPivot('created_at');
     }
 
+    /**
+     * @return HasMany<TagAlias, $this>
+     */
     public function aliases(): HasMany
     {
         return $this->hasMany(TagAlias::class);
     }
 
     /** Tag kanoniczny, pod którym ten tag żyje po scaleniu (SPEC §1.8). */
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function mergedInto(): BelongsTo
     {
         return $this->belongsTo(self::class, 'merged_into_tag_id');
     }
 
     /** Tagi scalone POD tym tagiem — istnienie choćby jednego blokuje jego usunięcie w bazie. */
+    /**
+     * @return HasMany<self, $this>
+     */
     public function mergedFrom(): HasMany
     {
         return $this->hasMany(self::class, 'merged_into_tag_id');
     }
 
+    /**
+     * @return HasOne<TagPromotion, $this>
+     */
     public function promotion(): HasOne
     {
         return $this->hasOne(TagPromotion::class);

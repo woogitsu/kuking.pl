@@ -100,7 +100,7 @@ class LimitLogowaniaNaKontoTest extends TestCase
         // na drugim wywalała się („Call to a member function first() on
         // array"), a na trzecim po cichu zwracała `false`, czyli raportowała
         // brak blokady tam, gdzie blokada była.
-        $bledy = $odpowiedz->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
 
         $tekst = match (true) {
             $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => (string) $bledy->first('login'),

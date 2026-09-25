@@ -16,6 +16,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -111,7 +112,9 @@ final class ZdejmijZUrzedu
 
             // Blokada wiersza: dwa kliknięcia „Zdejmij” (dwie karty, dwóch
             // moderatorów) dają jedną decyzję, nie dwie.
-            $cel = $target::query()->withTrashed()->whereKey($target->getKey())->lockForUpdate()->first();
+            // `withoutGlobalScope(SoftDeletingScope::class)` = makro
+            // `withTrashed()`, ale bez makra — patrz `RestoreContent`.
+            $cel = $target::query()->withoutGlobalScope(SoftDeletingScope::class)->whereKey($target->getKey())->lockForUpdate()->first();
 
             if ($cel === null || ModeratedContent::jestZdjeta($cel)) {
                 throw new BladDlaCzlowieka('Ta treść jest już zdjęta. Odśwież stronę, żeby zobaczyć jej stan.');

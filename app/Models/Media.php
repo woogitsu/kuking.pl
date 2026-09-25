@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -40,6 +41,11 @@ use Illuminate\Support\Facades\Log;
  * właściciela.
  *
  * @see maWariantDoPokazania()
+ *
+ * Kolejność zdjęcia z tabeli pośredniej — jest tylko wtedy, gdy zdjęcie
+ * wczytano przez `Post::media()` (`post_media`) albo `CookedEvent::media()`:
+ *
+ * @property-read Pivot&object{position: int} $pivot
  */
 class Media extends Model
 {
@@ -128,12 +134,17 @@ class Media extends Model
      * Potrzebne do bramki wlasnosci przy odzyskiwaniu zdjec po nieudanej
      * walidacji (audyt C1): zdjecie juz przypiete do wpisu nie moze zostac
      * podpiete pod drugi.
+     *
+     * @return BelongsToMany<Post, $this>
      */
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_media');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');

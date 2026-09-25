@@ -385,7 +385,7 @@ class AtomowaRezerwacjaBudzetuTest extends TestCase
         Notification::assertNotSentTo($basia, LinkDoLogowania::class);
         $this->assertDatabaseCount('login_link_tokens', 0);
 
-        $komunikat = (string) $odpowiedz->getSession()->get('status', '');
+        $komunikat = (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
 
         $this->assertStringContainsString('nie czekaj na niego', $komunikat);
         $this->assertStringContainsString('Zaloguj się hasłem', $komunikat);
@@ -427,7 +427,7 @@ class AtomowaRezerwacjaBudzetuTest extends TestCase
         // ODMOWA WYSYŁKI, nie „wyślij na wszelki wypadek".
         Notification::assertNotSentTo($basia, LinkDoLogowania::class);
 
-        $komunikat = (string) $odpowiedz->getSession()->get('status', '');
+        $komunikat = (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
 
         $this->assertStringContainsString('Kliknij „Wyślij mi link” jeszcze raz', $komunikat);
         $this->assertStringNotContainsString(

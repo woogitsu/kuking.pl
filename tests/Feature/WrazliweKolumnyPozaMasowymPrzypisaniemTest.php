@@ -534,7 +534,6 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
         $sprawdzonych = 0;
 
         foreach (self::REJESTR as $klasa => $kolumny) {
-            /** @var Model $model */
             $model = new $klasa;
 
             foreach ($kolumny as $kolumna => $powod) {
