@@ -4567,6 +4567,12 @@ razem z gałęzią `@case` w widoku powiadomień.
 
 **Data:** 10 września 2026 · Issue #237 · Status: **obowiązuje**
 
+> **Adnotacja (25 września 2026, B6-06):** **D-240** (22 września 2026)
+> uchyla tę decyzję w części „zdjęcie profilowe idzie do modelu" — awatar
+> **nie** wychodzi do OpenAI (`app/Jobs/PrzeanalizujAwatar.php`, celowo
+> pusty job). Część o celu oznaczenia (`target_type = 'media'`) i o tym,
+> że awatar jest ważniejszy do ochrony niż wpis, zostaje w mocy.
+
 Pytanie właściciela było jednozdaniowe: *„czy zdjęcie profilowe jest
 przetwarzane przez moderation omni model?"*. Odpowiedź brzmiała **nie** —
 i to była luka większa, niż wyglądała.
@@ -15349,6 +15355,13 @@ o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
 komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
 powiadomienia i nie przywraca `read_at` do `null`.
 
+> **Adnotacja (25 września 2026, B6-07):** zdanie powyżej o ponownej
+> analizie przestało być prawdziwe — **D-256** (24 września 2026, #909)
+> zastąpiła je w tej części: `CommentController::update()` zleca
+> `PrzeanalizujTresc::dlaKomentarza()`, gdy edycja rzeczywiście zmienia
+> tekst komentarza. Reszta zdania (brak nowego powiadomienia, `read_at`
+> bez zmiany) obowiązuje bez zmian.
+
 Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
 komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
 komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
@@ -16758,8 +16771,15 @@ Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
 ## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
 
-**Data:** 24 września 2026 · Issue #909 · Status: **do decyzji właściciela**
-(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+**Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
+(potwierdzone przez właściciela 25 września 2026 — zmienia jeden wiersz
+„ODŁOŻONE” z D-052)
+
+**Potwierdzenie właściciela (25 września 2026):** treść decyzji z
+24 września obowiązuje bez zmian. Audyt dokumentacji B6 (znalezisko
+B6-12) zwrócił uwagę, że commit wszedł na `main` (#909), zanim wpis dostał
+status inny niż „do decyzji właściciela” — właściciel potwierdza tę treść
+zamiast wycofywać commit.
 
 **Co.** Gdy autor w 15-minutowym oknie **rzeczywiście zmieni** tekst
 opublikowanego komentarza, `CommentController::update()` zleca
