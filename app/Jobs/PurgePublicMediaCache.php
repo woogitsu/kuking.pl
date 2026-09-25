@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Domain\Media\ZalegleCzyszczeniaCdn;
+use App\Support\DozwolonyHostApi;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -40,6 +41,21 @@ use Illuminate\Support\Facades\Log;
 class PurgePublicMediaCache implements ShouldQueue
 {
     use Queueable;
+
+    /**
+     * Jedyny host, któremu wolno dać token czyszczenia (#991).
+     *
+     * @var list<string>
+     */
+    public const HOSTY = ['api.cloudflare.com'];
+
+    /**
+     * Jedyna ścieżka — po podstawieniu `{zone}` (D-250). Identyfikator strefy
+     * to litery i cyfry (łącznik dopuszczamy dla atrap w testach), więc
+     * `CLOUDFLARE_ZONE_ID` z ukośnikiem albo `?` nie przestawi żądania na
+     * inną metodę API.
+     */
+    public const SCIEZKA = '#^/client/v4/zones/[A-Za-z0-9-]{1,64}/purge_cache$#';
 
     public int $tries = 5;
 
@@ -92,11 +108,32 @@ class PurgePublicMediaCache implements ShouldQueue
             return;
         }
 
-        $adres = str_replace(
-            '{zone}',
-            $zona,
-            (string) config('kuking.media.cdn_purge.endpoint'),
-        );
+        $adres = self::adres();
+
+        // Zły adres = zadanie pada, zanim token wyjdzie. Wyjątek, nie cichy
+        // `return`: nieudane czyszczenie ma zostać w `failed_jobs`. Adresu
+        // w komunikacie nie ma — bywa wklejany razem z tokenem.
+        $powod = self::powodZlegoAdresu();
+
+        if ($powod !== null) {
+            $blad = new \RuntimeException(
+                "CLOUDFLARE_PURGE_ENDPOINT nie jest adresem czyszczenia cache Cloudflare ({$powod}) — "
+                .'czyszczenia nie wysłano. Poprawna wartość domyślna: '
+                .'https://api.cloudflare.com/client/v4/zones/{zone}/purge_cache.',
+            );
+
+            // Błąd konfiguracji nie mija sam: pięć prób w ciągu kwadransa
+            // dałoby tylko pięć identycznych wpisów. W kolejce — od razu
+            // `failed_jobs` (i `failed()` z listą adresów do dokończenia).
+            // Wywołane wprost (bez kolejki) — zwykły wyjątek.
+            if ($this->job !== null) {
+                $this->fail($blad);
+
+                return;
+            }
+
+            throw $blad;
+        }
 
         // Cloudflare przyjmuje najwyżej 30 adresów na żądanie.
         foreach (array_chunk($adresy, 30) as $partia) {
@@ -122,6 +159,25 @@ class PurgePublicMediaCache implements ShouldQueue
                 );
             }
         }
+    }
+
+    /**
+     * Która część adresu czyszczenia jest zła (nazwa części, nigdy wartość)
+     * albo `null`. Wspólne dla zadania i sondy `cdn` w `/health`, żeby oba
+     * miejsca nie mogły się rozjechać.
+     */
+    public static function powodZlegoAdresu(): ?string
+    {
+        return DozwolonyHostApi::powod(self::adres(), self::HOSTY, self::SCIEZKA);
+    }
+
+    private static function adres(): string
+    {
+        return str_replace(
+            '{zone}',
+            (string) config('kuking.media.cdn_purge.zone_id'),
+            (string) config('kuking.media.cdn_purge.endpoint'),
+        );
     }
 
     public function failed(?\Throwable $e): void
