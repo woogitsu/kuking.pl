@@ -221,11 +221,22 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
                 $this->assertSame(1, $subject->comments()->count());
             }
         }
-        foreach (['active', 'suspended', 'banned', 'erased'] as $status) {
+        foreach (['active', 'suspended', 'erased'] as $status) {
             [$subject, $cook] = $this->subject('cooked');
             $cook->forceFill(['status' => $status, 'data_erased_at' => $status === 'erased' ? now() : null])->save();
             $comment = app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Widoczna historia kucharza.');
             $this->assertNotNull($comment->id);
+        }
+
+        // D-261: wykonania zbanowanego kucharza obcy nie widzi także pod
+        // bezpośrednim adresem, więc nie może go też skomentować.
+        [$subject, $cook] = $this->subject('cooked');
+        $cook->forceFill(['status' => 'banned'])->save();
+        try {
+            app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Nie pod wykonaniem zbanowanego.');
+            $this->fail('Komentarz pod wykonaniem zbanowanego kucharza przeszedł mimo D-261.');
+        } catch (BladDlaCzlowieka) {
+            $this->assertSame(0, $subject->comments()->count());
         }
     }
 

@@ -16970,9 +16970,17 @@ znika tylko wyróżnienie” z `KomusWyszloWidocznoscTest` znaczy od dziś
 **Znana granica.** Kopie zdjęć już zapisane w pamięci podręcznej CDN przed
 banem wygasają według swojego `Cache-Control` — ta decyzja ich nie czyści.
 
+**Skutki uboczne.** Obcy nie skomentuje wykonania zbanowanego kucharza
+(`LockCommentContext` pyta tę samą `view()`). Lokalna analiza spamu (D-241)
+działa dalej: `GranicaWysylki::pozaAutorem()` podmienia w kopii zbanowanego
+kucharza na aktywnego, tak jak autora wpisu i przepisu. Do OpenAI taki
+komentarz nie wychodzi.
+
 Dowody: `tests/Feature/KarencjaUsunieciaChowaWykonanieTest.php`
 (gość, obcy zalogowany, zdjęcie; kontrola dodatnia: moderator i powrót po
-zdjęciu bana), `tests/Feature/Visibility/KomusWyszloWidocznoscTest.php`.
+zdjęciu bana), `tests/Feature/Visibility/KomusWyszloWidocznoscTest.php`,
+`tests/Feature/KomentarzSprawdzaSwiezyStanTest.php`,
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` („wykonanie autor_zbanowany”).
 
 ## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)
 
