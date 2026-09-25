@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Listy „Rozmiar tekstu” i „Wygląd strony” w panelu „Aa · Wygląd” mają wyraźną ramkę i lekko przyciemnione tło, tak jak pola formularzy. Wcześniej ich granica była prawie niewidoczna i wyglądały jak zwykły tekst.
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Moderator nie rozstrzyga już zgłoszenia, które dotyczy jego własnego wpisu, przepisu, komentarza albo profilu — taką sprawę zamyka ktoś inny z moderacji. Panel mówi wprost, dlaczego decyzji nie zapisał.
 
