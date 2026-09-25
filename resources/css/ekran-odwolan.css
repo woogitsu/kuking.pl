@@ -34,11 +34,14 @@
  *     jedyne miejsce, w którym się coś ROBI, a nie czyta.
  *
  * ROZMIARY: nic, co się czyta, nie schodzi poniżej `--text-body` (18 px) —
- * ani cytaty, ani etykiety sekcji (AGENTS.md §5). Mniejsze (`--text-help`,
- * 16 px, przez wspólną klasę `.meta`) są WYŁĄCZNIE metadane: data, powód,
- * kto podjął decyzję, cel. To ten sam nazwany wyjątek co metryczka wersji
- * w stopce (D-051) i ta sama wielkość, na której metryczki stoją w całym
- * serwisie — nie nowy, mniejszy rozmiar wymyślony na ten jeden ekran.
+ * ani cytaty, ani etykiety sekcji, ani metryczka sprawy (AGENTS.md §5).
+ *
+ * DECYZJA WŁAŚCICIELA (25.09.2026): metryczka sprawy (`.odwolanie-metryczka`)
+ * dziedziczyła 16 px ze wspólnej klasy `.meta` i powoływała się tu na D-051 —
+ * ten wyjątek dotyczy WYŁĄCZNIE metryczki wersji w stopce, nie obejmuje tego
+ * ekranu. Metryczka sprawy to informacja, którą moderator CZYTA, żeby
+ * zrozumieć sprawę (data, powód, kto podjął decyzję, cel), więc arkusz
+ * podnosi ją tu z powrotem do `--text-body`.
  */
 
 @layer components {
@@ -52,10 +55,14 @@
   }
 
   /* Metryczka sprawy zostaje przyklejona do tytułu, którego dotyczy.
-     `.meta` daje jej rozmiar i kolor; tutaj tylko odstępy. */
+     `.meta` daje jej kolor; rozmiar nadpisuje się tu do `--text-body`
+     (18 px) — 16 px z `.meta` było błędnie tłumaczone wyjątkiem D-051,
+     który obejmuje wyłącznie metryczkę wersji w stopce (decyzja
+     właściciela, 25.09.2026). */
   .odwolanie-metryczka {
     margin-top: var(--spacing-1);
     margin-bottom: var(--spacing-8);
+    font-size: var(--text-body);
   }
 
   /* „termin odpowiedzi minął" — jedyna informacja na karcie, która mówi
