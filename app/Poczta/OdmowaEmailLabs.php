@@ -62,6 +62,8 @@ final class OdmowaEmailLabs extends TransportException
     /** Kod HTTP odpowiedzi dostawcy, jeśli w ogóle odpowiedział. */
     private ?int $statusHttp = null;
 
+    private bool $confirmedRejection = false;
+
     /**
      * Nazwana wytwórnia — jedyna droga, którą kategoria wchodzi do wyjątku.
      *
@@ -75,10 +77,12 @@ final class OdmowaEmailLabs extends TransportException
         string $komunikat,
         ?int $statusHttp = null,
         ?Throwable $poprzedni = null,
+        bool $confirmedRejection = false,
     ): self {
         $odmowa = new self($komunikat, previous: $poprzedni);
         $odmowa->powod = $powod;
         $odmowa->statusHttp = $statusHttp;
+        $odmowa->confirmedRejection = $confirmedRejection;
 
         return $odmowa;
     }
@@ -86,6 +90,12 @@ final class OdmowaEmailLabs extends TransportException
     public function powod(): PowodOdmowy
     {
         return $this->powod;
+    }
+
+    /** Pewność odmowy jest niezależna od tego, czy awaria jest przejściowa. */
+    public function isConfirmedRejection(): bool
+    {
+        return $this->confirmedRejection;
     }
 
     public function statusHttp(): ?int
