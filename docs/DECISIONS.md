@@ -3560,6 +3560,14 @@ i wyłącznie tego.
 
 **Data:** 10 września 2026 · Issue #25 · Status: **obowiązuje**
 
+**Doprecyzowanie właściciela, 20 września 2026 (#889):** jeśli przed
+wykonaniem kolejki link wygasł albo został zastąpiony, pomijamy list.
+Nie wysyłamy dodatkowej wiadomości i nie tworzymy nowego tokenu przy
+ponowieniu zadania. Starsze zadania bez zapisanego terminu sprawdzają
+aktualność tokenu w bazie. Czas w liście odnosimy do chwili zamówienia,
+nie do doręczenia. Kontrola przy kliknięciu pozostaje rozstrzygająca:
+ważny przy wysyłce link może utracić ważność przed przeczytaniem listu.
+
 Kuking wpuszcza na konto **linkiem wysłanym pocztą**. Droga jest równorzędna
 z hasłem i widoczna wprost na ekranie logowania, a nie schowana pod „innymi
 opcjami". Adres: `/logowanie/link`.
@@ -16204,6 +16212,22 @@ Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
 jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
 klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
 
+**Uzupełnienie (#1429, #1530, #1573, 24 września 2026).** Trzy kolejne
+wywołania przypisane do klas:
+
+- `data.export_requested` — **klasa 2**. Autorytatywny ślad to wiersz
+  `data_exports` i zadanie w `jobs`, zatwierdzane razem (A02).
+- `user.blocked` — **klasa 2**, zgodnie z D-090 i D-080 („blokada musi się
+  udać zawsze"). Autorytatywny ślad to wiersz `blocks` z `created_at`.
+- `account.login_link_used` — **klasa 1**. Tu trwałym skutkiem jest
+  zużycie jednorazowego poświadczenia, więc wpis stoi w transakcji
+  `ZamekKonta` razem z `delete()` tokenu. Awaria cofa oba zapisy, sesja
+  ani etap 2FA nie powstają, a człowiek dostaje „link nadal działa, kliknij
+  jeszcze raz". Samej sesji HTTP transakcja nie obejmuje.
+
+Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
+i `LogowanieLinkiemTest` (sekcja #1530).
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
@@ -16216,6 +16240,83 @@ z nazwą braku (rejestracja hasłem, Google i Facebook).
 ### Wycofanie
 
 Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-250 — Klucz API wychodzi tylko pod dokładny adres dostawcy: host, port i ścieżka z kodu (#991, 23 września 2026)
+
+**Data:** 23 września 2026 · **Poprawka bezpieczeństwa** (P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+Adresy API EmailLabs (`EMAILLABS_ENDPOINT`), moderacji OpenAI
+(`KUKING_MODEL_ENDPOINT`) i czyszczenia cache Cloudflare
+(`CLOUDFLARE_PURGE_ENDPOINT`) przychodzą ze zmiennych środowiskowych.
+Poczta sprawdzała tylko `https://`, moderacja i czyszczenie — nic. Klucze
+i treść (cudze listy, cudze wpisy do oceny) szły pod każdy host, jaki stał
+w zmiennej. Pierwsza wersja poprawki (lista hostów) nie patrzyła jeszcze na
+ścieżkę, query ani fragment, a `/health` i `KlientOpenAI::oceniamy()` mówiły
+„gotowe” przy obcym adresie.
+
+### Decyzja
+
+1. **Jedna granica: `App\Support\DozwolonyHostApi`.** Każda integracja
+   podaje listę hostów i wzór CAŁEJ ścieżki, w kodzie, nie w `.env`:
+   EmailLabs `api.emaillabs.io` + `/v2.1/email`, OpenAI `api.openai.com` +
+   `/v1/moderations`, Cloudflare `api.cloudflare.com` +
+   `/client/v4/zones/<strefa>/purge_cache` (strefa: litery, cyfry, łącznik).
+2. **Każda część osobno, parserem Guzzle:** tylko `https`, bez danych
+   logowania i bez `@` gdziekolwiek, host bajt w bajt (końcowa kropka, IDN
+   i punycode odpadają), port brak/443, ścieżka pełnym dopasowaniem
+   (`..`, `%xx`, ukośnik na końcu odpadają), **zero query i fragmentu**,
+   żadnych białych, sterujących znaków ani odwrotnego ukośnika.
+3. **Ścieżka dokładna, nie prefiks `/v1/`.** Klient buduje żądanie
+   w kształcie jednej metody API; prefiks otwierałby inne metody tego
+   samego konta (np. płatne) tym samym kluczem.
+4. **Zły adres jest nazwany, nie przemilczany i nie wklejony.** Komunikat
+   niesie nazwę zmiennej i nazwę złej części (`DozwolonyHostApi::powod()`),
+   nigdy wartość — zmienna bywa wklejana razem z tokenem. Komendy
+   `kuking:sprawdz-model` i `kuking:sprawdz-poczte` drukują z adresu sam
+   host. `/health` ma kod `czyszczenie_cdn_zly_adres`; poczta wychodzi już
+   jako `poczta_nie_wysyla` (transport się nie buduje);
+   `KlientOpenAI::oceniamy()` jest `false`, a `bladKonfiguracji()` podaje
+   zdanie dla operatora.
+5. **Jedno zgłoszenie na godzinę, nie na treść.** Obcy adres modelu daje
+   `Log::error` (kanał `blad_webhook`) raz na okno
+   `KlientOpenAI::OKNO_ZGLOSZENIA_SEKUND` (`Cache::add`, atomowe).
+6. **Stały błąd konfiguracji w kolejce = `fail()` od razu.**
+   `PurgePublicMediaCache` nie robi pięciu prób z czymś, co nie mija samo.
+
+### Czego świadomie NIE robimy
+
+- **Nie przypinamy adresów IP ani certyfikatów.** Tożsamość hosta
+  potwierdza TLS z systemowym magazynem CA i systemowy DNS. Przypinanie
+  psułoby się przy każdej rotacji po stronie dostawcy, a atak na DNS/CA
+  kontenera jest poza zasięgiem tej granicy (ona chroni przed błędną
+  i podmienioną KONFIGURACJĄ).
+- **Nie ma przełącznika „zaufaj innemu hostowi” w `.env`.** Nowy host lub
+  ścieżka dostawcy to zmiana w kodzie z testem.
+- **Nie dodajemy osobnej sondy `/health` dla moderacji.** Obcy adres modelu
+  zgłasza się sam na kanale alarmowym (pkt 5) i w `kuking:sprawdz-model`;
+  brak klucza moderacji też nie ma sondy, więc to zostaje spójne.
+- **Testy nie rozluźniają granicy.** `Http::fake()` działa na kanonicznych
+  adresach; żaden tryb testowy nie przepuszcza obcego hosta.
+
+### Jak to jest zmierzone
+
+`tests/Feature/SekretyTylkoDoDostawcyTest.php` (odmowa + `Http::assertNothingSent()`
++ brak sekretu i adresu w wyjątku/logu/wyjściu; kontrole dodatnie dla adresów
+kanonicznych), `tests/Feature/SondaCzyszczeniaCacheCdnTest.php`
+(`czyszczenie_cdn_zly_adres`) i dwie mutacje w
+`scripts/kontrole-negatywne-alfa08.py` (strażnik osłabiony do samego
+`https://` oraz bez sprawdzenia ścieżki muszą oblać test).
+
+📄 `app/Support/DozwolonyHostApi.php`, `app/Moderacja/KlientOpenAI.php`,
+`app/Moderacja/OcenaModelem.php`, `app/Providers/PocztaServiceProvider.php`,
+`app/Poczta/BrakKonfiguracjiEmailLabs.php`, `app/Jobs/PurgePublicMediaCache.php`,
+`app/Http/Controllers/HealthController.php`,
+`app/Console/Commands/SprawdzModel.php`, `app/Console/Commands/SprawdzPoczte.php`
 
 ---
 
@@ -16699,10 +16800,14 @@ po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
 otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
 urośnie do tysięcy.
 
-**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
-w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
-kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
-w `PriorytetSprawy::MAPOWANIE`.
+**`scam` jako P1 — POTWIERDZONE PRZEZ WŁAŚCICIELA 25 września 2026.** Tabela
+SLA w podręczniku nie miała tej pozycji; P1 był moim osądem (oszustwo trwa
+i dotyka kolejnych ludzi, dopóki wisi), nie decyzją. Właściciel potwierdził
+`scam` → P1 bez zmian w kodzie: `PriorytetSprawy::MAPOWANIE` już miało
+`'scam' => self::P1`, więc to potwierdzenie istniejącego zachowania, nie
+nowa linijka. Wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` §3 dopisano
+o „oszustwo (scam)", a komentarz przy `MAPOWANIE`, mówiący że `scam` nie ma
+pozycji w podręczniku, przestał być prawdziwy i został poprawiony.
 
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
@@ -16974,6 +17079,67 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 Odwrócić commit. Schemat bazy się nie zmienia.
 ---
 
+## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
+moderacji (widoczny wyłącznie dla moderatorów) trzy miejsca z tekstem
+poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
+D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
+stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
+w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
+trzy miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
+w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
+a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
+serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
+
+### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
+
+`AGENTS.md` §5 zostaje dokładnie taki, jaki jest, wszędzie indziej. Minimum
+18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
+widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
+w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów
+pomocniczych w panelu moderacji, nie przycisków: `.btn` i inne cele dotyku
+w tym panelu mają nadal ≥ 48 px, bez zmian.
+
+### ZAKRES WYJĄTKU — WYŁĄCZNIE TE SELEKTORY
+
+- `.tabela-kont .drobne` — `resources/css/ekran-uzytkownikow.css` —
+  drugi, cichy wiersz w komórce tabeli kont („@nazwa", przyczyna, termin);
+  `--text-meta` (15 px).
+- `.stan-konta` — `resources/css/ekran-uzytkownikow.css` — plakietka stanu
+  konta („Zawieszone", „Zablokowane"); `--text-meta` (15 px). Kolor nadal
+  nigdy nie jest jedynym nośnikiem informacji — słowo w środku zostaje.
+- `.sygnal-podglad-cytat` — `resources/css/app.css` — cytat cudzej treści
+  w podglądzie sygnału, o jedno kliknięcie od pełnego rozmiaru;
+  `--text-help` (16 px). Komentarz przy tej regule błędnie powoływał się
+  na D-051 — poprawiony na odwołanie do tego wpisu.
+- `.side-nav-moderacja-naglowek` — `resources/css/app.css` — samodzielny
+  nagłówek sekcji „Moderacja" w bocznej nawigacji, wersalikami;
+  `--text-help` (16 px).
+
+Nigdzie indziej. W szczególności: publiczne widoki odwołań i zgłoszeń,
+ekran „Czytelność", i każdy inny ekran panelu spoza tej listy — tam
+minimum 18 px obowiązuje bez wyjątku.
+
+### CO Z TYM ZROBIONO W KODZIE
+
+W `resources/css/app.css` zamieniono błędne powołanie na D-051 przy
+`.sygnal-podglad-cytat` na powołanie na D-262 i dopisano odwołanie do
+D-262 przy `.side-nav-moderacja-naglowek`. W `resources/css/ekran-uzytkownikow.css`
+dopisano odwołanie do D-262 przy `.tabela-kont .drobne` i `.stan-konta`.
+Strażnik `tests/Feature/MinimalnyRozmiarTekstuTest.php` pilnuje ZAMKNIĘTEJ
+listy `SAMODZIELNE_ETYKIETY`, w której żaden z tych czterech selektorów nie
+stał ani wcześniej, ani teraz — nie jest to strażnik z otwartą listą
+wyjątków, więc nie ma tu nic do dopisania; gdyby ktoś kiedyś przepisał go
+na skaner całego CSS, te cztery selektory muszą wtedy dostać jawny wpis na
+liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
+
+### Wycofanie
+Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
+ten wpis. Nic w bazie ani w migracjach się nie zmienia.
 ## D-264 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2
