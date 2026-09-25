@@ -2081,6 +2081,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
+
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
 „Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
@@ -2228,12 +2257,26 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez gospodarza wskazanego `KUKING_HOST_USERNAME` w chwili
+migracji (migracja wdrożona przed #1089 — nie jest modyfikowana). Nie wysyła
+alertów. Od #1089 kod aplikacji rozpoznaje gospodarza po stabilnym
+`KUKING_HOST_USER_ID` (fallback po nazwie tylko przy pustym UUID); nowe wiersze
+zapisuje `PublishPost`, więc backfill nie jest liczony ponownie.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia (instrukcja krok po kroku: `docs/DEPLOYMENT.md`, „Konto
+gospodarza"): przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Rollback tej migracji odtwarza backfill po `KUKING_HOST_USERNAME`; po zmianie
+nazwy gospodarza może świadomie odmówić (D-088) — dane zostają.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.
@@ -2443,8 +2486,11 @@ kopia tabeli).
 `open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
 Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
-`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
-harmonogram codziennie o 04:30.
+`moderation_actions` i `appeals`, w jednej komendzie, harmonogram codziennie
+o 04:30. Kasuje partiami po 500 identyfikatorów (partia w transakcji; gdy
+padnie — powtórka wiersz po wierszu) i najwyżej 20 000 wierszy z każdej
+tabeli na przebieg; resztę bierze następna noc, a ostrzeżenie w dzienniku
+mówi, ile jej zostało (issue #998).
 
 **`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
 `2026_09_07_910000_add_numer_sprawy_to_reports`).
