@@ -6462,6 +6462,17 @@
   display: none;
 }
 
+/* Przełącznik „Pokaż hasło” pod polem hasła (issue #948). Odsłania go
+   dopiero skrypt — bez tej reguły `.btn` wygrałby z `[hidden]` i przy
+   wyłączonym JavaScripcie zostałby martwy przycisk. */
+.pokaz-haslo {
+  margin-top: var(--spacing-2);
+}
+
+.pokaz-haslo[hidden] {
+  display: none;
+}
+
 .podziel-sie-echo {
   margin: 0;
   font-weight: 700;
