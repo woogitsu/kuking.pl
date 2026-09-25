@@ -5,30 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
-use App\Domain\Security\TwoFactorAuthenticator;
+use App\Domain\Security\WejsciePrzezDostawce\WejdzPrzezDostawce;
+use App\Domain\Security\WejsciePrzezDostawce\WynikWejscia;
 use App\Domain\Users\Actions\ZalozKonto;
 use App\Domain\Users\Actions\ZalozoneKonto;
-use App\Domain\Users\ZamekKonta;
+use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
-use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
-use App\Rules\ReservedUsername;
-use App\Rules\UsernameNotTaken;
-use App\Support\ExternalRegistrationDraft;
 use App\Support\Facebook;
 use App\Support\Komunikat;
-use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -136,10 +129,13 @@ use Illuminate\View\View;
  */
 class FacebookLoginController extends Controller
 {
-    /** Klucze w sesji. Wszystkie jednorazowe, wszystkie kasowane po odczycie. */
+    /**
+     * Klucz protokołu w sesji. Jednorazowy, kasowany po odczycie. Tożsamość
+     * po powrocie trzyma `WejdzPrzezDostawce`.
+     */
     private const KLUCZ_STATE = 'wejscie_facebook.state';
 
-    private const KLUCZ_TOZSAMOSC = 'wejscie_facebook.tozsamosc';
+    public function __construct(private readonly DostawcaWejsciaFacebook $dostawca) {}
 
     /**
      * Kliknięcie „Wejdź kontem Facebooka" albo „Połącz konto Facebooka" —
@@ -397,20 +393,14 @@ class FacebookLoginController extends Controller
             ));
         }
 
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
 
         if ($tozsamosc === null || $tozsamosc->email === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $draft = ExternalRegistrationDraft::restore($request, 'facebook', $tozsamosc->identyfikator);
-
-        return view('auth.facebook-finish', [
-            'email' => $tozsamosc->email,
-            // PODPOWIEDŹ, NIE NADANIE — ten sam wywód co przy Google.
-            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
-        ]);
+        // PODPOWIEDŹ, NIE NADANIE — ten sam wywód co przy Google.
+        return view('auth.facebook-finish', $this->wejscie()->ekranDomkniecia($request, $tozsamosc));
     }
 
     /**
@@ -427,111 +417,39 @@ class FacebookLoginController extends Controller
         // skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
-        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.identyfikator');
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
 
-        if ($tozsamosc === null || $tozsamosc->email === null) {
-            ExternalRegistrationDraft::remember($request, 'facebook', $previousIdentity);
-
+        if ($tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $minAge = (int) config('kuking.account.min_age');
-
-        // NAZWĘ UKŁADAMY PRZED WALIDACJĄ, tak samo jak w rejestracji hasłem
-        // — i z tego samego powodu bezpieczeństwa: normalizacja stoi PRZED
-        // `ReservedUsername`, więc „ądmin" jest sprawdzane jako `admin`.
-        $request->merge([
-            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
-        ]);
-
-        $dane = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
-            'username' => [
-                'required', 'string', 'min:3', 'max:40',
-                'regex:'.NazwaUzytkownika::WZORZEC,
-                new ReservedUsername,
-                new UsernameNotTaken,
-            ],
-            /*
-             * OŚWIADCZENIA SĄ WYMAGANE I NIE SĄ ZAZNACZONE Z GÓRY — ten sam
-             * wywód co w `GoogleLoginController` i w `RegisterController`.
-             *
-             * TURNSTILE TU NIE STOI, tak samo jak przy Google (D-069,
-             * rozstrzygnięcie 5): ten formularz publiczny nie jest, bo żeby
-             * na niego wejść, trzeba przejść ekran zgody Facebooka — czyli
-             * bramkę antyautomatową mocniejszą od captchy i stojącą PRZED
-             * nią. Zostaje limit zapytań (`limits.facebook_domkniecie`).
-             */
-            'age_confirmed' => ['accepted'],
-            'terms_accepted' => ['accepted'],
-        ], [
-            'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
-            'username.required' => 'Wpisz nazwę, która ma być w adresie Twojego profilu — na przykład imię i miejscowość: basia z podkarpacia.',
-            // Zdanie BEZ RODZAJU i w tym samym brzmieniu co przy rejestracji
-            // hasłem i przy Google — docs/brand/COPY_STYLE.md §2.
-            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość, na przykład: basia z podkarpacia.',
-            'age_confirmed.accepted' => "Kuking jest dla osób od {$minAge} lat. Potwierdź, że masz tyle lat.",
-            'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',
-        ]);
+        $dane = $this->wejscie()->daneDomkniecia($request);
 
         /*
-         * SPRAWDZAMY PONOWNIE, CZY TO WCIĄŻ JEST NOWE KONTO.
+         * ADRES JEST NIEPOTWIERDZONY I TO JEST NAJWAŻNIEJSZA WŁASNOŚĆ TEJ
+         * DROGI.
          *
-         * Między powrotem z Facebooka a wysłaniem tego formularza mija tyle
-         * czasu, ile człowiek potrzebuje na przeczytanie regulaminu. W tym
-         * czasie mogło powstać konto na ten adres (ktoś zakłada je
-         * równolegle w drugiej karcie) albo to konto Facebooka mogło zostać
-         * powiązane gdzie indziej. Bez tego sprawdzenia zapis wpadłby na
-         * unikalne ograniczenie bazy i człowiek zobaczyłby błąd serwera.
+         * Facebook nie mówi, czy adres jest potwierdzony (patrz komentarz
+         * klasy), więc `DostawcaWejsciaFacebook::tozsamosc()` zawsze daje
+         * `emailPotwierdzony: false` i konto powstaje tak, jak przy
+         * rejestracji hasłem: z adresem niepotwierdzonym i z naszą wiadomością
+         * „potwierdź adres" (wychodzi z `event(new Registered)`
+         * w `ZalozKonto`). Przyjęcie adresu jako potwierdzonego byłoby
+         * przyjęciem na słowo czegoś, czego nikt nie powiedział — i zamknęłoby
+         * drogę odwrotną: konto z „potwierdzonym" adresem, którego nikt nigdy
+         * nie potwierdził, dostaje u nas link do zalogowania na tę skrzynkę.
+         *
+         * Konto ma więc jedną pewną drogę wejścia (Facebook) i drugą, która
+         * otworzy się po kliknięciu w link z naszej wiadomości.
          */
-        if (User::findByFacebookId($tozsamosc->identyfikator) !== null
-            || User::where('email', $tozsamosc->email)->exists()) {
-            ExternalRegistrationDraft::forget($request, 'facebook');
-            $this->zapomnijTozsamosc($request);
+        $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
 
+        if ($konto === null) {
             return redirect()->route('login')->with(Komunikat::blad(
                 'W tym czasie powstało już konto na ten adres. Zaloguj się — hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania.',
             ));
         }
-
-        $konto = $zalozKonto->handle(
-            email: $tozsamosc->email,
-            displayName: $dane['display_name'],
-            username: $dane['username'],
-            // BEZ HASŁA, tak jak przy Google: w `password` ląduje skrót
-            // wartości losowej, której nie zna nikt, także my.
-            haslo: null,
-            /*
-             * ADRES JEST NIEPOTWIERDZONY I TO JEST NAJWAŻNIEJSZY ARGUMENT
-             * W TYM PLIKU.
-             *
-             * Facebook nie mówi, czy adres jest potwierdzony (patrz
-             * komentarz klasy), więc konto powstaje tak, jak przy rejestracji
-             * hasłem: z adresem niepotwierdzonym i z naszą wiadomością
-             * „potwierdź adres" (wychodzi z `event(new Registered)`
-             * w `ZalozKonto`). Wpisanie tu `true` byłoby przyjęciem na
-             * słowo czegoś, czego nikt nie powiedział — i zamknęłoby drogę
-             * odwrotną: konto z „potwierdzonym" adresem, którego nikt nigdy
-             * nie potwierdził, dostaje u nas link do zalogowania na tę
-             * skrzynkę.
-             *
-             * Konto ma więc jedną pewną drogę wejścia (Facebook) i drugą,
-             * która otworzy się po kliknięciu w link z naszej wiadomości.
-             */
-            emailPotwierdzony: false,
-            facebookId: $tozsamosc->identyfikator,
-            ip: $request->ip(),
-            dziennik: ['droga' => 'facebook'],
-        );
-        $user = $konto->user;
-
-        ExternalRegistrationDraft::forget($request, 'facebook');
-        $this->zapomnijTozsamosc($request);
-
-        Auth::login($user, remember: true);
-        $request->session()->regenerate();
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {
@@ -540,7 +458,7 @@ class FacebookLoginController extends Controller
 
         return redirect()->route('onboarding.interests')->with('status',
             'Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
-            .$user->email.' — kliknij w niej przycisk, żeby potwierdzić adres. Dzięki temu '
+            .$konto->user->email.' — kliknij w niej przycisk, żeby potwierdzić adres. Dzięki temu '
             .'będziesz mieć drugą drogę wejścia na konto, gdyby Facebook kiedyś przestał działać.',
         );
     }
@@ -555,9 +473,9 @@ class FacebookLoginController extends Controller
         }
 
         $user = Auth::user();
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
 
-        if (! $user instanceof User || $tozsamosc === null || ! $this->wolnoPolaczyc($user, $tozsamosc)) {
+        if (! $user instanceof User || $tozsamosc === null || ! $this->wejscie()->wolnoPolaczyc($user, $tozsamosc)) {
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -577,42 +495,21 @@ class FacebookLoginController extends Controller
         }
 
         $user = Auth::user();
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
 
         if (! $user instanceof User || $tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
         /*
-         * REWALIDACJA POD BLOKADĄ WIERSZA KONTA (`ZamekKonta`, D-079, D-098).
-         *
-         * Ekran mógł stać otwarty kilkanaście minut. W tym czasie konto mogło
-         * dostać rolę moderatora, mogło zostać zablokowane, mogło już zostać
-         * połączone z innym kontem Facebooka z sąsiedniej karty. Sprawdzenie
-         * tylko przy pokazywaniu ekranu znaczyłoby, że o dostępie do konta
-         * rozstrzyga stan z przeszłości.
-         *
-         * `$swiezy` to wiersz wczytany POD blokadą, więc pytania zadajemy
-         * jemu, nie obiektowi z sesji.
+         * REWALIDACJA POD BLOKADĄ WIERSZA KONTA (`ZamekKonta`, D-079, D-098)
+         * — `WejdzPrzezDostawce::polacz()`. Ekran mógł stać otwarty
+         * kilkanaście minut: konto mogło dostać rolę moderatora, zostać
+         * zablokowane albo już zostać połączone z sąsiedniej karty.
          */
-        $polaczone = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc): ?User {
-            if ($swiezy === null || ! $this->wolnoPolaczyc($swiezy, $tozsamosc)) {
-                return null;
-            }
+        $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc);
 
-            $swiezy->connectFacebook($tozsamosc->identyfikator);
-
-            AuditLogEntry::record(
-                action: 'account.facebook_connected',
-                actor: $swiezy,
-                subject: $swiezy,
-                ip: $request->ip(),
-            );
-
-            return $swiezy;
-        });
-
-        $this->zapomnijTozsamosc($request);
+        $this->wejscie()->zapomnij($request);
 
         if ($polaczone === null) {
             return redirect()->route('settings.security')->with(Komunikat::blad(
@@ -628,125 +525,24 @@ class FacebookLoginController extends Controller
     }
 
     /**
-     * Wejście na konto — jedna droga dla wszystkich przypadków wyżej.
-     *
-     * Kolejność pytań jest ta sama co w `LoginController`
-     * i w `GoogleLoginController` i nie jest przypadkowa: najpierw konto
-     * zamknięte, potem obsługa serwisu, potem drugi składnik.
+     * Wejście na konto — reguły w `WejdzPrzezDostawce::wpusc()` (tam też
+     * kolejność pytań: konto zamknięte, obsługa serwisu, drugi składnik),
+     * a znacznik odebrania dostępu gaśnie w
+     * `DostawcaWejsciaFacebook::przedWejsciem()`. Tu tylko odpowiedź.
      */
     private function wpusc(Request $request, User $user): RedirectResponse
     {
-        /*
-         * WARUNKIEM NIE JEST `isActive()` — tak samo jak przy haśle.
-         * Zawieszenie jest karą „tylko do odczytu": konto żyje, treści są
-         * widoczne, nie da się nic opublikować. Odmowa wejścia wywracałaby
-         * ten projekt — człowiek nie zobaczyłby ani wiadomości od moderacji,
-         * ani terminu końca kary.
-         */
-        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
-            return redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user)));
-        }
-
-        // KONTA OBSŁUGI SERWISU TĄ DROGĄ NIE WCHODZĄ (ten sam zakres co
-        // D-056 i co przy Google). Rolę sprawdzamy przy KAŻDYM wejściu, więc
-        // powiązanie zrobione przed awansem przestaje działać z chwilą
-        // nadania roli.
-        if ($user->hasStaffRole()) {
-            return redirect()->route('login')->with(Komunikat::blad(
+        return match ($this->wejscie()->wpusc($request, $user)) {
+            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',
-            ));
-        }
-
-        /*
-         * POWRÓT PO ODEBRANIU DOSTĘPU — znacznik gaśnie TUTAJ.
-         *
-         * Człowiek, który odebrał nam dostęp w ustawieniach Facebooka,
-         * a teraz znów przeszedł przez ekran zgody, właśnie tę zgodę oddał na
-         * nowo. Zostawienie znacznika kazałoby ekranowi „Ustawienia →
-         * Bezpieczeństwo" pokazywać mu „dostęp odebrany" w chwili, w której
-         * właśnie wszedł tą drogą — czyli karałoby go za skorzystanie
-         * z własnych ustawień (issue #259).
-         */
-        $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
-
-        AuditLogEntry::record('account.login_facebook', $user, $user, ip: $request->ip());
-
-        /*
-         * KONTO Z 2FA NIE WCHODZI TU DO KOŃCA. Dokładnie ta sama ścieżka co
-         * po poprawnym haśle: w sesji ląduje SAM IDENTYFIKATOR konta, nie
-         * zalogowana sesja. Facebook zastępuje hasło, nie drugi składnik.
-         */
-        if ($user->hasTwoFactorConfirmed()) {
-            $request->session()->regenerate();
-            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
-
-            return redirect()->route('login.two_factor');
-        }
-
-        $request->session()->regenerate();
-
-        // `remember: true` jak przy haśle i przy linku e-mail: kto wchodzi
-        // jednym kliknięciem, tym bardziej nie chce robić tego co tydzień.
-        Auth::login($user, remember: true);
-
-        return redirect()->intended(route('home'));
+            )),
+            WynikWejscia::DrugiSkladnik => redirect()->route('login.two_factor'),
+            WynikWejscia::Wpuszczony => redirect()->intended(route('home')),
+        };
     }
 
-    /**
-     * Czy to konto wolno POŁĄCZYĆ z tą tożsamością — pytanie zadawane dwa
-     * razy: przy pokazaniu ekranu i przy zapisie.
-     *
-     * ADRESU E-MAIL NIE MA W TYCH WARUNKACH I TO JEST CAŁA RÓŻNICA MIĘDZY
-     * TYM PLIKIEM A `GoogleLoginController::wolnoPolaczyc()`. Tam adres
-     * z dostawcy musi się zgadzać z adresem konta, bo to on jest dowodem.
-     * Tutaj dowodem jest to, że człowiek JEST ZALOGOWANY na to konto —
-     * a adres z Facebooka nie dowodzi niczego i porównywanie go dawałoby
-     * złudzenie warunku. Konto może więc mieć zupełnie inny adres niż
-     * Facebook i to jest poprawne: ludzie mają kilka adresów.
-     */
-    private function wolnoPolaczyc(User $user, TozsamoscFacebook $tozsamosc): bool
-    {
-        return ! $user->hasFacebookConnected()
-            && ! $user->hasStaffRole()
-            && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
-            // To konto Facebooka nie może być w międzyczasie powiązane z KIMŚ
-            // INNYM — inaczej zapis wpadłby na unikalne ograniczenie bazy.
-            && User::findByFacebookId($tozsamosc->identyfikator) === null;
-    }
-
-    /**
-     * Nazwa do PODPOWIEDZENIA w polu „nazwa w adresie profilu".
-     *
-     * Kolejność źródeł: imię z Facebooka, a gdy go nie ma — początek adresu
-     * e-mail. Adres jest ostatni, bo nazwa profilu jest publiczna, a część
-     * adresów to imię z nazwiskiem i rokiem urodzenia; imię jest lepszą
-     * podpowiedzią i mniej zdradza.
-     */
-    private function proponowanaNazwa(TozsamoscFacebook $tozsamosc): string
-    {
-        foreach ([$tozsamosc->imie, Str::before((string) $tozsamosc->email, '@')] as $zrodlo) {
-            $propozycja = NazwaUzytkownika::wolnaPropozycja((string) $zrodlo);
-
-            if ($propozycja !== null) {
-                return $propozycja;
-            }
-        }
-
-        return '';
-    }
-
-    /**
-     * Adres powrotu MUSI być identyczny w obu żądaniach do Facebooka (przy
-     * zgodzie i przy wymianie kodu) — inaczej Meta odpowiada błędem, a na
-     * ekranie zgody człowiek widzi „URL Blocked". Dlatego liczy go jedna
-     * metoda, a nie dwa miejsca.
-     *
-     * Ta wartość jest też wpisana W PANELU META, znak w znak
-     * (`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md` §4.2:
-     * `https://kuking.pl/wejdz/facebook/wroc`). Zmiana tej trasy wymaga
-     * zmiany także tam — i powiadomienia właściciela.
-     */
     /**
      * List do właściciela konta: „ktoś próbował wejść Twoim adresem".
      *
@@ -798,6 +594,17 @@ class FacebookLoginController extends Controller
         $wlasciciel->notify(new ProbaWejsciaKontemFacebooka);
     }
 
+    /**
+     * Adres powrotu MUSI być identyczny w obu żądaniach do Facebooka (przy
+     * zgodzie i przy wymianie kodu) — inaczej Meta odpowiada błędem, a na
+     * ekranie zgody człowiek widzi „URL Blocked". Dlatego liczy go jedna
+     * metoda, a nie dwa miejsca.
+     *
+     * Ta wartość jest też wpisana W PANELU META, znak w znak
+     * (`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md` §4.2:
+     * `https://kuking.pl/wejdz/facebook/wroc`). Zmiana tej trasy wymaga
+     * zmiany także tam — i powiadomienia właściciela.
+     */
     private function adresPowrotu(): string
     {
         return route('facebook.callback');
@@ -805,63 +612,15 @@ class FacebookLoginController extends Controller
 
     private function zapiszTozsamosc(Request $request, TozsamoscFacebook $tozsamosc): void
     {
-        /*
-         * W SESJI LEŻY MINIMUM I LEŻY KRÓTKO.
-         *
-         * Sesja jest po naszej stronie (sterownik bazy), więc nie jest to
-         * dana wystawiona człowiekowi — ale jest to ROZPOZNANA TOŻSAMOŚĆ,
-         * na którą da się założyć konto albo dołożyć drogę wejścia do
-         * istniejącego. Dlatego zapisujemy chwilę zapisu i sprawdzamy ją
-         * przy odczycie: ekran domknięcia porzucony na cudzym komputerze
-         * nie ma prawa być tam ważny nazajutrz.
-         */
-        $request->session()->put(self::KLUCZ_TOZSAMOSC, [
-            'identyfikator' => $tozsamosc->identyfikator,
-            'email' => $tozsamosc->email,
-            'imie' => $tozsamosc->imie,
-            'od' => now()->getTimestamp(),
-        ]);
+        $this->wejscie()->zapamietaj($request, $this->dostawca->tozsamosc($tozsamosc));
     }
 
-    private function tozsamoscZSesji(Request $request): ?TozsamoscFacebook
+    /**
+     * Wspólne reguły konta i sesji (#1035) z różnicami Facebooka.
+     */
+    private function wejscie(): WejdzPrzezDostawce
     {
-        $dane = $request->session()->get(self::KLUCZ_TOZSAMOSC);
-
-        if (! is_array($dane)) {
-            return null;
-        }
-
-        $od = (int) ($dane['od'] ?? 0);
-
-        if ($od === 0 || Carbon::createFromTimestamp($od)
-            ->addMinutes(Facebook::waznoscDomknieciaMinut())
-            ->isPast()) {
-            $this->zapomnijTozsamosc($request);
-
-            return null;
-        }
-
-        $identyfikator = (string) ($dane['identyfikator'] ?? '');
-
-        if ($identyfikator === '') {
-            return null;
-        }
-
-        $email = (string) ($dane['email'] ?? '');
-
-        return new TozsamoscFacebook(
-            identyfikator: $identyfikator,
-            // Pusty adres wraca jako `null`, a nie jako pusty napis — to jest
-            // ta sama umowa co w `KlientFacebook`, żeby nie dało się przejść
-            // dalej z „adresem", którego nie ma.
-            email: $email === '' ? null : $email,
-            imie: (string) ($dane['imie'] ?? ''),
-        );
-    }
-
-    private function zapomnijTozsamosc(Request $request): void
-    {
-        $request->session()->forget(self::KLUCZ_TOZSAMOSC);
+        return new WejdzPrzezDostawce($this->dostawca);
     }
 
     private function trzebaZaczacOdNowa(): RedirectResponse

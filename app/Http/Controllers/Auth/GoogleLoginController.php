@@ -5,26 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
-use App\Domain\Security\TwoFactorAuthenticator;
+use App\Domain\Security\WejsciePrzezDostawce\WejdzPrzezDostawce;
+use App\Domain\Security\WejsciePrzezDostawce\WynikWejscia;
 use App\Domain\Users\Actions\ZalozKonto;
-use App\Domain\Users\ZamekKonta;
+use App\Google\DostawcaWejsciaGoogle;
 use App\Google\KlientGoogle;
 use App\Google\TozsamoscGoogle;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Models\User;
-use App\Rules\ReservedUsername;
-use App\Rules\UsernameNotTaken;
-use App\Support\ExternalRegistrationDraft;
 use App\Support\Google;
 use App\Support\Komunikat;
-use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -158,16 +151,17 @@ use Illuminate\View\View;
  */
 class GoogleLoginController extends Controller
 {
-    /** Klucze w sesji. Wszystkie jednorazowe, wszystkie kasowane po odczycie. */
+    /**
+     * Klucze protokołu w sesji. Wszystkie jednorazowe, wszystkie kasowane po
+     * odczycie. Tożsamość po powrocie trzyma `WejdzPrzezDostawce`.
+     */
     private const KLUCZ_STATE = 'wejscie_google.state';
 
     private const KLUCZ_NONCE = 'wejscie_google.nonce';
 
     private const KLUCZ_PKCE = 'wejscie_google.pkce';
 
-    private const KLUCZ_TOZSAMOSC = 'wejscie_google.tozsamosc';
-
-    private const KLUCZ_KONTO = 'wejscie_google.konto';
+    public function __construct(private readonly DostawcaWejsciaGoogle $dostawca) {}
 
     /**
      * Kliknięcie „Wejdź kontem Google" — odsyłamy człowieka do Google.
@@ -306,7 +300,7 @@ class GoogleLoginController extends Controller
         $powiazane = User::findByGoogleSub($tozsamosc->sub);
 
         if ($powiazane !== null) {
-            return $this->wpusc($request, $powiazane, 'account.login_google');
+            return $this->wpusc($request, $powiazane);
         }
 
         $istniejace = User::where('email', $tozsamosc->email)->first();
@@ -338,22 +332,16 @@ class GoogleLoginController extends Controller
             ));
         }
 
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
 
         if ($tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $draft = ExternalRegistrationDraft::restore($request, 'google', $tozsamosc->sub);
-
-        return view('auth.google-finish', [
-            'email' => $tozsamosc->email,
-            // PODPOWIEDŹ, NIE NADANIE. Nazwa stoi w polu, które człowiek
-            // widzi i może zmienić — decyzja właściciela z 10 września
-            // (dwa pola przy rejestracji, nazwa podpowiadana z imienia).
-            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
-        ]);
+        // PODPOWIEDŹ, NIE NADANIE. Nazwa stoi w polu, które człowiek widzi
+        // i może zmienić — decyzja właściciela z 10 września (dwa pola przy
+        // rejestracji, nazwa podpowiadana z imienia).
+        return view('auth.google-finish', $this->wejscie()->ekranDomkniecia($request, $tozsamosc));
     }
 
     /**
@@ -370,113 +358,27 @@ class GoogleLoginController extends Controller
         // samego skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
-        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.sub');
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
 
         if ($tozsamosc === null) {
-            ExternalRegistrationDraft::remember($request, 'google', $previousIdentity);
-
             return $this->trzebaZaczacOdNowa();
         }
 
-        $minAge = (int) config('kuking.account.min_age');
+        $dane = $this->wejscie()->daneDomkniecia($request);
 
-        // NAZWĘ UKŁADAMY PRZED WALIDACJĄ, tak samo jak w rejestracji hasłem
-        // — i z tego samego powodu bezpieczeństwa: normalizacja stoi PRZED
-        // `ReservedUsername`, więc „ądmin" jest sprawdzane jako `admin`.
-        $request->merge([
-            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
-        ]);
+        // GOOGLE POTWIERDZIŁO ADRES (reguła 1 wyżej), więc konto powstaje
+        // z adresem potwierdzonym i listu z potwierdzeniem nie ma —
+        // `listPotwierdzajacyNieWyszedl` jest zawsze `false`, nie ma o czym
+        // mówić człowiekowi. Hasła też nie ma: konto ma dwie drogi wejścia,
+        // Google i — bo adres jest potwierdzony — wiadomość z linkiem.
+        $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
 
-        $dane = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
-            'username' => [
-                'required', 'string', 'min:3', 'max:40',
-                'regex:'.NazwaUzytkownika::WZORZEC,
-                new ReservedUsername,
-                new UsernameNotTaken,
-            ],
-            /*
-             * OŚWIADCZENIA SĄ WYMAGANE I NIE SĄ ZAZNACZONE Z GÓRY.
-             *
-             * Google ich nie przekaże i nie wolno ich postawić za człowieka:
-             * to ciemny wzorzec, a przy oświadczeniu o wieku dodatkowo bez
-             * wartości — oświadczenie złożone przez serwer nie jest niczyim
-             * oświadczeniem. `accepted` odrzuca brak pola, więc ekran bez
-             * haczyków nie przejdzie.
-             */
-            'age_confirmed' => ['accepted'],
-            'terms_accepted' => ['accepted'],
-            /*
-             * TURNSTILE TU NIE STOI I JEST TO DECYZJA, NIE PRZEOCZENIE
-             * (D-069, sekcja o captchy).
-             *
-             * D-050 stawia Turnstile tam, gdzie automat wysyła formularz
-             * PUBLICZNY i coś nas to kosztuje. Ten formularz publiczny nie
-             * jest: żeby na niego wejść, trzeba mieć konto Google
-             * z potwierdzonym adresem i przejść ekran zgody Google — czyli
-             * bramkę mocniejszą od captchy i wcześniejszą od niej. Zostaje
-             * limit zapytań (`limits.google_domkniecie`).
-             */
-        ], [
-            'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
-            'username.required' => 'Wpisz nazwę, która ma być w adresie Twojego profilu — na przykład imię i miejscowość: basia z podkarpacia.',
-            // Zdanie BEZ RODZAJU i w tym samym brzmieniu co przy rejestracji
-            // hasłem (`RegisterController`) — docs/brand/COPY_STYLE.md §2.
-            // Dwa różne teksty na te same dwa formularze rozjechałyby się
-            // przy pierwszej poprawce, a ten jeden już raz był poprawiany.
-            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość, na przykład: basia z podkarpacia.',
-            'age_confirmed.accepted' => "Kuking jest dla osób od {$minAge} lat. Potwierdź, że masz tyle lat.",
-            'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',
-        ]);
-
-        /*
-         * SPRAWDZAMY PONOWNIE, CZY TO WCIĄŻ JEST NOWE KONTO.
-         *
-         * Między powrotem z Google a wysłaniem tego formularza mija tyle
-         * czasu, ile człowiek potrzebuje na przeczytanie regulaminu.
-         * W tym czasie mogło powstać konto na ten adres (ktoś zakłada
-         * je równolegle w drugiej karcie) albo to konto Google mogło zostać
-         * powiązane gdzie indziej. Bez tego sprawdzenia zapis wpadłby na
-         * unikalny indeks bazy i człowiek zobaczyłby błąd serwera.
-         */
-        if (User::findByGoogleSub($tozsamosc->sub) !== null
-            || User::where('email', $tozsamosc->email)->exists()) {
-            ExternalRegistrationDraft::forget($request, 'google');
-            $this->zapomnijTozsamosc($request);
-
+        if ($konto === null) {
             return redirect()->route('login')->with(Komunikat::blad(
                 'W tym czasie powstało już konto na ten adres. Zaloguj się — hasłem, kontem Google '
                 .'albo poproś o wiadomość z przyciskiem do zalogowania.',
             ));
         }
-
-        // Listu z potwierdzeniem tu nie ma (adres potwierdziło Google), więc
-        // `listPotwierdzajacyNieWyszedl` jest zawsze `false` — nie ma o czym
-        // mówić człowiekowi. Awarie po zatwierdzeniu konta idą do `report()`
-        // w `ZalozKonto` i nie dają 500 (#1373).
-        $user = $zalozKonto->handle(
-            email: $tozsamosc->email,
-            displayName: $dane['display_name'],
-            username: $dane['username'],
-            // BEZ HASŁA. Konto ma dwie drogi wejścia: Google i — bo adres
-            // jest potwierdzony — wiadomość z linkiem. Hasło ustawi sobie
-            // przez „Nie pamiętam hasła", jeśli zechce.
-            haslo: null,
-            // GOOGLE POTWIERDZIŁO ADRES (reguła 1 wyżej), więc nie prosimy
-            // człowieka o to samo drugi raz. Ten sam wywód co w
-            // `User::assignEmail()` przy kliknięciu w link.
-            emailPotwierdzony: true,
-            googleSub: $tozsamosc->sub,
-            ip: $request->ip(),
-            dziennik: ['droga' => 'google'],
-        )->user;
-
-        ExternalRegistrationDraft::forget($request, 'google');
-        $this->zapomnijTozsamosc($request);
-
-        Auth::login($user, remember: true);
-        $request->session()->regenerate();
 
         return redirect()->route('onboarding.interests')
             ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
@@ -491,10 +393,10 @@ class GoogleLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        $tozsamosc = $this->tozsamoscZSesji($request);
-        $user = $this->kontoZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $user = $this->wejscie()->kontoZSesji($request);
 
-        if ($tozsamosc === null || $user === null || ! $this->wolnoPolaczyc($user, $tozsamosc)) {
+        if ($tozsamosc === null || $user === null || ! $this->wejscie()->wolnoPolaczyc($user, $tozsamosc)) {
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -513,114 +415,45 @@ class GoogleLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        $tozsamosc = $this->tozsamoscZSesji($request);
-        $user = $this->kontoZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $user = $this->wejscie()->kontoZSesji($request);
 
-        /*
-         * WSZYSTKIE WARUNKI SPRAWDZAMY PONOWNIE, przy zapisie.
-         *
-         * Ekran mógł stać otwarty kilkanaście minut. W tym czasie konto
-         * mogło zostać zablokowane, mogło dostać rolę moderatora, mógł
-         * zmienić się jego adres e-mail albo ktoś mógł zdjąć z niego
-         * potwierdzenie adresu. Sprawdzenie tylko przy pokazywaniu ekranu
-         * znaczyłoby, że o dostępie do konta rozstrzyga stan z przeszłości.
-         */
         if ($tozsamosc === null || $user === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
         /*
-         * REWALIDACJA POD BLOKADĄ WIERSZA KONTA (`ZamekKonta`, D-079).
-         *
-         * Sprawdzenie warunków i zapis powiązania muszą widzieć TEN SAM stan
-         * konta, a między jednym i drugim mieści się cała klasa wyścigów,
-         * które kończą się wejściem na konto: nadanie roli moderatora,
-         * blokada, zmiana adresu e-mail, zdjęcie potwierdzenia adresu, drugie
-         * takie samo żądanie z sąsiedniej karty. Bez blokady rozstrzygałby
-         * o dostępie stan z przeszłości — a to jest dokładnie ten kształt
-         * błędu, dla którego `ZamekKonta` w tym projekcie powstał.
-         *
-         * `$swiezy` to wiersz wczytany POD blokadą, więc pytania zadajemy
-         * jemu, nie obiektowi z sesji.
+         * WSZYSTKIE WARUNKI SPRAWDZAMY PONOWNIE, przy zapisie i pod blokadą
+         * wiersza konta — `WejdzPrzezDostawce::polacz()`. Ekran mógł stać
+         * otwarty kilkanaście minut: konto mogło zostać zablokowane, dostać
+         * rolę moderatora, zmienić adres albo stracić jego potwierdzenie.
          */
-        $polaczone = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc): ?User {
-            if ($swiezy === null || ! $this->wolnoPolaczyc($swiezy, $tozsamosc)) {
-                return null;
-            }
-
-            $swiezy->connectGoogle($tozsamosc->sub);
-
-            AuditLogEntry::record(
-                action: 'account.google_connected',
-                actor: $swiezy,
-                subject: $swiezy,
-                ip: $request->ip(),
-            );
-
-            return $swiezy;
-        });
+        $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc);
 
         if ($polaczone === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $this->zapomnijTozsamosc($request);
+        $this->wejscie()->zapomnij($request);
 
-        return $this->wpusc($request, $polaczone, 'account.login_google');
+        return $this->wpusc($request, $polaczone);
     }
 
     /**
-     * Wejście na konto — jedna droga dla wszystkich przypadków wyżej.
-     *
-     * Kolejność pytań jest ta sama co w `LoginController` i nie jest
-     * przypadkowa: najpierw konto zamknięte, potem obsługa serwisu, potem
-     * drugi składnik.
+     * Wejście na konto — reguły w `WejdzPrzezDostawce::wpusc()`, tu tylko
+     * odpowiedź na ekranie.
      */
-    private function wpusc(Request $request, User $user, string $akcjaDziennika): RedirectResponse
+    private function wpusc(Request $request, User $user): RedirectResponse
     {
-        /*
-         * WARUNKIEM NIE JEST `isActive()` — tak samo jak przy haśle.
-         *
-         * Zawieszenie jest karą „tylko do odczytu": konto żyje, treści są
-         * widoczne, nie da się nic opublikować. Odmowa wejścia wywracałaby
-         * ten projekt — człowiek nie zobaczyłby ani wiadomości od moderacji,
-         * ani terminu końca kary.
-         */
-        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
-            return redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user)));
-        }
-
-        // KONTA OBSŁUGI SERWISU TĄ DROGĄ NIE WCHODZĄ (ten sam zakres co
-        // D-056). Rolę sprawdzamy przy KAŻDYM wejściu, więc powiązanie
-        // zrobione przed awansem przestaje działać z chwilą nadania roli.
-        if ($user->hasStaffRole()) {
-            return redirect()->route('login')->with(Komunikat::blad(
+        return match ($this->wejscie()->wpusc($request, $user)) {
+            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Google. '
                 .'Zaloguj się poniżej.',
-            ));
-        }
-
-        AuditLogEntry::record($akcjaDziennika, $user, $user, ip: $request->ip());
-
-        /*
-         * KONTO Z 2FA NIE WCHODZI TU DO KOŃCA. Dokładnie ta sama ścieżka co
-         * po poprawnym haśle: w sesji ląduje SAM IDENTYFIKATOR konta, nie
-         * zalogowana sesja. Google zastępuje hasło, nie drugi składnik.
-         */
-        if ($user->hasTwoFactorConfirmed()) {
-            $request->session()->regenerate();
-            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
-
-            return redirect()->route('login.two_factor');
-        }
-
-        $request->session()->regenerate();
-
-        // `remember: true` jak przy haśle i przy linku e-mail: kto wchodzi
-        // jednym kliknięciem, tym bardziej nie chce robić tego co tydzień.
-        Auth::login($user, remember: true);
-
-        return redirect()->intended(route('home'));
+            )),
+            WynikWejscia::DrugiSkladnik => redirect()->route('login.two_factor'),
+            WynikWejscia::Wpuszczony => redirect()->intended(route('home')),
+        };
     }
 
     /**
@@ -630,8 +463,8 @@ class GoogleLoginController extends Controller
     {
         // Konto zamknięte i obsługa serwisu — odpowiedź jak przy wejściu,
         // żeby te dwa przypadki miały JEDNO miejsce prawdy.
-        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true) || $user->hasStaffRole()) {
-            return $this->wpusc($request, $user, 'account.login_google');
+        if ($this->wejscie()->odmowaWejscia($user) !== null) {
+            return $this->wpusc($request, $user);
         }
 
         /*
@@ -660,47 +493,9 @@ class GoogleLoginController extends Controller
 
         // REGUŁA 3 — połączenie po jawnym potwierdzeniu na naszym ekranie.
         $this->zapiszTozsamosc($request, $tozsamosc);
-        $request->session()->put(self::KLUCZ_KONTO, $user->getKey());
+        $this->wejscie()->zapamietajKonto($request, $user);
 
         return redirect()->route('google.link');
-    }
-
-    /**
-     * Czy to konto wolno POŁĄCZYĆ z tą tożsamością — pytanie zadawane dwa
-     * razy: przy pokazaniu ekranu i przy zapisie.
-     */
-    private function wolnoPolaczyc(User $user, TozsamoscGoogle $tozsamosc): bool
-    {
-        return $user->email === $tozsamosc->email
-            && $user->email_verified_at !== null
-            && ! $user->hasGoogleConnected()
-            && ! $user->hasStaffRole()
-            && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
-            // To konto Google nie może być w międzyczasie powiązane z KIMŚ
-            // INNYM — inaczej zapis wpadłby na unikalny indeks bazy.
-            && User::findByGoogleSub($tozsamosc->sub) === null;
-    }
-
-    /**
-     * Nazwa do PODPOWIEDZENIA w polu „nazwa w adresie profilu".
-     *
-     * Kolejność źródeł: imię z Google, a gdy go nie ma — początek adresu
-     * e-mail. Adres jest ostatni, bo nazwa profilu jest publiczna, a część
-     * adresów to imię z nazwiskiem i rokiem urodzenia; imię jest lepszą
-     * podpowiedzią i mniej zdradza. Puste, gdy nie da się ułożyć nic — wtedy
-     * człowiek wpisuje swoje, tak jak przy rejestracji hasłem.
-     */
-    private function proponowanaNazwa(TozsamoscGoogle $tozsamosc): string
-    {
-        foreach ([$tozsamosc->imie, Str::before($tozsamosc->email, '@')] as $zrodlo) {
-            $propozycja = NazwaUzytkownika::wolnaPropozycja((string) $zrodlo);
-
-            if ($propozycja !== null) {
-                return $propozycja;
-            }
-        }
-
-        return '';
     }
 
     /**
@@ -714,74 +509,21 @@ class GoogleLoginController extends Controller
         return route('google.callback');
     }
 
+    /**
+     * Do sesji trafia WYŁĄCZNIE tożsamość, która przeszła regułę 1
+     * w `callback()` — `WejdzPrzezDostawce::zapamietaj()` odrzuca każdą inną.
+     */
     private function zapiszTozsamosc(Request $request, TozsamoscGoogle $tozsamosc): void
     {
-        /*
-         * W SESJI LEŻY MINIMUM I LEŻY KRÓTKO.
-         *
-         * Sesja jest po naszej stronie (sterownik bazy), więc nie jest to
-         * dana wystawiona człowiekowi — ale jest to POTWIERDZONA TOŻSAMOŚĆ,
-         * na którą da się założyć konto. Dlatego zapisujemy chwilę zapisu
-         * i sprawdzamy ją przy odczycie: ekran domknięcia porzucony na
-         * cudzym komputerze nie ma prawa być tam ważny nazajutrz.
-         *
-         * Imienia z Google NIE zapisujemy dłużej niż trzeba — służy raz,
-         * jako podpowiedź na ekranie.
-         */
-        $request->session()->put(self::KLUCZ_TOZSAMOSC, [
-            'sub' => $tozsamosc->sub,
-            'email' => $tozsamosc->email,
-            'imie' => $tozsamosc->imie,
-            'od' => now()->getTimestamp(),
-        ]);
+        $this->wejscie()->zapamietaj($request, $this->dostawca->tozsamosc($tozsamosc));
     }
 
-    private function tozsamoscZSesji(Request $request): ?TozsamoscGoogle
+    /**
+     * Wspólne reguły konta i sesji (#1035) z różnicami Google.
+     */
+    private function wejscie(): WejdzPrzezDostawce
     {
-        $dane = $request->session()->get(self::KLUCZ_TOZSAMOSC);
-
-        if (! is_array($dane)) {
-            return null;
-        }
-
-        $od = (int) ($dane['od'] ?? 0);
-
-        if ($od === 0 || Carbon::createFromTimestamp($od)
-            ->addMinutes(Google::waznoscDomknieciaMinut())
-            ->isPast()) {
-            $this->zapomnijTozsamosc($request);
-
-            return null;
-        }
-
-        $sub = (string) ($dane['sub'] ?? '');
-        $email = (string) ($dane['email'] ?? '');
-
-        if ($sub === '' || $email === '') {
-            return null;
-        }
-
-        // `emailPotwierdzony: true` — do sesji trafia WYŁĄCZNIE tożsamość,
-        // która przeszła regułę 1 w `callback()`. Gdyby kiedyś powstała
-        // druga droga zapisu, ma przejść przez `zapiszTozsamosc()`.
-        return new TozsamoscGoogle(
-            sub: $sub,
-            email: $email,
-            emailPotwierdzony: true,
-            imie: (string) ($dane['imie'] ?? ''),
-        );
-    }
-
-    private function kontoZSesji(Request $request): ?User
-    {
-        $id = $request->session()->get(self::KLUCZ_KONTO);
-
-        return is_string($id) ? User::find($id) : null;
-    }
-
-    private function zapomnijTozsamosc(Request $request): void
-    {
-        $request->session()->forget([self::KLUCZ_TOZSAMOSC, self::KLUCZ_KONTO]);
+        return new WejdzPrzezDostawce($this->dostawca);
     }
 
     private function trzebaZaczacOdNowa(): RedirectResponse
