@@ -49,10 +49,18 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
      * na `main`, do rozcięcia osobnym zadaniem — tak jak Users → Social
      * kontraktem `ObserwowanieGospodarza`.
      *
+     * I dalej o Analytics i Media, też zastane na `main` (stan z 25.09):
+     * Users → Media (`EraseAccountData` kasuje pliki), Media → Moderation
+     * (`DostepDoZdjecia` pyta `ModeratedContent`, 24.09), Media → Analytics
+     * (`StoreUploadedImage`, zdarzenie `photo_upload_failed`) i Analytics →
+     * Compliance (`PrzedawnioneSygnaly` używa `UsuwanieWPartiach`, #1657).
+     * Do rozcięcia osobnym zadaniem; ta gałąź żadnej z tych krawędzi nie
+     * dokłada.
+     *
      * @var list<list<string>>
      */
     private const ZNANE_CYKLE = [
-        ['Compliance', 'Moderation', 'Security', 'Users'],
+        ['Analytics', 'Compliance', 'Media', 'Moderation', 'Security', 'Users'],
     ];
 
     public function test_graf_modulow_domeny_nie_ma_nowych_cykli(): void

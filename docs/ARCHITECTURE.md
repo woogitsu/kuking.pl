@@ -131,8 +131,13 @@ furtką. Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
 `KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`). Wejście przez
 dostawcę (#1035) dołożyło krawędź `Security → Users`
 (`WejdzPrzezDostawce` → `ZalozKonto`, `ZamekKonta`), więc ten sam cykl
-obejmuje dziś `Compliance → Moderation → Security → Users → Compliance`.
-Do rozcięcia osobnym zadaniem.
+objął `Compliance → Moderation → Security → Users → Compliance`. Do 25.09
+urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
+`Media → Moderation` (`DostepDoZdjecia`), `Media → Analytics`
+(`StoreUploadedImage`) i `Analytics → Compliance` (`PrzedawnioneSygnaly` →
+`UsuwanieWPartiach`, #1657). Jedna silnie spójna składowa: Analytics,
+Compliance, Media, Moderation, Security, Users. Do rozcięcia osobnym
+zadaniem.
 
 ## Queue
 
