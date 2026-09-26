@@ -6,6 +6,7 @@ namespace App\Domain\Feed;
 
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 
@@ -143,9 +144,31 @@ final class TagFeed
             ->exists();
     }
 
-    /** @return list<string> */
+    /**
+     * Identyfikatory obserwowanych tagów, które WOLNO jeszcze dystrybuować —
+     * wspólne dla `paginate()` i `maTresci()`, żeby oba pytały o ten sam
+     * zestaw i wybór źródła nie kończył się pustym strumieniem.
+     *
+     * TYLKO AKTYWNE (issue #1824). Tag ukryty przez moderację po tym, jak
+     * ktoś zaczął go obserwować, ma 404 na własnej stronie i znika
+     * z katalogu, ale wiersz w `tag_follows` zostaje — świadomie, żeby
+     * człowiek mógł go sam zdjąć w „Twoich tagach" (`UpdateTagFollows`,
+     * test #853). Bez tego warunku taki niewidoczny temat dalej sterował
+     * Startem: zasilał ten feed, a gdy był jedynym źródłem, `maTresci()`
+     * wybierało „tagi" zamiast odkrywania. Scalony tag (`merged`) też
+     * odpada — `MergeTags` przenosi obserwowanie na aktywny cel.
+     *
+     * Warunek stoi TUTAJ, a nie jako zakres relacji `followedTags()`:
+     * ekran ustawień musi nadal widzieć zastany ukryty tag, żeby dało się
+     * go usunąć.
+     *
+     * @return list<string>
+     */
     private function obserwowaneTagi(User $viewer): array
     {
-        return $viewer->followedTags()->pluck('tags.id')->all();
+        return $viewer->followedTags()
+            ->where('tags.status', Tag::STATUS_ACTIVE)
+            ->pluck('tags.id')
+            ->all();
     }
 }
