@@ -28,6 +28,7 @@ use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -334,6 +335,13 @@ try {
             Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
             Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
         )->getKey(),
+        // Limit listy „Co mam w domu” (#1958): prawdziwa akcja domenowa,
+        // żeby test pękł, jeśli blokada wiersza właściciela zniknie
+        // z `CoMamWDomu::dodaj()`.
+        'dodaj-do-pantry' => (string) app(CoMamWDomu::class)
+            ->dodaj(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['nazwa'])['produkt']
+            ->getKey(),
+
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.
         'tablica-dnia' => (function () use ($argumenty): array {

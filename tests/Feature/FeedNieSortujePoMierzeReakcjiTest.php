@@ -168,6 +168,20 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
                 .'z DailyBoardController, gdzie było alfabetyczne. Rozstrzyga `orderBy(\'id\')` tuż obok, '
                 .'więc przy równym czasie kolejność jest stała, a nie losowa.',
         ],
+        'app/Domain/Pantry/CoUgotuje.php' => [
+            "'skladnikow_brakuje'" => 'Alias podzapytania: ile linijek składników TEGO przepisu nie ma na MOJEJ liście '
+                .'„Co mam w domu" (D-285). Liczy moje produkty wobec składników przepisu — nie reakcje innych ludzi. '
+                .'To jest pierwszy człon jawnej reguły „najpierw te, do których masz najwięcej", pokazanej na ekranie '
+                .'jednym zdaniem (`CoUgotuje::REGULA`).',
+            "'(recipes.prep_minutes + recipes.cook_minutes) ASC NULLS LAST'" => 'Drugi człon tej samej reguły: przy '
+                .'remisie krótszy łączny czas przygotowania i gotowania, podany przez autora przepisu. Czas, nie '
+                .'popularność; przepis bez podanego czasu idzie na koniec remisu (ta sama zasada co „Do 30 minut").',
+        ],
+        'app/Domain/Pantry/PodpowiedziSkladnikow.php' => [
+            "'char_length(canonical_name), canonical_name'" => 'Kolejność podpowiedzi pod polem „Co masz w domu?": '
+                .'najkrótsza nazwa składnika najpierw, potem alfabet. Świadomie NIE „najczęściej używane" — to byłaby '
+                .'miara cudzej aktywności. Krótsza nazwa jest po prostu bliżej tego, co ktoś wpisał.',
+        ],
         'app/Domain/Search/SearchQuery.php' => [
             "'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC', [\$needle, \$needle]" => 'Trafność wyszukiwania przepisów. '
                 .'TO NIE JEST FEED — i to jest pierwsza rzecz, którą zakwestionuje następny czytelnik tego rejestru, '
@@ -204,6 +218,12 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             ...(glob(app_path('Domain/Feed/*.php')) ?: []),
             ...(glob(app_path('Domain/Digest/*.php')) ?: []),
         ];
+
+        // Dobór przepisów „Co ugotuję z tego, co mam" (D-285) nie woła
+        // `publiclyVisible()` (idzie przez `widoczneDla()`), a układa treści
+        // pokazywane człowiekowi bez jego frazy — ta sama kategoria co feed.
+        // Katalog wchodzi pod skan wprost, żeby nowy plik obok wszedł sam.
+        $kandydaci = [...$kandydaci, ...(glob(app_path('Domain/Pantry/*.php')) ?: [])];
 
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
 
@@ -504,6 +524,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             'app/Domain/Feed/FollowingFeed.php',
             'app/Domain/Feed/HeroKolaz.php',
             'app/Domain/Search/SearchQuery.php',
+            'app/Domain/Pantry/CoUgotuje.php',
             'app/Domain/Digest/ZbierzTresciDigestu.php',
             'app/Domain/Feed/MojStol.php',
         ] as $kotwica) {

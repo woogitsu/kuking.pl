@@ -316,6 +316,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->orderBy('tags.name');
     }
 
+    /**
+     * Prywatna lista „Co mam w domu” (D-285). Kolejność alfabetyczna po
+     * nazwie — to jest lista zakupowa w głowie, nie strumień.
+     *
+     * @return HasMany<PantryItem, $this>
+     */
+    public function pantryItems(): HasMany
+    {
+        return $this->hasMany(PantryItem::class)->orderBy('name')->orderBy('id');
+    }
+
     public function isFollowingTag(Tag $tag): bool
     {
         return $this->followedTags()->whereKey($tag->getKey())->exists();

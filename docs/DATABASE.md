@@ -5034,6 +5034,65 @@ pytania. Odmowa i kontrola dodatnia:
 niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
 (`InwentarzDanychKonta`).
 
+## pantry_items — „Co mam w domu” (V2, D-285)
+
+Prywatna lista produktów jednej osoby; na niej stoi „Co ugotuję z tego,
+co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
+`2026_09_26_120000_create_pantry_items_table`.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel listy; nie jest w `$fillable` — wiersz powstaje przez `$user->pantryItems()` |
+| `name` | `varchar(120) NOT NULL` | nazwa dokładnie tak, jak ją wpisano; tylko ją pokazujemy |
+| `rdzenie` | `text[]` `GENERATED ALWAYS AS (kuking_rdzenie_skladnika(name)) STORED` | rdzenie słów do porównania ze składnikami przepisów |
+| `klucz` | `text` `GENERATED ALWAYS AS (kuking_klucz_skladnika(name)) STORED` | rdzenie posortowane i sklejone spacją |
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+
+Ograniczenia:
+- `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
+  AND cardinality(rdzenie) > 0` — nazwa bez słów („500”, „-”) dałaby pustą
+  tablicę rdzeni, a pusta tablica zawiera się w każdej (`<@`), czyli „masz
+  ten składnik” przy każdym przepisie;
+- `pantry_items_user_klucz_unique`: `UNIQUE (user_id, klucz)` — „Jajka”
+  i „jajko” to na jednej liście ten sam produkt. Ten indeks obsługuje też
+  zapytania po `user_id`.
+
+Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
+- `public.kuking_formy_skladnikow() → jsonb` — zamknięty słownik form
+  krótkich słów (forma → rdzeń, np. `maki` → `maka`, `maku` → `mak`,
+  `sera` → `ser`). Rdzeń ma najwyżej 4 litery, każda forma zaczyna się od
+  jego pierwszych trzech liter — na tym opiera się wstępny filtr `LIKE`
+  (#1969). Stała w funkcji, nie tabela, bo kolumna generowana wymaga
+  funkcji `IMMUTABLE`;
+- `public.kuking_rdzenie_skladnika(text) → text[]` — `kuking_normalize()`,
+  podział na słowa, bez liczb i słów jednoliterowych; słowo ze słownika
+  form dostaje rdzeń ze słownika, pozostałe — „liczbę mnogą prostą” tylko
+  gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+  traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
+  litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
+  posortowany i bez powtórzeń. Ta sama funkcja liczy
+  rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
+  reguła mieszka wyłącznie w bazie, bez kopii w PHP;
+- `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
+  Osobna funkcja, bo samo `array_to_string()` jest `STABLE` i nie wolno go
+  użyć w kolumnie generowanej.
+
+Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
+'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
+pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
+`recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
+
+Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
+generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
+nie kasuje, więc kaskada klucza obcego tam nie działa).
+
+**Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
+składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
+listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
+`KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
+(`migrate:refresh`) przechodzi bez pytania.
+
 ## V1 / V2
 
 Później:
@@ -5045,7 +5104,6 @@ Później:
 - answers;
 - meal_plans (rozbudowa planera ponad `meal_plan_entries`);
 - shopping_lists;
-- pantry_items;
 - subscriptions;
 - payments.
 
