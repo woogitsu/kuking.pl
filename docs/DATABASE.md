@@ -1098,10 +1098,12 @@ poziom uprawnień:
    „przy koncie, nie tylko w regulaminie — nikt nie czyta regulaminu, żeby
    dowiedzieć się, czy pisze do człowieka".
 2. **Wykluczenie z Weekly Active Cooks i z kohorty retencji**
-   (`App\Domain\Analytics\CookEligibility::excludedUserIds()`) — dwanaście
-   person publikuje z definicji plikowej i nie ma zasilać liczby, która ma
-   mierzyć żywą społeczność (issue #114, ten sam powód, dla którego tamta
-   klasa już wyklucza gospodarza i konta testowe).
+   (`App\Domain\Analytics\CookEligibility::tylkoLiczeni()` — dawne
+   `excludedUserIds()` zniknęło w #1309, wykluczenie jest teraz filtrem SQL,
+   nie listą UUID w PHP) — dwanaście person publikuje z definicji plikowej
+   i nie ma zasilać liczby, która ma mierzyć żywą społeczność (issue #114,
+   ten sam powód, dla którego ta metoda już wyklucza gospodarza i konta
+   testowe).
 
 **Dlaczego na `users`, nie na `profiles`.** Wszystkie cztery miejsca z punktu
 1 i tak już ładują `User` (`$post->author`, `$recipe->author`,
@@ -1983,6 +1985,76 @@ ręcznie. Na wartościach domyślnych i na świeżej bazie rollback przechodzi b
 pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
 sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
 rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
+
+### Urodziny bez roku (issue #1755)
+
+Kolumny na `users`, bo to prywatne ustawienie konta, a nie dana profilu
+publicznego (`profiles`). Decyzja właściciela z 25.09.2026 — **D-269**
+w `docs/DECISIONS.md`, research `docs/research/PROFIL_FORMA_I_URODZINY.md`.
+
+**Etap a** — migracja `2026_09_25_200000_add_birthday_to_users`:
+
+- **`users.birthday_day`** (`smallint NULL`) i **`users.birthday_month`**
+  (`smallint NULL`) — dzień i miesiąc urodzin. **Roku nie ma i nie będzie**:
+  do życzeń nie jest potrzebny, a pełna data urodzenia stoi na liście danych,
+  których nie zbieramy (`docs/SECURITY_PRIVACY_LEGAL.md`).
+- CHECK `users_birthday_pair_check`: oba pola `NULL` albo oba wypełnione.
+- CHECK `users_birthday_range_check`: miesiąc 1–12, dzień istnieje w danym
+  miesiącu (29.02 dozwolone, 30.02 i 31.04 nie). Życzenia dla 29.02 wypadają
+  28.02 w latach nieprzestępnych — to reguła wyświetlania
+  (`App\Domain\Rocznice\Urodziny`), nie zapisu.
+- Zapis wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny` (kolumny
+  poza `$fillable`), ekran `/ustawienia/urodziny` z przyciskiem „Usuń datę”.
+- Eksport: `konto.urodziny` jako `DD-MM` albo `null`. Wymazanie konta
+  (`EraseAccountData`) zeruje obie kolumny.
+
+**Rollback etapu a:** `down()` **odmawia**, gdy choć jedno konto ma wpisaną datę
+(D-088) — po cyklu `rollback` → `migrate` kolumny wróciłyby puste i życzenia
+przestałyby przychodzić bez śladu błędu. Przy samych `NULL` i na świeżej bazie
+przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
+
+**Etap b** — migracja `2026_09_25_200100_add_birthday_wishes_enabled_to_users`:
+
+- **`users.birthday_wishes_enabled`** (`boolean NOT NULL DEFAULT true`) —
+  wyłącznik życzeń od gospodarza na `/home`. Domyślnie włączony, bo podanie
+  daty już jest wyborem „chcę życzeń”; istnieje od pierwszego dnia z powodu
+  zasady żałoby (jak `memories_enabled`). Przełącznik stoi przy dacie
+  w `/ustawienia/urodziny`. Eksport: `konto.pokazuj_zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `false` (D-088) —
+  `DEFAULT true` włączyłby życzenia osobie, która je wyłączyła. Test:
+  `tests/Feature/ZyczeniaUrodzinoweNaStronieTest.php`.
+
+**Etap c** — migracja `2026_09_25_200200_add_birthday_email_consent_to_users`:
+
+- **`users.wants_birthday_email`** (`boolean NOT NULL DEFAULT false`) —
+  **osobna** zgoda na list z życzeniami (PKE art. 398); podanie daty jej nie
+  daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
+  które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
+  konta wycofują zgodę z wpisem w dzienniku.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
+  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
+  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
+  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
+  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
+  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+  `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+
+**Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
+
+- **`users.birthday_visible_to_followers`** (`boolean NOT NULL DEFAULT false`) —
+  „Pokaż moje urodziny obserwującym”. Tylko po jawnym włączeniu (decyzja
+  właściciela). `kuking:przypomnij-o-urodzinach` (harmonogram 07:50 UTC)
+  tworzy wtedy obserwującym powiadomienie `notifications.type =
+  'birthday.today'` z `actor_id` = solenizant: najwyżej jedno na parę na dobę,
+  najwyżej `kuking.urodziny.przypomnienia_na_odbiorce_dziennie` (3) na odbiorcę
+  na dobę, nigdy w ciszy nocnej (21–8, klucze
+  `kuking.notifications.zewnetrzne.cisza_*`). **Nie jest to wpis w feedzie.**
+  „Usuń datę” i wymazanie konta ustawiają `false`. Eksport:
+  `konto.pokazuj_urodziny_obserwujacym`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `true` (D-088:
+  decyzja o widoczności). Test: `tests/Feature/PrzypomnienieOUrodzinachTest.php`.
 
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
