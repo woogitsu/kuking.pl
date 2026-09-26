@@ -501,6 +501,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
+        $zeszyt->recipes()->attach($przepis->getKey());
 
         // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
         // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
@@ -737,6 +739,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
+        // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
+        // wpisu — tylko autorowi, nigdy moderatorowi ani obcemu.
+        $dodaj('recipes.create.from-post', 'formularz przepisu ze zdjęciem prywatnego wpisu', 'get',
+            route('recipes.create.from-post', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.edit', 'układ zdjęć wpisu', 'get',
             route('posts.media.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.update', 'zapis układu zdjęć', 'post',
@@ -838,6 +844,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
+        $dodaj('collections.note', 'notatka przy zapisie', 'patch',
+            route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
@@ -874,8 +884,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('api.przepisy.komentarze', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
         $dodaj('api.profile.show', 'API: profil', 'getJson',
             route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
+        // Ten sam MediaController i ta sama `DostepDoZdjecia` co `media.show`,
+        // więc moderator ma tu ODMOWĘ jak na WWW (#1360, AUTHZ-02).
         $dodaj('api.zdjecia.show', 'API: zdjęcie z prywatnego wpisu', 'get',
-            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
         // Publikacja (D-273) — lustro wierszy `posts.comment`, `recipes.comment`,
         // `cooked.store`, `social.follow` i `social.unfollow` wyżej.
         $dodaj('api.wpisy.komentarze.store', 'API: komentarz pod prywatnym wpisem', 'postJson',
