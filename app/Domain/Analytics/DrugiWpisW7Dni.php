@@ -56,11 +56,11 @@ final class DrugiWpisW7Dni
     public function policz(?CarbonImmutable $teraz = null): array
     {
         $teraz ??= CarbonImmutable::now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
         $ponumerowane = Post::query()
             ->published()
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('author_id', $wykluczeni))
+            // Filtr w SQL (#1309), nie lista UUID wykluczonych kont w PHP.
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'posts.author_id'))
             ->toBase()
             ->select('author_id', 'published_at')
             ->selectRaw('row_number() OVER (PARTITION BY author_id ORDER BY published_at, id) AS nr');
