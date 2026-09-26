@@ -44,7 +44,7 @@
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
          wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
     @if($notifications->count() > 0)
-    <ul class="lista-naga marka-powiadomienia">
+    <ul class="lista-naga marka-powiadomienia" id="lista-powiadomien">
         @foreach($notifications as $notification)
         @php
             // Partia zapisów (D-070) pokazuje pierwszą WIDOCZNĄ osobę,
@@ -103,7 +103,7 @@
             wąskiego układu automatycznie. Karta nie staje się linkiem:
             odczyt nadal zapisuje prawdziwy formularz POST.
         --}}
-        <li><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
+        <li data-klucz="powiadomienie-{{ $notification->getKey() }}"><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
             <div class="flex gap-3 items-start powiadomienie-wiersz">
                 @if($actor)
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
@@ -207,6 +207,10 @@
                                 --}}
                                 <strong>{{ $notification->naglowekZapisu() }}</strong>
                                 {{ $notification->resztaZapisu() }}
+                                {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
+                                @if($notification->przepisUsuniety())
+                                    Ten przepis został usunięty.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
@@ -408,5 +412,5 @@
         </x-empty-state>
     @endif
 
-    <x-show-more :paginator="$notifications" czego="powiadomień" />
+    <x-show-more :paginator="$notifications" czego="powiadomień" lista="lista-powiadomien" />
 </x-layout>
