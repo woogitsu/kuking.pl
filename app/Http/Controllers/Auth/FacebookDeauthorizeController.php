@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\Facebook;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -56,18 +57,56 @@ use Illuminate\Support\Facades\Log;
  * wyliczony z naszego sekretu i nie ma powodu, żeby leżał w dzienniku.
  * Nie kasujemy też wiersza powiązania — uzasadnienie stoi w migracji
  * `2026_09_11_700000_dodaj_znacznik_odebrania_dostepu`.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  STARY PODPIS NIE NADPISUJE NOWSZEJ ZGODY (issue #1025)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Poprawny podpis nie mówi, KIEDY wiadomość powstała — mówi to `issued_at`.
+ * Bez niego raz przechwycone (albo po prostu spóźnione) powiadomienie
+ * usypiałoby powiązanie także po tym, jak człowiek na nowo dał nam zgodę.
+ * Dlatego:
+ *
+ *  - `issued_at` jest WYMAGANE i musi być liczbą całkowitą — inaczej 400,
+ *    tak samo jak zły podpis;
+ *  - `issued_at` z przyszłości (ponad `TOLERANCJA_ZEGARA_S`) to też 400:
+ *    taka wiadomość byłaby „nowsza" od każdej przyszłej zgody i nie dałoby
+ *    się jej unieważnić ponownym logowaniem;
+ *  - stara wiadomość NIE jest odrzucana samym wiekiem — rozstrzyga granica
+ *    ostatniej zgody (`zgoda_potwierdzona_at`, a gdy pusta: `connected_at`).
+ *    Wiadomość starsza od tej granicy kończy się spokojnym 200 i niczego
+ *    nie zmienia; Facebook uznaje ją za dostarczoną i nie ponawia.
  */
 final class FacebookDeauthorizeController extends Controller
 {
+    /**
+     * Ile sekund `issued_at` może wyprzedzać nasz zegar. Zegary serwerów
+     * Facebooka i naszego nie chodzą idealnie równo; pięć minut to zapas na
+     * rozjazd, a nie furtka na wiadomości „z przyszłości".
+     */
+    private const TOLERANCJA_ZEGARA_S = 300;
+
     public function __invoke(Request $request): Response
     {
-        $identyfikator = $this->identyfikatorZPodpisu((string) $request->input('signed_request', ''));
+        /*
+         * TYP SPRAWDZAMY PRZED RZUTOWANIEM (issue #1344). `signed_request[]=x`
+         * daje tablicę, a `(string)` na tablicy to ostrzeżenie „Array to
+         * string conversion" — w trybie, w którym Laravel zamienia
+         * ostrzeżenia na wyjątki, publiczny adres odpowiadałby 500 zamiast
+         * 400. Odpowiedź jest ta sama co przy złym podpisie: pytający nie
+         * dowiaduje się, na którym etapie odpadł.
+         */
+        $surowe = $request->input('signed_request', '');
 
-        if ($identyfikator === null) {
+        $wiadomosc = is_string($surowe) ? $this->wiadomoscZPodpisu($surowe) : null;
+
+        if ($wiadomosc === null) {
             Log::warning('Powiadomienie o odebraniu dostępu z Facebooka odrzucone: podpis się nie zgadza.');
 
             return response('', 400);
         }
+
+        [$identyfikator, $wydanoO] = $wiadomosc;
 
         $user = User::findByFacebookId($identyfikator);
 
@@ -85,7 +124,10 @@ final class FacebookDeauthorizeController extends Controller
             return response('', 200);
         }
 
-        $oznaczone = $user->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+        // Zero oznaczonych to nie awaria: powiązanie już było uśpione
+        // (ponowienie tej samej wiadomości) albo wiadomość jest starsza od
+        // ostatniej zgody (issue #1025). W obu przypadkach nic do zrobienia.
+        $oznaczone = $user->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK, $wydanoO);
 
         Log::info('Odnotowane odebranie dostępu kontu Facebooka.', ['oznaczonych_powiazan' => $oznaczone]);
 
@@ -93,15 +135,18 @@ final class FacebookDeauthorizeController extends Controller
     }
 
     /**
-     * Identyfikator konta Facebooka z `signed_request` — albo `null`, gdy
-     * cokolwiek się nie zgadza.
+     * Identyfikator konta Facebooka i chwila wystawienia wiadomości
+     * z `signed_request` — albo `null`, gdy cokolwiek się nie zgadza.
      *
      * Jedna metoda i jedno `null` dla wszystkich powodów odrzucenia: brak
-     * sekretu, zły kształt, zły podpis, zły algorytm, brak `user_id`.
+     * sekretu, zły kształt, zły podpis, zły algorytm, brak `user_id`, brak
+     * albo zły `issued_at`.
      * Rozdzielenie ich na osobne odpowiedzi powiedziałoby pytającemu, JAK
      * blisko był — a nie ma powodu, żeby mu to mówić.
+     *
+     * @return array{0: string, 1: Carbon}|null
      */
-    private function identyfikatorZPodpisu(string $signedRequest): ?string
+    private function wiadomoscZPodpisu(string $signedRequest): ?array
     {
         $sekret = (string) config('kuking.facebook.sekret_klienta');
 
@@ -154,7 +199,20 @@ final class FacebookDeauthorizeController extends Controller
 
         $identyfikator = trim((string) $identyfikator);
 
-        return $identyfikator === '' ? null : $identyfikator;
+        if ($identyfikator === '') {
+            return null;
+        }
+
+        // Facebook podaje `issued_at` jako liczbę sekund od epoki. Tekst,
+        // ułamek czy brak pola to nie jest wiadomość, którą umiemy ułożyć
+        // w czasie — więc nie jest wiadomością, której wolno coś zmienić.
+        $wydano = $tresc['issued_at'] ?? null;
+
+        if (! is_int($wydano) || $wydano <= 0 || $wydano > Carbon::now()->getTimestamp() + self::TOLERANCJA_ZEGARA_S) {
+            return null;
+        }
+
+        return [$identyfikator, Carbon::createFromTimestamp($wydano)];
     }
 
     /**

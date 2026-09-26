@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * tydzień kalendarzowy poniedziałek-niedziela wg `date_trunc('week', …)`
  * Postgresa, kwalifikuje `CookActivity` (post/przepis/„Ugotowałem").
  *
- * Jedyna zmiana wobec §2.2: `CookEligibility::excludedUserIds()` odcina
+ * Jedyna zmiana wobec §2.2: `CookEligibility::tylkoLiczeni()` odcina
  * konto gospodarza, konta zbanowane/`pending_delete` i konta testowe, ZANIM
  * cokolwiek trafi do agregacji — patrz ta klasa po uzasadnienie.
  */
@@ -38,7 +38,6 @@ final class WeeklyActiveCooks
      */
     public function weekly(?int $ileTygodni = null): Collection
     {
-        $wykluczeni = $this->eligibility->excludedUserIds();
         // Tydzień POLSKI, nie tydzień sesji bazy. Bez `at time zone`
         // aktywność z poniedziałku 00:30 czasu polskiego wpadała do tygodnia
         // poprzedniego, a cała granica tygodnia zależała od domyślnej strefy
@@ -47,7 +46,7 @@ final class WeeklyActiveCooks
         $tydzien = "date_trunc('week', ".Czas::wStrefieCzlowieka('activity_at').')';
 
         $zapytanie = DB::query()
-            ->fromSub($this->activity->unionQuery($wykluczeni), 'weekly_cook_activity')
+            ->fromSub($this->activity->unionQuery($this->eligibility), 'weekly_cook_activity')
             ->selectRaw("{$tydzien}::date as week_start")
             ->selectRaw("({$tydzien}::date + interval '6 days')::date as week_end")
             ->selectRaw('count(distinct user_id) as weekly_active_cooks')
