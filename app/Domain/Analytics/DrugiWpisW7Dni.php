@@ -59,7 +59,7 @@ final class DrugiWpisW7Dni
 
         $ponumerowane = Post::query()
             ->published()
-            // Filtr w SQL (#1309), nie lista UUID wykluczonych kont w PHP.
+            // Wykluczenie kont filtrem SQL (#1309), nie listą UUID w PHP.
             ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'posts.author_id'))
             ->toBase()
             ->select('author_id', 'published_at')
