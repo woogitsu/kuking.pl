@@ -1,0 +1,80 @@
+"""Strażnik nowych strażników tekstu i jego dwie kontrole dodatnie.
+
+Nazwa klasy strażnika stoi w CAŁYM katalogu `scripts/kontrole_negatywne/`
+DOKŁADNIE RAZ — w stałej niżej — i to jest celowe: strażnik szuka swojej nazwy
+we wszystkich plikach `*.py` tego katalogu, więc ta linia jest jednocześnie
+jego pokryciem i punktem mutacji pierwszej kontroli dodatniej. Dlatego obie
+kontrole ze strażnikiem stoją w tym jednym pliku: druga kopia nazwy w innym
+pliku sprawiłaby, że po mutacji strażnik nadal znajdowałby pokrycie.
+"""
+
+from pathlib import Path
+
+from kontrole_negatywne._narzedzia import ROOT, Kontrola, replace_once
+
+
+STRAZNIK_TEKSTU_TEST = "StraznikTekstuMaKontroleDodatniaTest"
+STRAZNIK_SAM_PLIK = Path(__file__).resolve().relative_to(ROOT).as_posix()
+STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
+PUNKT_WEJSCIA = "scripts/kontrole-negatywne-alfa08.py"
+PUNKT_WEJSCIA_TEST = "test_punkt_wejscia_kontroli_nie_ma_wpisow_w_starym_ukladzie"
+
+
+def bez_wpisu_dla_straznika(source):
+    """KONTROLA DODATNIA 1: zabierz strażnikowi jego własne wpisy w tym pliku.
+
+    Strażnik szuka tu swojej nazwy klasy i nazw swoich metod `test_…`. Po podmianie nie znajdzie jej, uzna
+    sam siebie za strażnika tekstu bez pokrycia i ma zapalić. Podmieniamy samą
+    wartość stałej, nie wpis w `KONTROLE` — dzięki temu mutacja nie rusza tego,
+    KTÓRY test zostanie uruchomiony (ten stoi już w pamięci procesu).
+    """
+    # Wzorzec SKŁADAMY ze stałej, nie wpisujemy go tu dosłownie. Dosłowny zapis
+    # dawałby DRUGIE wystąpienie nazwy klasy w tym pliku, a wtedy `replace_once`
+    # odmawia („nie znalazła dokładnie jednego miejsca mutacji") — i, co gorsza,
+    # strażnik znajdowałby swoją nazwę także po mutacji, więc kontrola dodatnia
+    # nigdy by nie zapaliła. Zmierzone przy pierwszym uruchomieniu, 20.09.2026.
+    stara = 'STRAZNIK_TEKSTU_TEST = "' + STRAZNIK_TEKSTU_TEST + '"'
+    source = replace_once(source, stara, 'STRAZNIK_TEKSTU_TEST = "WpisZabranyPrzezKontroleDodatnia"')
+
+    # Metoda `PUNKT_WEJSCIA_TEST` należy do TEJ SAMEJ klasy strażnika, a on
+    # uznaje za pokrycie także nazwę samej metody w cudzysłowie. Bez tej
+    # podmiany strażnik po mutacji nadal znajdował pokrycie przez kontrolę 3
+    # i kontrola dodatnia nie zapalała (CI #1478, 25.09.2026).
+    stara = 'PUNKT_WEJSCIA_TEST = "' + PUNKT_WEJSCIA_TEST + '"'
+
+    return replace_once(source, stara, 'PUNKT_WEJSCIA_TEST = "WpisZabranyPrzezKontroleDodatnia"')
+
+
+def bez_znacznika_odstepstwa(source):
+    """KONTROLA DODATNIA 2: zabierz plikowi kontrolnemu znacznik odstępstwa.
+
+    Plik czyta źródło i asertuje na jego treści, a kontroli w tym katalogu nie ma.
+    Bez znacznika zostaje strażnikiem tekstu bez pokrycia — strażnik ma zapalić
+    z drugiej strony niż w kontroli 1.
+    """
+    start = source.index(" * @bez-kontroli-dodatniej")
+    end = source.index("\n", start) + 1
+
+    return source[:start] + source[end:]
+
+
+def stary_monolit_w_punkcie_wejscia(source):
+    """KONTROLA DODATNIA 3: dopisz do punktu wejścia listę `checks` jak sprzed podziału.
+
+    Tak wygląda gałąź sprzed 25.09.2026 scalona z „weź moje". Proces kontroli
+    ma już punkt wejścia w pamięci, więc mutacja nie rusza bieżącego przebiegu;
+    strażnik ma zapalić w PHPUnit.
+    """
+    return replace_once(source, "\nfrom kontrole_negatywne import _narzedzia", "\nchecks = []\n\nfrom kontrole_negatywne import _narzedzia")
+
+
+KONTROLE_DODATNIE = [STRAZNIK_TEKSTU_TEST]
+
+KONTROLE = [
+    Kontrola("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_PLIK, STRAZNIK_TEKSTU_TEST,
+             bez_wpisu_dla_straznika),
+    Kontrola("Odstępstwo bez znacznika", STRAZNIK_PLIK_ODSTEPSTWA, STRAZNIK_TEKSTU_TEST,
+             bez_znacznika_odstepstwa),
+    Kontrola("Stary monolit w punkcie wejścia", PUNKT_WEJSCIA, PUNKT_WEJSCIA_TEST,
+             stary_monolit_w_punkcie_wejscia),
+]

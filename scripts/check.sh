@@ -150,6 +150,11 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
+elif ! python3 scripts/kontrole-negatywne-alfa08.py --lista >/dev/null 2>&1; then
+    # Tryb suchy katalogu kontroli negatywnych (PR #1478): import każdego pliku,
+    # unikalne nazwy, brak wpisów w starym punkcie wejścia, kotwice mutacji
+    # sprawdzone w pamięci. Bez bazy i bez pisania po źródłach.
+    zle "Katalog kontroli negatywnych odmawia — uruchom: python3 scripts/kontrole-negatywne-alfa08.py --lista"
 elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
     # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
     # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
