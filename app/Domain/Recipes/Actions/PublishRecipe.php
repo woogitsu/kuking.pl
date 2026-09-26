@@ -95,7 +95,7 @@ final class PublishRecipe
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, no_amount?: bool}>  $ingredients
+     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, substitutes?: ?string, no_amount?: bool}>  $ingredients
      * @param  list<array{instruction: string, id?: ?string, timer_minutes?: mixed, media_id?: ?string, remove_media?: bool}>  $steps
      *
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
@@ -103,6 +103,9 @@ final class PublishRecipe
      * należy do `StepTimer` i dzieje się TU, raz, dla obu dróg zapisu.
      * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
      *                                      „nie wiemy, zapisuj normalnie" (ADR §4.3)
+     * @param  bool  $wersjaPoprawki  czy zapis BEZ publikacji na opublikowanym przepisie zostawia
+     *                                wersję (issue #1316). `false` wyłącznie dla autozapisu
+     *                                kreatora; świadome „Zapisz zmiany" i formularz bez JS — `true`
      */
     public function handle(
         User $author,
@@ -113,6 +116,7 @@ final class PublishRecipe
         ?Recipe $existing = null,
         ?string $ip = null,
         ?string $kluczWyslania = null,
+        bool $wersjaPoprawki = true,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -200,7 +204,7 @@ final class PublishRecipe
         $klucz = $existing === null ? $kluczWyslania : null;
 
         $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip, $wersjaPoprawki
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -504,6 +508,18 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+            } elseif ($wersjaPoprawki && $recipe->isPublished()) {
+                /*
+                 * ŚWIADOMY ZAPIS BEZ PUBLIKACJI NA PUBLICZNYM PRZEPISIE TEŻ
+                 * ZOSTAWIA HISTORIĘ (issue #1316). Macierz przejść nie pozwala
+                 * wrócić z `published` do szkicu, więc „Zapisz zmiany" zmienia
+                 * treść, którą czytelnik widzi od razu. Warunek to stan PO
+                 * zapisie, nie flaga wywołania: `publish = false` nie znaczy
+                 * „szkic". Autozapis kreatora (`$wersjaPoprawki = false`)
+                 * wersji nie tworzy — decyzja właściciela z 24.09.2026:
+                 * wersji nigdy nie nadpisujemy, więc nie ma czego „sklejać".
+                 */
+                $this->snapshots->poprawka($recipe, $author);
             }
 
             /*
@@ -613,6 +629,9 @@ final class PublishRecipe
                 'quantity' => $bezIlosci ? null : $this->quantityOrNull($row['quantity'] ?? null),
                 'unit_id' => $bezIlosci ? null : $this->unitIdOrNull($row['unit_id'] ?? null),
                 'note' => $this->nullIfBlank($row['note'] ?? null),
+                // Zamiennik od autora (D-284). Przycięty do kolumny jak tekst
+                // składnika; puste → NULL, bo tak każe CHECK.
+                'substitutes' => $this->clampOrNull($row['substitutes'] ?? null, 300),
                 'no_amount' => $bezIlosci,
             ];
         }
@@ -625,8 +644,8 @@ final class PublishRecipe
      *
      * Autor piszący dziesięć składników wpisze „Farsz" i „farsz", i będzie
      * miał rację: dla niego to jedno słowo. Bez tego przejścia byłyby to dwie
-     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do przyszłego
-     * przeliczania porcji jako dwie różne części przepisu.
+     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do
+     * przeliczania porcji (V2, D-284) jako dwie różne części przepisu.
      *
      * WYGRYWA PIERWSZA PISOWNIA, nie „ładniejsza". To słowo autora, więc
      * poprawiamy powtórzenie, a nie człowieka — i nie ma tu żadnej reguły
@@ -800,6 +819,7 @@ final class PublishRecipe
                 'quantity' => $row['quantity'],
                 'unit_id' => $row['unit_id'],
                 'note' => $row['note'],
+                'substitutes' => $row['substitutes'] ?? null,
                 'no_amount' => $row['no_amount'] ?? false,
                 'position' => $position,
             ]);

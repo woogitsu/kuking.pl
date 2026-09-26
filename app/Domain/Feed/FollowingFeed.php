@@ -144,6 +144,10 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
+            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza. Ukrycie
+            // OSOBY tu nie działa: w Obserwowanych nic nie znika poza bramkami,
+            // blokadami i tym, co widz sam wskazał palcem (AGENTS.md §8).
+            ->bezUkrytychWpisow($viewer)
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Dla gałęzi
@@ -183,6 +187,16 @@ final class FollowingFeed
     /** @return list<string> */
     private function obserwowaneTematy(User $viewer): array
     {
-        return $viewer->followedTags()->pluck('tags.id')->all();
+        // TYLKO AKTYWNE (issue #1824). Tag ukryty przez moderację po tym, jak
+        // ktoś zaczął go obserwować, ma 404 na własnej stronie i znika
+        // z katalogu, ale wiersz w `tag_follows` zostaje — świadomie, żeby
+        // człowiek mógł go sam zdjąć w „Twoich tagach”. Taki temat nie może
+        // sterować Startem: ani zasilać listy, ani decydować w `isEmptyFor()`.
+        // Warunek stoi tutaj, nie w relacji `followedTags()`: ekran ustawień
+        // musi nadal widzieć zastany ukryty tag, żeby dało się go usunąć.
+        return $viewer->followedTags()
+            ->where('tags.status', Tag::STATUS_ACTIVE)
+            ->pluck('tags.id')
+            ->all();
     }
 }

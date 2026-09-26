@@ -16,3 +16,11 @@ na: unset($odmowa);
 oczekuj: nie_cofa_przez_odwolanie|Autor cofn
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/NiktNiePrzywracaWlasnejTresciTest.php
 ocena:
+---
+nazwa: kolejka nie pokazuje moderatorowi przycisku przy decyzji administratora
+plik: app/Http/Controllers/Admin/ModerationController.php
+zamien: ! RestoreContent::wolnoCofnac($moderator, $zdjecie) => 'tylko_admin',
+na: false => 'tylko_admin',
+oczekuj: nie_widzi_przycisku_przy_decyzji|Failed asserting
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PrzywrocenieTylkoPoDecyzjiModeracjiTest.php
+ocena:
