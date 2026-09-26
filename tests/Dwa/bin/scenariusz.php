@@ -25,29 +25,37 @@ use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Moderation\Actions\ReportContent;
+use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\PrzyjmijZadanieUsunieciaKonta;
+use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
+use App\Models\Appeal;
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
@@ -267,12 +275,62 @@ try {
         'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            // Jawny zeszyt — jedna osoba zapisująca naraz do dwóch SWOICH
+            // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
+            collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak
+        // jak zrobiłoby to wiązanie trasy w dwóch równoległych żądaniach —
+        // oba procesy trzymają w pamięci `open`.
+        'rozpatrz-odwolanie' => (string) app(ResolveAppeal::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            odwolanie: Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
+            wynik: $argumenty['wynik'],
+            uzasadnienie: $argumenty['uzasadnienie'],
+        )->status,
+
+        // Decyzja w sprawie zgłoszenia przez prawdziwy kontroler panelu
+        // (#933: nowa kara równolegle z uchyleniem starej). Bez HTTP, tak jak
+        // `ModerationDecideRaceTest` — middleware 2FA nie jest tu mierzone.
+        'decyzja-zgloszenia' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            // Wejście przez ten sam FormRequest co trasa (#970, krok 2):
+            // rola, własna sprawa, stan zgłoszenia i reguły pól, potem kontroler.
+            $zadanie = DecyzjaModeracyjnaRequest::create('/admin/zgloszenia/x', 'POST', array_filter([
+                'action' => $argumenty['akcja'],
+                'reason_code' => 'harassment',
+                'suspend_days' => $argumenty['dni'] ?? null,
+                'user_message' => 'Decyzja z testu wyścigu.',
+            ]));
+            $zadanie->setContainer(app())->setRedirector(app('redirect'));
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+            $trasa = (new Route('POST', '/admin/zgloszenia/{report}', []))->bind($zadanie);
+            $trasa->setParameter('report', $zgloszenie);
+            $zadanie->setRouteResolver(static fn () => $trasa);
+
+            try {
+                $zadanie->validateResolved();
+            } catch (ValidationException $e) {
+                return implode(' ', $e->validator->errors()->all());
+            }
+
+            $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
 
         // Ustawienie nowego hasła PRAWDZIWYM kontrolerem (#1358): zmiana
         // w ustawieniach albo reset linkiem. Bariera przyrządu staje zaraz
