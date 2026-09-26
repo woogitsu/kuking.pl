@@ -153,7 +153,7 @@ class AccountDeletionPurgeTest extends TestCase
 
     public function test_egzekutor_odmawia_wymazania_wniosku_bez_generacji(): void
     {
-        $basia = $this->user('basia-bez-generacji', [
+        $basia = $this->user('bez_generacji', [
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
         ]);
@@ -193,7 +193,7 @@ class AccountDeletionPurgeTest extends TestCase
     {
         config(['kuking.account.delete_grace_days' => 0]);
         $this->travelTo(now()->startOfSecond());
-        $basia = $this->user('basia-ta-sama-sekunda');
+        $basia = $this->user('jedna_sekunda');
         $basia->markForDeletion();
         $staryKandydat = $basia->fresh();
 
