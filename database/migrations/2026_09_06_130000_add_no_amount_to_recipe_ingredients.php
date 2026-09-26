@@ -32,11 +32,22 @@ use Illuminate\Support\Facades\Schema;
  * odpowiedzi. Baza jest ostatnim miejscem, które może tego pilnować, kiedy
  * dane wchodzą inną drogą niż formularz (import, seeder, konsola).
  *
- * ROLLBACK
- * `down()` zdejmuje CHECK i kolumnę. Bezstratny w jedną stronę tylko dlatego,
- * że dziś nic tej flagi nie czyta poza widokiem — po wdrożeniu skalowania
- * porcji cofnięcie tej migracji będzie znaczyło utratę informacji, której nie
- * da się odtworzyć. Wtedy trzeba będzie zrobić kopię tabeli przed cofnięciem.
+ * ROLLBACK (D-088)
+ * `down()` zdejmuje CHECK i kolumnę — ale dopiero, gdy w tabeli nie ma ani
+ * jednego składnika oznaczonego `no_amount = true`. Do 26 września 2026
+ * kolumna była „bezstratna" tylko dlatego, że nic jej jeszcze nie czytało
+ * poza widokiem: po wdrożeniu skalowania porcji (V2, D-284) ta flaga
+ * rozstrzyga, których składników NIE mnożyć przy przeliczeniu porcji, i nie
+ * da się jej odtworzyć z samego tekstu składnika („sól do smaku" i „sól 5 g"
+ * wyglądają w kolumnie `ingredient_text` identycznie, gdy `no_amount` już
+ * zniknęło). Cichy `dropColumn` na żywej bazie z prawdziwymi przepisami
+ * byłby dokładnie tym samym błędem co trzy przypadki z `AGENTS.md` §6:
+ * strata, o której `migrate:rollback` nie mówi ani słowem.
+ *
+ * Strażnik jest WĄSKI — patrzy tylko na `no_amount = true`. Na świeżej
+ * bazie i wszędzie, gdzie nikt jeszcze nie oznaczył żadnego składnika jako
+ * „bez ilości", `down()` przechodzi bez pytania; blokowanie rollbacku na
+ * zawsze byłoby błędem tej samej wagi w drugą stronę.
  */
 return new class extends Migration
 {
@@ -61,6 +72,30 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            // Blokada PRZED liczeniem, nie po: bez niej między policzeniem
+            // wierszy a `DROP COLUMN` mógłby wejść nowy składnik z
+            // `no_amount = true`, którego strażnik już by nie zobaczył.
+            DB::statement('LOCK TABLE recipe_ingredients IN ACCESS EXCLUSIVE MODE');
+        }
+
+        $bezIlosci = DB::table('recipe_ingredients')->where('no_amount', true)->count();
+
+        if ($bezIlosci > 0 && getenv('KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI') !== '1') {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania (D-132/D-133) —
+            // ten sam wzorzec co w pozostałych strażnikach `down()`.
+            throw new RuntimeException(
+                'Liczba składników oznaczonych jako „bez wymiernej ilości" (`no_amount = true`) '
+                .'w tabeli `recipe_ingredients`: '.$bezIlosci.'. '
+                .'Cofnięcie tej migracji usunie kolumnę `no_amount` razem z tym oznaczeniem — po '
+                .'wdrożeniu skalowania porcji (V2, D-284) ta flaga rozstrzyga, których składników '
+                .'NIE mnożyć, i nie da się jej odtworzyć z samego tekstu składnika.'
+                ."\n\n"
+                .'Zrób kopię tabeli, a potem uruchom ponownie '
+                .'z KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI=1.',
+            );
+        }
+
         if (DB::connection()->getDriverName() === 'pgsql') {
             DB::statement('ALTER TABLE recipe_ingredients DROP CONSTRAINT IF EXISTS recipe_ingredients_no_amount_check');
         }
