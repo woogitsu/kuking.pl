@@ -15,7 +15,7 @@ final class DailyBoardCandidates
     public function posts(User $moderator): Builder
     {
         return Post::query()->publiclyVisible()->tylkoOdAktywnychAutorow()
-            ->zWidocznymPrzepisem(null)->widoczneDla($moderator);
+            ->zWidocznymPrzepisemAlboWlasnaTrescia(null)->widoczneDla($moderator);
     }
 
     /** Istniejący wybór osoby pozostaje edytowalny także bez świeżego wpisu.
@@ -33,10 +33,10 @@ final class DailyBoardCandidates
         $pattern = '%'.addcslashes($search, '\\%_').'%';
 
         return $this->people($moderator)
-            ->whereHas('posts', fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisem(null))
+            ->whereHas('posts', fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia(null))
             ->when($search !== '', fn (Builder $query) => $query->whereHas('profile', fn (Builder $profile) => $profile
                 ->where(fn (Builder $names) => $names->where('display_name', 'ilike', $pattern)->orWhere('username', 'ilike', $pattern))))
-            ->withMax(['posts as latest_publication' => fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisem(null)], 'published_at')
+            ->withMax(['posts as latest_publication' => fn (Builder $query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia(null)], 'published_at')
             ->orderByDesc('latest_publication')->orderBy('id');
     }
 }
