@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Import\Url\RozwiazywaczNazw;
+use App\Domain\Import\Url\SystemowyRozwiazywaczNazw;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
@@ -43,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+
+        // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
+        // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.
+        $this->app->bind(RozwiazywaczNazw::class, SystemowyRozwiazywaczNazw::class);
     }
 
     /**
