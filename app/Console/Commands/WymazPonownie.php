@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Logging\BezpiecznyBlad;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -76,7 +77,7 @@ class WymazPonownie extends Command
                 $wymazane++;
             } catch (Throwable $e) {
                 $bledy++;
-                $this->error("Nie udało się wymazać konta {$konto->getKey()} ({$e->getMessage()}). Uruchom komendę jeszcze raz; jeśli błąd wraca, wymaż to konto ręcznie.");
+                $this->error("Nie udało się wymazać konta {$konto->getKey()} (".BezpiecznyBlad::jednaLinia($e).'). Uruchom komendę jeszcze raz; jeśli błąd wraca, wymaż to konto ręcznie.');
             }
         }
 
