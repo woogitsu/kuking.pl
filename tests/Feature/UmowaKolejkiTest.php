@@ -9,6 +9,7 @@ use App\Jobs\NotifyUserExportReady;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
+use App\Jobs\PrzeliczPytaniaBezOdpowiedzi;
 use App\Jobs\PurgePublicMediaCache;
 use App\Models\Post;
 use App\Notifications\LinkDoLogowania;
@@ -81,6 +82,7 @@ class UmowaKolejkiTest extends TestCase
         // pilnuje `assertNotPushed`). Zostaje dla zadań sprzed wdrożenia,
         // które czekają na `low` z zapisaną wtedy nazwą kolejki.
         PrzeanalizujAwatar::class => null,
+        PrzeliczPytaniaBezOdpowiedzi::class => 'low', // licznik /pytania może poczekać za ludźmi (#372)
     ];
 
     /**
@@ -98,6 +100,7 @@ class UmowaKolejkiTest extends TestCase
             PurgePublicMediaCache::class => new PurgePublicMediaCache(['https://example.test/a.webp']),
             PrzeanalizujTresc::class => new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'post-id'),
             PrzeanalizujAwatar::class => new PrzeanalizujAwatar('media-id'),
+            PrzeliczPytaniaBezOdpowiedzi::class => new PrzeliczPytaniaBezOdpowiedzi,
         ];
     }
 

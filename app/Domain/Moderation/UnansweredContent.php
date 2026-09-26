@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation;
 
+use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -46,11 +47,17 @@ final class UnansweredContent
             ->whereHas('author', fn (Builder $author) => $author->widocznyJakoOsoba());
     }
 
-    /** @return Builder<Post> */
+    /**
+     * Tylko dania. Pytania mają własną zakładkę (`questions()`) i własną
+     * definicję odzewu — bez tego warunku pytanie bez odpowiedzi stało
+     * w obu kolejkach naraz (#372).
+     *
+     * @return Builder<Post>
+     */
     public function posts(User $host): Builder
     {
         return $this->withoutResponse(
-            $this->eligiblePosts($host)->where('posts.published_at', '>=', $this->poczatekOkna()),
+            $this->eligiblePosts($host)->where('posts.kind', Post::KIND_DISH)->where('posts.published_at', '>=', $this->poczatekOkna()),
             'post_id', 'posts', 'author_id',
         );
     }
@@ -84,8 +91,7 @@ final class UnansweredContent
     {
         return $this->eligiblePosts($host)->where('posts.kind', Post::KIND_QUESTION)
             ->where('posts.published_at', '>=', $this->poczatekOkna())
-            ->whereNotExists($this->responses('post_id', 'posts', 'author_id')
-                ->whereNull('queue_comments.parent_id')->whereNull('queue_comments.body_removed_at'));
+            ->whereNotExists($this->answers());
     }
 
     /** @return Builder<Recipe> */
@@ -130,11 +136,30 @@ final class UnansweredContent
         return $content->whereNotExists($this->responses($foreignKey, $table, $ownerKey));
     }
 
+    /**
+     * Mediana czasu do pierwszego odzewu — tylko dania (zakładka „Wpisy”).
+     *
+     * Pytania mają osobną medianę (`medianQuestionResponseHours()`): inna
+     * definicja odzewu (tylko główna odpowiedź) i inne tempo. Wspólna liczba
+     * mieszała oba rodzaje, więc szybko obsłużone pytania zaniżały medianę
+     * wpisów, a zakładka „Pytania” nie miała żadnej (#372).
+     */
     public function medianPostResponseHours(User $host): ?float
     {
-        $first = $this->responses('post_id', 'posts', 'author_id')
-            ->select(DB::raw('MIN(queue_comments.created_at)'));
+        return $this->medianResponseHours($host, Post::KIND_DISH, $this->responses('post_id', 'posts', 'author_id'));
+    }
+
+    /** Mediana czasu do pierwszej głównej odpowiedzi innej osoby na pytanie (#372). */
+    public function medianQuestionResponseHours(User $host): ?float
+    {
+        return $this->medianResponseHours($host, Post::KIND_QUESTION, $this->answers());
+    }
+
+    private function medianResponseHours(User $host, string $kind, QueryBuilder $responses): ?float
+    {
+        $first = $responses->select(DB::raw('MIN(queue_comments.created_at)'));
         $posts = $this->eligiblePosts($host)
+            ->where('posts.kind', $kind)
             ->where('published_at', '>=', now()->subDays(30))
             ->select('published_at')->selectSub($first, 'first_response');
         $value = DB::query()->fromSub($posts, 'answered_posts')
@@ -143,6 +168,15 @@ final class UnansweredContent
             ->value('median');
 
         return $value === null ? null : round((float) $value, 1);
+    }
+
+    /** Odpowiedź na pytanie (`OdpowiedzNaPytanie`), widoczna dla pytającego. */
+    private function answers(): QueryBuilder
+    {
+        $answers = $this->responses('post_id', 'posts', 'author_id');
+        OdpowiedzNaPytanie::zawez($answers, 'queue_comments', 'posts.author_id');
+
+        return $answers;
     }
 
     private function poczatekOkna(): CarbonInterface

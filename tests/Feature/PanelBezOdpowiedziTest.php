@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -374,5 +375,109 @@ class PanelBezOdpowiedziTest extends TestCase
         $this->assertSame(0, Notification::query()
             ->where('type', Notification::TYPE_FIRST_POST)
             ->count());
+    }
+
+    // ---------------------------------------------------------------
+    // Pytania a kolejka wpisów i alert o pierwszej publikacji (#372)
+    // ---------------------------------------------------------------
+
+    public function test_pytanie_stoi_tylko_w_zakladce_pytan_nie_we_wpisach(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $gospodarz = $this->gospodarz();
+        $danie = $this->wpis($this->user('basia'), 'Rosol bez odpowiedzi');
+        $pytanie = Post::factory()->question()->create(['author_id' => $this->user('pytajaca')->getKey(), 'title' => 'Jak uratować przesoloną zupę?']);
+
+        $kolejka = app(UnansweredContent::class);
+        $this->assertSame([$danie->id], $kolejka->posts($gospodarz)->pluck('id')->all());
+        $this->assertSame([$pytanie->id], $kolejka->questions($gospodarz)->pluck('id')->all());
+
+        $this->actingAs($gospodarz)->get(route('admin.unanswered'))->assertOk()
+            ->assertSee('Rosol bez odpowiedzi')->assertDontSee($pytanie->title);
+        $this->get(route('admin.unanswered', ['typ' => 'pytania']))->assertOk()
+            ->assertSee($pytanie->title);
+    }
+
+    public function test_pierwsze_pytanie_ma_wlasny_tekst_i_prowadzi_do_zakladki_pytan(): void
+    {
+        config(['kuking.questions.enabled' => true, 'kuking.community.host_username' => 'gospodarz']);
+        $gospodarz = $this->gospodarz();
+        $nowa = $this->user('nowa');
+
+        $this->actingAs($nowa)->post(route('questions.store'), ['title' => 'Jak uratować przesoloną zupę?'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $pytanie = Post::query()->where('author_id', $nowa->getKey())->sole();
+        $this->assertSame(Post::KIND_QUESTION, $pytanie->kind);
+
+        $alert = Notification::query()->where('user_id', $gospodarz->getKey())
+            ->where('type', Notification::TYPE_FIRST_POST)->sole();
+        $this->assertSame(Post::KIND_QUESTION, $alert->data['kind']);
+        $this->assertSame(route('admin.unanswered', ['typ' => 'pytania']), $alert->adresDocelowy());
+
+        $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()
+            ->assertSee('pierwsze pytanie w Kuking')->assertDontSee('pierwszy wpis w Kuking');
+        // Cel naprawdę zawiera to pytanie.
+        $this->get($alert->adresDocelowy())->assertOk()->assertSee($pytanie->title);
+
+        // Wyłączona flaga: zakładka pytań to 404, więc alert nie ma celu.
+        config(['kuking.questions.enabled' => false]);
+        $this->assertNull($alert->fresh()->adresDocelowy());
+    }
+
+    public function test_pierwsze_danie_zachowuje_tekst_i_cel_kolejki_wpisow(): void
+    {
+        Storage::fake('public');
+        config(['kuking.questions.enabled' => true, 'kuking.community.host_username' => 'gospodarz']);
+        $gospodarz = $this->gospodarz();
+
+        $this->actingAs($this->user('nowa'))->post(route('posts.store'), [
+            'body' => 'Moj pierwszy rosol',
+            'visibility' => 'public',
+        ])->assertRedirect();
+
+        $alert = Notification::query()->where('user_id', $gospodarz->getKey())
+            ->where('type', Notification::TYPE_FIRST_POST)->sole();
+        $this->assertSame(Post::KIND_DISH, $alert->data['kind']);
+        $this->assertSame(route('admin.unanswered'), $alert->adresDocelowy());
+        $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()
+            ->assertSee('pierwszy wpis w Kuking')->assertDontSee('pierwsze pytanie w Kuking');
+    }
+
+    /**
+     * Semantyka „pierwsze” (decyzja właściciela 25.09.2026): jeden alert na
+     * osobę, za pierwszą publikację DOWOLNEGO rodzaju — w obu kolejnościach.
+     *
+     * @return array<string, array{0: list<string>}>
+     */
+    public static function kolejnosciPublikacji(): array
+    {
+        return [
+            'pytanie, potem danie' => [[Post::KIND_QUESTION, Post::KIND_DISH]],
+            'danie, potem pytanie' => [[Post::KIND_DISH, Post::KIND_QUESTION]],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $kolejnosc
+     */
+    #[DataProvider('kolejnosciPublikacji')]
+    public function test_jeden_alert_za_pierwsza_publikacje_dowolnego_rodzaju(array $kolejnosc): void
+    {
+        Storage::fake('public');
+        config(['kuking.questions.enabled' => true, 'kuking.community.host_username' => 'gospodarz']);
+        $gospodarz = $this->gospodarz();
+        $nowa = $this->user('nowa');
+
+        foreach ($kolejnosc as $rodzaj) {
+            $rodzaj === Post::KIND_QUESTION
+                ? $this->actingAs($nowa)->post(route('questions.store'), ['title' => 'Jak uratować przesoloną zupę?'])->assertRedirect()
+                : $this->actingAs($nowa)->post(route('posts.store'), ['body' => 'Moj rosol', 'visibility' => 'public'])->assertRedirect();
+        }
+
+        $alert = Notification::query()->where('user_id', $gospodarz->getKey())
+            ->where('type', Notification::TYPE_FIRST_POST)->sole();
+        $this->assertSame($kolejnosc[0], $alert->data['kind']);
+        $pierwszy = Post::query()->where('author_id', $nowa->getKey())->where('kind', $kolejnosc[0])->sole();
+        $this->assertSame($pierwszy->id, $alert->data['post_id']);
     }
 }

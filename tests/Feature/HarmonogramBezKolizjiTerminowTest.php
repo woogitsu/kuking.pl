@@ -43,7 +43,7 @@ class HarmonogramBezKolizjiTerminowTest extends TestCase
         // („o 00 tykają zdejmowanie kar i licznik społeczności").
         '0 * * * *' => ['kuking:policz-kukingow', 'kuking:zdejmij-wygasle-kary'],
         // Liczniki i sondy o stałym rytmie — z natury trafiają w te same minuty.
-        '*/5 * * * *' => ['kuking:policz-kolejki', 'kuking:puls-harmonogramu'],
+        '*/5 * * * *' => ['kuking:policz-kolejki', 'kuking:policz-pytania', 'kuking:puls-harmonogramu'],
         '*/15 * * * *' => ['kuking:sprawdz-kolejke', 'kuking:wyczysc-zalegle-cdn'],
     ];
 

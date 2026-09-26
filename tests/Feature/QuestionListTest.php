@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\UnansweredContent;
+use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Questions\QuestionList;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Comment;
@@ -80,6 +82,33 @@ class QuestionListTest extends TestCase
         $answer->delete();
         $this->assertSame(0, $list->query(null)->findOrFail($question->id)->answer_count);
         $this->assertTrue($list->query(null, true)->whereKey($question)->exists());
+    }
+
+    /**
+     * Regresja #372: dopisek autora pod własnym pytaniem liczył się na liście
+     * i w liczniku jako odpowiedź, a kolejka gospodarza (słusznie) nie.
+     * Jedna definicja: `OdpowiedzNaPytanie` — komentarz innej osoby.
+     */
+    public function test_komentarz_autora_pod_wlasnym_pytaniem_nie_jest_odpowiedzia(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $owner = $this->user('pytajaca');
+        $question = Post::factory()->question()->create(['author_id' => $owner->id]);
+        Comment::factory()->create(['post_id' => $question->id, 'author_id' => $owner->id]);
+        $list = new QuestionList;
+
+        $this->assertSame(0, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertTrue($list->query(null, true)->whereKey($question)->exists());
+        $this->assertTrue($list->query($owner, true)->whereKey($question)->exists());
+        $this->assertSame(1, app(PytaniaBezOdpowiedzi::class)->dla(null));
+        $this->assertTrue((new UnansweredContent)->questions($this->user('gospodarz'))->whereKey($question)->exists());
+
+        Comment::factory()->create(['post_id' => $question->id]);
+
+        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertFalse($list->query(null, true)->whereKey($question)->exists());
+        $this->assertSame(0, app(PytaniaBezOdpowiedzi::class)->dla(null));
+        $this->assertFalse((new UnansweredContent)->questions($this->user('gospodarz2'))->whereKey($question)->exists());
     }
 
     public function test_list_excludes_dishes_private_questions_and_disabled_department(): void

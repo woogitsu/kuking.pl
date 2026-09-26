@@ -6,6 +6,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
+/**
+ * @property string $post_id
+ * @property string $tag_id
+ */
 class PostTag extends Pivot
 {
     protected $table = 'post_tags';

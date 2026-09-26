@@ -60,6 +60,7 @@ if os.environ.get("CI") != "true":
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
+UNANSWERED_CONTENT = "app/Domain/Moderation/UnansweredContent.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
 COLLECTION_TEST = "WyborZeszytuMaWalidacjeTest"
@@ -1070,6 +1071,29 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # Mediana reakcji w panelu gospodarza rozdzielona na dania i pytania (#372).
+    # Pierwsza mutacja zdejmuje warunek rodzaju — pytania wracają do mediany
+    # „Wpisów”. Druga liczy pytaniom dopiski pod cudzym komentarzem jako odpowiedź.
+    ("Mediana wpisów bez warunku rodzaju", UNANSWERED_CONTENT, "test_mediana_wpisow_liczy_tylko_dania_a_pytania_maja_wlasna",
+     lambda s: replace_once(s, "            ->where('posts.kind', $kind)\n", "")),
+    ("Mediana pytań liczy dopiski jako odpowiedź", UNANSWERED_CONTENT, "test_mediana_pytan_liczy_tylko_glowne_odpowiedzi",
+     lambda s: replace_once(s, "Post::KIND_QUESTION, $this->answers()", "Post::KIND_QUESTION, $this->responses('post_id', 'posts', 'author_id')")),
+    # Indeks częściowy licznika „Czeka na odpowiedź” (#372). Test pyta planistę
+    # o zapytanie z prawdziwego QuestionList; predykat na daniach ma go zgasić.
+    ("Indeks pytań z predykatem na daniach", "database/migrations/2026_09_25_200000_add_questions_published_index_to_posts.php",
+     "test_licznik_goscia_i_zalogowanego_moze_uzyc_indeksu_pytan",
+     lambda s: replace_once(s, "WHERE kind = 'question' AND deleted_at IS NULL", "WHERE kind = 'dish' AND deleted_at IS NULL")),
+    # Licznik „Czeka na odpowiedź” w tle (#372, decyzja 25.09.2026): poprawka
+    # widza na blokady, wspólna definicja odpowiedzi i odświeżenie po odpowiedzi.
+    ("Licznik widza bez poprawki na blokady", "app/Domain/Questions/PytaniaBezOdpowiedzi.php",
+     "test_blokada_zmniejsza_licznik_widza_ale_nie_goscia",
+     lambda s: replace_once(s, "        if ($wBlokadzie !== []) {\n", "        if (false) {\n")),
+    ("Dopisek autora liczony jako odpowiedź", "app/Domain/Questions/OdpowiedzNaPytanie.php",
+     "test_komentarz_autora_pod_wlasnym_pytaniem_nie_jest_odpowiedzia",
+     lambda s: replace_once(s, "\n            ->whereColumn($tabela.'.author_id', '!=', $autorPytania);", ";")),
+    ("Odpowiedź nie odświeża licznika pytań", "app/Providers/AppServiceProvider.php",
+     "test_nowa_odpowiedz_odswieza_licznik_bez_recznego_przeliczenia",
+     lambda s: replace_once(s, "        Comment::saved($komentarz);\n", "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,

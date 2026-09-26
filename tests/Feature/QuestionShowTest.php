@@ -130,6 +130,34 @@ class QuestionShowTest extends TestCase
         $this->actingAs($post->author)->get(route('questions.show', $post))->assertOk()->assertDontSee('QAPage');
     }
 
+    /**
+     * Regresja #372: `answerCount`/`suggestedAnswer` w `QAPage` liczyły
+     * KAŻDY komentarz najwyższego poziomu, także dopisek autora pod własnym
+     * pytaniem. Kontrola dodatnia (odpowiedź innej osoby liczy się) stoi obok
+     * kontroli ujemnej (własny dopisek — nie), żeby test nie przechodził
+     * przez przypadek, w którym schemat po prostu jest pusty.
+     */
+    public function test_own_comment_under_own_question_is_not_counted_as_answer_in_schema(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $owner = $this->user('pytajacy_wlasny_dopisek');
+        $other = $this->user('odpowiadajacy_wlasny_dopisek');
+        $post = Post::factory()->question()->create(['author_id' => $owner->id]);
+        // Kontrola dodatnia: odpowiedź INNEJ osoby ma się liczyć.
+        $answer = Comment::factory()->create(['post_id' => $post->id, 'author_id' => $other->id, 'body' => 'Dolej niesolonego bulionu.']);
+        // Kontrola ujemna: dopisek AUTORA pod własnym pytaniem nie jest odpowiedzią.
+        Comment::factory()->create(['post_id' => $post->id, 'author_id' => $owner->id, 'body' => 'Dodam, że mam piekarnik gazowy.']);
+
+        $html = $this->get(route('questions.show', $post))->assertOk()
+            ->assertViewHas('komentarzyRazem', 1)
+            ->getContent();
+        preg_match_all('~<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>~s', $html, $matches);
+        $schema = collect(array_map(fn ($json) => json_decode($json, true, 512, JSON_THROW_ON_ERROR), $matches[1]))->firstWhere('@type', 'QAPage');
+        $this->assertSame(1, $schema['mainEntity']['answerCount']);
+        $this->assertSame(['Dolej niesolonego bulionu.'], array_column($schema['mainEntity']['suggestedAnswer'], 'text'));
+        $this->assertArrayNotHasKey('acceptedAnswer', $schema['mainEntity']);
+    }
+
     public function test_question_card_exposes_title_and_detail_does_not_truncate_body(): void
     {
         config(['kuking.questions.enabled' => true]);

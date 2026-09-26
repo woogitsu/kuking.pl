@@ -82,7 +82,14 @@ final class CelPowiadomienia
             Notification::TYPE_BIRTHDAY => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
-            Notification::TYPE_FIRST_POST => route('admin.unanswered'),
+            // #372: pierwsze PYTANIE prowadzi do zakładki pytań — w zakładce
+            // „Wpisy” pytań nie ma. Przy wyłączonej fladze ta zakładka to
+            // 404, więc zamiast martwego linku nie ma celu (bez „Zobacz”).
+            // Stare alerty bez `kind` to dania — flaga pytań nigdy nie była
+            // włączona przed zapisywaniem `kind`.
+            Notification::TYPE_FIRST_POST => ($data['kind'] ?? Post::KIND_DISH) === Post::KIND_QUESTION
+                ? (config('kuking.questions.enabled') ? route('admin.unanswered', ['typ' => 'pytania']) : null)
+                : route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
             // na niej najstarsze na górze, czyli to z najbliższym terminem

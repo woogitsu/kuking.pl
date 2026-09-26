@@ -57,7 +57,11 @@ class BezOdpowiedziController extends Controller
             $items = $this->queue->questions($request->user())->with('author.profile')
                 ->orderBy('published_at')->orderBy('id')->paginate(25)->withQueryString();
 
-            return view('pages.admin.bez-odpowiedzi-pytania', ['items' => $items, 'type' => $type]);
+            return view('pages.admin.bez-odpowiedzi-pytania', [
+                'items' => $items,
+                'type' => $type,
+                'medianaReakcji' => $this->queue->medianQuestionResponseHours($request->user()),
+            ]);
         }
 
         if ($type !== 'wpisy') {

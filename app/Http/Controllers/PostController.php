@@ -11,6 +11,7 @@ use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Posts\SasiedniWpisAutora;
+use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
@@ -27,6 +28,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -698,7 +700,26 @@ class PostController extends Controller
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
         if ($post->kind === Post::KIND_QUESTION) {
-            $answerCount = $post->comments()->widoczneDla($request->user())->whereNull('comments.body_removed_at')->count();
+            // `answerCount` w danych strukturalnych `QAPage` (JSON-LD) liczy
+            // dokładnie to samo, co lista `/pytania` i kolejka gospodarza —
+            // wspólna definicja `OdpowiedzNaPytanie::zawez()` (#372). Bez
+            // dołączenia `posts` ten kontroler liczyłby TEŻ dopiski autora pod
+            // własnym pytaniem jako odpowiedzi, czyli dokładnie usterkę, którą
+            // ta definicja miała zamknąć wszędzie naraz.
+            //
+            // Widoczne komentarze idą jako PODZAPYTANIE: `widoczneDla()` pisze
+            // kolumny bez tabeli (`status`), więc `join('posts')` na tym samym
+            // poziomie dawał „column reference is ambiguous” (500 na każdej
+            // stronie pytania).
+            $widoczne = $post->comments()
+                ->widoczneDla($request->user())
+                ->select('comments.*')
+                ->getQuery();
+            $odpowiedzi = DB::query()
+                ->fromSub($widoczne, 'comments')
+                ->join('posts', 'posts.id', '=', 'comments.post_id');
+            OdpowiedzNaPytanie::zawez($odpowiedzi, 'comments', 'posts.author_id');
+            $answerCount = $odpowiedzi->count();
             $post->setAttribute('comments_count', $answerCount);
 
             return view('pages.questions.show', [

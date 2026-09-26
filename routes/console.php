@@ -424,6 +424,20 @@ Harmonogram::artisan('kuking:policz-kolejki')
     ->onOneServer()
     ->withoutOverlapping(4);
 
+// Licznik „Czeka na odpowiedź (N)” na /pytania (#372). Nowa odpowiedź zleca
+// przeliczenie sama (zdarzenia modeli, `AppServiceProvider`); to zadanie łapie
+// resztę — zmianę statusu konta autora, scalenie tagów, puste cache po
+// wdrożeniu. Uzasadnienie: `App\Domain\Questions\PytaniaBezOdpowiedzi`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/5` co `kuking:policz-kolejki` i `kuking:puls-harmonogramu`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie liczniki o stałym rytmie wykonują się po kolei w jednym procesie.
+Harmonogram::artisan('kuking:policz-pytania')
+    ->name('kuking:policz-pytania')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
 // Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
 // w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
