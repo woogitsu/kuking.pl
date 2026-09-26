@@ -12923,8 +12923,24 @@ byłby zielony także nad pustym plikiem.
 Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
 decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
 
+### Uzupełnienie: `start_url` to `/`, nie `/home` (#1975, 26 września 2026)
+
+Manifest jest podlinkowany w każdym układzie, także dla gościa, więc
+aplikację da się zainstalować przed rejestracją. `start_url: /home` wskazywał
+trasę z grupy `auth` — gość po instalacji przy każdym uruchomieniu lądował
+na logowaniu. Teraz `start_url` to `/`: gość dostaje stronę powitalną
+z drogą do rejestracji i logowania, zalogowany — swój Start
+(`FeedController::landing` oddaje mu ten sam ekran co `/home`), bez
+dodatkowego przekierowania. Zachęta do instalacji z #278 zostaje tam, gdzie
+była (Start zalogowanej osoby). Skróty `shortcuts` (Dodaj zdjęcie, Zeszyt)
+zostają — to akcje zalogowanej osoby i gość po nie nie sięga. Pilnuje
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` (czyta
+`start_url` z pliku, więc oblewa przy powrocie na dowolny adres za
+logowaniem).
+
 📄 `public/manifest.webmanifest` ·
 `tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` ·
 `docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
 
 ---
