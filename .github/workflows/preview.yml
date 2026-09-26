@@ -279,6 +279,9 @@ jobs:
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
     environment: staging
+    # Job nie woła API GitHuba — rozmawia tylko z Railway. Zdejmujemy mu
+    # wszystkie uprawnienia GITHUB_TOKEN z poziomu pliku (#1859).
+    permissions: {}
 
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
@@ -293,9 +296,24 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Utwórz środowisko dla PR
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
         run: |
           set -euo pipefail
-          env_name="pr-${{ github.event.inputs.pr_number }}"
+          # #1859: numer PR-a przychodzi z ręcznego pola workflow_dispatch,
+          # więc to tekst od człowieka. Czytamy go WYŁĄCZNIE ze zmiennej
+          # środowiskowej — wyrażenie GitHuba (dolar i podwójna klamra)
+          # wklejone w `run:` jest podstawiane PRZED startem powłoki, więc
+          # `1"; echo X; #` stawało się kodem. Tego zapisu nie wolno użyć
+          # nawet w komentarzu tutaj: GitHub rozwija go także w komentarzach.
+          # Dopuszczamy same cyfry (najwyżej 10) i dopiero z nich składamy
+          # nazwę środowiska. Wartości nie wypisujemy w komunikacie:
+          # linia zaczynająca się od `::` to polecenie dla runnera.
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]] || (( ${#PR_NUMBER} > 10 )); then
+            echo "::error title=Zły numer PR-a::Pole pr_number przyjmuje wyłącznie cyfry (np. 1234), najwyżej 10. Popraw numer i uruchom workflow ponownie."
+            exit 1
+          fi
+          env_name="pr-${PR_NUMBER}"
           echo "Tworzę środowisko: $env_name (kopia staginu)"
           railway environment new "$env_name" --copy staging
           echo "Gotowe. Adres znajdziesz w panelu Railway."
@@ -306,6 +324,9 @@ jobs:
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delete'
     environment: staging
+    # Job nie woła API GitHuba — rozmawia tylko z Railway. Zdejmujemy mu
+    # wszystkie uprawnienia GITHUB_TOKEN z poziomu pliku (#1859).
+    permissions: {}
 
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
@@ -320,9 +341,24 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Usuń środowisko PR
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
         run: |
           set -euo pipefail
-          env_name="pr-${{ github.event.inputs.pr_number }}"
+          # #1859: numer PR-a przychodzi z ręcznego pola workflow_dispatch,
+          # więc to tekst od człowieka. Czytamy go WYŁĄCZNIE ze zmiennej
+          # środowiskowej — wyrażenie GitHuba (dolar i podwójna klamra)
+          # wklejone w `run:` jest podstawiane PRZED startem powłoki, więc
+          # `1"; echo X; #` stawało się kodem. Tego zapisu nie wolno użyć
+          # nawet w komentarzu tutaj: GitHub rozwija go także w komentarzach.
+          # Dopuszczamy same cyfry (najwyżej 10) i dopiero z nich składamy
+          # nazwę środowiska. Wartości nie wypisujemy w komunikacie:
+          # linia zaczynająca się od `::` to polecenie dla runnera.
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]] || (( ${#PR_NUMBER} > 10 )); then
+            echo "::error title=Zły numer PR-a::Pole pr_number przyjmuje wyłącznie cyfry (np. 1234), najwyżej 10. Popraw numer i uruchom workflow ponownie."
+            exit 1
+          fi
+          env_name="pr-${PR_NUMBER}"
           # Railway CLI zwraca kod 1 dla KAŻDEGO błędu: brak środowiska, wygasły
           # token, brak uprawnień, ratelimit, awaria sieci. Po samym kodzie
           # `delete` nie da się ich odróżnić, więc dawne `|| true` zamieniało

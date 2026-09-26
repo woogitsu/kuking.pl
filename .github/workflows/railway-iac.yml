@@ -290,16 +290,26 @@ jobs:
 
       - name: Podsumowanie
         if: always()
+        # Wartości z uruchomienia idą przez `env:`, nie wklejone w skrypt
+        # (#1859): tekst podstawiony w `run:` przed startem powłoki staje się
+        # kodem. Pole `zmiany_destrukcyjne` jest dziś typu boolean, ale
+        # strażnik WorkflowyNieWklejajaDanychUzytkownikaDoRunTest nie zgaduje
+        # typów — każde `inputs.*` w `run:` jest dla niego błędem.
+        env:
+          URUCHOMIL: ${{ github.actor }}
+          COMMIT: ${{ github.sha }}
+          DESTRUKCYJNE: ${{ inputs.zmiany_destrukcyjne }}
+          WYNIK: ${{ job.status }}
         run: |
           {
             echo "## Railway IaC — apply"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Uruchomił | ${{ github.actor }} |"
-            echo "| Commit | \`${{ github.sha }}\` |"
-            echo "| Zmiany destrukcyjne | ${{ inputs.zmiany_destrukcyjne }} |"
-            echo "| Wynik | ${{ job.status }} |"
+            echo "| Uruchomił | ${URUCHOMIL} |"
+            echo "| Commit | \`${COMMIT}\` |"
+            echo "| Zmiany destrukcyjne | ${DESTRUKCYJNE} |"
+            echo "| Wynik | ${WYNIK} |"
             echo ""
             echo "Zmiany w infrastrukturze NIE deployują kodu."
             echo "Kod wdraża Railway po pushu do \`main\` (patrz deploy.yml)."
