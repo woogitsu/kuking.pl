@@ -150,6 +150,8 @@ class SmakowicieWygladaTest extends TestCase
             ->filter(fn ($e) => ($e->description ?? '') === 'kuking:powiadom-smakowicie');
         $this->assertCount(1, $zdarzenia);
         $this->assertSame('47 17 * * *', $zdarzenia->first()->expression);
+        // Przegląd #1781: 17:47 czasu polskiego, nie UTC.
+        $this->assertSame('Europe/Warsaw', (string) $zdarzenia->first()->timezone);
     }
 
     public function test_eksport_ma_reakcje_dane_i_otrzymane(): void
@@ -167,6 +169,70 @@ class SmakowicieWygladaTest extends TestCase
         $this->assertSame(route('posts.show', $wpis), $paczka['moje_reakcje'][0]['wpis']);
         $this->assertCount(1, $paczka['reakcje_otrzymane']);
         $this->assertSame('autorka', $paczka['reakcje_otrzymane'][0]['od']);
+    }
+
+    /**
+     * Przegląd #1781: gołe `join posts` omijało `SoftDeletes` — reakcja pod
+     * wpisem usuniętym przez autora dalej dawała powiadomienie.
+     * Kontrola ujemna: `whereNull('posts.deleted_at')` zdjęte → powstaje
+     * powiadomienie o usuniętym wpisie.
+     */
+    public function test_reakcja_pod_usunietym_wpisem_nie_powiadamia(): void
+    {
+        $autorka = $this->user('autorka');
+        $usuniety = $this->wpis($autorka, 'Usunięty');
+        $anna = $this->user('anna');
+        $this->actingAs($anna)->post(route('posts.smakowicie', $usuniety))->assertSessionHasNoErrors();
+        $usuniety->delete();
+
+        app(PowiadomOSmakowicie::class)->wyslij();
+
+        $this->assertSame(0, Notification::query()->where('user_id', $autorka->id)->count());
+        $this->assertSame(0, PostReaction::query()->whereNull('notified_at')->count(), 'Odsiana reakcja ma być oznaczona, żeby nie wracała.');
+
+        // Kontrola dodatnia: reakcja pod istniejącym wpisem dalej powiadamia.
+        $zostaje = $this->wpis($autorka, 'Zostaje');
+        $this->actingAs($anna)->post(route('posts.smakowicie', $zostaje));
+        app(PowiadomOSmakowicie::class)->wyslij();
+        $this->assertSame(1, Notification::query()->where('user_id', $autorka->id)->where('type', Notification::TYPE_SMAKOWICIE)->count());
+    }
+
+    /**
+     * Przegląd #1781: eksport nazywał wszystkich reagujących, także osoby
+     * z blokadą i konta zamknięte — których autor przy wpisie nie widzi.
+     */
+    public function test_eksport_nie_nazywa_reagujacych_ktorych_autor_nie_widzi(): void
+    {
+        $autorka = $this->user('autorka');
+        $wpis = $this->wpis($autorka);
+        $anna = $this->user('anna');
+        $blokujaca = $this->user('blokujaca');
+        $zbanowana = $this->user('zbanowana');
+        foreach ([$anna, $blokujaca, $zbanowana] as $osoba) {
+            $this->actingAs($osoba)->post(route('posts.smakowicie', $wpis))->assertSessionHasNoErrors();
+        }
+        DB::table('blocks')->insert(['blocker_id' => $blokujaca->id, 'blocked_id' => $autorka->id, 'created_at' => now()]);
+        $zbanowana->forceFill(['status' => User::STATUS_BANNED])->save();
+
+        $paczka = app(CollectUserExportData::class)->handle($autorka, new ExportPhotoPlan($autorka), now());
+
+        $this->assertSame(['anna'], array_column($paczka['reakcje_otrzymane'], 'od'));
+        $this->assertSame(2, $paczka['reakcje_otrzymane_od_osob_niewidocznych']);
+        $this->assertStringNotContainsString('blokujaca', (string) json_encode($paczka['reakcje_otrzymane']));
+        $this->assertStringNotContainsString('zbanowana', (string) json_encode($paczka['reakcje_otrzymane']));
+    }
+
+    /** Przegląd #1781: błąd z worka `smakowicie` nie był widoczny na strumieniu. */
+    public function test_odmowa_reakcji_widac_na_strumieniu(): void
+    {
+        $autorka = $this->user('autorka');
+        $wpis = $this->wpis($autorka);
+
+        $this->actingAs($autorka)->from(route('home'))->followingRedirects()
+            ->post(route('posts.smakowicie', $wpis))
+            ->assertOk()
+            ->assertSee('data-blad-akcji="smakowicie"', false)
+            ->assertSee('Pod własnym wpisem tego nie piszesz.');
     }
 
     public function test_rollback_odmawia_gdy_sa_reakcje_i_przechodzi_na_pustej(): void

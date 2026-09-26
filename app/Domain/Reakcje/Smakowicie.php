@@ -8,6 +8,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Post;
 use App\Models\PostReaction;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -64,18 +65,31 @@ final class Smakowicie
             return new Collection;
         }
 
-        return User::query()
+        return $this->osobyWidoczneDlaAutora($autor)
             ->select('users.*')
             ->join('post_reactions', 'post_reactions.user_id', '=', 'users.id')
             ->where('post_reactions.post_id', $post->getKey())
-            ->dostepnyJakoAutor()
-            ->whereNotExists(fn ($sub) => $sub->selectRaw('1')->from('blocks')
-                ->where(fn ($w) => $w->where('blocks.blocker_id', $autor->getKey())->whereColumn('blocks.blocked_id', 'users.id'))
-                ->orWhere(fn ($w) => $w->whereColumn('blocks.blocker_id', 'users.id')->where('blocks.blocked_id', $autor->getKey())))
             ->with('profile')
             // Po czasie reakcji — kolejność, w jakiej ludzie to napisali.
             ->orderBy('post_reactions.created_at')
             ->orderBy('users.id')
             ->get();
+    }
+
+    /**
+     * Osoby, które autor może zobaczyć przy swoich reakcjach: konto, które da
+     * się pokazać jako autora, i bez blokady w którąkolwiek stronę. Jedno
+     * miejsce dla `ktoDla()` i eksportu (`reakcje_otrzymane`, przegląd #1781)
+     * — paczka nie może nazwać kogoś, kogo strona wpisu nie pokazuje.
+     *
+     * @return Builder<User>
+     */
+    public function osobyWidoczneDlaAutora(User $autor): Builder
+    {
+        return User::query()
+            ->dostepnyJakoAutor()
+            ->whereNotExists(fn ($sub) => $sub->selectRaw('1')->from('blocks')
+                ->where(fn ($w) => $w->where('blocks.blocker_id', $autor->getKey())->whereColumn('blocks.blocked_id', 'users.id'))
+                ->orWhere(fn ($w) => $w->whereColumn('blocks.blocker_id', 'users.id')->where('blocks.blocked_id', $autor->getKey())));
     }
 }

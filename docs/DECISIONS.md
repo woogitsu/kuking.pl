@@ -17624,7 +17624,7 @@ Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** 
   tym samym przyciskiem („Smakowicie wygląda — cofnij”), bez pytania, bez JS;
 - **bez licznika** — nikt, także autor, nie widzi liczby; autor widzi na stronie
   swojego wpisu, KTO napisał (nazwy dosłownie, bez osób z blokadą);
-- **powiadomienie zbiorczo raz dziennie** (17:47, `kuking:powiadom-smakowicie`):
+- **powiadomienie zbiorczo raz dziennie** (17:47 czasu polskiego — `->timezone(Czas::strefa())`, `kuking:powiadom-smakowicie`):
   jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
   zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
   powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);

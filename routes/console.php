@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Czas;
 use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -72,6 +73,9 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
 // powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
 Harmonogram::artisan('kuking:powiadom-smakowicie')
     ->dailyAt('17:47')
+    // 17:47 czasu POLSKIEGO. Harmonogram liczy w `app.timezone` (UTC), więc
+    // bez strefy wychodziłoby 19:47 latem i 18:47 zimą (przegląd #1781).
+    ->timezone(Czas::strefa())
     ->name('kuking:powiadom-smakowicie')
     ->onOneServer()
     ->withoutOverlapping(120);

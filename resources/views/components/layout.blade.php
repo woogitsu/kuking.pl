@@ -991,7 +991,7 @@
                      (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
                      odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
                      nie ma formularza z podsumowaniem błędów. --}}
-                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                @foreach(['ukrycie', 'smakowicie'] as $kluczBleduAkcji)
                     @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
                     @if($bladAkcji)
                         <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>

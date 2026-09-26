@@ -61,6 +61,10 @@ final class PowiadomOSmakowicie
                     ->join('users', 'users.id', '=', 'post_reactions.user_id')
                     ->where('users.status', User::STATUS_ACTIVE)
                     ->where('posts.status', Post::STATUS_PUBLISHED)
+                    // Gołe `join` omija `SoftDeletes` modelu — wpis usunięty
+                    // przez autora ma `status = published` i `deleted_at`
+                    // ustawione (przegląd #1781).
+                    ->whereNull('posts.deleted_at')
                     ->whereNotExists(fn ($sub) => $sub->selectRaw('1')->from('blocks')
                         ->where(fn ($w) => $w->where('blocks.blocker_id', $autorId)->whereColumn('blocks.blocked_id', 'post_reactions.user_id'))
                         ->orWhere(fn ($w) => $w->whereColumn('blocks.blocker_id', 'post_reactions.user_id')->where('blocks.blocked_id', $autorId)))

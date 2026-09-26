@@ -1259,7 +1259,14 @@ Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
 (`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
 to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — tylko autor, na stronie
 wpisu, bez blokad (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
-`moje_reakcje` i `reakcje_otrzymane`.
+`moje_reakcje` i `reakcje_otrzymane` — ta druga z nazwą konta tylko przy
+osobach, które autor zobaczyłby przy wpisie (te same filtry co `ktoDla()`),
+reszta jako liczba w `reakcje_otrzymane_od_osob_niewidocznych`.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
+(D-022), więc reakcje wymazywanego konta (`user_id`) kasuje jawnie
+`EraseAccountData` — przy każdym `delete_scope`. Reakcja pod wpisem usuniętym
+(soft delete) zostaje w tabeli, ale zbiorcze powiadomienie jej nie liczy.
 
 **Rollback:** `down()` ODMAWIA, gdy w tabeli są reakcje (słowa ludzi do autorów,
 `up()` ich nie odtworzy — D-088); na pustej przechodzi. Ręcznie:

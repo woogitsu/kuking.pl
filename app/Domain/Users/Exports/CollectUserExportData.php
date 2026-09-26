@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\Comment;
@@ -176,6 +177,7 @@ final class CollectUserExportData
             // i tak widzi ją przy swoim wpisie.
             'moje_reakcje' => $this->reakcjeDane($user),
             'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
+            'reakcje_otrzymane_od_osob_niewidocznych' => $this->reakcjeOtrzymaneBezNazwy($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -765,12 +767,20 @@ final class CollectUserExportData
             ])->all();
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Reakcje pod wpisami tej osoby — z nazwą konta TYLKO przy osobach, które
+     * autor widzi przy wpisie (`Smakowicie::osobyWidoczneDlaAutora()`, te same
+     * filtry co `ktoDla()`; przegląd #1781). Reakcja kogoś, z kim jest
+     * blokada, albo konta zamkniętego idzie do liczby niżej, bez nazwy.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function reakcjeOtrzymane(User $user): array
     {
         return PostReaction::query()
             ->join('posts', 'posts.id', '=', 'post_reactions.post_id')
             ->where('posts.author_id', $user->getKey())
+            ->whereIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
             ->with('user.profile')
             ->orderBy('post_reactions.created_at')
             ->get(['post_reactions.*'])
@@ -780,6 +790,16 @@ final class CollectUserExportData
                 'od' => $r->user?->profile?->username,
                 'kiedy' => $this->date($r->created_at),
             ])->all();
+    }
+
+    /** Ile reakcji pod wpisami tej osoby pochodzi od osób, których nie nazywamy. */
+    private function reakcjeOtrzymaneBezNazwy(User $user): int
+    {
+        return PostReaction::query()
+            ->join('posts', 'posts.id', '=', 'post_reactions.post_id')
+            ->where('posts.author_id', $user->getKey())
+            ->whereNotIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
+            ->count();
     }
 
     /**

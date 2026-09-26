@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Schema;
  * inaczej niż `cooked_events`, gdzie każde ugotowanie jest osobnym wydarzeniem
  * (AGENTS.md §6 zabrania tam unikalności — tu jej wymaga).
  *
+ * `ON DELETE CASCADE` działa tylko przy TWARDYM usunięciu. Kont z Kuking się
+ * nie kasuje, tylko anonimizuje (D-022), więc reakcje wymazywanego konta
+ * kasuje jawnie `EraseAccountData` (przegląd #1781); wpisy mają soft delete,
+ * więc reakcja pod usuniętym wpisem zostaje, a zbiorcze powiadomienie jej nie
+ * liczy (`PowiadomOSmakowicie`, `posts.deleted_at IS NULL`).
+ *
  * `notified_at` — kiedy reakcja weszła do zbiorczego powiadomienia autora
  * (raz dziennie, `kuking:powiadom-smakowicie`). `NULL` = czeka.
  *
