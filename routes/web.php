@@ -41,6 +41,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
@@ -765,6 +766,19 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
+
+    // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
+    // zapisy pod własnym koszykiem `planer`.
+    Route::get('/planer', [PlanerController::class, 'show'])->name('planer.show');
+    Route::post('/planer', [PlanerController::class, 'store'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.store');
+    Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.copy');
+    Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.destroy');
 
     // Zeszyt (kolekcje)
     //

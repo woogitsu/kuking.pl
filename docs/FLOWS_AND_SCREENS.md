@@ -166,6 +166,7 @@ App:
 - `/przepisy/{recipe}/edycja`
 - `/przepisy/{recipe}/gotuj`
 - `/zeszyt`
+- `/planer` — planer tygodnia (#27, D-310): dzień + przepis albo własny wpis, „Skopiuj poprzedni tydzień”. Prywatny; wejście z „Moje”, dodawanie przepisu z jego strony
 - `/powiadomienia`
 - `/zgloszenia`, `/zgloszenia/{report}` — własne zgłoszenia i karta sprawy
 - `/ustawienia/profil`
