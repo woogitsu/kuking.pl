@@ -111,7 +111,7 @@ new class extends Component
 
     public string $family_since_year = '';
 
-    /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
+    /** @var list<array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool}> */
     public array $ingredients = [];
 
     /**
@@ -199,6 +199,7 @@ new class extends Component
                 'group_name' => (string) $row->group_name,
                 'text' => (string) $row->ingredient_text,
                 'note' => (string) $row->note,
+                'substitutes' => (string) $row->substitutes,
                 'no_amount' => (bool) $row->no_amount,
             ])
             ->all();
@@ -758,7 +759,7 @@ new class extends Component
     /**
      * Puste wiersze są pomijane — pusty składnik nigdy nie trafia do bazy.
      *
-     * @return list<array{text: string, group_name: ?string, note: ?string, no_amount: bool}>
+     * @return list<array{text: string, group_name: ?string, note: ?string, substitutes: ?string, no_amount: bool}>
      */
     public function cleanIngredients(): array
     {
@@ -786,7 +787,7 @@ new class extends Component
      * grupy zostawały tam, gdzie stały (a nie na górze), a „Farsz" i „farsz"
      * dawały dwa nagłówki.
      *
-     * @return list<array{nazwa: ?string, skladniki: list<array{text: string, group_name: ?string, note: ?string}>}>
+     * @return list<array{nazwa: ?string, skladniki: list<array{text: string, group_name: ?string, note: ?string, substitutes: ?string}>}>
      */
     public function groupedIngredients(): array
     {
@@ -883,10 +884,10 @@ new class extends Component
     // Drobne narzędzia
     // -----------------------------------------------------------------
 
-    /** @return array{_key: string, group_name: string, text: string, note: string, no_amount: bool} */
+    /** @return array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool} */
     private function blankIngredient(): array
     {
-        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'no_amount' => false];
+        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'substitutes' => '', 'no_amount' => false];
     }
 
     /** @return array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed} */
@@ -1271,14 +1272,20 @@ new class extends Component
                                  placeholder="Ciasto" />
                         <x-field :name="'ingredients.'.$index.'.note'" label="Uwaga do składnika"
                                  :wire="'ingredients.'.$index.'.note'" :value="$row['note'] ?? ''"
-                                 placeholder="albo masło roślinne" />
+                                 placeholder="najlepiej wiejskie" />
                     </div>
+
+                    {{-- Zamiennik od autora (D-284) — widz zobaczy go pod
+                         składnikiem jako „Zamiast tego: …”. Nieobowiązkowy. --}}
+                    <x-field :name="'ingredients.'.$index.'.substitutes'" label="Czym można to zastąpić (nieobowiązkowe)"
+                             :wire="'ingredients.'.$index.'.substitutes'" :value="$row['substitutes'] ?? ''"
+                             placeholder="margaryna albo olej kokosowy" />
 
                     {{--
                         „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
 
                         Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
-                        dla przyszłego przeliczania porcji (V2, jeszcze niewdrożonego):
+                        dla przeliczania porcji na stronie przepisu (V2, D-284):
                         przepis razy trzy poprosiłby inaczej o trzy szczypty
                         soli i o trzy razy „ile weźmie”. To nie jest drobiazg
                         kosmetyczny — to moment, w którym przepis przestaje
@@ -1489,6 +1496,7 @@ new class extends Component
                                     <li>
                                         {{ $groupRow['text'] }}
                                         @if($groupRow['note'] !== null)<span class="meta"> — {{ $groupRow['note'] }}</span>@endif
+                                        @if(($groupRow['substitutes'] ?? null) !== null)<span class="skladnik-zamiennik">Zamiast tego: {{ $groupRow['substitutes'] }}</span>@endif
                                     </li>
                                 @endforeach
                             </ul>
