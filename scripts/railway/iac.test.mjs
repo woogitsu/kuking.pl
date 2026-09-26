@@ -494,3 +494,55 @@ for (const [opis, policz] of MUTACJE_OBRAZU) {
     assert.notDeepEqual(policz(), [], `strażnik nie zauważył: ${opis}`);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Zmienne tylko w panelu (audyt po fali 25.09, znalezisko 12 / propozycja C).
+// Skrypt dla właściciela: docs/infra/ZMIENNE_SPOZA_IAC.md. Tu pilnujemy, że
+// wskazuje zmienne spoza grafu, nie wskazuje zadeklarowanych ani
+// wstrzykiwanych przez Railway i że nie wypisuje WARTOŚCI.
+// ---------------------------------------------------------------------------
+const { zmienneSpozaIac } = await import(resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"));
+// Trzy zmienne z audytu (KUKING_EDGE_TRYB, KUKING_HTML_EDGE_CACHE_SECONDS,
+// KUKING_TAG_TYGODNIA) są od #1883 w grafie — test nie może opierać się na
+// tym, czego railway.ts akurat nie ma. Nazwy syntetyczne: na pewno spoza grafu.
+const TYLKO_W_PANELU = ["KUKING_TYLKO_W_PANELU_A", "KUKING_TYLKO_W_PANELU_B"];
+
+test("zmienne-spoza-iac wskazuje zmienne z panelu, których railway.ts nie deklaruje", () => {
+  assert.deepEqual(zmienneSpozaIac([...TYLKO_W_PANELU, "APP_NAME", "RAILWAY_PUBLIC_DOMAIN"], PROD, "kuking.pl"), TYLKO_W_PANELU);
+});
+
+test("zmienne-spoza-iac: trzy zmienne z audytu są już w grafie (#1883)", () => {
+  const zAudytu = ["KUKING_EDGE_TRYB", "KUKING_HTML_EDGE_CACHE_SECONDS", "KUKING_TAG_TYGODNIA"];
+  assert.deepEqual(zmienneSpozaIac(zAudytu, PROD, "kuking.pl"), []);
+});
+
+test("kontrola dodatnia zmienne-spoza-iac: zmienna zadeklarowana w grafie nie jest zgłaszana", () => {
+  const zadeklarowane = Object.keys(usluga(PROD, "kuking.pl").variables);
+  assert.ok(zadeklarowane.length > 10, "graf serwisu WWW nie ma zmiennych — test niczego by nie sprawdzał");
+  assert.deepEqual(zmienneSpozaIac(zadeklarowane, PROD, "kuking.pl"), []);
+});
+
+test("kontrola ujemna zmienne-spoza-iac: zmienna usunięta z grafu zaczyna być zgłaszana", () => {
+  const zepsuty = structuredClone(PROD);
+  delete usluga(zepsuty, "kuking.pl").variables.APP_NAME;
+  assert.deepEqual(zmienneSpozaIac(["APP_NAME"], zepsuty, "kuking.pl"), ["APP_NAME"]);
+});
+
+test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości", () => {
+  const sekret = "wartosc-ktora-nie-moze-wyjsc-12C";
+  let wynik;
+  try {
+    execFileSync(
+      process.execPath,
+      ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"), "production", "kuking.pl"],
+      { cwd: KORZEN, encoding: "utf8", input: JSON.stringify({ KUKING_TYLKO_W_PANELU_A: sekret, APP_NAME: sekret }), env: { PATH: process.env.PATH, KUKING_WAIT_FOR_CI: "false" } },
+    );
+    assert.fail("kod 0 mimo zmiennej tylko w panelu");
+  } catch (blad) {
+    if (blad.code === "ERR_ASSERTION") throw blad;
+    wynik = blad;
+  }
+  assert.equal(wynik.status, 1);
+  assert.equal(wynik.stdout, "KUKING_TYLKO_W_PANELU_A\n");
+  assert.ok(!String(wynik.stdout).includes(sekret) && !String(wynik.stderr).includes(sekret), "wartość zmiennej wyszła na ekran");
+});
