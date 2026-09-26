@@ -128,6 +128,13 @@ trzyma się §5 niżej.
 
 #### Wzorzec B — `kuking:sprzataj-sygnaly` / `PrzedawnioneSygnaly` — czyste dane tabelaryczne
 
+> **Aktualizacja (#1657).** Opis niżej to stan z chwili pisania ADR. Jeden
+> `DELETE` na cały backlog NIE był bezpieczny na przerwanie: przerwana
+> instrukcja cofa się w całości i następny przebieg zaczyna od zera. Dziś
+> Wzorzec B idzie partiami z budżetem na przebieg
+> (`App\Domain\Compliance\UsuwanieWPartiach`, opis w `docs/DATABASE.md`
+> przy `product_signals`); predykat i wyjątki są te same.
+
 `app/Domain/Analytics/PrzedawnioneSygnaly.php` — cała logika to jedna linia:
 
 ```php
@@ -435,7 +442,7 @@ nadal jest spełniona po skróceniu.
 | **Wyjątek — własny, dłuższy termin** | Typy z `App\Models\Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` (dziś: `TYPE_MODERATION` — decyzja moderacyjna I wynik odwołania) żyją do `ModerationAction::appealDeadline()` powiązanej decyzji (co najmniej 6 miesięcy, DSA art. 20 ust. 1), NIE wg tej liczby. Patrz akapit „Kolizja z prawem do odwołania" niżej — to jest NOWA treść tej sekcji, dodana w drugiej turze (§10), nie było jej w pierwszej wersji ADR-u. |
 | **Co robi automat** | Dwuczęściowy: Wzorzec B dla typów spoza wyjątku (`DELETE FROM notifications WHERE created_at < próg AND type NOT IN (wyjątki)`); Wzorzec C (transakcja/sprawdzenie per wiersz) dla typów z wyjątku — każdy sprawdzany osobno wg WŁASNEGO `appealDeadline()`, bo to nie jest jedna liczba dla całej grupy. |
 | **Harmonogram** | Codziennie w nocy, 04:20 — `routes/console.php`. |
-| **Błąd** | Zwykłe: jak w §5.1. Moderacyjne: błąd kasowania pojedynczego wiersza logowany i pomijany (retry następnego dnia); powiadomienie, którego powiązanej decyzji nie da się ustalić, NIE jest kasowane (patrz `Notification::terminOchronyOdwolawczej()`) — zostaje do wyjaśnienia zamiast zniknąć bez śladu. |
+| **Błąd** | Zwykłe: jak w §5.1. Moderacyjne: błąd kasowania pojedynczego wiersza logowany i pomijany (retry następnego dnia); powiadomienie, którego powiązanej decyzji nie da się ustalić, NIE jest kasowane (patrz `TerminOchronyOdwolawczej::dla()`) — zostaje do wyjaśnienia zamiast zniknąć bez śladu. |
 
 **KOLIZJA Z PRAWEM DO ODWOŁANIA (DSA ART. 20 UST. 1) — dodane w drugiej
 turze, §10.** Trzy miesiące ogólnej retencji są KRÓTSZE niż sześć miesięcy,
@@ -670,6 +677,31 @@ wstrzymanie kasowania konkretnego dowodu). Właściciel przyjął te luki
 rekomendacje z powodem.
 
 ---
+
+### 5.7 Treści usunięte przez autora (`posts`, `recipes`, `comments` z `deleted_at`) — dopisane 25.09.2026
+
+Audyt B5 (znalezisko 1) zmierzył, że miękkie usunięcie było stanem
+końcowym: tekst w bazie i zdjęcia w R2 zostawały bez terminu, wbrew
+polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
+
+- **Okres:** `kuking.usuniete_tresci.retention_days` = **30 dni** od
+  `deleted_at` — ta sama liczba co karencja usunięcia konta
+  (`account.delete_grace_days`), żeby polityka miała jedną liczbę dla obu
+  dróg. Okno służy odkręceniu pomyłki i spójności kopii.
+- **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:50,
+  budżet 500 treści każdego rodzaju na przebieg, transakcja na treść.
+- **Wyjątek moderacyjny:** treść, na którą wskazuje jakikolwiek wiersz
+  `reports`/`moderation_actions` (także przez jej komentarz, zdjęcie albo
+  wykonanie), czeka na retencję sprawy (§5.3–5.5). Nie ma osobnej listy
+  wyjątków: gdy `kuking:sprzataj-sprawy-moderacyjne` zabierze sprawę,
+  treść sama staje się kandydatem.
+- **Nagrobek przepisu:** `cooked_events.recipe_id` ma `ON DELETE CASCADE`,
+  więc `forceDelete()` zabrałby cudze „Ugotowałem”. Przepis z cudzymi
+  wykonaniami jest opróżniany (tytuł „Przepis usunięty”, pusty slug, bez
+  opisu, źródła, zdjęć, składników, kroków, wersji i komentarzy) i kasowany
+  dopiero, gdy ostatnie cudze wykonanie zniknie.
+- **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
+  gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
 
 ## 6. Decyzje właściciela — zbiorczo
 

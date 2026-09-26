@@ -67,6 +67,30 @@ return [
         'dlugosc_nazwy' => 40,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | /health — kto widzi szczegóły i jak często wolno pytać (audyt A5-05)
+    |--------------------------------------------------------------------------
+    |
+    | Odpowiedź `/health` jest publiczna. Kod HTTP i pole `status` zostają dla
+    | każdego — z nich korzysta healthcheck Railway i zewnętrzny monitoring.
+    | Pole `checks` (który mechanizm leży i dlaczego, np. `turnstile_bez_kluczy`,
+    | `limit_poczty_wyczerpany`) dostaje WYŁĄCZNIE ktoś z tokenem w nagłówku
+    | `X-Kuking-Health-Token`: to jest mapa chwil, w których warto uderzyć
+    | w formularze. Bez tokenu w konfiguracji szczegółów nie dostaje nikt —
+    | każda porażka sondy i tak zostaje w dzienniku (`Log::error`).
+    |
+    | `probka_magazynu_sekund`: udana próba zapisu i odczytu na dysku zdjęć
+    | (R2) jest pamiętana tyle sekund. Bez tego każde wywołanie `/health`
+    | zapisywało obiekt do bucketu. Porażka NIE jest pamiętana — następne
+    | pytanie próbuje od nowa. Awaria magazynu wychodzi więc najwyżej po
+    | tylu sekundach, ile tu stoi.
+    */
+    'health' => [
+        'token' => env('KUKING_HEALTH_TOKEN') ?: null,
+        'probka_magazynu_sekund' => (int) env('KUKING_HEALTH_PROBKA_MAGAZYNU_SEKUND', 60),
+    ],
+
     'media' => [
         // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
         // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.
@@ -1042,6 +1066,16 @@ return [
         // niedostępność Cloudflare nie może zamykać rejestracji.
         'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
 
+        // Hosty stagingu, na których wystawiony token przyjmujemy OPRÓCZ hosta
+        // z `APP_URL` (issue #992). Nazwy hostów po przecinku, bez protokołu
+        // i bez gwiazdek. Domyślnie puste: na produkcji i na stagingu z własnym
+        // `APP_URL` nic nie trzeba ustawiać. Host żądania nie wchodzi tu nigdy.
+        // Każdy wpis musi też stać na liście hostnames widgetu w Cloudflare.
+        'hosty_stagingu' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TURNSTILE_HOSTY_STAGINGU', '')),
+        ), static fn (string $host): bool => $host !== '')),
+
         /*
          * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
          * (brak tokenu odrzuca wysłanie — D-050, zaostrzenie z 9 września
@@ -1268,6 +1302,18 @@ return [
 
     'limits' => [
         'external_link' => '60,1',
+
+        /*
+         * `/health` (audyt A5-05) — po adresie IP. Liczony W KONTROLERZE, nie
+         * middleware'em `throttle:`: licznik leży w cache w bazie, a przy
+         * awarii bazy middleware rzuciłby wyjątek i healthcheck oddałby 500
+         * zamiast 503 z polem `status`. Kontroler przy awarii licznika
+         * przepuszcza pytanie.
+         *
+         * SKĄD 60 NA MINUTĘ. Railway pyta co kilka sekund tylko podczas
+         * wdrożenia, monitoring co kilka minut — zapas jest wielokrotny.
+         */
+        'health' => '60,1',
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
         // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
@@ -2032,6 +2078,19 @@ return [
     */
     'monitoring' => [
         'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+
+        // Seria identycznych alarmów (#599, `App\Domain\Monitoring\SeriaAlarmow`):
+        // ten sam odcisk błędu idzie na webhook najwyżej raz na tyle minut,
+        // a następna wiadomość niesie liczbę pominiętych powtórzeń. Dziennik
+        // serwera dostaje każde wystąpienie niezależnie od tej liczby.
+        'seria_okno_minut' => (int) env('KUKING_SERIA_ALARMOW_OKNO_MINUT', 15),
+
+        // Łączny czas zapytań SQL jednego żądania HTTP, po którym zapisujemy
+        // ostrzeżenie w dzienniku i dzwonimy (`App\Domain\Monitoring\CzasZapytan`).
+        // 1000 ms to wartość STARTOWA, nie zmierzona: po tygodniu odczytów
+        // `czas_bazy_ms` z dziennika ustaw ją nad p99 zwykłego ruchu.
+        // 0 = pomiar wyłączony.
+        'czas_bazy_prog_ms' => (int) env('KUKING_CZAS_BAZY_PROG_MS', 1000),
     ],
 
     /*
@@ -2354,6 +2413,17 @@ return [
         ),
     ],
 
+    'zeszyt' => [
+        /*
+         * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
+         * na jedno wyszukiwanie. Wynik jest jeden na przepis (z listą
+         * zeszytów), więc 50 to dużo więcej, niż człowiek przejrzy — a gdy
+         * trafień jest więcej, ekran prosi o dokładniejszy tytuł zamiast
+         * stronicować.
+         */
+        'szukaj_limit' => 50,
+    ],
+
     'zgody' => [
         /*
          * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
@@ -2597,7 +2667,8 @@ return [
         //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
         //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
         //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
-        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        //      `routes/console.php` na wolnym slocie — kolizję odrzuci
+        //      `HarmonogramBezWspolnychSlotowTest`
         // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
         // wystartuje nawet przy przypadkowo ustawionej zmiennej.
         //
@@ -2644,6 +2715,50 @@ return [
         // Egzekwuje `kuking:sprzataj-sesje`. Loteria frameworka zostaje
         // obok, świadomie — dwa mechanizmy o różnych trybach awarii.
         'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
+    ],
+
+    // RETENCJA PROSTYCH TABEL PARTIAMI (#1657).
+    //
+    // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
+    // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
+    // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
+    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
+    // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
+    // (`stage=retention_budget_exhausted`).
+    //
+    // 50 000 na noc to ok. 18 mln wierszy rocznie na tabelę — rząd wielkości
+    // ponad dzisiejszy dobowy przyrost każdej z nich, więc codzienna retencja
+    // mieści się w budżecie z zapasem, a jednorazowy zator schodzi w kilka nocy.
+    'retencja' => [
+        'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
+        'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
+    // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
+    //
+    // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
+    // usunięcie: wiersz dostaje `deleted_at`, znika z serwisu, ale tekst
+    // i zdjęcia (oryginał i warianty w R2) zostają. Bez tego zadania —
+    // na zawsze. Polityka prywatności obiecuje przechowywanie „do usunięcia
+    // treści przez Ciebie”, więc miękkie usunięcie może być tylko krótkim
+    // oknem, a nie stanem końcowym.
+    //
+    // TRZYDZIEŚCI DNI — ta sama liczba co karencja usunięcia konta
+    // (`account.delete_grace_days`, polityka §7 pkt 2). Jedna liczba dla
+    // obu dróg: człowiek, który przeczytał „30 dni” przy koncie, nie musi
+    // uczyć się drugiej przy wpisie. Okno służy pomyłce (przywrócenie przez
+    // kontakt@kuking.pl) i spójności kopii zapasowych, nie nam.
+    //
+    // Treści z decyzją moderacji albo zgłoszeniem NIE są tu kandydatem —
+    // żyją tyle, ile sprawa (`moderation.case_retention_months`), bo
+    // odwołanie i „cofam” potrzebują celu. Gdy retencja spraw zabierze
+    // sprawę, treść wraca do kolejki tego zadania.
+    //
+    // Egzekwuje `kuking:sprzataj-usuniete-tresci`
+    // (`App\Domain\Compliance\PrzedawnioneUsunieteTresci`).
+    'usuniete_tresci' => [
+        'retention_days' => (int) env('KUKING_USUNIETE_TRESCI_DNI', 30),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
@@ -3162,6 +3277,54 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Publiczne API dla aplikacji mobilnej (D-014, D-270)
+    |--------------------------------------------------------------------------
+    |
+    | Drugi adapter nad TYMI SAMYMI Akcjami i Policy co kontrolery HTML.
+    | Trasy leżą w `routes/api.php` pod prefiksem `/api/v1`, uwierzytelnia je
+    | Laravel Sanctum TOKENAMI OSOBISTEGO DOSTĘPU (nagłówek `Authorization:
+    | Bearer …`), nigdy ciasteczkiem sesji — patrz `config/sanctum.php`.
+    */
+    'api' => [
+        /*
+         * WYŁĄCZNIK CAŁEGO API, domyślnie ZAMKNIĘTY.
+         *
+         * `false` znaczy: każdy adres pod `/api/*` — także ten, który istnieje
+         * — odpowiada tym samym 404 co adres, którego nie ma
+         * (`App\Http\Middleware\BramaApi`). Nie 401 i nie 403: zamknięte
+         * API nie ma zdradzać, które trasy za nim stoją.
+         *
+         * Domyślnie zamknięte, bo otwarcie jest decyzją wdrożeniową, nie
+         * skutkiem ubocznym merge'a: dopóki aplikacja mobilna nie istnieje,
+         * otwarte API byłoby powierzchnią bez konsumenta — dokładnie tym,
+         * przed czym ostrzegał D-014.
+         */
+        'wlaczone' => (bool) env('KUKING_API_ENABLED', false),
+
+        /*
+         * DWA LIMITY NA KAŻDE ŻĄDANIE, LICZONE NIEZALEŻNIE: `na_adres`
+         * w `App\Http\Middleware\BramaApi` (przed sprawdzeniem tokenu),
+         * `na_token` w limiterze `api` (`App\Providers\ApiServiceProvider`).
+         * Format „próby,minuty" jak w `limits` niżej.
+         *
+         * `na_token` — jedno urządzenie jednej osoby. Aplikacja przewijająca
+         * feed i otwierająca wpisy robi kilka żądań na ekran; 120 na minutę
+         * to dwa żądania na sekundę bez przerwy, czyli sufit, którego człowiek
+         * palcem nie dotknie, a zapętlony klient dotknie w minutę.
+         *
+         * `na_adres` — jeden adres IP, z tokenem albo bez. Wyższy niż
+         * `na_token`, bo za jednym ruterem domowym (albo za NAT-em operatora
+         * komórkowego) siedzi kilka osób naraz. To on jest jedyną zaporą dla
+         * żądań bez tokenu i dla kogoś, kto zakłada tokeny seriami.
+         */
+        'limity' => [
+            'na_token' => '120,1',
+            'na_adres' => '300,1',
+        ],
     ],
 
     'demo' => [

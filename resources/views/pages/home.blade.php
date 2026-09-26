@@ -65,6 +65,20 @@
         </section>
     @endif
 
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
+        </section>
+    @endif
+
     @if($wspomnienie ?? null)
         {{--
             „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).
@@ -97,17 +111,6 @@
         </section>
     @endif
 
-    @if(($zrodloFeedu ?? 'obserwowani') === 'tagi')
-        {{-- Feed tagów (D-021, zastępuje usunięty już feed tematów z issue #31).
-             Człowiek MUSI wiedzieć, skąd się wzięły te wpisy: feed, którego
-             pochodzenia nie da się wytłumaczyć, wygląda jak algorytm,
-             a tego tu nie ma i nie będzie. --}}
-        <div class="notice">
-            <strong>To wpisy z tagów, które obserwujesz.</strong>
-            Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
-            <a href="{{ route('settings.tags') }}">Zmień swoje tagi</a>.
-        </div>
-    @endif
 
     {{--
         ZAKŁADKI FEEDU (UI kit v2, ekrany 01 i 05).
@@ -121,7 +124,9 @@
         przy samym odnośniku niżej.
     --}}
     <div class="start-feed-naglowek">
-        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : (($zrodloFeedu ?? 'obserwowani') === 'tagi' ? 'Najnowsze z Twoich tagów' : 'Najnowsze od obserwowanych') }}</h2>
+        {{-- Od #1808 (D-277) lista obserwowanych łączy osoby i tematy — nagłówek
+             mówi o obu, a każda karta z tagu ma własny podpis „Z tagu: …". --}}
+        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
         <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
@@ -180,18 +185,21 @@
         </div>
     @endif
 
-    @if($posts->count() === 0)
+    @if($posts->count() === 0 && $showingDiscover)
+        {{-- Issue #1807: pusty Start po przejściu do Odkrywania też ma wyjście. --}}
+        <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
+    @elseif($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
             Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
     @else
-        <div class="stack">
+        <div class="stack" id="lista-wpisow">
             @foreach($posts as $post)
                 <x-post-card :post="$post" />
             @endforeach
         </div>
 
-        <x-show-more :paginator="$posts" />
+        <x-show-more :paginator="$posts" lista="lista-wpisow" />
     @endif
     <section class="marka-start-pomoc" aria-labelledby="start-jak-dziala">
         <p class="nadtytul">Gotowanie łączy</p>

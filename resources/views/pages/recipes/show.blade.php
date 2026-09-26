@@ -11,11 +11,20 @@
     $edycjaZdjecPrzepisu = auth()->user()?->isActive() && auth()->user()->can('update', $recipe)
         ? route('recipes.edit', $recipe->slug)
         : null;
+    // „Moja wersja" (issue #23, D-301): oryginał widoczny dla GOŚCIA, czyli
+    // taki, który sam jest w indeksie — tylko on może trafić do `isBasedOn`.
+    $oryginalPubliczny = \App\Domain\Recipes\MojaWersja::oryginalDlaWidza($recipe, null);
+    $wersje ??= null;
 @endphp
 <x-layout
     :title="$recipe->title"
     :description="\Illuminate\Support\Str::limit($recipe->summary ?? $recipe->title, 155)"
     :noindex="! $isPublic"
+    {{-- Wersja zbyt podobna do publicznego oryginału: strona dla ludzi, ale
+         poza indeksem, z `follow`, żeby link do oryginału dalej prowadził
+         (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4, D-301). `canonical` zostaje
+         na sobie — wersja nie jest duplikatem adresu, tylko osobnym przepisem. --}}
+    :noindexFollow="$isPublic && ! ($wersjaDoIndeksu ?? true)"
     {{-- Karta do wysłania rodzinie (issue #14). Zdjęcie podajemy TYLKO dla
          przepisu publicznego: przy szkicu i przepisie dla znajomych nie ma
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
@@ -140,21 +149,45 @@
                  * nie jest ani linkiem, ani adresem strony — tu ten sam
                  * warunek HTTP/HTTPS co przy linku niżej.
                  */
-                'isBasedOn' => $recipe->source_type === \App\Models\Recipe::SOURCE_EXTERNAL
+                /*
+                 * „MOJA WERSJA" (issue #23, D-301): `isBasedOn` wskazuje
+                 * ORYGINAŁ w serwisie — ten sam, który podpis nad tytułem
+                 * pokazuje gościowi. Oryginał niewidoczny dla gościa nie trafia
+                 * tu wcale: dane strukturalne nie mogą obiecywać adresu, pod
+                 * którym wyszukiwarka dostanie 403 albo 404.
+                 */
+                'isBasedOn' => $oryginalPubliczny !== null
+                    ? $oryginalPubliczny->url()
+                    : ($recipe->source_type === \App\Models\Recipe::SOURCE_EXTERNAL
                         && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
                     ? $recipe->source_url
-                    : null,
+                    : null),
                 'image' => [$recipe->heroMedia->url('large')],
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
                 'totalTime' => $recipe->totalTimeIso(),
                 'recipeIngredient' => $recipe->ingredients->pluck('ingredient_text')->all(),
-                'recipeInstructions' => $recipe->steps->map(fn ($step) => [
+                /*
+                 * ZDJĘCIE KROKU TYLKO WTEDY, GDY STRONA JE POKAZUJE (#1370).
+                 *
+                 * Warunek i wariant są DOKŁADNIE te, których używa lista
+                 * kroków niżej (`<x-photo :media="$step->media"
+                 * variant="feed">` pyta `maWariantDoPokazania('feed')`).
+                 * Krok ze zdjęciem jeszcze nieprzetworzonym albo w trakcie
+                 * kasowania nie dostaje `image` — dane strukturalne nie
+                 * mogą obiecywać obrazu, którego człowiek nie widzi.
+                 * `url()` wskazuje przetworzony wariant publiczny, nigdy
+                 * oryginał, i jest bezwzględny (`route()` z APP_URL).
+                 * Bez sztucznego `name` z numeru kroku — Google go nie
+                 * wymaga, a „Krok 3" nic nie mówi.
+                 */
+                'recipeInstructions' => $recipe->steps->map(fn ($step) => array_filter([
                     '@type' => 'HowToStep',
                     'position' => $step->position + 1,
                     'text' => $step->instruction,
-                ])->all(),
+                    'image' => $step->media?->maWariantDoPokazania('feed') ? $step->media->url('feed') : null,
+                ], static fn ($value) => $value !== null))->all(),
                 'interactionStatistic' => $cookedCount > 0 ? [
                     '@type' => 'InteractionCounter',
                     'interactionType' => 'https://schema.org/CookAction',
@@ -167,15 +200,14 @@
             @endif
 
             @php
-                $breadcrumbJsonLd = [
-                '@context' => 'https://schema.org',
-                '@type' => 'BreadcrumbList',
-                'itemListElement' => [
-                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Świeżo z Kuking', 'item' => route('discover')],
-                    ['@type' => 'ListItem', 'position' => 3, 'name' => $recipe->title],
-                ],
-            ];
+                // Ścieżka przepisu zostaje, jaka była — etykieta i cel drugiego
+                // poziomu czekają na #667. Kodowanie wspólne z wpisami,
+                // pytaniami i profilami (`Okruszki`, #1033).
+                $breadcrumbJsonLd = \App\Support\Okruszki::jsonLd([
+                    ['nazwa' => 'Kuking', 'url' => route('landing')],
+                    ['nazwa' => 'Świeżo z Kuking', 'url' => route('discover')],
+                    ['nazwa' => $recipe->title, 'url' => null],
+                ]);
             @endphp
             <x-json-ld :data="$breadcrumbJsonLd" />
         @endif
@@ -205,6 +237,7 @@
                  — a rytm nagłówka jest własnością strony przepisu, nie
                  trzech osobnych miejsc w szablonie. --}}
             <p class="meta">{{ $recipe->attributionLine() }}</p>
+            <x-na-podstawie-przepisu :recipe="$recipe" />
             <h1>{{ $recipe->title }}</h1>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
@@ -386,7 +419,7 @@
                                 <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
                                 <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
                             @elseif($zeszytyTegoPrzepisu->count() > 1)
-                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Zanim to zrobimy, zapytamy o potwierdzenie i pozwolimy wybrać jeden zeszyt.</p>
                             @endif
                             <button class="btn btn-secondary" type="submit"
                                 @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
@@ -637,6 +670,48 @@
         @endauth
 
         {{--
+            „MOJA WERSJA" (issue #23, D-301).
+
+            Przycisk POD przepisem, nie w pasku akcji obok „Ugotowałem":
+            „Ugotowałem" jest najważniejszym sygnałem w produkcie (AGENTS.md §1)
+            i nic nie ma z nim konkurować o pierwsze miejsce. Najpierw się
+            gotuje, potem — jeśli wyszło po swojemu — zapisuje własną wersję.
+            Policy (`fork`) pyta o wszystko naraz: cudzy, publiczny,
+            opublikowany, bez blokady, konto aktywne. Bez uprawnienia nie ma
+            przycisku, więc nie ma przycisku prowadzącego w 403.
+        --}}
+        @can('fork', $recipe)
+            <section class="sekcja-strony kolumna-czytania" aria-labelledby="moja-wersja">
+                <h2 id="moja-wersja">Gotujesz to po swojemu?</h2>
+                <p>Zrób swoją wersję tego przepisu. Dostaniesz kopię do zmiany, widoczną tylko dla Ciebie. Po publikacji nad tytułem zostanie podpis z tym przepisem i jego autorem.</p>
+                <form method="POST" action="{{ route('recipes.fork', $recipe->slug) }}">
+                    @csrf
+                    <button class="btn btn-secondary" type="submit">Zrób swoją wersję</button>
+                </form>
+            </section>
+        @endcan
+
+        {{--
+            WERSJE INNYCH OSÓB — wyróżnienie autora oryginału, nie ranking.
+            Bez liczby wszystkich wersji (AGENTS.md §12), chronologicznie,
+            tylko to, co widz może zobaczyć (`MojaWersja::wersjeDlaWidza()`).
+            Pusta lista nie rysuje nagłówka: „Nikt jeszcze nie zrobił swojej
+            wersji" pod cudzym przepisem brzmiałoby jak zarzut.
+        --}}
+        @if($wersje !== null && $wersje->isNotEmpty())
+            <section class="stack" aria-labelledby="wersje-innych">
+                <h2 id="wersje-innych" class="m-0">Wersje innych osób</h2>
+                <p class="meta m-0">Ten przepis zainspirował inne osoby. Każda wersja jest podpisana tym przepisem.</p>
+                <div class="stack" id="lista-wersji">
+                    @foreach($wersje as $wersja)
+                        <x-recipe-card :recipe="$wersja" />
+                    @endforeach
+                </div>
+                <x-show-more :paginator="$wersje" czego="wersji" lista="lista-wersji" />
+            </section>
+        @endif
+
+        {{--
             KOMU WYSZŁO — UI kit v2, ekrany 02/06, domknięcie etapu C.
 
             Nagłówek zostaje „Komu wyszło" (COPY_STYLE.md §6), nie „Jak wyszło
@@ -683,10 +758,12 @@
 
             @if($cookedEvents->isNotEmpty())
                 <p class="meta">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
-                @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" />
-                @endforeach
-                <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+                <div class="stack" id="lista-wykonan">
+                    @foreach($cookedEvents as $event)
+                        <x-cooked-card :event="$event" />
+                    @endforeach
+                </div>
+                <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
                 {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako

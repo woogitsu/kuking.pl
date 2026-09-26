@@ -484,6 +484,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
+        $zeszyt->recipes()->attach($przepis->getKey());
 
         // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
         // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
@@ -716,6 +718,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
+        // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
+        // wpisu — tylko autorowi, nigdy moderatorowi ani obcemu.
+        $dodaj('recipes.create.from-post', 'formularz przepisu ze zdjęciem prywatnego wpisu', 'get',
+            route('recipes.create.from-post', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.edit', 'układ zdjęć wpisu', 'get',
             route('posts.media.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.update', 'zapis układu zdjęć', 'post',
@@ -747,6 +753,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
+        // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje
+        // (właściciel — odmowa), zablokowany i gość nie wchodzą, obca osoba
+        // i moderator dostają swój szkic. Prywatnego nie kopiuje nikt, bo
+        // nikt poza autorem go nie widzi (`fork` idzie przez `view`).
+        $dodaj('recipes.fork', 'moja wersja publicznego przepisu', 'post',
+            route('recipes.fork', $przepis), [], [$O, $W, $O, $W, $O]);
+        $dodaj('recipes.fork', 'moja wersja prywatnego przepisu', 'post',
+            route('recipes.fork', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('cooking.show', 'tryb gotowania z prywatnego przepisu', 'get',
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
@@ -817,6 +831,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Wyjęcie niedostępnych zapisów (#773) — kasuje powiązania, więc tylko
+        // właściciel. Zeszyt nie ma niedostępnych pozycji: właściciel dostaje
+        // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
+        $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
+            route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
+        // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
+        $dodaj('collections.note', 'notatka przy zapisie', 'patch',
+            route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością

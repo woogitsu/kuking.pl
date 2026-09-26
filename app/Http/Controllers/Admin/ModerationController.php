@@ -121,8 +121,9 @@ class ModerationController extends Controller
             'status' => $status,
             'zrodlo' => $zrodlo,
             'reports' => $reports,
-            // Które zgłoszenia da się dziś cofnąć (issue #65).
-            'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Które zgłoszenia da się dziś cofnąć (issue #65) — i przy
+            // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
+            'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -214,7 +215,21 @@ class ModerationController extends Controller
             'reason_code.required' => 'Podaj powód przywrócenia — w logu musi zostać ślad, dlaczego zdjęto ukrycie.',
         ]);
 
-        $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+        // „Przywróć” cofa decyzję podjętą PRZY TYM zgłoszeniu (audyt B2-01).
+        // Bez tego warunku przycisk z dowolnego zgłoszenia — także
+        // odrzuconego — przywracał treść, którą schował ktoś inny.
+        $decyzja = ModerationAction::query()
+            ->where('report_id', $report->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE])
+            ->first();
+
+        if ($decyzja === null) {
+            return back()->withErrors([
+                'reason_code' => 'Przy tym zgłoszeniu moderacja niczego nie ukryła ani nie usunęła, więc nie ma czego przywracać.',
+            ]);
+        }
+
+        $cel = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($cel === null) {
             return back()->withErrors([
@@ -246,10 +261,21 @@ class ModerationController extends Controller
      * a strona kolejki ma 25 pozycji obsługiwanych przez jedną osobę.
      * Optymalizacja tego miejsca kosztowałaby więcej czytelności niż daje.
      *
+     * Treść, której autorem jest patrzący moderator, dostaje `wlasna`
+     * zamiast `przywroc` (#1479): `RestoreContent` i tak by odmówił, więc
+     * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
+     * co reguła w akcji — `ModeratedContent::osoba()`.
+     *
+     * Treść, którą ukrył administrator, dostaje u zwykłego moderatora
+     * `tylko_admin` (#1748): regułę rangi B2-01 czytamy z
+     * `RestoreContent::wolnoCofnac()`, nie z kopii. Kolejność jak w akcji —
+     * najpierw własna treść, potem ranga — więc informacja w widoku mówi to
+     * samo, co powiedziałaby odmowa.
+     *
      * @param  list<Report>  $reports
-     * @return array<string, true> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'|'tylko_admin'> klucz: id zgłoszenia
      */
-    private function przywracalne(array $reports): array
+    private function przywracalne(array $reports, User $moderator): array
     {
         if ($reports === []) {
             return [];
@@ -270,12 +296,26 @@ class ModerationController extends Controller
                 continue;
             }
 
-            $schowana = ModeratedContent::jestUkryta($cel)
-                || (method_exists($cel, 'trashed') && $cel->trashed());
+            $usunieta = method_exists($cel, 'trashed') && $cel->trashed();
+            $schowana = ModeratedContent::jestUkryta($cel) || $usunieta;
 
-            if ($schowana) {
-                $wynik[(string) $decyzja->report_id] = true;
+            if (! $schowana) {
+                continue;
             }
+
+            // Treść schowana przez autora albo właściciela wpisu nie dostaje
+            // przycisku — `RestoreContent` i tak by odmówił (B2-01).
+            $zdjecie = RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta);
+
+            if ($zdjecie === null) {
+                continue;
+            }
+
+            $wynik[(string) $decyzja->report_id] = match (true) {
+                ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey() => 'wlasna',
+                ! RestoreContent::wolnoCofnac($moderator, $zdjecie) => 'tylko_admin',
+                default => 'przywroc',
+            };
         }
 
         return $wynik;

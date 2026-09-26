@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
@@ -86,9 +87,12 @@ use Illuminate\Notifications\Messages\MailMessage;
  * gdzie konto istnieje i jest niepotwierdzone — czyli sam kod odpowiedzi
  * stałby się wyrocznią.
  */
-final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldQueue
+final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
+
+    // Martwy link po zastąpionym tokenie nie wychodzi (audyt B8-04).
+    use SwiezyTokenResetuHasla;
 
     /**
      * Kolejka `high` (audyt B8-06): ten list wpuszcza człowieka na konto

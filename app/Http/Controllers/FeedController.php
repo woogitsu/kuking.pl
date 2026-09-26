@@ -8,15 +8,16 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
-use App\Domain\Feed\TagFeed;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
+use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\TagHighlight;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -48,10 +49,10 @@ class FeedController extends Controller
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
-        private readonly TagFeed $tagFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
         private readonly HeroKolaz $heroKolaz,
+        private readonly RocznicaDolaczenia $rocznica,
     ) {}
 
     /**
@@ -59,7 +60,7 @@ class FeedController extends Controller
      * z animacjami — to od razu prawdziwe zdjęcia prawdziwych ludzi, bo to
      * jest jedyny wiarygodny argument, żeby tu zostać.
      */
-    public function landing(Request $request): View
+    public function landing(Request $request): View|RedirectResponse
     {
         if ($request->user() !== null) {
             return $this->home($request);
@@ -88,35 +89,46 @@ class FeedController extends Controller
     }
 
     /**
-     * /home — feed obserwowanych, a gdy go nie ma, feed tagów (D-021,
-     * zastępuje usunięty już feed tematów z issue #31).
+     * /home — obserwowane osoby i tematy w jednej liście, a gdy tam pusto,
+     * „Świeżo z Kuking".
      *
-     * TRZY STOPNIE
-     * Do niedawna były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
-     * — czyli wszystko jak leci, identyczne dla każdego. Nowe konto dostawało
-     * więc ekran, który nie należał do niego.
-     *
-     * Między nie wchodzi feed TAGÓW wybranych w onboardingu
-     * (`Tag::promowane()` — lista gospodarza, D-021). To jedyna rzecz,
-     * którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który jest
-     * jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
-     * onboarding albo w jego tagach nikt jeszcze nic nie ugotował —
-     * pokazujemy „Świeżo z Kuking".
-     *
-     * Kolejność jest ważna w drugą stronę też: człowiek, który KOGOŚ
-     * obserwuje, dostaje wpisy tych osób, nawet jeśli obserwuje też tagi.
-     * Ludzie są ważniejsi od kategorii — to jest serwis o ludziach,
-     * którzy gotują (AGENTS.md).
+     * DWA STOPNIE (issue #1808, D-277 — zmienia D-021)
+     * Do 25 września 2026 były trzy: obserwowani → feed tagów → Odkrywanie.
+     * Kto obserwował choć jedną aktywną osobę, nie zobaczył nigdy wpisów
+     * z obserwowanych tematów. Teraz `FollowingFeed` łączy osoby i tematy
+     * (tematy wybrane w onboardingu — `Tag::promowane()`, lista gospodarza —
+     * dalej dają nowemu kontu pierwszy ekran, który jest jego). Karta z tematu
+     * jest podpisana „Z tagu: …", więc pochodzenie każdego wpisu da się
+     * wytłumaczyć. Dopiero gdy i to jest puste, pokazujemy „Świeżo z Kuking".
      */
-    public function home(Request $request): View
+    public function home(Request $request): View|RedirectResponse
     {
         $user = $request->user();
 
-        $zrodlo = match (true) {
-            ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
-            $this->tagFeed->maTresci($user) => 'tagi',
-            default => 'odkrywanie',
-        };
+        $zrodlo = $this->aktualneZrodloFeedu($user);
+        $maKursor = $request->query->has('cursor');
+        $podaneZrodlo = $request->query('zrodlo');
+
+        // Kursor opisuje pozycję, ale nie mówi, z którego z dwóch zapytań
+        // pochodzi. Bez tej drugiej informacji poprawny technicznie kursor
+        // feedu obserwowanych mógłby zostać zastosowany do odkrywania i uciąć
+        // jego najnowsze wpisy (#1021). Stare odnośniki `zrodlo=tagi` (feed
+        // tagów przed #1808) wracają tą samą drogą do pierwszej strony.
+        //
+        // Nazwa z adresu nie wybiera feedu. Serwer najpierw ponownie
+        // rozstrzyga właściwe źródło z aktualnych relacji i widoczności,
+        // a parametr może je wyłącznie potwierdzić. Gdy źródło między
+        // stronami się zmieniło — albo parametr jest obcy/niepełny — wracamy
+        // do kanonicznej pierwszej strony zamiast użyć kursora w innym SQL-u.
+        if ($maKursor) {
+            if (! is_string($podaneZrodlo)
+                || ! in_array($podaneZrodlo, ['obserwowani', 'odkrywanie'], true)
+                || $podaneZrodlo !== $zrodlo) {
+                return redirect()->route('home');
+            }
+        } elseif ($request->query->has('zrodlo')) {
+            return redirect()->route('home');
+        }
 
         // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
         // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
@@ -162,7 +174,15 @@ class FeedController extends Controller
             ->limit(3)
             ->get();
 
-        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $request->query->has('cursor'));
+        // Na pierwszej stronie (bez kursora) źródło może jeszcze zmienić się
+        // na kolejne w kolejności, gdy okaże się puste (issue #983) — patrz
+        // `pierwszaStronaZrodla()`. Z kursorem źródło jest już ustalone przez
+        // walidację wyżej i się nie przełącza.
+        [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $maKursor);
+
+        // `appends`, nie ręczne składanie adresu: Laravel nadal koduje sam
+        // kursor, a my dokładamy wyłącznie serwerowo wybraną tożsamość źródła.
+        $posts->appends(['zrodlo' => $zrodlo]);
 
         return view('pages.home', [
             'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
@@ -174,24 +194,33 @@ class FeedController extends Controller
             'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
+            // Rocznica dołączenia (issue #1754) — jedno zdanie od gospodarza
+            // albo `null`. Bez pustego stanu i bez powiadomień, jak wyżej.
+            'rocznica' => $this->rocznica->dlaOsoby($user),
+            'podpisRocznicy' => $this->rocznica->podpis(),
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',
+            'ileUkrywasz' => $zrodlo === 'odkrywanie' && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
         ]);
     }
 
+    private function aktualneZrodloFeedu(User $user): string
+    {
+        return $this->followingFeed->isEmptyFor($user) ? 'odkrywanie' : 'obserwowani';
+    }
+
     /**
-     * Strona z wybranego źródła — a gdy to źródło okazało się puste, z
-     * następnego w kolejności obserwowani → tagi → odkrywanie (issue #983).
+     * Strona z wybranego źródła — a gdy obserwowani (osoby i tematy) okazali
+     * się pusti, z Odkrywania (issue #983).
      *
-     * Wybór źródła (`isEmptyFor()` / `maTresci()`) i paginacja to osobne
-     * zapytania, a przy Read Committed każde widzi inny zatwierdzony stan.
-     * Cofnięcie obserwowania, blokada albo ukrycie ostatniego wpisu między
-     * nimi zostawiało pusty Start, choć następne źródło miało treść. Dlatego
-     * o źródle rozstrzyga dopiero to, co paginacja faktycznie oddała —
-     * i `zrodloFeedu` opisuje źródło zwróconych wpisów, nie wcześniejszą
-     * prognozę.
+     * Wybór źródła (`isEmptyFor()`) i paginacja to osobne zapytania, a przy
+     * Read Committed każde widzi inny zatwierdzony stan. Cofnięcie
+     * obserwowania, blokada albo ukrycie ostatniego wpisu między nimi
+     * zostawiało pusty Start, choć Odkrywanie miało treść. Dlatego o źródle
+     * rozstrzyga dopiero to, co paginacja faktycznie oddała — i `zrodloFeedu`
+     * opisuje źródło zwróconych wpisów, nie wcześniejszą prognozę.
      *
      * Feed obserwowanych zawiera też własne wpisy, a `isEmptyFor()` celowo
      * ich nie liczy. Strona złożona z samych własnych wpisów zostaje więc
@@ -213,28 +242,39 @@ class FeedController extends Controller
                 || ($posts->isNotEmpty() && ! $this->followingFeed->isEmptyFor($user))) {
                 return ['obserwowani', $posts];
             }
-
-            $zrodlo = 'tagi';
         }
 
-        if ($zrodlo === 'tagi') {
-            $posts = $this->tagFeed->paginate($user);
-
-            if ($zKursorem || $posts->isNotEmpty()) {
-                return ['tagi', $posts];
-            }
-        }
-
-        return ['odkrywanie', $this->discoverFeed->paginate($user)];
+        return ['odkrywanie', $this->discoverFeed->paginate($user, null, $zKursorem ? $this->stanOdkrywania() : null)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
     public function discover(Request $request): View
     {
+        $user = $request->user();
+        $posts = $this->discoverFeed->paginate(
+            $user,
+            null,
+            $request->query->has('cursor') ? $this->stanOdkrywania() : null,
+        );
+
         return view('pages.discover', [
-            'posts' => $this->discoverFeed->paginate($request->user()),
-            'board' => $this->dailyBoard->forViewer($request->user()),
+            'posts' => $posts,
+            'board' => $this->dailyBoard->forViewer($user),
+            // Liczone tylko dla pustej listy — tylko tam pusty stan o tym mówi.
+            'ileUkrywasz' => $user !== null && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
         ]);
+    }
+
+    /**
+     * Chwila pierwszej strony Odkrywania (issue #1807) — tylko razem
+     * z kursorem, bo bez kursora to jest nowe wejście i liczy się od teraz.
+     * Walidację wartości robi `DiscoverFeed`.
+     */
+    private function stanOdkrywania(): ?string
+    {
+        $stan = request()->query('stan');
+
+        return is_string($stan) ? $stan : null;
     }
 
     /**

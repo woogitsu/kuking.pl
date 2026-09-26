@@ -68,6 +68,11 @@
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
     <h1>{{ $isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami' }}</h1>
+    {{-- „Moja wersja" (issue #23, D-301): podpis widać też tu, a formularz
+         nie ma pola, które by go zdejmowało. --}}
+    @if($recipe)
+        <x-na-podstawie-przepisu :recipe="$recipe" />
+    @endif
     {{-- ZDANIE „NIE MUSISZ NIC PRZEWIJAĆ ANI SZUKAĆ" ZNIKŁO, BO BYŁO NIEPRAWDĄ.
 
          Zmierzone 11 września 2026 Chromium 1243 na postawionej lokalnie
@@ -103,10 +108,20 @@
         {{-- Ten sam ekran w krokach — dla kogoś, komu jedna długa strona
              jest za długa. Kreator wymaga JavaScriptu, więc NIE jest jedyną
              drogą do szczegółów; ta strona działa bez skryptu. --}}
+        {{-- Kreator wczytuje przepis z bazy, więc niezapisane zmiany z tej
+             strony do niego nie przechodzą (issue #899). Zdanie mówi to wprost
+             także bez skryptu; ze skryptem zmieniony formularz najpierw pyta
+             (`resources/js/niezapisane-zmiany.js`), niezmieniony nie. --}}
+        @php
+            $kreatorUrl = route('recipes.details', $recipe->slug);
+            $przyciskZapisu = $recipe->isPublished() ? 'Zapisz zmiany' : 'Zapisz szkic';
+        @endphp
         <p class="field-help mb-5">
             Wolisz przechodzić to krok po kroku, z zapisywaniem po drodze?
-            <a href="{{ route('recipes.details', $recipe->slug) }}">Otwórz kreator w trzech krokach</a>.
+            <a href="{{ $kreatorUrl }}" data-niezapisane-formularz="formularz-szczegolow" data-niezapisane-ostrzezenie="ostrzezenie-kreatora-gora">Otwórz kreator w trzech krokach</a>.
+            Kreator otworzy ostatnią zapisaną wersję — zmiany wpisane tutaj najpierw zapisz.
         </p>
+        <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-gora" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
     @endif
 
     <x-error-summary />
@@ -126,7 +141,8 @@
          hierarchii z `docs/design/ROLE_KART.md`. To są cztery części JEDNEGO
          formularza, więc jedna rola i jedna powierzchnia; rozdziela je
          kreska i nagłówek z `.form-section`, tak jak było to pomyślane. --}}
-    <form class="panel-formularza" method="POST" action="{{ $action }}" enctype="multipart/form-data">
+    <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
+          @if($errors->any()) data-niezapisane-od-serwera @endif>
         @csrf
         @if($isEdit) @method('PUT') @endif
 
@@ -388,10 +404,13 @@
                     Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
                 @endunless
                 @if($isEdit)
-                    W <a href="{{ route('recipes.details', $recipe->slug) }}">kreatorze w trzech krokach</a> wiersze
-                    dodaje się i usuwa od razu, bez zapisywania.
+                    W <a href="{{ $kreatorUrl }}" data-niezapisane-formularz="formularz-szczegolow" data-niezapisane-ostrzezenie="ostrzezenie-kreatora-skladniki">kreatorze w trzech krokach</a> wiersze
+                    dodaje się i usuwa od razu, bez zapisywania. Otworzy on ostatnią zapisaną wersję przepisu.
                 @endif
             </p>
+            @if($isEdit)
+                <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-skladniki" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
+            @endif
         </section>
 
         {{-- ---------------------------------------------------------------
@@ -423,9 +442,10 @@
                         <label for="f-steps-{{ $i }}-instruction">Co się robi w tym kroku</label>
                         <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
                                   name="steps[{{ $i }}][instruction]" rows="3"
+                                  @error("steps.$i.instruction") aria-invalid="true" aria-describedby="f-steps-{{ $i }}-instruction-error" @enderror
                                   @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
                         >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
-                        @error("steps.$i.instruction")<span class="field-error">{{ $message }}</span>@enderror
+                        @error("steps.$i.instruction")<span class="field-error" id="f-steps-{{ $i }}-instruction-error">{{ $message }}</span>@enderror
                     </div>
 
                     {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.
