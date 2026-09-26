@@ -204,8 +204,11 @@ jobs:
         with:
           command: plan
           railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
-          # Wynik ląduje jako komentarz w PR i jako przypięty artefakt,
-          # który zużyje job `apply` po merge'u.
+          # Wynik ląduje jako komentarz w PR. Apply NIE idzie po scaleniu
+          # i nie zużywa tego planu: uruchamia go tylko człowiek przez
+          # `workflow_dispatch` (Actions → Railway IaC → Run workflow),
+          # a akcja liczy wtedy plan od nowa (#595, sprostowanie z 24.09
+          # w nagłówku; audyt po fali 25.09, znalezisko 11).
           comment: true
 
   # ===========================================================================

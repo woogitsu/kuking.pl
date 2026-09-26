@@ -100,7 +100,7 @@ Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
 | `Postgres` | brak zmian | Utworzenie, usunięcie, zmiana obrazu, regionu albo wolumenu — **stop**. Zmiana obrazu/regionu bazy to migracja danych, nie część #595. |
 | `web`, `postgres` (małe litery) | nie występują | Ktoś cofnął nazwy — **stop** |
 | domeny `kuking.pl`, `www.kuking.pl` | brak zmian | Usunięcie/utworzenie domeny = nowy certyfikat i przerwa — **stop** |
-| usunięcie **zmiennej** w `kuking.pl` | brak | **Stop.** Zmienna ustawiona tylko w panelu zniknie. Dopisz ją do `appEnv` w `railway.ts` (PR), wyjątek: `KUKING_HTML_EDGE_CACHE_SECONDS` — jej zniknięcie wyłącza cache HTML (bezpieczny kierunek), ale świadomie. |
+| usunięcie **zmiennej** w `kuking.pl` | brak | **Stop.** Zmienna ustawiona tylko w panelu zniknie. Dopisz ją do `appEnv` w `railway.ts` (PR), wyjątek: `KUKING_HTML_EDGE_CACHE_SECONDS` — jej zniknięcie wyłącza cache HTML (bezpieczny kierunek), ale świadomie. Jak sprawdzić to przed apply, bez stagingu: `ZMIENNE_SPOZA_IAC.md`. |
 | zmiana wartości zmiennej sekretnej (wartości są w planie zredagowane) | tylko tam, gdzie krok 0.4 potwierdził zmienną współdzieloną | Nie wiesz, skąd zmiana — **stop** |
 | `checkSuites` / „Wait for CI” | brak zmian | Wyłączenie — brak `KUKING_WAIT_FOR_CI=true`, krok 0.3 |
 | `kopia-bazy` | brak zmian, jeśli założona ręcznie pod tą nazwą; inaczej utworzenie | Utworzenie bez zmiennych `KOPIA_*`/`R2_KOPIE_*` da nocny błąd z alarmem, nie awarię strony. Zdecyduj: dokończ §7.3 KOPIE_I_ODTWORZENIE albo przyjmij świadomie. |

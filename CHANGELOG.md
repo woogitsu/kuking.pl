@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dla osób rozwijających serwis: nowy skrypt `scripts/railway/zmienne-spoza-iac.mjs` wypisuje nazwy zmiennych serwisu ustawionych tylko w panelu Railway, a nie w `railway.ts` (bez wartości), a `docs/infra/ZMIENNE_SPOZA_IAC.md` opisuje, jak przed pierwszym `railway config apply` sprawdzić, czy apply by je usunął — samym odczytem, bez stagingu. Komentarz w `railway-iac.yml` nie mówi już o apply „po merge'u” (audyt po fali 25.09, znaleziska 11 i 12).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
