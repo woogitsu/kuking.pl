@@ -2400,6 +2400,17 @@ return [
         ),
     ],
 
+    'zeszyt' => [
+        /*
+         * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
+         * na jedno wyszukiwanie. Wynik jest jeden na przepis (z listą
+         * zeszytów), więc 50 to dużo więcej, niż człowiek przejrzy — a gdy
+         * trafień jest więcej, ekran prosi o dokładniejszy tytuł zamiast
+         * stronicować.
+         */
+        'szukaj_limit' => 50,
+    ],
+
     'zgody' => [
         /*
          * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
