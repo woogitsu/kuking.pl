@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 
 final class DeleteComment
 {
-    public const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
+    private const DELETED_PLACEHOLDER = Comment::DELETED_PLACEHOLDER;
 
     public function __construct(private readonly NotifyUser $notify) {}
 

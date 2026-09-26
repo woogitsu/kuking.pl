@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
-use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
@@ -348,7 +347,7 @@ final class RestoreContent
 
         $korzen->forceFill([
             $korzen->getDeletedAtColumn() => null,
-            'body' => DeleteComment::DELETED_PLACEHOLDER,
+            'body' => Comment::DELETED_PLACEHOLDER,
             'body_removed_at' => $korzen->body_removed_at ?? now(),
         ])->save();
 
