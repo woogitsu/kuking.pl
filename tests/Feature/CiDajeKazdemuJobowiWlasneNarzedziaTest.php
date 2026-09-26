@@ -316,10 +316,12 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
         // zmniejszałby pokrycie o jeden, a luźna bramka przepuściłaby to bez
         // słowa aż do zera. Skaner podstawia kroki akcji, więc liczba ma
         // zostać TA SAMA niezależnie od tego, ile jobów już przeniesiono.
+        // Dziewięć od usunięcia jednorazowego `audyt-a7-final-check.yml`
+        // (#1742) — jego job `check` stawiał PHP.
         $this->assertSame(
-            10,
+            9,
             $razem,
-            "Przeskanowałem {$razem} jobów stawiających PHP, a ma ich być dziesięć. "
+            "Przeskanowałem {$razem} jobów stawiających PHP, a ma ich być dziewięć. "
             .'Albo doszedł job bez izolacji narzędzi, albo skaner przestał widzieć któryś '
             .'z istniejących — a test, który nie znajduje NICZEGO, przechodzi i nie pilnuje niczego.',
         );
