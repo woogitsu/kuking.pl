@@ -14,6 +14,7 @@ use App\Google\TozsamoscGoogle;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\Google;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -237,11 +238,11 @@ class GoogleLoginController extends Controller
                 'blad' => (string) $request->query('error'),
             ]);
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie weszliśmy kontem Google — zgoda nie została udzielona. Nic się nie stało. '
                 .'Możesz spróbować jeszcze raz albo zalogować się hasłem, a jeśli go nie pamiętasz, '
                 .'poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $kod = (string) $request->query('code', '');
@@ -261,22 +262,22 @@ class GoogleLoginController extends Controller
             || ! hash_equals($state, (string) $request->query('state', ''))) {
             Log::warning('Powrót z Google odrzucony: nie zgadza się `state` albo brakuje kodu.');
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Wejście kontem Google nie doszło do końca — to sprawdzenie mogło wygasnąć, '
                 .'jeśli od kliknięcia minęła dłuższa chwila. Kliknij „Wejdź kontem Google" jeszcze raz. '
                 .'Możesz też zalogować się hasłem albo poprosić o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $tozsamosc = $klient->wymienKod($kod, $weryfikator, $nonce, $this->adresPowrotu());
 
         if ($tozsamosc === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie udało się dokończyć wejścia kontem Google — po stronie Google coś nie zagrało. '
                 .'Spróbuj jeszcze raz za chwilę. Jeśli to się powtarza, zaloguj się hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania. Napisz też do nas na '
                 .config('kuking.community.contact_email').' — odpisuje człowiek.',
-            );
+            ));
         }
 
         /*
@@ -287,12 +288,12 @@ class GoogleLoginController extends Controller
         if (! $tozsamosc->emailPotwierdzony) {
             Log::warning('Wejście kontem Google odrzucone: Google nie potwierdziło adresu e-mail.');
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Google nie potwierdziło, że ten adres e-mail należy do Ciebie, dlatego tą drogą Cię nie '
                 .'wpuścimy — inaczej ktoś mógłby wejść na cudze konto, podając cudzy adres. Potwierdź adres '
                 .'w ustawieniach konta Google i wróć tutaj. Możesz też po prostu zalogować się hasłem albo '
                 .'poprosić o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         // KONTO JUŻ POWIĄZANE — rozpoznajemy po `sub`, nigdy po adresie.
@@ -325,10 +326,10 @@ class GoogleLoginController extends Controller
         }
 
         if (! config('kuking.account.registration_open')) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Zakładanie nowych kont jest chwilowo zamknięte. Jeśli masz już konto, zaloguj się hasłem '
                 .'albo poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
@@ -373,10 +374,10 @@ class GoogleLoginController extends Controller
         $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
 
         if ($konto === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'W tym czasie powstało już konto na ten adres. Zaloguj się — hasłem, kontem Google '
                 .'albo poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         return redirect()->route('onboarding.interests')
@@ -445,11 +446,11 @@ class GoogleLoginController extends Controller
     private function wpusc(Request $request, User $user): RedirectResponse
     {
         return match ($this->wejscie()->wpusc($request, $user)) {
-            WynikWejscia::KontoZamkniete => redirect()->route('login')->with('status', KomunikatZamknietegoKonta::dla($user)),
-            WynikWejscia::KontoObslugi => redirect()->route('login')->with('status',
+            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Google. '
                 .'Zaloguj się poniżej.',
-            ),
+            )),
             WynikWejscia::DrugiSkladnik => redirect()->route('login.two_factor'),
             WynikWejscia::Wpuszczony => redirect()->intended(route('home')),
         };
@@ -480,14 +481,14 @@ class GoogleLoginController extends Controller
         if ($user->email_verified_at === null) {
             Log::warning('Odmowa połączenia konta Google z kontem o niepotwierdzonym u nas adresie.');
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Na ten adres e-mail jest już konto w Kuking, ale nikt jeszcze nie potwierdził, '
                 .'że skrzynka do niego należy — dlatego nie połączymy go z kontem Google. To zabezpieczenie: '
                 .'inaczej ktoś mógłby założyć konto na cudzy adres i przechwycić je w tym momencie. '
                 .'Wejdź na to konto tak jak zwykle: hasłem albo prosząc o wiadomość z przyciskiem '
                 .'do zalogowania. Potem potwierdź adres — wyślemy Ci wiadomość z przyciskiem — '
                 .'i wejście kontem Google zacznie działać.',
-            );
+            ));
         }
 
         // REGUŁA 3 — połączenie po jawnym potwierdzeniu na naszym ekranie.
@@ -527,11 +528,11 @@ class GoogleLoginController extends Controller
 
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Google wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Google" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 
     /**
@@ -542,9 +543,9 @@ class GoogleLoginController extends Controller
      */
     private function drogaZamknieta(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Google jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa '
             .'normalnie — albo poproś o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 }
