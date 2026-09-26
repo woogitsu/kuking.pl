@@ -38,10 +38,16 @@ use Throwable;
  * wpisu pomniejszone do `MAX_BOK`. Zdjęcia profilowego ta klasa nie wysyła
  * wcale — nie ma potwierdzonej zgody na jego ocenę.
  *
- * ZAWODZI W DOBRĄ STRONĘ, ALE NIE PO CICHU. Brak klucza, timeout, 5xx,
- * odpowiedź w nieznanym kształcie — każde z tych oddaje pustą listę
- * sygnałów i nigdy nie blokuje publikacji. Każde zostawia też wpis
- * w dzienniku: pusta lista znaczy „nie wiemy", a nie „sprawdzone, czyste".
+ * ZAWODZI W DOBRĄ STRONĘ, ALE NIE PO CICHU. Brak klucza, 4xx, odpowiedź
+ * w nieznanym kształcie — każde z tych oddaje pustą listę sygnałów i nigdy
+ * nie blokuje publikacji. Każde zostawia też wpis w dzienniku: pusta lista
+ * znaczy „nie wiemy", a nie „sprawdzone, czyste".
+ *
+ * AWARIA PRZEJŚCIOWA IDZIE DALEJ (#1662). Timeout, 429 i 5xx przepuszczamy
+ * jako `ModelChwilowoNiedostepny` do zadania, które ponowi CAŁĄ ocenę
+ * później. Ocena już uzyskana w tej próbie (np. tekstu przed zdjęciem)
+ * przepada z nią — to jedno powtórzone żądanie więcej, a w zamian nie ma
+ * pół-oceny zapisanej jako ocena całości.
  */
 final class OcenaModelem
 {
@@ -70,6 +76,9 @@ final class OcenaModelem
      * autor może przełączyć wpis na prywatny.
      *
      * @return list<Sygnal>
+     *
+     * @throws ModelChwilowoNiedostepny gdy choć jedno żądanie trafiło na
+     *                                  przejściową awarię (#1662)
      */
     public function dla(Post|Comment $tresc): array
     {
