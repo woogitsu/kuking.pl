@@ -1,0 +1,52 @@
+# Powtorka komentarza schowanego przez moderacje (issue #1094). Cena
+# przeoczenia: drugie klikniecie „Wyslij" omija decyzje moderacji i stawia
+# obok schowanego komentarza nowy, opublikowany duplikat z „Komentarz dodany."
+# — albo w druga strone: autor, ktory sam usunal komentarz, nie moze
+# napisac go od nowa.
+nazwa: wyszukanie tego samego wyslania widzi komentarz usuniety przez moderacje
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: ->withTrashed()
+na: ->whereNull('deleted_at')
+oczekuj: Failed asserting|ominęła moderację|drugi komentarz
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
+---
+nazwa: powtorka ukrytego albo usunietego daje neutralny blad, nie sukces
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: if ($juzJest !== null && ($juzJest->trashed() || $juzJest->status !== Comment::STATUS_PUBLISHED)) {
+na: if ($juzJest !== null && false) {
+oczekuj: Failed asserting|Session is missing|ukryty komentarz jak sukces
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
+---
+nazwa: usuniecie przez autora nie blokuje napisania od nowa
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: ->first(fn (Comment $c): bool => ! $c->trashed() || $this->schowanyPrzezModeracje($c));
+na: ->first();
+oczekuj: Failed asserting|errors|Session
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
+---
+nazwa: usuniecie przez autora nie jest decyzja moderacji
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: return in_array($ostatnia, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true);
+na: return true;
+oczekuj: Failed asserting|errors|Session
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
+---
+nazwa: usuniecie przez moderacje nie jest usunieciem przez autora
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: return in_array($ostatnia, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true);
+na: return false;
+oczekuj: Failed asserting|ominęła moderację|drugi komentarz
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
+---
+nazwa: komentarz z napisem zastepczym nie jest tym samym wyslaniem
+plik: app/Domain/Comments/Actions/PublishComment.php
+zamien: ->whereNull('body_removed_at')
+na: ->whereNotNull('id')
+oczekuj: Failed asserting|komentarza nie ma
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowtorkaNiewidocznegoKomentarzaTest.php
+ocena:
