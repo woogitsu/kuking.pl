@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Domain\Rocznice\Urodziny;
+use App\Logging\BezpiecznyBlad;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,15 +15,30 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
- * List z życzeniami urodzinowymi od gospodarza (issue #1755, etap c).
+ * List z życzeniami urodzinowymi od gospodarza (issue #1755, etap c; #1956).
  *
  * SPRAWDZENIE W CHWILI WYSYŁKI, nie tylko w chwili kolejkowania — ten sam
  * powód co w `PodsumowanieTygodnia::send()`: między kolejką a wysyłką ktoś
  * mógł wycofać zgodę odnośnikiem, wyłączyć życzenia albo zamknąć konto.
  * List, który wtedy wychodzi mimo wszystko, jest listem bez podstawy prawnej.
+ *
+ * `birthday_email_sent_on` STAWIA TEN LIST, PO WYSŁANIU (issue #1956, D-293)
+ * Do 26 września 2026 stawiała go komenda zaraz po `Mail::queue()` — czyli po
+ * ZAKOLEJKOWANIU, nie po wysyłce. Worker mógł potem wyczerpać próby, list
+ * lądował w `failed_jobs`, a kolumna dalej twierdziła „list wyszedł". Dziś:
+ *  - `send()` stawia znacznik dopiero, gdy `parent::send()` wróci BEZ
+ *    wyjątku — transport pocztowy PRZYJĄŁ wiadomość. To nie znaczy „doszło
+ *    do skrzynki", ale nie znaczy też „powstało zadanie w kolejce";
+ *  - `failed()` zostawia w dzienniku identyfikator konta, którego list nie
+ *    doszedł — bez adresu (AGENTS.md §7) — więc sprawę da się policzyć
+ *    i ręcznie ponowić (dzień, który komenda i tak zajęła w
+ *    `birthday_email_queued_on`, i tak wraca do zera dopiero za rok —
+ *    świadomy wybór, patrz `WyslijZyczeniaUrodzinowe`).
  */
 class ZyczeniaUrodzinowe extends Mailable implements ShouldQueue
 {
@@ -54,7 +70,62 @@ class ZyczeniaUrodzinowe extends Mailable implements ShouldQueue
         $this->bcc = [];
         $this->to((string) $swiezy->email);
 
-        return parent::send($mailer);
+        $wynik = parent::send($mailer);
+
+        $this->potwierdzWyslanie($swiezy);
+
+        return $wynik;
+    }
+
+    /**
+     * Transport przyjął list — dopiero teraz dzień jest „wysłany".
+     *
+     * Znacznik zapisuje dzień ZAJĘTY PRZEZ KOMENDĘ (`birthday_email_queued_on`
+     * na świeżo odczytanym wierszu), nie „dziś" liczone tu jeszcze raz: worker
+     * mógł ruszyć zadanie już po północy, a to wciąż jest list za WCZORAJSZĄ
+     * rezerwację.
+     *
+     * Wyjątek przy samym zapisie łapiemy i zapisujemy do dziennika, zamiast
+     * rzucić: rzucony wyjątek kazałby workerowi powtórzyć zadanie, a każde
+     * powtórzenie wysłałoby tej samej osobie DRUGI list z życzeniami (D-293).
+     * Wolimy stan fałszywie ostrożny — znacznik pusty, choć list wyszedł —
+     * od dwóch identycznych listów.
+     */
+    private function potwierdzWyslanie(User $swiezy): void
+    {
+        if ($swiezy->birthday_email_queued_on === null) {
+            return;
+        }
+
+        $dzien = $swiezy->birthday_email_queued_on->toDateString();
+
+        try {
+            DB::transaction(fn () => User::query()
+                ->whereKey($swiezy->getKey())
+                ->where(function ($q) use ($dzien): void {
+                    $q->whereNull('birthday_email_sent_on')->orWhere('birthday_email_sent_on', '<>', $dzien);
+                })
+                ->update(['birthday_email_sent_on' => $dzien]));
+        } catch (Throwable $e) {
+            Log::error('List z życzeniami urodzinowymi wyszedł, ale nie udało się zapisać znacznika birthday_email_sent_on.', [
+                'user_id' => (string) $swiezy->getKey(),
+                'error' => BezpiecznyBlad::kontekst($e),
+            ]);
+        }
+    }
+
+    /**
+     * Worker wyczerpał próby: list NIE doszedł i ma to być widać.
+     *
+     * Bez adresu odbiorcy (AGENTS.md §7) — identyfikator konta wystarcza,
+     * żeby sprawę znaleźć i ręcznie ponowić `Mail::to(...)->send(...)`.
+     */
+    public function failed(Throwable $e): void
+    {
+        Log::error('List z życzeniami urodzinowymi nie doszedł — zadanie wyczerpało próby.', [
+            'user_id' => (string) $this->odbiorca->getKey(),
+            'error' => BezpiecznyBlad::kontekst($e),
+        ]);
     }
 
     public function envelope(): Envelope

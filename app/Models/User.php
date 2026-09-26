@@ -357,6 +357,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
             'wants_birthday_email' => 'boolean',
             'birthday_email_sent_on' => 'date',
+            // Bariera przed podwójnym zakolejkowaniem tego samego dnia
+            // (issue #1956) — osobna od `birthday_email_sent_on`, która
+            // znaczy teraz dosłownie „list wyszedł". Zapis wyłącznie przez
+            // `WyslijZyczeniaUrodzinowe` i `ZyczeniaUrodzinowe::send()`.
+            'birthday_email_queued_on' => 'date',
             'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 

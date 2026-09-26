@@ -2060,15 +2060,40 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
   które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
   konta wycofują zgodę z wpisem w dzienniku.
-- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
-  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
-  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
-  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw),
+  w którym transport pocztowy PRZYJĄŁ list z życzeniami (`App\Mail\
+  ZyczeniaUrodzinowe::send()`, po `parent::send()` bez wyjątku). Do
+  26 września 2026 (issue #1956) ustawiała ją komenda zaraz po
+  `Mail::queue()`, czyli po zakolejkowaniu, nie po wysyłce — awaria enqueue
+  albo trwała porażka workera zostawiały znacznik mimo braku listu, a to
+  jest jedyny list w roku dla tej osoby. Patrz `birthday_email_queued_on`.
+- **`users.birthday_email_queued_on`** (`date NULL`, migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`, issue #1956) —
+  dzień, w którym komenda ZAJĘŁA miejsce dla tej osoby, niezależnie od tego,
+  czy list ostatecznie wyszedł. Bariera przed dublem:
+  `kuking:wyslij-zyczenia-urodzinowe` zajmuje dzień warunkowym
+  `UPDATE … WHERE birthday_email_queued_on IS NULL OR
+  birthday_email_queued_on <> dziś` przed `Mail::queue()`, a `kandydaci()`
+  wyklucza po TEJ kolumnie, nie po `birthday_email_sent_on`. Awaria samego
+  `Mail::queue()` zwalnia tę rezerwację w tym samym przebiegu (ponowienie
+  tego samego dnia wysyła dokładnie jeden list); trwała porażka workera
+  zostawia ją ustawioną (dzień jest „zużyty" wobec dostawcy) — świadomy
+  wybór „pominięcie zamiast duplikatu" DLA TEGO DNIA, ten sam co
+  `weekly_digest_sends` (D-077), ale bez wpływu na kolejne lata: rocznica
+  sprzed roku wraca normalnie, bo to już inny dzień.
 - `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
-- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
-  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
-  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+- **Rollback `wants_birthday_email` / `birthday_email_sent_on`:** `down()`
+  odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden wiersz celu
+  `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować, więc starego
+  CHECK-a nie da się przywrócić bez utraty dowodu). Test:
   `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+- **Rollback `birthday_email_queued_on`** (migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`): `down()` NIE
+  odmawia. Kolumna nie niesie żadnej decyzji człowieka (D-088 dotyczy wartości
+  SEMANTYCZNYCH — zgody, zakresu usunięcia, widoczności), tylko wewnętrzną
+  barierę przed podwójnym zakolejkowaniem w JEDNYM dniu, zerującą się samą
+  następnego dnia — ta sama klasa co `theme`/`posts.display_mode` (D-088).
+  Test: `tests/Feature/UrodzinyOznaczonePoWysylceTest.php`.
 
 **Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
 

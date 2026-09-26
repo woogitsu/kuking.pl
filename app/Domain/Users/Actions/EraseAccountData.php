@@ -328,6 +328,9 @@ final class EraseAccountData
                 'wants_birthday_email' => false,
                 'birthday_visible_to_followers' => false,
                 'birthday_email_sent_on' => null,
+                // Bariera przed dublem (issue #1956) — czyścimy razem z resztą
+                // śladu urodzin, żeby nie zostawić samotnej daty bez znaczenia.
+                'birthday_email_queued_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
                 // KONKRETNA osoba ostatnio korzystała z serwisu. Konto
