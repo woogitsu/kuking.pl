@@ -1602,7 +1602,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Domyślny zakres tokenu wydawanego bez jawnych abilities (D-271, #1928).
+     * Domyślny zakres tokenu wydawanego bez jawnych abilities (D-320, #1928).
      *
      * CAŁY dzisiejszy słownik z `ZakresyTokenu`, wypisany jawnie — NIGDY
      * `['*']`. Dodanie nowego zakresu do `ZakresyTokenu` samo z siebie nie
@@ -1628,7 +1628,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * i nie jest nigdzie zapisywana.
      *
      * Zakres (`abilities`) jest zawsze jawną listą z zamkniętego słownika
-     * `ZakresyTokenu` — nigdy pakietowym wildcardem `*` (D-271, #1928).
+     * `ZakresyTokenu` — nigdy pakietowym wildcardem `*` (D-320, #1928).
      * `ZakresyTokenu::waliduj()` odrzuca każdy nieznany zakres, więc nie da
      * się tędy wydać tokenu z uprawnieniem spoza słownika, nawet podając
      * abilities jawnie.

@@ -13,7 +13,7 @@ use InvalidArgumentException;
 use Tests\TestCase;
 
 /**
- * Zamknięty zakres (abilities) tokenu API `/api/v1` (D-271, #1928).
+ * Zamknięty zakres (abilities) tokenu API `/api/v1` (D-320, #1928).
  *
  * Przed tą zmianą `User::createToken()` wydawał domyślnie `['*']` —
  * wildcard Sanctum obejmujący KAŻDĄ trasę, także tę, która dopiero

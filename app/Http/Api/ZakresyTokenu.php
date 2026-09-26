@@ -7,7 +7,7 @@ namespace App\Http\Api;
 use InvalidArgumentException;
 
 /**
- * Zamknięty słownik zakresów (abilities) tokenu API `/api/v1` (D-271, #1928).
+ * Zamknięty słownik zakresów (abilities) tokenu API `/api/v1` (D-320, #1928).
  *
  * Przed tą klasą `User::createToken()` wydawał tokeny z domyślnym zakresem
  * `['*']` — pakietowym wildcardem Sanctum. Każdy token wydany bez jawnych

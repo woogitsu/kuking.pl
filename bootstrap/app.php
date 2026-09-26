@@ -333,7 +333,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
             // komentarz klasy: zakłada, że użytkownik jest już moderatorem.
             'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
-            // Zamknięty zakres tokenu API (D-271, #1928). Sanctum niesie te
+            // Zamknięty zakres tokenu API (D-320, #1928). Sanctum niesie te
             // dwie klasy, ale w Laravel 11+ nie rejestruje ich aliasów samo —
             // bez tego wpisu `middleware('ability:...')` na trasie rzucałoby
             // "Target class [ability] does not exist.", a trasa byłaby
