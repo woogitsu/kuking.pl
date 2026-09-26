@@ -9,11 +9,18 @@ use App\Models\User;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::fake(['https://api.pwnedpasswords.com/*' => Http::response('', 200)]);
+    }
 
     public function test_rejestracja_i_pominiecie_onboardingu_wraca_do_osoby_bez_automatycznego_obserwowania(): void
     {
@@ -28,7 +35,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
         $this->get(route('onboarding.done'))->assertRedirect(route('profile.show', 'basia'));
         $this->assertFalse($nowy->following()->where('users.id', $osoba->getKey())->exists());
-        $this->get(route('profile.show', 'basia'))->assertOk()->assertSee('>Obserwuj</button>', false);
+        $this->assertFollowForm((string) $this->get(route('profile.show', 'basia'))->assertOk()->getContent(), 'basia');
     }
 
     public function test_rejestracja_z_przepisu_wraca_do_tego_przepisu_a_obserwowanie_nadal_wymaga_post(): void
@@ -49,7 +56,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
 
         $nowy = User::query()->where('email', 'nowa@example.test')->firstOrFail();
         $this->assertFalse($nowy->following()->where('users.id', $osoba->getKey())->exists());
-        $this->get(route('recipes.show', $przepis->slug))->assertOk()->assertSee('>Obserwuj</button>', false);
+        $this->assertFollowForm((string) $this->get(route('recipes.show', $przepis->slug))->assertOk()->getContent(), 'autorka');
     }
 
     public function test_zewnetrzny_lub_podmieniony_cel_nie_staje_sie_przekierowaniem(): void
@@ -86,6 +93,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
 
     public function test_wszystkie_karty_goscia_prowadza_do_wlasciwej_osoby_i_logowania(): void
     {
+        auth()->logout();
         $osoba = $this->user('basia');
         $przepis = Recipe::factory()->create([
             'author_id' => $osoba->getKey(), 'status' => Recipe::STATUS_PUBLISHED,
@@ -131,5 +139,13 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $links = $xpath->query('//a[normalize-space()="'.$text.'"]');
         $this->assertSame(1, $links->length, 'Oczekiwany link powinien wystąpić raz: '.$text);
         $this->assertSame($href, $links->item(0)?->getAttribute('href'));
+    }
+
+    private function assertFollowForm(string $html, string $username): void
+    {
+        $xpath = $this->xpath($html);
+        $forms = $xpath->query('//form[@action="'.route('social.follow', $username).'"]');
+        $this->assertSame(1, $forms->length);
+        $this->assertSame('Obserwuj', trim($forms->item(0)?->getElementsByTagName('button')->item(0)?->textContent ?? ''));
     }
 }
