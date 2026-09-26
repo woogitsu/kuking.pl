@@ -337,6 +337,11 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
+# Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
+# brak `@X.Y.Z` po `@railway/cli`.
+RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
+RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -731,6 +736,14 @@ def plan_iac_bez_bramki_produkcji(source):
         PLAN_IAC_ENVIRONMENT,
         "    # przejrzał diff `.railway/**`.\n",
     )
+def railway_cli_bez_przypietej_wersji(source):
+    """KONTROLA DODATNIA: zdejmij przypiętą wersję z instalacji `@railway/cli`.
+
+    `npm install -g @railway/cli` bez `@X.Y.Z` bierze `latest` w chwili
+    uruchomienia, obok tokenu Railway. `kazda_instalacja_railway_cli_ma_
+    przypieta_wersje` ma zapalić (audyt B10-02).
+    """
+    return replace_once(source, "@railway/cli@5.62.1", "@railway/cli")
 
 
 checks = [
@@ -923,6 +936,8 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+     railway_cli_bez_przypietej_wersji),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
@@ -1004,6 +1019,7 @@ run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
+run_test(RAILWAY_CLI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
