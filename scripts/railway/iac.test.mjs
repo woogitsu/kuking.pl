@@ -457,10 +457,18 @@ for (const [opis, policz] of MUTACJE_OBRAZU) {
 // wstrzykiwanych przez Railway i że nie wypisuje WARTOŚCI.
 // ---------------------------------------------------------------------------
 const { zmienneSpozaIac } = await import(resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"));
-const Z_AUDYTU = ["KUKING_EDGE_TRYB", "KUKING_HTML_EDGE_CACHE_SECONDS", "KUKING_TAG_TYGODNIA"];
+// Trzy zmienne z audytu (KUKING_EDGE_TRYB, KUKING_HTML_EDGE_CACHE_SECONDS,
+// KUKING_TAG_TYGODNIA) są od #1883 w grafie — test nie może opierać się na
+// tym, czego railway.ts akurat nie ma. Nazwy syntetyczne: na pewno spoza grafu.
+const TYLKO_W_PANELU = ["KUKING_TYLKO_W_PANELU_A", "KUKING_TYLKO_W_PANELU_B"];
 
-test("zmienne-spoza-iac wskazuje trzy zmienne z audytu, których railway.ts nie deklaruje", () => {
-  assert.deepEqual(zmienneSpozaIac([...Z_AUDYTU, "APP_NAME", "RAILWAY_PUBLIC_DOMAIN"], PROD, "kuking.pl"), Z_AUDYTU);
+test("zmienne-spoza-iac wskazuje zmienne z panelu, których railway.ts nie deklaruje", () => {
+  assert.deepEqual(zmienneSpozaIac([...TYLKO_W_PANELU, "APP_NAME", "RAILWAY_PUBLIC_DOMAIN"], PROD, "kuking.pl"), TYLKO_W_PANELU);
+});
+
+test("zmienne-spoza-iac: trzy zmienne z audytu są już w grafie (#1883)", () => {
+  const zAudytu = ["KUKING_EDGE_TRYB", "KUKING_HTML_EDGE_CACHE_SECONDS", "KUKING_TAG_TYGODNIA"];
+  assert.deepEqual(zmienneSpozaIac(zAudytu, PROD, "kuking.pl"), []);
 });
 
 test("kontrola dodatnia zmienne-spoza-iac: zmienna zadeklarowana w grafie nie jest zgłaszana", () => {
@@ -482,7 +490,7 @@ test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości"
     execFileSync(
       process.execPath,
       ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"), "production", "kuking.pl"],
-      { cwd: KORZEN, encoding: "utf8", input: JSON.stringify({ KUKING_EDGE_TRYB: sekret, APP_NAME: sekret }), env: { PATH: process.env.PATH, KUKING_WAIT_FOR_CI: "false" } },
+      { cwd: KORZEN, encoding: "utf8", input: JSON.stringify({ KUKING_TYLKO_W_PANELU_A: sekret, APP_NAME: sekret }), env: { PATH: process.env.PATH, KUKING_WAIT_FOR_CI: "false" } },
     );
     assert.fail("kod 0 mimo zmiennej tylko w panelu");
   } catch (blad) {
@@ -490,6 +498,6 @@ test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości"
     wynik = blad;
   }
   assert.equal(wynik.status, 1);
-  assert.equal(wynik.stdout, "KUKING_EDGE_TRYB\n");
+  assert.equal(wynik.stdout, "KUKING_TYLKO_W_PANELU_A\n");
   assert.ok(!String(wynik.stdout).includes(sekret) && !String(wynik.stderr).includes(sekret), "wartość zmiennej wyszła na ekran");
 });

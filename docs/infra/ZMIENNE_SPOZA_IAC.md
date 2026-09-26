@@ -25,7 +25,12 @@ proponuje usunięcie zmiennej — ten dokument mówi, **jak to sprawdzić przed
 tym dniem** i co zrobić z wynikiem.
 
 Pilnuje tego `scripts/railway/iac.test.mjs` (blok „Zmienne tylko w panelu”):
-dziś skrypt z kroku 2 zgłasza dokładnie te trzy zmienne.
+skrypt z kroku 2 zgłasza każdą zmienną z panelu, której nie deklaruje graf.
+
+**Stan z 26.09.2026, po PR #1775/#1883:** wszystkie trzy zmienne z audytu są
+już zadeklarowane w `.railway/railway.ts` (przez `ctx.shared`), więc skrypt
+z kroku 2 nie powinien ich dziś zgłaszać. Procedura zostaje dla zmiennych,
+które ktoś ustawi w panelu później.
 
 ## Dlaczego bez stagingu
 
@@ -66,9 +71,10 @@ echo "kod wyjścia: $?"
 - Kod `0` — w panelu nie ma nic poza plikiem. Kod `1` — lista wyżej to
   zmienne, których apply mógłby dotknąć. Kod `2` — złe wywołanie albo
   wejście.
-- Spodziewane dziś: `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS`,
-  `KUKING_TAG_TYGODNIA` (o ile są ustawione w panelu) i ewentualnie inne,
-  o których nikt nie wie — **te są najważniejsze**.
+- Spodziewane dziś: pusta lista — trzy zmienne z audytu (`KUKING_EDGE_TRYB`,
+  `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_TAG_TYGODNIA`) są od #1883
+  w grafie. Każda nazwa, która się pojawi, to zmienna, o której nikt nie
+  wie — **te są najważniejsze**.
 
 Nie wklejaj nigdzie surowego wyniku `railway variables --json` — ma wartości,
 w tym sekrety. Wynik skryptu (same nazwy) można wkleić do issue.
