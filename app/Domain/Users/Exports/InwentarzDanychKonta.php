@@ -124,6 +124,7 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],
         'birthday_month' => [self::EKSPORT, 'konto'],

@@ -492,6 +492,12 @@ GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
 GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
 GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
 GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
+# Przerwany onboarding (#985): backfill istniejących kont w migracji i zapis
+# końca pierwszych kroków wyłącznie w POST, nigdy w GET `/witaj/gotowe`.
+MIGRACJA_ONBOARDINGU = "database/migrations/2026_09_24_130000_add_onboarding_zakonczony_at_to_users.php"
+MIGRACJA_ONBOARDINGU_TEST = "OnboardingMigracjaZnacznikaTest"
+ONBOARDING_KONTROLER = "app/Http/Controllers/OnboardingController.php"
+ONBOARDING_WZNOWIENIE_TEST = "OnboardingWznowienieTest"
 # IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
 # (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
 # `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
@@ -1063,6 +1069,10 @@ checks = [
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
      lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
+    ("Migracja pierwszych kroków bez backfillu", MIGRACJA_ONBOARDINGU, MIGRACJA_ONBOARDINGU_TEST,
+     lambda s: replace_once(s, "        DB::table('users')->update(['onboarding_zakonczony_at' => DB::raw('created_at')]);\n", "")),
+    ("Koniec pierwszych kroków zapisywany w GET", ONBOARDING_KONTROLER, ONBOARDING_WZNOWIENIE_TEST,
+     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        return view(", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        return view(")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
@@ -1192,6 +1202,8 @@ run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
+run_test(MIGRACJA_ONBOARDINGU_TEST, True)
+run_test(ONBOARDING_WZNOWIENIE_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
