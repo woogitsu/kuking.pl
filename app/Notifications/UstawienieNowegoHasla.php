@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  *
  * Bez gry słowem „kuKING" — D-009 zabrania jej w komunikatach technicznych.
  */
-final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
+final class UstawienieNowegoHasla extends ResetPassword implements ShouldBeEncrypted, ShouldQueue
 {
     /*
      * KOLEJKA, NIE WYSYŁKA W ŻĄDANIU (audyt W3-13).
