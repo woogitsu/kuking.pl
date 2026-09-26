@@ -160,6 +160,33 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
     // -----------------------------------------------------------------
 
     #[Test]
+    public function niedostepna_kolejka_zapisuje_pomiar_z_pustymi_licznikami(): void
+    {
+        // Regresja (#599): gałąź NIEDOSTEPNA kończyła komendę przed zapisem
+        // pomiaru, więc przy awarii bazy — i zawsze z `--bez-alarmu` —
+        // w dzienniku nie zostawało nic. Liczniki mają być `null`, nie 0:
+        // zero wyglądałoby jak prawdziwy pomiar pustej kolejki.
+        DB::shouldReceive('table')->andThrow(new \RuntimeException('padło'));
+
+        $dziennik = $this->szpiegKanaluPomiarow();
+
+        $this->artisan('kuking:sprawdz-kolejke', ['--bez-alarmu' => true])->assertExitCode(1);
+
+        $dziennik->shouldHaveReceived('info')
+            ->withArgs(function (string $wiadomosc, array $kontekst): bool {
+                $this->assertSame('kuking:sprawdz-kolejke', $wiadomosc);
+                $this->assertSame('niedostepna', $kontekst['stan']);
+                $this->assertNull($kontekst['oczekujace']);
+                $this->assertNull($kontekst['zaleglosc_sekundy']);
+                $this->assertNull($kontekst['nieudane_razem']);
+                $this->assertStringNotContainsString('padło', (string) json_encode($kontekst));
+
+                return true;
+            })
+            ->once();
+    }
+
+    #[Test]
     public function czujka_kolejki_zapisuje_pomiar_do_dziennika(): void
     {
         $dziennik = $this->szpiegKanaluPomiarow();
