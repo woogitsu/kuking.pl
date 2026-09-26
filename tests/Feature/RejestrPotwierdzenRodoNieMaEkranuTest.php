@@ -77,11 +77,14 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
      * niej czegokolwiek ma być świadomą zmianą w recenzji kodu, a nie
      * skutkiem ubocznym nazwania pliku „jakoś podobnie".
      *
+     * Od #970 lista jest pusta: sprawę przy zgłoszeniu usunięcia konta
+     * otwiera `App\Domain\Users\Actions\RequestAccountDeletion`, a
+     * `DataSettingsController` rejestru już nie zna. Stała zostaje, żeby
+     * ewentualny nowy wyjątek był świadomym wpisem, nie przeróbką testu.
+     *
      * @var array<string, string>
      */
-    private const WOLNO_PISAC = [
-        'Settings/DataSettingsController.php' => 'otwiera sprawę przy zgłoszeniu żądania z /ustawienia/twoje-dane',
-    ];
+    private const WOLNO_PISAC = [];
 
     #[Test]
     public function test_zadna_trasa_nie_prowadzi_do_kodu_znajacego_rejestr(): void
