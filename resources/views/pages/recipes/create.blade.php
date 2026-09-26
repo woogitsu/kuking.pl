@@ -34,11 +34,25 @@
 <x-layout title="Dodaj przepis" :noindex="true">
     <x-zakladki-dodawania aktywna="przepis" />
 
-    <h1>Dodaj przepis</h1>
-    <p class="mb-5">
-        Wystarczy zdjęcie, nazwa i to, co robisz. Resztę — porcje, czasy, historię
-        przepisu — dopiszesz później, jeśli zechcesz.
-    </p>
+    @php
+        // „Dopisz przepis” z własnego wpisu (#1334) — `RecipeController::createFromPost()`.
+        $zWpisu = $zWpisu ?? null;
+        $zdjecieZWpisu = $zdjecieZWpisu ?? null;
+    @endphp
+
+    @if($zWpisu !== null)
+        <h1>Dopisz przepis do swojego dania</h1>
+        <p class="mb-5">
+            Zdjęcie weźmiemy z Twojego wpisu — nie musisz go wgrywać drugi raz.
+            Wpisz nazwę i to, co robisz. Sam wpis zostaje taki, jaki jest, razem z komentarzami.
+        </p>
+    @else
+        <h1>Dodaj przepis</h1>
+        <p class="mb-5">
+            Wystarczy zdjęcie, nazwa i to, co robisz. Resztę — porcje, czasy, historię
+            przepisu — dopiszesz później, jeśli zechcesz.
+        </p>
+    @endif
 
     <x-error-summary />
 
@@ -66,8 +80,25 @@
              etykieta, a `<input>` MUSI stać bezpośrednio przed nią, bo
              obwódkę fokusu rysuje reguła sąsiedztwa w
              resources/css/ekran-dodawania.css. --}}
+        @if($zWpisu !== null && $zdjecieZWpisu !== null)
+            {{-- Zdjęcie z wpisu (#1334). Identyfikator wpisu, nie zdjęcia:
+                 serwer przy zapisie sam ustala zdjęcie i jeszcze raz pyta
+                 `PostPolicy::dopiszPrzepis`, więc podmiana pola nic nie da. --}}
+            <input type="hidden" name="z_wpisu" value="{{ $zWpisu->getKey() }}">
+            <figure class="field m-0" data-zdjecie-z-wpisu>
+                <x-photo :media="$zdjecieZWpisu" :alt="$zdjecieZWpisu->alt_text ?: 'Zdjęcie z Twojego wpisu'" />
+                <figcaption class="field-help">To zdjęcie z Twojego wpisu będzie zdjęciem przepisu. Wolisz inne? Wybierz je niżej.</figcaption>
+            </figure>
+            @if($zWpisu->body)
+                <div class="notice kolumna-czytania">
+                    <p class="m-0"><strong>Tak brzmi Twój wpis</strong> — możesz z niego skorzystać przy opisie przygotowania:</p>
+                    <p class="m-0">{{ $zWpisu->body }}</p>
+                </div>
+            @endif
+        @endif
+
         <div class="field @error('hero_photo') has-error @enderror">
-            <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+            <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">{{ $zWpisu !== null ? 'Inne zdjęcie (nieobowiązkowo)' : 'Zdjęcie gotowego dania' }}</span>
             <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
@@ -117,13 +148,19 @@ Posól na końcu."
         <fieldset class="border-0 p-0 mt-6" id="f-visibility"
                   @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
+            @if($zWpisu !== null)
+                {{-- Widoczność przepisu wybiera się ŚWIADOMIE: zdjęcie wpisu
+                     zobaczy każdy, kto zobaczy przepis — także wtedy, gdy sam
+                     wpis jest tylko dla obserwujących albo tylko dla Ciebie. --}}
+                <p class="field-help mb-3" id="f-visibility-zdjecie">Zdjęcie z wpisu zobaczy każdy, kto zobaczy ten przepis — także gdy sam wpis widzi mniej osób.</p>
+            @endif
             <div class="choice-grid">
                 <label class="choice">
-                    <input type="radio" name="visibility" value="public" @checked(old('visibility', 'public') === 'public')>
+                    <input type="radio" name="visibility" value="public" @checked(old('visibility', $zWpisu !== null && $zWpisu->visibility !== \App\Models\Post::VISIBILITY_PUBLIC ? 'private' : 'public') === 'public')>
                     <span><span class="choice-label">Wszyscy</span><span class="choice-help">Także osoby bez konta. Przepis może pojawić się w Google.</span></span>
                 </label>
                 <label class="choice">
-                    <input type="radio" name="visibility" value="private" @checked(old('visibility') === 'private')>
+                    <input type="radio" name="visibility" value="private" @checked(old('visibility', $zWpisu !== null && $zWpisu->visibility !== \App\Models\Post::VISIBILITY_PUBLIC ? 'private' : 'public') === 'private')>
                     <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt. Zmienisz to, kiedy zechcesz.</span></span>
                 </label>
             </div>
@@ -138,7 +175,7 @@ Posól na końcu."
              skończonym przepisem, a nie czymś niedokończonym. --}}
         <div class="form-actions">
             <button class="btn btn-primary" type="submit" name="action" value="publish">Opublikuj</button>
-            <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
+            <a class="btn btn-quiet" href="{{ $zWpisu !== null ? $zWpisu->url() : route('home') }}">Nie teraz</a>
         </div>
     </form>
 

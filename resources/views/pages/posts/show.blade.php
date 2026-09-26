@@ -22,6 +22,8 @@
 
     <x-okruszki :elementy="$okruszki" />
 
+    <x-wpis-ukryty-przez-moderacje :post="$post" />
+
     <x-post-card :post="$post" />
 
     @if($poprzedniWpis || $nastepnyWpis)
