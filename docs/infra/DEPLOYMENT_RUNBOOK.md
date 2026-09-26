@@ -2529,19 +2529,60 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 - [ ] **PR „Cotygodniowe ceny warzyw z MRiRW/ZSRIR"** (gałąź
       `claude/ceny-warzyw-auto`, workflow `ceny-warzyw-auto.yml`, D-286
       część 3) — otwiera się sam co sobotę, ale scala go człowiek:
-      - przejrzyj różnicę w `database/data/ceny_skladnikow.csv` (tylko
-        `ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`
-        powinny się zmienić — jeśli zmieniło się coś innego, workflow ma
-        błąd, nie merguj), potem scal zwykłym PR-em jak każdy inny;
+      - przejrzyj różnicę w `database/data/ceny_skladnikow.csv` — WSZYSTKIE
+        12 warzyw może się zmienić w jednym PR-ze: `ziemniaki`, `cebula`,
+        `marchew`, `papryka_czerwona`, `pomidor` (arkusz detaliczny) oraz
+        `kapusta`, `buraki`, `por`, `seler`, `pietruszka`, `salata`,
+        `ogorek` (liczone z cen hurtowych × `MNOZNIK_HURT_DETAL`) — jeśli
+        zmieniło się coś INNEGO niż te 12 wierszy, workflow ma błąd, nie
+        merguj; potem scal zwykłym PR-em jak każdy inny;
       - workflow **nie otwiera nowego PR-a**, jeśli w danym tygodniu ceny
         się nie zmieniły — brak PR-a w sobotę nie jest awarią;
       - czerwony krok „Test parsera" w tym workflow znaczy, że MRiRW
-        zmieniło układ arkusza — napraw parser w
-        `scripts/ceny-warzyw-zsrir-pobierz.py`, zanim zignorujesz;
-      - siedem warzyw liczonych z cen hurtowych (`kapusta`, `buraki`,
-        `por`, `seler`, `pietruszka`, `salata`, `ogorek`) ten workflow
-        **nie dotyka** — ich cena wymaga ręcznej aktualizacji z arkusza
-        „HURT WARZ" (patrz `docs/DECISIONS.md`, D-286 część 3).
+        zmieniło układ arkusza (detalicznego albo hurtowego) — napraw
+        parser w `scripts/ceny-warzyw-zsrir-pobierz.py`, zanim
+        zignorujesz;
+      - **czerwony krok „Sprawdź sekret CENY_WARZYW_PAT"** znaczy, że
+        w repozytorium brakuje osobistego tokenu — patrz niżej, jak go
+        ustawić. Workflow celowo NIE próbuje działać bez niego (bez PAT-a
+        PR, który sam otwiera, i tak stałby bez działającego CI —
+        patrz „Sekret `CENY_WARZYW_PAT`" niżej).
+
+      **Sekret `CENY_WARZYW_PAT` (osobisty fine-grained PAT, decyzja
+      właściciela z 26.09.2026, D-286 część 3).** Ten workflow otwiera PR
+      do `main` z automatu. GitHub Actions świadomie NIE uruchamia CI na
+      evencie `pull_request`, gdy PR został otwarty (albo zaktualizowany)
+      domyślnym `GITHUB_TOKEN` tego samego repozytorium — zabezpieczenie
+      przed pętlą automatów, ale u nas oznaczałoby PR z cenami bez ani
+      jednego przebiegu `ci.yml`. Dlatego checkout, push gałęzi i `gh pr
+      create`/`view` w tym workflowie idą osobistym tokenem:
+
+      1. GitHub → to repozytorium → **Settings → Developer settings →
+         Personal access tokens → Fine-grained tokens → Generate new
+         token** (na koncie, które ma prawo pushować do tego repo —
+         zwykle bota organizacji, nie prywatne konto osoby prowadzącej).
+      2. **Resource owner:** organizacja `woogitsu`. **Repository access:**
+         „Only select repositories" → wybierz WYŁĄCZNIE `kuking.pl` —
+         nigdy „All repositories".
+      3. **Permissions** (i dokładnie tyle, nic więcej):
+         - `Contents` → **Read and write** (checkout + push gałęzi),
+         - `Pull requests` → **Read and write** (`gh pr create`/`view`).
+      4. **Expiration:** ustaw termin ważności (np. rok) — nigdy
+         „No expiration"; przypomnienie o odnowieniu wpisz do własnego
+         kalendarza, GitHub samo nie przypomina.
+      5. Skopiuj wygenerowany token i wklej go: repo `kuking.pl` →
+         **Settings → Secrets and variables → Actions → New repository
+         secret** → nazwa **dokładnie** `CENY_WARZYW_PAT`, wartość —
+         wklejony token. Do menedżera haseł też (nie tylko do GitHuba) —
+         przy wygaśnięciu ktoś musi wiedzieć, skąd go wziąć ponownie.
+      6. Sprawdź działanie ręcznym `workflow_dispatch` tego workflow —
+         krok „Sprawdź sekret CENY_WARZYW_PAT" ma przejść, a otwarty PR
+         (jeśli ceny się zmieniły) ma mieć uruchomiony `ci.yml`.
+
+      Bez tego sekretu pierwszy krok workflow zatrzymuje się jasnym
+      `::error::` po polsku i workflow kończy się czerwono, zanim cokolwiek
+      spróbuje pobrać albo zapisać — nic nie trafia do repozytorium
+      w niepełnym stanie.
 
 ### Co miesiąc (1 h)
 

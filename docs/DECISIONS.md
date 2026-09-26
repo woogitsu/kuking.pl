@@ -17596,13 +17596,74 @@ cotygodniowy + `workflow_dispatch`) uruchamia
 wcześniej uruchamiała tylko osoba prowadząca ręcznie. **Produkcja nadal
 niczego nie pobiera z sieci** — automatyzacja dotyczy wyłącznie CI. Gdy
 plik się zmieni, workflow pushuje gałąź `claude/ceny-warzyw-auto`
-(NIGDY `main` wprost) i otwiera PR do `main` tokenem `GITHUB_TOKEN` tego
-przebiegu (`permissions: contents: write, pull-requests: write` —
-i nic więcej). Merge PR-a jest ręczny: ktoś z zespołu przegląda różnicę
-cen, dokładnie jak dotąd. Siedem warzyw hurtowych workflow **nie
-dotyka** — ich klucze nie są w `MAPA` skryptu, więc zostają bez zmian aż
-do następnej ręcznej aktualizacji arkusza „HURT WARZ” (automatyzacja tego
-arkusza to osobna praca, o którą nikt jeszcze nie poprosił).
+(NIGDY `main` wprost) i otwiera PR do `main`. Merge PR-a jest ręczny:
+ktoś z zespołu przegląda różnicę cen, dokładnie jak dotąd.
+
+**Stan do 26.09.2026 (tego samego dnia, później tego dnia):** workflow
+pushował i otwierał PR domyślnym tokenem `GITHUB_TOKEN` tego przebiegu,
+a siedem warzyw hurtowych nie było w nim automatyzowane w ogóle (osobna
+ręczna aktualizacja arkusza „HURT WARZ”). Właściciel zmienił OBIE rzeczy
+tego samego dnia — patrz „Uzupełnienie” niżej.
+
+### Uzupełnienie z 26.09.2026 (dalszy ciąg) — osobisty token i wszystkie
+### 12 warzyw w jednym PR-ze
+
+Dwie kolejne decyzje właściciela z 26.09.2026, po uruchomieniu workflow
+z punktu 3:
+
+**A. `GITHUB_TOKEN` nie wystarcza — GitHub świadomie nie odpala CI na
+PR-ze, który sam otworzył.** GitHub Actions ma wbudowane zabezpieczenie
+przed pętlą automatów: `pull_request` NIE URUCHAMIA workflowów, gdy PR
+został otwarty (albo zaktualizowany) domyślnym `GITHUB_TOKEN` tego samego
+repozytorium. Efekt uboczny u nas: PR z cenami warzyw stał bez ani
+jednego przebiegu `ci.yml` — recenzent nie miał czym sprawdzić, czy
+zmiana w ogóle przechodzi testy, zanim scali.
+
+Rozwiązanie: workflow dostaje osobisty, fine-grained PAT zapisany jako
+sekret repozytorium — `CENY_WARZYW_PAT`. PR otwarty tym tokenem wygląda
+dla GitHuba jak otwarty przez człowieka, więc `pull_request` rusza
+normalnie. **Checkout i krok push/PR idą TYM SAMYM tokenem** — nie samym
+pushem, bo checkout bez tokenu i tak by nie miał czym push zautoryzować.
+
+*Uprawnienia PAT-a (minimalne, opisane też w
+`docs/infra/DEPLOYMENT_RUNBOOK.md`, sekcja „Co tydzień”):* wyłącznie to
+jedno repozytorium (nie „All repositories"), `Contents: Read and write`,
+`Pull requests: Read and write`, z ustawionym terminem ważności — nie
+„No expiration". Domyślny `GITHUB_TOKEN` zostaje w workflowie z uprawnieniem
+`contents: read` (nic więcej go już nie potrzebuje).
+
+*Gdy sekretu brakuje:* workflow ma osobny, pierwszy krok „Sprawdź sekret
+CENY_WARZYW_PAT”, który sprawdza jego obecność PRZED checkoutem i kończy
+przebieg czerwonym `::error::` po polsku, mówiącym dokładnie, co ustawić
+i gdzie (Settings → Secrets and variables → Actions →
+`CENY_WARZYW_PAT`) — nie cichym błędem gita czy `gh` przy pustym tokenie.
+
+**B. Automatyzacja obejmuje też siedem warzyw hurtowych — jeden PR
+tygodniowo na wszystkie 12 warzyw.** Ręczna aktualizacja arkusza
+„HURT WARZ” z punktu 3 była tymczasowa: skoro ten sam biuletyn niesie oba
+arkusze w jednym pliku xlsx, nie ma powodu automatyzować tylko jednego
+z nich. `scripts/ceny-warzyw-zsrir-pobierz.py` dostał drugą funkcję
+parsującą, `wyciagnij_ceny_hurt`, czytającą arkusz „HURT WARZ”: dla
+każdego z pięciu rynków (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) liczy
+średnią z min–max, potem średnią arytmetyczną tych pięciu wartości (rynek
+bez notowania w danym tygodniu jest POMIJANY, nie liczy się jako zero),
+mnoży przez przelicznik i zapisuje jak dotąd z jawną klauzulą
+„szacunek z cen hurtowych” w `zrodlo`.
+
+**Mnożnik ma jedno źródło prawdy, także między językami.** Skrypt NIE
+trzyma własnej kopii liczby 1,6 — funkcja `mnoznik_hurt_detal()` czyta ją
+wprost z pliku PHP (`App\Domain\Recipes\Koszt\SzacunekKosztuZCen`,
+wyrażeniem regularnym na stałą `MNOZNIK_HURT_DETAL`) i kończy działanie
+czytelnym błędem, gdy tej stałej tam nie znajdzie — zamiast po cichu
+przyjąć wartość domyślną. Test zgodności
+(`MnoznikHurtDetalTest::test_czyta_stala_z_prawdziwego_pliku_php`) czyta
+PRAWDZIWY plik repozytorium, nie kopię, więc zmiana stałej w PHP bez
+odpowiadającej zmiany w Pythonie (albo odwrotnie) nie może po cichu
+przejść — któryś z dwóch testów by to złapał.
+
+Skrypt aktualizuje teraz WSZYSTKIE 12 wierszy (`MAPA` ∪ `MAPA_HURT`)
+w jednym przebiegu, więc workflow otwiera **jeden PR tygodniowo** z całym
+cennikiem warzyw, a nie dwa osobne progi przeglądu tej samej rzeczy.
 
 **4. Testy.** `KosztZCenGusTest::kapusniak_mowi_wprost_ze_kapusta_to_szacunek_z_hurtu`
 — ręcznie policzone danie (kiełbasa GUS + kapusta hurt×1,6), sprawdza
@@ -17613,10 +17674,20 @@ ujemna zepsuła wykrywanie frazy — test oblał, przywrócono, znów zielony.
 `hurt_średnia × MNOZNIK_HURT_DETAL` (żeby ktoś, kto zmieni jedno, nie
 zapomniał drugiego); kontrola ujemna zmieniła stałą — test oblał,
 przywrócono. `scripts/ceny_warzyw_zsrir_pobierz_test.py` (`unittest`,
-bez sieci, na małej fikturze .xlsx zbudowanej w pamięci) sprawdza parser
-skryptu — teraz uruchamiany automatycznie co tydzień, więc musi mieć
-własny test, nie tylko ręczne uruchomienie; ten test chodzi też jako
-krok w `ceny-warzyw-auto.yml`, PRZED prawdziwym pobraniem.
+bez sieci, na małych fikturach .xlsx zbudowanych w pamięci) sprawdza
+parser skryptu — teraz uruchamiany automatycznie co tydzień, więc musi
+mieć własny test, nie tylko ręczne uruchomienie; ten test chodzi też jako
+krok w `ceny-warzyw-auto.yml`, PRZED prawdziwym pobraniem. Od uzupełnienia
+z 26.09.2026 dochodzą do niego: `WyciagnijCenyHurtTest` (parser arkusza
+„HURT WARZ”, z kontrolą ujemną na rynek bez notowania — gdyby liczył się
+jako zero zamiast być pominięty, średnia by spadła), `MnoznikHurtDetalTest`
+(test zgodności — czyta `MNOZNIK_HURT_DETAL` z prawdziwego pliku PHP,
+z kontrolą ujemną na plik bez tej stałej) i
+`MainAktualizujeWszystkie12WarzywTest` (uruchamia cały `main()` na
+fikturze z OBOMA arkuszami tego samego biuletynu i sprawdza, że
+wszystkie 12 kluczy — `MAPA` ∪ `MAPA_HURT` — dostaje nową cenę w jednym
+przebiegu, a klauzula „szacunek z cen hurtowych” trafia wyłącznie do
+siedmiu wierszy hurtowych).
 
 ### Wycofanie części 3
 Usunąć pięć wierszy detalicznych (`ziemniaki`, `cebula`, `marchew`,
@@ -17625,6 +17696,8 @@ Usunąć pięć wierszy detalicznych (`ziemniaki`, `cebula`, `marchew`,
 `database/data/ceny_skladnikow.csv`, skrypt
 `scripts/ceny-warzyw-zsrir-pobierz.py` z testem
 `scripts/ceny_warzyw_zsrir_pobierz_test.py` i workflow
-`.github/workflows/ceny-warzyw-auto.yml`. Bez migracji do cofnięcia —
-kod `SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo jak dziś
+`.github/workflows/ceny-warzyw-auto.yml` (razem z sekretem
+`CENY_WARZYW_PAT`, jeśli nic innego go już nie używa). Bez migracji do
+cofnięcia — kod `SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo
+jak dziś
 obsługuje brak cen warzyw w ogóle.
