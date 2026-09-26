@@ -44,6 +44,6 @@
     --}}
     <p class="mt-6">
         To nie Twoje konto? Nic nie klikaj — <a href="{{ route('login') }}">wróć do logowania</a>
-        i sprawdź, jakim kontem Google jesteś zalogowany na tym urządzeniu.
+        i sprawdź, jakie konto Google jest zalogowane na tym urządzeniu.
     </p>
 </x-layout>

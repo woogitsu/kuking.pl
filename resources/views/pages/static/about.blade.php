@@ -76,7 +76,7 @@
             <li><strong>Ludzie, nie treści.</strong> Tu są ludzie, którzy gotują na co dzień — ich zdjęcia, ich przepisy, ich historie.</li>
             <li><strong>„Ugotowałem” zamiast lajka.</strong> Że komuś naprawdę wyszło z Twojego przepisu, znaczy więcej niż sto serduszek.</li>
             <li><strong>Przepisy po mamie i babci.</strong> Możesz podpisać, po kim jest przepis, dopisać jego historię i dodać zdjęcie starej kartki.</li>
-            <li><strong>Spokój.</strong> Wpisy osób, które obserwujesz, stoją w kolejności, w jakiej je dodały. Bez rankingu popularności.</li>
+            <li><strong>Spokój.</strong> Wpisy osób i tagów, które obserwujesz, stoją w kolejności, w jakiej powstały. Bez rankingu popularności.</li>
         </ul>
 
         {{-- SEKCJA PRZEPISANA NA FORMĘ TWIERDZĄCĄ — decyzja właściciela.

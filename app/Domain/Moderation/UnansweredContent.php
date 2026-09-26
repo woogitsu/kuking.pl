@@ -10,6 +10,7 @@ use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -18,6 +19,23 @@ use Illuminate\Support\Facades\DB;
 /** Treści czekające na odzew widoczny dla ich autora (issue #579). */
 final class UnansweredContent
 {
+    /**
+     * OKNO KOLEJKI „BEZ ODPOWIEDZI" (audyt B4 W3/S7).
+     *
+     * Kolejka to lista rzeczy do zrobienia DZISIAJ, z progami 6 i 24 godzin
+     * (`BezOdpowiedziController`). Bez okna anti-join szedł po całej historii
+     * wpisów, przepisów i wykonań — przy każdym przeliczeniu licznika i przy
+     * każdym otwarciu ekranu — a sortowanie od najstarszych wyciągało na
+     * górę wpisy sprzed roku, na które odpowiedź już nic nie zmieni.
+     * Czternaście dni to dwa tygodnie zapasu ponad próg alarmu: gospodarz
+     * po urlopie nadal widzi wszystko, co przegapił.
+     *
+     * Okno dotyczy WYŁĄCZNIE list kolejki (`posts`, `recipes`, `cooked`,
+     * `questions`). `eligiblePosts()` — prawo do odpowiedzi z listy i pierwszy
+     * wpis autora — zostaje bez okna.
+     */
+    public const OKNO_DNI = 14;
+
     /** @return Builder<Post> */
     public function eligiblePosts(User $host): Builder
     {
@@ -38,7 +56,10 @@ final class UnansweredContent
      */
     public function posts(User $host): Builder
     {
-        return $this->withoutResponse($this->eligiblePosts($host)->where('posts.kind', Post::KIND_DISH), 'post_id', 'posts', 'author_id');
+        return $this->withoutResponse(
+            $this->eligiblePosts($host)->where('posts.kind', Post::KIND_DISH)->where('posts.published_at', '>=', $this->poczatekOkna()),
+            'post_id', 'posts', 'author_id',
+        );
     }
 
     /**
@@ -69,6 +90,7 @@ final class UnansweredContent
     public function questions(User $host): Builder
     {
         return $this->eligiblePosts($host)->where('posts.kind', Post::KIND_QUESTION)
+            ->where('posts.published_at', '>=', $this->poczatekOkna())
             ->whereNotExists($this->answers());
     }
 
@@ -80,7 +102,8 @@ final class UnansweredContent
             ->whereIn('visibility', ['public', 'followers'])
             ->widoczneDla($host)
             ->where('author_id', '!=', $host->getKey())
-            ->whereHas('author', fn (Builder $author) => $author->widocznyJakoOsoba());
+            ->whereHas('author', fn (Builder $author) => $author->widocznyJakoOsoba())
+            ->where('recipes.published_at', '>=', $this->poczatekOkna());
 
         return $this->withoutResponse($recipes, 'recipe_id', 'recipes', 'author_id');
     }
@@ -90,6 +113,7 @@ final class UnansweredContent
     {
         $events = CookedEvent::query()
             ->widoczneDla($host)
+            ->where('cooked_events.created_at', '>=', $this->poczatekOkna())
             ->where('user_id', '!=', $host->getKey())
             ->whereHas('user', fn (Builder $user) => $user->widocznyJakoOsoba())
             ->whereHas('recipe', fn (Builder $recipe) => $recipe
@@ -153,6 +177,11 @@ final class UnansweredContent
         OdpowiedzNaPytanie::zawez($answers, 'queue_comments', 'posts.author_id');
 
         return $answers;
+    }
+
+    private function poczatekOkna(): CarbonInterface
+    {
+        return now()->subDays(self::OKNO_DNI);
     }
 
     private function responses(string $foreignKey, string $table, string $ownerKey): QueryBuilder
