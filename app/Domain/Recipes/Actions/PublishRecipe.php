@@ -402,9 +402,24 @@ final class PublishRecipe
 
                 // Mapa sprzed blokady służy wyłącznie do wyboru zdjęć. Po
                 // czekaniu na inny zapis kroki mogły już zostać wymienione.
+                $wstepneKroki = $istniejaceKroki;
                 $istniejaceKroki = $recipe->steps()->get()->keyBy(
                     static fn (RecipeStep $step): string => (string) $step->getKey(),
                 );
+                foreach ($cleanSteps as $row) {
+                    $id = $this->nullIfBlank($row['id'] ?? null);
+                    if ($id === null || $this->nullIfBlank($row['media_id'] ?? null) !== null || ($row['remove_media'] ?? false) === true) {
+                        continue;
+                    }
+
+                    $stareZdjecie = $wstepneKroki->get($id)?->media_id;
+                    $swiezeZdjecie = $istniejaceKroki->get($id)?->media_id;
+                    if ($swiezeZdjecie !== null && $swiezeZdjecie !== $stareZdjecie && ! in_array($swiezeZdjecie, $doPrzypiecia, true)) {
+                        // Nie wolno dziedziczyć zdjęcia, którego ta transakcja
+                        // nie zablokowała przed wierszem przepisu (D-103).
+                        throw new BladDlaCzlowieka('Zdjęcie przy kroku zmieniło się w trakcie zapisu. Twoje wpisy są zachowane — odśwież przepis i porównaj zmiany.');
+                    }
+                }
                 $duplicateErrors = ExistingStepDuplicates::errors($cleanSteps, $istniejaceKroki->keys());
                 if ($duplicateErrors !== []) {
                     throw new BladDlaCzlowieka(reset($duplicateErrors));
