@@ -141,16 +141,56 @@ async function zmierz(page) {
   });
 }
 
-async function naKoniec(page) {
-  await page.evaluate(() => document.fonts.ready);
-  /* Dwa razy: pierwsze przewinięcie uruchamia `geometry()` w skrypcie
-     przycisku „Wygląd" (rezerwa belki), a po zmianie skali układ dojeżdża
-     jeszcze klatkę później — jedno przewinięcie potrafiło stanąć 50 px
-     przed końcem i „treść pod belką" była wtedy błędem pomiaru. */
-  for (let i = 0; i < 2; i++) {
-    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
-    await page.waitForTimeout(150);
-  }
+/* USTALENIE UKŁADU PRZED POMIAREM — punkt stały, nie stały czas.
+ *
+ * Do 25.09 było tu `fonts.ready` i dwa przewinięcia co 150 ms. Strona jest
+ * układem ze sprzężeniem zwrotnym: `geometry()` w `szybki-wyglad.js` czyta
+ * układ (przewinięcie, prostokąt przycisku, paska i belki) i przestawia
+ * atrybuty oraz zmienne, od których zależy wysokość stopki — a to znowu
+ * zmienia układ. Reaguje na `scroll` i ResizeObserver, czyli dopiero
+ * w kroku renderowania klatki. Stałe 150 ms zakłada, że klatka zdąży.
+ *
+ * Tu przewijamy do końca i czekamy na DWIE klatki (po nich doszły `scroll`
+ * i ResizeObserver z poprzedniej), aż dwa kolejne odczyty podpisu układu są
+ * identyczne, strona stoi na samym dole, a pismo jest wczytane. Nie ma progu
+ * czasowego do „wstrzelenia się" — jest warunek. Brak klatki albo układ,
+ * który nie ustala się w 30 krokach, to BŁĄD POMIARU (głośny), a nie
+ * cicha liczba zmierzona w połowie zmiany. */
+async function ustalUklad(page) {
+  await page.evaluate(async () => {
+    const d = document.documentElement;
+    const klatka = () => new Promise((gotowe, blad) => {
+      const straz = setTimeout(() => blad(new Error('BŁĄD POMIARU: przeglądarka nie wydała klatki w 5 s')), 5000);
+
+      requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(straz); gotowe(); }));
+    });
+    const podpis = () => {
+      const s = document.querySelector('.szybki-wyglad > summary')?.getBoundingClientRect();
+      const w = document.querySelector('[data-szybki-wyglad]');
+
+      return [
+        d.scrollHeight, d.scrollWidth, d.clientHeight, Math.round(window.scrollY),
+        d.getAttribute('style') ?? '', d.getAttributeNames().join(','), w?.getAttributeNames().join(',') ?? '',
+        s ? [s.left, s.top, s.width, s.height].map((v) => Math.round(v * 4) / 4).join(',') : '',
+        document.fonts.status,
+      ].join('|');
+    };
+
+    await document.fonts.ready;
+    let poprzedni = null;
+
+    for (let krok = 0; krok < 30; krok++) {
+      window.scrollTo({ top: d.scrollHeight, behavior: 'instant' });
+      await klatka();
+      const teraz = podpis();
+      const naDole = Math.ceil(window.scrollY) + d.clientHeight >= d.scrollHeight - 1;
+
+      if (teraz === poprzedni && naDole && document.fonts.status === 'loaded') return;
+      poprzedni = teraz;
+    }
+
+    throw new Error(`BŁĄD POMIARU: układ nie ustalił się w 30 krokach; ostatni podpis ${poprzedni}`);
+  });
 }
 
 /* Wszystkie progi w jednym miejscu, żeby tryb żywy, statyczny i kontrola
@@ -222,7 +262,7 @@ export async function sprawdzStopke({ browser, adres, sesja, out = 'storage/port
       await strona.evaluate((s) => { document.documentElement.dataset.textScale = String(s); }, przypadek.skala);
     }
 
-    await naKoniec(strona);
+    await ustalUklad(strona);
     const m = await zmierz(strona);
     const bledy = naruszenia(m, przypadek);
 
@@ -270,7 +310,7 @@ const IKONA = '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true
 
 /* `js` to PRAWDZIWY `resources/js/szybki-wyglad.js` — to on ustawia
    `--wyglad-dol` i `--rezerwa-belki`, więc pomiar bez niego mierzyłby atrapę. */
-function szkielet({ kto, css, font, js }) {
+function szkielet({ kto, css, font, js, skala = 100, sabotaz = null }) {
   const zalogowany = kto === 'zalogowany';
   const grupa = (nazwa, linki) => `<nav class="site-footer-grupa" aria-label="${nazwa}"><p class="site-footer-naglowek" aria-hidden="true">${nazwa}</p><ul>${linki.map((l) => `<li><a href="#">${l}</a></li>`).join('')}</ul></nav>`;
   const akapity = Array.from({ length: 6 }, () => '<p>Gotujemy po swojemu i pokazujemy, co dziś wyszło z garnka. Kilka zdań, żeby strona miała treść dłuższą niż ekran.</p>').join('');
@@ -278,9 +318,9 @@ function szkielet({ kto, css, font, js }) {
     ? `<nav class="bottom-nav" aria-label="Nawigacja główna">${['Start', 'Szukaj', 'Dodaj', 'Moje', 'Profil'].map((n) => `<a class="bottom-nav-item" href="#">${IKONA} ${n}</a>`).join('')}</nav>`
     : '';
 
-  return `<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  return `<!doctype html><html lang="pl"${skala !== 100 ? ` data-text-scale="${skala}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>@font-face { font-family: 'Inter Variable'; src: url(data:font/woff2;base64,${font}) format('woff2'); font-weight: 100 900; }</style>
-<style>${css}</style></head>
+<style>${css}</style>${sabotaz ? `<style id="sabotaz">${sabotaz}</style>` : ''}</head>
 <body class="${zalogowany ? '' : 'uklad-solo'}" data-marka="kuking-2026">
 <div class="app-shell">
   <header class="topbar"><div class="topbar-inner"><a href="#">${SLOWO}</a></div></header>
@@ -353,15 +393,44 @@ async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
       await (await kontekst.newCDPSession(strona)).send('Page.setFontSizes', { fontSizes: { standard: przypadek.czcionka, fixed: przypadek.czcionka } });
     }
 
-    await strona.setContent(szkielet({ kto: przypadek.kto, css, font, js }));
-
-    if (przypadek.skala !== 100) {
-      await strona.evaluate((s) => { document.documentElement.dataset.textScale = String(s); }, przypadek.skala);
-    }
-
-    if (sabotaz) await strona.addStyleTag({ content: sabotaz });
-    await naKoniec(strona);
+    /* SKALA I SABOTAŻ SĄ W HTML-U OD PIERWSZEGO BAJTU, jak `data-text-scale`
+       z `layout.blade.php`. Do 25.09 oba dokładano PO wczytaniu strony
+       (`dataset.textScale`, `addStyleTag`) — już po starcie skryptu przycisku
+       i po pierwszym układzie. Na CI (Chromium 1243) kilka razy na sto
+       przebiegów pomiar wychodził wtedy tak, jakby dołożonego arkusza nie
+       było: „sabotaż przeszedł niezauważony" przy tabeli liczb identycznej
+       co do piksela z przebiegami zielonymi, raz przy tym, raz przy innym
+       sabotażu (#1491, #1513, #1616, #1693, #1705). Każda porażka dotyczyła
+       przypadku, w którym strona była zmieniana po wczytaniu. Teraz nie ma
+       czego „nie zdążyć" zastosować. */
+    await strona.setContent(szkielet({ kto: przypadek.kto, css, font, js, skala: przypadek.skala, sabotaz }));
+    await ustalUklad(strona);
     const m = await zmierz(strona);
+
+    /* POMIAR MIERZY TO, CO MIAŁ ZMIERZYĆ — inaczej zielone z kontroli ujemnej
+       mogłoby znaczyć „nie zastosowano sabotażu", a nie „strażnik ślepy". */
+    const stan = await strona.evaluate(() => {
+      const probka = document.createElement('div');
+
+      probka.style.fontSize = 'medium';
+      document.body.append(probka);
+      const pismo = parseFloat(getComputedStyle(probka).fontSize);
+
+      probka.remove();
+
+      return {
+        pismo,
+        skala: document.documentElement.dataset.textScale ?? '100',
+        regulySabotazu: document.getElementById('sabotaz')?.sheet?.cssRules.length ?? 0,
+        skrypt: document.querySelector('[data-szybki-wyglad]')?.dataset.wygladGotowy === '1',
+      };
+    });
+    const opis = JSON.stringify({ ...przypadek, sabotaz: Boolean(sabotaz) });
+
+    assert.equal(stan.pismo, przypadek.czcionka ?? 16, `BŁĄD POMIARU: domyślne pismo ${stan.pismo} px zamiast ${przypadek.czcionka ?? 16} px (${opis})`);
+    assert.equal(stan.skala, String(przypadek.skala), `BŁĄD POMIARU: skala ${stan.skala} zamiast ${przypadek.skala} (${opis})`);
+    assert.equal(stan.regulySabotazu > 0, Boolean(sabotaz), `BŁĄD POMIARU: arkusz sabotażu ma ${stan.regulySabotazu} reguł (${opis})`);
+    assert(stan.skrypt, `BŁĄD POMIARU: skrypt przycisku „Wygląd" nie wystartował (${opis})`);
 
     if (zrzut) await strona.screenshot({ path: `${out}/${zrzut}.png` });
     await kontekst.close();
