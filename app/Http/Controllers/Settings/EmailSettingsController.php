@@ -110,7 +110,8 @@ class EmailSettingsController extends Controller
         // dokładnie to, czego tu trzeba, bez własnej listy pól do pilnowania.
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => 'To hasło jest nieprawidłowe.',
+                // Mówi, co zrobić — nie tylko, że się nie zgadza (audyt B1, zn. 5).
+                'current_password' => 'To hasło nie pasuje do konta. Wpisz swoje obecne hasło — to, którym logujesz się dziś.',
             ]);
         }
 
