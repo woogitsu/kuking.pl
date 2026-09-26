@@ -483,8 +483,10 @@ Dozwolone są **wyłącznie**:
 - bramki widoczności i blokady;
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
 
-W **Obserwowanych** nic nie znika poza bramkami i blokadami. Dopuszczalne jest
-tylko zwinięcie serii wpisów jednej osoby, bez zmiany kolejności.
+W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
+widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby, bez zmiany
+kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
 dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
