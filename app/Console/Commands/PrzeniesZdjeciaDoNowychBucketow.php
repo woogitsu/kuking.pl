@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Illuminate\Console\Command;
@@ -274,12 +275,16 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
                 }
             }
         } catch (Throwable $e) {
+            $blad = BezpiecznyBlad::kontekst($e);
+
             Log::error('Nie udało się przenieść zdjęcia do nowych bucketów', [
                 'media_id' => $zdjecie->getKey(),
-                'error' => $e->getMessage(),
+                'error' => $blad,
             ]);
 
-            return [self::WYNIK_BLAD, 'wyjątek: '.$e->getMessage()];
+            // Na konsolę też bez komunikatu: klient R2 wkleja w niego pełny
+            // adres żądania, a wyjście komendy ląduje w logu wdrożenia.
+            return [self::WYNIK_BLAD, 'wyjątek: '.$blad['wyjatek'].' w '.($blad['miejsce_w_app'] ?? $blad['miejsce']).' (odcisk '.$blad['odcisk'].')'];
         }
 
         if ($tylkoRaport) {
