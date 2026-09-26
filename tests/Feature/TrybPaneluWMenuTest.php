@@ -51,6 +51,11 @@ class TrybPaneluWMenuTest extends TestCase
         // — bramka `UserPolicy::diagnozujKolejke`, różnicę ról mierzy
         // `PanelKolejkiZadanTest`.
         'admin/kolejka' => 'UserPolicy::diagnozujKolejke',
+        // Issue #1814 (D-281): metryki doboru to materiał do decyzji
+        // właściciela o regułach doboru, nie narzędzie moderacji —
+        // bramka `UserPolicy::przegladajMetryki`, różnicę ról mierzy
+        // `MetrykiDoboruTest`.
+        'admin/metryki' => 'UserPolicy::przegladajMetryki',
     ];
 
     /** Pozycje menu przeznaczone dla użytkownika — w trybie panelu nie ma ich wcale. */

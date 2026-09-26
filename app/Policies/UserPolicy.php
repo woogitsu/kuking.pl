@@ -99,6 +99,16 @@ class UserPolicy
     }
 
     /**
+     * Panel „Metryki doboru" (`/admin/metryki`, issue #1814, D-281) — same
+     * agregaty, bez osób i wpisów. Admin, nie moderator: to materiał do
+     * decyzji właściciela o regułach doboru (D-275), nie narzędzie moderacji.
+     */
+    public function przegladajMetryki(User $viewer): bool
+    {
+        return $viewer->isAdmin();
+    }
+
+    /**
      * Zawieszenie albo blokada KONTA decyzją moderacyjną (#1408, D-244).
      *
      * Karać wolno wyłącznie konto o NIŻSZEJ roli niż własna:

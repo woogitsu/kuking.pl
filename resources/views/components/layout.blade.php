@@ -809,6 +809,10 @@
                                 @can('diagnozujKolejke', \App\Models\User::class)
                                 <li><a class="side-nav-item" href="{{ route('admin.kolejka') }}" @if(request()->routeIs('admin.kolejka')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Kolejka zadań</span></a></li>
                                 @endcan
+                                {{-- Metryki doboru (issue #1814, D-281) — ta sama bramka co w kontrolerze. --}}
+                                @can('przegladajMetryki', \App\Models\User::class)
+                                <li><a class="side-nav-item" href="{{ route('admin.metryki') }}" @if(request()->routeIs('admin.metryki')) aria-current="page" @endif><x-ikona nazwa="filter" /> <span class="marka-panel-nav-etykieta">Metryki doboru</span></a></li>
+                                @endcan
                             </ul>
 
                             {{--
