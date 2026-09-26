@@ -20,10 +20,16 @@
     <form class="panel-formularza" method="POST" action="{{ route('recipes.import.pdf.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="field @error('plik') has-error @enderror">
-            <label for="f-plik">Plik PDF z przepisem</label>
-            <input id="f-plik" type="file" name="plik" accept="application/pdf,.pdf"
+            {{-- Ten sam wzorzec pola pliku co w kreatorze (D-035): pole schowane
+                 klasą, klikalna jest duża etykieta z ikoną i napisem. --}}
+            <input class="visually-hidden pole-zdjecia-input" id="f-plik" type="file" name="plik" accept="application/pdf,.pdf"
+                   aria-labelledby="f-plik-tytul"
                    aria-describedby="f-plik-help @error('plik') f-plik-error @enderror"
                    @error('plik') aria-invalid="true" @enderror>
+            <label class="pole-zdjecia" for="f-plik">
+                <span class="pole-zdjecia-ikona"><x-ikona nazwa="book" :rozmiar="32" /></span>
+                <span class="pole-zdjecia-tytul" id="f-plik-tytul">Wybierz plik PDF z przepisem</span>
+            </label>
             <span class="field-help" id="f-plik-help">Po wybraniu pliku kliknij „Zapisz jako szkic”.</span>
             @error('plik')<span class="field-error" id="f-plik-error">{{ $message }}</span>@enderror
         </div>
