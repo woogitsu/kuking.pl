@@ -1885,7 +1885,9 @@ railway login
 railway link                    # wybierz workspace → projekt kuking → środowisko production
 
 # PODGLĄD — nie zmienia niczego. Przeczytaj wynik uważnie.
-railway config plan
+# KUKING_WAIT_FOR_CI jest OBOWIĄZKOWE (#1390): "true", gdy „Wait for CI”
+# ma być włączone, "false" — gdy nie. Bez niej railway.ts odmawia.
+KUKING_WAIT_FOR_CI=true railway config plan
 ```
 
 Docelowo — jeśli plan wygląda tak, jak zakłada `railway.ts` — zobaczysz listę
@@ -1896,8 +1898,8 @@ skoro na produkcji istnieje dziś serwis o innej nazwie (`kuking.pl`, nie
 nie tę listę.
 
 ```bash
-# Zastosowanie (poprosi o potwierdzenie)
-railway config apply
+# Zastosowanie (poprosi o potwierdzenie) — ta sama wartość co przy planie
+KUKING_WAIT_FOR_CI=true railway config apply
 ```
 
 ~~Powtórz dla staginu~~ — **odłożone** (decyzja 25.09.2026, §8
