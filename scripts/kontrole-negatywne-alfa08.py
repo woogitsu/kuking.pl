@@ -245,6 +245,10 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 # manifestowi bez hasha roczny cache — i test ma zapalić.
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
+# Referrer-Policy w Caddy tylko jako wartość domyślna (audyt A5-01, #1052).
+# Mutacja zdejmuje prefiks `?`, czyli wraca do `set`, które przez odroczenie
+# operacji nadpisywało `no-referrer` ze stron z sekretem w adresie.
+REFERRER_CADDY_TEST = "test_naglowek_zalezny_od_strony_jest_w_caddy_tylko_wartoscia_domyslna"
 
 # Limit ciała żądania w Caddy (audyt A5-16). Strażnik czyta `docker/Caddyfile`:
 # każda trasa ze zdjęciem stoi poza progiem 2 MB. Mutacja zdejmuje
@@ -913,6 +917,8 @@ checks = [
      lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
     ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
      dispatch_zdjecia_poza_transakcja),
+    ("Referrer-Policy w Caddy nadpisuje decyzję aplikacji", CADDYFILE, REFERRER_CADDY_TEST,
+     lambda s: replace_once(s, '\t?Referrer-Policy "', '\tReferrer-Policy "')),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
@@ -1031,6 +1037,7 @@ run_test(CACHE_MANIFESTU_TEST, True)
 run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
 run_test(ZLECENIE_ZDJECIA_TEST, True)
+run_test(REFERRER_CADDY_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
