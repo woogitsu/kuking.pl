@@ -44,9 +44,9 @@
         <button type="submit" class="btn btn-secondary">Pokaż</button>
     </form>
 
-    <div class="stack">
+    <div class="stack" id="lista-pytan">
         @forelse($questions as $question)
-            <article class="card">
+            <article class="card" data-klucz="pytanie-{{ $question->getKey() }}">
                 <h2><a href="{{ route('questions.show', $question) }}">{{ $question->title }}</a></h2>
                 <p class="meta">{{ $question->answer_count }} {{ \App\Support\Odmiana::rzeczownik($question->answer_count, 'odpowiedź', 'odpowiedzi', 'odpowiedzi') }}</p>
                 @if($question->answer_count === 0)
@@ -59,5 +59,5 @@
             </x-empty-state>
         @endforelse
     </div>
-    <x-show-more :paginator="$questions" czego="pytań" />
+    <x-show-more :paginator="$questions" czego="pytań" lista="lista-pytan" />
 </x-layout>
