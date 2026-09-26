@@ -117,10 +117,12 @@ class SearchController extends Controller
         // nie została odpytana. To dokładnie ta sama klasa nieuczciwości co
         // „Znaleziono 20 przepisów" liczone z POBRANYCH wyżej w tym pliku.
         //
-        // Próg 2 MUSI się zgadzać z SearchQuery — jeśli go tam zmienisz,
-        // zmień i tutaj.
+        // `SearchQuery::jestPrzeszukiwalna()` MUSI się zgadzać z tym, co
+        // robią `recipes()`/`people()` — jedna metoda liczy oba powody
+        // odrzucenia (krócej niż 2 znaki i pusta po normalizacji, #1050),
+        // żeby ten ekran i domena nigdy się nie rozjechały.
         $phraseForLength = $section === 'ludzie' ? SearchQuery::peoplePhrase($phrase) : $phrase;
-        $zaKrotka = $phrase !== '' && mb_strlen($phraseForLength) < 2;
+        $zaKrotka = $phrase !== '' && ! SearchQuery::jestPrzeszukiwalna($phraseForLength);
 
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
@@ -191,6 +192,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             // kliknięciem.
             'podsumowanie.wypisz' => OdnosnikWypisania::dla($autor),
             'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
+            // Wypisanie z listu urodzinowego (#1755) — podpisany adres, `noindex`.
+            'urodziny.wypisz' => OdnosnikWypisaniaZUrodzin::dla($autor),
         ];
 
         $zbadanych = 0;

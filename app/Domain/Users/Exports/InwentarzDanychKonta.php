@@ -67,6 +67,7 @@ final class InwentarzDanychKonta
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
         'tozsamosci_zewnetrzne.user_id' => [self::EKSPORT, 'polaczone_konta'],
         'sessions.user_id' => [self::EKSPORT, 'aktywne_sesje'],
+        'personal_access_tokens.tokenable_id' => [self::EKSPORT, 'urzadzenia_z_dostepem'],
         'pending_email_changes.user_id' => [self::EKSPORT, 'zmiana_adresu_email'],
         'weekly_digest_sends.user_id' => [self::EKSPORT, 'wyslane_podsumowania_tygodnia'],
         'data_exports.user_id' => [self::EKSPORT, 'zamowione_paczki'],
@@ -123,6 +124,13 @@ final class InwentarzDanychKonta
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
         'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
+        // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
+        'birthday_day' => [self::EKSPORT, 'konto'],
+        'birthday_month' => [self::EKSPORT, 'konto'],
+        'birthday_wishes_enabled' => [self::EKSPORT, 'konto'],
+        'wants_birthday_email' => [self::EKSPORT, 'konto'],
+        'birthday_email_sent_on' => [self::EKSPORT, 'konto'],
+        'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],

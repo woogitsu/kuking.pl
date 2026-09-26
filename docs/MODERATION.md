@@ -199,7 +199,11 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   przy „cofam” po odwołaniu. Komentarz usunięty przez właściciela wpisu nie
   wraca więc decyzją moderatora.
 - Decyzję administratora cofa tylko administrator — ta sama reguła rangi co
-  przy zdejmowaniu (`UserPolicy::takeDownContentOf`).
+  przy zdejmowaniu (`UserPolicy::takeDownContentOf`). Widok kolejki
+  (`ModerationController::przywracalne()`) czyta tę regułę z
+  `RestoreContent::wolnoCofnac()`, nie kopiuje jej: moderator przy treści
+  ukrytej przez administratora nie widzi przycisku „Przywróć treść”, tylko
+  informację, kto ją ukrył (issue #1748).
 - **Nikt nie przywraca własnej treści** (#1479) — ani przyciskiem przy
   zgłoszeniu, ani „cofam” po odwołaniu. Wpis albo komentarz moderatora
   przywraca ktoś inny z zespołu; drogą autora jest odwołanie. Reguła stoi
@@ -283,6 +287,9 @@ zauważa, nikomu nic się nie dzieje.
   `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
 - „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
   oznaczenia dla tej samej treści.
+- Oznaczeń **własnych treści** moderator nie zamyka (audyt A5-11) — zamiast
+  przycisku widzi informację, a `SygnalyController::odrzucGrupe()` odmawia.
+  Zamyka je ktoś inny z zespołu.
 - Zamyka grupę w stanie, który moderator widział (#1059, decyzja właściciela):
   formularz niesie klucz grupy, liczbę otwartych oznaczeń i identyfikator
   najnowszego z nich — nie listę identyfikatorów, bo widok rozwija najwyżej
@@ -494,3 +501,32 @@ nie da się uznać.
 **Jak odpowiedź dociera** — powiadomieniem typu moderacyjnego. Osoba
 zablokowana czyta je na ekranie logowania (`LoginController`), bo do serwisu
 nie wejdzie.
+
+## Liczby do raportu przejrzystości (issue #1860, kryterium #989)
+
+```bash
+php artisan kuking:raport-przejrzystosci --od=2026-01-01 --do=2026-12-31
+```
+
+Tylko odczyt, same liczby — bez identyfikatorów, nazw kont, treści,
+uzasadnień i moderatorów, więc wynik wolno wkleić do dokumentu publicznego.
+Bez `--od`/`--do` liczy od 1 stycznia bieżącego roku do dziś.
+
+| Sekcja | Co liczy | Skąd |
+|---|---|---|
+| 1. Zgłoszenia | według źródła: społeczność, DSA art. 16, automat | `reports.source`, `created_at` w oknie |
+| 2. Pierwsza instancja | decyzje ze zgłoszenia według rodzaju | `moderation_actions` z `report_id` |
+| 3. Z urzędu | decyzje bez zgłoszenia i bez odwołania (D-251) | `report_id IS NULL AND appeal_id IS NULL`, bez `unhide` |
+| 4. Przywrócenia | „Przywróć treść” | `action = 'unhide'` |
+| 5. Odwołania | rozpatrzone w oknie: autor / zgłaszający × podtrzymane / cofnięte | `appeals.decided_at` w oknie |
+| 6. Po uznaniu odwołania | **rzeczywisty rodzaj nowego działania** (#989) | `moderation_actions.appeal_id` |
+
+Każdy znany rodzaj ma wiersz także przy zerze — brak wiersza czytałby się
+jak „tego nie liczymy”. Rodzaj decyzji spoza słownika etykiet pokazuje się
+surowym kodem, żeby nie zniknął z sumy. Okno starsze niż retencja spraw
+(`KUKING_CASE_RETENTION_MONTHS`, domyślnie 36) daje liczby zaniżone
+i komenda o tym ostrzega.
+
+Czy i kiedy taki raport trzeba publikować, rozstrzyga `docs/legal/COMPLIANCE.md`
+§1 (art. 15 i zwolnienie z art. 19 DSA). Komenda daje liczby, nie przesądza
+obowiązku. Pilnuje: `tests/Feature/RaportPrzejrzystosciTest.php`.

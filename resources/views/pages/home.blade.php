@@ -48,6 +48,19 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($zyczenia ?? null)
+        {{--
+            ŻYCZENIA URODZINOWE (issue #1755, etap b). Jedno zdanie od
+            gospodarza, tylko u tej osoby i tylko w dniu jej urodzin. Nie jest
+            wpisem w feedzie i nie ma pustego stanu. Wyłącznik stoi przy dacie
+            (Ustawienia → Urodziny). Tekst składa `Urodziny::tekstZyczen()`.
+        --}}
+        <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
+            <p>{{ $zyczenia }}</p>
+            <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
     @if($pierwszeKroki ?? null)
         {{-- Przerwany onboarding (#985): droga powrotu bez przymusu.
              Znika po dojściu do końca albo po „Nie przypominaj”. --}}
@@ -78,6 +91,20 @@
                 <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tagTygodnia->tag->slug]) }}">Dodaj wpis z tym tagiem</a>
                 <a class="btn btn-secondary" href="{{ route('tags.show', $tagTygodnia->tag) }}">Zobacz wpisy z tym tagiem</a>
             </div>
+        </section>
+    @endif
+
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
         </section>
     @endif
 
@@ -113,17 +140,6 @@
         </section>
     @endif
 
-    @if(($zrodloFeedu ?? 'obserwowani') === 'tagi')
-        {{-- Feed tagów (D-021, zastępuje usunięty już feed tematów z issue #31).
-             Człowiek MUSI wiedzieć, skąd się wzięły te wpisy: feed, którego
-             pochodzenia nie da się wytłumaczyć, wygląda jak algorytm,
-             a tego tu nie ma i nie będzie. --}}
-        <div class="notice">
-            <strong>To wpisy z tagów, które obserwujesz.</strong>
-            Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
-            <a href="{{ route('settings.tags') }}">Zmień swoje tagi</a>.
-        </div>
-    @endif
 
     {{--
         ZAKŁADKI FEEDU (UI kit v2, ekrany 01 i 05).
@@ -137,7 +153,9 @@
         przy samym odnośniku niżej.
     --}}
     <div class="start-feed-naglowek">
-        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : (($zrodloFeedu ?? 'obserwowani') === 'tagi' ? 'Najnowsze z Twoich tagów' : 'Najnowsze od obserwowanych') }}</h2>
+        {{-- Od #1808 (D-277) lista obserwowanych łączy osoby i tematy — nagłówek
+             mówi o obu, a każda karta z tagu ma własny podpis „Z tagu: …". --}}
+        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
         <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
@@ -196,7 +214,10 @@
         </div>
     @endif
 
-    @if($posts->count() === 0)
+    @if($posts->count() === 0 && $showingDiscover)
+        {{-- Issue #1807: pusty Start po przejściu do Odkrywania też ma wyjście. --}}
+        <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
+    @elseif($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
             Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
