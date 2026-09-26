@@ -51,6 +51,9 @@ reguły, komunikaty, kolejność sprawdzeń), **akcja w `app/Domain` za regułę
 i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `ZapisPrzepisuRequest` + `ZapiszPrzepisZFormularza` (przepis) oraz
 `DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
+oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
+w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
 oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
 zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
 `RequestAccountDeletion` (zgłoszenie usunięcia konta).
