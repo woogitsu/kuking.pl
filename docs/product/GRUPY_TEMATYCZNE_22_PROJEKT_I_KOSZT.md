@@ -38,7 +38,7 @@ realną różnicę funkcjonalną i zaakceptowaną nazwę, a nie być przemianowa
 | Redakcja | `tag_promotions`, panel tagów promowanych, D-021 | Przypisania opiekuna z uprawnieniami do konkretnej grupy |
 | Publikacja z miejsca | Link do formularza z `?tag=slug`, zachowanie wyboru po logowaniu i walidacji | Świadomego powiązania wpisu z grupą |
 | Zeszyt | `Collection`, `CollectionPolicy`, `collection_items`: własne zapisy wpisów i przepisów | Wspólnego zarządzania, ról i moderacji grupowej; nie przerabiać zeszytu na grupę |
-| Strona główna | `FeedController::home`: obserwowani → tagi → odkrywanie jako wybór źródła; nie suma trzech list | Subskrypcji grup; dołączenie nie powinno zmieniać tej kolejności |
+| Strona główna | `FeedController::home`: obserwowani (od #1808, D-277: osoby **i** tagi w jednej liście) → odkrywanie jako wybór źródła | Subskrypcji grup; dołączenie nie powinno zmieniać tej kolejności |
 | Bezpieczeństwo | Policy, blokady, widoczność treści i przepisów, dostęp do zdjęć przez rodzica | Granicy uprawnień moderatora grupy |
 | Moderacja | `reports`, `moderation_actions`, `appeals`, audyt i powiadomienia | Niezależnej decyzji lokalnej obok decyzji marki |
 
