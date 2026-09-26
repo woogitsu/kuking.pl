@@ -1614,7 +1614,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   (`UNIQUE`, 220 znaków);
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
-  (CHECK: `easy` \| `medium` \| `hard`);
+  (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -1623,6 +1623,14 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 
+**`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
+(#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
+(np. surówka bez gotowania). Czas całkowity jest znany TYLKO przy obu
+kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
+`Recipe::totalMinutes()` (strona przepisu, `totalTime` w JSON-LD, podgląd
+kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
+„Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
+całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 
