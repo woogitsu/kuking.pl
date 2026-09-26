@@ -432,6 +432,8 @@
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
+                    {{-- Planer tygodnia (#27, D-310): prywatny, obok „Zapisuję”. --}}
+                    <x-dodaj-do-planera :recipe="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -545,11 +547,12 @@
                  nie osobnymi kartami w strumieniu. Cień zostaje panelowi wyżej,
                  bo tam stoi „Ugotowałem", i kartom cudzych wykonań i komentarzy
                  niżej. --}}
-            <section class="sekcja-strony">
+            <section class="sekcja-strony" id="skladniki">
                 <h2>Składniki</h2>
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
+                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).
@@ -584,14 +587,22 @@
                         @endif
                         <ul class="ingredient-list">
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                                @php($przeliczony = $wyborPorcji->przelicz($ingredient))
                                 <li>
-                                    {{ $ingredient->ingredient_text }}
+                                    {{-- Przeliczona ilość jest pogrubiona, reszta to zdanie
+                                         autora co do znaku (D-284). Bez przeliczenia —
+                                         dokładnie `ingredient_text`. Jedna linia, żeby Blade
+                                         nie wstawił spacji w środek „300 g”. --}}
+                                    @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                     {{-- „Bez ilości” nie określa sposobu dozowania.
                                          Pokazujemy tekst autora bez dopisków (#878).
                                          BRAK DOPISKU JEST CELOWY (D-232): ten ekran
                                          jest tekstem autora co do znaku. Tryb gotowania
                                          świadomie robi to inaczej — nie „ujednolicaj”. --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                    {{-- Zamiennik od autora (D-284), osobną linią pod
+                                         składnikiem — tekstem ≥ 18 px, nie drobnym dopiskiem. --}}
+                                    @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
                                 </li>
                             @endforeach
                         </ul>
@@ -616,7 +627,10 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
+                                            {{-- Opis dla czytnika (issue #1304): własny opis autora,
+                                                 a bez niego kontekst kroku zamiast pustego `alt`. --}}
                                             <x-photo :media="$step->media" variant="feed" class="post-photo"
+                                                     :alt="$step->media->alt_text ?: 'Zdjęcie do kroku '.($step->position + 1)"
                                                      tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$loop->index.'-photo' : null" />
                                         </div>
                                     @endif
