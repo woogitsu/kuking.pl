@@ -9,6 +9,10 @@
          w tę stronę, w którą człowiek nie sprawdzi, bo nie spróbuje. --}}
     <p class="mb-5">Przepisy i wpisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
 
+    {{-- Planer tygodnia (#27, D-310) mieszka w „Moje”: dolna nawigacja ma
+         najwyżej pięć pozycji (AGENTS.md §5), a plan to też „moje na potem”. --}}
+    <p class="mb-5"><a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a></p>
+
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
          komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:
          jedyny formularz na tej stronie siedzi w zwiniętym <details>. --}}
