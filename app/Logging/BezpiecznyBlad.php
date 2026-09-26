@@ -86,6 +86,30 @@ final class BezpiecznyBlad
     }
 
     /**
+     * Ten sam opis w jednej linii — dla WYJŚCIA KONSOLI komend operacyjnych
+     * (issue #1860, luka po #973). Terminal `railway ssh` to też miejsce, do
+     * którego komunikat cudzej biblioteki nie ma wstępu: klient storage wkłada
+     * tam klucz obiektu i adres żądania, sterownik bazy SQL z wartościami,
+     * a znacznik `<…>` z komunikatu Symfony Console potrafi przefarbować albo
+     * zjeść resztę linii. Z listy dozwolonych pól powyżej żadne nie niesie
+     * znaku z komunikatu, więc nie ma czego ucieczkować.
+     *
+     * Przykład: `Aws\S3\Exception\S3Exception (NoSuchKey 404), app/…:92, odcisk 1a2b3c4d`.
+     */
+    public static function jednaLinia(Throwable $e): string
+    {
+        $opis = self::kontekst($e);
+        $linia = $opis['wyjatek'].(isset($opis['kod']) ? ' ('.$opis['kod'].')' : '');
+        $linia .= ', '.($opis['miejsce_w_app'] ?? $opis['miejsce']);
+
+        if (isset($opis['przyczyny'])) {
+            $linia .= ', przyczyna: '.implode(' ← ', $opis['przyczyny']);
+        }
+
+        return $linia.', odcisk '.$opis['odcisk'];
+    }
+
+    /**
      * Pierwsza ramka z `app/`: sam rzut, jeśli padł w naszym kodzie, inaczej
      * najpłytsza ramka stosu z `app/`. Null, gdy stos nie dotyka `app/`.
      */
