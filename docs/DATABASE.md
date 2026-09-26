@@ -1098,10 +1098,12 @@ poziom uprawnień:
    „przy koncie, nie tylko w regulaminie — nikt nie czyta regulaminu, żeby
    dowiedzieć się, czy pisze do człowieka".
 2. **Wykluczenie z Weekly Active Cooks i z kohorty retencji**
-   (`App\Domain\Analytics\CookEligibility::excludedUserIds()`) — dwanaście
-   person publikuje z definicji plikowej i nie ma zasilać liczby, która ma
-   mierzyć żywą społeczność (issue #114, ten sam powód, dla którego tamta
-   klasa już wyklucza gospodarza i konta testowe).
+   (`App\Domain\Analytics\CookEligibility::tylkoLiczeni()` — dawne
+   `excludedUserIds()` zniknęło w #1309, wykluczenie jest teraz filtrem SQL,
+   nie listą UUID w PHP) — dwanaście person publikuje z definicji plikowej
+   i nie ma zasilać liczby, która ma mierzyć żywą społeczność (issue #114,
+   ten sam powód, dla którego ta metoda już wyklucza gospodarza i konta
+   testowe).
 
 **Dlaczego na `users`, nie na `profiles`.** Wszystkie cztery miejsca z punktu
 1 i tak już ładują `User` (`$post->author`, `$recipe->author`,
@@ -1855,10 +1857,39 @@ człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
 w postaci wpisanej przez autora: dopisek da się pominąć przy liście zakupów,
 składnika nie. `NULL` jest stanem normalnym.
 
+**`recipe_ingredients.substitutes varchar(300) NULL`** (migracja
+`2026_09_26_100000_add_substitutes_to_recipe_ingredients`, D-284) — czym autor
+radzi zastąpić TEN składnik („margaryna albo olej kokosowy”). Wolny tekst od
+człowieka, pokazywany pod składnikiem jako „Zamiast tego: …” na stronie
+przepisu i w trybie gotowania, w eksporcie danych jako
+`przepisy[].skladniki[].zamienniki` i w `recipe_versions.snapshot`
+(`ingredients[].substitutes`). Osobno od `note`, bo to informacja o INNYM
+produkcie, potrzebna wtedy, gdy czegoś nie ma w domu. `NULL` jest stanem
+normalnym. CHECK `recipe_ingredients_substitutes_check`:
+`substitutes IS NULL OR btrim(substitutes) <> ''` — pusty zamiennik to `NULL`,
+inaczej widok pisałby „Zamiast tego:” i nic; `PublishRecipe` zamienia puste na
+`NULL` przed zapisem. Kolumna `NULL` bez wartości domyślnej nie przepisuje
+tabeli; CHECK wszedł jako `NOT VALID` + osobne `VALIDATE` (AGENTS.md §6).
+Kolumna nie wskazuje na `users`, więc `InwentarzDanychKonta` jej nie wylicza —
+wchodzi do paczki razem z resztą wiersza składnika.
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden składnik ma zamiennik
+(D-088 — po `down()` idzie kolejny `migrate`, kolumna wróciłaby pusta bez
+błędu). Na pustej kolumnie i na świeżej bazie przechodzi. Sprawdzenie i DDL są
+pod `LOCK TABLE … ACCESS EXCLUSIVE`, żeby zapis nie wszedł pomiędzy. Wtedy
+wycofujemy sam kod (stary kod kolumny nie czyta) albo zapisujemy dane
+(`\copy` w komunikacie odmowy) i ustawiamy `KUKING_ROLLBACK_KASUJ_ZAMIENNIKI=true`.
+Pilnuje `tests/Feature/CofniecieMigracjiNieKasujeZamiennikowTest.php`.
+
+**Skalowanie porcji (D-284) NIE czyta `quantity` ani `unit_id`.** Formularze
+ich nie wypełniają, więc przelicznik (`App\Domain\Recipes\Porcje\PrzeliczSkladnik`)
+czyta ilość z `ingredient_text` w chwili pokazania i niczego nie zapisuje.
+Wybór widza żyje w adresie (`?porcje=N`), nie w bazie.
+
 **`no_amount boolean NOT NULL DEFAULT false`** (migracja
 `2026_09_06_130000_add_no_amount_to_recipe_ingredients`, issue #44) —
 „ten składnik nie ma wymiernej ilości": sól do smaku, pieprz, mleko — ile
-weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
+weźmie. Przy skalowaniu porcji (V2, wdrożone w D-284) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
 
@@ -1879,10 +1910,10 @@ naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować
 nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
 zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
 
-**Rollback:** `down()` zdejmuje CHECK i kolumnę. Bezstratny tylko dopóki
-skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
-utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
-tabeli.
+**Rollback:** `down()` zdejmuje CHECK i kolumnę. Od D-284 skalowanie porcji
+(V2) jest wdrożone i czyta tę flagę, więc cofnięcie tej migracji znaczy utratę
+informacji, której nie da się odtworzyć — najpierw kopia tabeli. (Strażnika
+w `down()` ta starsza migracja nie ma; dołożenie go to osobna zmiana.)
 
 #### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
 
@@ -1983,6 +2014,76 @@ ręcznie. Na wartościach domyślnych i na świeżej bazie rollback przechodzi b
 pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
 sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
 rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
+
+### Urodziny bez roku (issue #1755)
+
+Kolumny na `users`, bo to prywatne ustawienie konta, a nie dana profilu
+publicznego (`profiles`). Decyzja właściciela z 25.09.2026 — **D-269**
+w `docs/DECISIONS.md`, research `docs/research/PROFIL_FORMA_I_URODZINY.md`.
+
+**Etap a** — migracja `2026_09_25_200000_add_birthday_to_users`:
+
+- **`users.birthday_day`** (`smallint NULL`) i **`users.birthday_month`**
+  (`smallint NULL`) — dzień i miesiąc urodzin. **Roku nie ma i nie będzie**:
+  do życzeń nie jest potrzebny, a pełna data urodzenia stoi na liście danych,
+  których nie zbieramy (`docs/SECURITY_PRIVACY_LEGAL.md`).
+- CHECK `users_birthday_pair_check`: oba pola `NULL` albo oba wypełnione.
+- CHECK `users_birthday_range_check`: miesiąc 1–12, dzień istnieje w danym
+  miesiącu (29.02 dozwolone, 30.02 i 31.04 nie). Życzenia dla 29.02 wypadają
+  28.02 w latach nieprzestępnych — to reguła wyświetlania
+  (`App\Domain\Rocznice\Urodziny`), nie zapisu.
+- Zapis wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny` (kolumny
+  poza `$fillable`), ekran `/ustawienia/urodziny` z przyciskiem „Usuń datę”.
+- Eksport: `konto.urodziny` jako `DD-MM` albo `null`. Wymazanie konta
+  (`EraseAccountData`) zeruje obie kolumny.
+
+**Rollback etapu a:** `down()` **odmawia**, gdy choć jedno konto ma wpisaną datę
+(D-088) — po cyklu `rollback` → `migrate` kolumny wróciłyby puste i życzenia
+przestałyby przychodzić bez śladu błędu. Przy samych `NULL` i na świeżej bazie
+przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
+
+**Etap b** — migracja `2026_09_25_200100_add_birthday_wishes_enabled_to_users`:
+
+- **`users.birthday_wishes_enabled`** (`boolean NOT NULL DEFAULT true`) —
+  wyłącznik życzeń od gospodarza na `/home`. Domyślnie włączony, bo podanie
+  daty już jest wyborem „chcę życzeń”; istnieje od pierwszego dnia z powodu
+  zasady żałoby (jak `memories_enabled`). Przełącznik stoi przy dacie
+  w `/ustawienia/urodziny`. Eksport: `konto.pokazuj_zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `false` (D-088) —
+  `DEFAULT true` włączyłby życzenia osobie, która je wyłączyła. Test:
+  `tests/Feature/ZyczeniaUrodzinoweNaStronieTest.php`.
+
+**Etap c** — migracja `2026_09_25_200200_add_birthday_email_consent_to_users`:
+
+- **`users.wants_birthday_email`** (`boolean NOT NULL DEFAULT false`) —
+  **osobna** zgoda na list z życzeniami (PKE art. 398); podanie daty jej nie
+  daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
+  które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
+  konta wycofują zgodę z wpisem w dzienniku.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
+  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
+  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
+  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
+- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
+  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
+  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+  `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+
+**Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
+
+- **`users.birthday_visible_to_followers`** (`boolean NOT NULL DEFAULT false`) —
+  „Pokaż moje urodziny obserwującym”. Tylko po jawnym włączeniu (decyzja
+  właściciela). `kuking:przypomnij-o-urodzinach` (harmonogram 07:50 UTC)
+  tworzy wtedy obserwującym powiadomienie `notifications.type =
+  'birthday.today'` z `actor_id` = solenizant: najwyżej jedno na parę na dobę,
+  najwyżej `kuking.urodziny.przypomnienia_na_odbiorce_dziennie` (3) na odbiorcę
+  na dobę, nigdy w ciszy nocnej (21–8, klucze
+  `kuking.notifications.zewnetrzne.cisza_*`). **Nie jest to wpis w feedzie.**
+  „Usuń datę” i wymazanie konta ustawiają `false`. Eksport:
+  `konto.pokazuj_urodziny_obserwujacym`.
+- **Rollback:** `down()` odmawia, gdy choć jedno konto ma `true` (D-088:
+  decyzja o widoczności). Test: `tests/Feature/PrzypomnienieOUrodzinachTest.php`.
 
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
@@ -4669,6 +4770,55 @@ oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
 zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
 
 
+### meal_plan_entries
+
+Planer tygodnia (#27, **D-310**) — pierwszy krok z „najmniejszej kolejności”
+opisanej w issue: dzień plus przepis ALBO własny wpis („obiad u mamy”). Listy
+zakupów tu nie ma i nie było w tej zmianie.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` |
+| `day` | `date` | dzień planu, data kalendarzowa (nie `timestamptz`) |
+| `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`** |
+| `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+**Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
+innym: każda trasa (`/planer`) chodzi po pozycjach zalogowanego, a usunięcie
+przechodzi przez `MealPlanEntryPolicy`.
+
+Ograniczenia:
+
+- `meal_plan_entries_jedno_z_dwoch_check` — `recipe_id IS NULL OR label IS NULL`,
+  czyli NAJWYŻEJ jedno z dwóch. **Nie `num_nonnulls(...) = 1`** jak
+  w `collection_items`, i to jest różnica zamierzona: `ON DELETE SET NULL`
+  zostawia po twardo usuniętym przepisie wiersz bez obu wartości. Plan ma
+  przetrwać zniknięcie przepisu (kryterium z #27), a ekran mówi wtedy
+  „Przepis został usunięty.”;
+- `meal_plan_entries_label_check` — tekst po obcięciu białych znaków ma 1–120
+  znaków, więc `label` nie bywa pusty ani sam ze spacji;
+- `meal_plan_entries_przepis_raz_na_dzien` i `meal_plan_entries_wpis_raz_na_dzien`
+  — indeksy unikalne częściowe: ten sam przepis i ten sam tekst nie stoją
+  dwa razy w jednym dniu. To one czynią „Skopiuj poprzedni tydzień”
+  idempotentnym (`insertOrIgnore`) i chronią przed podwójnym kliknięciem;
+- `meal_plan_entries_user_day_idx` (odczyt tygodnia) i
+  `meal_plan_entries_recipe_idx` (klucz obcy — bez niego kasowanie przepisu
+  robi pełny skan).
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze: kasowanie tabeli
+zabrałoby ludziom prywatne plany bez śladu. Komunikat mówi, co zrobić ręcznie
+(kopia `pg_dump -t meal_plan_entries`, usunięcie wierszy, ponowny rollback).
+Na świeżej i pustej bazie — w CI i przy `migrate:refresh` — przechodzi bez
+pytania. Odmowa i kontrola dodatnia:
+`tests/Feature/PlanerTygodniaTest.php`.
+
+**Wymazanie konta** kasuje wiersze bezwarunkowo
+(`EraseAccountData`) — to prywatne notatki jednej osoby, nikomu innemu
+niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
+(`InwentarzDanychKonta`).
+
 ## V1 / V2
 
 Później:
@@ -4678,7 +4828,7 @@ Później:
 - family_books;
 - questions;
 - answers;
-- meal_plans;
+- meal_plans (rozbudowa planera ponad `meal_plan_entries`);
 - shopping_lists;
 - pantry_items;
 - subscriptions;
