@@ -901,7 +901,7 @@ checks = [
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
-     lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
+     lambda s: replace_once(s, 'local wspolnyKontener="high,default media,low"', 'local wspolnyKontener="high default media low"')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
