@@ -42,15 +42,27 @@ final class TagFeed
      */
     public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
-    /** @return CursorPaginator<int, Post> */
-    public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
+    /**
+     * `$zWlasnymi` — Start osoby, która nikogo nie obserwuje (issue #1318,
+     * decyzja właściciela z 24.09): własne wpisy publiczne i „tylko dla
+     * obserwujących" wchodzą do tego strumienia także BEZ obserwowanego
+     * tagu. Ten sam powód i ten sam kształt (jedno zapytanie z `OR`, bez
+     * duplikatów, chronologicznie) co w `DiscoverFeed::paginate()`.
+     *
+     * @return CursorPaginator<int, Post>
+     */
+    public function paginate(User $viewer, ?int $perPage = null, bool $zWlasnymi = false): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
         $tagIds = $this->obserwowaneTagi($viewer);
 
         return Post::query()
-            ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+            ->where(fn ($zrodlo) => $zrodlo
+                ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+                ->when($zWlasnymi, fn ($q) => $q->orWhere(fn ($moje) => $moje
+                    ->where('author_id', $viewer->getKey())
+                    ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))))
             // TYLKO OPUBLIKOWANE (issue #1338). `widoczneDla()` ma furtkę
             // „autor widzi swoje" bez pytania o status — dla archiwum autora,
             // nie dla strumienia. Bez tego własny wpis ukryty przez moderację

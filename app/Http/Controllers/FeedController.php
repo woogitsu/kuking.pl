@@ -191,6 +191,20 @@ class FeedController extends Controller
         // kursor, a my dokładamy wyłącznie serwerowo wybraną tożsamość źródła.
         $posts->appends(['zrodlo' => $zrodlo]);
 
+        // Własne wpisy w feedzie zastępczym (issue #1318, decyzja właściciela
+        // z 24.09). `FollowingFeed` zawsze je pokazywał, ale osoba bez
+        // obserwowanych dostawała tagi albo odkrywanie — i własnego wpisu
+        // „tylko dla obserwujących" nie widziała na Starcie wcale. Flaga
+        // widoku mówi tylko, czy nagłówek ma wspomnieć o jej wpisach:
+        // nie obiecujemy „samych cudzych", kiedy stoją tam też jej własne.
+        // Liczone PO `pierwszaStronaZrodla()` (#983): źródło może się tam
+        // zmienić, a flaga ma opisywać wpisy, które faktycznie pokazujemy.
+        $wlasneWFeedzie = $zrodlo !== 'obserwowani' && $user->posts()
+            ->enabledKinds()
+            ->published()
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->exists();
+
         return view('pages.home', [
             'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
             'pwaContext' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE
@@ -204,6 +218,7 @@ class FeedController extends Controller
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
+            'wlasneWFeedzie' => $wlasneWFeedzie,
             'showingDiscover' => $zrodlo === 'odkrywanie',
         ]);
     }
@@ -253,15 +268,24 @@ class FeedController extends Controller
             $zrodlo = 'tagi';
         }
 
+        // Tagi i odkrywanie na Starcie niosą też własne wpisy (issue #1318).
+        // Własny wpis BEZ obserwowanego tagu (doklejony przez `zWlasnymi`)
+        // nie może sam trzymać Startu przy tagach: strona z samych takich
+        // wpisów zostaje przy tagach tylko wtedy, gdy `maTresci()` widzi
+        // treść tagów. Własny OPUBLIKOWANY wpis Z tagiem `maTresci()` liczy
+        // jak każdą treść tagu — świadomie, patrz kontrola dodatnia
+        // `FeedTagowTylkoOpublikowaneTest` (#1338).
         if ($zrodlo === 'tagi') {
-            $posts = $this->tagFeed->paginate($user);
+            $posts = $this->tagFeed->paginate($user, zWlasnymi: true);
 
-            if ($zKursorem || $posts->isNotEmpty()) {
+            if ($zKursorem
+                || $posts->getCollection()->contains(fn (Post $post) => $post->author_id !== $user->getKey())
+                || ($posts->isNotEmpty() && $this->tagFeed->maTresci($user))) {
                 return ['tagi', $posts];
             }
         }
 
-        return ['odkrywanie', $this->discoverFeed->paginate($user)];
+        return ['odkrywanie', $this->discoverFeed->paginate($user, zWlasnymi: true)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
