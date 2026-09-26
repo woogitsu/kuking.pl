@@ -27,6 +27,19 @@ return [
     ],
 
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    /*
+     * PLANER TYGODNIA (#27, D-310) — prywatny plan: dzień + przepis albo
+     * własny wpis.
+     *
+     * `wpisow_na_dzien` — ile pozycji najwyżej w jednym dniu. Dziesięć to
+     * więcej niż śniadanie, obiad, kolacja i dwie przekąski dla całej
+     * rodziny; granica jest po to, żeby pętla nie dopisywała wierszy bez
+     * końca, a nie żeby cokolwiek komuś odmawiać.
+     */
+    'planer' => [
+        'wpisow_na_dzien' => 10,
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],
@@ -337,6 +350,21 @@ return [
         // `UploadLimitsAgreementTest`. Podniesienie tej liczby bez
         // podniesienia limitu PHP oblewa test, i o to chodzi.
         'max_per_post' => 6,
+    ],
+
+    /*
+     * Prywatne ukrycia (issue #1810, D-278).
+     *
+     * `dni` — na ile ukrywamy domyślnie; po terminie wpis albo osoba wracają
+     * same, a lista w Ustawieniach pokazuje datę końca.
+     * `prog_ostrzezenia` — ułamek autorów aktywnych w ostatnich
+     * `okno_aktywnosci_dni` dniach, od którego lista ukrytych osób mówi, że
+     * ukrywasz już sporą część serwisu. Samo zdanie, nic nie blokuje.
+     */
+    'ukrycia' => [
+        'dni' => (int) env('KUKING_UKRYCIA_DNI', 30),
+        'prog_ostrzezenia' => (float) env('KUKING_UKRYCIA_PROG_OSTRZEZENIA', 1 / 3),
+        'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
     ],
 
     'feed' => [
@@ -896,7 +924,12 @@ return [
          * bez limitu i bez ciszy nocnej.
          */
         'zewnetrzne' => [
-            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+            // AWARYJNY WYŁĄCZNIK wszystkich kanałów poza serwisem (D-303).
+            // Od uruchomienia Web Push domyślnie WŁĄCZONY, bo o tym, czy kanał
+            // w ogóle istnieje, decyduje jego własna konfiguracja: brak kluczy
+            // VAPID niżej = brak Web Push i brak przycisku. `false` gasi
+            // wysyłkę i ekran ustawień bez ruszania kluczy.
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', true),
 
             // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
             // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
@@ -908,6 +941,34 @@ return [
             // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
             // konfiguracja awaryjna), nie „odkładaj bez końca".
             'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+
+            // Wybory, które człowiek może zrobić na `/ustawienia/powiadomienia`
+            // (D-303). Zamknięta lista, żeby formularz był prostym wyborem,
+            // a nie polem do wpisania liczby. Baza pilnuje zakresu CHECK-iem
+            // (`ustawienia_powiadomien_zewnetrznych`).
+            'limity_do_wyboru' => [1, 2, 3, 5],
+
+            // Starsze niż to powiadomienia nie idą już pushem — w serwisie
+            // zostają. Push jest szturchnięciem „teraz", nie archiwum.
+            'push_maks_wiek_godzin' => (int) env('KUKING_PUSH_MAKS_WIEK_GODZIN', 48),
+
+            // Ile urządzeń (przeglądarek) jedno konto może mieć zapisanych.
+            // Przy nadmiarze znika najstarsze — przeglądarki rzadko mówią,
+            // że subskrypcja umarła, póki nie spróbujemy na nią wysłać.
+            'push_maks_urzadzen' => 10,
+
+            // PONOWIENIE PO BŁĘDZIE TRANSPORTU (issue #1960, D-303). Błąd
+            // usługi push (`WynikWysylkiPush::Blad`) nie kasuje subskrypcji
+            // i nie ma zostać po cichu potraktowany jak sukces — zadanie
+            // ponawia dostarczenie WYŁĄCZNIE do urządzeń, które go jeszcze
+            // nie dostały, po krótkim odstępie.
+            'push_ponowienie_sekund' => (int) env('KUKING_PUSH_PONOWIENIE_SEKUND', 30),
+
+            // Po tylu PRÓBACH TRANSPORTU (nie: prób na urządzenie) rezygnujemy
+            // z automatycznego ponawiania. Powiadomienie w serwisie i tak
+            // czeka (push jest szturchnięciem, nie listem poleconym) —
+            // trwała porażka zostawia mierzalny, pusty `push_wyslano_at`.
+            'push_maks_prob_transportu' => (int) env('KUKING_PUSH_MAKS_PROB_TRANSPORTU', 3),
         ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
@@ -961,6 +1022,43 @@ return [
     | z tym samym kluczem (D-027, `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
     |
     */
+
+    /*
+     * WEB PUSH (issue #35, D-303) — standard VAPID, bez dostawcy pośredniego.
+     *
+     * BRAK KLUCZA = FUNKCJI NIE MA. Dopóki `VAPID_PUBLIC_KEY`
+     * i `VAPID_PRIVATE_KEY` są puste, nie ma ekranu `/ustawienia/powiadomienia`,
+     * pozycji w spisie ustawień, przycisku ani żadnej wysyłki
+     * (`App\Domain\Notifications\Push\KanalPush::dostepny()`).
+     *
+     * Klucze generuje się RAZ (`php artisan kuking:klucze-vapid`) i nie zmienia:
+     * nowa para unieważnia wszystkie zapisane subskrypcje — przeglądarki
+     * odrzucą wysyłkę podpisaną innym kluczem niż ten, z którym się zapisały.
+     *
+     * `subject` to kontakt dla operatora usługi push (Google, Mozilla, Apple),
+     * gdyby nasze wysyłki sprawiały kłopot: `mailto:` albo adres `https:`.
+     */
+    'push' => [
+        'vapid_public_key' => env('VAPID_PUBLIC_KEY'),
+        'vapid_private_key' => env('VAPID_PRIVATE_KEY'),
+        'vapid_subject' => env('VAPID_SUBJECT', 'mailto:kontakt@kuking.pl'),
+
+        // Jak długo usługa push ma próbować doręczyć, gdy urządzenie jest
+        // wyłączone. Doba: rano po wyłączonym na noc telefonie wiadomość
+        // o wczorajszym „Ugotowałem" jeszcze ma sens, po tygodniu — nie.
+        'ttl_sekund' => 86400,
+
+        // TYLKO te hosty wolno zapisać jako adres subskrypcji. Adres podaje
+        // przeglądarka, czyli w praktyce KAŻDY, kto wyśle żądanie — bez tej
+        // listy serwer robiłby POST pod dowolny adres (SSRF). Dopasowanie:
+        // host równy wpisowi albo kończący się na „.wpis".
+        'dozwolone_hosty' => [
+            'fcm.googleapis.com',          // Chrome, Edge, Opera, Samsung Internet
+            'push.services.mozilla.com',   // Firefox
+            'push.apple.com',              // Safari (macOS, iOS 16.4+ z ekranu początkowego)
+            'notify.windows.com',          // starsze Edge / Windows
+        ],
+    ],
 
     'formularze' => [
         // WYŁĄCZNIK AWARYJNY MECHANIZMU KLUCZA WYSŁANIA (ADR §8.4, „Wyjście 1").
@@ -1589,6 +1687,11 @@ return [
         // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
 
+        // Potwierdzenie adresu z podpisanego linku (GET pokazuje ekran, POST
+        // potwierdza — #1862). Podpis jest autoryzacją, limit chroni przed
+        // mieleniem trasy; 6 na minutę jak domyślna trasa weryfikacji Laravela.
+        'verification_verify' => '6,1',
+
         /*
          |----------------------------------------------------------------
          | GRUPY LIMITÓW DLA TRAS ZAPISUJĄCYCH (BRAMKA_BETY §7a)
@@ -1706,6 +1809,14 @@ return [
         'blokada' => '60,10',
 
         /*
+         * UKRYCIA — „Ukryj ten wpis", „Ukryj tę osobę", przywracanie i „Zostaw
+         * ukryte" (issue #1810). Własny koszyk: to jest porządkowanie WŁASNEGO
+         * ekranu i nikogo nie powiadamia, więc nie może zjadać budżetu
+         * obserwowania ani blokady (ta druga to narzędzie bezpieczeństwa).
+         */
+        'ukrycia' => '60,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -1727,6 +1838,16 @@ return [
          * do której należą.
          */
         'zeszyt' => '60,10',
+
+        /*
+         * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
+         * i „Skopiuj poprzedni tydzień”. Szkoda z nadużycia taka jak przy
+         * zeszycie: nikt inny planu nie widzi, nikogo nie powiadamia.
+         * Układanie tygodnia to kilkanaście kliknięć pod rząd, więc ten sam
+         * próg co zeszyt, we własnym koszyku — planowanie nie zjada budżetu
+         * zapisywania przepisów.
+         */
+        'planer' => '60,10',
 
         /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
@@ -2413,6 +2534,31 @@ return [
         ),
     ],
 
+    /*
+     * URODZINY (issue #1755).
+     *
+     * Mail idzie WYŁĄCZNIE do osób, które dały na niego OSOBNĄ zgodę (PKE
+     * art. 398, dziennik zgód D-072), i mieści się w dobowych sufitach poczty:
+     * własnym (`mail_dzienny_sufit`) i wspólnym, w klasie `podsumowanie`,
+     * która gaśnie pierwsza (`DziennyBudzetListow::dlaZyczenUrodzinowych`).
+     * Pora jest stała — harmonogram w `routes/console.php`, po ciszy nocnej.
+     */
+    'urodziny' => [
+        // Wyłącznik wysyłki maili. Domyślnie wyłączony, jak tygodniowe
+        // podsumowanie: poczta produkcyjna włącza się świadomie, zmienną.
+        'mail_wlaczony' => (bool) env('KUKING_URODZINY_MAIL_WLACZONY', false),
+
+        // Najwięcej maili urodzinowych na dobę. Nadmiar nie przepada
+        // po cichu — komenda mówi, ile osób nie dostało listu.
+        'mail_dzienny_sufit' => (int) env('KUKING_URODZINY_MAIL_DZIENNY_SUFIT', 20),
+
+        // Przypomnienie obserwującym (etap d): najwięcej tylu powiadomień
+        // „Dziś urodziny: …" na jednego odbiorcę na dobę. Osoba obserwująca
+        // wiele kont nie dostaje lawiny w jeden dzień; nadmiar przepada
+        // (to informacja o dniu, a nie wiadomość do odłożenia na jutro).
+        'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
+    ],
+
     'zeszyt' => [
         /*
          * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
@@ -2447,7 +2593,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-25',
     ],
 
     'analytics' => [
