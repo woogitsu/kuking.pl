@@ -18020,6 +18020,18 @@ kontrole ujemne w `scripts/kontrole-negatywne-alfa08.py` podmieniają każde
 z tych sortowań na `cooked_events_count` — strażnik ma oblać (obie sprawdzone
 lokalnie).
 
+### Koszt wejścia jest stały (#1968)
+
+Temat od gospodarza nie odpytuje bazy osobno dla każdego promowanego tagu.
+Jedno zbiorcze zapytanie numeruje wpisy w oknie (tag, osoba) i (tag), z tymi
+samymi bramkami, blokadami, ukryciami i pominięciem autorów już na półce;
+wybór tematu (pierwszy w kolejności gospodarza, który ma co pokazać) zapada
+w PHP. Pula to najwyżej `MojStol::TEMATOW_DO_ROZPATRZENIA` (20) pierwszych
+tagów listy gospodarza — dalsze na półkę nie trafiają. „kuKINGi na dziś”
+numerują wybory po osobie i biorą `NA_POLCE_NA_DZIS` w samym zapytaniu.
+Test: ta sama liczba zapytań przy 1 i 10 promowanych tagach
+(`test_temat_gospodarza_ma_stala_liczbe_zapytan_niezalezna_od_liczby_tagow`).
+
 ### Wycofanie
 
 Zdjęcie trasy `/moj-stol`, bloku w `szyna-startowa` i klasy `MojStol`;

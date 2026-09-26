@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -34,8 +35,16 @@ use Tests\TestCase;
  *    oblewa (dwa przepisy jednej osoby);
  *  - `whereNotIn('tags.id', $obserwowane)` zdjęte z tematu gospodarza →
  *    `test_temat_gospodarza_tylko_nieobserwowany_i_bez_powtorzen_autora` oblewa;
- *  - `unique('author_id')` zdjęte z `naDzis()` → `test_kukingi_na_dzis_w_kolejnosci_gospodarza_z_filtrami`
+ *  - `where('wybor.kolejny_wybor_osoby', 1)` zdjęte z `naDzis()` → `test_kukingi_na_dzis_w_kolejnosci_gospodarza_z_filtrami`
  *    oblewa (dwa przepisy jednej osoby z wyboru na dziś);
+ *  - zbiorcze zapytanie tematu gospodarza zamienione z powrotem na pętlę
+ *    „zapytanie na każdy tag" → `test_temat_gospodarza_ma_stala_liczbe_zapytan_niezalezna_od_liczby_tagow`
+ *    oblewa (23 zapytania przy 1 tagu, 32 przy 10; #1968);
+ *  - `limit(TEMATOW_DO_ROZPATRZENIA)` zdjęte → `test_temat_gospodarza_rozpatruje_ograniczona_liczbe_tagow` oblewa;
+ *  - `miejsce_w_temacie <= NA_POLCE_OD_GOSPODARZA` albo `kolejny_wpis_osoby = 1` zdjęte
+ *    ze zbiorczego zapytania → ten sam test oblewa;
+ *  - `limit(NA_POLCE_NA_DZIS)` zdjęte z `naDzis()` → `test_kukingi_na_dzis_najwyzej_limit`
+ *    oblewa.
  *  - kolejność półki po liczbie wykonań → strażnik `FeedNieSortujePoMierzeReakcjiTest`
  *    (mutacja w `scripts/kontrole-negatywne-alfa08.py`).
  */
@@ -392,5 +401,106 @@ class MojStolTest extends TestCase
             ->assertOk()
             ->assertDontSee('Te przepisy gospodarz wybrał na dziś.');
         $this->assertSame([], app(MojStol::class)->dlaWidza($widz)['na_dzis']);
+    }
+
+    /**
+     * #1968: temat od gospodarza nie może kosztować jednego zapytania na
+     * każdy promowany tag. Ta sama półka (obserwowany tag, wybór na dziś,
+     * temat gospodarza) mierzona przy 1 i przy 10 promowanych tagach — liczba
+     * zapytań ma być TA SAMA. Dziewięć tagów przed właściwym ma kandydatów,
+     * których odsiewają reguły D-304 (ukryta osoba, blokada, autor już na
+     * półce, własny przepis) — więc przy okazji widać, że reguły działają
+     * w jednym zbiorczym zapytaniu, a nie tylko w pętli.
+     */
+    public function test_temat_gospodarza_ma_stala_liczbe_zapytan_niezalezna_od_liczby_tagow(): void
+    {
+        $widz = $this->wlaczony();
+        $zupy = $this->tag('zupy', 'Zupy');
+        $this->obserwujTag($widz, $zupy);
+        $ala = $this->user('ala');
+        $this->przepis($ala, 'Rosół Ali', 5, $zupy);
+        $this->naDzis($this->przepis($this->user('ewa'), 'Bigos Ewy', 7), 1);
+
+        $ciasta = $this->tag('ciasta', 'Ciasta');
+        TagPromotion::create(['tag_id' => $ciasta->getKey(), 'position' => 100]);
+        $this->przepis($this->user('ola'), 'Sernik Oli', 3, $ciasta);
+
+        $zmierz = function () use ($widz): array {
+            app(MojStol::class)->dlaWidza($widz);
+            $zapytan = 0;
+            DB::listen(function () use (&$zapytan): void {
+                $zapytan++;
+            });
+            $polka = app(MojStol::class)->dlaWidza($widz);
+
+            return [$zapytan, $polka];
+        };
+
+        [$przyJednym, $polka] = $zmierz();
+        $this->assertSame('Ciasta', $polka['od_gospodarza']['tag']->name);
+
+        $ukryta = $this->user('ukryta');
+        Hide::ukryjDla($widz, 'hidden_user_id', (string) $ukryta->getKey());
+        $zablokowana = $this->user('zablokowana');
+        Block::create(['blocker_id' => $widz->getKey(), 'blocked_id' => $zablokowana->getKey(), 'created_at' => now()]);
+        $odsiani = [$ukryta, $zablokowana, $ala, $widz];
+
+        foreach (range(1, 9) as $i) {
+            $tag = $this->tag("pusty-{$i}", "Pusty {$i}");
+            TagPromotion::create(['tag_id' => $tag->getKey(), 'position' => $i]);
+            $this->przepis($odsiani[$i % 4], "Odsiany {$i}", 1, $tag);
+        }
+
+        [$przyDziesieciu, $polka] = $zmierz();
+        $this->assertSame('Ciasta', $polka['od_gospodarza']['tag']->name);
+        $this->assertSame(['Sernik Oli'], array_map(fn (Post $p) => $p->recipe->title, $polka['od_gospodarza']['wpisy']));
+        $this->assertSame(['Bigos Ewy'], array_map(fn (Post $p) => $p->recipe->title, $polka['na_dzis']));
+        $this->assertSame($przyJednym, $przyDziesieciu, "Przy 1 promowanym tagu {$przyJednym} zapytań, przy 10 — {$przyDziesieciu}.");
+    }
+
+    /** #1968: półka rozpatruje najwyżej `TEMATOW_DO_ROZPATRZENIA` tagów gospodarza. */
+    public function test_temat_gospodarza_rozpatruje_ograniczona_liczbe_tagow(): void
+    {
+        $widz = $this->wlaczony();
+
+        foreach (range(1, MojStol::TEMATOW_DO_ROZPATRZENIA) as $i) {
+            TagPromotion::create(['tag_id' => $this->tag("pusty-{$i}", "Pusty {$i}")->getKey(), 'position' => $i]);
+        }
+
+        $ostatni = $this->tag('ostatni', 'Ostatni');
+        TagPromotion::create(['tag_id' => $ostatni->getKey(), 'position' => 1000]);
+        $ola = $this->user('ola');
+        $this->przepis($ola, 'Sernik Oli', 3, $ostatni);
+
+        $this->assertNull(app(MojStol::class)->dlaWidza($widz)['od_gospodarza']);
+
+        // Kontrola dodatnia: gdy jeden pusty tag schodzi z listy, ostatni
+        // mieści się w limicie i wraca.
+        // W tym samym zbiorczym zapytaniu: po jednym od osoby (najnowszy)
+        // i najwyżej `NA_POLCE_OD_GOSPODARZA` od najnowszego.
+        TagPromotion::query()->where('position', 1)->delete();
+        $this->przepis($ola, 'Nowy sernik Oli', 1, $ostatni);
+        $this->przepis($this->user('ewa'), 'Placek Ewy', 2, $ostatni);
+        $this->przepis($this->user('iza'), 'Babka Izy', 4, $ostatni);
+        $this->przepis($this->user('zosia'), 'Tarta Zosi', 5, $ostatni);
+
+        $temat = app(MojStol::class)->dlaWidza($widz)['od_gospodarza'];
+        $this->assertSame('Ostatni', $temat['tag']->name);
+        $this->assertSame(['Nowy sernik Oli', 'Placek Ewy', 'Babka Izy'], array_map(fn (Post $p) => $p->recipe->title, $temat['wpisy']));
+    }
+
+    /** #1968: „kuKINGi na dziś" — najwyżej `NA_POLCE_NA_DZIS`, limit w zapytaniu. */
+    public function test_kukingi_na_dzis_najwyzej_limit(): void
+    {
+        $widz = $this->wlaczony();
+
+        foreach (range(1, MojStol::NA_POLCE_NA_DZIS + 2) as $i) {
+            $this->naDzis($this->przepis($this->user("osoba{$i}"), "Wybór {$i}", 10), $i);
+        }
+
+        $this->assertSame(
+            array_map(fn (int $i) => "Wybór {$i}", range(1, MojStol::NA_POLCE_NA_DZIS)),
+            array_map(fn (Post $p) => $p->recipe->title, app(MojStol::class)->dlaWidza($widz)['na_dzis']),
+        );
     }
 }

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * „Mój stół" — dobrowolna, prywatna półka przepisów (issue #1749, D-304).
@@ -56,6 +57,14 @@ final class MojStol
 
     /** Najwięcej przepisów z tematu od gospodarza. */
     public const NA_POLCE_OD_GOSPODARZA = 3;
+
+    /**
+     * Najwięcej tagów z listy gospodarza rozpatrywanych przy jednym wejściu
+     * (#1968). Lista `tag_promotions` nie ma górnej granicy, a koszt wejścia
+     * na półkę nie może rosnąć razem z nią. Dalsze tagi po prostu nie
+     * trafiają do puli — kolejność gospodarza decyduje, które się mieszczą.
+     */
+    public const TEMATOW_DO_ROZPATRZENIA = 20;
 
     /** Najwięcej przepisów z „kuKINGów na dziś". */
     public const NA_POLCE_NA_DZIS = 3;
@@ -129,38 +138,57 @@ final class MojStol
      */
     private function naDzis(User $widz, array $zajeciAutorzy): array
     {
-        /** @var Collection<int, Post> $wpisy */
-        $wpisy = Post::query()
-            ->select('posts.*')
+        // „Po jednym od osoby" i limit stawia baza (#1968): lista wyborów
+        // gospodarza na dziś nie ma górnej granicy, więc wejście na półkę nie
+        // może jej pobierać w całości. Bramki stoją PRZED numeracją.
+        $poOsobie = Post::query()
+            ->select('posts.id', 'daily_picks.id as wybor_id')
+            ->selectRaw('row_number() OVER (PARTITION BY posts.author_id ORDER BY daily_picks.position, daily_picks.id) AS kolejny_wybor_osoby')
             ->join('daily_picks', function ($join): void {
                 $join->on('daily_picks.subject_id', '=', 'posts.id')
                     ->where('daily_picks.subject_type', DailyPick::TYPE_POST)
                     ->whereDate('daily_picks.shown_on', Czas::dzisiajData());
             })
             ->tap(fn (Builder $q) => $this->bramki($q, $widz))
-            ->when($zajeciAutorzy !== [], fn ($q) => $q->whereNotIn('posts.author_id', $zajeciAutorzy))
+            ->when($zajeciAutorzy !== [], fn ($q) => $q->whereNotIn('posts.author_id', $zajeciAutorzy));
+
+        /** @var Collection<int, Post> $wpisy */
+        $wpisy = Post::query()
+            ->select('posts.*')
+            ->joinSub($poOsobie, 'wybor', 'wybor.id', '=', 'posts.id')
+            ->where('wybor.kolejny_wybor_osoby', 1)
             ->with([
                 'author.profile.avatar',
                 'media',
                 'recipe:id,title,slug,visibility,hero_media_id',
                 'recipe.heroMedia',
             ])
+            // Kolejność gospodarza z tego samego wyboru, który wygrał numerację.
+            ->join('daily_picks', 'daily_picks.id', '=', 'wybor.wybor_id')
             ->orderBy('daily_picks.position')
             ->orderBy('daily_picks.id')
+            ->limit(self::NA_POLCE_NA_DZIS)
             ->get();
 
         Post::ukryjNiedostepnePrzepisy($wpisy, $widz);
 
-        return array_values($wpisy
-            ->filter(fn (Post $p) => $p->recipe !== null)
-            ->unique('author_id')
-            ->take(self::NA_POLCE_NA_DZIS)
-            ->all());
+        return array_values($wpisy->filter(fn (Post $p) => $p->recipe !== null)->all());
     }
 
     /**
      * Pierwszy tag z listy gospodarza (jego kolejność), którego widz nie
      * obserwuje i w którym jest choć jeden przepis do pokazania.
+     *
+     * STAŁA LICZBA ZAPYTAŃ (#1968). Wcześniej każdy promowany tag bez
+     * przepisu dla widza kosztował osobne zapytanie z bramkami i oknem —
+     * koszt wejścia rósł z długością listy gospodarza. Teraz: jedno
+     * zapytanie po listę (najwyżej `TEMATOW_DO_ROZPATRZENIA` tagów) i jedno
+     * zbiorcze po kandydatów ze WSZYSTKICH tych tagów naraz — w każdym tagu
+     * najnowszy przepis każdej osoby, potem najwyżej `NA_POLCE_OD_GOSPODARZA`
+     * od najnowszego. Reguły są te same co w pętli: bramki, blokady
+     * i ukrycia przed numeracją, pominięcie autorów już stojących na półce.
+     * Wybór tematu (pierwszy w kolejności gospodarza, który ma co pokazać)
+     * zapada w PHP na tej ograniczonej puli.
      *
      * @param  list<string>  $obserwowane
      * @param  list<string>  $zajeciAutorzy  autorzy już stojący na półce
@@ -171,15 +199,64 @@ final class MojStol
         $promowane = Tag::query()
             ->promowane()
             ->when($obserwowane !== [], fn ($q) => $q->whereNotIn('tags.id', $obserwowane))
+            ->limit(self::TEMATOW_DO_ROZPATRZENIA)
             ->get();
 
+        if ($promowane->isEmpty()) {
+            return null;
+        }
+
+        // Numeracja w oknie (temat, osoba): najnowszy wpis każdej osoby
+        // W DANYM TAGU. Bramki stoją tu, PRZED numeracją — jak w
+        // `najnowszyOdKazdejOsoby()`.
+        $poOsobie = Post::query()
+            ->join('post_tags as temat_tagi', 'temat_tagi.post_id', '=', 'posts.id')
+            ->whereIn('temat_tagi.tag_id', $promowane->modelKeys())
+            ->select('posts.id', 'posts.published_at', 'temat_tagi.tag_id as temat_id')
+            ->selectRaw('row_number() OVER (PARTITION BY temat_tagi.tag_id, posts.author_id ORDER BY posts.published_at DESC, posts.id DESC) AS kolejny_wpis_osoby')
+            ->tap(fn (Builder $q) => $this->bramki($q, $widz))
+            ->when($zajeciAutorzy !== [], fn ($q) => $q->whereNotIn('posts.author_id', $zajeciAutorzy));
+
+        // Druga numeracja: miejsce osoby w temacie, od najnowszego — limit
+        // `NA_POLCE_OD_GOSPODARZA` na temat stawia baza, nie PHP.
+        $wTemacie = DB::query()
+            ->fromSub($poOsobie, 'po_osobie')
+            ->select('po_osobie.id', 'po_osobie.temat_id')
+            ->selectRaw('row_number() OVER (PARTITION BY po_osobie.temat_id ORDER BY po_osobie.published_at DESC, po_osobie.id DESC) AS miejsce_w_temacie')
+            ->where('po_osobie.kolejny_wpis_osoby', 1);
+
+        /** @var Collection<int, Post> $kandydaci */
+        $kandydaci = Post::query()
+            ->select('posts.*', 'w_temacie.temat_id')
+            ->joinSub($wTemacie, 'w_temacie', 'w_temacie.id', '=', 'posts.id')
+            ->where('w_temacie.miejsce_w_temacie', '<=', self::NA_POLCE_OD_GOSPODARZA)
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+                'tags:id,slug,name,status',
+            ])
+            ->withVisibleCommentCount($widz)
+            ->tap(fn (Builder $q) => $this->odNajnowszego($q))
+            ->get();
+
+        Post::ukryjNiedostepnePrzepisy($kandydaci, $widz);
+
+        $wedlugTematu = [];
+
+        foreach ($kandydaci as $post) {
+            $temat = (string) $post->getAttribute('temat_id');
+            // Kolumna pomocnicza zapytania — nie zostaje w modelu wpisu.
+            unset($post->temat_id);
+
+            if ($post->recipe !== null) {
+                $wedlugTematu[$temat][] = $post;
+            }
+        }
+
         foreach ($promowane as $tag) {
-            $wpisy = $this->najnowszyOdKazdejOsoby(
-                fn (Builder $q) => $q->whereHas('tags', fn ($t) => $t->where('tags.id', $tag->getKey())),
-                $widz,
-                self::NA_POLCE_OD_GOSPODARZA,
-                $zajeciAutorzy,
-            );
+            $wpisy = $wedlugTematu[(string) $tag->getKey()] ?? [];
 
             if ($wpisy !== []) {
                 return ['tag' => $tag, 'wpisy' => $wpisy];
@@ -223,14 +300,27 @@ final class MojStol
                 'tags:id,slug,name,status',
             ])
             ->withVisibleCommentCount($widz)
-            ->orderByDesc('posts.published_at')
-            ->orderByDesc('posts.id')
+            ->tap(fn (Builder $q) => $this->odNajnowszego($q))
             ->limit($ile)
             ->get();
 
         Post::ukryjNiedostepnePrzepisy($wpisy, $widz);
 
         return array_values($wpisy->filter(fn (Post $p) => $p->recipe !== null)->all());
+    }
+
+    /**
+     * Kolejność po czasie publikacji — jedno miejsce dla obu sekcji
+     * z tagów (strażnik `FeedNieSortujePoMierzeReakcjiTest` i jego kontrola
+     * ujemna podmieniają dokładnie tę linię).
+     *
+     * @param  Builder<Post>  $q
+     */
+    private function odNajnowszego(Builder $q): void
+    {
+        $q
+            ->orderByDesc('posts.published_at')
+            ->orderByDesc('posts.id');
     }
 
     /**
