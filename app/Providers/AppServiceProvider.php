@@ -19,6 +19,7 @@ use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
+use App\Support\ZamrozonyCzas;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Events\MigrationEnded;
@@ -47,6 +48,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Issue #1836: zamrożenie zegara na jeden, wspólny moment dla joba CI
+        // „Panel marki". Musi stanąć PRZED wszystkim, co czyta `now()` przy
+        // starcie (np. `odswiezajLicznikiKolejek()` niżej) — inaczej to, co
+        // liczy się od zegara, dostałoby prawdziwy czas mimo ustawionej
+        // zmiennej. Poza `local`/`testing` `env(self::ZMIENNA)` jest zawsze
+        // puste, więc to wywołanie nic nie robi na produkcji. Uzasadnienie
+        // pełne w `App\Support\ZamrozonyCzas`.
+        ZamrozonyCzas::zastosuj();
+
         // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
         // `x-amz-acl` (issue #120, audyt G-02).
         //

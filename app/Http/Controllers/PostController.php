@@ -15,6 +15,7 @@ use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
+use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
@@ -530,6 +531,23 @@ class PostController extends Controller
             $query = $request->getQueryString();
 
             return redirect()->to($post->url().($query ? '?'.$query : ''), 301);
+        }
+
+        // Wgląd obsługi w wpis ukryty przez moderację (#1018). Polityka
+        // wpuszcza tu poza autorem wyłącznie moderatora z 2FA, więc każde
+        // takie wejście zostawia ślad „kto to otworzył" — jak karta konta
+        // w panelu (`admin.user_viewed`). Bez metadanych: `subject_id` mówi
+        // wszystko, a treść wpisu nie ma trafiać do drugiej tabeli.
+        $podgladModeracji = $post->status === Post::STATUS_HIDDEN
+            && $request->user()?->getKey() !== $post->author_id;
+
+        if ($podgladModeracji) {
+            AuditLogEntry::record(
+                action: 'moderation.hidden_post_viewed',
+                actor: $request->user(),
+                subject: $post,
+                ip: $request->ip(),
+            );
         }
 
         $post->load([
