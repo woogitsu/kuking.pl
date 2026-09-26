@@ -708,6 +708,29 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
+    // --- „Tag tygodnia" (config/kuking.php, kuking.tag_tygodnia) --------------
+    // Wyróżnienie tagu na tablicy „kuKINGi na dziś" (FeedController) i panel
+    // admina (Admin\TagHighlightController, Admin\TagPromotionController).
+    // Stała TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by ją usunął. Idzie przez `ctx.shared`, jak przełączniki brzegu
+    // niżej (`brzegWebEnv`, #1775): to pokrętło właściciela per środowisko,
+    // nie stała projektu. PUSTE (Shared Variable nie założona) = `false`,
+    // czyli wyróżnienie wyłączone — bezpieczny kierunek, nie awaria.
+    // UWAGA PRZED `apply`: jeśli stoi dziś w panelu jako zmienna SERWISU,
+    // przenieś wartość do Shared Variables środowiska.
+    KUKING_TAG_TYGODNIA: ctx.shared.KUKING_TAG_TYGODNIA,
+
+    // --- Token szczegółów /health (config/kuking.php, health.token, audyt A5-05) ---
+    // Nagłówek `X-Kuking-Health-Token` odsłania pole `checks` w odpowiedzi
+    // `/health`; bez tokenu (albo z błędnym) `/health` oddaje tylko `status`
+    // — healthcheck Railwaya i test dymny działają tak samo w obu
+    // przypadkach. Stał TYLKO w panelu serwisu `kuking.pl`: `ctx.shared`
+    // wymaga ISTNIEJĄCEJ Shared Variable, więc kolejność jest ważna —
+    // najpierw założyć ją w panelu (wartość: `openssl rand -hex 32`),
+    // *potem* wdrożyć tę linię (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8).
+    // Sekret — w panelu Railway zaznacz „Sealed".
+    KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN,
   };
 
   //  --- Czyszczenie cache CDN: worker + web ---------------------------------

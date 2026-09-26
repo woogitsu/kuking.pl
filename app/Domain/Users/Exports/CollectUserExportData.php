@@ -16,6 +16,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -288,6 +289,19 @@ final class CollectUserExportData
             'od_kogo' => $recipe->source_person,
             'notatka_o_zrodle' => $recipe->source_note,
             'w_rodzinie_od_roku' => $recipe->family_since_year,
+            // „Moja wersja" (issue #23, D-301): kiedy ta osoba zaczęła swoją
+            // wersję i jaki przepis był oryginałem. Tytuł oryginału tylko
+            // wtedy, gdy właściciel paczki może go dziś zobaczyć — to cudza
+            // treść, a paczka nie może pokazać więcej niż serwis.
+            'moja_wersja_od' => $this->date($recipe->forked_at),
+            //
+            // Policy wprost, a nie `App\Domain\Recipes\MojaWersja`: import
+            // modułu Recipes stąd zamykał cykl Users → Recipes → Media → …
+            // → Users (`GrafModulowDomenyBezCykliTest`).
+            'na_podstawie_przepisu' => ($oryginal = $recipe->forkedFrom) === null
+                    || ! Gate::forUser($user)->allows('view', $oryginal)
+                ? null
+                : ['tytul' => $oryginal->title, 'adres_w_serwisie' => $oryginal->slug],
             'zdjecie_glowne' => $photos->pathFor($recipe->hero_media_id),
             'skan_zeszytu' => $photos->pathFor($recipe->source_scan_media_id),
             'utworzono' => $this->date($recipe->created_at),

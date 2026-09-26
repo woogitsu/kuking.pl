@@ -42,6 +42,11 @@ Mail z życzeniami tylko za osobną zgodą, w sufitach poczty. Przypomnienie
 obserwującym („Dziś urodziny: …”) tylko po włączeniu przez solenizanta, jako
 powiadomienie w serwisie w dobowym limicie i poza ciszą nocną — nie w feedzie.
 
+Rocznica dołączenia (#1754): w rocznicę założenia konta (dzień w strefie
+Europe/Warsaw, 29 lutego → 28 lutego w latach nieprzestępnych) na stronie
+głównej jedno zdanie od gospodarza. Zero nowych danych (`users.created_at`),
+bez maila i powiadomień, ten sam wyłącznik co Wspomnienia.
+
 ### Wpis
 - zdjęcie lub kilka zdjęć;
 - tekst;
@@ -103,7 +108,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 ## V1
 
 - grupy / fotofora;
-- Moja wersja — fork przepisu;
+- Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
 - rodzinna książka;

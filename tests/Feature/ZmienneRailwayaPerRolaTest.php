@@ -162,6 +162,16 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'powod' => 'Bramka tokenu krawędzi Cloudflare (`TokenKrawedzi`, `NormalizeForwardedFor`) — tylko żądania HTTP.',
         ],
         'KUKING_EDGE_TOKEN_POPRZEDNI' => ['role' => ['web'], 'powod' => 'Jak KUKING_EDGE_TOKEN, na czas rotacji sekretu.'],
+        'KUKING_HEALTH_TOKEN' => [
+            'role' => ['web'],
+            'powod' => 'Nagłówek `X-Kuking-Health-Token` na trasie `/health` (`HealthController`, audyt A5-05) — '
+                .'tylko żądania HTTP. Opcjonalna: pusto = `/health` oddaje sam `status`.',
+        ],
+        'KUKING_TAG_TYGODNIA' => [
+            'role' => ['web'],
+            'powod' => 'Wyróżnienie „tagu tygodnia” (`FeedController`, panel admina) — tylko żądania HTTP. '
+                .'Pusto = wyłączone, jak wartość domyślna.',
+        ],
         'KUKING_EDGE_TRYB' => [
             'role' => ['web'],
             'powod' => 'Tryb bramki tokenu krawędzi (`TokenKrawedzi::egzekwuje()`, `config/proxy.php`) — tylko żądania HTTP. '
@@ -204,9 +214,6 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
-        'KUKING_HEALTH_TOKEN' => 'Opcjonalna (audyt A5-05): pusto = `/health` oddaje tylko `status`, healthcheck '
-            .'Railwaya działa tak samo. `ctx.shared` wymaga istniejącej zmiennej, więc najpierw panel, potem '
-            .'`railway.ts` — kolejność w `docs/infra/DEPLOYMENT_RUNBOOK.md`.',
         'TURNSTILE_HOSTY_STAGINGU' => 'Pusto = token Turnstile tylko z hosta `APP_URL` (#992); ustawiane ręcznie '
             .'wyłącznie na stagingu, który odpowiada też pod innym hostem. Na produkcji zostaje puste.',
 
@@ -594,6 +601,31 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             );
             $this->assertNotSame([], $wpis['role'], "{$zmienna} nie ma żadnej roli.");
             $this->assertNotSame('', trim($wpis['powod']), "{$zmienna} nie ma powodu.");
+        }
+    }
+
+    /**
+     * Cztery zmienne ustawione DO 25.09.2026 tylko w panelu Railwaya
+     * (`kuking.pl`, serwis WWW): `railway config apply` usunąłby je, bo nie
+     * było ich w tym pliku. Wszystkie idą przez `ctx.shared`, czyli wartość
+     * żyje w Shared Variables środowiska, a nie w repozytorium:
+     * `KUKING_EDGE_TRYB` i `KUKING_HTML_EDGE_CACHE_SECONDS` (`brzegWebEnv`,
+     * #1775), `KUKING_TAG_TYGODNIA` (pokrętło właściciela) i sekret
+     * `KUKING_HEALTH_TOKEN`. Literał w pliku po cichu nadpisałby wartość
+     * ustawioną w panelu przy pierwszym `apply`.
+     */
+    #[Test]
+    public function cztery_zmienne_ustawione_wczesniej_tylko_w_panelu_sa_w_railway_ts(): void
+    {
+        $web = $this->zmienneRol()['web'];
+
+        foreach (['KUKING_EDGE_TRYB', 'KUKING_TAG_TYGODNIA', 'KUKING_HTML_EDGE_CACHE_SECONDS', 'KUKING_HEALTH_TOKEN'] as $nazwa) {
+            $this->assertSame(
+                'ctx.shared.'.$nazwa,
+                $web[$nazwa] ?? null,
+                $nazwa.' stała tylko w panelu Railwaya i `apply` by ją usunął — ma iść przez `ctx.shared`, '
+                .'żeby wartość z panelu (Shared Variables) nie została nadpisana literałem z repozytorium.',
+            );
         }
     }
 
