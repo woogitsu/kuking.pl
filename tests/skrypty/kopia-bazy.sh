@@ -240,6 +240,102 @@ wynik="$(
 sprawdz "brak webhooka daje ostrzeżenie w logu" "ostrzega" "${wynik}"
 
 # =============================================================================
+echo "── Alarm: odpowiedź 4xx/5xx webhooka nie liczy się jako dostarczona (#193) ──"
+# =============================================================================
+#
+#  USTERKA: `curl` bez `--fail` kończy się kodem 0 za KAŻDĄ odpowiedzią HTTP —
+#  także 404 (webhook skasowany) czy 500 (usługa padła). `alarm()` uznawała to
+#  za sukces i milczała, choć powiadomienie NIGDZIE nie doszło — dokładnie ta
+#  klasa usterki, którą po stronie aplikacji naprawiał `WebhookBleduHandler`
+#  (akapit „ALE BŁĄD WYSYŁKI JUŻ NIE GINIE PO CICHU").
+#
+#  DLACZEGO PRAWDZIWY SERWER HTTP, A NIE PODSTAWIONY `curl`
+#  Bo podstawiony `curl` (jak w bloku „Alarm: co wychodzi na webhook" wyżej)
+#  mierzy WYŁĄCZNIE treść, którą `alarm()` PRÓBUJE wysłać — nie dotyka ani
+#  jednej linii, która decyduje, czy `curl` uzna próbę za udaną. Kontrola
+#  ujemna: wycięcie `--fail` z tej funkcji nie oblałoby ani jednego testu
+#  w tamtym bloku. Tu leci prawdziwy `curl` po prawdziwym gnieździe TCP.
+if ! command -v python3 >/dev/null 2>&1; then
+  sprawdz "serwer próbny do testu alarmu 4xx/5xx" "python3 jest" "python3 BRAK"
+else
+  SERWER_ALARM_PY="$(mktemp)"
+  cat >"${SERWER_ALARM_PY}" <<'PYTON'
+import socket, sys
+PORT = int(sys.argv[1]); KOD = sys.argv[2]
+TEKSTY = {'200': b'OK', '404': b'Not Found', '500': b'Internal Server Error'}
+s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', PORT)); s.listen(1)
+print(s.getsockname()[1], flush=True)
+c, _ = s.accept()
+try:
+    c.recv(65536)
+    cialo = TEKSTY[KOD]
+    c.sendall(b'HTTP/1.1 %s X\r\nContent-Length: %d\r\nConnection: close\r\n\r\n' % (KOD.encode(), len(cialo)) + cialo)
+finally:
+    c.close()
+PYTON
+
+  # alarm_wobec_kodu <kod HTTP serwera> — wypisuje log z `alarm()` na stderr.
+  alarm_wobec_kodu() {
+    local kod_http="$1"
+    local gotowosc; gotowosc="$(mktemp)"
+    python3 "${SERWER_ALARM_PY}" 0 "${kod_http}" >"${gotowosc}" 2>/dev/null &
+    local pid=$!
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      [[ -s "${gotowosc}" ]] && break
+      kill -0 "${pid}" 2>/dev/null || break
+      sleep 0.2
+    done
+    local port_probny
+    port_probny="$(cat "${gotowosc}")"
+    rm -f "${gotowosc}"
+    if [[ ! "${port_probny}" =~ ^[0-9]+$ ]]; then
+      kill "${pid}" 2>/dev/null || true
+      wait "${pid}" 2>/dev/null || true
+      printf 'BLAD: serwer alarmu nie wystartowal'
+      return 1
+    fi
+    # Zamiana celowa: `log()` pisze na stderr, a nas interesuje TYLKO to —
+    # `2>&1` łapie bieżący cel stdout (potok podstawienia poleceń wołającego),
+    # dopiero POTEM `>/dev/null` odcina oryginalny strumień stdout.
+    # shellcheck disable=SC2069
+    (
+      wczytaj
+      export KOPIA_WEBHOOK_URL="http://127.0.0.1:${port_probny}"
+      alarm zrzut 40
+    ) 2>&1 >/dev/null
+    wait "${pid}" 2>/dev/null
+  }
+
+  wynik="$(alarm_wobec_kodu 404)"
+  if [[ "${wynik}" == *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 404 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "tak"
+  else
+    sprawdz "webhook oddający 404 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "nie: ${wynik}"
+  fi
+
+  wynik="$(alarm_wobec_kodu 500)"
+  if [[ "${wynik}" == *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 500 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "tak"
+  else
+    sprawdz "webhook oddający 500 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "nie: ${wynik}"
+  fi
+
+  # KONTROLA DODATNIA (pułapka 4): bez niej „zawsze ostrzegaj" przechodziłoby
+  # oba testy wyżej. Sprawny webhook (200) ma milczeć — to nie jest miejsce
+  # na hałas o każdym alarmie, który poszedł jak trzeba.
+  wynik="$(alarm_wobec_kodu 200)"
+  if [[ "${wynik}" != *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 200 NIE daje ostrzeżenia" "tak" "tak"
+  else
+    sprawdz "webhook oddający 200 NIE daje ostrzeżenia" "tak" "nie: ${wynik}"
+  fi
+
+  rm -f "${SERWER_ALARM_PY}"
+fi
+
+# =============================================================================
 echo "── Bramka zgodności wersji pg_dump ──"
 # =============================================================================
 #

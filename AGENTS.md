@@ -83,7 +83,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
+   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
+   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
+   pozostaje zakazana bez zmian,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
@@ -116,6 +119,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+| API dla aplikacji mobilnej | prefiks `api/v1`, Laravel Sanctum (tokeny osobistego dostępu, bez sesji), domyślnie wyłączone flagą `KUKING_API_ENABLED` (D-270) | `composer.json`: `laravel/sanctum` · w repozytorium: `routes/api.php` |
 
 Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
 i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
@@ -229,10 +233,24 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
-Te dwie reguły mają jeden nazwany, udokumentowany wyjątek — metryczka wersji
-i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
-`docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
-indziej w serwisie te reguły obowiązują bez zmian.
+Te dwie reguły mają dwa nazwane, udokumentowane wyjątki — oba na świadomą
+decyzję właściciela:
+
+- **D-051** — metryczka wersji i przełącznik motywu w stopce
+  (`docs/DECISIONS.md`, D-051);
+- **D-262** — tylko reguła 18 px i tylko panel moderacji: napisy pomocnicze
+  15–16 px w czterech selektorach — `.side-nav-moderacja-naglowek`
+  i `.sygnal-podglad-cytat` (`resources/css/app.css:1512` i `:1632`),
+  `.tabela-kont .drobne` i `.stan-konta`
+  (`resources/css/ekran-uzytkownikow.css:282` i `:294`). Numery linii
+  wskazują komentarz z odwołaniem do D-262 nad regułą (stan z 25 września
+  2026); przy rozjeździe wiążąca jest nazwa selektora. Przyciski i inne cele
+  dotyku w panelu mają nadal ≥ 48 px (`docs/DECISIONS.md`, D-262).
+
+To nie jest furtka ogólna: gdziekolwiek indziej w serwisie — także na innych
+ekranach panelu moderacji i w publicznych widokach odwołań — te reguły
+obowiązują bez zmian. Kolejny wyjątek wymaga nowej decyzji właściciela
+i dopisania go tutaj.
 
 **Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
 wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,
@@ -315,6 +333,30 @@ Zasady modelu:
 **Nigdy nie dodawaj `UNIQUE (user_id, recipe_id)` do `cooked_events`.**
 Ta sama osoba może gotować ten sam przepis dziesiątki razy przez lata
 i każde takie wykonanie jest osobnym, wartościowym wydarzeniem.
+
+### DDL na istniejącej tabeli nie może zatrzymać serwisu (audyt B3 W3)
+
+Migracje chodzą na **żywej** bazie (rola `migrate`). `ALTER TABLE posts`
+czekający na blokadę za długim zapytaniem ustawia za sobą w kolejce KAŻDE
+następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
+
+- **Każda migracja chodzi z `lock_timeout = 5s`** — ustawia go
+  `App\Support\Baza\LimitBlokadMigracji` na zdarzeniach migratora, nie
+  trzeba nic dopisywać. DDL, który nie dostał blokady, pada i daje się
+  powtórzyć. Pilnuje `tests/Feature/MigracjeMajaLimitBlokadTest.php`.
+- **Indeks na istniejącej tabeli** to `CREATE INDEX CONCURRENTLY IF NOT EXISTS`
+  w migracji z `public $withinTransaction = false;` (`CONCURRENTLY` nie działa
+  w transakcji). Przerwana budowa zostawia indeks INVALID pod tą samą nazwą —
+  migracja ma go przed budową zdjąć, bo `IF NOT EXISTS` by go przepuściło.
+  `down()`: `DROP INDEX CONCURRENTLY IF EXISTS`.
+- **CHECK i klucz obcy na istniejącej tabeli** to `ADD CONSTRAINT … NOT VALID`,
+  a potem osobno `VALIDATE CONSTRAINT` — obie rzeczy poza jedną transakcją
+  (`$withinTransaction = false`), inaczej blokada z pierwszego kroku trwa do
+  końca drugiego. Wzorzec:
+  `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem.php`.
+- **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
+- **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
+  typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 

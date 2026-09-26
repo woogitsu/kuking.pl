@@ -360,7 +360,31 @@ Koszt zmiany: jedna linijka w `components/kuking-board.blade.php`.
 
 ## D-014 · Nie budujemy API „pod przyszłą aplikację mobilną"
 
-**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
+**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **zmienione decyzją właściciela 25.09.2026 — API budowane** (zasady: D-270)
+
+> **Zmiana z 25 września 2026 (decyzja właściciela).** Właściciel postanowił
+> uruchomić publiczne API, żeby mogła powstać aplikacja mobilna. Konkluzja
+> „nie budujemy API" przestaje obowiązywać; obowiązuje za to w całości
+> akapit „Gdy przyjdzie czas" niżej — `routes/api.php` + Laravel Sanctum
+> (tokeny zamiast sesji) + kontrolery API nad tymi samymi Akcjami — i to on
+> jest teraz zasadą, nie zapowiedzią. Z tego wpisu zostają trzy zobowiązania,
+> rozpisane w **D-270**:
+>
+> 1. **API nad tymi samymi Akcjami i Policy co WWW.** Kontroler API waliduje,
+>    woła Akcję z `app/Domain/…/Actions` i zwraca zasób JSON. Reguła domenowa
+>    w kontrolerze API to reguła, którą da się obejść drugim endpointem —
+>    tak samo jak w kontrolerze HTML (AGENTS.md §4). Każde wejście na cudzą
+>    treść idzie przez tę samą Policy (AGENTS.md §7).
+> 2. **Brak logiki w kontrolerach API.** Jeśli kontroler API potrzebuje
+>    czegoś, czego nie ma w Akcji, to znaczy, że kontroler HTML ma to
+>    w sobie — wtedy najpierw wyciągamy to do Akcji, dopiero potem piszemy
+>    drugi adapter. Nie kopiujemy.
+> 3. **Ryzyko „API bez konsumenta rozjeżdża się z rzeczywistością" (punkt 2
+>    niżej) zostaje prawdziwe.** Odpowiedzią jest wyłącznik
+>    `KUKING_API_ENABLED`, domyślnie zamknięty, i testy Feature na każdej
+>    trasie — nie przekonanie, że tym razem ktoś będzie pamiętał.
+>
+> Reszta wpisu zostaje jako zapis rozumowania z 5 września.
 
 > **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
 > API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
@@ -3709,6 +3733,26 @@ nieudanej wysyłce zostaje w `failed_jobs`. Jest to dokładnie ta sama własnoś
 co przy resecie hasła, gdzie Laravel serializuje token tak samo. Wiersz `jobs`
 żyje sekundy; token z `failed_jobs` i tak przestaje działać po 30 minutach,
 a listu, którego wysyłka padła, nikt nie dostał.
+
+**Zmienione 25 września 2026 (audyt A5-10):** ta własność już nie obowiązuje.
+`LinkDoLogowania`, `UstawienieNowegoHasla`, `UstawienieHaslaZamiastLinku`
+i `ZaproszenieDoZalozeniaKonta` mają `ShouldBeEncrypted`, więc w `jobs`
+i `failed_jobs` leży szyfrogram kluczem aplikacji. Komendy czytające odbiorców
+z `failed_jobs` odszyfrowują go przez `App\Domain\Kolejka\PolecenieZadania`.
+Pilnuje tego `tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+
+**Decyzja właściciela z 25 września 2026: `failed_jobs` czyści się
+automatycznie po 30 dniach.** `queue:prune-failed --hours=720` chodzi
+codziennie o 05:20 (`routes/console.php`, `onOneServer()`,
+`withoutOverlapping(120)`). Powody: żetony w ładunku są szyfrowane (akapit
+wyżej), więc miesiąc leżenia nie wystawia żywego sekretu, a 30 dni wystarcza
+na diagnozę — o świeżej awarii mówią czujka kolejki, panel kolejki i `/health`
+długo wcześniej. Pierwsza wersja tej zmiany (ten sam dzień) świadomie
+automatu nie dodawała; właściciel rozstrzygnął inaczej. `kuking:martwe-zadania`
+zostaje do ręcznego, wcześniejszego czyszczenia po rozliczeniu awarii.
+Uwaga praktyczna: cztery zadania z 9 września 2026 (D-047) znikną same około
+10 października 2026 — kto chce je rozliczyć z odbiorcami, musi to zrobić
+przed tą datą. Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
 
 ### RACHUNEK LISTÓW — I CO SIĘ DZIEJE, GDY PULA PADNIE W ŚRODKU DNIA
 
@@ -16395,6 +16439,116 @@ komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszcz
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
 
+## D-070 — Zapisy przepisu przez różne osoby łączą się w jedno powiadomienie, dopóki autor go nie przeczyta (#906, PR #1213, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (20.09 — kształt
+powiadomienia, 23.09 — potwierdzenie łączenia różnych osób) · Status:
+**obowiązuje**
+
+> Numer D-070 był wcześniej rezerwacją niescalonej gałęzi
+> `claude/priorytet-w-kolejce-moderacji` (patrz przekazanie pracy z 10.09);
+> rezerwacja została zwolniona i numer nadano tej decyzji.
+
+### Co się łączy
+
+Powiadomienia typu `recipe.saved` („ktoś ma Twój przepis w swoim zeszycie")
+dla **tego samego autora i tego samego przepisu**. Zapisy od RÓŻNYCH osób nie
+tworzą osobnych wierszy — dokładają się do jednego powiadomienia, dopóki jest
+ono **nieprzeczytane** (`read_at IS NULL`). Treść: „Jan ma Twój przepis …"
+przy jednej osobie, „Jan oraz 3 inne osoby zapisały Twój przepis …" przy
+kilku, z pełną polską odmianą liczebnika (`Notification::tresc()`).
+Powiadomienia innych typów i innych przepisów się nie łączą.
+
+### Kiedy powstaje nowe powiadomienie
+
+- **Pierwsza osoba** — gdy dla tego przepisu nie ma otwartego
+  (nieprzeczytanego) powiadomienia. Autor dostaje je **natychmiast**, bez
+  czekania na partię.
+- **Po przeczytaniu** — przeczytane powiadomienie jest zamkniętą historią
+  i nie zmienia się. Następny zapis (także osoby, która już była w tamtej
+  partii, jeśli w międzyczasie wyjęła przepis ze wszystkich zeszytów i zapisała
+  go od nowa) otwiera nowe powiadomienie.
+
+### Jak liczymy osoby
+
+- Liczą się **osoby, nie zeszyty**. Jedna osoba zapisująca przepis do kilku
+  SWOICH zeszytów liczy się **raz** — powiadomienie idzie przy pierwszym
+  zeszycie, kolejne nic nie dokładają (`SaveRecipeToCollection`).
+- Osoba już obecna w otwartej partii nie jest dopisywana drugi raz
+  (`data.savers` to lista unikalnych identyfikatorów w kolejności zapisu).
+- **Wycofanie przed przeczytaniem:** kto wyjmie przepis ze **wszystkich**
+  swoich zeszytów, znika z partii; jeśli był jedyny — powiadomienie znika.
+  Wyjęcie z jednego z kilku zeszytów niczego nie zmienia.
+- Z nazwy (i awatarem) wymieniamy pierwszą osobę z partii, która jest dla
+  autora **widoczna** — bez blokady w żadną stronę i bez statusu
+  z `User::STATUSY_UKRYWAJACE_TRESC`. Osoby niewidoczne **nie są wymieniane,
+  ale zostają w liczbie** „N innych osób” (liczba, nie imiona — D-081).
+  Blokada albo ban ustawione **po** zapisie działają tak samo: miejsce z imieniem
+  przejmuje następna widoczna osoba, reszta partii nie znika.
+- **Widoczność całego powiadomienia liczy się po `data.savers`, nie po
+  `actor_id`** (`Notification::scopeVisibleTo()`). Wiersz znika z listy
+  i z licznika dopiero wtedy, gdy niewidoczni są **wszyscy** z partii —
+  dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokada
+  nie kasuje wiersza, więc odblokowanie go przywraca. Wcześniej wystarczyło
+  zablokować pierwszą osobę, żeby zniknęło całe „A oraz 2 inne osoby…”,
+  a każdy następny zapis dopisywał się do ukrytego wiersza (przegląd PR #1213).
+- Otwarta partia, w której dziś nie widać nikogo, **przyjmuje** nową osobę:
+  ta właśnie przeszła kontrolę blokady, więc wiersz staje się widoczny
+  i pokazuje ją z imienia. Osobny wiersz złamałby zasadę jednej otwartej
+  partii na parę (autor, przepis).
+- `data.savers` trzyma **pełną** listę, bez obcinania: potrzebna do
+  pominięcia osoby już obecnej i do wycofania zapisu. Partia żyje tylko
+  do odczytania, a nagłówek kosztuje stałą liczbę zapytań niezależnie od
+  jej długości (jedno o pierwszą widoczną osobę + jej profil,
+  `Notification::zapisujacyDoPokazania()`).
+
+### Wiek partii
+
+Dołączenie nowej osoby **przesuwa `created_at` na teraz**. Lista jest
+ułożona od najnowszego, a retencja (`SprzatajPowiadomienia`, 3 miesiące)
+liczy wiek od `created_at` — bez tego świeży zapis lądował głęboko na liście
+i znikał razem z partią założoną miesiące wcześniej. Wycofanie zapisu
+`created_at` nie rusza.
+
+### Współbieżność
+
+Każda zmiana partii (zapis, dołączenie, wycofanie) idzie pod **blokadą
+doradczą** `pg_advisory_xact_lock(906, hashtext('<autor>:<przepis>'))`,
+trzymaną do końca transakcji. `SELECT … FOR UPDATE` sam nie wystarczał:
+przy braku partii nie ma czego zablokować, więc dwa równoległe pierwsze
+zapisy zakładały dwa wiersze. `SaveRecipeToCollection` bierze tę samą
+blokadę **przed** policzeniem zeszytów osoby, żeby równoległy zapis jednej
+osoby do dwóch jej zeszytów nie liczył się dwa razy. Pomiar na dwóch
+połączeniach: `tests/Dwa/ZbiorczyZapisNaDwochPolaczeniachTest.php`.
+
+**Odczytanie a dołączenie — świadomie zostawiony wyścig.** „Oznacz jako
+przeczytane” (`UPDATE … WHERE read_at IS NULL`) nie bierze blokady partii.
+Kiedy przegrywa z dołączeniem, czeka na blokadę wiersza i zamyka partię
+**razem** z osobą, która doszła, gdy autor miał otwartą starszą wersję
+listy — ta osoba jest w treści przeczytanego powiadomienia, ale autor mógł
+jej nie zauważyć jako nowej. Kiedy wygrywa, dołączenie widzi `read_at`
+i otwiera nową partię. Nic nie ginie z bazy ani z listy; najgorszy skutek to
+jedna osoba zaliczona do już przeczytanej wiadomości. Domknięcie tego
+wymagałoby wersjonowania treści przy odczycie — nie jest tego warte przy
+powiadomieniu, które tylko cieszy.
+
+### Granice — te same co w `NotifyUser`
+
+Zbiorcze powiadomienie powstaje w `NotifyRecipeSaved`, nie w `NotifyUser`
+(musi aktualizować istniejący wiersz pod blokadą partii), więc powtarza
+jego granice wprost: brak powiadomienia o własnej akcji, brak dla konta,
+które nie może czytać (`mozeCzytac()` — zawieszony autor DOSTAJE), brak przy
+blokadzie w którąkolwiek stronę. Czwarta granica jest właściwa zapisowi:
+zapis z konta, które nie jest aktywne, nikogo nie powiadamia (#926). Każda
+granica dotyczy i nowego wiersza, i dołączenia do otwartej partii —
+`tests/Feature/ZbiorczyZapisTrzymaGranicePowiadomienTest.php`,
+`tests/Feature/ZbiorczePowiadomienieOZapisieTest.php`.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Sygnał, że autorzy przegapiają nowe osoby w partii (np. chcą osobnej
+wiadomości za każdego), albo powiadomienia z ustawieniami użytkownika —
+wtedy granice trzeba przenieść do jednego miejsca, zamiast je powtarzać.
 ---
 
 ## D-252 — Aplikacja sama dosyła zaległe potwierdzenia przyjęcia zgłoszeń, co godzinę (#797, DSA art. 16 ust. 4, 23 września 2026)
@@ -16881,6 +17035,65 @@ Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
+## D-259 — Własne „Ugotowałem” otwiera się kucharzowi mimo blokady z autorem przepisu; przepis zostaje zamknięty (#1394, PR #1503, 24 września 2026)
+
+**Data:** 24 września 2026 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+
+**Co.** Kucharz widzi własne wykonanie („Ugotowałem”) — zdjęcie, notatkę,
+czas — także wtedy, gdy między nim a autorem przepisu jest blokada,
+w którąkolwiek stronę. Dotyczy to karty na własnej zakładce „Ugotowane”,
+strony szczegółu (`cooked.show`) i zdjęcia. Przy blokadzie widok nie
+pokazuje tytułu ani adresu przepisu (`components/cooked-card`,
+`przepisZaBlokada`, tytuł strony), a sam przepis dalej odpowiada kucharzowi
+403 (`RecipePolicy::view()`). Komentarze tnie jak dotąd
+`Comment::widoczneDla()`.
+
+**Co zostaje zamknięte.**
+
+- **Przepis** — dla kucharza objętego blokadą bez zmian: 403, bez tytułu
+  i adresu na karcie wykonania.
+- **Autor przepisu** objęty blokadą nie widzi wykonania kucharza (lista
+  i szczegół, jak dotąd).
+- **Moderator** objęty blokadą z autorem przepisu nie wchodzi w wykonanie
+  (`CookedEventPolicy::view()`, gałąź moderatora bez zmian).
+- Obcy widz nie widzi wykonań z przepisów, których sam nie widzi
+  (`ProfileController::tylkoZWidocznychPrzepisow()`).
+
+**Dlaczego.** Dotychczasowa reguła zamykała kucharzowi wejście w jego własne
+wykonanie przy blokadzie z autorem przepisu. Skutek zmierzony: własna
+zakładka „Ugotowane” (lista niefiltrowana dla właściciela) dalej pokazywała
+kartę z przyciskiem „Zobacz i skomentuj”, a przycisk i zdjęcie kończyły się
+**403** — martwy przycisk, a do tego lista i polityka odpowiadały inaczej.
+Zdjęcie i notatka są treścią kucharza („poprawne dane nigdy nie znikają”,
+AGENTS.md §5); musi je móc zobaczyć i skasować. Blokada chroni treść osoby,
+z którą wiąże — czyli przepis — i ta treść dalej się nie pokazuje: granica
+przeszła z wejścia do widoku, nie zniknęła.
+
+**Relacja do wcześniejszych rozstrzygnięć.** Odwraca rozstrzygnięcie
+z commitu `c26de5f3` („blokada ma pierwszeństwo przed prawem do własnej
+treści” — jedyny wyjątek od furtki na własne wykonanie w
+`CookedEventPolicy::view()`). Pierwszeństwo blokady (AGENTS.md §4) i
+jej porządek na parze osób z **D-080** obowiązują bez zmian: blokada dalej
+wyklucza obserwowanie, powstanie nowego wykonania (AGENTS.md §1, granica 3)
+i pokazanie treści drugiej strony. Zmienia się tylko to, że **własna** treść
+kucharza nie jest już zakładnikiem blokady.
+
+**Dowody:** `tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php`
+(macierz: lista, szczegół i zdjęcie w obu kierunkach blokady; autor przepisu
+dalej bez dostępu), test
+`test_wlasne_wykonanie_po_blokadzie_z_autorem_przepisu_otwiera_sie_bez_przepisu`
+w `tests/Feature/UgotowalemWlasneWykonanieNieZnikaTest.php`, mutacja
+„własne wykonanie otwiera się kucharzowi mimo blokady” w
+`tests/mutacje/autoryzacja.txt`.
+
+**Co musiałoby się stać, żeby to zmienić:** pokazanie, że widok wykonania
+przy blokadzie ujawnia treść autora przepisu (tytuł, adres, komentarze),
+albo decyzja właściciela, że blokada ma zamykać także własną treść.
+
+### Wycofanie
+Odwrócić commity PR #1503. Schemat bazy się nie zmienia; danych nie trzeba
+cofać.
+
 ## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
 
 **Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
@@ -17048,6 +17261,50 @@ Odwrócić commit w `.github/workflows/ci.yml`. Schemat bazy się nie zmienia.
 Zmienne `CI_RUNS_ON_MAIN`/`CI_RUNS_ON_BROWSER_MAIN` w ustawieniach
 repozytorium przestają być czytane i można je skasować; etykiety
 `kuking-main`/`kuking-pr` na runnerach mogą zostać bez efektu.
+## D-261 — Wykonanie zbanowanego kucharza znika także pod bezpośrednim adresem (25 września 2026)
+
+**Data:** 25 września 2026 · Audyt A5-07 (dawniej B-03) · Status: **obowiązuje,
+wariant bezpieczniejszy — do potwierdzenia przez właściciela**
+
+**Co.** `CookedEventPolicy::view()` odmawia obcym, gdy kucharz nie jest
+`jestDostepnyJakoAutor()` — czyli przy `banned` tak samo jak przy
+`pending_delete`. Ta sama polityka pilnuje zdjęć wykonania
+(`DostepDoZdjecia`). Moderator i sam kucharz przechodzą jak dotąd.
+Dane nie są zmieniane: po `reinstate()` wykonanie wraca dla wszystkich.
+
+**Dlaczego.** Pytanie „ile z historii zbanowanego konta zostaje publiczne”
+czekało na decyzję. Do tego czasu gość dostawał pod `/ugotowane/{uuid}` 200
+z notatką, nazwą i awatarem (zdjęcia z `Cache-Control: public`), a profil tej
+osoby, jej przepisy (`RecipePolicy::view()`) i galeria „Komu wyszło” (`CookedEvent::
+scopeWidoczneDla()`) — odmowę. Jedno pytanie, dwie odpowiedzi. Wybieramy
+odpowiedź zgodną z resztą serwisu i ostrzejszą: łatwiej później otworzyć
+niż odwołać treść, która już wyciekła.
+
+**Czego to nie zmienia.** `suspended` dalej przechodzi (ta sama granica co
+`jestDostepnyJakoAutor()`). Nic nie jest kasowane; zdanie „treść zostaje,
+znika tylko wyróżnienie” z `KomusWyszloWidocznoscTest` znaczy od dziś
+„dane zostają w bazie”, a nie „zostają publiczne”.
+
+**Znana granica.** Kopie zdjęć już zapisane w pamięci podręcznej CDN przed
+banem wygasają według swojego `Cache-Control` — ta decyzja ich nie czyści.
+
+**Skutki uboczne.** Komentowanie świadomie zostaje — decyzja właściciela
+z 25 września 2026 („Nie, komentarze zostają”). Obcy nie otworzy wykonania
+zbanowanego kucharza, ale komentarz pod nim przechodzi: `cooked.comment`
+i `LockCommentContext` pytają o osobną zdolność `CookedEventPolicy::comment()`,
+która różni się od `view()` tylko tym, że ban kucharza nie zamyka rozmowy
+(karencja usunięcia, blokada i stan przepisu — jak w `view()`). Lokalna analiza spamu (D-241)
+działa dalej: `GranicaWysylki::pozaAutorem()` podmienia w kopii zbanowanego
+kucharza na aktywnego, tak jak autora wpisu i przepisu. Do OpenAI taki
+komentarz nie wychodzi.
+
+Dowody: `tests/Feature/KarencjaUsunieciaChowaWykonanieTest.php`
+(gość, obcy zalogowany, zdjęcie; kontrola dodatnia: moderator i powrót po
+zdjęciu bana), `tests/Feature/Visibility/KomusWyszloWidocznoscTest.php`,
+`tests/Feature/KomentarzSprawdzaSwiezyStanTest.php` (zbanowany kucharz —
+komentarz przechodzi; karencja — odmowa),
+`KarencjaUsunieciaChowaWykonanieTest::test_zbanowany_kucharz_nie_zamyka_komentowania`,
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` („wykonanie autor_zbanowany”).
 
 ## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)
 
@@ -17084,12 +17341,12 @@ Odwrócić commit. Schemat bazy się nie zmienia.
 **Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
 
 Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
-moderacji (widoczny wyłącznie dla moderatorów) trzy miejsca z tekstem
+moderacji (widoczny wyłącznie dla moderatorów) cztery miejsca z tekstem
 poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
 D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
 stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
 w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
-trzy miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+cztery miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
 nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
 w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
 a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
@@ -17097,7 +17354,12 @@ serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
 
 ### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
 
-`AGENTS.md` §5 zostaje dokładnie taki, jaki jest, wszędzie indziej. Minimum
+Reguła z `AGENTS.md` §5 zostaje bez zmian wszędzie indziej. *(Pierwotnie:
+„`AGENTS.md` §5 zostaje dokładnie taki, jaki jest”. Decyzją właściciela
+z 25 września 2026 — po audycie `docs/audyt/2026-09-25-PO-FALI.md`,
+pkt 8–9 — §5 wymienia D-262 z nazwy jako drugi nazwany wyjątek obok D-051,
+z listą czterech selektorów, żeby agent czytający tylko `AGENTS.md` nie
+„naprawiał” tych miejsc. Treść reguły się nie zmieniła.)* Minimum
 18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
 widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
 w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów
@@ -17140,3 +17402,164 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+---
+
+## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
+
+Zmienia D-014. Etap 1 to fundament: nie ma w nim jeszcze żadnej trasy
+produkcyjnej, jest wszystko, na czym trasy staną.
+
+### Co
+
+1. **Laravel Sanctum, wyłącznie tokeny osobistego dostępu.** Nagłówek
+   `Authorization: Bearer <id>|kuking_<sekret>`. Droga „SPA na ciasteczku
+   sesji" jest zamknięta z trzech stron (`config/sanctum.php`): pusta lista
+   domen stanowych, pusta lista strażników sesji (`guard => []` — zalogowana
+   przeglądarka NIE przechodzi przez `auth:sanctum`) i brak trasy
+   `/sanctum/csrf-cookie`. Grupa `api` nie ma sesji, ciasteczek ani CSRF.
+2. **Tabela `personal_access_tokens` pod nasze zasady**, nie kopia z pakietu:
+   UUID, klucz obcy do `users`, CHECK-i, `timestamptz`, skrót poza
+   `$fillable` (`docs/DATABASE.md`). Tokeny giną razem z sesjami
+   (`User::invalidateSessions()` → `invalidateApiTokens()`).
+3. **Wersja w adresie: `/api/v1`** (`bootstrap/app.php`, `apiPrefix`).
+   Zmiana niezgodna wstecz to `/api/v2` obok, nie przeróbka `v1` — aplikacji
+   w telefonach nie da się zaktualizować w dniu wdrożenia.
+4. **Wyłącznik `KUKING_API_ENABLED`, domyślnie `false`.** Przy zamkniętym API
+   każdy adres pod `/api/*` odpowiada tym samym 404 co adres nieistniejący
+   (`App\Http\Middleware\BramaApi`, pierwsza na liście priorytetów
+   middleware'u — przed `auth:sanctum` i `throttle`). Zamknięte API nie
+   zdradza swojej mapy i nie zjada liczników limitu.
+5. **Jeden format błędu, po polsku** (`App\Http\Api\BledyApi`):
+   `{"message": "…", "code": "…"}`, przy 422 dodatkowo `errors` z komunikatami
+   z `lang/pl/validation.php`. 401, 403, 404, 405, 429 i 500 mają własne
+   zdania mówiące, co zrobić. Treść wyjątku technicznego nie wychodzi NIGDY,
+   także przy `APP_DEBUG=true`; wychodzi tylko `BladDlaCzlowieka` i zdanie
+   z `Response::deny()` Policy.
+6. **Dwa limity na każde żądanie**, liczby w `config/kuking.php`
+   (`api.limity`): na adres IP (300/min) liczony w `BramaApi` PRZED
+   sprawdzeniem tokenu — inaczej fałszywe tokeny odbijałyby się na 401
+   niepoliczone — i na token (120/min) w limiterze `api`. Limity logowania
+   (etap 2) dochodzą do tego osobno.
+
+### Dlaczego tak, a nie inaczej
+
+- **Token bez terminu.** Wylogowanie z telefonu co miesiąc to dla osoby 50+
+  koniec korzystania z aplikacji. Ochroną jest odwołanie (lista urządzeń na
+  WWW, etap 2) i kasowanie razem z sesjami, nie termin.
+- **Rollback tabeli bez odmowy.** D-088 chroni decyzje człowieka; token jest
+  poświadczeniem. Po `down()` + `migrate` każde urządzenie loguje się
+  jeszcze raz — kierunek bezpieczny.
+- **Limit na adres w middlewarze, nie w `throttle:`.** Sortowanie
+  `Kernel::$middlewarePriority` stawia `ThrottleRequests` za
+  `AuthenticatesRequests` i nie da się tego zmienić dla jednej grupy bez
+  zmiany dla WWW.
+
+### Czego to NIE zmienia
+
+PWA zostaje drogą mobilną dla przeglądarki. AGENTS.md §3 dalej zabrania SPA,
+GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
+
+**Zmiana wymaga:** decyzji właściciela (zamknięcie API) albo zmierzonego
+problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
+rozwiązuje.
+
+📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
+`app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
+`app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
+`tests/Feature/Api/`
+
+---
+
+## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
+
+**Data:** 25 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy **#940**, **#1377**, PR-ów #1584, #1590, #1628
+
+**Problem.** #1377 każe zostawić na listach wpis z WŁASNĄ treścią, gdy
+przepis, na który wskazuje, stanie się niedostępny (prywatny, tylko dla
+obserwujących, usunięty, ukryty przez moderację). #940 pokazuje na
+„Świeżo z Kuking” i stronie powitalnej najwyżej jeden wpis od osoby —
+najnowszy, który widz może zobaczyć. Testy #1584/#1590 zakładały, że autor
+ma na odkrywaniu jednocześnie zapowiedź przepisu i starszy wpis z treścią,
+co z #940 jest niemożliwe, więc CI było czerwone.
+
+**Decyzja.** Reguła #940 jest nadrzędna. Wpis z własną treścią zostaje na
+liście po ukryciu przepisu (bez tytułu, sluga i zdjęcia przepisu na karcie),
+ale **nadal liczy się do limitu jednego wpisu na autora** — zajmuje to samo
+jedno miejsce co każdy inny wpis tej osoby. Nowszy widoczny wpis autora go
+wypiera; czysta zapowiedź niedostępnego przepisu nie zajmuje miejsca, bo
+w ogóle nie jest widoczna. Strona tagu, profil i feed obserwowanych nie mają
+limitu #940 i pokazują wpis z treścią zawsze, gdy widz może go otworzyć.
+
+**W kodzie.** Bez zmian w zapytaniach: `DISTINCT ON (author_id)` z #940
+działa na zbiorze już przefiltrowanym przez
+`zWidocznymPrzepisemAlboWlasnaTrescia()`. Pilnuje tego
+`ListyWpisuZWlasnaTresciaTest::test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_limitu_jednego_wpisu_na_autora`
+(kontrola ujemna: pominięcie jednego wpisu na autora w „Świeżo z Kuking”
+wywraca ten test), a `test_kontrola_dodatnia_*` sprawdza na odkrywaniu
+najnowszy wpis autora, nie dwa naraz.
+
+### Wycofanie
+Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
+dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
+listy odkrywania.
+
+## D-282 — V2 z `docs/FEATURES.md` wolno budować od 26 września 2026 (Nie wcześnie — bez zmian)
+
+**Data:** 26 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+**Problem.** `AGENTS.md` §2 i `CLAUDE.md` kazały sprawdzić sekcję „V2”
+w `docs/FEATURES.md` wyłącznie po to, **żeby nie budować z niej podczas prac
+nad MVP** — to zdanie stało tam od początku projektu i nikt go nie cofnął,
+mimo że MVP dawno przestało być jedyną pracą w repozytorium (V1 w większości
+zbudowane, dziennik dochodzi do D-28x). Zakaz był więc coraz mniej opisem
+stanu, a coraz bardziej starym zdaniem, którego nikt nie zauważał przy
+czytaniu ze zrozumieniem.
+
+**Decyzja.** Od 26 września 2026 wolno budować funkcje V2 wymienione
+w `docs/FEATURES.md` (sekcja „## V2”): skalowanie porcji, zamienniki, import
+przepisu z adresu URL/PDF/zdjęcia, OCR starych zeszytów, spiżarnia
+(„pantry”), „co ugotuję z tego, co mam”, wartości odżywcze i koszt
+przygotowania. **Native apps zostają bez zmian** — nadal wyłącznie „jeśli PWA
+potwierdzi retencję”, to zdanie ta decyzja NIE dotyka.
+
+**Lista „Nie wcześnie” w `docs/FEATURES.md` zostaje BEZ ZMIAN i w całości** —
+DM, czat/wideo na żywo, marketplace, wypłaty (payouts), punkty za liczbę
+postów i masowy import cudzych treści są nadal zakazane, niezależnie od tej
+decyzji. Ta decyzja dotyczy wyłącznie granicy MVP↔V2, nie granicy
+V2↔„Nie wcześnie”.
+
+**Kolejność wciąż obowiązuje.** Zniesienie zakazu V2 nie zwalnia z pracy
+issues po kolei (P0 → P1 → P2, `AGENTS.md` §2/§10) — funkcja z V2 wchodzi do
+kolejki na swoich prawach, nie przed pilniejszym P0/P1 z MVP/V1.
+
+**AI w funkcjach V2 — model i konfiguracja.** Funkcje V2 wymagające modelu
+językowego (OCR starych zeszytów, import ze zdjęcia/PDF/adresu URL, a w miarę
+potrzeby też zamienniki i wartości odżywcze) korzystają z modelu OpenAI
+**„GPT-6 Luna”**. Nazwa modelu i klucz API stoją WYŁĄCZNIE w konfiguracji
+(`config/kuking.php` + zmienna w `.env`/`.env.example`), tym samym wzorcem co
+istniejąca integracja moderacji AI (`config('kuking.moderation.model')`,
+`config/kuking.php` ok. linii 3006–3040: `klucz` z `env()`, brak klucza =
+funkcja wyłączona i nic nie pada, bez wyjątku dla żadnej z tych funkcji).
+**Klucz nigdy nie stoi w kodzie** — ani wprost, ani jako domyślna wartość
+`env()` inna niż pusta.
+
+**Co z tym zrobiono w dokumentacji.** `AGENTS.md` §2 i `CLAUDE.md` — zdanie
+nakazujące sprawdzać V2 „żeby nie budować" zastąpione odesłaniem do tej
+decyzji. `docs/FEATURES.md` — adnotacja przy nagłówku „## V2” z datą i
+numerem decyzji. Sama treść list V1/V2/„Nie wcześnie” w `docs/FEATURES.md`
+się nie zmienia — zmienia się wyłącznie to, czy V2 wolno realizować.
+`docs/ROADMAP.md` nie wspominał zakazu V2 wprost, więc nie wymagał zmiany.
+
+### Wycofanie
+Cofnięcie tej decyzji przywraca zakaz budowania V2 podczas prac nad MVP —
+wymaga nowej decyzji właściciela, przywrócenia poprzedniego brzmienia
+`AGENTS.md` §2 / `CLAUDE.md` i usunięcia adnotacji przy „## V2” w
+`docs/FEATURES.md`. Nie cofa kodu już zbudowanego pod funkcje V2 — to
+wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
+
+📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
+`docs/ROADMAP.md`, `config/kuking.php`
