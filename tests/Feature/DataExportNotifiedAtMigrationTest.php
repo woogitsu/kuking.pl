@@ -31,6 +31,10 @@ class DataExportNotifiedAtMigrationTest extends TestCase
 
         DB::table('data_exports')->where('id', $export->getKey())->update([
             'status' => $status,
+            // Gotowa paczka ma komplet metadanych (CHECK z issue #1365).
+            'disk' => $completedAt === null ? null : 'local',
+            'object_key' => $completedAt === null ? null : 'eksporty/'.$export->getKey().'.zip',
+            'bytes' => $completedAt === null ? null : 1234,
             'completed_at' => $completedAt,
             'expires_at' => $completedAt === null ? null : now()->addDays(7),
         ]);
