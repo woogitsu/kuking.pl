@@ -1,6 +1,30 @@
 ## D-014 · Nie budujemy API „pod przyszłą aplikację mobilną"
 
-**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
+**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **zmienione decyzją właściciela 25.09.2026 — API budowane** (zasady: D-270)
+
+> **Zmiana z 25 września 2026 (decyzja właściciela).** Właściciel postanowił
+> uruchomić publiczne API, żeby mogła powstać aplikacja mobilna. Konkluzja
+> „nie budujemy API" przestaje obowiązywać; obowiązuje za to w całości
+> akapit „Gdy przyjdzie czas" niżej — `routes/api.php` + Laravel Sanctum
+> (tokeny zamiast sesji) + kontrolery API nad tymi samymi Akcjami — i to on
+> jest teraz zasadą, nie zapowiedzią. Z tego wpisu zostają trzy zobowiązania,
+> rozpisane w **D-270**:
+>
+> 1. **API nad tymi samymi Akcjami i Policy co WWW.** Kontroler API waliduje,
+>    woła Akcję z `app/Domain/…/Actions` i zwraca zasób JSON. Reguła domenowa
+>    w kontrolerze API to reguła, którą da się obejść drugim endpointem —
+>    tak samo jak w kontrolerze HTML (AGENTS.md §4). Każde wejście na cudzą
+>    treść idzie przez tę samą Policy (AGENTS.md §7).
+> 2. **Brak logiki w kontrolerach API.** Jeśli kontroler API potrzebuje
+>    czegoś, czego nie ma w Akcji, to znaczy, że kontroler HTML ma to
+>    w sobie — wtedy najpierw wyciągamy to do Akcji, dopiero potem piszemy
+>    drugi adapter. Nie kopiujemy.
+> 3. **Ryzyko „API bez konsumenta rozjeżdża się z rzeczywistością" (punkt 2
+>    niżej) zostaje prawdziwe.** Odpowiedzią jest wyłącznik
+>    `KUKING_API_ENABLED`, domyślnie zamknięty, i testy Feature na każdej
+>    trasie — nie przekonanie, że tym razem ktoś będzie pamiętał.
+>
+> Reszta wpisu zostaje jako zapis rozumowania z 5 września.
 
 > **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
 > API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
