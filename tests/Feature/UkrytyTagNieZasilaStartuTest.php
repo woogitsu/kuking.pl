@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Feed\TagFeed;
+use App\Domain\Feed\FollowingFeed;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Models\Post;
 use App\Models\Tag;
@@ -20,12 +20,13 @@ use Tests\TestCase;
  * się go zdjąć w „Twoich tagach", test #853). `TagFeed` brał wszystkie
  * obserwowane tagi bez pytania o status, więc niewidoczny temat dalej
  * dostarczał wpisy, a gdy był jedynym źródłem, Start wybierał „tagi"
- * zamiast odkrywania.
+ * zamiast odkrywania. Od #1808 (D-277) tematy są gałęzią `FollowingFeed`.
  *
  * Każdy test ma kontrolę dodatnią na tym samym tagu PRZED ukryciem — bez
  * niej asercje „nie ma" przechodziłyby na feedzie, który jest pusty z innego
- * powodu. Kontrola ujemna: bez warunku `tags.status = active`
- * w `TagFeed::obserwowaneTagi()` testy 1 i 2 oblewają.
+ * powodu. Status tagu sprawdzają w `FollowingFeed` dwa miejsca: lista
+ * obserwowanych tematów (`obserwowaneTematy()`) i warunek gałęzi tematów
+ * w `zrodla()` — kontrola ujemna wymaga zdjęcia obu.
  */
 class UkrytyTagNieZasilaStartuTest extends TestCase
 {
@@ -63,7 +64,7 @@ class UkrytyTagNieZasilaStartuTest extends TestCase
     /** @return list<string> */
     private function wFeedzieTagow(User $widz): array
     {
-        return collect(app(TagFeed::class)->paginate($widz)->items())
+        return collect(app(FollowingFeed::class)->paginate($widz)->items())
             ->map(fn (Post $wpis) => (string) $wpis->getKey())
             ->all();
     }
@@ -101,12 +102,12 @@ class UkrytyTagNieZasilaStartuTest extends TestCase
         $this->wpis($zupy, 'Pomidorowa z wczoraj');
 
         // KONTROLA DODATNIA: aktywny tag wybiera źródło „tagi".
-        $this->assertTrue(app(TagFeed::class)->maTresci($widz));
-        $this->actingAs($widz)->get(route('home'))->assertOk()->assertViewHas('zrodloFeedu', 'tagi');
+        $this->assertFalse(app(FollowingFeed::class)->isEmptyFor($widz));
+        $this->actingAs($widz)->get(route('home'))->assertOk()->assertViewHas('zrodloFeedu', 'obserwowani');
 
         $this->ukryj($zupy);
 
-        $this->assertFalse(app(TagFeed::class)->maTresci($widz), 'Ukryty tag dalej odpowiada „jest co pokazać".');
+        $this->assertTrue(app(FollowingFeed::class)->isEmptyFor($widz), 'Ukryty tag dalej odpowiada „jest co pokazać".');
         $this->get(route('home'))->assertOk()->assertViewHas('zrodloFeedu', 'odkrywanie');
     }
 
@@ -134,6 +135,6 @@ class UkrytyTagNieZasilaStartuTest extends TestCase
 
         $this->assertTrue($widz->isFollowingTag($cel->fresh()), 'Scalenie nie przeniosło obserwowania na cel.');
         $this->assertContains((string) $wpis->getKey(), $this->wFeedzieTagow($widz), 'Wpis scalonego tagu zniknął z feedu, choć cel jest aktywny.');
-        $this->assertTrue(app(TagFeed::class)->maTresci($widz));
+        $this->assertFalse(app(FollowingFeed::class)->isEmptyFor($widz));
     }
 }
