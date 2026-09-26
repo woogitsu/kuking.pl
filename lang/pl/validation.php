@@ -306,6 +306,7 @@ return [
         'ingredients.*.text' => 'nazwa składnika',
         'ingredients.*.group_name' => 'nazwa grupy składników',
         'ingredients.*.note' => 'uwaga do składnika',
+        'ingredients.*.substitutes' => 'zamiennik składnika',
         'steps' => 'kroki przygotowania',
         'steps.*.instruction' => 'treść kroku',
         'details' => 'to, co chcesz dopisać',
