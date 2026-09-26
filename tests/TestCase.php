@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Http\Controllers\HealthController;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
 
 abstract class TestCase extends BaseTestCase
@@ -49,6 +51,19 @@ abstract class TestCase extends BaseTestCase
     protected function mierzMasowePrzypisanieJakWProdukcji(): void
     {
         Model::preventSilentlyDiscardingAttributes(false);
+    }
+
+    /**
+     * `/health` Z POLEM `checks` — czyli tak, jak widzi go właściciel
+     * z tokenem w nagłówku (audyt A5-05). Bez tokenu odpowiedź ma tylko kod
+     * HTTP i `status`; to, co widzi ktokolwiek inny, mierzy
+     * `HealthSzczegolyTylkoZTokenemTest`.
+     */
+    protected function zdrowieZeSzczegolami(): TestResponse
+    {
+        config(['kuking.health.token' => 'token-zdrowia-do-testow']);
+
+        return $this->get('/health', [HealthController::NAGLOWEK_TOKENU => 'token-zdrowia-do-testow']);
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Moderacja\OcenaModelem;
 use App\Support\WierszFormularza;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
 class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Oznaczenie automatu na koncie $autor, bez uruchamiania wykrywacza — patrz KolejkaSygnalowPokazujePodgladTest. */
     private function oznaczenie(User $autor): Report
@@ -75,6 +77,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $druga->getKey(),
+                ...$this->stanGrupySygnalow((string) $druga->getKey()),
                 // `_wiersz` tak, jak wysyła go prawdziwy formularz (issue
                 // #243, `App\Support\WierszFormularza`).
                 WierszFormularza::POLE => (string) $druga->getKey(),
@@ -133,6 +136,7 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ->from(route('admin.sygnaly'))
             ->post(route('admin.sygnaly.dismiss'), [
                 'autor' => (string) $jedyna->getKey(),
+                ...$this->stanGrupySygnalow((string) $jedyna->getKey()),
                 WierszFormularza::POLE => (string) $jedyna->getKey(),
                 'note' => $zaDluga,
             ])
