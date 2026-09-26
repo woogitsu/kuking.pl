@@ -61,6 +61,7 @@ class UstawieniaNawigacjaTest extends TestCase
             'settings.privacy',
             // Issue #1810 (D-278).
             'settings.hidden',
+            'settings.birthday',
             'settings.data',
         ];
     }
