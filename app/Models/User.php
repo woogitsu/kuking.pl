@@ -407,6 +407,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(Collection::class, 'owner_id');
     }
 
+    /** Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. */
+    public function mealPlanEntries(): HasMany
+    {
+        return $this->hasMany(MealPlanEntry::class);
+    }
+
     public function media(): HasMany
     {
         return $this->hasMany(Media::class, 'owner_id');

@@ -76,6 +76,7 @@ final class InwentarzDanychKonta
         'reports.reporter_id' => [self::EKSPORT, 'moje_zgloszenia'],
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
+        'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
         'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
 

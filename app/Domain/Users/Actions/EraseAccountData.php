@@ -212,6 +212,19 @@ final class EraseAccountData
             $fresh->followedTags()->detach();
 
             /*
+             * PLANER TYGODNIA ZNIKA RAZEM Z KONTEM (#27, D-310).
+             *
+             * To prywatne notatki jednej osoby („obiad u mamy”, przepis na
+             * wtorek) — nikt inny ich nie widział i nikomu nie są potrzebne,
+             * więc nie ma tu nic do zachowania ani do anonimizowania.
+             * Bezwarunkowo, jak relacje wyżej: zakres usunięcia („minimum” /
+             * „wszystko”) dotyczy treści pokazanych innym, a plan nigdy nie
+             * był pokazany. Wiersze kluczem `user_id` — dwie egzekucje nie
+             * mają wspólnych wierszy (ten sam argument co przy `tag_follows`).
+             */
+            $fresh->mealPlanEntries()->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to

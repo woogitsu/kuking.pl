@@ -27,6 +27,19 @@ return [
     ],
 
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    /*
+     * PLANER TYGODNIA (#27, D-310) — prywatny plan: dzień + przepis albo
+     * własny wpis.
+     *
+     * `wpisow_na_dzien` — ile pozycji najwyżej w jednym dniu. Dziesięć to
+     * więcej niż śniadanie, obiad, kolacja i dwie przekąski dla całej
+     * rodziny; granica jest po to, żeby pętla nie dopisywała wierszy bez
+     * końca, a nie żeby cokolwiek komuś odmawiać.
+     */
+    'planer' => [
+        'wpisow_na_dzien' => 10,
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],
@@ -1802,6 +1815,16 @@ return [
          * do której należą.
          */
         'zeszyt' => '60,10',
+
+        /*
+         * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
+         * i „Skopiuj poprzedni tydzień”. Szkoda z nadużycia taka jak przy
+         * zeszycie: nikt inny planu nie widzi, nikogo nie powiadamia.
+         * Układanie tygodnia to kilkanaście kliknięć pod rząd, więc ten sam
+         * próg co zeszyt, we własnym koszyku — planowanie nie zjada budżetu
+         * zapisywania przepisów.
+         */
+        'planer' => '60,10',
 
         /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
