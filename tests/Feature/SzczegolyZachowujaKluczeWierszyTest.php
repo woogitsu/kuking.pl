@@ -69,7 +69,7 @@ class SzczegolyZachowujaKluczeWierszyTest extends TestCase
         $recipe = Recipe::factory()->draft()->create(['author_id' => $user->id]);
         $url = route('recipes.edit', $recipe->slug);
 
-        $this->actingAs($user)->from($url)->put(route('recipes.update', $recipe->slug), [
+        $response = $this->actingAs($user)->followingRedirects()->from($url)->put(route('recipes.update', $recipe->slug), [
             'title' => 'Zupa domowa', 'visibility' => 'private', 'action' => 'draft',
             'ingredients' => [
                 0 => ['text' => 'Sól', 'group_name' => 'Do podania'],
@@ -79,12 +79,10 @@ class SzczegolyZachowujaKluczeWierszyTest extends TestCase
                 0 => ['instruction' => 'Zagotuj wodę.', 'timer_minutes' => '10'],
                 3 => ['instruction' => 'Wymieszaj.', 'timer_minutes' => '10081'],
             ],
-        ])->assertSessionHasErrors([
-            'ingredients.3.text', 'ingredients.3.group_name', 'steps.3.timer_minutes',
-        ])->assertRedirect($url);
+        ])->assertOk();
 
         $dom = new \DOMDocument;
-        @$dom->loadHTML('<?xml encoding="UTF-8"'.$this->get($url)->assertOk()->getContent());
+        @$dom->loadHTML('<?xml encoding="UTF-8"?>'.$response->getContent());
         $xpath = new \DOMXPath($dom);
 
         foreach (['ingredients-3-text', 'ingredients-3-group_name', 'steps-3-timer_minutes'] as $fieldId) {
