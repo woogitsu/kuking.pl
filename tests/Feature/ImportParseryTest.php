@@ -9,6 +9,7 @@ use App\Domain\Import\TrybFragmentow;
 use App\Domain\Import\Url\ParserJsonLdPrzepisu;
 use App\Domain\Import\Url\RobotsTxt;
 use App\Domain\Import\Url\TekstStrony;
+use App\Domain\Import\ZadanieFragmentow;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -216,6 +217,25 @@ final class ImportParseryTest extends TestCase
     public function test_odpowiedz_modelu_bez_pelnego_pokrycia_albo_z_obcym_polem_jest_odrzucona(mixed $odpowiedz): void
     {
         $this->assertNull((new TrybFragmentow)->zloz(['Pierwszy', 'Drugi', 'Trzeci'], $odpowiedz));
+    }
+
+    public function test_zadanie_dla_modelu_bierze_wysilek_z_konfiguracji_i_nie_ma_pola_na_tekst(): void
+    {
+        config(['kuking.import.model.effort_tekst' => 'low']);
+        $tresc = ZadanieFragmentow::tresc(['Bigos', '1 kg kapusty']);
+
+        $this->assertSame(['effort' => 'low'], $tresc['reasoning']);
+        $this->assertFalse($tresc['store']);
+        $this->assertSame("1: Bigos\n2: 1 kg kapusty", $tresc['input']);
+        $this->assertStringNotContainsString('http', (string) $tresc['input']);
+
+        $element = $tresc['text']['format']['schema']['properties']['fragmenty']['items'];
+        $this->assertSame(['do', 'etykieta'], array_keys($element['properties']));
+        $this->assertFalse($element['additionalProperties']);
+
+        // Kontrola dodatnia: zmiana konfiguracji zmienia żądanie.
+        config(['kuking.import.model.effort_tekst' => 'medium']);
+        $this->assertSame(['effort' => 'medium'], ZadanieFragmentow::tresc(['x'])['reasoning']);
     }
 
     // ---------------------------------------------------------------
