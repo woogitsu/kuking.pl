@@ -77,9 +77,15 @@ class CofniecieMigracjiUkrycNieOdslaniaTest extends TestCase
         $widz = $this->user('widz');
         $wpis = Post::factory()->create(['author_id' => $this->user('autorka')->id]);
         $this->actingAs($widz)->post(route('posts.hide', $wpis));
-        $this->travel(31)->days();
-
         $this->assertSame(1, Hide::query()->count());
+        $this->assertSame(1, Hide::query()->aktywne()->count());
+
+        // Termin to koniec polskiego dnia. Przy zmianie czasu 31 dni od
+        // chwili kliknięcia może wypaść jeszcze PRZED zapisanym terminem.
+        $termin = Hide::query()->firstOrFail()->hidden_until;
+        $this->assertNotNull($termin);
+        $this->travelTo($termin->copy()->addSecond());
+
         $this->assertSame(0, Hide::query()->aktywne()->count());
 
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA]);
