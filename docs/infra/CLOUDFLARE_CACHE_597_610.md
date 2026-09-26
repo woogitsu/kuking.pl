@@ -507,7 +507,9 @@ HTML. Końcowy BYPASS powtarza to samo z drugiej strony.
 
 ### Kolejność włączenia
 
-1. Staging: `KUKING_HTML_EDGE_CACHE_SECONDS=120`, deploy. Bez reguły brzegu
+1. Staging: `KUKING_HTML_EDGE_CACHE_SECONDS=120` — jako **Shared Variable**
+   środowiska, nie zmienna serwisu (`railway.ts`, `brzegWebEnv`; zmienna
+   serwisu zniknęłaby przy `railway config apply`), deploy. Bez reguły brzegu
    nic się nie cache'uje (Cloudflare nie trzyma HTML bez reguły), a nagłówki
    można obejrzeć: `curl -s -o /dev/null -D - https://staging.kuking.pl/`
    — ma być `public, max-age=0, s-maxage=120` i **brak** `Set-Cookie`.
