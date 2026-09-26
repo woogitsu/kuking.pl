@@ -2621,6 +2621,32 @@ realną pomyłką, czyli typem bez tłumaczenia. Ta kolumna **rozstrzyga o reten
 odwołania, a nie 3 miesiące (patrz niżej). `data jsonb` niesie resztę —
 identyfikatory treści i to, co trzeba pokazać w zdaniu.
 
+**`push_wyslano_at timestamptz NULL`** (D-303, migracja
+`2026_09_26_100000_utworz_powiadomienia_push`) — kiedy to powiadomienie
+NAPRAWDĘ poszło pushem, czyli transport przyjął wiadomość na WSZYSTKIE
+urządzenia tej grupy (issue #1960). `NULL` = tylko w serwisie, albo jeszcze
+czeka (koniec ciszy nocnej / limitu, rezerwacja w toku, albo trwała porażka
+transportu — patrz `push_proba_at` niżej). Kilka powiadomień zgrupowanych
+w jednym pushu dostaje **ten sam** znacznik, więc liczba RÓŻNYCH wartości
+w dobie odbiorcy to liczba wysłanych pushy — po niej liczy się dzienny limit
+(`WyslijPowiadomieniePush`). Dodana bez wartości domyślnej, czyli bez
+przepisywania tabeli. Rollback: kolumna znika razem z tabelami pushu (opis
+przy `push_subscriptions`).
+
+**`push_proba_at timestamptz NULL`** (issue #1960, ta sama migracja) —
+kiedy `WyslijPowiadomieniePush` ZAREZERWOWAŁO tę grupę powiadomień do
+wysyłki, niezależnie od tego, czy transport się udał. Bariera przed dublem:
+dopóki jest ustawione, żadne INNE (świeżo zdarzeniowe) zadanie tego samego
+odbiorcy nie wybierze tej samej grupy jeszcze raz — ponowienie po błędzie
+transportu dostaje listę powiadomień wprost od poprzedniej próby, nie przez
+ponowne zapytanie „co czeka". Do 26 września 2026 tej kolumny nie było,
+a `push_wyslano_at` pełniło OBIE role naraz (rezerwacji i potwierdzenia) —
+błąd transportu albo trwała porażka po wyczerpaniu prób zostawiały
+`push_wyslano_at` ustawiony na kłamstwo. Dziś `push_proba_at` może być
+ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
+porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
+push_wyslano_at IS NULL`), ale nie odwrotnie.
+
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
 §6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,
@@ -4246,7 +4272,7 @@ jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
 | `normalized_name` | `UNIQUE`. Do UNIKALNOŚCI — `mb_strtolower(trim(...))` + redukcja białych znaków + Unicode NFC, **BEZ `unaccent`** (`App\Models\Tag::znormalizujNazwe`). **Nigdy** `kuking_normalize()` — ta funkcja robi `unaccent` i służy wyłącznie wyszukiwaniu/podpowiadaniu; użyta tutaj złamałaby wymóg, że `zurek` i `żurek` to dwa różne tagi. |
 | `slug` | `UNIQUE`, CHECK `^[a-z0-9-]{1,40}$`, liczony osobno od `name`. |
 | `status` | `active` \| `hidden` \| `merged`. CHECK w bazie. |
-| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`. |
+| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`, CHECK `tags_merged_not_self_check` (`merged_into_tag_id <> id`) i wyzwalacz `tags_scalenie_jednym_skokiem_trg` — cel scalenia jest zawsze aktywny (#996, niżej). |
 | `is_seeded` | Tag z początkowej bazy redakcyjnej (SPEC §1.4) — atrybut pochodzenia danych, nie osobny system widoczny dla użytkownika. |
 | `internal_category` | Techniczna, jedna z trzynastu kategorii słownika tagów (`potrawy`, `wypieki`, `skladniki`, `przygotowanie`, `przetwory`, `okazje`, `sezon`, `regiony`, `kuchnie-swiata`, `diety`, `okolicznosci`, `sprzet`, `pamiec`) — do raportu z importu i sortowania panelu, **nigdy** pokazywana użytkownikowi. Wcześniej było tu osiem innych wartości (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — pochodziły z bazy wpisanej na sztywno w `TagSeeder`, zastąpionej słownikiem z pliku (D-026). `TagSeeder` aktualizuje tę kolumnę na istniejących wierszach, więc migracja danych nie była potrzebna. |
 
@@ -4274,6 +4300,33 @@ przepina wpisy i obserwujących, przepina aliasy źródła, dopisuje nazwę
 NIE JEST kasowany (SPEC §1.8), więc jego adres `/tag/{slug}` nadal działa
 i przekierowuje. `audit_log` zapisuje wywołujący, nie ta akcja — scalenie
 z panelu ma autora, scalenie z seedera nie ma go wcale.
+
+**Graf scaleń ma w bazie jeden skok do aktywnego celu (#996).** Migracja
+`2026_09_24_100000_scalenia_tagow_jednym_skokiem_do_aktywnego` egzekwuje
+regułę, na której stoi `Tag::tagKanoniczny()` (dokładnie jeden skok):
+każda krawędź `X.merged_into_tag_id = Y` ma `X ≠ Y` i `Y.status = 'active'`.
+Skoro aktywny tag nie ma celu scalenia, łańcuch `A → B → C` i cykl nie mają
+jak powstać — bez rekurencji. Pętlę `A → A` odrzuca CHECK
+`tags_merged_not_self_check`; resztę wyzwalacz `BEFORE INSERT OR UPDATE OF
+status, merged_into_tag_id` z obu stron krawędzi: (1) cel ukryty albo scalony
+jest odrzucany, (2) tag, na który wskazuje inny scalony tag, nie może zostać
+ukryty ani scalony („najpierw przepnij je na nowy cel” — `MergeTags` robi to
+w tej kolejności). Cel jest czytany `FOR SHARE`, więc dwa równoległe
+scalenia (`A → B` i `B → C`) serializują się na wierszu B i druga transakcja
+odmawia — zmierzone w `tests/Dwa/ScalenieTagowNaDwochPolaczeniachTest`.
+`MergeTags` zostaje czytelną walidacją domenową; bariera łapie każdą inną
+drogę zapisu (import, seeder, konsola).
+
+Istniejące dane: migracja blokuje zapisy do `tags` na czas kontroli
+i DDL, liczy krawędzie łamiące regułę i przy choćby jednej **odmawia**
+z liczbami, niczego nie zmieniając — dokąd ma prowadzić stary adres, to
+decyzja redakcyjna. Diagnostyka (tylko odczyt, rekurencyjne CTE ze ścieżką
+każdego złego scalenia): `docs/diagnostyka/996_graf_scalen_tagow.sql`.
+
+**Rollback #996:** `down()` zdejmuje wyzwalacz, funkcję
+`tags_scalenie_jednym_skokiem()` i CHECK. Bezstratnie — poluzowanie reguły
+nie dotyka wierszy, więc nie ma czego odmawiać; gwarancję trzyma wtedy
+już tylko `MergeTags`.
 
 `tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
 adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).
@@ -4596,6 +4649,49 @@ wysyłka staje).
 Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
 przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
 tydzień, brak zgody, oba ograniczenia bazy osobno).
+
+### push_subscriptions + ustawienia_powiadomien_zewnetrznych
+
+Web Push i ustawienia kanałów POZA serwisem (issue #35, **D-303**). Migracja
+`2026_09_26_100000_utworz_powiadomienia_push`. Powiadomień w serwisie
+(`notifications`, lista pod dzwonkiem) te tabele nie dotyczą i nie mają
+dotyczyć — AGENTS.md §1.
+
+**`push_subscriptions`** — jedna przeglądarka, której człowiek sam, kliknięciem
+na `/ustawienia/powiadomienia`, pozwolił pokazywać powiadomienia. Wiersz
+powstaje wyłącznie przez `ZapiszSubskrypcjePush` (model ma puste `$fillable`).
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Czyje urządzenie. `cascadeOnDelete` — druga linia: kont się nie kasuje, tylko anonimizuje (D-022), więc wiersze kasuje jawnie `EraseAccountData`. |
+| `endpoint` | Adres usługi push przydzielony przeglądarce (Google FCM, Mozilla, Apple, Windows). **Poświadczenie**: kto ma go razem z kluczami, może pisać na ten ekran — dlatego nie wychodzi w paczce RODO ani w logach. `CHECK` wymaga `https://` i długości ≤ 2048; host musi być na liście `kuking.push.dozwolone_hosty` (sprawdza PHP — lista bywa uzupełniana bez migracji; bez niej serwer wysyłałby POST pod dowolny adres, czyli SSRF). **Unikalny globalnie** (`UNIQUE (md5(endpoint))` — indeks na haszu, bo adresy bywają dłuższe niż limit wpisu B-drzewa): jedna przeglądarka = jeden wiersz, niezależnie od konta; po zmianie konta na wspólnym komputerze wiersz przechodzi na nowe konto. |
+| `klucz_p256dh` | Klucz publiczny przeglądarki (P-256, base64url) do szyfrowania treści. Usługa push przenosi treść, ale jej nie czyta. |
+| `klucz_auth` | Sekret uwierzytelniania szyfrowania od przeglądarki (base64url). Ukryty w serializacji modelu (`$hidden`). |
+| `kodowanie` | `aes128gcm` (RFC 8291, domyślne) albo `aesgcm` (starsze przeglądarki) — `CHECK`. |
+| `created_at` | Kiedy włączono push na tym urządzeniu. **Push nie niesie niczego starszego** niż najstarsza subskrypcja konta — włączenie nie wysyła zaległości. |
+
+**Kasowanie wiersza:** odpowiedź usługi push 404/410 (subskrypcja wygasła —
+od razu, bez ponawiania), „Wyłącz na tym urządzeniu", „Wyłącz na wszystkich
+urządzeniach", przekroczenie `push_maks_urzadzen` (znika najstarsze),
+wymazanie konta.
+
+**`ustawienia_powiadomien_zewnetrznych`** — cisza nocna i dzienny limit
+WYBRANE przez człowieka. **Brak wiersza = wartości domyślne**
+z `kuking.notifications.zewnetrzne` (21–8, 1 dziennie), więc zmiana domyślnych
+nie wymaga przepisywania danych.
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Klucz główny i obcy do `users`, `cascadeOnDelete` (druga linia; wiersz kasuje `EraseAccountData`). |
+| `cisza_od`, `cisza_do` | Pełne godziny 0–23 w strefie `kuking.strefa` (Europe/Warsaw) — `CHECK`. `od > do` przechodzi przez północ (21 → 8), równe = bez ciszy. W ciszy push jest ODKŁADANY do jej końca, nigdy kasowany. |
+| `dzienny_limit` | Najwyżej tyle pushy na lokalną dobę, 1–10 (`CHECK`; formularz daje zamkniętą listę `limity_do_wyboru`). Nadmiar czeka do rana następnej doby i idzie JEDNYM pushem. |
+
+**Rollback:** `down()` **odmawia**, gdy `ustawienia_powiadomien_zewnetrznych`
+ma choć jeden wiersz (D-088): po ponownym `migrate` tabela wróciłaby pusta,
+czyli z domyślnym 21–8 zamiast godzin wybranych przez człowieka. Komunikat
+mówi, jak zrobić kopię i wyczyścić tabelę ręcznie. Same subskrypcje wycofania
+nie blokują — ich utrata gasi push (człowiek dostaje MNIEJ, nie więcej),
+a w serwisie nic nie ginie. Test: `UstawieniaPowiadomienTest`.
 
 ### mail_failures
 
