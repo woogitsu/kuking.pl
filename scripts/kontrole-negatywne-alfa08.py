@@ -130,6 +130,12 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+
+# Jedna sprawa RODO `w_toku` na konto (#1346). Test wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę w `up()`, więc przy
+# duplikatach nie ma komunikatu „co zrobić" — test odmowy ma oblać.
+RODO_W_TOKU_MIGRACJA = "database/migrations/2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto.php"
+RODO_W_TOKU_MIGRACJA_TEST = "JednaSprawaRodoWTokuMigracjaTest"
 # Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
 # zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
 # wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
@@ -232,6 +238,7 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
 # a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
+TWARDE_USUNIECIE_TEST = "TwardeUsuniecieTresciTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
 # z hashem w `/build/assets/*` dostają rok `immutable`, manifest `no-cache`.
@@ -239,6 +246,10 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 # manifestowi bez hasha roczny cache — i test ma zapalić.
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
+# Referrer-Policy w Caddy tylko jako wartość domyślna (audyt A5-01, #1052).
+# Mutacja zdejmuje prefiks `?`, czyli wraca do `set`, które przez odroczenie
+# operacji nadpisywało `no-referrer` ze stron z sekretem w adresie.
+REFERRER_CADDY_TEST = "test_naglowek_zalezny_od_strony_jest_w_caddy_tylko_wartoscia_domyslna"
 
 # Limit ciała żądania w Caddy (audyt A5-16). Strażnik czyta `docker/Caddyfile`:
 # każda trasa ze zdjęciem stoi poza progiem 2 MB. Mutacja zdejmuje
@@ -370,6 +381,11 @@ DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
 REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 
+# `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
+# Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
+# brak `@X.Y.Z` po `@railway/cli`.
+RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
+RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -385,6 +401,24 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
+# `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
+# jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
+WIDOCZNOSC_TRESCI_SQL = "app/Domain/Widocznosc/WidocznoscTresciSql.php"
+POWIADOMIENIA_ZGODNE_Z_POLICY_TEST = "test_filtr_powiadomien_odpowiada_jak_policy_na_calej_macierzy"
+# #1746: kucharz w karencji usunięcia konta (`CookedEventPolicy::view()` p. 3a).
+KUCHARZ_W_KARENCJI = """            ->where(function (QueryBuilder $kucharz) use ($widzId): void {
+                $kucharz->where('ce.user_id', $widzId)
+                    ->orWhereNotExists(function (QueryBuilder $konto): void {
+                        $konto->selectRaw('1')
+                            ->from('users as kucharze')
+                            ->whereColumn('kucharze.id', 'ce.user_id')
+                            ->where('kucharze.status', User::STATUS_PENDING_DELETE);
+                    });
+            })
+"""
+# #1747: zapowiedź przepisu ma bramkę w przepisie (`PostPolicy::view()`).
+BRAMKA_ZAPOWIEDZI = "        if ($tabela === 'posts') {\n            self::bramkaZapowiedziPrzepisu($sub, $a, $widz);\n        }\n"
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
@@ -398,6 +432,8 @@ PLAN_IAC_ENVIRONMENT = (
     "    # przejrzał diff `.railway/**`.\n"
     "    environment: production\n"
 )
+GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
+GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -428,6 +464,8 @@ GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odm
 # Mutacje zdejmują po kolei każdy z nich.
 IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
 IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+README = "README.md"
+README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
@@ -764,11 +802,23 @@ def plan_iac_bez_bramki_produkcji(source):
         PLAN_IAC_ENVIRONMENT,
         "    # przejrzał diff `.railway/**`.\n",
     )
+def railway_cli_bez_przypietej_wersji(source):
+    """KONTROLA DODATNIA: zdejmij przypiętą wersję z instalacji `@railway/cli`.
+
+    `npm install -g @railway/cli` bez `@X.Y.Z` bierze `latest` w chwili
+    uruchomienia, obok tokenu Railway. `kazda_instalacja_railway_cli_ma_
+    przypieta_wersje` ma zapalić (audyt B10-02).
+    """
+    return replace_once(source, "@railway/cli@5.62.1", "@railway/cli")
 
 
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
+    # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
+    # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
+    ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
+     lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
     ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
@@ -831,6 +881,8 @@ checks = [
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
+    ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
     ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
@@ -907,6 +959,8 @@ checks = [
      lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
     ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
      dispatch_zdjecia_poza_transakcja),
+    ("Referrer-Policy w Caddy nadpisuje decyzję aplikacji", CADDYFILE, REFERRER_CADDY_TEST,
+     lambda s: replace_once(s, '\t?Referrer-Policy "', '\tReferrer-Policy "')),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
@@ -940,6 +994,10 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
+    # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
+    ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
+     lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -952,14 +1010,22 @@ checks = [
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Polityka z innym terminem usunięcia treści niż konfiguracja", POLITYKA, TWARDE_USUNIECIE_TEST,
+     lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+     railway_cli_bez_przypietej_wersji),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
+    ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
@@ -976,6 +1042,14 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
+    # (`scheduler`, długo działający `schedule:work`), nie `cron`.
+    ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
+     lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1025,6 +1099,7 @@ run_test(CACHE_MANIFESTU_TEST, True)
 run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
 run_test(ZLECENIE_ZDJECIA_TEST, True)
+run_test(REFERRER_CADDY_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
@@ -1038,6 +1113,7 @@ run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
+run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
@@ -1045,6 +1121,7 @@ run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(METRYKI_BEZ_REAKCJI_TEST, True)
@@ -1052,6 +1129,8 @@ run_test(DOBOR_STRONA_TEST, True)
 run_test(REGULAMIN_WERSJA_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
+run_test(RAILWAY_CLI_TEST, True)
+run_test(README_SECURITY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
