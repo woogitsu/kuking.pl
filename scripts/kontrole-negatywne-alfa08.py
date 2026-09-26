@@ -273,6 +273,17 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# Token wydania Livewire (#977). Mutacja wraca do stałego 'a' sprzed poprawki:
+# karta sprzed wdrożenia znów wysyłałaby migawkę starego kodu bez odmowy.
+LIVEWIRE_KONFIG = "config/livewire.php"
+LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
+
+# Stan zapisu kreatora dla komunikatu „Ta strona jest nieaktualna” (#977).
+# Mutacja każe kreatorowi mówić „szkic” przed pierwszym zapisem: komunikat po
+# 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
+KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
+KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -321,6 +332,8 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
+EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -651,6 +664,10 @@ checks = [
     # `--color-border` (1,3:1 na tle panelu) ma zapalić test kontrastu.
     ("Obwódka listy wyglądu poniżej 3:1", "resources/css/szybki-wyglad.css", "KontrolkiPaneluWygladuMajaWidocznaObwodkeTest",
      lambda s: replace_once(s, "select { border: 2px solid var(--color-border-strong);", "select { border: 2px solid var(--color-border);")),
+    # D-262 (AGENTS.md §5): piąty selektor nie może powołać się na wyjątek
+    # panelu moderacji bez zmiany zamkniętej listy.
+    ("Piąty selektor powołuje się na D-262", CSS, "WyjatekD262ZamknietaListaTest",
+     lambda s: replace_once(s, "\n  .badge-cichy {\n", "\n  /* wyjątek D-262 */\n  .badge-cichy {\n")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
@@ -779,6 +796,10 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
+     lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
+    ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
+     lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -793,6 +814,9 @@ checks = [
      lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
+    ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
+     lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -863,11 +887,14 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LIVEWIRE_TOKEN_TEST, True)
+run_test(KREATOR_ZAPIS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
+run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)

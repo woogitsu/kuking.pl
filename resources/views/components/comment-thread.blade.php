@@ -41,6 +41,10 @@
         <x-error-summary />
     @endif
 
+    {{-- Kontener `lista-komentarzy`: do niego „Pokaż więcej komentarzy”
+         dokleja kolejną porcję (#986). Własny `.stack` trzyma ten sam rytm
+         między kartami, co sekcja wokół. --}}
+    <div class="stack" id="lista-komentarzy">
     @forelse($comments as $comment)
         <article class="card" id="komentarz-{{ $comment->id }}">
             <div class="flex gap-3 items-center mb-2">
@@ -271,6 +275,7 @@
     @empty
         <p class="meta">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
     @endforelse
+    </div>
 
     @auth
         @if($canComment)
@@ -314,6 +319,6 @@
     @endauth
 
     @if($comments instanceof \Illuminate\Contracts\Pagination\Paginator)
-        <x-show-more :paginator="$comments" czego="komentarzy" />
+        <x-show-more :paginator="$comments" czego="komentarzy" lista="lista-komentarzy" />
     @endif
 </section>
