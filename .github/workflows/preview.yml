@@ -281,16 +281,22 @@ jobs:
     environment: staging
 
     steps:
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
-        # Wersja przypięta (audyt B10-02) — patrz uzasadnienie w deploy.yml,
-        # krok „Instalacja Railway CLI". [do potwierdzenia] 5.62.1 to
-        # `npm view @railway/cli version` 25.09.2026.
-        run: npm install -g @railway/cli@5.62.1
+        # Wersja i suma kontrolna przypięte, instalacja bez npm/Node'a —
+        # patrz uzasadnienie w deploy.yml, krok „Instalacja Railway CLI"
+        # (audyt B10-02, dopełnienie — issue #1865).
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
+          railway --version
 
       - name: Utwórz środowisko dla PR
         # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —
@@ -312,16 +318,22 @@ jobs:
     environment: staging
 
     steps:
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
-        # Wersja przypięta (audyt B10-02) — patrz uzasadnienie w deploy.yml,
-        # krok „Instalacja Railway CLI". [do potwierdzenia] 5.62.1 to
-        # `npm view @railway/cli version` 25.09.2026.
-        run: npm install -g @railway/cli@5.62.1
+        # Wersja i suma kontrolna przypięte, instalacja bez npm/Node'a —
+        # patrz uzasadnienie w deploy.yml, krok „Instalacja Railway CLI"
+        # (audyt B10-02, dopełnienie — issue #1865).
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
+          railway --version
 
       - name: Usuń środowisko PR
         # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —

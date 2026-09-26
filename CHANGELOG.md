@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Bezpieczeństwo: instalacja Railway CLI w workflowach wdrożenia i preview (`deploy.yml`, `preview.yml`) idzie teraz wprost z GitHub Releases, z przypiętym numerem wersji i sprawdzaną sumą SHA-256, zamiast przez `npm install -g @railway/cli` — sam pakiet npm i tak tylko pobierał tę samą binarkę bez żadnej weryfikacji integralności. Kroki „Konfiguracja Node” zniknęły, bo nie są już potrzebne (#1865).
 - Powiadomienie o komentarzu pod wpisem, który tylko zapowiada przepis, znika z listy, licznika i eksportu danych, gdy autor ukryje ten przepis, zawęzi jego widoczność albo go usunie — tak jak sam wpis, który wtedy przestaje się otwierać. Gdy przepis znów jest dla Was widoczny, powiadomienie wraca (#1747).
 - Gdy osoba, która ugotowała z przepisu, poprosi o usunięcie konta, powiadomienia o komentarzach pod jej „Ugotowałem” znikają z listy, licznika i eksportu danych u innych osób — tak jak samo „Ugotowałem”, które od tej chwili nie otwiera się nikomu. Po cofnięciu usunięcia wszystko wraca (#1746).
 - Porządek za kulisami listy powiadomień: to, które powiadomienia o komentarzach widzicie, liczy teraz jedna wspólna reguła widoczności wpisów, przepisów i „Ugotowałem”, sprawdzana testem zgodności z tym, co pokazuje sama strona treści. Dla Was nic się nie zmienia — lista, licznik i eksport danych pokazują to samo co wcześniej (#1687).

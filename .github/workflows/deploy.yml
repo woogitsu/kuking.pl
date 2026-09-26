@@ -520,23 +520,44 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Konfiguracja Node (dla Railway CLI)
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
-        # Wersja PRZYPIĘTA (audyt B10-02): `npm install -g @railway/cli` bez
-        # numeru wersji instaluje cokolwiek jest akurat na `latest` w chwili
-        # uruchomienia — bez locka, bez Dependabota, obok tokenu produkcji.
-        # Przejęta albo zepsuta wersja pakietu wykonałaby się z RAILWAY_TOKEN
-        # w środowisku kroku niżej.
+        # Wersja I SUMA KONTROLNA PRZYPIĘTE (audyt B10-02, dopełnienie —
+        # issue #1865). `npm install -g @railway/cli@5.62.1` naprawiał tylko
+        # POŁOWĘ problemu: numer wersji jest przypięty, ale pakiet npm
+        # (`postinstall.js` w `@railway/cli`) i tak tylko POBIERA prawdziwą
+        # binarkę z GitHub Releases pod adresem zbudowanym z tego numeru
+        # wersji — i robi to BEZ ŻADNEJ WERYFIKACJI SUMY KONTROLNEJ. To
+        # właśnie ta binarka, nie pakiet npm, dostaje RAILWAY_TOKEN w kroku
+        # niżej. Sprawdzone w źródle paczki (`npm pack @railway/cli@5.62.1`,
+        # `npm-install/postinstall.js`, 26.09.2026): brak tam jakiegokolwiek
+        # `sha256`/`integrity` na pobranym pliku.
         #
-        # [do potwierdzenia] 5.62.1 to `npm view @railway/cli version` w dniu
-        # tej zmiany (25.09.2026) — nie ma jej dotąd nigdzie w repo do przejęcia
-        # 1:1. Podnoś ją świadomie, tak jak inne przypięte zależności.
+        # Więc pobieramy tę samą binarkę SAMI, wprost z GitHub Releases —
+        # bez npm, bez Node'a, bez nieprzejrzystego postinstalla — i sami
+        # sprawdzamy jej sumę SHA-256 przed rozpakowaniem. Mniej ruchomych
+        # części niesie też mniejsze ryzyko: nie ma już node_modules ani
+        # skryptu innej firmy, który dostawałby uprawnienia do zapisu na
+        # dysku runnera przed jakąkolwiek weryfikacją.
+        #
+        # Runner (`ubuntu-latest`) jest x86_64 Linux — stąd target
+        # `x86_64-unknown-linux-musl` (ten sam, którego używa `npm install -g`
+        # na Linuksie x64 — musl, nie gnu, patrz `TARGETS` w postinstallu).
+        # Podnoszenie wersji: pobierz nową sumę kontrolną razem z numerem —
+        # ta sama zasada co przy każdej innej przypiętej zależności:
+        #   curl -fsSL -o /tmp/r.tgz \
+        #     https://github.com/railwayapp/cli/releases/download/vX.Y.Z/railway-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
+        #   sha256sum /tmp/r.tgz
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
         run: |
-          npm install -g @railway/cli@5.62.1
+          set -euo pipefail
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
           railway --version
 
       - name: Kontrola połączenia
