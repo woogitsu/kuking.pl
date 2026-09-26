@@ -794,7 +794,37 @@ o TYM identyfikatorze, od TEJ chwili".
 - `connected_at` — `timestamptz NOT NULL DEFAULT now()`, od kiedy;
 - `dostep_odebrany_at` — `timestamptz NULL` (migracja
   `2026_09_11_700000_dodaj_znacznik_odebrania_dostepu`, issue #259), kiedy
-  człowiek odebrał nam dostęp u dostawcy. `NULL` znaczy „powiązanie żywe".
+  człowiek odebrał nam dostęp u dostawcy. `NULL` znaczy „powiązanie żywe";
+- `zgoda_potwierdzona_at` — `timestamptz NULL` (migracja
+  `2026_09_24_120000_dodaj_granice_zgody_dostawcy`, issue #1025), kiedy
+  człowiek ostatni raz wszedł przez dostawcę, czyli ostatni raz potwierdził
+  nam dostęp. `NULL` znaczy „od założenia powiązania nie było ponownego
+  wejścia" i wtedy granicą jest `connected_at`.
+
+#### `zgoda_potwierdzona_at` — granica dla starych powiadomień
+
+Poprawny podpis `signed_request` nie wygasa. Bez granicy czasu to samo
+powiadomienie o odebraniu dostępu, dostarczone ponownie PO tym, jak człowiek
+znów wszedł kontem Facebooka, usypiało powiązanie drugi raz — nadpisując
+nowszą decyzję człowieka. Kontroler czyta więc `issued_at` i znacznik
+`dostep_odebrany_at` zapala tylko wtedy, gdy
+`COALESCE(zgoda_potwierdzona_at, connected_at) <= issued_at`. Starsza
+wiadomość kończy się spokojnym `200` i niczego nie zmienia.
+
+Kolumnę ustawia `User::cofnijOdebranieDostepu()` przy **każdym** wejściu
+kontem Facebooka, nie tylko po uśpieniu: wejście znaczy, że w tej chwili
+dostęp był dany, więc spóźnione powiadomienie wystawione wcześniej też jest
+nieaktualne. `connected_at` zostaje nietknięte — odpowiada na „od kiedy",
+a nie „kiedy ostatnio".
+
+Polityka `issued_at`: brak, inny typ niż liczba całkowita, zero i wartość
+więcej niż 5 minut w przyszłości to `400`, jak zły podpis. Sam wiek
+wiadomości nie odrzuca — rozstrzyga granica zgody.
+
+**Rollback ODMAWIA** (D-088), gdy w kolumnie jest choć jedna data: po
+ponownym `migrate` kolumna wróciłaby pusta, a stare powiadomienia znów
+mogłyby usypiać powiązania — bez błędu do zauważenia. Wymuszenie:
+`KUKING_ROLLBACK_KASUJ_GRANICE_ZGODY=true`.
 
 #### `dostep_odebrany_at` — dlaczego znacznik, a nie skasowanie wiersza
 
@@ -2966,7 +2996,9 @@ Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
 **Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
 częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
-`user.role_changed`, `post.published`) idzie przez `record()` **wewnątrz**
+`user.role_changed`, `post.published`, wybór redakcyjny `daily_board.updated`,
+`daily_board.cleared`, `hero_kolaz.updated`, `hero_kolaz.cleared`) idzie przez
+`record()` **wewnątrz**
 transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
 komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
 człowieka (`account.registered`, `content.reported`), idzie przez
@@ -4742,7 +4774,8 @@ z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 - `curator_id uuid NULL` → `users` (`ON DELETE SET NULL`) — kto wskazał;
 - `daily_picks.note varchar(300) NULL` — zdanie gospodarza przy wskazaniu.
   **Kolumna jest ŻYWA i widoczna dla człowieka.** Zapisuje ją formularz panelu
-  (`DailyBoardController.php:188`, odczyt do formularza w `:40`), pobiera
+  (zapis w `app/Domain/Feed/Actions/ZapiszTabliceDnia.php`, odczyt do
+  formularza w `DailyBoardController::edit()`), pobiera
   `DailyBoard.php:161-165`, a **wyświetla tablica dnia** —
   `components/kuking-board.blade.php:138` (przy koncie) i `:278` (przy wpisie).
   Asercje: `DailyBoardTest.php:65,317`. `NULL` jest stanem normalnym: gospodarz

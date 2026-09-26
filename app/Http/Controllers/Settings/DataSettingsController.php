@@ -138,6 +138,10 @@ class DataSettingsController extends Controller
             WynikZamowieniaEksportu::JuzTrwa => self::JUZ_TRWA.self::obietnicaListu(),
             WynikZamowieniaEksportu::Ponowiony => 'Przygotowanie paczki z Twoimi danymi trwało dłużej, niż powinno, więc właśnie ponowiliśmy '
                 .'zlecenie. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu(),
+            // `status`, bo to jedyny komunikat, który układ strony pokazuje
+            // po przekierowaniu na „Twoje dane" (#824).
+            WynikZamowieniaEksportu::Nieprzyjety => 'Nie udało się teraz przyjąć prośby o paczkę z Twoimi danymi — nic nie zostało zapisane. '
+                .'Spróbuj jeszcze raz za kilka minut przyciskiem „Przygotuj paczkę z moimi danymi”.',
         });
     }
 
