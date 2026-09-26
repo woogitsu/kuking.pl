@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Strona tagu pokazuje każdemu to samo: tylko wpisy widoczne dla wszystkich. Wasze wpisy „tylko dla mnie” i „tylko dla obserwujących” się tam nie pojawiają — także Wam. Jeśli macie takie wpisy z danym tagiem, strona tagu mówi o tym jednym zdaniem i odsyła do Waszego profilu, gdzie je znajdziecie (#1338).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).

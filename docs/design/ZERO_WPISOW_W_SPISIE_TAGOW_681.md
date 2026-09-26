@@ -89,6 +89,17 @@ na stronę katalogu i psuje gwarancję braku N+1, której pilnują istniejące
 testy. Liczba zostaje publiczna; zmienia się tylko to, czy da się ją
 zrozumieć.
 
+### Aktualizacja z 26 września 2026 (#1338, D-307)
+
+Decyzja właściciela: strona tagu pokazuje **każdemu, także autorowi,
+wyłącznie wpisy publiczne**. Tabela „oczami autora” wyżej opisuje stan
+z czasu #681 — dziś autor nie widzi na stronie tagu swojego wpisu prywatnego
+ani „tylko dla obserwujących”. Zdanie z punktu 1 zostaje i jest teraz
+ważniejsze niż wtedy: mówi, że taki wpis **się tu nie pojawia** i nie liczy
+w spisie, i odsyła do profilu, gdzie autor go znajdzie. Liczy je kontroler
+osobnym zapytaniem ograniczonym do wpisów widza (lista `$posts` ich już
+nie zawiera).
+
 ## 4. Dowody
 
 Stanowisko: izolowany runtime `/home/mateusz/kuking-681-run`, PostgreSQL
