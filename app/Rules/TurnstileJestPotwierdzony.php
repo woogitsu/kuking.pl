@@ -146,7 +146,7 @@ final class TurnstileJestPotwierdzony implements ValidationRule
             return;
         }
 
-        $wynik = $this->klient->sprawdz($value, request()->ip());
+        $wynik = $this->klient->sprawdz($value, Turnstile::akcja($this->miejsce), request()->ip());
 
         if ($wynik === WynikTurnstile::Odrzucony) {
             $fail(Turnstile::komunikatOdrzucenia($this->miejsce));
