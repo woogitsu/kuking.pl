@@ -1910,10 +1910,15 @@ naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować
 nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
 zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
 
-**Rollback:** `down()` zdejmuje CHECK i kolumnę. Od D-284 skalowanie porcji
-(V2) jest wdrożone i czyta tę flagę, więc cofnięcie tej migracji znaczy utratę
-informacji, której nie da się odtworzyć — najpierw kopia tabeli. (Strażnika
-w `down()` ta starsza migracja nie ma; dołożenie go to osobna zmiana.)
+**Rollback (D-088):** `down()` liczy pod blokadą tabeli
+(`LOCK TABLE ... IN ACCESS EXCLUSIVE MODE`) wiersze z `no_amount = true`
+i **odmawia**, gdy takie wiersze istnieją — komunikat po polsku mówi ile ich
+jest i co zrobić (kopia tabeli, potem ponowne uruchomienie ze zmienną
+`KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI=1`). Na świeżej bazie, bez
+żadnego takiego składnika, `down()` przechodzi bez pytania. Powód odmowy:
+po wdrożeniu skalowania porcji (V2, D-284) ta flaga rozstrzyga, których
+składników NIE mnożyć, i nie da się jej odtworzyć z samego tekstu składnika —
+cichy `dropColumn` byłby utratą informacji bez śladu błędu.
 
 #### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
 

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: cofnięcie migracji `add_no_amount_to_recipe_ingredients` (kolumna `recipe_ingredients.no_amount`, issue #44) odmawia teraz, gdy w bazie są już składniki oznaczone jako „bez wymiernej ilości” — komunikat po polsku mówi ile ich jest i jak wymusić cofnięcie świadomie (`KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI=1`). Na świeżej bazie cofnięcie przechodzi bez pytania (D-088).
 - Dla osób rozwijających serwis: nowy skrypt `scripts/railway/zmienne-spoza-iac.mjs` wypisuje nazwy zmiennych serwisu ustawionych tylko w panelu Railway, a nie w `railway.ts` (bez wartości), a `docs/infra/ZMIENNE_SPOZA_IAC.md` opisuje, jak przed pierwszym `railway config apply` sprawdzić, czy apply by je usunął — samym odczytem, bez stagingu. Komentarz w `railway-iac.yml` nie mówi już o apply „po merge'u” (audyt po fali 25.09, znaleziska 11 i 12).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 - `/health` wykrywa teraz częściowo dokończone wdrożenie: kontrola `migrations` porównuje pliki migracji z bieżącego obrazu aplikacji z wierszami wykonanymi w bazie (tak jak `migrate:status`), zamiast sprawdzać tylko, czy tabela `migrations` jest niepusta. Wcześniej baza z choćby jedną starą migracją przechodziła kontrolę, mimo że kod korzystał już z nowej kolumny albo tabeli, których deploy nie zdążył wykonać — Railway kierował ruch na instancję z niezgodnym schematem (#1844).
