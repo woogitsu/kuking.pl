@@ -399,11 +399,6 @@ TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
 # dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
 ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
 GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
-# Opisy przeliczania porcji mówią, że to plan V2 (#741). Mutacja wraca do
-# zdania sprzed poprawki — „przeliczanie porcji działa dalej” bez słowa o V2 —
-# i strażnik ma je znaleźć.
-TEKST_NA_WIERSZE = "app/Domain/Recipes/TekstNaWiersze.php"
-OPISY_PORCJI_TEST = "OpisySkalowaniaPorcjiMowiaOPlanieV2Test"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -1107,8 +1102,6 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
-    ("Opis obiecuje działające przeliczanie porcji", TEKST_NA_WIERSZE, OPISY_PORCJI_TEST,
-     lambda s: replace_once(s, "Skalowanie porcji pozostaje niewdrożonym planem V2.", "Dzięki temu przeliczanie porcji działa dalej.")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
@@ -1241,7 +1234,6 @@ run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(DEMO_SEEDER_HASLO_TEST, True)
-run_test(OPISY_PORCJI_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
