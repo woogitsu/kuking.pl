@@ -316,6 +316,8 @@ final class CollectUserExportData
                 'jednostka' => $item->unit?->name,
                 'skladnik_ze_slownika' => $item->ingredient?->canonical_name,
                 'uwaga' => $item->note,
+                // Zamiennik(i) wpisane przez autora (D-284).
+                'zamienniki' => $item->substitutes,
             ])->all(),
             'kroki' => $recipe->steps->map(fn ($step): array => [
                 // W bazie `position` liczy się od zera — w eksporcie numerujemy

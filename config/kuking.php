@@ -1589,6 +1589,11 @@ return [
         // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
 
+        // Potwierdzenie adresu z podpisanego linku (GET pokazuje ekran, POST
+        // potwierdza — #1862). Podpis jest autoryzacją, limit chroni przed
+        // mieleniem trasy; 6 na minutę jak domyślna trasa weryfikacji Laravela.
+        'verification_verify' => '6,1',
+
         /*
          |----------------------------------------------------------------
          | GRUPY LIMITÓW DLA TRAS ZAPISUJĄCYCH (BRAMKA_BETY §7a)
