@@ -85,6 +85,9 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+OBRAZ_PDF_TEST = "ObrazMaNarzedziaPdfTest"
+MIGRACJA_IMPORTU = "database/migrations/2026_09_26_100000_create_przepisy_z_importu_table.php"
+MIGRACJA_IMPORTU_TEST = "CofniecieMigracjiImportuTest"
 OBRAZ_ASSETOW_TEST = "ObrazAssetowMaPlikiTestowTest"
 
 # Kolejność w `down()` migracji 2FA (D-238, DB-01). Strażnik czyta źródło
@@ -974,6 +977,14 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # D-300: etap runtime obrazu bez poppler-utils — import PDF padałby
+    # dopiero na produkcji; strażnik obrazu ma to złapać.
+    ("Obraz runtime bez poppler-utils", OBRAZ_ASSETOW, OBRAZ_PDF_TEST,
+     lambda s: replace_once(s, "      postgresql-client \\\n      poppler-utils \\\n", "      postgresql-client \\\n")),
+    # D-088/D-300: down() migracji importu bez odmowy przy niesprawdzonym
+    # szkicu — test cofnięcia ma oblać.
+    ("Cofnięcie importu bez odmowy przy niesprawdzonym szkicu", MIGRACJA_IMPORTU, MIGRACJA_IMPORTU_TEST,
+     lambda s: replace_once(s, "            if ($ile > 0) {", "            if ($ile > 0 && false) {")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1045,6 +1056,8 @@ run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(OBRAZ_PDF_TEST, True)
+run_test(MIGRACJA_IMPORTU_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
