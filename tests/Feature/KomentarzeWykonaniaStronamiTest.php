@@ -199,6 +199,42 @@ class KomentarzeWykonaniaStronamiTest extends TestCase
             ->assertSee('ODPOWIEDZ-938', escape: false)
             ->assertSee('WATEK-938-002', escape: false)
             ->assertDontSee('OD-ZABLOKOWANEJ-938', escape: false);
+
+        // Dwa wątki + odpowiedź; komentarz od osoby zablokowanej nie wchodzi
+        // do nagłówka, tak jak nie wchodzi na stronę (D-281, D-309).
+        $html = (string) $this->actingAs($this->widz)->get(route('cooked.show', $wykonanie))->getContent();
+        $this->assertNaglowekMowi(3, $html);
+    }
+
+    /**
+     * Nagłówek przy paginacji liczy CAŁĄ rozmowę razem z odpowiedziami —
+     * także tymi pod wątkiem z innej strony (decyzja właściciela przy
+     * #1801: „wszystkie komentarze”, D-309). `total()` stronicowania liczy
+     * same wątki i dawałby tu `limit + 2`.
+     */
+    public function test_naglowek_przy_paginacji_liczy_odpowiedzi_z_calej_rozmowy(): void
+    {
+        $limit = (int) config('kuking.comments.page_size');
+        $wykonanie = $this->wykonanieZKomentarzami($limit + 2);
+        $ostatni = Comment::query()->where('body', sprintf('WATEK-938-%03d', $limit + 2))->firstOrFail();
+
+        foreach (['a', 'b', 'c'] as $kto) {
+            Comment::create([
+                'cooked_event_id' => $wykonanie->getKey(),
+                'parent_id' => $ostatni->getKey(),
+                'author_id' => $this->user('odpowiedz938'.$kto)->getKey(),
+                'body' => 'ODPOWIEDZ-NA-DRUGIEJ-938',
+                'status' => Comment::STATUS_PUBLISHED,
+            ]);
+        }
+
+        $pierwsza = $this->actingAs($this->widz)->get(route('cooked.show', $wykonanie))->assertOk();
+        $pierwsza->assertDontSee('ODPOWIEDZ-NA-DRUGIEJ-938', escape: false);
+        $this->assertNaglowekMowi($limit + 5, (string) $pierwsza->getContent());
+
+        $druga = $this->actingAs($this->widz)->get(route('cooked.show', $wykonanie).'?komentarze=2')->assertOk();
+        $druga->assertSee('ODPOWIEDZ-NA-DRUGIEJ-938', escape: false);
+        $this->assertNaglowekMowi($limit + 5, (string) $druga->getContent());
     }
 
     /**
