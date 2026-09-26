@@ -117,6 +117,19 @@
                      Kropkę-separator rysuje sam komponent. --}}
                 <x-konto-przykladowe :user="$author" />
             </p>
+            {{-- ŹRÓDŁO ZAWSZE NAZWANE (issue #1808, D-277). Na Starcie wpisy
+                 obserwowanych tematów stoją obok wpisów obserwowanych osób;
+                 karta, która przyszła WYŁĄCZNIE przez tag, mówi to wprost. Słowo
+                 „tag”, nie „temat” (issue pisze „Z tematu”): na ekranie obowiązuje
+                 jedno słowo — decyzja właściciela z 11 września 2026,
+                 `JednoSlowoNaTagiTest`.
+                 `zrodloTematu` ustawia tylko `FollowingFeed::podpiszTematy()`
+                 — na innych ekranach relacji nie ma i podpisu też nie. --}}
+            @if($post->relationLoaded('zrodloTematu') && $post->zrodloTematu !== null)
+                <p class="meta m-0" data-zrodlo-tematu>
+                    Z tagu: <a href="{{ route('tags.show', $post->zrodloTematu) }}">{{ $post->zrodloTematu->name }}</a>
+                </p>
+            @endif
         </div>
 
         @auth
