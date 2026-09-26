@@ -139,6 +139,11 @@
                      notatki i `old()` po nieudanej walidacji dubluje się na całą
                      stronę — patrz `App\Support\WierszFormularza`. --}}
                 <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $kluczGrupy }}">
+                {{-- Znacznik stanu grupy z chwili wyświetlenia (#1059): ile
+                     oznaczeń i które najnowsze. Serwer zamyka całą grupę tylko
+                     wtedy, gdy od tej chwili nic do niej nie doszło. --}}
+                <input type="hidden" name="stan_ile" value="{{ $ile }}">
+                <input type="hidden" name="stan_najnowsze" value="{{ $grupa->getAttribute('najnowsze') }}">
 
                 <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />

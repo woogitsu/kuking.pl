@@ -63,7 +63,7 @@
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
-            <div class="marka-zeszyt-przepisy">
+            <div class="marka-zeszyt-przepisy" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     {{-- Opakowanie jest pozycją siatki: pod kartą właściciel
                          ma swoją notatkę (#978). --}}
@@ -73,7 +73,7 @@
                     </div>
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
 
         @if(($posts ?? collect())->count() > 0)
@@ -81,7 +81,7 @@
                  a nie wymieszane z przepisami: to są dwie różne rzeczy i dwa
                  różne powody, dla których się je zapisuje. --}}
             <h2 class="mt-8">Zapisane wpisy</h2>
-            <div class="stack">
+            <div class="stack" id="lista-zapisanych-wpisow">
                 @foreach($posts as $post)
                     {{-- `:zeszyt` daje karcie kontekst TEGO zeszytu, więc
                          zamiast odnośnika „Masz to w zeszycie" pokazuje
@@ -92,7 +92,7 @@
                     </div>
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
+            <x-show-more :paginator="$posts" czego="zapisanych wpisów" lista="lista-zapisanych-wpisow" />
         @endif
 
         @if(($niewidoczne ?? 0) > 0)
@@ -110,6 +110,21 @@
                 {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapis nie jest dla Ciebie dostępny', 'zapisy nie są dla Ciebie dostępne', 'zapisów nie jest dla Ciebie dostępnych') }}.
                 Te zapisy nadal są w tym zeszycie.
             </p>
+            @error('zakres')
+                <p class="notice mt-4" role="alert">{{ $message }}</p>
+            @enderror
+            {{-- Porządkowanie bez kasowania całego zeszytu (#773). Tylko
+                 właściciel; formularz niesie odcisk zbioru z tej chwili, więc
+                 serwer nie wyjmie innej grupy niż ta, którą tu policzono. --}}
+            @if($odciskNiedostepnych ?? null)
+                <div class="mt-4">
+                    <x-confirm-button
+                        :action="route('collections.unavailable.destroy', $collection)"
+                        label="Wyjmij niedostępne zapisy"
+                        :fields="['zakres' => $odciskNiedostepnych]"
+                        :question="'Wyjąć z tego zeszytu '.$niewidoczne.' '.\App\Support\Odmiana::rzeczownik($niewidoczne, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów').'? Nie wrócą same, nawet gdy autor znowu je udostępni. Widoczne zapisy i inne zeszyty zostaną bez zmian.'" />
+                </div>
+            @endif
         @endif
     @endif
 
