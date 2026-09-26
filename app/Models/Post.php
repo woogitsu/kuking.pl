@@ -278,8 +278,9 @@ class Post extends Model
     /**
      * Bez wpisów osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810).
      *
-     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie i automatyczna
-     * część tablicy. Nie w Obserwowanych, nie w wyszukiwarce i nie pod linkiem
+     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie, automatyczna
+     * część tablicy i wpisy z obserwowanego tagu na Starcie (26.09). Nie przy
+     * osobach obserwowanych wprost, nie w wyszukiwarce i nie pod linkiem
      * — tam człowiek przyszedł po tę osobę sam (AGENTS.md §8, D-278).
      *
      * @param  Builder<Post>  $query

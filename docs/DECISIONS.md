@@ -17532,11 +17532,18 @@ rozszerza).
 | | Start (Obserwowani) | Odkrywanie | Tablica: wybór gospodarza | Tablica: część automatyczna, propozycje osób | Tygodniowy list | Profil, wyszukiwarka, link |
 |---|---|---|---|---|---|---|
 | Ukryty wpis | znika | znika | znika | znika | znika | karta zwinięta: „Ten wpis ukrywasz tylko dla siebie. Pokaż” |
-| Ukryta osoba | **nie działa** | znika | **nie działa** | znika | nie działa | nie działa |
+| Ukryta osoba | **nie działa** dla osób obserwowanych; **znika** z wpisów „Z tagu: …” | znika | **nie działa** | znika | nie działa | nie działa |
 
 Ukrycie osoby działa wyłącznie tam, gdzie serwis sam podsuwa ludzi. W
 Obserwowanych nic nie znika poza bramkami, blokadami i tym, co widz sam
-wskazał palcem (pojedynczy wpis) — AGENTS.md §8. Kogoś, kogo się obserwuje,
+wskazał palcem (pojedynczy wpis albo osoba w gałęzi tagów) — AGENTS.md §8.
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Wpis ukrytej
+> osoby, który przychodzi na Start **wyłącznie przez obserwowany tag**, znika
+> — tag podsuwa autora, którego widz nie wybrał (`FollowingFeed`: gałąź tagów
+> z `bezUkrytychOsob`). Wpisy osób obserwowanych wprost są zawsze widoczne,
+> także z obserwowanym tagiem. Test:
+> `UkryjWpisIOsobeTest::test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`. Kogoś, kogo się obserwuje,
 się nie ukrywa: menu pokazuje wtedy „Przestań obserwować”, a akcja odmawia.
 Wybór gospodarza to oznaczony wybór, nie podsunięcie — ukrycie osoby go nie
 zdejmuje (ukrycie konkretnego wpisu — tak).
