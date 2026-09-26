@@ -27,6 +27,10 @@
 #                                             z blokadą (D-080)
 #      dziennik_zgod_bez_zmian                dziennik zgód jest append-only
 #      dziennik_zgod_bez_czyszczenia          (D-072) — dowód zgody RODO
+#      tags_scalenie_jednym_skokiem_trg       scalenie tagu wskazuje jeden
+#                                             aktywny tag — bez łańcuchów
+#                                             i cykli (#996); tylko obecność,
+#                                             bez sondy zapisu
 #
 #  Zrzut, który gubi te wyzwalacze, wygląda w `pg_restore --list` identycznie
 #  jak dobry: te same tabele, te same wiersze. Odtworzona z niego baza
@@ -128,10 +132,12 @@ set -Eeuo pipefail
 # migracjach). Próg ma łapać zrzut z INNEJ albo pustej bazy, a nie oblewać się
 # przy każdym dołożeniu migracji. Wartość „ile jest dziś” nie jest progiem:
 # byłaby testem, który trzeba poprawiać przy każdej zmianie schematu, a taki
-# test po trzecim razie podnosi się bez czytania.
+# test po trzecim razie podnosi się bez czytania. Wyjątek: próg wyzwalaczy
+# równa się liczbie wyzwalaczy gwarancji z `WYZWALACZE_WYMAGANE` (od #996 —
+# cztery), bo zrzut bez któregokolwiek z nich jest bezwartościowy.
 MIN_BAJTOW="${PROBA_MIN_BAJTOW:-20000}"
 MIN_TABEL="${PROBA_MIN_TABEL:-20}"
-MIN_WYZWALACZY="${PROBA_MIN_WYZWALACZY:-3}"
+MIN_WYZWALACZY="${PROBA_MIN_WYZWALACZY:-4}"
 MIN_CHECK="${PROBA_MIN_CHECK:-40}"
 MIN_UNIQUE="${PROBA_MIN_UNIQUE:-15}"
 MIN_KLUCZY_OBCYCH="${PROBA_MIN_KLUCZY_OBCYCH:-30}"
@@ -143,7 +149,7 @@ MIN_WIERSZY="${PROBA_MIN_WIERSZY:-1}"
 TABELE_DO_POLICZENIA="${PROBA_TABELE:-users,posts,recipes,cooked_events}"
 
 # Wyzwalacze, które niosą część gwarancji danych (patrz nagłówek).
-WYZWALACZE_WYMAGANE='follows_blokada_ma_pierwszenstwo_trg dziennik_zgod_bez_zmian dziennik_zgod_bez_czyszczenia'
+WYZWALACZE_WYMAGANE='follows_blokada_ma_pierwszenstwo_trg dziennik_zgod_bez_zmian dziennik_zgod_bez_czyszczenia tags_scalenie_jednym_skokiem_trg'
 
 SERWER="${PROBA_SERWER:-}"
 # Katalog repozytorium — stąd bierze się `.env` (adres lokalnej bazy),
@@ -1392,7 +1398,7 @@ sprawdz_wyzwalacze() {
     fi
   done
 
-  ok "wyzwalacze: ${ile}, wszystkie trzy nazwane obecne i włączone"
+  ok "wyzwalacze: ${ile}, wszystkie nazwane obecne i włączone"
 }
 
 sprawdz_ograniczenia() {
