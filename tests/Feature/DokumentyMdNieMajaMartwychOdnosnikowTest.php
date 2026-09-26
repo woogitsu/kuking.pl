@@ -147,7 +147,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'v1', 'auth',
     ];
 
-    private const NIE_TRASA_TAGI_HTML = ['div', 'span', 'button', 'header', 'h1', 'strong', 'svg', 'title', 'a', 'b'];
+    private const NIE_TRASA_TAGI_HTML = ['div', 'span', 'button', 'header', 'h1', 'strong', 'svg', 'title', 'a', 'b', 'script'];
 
     /** @return list<string> */
     private function wszystkiePlikiMd(): array
