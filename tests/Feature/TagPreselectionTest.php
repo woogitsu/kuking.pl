@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TagPreselectionTest extends TestCase
@@ -34,7 +35,15 @@ class TagPreselectionTest extends TestCase
         $this->actingAs(User::factory()->create()->refresh());
         $url = route('posts.create', ['tag' => $old->slug]);
         $this->get($url)->assertOk()->assertViewHas('tagNames', [$target->name]);
+
+        // Od #996 baza nie pozwala ukryć celu scalenia (wyzwalacz
+        // `tags_scalenie_jednym_skokiem_trg`). Obrona w kontrolerze zostaje,
+        // bo po rollbacku tej migracji gwarancję trzyma znowu tylko PHP —
+        // więc stan sprzed bariery odtwarzamy z wyłączonym wyzwalaczem.
+        // ALTER TABLE jest w transakcji testu i cofa się razem z nią.
+        DB::statement('ALTER TABLE tags DISABLE TRIGGER tags_scalenie_jednym_skokiem_trg');
         $target->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
+        DB::statement('ALTER TABLE tags ENABLE TRIGGER tags_scalenie_jednym_skokiem_trg');
         $this->get($url)->assertOk()->assertViewHas('tagNames', []);
     }
 

@@ -34,6 +34,12 @@ use Illuminate\Validation\ValidationException;
  */
 class TokenController extends Controller
 {
+    /**
+     * Jedno zdanie na wyzwanie przeterminowane, nieaktualne i już użyte:
+     * w każdym z tych przypadków człowiek robi to samo — loguje się od nowa.
+     */
+    private const WYZWANIE_NIEWAZNE = 'Zaloguj się jeszcze raz: minęło za dużo czasu, to logowanie zostało już dokończone albo od jego rozpoczęcia zmieniło się coś na koncie (na przykład hasło).';
+
     public function __construct(
         private readonly SprawdzHasloPrzyLogowaniu $sprawdzHaslo,
         private readonly SprawdzKodDrugiegoSkladnika $sprawdzKod,
@@ -93,11 +99,11 @@ class TokenController extends Controller
 
         if ($odczyt === null) {
             throw ValidationException::withMessages([
-                'challenge' => 'Zaloguj się jeszcze raz: minęło za dużo czasu albo od rozpoczęcia logowania zmieniło się coś na koncie (na przykład hasło).',
+                'challenge' => self::WYZWANIE_NIEWAZNE,
             ]);
         }
 
-        [$user, $urzadzenie] = $odczyt;
+        [$user, $urzadzenie, $idWyzwania] = $odczyt;
         $pole = ($dane['code'] ?? '') === '' ? 'backup_code' : 'code';
 
         [$wynik, $minuty] = $this->sprawdzKod->handle(
@@ -115,6 +121,15 @@ class TokenController extends Controller
                 $pole => $pole === 'backup_code'
                     ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'
                     : 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie i spróbuj ponownie.',
+            ]);
+        }
+
+        // Jednorazowość (#1972): zużycie DOPIERO po poprawnym kodzie (pomyłka
+        // w cyfrach nie może spalić wyzwania), ale PRZED tokenem — atomowo,
+        // więc z dwóch równoległych żądań token dostaje najwyżej jedno.
+        if (! WyzwanieDwuetapowe::zuzyj($idWyzwania)) {
+            throw ValidationException::withMessages([
+                'challenge' => self::WYZWANIE_NIEWAZNE,
             ]);
         }
 

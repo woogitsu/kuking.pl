@@ -166,12 +166,14 @@ App:
 - `/przepisy/{recipe}/edycja`
 - `/przepisy/{recipe}/gotuj`
 - `/zeszyt`
+- `/planer` — planer tygodnia (#27, D-310): dzień + przepis albo własny wpis, „Skopiuj poprzedni tydzień”. Prywatny; wejście z „Moje”, dodawanie przepisu z jego strony
 - `/powiadomienia`
 - `/zgloszenia`, `/zgloszenia/{report}` — własne zgłoszenia i karta sprawy
 - `/ustawienia/profil`
 - `/ustawienia/zdjecie` — zdjęcie profilowe (osobny, krótki ekran; skróty prowadzą tu z własnego profilu)
 - `/ustawienia/czytelnosc`
 - `/ustawienia/prywatnosc`
+- `/ustawienia/urodziny` — dzień i miesiąc urodzin, bez roku; „Usuń datę” (#1755)
 - `/ustawienia/twoje-dane`
 - `/ustawienia/urzadzenia` — urządzenia z dostępem przez aplikację mobilną: lista (nazwa, kiedy zalogowane, kiedy ostatnio używane), odcięcie jednego albo wszystkich, z potwierdzeniem (D-270, D-271)
 

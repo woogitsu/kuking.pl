@@ -71,6 +71,13 @@ class EnsureAccountIsActive
         'logout',
         'settings.data',
         'settings.data.export',
+        // #1364: żądanie usunięcia konta (RODO art. 17). Formularz stoi na
+        // „Twoich danych", które zawieszone konto widzi — bez tej trasy
+        // wysyłka odbijała się tu przed kontrolerem, a przy zawieszeniu
+        // bez terminu samoobsługowa droga była zamknięta na zawsze. Kara
+        // nie ginie: `markForDeletion()` odkłada ją do `punishment_status`
+        // (#980) i wraca po cofnięciu usunięcia.
+        'settings.data.delete',
         'settings.email.request',
         'settings.email.cancel',
         'appeals.store',
@@ -88,6 +95,18 @@ class EnsureAccountIsActive
         // nie może zostawić człowieka z zalogowanym, zgubionym urządzeniem.
         'settings.devices.destroy',
         'settings.devices.destroy-all',
+        // D-263 (audyt B2-03): zawieszenie odcina od pisania, nie od
+        // ochrony. Zawieszona osoba dalej czyta serwis, więc widzi też
+        // tego, kto ją nęka — blokada niczego nie publikuje, a zdjęcie
+        // blokady to decyzja wyłącznie o własnym widoku. Zgłoszenie treści
+        // (także formularzem prawnym) to prawo z DSA art. 16, niezależne od
+        // stanu konta zgłaszającego. Przyciski „Zablokuj” i „Zgłoś” stoją na
+        // stronach, które zawieszone konto widzi — bez tych tras byłyby
+        // martwe (D-053).
+        'social.block',
+        'social.unblock',
+        'reports.store',
+        'zglos.nielegalna.store',
     ];
 
     public function handle(Request $request, Closure $next): Response
