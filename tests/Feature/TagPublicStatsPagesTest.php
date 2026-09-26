@@ -11,6 +11,7 @@ use App\Models\TagPromotion;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -84,7 +85,8 @@ class TagPublicStatsPagesTest extends TestCase
         $this->assertSame('Publicznie: 5 zdjęć od 3 osób.', $this->text($stats->item(1)->textContent));
         $this->assertOneStatsBatch($queries, [$a->getKey(), $b->getKey(), $z->getKey()]);
 
-        $more = $xpath->query('//main//a[contains(normalize-space(.), "Pokaż więcej")]');
+        // Bez skryptu przycisk jest odnośnikiem „Następna strona tagów” (#986).
+        $more = $xpath->query('//main//a[contains(normalize-space(.), "Następna strona")]');
         $this->assertSame(1, $more->length);
         $next = $this->xpath($this->get($more->item(0)->getAttribute('href'))->assertOk()->getContent());
         $this->assertSame([route('tags.show', $z)], $this->hrefs($next, '//nav[@aria-label="Wszystkie tagi, alfabetycznie"]/a'));
@@ -126,6 +128,9 @@ class TagPublicStatsPagesTest extends TestCase
 
     private function measuredIndex(): array
     {
+        // Pomiar na zimno: liczby tagów leżą w cache (audyt B4 W2), a ten
+        // test mierzy koszt ich policzenia, nie odczytu z cache.
+        Cache::flush();
         DB::enableQueryLog();
         DB::flushQueryLog();
         try {

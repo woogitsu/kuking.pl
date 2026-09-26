@@ -18,6 +18,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\Tag;
+use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -483,6 +484,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
+        $zeszyt->recipes()->attach($przepis->getKey());
 
         // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
         // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
@@ -552,6 +555,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $tagPromowanyDoKasacji = Tag::factory()->create();
         TagPromotion::create(['tag_id' => $tagPromowany->getKey(), 'position' => 1]);
         TagPromotion::create(['tag_id' => $tagPromowanyDoKasacji->getKey(), 'position' => 2]);
+        // Tag tygodnia (#18) stoi za flagą; mierzymy trasę przy włączonej,
+        // bo przy wyłączonej odmawia każdemu i nie ma czego mierzyć.
+        config(['kuking.tag_tygodnia.wlaczony' => true]);
+        $wyroznienieTagu = TagHighlight::create(['tag_id' => $tag->getKey(), 'starts_on' => '2026-11-16', 'ends_on' => '2026-11-22']);
 
         $this->zmianaAdresu = new PendingEmailChange;
         $this->zmianaAdresu->user_id = $wlasciciel->getKey();
@@ -625,6 +632,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.tag-promotions.update', $tagPromowany), ['position' => 3], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-promotions.destroy', 'zdjęcie promocji tagu', 'delete',
             route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
+            route('admin.tag-highlights.destroy', $wyroznienieTagu), [], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);
@@ -709,6 +718,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
+        // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
+        // wpisu — tylko autorowi, nigdy moderatorowi ani obcemu.
+        $dodaj('recipes.create.from-post', 'formularz przepisu ze zdjęciem prywatnego wpisu', 'get',
+            route('recipes.create.from-post', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.edit', 'układ zdjęć wpisu', 'get',
             route('posts.media.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.update', 'zapis układu zdjęć', 'post',
@@ -810,6 +823,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Wyjęcie niedostępnych zapisów (#773) — kasuje powiązania, więc tylko
+        // właściciel. Zeszyt nie ma niedostępnych pozycji: właściciel dostaje
+        // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
+        $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
+            route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
+        // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
+        $dodaj('collections.note', 'notatka przy zapisie', 'patch',
+            route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
@@ -827,8 +849,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Bramką nie jest `authorize()`, tylko `DostepDoZdjecia` pytające
         // `Gate` o Policy RODZICA — dlatego ta trasa musi być zmierzona
         // żądaniem, a nie odhaczona w skanie po nazwie funkcji.
+        // Moderator ma tu ODMOWĘ, tak samo jak na stronie tego wpisu: sama
+        // rola nie otwiera już bajtów każdego zdjęcia (#1360, AUTHZ-02).
         $dodaj('media.show', 'zdjęcie z prywatnego wpisu', 'get',
-            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+            route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze

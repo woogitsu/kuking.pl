@@ -101,5 +101,7 @@
             z otoczenia, ale bije `.env` — Dotenv Laravela jest niemutowalny.
         -->
         <env name="KUKING_ZAUFANE_PRZESKOKI" value="1"/>
+        <env name="KUKING_EDGE_TOKEN" value=""/>
+        <env name="KUKING_EDGE_TOKEN_POPRZEDNI" value=""/>
     </php>
 </phpunit>

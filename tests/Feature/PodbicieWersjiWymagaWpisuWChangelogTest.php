@@ -88,6 +88,70 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
     }
 
     /**
+     * Issue #928: dwie gałęzie podbijały 0.67 → 0.68 niezależnie. Z tym samym
+     * podbiciem etykiety git scala je BEZ konfliktu (ta sama linia, ta sama
+     * treść), więc dwa wydania cicho zlewały się w jeden numer. Jedyny ślad,
+     * który zostaje po scaleniu, to dwa nagłówki tej samej wersji
+     * w CHANGELOG.md — i tego pilnujemy: numery wersji są unikalne i maleją
+     * od góry pliku.
+     */
+    public function test_numery_wersji_w_changelog_sa_unikalne_i_maleja(): void
+    {
+        $numery = $this->numeryWersji((string) file_get_contents(base_path('CHANGELOG.md')));
+
+        $this->assertNotEmpty($numery, 'CHANGELOG.md nie ma nagłówków „## Alfa 0.N — …".');
+        $this->assertSame([], $this->bledyNumeracji($numery), 'CHANGELOG.md: '
+            .'numer wersji powtórzony albo nie maleje. Dwie gałęzie podbiły tę samą '
+            .'wersję — przenieś wpis jednej z nich pod „## Nieopublikowane” i cofnij '
+            .'jej podbicie (docs/flota/chmura/SESJA_GLOWNA.md §5).');
+    }
+
+    /**
+     * KONTROLA DODATNIA: ten sam skan na treści z dublem i z odwróconą
+     * kolejnością naprawdę zgłasza błąd, a na poprawnej — nie.
+     */
+    public function test_skan_numeracji_wykrywa_dubel_i_odwrocona_kolejnosc(): void
+    {
+        $dubel = "## Nieopublikowane\n\n## Alfa 0.69 — jedno\n\n## Alfa 0.69 — drugie\n\n## Alfa 0.68 — stare\n";
+        $odwrotnie = "## Alfa 0.68 — stare\n\n## Alfa 0.69 — nowe\n";
+        $dobrze = "## Nieopublikowane\n\n## Beta 0.70 — nowe\n\n## Alfa 0.69 — stare\n\n## Przygotowane — bez numeru\n";
+
+        $this->assertSame([69, 69, 68], $this->numeryWersji($dubel));
+        $this->assertNotSame([], $this->bledyNumeracji($this->numeryWersji($dubel)));
+        $this->assertNotSame([], $this->bledyNumeracji($this->numeryWersji($odwrotnie)));
+        $this->assertSame([70, 69], $this->numeryWersji($dobrze));
+        $this->assertSame([], $this->bledyNumeracji($this->numeryWersji($dobrze)));
+    }
+
+    /**
+     * Numery N z nagłówków „## Alfa 0.N — …" / „## Beta 0.N — …", od góry.
+     *
+     * @return list<int>
+     */
+    private function numeryWersji(string $tresc): array
+    {
+        preg_match_all('/^##\s+(?:Alfa|Beta)\s+0\.(\d+)\s+—/mu', $tresc, $dopasowania);
+
+        return array_map('intval', $dopasowania[1]);
+    }
+
+    /**
+     * @param  list<int>  $numery
+     * @return list<string>
+     */
+    private function bledyNumeracji(array $numery): array
+    {
+        $bledy = [];
+        for ($i = 1; $i < count($numery); $i++) {
+            if ($numery[$i] >= $numery[$i - 1]) {
+                $bledy[] = "0.{$numery[$i]} stoi pod 0.{$numery[$i - 1]}";
+            }
+        }
+
+        return $bledy;
+    }
+
+    /**
      * Pierwszy nagłówek `## …` w CHANGELOG.md, obcięty do samej etykiety
      * wersji (część przed „ — "). `null`, gdy pliku nie da się przeczytać albo
      * nie ma w nim żadnego nagłówka drugiego poziomu.

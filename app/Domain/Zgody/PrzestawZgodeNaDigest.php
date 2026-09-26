@@ -76,6 +76,19 @@ final class PrzestawZgodeNaDigest
      */
     public function handle(User $osoba, bool $chce, string $zrodlo): bool
     {
+        return DB::transaction(function () use ($osoba, $chce, $zrodlo): bool {
+            // Każda droga zgody czyta aktualny stan pod tą samą blokadą
+            // co formularz prywatności, także gdy dostała stary model.
+            $current = User::query()->lockForUpdate()->findOrFail($osoba->getKey());
+            $changed = $this->apply($current, $chce, $zrodlo);
+            $osoba->setRawAttributes($current->getAttributes(), true);
+
+            return $changed;
+        });
+    }
+
+    private function apply(User $osoba, bool $chce, string $zrodlo): bool
+    {
         if ((bool) $osoba->wants_weekly_digest === $chce) {
             return false;
         }

@@ -1508,6 +1508,9 @@
     border-top: 1px solid var(--color-border);
   }
 
+  /* Samodzielny nagłówek sekcji, 16 px zamiast 18 px z §5 — świadomy
+     wyjątek D-262 (napis pomocniczy w panelu moderacji, widoczny wyłącznie
+     dla moderatorów). */
   .side-nav-moderacja-naglowek {
     margin: 0 0 var(--spacing-2);
     padding: 0 var(--spacing-3);
@@ -1626,8 +1629,8 @@
      `--text-help` (16 px) zamiast 18 px z §5 — to jest CYTAT z cudzej treści
      w narzędziu roboczym dla jednej osoby, nie tekst produktu czytany przez
      użytkowników 50+. Pełna treść stoi o jedno kliknięcie dalej, w normalnym
-     rozmiarze. Ten sam wyjątek co metryczka wersji w stopce (D-051): panel
-     moderacji nie jest ekranem, na którym mierzymy próg czytelności. */
+     rozmiarze. Wyjątek D-262 (napis pomocniczy w panelu moderacji) —
+     NIE D-051, który obejmuje wyłącznie dwa elementy stopki. */
   .sygnal-podglad-cytat {
     margin: 0 0 var(--spacing-2);
     font-size: var(--text-help);
@@ -1861,6 +1864,17 @@
 
   .notice a:not(.btn):focus-visible {
     outline-color: var(--color-accent-tint-ink);
+  }
+
+  /* #977: komunikat „Ta strona jest nieaktualna” składany w app.js.
+     Odstępy między nagłówkiem, akapitami i przyciskiem „Odśwież stronę”. */
+  .strona-nieaktualna > * + * {
+    margin-top: var(--spacing-3);
+  }
+
+  /* Pusty dopisek (region aria-live na zdjęcie) nie robi podwójnej przerwy. */
+  .strona-nieaktualna > :empty {
+    margin-top: 0;
   }
 
   @media (forced-colors: active) {
@@ -4358,10 +4372,15 @@
      zastosowań (wypełnienie stopki dziedziczy po `body`, a
      `scroll-padding-bottom` rozwiązuje się na `:root`), czyli zamieniłoby
      48 px pustego miejsca na dole stopki na pułapkę do nadepnięcia. */
+  /* UWAGA: dla stron marki (a `body` ma `data-marka` zawsze) tę wartość
+     nadpisuje `[data-marka] .site-footer` w `marka-rama.css` i tam stoi
+     `--rezerwa-ukladu-dol` — rezerwa policzona RAZ i tylko wtedy, gdy belka
+     naprawdę jest na ekranie. Reguła niżej zostaje jako wartość bazowa
+     i jako zapis wyprowadzenia liczby. */
   .site-footer {
     margin-top: var(--spacing-12);
     border-top: 1px solid var(--color-border);
-    padding: var(--spacing-8) var(--spacing-4) var(--rezerwa-pod-belka);
+    padding: var(--spacing-6) var(--spacing-4) var(--rezerwa-pod-belka);
     background-color: var(--color-surface-raised);
   }
 
@@ -4404,7 +4423,9 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-6);
+    /* 16 px, nie 24 (24.09): poziomy stopki oddziela już linia nad paskiem
+       i nagłówki kolumn — drugi, gruby odstęp tylko wydłużał stopkę. */
+    gap: var(--spacing-4);
     font-size: var(--text-body);
   }
 
@@ -4434,7 +4455,7 @@
        zrzucający awatar (#212): sztywna miara w `rem` rośnie razem ze skalą
        tekstu, a okno nie. */
     grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
-    gap: var(--spacing-6) var(--spacing-8);
+    gap: var(--spacing-4) var(--spacing-8);
   }
 
   .site-footer-grupa { min-width: 0; }
@@ -4445,7 +4466,14 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-2);
+    /* BEZ ODSTĘPU MIĘDZY ODNOŚNIKAMI (24.09). Każdy odnośnik ma własne
+       48 px celu (niżej), a w nim ~15 px powietrza nad i pod wierszem
+       pisma — to wystarcza, żeby wiersze się nie zlewały. Dawne 8 px
+       dawało rytm co 56 px, który właściciel zmierzył na zrzucie jako
+       „bardzo duże odstępy". Cele stykają się krawędziami, ale nie
+       nachodzą na siebie, więc WCAG 2.5.8 (odstęp celów) jest spełnione
+       samym rozmiarem 48 × 48 px. */
+    gap: 0;
   }
 
   /*
@@ -4495,7 +4523,7 @@
      (patrz komentarz w layout.blade.php). Odróżnia się kolorem i wagą, nie
      rozmiarem — ten sam wzorzec co `.site-version-etap` niżej. */
   .site-footer-naglowek {
-    margin: 0 0 var(--spacing-2);
+    margin: 0;
     color: var(--color-ink);
     font-weight: 700;
   }
@@ -4512,6 +4540,29 @@
 
   @media (min-width: 64rem) {
     .site-footer { padding-bottom: var(--spacing-8); }
+
+    /* HASŁO I LICZNIK OBOK KOLUMN, NIE NAD NIMI (24.09). Na desktopie jest
+       miejsce na pięć kolumn, a dwa krótkie zdania w osobnych wierszach nad
+       odnośnikami kosztowały ~86 px wysokości stopki. Kolejność w DOM (i dla
+       czytnika ekranu, i dla Tab) zostaje ta sama: hasło, licznik, kolumny,
+       pasek — przestawiamy tylko położenie w siatce. Poniżej 64rem wszystko
+       zostaje jedno pod drugim, bo tam kolumny i tak schodzą w jeden słup. */
+    .site-footer-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+      grid-template-rows: auto 1fr auto;
+      column-gap: var(--spacing-8);
+    }
+
+    .site-footer-haslo,
+    .site-footer-liczba { grid-column: 1; }
+
+    .site-footer-grupy {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+    }
+
+    .site-footer-pasek { grid-column: 1 / -1; }
 
     /* Margines boczny oddaje `.site-footer-inner`, tak jak `.app-body` oddaje
        go treści. Gdy dawały go OBA, stopka zaczynała się 16 px dalej niż
@@ -4539,7 +4590,9 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-3) var(--spacing-4);
-    padding-top: var(--spacing-4);
+    /* 8 px nad przyciskiem motywu: przycisk sam ma 48 px wysokości, więc
+       pasek i tak nie jest ciasny — grubsze wypełnienie było pustką. */
+    padding-top: var(--spacing-2);
     border-top: 1px solid var(--color-border);
   }
 
@@ -4792,6 +4845,14 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Nazwa konta przy pytaniu, gdy pytanie samo w sobie jej nie odmienia
+   (#1819) — osobny wiersz pod pytaniem, nie osobny rozmiar tekstu: to dalej
+   ta sama, ważna informacja „kogo to dotyczy". */
+.confirm-question-nazwa {
+    margin: 0 0 var(--spacing-3);
     overflow-wrap: anywhere;
 }
 

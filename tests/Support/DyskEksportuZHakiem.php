@@ -18,8 +18,9 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
  *  - `$poZapisie` — wołane ZARAZ PO `writeStream()` gotowej paczki, czyli
  *    dokładnie w oknie między zapisem obiektu a przejściem w `ready`.
  *    Tu test wymazuje konto, zamiast liczyć na szczęśliwy `sleep`.
- *  - `$odmowUsuniecia` — `delete()` nie usuwa niczego i zwraca `false`,
- *    jak dysk z `throw => false` przy awarii magazynu.
+ *  - `$odmowUsuniecia` — `delete()` i `deleteDirectory()` nie usuwają
+ *    niczego i zwracają `false`, jak dysk z `throw => false` przy awarii
+ *    magazynu (katalog paczek konta kasuje wymazanie — audyt B5 pkt 4).
  *  - `$odmowOdczytu` — klucz → `'false'`, `'wyjatek'` albo `'uciety'`:
  *    `readStream()` tego klucza oddaje `false` (dysk z `throw => false`),
  *    rzuca, choć plik leży na dysku (issue #1388, zdjęcie `ready` nie do
@@ -89,5 +90,10 @@ final class DyskEksportuZHakiem extends FilesystemAdapter
     public function delete($paths)
     {
         return $this->odmowUsuniecia ? false : parent::delete($paths);
+    }
+
+    public function deleteDirectory($directory)
+    {
+        return $this->odmowUsuniecia ? false : parent::deleteDirectory($directory);
     }
 }

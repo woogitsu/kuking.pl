@@ -194,7 +194,7 @@ class AutorPrzepisuWDanychStrukturalnychTest extends TestCase
             ['display_name' => self::NAZWA_KONTA],
         );
 
-        return Recipe::factory()->create([
+        return Recipe::factory()->zeZdjeciem()->create([
             'author_id' => $autor->getKey(),
             'status' => Recipe::STATUS_PUBLISHED,
             'visibility' => 'public',

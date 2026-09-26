@@ -107,6 +107,10 @@ Skrót, który i tak trzeba znać:
 - `status` i `role` użytkownika **nigdy** w `$fillable`.
 - **UUID w adresie to nie autoryzacja** — każde wejście przez Policy.
 - Przed zgłoszeniem gotowości: `vendor/bin/pint` i `php artisan test`.
+- **Nie podbijaj wersji** (`wersja.etykieta` w `config/kuking.php`) i nie
+  zakładaj nagłówka „## Alfa 0.N" w `CHANGELOG.md`. Zmianę widoczną dla ludzi
+  opisz pod „## Nieopublikowane”; wersję podbija sesja główna przy wydaniu
+  (#928, `docs/flota/chmura/SESJA_GLOWNA.md` §5).
 
 ## Jak pracujesz
 

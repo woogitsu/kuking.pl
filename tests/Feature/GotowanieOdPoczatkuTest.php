@@ -26,7 +26,7 @@ class GotowanieOdPoczatkuTest extends TestCase
         $url = route('cooking.show', $recipe->slug);
         $this->get($url)->assertOk()->assertDontSee('Zacznij od początku');
         $this->withSession([$otherKey => [$otherStep->id], 'inna-wartosc' => 'zostaje']);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1])->assertSessionHas($key, [$step->id]);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $step->id, 'zrobiono' => 1])->assertSessionHas($key, [$step->id]);
         $this->get($url)->assertOk()->assertSee('Zacznij od początku')->assertSee('Zostaw odhaczenia')->assertSessionHas($key, [$step->id]);
         $resetUrl = '/przepisy/'.$recipe->slug.'/gotuj/od-poczatku';
         $this->get($resetUrl)->assertStatus(405)->assertSessionHas($key, [$step->id]);

@@ -68,16 +68,17 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
          * liczbę. Liczba wpisana w kontrolerze przeszłaby ten test dokładnie
          * raz — w dniu, w którym akurat równa się konfiguracji.
          *
-         * Wszystkie cztery miejsca, bo `display_name` wchodzi czterema
+         * Wszystkie miejsca walidacji, bo `display_name` wchodzi czterema
          * drzwiami: rejestracja, ustawienia i dwa logowania zewnętrzne.
+         * Oba logowania zewnętrzne walidują ekran domknięcia w jednym
+         * przypadku użycia (`WejdzPrzezDostawce`, #1035), więc plików są trzy.
          * Rozjazd między nimi znaczy „przez rejestrację wejdzie nazwa,
          * której ustawienia już nie przyjmą".
          */
         $drzwi = [
             'app/Http/Controllers/Auth/RegisterController.php',
             'app/Http/Controllers/Settings/ProfileSettingsController.php',
-            'app/Http/Controllers/Auth/GoogleLoginController.php',
-            'app/Http/Controllers/Auth/FacebookLoginController.php',
+            'app/Domain/Security/WejsciePrzezDostawce/WejdzPrzezDostawce.php',
         ];
 
         foreach ($drzwi as $sciezka) {
@@ -85,7 +86,7 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
                 "'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')]",
                 (string) file_get_contents(base_path($sciezka)),
                 $sciezka.' nie bierze limitu nazwy z konfiguracji. Liczba wpisana wprost '.
-                'rozjedzie się z pozostałymi trzema drzwiami przy pierwszej zmianie.',
+                'rozjedzie się z pozostałymi drzwiami przy pierwszej zmianie.',
             );
         }
 

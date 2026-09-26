@@ -131,7 +131,7 @@ uruchom() {
     echo $?
 }
 
-printf '\n── Przyrząd do kontroli ujemnych: czternaście prób ──\n\n'
+printf '\n── Przyrząd do kontroli ujemnych: piętnaście prób ──\n\n'
 
 # --- 1. SEDNO: mutacja, która NIE TRAFIA ------------------------------------
 # Szukamy łańcucha, którego w pliku nie ma. Przyrząd ma ODMÓWIĆ (kod 2),
@@ -321,6 +321,48 @@ if [ -f "$PRACA/storage/framework/views/zostaje.php" ]; then
 else
     printf '  %s
 ' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
+fi
+
+# --- 12b. REGRESJA B7-04: krok 4/4 nie moze dostac zmutowanego kompilatu ---
+# Proba 12 wyzej sprawdza tylko, ze kompilat NIE PRZEZYWA calego przebiegu —
+# atrapa polecenia tam czyta zrodlo wprost, wiec nigdy nie przechodzi przez
+# sam kompilat i nie lapie usterki z audytu B7-04: `cp -p` w kroku 4/4
+# przywraca zrodlo RAZEM Z JEGO STARYM mtime, ktory jest STARSZY niz kompilat
+# zmutowanego widoku z kroku 2/4 — bez uniewaznienia go PRZED krokiem 4/4
+# `Illuminate\View\Compilers\Compiler::isExpired()` uznaje ten kompilat za
+# swiezy i serwuje mutacje, mimo ze zrodlo jest juz poprawne. Test w kroku
+# 4/4 wtedy oblewa i przyrzad melduje falszywe PRZYWROCENIE_NIEUDANE dla
+# KAZDEJ mutacji pliku `.blade.php`.
+#
+# Atrapa nizej NASLADUJE realny kompilator: kompiluje (kopiuje zrodlo do
+# kompilatu) TYLKO gdy kompilatu brak albo jest starszy od zrodla — dokladnie
+# regula z poprawki audytu. Bez `unieważnij_kompilaty` w kroku 4/4 ta atrapa
+# posluzy sie stara tresc i test w kroku 4/4 oblewa: caly przebieg konczy sie
+# kodem 6 (PRZYWROCENIE_NIEUDANE) zamiast 0 (POTWIERDZONA).
+cat > "$PRACA/test-blade-kompilator.sh" <<'EOF'
+#!/usr/bin/env bash
+zrodlo="$1"
+kompilat="storage/framework/views/probny2-kompilat.php"
+if [ ! -f "$kompilat" ] || [ "$zrodlo" -nt "$kompilat" ]; then
+    cp "$zrodlo" "$kompilat"
+fi
+if grep -q 'BRAMKA=wlaczona' "$kompilat"; then exit 0; fi
+echo "BRAMKA_ZDJETA: wartownik nie znalazl wlaczonej bramki (kompilat)"
+exit 1
+EOF
+chmod +x "$PRACA/test-blade-kompilator.sh"
+
+mkdir -p "$PRACA/storage/framework/views"
+printf '<p>BRAMKA=wlaczona</p>' > "$PRACA/resources/views/probny2.blade.php"
+rm -f "$PRACA/storage/framework/views/probny2-kompilat.php"
+
+kod="$(uruchom resources/views/probny2.blade.php --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA_ZDJETA' -- ./test-blade-kompilator.sh resources/views/probny2.blade.php)"
+sprawdz 'krok 4/4 po mutacji Blade -> POTWIERDZONA (0), nie falszywe PRZYWROCENIE_NIEUDANE (6)' 0 "$kod"
+if [ "$kod" -ne 0 ]; then
+    printf '  %s\n' 'kontekst (audyt B7-04): bez unieważnij_kompilaty PRZED krokiem 4/4 kompilat'
+    printf '  %s\n' 'zmutowanego widoku przezywa przywrocenie zrodla i test w kroku 4/4 oblewa fałszywie.'
+    tail -15 "$PRACA/wyjscie.log" | sed 's/^/     /'
 fi
 
 # --- 13. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------

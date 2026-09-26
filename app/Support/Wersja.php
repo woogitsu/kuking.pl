@@ -35,7 +35,7 @@ use Carbon\CarbonImmutable;
  * CZEGO TU NIE MA, CHOĆ STAŁO NAPISANE DO 10 WRZEŚNIA 2026
  * Ten komentarz twierdził, że ta sama wartość idzie do SENTRY_RELEASE, „więc
  * wersja w stopce i wersja przy błędzie w Sentry to dokładnie ten sam commit".
- * SENTRY_RELEASE rzeczywiście jest ustawiane w `.railway/railway.ts`, ale
+ * SENTRY_RELEASE było wtedy ustawiane w `.railway/railway.ts` (usunięte w #1013), ale
  * **Sentry'ego w tym projekcie nie ma**: nie ma pakietu w `composer.json`, nie
  * ma `config/sentry.php`, a `SENTRY_LARAVEL_DSN` nie czyta ani jedna linijka
  * PHP (D-041). Wpisów przy błędzie, do których ten skrót miałby pasować, nie

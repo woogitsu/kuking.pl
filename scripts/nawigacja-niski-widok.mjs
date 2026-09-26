@@ -11,7 +11,7 @@ import {
     existsSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { sprawdzTab } from "./zoom-marki.mjs";
+import { poczekajNaFokus, sprawdzTab } from "./zoom-marki.mjs";
 
 export async function sprawdzNawigacje492({
     adres,
@@ -276,7 +276,11 @@ export async function sprawdzNawigacje492({
             const visited = new Set();
             for (let step = 0; step < 160 && visited.size < expected; step++) {
                 await page.keyboard.press("Tab");
-                await page.waitForTimeout(40);
+                // Stan, nie stałe 40 ms: fokus, pierścień i koniec przejść
+                // (uzasadnienie przy poczekajNaFokus w zoom-marki.mjs).
+                const oczekiwanie = await poczekajNaFokus(page, {
+                    selektor: ".bottom-nav a[href]",
+                });
                 const link = await page.evaluate(() => {
                     const element = document.activeElement;
                     if (!element.matches(".bottom-nav a[href]")) return null;
@@ -307,7 +311,10 @@ export async function sprawdzNawigacje492({
                     !link.focus ||
                     (link.outline === "none" && link.shadow === "none")
                 )
-                    throw Error("N492_DOL_TAB " + JSON.stringify(link));
+                    throw Error(
+                        "N492_DOL_TAB " +
+                            JSON.stringify({ ...link, oczekiwanie }),
+                    );
                 visited.add(link.href);
             }
             if (visited.size !== expected) throw Error("N492_DOL_KOMPLETNOSC");

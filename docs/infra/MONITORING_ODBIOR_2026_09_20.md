@@ -260,6 +260,10 @@ Koszt lokalnego pakietu: zero nowych usług i zależności. Nie wyceniono pracy
 nad pełnym APM ani przyszłego transferu bez pomiaru ruchu. Decyzje właściciela:
 odbiorca i zastępstwo, akceptowalny czas reakcji, B oraz wybór wariantu metryk.
 
+**Dopisane 25.09.2026:** rozbicie na kolejki (bez throughputu) i puls
+harmonogramu są w repozytorium — [`MONITORING_599_KROKI.md`](MONITORING_599_KROKI.md) §A, §B3.
+Pozostałe wiersze tej tabeli bez zmian.
+
 ## 9. Powtórzenie, wycofanie i granice
 
 W Git Bash na Windows, najpierw przygotowanie runtime:

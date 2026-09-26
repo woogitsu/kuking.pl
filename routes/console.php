@@ -49,7 +49,8 @@ Artisan::command('inspire', function () {
 // `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
 // `proc_open` nie jest potrzebny. KAŻDE zadanie idzie przez jeden adapter,
 // `Harmonogram::artisan()`: kod ≠ 0 zamienia on w wyjątek z nazwą
-// komendy i kodem, bo `CallbackEvent` nie rozpoznaje liczby 1 jako błędu (#835).
+// komendy, kodem i zamaskowanym ogonem jej wyjścia, bo `CallbackEvent`
+// nie rozpoznaje liczby 1 jako błędu (#835).
 // Nie pisz tu gołego `Schedule::call(fn () => Artisan::call(...))` — pilnuje
 // tego `HarmonogramSprawdzaKodWyjsciaTest`.
 //
@@ -251,6 +252,45 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:20 — dziesięć minut po sesjach, tak jak rozsunięta jest cała reszta tej
+// listy (uzasadnienie odstępów wyżej).
+// Retencja `failed_jobs`: 30 dni (720 godzin) od `failed_at` — decyzja
+// właściciela z 25.09.2026, `docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY
+// WYŁĄCZNIE JAKO SKRÓT”.
+//
+// DLACZEGO AUTOMATYCZNIE, SKORO `failed_jobs` TO ŚLAD PO AWARII
+// Bo 30 dni wystarcza na diagnozę: o świeżej awarii mówią czujka kolejki
+// (`kuking:sprawdz-kolejke`, co kwadrans), panel kolejki i `/health` — długo
+// przed tym, zanim wiersz zniknie. Po miesiącu wiersz nie jest już śladem,
+// na który ktoś czeka, tylko ładunkiem z danymi odbiorcy (AGENTS.md §7 —
+// minimalizacja). Żetony w ładunku są szyfrowane kluczem aplikacji (audyt
+// A5-10, `ShouldBeEncrypted`), więc te trzydzieści dni nie wystawia żywego
+// sekretu.
+// Wcześniejsze, ręczne sprzątanie po rozliczeniu awarii zostaje
+// w `kuking:martwe-zadania` (domyślnie na sucho, kasuje dopiero `--skasuj`).
+//
+// `queue:prune-failed` to komenda Laravela; przez `Harmonogram::artisan()`
+// idzie tak samo jak nasze — w tym samym procesie, z kontrolą kodu wyjścia.
+// Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])
+    ->name('queue:prune-failed')
+    ->dailyAt('05:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
+// jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
+// prośby, z której nikt nie skorzystał, zostaje bez terminu — także w kopiach.
+// Żeton przestaje działać po `auth.passwords.users.expire` minutach sam; to
+// zadanie zabiera już tylko dane osobowe bez zastosowania.
+Harmonogram::artisan('kuking:sprzataj-resety-hasel')
+    ->name('kuking:sprzataj-resety-hasel')
+    ->dailyAt('05:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
@@ -317,6 +357,19 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
+// stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak
+// spokój. Dlatego co 5 minut znak życia do ZEWNĘTRZNEGO monitora, który
+// alarmuje, gdy znak nie przyjdzie. Bez `KUKING_PULS_HARMONOGRAMU_URL` nie
+// wysyła nic (zero efektu). Co 5 minut: monitor z oknem 15 minut dostaje
+// trzy szanse, więc jedno zgubione żądanie nie budzi nikogo w nocy.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:puls-harmonogramu')
+    ->name('kuking:puls-harmonogramu')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
 // Zaległe czyszczenie cache CDN (issue #959). Adresy skasowanych zdjęć, których
 // `PurgePublicMediaCache` nie wyczyścił — bo nie było konfiguracji Cloudflare
 // albo zadanie wyczerpało próby — czekają w `zalegle_czyszczenia_cdn`. Bez
@@ -372,6 +425,30 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->onOneServer()
     ->withoutOverlapping(120);
+
+// Dosyłanie pilnych alarmów moderacyjnych, które nie dotarły (issue #1051).
+//
+// Alarm o sprawie pilnej (treść seksualna, cokolwiek dotyczącego dziecka)
+// wychodzi z `PrzeanalizujTresc`, zlecanego TYLKO przy publikacji. Gdy nie
+// dotarł — pusty `KUKING_MODEL_ALARM_EMAIL`, awaria poczty, ubity worker —
+// nie było drugiej drogi, a `/health` świecił bez końca. Ta komenda nią jest.
+//
+// CO GODZINĘ, nie raz na dobę jak podsumowanie: to jest spóźniony alarm,
+// a nie raport. Po wpisaniu adresu zaległe sprawy dochodzą najpóźniej
+// w godzinę, bez niczyjej ręki.
+//
+// Minuta 35: o 00 tykają zdejmowanie kar i licznik społeczności, o 25 budżet
+// połączeń (uzasadnienie rozsunięcia przy sprzątaniu zmian adresu).
+// Blokada 50 minut — reguła „co godzinę → 50" z nagłówka tego pliku.
+// Wyścigu dwóch przebiegów i tak pilnuje baza (`AlarmujModeratora::doslij()`).
+//
+// `Harmonogram::artisan()` zamiast gołego `Schedule::call()` — kod wyjścia 1
+// (padło zlecenie listu) ma być porażką przebiegu, nie cichym sukcesem
+// (`App\Support\Harmonogram`, #835).
+Harmonogram::artisan('kuking:doslij-pilne-alarmy')
+    ->hourlyAt(35)
+    ->onOneServer()
+    ->withoutOverlapping(50);
 
 // Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //

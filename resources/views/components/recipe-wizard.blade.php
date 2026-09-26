@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Support\KreatorPrzepisu\KrokOPrzepisie;
+use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -406,6 +408,10 @@ new class extends Component
             return $this->saveState === 'saved';
         }
 
+        if (! $this->validateExistingStepIds()) {
+            return false;
+        }
+
         $this->storePendingPhotos();
 
         if (mb_strlen(trim($this->title)) < 3) {
@@ -453,6 +459,12 @@ new class extends Component
     public function publish(): void
     {
         $this->resetErrorBag();
+
+        if (! $this->validateExistingStepIds()) {
+            $this->step = 3;
+
+            return;
+        }
 
         if (! $this->storePendingPhotos()) {
             /*
@@ -527,6 +539,32 @@ new class extends Component
     // -----------------------------------------------------------------
     // Zapis do bazy
     // -----------------------------------------------------------------
+
+    private function validateExistingStepIds(): bool
+    {
+        try {
+            $recipe = $this->existingRecipe();
+        } catch (BladDlaCzlowieka $e) {
+            $this->addError('publikacja', $e->getMessage());
+            $this->saveState = 'error';
+            $this->saveMessage = $e->getMessage();
+
+            return false;
+        }
+
+        $errors = ExistingStepDuplicates::errors($this->steps, $recipe?->steps()->pluck('id') ?? []);
+        foreach ($errors as $field => $message) {
+            $this->addError($field, $message);
+        }
+        if ($errors !== []) {
+            $this->saveState = 'error';
+            $this->saveMessage = 'Nie zapisaliśmy tych zmian. Popraw zaznaczone pola. Cały tekst jest nadal w formularzu.';
+
+            return false;
+        }
+
+        return true;
+    }
 
     private function persist(bool $publish): Recipe
     {
@@ -663,64 +701,15 @@ new class extends Component
 
     private function validateAboutStep(): bool
     {
-        // #900: jak w RecipeController — nowy lub zmieniony adres musi być
-        // HTTP/HTTPS, niezmieniony dawny adres z bazy nie blokuje zapisu.
-        // Porównanie z bazą, nie ze stanem komponentu: autozapis nie może
-        // zrobić z dopiero wpisanego FTP „historycznego wyjątku”.
+        // Reguły, komunikaty i normalizacja pól tego kroku mają jedno nazwane
+        // źródło: `KrokOPrzepisie` (issue #1387). Tu zostaje orkiestracja.
+        //
+        // #900: dawny adres porównujemy z BAZĄ, nie ze stanem komponentu:
+        // autozapis nie może zrobić z dopiero wpisanego FTP „historycznego
+        // wyjątku”.
         $dawnyAdres = $this->recipeId === null ? null : Recipe::whereKey($this->recipeId)->value('source_url');
-        $adres = $this->textOrNull($this->source_url);
 
-        $validator = Validator::make([
-            'title' => trim($this->title),
-            'summary' => $this->textOrNull($this->summary),
-            'servings' => $this->textOrNull($this->servings),
-            'prep_minutes' => $this->textOrNull($this->prep_minutes),
-            'cook_minutes' => $this->textOrNull($this->cook_minutes),
-            'difficulty' => $this->textOrNull($this->difficulty),
-            'visibility' => $this->visibility,
-            'source_type' => $this->source_type,
-            'source_person' => $this->textOrNull($this->source_person),
-            'source_note' => $this->textOrNull($this->source_note),
-            'source_url' => $this->textOrNull($this->source_url),
-            'family_since_year' => $this->textOrNull($this->family_since_year),
-        ], [
-            'title' => ['required', 'string', 'min:3', 'max:180'],
-            'summary' => ['nullable', 'string', 'max:2000'],
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
-            'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
-            'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
-            'difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'visibility' => ['required', 'in:public,followers,private'],
-            'source_type' => ['required', 'in:own,family,adaptation,external'],
-            'source_person' => ['nullable', 'string', 'max:120'],
-            'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', $dawnyAdres !== null && $adres === $dawnyAdres ? 'url' : 'url:http,https', 'max:2000'],
-            'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
-        ], [
-            'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
-            'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
-            'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
-            'summary.max' => 'Krótki opis jest za długi. Zostaw najwyżej 2000 znaków — resztę wpisz w historii przepisu.',
-            'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
-            'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
-            'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
-            'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
-            'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
-            'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
-            'cook_minutes.integer' => 'Czas gotowania podaj w pełnych minutach, na przykład 90.',
-            'cook_minutes.min' => 'Czas gotowania nie może być ujemny. Wpisz na przykład 90.',
-            'cook_minutes.max' => 'Czas gotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten przepis.',
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis.',
-            'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
-            'source_type.in' => 'Zaznacz, skąd jest ten przepis.',
-            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
-            'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Wklej adres strony zaczynający się od http:// lub https://.',
-            'family_since_year.integer' => 'Rok wpisz czterema cyframi, na przykład 1974.',
-            'family_since_year.min' => 'Ten rok jest za wczesny. Wpisz rok od 1850.',
-            'family_since_year.max' => 'Ten rok jest za późny. Wpisz rok do 2100.',
-        ]);
+        $validator = KrokOPrzepisie::walidator($this->only(KrokOPrzepisie::POLA), $dawnyAdres);
 
         // Ponowna walidacja usuwa stare błędy tylko tych pól. Nie kasuje
         // komunikatu zdjęcia ani innego etapu; poprawka pola odblokowuje zapis.
@@ -740,43 +729,17 @@ new class extends Component
 
     private function validateRows(bool $changeStep = true): bool
     {
-        $this->resetErrorBag(['ingredients.*.text', 'ingredients.*.group_name', 'ingredients.*.note', 'steps.*.instruction', 'steps.*.timer_minutes']);
-        $badIngredient = false;
-        $badStep = false;
+        // Granice, komunikaty i normalizacja wierszy mają jedno nazwane
+        // źródło: `WierszePrzepisu` (issue #1387, krok 2). Tu zostaje
+        // orkiestracja: worek błędów i wybór kroku do pokazania.
+        $this->resetErrorBag(WierszePrzepisu::KLUCZE_BLEDOW);
+        $bledySkladnikow = WierszePrzepisu::bledySkladnikow($this->ingredients);
+        $bledyKrokow = WierszePrzepisu::bledyKrokow($this->steps);
+        $badIngredient = $bledySkladnikow !== [];
+        $badStep = $bledyKrokow !== [];
 
-        foreach ($this->ingredients as $index => $row) {
-            if (mb_strlen(trim((string) ($row['text'] ?? ''))) > 240) {
-                $this->addError("ingredients.{$index}.text", 'Ten składnik jest za długi. Zostaw najwyżej 240 znaków albo rozbij go na dwa wiersze.');
-                $badIngredient = true;
-            }
-
-            if (mb_strlen(trim((string) ($row['group_name'] ?? ''))) > 120) {
-                $this->addError("ingredients.{$index}.group_name", 'Nazwa grupy jest za długa. Zostaw najwyżej 120 znaków, na przykład „Ciasto”.');
-                $badIngredient = true;
-            }
-
-            if (mb_strlen(trim((string) ($row['note'] ?? ''))) > 300) {
-                $this->addError("ingredients.{$index}.note", 'Ta uwaga jest za długa. Zostaw najwyżej 300 znaków.');
-                $badIngredient = true;
-            }
-        }
-
-        foreach ($this->steps as $index => $row) {
-            if (mb_strlen(trim((string) ($row['instruction'] ?? ''))) > 4000) {
-                $this->addError("steps.{$index}.instruction", 'Ten krok jest za długi. Zostaw najwyżej 4000 znaków albo podziel go na dwa kroki.');
-                $badStep = true;
-            }
-
-            // Minutnik sprawdzamy TĄ SAMĄ bramką, która go potem przelicza
-            // (`StepTimer`), a nie osobnym zestawem reguł obok. Inaczej
-            // kreator przyjmowałby wartość, którą akcja domenowa i tak
-            // odrzuci — i odrzuci ją nad całym formularzem, a nie przy polu.
-            try {
-                StepTimer::secondsFromMinutes($row['timer_minutes'] ?? null);
-            } catch (BladDlaCzlowieka $e) {
-                $this->addError("steps.{$index}.timer_minutes", $e->getMessage());
-                $badStep = true;
-            }
+        foreach ([...$bledySkladnikow, ...$bledyKrokow] as $klucz => $komunikat) {
+            $this->addError($klucz, $komunikat);
         }
 
         if ($changeStep && $badIngredient) {
@@ -795,65 +758,22 @@ new class extends Component
     /**
      * Puste wiersze są pomijane — pusty składnik nigdy nie trafia do bazy.
      *
-     * @return list<array{text: string, group_name: ?string, note: ?string}>
+     * @return list<array{text: string, group_name: ?string, note: ?string, no_amount: bool}>
      */
     public function cleanIngredients(): array
     {
-        $clean = [];
-
-        foreach ($this->ingredients as $row) {
-            $text = trim((string) ($row['text'] ?? ''));
-
-            if ($text === '') {
-                continue;
-            }
-
-            $clean[] = [
-                'text' => mb_substr($text, 0, 240),
-                'group_name' => $this->clampOrNull($row['group_name'] ?? null, 120),
-                'note' => $this->clampOrNull($row['note'] ?? null, 300),
-                // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
-                'no_amount' => (bool) ($row['no_amount'] ?? false),
-            ];
-        }
-
-        return $clean;
+        return WierszePrzepisu::skladniki($this->ingredients);
     }
 
     /**
+     * `id` zawsze null — zdjęcie kroku niesie `mediaId` w wierszu
+     * (uzasadnienie w `WierszePrzepisu::kroki()`).
+     *
      * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string}>
      */
     public function cleanSteps(): array
     {
-        $clean = [];
-
-        foreach ($this->steps as $row) {
-            $instruction = trim((string) ($row['instruction'] ?? ''));
-
-            if ($instruction === '') {
-                continue;
-            }
-
-            $clean[] = [
-                // `id` ZAWSZE null, i to jest świadome.
-                //
-                // Formularz bez JavaScriptu musi odesłać identyfikator kroku,
-                // bo zdjęcia nie umie przysłać drugi raz. Kreator zdjęcie
-                // NIESIE — `mediaId` siedzi w wierszu i przeżywa każde
-                // przestawienie kolejności, bo `swapRows()` przenosi cały
-                // wiersz. Podanie tu `id` dodałoby DRUGĄ drogę do tego samego
-                // zdjęcia, a przy pierwszym rozjeździe między nimi wygrywałaby
-                // ta, o której nikt nie pamięta.
-                'id' => null,
-                'instruction' => mb_substr($instruction, 0, 4000),
-                'timer_minutes' => (string) ($row['timer_minutes'] ?? ''),
-                // Brak `mediaId` znaczy tu „bez zdjęcia" wprost: nie ma `id`,
-                // z którego dałoby się cokolwiek odziedziczyć.
-                'media_id' => $row['mediaId'] ?? null,
-            ];
-        }
-
-        return $clean;
+        return WierszePrzepisu::kroki($this->steps);
     }
 
     /**
@@ -1023,13 +943,6 @@ new class extends Component
         return $trimmed === '' ? null : $trimmed;
     }
 
-    private function clampOrNull(mixed $value, int $length): ?string
-    {
-        $trimmed = trim((string) $value);
-
-        return $trimmed === '' ? null : mb_substr($trimmed, 0, $length);
-    }
-
     private function numberOrNull(string $value): ?float
     {
         $trimmed = str_replace(',', '.', trim($value));
@@ -1059,7 +972,11 @@ new class extends Component
 };
 ?>
 
+{{-- `data-kreator-zapis` czyta `resources/js/strona-nieaktualna.js`, gdy
+     żądanie dostanie 419 (#977): komunikat nie może obiecać, że szkic jest
+     bezpieczny, jeśli żaden się jeszcze nie zapisał. --}}
 <div class="stack"
+     data-kreator-zapis="{{ $recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic') }}"
      x-data="{ revision: $wire.editRevision }"
      x-on:input="$wire.editRevision = ++revision">
     {{-- ------------------------------------------------------------------

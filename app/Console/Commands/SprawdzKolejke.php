@@ -53,6 +53,14 @@ class SprawdzKolejke extends Command
             ['nieudane w oknie', (string) $wynik['nieudane_w_oknie']],
             ['okno (h)', (string) $wynik['okno_godzin']],
             ['nieudane razem', (string) $wynik['nieudane_razem']],
+            ...array_map(
+                fn (string $nazwa, array $liczby) => [
+                    "kolejka {$nazwa}: gotowe / zaległość (s)",
+                    $liczby['oczekujace'].' / '.$liczby['zaleglosc_sekundy'],
+                ],
+                array_keys($wynik['kolejki']),
+                $wynik['kolejki'],
+            ),
         ]);
 
         match ($wynik['stan']) {
@@ -79,7 +87,20 @@ class SprawdzKolejke extends Command
             default => $this->error('Nieznany stan kolejki.'),
         };
 
-        $this->zapiszWDzienniku($wynik);
+        $kolejki = $stan->poKolejkach();
+
+        if ($kolejki !== null) {
+            $this->table(
+                ['kolejka', 'gotowe', 'zaległość (s)', 'zawieszone', 'nieudane w oknie'],
+                array_map(
+                    fn (string $nazwa, array $k): array => [$nazwa, $k['oczekujace'], $k['zaleglosc_sekundy'], $k['zawieszone'], $k['nieudane_w_oknie']],
+                    array_keys($kolejki),
+                    $kolejki,
+                ),
+            );
+        }
+
+        $this->zapiszWDzienniku($wynik, $kolejki);
 
         if (! $this->option('bez-alarmu')) {
             $alarm->zadzwonJesliTrzeba($wynik);
@@ -105,7 +126,7 @@ class SprawdzKolejke extends Command
      * Postgresa nie ma dostępu z zewnątrz.
      *
      * CZEGO W TEJ LINII NIE MA: `payload`, `exception`, adresów odbiorców
-     * ani nazw klas zadań. Same liczby i nazwa stanu.
+     * ani nazw klas zadań. Same liczby, nazwa stanu i nazwy kolejek (#1030).
      *
      * KANAŁ `pomiary`, A NIE ZWYKŁE `Log::info()` — ta sama poprawka, co
      * w `BudzetPolaczen`: zwykłe `info` szło kanałem `stderr`, a ten bierze
@@ -114,9 +135,14 @@ class SprawdzKolejke extends Command
      * za szereg, który w ogóle nie powstawał. Uzasadnienie kanału stoi
      * w `config/logging.php`.
      *
+     * `kolejki` to rozbicie tych samych liczb na `high`/`default`/`media`/`low`
+     * (issue #599: „osobna widoczność media vs lżejsze kolejki") — same
+     * liczby i nazwy ze stałego słownika `StanKolejki::ZNANE_KOLEJKI`.
+     *
      * @param  array<string, mixed>  $wynik
+     * @param  array<string, array<string, int>>|null  $kolejki
      */
-    private function zapiszWDzienniku(array $wynik): void
+    private function zapiszWDzienniku(array $wynik, ?array $kolejki = null): void
     {
         Log::channel('pomiary')->info('kuking:sprawdz-kolejke', [
             'stan' => $wynik['stan'],
@@ -126,6 +152,10 @@ class SprawdzKolejke extends Command
             'nieudane_w_oknie' => $wynik['nieudane_w_oknie'],
             'nieudane_razem' => $wynik['nieudane_razem'],
             'prog_zaleglosci_sekundy' => $wynik['prog_zaleglosci_sekundy'],
+            'najstarsza_kolejka' => $wynik['najstarsza_kolejka'],
+            // Pełne rozbicie z `poKolejkach()` (#599); `najstarsza_kolejka`
+            // i skrót w tabeli wyżej pochodzą z `sprawdz()` (#1030).
+            'kolejki' => $kolejki,
         ]);
     }
 }

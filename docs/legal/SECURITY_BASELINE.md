@@ -204,6 +204,12 @@ z niej fałszywego wniosku o poziomie ochrony:
    w dzienniku. To jest świadome: awaria cudzej usługi albo nasza literówka
    w sekrecie nie może zamykać rejestracji, odzyskiwania hasła i drogi z DSA
    art. 16 naraz.
+4. **Token jest związany z hostem i formularzem** (issue #992). `success=true`
+   przechodzi tylko z `hostname` z listy środowiska (host z `APP_URL` plus
+   jawne `TURNSTILE_HOSTY_STAGINGU`, nigdy host żądania) i z `action` równym
+   miejscu wysyłanego formularza. Brak albo niezgodność to odmowa jak przy
+   podrobionym tokenie — nie „nie wiem" z punktu 3. Lista hostnames widgetu
+   w panelu Cloudflare ma odpowiadać liście w aplikacji (runbook, krok 8A.2).
 
 Pełne uzasadnienie, droga wycofania i to, co idzie razem z zaciśnięciem:
 `docs/DECISIONS.md` D-050.
@@ -277,6 +283,14 @@ Gdy pojawi się import przepisu z zewnętrznego URL (`FEATURES.md` V2):
 - Logowania (udane i nieudane), zmiana hasła, zmiana e-maila, włączenie/wyłączenie 2FA.
 - Akcje moderacyjne: kto, co, kiedy, jaka decyzja, jakie uzasadnienie (wymagane też przez DSA Art. 17 — patrz `COMPLIANCE.md`).
 - Zmiany uprawnień/ról (np. nadanie roli moderatora/admina).
+  Zmiana roli (`kuking:nadaj-role`, #1315) w tej samej transakcji co zapis
+  roli i wpis audytu kasuje wszystkie sesje konta, zmienia `remember_token`
+  i unieważnia link logowania. Dla zalogowanej osoby oznacza to: przy
+  następnym kliknięciu na każdym urządzeniu trafia na ekran logowania.
+  Po awansie loguje się hasłem i kodem 2FA; konto bez 2FA widzi w panelu
+  ekran z instrukcją włączenia. Awaria audytu albo odmowa zmiany roli
+  nikogo nie wylogowuje. Pilnują tego `AwansRoliWymagaNowejSesjiTest`
+  (HTTP, sterownik `database`) i `AtomowaZmianaRoliTest`.
 - Usunięcie konta / żądanie eksportu danych (dla dowodu realizacji praw RODO).
 - Nietypowe wzorce: masowe pobieranie danych, nagły wzrost częstotliwości akcji z jednego konta/IP.
 

@@ -49,15 +49,27 @@ class SprzatajSprawyModeracyjne extends Command
         $this->line("Pominięto decyzji moderacyjnych z powodu żywego odwołania: {$raport->pominieteDecyzjeZywymOdwolaniem}.");
         $this->line("{$czasownik} zgłoszeń (reports): {$raport->usunieteZgloszenia}.");
 
-        $bledyLacznie = $raport->bledyOdwolan + $raport->bledyDecyzji + $raport->bledyZgloszen;
+        $bledyLacznie = $raport->bledyLacznie();
         $wierszy = Odmiana::rzeczownik($bledyLacznie, 'wiersza', 'wierszy', 'wierszy');
 
-        if ($bledyLacznie > 0) {
-            // `warn`, nie `line`: to musi być widoczne w logu harmonogramu.
-            $this->warn(
+        if ($raport->czesciowaPorazka()) {
+            // CZĘŚCIOWA PORAŻKA TO PORAŻKA (#1534, wzorem #1342). Kod ≠ 0 jest
+            // jedynym sygnałem, który widzi harmonogram — `Harmonogram::artisan()`
+            // zamienia go w wyjątek.
+            $this->error(
                 "Nie udało się skasować {$bledyLacznie} {$wierszy} (odwołania: {$raport->bledyOdwolan}, "
-                ."decyzje: {$raport->bledyDecyzji}, zgłoszenia: {$raport->bledyZgloszen}) — szczegóły w logu, "
+                ."decyzje: {$raport->bledyDecyzji}, zgłoszenia: {$raport->bledyZgloszen}; "
+                ."kandydatów: {$raport->kandydaci()}) — szczegóły w logu, "
                 .'następny przebieg spróbuje ponownie.',
+            );
+
+            return self::FAILURE;
+        }
+
+        if ($raport->pozostaloNaKolejnyPrzebieg > 0) {
+            $this->warn(
+                "Zostaje na następny przebieg: {$raport->pozostaloNaKolejnyPrzebieg} "
+                .'(limit jednego przebiegu albo błędy opisane wyżej).',
             );
         }
 

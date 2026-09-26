@@ -60,7 +60,7 @@ class AdresZrodlaPrzepisuTest extends TestCase
     #[DataProvider('addresses')]
     public function test_tylko_strona_internetowa_jest_linkowana(string $url, bool $allowed): void
     {
-        $recipe = Recipe::factory()->create(['source_type' => 'external', 'source_url' => $url]);
+        $recipe = Recipe::factory()->zeZdjeciem()->create(['source_type' => 'external', 'source_url' => $url]);
         $html = $this->get(route('recipes.show', $recipe))->assertOk()->getContent();
         $href = 'href="'.e($url).'"';
         $this->assertSame($allowed, str_contains($html, $href), 'Nieprawidłowa obecność linku '.$href);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -106,6 +107,19 @@ class Media extends Model
             'width' => 'integer',
             'height' => 'integer',
         ];
+    }
+
+    /**
+     * Zdjęcie, które stało się gotowe (albo przestało), zmienia kolaż
+     * tagów swoich wpisów — cache gościa czyści `UniewaznijCacheTagow`.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $media): void {
+            if ($media->wasChanged('status')) {
+                UniewaznijCacheTagow::poZmianieZdjecia($media);
+            }
+        });
     }
 
     /**
@@ -252,7 +266,11 @@ class Media extends Model
 
         // Wariant nieznany, ale jakieś istnieją — bierzemy pierwszy lepszy.
         // To znaczy, że ktoś dodał wariant do konfiguracji i nie przetworzył
-        // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny.
+        // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny
+        // DLA WYŚWIETLENIA W SERWISIE, i tylko dla niego. Dla wysyłki poza
+        // serwer rozmiar JEST granicą (D-240, #912): zamiennikiem może być
+        // `large`. Kto wysyła zdjęcie na zewnątrz, bierze `wariant()` wprost
+        // i przy braku odmawia — jak `OcenaModelem::jakoJpeg()`.
         foreach ($variants as $nazwa => $dane) {
             if (isset($dane['key'])) {
                 return ['nazwa' => $nazwa, 'klucz' => $dane['key']];

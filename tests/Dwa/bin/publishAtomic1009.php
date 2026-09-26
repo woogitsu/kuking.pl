@@ -16,7 +16,7 @@ if (! str_starts_with(DB::connection()->getDatabaseName(), 'kuking_race')) {
 }
 DB::statement("SET lock_timeout = '15s'");
 DB::statement("SET statement_timeout = '20s'");
-config(['kuking.community.host_username' => $argv[2], 'queue.default' => 'database']);
+config(['kuking.community.host_user_id' => $argv[2], 'queue.default' => 'database']);
 echo 'PID='.DB::selectOne('select pg_backend_pid() as pid')->pid.PHP_EOL;
 flush();
 Notification::creating(function (Notification $notification) use ($argv): void {

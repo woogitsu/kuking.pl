@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
+use App\Domain\Community\HostUserResolver;
 use App\Models\Profile;
 use App\Models\User;
 
@@ -65,10 +66,13 @@ final class CookEligibility
             ->pluck('id')
             ->all();
 
+        $gospodarzId = (new HostUserResolver)->resolve()?->getKey();
+        $zGospodarza = $gospodarzId === null ? [] : [$gospodarzId];
+
         $nazwy = $this->wykluczoneNazwy();
 
         if ($nazwy === []) {
-            return array_values(array_unique([...$zStatusu, ...$zZalazka]));
+            return array_values(array_unique([...$zStatusu, ...$zZalazka, ...$zGospodarza]));
         }
 
         $zNazwy = Profile::query()
@@ -79,13 +83,13 @@ final class CookEligibility
             ->pluck('user_id')
             ->all();
 
-        return array_values(array_unique([...$zStatusu, ...$zZalazka, ...$zNazwy]));
+        return array_values(array_unique([...$zStatusu, ...$zZalazka, ...$zGospodarza, ...$zNazwy]));
     }
 
     /**
-     * Gospodarz (`kuking.community.host_username`) i konta testowe
-     * (`kuking.account.test_usernames`), znormalizowane do porównania
-     * bez rozróżniania wielkości liter — tak jak `Profile::poNazwie()`.
+     * Konta testowe znormalizowane do porównania bez rozróżniania wielkości
+     * liter — tak jak `Profile::poNazwie()`. Gospodarz jest wykluczany wyżej
+     * po stabilnym identyfikatorze zwróconym przez `HostUserResolver`.
      *
      * @return list<string>
      */
@@ -94,10 +98,7 @@ final class CookEligibility
         /** @var array<int, string> $testowe */
         $testowe = config('kuking.account.test_usernames', []);
 
-        $wszystkie = [
-            (string) config('kuking.community.host_username'),
-            ...$testowe,
-        ];
+        $wszystkie = $testowe;
 
         $znormalizowane = array_map(
             static fn (string $nazwa): string => mb_strtolower(trim($nazwa)),

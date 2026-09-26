@@ -51,6 +51,12 @@ final class TagFeed
 
         return Post::query()
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+            // TYLKO OPUBLIKOWANE (issue #1338). `widoczneDla()` ma furtkę
+            // „autor widzi swoje" bez pytania o status — dla archiwum autora,
+            // nie dla strumienia. Bez tego własny wpis ukryty przez moderację
+            // albo szkic z tagiem stał na Starcie. Strona tagu i
+            // `FollowingFeed` mają ten warunek od początku.
+            ->published()
             // Ta sama macierz widoczności co wszędzie indziej: obserwowanie
             // tagu NIE MOŻE być obejściem ustawień prywatności ani blokady.
             ->widoczneDla($viewer)
@@ -66,7 +72,11 @@ final class TagFeed
             // od issue #368. `TagFeed` był jedynym z czterech strumieni bez
             // niej — i jedynym, do którego wpisy trafiają bez żadnej relacji
             // między widzem a autorem.
-            ->zWidocznymPrzepisem($viewer)
+            //
+            // Wpis z własną treścią idzie za WŁASNĄ widocznością, jak na
+            // swojej stronie (issue #1377); niedostępny przepis zdejmuje
+            // z karty `Post::ukryjNiedostepnePrzepisy()` niżej.
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->tylkoOdAktywnychAutorow()
             ->with([
                 'author.profile.avatar',
@@ -102,7 +112,8 @@ final class TagFeed
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->cursorPaginate($perPage);
+            ->cursorPaginate($perPage)
+            ->tap(fn (CursorPaginator $strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer));
     }
 
     /**
@@ -125,8 +136,9 @@ final class TagFeed
         // co zrobić dalej.
         return Post::query()
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+            ->published()
             ->widoczneDla($viewer)
-            ->zWidocznymPrzepisem($viewer)
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->tylkoOdAktywnychAutorow()
             ->exists();
     }

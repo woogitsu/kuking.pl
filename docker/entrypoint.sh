@@ -5,7 +5,8 @@
 #  Jeden obraz, cztery role. Rolę wybiera pierwszy argument albo APP_ROLE:
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
-#    worker     — php artisan queue:work (przetwarzanie zdjęć, maile, eksporty)
+#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty)
+#                 (w roli all: jeden proces dla wszystkich kolejek — listy_kolejek())
 #    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
@@ -87,16 +88,50 @@ fi
 # -----------------------------------------------------------------------------
 [[ -f /app/artisan ]] || die "brak /app/artisan — obraz zbudowany niepoprawnie"
 
+# Pusty APP_KEY w potwierdzonym środowisku PR dostaje losowy klucz tego
+# kontenera — zapieczętowany klucz staginu do PR Environments nie trafia
+# (issue #975). Warunki i powody: docker/klucz-preview.sh. Klucza nie logujemy.
+# shellcheck source=docker/klucz-preview.sh
+source /app/docker/klucz-preview.sh
+if [[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then
+  log "APP_KEY: środowisko PR ${RAILWAY_ENVIRONMENT_NAME} nie ma własnego klucza —"
+  log "         wygenerowano jednorazowy klucz tego kontenera. Restart unieważni sesje."
+fi
+
 if [[ -z "${APP_KEY:-}" ]]; then
   die "APP_KEY jest pusty. Wygeneruj go raz: 'php artisan key:generate --show' \
 i wklej jako zmienną środowiskową w Railway. Bez APP_KEY nie da się odszyfrować \
 sesji ani ciasteczek — aplikacja wywali 500 na każdym requeście."
 fi
 
-if [[ -z "${DB_URL:-}${DATABASE_URL:-}" ]]; then
-  log "OSTRZEŻENIE: ani DB_URL, ani DATABASE_URL nie jest ustawione."
-  log "             Sprawdź referencję do serwisu Postgres w zmiennych Railway."
-fi
+# Sprawdzamy zmienne, które Laravel NAPRAWDĘ czyta. `config/database.php`
+# bierze `DB_URL` albo osobne `DB_HOST`/`DB_DATABASE`/`DB_USERNAME` — samego
+# `DATABASE_URL` nie czyta nigdzie (#1356). Wcześniej samo `DATABASE_URL`
+# uciszało ostrzeżenie, a aplikacja i tak łączyła się z 127.0.0.1.
+#
+# Świadomie NIE mapujemy DATABASE_URL → DB_URL: to ukryłoby błędną
+# konfigurację zamiast ją nazwać. Nie wypisujemy też wartości — URL niesie
+# hasło. Kontrola stoi PRZED `config:cache`, bo po zapieczeniu konfiguracji
+# zmiana zmiennej nie poprawi już bieżącego kontenera; poprawi ją restart
+# (entrypoint i tak czyści cache na każdym starcie).
+sprawdz_konfiguracje_bazy() {
+  [[ -n "${DB_URL:-}" ]] && return 0
+  if [[ -n "${DB_HOST:-}" && -n "${DB_DATABASE:-}" && -n "${DB_USERNAME:-}" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${DATABASE_URL:-}" ]]; then
+    log "OSTRZEŻENIE: DATABASE_URL jest ustawione, ale aplikacja go NIE czyta — czyta DB_URL."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  else
+    log "OSTRZEŻENIE: brak konfiguracji bazy — nie ma DB_URL ani kompletu"
+    log "             DB_HOST, DB_DATABASE i DB_USERNAME."
+    log '             Ustaw w Railway DB_URL=${{Postgres.DATABASE_URL}} i zrestartuj serwis.'
+  fi
+  return 1
+}
+
+sprawdz_konfiguracje_bazy || true
 
 # -----------------------------------------------------------------------------
 # 2. Katalogi scratch. Filesystem jest ulotny, więc po każdym restarcie
@@ -129,32 +164,30 @@ php /app/artisan view:clear   --no-interaction >/dev/null
 php /app/artisan event:clear  --no-interaction >/dev/null
 
 # -----------------------------------------------------------------------------
-#  `cache:clear` JEST INNY: przy CACHE_STORE=database uderza w tabelę `cache`.
+#  `cache:clear` CELOWO NIE WYSTĘPUJE — ani samo, ani w `optimize:clear`.
 #
-#  Wcześniej stało tu `optimize:clear`, które woła cache:clear w środku.
-#  Przy `set -Eeuo pipefail` wyjątek z bazy kończył cały skrypt, więc kontener
-#  padał — i wstawał, i padał, w pętli. Zaobserwowane na produkcji przy
-#  pierwszym wdrożeniu, zanim wykonały się migracje:
+#  Przy CACHE_STORE=database tabela `cache` NIE jest odtwarzalną kopią
+#  czegokolwiek. Leży w niej stan, który ma przeżyć restart:
+#    - liczniki `RateLimiter` (próby hasła, kodu 2FA, linki logowania,
+#      ponowienia potwierdzeń, formularz zgłoszenia DSA),
+#    - dobowy sufit listów `DziennyBudzetListow` (D-076),
+#    - okna deduplikacji alarmów i listów o próbie wejścia kontem Facebooka.
+#  Do 25 września 2026 stało tu `cache:clear` przy KAŻDYM starcie web, workera
+#  i schedulera, a wdrożeń jest kilkadziesiąt na dobę. Każdy deploy dawał
+#  zgadującemu kod 2FA nową pulę prób i zerował dobowy licznik poczty
+#  (audyt B10-03 = B8-01).
 #
-#      SQLSTATE[42P01]: Undefined table: relation "cache" does not exist
-#
-#  Aplikacja nie wstawała nawet po to, żeby pokazać, co jest nie tak.
-#  Healthcheck nie miał czego odpytać, a w panelu było samo „CRASHED".
-#
-#  Niedostępny cache NIE JEST powodem, żeby nie uruchomić serwisu. Cache jest
-#  z definicji odtwarzalny — najgorsze, co się stanie, to wolniejsze pierwsze
-#  żądania. Dlatego to jedno polecenie ma prawo się nie udać, ale musi
-#  o tym GŁOŚNO powiedzieć w logu.
+#  Czyszczenie nie jest też potrzebne po deployu: pliki konfiguracji, tras,
+#  zdarzeń i widoków czyszczą `*:clear` wyżej i przebudowuje `optimize` niżej.
+#  Wpisy treści w cache (`LiczbaKukingow`, `KolejkiPanelu`) przelicza
+#  harmonogram, a ich odczyt znosi wpis ze starszego wdrożenia. Gdyby kiedyś
+#  wpis z poprzedniej wersji kodu naprawdę szkodził — usuń NAZWANY klucz
+#  (`Cache::forget('...')`) albo zmień jego nazwę, nigdy całą tabelę.
+#  Pilnuje tego `tests/Feature/StartKonteneraNieCzysciCacheTest.php`.
 # -----------------------------------------------------------------------------
-if ! php /app/artisan cache:clear --no-interaction >/dev/null 2>&1; then
-  log "OSTRZEŻENIE: nie udało się wyczyścić cache aplikacji."
-  log "  Najczęstsza przyczyna: brak tabeli 'cache', czyli niewykonane migracje."
-  log "  Startuję dalej — cache jest odtwarzalny, a serwis ma wstać i dać się zdiagnozować."
-fi
 
-# `optimize` zostaje BEZ tolerancji na błąd. Tu jest odwrotnie niż wyżej:
-# nieudane zapieczenie konfiguracji, tras i widoków znaczy, że aplikacja
-# naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
+# `optimize` jest BEZ tolerancji na błąd: nieudane zapieczenie konfiguracji,
+# tras i widoków znaczy, że aplikacja naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
 # deploy, zamiast wpuszczać ruch na coś zepsutego.
 php /app/artisan optimize --no-interaction
 
@@ -358,8 +391,8 @@ start_worker() {
   # --tries=3         → 3 próby, potem failed_jobs; ProcessUploadedImage musi
   #                     być idempotentny (patrz docs/MEDIA_PIPELINE.md).
   # --backoff=10,60,300 → rosnące opóźnienie między próbami.
-  # --queue           → kolejność priorytetów: interakcje użytkownika przed
-  #                     ciężkim przetwarzaniem obrazów.
+  # --queue           → liczba procesów i ich kolejki zależą od roli, patrz
+  #                     listy_kolejek() niżej (issue #1030).
   # Worker dostaje wyższy limit pamięci niż web. php.ini nie umie wartości
   # domyślnych, więc podajemy to flagą -d.
   #
@@ -374,13 +407,129 @@ start_worker() {
   # workera wychodzi co godzinę z kodem 0 i jego powrót zależy od tego, jak
   # ustawiona jest polityka restartu w panelu — czyli od czegoś, czego nie ma
   # w repozytorium i o czym nikt nie pamięta. Kolejka ma działać niezależnie
-  # od tego ustawienia.
-  nadzoruj "kolejka" jeden_przebieg_kolejki
+  # od tego ustawienia. Rola podana JAWNIE: bez niej nadzorca odmawia, zamiast
+  # po cichu wziąć jeden proces jak w `all` (#1030).
+  nadzoruj_kolejki worker
+}
+
+# -----------------------------------------------------------------------------
+#  ILE PROCESÓW `queue:work` I NA JAKICH KOLEJKACH (issue #1030)
+#
+#  Jeden `queue:work --queue=high,default,media,low` czyta listę jako ŚCISŁY
+#  priorytet: dopóki `default` ma gotowe zadanie, worker nie zajrzy do
+#  `media`, a do `low` — dopóki czeka cokolwiek wyżej. Przy stałym napływie
+#  maili zdjęcia i eksport RODO czekałyby bez końca.
+#
+#  Osobny proces na kolejkę to usuwa, ale kosztuje pamięć. Dlatego domyślna
+#  liczba procesów ZALEŻY OD ROLI:
+#
+#    worker (osobny kontener, cała pamięć dla kolejki)
+#        → proces na kolejkę: `high`, `default`, `media`, `low`. Żadna nie
+#          czeka na cudzą zaległość. `high` to czwarty proces, ale lekki
+#          (same e-maile) — patrz uwaga o pamięci w .railway/railway.ts.
+#
+#    all (produkcja dziś: jeden kontener 1024 MB z FrankenPHP i harmonogramem)
+#        → JEDEN proces `high,default,media,low`, kolejność = priorytet, tak
+#          jak przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
+#          przy zdjęciu 50 Mpx, `low` do limitu 512M przy eksporcie, do tego
+#          WWW — OOM położyłby także stronę. Ceną jest głodzenie `media`
+#          i `low` przy stałej zaległości `default`; lekarstwem jest
+#          wydzielenie workera (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
+#
+#  Ręczne sterowanie, bez wdrożenia (docs/DEPLOYMENT.md, „Kolejki"):
+#    QUEUE_WORKERS — procesy rozdzielone SPACJĄ, w każdym lista po przecinku,
+#                    np. "default media low" albo "default,low media".
+#                    Wygrywa z domyślną wartością każdej roli.
+#    QUEUE_NAMES   — dawna zmienna (przed #1030): lista po przecinku dla
+#                    JEDNEGO procesu. Obsługiwana jako alias, gdy nie ma
+#                    QUEUE_WORKERS.
+#
+#  `media` zawsze bierze JEDEN proces: dwa dekodowania 50 Mpx naraz nie
+#  mieszczą się w 1024 MB (BudzetPamieciZdjecTest).
+#
+#  `high` WRÓCIŁA (audyt B8-06): listy wejścia na konto — link do logowania,
+#  potwierdzenie adresu, ustawienie hasła, zaproszenie — idą na `high`, żeby
+#  nie stać w FIFO na `default` za podsumowaniami tygodnia. Przez chwilę
+#  (#1030) usunięta jako nieużywana; kolejka, której worker nie czyta,
+#  zostawia list w bazie na zawsze. Dlatego stoi PIERWSZA w obu rolach,
+#  a w roli `worker` ma własny proces (UmowaKolejkiTest).
+# -----------------------------------------------------------------------------
+listy_kolejek() {
+  local osobne="high default media low"
+  local wspolny="${QUEUE_NAMES:-high,default,media,low}"
+
+  if [[ -n "${QUEUE_WORKERS:-}" ]]; then
+    [[ -n "${QUEUE_NAMES:-}" ]] && log "OSTRZEŻENIE: ustawione QUEUE_WORKERS i QUEUE_NAMES — QUEUE_NAMES jest pomijane"
+    echo "${QUEUE_WORKERS}"
+  elif [[ -n "${QUEUE_NAMES:-}" || "$1" != worker ]]; then
+    echo "${wspolny}"
+  else
+    echo "${osobne}"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+#  NADZORCY PROCESÓW KOLEJKI I ZATRZYMANIE SYGNAŁEM
+#
+#  Każda pozycja z listy_kolejek() to osobny nadzorca (nadzoruj()) w tle.
+#  Nadzorca, który się poddał (nadzoruj() zwraca 1), kończy całą grupę
+#  kodem 1 — tak samo jak dotąd jeden nadzorca kolejki.
+#
+#  SIGTERM (deploy, `shutdown` roli `all`) trafia do tej powłoki. Przekazujemy
+#  go nadzorcom, a każdy nadzorca — swojemu procesowi PHP (pułapka w
+#  nadzoruj_jedna_kolejke()). `queue:work` dzięki pcntl dokańcza bieżące
+#  zadanie i wychodzi; CZEKAMY na to (`wait`), zanim powłoka się zakończy.
+#  Bez tego zdjęcie w połowie przetwarzania ginęłoby od SIGKILL.
+#  `jobs -p`, nie `pidy`: sygnał może przyjść między `&` a dopisaniem PID-u.
+# -----------------------------------------------------------------------------
+nadzoruj_kolejki() {
+  local -a listy pidy=()
+  local lista pid
+  local rola="${1:?nadzoruj_kolejki: podaj rolę (worker albo all)}"
+  read -r -a listy <<< "$(listy_kolejek "${rola}")"
+
+  trap 'kill -TERM $(jobs -p) 2>/dev/null || true; wait || true; exit 0' TERM INT
+
+  for lista in "${listy[@]}"; do
+    log "start queue:work --queue=${lista}"
+    nadzoruj_jedna_kolejke "${lista}" &
+    pidy+=("$!")
+  done
+
+  while true; do
+    for pid in "${pidy[@]}"; do
+      if ! kill -0 "${pid}" 2>/dev/null; then
+        log "BŁĄD: nadzorca kolejki PID ${pid} się poddał — zatrzymuję pozostałe"
+        kill -TERM "${pidy[@]}" 2>/dev/null || true
+        wait || true
+        return 1
+      fi
+    done
+    sleep 1
+  done
+}
+
+# Podpowłoka jednego nadzorcy. PHP chodzi w TLE z `wait`, bo tylko wtedy
+# pułapka odpala się od razu — przy procesie na pierwszym planie bash
+# odłożyłby ją do jego końca, a PHP sygnału by nie dostał.
+nadzoruj_jedna_kolejke() {
+  PID_PRZEBIEGU=""
+  trap 'if [[ -n "${PID_PRZEBIEGU}" ]]; then kill -TERM "${PID_PRZEBIEGU}" 2>/dev/null || true; wait "${PID_PRZEBIEGU}" || true; fi; exit 0' TERM INT
+  nadzoruj "kolejka[$1]" przebieg_w_tle "$1"
+}
+
+przebieg_w_tle() {
+  jeden_przebieg_kolejki "$1" &
+  PID_PRZEBIEGU="$!"
+  local kod=0
+  wait "${PID_PRZEBIEGU}" || kod=$?
+  PID_PRZEBIEGU=""
+  return "${kod}"
 }
 
 jeden_przebieg_kolejki() {
-  php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
-    --queue="${QUEUE_NAMES:-high,default,media,low}" \
+  exec php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
+    --queue="$1" \
     --tries="${QUEUE_TRIES:-3}" \
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \
     --max-time="${QUEUE_MAX_TIME:-3600}" \
@@ -491,7 +640,7 @@ case "${ROLE}" in
     # Kolejka i harmonogram idą pod NADZORCĄ, bo oba KOŃCZĄ SIĘ PLANOWO:
     # worker po --max-time, harmonogram po każdym przebiegu. Wcześniej ich
     # normalne zakończenie kładło cały serwis — patrz opis przy nadzoruj().
-    nadzoruj "kolejka" jeden_przebieg_kolejki &
+    nadzoruj_kolejki all &
     PID_KOLEJKI="$!"
     CHILD_PIDS+=("${PID_KOLEJKI}")
 

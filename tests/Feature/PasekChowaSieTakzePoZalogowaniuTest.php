@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Recipe;
+use App\Models\RecipeStep;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -69,6 +71,48 @@ class PasekChowaSieTakzePoZalogowaniuTest extends TestCase
                 '/<header[^>]*class="[^"]*\btopbar\b[^"]*"[^>]*'.preg_quote(self::ATRYBUT, '/').'/',
                 $html,
                 "Na trasie `{$trasa}` atrybut nie stoi na elemencie `header.topbar`.",
+            );
+        }
+    }
+
+    /**
+     * DŁUG WERYFIKACYJNY #713, POZYCJA D6 — DWA WŁASNE UKŁADY.
+     *
+     * Rejestr zapisał, że po #711 nikt nie sprawdził trybu gotowania ani
+     * panelu moderacji, bo „oba mają własne układy". Ten test domyka tę
+     * część, którą da się domknąć w PHPUnicie: mechanizm DOCHODZI do obu
+     * ekranów i siedzi na `header.topbar`. Panel ma w layoucie kilka gałęzi
+     * `@if($wTrybiePanelu)`, więc dopisanie tam warunku nad atrybutem
+     * wyłączyłoby chowanie paska tylko moderatorom — i żaden inny test by
+     * tego nie zauważył.
+     *
+     * Czego ten test NIE dowodzi: ruchu paska i jego współgrania z paskiem
+     * kroku (`cook-topbar`) ani z nawigacją panelu. To mierzy przeglądarka
+     * (`scripts/pasek-przewijany.mjs`), a ten pomiar dziś otwiera wyłącznie
+     * adres startowy serwisu (gość i zalogowana osoba) — rozszerzenie go
+     * o te dwa ekrany zostaje w #713.
+     *
+     * Kontrola ujemna wykonana przy dopisaniu: `@unless($wTrybiePanelu)`
+     * wokół atrybutu w `layout.blade.php` — test oblewa na panelu,
+     * przywrócone z kontrolą MD5.
+     */
+    public function test_tryb_gotowania_i_panel_moderacji_tez_dostaja_pasek_chowany(): void
+    {
+        $przepis = Recipe::factory()->create(['author_id' => $this->user('autorka')->getKey()]);
+        RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Wymieszaj.']);
+
+        $ekrany = [
+            'tryb gotowania' => [$this->user('kucharka'), route('cooking.show', $przepis->slug)],
+            'panel moderacji' => [$this->moderator(), route('admin.reports')],
+        ];
+
+        foreach ($ekrany as $nazwa => [$osoba, $adres]) {
+            $html = (string) $this->actingAs($osoba)->get($adres)->assertOk()->getContent();
+
+            $this->assertMatchesRegularExpression(
+                '/<header[^>]*class="[^"]*\btopbar\b[^"]*"[^>]*'.preg_quote(self::ATRYBUT, '/').'/',
+                $html,
+                "Na ekranie „{$nazwa}” górny pasek nie dostał atrybutu `".self::ATRYBUT.'`.',
             );
         }
     }

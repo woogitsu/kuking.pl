@@ -118,11 +118,11 @@ class ZawieszoneKontoPrywatneCzynnosciTest extends TestCase
         $step = RecipeStep::create(['recipe_id' => $recipe->id, 'position' => 0, 'instruction' => 'Mieszaj.']);
         $key = 'gotowanie.'.$recipe->id.'.zrobione';
         $this->actingAs($viewer)->withSession(['gotowanie.inny.zrobione' => ['inny-krok']]);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1])
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $step->id, 'zrobiono' => 1])
             ->assertSessionHasNoErrors()->assertSessionHas($key, [$step->id]);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 0])
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $step->id, 'zrobiono' => 0])
             ->assertSessionHasNoErrors()->assertSessionHas($key, []);
-        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'zrobiono' => 1]);
+        $this->post(route('cooking.zaznacz', $recipe->slug), ['krok' => 1, 'krok_id' => $step->id, 'zrobiono' => 1]);
         $html = $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
         // Jeden reset (D-253): ten sam „Zacznij od początku” co dla aktywnych, bez drugiego przycisku.
         $this->assertSame(1, $this->forms($html, route('cooking.restart', $recipe->slug)));

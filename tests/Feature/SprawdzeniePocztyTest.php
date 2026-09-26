@@ -95,18 +95,23 @@ final class SprawdzeniePocztyTest extends TestCase
     }
 
     /**
-     * `failover` z `log` na liście przechodzi przez `Poczta::dziala()`, bo
-     * sterownik nazywa się inaczej — a przy awarii pierwszego transportu
-     * listy zaczynają cicho wpadać do dziennika. Komenda musi to nazwać.
+     * `failover` z `log` na liście do issue #1084 przechodził przez
+     * `Poczta::dziala()` i komenda kończyła się sukcesem z samym
+     * ostrzeżeniem. Teraz to porażka: przy awarii pierwszego transportu
+     * listy wpadałyby cicho do dziennika, więc nie ma czego „sprawdzać”.
      */
-    public function test_ostrzega_gdy_zapasowym_transportem_jest_dziennik(): void
+    public function test_zapasowy_dziennik_konczy_komende_porazka(): void
     {
         Mail::fake();
-        config(['mail.default' => 'failover']);
+        config([
+            'mail.default' => 'failover',
+            'mail.mailers.failover.mailers' => ['smtp', 'log'],
+        ]);
 
         $this->artisan('kuking:sprawdz-poczte', ['adres' => 'basia@example.com'])
-            ->expectsOutputToContain('NIC NIE DOSTARCZA')
-            ->assertSuccessful();
+            ->expectsOutputToContain('Poczta nie wychodzi')
+            ->expectsOutputToContain('Zapasem ma być drugi dostawca')
+            ->assertFailed();
     }
 
     /** Nadawca `noreply@` przechodzi technicznie, ale łamie `docs/brand/BRAND_EXTENDED.md`. */

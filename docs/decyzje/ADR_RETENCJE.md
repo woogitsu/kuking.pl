@@ -128,6 +128,13 @@ trzyma się §5 niżej.
 
 #### Wzorzec B — `kuking:sprzataj-sygnaly` / `PrzedawnioneSygnaly` — czyste dane tabelaryczne
 
+> **Aktualizacja (#1657).** Opis niżej to stan z chwili pisania ADR. Jeden
+> `DELETE` na cały backlog NIE był bezpieczny na przerwanie: przerwana
+> instrukcja cofa się w całości i następny przebieg zaczyna od zera. Dziś
+> Wzorzec B idzie partiami z budżetem na przebieg
+> (`App\Domain\Compliance\UsuwanieWPartiach`, opis w `docs/DATABASE.md`
+> przy `product_signals`); predykat i wyjątki są te same.
+
 `app/Domain/Analytics/PrzedawnioneSygnaly.php` — cała logika to jedna linia:
 
 ```php
@@ -184,6 +191,12 @@ Dla każdego konta z pierwszej kolejki:
 - Błąd na jednym koncie nie blokuje reszty listy — każde konto to osobna
   transakcja (komentarz, linie 33-36).
 - `--dry-run` (linie 56-57).
+- *(Dopisek, issue #1028/#998:)* obie kolejki mają budżet jednego przebiegu
+  (`--limit`, domyślnie 500 kont na kolejkę, najstarsze zgłoszenia najpierw)
+  i wczytują konta partiami; to, co nie zmieściło się w przebiegu, trafia
+  ostrzeżeniem do dziennika serwera. `PrzedawnioneSprawyModeracyjne` kasuje
+  partiami z powtórką wiersz po wierszu przy błędzie partii — izolacja błędu
+  jednego wiersza zostaje. Numery linii wyżej opisują stan sprzed tej zmiany.
 
 **Ten wzorzec jest właściwy dla `reports` + `moderation_actions` + `appeals`
 razem** — bo w odróżnieniu od `product_signals`, te trzy tabele **zależą od

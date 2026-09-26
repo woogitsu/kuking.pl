@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -106,7 +105,7 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
         $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
 
         $dziennik->shouldHaveReceived('warning')
-            ->withArgs(function (string $wiadomosc, array $kontekst) use ($basia): bool {
+            ->withArgs(function (string $wiadomosc, array $kontekst) use ($basia, $export): bool {
                 if (! str_contains($wiadomosc, 'e-mail nie wyszedł')) {
                     return false;
                 }
@@ -116,9 +115,12 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
                 $this->assertStringNotContainsString($basia->email, $caly);
                 $this->assertStringNotContainsString('@example.com', $caly);
 
-                // …a jednocześnie wpis dalej mówi, CO się stało — inaczej
-                // byłaby to cisza, nie redakcja.
-                $this->assertStringContainsString('550 5.1.1', $caly);
+                // …a jednocześnie wpis dalej mówi, CO się stało i KTÓREJ
+                // paczki dotyczy — inaczej byłaby to cisza, nie redakcja.
+                // Komunikatu dostawcy (nawet przyciętego) już nie ma: #973.
+                $this->assertSame((string) $export->getKey(), (string) $kontekst['data_export_id']);
+                $this->assertSame(RuntimeException::class, $kontekst['error']['wyjatek']);
+                $this->assertStringNotContainsString('Recipient address rejected', $caly);
 
                 return true;
             })->once();
@@ -137,16 +139,23 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
 
         $sql = 'insert into "dziennik_zgod" ("email") values (?)';
 
-        DB::shouldReceive('transaction')->andThrow(
-            new QueryException('pgsql', $sql, ['basia@example.com'], new RuntimeException('SQLSTATE[23505]')),
-        );
-
         $dziennik = Log::spy();
 
         // KONTROLA DODATNIA: mimo awarii dziennika zgód sama zgoda ma zostać
         // wycofana i akcja ma oddać `true` — to jest jej obietnica wobec
         // człowieka, który kliknął „nie chcę więcej".
-        $this->assertTrue((new PrzestawZgodeNaDigest)->handle($basia, false, WpisZgody::ZRODLO_USTAWIENIA));
+        // Awaria dotyczy zapisu dowodu, nie transakcji chroniącej konto.
+        $dispatcher = WpisZgody::getEventDispatcher();
+        WpisZgody::setEventDispatcher(clone $dispatcher);
+        try {
+            WpisZgody::creating(static function () use ($sql): never {
+                throw new QueryException('pgsql', $sql, ['basia@example.com'], new RuntimeException('SQLSTATE[23505]'));
+            });
+            $this->assertTrue((new PrzestawZgodeNaDigest)->handle($basia, false, WpisZgody::ZRODLO_USTAWIENIA));
+        } finally {
+            WpisZgody::setEventDispatcher($dispatcher);
+        }
+        $this->assertFalse($basia->fresh()->wants_weekly_digest);
 
         $dziennik->shouldHaveReceived('error')
             ->withArgs(function (string $wiadomosc, array $kontekst) use ($sql): bool {

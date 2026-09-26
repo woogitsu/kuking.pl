@@ -8,12 +8,14 @@ use App\Console\Commands\NadajRole;
 use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
+use App\Models\LoginLinkToken;
 use App\Models\User;
 use Closure;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use LogicException;
 use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -48,6 +50,43 @@ final class AtomowaZmianaRoliTest extends TestCase
         app(ChangeUserRole::class)->handle($user, User::ROLE_ADMIN);
         $this->assertSame(User::ROLE_ADMIN, $user->refresh()->role);
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'user.role_changed')->count());
+    }
+
+    /**
+     * #1315: odwołanie sesji stoi w transakcji zmiany roli. Awaria audytu
+     * i odmowa (ostatni administrator) nie wylogowują nikogo.
+     */
+    public function test_awaria_audytu_i_odmowa_nie_odwoluja_sesji_ani_linku(): void
+    {
+        config(['session.driver' => 'database']);
+        $ula = $this->user('rola');
+        $szef = $this->user('szef', ['role' => User::ROLE_ADMIN]);
+        $event = 'eloquent.creating: '.AuditLogEntry::class;
+        Event::listen($event, static function (AuditLogEntry $entry): void {
+            throw new RuntimeException('Sonda awarii zapisu audytu.');
+        });
+
+        foreach ([[$ula, User::ROLE_MODERATOR, RuntimeException::class], [$szef, User::ROLE_USER, DomainException::class]] as [$konto, $rola, $wyjatek]) {
+            $this->poswiadczenia($konto);
+            $token = $konto->fresh()->remember_token;
+            $caught = null;
+            try {
+                app(ChangeUserRole::class)->handle($konto, $rola);
+            } catch (RuntimeException|DomainException $exception) {
+                $caught = $exception;
+            }
+            $this->assertInstanceOf($wyjatek, $caught);
+            $this->assertNotSame($rola, $konto->fresh()->role);
+            $this->assertDatabaseHas('sessions', ['id' => 'sesja-'.$konto->getKey()]);
+            $this->assertSame(1, LoginLinkToken::query()->where('user_id', $konto->getKey())->count());
+            $this->assertSame($token, $konto->fresh()->remember_token);
+        }
+        Event::forget($event);
+
+        // Kontrola dodatnia: udana zmiana w tym samym układzie odwołuje wszystko.
+        app(ChangeUserRole::class)->handle($ula, User::ROLE_MODERATOR);
+        $this->assertDatabaseMissing('sessions', ['id' => 'sesja-'.$ula->getKey()]);
+        $this->assertSame(0, LoginLinkToken::query()->where('user_id', $ula->getKey())->count());
     }
 
     public function test_po_pytaniu_ponownie_sprawdza_role_i_ostatniego_admina(): void
@@ -102,6 +141,25 @@ final class AtomowaZmianaRoliTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('przed założeniem blokady konta');
         ZamekKonta::zablokuj($user, static fn () => app(ChangeUserRole::class)->handle($user, User::ROLE_ADMIN));
+    }
+
+    private function poswiadczenia(User $user): void
+    {
+        $user->forceFill(['remember_token' => Str::random(60)])->save();
+        DB::table('sessions')->insert([
+            'id' => 'sesja-'.$user->getKey(),
+            'user_id' => $user->getKey(),
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'przegladarka',
+            'payload' => '',
+            'last_activity' => time(),
+        ]);
+        $link = new LoginLinkToken;
+        $link->user_id = $user->getKey();
+        $link->token_hash = LoginLinkToken::skrot(Str::random(40));
+        $link->created_at = now();
+        $link->expires_at = now()->addMinutes(30);
+        $link->save();
     }
 
     /** @return array{int, string} */

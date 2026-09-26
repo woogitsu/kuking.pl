@@ -14,8 +14,10 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification as Powiadomienia;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -84,31 +86,39 @@ class ZawieszonyModeratorBezUprawnienTest extends TestCase
     /**
      * Policy POZA trasą `/admin` — drugi endpoint nie może ominąć zakazu.
      */
-    public function test_zawieszony_moderator_nie_widzi_cudzego_szkicu_ani_prywatnego_zdjecia(): void
+    public function test_zawieszony_moderator_nie_widzi_ukrytego_przepisu_ani_jego_zdjecia(): void
     {
+        // Przepis UKRYTY, a nie szkic: szkicu nie widzi nawet czynny
+        // moderator (#1359), więc na szkicu ten test nie miałby kontroli
+        // dodatniej. Zdjęcie jest przypięte do tego przepisu — bez rodzica
+        // moderator go nie widzi w ogóle (#1360).
         $autorka = $this->user('autorka');
-        $szkic = Recipe::factory()->draft()->create(['author_id' => $autorka->getKey()]);
         $zdjecie = Media::factory()->create([
             'owner_id' => $autorka->getKey(),
             'status' => Media::STATUS_READY,
+        ]);
+        $ukryty = Recipe::factory()->create([
+            'author_id' => $autorka->getKey(),
+            'status' => Recipe::STATUS_HIDDEN,
+            'hero_media_id' => $zdjecie->getKey(),
         ]);
         $dostep = app(DostepDoZdjecia::class);
 
         $moderator = $this->moderator();
 
-        $this->assertTrue(Gate::forUser($moderator)->allows('view', $szkic), 'Czynny moderator nie widzi szkicu.');
-        $this->assertTrue($dostep->moze($moderator, $zdjecie), 'Czynny moderator nie widzi zdjęcia.');
+        $this->assertTrue(Gate::forUser($moderator)->allows('view', $ukryty), 'Czynny moderator nie widzi ukrytego przepisu.');
+        $this->assertTrue($dostep->moze($moderator, $zdjecie), 'Czynny moderator nie widzi zdjęcia ukrytego przepisu.');
 
         $moderator->suspend(now()->addDays(3));
         $moderator->refresh();
 
         $this->assertFalse(
-            Gate::forUser($moderator)->allows('view', $szkic),
-            'Zawieszony moderator dalej otwiera cudzy szkic przez RecipePolicy.',
+            Gate::forUser($moderator)->allows('view', $ukryty),
+            'Zawieszony moderator dalej otwiera ukryty przepis przez RecipePolicy.',
         );
         $this->assertFalse(
             $dostep->moze($moderator, $zdjecie),
-            'Zawieszony moderator dalej otwiera cudze nieprzypięte zdjęcie.',
+            'Zawieszony moderator dalej otwiera zdjęcie ukrytego przepisu.',
         );
     }
 
@@ -173,5 +183,68 @@ class ZawieszonyModeratorBezUprawnienTest extends TestCase
         // Zawieszenie działa tak samo jak odebranie roli.
         $a->suspend(now()->addDays(3));
         $this->assertSame(0, $a->refresh()->unreadNotificationsCount());
+    }
+
+    /**
+     * `post.first` — ta sama zasada co `appeal.filed` (issue #1351): alert
+     * prowadzi do kolejki „Bez odpowiedzi", więc widzi go tylko osoba, która
+     * TERAZ ma `moderate`. Wiersz i `first_post_events` zostają.
+     */
+    public function test_alert_o_pierwszym_wpisie_znika_po_odebraniu_roli_i_wraca_po_nadaniu(): void
+    {
+        $m = $this->moderator();
+        $this->moderator();
+
+        $zawiadomienie = app(NotifyUser::class)->handle(
+            recipient: $m,
+            type: Notification::TYPE_FIRST_POST,
+            actor: $this->user('nowahalina', ['display_name' => 'Halina Debiutantka']),
+            data: ['post_id' => '00000000-0000-0000-0000-000000000000', 'display_name' => 'Halina Debiutantka'],
+        );
+        $this->assertNotNull($zawiadomienie);
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertSee('Halina Debiutantka');
+        $this->assertSame(1, $m->unreadNotificationsCount());
+
+        app(ChangeUserRole::class)->handle($m, User::ROLE_USER);
+        $m->refresh();
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertDontSee('Halina Debiutantka');
+        $this->assertSame(0, $m->unreadNotificationsCount());
+        $this->actingAs($m)->post(route('notifications.open', $zawiadomienie))->assertNotFound();
+        $this->assertNull($zawiadomienie->refresh()->read_at);
+
+        app(ChangeUserRole::class)->handle($m, User::ROLE_MODERATOR);
+        $m->refresh();
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertSee('Halina Debiutantka');
+        $this->assertSame(1, $m->unreadNotificationsCount());
+
+        $m->suspend(now()->addDays(3));
+        $this->assertSame(0, $m->refresh()->unreadNotificationsCount());
+    }
+
+    /**
+     * `host_username` wskazujący zwykłe konto: `PublishPost` zapisuje alert
+     * i zdarzenie (bez zmian), ale na liście i w liczniku go nie ma, bo
+     * „Zobacz" prowadziłoby do odmowy dostępu.
+     */
+    public function test_gospodarz_bez_prawa_moderacji_nie_widzi_alertu_o_pierwszym_wpisie(): void
+    {
+        Storage::fake('public');
+        $gospodarz = $this->user('gospodarz');
+        config(['kuking.community.host_username' => 'gospodarz']);
+
+        $this->actingAs($this->user('nowa', ['display_name' => 'Halina Debiutantka']))->post(route('posts.store'), [
+            'body' => 'Mój pierwszy rosół',
+            'visibility' => 'public',
+        ])->assertRedirect();
+
+        $this->assertSame(1, Notification::query()->where('user_id', $gospodarz->getKey())
+            ->where('type', Notification::TYPE_FIRST_POST)->count());
+        $this->assertSame(1, DB::table('first_post_events')->count());
+
+        $this->assertSame(0, $gospodarz->unreadNotificationsCount());
+        $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()->assertDontSee('Halina Debiutantka');
     }
 }

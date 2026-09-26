@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Wyscigi;
 
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
@@ -20,7 +21,7 @@ use Tests\TestCase;
  * decydują o tym samym zgłoszeniu niemal jednocześnie.
  *
  * KOD JUŻ TWIERDZI, ŻE TO NAPRAWIONO (audyt W3-09/W6-01, komentarz w
- * `ModerationController::decide()`): `lockForUpdate()` + ponowne sprawdzenie
+ * `RozstrzygnijZgloszenie`, dawniej `ModerationController::decide()`): `lockForUpdate()` + ponowne sprawdzenie
  * statusu POD BLOKADĄ. Ten test nie czyta komentarza na wiarę — MIERZY
  * dokładnie ten przeplot, o którym komentarz mówi, że go zamyka.
  *
@@ -64,7 +65,7 @@ class ModerationDecideRaceTest extends TestCase
         $controller = app(ModerationController::class);
 
         // KARTA A zapisuje decyzję jako pierwsza i commituje.
-        $controller->decide($this->zadanie($moderator, $daneA), $widokKartyA);
+        $controller->decide($this->zadanie($moderator, $daneA, $widokKartyA), $widokKartyA);
 
         $this->assertSame(1, ModerationAction::query()->count());
         $this->assertSame(Report::STATUS_RESOLVED, $report->fresh()->status);
@@ -72,7 +73,7 @@ class ModerationDecideRaceTest extends TestCase
         // KARTA B dociera do `lockForUpdate()` z NIEODŚWIEŻONYM obiektem
         // ($widokKartyB->status wciąż pokazuje "open" w pamięci PHP) —
         // dokładnie ten scenariusz, o którym mówi komentarz klasy.
-        $odpowiedzB = $controller->decide($this->zadanie($moderator, $daneB), $widokKartyB);
+        $odpowiedzB = $controller->decide($this->zadanie($moderator, $daneB, $widokKartyB), $widokKartyB);
 
         // NIE WOLNO powstać drugiemu wpisowi w logu moderacji — to jest
         // istota naprawy W3-09/W6-01.
@@ -87,12 +88,23 @@ class ModerationDecideRaceTest extends TestCase
         $this->assertTrue($odpowiedzB->getSession()->get('errors')->has('action'));
     }
 
-    /** @param  array<string, string>  $dane */
-    private function zadanie(User $moderator, array $dane): Request
+    /**
+     * Żądanie przechodzi przez `DecyzjaModeracyjnaRequest` tak jak na trasie
+     * (#970, krok 2), ale z modelem, który „karta" związała wcześniej — stąd
+     * ręczne podpięcie trasy zamiast wiązania z bazy.
+     *
+     * @param  array<string, string>  $dane
+     */
+    private function zadanie(User $moderator, array $dane, Report $widokKarty): DecyzjaModeracyjnaRequest
     {
-        $request = Request::create('/admin/zgloszenia/x', 'POST', $dane);
+        $request = DecyzjaModeracyjnaRequest::create('/admin/zgloszenia/x', 'POST', $dane);
+        $request->setContainer($this->app)->setRedirector($this->app['redirect']);
         $request->setLaravelSession($this->app['session.store']);
         $request->setUserResolver(fn () => $moderator);
+        $route = (new Route('POST', '/admin/zgloszenia/{report}', []))->bind($request);
+        $route->setParameter('report', $widokKarty);
+        $request->setRouteResolver(fn () => $route);
+        $request->validateResolved();
 
         return $request;
     }

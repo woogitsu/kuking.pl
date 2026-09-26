@@ -50,10 +50,19 @@ final class ExportFileNames
      */
     public static function objectKey(DataExport $export): string
     {
-        return sprintf('eksporty/%s/%s-%s',
-            $export->user_id,
+        return sprintf('%s/%s-%s',
+            self::katalogKonta((string) $export->user_id),
             (string) $export->getKey(),
             self::archiveFile($export),
         );
+    }
+
+    /**
+     * Katalog wszystkich paczek jednego konta — kasowany w całości przy
+     * wymazaniu konta (`EraseAccountData`, audyt B5 pkt 4).
+     */
+    public static function katalogKonta(string $userId): string
+    {
+        return 'eksporty/'.$userId;
     }
 }

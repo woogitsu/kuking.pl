@@ -173,16 +173,70 @@ class ZdjeciaPrzezylyBladWalidacjiTest extends TestCase
             ->map(fn () => Media::factory()->create(['owner_id' => $basia->getKey()])->getKey())
             ->all();
 
-        $this->actingAs($basia)->from(route('posts.create'))->post(route('posts.store'), [
+        $odpowiedz = $this->actingAs($basia)->from(route('posts.create'))->post(route('posts.store'), [
             'media_ids' => $wgrane,
             'photos' => [$this->zdjecie()],
             'body' => 'Za duzo',
             'visibility' => 'public',
-        ])->assertSessionHasErrors('photos');
+        ]);
+
+        $odpowiedz->assertSessionHasErrors('photos', fn (string $blad): bool => str_contains($blad, 'Nowych zdjęć nie dodano'));
+        $this->assertEqualsCanonicalizing($wgrane, session()->getOldInput('media_ids'));
 
         // Bez liczenia na SUMIE dało by się obejść limit, wysyłając połowę
         // zdjęć w plikach, a połowę w ukrytych polach.
         $this->assertSame(0, Post::count());
+        $this->assertSame($maks, Media::count(), 'Zdjęcie nie może trafić do bazy przed sprawdzeniem łącznego limitu.');
+        $this->assertSame([], Storage::disk('public')->allFiles(), 'Zdjęcie nie może trafić do storage przed sprawdzeniem łącznego limitu.');
+    }
+
+    public function test_ostatnie_dozwolone_nowe_zdjecie_przezywa_pozniejszy_blad_walidacji(): void
+    {
+        Storage::fake('public');
+        $basia = $this->user('basia');
+        $maks = (int) config('kuking.media.max_per_post');
+
+        $odzyskane = collect(range(1, $maks - 1))
+            ->map(fn () => Media::factory()->create(['owner_id' => $basia->getKey()])->getKey())
+            ->all();
+
+        $this->actingAs($basia)->from(route('posts.create'))->post(route('posts.store'), [
+            'media_ids' => $odzyskane,
+            'photos' => [$this->zdjecie()],
+            'body' => str_repeat('a', 4001),
+            'visibility' => 'public',
+        ])->assertSessionHasErrors('body');
+
+        $zachowane = session()->getOldInput('media_ids');
+        $this->assertIsArray($zachowane);
+        $this->assertCount($maks, $zachowane);
+        $this->assertEqualsCanonicalizing($odzyskane, array_values(array_intersect($zachowane, $odzyskane)));
+        $this->assertSame($maks, Media::query()->whereIn('id', $zachowane)->where('owner_id', $basia->getKey())->count());
+    }
+
+    public function test_duplikaty_i_cudze_id_nie_zjadaja_limitu_przed_wgraniem_nowego_zdjecia(): void
+    {
+        Storage::fake('public');
+        config(['kuking.media.max_per_post' => 4]);
+
+        $basia = $this->user('basia');
+        $anna = $this->user('anna');
+        $wlasne = Media::factory()->create(['owner_id' => $basia->getKey()]);
+        $cudze = Media::factory()->create(['owner_id' => $anna->getKey()]);
+
+        $this->actingAs($basia)->post(route('posts.store'), [
+            'media_ids' => [$wlasne->getKey(), $wlasne->getKey(), $cudze->getKey()],
+            'photos' => [$this->zdjecie()],
+            'body' => 'Obiad z dwóch zdjęć',
+            'visibility' => 'public',
+        ])->assertRedirect();
+
+        $post = Post::where('body', 'Obiad z dwóch zdjęć')->firstOrFail();
+        $this->assertEqualsCanonicalizing(
+            [$wlasne->getKey(), Media::query()->where('owner_id', $basia->getKey())->whereKeyNot($wlasne->getKey())->sole()->getKey()],
+            $post->media()->pluck('media.id')->all(),
+        );
+        $this->assertFalse($post->media()->whereKey($cudze->getKey())->exists());
     }
 
     // ---------------------------------------------------------------

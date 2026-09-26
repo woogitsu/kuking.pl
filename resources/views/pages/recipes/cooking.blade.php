@@ -169,6 +169,8 @@
             <form method="POST" action="{{ route('cooking.zaznacz', $recipe->slug) }}" class="cook-zaznacz">
                 @csrf
                 <input type="hidden" name="krok" value="{{ $krok }}">
+                {{-- Tożsamość kroku, nie sam numer (issue #756): po zmianie kolejności przez autora numer wskazywałby inną czynność. --}}
+                <input type="hidden" name="krok_id" value="{{ $aktualnyKrok->getKey() }}">
                 <input type="hidden" name="zrobiono" value="{{ $krokZrobiony ? '0' : '1' }}">
                 <button type="submit" class="btn {{ $krokZrobiony ? 'btn-secondary' : 'btn-primary' }} btn-cook">
                     @if($krokZrobiony)

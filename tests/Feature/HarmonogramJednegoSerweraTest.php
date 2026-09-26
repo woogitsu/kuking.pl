@@ -104,18 +104,25 @@ class HarmonogramJednegoSerweraTest extends TestCase
     {
         config(['cache.default' => 'database']);
         $this->app->make('cache')->forgetDriver();
-        $calls = 0;
-        Artisan::partialMock()->shouldReceive('call')->andReturnUsing(function () use (&$calls): int {
-            $calls++;
+        // Nazwy, a nie sama liczba wywołań: co 5 minut chodzi więcej niż
+        // jedno zadanie (od #599 także `kuking:puls-harmonogramu`), więc
+        // „1, potem 2" przestało znaczyć „to samo zadanie dwa razy".
+        $calls = [];
+        Artisan::partialMock()->shouldReceive('call')->andReturnUsing(function (string $komenda) use (&$calls): int {
+            $calls[] = $komenda;
 
             return 0;
         });
         $this->travelTo(Carbon::parse('2026-09-21 12:05:00', 'UTC'));
         $this->runFreshScheduler();
-        $this->assertSame(1, $calls);
+        $pierwszyTermin = $calls;
+        $this->assertNotSame([], $pierwszyTermin, 'Kontrola dodatnia: o 12:05 nie wystartowało nic.');
+        $calls = [];
         $this->travelTo(Carbon::parse('2026-09-21 12:10:00', 'UTC'));
         $this->runFreshScheduler();
-        $this->assertSame(2, $calls);
+        foreach ($pierwszyTermin as $komenda) {
+            $this->assertContains($komenda, $calls, 'Blokada z 12:05 zabrała termin 12:10 zadaniu: '.$komenda);
+        }
     }
 
     private function runFreshScheduler(): void

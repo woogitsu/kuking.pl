@@ -1,4 +1,8 @@
-@php $p = $profile; @endphp
+@php
+    $p = $profile;
+    // Jedna lista dla okruszków i `BreadcrumbList` (#1033).
+    $okruszki = \App\Support\Okruszki::dlaProfilu($p);
+@endphp
 <x-layout
     :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
@@ -26,8 +30,11 @@
             ];
             @endphp
             <x-json-ld :data="$profileJsonLd" />
+            <x-json-ld :data="\App\Support\Okruszki::jsonLd($okruszki)" />
         @endif
     </x-slot:head>
+
+    <x-okruszki :elementy="$okruszki" />
 
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
@@ -276,11 +283,18 @@
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
+                    {{-- #1819: pytanie NIE odmienia nazwy konta — polskiej
+                         odmiany nie da się policzyć z dowolnego ciągu znaków
+                         (COPY_STYLE.md, „Nie doklejaj przyimka do cudzych
+                         słów"). Nazwa stoi osobno, w mianowniku, pod pytaniem
+                         (`:name`), a samo pytanie jest kompletnym zdaniem
+                         bez niej. --}}
                     <x-confirm-button
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        question="Zablokować tę osobę? Nie zobaczycie już wzajemnie swoich treści."
+                        :name="$p->display_name"
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
@@ -303,7 +317,47 @@
     </nav>
 
     @if($tab === 'wszystko')
-        @if($posts->count() === 0)
+        {{--
+            Pusty ROK to nie puste ARCHIWUM (issue #1380). Stary link do roku,
+            z którego wpisy zniknęły, pokazywał „Ta osoba jeszcze nic nie
+            pokazała" — nieprawdę o całej osobie, bez drogi powrotu. Lista lat
+            liczy się z tym samym filtrem widoczności co wpisy, więc niepusta
+            lista znaczy: są wpisy, tylko nie w tym roku. Nawigacja po latach
+            stoi dlatego PRZED pustym stanem, a nie w gałęzi z wpisami.
+        --}}
+        @if(($lata ?? collect())->count() > 1)
+            {{--
+                NAWIGACJA PO LATACH (issue #34).
+
+                Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
+                w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
+                trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
+                droga, której nikt nie przejdzie.
+
+                Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
+                tylko rząd przycisków udający wybór.
+
+                Zwykłe odnośniki, bez skryptu.
+            --}}
+            <nav class="lata-archiwum" aria-label="Lata w archiwum">
+                <a class="tab" href="{{ route('profile.show', $p->username) }}"
+                   @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
+
+                @foreach($lata as $rokZListy)
+                    <a class="tab"
+                       href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
+                       @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
+                @endforeach
+            </nav>
+        @endif
+
+        @if($posts->count() === 0 && ($rok ?? null) && ($lata ?? collect())->isNotEmpty())
+            <x-empty-state :title="'Nie ma wpisów z '.$rok.' roku'"
+                           action="Pokaż całe archiwum"
+                           :href="route('profile.show', $p->username)">
+                Wybierz inny rok albo wróć do całego archiwum.
+            </x-empty-state>
+        @elseif($posts->count() === 0)
             <x-empty-state :title="$isOwner ? 'Twoje archiwum jest jeszcze puste' : 'Ta osoba jeszcze nic nie pokazała'"
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
                            :href="$isOwner ? route('posts.create') : null">
@@ -312,45 +366,22 @@
                 @endif
             </x-empty-state>
         @else
-            @if(($lata ?? collect())->count() > 1)
-                {{--
-                    NAWIGACJA PO LATACH (issue #34).
-
-                    Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
-                    w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
-                    trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
-                    droga, której nikt nie przejdzie.
-
-                    Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
-                    tylko rząd przycisków udający wybór.
-
-                    Zwykłe odnośniki, bez skryptu.
-                --}}
-                <nav class="lata-archiwum" aria-label="Lata w archiwum">
-                    <a class="tab" href="{{ route('profile.show', $p->username) }}"
-                       @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
-
-                    @foreach($lata as $rokZListy)
-                        <a class="tab"
-                           href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
-                           @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
-                    @endforeach
-                </nav>
-            @endif
-
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
-            <div class="stack">
+            <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        {{-- `data-klucz`: kolejna porcja doklejona przez „Pokaż więcej”
+                             zaczyna od nagłówka swojego miesiąca; jeśli to ten sam
+                             miesiąc, co na końcu poprzedniej, nie powtarzamy go (#986). --}}
+                        <h2 class="mt-8" data-klucz="miesiac-{{ $month }}">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" />
+            <x-show-more :paginator="$posts" lista="lista-wpisow" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -358,12 +389,12 @@
                            :action="$isOwner ? 'Dodaj przepis' : null"
                            :href="$isOwner ? route('recipes.create') : null" />
         @else
-            <div class="stack">
+            <div class="stack" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -373,12 +404,12 @@
                 @endif
             </x-empty-state>
         @else
-            <div class="stack">
+            <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
         @endif
     @endif
     </div>

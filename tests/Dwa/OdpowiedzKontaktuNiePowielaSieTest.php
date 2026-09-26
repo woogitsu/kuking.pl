@@ -21,7 +21,7 @@ class OdpowiedzKontaktuNiePowielaSieTest extends TestCase
     {
         $db = config('database.connections.pgsql');
         $this->assertTrue(str_starts_with($db['database'], 'kuking_flota_') || str_starts_with($db['database'], 'kuking_race'));
-        $operator = User::factory()->create();
+        $operator = User::factory()->moderator()->create();
         $message = ContactMessage::factory()->create(['contact_email' => 'test@example.test']);
         $observer = new PDO("pgsql:host={$db['host']};port={$db['port']};dbname={$db['database']}", $db['username'], $db['password'], [PDO::ATTR_PERSISTENT => false]);
         $this->assertNotEquals(DB::selectOne('SELECT pg_backend_pid() AS pid')->pid, $observer->query('SELECT pg_backend_pid()')->fetchColumn());

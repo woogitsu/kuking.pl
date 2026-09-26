@@ -231,9 +231,13 @@ class PodniesienieRoliZadaniemHttpTest extends TestCase
             'PUT /ustawienia/czytelnosc' => ['put', '/ustawienia/czytelnosc', [
                 'text_scale' => $skala,
             ], fn (User $n) => $this->assertSame($skala, $n->text_scale)],
+            // `original_*` to stan, który formularz widział przy otwarciu
+            // (#880) — bez nich zapis odmawia jako formularz nieaktualny.
             'PUT /ustawienia/prywatnosc' => ['put', '/ustawienia/prywatnosc', [
                 'wants_weekly_digest' => '1',
                 'memories_enabled' => '0',
+                'original_digest' => (int) $napastnik->wants_weekly_digest,
+                'original_memories' => (int) $napastnik->memories_enabled,
             ], fn (User $n) => $this->assertFalse((bool) $n->memories_enabled)],
             'POST /motyw' => ['post', '/motyw', [
                 'theme' => $motyw,

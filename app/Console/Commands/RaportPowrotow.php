@@ -6,8 +6,10 @@ namespace App\Console\Commands;
 
 use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
+use App\Domain\Analytics\DrugiWpisW7Dni;
 use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZasiegUgotowalem;
+use App\Domain\Analytics\ZrobiePonownie;
 use App\Support\Czas;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -44,6 +46,9 @@ use Illuminate\Support\Collection;
  *   w czasie jak WAC, tylko fakt o tym, czy najważniejszy mechanizm
  *   produktu (AGENTS.md, część 1) w ogóle działa. Pełne uzasadnienie
  *   w `App\Domain\Analytics\ZasiegUgotowalem`.
+ * - „Zrobię ponownie" liczy się w trzech stanach — tak / nie / brak
+ *   odpowiedzi — osobno dla cudzych i własnych przepisów; brak odpowiedzi
+ *   nie jest „nie" (issue #1509, `App\Domain\Analytics\ZrobiePonownie`).
  *
  * PUSTA BAZA NIE WYWALA KOMENDY
  * Każda z trzech klas domenowych zwraca `0`, nie wyjątek, gdy nie ma
@@ -63,6 +68,7 @@ class RaportPowrotow extends Command
         PowrotPoDniach $powroty,
         ZasiegUgotowalem $ugotowalem,
         CookRetentionCohorts $kohorty,
+        ZrobiePonownie $zrobiePonownie,
     ): int {
         $this->line('Raport powrotów — Kuking.pl');
         $this->line('Liczone teraz, na podstawie ostatniej znanej wizyty każdego konta.');
@@ -77,6 +83,7 @@ class RaportPowrotow extends Command
         $this->newLine();
         $this->wierszPowrotu($powroty->policz(7), 'Powrót po 7 dniach (D7)', 'tygodnia');
         $this->wierszPowrotu($powroty->policz(30), 'Powrót po 30 dniach (D30)', 'miesiąca');
+        $this->drugiWpis();
 
         $this->newLine();
         $zasieg = $ugotowalem->policz();
@@ -88,6 +95,9 @@ class RaportPowrotow extends Command
             "Autorzy powiadomieni o „Ugotowałem”: {$zasieg['autorzy_powiadomieni']} — "
             .'tylu ludziom przyszedł najważniejszy komunikat w serwisie (AGENTS.md, część 1).',
         );
+
+        $this->newLine();
+        $this->zrobiePonownie($zrobiePonownie);
 
         $this->newLine();
         $this->kohorty($kohorty);
@@ -189,6 +199,71 @@ class RaportPowrotow extends Command
         $procent = number_format($ilu / $wKohorcie * 100, 1, ',', '');
 
         return "{$ilu} ({$procent}%)";
+    }
+
+    /**
+     * „Zrobię ponownie" w trzech stanach (issue #1509). Brak odpowiedzi ma
+     * własny wiersz i nie wchodzi do mianownika odsetka „tak" — pełne
+     * uzasadnienie w `App\Domain\Analytics\ZrobiePonownie`.
+     */
+    private function zrobiePonownie(ZrobiePonownie $zrobiePonownie): void
+    {
+        $wynik = $zrobiePonownie->policz();
+
+        $this->line('„Zrobię ponownie” po gotowaniu — ostatnie '.ZrobiePonownie::DNI.' dni, każde wykonanie osobno.');
+        $this->wierszZrobiePonownie('Cudze przepisy', $wynik['cudze']);
+        $this->wierszZrobiePonownie('Własne przepisy autora', $wynik['wlasne']);
+    }
+
+    /** @param  array{tak: int, nie: int, brak: int, wszystkie: int, odsetek_odpowiedzi: float|null, odsetek_tak: float|null}  $w */
+    private function wierszZrobiePonownie(string $etykieta, array $w): void
+    {
+        if ($w['wszystkie'] === 0) {
+            $this->line("  {$etykieta}: brak wykonań w tym okresie.");
+
+            return;
+        }
+
+        $odpowiedzi = number_format((float) $w['odsetek_odpowiedzi'], 1, ',', '');
+        $odsetekTak = $w['odsetek_tak'] === null
+            ? 'za mało danych (mniej niż '.ZrobiePonownie::MINIMUM_ODPOWIEDZI.' odpowiedzi)'
+            : number_format($w['odsetek_tak'], 1, ',', '').'% odpowiedzi to „tak”';
+
+        $this->line(
+            "  {$etykieta}: tak {$w['tak']} · nie {$w['nie']} · brak odpowiedzi {$w['brak']}"
+            ." · odpowiedziało {$odpowiedzi}% z {$w['wszystkie']} wykonań · {$odsetekTak}",
+        );
+    }
+
+    /**
+     * „Drugi wpis w 7 dni” (issue #29): czy pierwszy wpis zamienia się
+     * w nawyk. Same liczby; poniżej progu próby bez procentu. Definicja
+     * w `App\Domain\Analytics\DrugiWpisW7Dni`. Klasa brana z kontenera
+     * tutaj, nie z sygnatury `handle()`, żeby ta sekcja nie kolidowała
+     * z innymi dopisywanymi równolegle.
+     */
+    private function drugiWpis(): void
+    {
+        $w = app(DrugiWpisW7Dni::class)->policz();
+        $etykieta = 'Drugi wpis w 7 dni od pierwszego (pierwsze wpisy z ostatnich '
+            .DrugiWpisW7Dni::KOHORTA_DNI.' dni, najmłodsze '.DrugiWpisW7Dni::OKNO_DNI.' dni pominięte)';
+
+        if ($w['kohorta'] === 0) {
+            $this->line("{$etykieta}: brak osób z pierwszym wpisem w tym okresie — jeszcze nie da się tego policzyć.");
+
+            return;
+        }
+
+        if ($w['procent'] === null) {
+            $this->line(
+                "{$etykieta}: {$w['z_drugim']} z {$w['kohorta']} — za mało danych na procent (mniej niż "
+                .DrugiWpisW7Dni::MINIMUM_OSOB.' osób), to liczba, nie wniosek.',
+            );
+
+            return;
+        }
+
+        $this->line("{$etykieta}: {$w['z_drugim']} z {$w['kohorta']} (".number_format($w['procent'], 1, ',', '').'%).');
     }
 
     /** @param  array{kwalifikujacy_sie: int, wrocilo: int, procent: float|null}  $wynik */

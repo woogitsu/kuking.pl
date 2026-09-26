@@ -504,6 +504,8 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
+| brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |
+| + wyjaśnienie | Nie znaleźliśmy ani przepisu, ani osoby pasującej do „{fraza}". Sprawdź, czy wszystko jest dobrze wpisane, albo wpisz krócej: samo imię albo jedną nazwę dania. |
 | brak komentarzy | Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz. |
 
 ### Błędy — poziom „poważny", zero żartów
@@ -539,10 +541,21 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 |---|---|
 | usunięcie wpisu | Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie. |
 | usunięcie przepisu | Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne. |
-| blokada osoby | Zablokować {imię}? Nie zobaczycie już wzajemnie swoich treści. |
+| blokada osoby | Zablokować tę osobę? {nazwa, osobny wiersz, mianownik} Nie zobaczycie już wzajemnie swoich treści. |
 | przed usunięciem konta | Zanim to zrobisz, warto najpierw pobrać swoje dane. |
 | potwierdzenie | Rozumiem, że po 30 dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe |
 | po zgłoszeniu | Konto zostało oznaczone do usunięcia. Masz 30 dni, żeby zmienić zdanie — wystarczy, że się zalogujesz i napiszesz do nas. |
+
+**Blokada osoby (25 września 2026, issue #1819).** Wcześniej ten wiersz brzmiał
+„Zablokować {imię}?" — a widok składał to jako
+`'Zablokować '.$display_name.'?'`. Dla nazwy w mianowniku to pytanie wymaga
+biernika („Zablokować Anię?"), więc dowolna inna nazwa („Zablokować Marek?",
+„Zablokować Żaneta?") wyglądała na literówkę albo zepsute oprogramowanie —
+dokładnie ten sam błąd co „Po Nasze smaki" wyżej, tylko przy pytaniu, nie przy
+źródle przepisu. Poprawka: pytanie samo w sobie nie odmienia niczego
+(„Zablokować tę osobę?"), a nazwa stoi pod nim, w osobnym wierszu, dosłownie
+i w mianowniku — `<x-confirm-button :name="...">`,
+`resources/views/pages/profile/show.blade.php`.
 
 ### E-mail
 

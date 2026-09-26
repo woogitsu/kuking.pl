@@ -43,6 +43,9 @@ class ZalegleCzyszczenieCdnTest extends TestCase
     private function produkcja(): void
     {
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
     }
 
     private function konfiguracja(?string $zona, ?string $token): void
@@ -230,11 +233,11 @@ class ZalegleCzyszczenieCdnTest extends TestCase
         Artisan::call('storage:link');
 
         // KONTROLA UJEMNA: pusta tabela — sonda milczy.
-        $this->get('/health')->assertJsonPath('checks.cdn_zalegle.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn_zalegle.ok', true);
 
         ZalegleCzyszczeniaCdn::odloz(self::ADRESY);
 
-        $odpowiedz = $this->get('/health')
+        $odpowiedz = $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.cdn_zalegle.ok', false)

@@ -97,7 +97,9 @@ egzekwuje.
   (`config/kuking.php` → `delete_grace_days`), potem dane kasuje
   `kuking:usun-wygasle-konta`. Wygasłe żądania zmiany adresu e-mail kasuje
   `kuking:sprzataj-zmiany-adresu`, wygasłe zaproszenia —
-  `kuking:sprzataj-zaproszenia`.
+  `kuking:sprzataj-zaproszenia`. Żetony resetu hasła (`password_reset_tokens`, klucz: adres
+  e-mail) kasuje co noc `kuking:sprzataj-resety-hasel`, a przy wymazaniu konta —
+  `EraseAccountData` (audyt B5 pkt 6).
 
 ### 3.2 Profil publiczny
 
@@ -282,6 +284,11 @@ egzekwuje.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
   `app/Domain/Security/DziennyBudzetListow.php`.
+- **Ślad nieudanego listu (`mail_failures`):** rodzaj listu, powód odmowy,
+  zamaskowany komunikat, `user_id` odbiorcy — bez adresu i treści. Odhaczone
+  ślady kasowane po `kuking.poczta.retencja_dni` (90) dniach przy kolejnym
+  zapisie (`ZapiszNieudanyList`); przy wymazaniu konta `user_id` → `NULL`
+  (audyt B5 pkt 9).
 - **Termin usunięcia:** do usunięcia konta. **DO UZUPEŁNIENIA PRZEZ
   WŁAŚCICIELA:** jak długo EmailLabs trzyma logi wysyłek i otwarć —
   to jest okres po jego stronie i widać go tylko w umowie albo w panelu.
@@ -350,7 +357,9 @@ egzekwuje.
   zakres usunięcia (`users.delete_scope`).
 - **Podstawa:** art. 6 ust. 1 lit. c RODO — obowiązek prawny.
 - **Odbiorcy:** Railway, Cloudflare R2 (paczka leży na dysku obiektowym).
-- **Termin usunięcia:** paczka **7 dni**, kasuje `kuking:sprzataj-eksporty`;
+- **Termin usunięcia:** paczka **7 dni**, kasuje `kuking:sprzataj-eksporty`
+  (także plik próby, która padła przed zapisaniem paczki); przy wymazaniu
+  konta znika od razu cały katalog paczek konta (audyt B5 pkt 4);
   konto po karencji 30 dni — `kuking:usun-wygasle-konta`.
 - **Znane ograniczenie, opisane osobno:** paczka **nie zawiera** ośmiu
   kategorii danych, które serwis przechowuje (tożsamości zewnętrzne,

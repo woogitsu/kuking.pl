@@ -816,6 +816,112 @@ wysłane + porzucone − poprawne`), a porównanie odsetków zostaw tam, gdzie
 matematycznie coś znaczy. Krańcowy przypadek sprawdź wprost na liczbach,
 skoro losowa seria nie trafi w niego na żądanie.
 
+## 16. Czekanie na ZMIANĘ zawisa na stronie, która już jest u celu
+
+Numer 16, bo §14 i §15 wnosi PR #1472 (`claude/f1-niestabilne-kontrole`).
+Przy scalaniu obu zachowaj wszystkie trzy wpisy w kolejności numerów.
+
+`scripts/dostepnosc.mjs` przed audytem axe w wariancie „ciemny” ustawiał
+`data-theme="dark"` i czekał `waitForFunction(tło body !== tło sprzed)`
+z limitem 5 s. CI PR #1470 (który frontu nie dotyka) padł na tym gołym
+`TimeoutError` zaraz po ekranie „panel — kolaż na powitanie (ciemny)”
+i wywrócił cały przebieg. Warunek „coś się zmieniło” mówi o DRODZE, nie
+o CELU — i ma trzy znane słabości:
+
+- **Strona już ciemna nie zmieni się nigdy.** Motyw z konta albo
+  z ciasteczka wydaje na `<html>` sam serwer. Sprawdzone na statycznej
+  stronie z regułą `body` z `tokens.css`: stary warunek zawisł 10 razy na 10.
+  Czekanie kończy się błędem na stronie, która jest DOKŁADNIE w stanie,
+  którego chcieliśmy.
+- **„Inne” to jeszcze nie „docelowe”.** Przy `prefers-reduced-motion`
+  `tokens.css` skraca przejścia do 0.01ms, ale ich nie wyłącza: zaraz po
+  `setAttribute` `getComputedStyle(body)` oddaje wciąż STARE tło, nowe
+  dopiero po klatce. Pierwsza zmiana tła nie mówi też nic o kolorze tekstu
+  ani o innych węzłach — a axe czyta kolor każdego. Na zdławionym runnerze
+  klatek jest mało i 5 s potrafi nie wystarczyć.
+- **Goły `TimeoutError` nie niesie danych.** Z samego „5000ms exceeded” nie
+  da się odróżnić strony, która była już ciemna, od strony bez klatek.
+
+Trzecią hipotezę — że maluje się inny element niż `body` — wykluczyliśmy
+w kodzie: `body` ma `background-color: var(--color-surface)`, `<html>`
+własnego tła nie ma. Logu z tego przebiegu nie da się już pobrać (zadanie
+wróciło do kolejki), więc między dwiema pierwszymi przyczynami rozstrzygnie
+pomiar przy następnej porażce — po to on jest.
+
+### Co robić
+
+**Czekaj na wartość oczekiwaną, nie na zmianę.** `poczekajNaMotywCiemny` liczy
+cel w przeglądarce: nowo wstawiony element-sonda z
+`background-color: var(--color-surface)` i `color: var(--color-ink)`
+dziedziczy tokeny z `:root[data-theme="dark"]` i — jako świeży element — nie
+ma przejścia, więc ma od razu wartość docelową w postaci `rgb(…)`. Warunek:
+tło i tekst `body` równe sondzie **oraz** zero trwających `CSSTransition`
+w dokumencie. Palety nie przepisujemy do testu — po zmianie tokenu pomocnik
+dalej mówi prawdę. Strona już ciemna przechodzi od razu.
+
+**Limit to bezpiecznik, porażka to pomiar.** 10 s, a przy porażce błąd
+z tłem sprzed, wartościami oczekiwanymi i aktualnymi, listą trwających
+przejść, `visibilityState` i nazwą ekranu; ekran jest pomijany z kodem
+wyjścia 1, jak przy skali tekstu — nie wywraca reszty przebiegu.
+
+**Funkcja, nie łańcuch, w `waitForFunction`.** Łańcuch strona wykonuje jak
+`eval`, a CSP aplikacji nie ma `unsafe-eval`. Pomocnik składa funkcję
+w Node; sprawdzone na `php artisan serve` (`/prywatnosc`, `/regulamin`, `/`,
+`/login`: ciemne tło po 280–530 ms) i na statycznej stronie z CSP (100 na
+100, także dla strony już ciemnej; strona, której `body` nie ma tokenu,
+kończy się błędem z pomiarem po limicie).
+
+Ten sam wzorzec „stan, nie zmiana ani zegar” opisuje §14 i wspólny pomocnik
+`scripts/lib/stan-ustalony.mjs` z PR #1472. Gdy oba są na `main`,
+`poczekajNaMotywCiemny` można przenieść na `wymagajStanu` — warunek zostaje ten sam.
+
+## 17. Pierścień fokusu zmierzony klatkę po Tab to jeszcze nie pierścień
+
+Numer 17, bo §14 i §15 wnosi PR #1472 (`claude/f1-niestabilne-kontrole`),
+a §16 — PR z `claude/f3-axe-motyw-ciemny`. Przy scalaniu zachowaj wszystkie
+wpisy w kolejności numerów.
+
+`sprawdzTab` w `scripts/zoom-marki.mjs` (woła go też
+`scripts/nawigacja-niski-widok.mjs`, kontrola #492) po każdym Tab czekał
+klatkę, potem na animacje `activeElement` z limitem 500 ms, potem drugą
+klatkę; bez JS — czas animacji + 34 ms w Node. CI PR #1372 (zmieniał tylko
+backend digestu) padł na `/home`, przycisk „Poprzednie zdjęcie”:
+`ZOOM_FOCUS_CONTRAST {"contrast":0,"color":"rgb(244, 245, 241)","ring":null}`
+— fokus już był, pierścienia jeszcze nie. Pomiar nie niósł stylu, więc
+z logu nie da się rozstrzygnąć, co nie zdążyło: styl `:focus-visible`,
+przejście `box-shadow` z `none` (przy `prefers-reduced-motion` skrócone do
+0.01ms, ale nie wyłączone — pierwsza klatka to warstwy o rozstawie 0px, słusznie
+nie uznawane za pierścień), czy przewinięcie karuzeli do elementu. Każde z
+nich na zdławionym runnerze wychodzi poza stałe okno. Stała `waitForTimeout(40)`
+w `dolTab` (dolny pasek, ta sama kontrola) miała ten sam kształt.
+
+Odtworzone na statycznej stronie: pierścień dokładany 700 ms po `focusin` —
+stara wersja `sprawdzTab` pada z tym samym `ZOOM_FOCUS_CONTRAST … "ring":null`,
+nowa przechodzi.
+
+### Co robić
+
+**Czekaj na ustalony fokus, potem mierz.** `poczekajNaFokus` (eksport
+z `zoom-marki.mjs`) próbkuje co 20 ms z Node, aż: fokus jest na elemencie
+mierzonym (`[data-pomiar-tab]`, w `dolTab` `.bottom-nav a[href]`), element ma
+niepustą obwódkę albo `box-shadow`, nie ma na nim trwającej skończonej
+animacji ani przejścia i jego prostokąt jest ten sam w dwóch kolejnych
+próbkach (przewijanie się skończyło). Fokus poza elementami mierzonymi nie
+czeka. Z Node, a nie `waitForFunction(polling: 'raf')`, bo ta sama ścieżka
+służy kontekstowi bez JS.
+
+**Limit to bezpiecznik, ocena bez zmian.** Po 4 s pomocnik nie rzuca —
+oddaje zmierzony stan, a pomiar ocenia jak dotąd: pierścień istnieje
+i kontrast ≥ 3. Kontrole ujemne bez pierścienia dalej kończą się
+`ZOOM_FOCUS_CONTRAST` (sprawdzone z JS i bez JS: po ~4 s, komunikat jak
+w CI), a przezroczysta obwódka — od razu, bo styl obwódki jest niepusty.
+Każdy komunikat `ZOOM_FOCUS_*` i `N492_DOL_TAB` niesie `oczekiwanie`:
+`activeElement`, obwódkę, `box-shadow`, `transition`, trwające przejścia,
+czy stan się ustalił i po ilu ms.
+
+Wzorzec ten sam co §14 i `scripts/lib/stan-ustalony.mjs` z PR #1472; tu
+lokalnie, bo pomocnik powstał, zanim ten plik trafił na `main`.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026

@@ -59,7 +59,7 @@
         <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
         <nav class="tag-featured" aria-label="Polecane tagi">
             @foreach($polecane as $tag)
-                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}">
+                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}" @if($tag->posts_count === 0) rel="nofollow" @endif>
                     <x-tag-collage :photos="$collages[$tag->getKey()]" :linked="false" />
                     <span class="tag-featured-copy">
                     <strong>{{ $tag->name }}</strong>
@@ -88,12 +88,12 @@
             </p>
         </x-empty-state>
     @else
-        <nav class="tag-directory-grid" aria-label="Wszystkie tagi, alfabetycznie">
+        <nav class="tag-directory-grid" id="lista-tagow" aria-label="Wszystkie tagi, alfabetycznie">
             @foreach($tagi as $tag)
                 <x-tag-directory-card :tag="$tag" :photo="$collages[$tag->getKey()]->first()" :stats="$publicStats[$tag->getKey()]" />
             @endforeach
         </nav>
 
-        <x-show-more :paginator="$tagi" czego="tagów" />
+        <x-show-more :paginator="$tagi" czego="tagów" lista="lista-tagow" />
     @endif
 </x-layout>

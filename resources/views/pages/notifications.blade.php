@@ -1,6 +1,12 @@
 <x-layout title="Powiadomienia" :noindex="true">
     <h1>Powiadomienia</h1>
 
+    {{-- Domyślnie BRAK przycisku: widok renderowany bez kontrolera (testy
+         pojedynczych wierszy) nie ma skąd wiedzieć, czy jest co oznaczyć. --}}
+    @php
+        $saNieprzeczytane ??= false;
+    @endphp
+
     {{--
         Ten sam przycisk stoi TU i jeszcze raz pod listą (issue #276).
 
@@ -11,8 +17,12 @@
         listą jest tańsze i pewniejsze niż `position: sticky` na pasku:
         żadna wysokość paska nie zostawia go bez akcji na końcu, a dla
         grupy 50+ nic tu nie może zależeć od zachowania przy przewijaniu.
+
+        Oba przyciski stoją tylko przy `$saNieprzeczytane` (issue #1402):
+        bez widocznych nieprzeczytanych kliknięcie nic nie zmieniało, a strona
+        i tak odpowiadała „oznaczone". Martwy przycisk — AGENTS.md §5.
     --}}
-    @if($notifications->total() > 0)
+    @if($saNieprzeczytane)
         <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
             <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
@@ -34,10 +44,14 @@
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
          wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
     @if($notifications->count() > 0)
-    <ul class="lista-naga marka-powiadomienia">
+    <ul class="lista-naga marka-powiadomienia" id="lista-powiadomien">
         @foreach($notifications as $notification)
         @php
-            $actor = $notification->actor;
+            // Partia zapisów (D-070) pokazuje pierwszą WIDOCZNĄ osobę,
+            // a nie `actor_id` — ten mógł zostać zablokowany po zapisie.
+            $actor = $notification->type === \App\Models\Notification::TYPE_SAVED
+                ? $notification->zapisujacyDoPokazania()
+                : $notification->actor;
             $data = $notification->data ?? [];
             /*
              * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
@@ -89,7 +103,7 @@
             wąskiego układu automatycznie. Karta nie staje się linkiem:
             odczyt nadal zapisuje prawdziwy formularz POST.
         --}}
-        <li><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
+        <li data-klucz="powiadomienie-{{ $notification->getKey() }}"><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
             <div class="flex gap-3 items-start powiadomienie-wiersz">
                 @if($actor)
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
@@ -169,8 +183,26 @@
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
-                                „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
+                                {{--
+                                    ZBIORCZE POWIADOMIENIE (issue #906, decyzja
+                                    właściciela z 20.09.2026). Nagłówek —
+                                    łącznie z polską odmianą liczebnika i
+                                    ukrywaniem zablokowanych/zbanowanych osób
+                                    z partii — stoi w JEDNYM miejscu,
+                                    `Notification::naglowekZapisu()`, żeby
+                                    widok i testy nie trzymały dwóch kopii tej
+                                    samej odmiany, które prędzej czy później
+                                    się rozjadą. Tytuł przepisu zostaje POZA
+                                    `<strong>`, tak jak przy pozostałych typach
+                                    wyżej (cytat/szczegół pod pogrubionym
+                                    podmiotem zdania).
+                                --}}
+                                <strong>{{ $notification->naglowekZapisu() }}</strong>
+                                {{ $notification->resztaZapisu() }}
+                                {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
+                                @if($notification->przepisUsuniety())
+                                    Ten przepis został usunięty.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
@@ -221,10 +253,13 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
                                 {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść
-                                     napisana przez moderatora. Starsze powiadomienia
-                                     (usunięcie komentarza przez autora treści) nie mają
-                                     `title` — dla nich zostaje dawny nagłówek. --}}
-                                <strong>{{ $data['title'] ?? 'Wiadomość od moderacji Kuking.' }}</strong>
+                                     napisana przez moderatora. Obie drogi moderacji
+                                     (`NotifyModerationDecision`, `NotifyAppealOutcome`)
+                                     zawsze zapisują `title`. Bez niego są tylko starsze
+                                     powiadomienia o komentarzu usuniętym przez autora
+                                     treści — tej decyzji moderacja nie podjęła, więc
+                                     nagłówek nie może mówić „od moderacji” (audyt B9). --}}
+                                <strong>{{ $data['title'] ?? 'Wiadomość od Kuking.' }}</strong>
                                 {{ $data['message'] ?? '' }}
                                 {{-- Prawo do odwołania (DSA art. 17) musi być NAPISANE,
                                      nie domyślne. Adres bierzemy z konfiguracji, żeby
@@ -360,15 +395,17 @@
         skończy czytać ostatnią kartę. Bez tego jedyna droga do „oznacz
         wszystkie" to przewinięcie z powrotem na górę.
     --}}
+    @if($saNieprzeczytane)
     <form class="mt-5" method="POST" action="{{ route('notifications.read') }}">
         @csrf
         <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
     </form>
+    @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
         </x-empty-state>
     @endif
 
-    <x-show-more :paginator="$notifications" czego="powiadomień" />
+    <x-show-more :paginator="$notifications" czego="powiadomień" lista="lista-powiadomien" />
 </x-layout>

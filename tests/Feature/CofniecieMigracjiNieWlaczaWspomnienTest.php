@@ -62,6 +62,9 @@ class CofniecieMigracjiNieWlaczaWspomnienTest extends TestCase
         // człowiek odklikujący pole na `/ustawienia/prywatnosc`.
         $basia = $this->user('basia');
         $this->actingAs($basia)->put(route('settings.privacy'), [
+            'original_digest' => (int) $basia->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $basia->fresh()->memories_enabled,
+
             // Brak `memories_enabled` w żądaniu = odznaczone pole. Tak działa
             // checkbox w HTML-u i tak wraca z formularza (ten sam kształt
             // żądania co w `WspomnieniaTest`).

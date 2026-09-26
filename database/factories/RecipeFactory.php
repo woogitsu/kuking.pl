@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -51,6 +52,17 @@ class RecipeFactory extends Factory
             'source_person' => $person,
             'source_note' => 'Robiła to zawsze w niedzielę.',
             'family_since_year' => 1974,
+        ]);
+    }
+
+    /**
+     * Przepis z gotowym zdjęciem głównym — dopiero taki emituje `Recipe`
+     * w JSON-LD (#1005). Zdjęcie należy do autora przepisu.
+     */
+    public function zeZdjeciem(): static
+    {
+        return $this->state(fn (array $atrybuty) => [
+            'hero_media_id' => Media::factory()->create(['owner_id' => $atrybuty['author_id']])->getKey(),
         ]);
     }
 }

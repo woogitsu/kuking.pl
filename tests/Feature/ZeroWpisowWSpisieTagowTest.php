@@ -103,12 +103,39 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
             ->length;
     }
 
-    /** @return array<string, array{0: string, 1: array<string, mixed>}> */
+    /** Tekst akapitu wyjaśnienia ze spłaszczonymi odstępami. */
+    private function wyjasnienie(string $html): string
+    {
+        $dom = new DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+
+        $wezel = (new DOMXPath($dom))->query('//p[@data-wlasne-niepubliczne]')->item(0);
+
+        return $wezel === null ? 'BRAK WYJAŚNIENIA' : trim(preg_replace('/\s+/u', ' ', $wezel->textContent ?? ''));
+    }
+
+    /**
+     * Każda widoczność ma własne zdanie (#1392): wpis „tylko dla obserwujących"
+     * widzą też obserwujący (`PostPolicy::view()`), więc NIE WOLNO mówić o nim
+     * „widzisz tylko Ty" — autor błędnie oceniłby prywatność swojej treści.
+     *
+     * @return array<string, array{0: string, 1: array<string, mixed>, 2: string, 3: string}>
+     */
     public static function niepubliczneWidocznosci(): array
     {
         return [
-            'wpis prywatny' => [Post::VISIBILITY_PRIVATE, []],
-            'wpis tylko dla obserwujących' => [Post::VISIBILITY_FOLLOWERS, []],
+            'wpis prywatny' => [
+                Post::VISIBILITY_PRIVATE, [],
+                'Jeden Twój wpis z tym tagiem widzisz tylko Ty.',
+                'obserwują',
+            ],
+            'wpis tylko dla obserwujących' => [
+                Post::VISIBILITY_FOLLOWERS, [],
+                'Jeden Twój wpis z tym tagiem widzą tylko osoby, które Cię obserwują, i Ty.',
+                'widzisz tylko Ty',
+            ],
         ];
     }
 
@@ -116,7 +143,7 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
      * @param  array<string, mixed>  $dodatkowe
      */
     #[DataProvider('niepubliczneWidocznosci')]
-    public function test_wlasny_niepubliczny_wpis_nie_podnosi_licznika_ale_jest_wyjasniony(string $widocznosc, array $dodatkowe): void
+    public function test_wlasny_niepubliczny_wpis_nie_podnosi_licznika_ale_jest_wyjasniony(string $widocznosc, array $dodatkowe, string $oczekiwane, string $zakazane): void
     {
         $tag = $this->tag();
         $autor = User::factory()->create();
@@ -132,8 +159,10 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
 
         // 2. Na stronie tagu autor widzi swój wpis i dostaje wyjaśnienie.
         $strona = $this->actingAs($this->swiezy($autor))->get(route('tags.show', $tag))->assertOk();
-        $strona->assertSee('widzisz tylko Ty', false);
-        $strona->assertSee('W spisie tagów liczymy wpisy widoczne dla wszystkich', false);
+        $wyjasnienie = $this->wyjasnienie($strona->getContent());
+        $this->assertStringContainsString($oczekiwane, $wyjasnienie, 'Wyjaśnienie musi opisywać faktyczną widoczność wpisu (#1392).');
+        $this->assertStringNotContainsString($zakazane, $wyjasnienie, 'Wyjaśnienie opisało widoczność, której ten wpis nie ma (#1392).');
+        $this->assertStringContainsString('W spisie tagów liczymy wpisy widoczne dla wszystkich', $wyjasnienie);
         $this->assertSame(
             1,
             $this->liczbaKartWpisow($strona->getContent()),
@@ -147,6 +176,7 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
         $autor = User::factory()->create();
         $obcy = User::factory()->create();
         $this->wpis($tag, $autor, ['visibility' => Post::VISIBILITY_PRIVATE, 'body' => self::SEKRET]);
+        $this->wpis($tag, $autor, ['visibility' => Post::VISIBILITY_FOLLOWERS, 'body' => self::SEKRET]);
 
         foreach ([null, $obcy] as $widz) {
             $kto = $widz === null ? 'gość' : 'obca zalogowana osoba';
@@ -158,10 +188,48 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
 
             $this->assertStringNotContainsString(self::SEKRET, $html, "Prywatny wpis wypłynął przez stronę tagu do: {$kto}.");
             $this->assertStringNotContainsString('widzisz tylko Ty', $html, "Wyjaśnienie licznika pokazało się komuś, kto nie ma tam własnego wpisu: {$kto}.");
+            $this->assertStringNotContainsString('które Cię obserwują', $html, "Wyjaśnienie licznika pokazało się komuś, kto nie ma tam własnego wpisu: {$kto}.");
             $this->assertStringNotContainsString('data-wlasne-niepubliczne', $html, "Znacznik wyjaśnienia trafił do: {$kto}.");
             $this->assertSame(0, $this->liczbaKartWpisow($html), "Karta prywatnego wpisu pokazała się: {$kto}.");
             $this->assertStringContainsString('Tu jeszcze nikt nic nie ugotował', $html, "Brak pustego stanu dla: {$kto}.");
         }
+    }
+
+    /**
+     * Grupa mieszana (#1392): zdanie nie może sugerować, że wszystkie wpisy
+     * widzi wyłącznie autor, skoro część widzą też obserwujący.
+     */
+    public function test_mieszane_wpisy_dostaja_neutralne_wyjasnienie_i_nie_podnosza_licznika(): void
+    {
+        $tag = $this->tag();
+        $autor = User::factory()->create();
+        $this->wpis($tag, $autor, ['visibility' => Post::VISIBILITY_PRIVATE]);
+        $this->wpis($tag, $autor, ['visibility' => Post::VISIBILITY_FOLLOWERS]);
+
+        $spis = $this->actingAs($this->swiezy($autor))->get(route('tags.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('0 wpisów', $this->licznikWSpisie($spis, 'sernik'));
+
+        $html = $this->actingAs($this->swiezy($autor))->get(route('tags.show', $tag))->assertOk()->getContent();
+        $wyjasnienie = $this->wyjasnienie($html);
+
+        $this->assertStringContainsString('2 Twoje wpisy z tym tagiem nie są widoczne dla wszystkich.', $wyjasnienie);
+        $this->assertStringContainsString('te wpisy się tam nie liczą', $wyjasnienie);
+        $this->assertStringNotContainsString('widzisz tylko Ty', $wyjasnienie, 'Część tych wpisów widzą obserwujący — „tylko Ty" byłoby nieprawdą.');
+        $this->assertSame(2, $this->liczbaKartWpisow($html));
+    }
+
+    /** Liczebnik 5+ wymaga dopełniacza: „5 Twoich wpisów", nie „5 Twoje wpisy". */
+    public function test_piec_prywatnych_wpisow_ma_poprawna_odmiane(): void
+    {
+        $tag = $this->tag();
+        $autor = User::factory()->create();
+        for ($i = 0; $i < 5; $i++) {
+            $this->wpis($tag, $autor, ['visibility' => Post::VISIBILITY_PRIVATE]);
+        }
+
+        $html = $this->actingAs($this->swiezy($autor))->get(route('tags.show', $tag))->assertOk()->getContent();
+
+        $this->assertStringContainsString('5 Twoich wpisów z tym tagiem widzisz tylko Ty.', $this->wyjasnienie($html));
     }
 
     public function test_publiczny_wpis_liczy_sie_i_nie_wywoluje_wyjasnienia(): void

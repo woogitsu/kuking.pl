@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -52,7 +53,10 @@ final class RestoreContent
      *                                 — a dwa powiadomienia o jednym zdarzeniu wyglądają jak
      *                                 usterka.
      *
-     * @throws BladDlaCzlowieka gdy tej treści nie da się przywrócić
+     * @throws WlasnejTresciNiePrzywracasz gdy `$moderator` jest autorem tej treści (#1479)
+     * @throws BladDlaCzlowieka gdy tej treści nie da się przywrócić — także gdy
+     *                          nie schowała jej moderacja albo schował ją
+     *                          administrator, a przywraca moderator (B2-01)
      */
     public function handle(
         User $moderator,
@@ -94,6 +98,16 @@ final class RestoreContent
                 throw new BladDlaCzlowieka('Tej treści już nie ma w bazie — nie da się jej przywrócić.');
             }
 
+            // NIKT NIE PRZYWRACA WŁASNEJ TREŚCI (#1479). Wcześniej sprawdzana
+            // była tylko rola: moderator, którego wpis ukrył ktoś inny
+            // z zespołu, zdejmował ukrycie sam, z pominięciem odwołania.
+            // Reguła stoi tu, pod blokadą, a nie w kontrolerze — tą akcją
+            // przywraca też „cofam" po odwołaniu (`ResolveAppeal`). Autora
+            // czytamy z zablokowanego wiersza, przed jakimkolwiek zapisem.
+            if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
+                throw new WlasnejTresciNiePrzywracasz;
+            }
+
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);
         });
     }
@@ -113,6 +127,25 @@ final class RestoreContent
 
         if (! $bylaUkryta && ! $bylaUsunieta) {
             throw new BladDlaCzlowieka('Ta treść jest już widoczna — nie ma czego przywracać.');
+        }
+
+        // PRZYWRACAMY TYLKO TO, CO SCHOWAŁA MODERACJA (audyt B2-01).
+        //
+        // Wcześniej każde `trashed()` było traktowane jak zdjęcie przez
+        // moderację. Komentarz, który usunęła właścicielka wpisu (albo wpis,
+        // który usunął sam autor), wracał po „Przywróć” od razu publicznie,
+        // a autor dostawał wiadomość „przywróciliśmy”. Decyzja właściciela
+        // treści nie jest karą, więc moderacja nie ma czego tu cofać.
+        $zdjecie = self::zdjeciePrzezModeracje($typ, (string) $target->getKey(), $bylaUsunieta);
+
+        if ($zdjecie === null) {
+            throw new BladDlaCzlowieka('Tej treści nie schowała moderacja — usunął ją autor albo właściciel wpisu. Moderacja takich treści nie przywraca.');
+        }
+
+        // Reguła rangi, ta sama co przy zdejmowaniu (`UserPolicy`): decyzję
+        // administratora cofa administrator, nie moderator.
+        if ($zdjecie->moderator?->role === User::ROLE_ADMIN && ! $moderator->isAdmin()) {
+            throw new BladDlaCzlowieka('Tę treść schował administrator. Cofnąć tę decyzję może tylko administrator — przekaż mu sprawę.');
         }
 
         $poprzedni = $this->statusSprzedUkrycia($typ, (string) $target->getKey());
@@ -182,6 +215,45 @@ final class RestoreContent
         );
 
         return $decyzja;
+    }
+
+    /**
+     * Decyzja moderacji, która schowała treść w obecnym stanie — albo `null`,
+     * gdy treść schował ktoś inny (audyt B2-01).
+     *
+     * Liczy się OSTATNIA decyzja o tej treści spośród `hide`, `remove`
+     * i `unhide`:
+     *
+     *  - `unhide` na końcu znaczy, że kara została już cofnięta, więc obecne
+     *    schowanie zrobił ktoś inny (np. autor usunął treść po przywróceniu);
+     *  - treść miękko usunięta wymaga `remove` — samo `hide` statusu nie
+     *    kasuje, więc `deleted_at` przy ostatnim `hide` to usunięcie przez
+     *    autora albo właściciela wpisu PO ukryciu;
+     *  - treść ukryta statusem wystarczy z `hide` albo `remove`.
+     *
+     * Nie porównujemy czasów (`deleted_at` z `created_at` decyzji): obie
+     * kolumny mają dokładność sekundy, a kolejność zdarzeń daje sam log.
+     */
+    public static function zdjeciePrzezModeracje(string $typ, string $id, bool $usunieta): ?ModerationAction
+    {
+        $ostatnia = ModerationAction::query()
+            ->with('moderator')
+            ->where('target_type', $typ)
+            ->where('target_id', $id)
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE, ModerationAction::ACTION_UNHIDE])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($ostatnia === null || $ostatnia->action === ModerationAction::ACTION_UNHIDE) {
+            return null;
+        }
+
+        if ($usunieta && $ostatnia->action !== ModerationAction::ACTION_REMOVE) {
+            return null;
+        }
+
+        return $ostatnia;
     }
 
     /**

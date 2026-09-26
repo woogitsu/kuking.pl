@@ -99,6 +99,10 @@ Zasady ogólne Google (2026): JSON-LD to jedyny **rekomendowany** format (Google
 - `name`
 - `image` (URL lub `ImageObject`; min. 50 000 pikseli w iloczynie wymiarów; zalecane proporcje 16:9, 4:3 i 1:1 — Kuking i tak generuje warianty `960px`/`1600px`, patrz `MEDIA_PIPELINE.md`, więc technicznie to tani warunek do spełnienia).
 
+**Stan w kodzie (#1005):** zdjęcie w Kuking jest opcjonalne i przez chwilę po wgraniu nie jest `ready`. Wtedy strona przepisu **nie emituje `Recipe` wcale** (zostaje sam `BreadcrumbList`) — niepełny obiekt nie kwalifikuje się do wyniku rozszerzonego, a w Search Console daje błąd. Logo w zastępstwie odpada: obraz ma przedstawiać danie. `Recipe` pojawia się sam, gdy zdjęcie jest gotowe, pod tym samym adresem przepisu.
+
+**Zdjęcia kroków (#1370):** `HowToStep.image` dostaje bezwzględny adres przetworzonego wariantu `feed` zdjęcia kroku — tylko gdy strona je pokazuje (`Media::maWariantDoPokazania('feed')`, ten sam warunek co `<x-photo>` w liście kroków). Krok bez zdjęcia albo ze zdjęciem jeszcze nieprzygotowanym ma sam `text`. Bez sztucznego `name` z numeru kroku.
+
 **Zalecane** (podnoszą jakość rich result, nie są twarde do kwalifikacji): `author`, `datePublished`, `description`, `prepTime`, `cookTime`, `totalTime`, `recipeYield`, `recipeCategory`, `recipeCuisine`, `keywords`, `recipeIngredient`, `recipeInstructions`, `nutrition`, `video`, `aggregateRating`.
 
 **Ważna zmiana 2026:** Google usunął wsparcie dla zakresów czasu (np. „20–30 min”) w `prepTime`/`cookTime` — akceptowany jest tylko **jeden konkretny czas w ISO 8601** (`PT30M`). Kreator przepisu w Kuking już zbiera `prep_minutes integer` i `cook_minutes integer` jako pojedyncze liczby (nie zakresy) — to jest zgodne z wymogiem bez zmian w UI.
@@ -294,6 +298,8 @@ Zalecany na **każdej** publicznej stronie treści (przepis, post, profil) — G
 
 Uwaga: ostatni element (bieżąca strona) może pominąć `item` — to zgodne z oficjalnym przykładem Google. Dla profilu: `Kuking → @basia_kowalska`. Dla posta: `Kuking → @basia_kowalska → [pierwsze słowa wpisu]`.
 
+**Stan w kodzie (#1033):** ścieżki budują się w `App\Support\Okruszki` i ta sama lista idzie do widocznych okruszków (`x-okruszki`) i do `BreadcrumbList` — tekst i dane nie mają jak się rozjechać. Profil: `Kuking → @nazwa`. Wpis: `Kuking → @autor → pierwsze słowa wpisu` (wpis samym zdjęciem: „Wpis z 3 września 2026” — bez UUID i bez zgadywania dania). Pytanie: `Kuking → Poradźcie → tytuł`. Przepis zostaje przy `Kuking → Świeżo z Kuking → tytuł` do rozstrzygnięcia #667. Treść niepubliczna i szkice nie emitują `BreadcrumbList`; profil — tylko gdy emituje `ProfilePage` (≥1 publiczna treść).
+
 ### 2.4 WebSite / Organization
 
 ```json
@@ -321,6 +327,8 @@ Uwaga: ostatni element (bieżąca strona) może pominąć `item` — to zgodne z
 }
 ```
 
+**Stan w kodzie (#1008):** strona główna (`pages/landing.blade.php`, tylko dla gościa) emituje jeden `WebSite` z `name`, kanonicznym `url` (ten sam co `<link rel="canonical">`) i `inLanguage`. Podstrony go nie powielają. `publisher`/`Organization`, logo i `sameAs` z przykładu wyżej świadomie pominięte, dopóki adresy i logo nie są potwierdzone; `alternateName` — bo innej nazwy nie używamy.
+
 Wstaw raz, globalnie, np. w layoucie strony głównej. **`SearchAction`/„sitelinks search box” pomiń świadomie** — Google wycofał tę funkcję z wyników wyszukiwania w listopadzie 2024 r.; stare znaczniki nie szkodzą, ale dodawanie nowych nie daje dziś żadnego efektu wizualnego w SERP (może mieć znaczenie w przyszłości dla agentic search, ale to nie jest dziś priorytet MVP) `[do weryfikacji: status SearchAction w kontekście AI Mode/agentic search może się zmienić]`.
 
 ### 2.5 Walidacja w CI
@@ -340,6 +348,8 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Wpis samo-zdjęcie bez tekstu | `index, follow`, ale **bez** promowania w sitemapie priorytetowej | Nie jest spamem, ale ma niską wartość tekstową dla Google — niech żyje dla ludzi (link, udostępnienie), nie forsować w crawl budgecie |
 | Profil z ≥1 publiczną treścią | `index, follow` + `ProfilePage` | Realna, zweryfikowana obecność |
 | Profil bez żadnej publicznej treści (świeże konto, samo „popatrzę”) | `noindex, follow` | Zero wartości dla wyszukującego, ryzyko cienkiej treści na skalę (tysiące pustych profili) |
+| Strona tagu z ≥1 wpisem widocznym dla wszystkich (`/tag/{slug}`) | `index, follow` | Realna treść; warunek = ten sam zakres co licznik w spisie tagów (D-087) |
+| Strona tagu bez publicznego wpisu (większość słownika z `TagSeeder`) | `noindex, follow`, link w spisie `/tagi` z `rel="nofollow"`, poza sitemapą | Strona zostaje dla ludzi (prawdziwe zero, „Dodaj wpis”), ale ~1400 prawie identycznych pustych stron to cienka treść na skalę (issue #1007). Wraca do indeksu sama po pierwszym publicznym wpisie |
 | Treść `visibility IN ('followers','private')` | `noindex, nofollow` + brak w sitemapie + wymagany auth do renderu | Nigdy nie może wyciec do crawlera |
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
@@ -399,6 +409,32 @@ rosnących, malejących i równych; sprawdza także odczyt cache i wykluczenia.
 Poniższy podział na pliki pozostaje planem większej skali. Poprawka #1055
 nie zmienia czasu cache, reguł profili ani wyboru adresów pytań.
 
+### Świeżość zapamiętanej mapy (#1006)
+
+Lista adresów stoi w cache pod kluczem `sitemap.urls`
+(`App\Support\MapaStrony::KLUCZ`) z czasem życia sześciu godzin. Ten czas
+jest **tylko zabezpieczeniem awaryjnym** — docelowa zwłoka po zmianie
+widoczności to **zero**: następne żądanie `/sitemap.xml` po zatwierdzeniu
+zapisu składa mapę od nowa. Sześć godzin to górna granica wyłącznie dla
+zmian, które ominą Eloquenta (surowe `UPDATE` w bazie).
+
+Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
+(`MapaStrony::zarejestrujHaki()`):
+
+| Model | Zdarzenie |
+|---|---|
+| `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
+| `Recipe` | dodatkowo zmiana `slug` (inny adres) |
+| `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Profile` | zmiana `username` (inny adres), usunięcie |
+| `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
+
+Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
+po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
+magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
+rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
+
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
 
 ### 4.1 Struktura
@@ -439,6 +475,8 @@ Recipe::query()
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 
 ### 4.3 Co wchodzi do sitemapy
+
+**Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 
 Tylko URL-e z sekcji 3 oznaczone `index` — status HTTP 200, brak `noindex`, `visibility='public'`. Filtr identyczny z tym używanym do generowania meta robots, żeby nie rozjechały się dwa niezależne źródła prawdy (jedna metoda `RecipePolicy::isPubliclyIndexable()` używana w obu miejscach).
 
@@ -558,8 +596,9 @@ Konkretne wektory ryzyka dla Kuking i mitygacje:
 **Structured data:**
 - [ ] JSON-LD `Recipe` na `/przepisy/{slug}` z mapowaniem z sekcji 2.1 (bez `aggregateRating`)
 - [ ] JSON-LD `ProfilePage`+`Person` na `/@username` (tylko gdy profil ma ≥1 publiczną treść)
-- [ ] JSON-LD `BreadcrumbList` na wszystkich stronach treści
-- [ ] JSON-LD `WebSite`+`Organization` globalnie w layoucie
+- [x] JSON-LD `BreadcrumbList` na wszystkich stronach treści — przepis, wpis, pytanie, profil (#1033); widoczne okruszki z tej samej listy (`App\Support\Okruszki`). Etykieta drugiego poziomu przepisu czeka na #667
+- [x] JSON-LD `WebSite` na stronie głównej, raz, bez `SearchAction` (#1008)
+- [ ] JSON-LD `Organization` (`publisher`, logo, `sameAs`) — dopiero po potwierdzeniu prawdziwego logo i profili
 - [ ] Test JSON-LD w CI: `json_decode(..., JSON_THROW_ON_ERROR)` na każdym renderze
 - [ ] Ręczna walidacja w Google Rich Results Test przed każdym launchem większej zmiany schematu
 

@@ -83,6 +83,27 @@ bez zmian**:
 - `would_make_again rate` — jakość, nie zasięg;
 - `save → cooked w 30 dni` — czy zapis kończy się realnym gotowaniem.
 
+**`would_make_again rate` w `kuking:raport` (issue #1509).** Pole ma trzy
+stany: `true` („zrobię ponownie”), `false` („raczej nie powtórzę”) i `NULL`
+(brak odpowiedzi albo odpowiedź wycofana, #767). `NULL` nie jest „nie”.
+Raport (`App\Domain\Analytics\ZrobiePonownie`) podaje:
+
+- liczby `tak`, `nie`, `brak odpowiedzi` osobno;
+- odsetek odpowiedzi = `(tak + nie) / wszystkie wykonania`;
+- odsetek „tak” = `tak / (tak + nie)` — `NULL` jest poza mianownikiem;
+  poniżej 20 odpowiedzi raport pisze „za mało danych” zamiast procentu.
+
+Jednostką jest **każde realne wykonanie** (wiersz `cooked_events`), także
+powtórne gotowanie tego samego przepisu przez tę samą osobę — raport pyta,
+jak często gotowanie kończy się chęcią powtórki, a D-005 traktuje każde
+wykonanie jako osobne wydarzenie. Okno: ostatnie 30 dni wstecz od chwili
+liczenia, po `cooked_at` (przedział chwil `timestamptz`, więc strefa czasowa
+nie przesuwa granicy). Cudze przepisy (`recipes.author_id <> user_id`)
+i własne liczą się osobno; przepis ukryty moderacyjnie zostaje w liczbach;
+gotujący z `CookEligibility` (gospodarz, konta testowe, zalążkowe,
+zamknięte) są wyłączeni. Wynik jest tylko zbiorczy — bez nazw, tytułów,
+notatek i bez rankingu przepisów lub autorów.
+
 **Liczba główna: WAC.** Liczby pomocnicze, w tej kolejności ważności:
 
 1. `% kont, które w tygodniu cokolwiek opublikowały` (post LUB przepis LUB
@@ -204,6 +225,26 @@ ORDER BY 1;
 kont testowych z `excluded_users` powyżej do `user_weeks` CTE. Nie przepisuję
 całego zapytania drugi raz — patrz `docs/seo/ANALYTICS.md` §3.2 i zastosuj tę
 samą poprawkę.
+
+### 1.5 „Drugi wpis w 7 dni” — czy pierwszy wpis staje się nawykiem (issue #29)
+
+`docs/product/COLD_START.md` §4.5 każe gospodarzowi w dniach 4–5 sprawdzić,
+czy nowa osoba ma drugi wpis, a warunek STOP bramki A pyta, czy ludzie
+publikują bez ręcznego przypominania. `kuking:raport` liczy to teraz jedną
+liczbą (`App\Domain\Analytics\DrugiWpisW7Dni`):
+
+- **kohorta** — autorzy, których pierwszy opublikowany wpis (`posts`, oba
+  rodzaje, `Post::published()`, bez usuniętych) ma od 7 do 90 dni. Młodsi
+  niż 7 dni nie mieli jeszcze szansy na drugi i zaniżaliby wynik;
+- **licznik** — ci, których drugi wpis (kolejność `published_at`, potem `id`)
+  przyszedł najpóźniej 7×24 h po pierwszym (`extract(epoch …)`, jak w §1.4
+  i `PowrotPoDniach`);
+- wykluczenia `CookEligibility`; wpis usunięty albo ukryty potem wypada,
+  więc miernik jest ostrożny — może zaniżać, nie zawyża;
+- **mała próba** — poniżej 10 osób raport podaje „X z Y” bez procentu.
+
+Wynik to dwa liczniki. Żaden identyfikator, nazwa ani treść wpisu nie
+wychodzi z zapytania.
 
 ---
 

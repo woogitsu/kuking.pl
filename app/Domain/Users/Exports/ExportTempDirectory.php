@@ -43,7 +43,12 @@ use UnexpectedValueException;
  * worker i scheduler to osobne usługi z osobnymi dyskami (`docker/entrypoint.sh`),
  * więc komenda z harmonogramu nie zobaczyłaby katalogu tymczasowego workera.
  * Dlatego `sweepStale()` woła każdy start eksportu, w tym samym kontenerze,
- * w którym pliki powstały.
+ * w którym pliki powstały — ORAZ pętla samego workera (`sweepStaleIfDue()`
+ * na zdarzeniu `Looping`, najwyżej raz na `SWEEP_EVERY_SECONDS`). Bez tego
+ * drugiego osierocona kopia czekała na NASTĘPNY eksport na tym workerze, a ten
+ * mógł nie przyjść przez tygodnie. Z nim czas życia jest ograniczony:
+ * próg + odstęp + najdłuższe zadanie blokujące pętlę (60 + 10 + 15 minut).
+ * Każdy worker sprząta własny dysk, więc kilka replik niczego nie gubi.
  *
  * PRÓG `STALE_AFTER_SECONDS` = godzina, czyli czterokrotność limitu jednej
  * próby (`GenerateUserExport::$timeout` = 15 minut). Aktywny eksport dotyka
@@ -57,6 +62,12 @@ use UnexpectedValueException;
 final class ExportTempDirectory
 {
     public const STALE_AFTER_SECONDS = 3600;
+
+    /** Jak często pętla workera zagląda do katalogu (patrz `sweepStaleIfDue()`). */
+    public const SWEEP_EVERY_SECONDS = 600;
+
+    /** Znacznik ostatniego przeglądu z pętli workera — per proces, celowo. */
+    private static ?int $lastLoopSweep = null;
 
     private const ROOT_NAME = 'kuking-eksport';
 
@@ -202,6 +213,40 @@ final class ExportTempDirectory
         }
 
         return $removed;
+    }
+
+    /**
+     * `sweepStale()` z pętli workera, najwyżej raz na `SWEEP_EVERY_SECONDS`.
+     *
+     * Zdarzenie `Looping` przychodzi przed KAŻDYM pobraniem zadania (w ciszy
+     * co kilka sekund), stąd dławik. Pierwsze wywołanie w procesie sprząta od
+     * razu — worker wstaje co godzinę (`--max-time`) i po każdym timeoucie.
+     *
+     * Nigdy nie rzuca: wyjątek z tego miejsca zabiłby workera, a sprzątanie
+     * to higiena. Porażka to `Log::warning` z klasą wyjątku, bez komunikatu
+     * (ten bywa ścieżką).
+     *
+     * @return int|null liczba usuniętych wpisów albo `null`, gdy jeszcze nie pora
+     */
+    public static function sweepStaleIfDue(?int $now = null): ?int
+    {
+        $now ??= now()->getTimestamp();
+
+        if (self::$lastLoopSweep !== null && $now - self::$lastLoopSweep < self::SWEEP_EVERY_SECONDS) {
+            return null;
+        }
+
+        self::$lastLoopSweep = $now;
+
+        try {
+            return self::sweepStale($now);
+        } catch (\Throwable $e) {
+            Log::warning('Sprzątanie katalogu tymczasowego eksportów z pętli workera nie powiodło się', [
+                'blad' => $e::class,
+            ]);
+
+            return 0;
+        }
     }
 
     /** Najpóźniejsza modyfikacja katalogu albo któregokolwiek pliku w nim. */

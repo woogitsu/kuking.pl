@@ -86,4 +86,63 @@
             @endforeach
         </ol>
     @endif
+
+    @if($wyroznienia !== null)
+        {{-- Tag tygodnia (issue #18): zwykły tag wyróżniony na wybrane dni.
+             Blok na stronie głównej pokazuje się tylko w tych dniach, a po
+             ich końcu znika — strona tagu i wpisy zostają. --}}
+        <section class="sekcja-strony mt-6" aria-labelledby="tag-tygodnia-naglowek">
+            <h2 id="tag-tygodnia-naglowek">Tag tygodnia</h2>
+
+            <p>
+                W wybrane dni strona główna zaprasza do dodania wpisu z tym tagiem.
+                Dwa wyróżnienia nie mogą nachodzić na siebie.
+            </p>
+
+            <form class="panel-formularza" method="POST" action="{{ route('admin.tag-highlights.store') }}">
+                @csrf
+
+                <x-field
+                    name="tag_tygodnia"
+                    label="Tag"
+                    :required="true"
+                    help="Dokładna nazwa istniejącego, aktywnego tagu, np. „pierogi”."
+                />
+                <x-field name="od_dnia" type="date" label="Pierwszy dzień" :required="true" />
+                <x-field name="do_dnia" type="date" label="Ostatni dzień" :required="true" />
+                <x-field
+                    name="notatka_tygodnia"
+                    label="Notatka gospodarza"
+                    help="Jedno zdanie, np. „Pokażcie swoje pierogi — z czym je robicie?”."
+                />
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit">Zaplanuj tag tygodnia</button>
+                </div>
+            </form>
+
+            @if($wyroznienia->isNotEmpty())
+                <h3 class="mt-6">Zaplanowane i zakończone</h3>
+                <ul class="stack lista-naga">
+                    @foreach($wyroznienia as $wyroznienie)
+                        <li class="sekcja-strony">
+                            <p class="mb-2">
+                                <strong>{{ $wyroznienie->tag?->name }}</strong> —
+                                od {{ \App\Support\Czas::data($wyroznienie->starts_on) }}
+                                do {{ \App\Support\Czas::data($wyroznienie->ends_on) }}
+                            </p>
+                            @if($wyroznienie->note)
+                                <p class="mb-2">{{ $wyroznienie->note }}</p>
+                            @endif
+                            <form method="POST" action="{{ route('admin.tag-highlights.destroy', $wyroznienie) }}">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-quiet" type="submit">Usuń to wyróżnienie</button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    @endif
 </x-layout>

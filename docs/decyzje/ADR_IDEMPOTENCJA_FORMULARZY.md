@@ -515,9 +515,10 @@ i wspólne dla całej przeglądarki.
 przy kolizji klucza zwraca `false`, więc nie jest to check-then-act.
 
 - **Dwie karty, „wstecz", walidacja:** jak w A1.
-- **Czego NIE łapie:** czyszczenia cache. `php artisan cache:clear` przy
-  wdrożeniu wymazuje ochronę dla wszystkich formularzy otwartych w tym
-  momencie. Nie łapie też — i to jest ważniejsze — **pytania „do którego
+- **Czego NIE łapie:** czyszczenia cache. `php artisan cache:clear`
+  wymazuje ochronę dla wszystkich formularzy otwartych w tym momencie.
+  (Do 25.09.2026 entrypoint wołał je przy każdym wdrożeniu; audyt B10-03
+  to usunął, ale ręczne czyszczenie nadal ma ten skutek.) Nie łapie też — i to jest ważniejsze — **pytania „do którego
   wpisu odesłać człowieka"**. Cache pamięta, że klucz był użyty; nie
   pamięta, jaki wiersz wtedy powstał. Drugie kliknięcie da się więc
   wyciszyć, ale nie da się na nim pokazać pierwszego wpisu — a to jest
@@ -708,7 +709,7 @@ bez wariantu E, z wariantem B jako niewiążącym dodatkiem.**
 - **A2 (cache) nie umie odpowiedzieć, gdzie odesłać człowieka.** Wycisza
   drugie kliknięcie, ale nie potrafi pokazać pierwszego wpisu — a bez tego
   drugie kliknięcie wygląda jak „nie zadziałało". Do tego ginie przy
-  `cache:clear` na wdrożeniu.
+  `cache:clear` (w chwili tej analizy wołanym na każdym wdrożeniu).
 - **C (okno na treści) przy `cooked_events` degeneruje się do zakazanego
   `(user_id, recipe_id)`** dla pustego wykonania, bo pole `note` może być
   puste z założenia. Przy N = 10 s da się to obronić, ale mechanizm, który

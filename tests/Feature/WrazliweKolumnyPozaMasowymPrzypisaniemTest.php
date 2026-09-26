@@ -206,7 +206,7 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
         Appeal::class => [
             'user_id' => 'FileAppeal składa wiersz jednym create() — autor odwołania to zalogowana osoba, nie pole formularza.',
             'status' => 'FileAppeal/FileReporterAppeal wpisują STATUS_OPEN na sztywno; zmianę robi panel moderacji.',
-            'decided_by' => 'Wypełnia wyłącznie AppealController po decyzji moderatora, nigdy formularz odwołania.',
+            'decided_by' => 'Wypełnia wyłącznie ResolveAppeal po decyzji moderatora, nigdy formularz odwołania.',
             'decided_at' => 'Znacznik decyzji — ustawiany razem z decided_by, tą samą drogą.',
         ],
         AuditLogEntry::class => [
@@ -221,14 +221,14 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
             'visibility' => 'To JEST wybór człowieka na ekranie („kto ma widzieć ten zeszyt"), walidowany regułą in:public,private.',
         ],
         Comment::class => [
-            'author_id' => 'AddComment składa wiersz jednym create() z autorem z sesji.',
+            'author_id' => 'PublishComment składa wiersz jednym create() z autorem z sesji.',
             'status' => 'Tą samą drogą wpisywany na sztywno jako STATUS_PUBLISHED; ukrycie robi panel moderacji.',
         ],
         ContactMessage::class => [
             'user_id' => 'Kontroler wpisuje zalogowaną osobę albo null dla gościa; status i handled_by są POZA $fillable celowo.',
         ],
         ContactMessageReply::class => [
-            'author_id' => 'WyslijOdpowiedzNaWiadomosc bierze moderatora z sesji; status jest POZA $fillable celowo.',
+            'author_id' => 'WyslijOdpowiedz bierze moderatora z sesji; status jest POZA $fillable celowo.',
         ],
         CookedEvent::class => [
             'user_id' => 'RecordCookedEvent składa wiersz jednym create() z osobą z sesji.',
@@ -278,7 +278,7 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
         Report::class => [
             'reporter_id' => 'Zgłoszenie składa jeden create() w akcji domenowej; zgłaszający to sesja albo null dla gościa.',
             'autor_tresci_id' => 'Wypełnia wyłącznie OznaczDoPrzegladu przy source=automat — nie ma formularza, który by to przysyłał.',
-            'status' => 'Nowe zgłoszenie dostaje STATUS_NEW na sztywno; rozstrzyga panel moderacji.',
+            'status' => 'Nowe zgłoszenie dostaje STATUS_OPEN na sztywno; rozstrzyga panel moderacji.',
             'resolved_by' => 'Wypełnia wyłącznie panel moderacji razem ze statusem.',
             'resolved_at' => 'Znacznik rozstrzygnięcia — ta sama droga co resolved_by.',
         ],
@@ -396,6 +396,64 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
         }
 
         return array_key_exists($kolumna, $model->getAttributes());
+    }
+
+    /**
+     * Rejestr nazywa tylko symbole, które istnieją (audyt A5-18).
+     *
+     * Uzasadnienia w `REJESTR` wskazują, KTÓRA klasa ustawia daną kolumnę —
+     * to jest mapa dla kolejnego audytu. Audyt A5 znalazł w niej nazwy,
+     * których w kodzie nie ma (`AddComment` zamiast `PublishComment`,
+     * `STATUS_NEW` zamiast `Report::STATUS_OPEN`): uzasadnienie było
+     * merytorycznie prawdziwe, ale prowadziło w pustkę.
+     *
+     * Sprawdzamy dwie rzeczy: każde słowo w CamelCase (co najmniej dwa
+     * człony) ma plik klasy o tej nazwie w `app/`, a każda stała `STATUS_*`
+     * jest zdefiniowana w modelu, którego dotyczy wpis. Tego, czy nazwana
+     * klasa NAPRAWDĘ ustawia kolumnę, test nie rozstrzyga — to zostaje
+     * czytelnikowi.
+     */
+    public function test_rejestr_nazywa_tylko_istniejace_klasy_i_stale(): void
+    {
+        $klasy = [];
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path())) as $plik) {
+            if ($plik->isFile() && $plik->getExtension() === 'php') {
+                $klasy[$plik->getBasename('.php')] = true;
+            }
+        }
+
+        $sprawdzone = 0;
+
+        foreach (self::REJESTR as $model => $kolumny) {
+            foreach ($kolumny as $kolumna => $uzasadnienie) {
+                preg_match_all('/\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b/', $uzasadnienie, $nazwy);
+
+                foreach ($nazwy[0] as $nazwa) {
+                    $sprawdzone++;
+                    $this->assertArrayHasKey(
+                        $nazwa,
+                        $klasy,
+                        "REJESTR[{$model}][{$kolumna}] wskazuje klasę {$nazwa}, której nie ma w app/. "
+                        .'Popraw nazwę na tę, która naprawdę ustawia kolumnę.',
+                    );
+                }
+
+                preg_match_all('/\bSTATUS_[A-Z_]+\b/', $uzasadnienie, $stale);
+
+                foreach ($stale[0] as $stala) {
+                    $sprawdzone++;
+                    $this->assertTrue(
+                        defined($model.'::'.$stala),
+                        "REJESTR[{$model}][{$kolumna}] wskazuje stałą {$stala}, której {$model} nie definiuje.",
+                    );
+                }
+            }
+        }
+
+        // Kontrola dodatnia: parser naprawdę coś znalazł. Bez tego zmiana
+        // wzorca na niepasujący dałaby zielony test z pustą pętlą.
+        $this->assertGreaterThan(20, $sprawdzone, 'Strażnik rejestru prawie niczego nie sprawdził — wzorzec przestał pasować.');
     }
 
     /**

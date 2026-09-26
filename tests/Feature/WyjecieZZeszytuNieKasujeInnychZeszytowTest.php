@@ -81,7 +81,7 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
 
         $odpowiedz = $this->actingAs($basia)
             ->from(route('recipes.show', $przepis->slug))
-            ->delete(route('collections.unsave', $przepis->slug));
+            ->delete(route('collections.unsave', $przepis->slug), ['potwierdzam_wszystkie' => 1]);
 
         $odpowiedz->assertRedirect();
 
@@ -107,7 +107,7 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
 
         $this->actingAs($basia)
             ->from(route('recipes.show', $przepis->slug))
-            ->delete(route('collections.unsave', $przepis->slug))
+            ->delete(route('collections.unsave', $przepis->slug), ['potwierdzam_wszystkie' => 1])
             ->assertRedirect();
 
         $this->assertSame(0, $this->wierszeOsoby($basia, $przepis), 'Scena nie zaczyna się od pustego stanu.');

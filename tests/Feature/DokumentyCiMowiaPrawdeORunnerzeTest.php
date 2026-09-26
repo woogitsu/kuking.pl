@@ -70,6 +70,23 @@ use Tests\TestCase;
  *  - **Czy `workflow_dispatch` jest potrzebny.** Rozstrzyga komentarz przy nim
  *    w `ci.yml`. Tu sprawdzamy tylko, czy dokument nie każe go usuwać, skoro stoi.
  *
+ * ROZSZERZENIE Z 25.09.2026 — REZERWACJA RUNNERÓW DLA `main` (D-266)
+ * Właściciel zarezerwował dwa runnery WYŁĄCZNIE dla przebiegów push na `main`
+ * (`CI_RUNS_ON_MAIN`, a dla `port_funkcje` — `CI_RUNS_ON_BROWSER_MAIN`), żeby
+ * PR-y przestały zajmować kolejkę, z której korzysta też bramka deployu. Tylko
+ * `ci.yml` uruchamia się PUSHEM na `main` — `deploy.yml` reaguje na
+ * `deployment_status`, `preview.yml` i `railway-iac.yml` na `pull_request` —
+ * więc tylko `ci.yml` dostał tę drugą zmienną; pozostałe trzy pliki i dalej
+ * `SELF_HOSTED_RUNNER.md` cytują SWOJĄ, niezmienioną wartość `runs-on:`.
+ * `test_dokumenty_cytuja_runs_on_dokladnie_tak_jak_stoi_w_jobach` odczytuje
+ * teraz „obietnicę" osobno dla każdego pliku z `WORKFLOWY` (własny kod tego
+ * pliku), zamiast zakładać, że wszystkie cztery pliki mówią jedno — to
+ * założenie było prawdziwe tylko dopóki wszystkie cztery miały identyczny
+ * mechanizm. `test_joby_ci_rezerwuja_zmienna_ci_runs_on_main` pilnuje samej
+ * rezerwacji: że `ci.yml` naprawdę sięga po `CI_RUNS_ON_MAIN`/
+ * `CI_RUNS_ON_BROWSER_MAIN` przed `CI_RUNS_ON`/`CI_RUNS_ON_BROWSER`, i to
+ * tylko dla warunku push+main, nie dla PR-a czy `workflow_dispatch`.
+ *
  * DŁUG Z D-165 SPŁACONY 12.09.2026 — I DLACZEGO NIE BYŁA TO „JEDNA LINIA"
  * D-165 zostawiło jawnie nazwany dług: `deploy.yml`, `preview.yml`
  * i `railway-iac.yml` niosły w nagłówkach dokładnie tę samą nieprawdę co
@@ -337,13 +354,37 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
         $glowny = $this->runsOnGlownyWKodzie();
         $przegladarkowy = $this->runsOnPrzegladarkowyWKodzie();
 
-        // `ci.yml` opisuje w komentarzach OBIE grupy naraz (jest dokumentem obu
-        // mechanizmów), pozostałe dokumenty znają tylko główny mechanizm — żaden
-        // z pozostałych trzech workflow-ów ani SELF_HOSTED_RUNNER.md nie ma dziś
-        // joba przeglądarkowego.
+        // Wartości WŁASNE każdego z pozostałych trzech workflow-ów (`deploy.yml`,
+        // `preview.yml`, `railway-iac.yml`) — od 25.09.2026 (D-266) `ci.yml` ma
+        // dodatkową rezerwację dla `main`, a te trzy pliki NIE (żaden nie
+        // uruchamia się pushem na `main` — patrz docblock klasy), więc ich
+        // prawdziwy kod różni się dziś od `ci.yml` CELOWO. Porównanie musi
+        // sprawdzać każdy plik względem JEGO WŁASNEGO `runs-on:`, nie względem
+        // `ci.yml`.
+        $wartoscInnychWorkflowow = [];
+        foreach (self::WORKFLOWY as $plik) {
+            if ($plik !== self::WORKFLOW) {
+                $wartoscInnychWorkflowow[$plik] = $this->runsOnWKodzie($plik);
+            }
+        }
+
+        // Dokument ogólny (`SELF_HOSTED_RUNNER.md`) opisuje mechanizm z KTÓREGOKOLWIEK
+        // z czterech workflow-ów, więc wolno mu zacytować którąkolwiek z prawdziwych
+        // wartości — ale tylko te cztery, żadnej piątej, wymyślonej.
+        $wszystkiePrawdziweWartosci = array_values(array_unique([
+            $glowny,
+            $przegladarkowy,
+            ...array_values($wartoscInnychWorkflowow),
+        ]));
+
         foreach (self::DOKUMENTY as $dokument) {
             $cytaty = $this->cytatyRunsOn($this->trescDokumentu($dokument));
-            $dozwolone = $dokument === self::WORKFLOW ? [$glowny, $przegladarkowy] : [$glowny];
+
+            $dozwolone = match (true) {
+                $dokument === self::WORKFLOW => [$glowny, $przegladarkowy],
+                in_array($dokument, self::WORKFLOWY, true) => [$wartoscInnychWorkflowow[$dokument]],
+                default => $wszystkiePrawdziweWartosci,
+            };
 
             $this->assertNotEmpty(
                 $cytaty,
@@ -357,18 +398,80 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
                 $this->assertContains(
                     $cytat,
                     $dozwolone,
-                    $dokument.' cytuje `runs-on: '.$cytat.'`, a w jobach '.self::WORKFLOW
-                    ." stoi:\n  główny (poza BROWSER_JOBY): `runs-on: ".$glowny."`\n"
-                    .'  przeglądarkowy (BROWSER_JOBY): `runs-on: '.$przegladarkowy."`\n"
+                    $dokument.' cytuje `runs-on: '.$cytat.'`, co nie zgadza się z żadną '
+                    ."dozwoloną dla tego dokumentu wartością. Prawdziwe wartości `runs-on:`:\n"
+                    .'  '.self::WORKFLOW.' — główny (poza BROWSER_JOBY): `'.$glowny."`\n"
+                    .'  '.self::WORKFLOW.' — przeglądarkowy (BROWSER_JOBY): `'.$przegladarkowy."`\n"
+                    .implode("\n", array_map(
+                        fn (string $plik, string $wartosc): string => '  '.$plik.': `'.$wartosc.'`',
+                        array_keys($wartoscInnychWorkflowow),
+                        array_values($wartoscInnychWorkflowow),
+                    ))."\n"
                     .'Dokument i kod mówią dwie różne rzeczy o tym, GDZIE chodzi CI. '
                     ."Popraw tę stronę, która jest nieprawdziwa — a stroną prawdziwą jest\n"
-                    .'KOD (D-157 punkt 1); mechanizm wyboru runnera rozstrzyga D-121 (główny) '
-                    .'i decyzja właściciela z 21.09.2026 (przeglądarkowy), i nie zmienia się '
-                    ."przy okazji porządkowania dokumentacji.\n"
+                    .'KOD (D-157 punkt 1); mechanizm wyboru runnera rozstrzyga D-121 (główny), '
+                    .'decyzja właściciela z 21.09.2026 (przeglądarkowy) i D-266 (rezerwacja dla '
+                    .'`main`, tylko w '.self::WORKFLOW.'), i nie zmienia się przy okazji '
+                    ."porządkowania dokumentacji.\n"
                     .'Tak właśnie wyglądało issue #342: nagłówek `ci.yml` cytował zestaw '
                     .'etykiet, a joby czytały zmienną repozytorium `CI_RUNS_ON`.',
                 );
             }
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 2b. Rezerwacja runnerów dla `main` (D-266)
+    // ---------------------------------------------------------------
+
+    /**
+     * Od 25.09.2026 każdy job w `ci.yml`, który czyta `CI_RUNS_ON`, ma też
+     * sięgać NAJPIERW po `CI_RUNS_ON_MAIN` — i tylko dla przebiegu będącego
+     * PUSHEM na `main` (nie dla PR-a, nie dla `workflow_dispatch`). Ten test
+     * nie zgaduje wartości zmiennych (żyją w ustawieniach repozytorium,
+     * D-121) — pilnuje, że warunek i kolejność `||` naprawdę stoją w kodzie.
+     */
+    public function test_joby_ci_rezerwuja_zmienna_ci_runs_on_main(): void
+    {
+        $warunek = "github.ref == 'refs/heads/main' && github.event_name == 'push'";
+
+        foreach ([
+            'główny' => [$this->runsOnGlownyWKodzie(), 'CI_RUNS_ON_MAIN', 'CI_RUNS_ON'],
+            'przeglądarkowy' => [$this->runsOnPrzegladarkowyWKodzie(), 'CI_RUNS_ON_BROWSER_MAIN', 'CI_RUNS_ON_BROWSER'],
+        ] as $opis => [$wartosc, $zmiennaMain, $zmiennaZwykla]) {
+            $this->assertStringContainsString(
+                $warunek,
+                $wartosc,
+                'Mechanizm '.$opis.' w '.self::WORKFLOW.' (`'.$wartosc.'`) nie sprawdza '
+                .'warunku push+main (`'.$warunek.'`) przed sięgnięciem po `'.$zmiennaMain.'`. '
+                .'Bez tego warunku zmienna zarezerwowana dla `main` zajmowałaby też PR-y '
+                .'i ręczne przebiegi — dokładnie to, przed czym D-266 miało chronić.',
+            );
+
+            $this->assertStringContainsString(
+                'vars.'.$zmiennaMain,
+                $wartosc,
+                'Mechanizm '.$opis.' w '.self::WORKFLOW.' (`'.$wartosc.'`) nie czyta zmiennej '
+                ."`$zmiennaMain` (D-266) w ogóle.",
+            );
+
+            $pozycjaMain = strpos($wartosc, $zmiennaMain);
+            $pozycjaZwykla = strpos($wartosc, ' || vars.'.$zmiennaZwykla);
+
+            $this->assertNotFalse(
+                $pozycjaZwykla,
+                'Mechanizm '.$opis.' w '.self::WORKFLOW.' (`'.$wartosc.'`) nie ma zapasowego '
+                ."` || vars.$zmiennaZwykla` po warunku main-a.",
+            );
+
+            $this->assertLessThan(
+                $pozycjaZwykla,
+                $pozycjaMain,
+                'Mechanizm '.$opis.' w '.self::WORKFLOW.' (`'.$wartosc.'`) czyta `'.$zmiennaZwykla
+                .'` PRZED `'.$zmiennaMain.'` — kolejność `||` ma być odwrotna, inaczej '
+                .'zarezerwowane runnery main-a nigdy nie zostaną wybrane (pierwszy prawdziwy '
+                .'operand `||` wygrywa).',
+            );
         }
     }
 
@@ -518,14 +621,21 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
      * prawdziwy klucz joba pod `jobs:`, więc fałszywe „bieżące joby" z bloku
      * `on:` nigdy nie zbierają żadnej wartości.
      *
+     * Domyślnie czyta `ci.yml` (`WORKFLOW`); przyjmuje też dowolny inny plik
+     * z `WORKFLOWY`, żeby porównanie dokument-kod (test 2) mogło sprawdzać
+     * `deploy.yml`, `preview.yml` i `railway-iac.yml` względem ICH WŁASNEGO
+     * kodu, nie względem kodu `ci.yml` — od 25.09.2026 (D-266) te pliki
+     * przestały być identyczne z `ci.yml`, więc porównanie z cudzym kodem
+     * dawałoby fałszywe alarmy na plikach, które się nie zmieniły.
+     *
      * @return array<string, string>
      */
-    private function deklaracjeRunsOnPoJobie(): array
+    private function deklaracjeRunsOnPoJobie(string $plik = self::WORKFLOW): array
     {
         $poJobie = [];
         $aktualnyJob = null;
 
-        foreach ($this->linie(self::WORKFLOW) as $linia) {
+        foreach ($this->linie($plik) as $linia) {
             if ($this->jestKomentarzem($linia)) {
                 continue;
             }
@@ -574,6 +684,20 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
         $poJobie = array_intersect_key($this->deklaracjeRunsOnPoJobie(), array_flip(self::BROWSER_JOBY));
 
         return $this->jedynaWartoscRunsOn($poJobie, 'przeglądarkowe (BROWSER_JOBY)');
+    }
+
+    /**
+     * Wspólna wartość `runs-on:` WSZYSTKICH jobów danego pliku spoza `WORKFLOW`
+     * (`deploy.yml`, `preview.yml`, `railway-iac.yml`) — żadne z nich nie zna
+     * podziału na joby przeglądarkowe, więc tu nie ma osobnej grupy.
+     */
+    private function runsOnWKodzie(string $plik): string
+    {
+        if ($plik === self::WORKFLOW) {
+            return $this->runsOnGlownyWKodzie();
+        }
+
+        return $this->jedynaWartoscRunsOn($this->deklaracjeRunsOnPoJobie($plik), 'wszystkie w '.$plik);
     }
 
     /** Czy `runs-on:` sięga po zmienną repozytorium (`vars.…`). */

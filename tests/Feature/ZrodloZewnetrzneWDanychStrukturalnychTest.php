@@ -244,7 +244,7 @@ class ZrodloZewnetrzneWDanychStrukturalnychTest extends TestCase
 
     private function publicznyPrzepis(string $typ, ?string $adres): Recipe
     {
-        return Recipe::factory()->create([
+        return Recipe::factory()->zeZdjeciem()->create([
             'author_id' => $this->konto()->getKey(),
             'status' => Recipe::STATUS_PUBLISHED,
             'visibility' => 'public',

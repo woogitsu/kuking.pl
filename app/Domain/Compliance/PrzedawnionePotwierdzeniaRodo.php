@@ -54,11 +54,11 @@ use Illuminate\Support\Carbon;
  * i w dry-runie bez udawania konfiguracji. Klasa liczy i kasuje to, o co ją
  * poproszono; o to, CZY wolno prosić, pyta warstwa wyżej.
  *
- * DLACZEGO ZWYKŁY MASOWY `DELETE`: wiersz nie ma odpowiednika po stronie
- * storage, więc jedno zapytanie jest i szybsze, i równie bezpieczne na
- * przerwanie w połowie — baza gwarantuje atomowość jednej instrukcji,
- * a predykat to wyłącznie wiek i wstrzymanie, więc kolejny przebieg dobierze
- * to, co zostało. Ten sam wzorzec co `PrzedawnioneWpisyAudytu`.
+ * DLACZEGO `DELETE` PARTIAMI: wiersz nie ma odpowiednika po stronie
+ * storage, więc wystarcza `DELETE` po partii identyfikatorów
+ * (`UsuwanieWPartiach`, #1657). Warunki wieku i wstrzymania są powtórzone
+ * w każdym `DELETE` — wstrzymanie nałożone między wyborem partii a usunięciem
+ * ratuje wiersz. Ten sam wzorzec co `PrzedawnioneWpisyAudytu`.
  */
 final class PrzedawnionePotwierdzeniaRodo
 {
@@ -77,22 +77,24 @@ final class PrzedawnionePotwierdzeniaRodo
         $prog = Carbon::now()->subMonthsNoOverflow($miesiecyKarencji)->toDateString();
         $dzis = Carbon::today()->toDateString();
 
-        $przedawnione = PotwierdzenieZadaniaRodo::query()
+        $przedawnione = fn () => PotwierdzenieZadaniaRodo::query()
             ->whereNotNull('zakonczono')
             ->where('zakonczono', '<', $prog);
 
-        $wstrzymane = (clone $przedawnione)
+        $wstrzymane = $przedawnione()
             ->whereNotNull('wstrzymanie_do')
             ->where('wstrzymanie_do', '>=', $dzis)
             ->count();
 
-        $doSkasowania = $przedawnione->where(
+        $doSkasowania = fn () => $przedawnione()->where(
             fn ($zapytanie) => $zapytanie
                 ->whereNull('wstrzymanie_do')
                 ->orWhere('wstrzymanie_do', '<', $dzis),
         );
 
-        $skasowano = $naSucho ? $doSkasowania->count() : $doSkasowania->delete();
+        $skasowano = $naSucho
+            ? $doSkasowania()->count()
+            : UsuwanieWPartiach::zKonfiguracji()->usun($doSkasowania, (new PotwierdzenieZadaniaRodo)->getKeyName(), 'potwierdzenia_zadan_rodo');
 
         return ['skasowano' => $skasowano, 'wstrzymane' => $wstrzymane];
     }

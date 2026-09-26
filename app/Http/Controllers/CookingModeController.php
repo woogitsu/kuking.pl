@@ -116,19 +116,40 @@ class CookingModeController extends Controller
         $total = $steps->count();
 
         $data = $request->validate([
-            'krok' => ['required', 'integer', 'min:1'],
+            // Odhaczamy PO TOŻSAMOŚCI kroku, nie po jego numerze (issue #756).
+            // Numer to tylko miejsce na liście w chwili, gdy ktoś otworzył
+            // stronę — jeśli autor w międzyczasie przestawił kroki, „krok 2”
+            // z tego formularza to już inna czynność niż ta, którą gotujący
+            // widział na ekranie. `krok` zostaje wyłącznie po to, żeby przy
+            // odmowie wrócić tam, gdzie człowiek był. Brak albo nieznane
+            // `krok_id` NIE jest błędem walidacji: widok gotowania nie
+            // pokazuje błędów pól, więc odmowa idzie komunikatem niżej.
+            'krok_id' => ['nullable', 'string'],
+            'krok' => ['nullable', 'integer', 'min:1'],
             // Checkbox: pole obecne w żądaniu tylko, gdy formularz je wysłał
             // z wartością „1” (zaznacz) albo „0” (cofnij) — patrz widok,
             // gdzie to jest ukryty input, nie prawdziwy checkbox (jeden
             // klik = jedna zmiana stanu, bez JavaScriptu).
             'zrobiono' => ['required', 'boolean'],
         ], [
-            'krok.required' => 'Brakuje numeru kroku — odśwież stronę przepisu i spróbuj jeszcze raz.',
             'krok.integer' => 'Numer kroku jest nieprawidłowy — odśwież stronę przepisu i spróbuj jeszcze raz.',
         ]);
 
-        $krok = $this->wyczyscKrok($data['krok'], $total);
-        $aktualny = $steps->get($krok - 1);
+        // Szukamy kroku wśród kroków TEGO przepisu — identyfikator kroku
+        // z innego przepisu (albo usuniętego) po prostu tu nie pasuje.
+        $pozycja = $steps->search(fn ($step) => $step->getKey() === ($data['krok_id'] ?? null));
+
+        if ($pozycja === false) {
+            // Krok, który gotujący widział, zniknął z przepisu (autor go
+            // usunął) albo formularz nie powiedział, o który krok chodzi
+            // (strona otwarta przed tą zmianą). Nie zgadujemy po numerze
+            // ani po podobnym tekście — mówimy wprost, co zrobić.
+            return redirect()->route('cooking.show', [$model->slug, 'krok' => $this->wyczyscKrok($data['krok'] ?? 1, $total)])
+                ->with('status', 'Przepis zmienił się, odkąd otworzono ten krok, więc nic nie zostało oznaczone. Przeczytaj krok widoczny teraz na ekranie i oznacz go jeszcze raz, jeśli jest zrobiony.');
+        }
+
+        $krok = $pozycja + 1;
+        $aktualny = $steps->get($pozycja);
 
         $klucz = $this->sessionKey($model);
         $zrobione = $request->session()->get($klucz, []);

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Support\MapaStrony;
 use Illuminate\Http\Response;
 
 /**
@@ -24,7 +25,9 @@ class SitemapController extends Controller
 {
     public function index(): Response
     {
-        $urls = cache()->remember('sitemap.urls', now()->addHours(6), function (): array {
+        // Klucz kasuje `MapaStrony` po każdej zatwierdzonej zmianie widoczności
+        // (issue #1006); sześć godzin to tylko zabezpieczenie awaryjne.
+        $urls = cache()->remember(MapaStrony::KLUCZ, now()->addHours(MapaStrony::CZAS_ZYCIA_GODZINY), function (): array {
             $urls = [
                 ['loc' => route('landing'), 'priority' => '1.0', 'changefreq' => 'daily'],
                 ['loc' => route('discover'), 'priority' => '0.8', 'changefreq' => 'daily'],
@@ -53,15 +56,24 @@ class SitemapController extends Controller
                     }
                 });
 
+            // Adres przez `Post::url()`, nie ręczne `posts.show` (#968):
+            // pytanie ma własną stronę `/pytania/{id}`, a `/wpisy/{id}` tylko
+            // na nią przekierowuje. Pytanie wchodzi też z samym tytułem —
+            // tytuł jest tam obowiązkowy i to on jest treścią. Dla zwykłych
+            // wpisów granica `body` zostaje: pusty wpis to zapowiedź przepisu.
             Post::query()
                 ->publiclyVisible()
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->whereNotNull('body')
-                ->select(['id', 'updated_at'])
+                ->where(function ($maTresc): void {
+                    // Tytułu nie trzeba sprawdzać: `posts_kind_title_check`
+                    // wymusza go przy każdym pytaniu.
+                    $maTresc->whereNotNull('body')->orWhere('kind', Post::KIND_QUESTION);
+                })
+                ->select(['id', 'kind', 'updated_at'])
                 ->chunkById(500, function ($posts) use (&$urls): void {
                     foreach ($posts as $post) {
                         $urls[] = [
-                            'loc' => route('posts.show', $post->getKey()),
+                            'loc' => $post->url(),
                             'lastmod' => $post->updated_at?->toAtomString(),
                             'priority' => '0.5',
                             'changefreq' => 'monthly',

@@ -10,6 +10,7 @@ use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Http\Controllers\Controller;
 use App\Models\MailFailure;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Support\Poczta;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,14 @@ class EmailVerificationController extends Controller
      * ma o tym powiedzieć — jednym zdaniem o fakcie z przeszłości, z datą.
      * Zdanie o zdarzeniu, a nie o stanie, zostaje prawdziwe także po udanym
      * ponowieniu i nie wymaga żadnego dodatkowego znacznika w bazie.
+     *
+     * NIE OBIECUJE LISTU, GDY POCZTA NIE WYSYŁA (issue #1335). Przy
+     * `MAIL_MAILER=log`/`array` albo transporcie, którego nie da się
+     * zbudować, ekran mówił „Wysłaliśmy wiadomość" i radził zajrzeć do
+     * „Spamu". `Poczta::dziala()` — ta sama klasa co na ekranie „Nie pamiętam
+     * hasła" — rozstrzyga, czy widok obiecuje list i pokazuje przycisk
+     * ponowienia. `true` nie znaczy „dojdzie": późniejszą odmowę dostawcy
+     * nadal pokazuje `MailFailure` wyżej.
      */
     public function notice(Request $request): View|RedirectResponse
     {
@@ -47,6 +56,7 @@ class EmailVerificationController extends Controller
                 PotwierdzenieAdresu::class,
                 (int) config('kuking.poczta.okno_prawdy_godzin', 24),
             ),
+            'pocztaDziala' => Poczta::dziala(),
         ]);
     }
 
@@ -81,11 +91,32 @@ class EmailVerificationController extends Controller
             return redirect()->route('home');
         }
 
+        // Przed rezerwacją z puli (issue #1335): list do sterownika, który
+        // nic nie dostarcza, nie zjada przydziału i nie dostaje „Wysłaliśmy".
+        if (! Poczta::dziala()) {
+            return back()->with('status', self::komunikatBrakuPoczty());
+        }
+
         return match ($wyslij->ponow($request->user())) {
             WynikPonowieniaPotwierdzenia::Wyslano => back()->with('status', 'Wysłaliśmy wiadomość jeszcze raz. Sprawdź też folder „Spam”.'),
             WynikPonowieniaPotwierdzenia::SufitKonta => back()->with('status', $this->komunikatSufituKonta()),
             WynikPonowieniaPotwierdzenia::BrakMiejscaWPuli => back()->with('status', $this->komunikatOdmowy()),
         };
+    }
+
+    /**
+     * Zdanie na czas, w którym serwis nie wysyła poczty (issue #1335).
+     *
+     * WŁASNE, a nie `Poczta::komunikatBrakuPoczty()` — tamto obiecuje pomoc
+     * w „powrocie na konto", a tu człowiek jest zalogowany i konto działa.
+     * Bez rady o „Spamie": listu nie ma, więc nie ma czego tam szukać.
+     */
+    public static function komunikatBrakuPoczty(): string
+    {
+        return 'Nie wysyłamy teraz wiadomości e-mail, więc wiadomość z potwierdzeniem adresu nie przyjdzie — '
+            .'nie czekaj na nią. Z konta korzystasz normalnie także bez potwierdzonego adresu. Jeśli potwierdzenie '
+            .'jest Ci potrzebne, napisz do nas na '.(string) config('kuking.community.contact_email')
+            .' — odpisuje człowiek i potwierdzimy adres inaczej.';
     }
 
     /**

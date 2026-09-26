@@ -376,6 +376,11 @@ wcześniej nie mówił: **bucketów zdjęć nie kopiuje dziś nic.** Kopie z §7
 obejmują wyłącznie bazę, a R2 nie ma wersjonowania obiektów ani kosza — więc
 „utracone" znaczy tu utracone naprawdę, a nie „do przywrócenia z kopii":
 
+> Ochrona przed logicznym usunięciem zdjęć (#617) — bucket kopii z datowanymi
+> migawkami, komenda `kuking:sprawdz-kopie-zdjec` i próba odtworzenia — ma
+> własny runbook: **`docs/infra/DR_ZDJEC_R2.md`**. Dopóki jego tabela §8 jest
+> pusta, zdania niżej opisują stan faktyczny.
+
 **(c1) Warianty (`r2_publiczne`) utracone, oryginały (`r2`) całe.**
 Da się przetworzyć na nowo — ale w repozytorium **nie ma dziś gotowej
 komendy** do masowego ponownego przetworzenia (`ProcessUploadedImage`
@@ -624,6 +629,10 @@ nie odtworzył, jest obietnicą, nie kopią.**
 dostępu do produkcyjnej bazy, bucketu R2 i klucza prywatnego. Ten wiersz
 wypełnia **człowiek**, po §7.3.
 
+**Pierwszy wiersz (ręczny zrzut + odtworzenie, bez bucketu):** karta
+[`DR594_PIERWSZY_ZRZUT_WLASCICIEL.md`](DR594_PIERWSZY_ZRZUT_WLASCICIEL.md) —
+komendy krok po kroku, oczekiwany wynik i protokół z polami P0–P13.
+
 | Data | Kto | Ćwiczenie (§4A/§4B) | Rozmiar zrzutu | Czas odszyfrowania | Czas restore (RTO) | Wiek zrzutu (RPO) | Skrót z `.meta` zgodny? | Liczniki zgodne? | Co nie zadziałało |
 |---|---|---|---|---|---|---|---|---|---|
 | | | | | | | | | | |
@@ -651,6 +660,7 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+| **24 IX 2026 — PRZEĆWICZENIE KARTY WŁAŚCICIELA** | Kroki 2–7 z [`DR594_PIERWSZY_ZRZUT_WLASCICIEL.md`](DR594_PIERWSZY_ZRZUT_WLASCICIEL.md) jej poleceniami: jednorazowa baza po migracjach i `db:seed` → `kopia-lokalna.sh --klucz-publiczny` → odtworzenie na **osobnym klastrze `initdb` ze `scram-sha-256`** (pierwszy przebieg tej warstwy na serwerze wymagającym hasła) → kontrole ujemne na tej samej kopii | Zrzut 342 173 B, 53 tabele z danymi, szyfrogram 343 196 B. Kod 24 z odciskiem, odcisk potwierdzony przez gniazdo, potem kod 0 w 3,5 s: skrót zgodny, 53/53 tabel i 4 665 = 4 665 wierszy, 93 migracje / 0 czekających. `.cms` uszkodzony w połowie → 44, obcy klucz → 43, obcięty → 43; **0 baz próbnych** po odmowach. Znalezione i naprawione: `migrate:status` brał hasło z `.env` zamiast z DSN-u (fałszywy kod 64 na serwerze z hasłem); jawny zrzut niezgodny z `sha256_pliku` przechodził jako ZALICZONA; obcięty jawny zrzut zakładał bazę przed porażką; zrzut powstawał z prawami 0644 | PostgreSQL **16.13**, nie 18. Produkcji, Railwaya ani R2. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **18 IX 2026 — PIERWSZY PRZEBIEG W KONTENERZE, NA PRAWDZIWYM API S3** | `docker build` obrazu `docker/kopia/Dockerfile`, a potem CAŁA ścieżka produkcyjna z tego kontenera: żywa baza PostgreSQL 18.6 → `pg_dump` → `openssl cms` kluczem publicznym → **PUT na prawdziwy serwer S3** (MinIO `RELEASE.2025-09-07` w kontenerze, w miejscu R2) → **GET tego obiektu z bucketu** → odszyfrowanie kluczem prywatnym → `pg_restore` → weryfikacja. Bucket założony **własnym `docker/kopia/s3.sh`**, czyli podpis SigV4 sprawdzony wobec działającej implementacji S3, nie tylko wobec wektorów AWS. Odtworzenie przez `scripts/proba-odtworzenia.sh --instancja <odcisk> --scisle` | Obraz **buduje się**; w środku `pg_dump`/`pg_restore`/`psql` **18.6** (Debian 13), `openssl` 3.5.7, `curl` 8.14.1, kontener chodzi jako `postgres` (uid 999). Cała kopia **0,55 s**: wersje 0,03 s · listowanie bucketu 0,04 s · `pg_dump` **0,06 s / 166 276 B** · `pg_restore --list` 0,02 s · szyfrowanie **0,01 s / 167 159 B** (+883 B narzutu CMS) · PUT szyfrogramu, PUT `.meta` i HEAD potwierdzający rozmiar razem **0,10 s** · retencja 0,04 s. Pobranie obiektu z bucketu **0,035 s**. Odszyfrowanie i `pg_restore` poniżej sekundy każde. Odtworzona baza: **50 tabel, 202 wiersze = 202 w źródle**, 50/50 tabel co do jednego wiersza, `migrate:status` **80 wykonanych / 0 czekających**, 3 wyzwalacze, 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Poza skryptem porównane ze źródłem i **zgodne co do jednego**: rozszerzenia (`pg_trgm` 1.6, `pgcrypto` 1.4, `unaccent` 1.1, `plpgsql` 1.0), 159 indeksów, **25 indeksów częściowych**, 92 indeksy unikalne, 111 kluczy głównych, 8 sekwencji, 75 funkcji, `md5` definicji wszystkich kolumn, `md5` treści `users` i `posts`, strefa sesji UTC po obu stronach | **Produkcji — ani bazy, ani R2.** MinIO stoi w miejscu R2 i mówi tym samym protokołem, ale to nie jest Cloudflare: nie sprawdzono ani jurysdykcji, ani polityk bucketu, ani tokenów R2. Baza źródłowa jest lokalna i ma 202 wiersze, więc **żadna z tych liczb nie jest produkcyjnym RTO**. Lokalny klaster stoi na `trust`, więc ten przebieg **nie dowodzi uwierzytelniania hasłem** — dowodzi, że hasło nie wychodzi w argumentach. **RPO nadal niemierzalne**: nie ma harmonogramu. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 
 **Uzupełnienie §5.1 — własny pomiar 20 IX 2026:**
@@ -1251,6 +1261,12 @@ i **zwróciła zero**, bo porażka retencji nie jest porażką kopii.
 **Dla kogo:** dla Ciebie, dziś, przy kawie. Nie jest to lektura: każdy wiersz
 ma komendę albo przycisk i sposób sprawdzenia, że się udało.
 
+**Kroki 1–2 w wersji do wykonania z terminala** — z szyfrowaniem od pierwszej
+kopii, świeżym serwerem odtworzenia, kontrolą ujemną i protokołem do
+wypełnienia — są w karcie
+[`DR594_PIERWSZY_ZRZUT_WLASCICIEL.md`](DR594_PIERWSZY_ZRZUT_WLASCICIEL.md).
+Ta sekcja zostaje opisem i uzasadnieniem całej listy.
+
 > ### ILE KOPII BAZY KUKINGA ISTNIEJE DZISIAJ: **zero**
 >
 > Nie „jedna, tylko nieprzetestowana”, i nie „dwie warstwy Railwaya plus
@@ -1386,13 +1402,21 @@ pilnują tego **trzy** niezależne bezpieczniki, opisane w nagłówku skryptu.
 > uwierzytelnienia, więc uszkodzony szyfrogram odszyfrowuje się **bez błędu**;
 > do 17 IX 2026 poznać to było dopiero po `pg_restore`, czyli po wlaniu części
 > danych do bazy. Trzymaj `.meta` razem ze zrzutem — bez niego tej kontroli
-> nie ma, a skrypt mówi o tym wprost w logu.
+> nie ma, a skrypt mówi o tym wprost w logu i w podsumowaniu
+> (`skrót z .meta: NIE SPRAWDZONY`).
+>
+> Od 24 IX 2026 kod 44 obejmuje też **jawny** zrzut z tego kroku 1: jego
+> `.meta` ma pole `sha256_pliku`, którego wcześniej nikt nie czytał — plik
+> ze zmienionymi bajtami przechodził całą próbę jako ZALICZONA. Kod 41
+> oznacza od tego dnia także zrzut, którego nie da się odczytać **do końca**
+> (obcięty); oba sprawdzane są przed `CREATE DATABASE`.
 
 **Czym potwierdzasz, że odtworzenie się udało** — kod wyjścia 0 i lista
 zaliczonych kontroli, w tej kolejności:
 
 ```text
 ✓ bezpiecznik 1: baza celu jest nazwą próbną, serwer nie jest produkcyjny
+✓ skrót zrzutu zgadza się z .meta (sha256_pliku, …)
 ✓ archiwum: 49 tabel z danymi, pg_dump 18, pg_restore 18
 ✓ bezpiecznik 2: serwer potwierdza bazę "proba_odtworzenia_…", pustą (0 tabel)
 ✓ pg_restore bez błędu, <czas> s

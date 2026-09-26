@@ -11,6 +11,7 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
+use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
@@ -70,8 +71,9 @@ use ZipArchive;
  * `App\Domain\Users\Exports\ExportTempDirectory`.
  *
  * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
- * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
- * ścieżka na dysku tymczasowym) zostaje wyłącznie w `Log::warning` niżej.
+ * — patrz `reasonFor()`. Log dostaje `BezpiecznyBlad::kontekst()` (klasa,
+ * SQLSTATE, miejsce), nigdy `$e->getMessage()` — ten bywa SQL-em z
+ * wartościami albo ścieżką na dysku tymczasowym (#973).
  */
 class GenerateUserExport implements ShouldQueue
 {
@@ -195,7 +197,7 @@ class GenerateUserExport implements ShouldQueue
             }
 
             try {
-                Storage::disk($disk)->writeStream($objectKey, $stream);
+                $written = Storage::disk($disk)->writeStream($objectKey, $stream);
             } catch (Throwable $e) {
                 // Zawinięte w typ, który `reasonFor()` rozpozna nawet po tym,
                 // jak `failed()` odtworzy joba od nowa z ładunku kolejki —
@@ -207,6 +209,10 @@ class GenerateUserExport implements ShouldQueue
                 }
             }
 
+            if ($written === false) {
+                throw new DataExportStorageFailure('Nie udało się zapisać paczki w magazynie plików.');
+            }
+
             $bytes = (int) filesize($this->tempZip);
 
             if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt) && $this->kolejkaSynchroniczna()) {
@@ -215,15 +221,17 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
-                // `DataExportStorageFailure` zawija oryginalny wyjątek — tu, w logu,
-                // ma zostać JEGO pełny komunikat (SQLSTATE, ścieżka na dysku...),
-                // nie zdanie po polsku z opakowania. Do bazy idzie wyłącznie kod
-                // (patrz reasonFor()), więc to jest jedyne miejsce, gdzie ten
-                // szczegół w ogóle zostaje.
-                'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
+                'media_id' => $e instanceof DataExportPhotoUnreadable ? $e->mediaId : null,
+                // `DataExportStorageFailure` zawija oryginalny wyjątek — jego
+                // klasę i SQLSTATE niesie `przyczyny`, miejsce awarii `miejsce`.
+                // Komunikatu nie: sterownik bazy wkłada w niego wartości, klient
+                // storage pełny klucz obiektu (#973). Do bazy idzie wyłącznie
+                // kod (patrz reasonFor()).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             $this->markFailed($export, $this->reasonFor($e));
+            $this->usunOsieroconaPaczke($export);
 
             throw $e;
         } finally {
@@ -411,6 +419,7 @@ class GenerateUserExport implements ShouldQueue
             ? DataExport::REASON_TIMEOUT
             : $this->reasonFor($e),
         );
+        $this->usunOsieroconaPaczke($export);
 
         $this->cleanUpTempFiles();
         // Ta instancja jest odtworzona z ładunku kolejki i nie zna listy
@@ -775,6 +784,7 @@ class GenerateUserExport implements ShouldQueue
     {
         return new DataExportPhotoUnreadable(
             'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$cause.').',
+            (string) $photo->getKey(),
         );
     }
 
@@ -837,6 +847,39 @@ class GenerateUserExport implements ShouldQueue
             (new NotifyUserExportReady($this->dataExportId))->handle();
         } catch (Throwable) {
             // Zapisane w dzienniku przez NotifyUserExportReady::handle().
+        }
+    }
+
+    /**
+     * PACZKA WGRANA, ALE NIEZAPISANA W WIERSZU (audyt B5, znalezisko 4).
+     *
+     * `writeStream()` idzie przed `finalize()`. Wyjątek albo timeout między
+     * nimi zostawiał w magazynie pełną kopię konta — e-mail, prywatne wpisy,
+     * szkice, oryginały zdjęć — pod kluczem, którego wiersz nie zna. Nikt
+     * jej potem nie kasował: `kuking:sprzataj-eksporty` szuka po `object_key`,
+     * a wymazanie konta wygasza tylko `ready`, `queued` i `processing`.
+     *
+     * Klucz da się policzyć (`ExportFileNames::objectKey()` zależy od id
+     * paczki, konta i `created_at`), a kasowanie nieistniejącego obiektu nic
+     * nie robi — więc kasujemy zawsze, gdy paczka NIE jest gotowa. Ponowna
+     * próba z kolejki wgra plik od nowa. Gotowej paczki (`ready` — wyjątek
+     * padł dopiero po `finalize()`) nie ruszamy: człowiek ma ją pobrać.
+     */
+    private function usunOsieroconaPaczke(DataExport $export): void
+    {
+        $status = DataExport::query()->whereKey($export->getKey())->value('status');
+
+        if ($status === null || $status === DataExport::STATUS_READY) {
+            return;
+        }
+
+        try {
+            Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
+        } catch (Throwable $e) {
+            Log::warning('Nie udało się skasować niedokończonej paczki z danymi; zabierze ją sprzątanie eksportów albo wymazanie konta.', [
+                'data_export_id' => $export->getKey(),
+                'wyjatek' => $e::class,
+            ]);
         }
     }
 

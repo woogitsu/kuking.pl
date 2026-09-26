@@ -241,6 +241,64 @@ Railway (serwis → zakładka Logs), bo `LOG_CHANNEL=stderr`
 (`.railway/railway.ts`). Webhook mówi „coś się zepsuło, sprawdź logi" —
 niczego więcej nie zastępuje.
 
+**Log serwera TEŻ jest bez e-maili i hashy haseł (od 23 września 2026).**
+Wcześniej ten akapit mówił, że „pełny komunikat zostaje w logu serwera, który
+nigdzie nie wychodzi". Połowa była nieprawdą: stderr czyta i przechowuje
+Railway, czyli zewnętrzny dostawca, a `JsonFormatter` wypisywał tam komunikat
+`QueryException` (i jego `previous`, `PDOException`) z wartościami — ten sam
+e-mail i hash hasła co wyżej. Teraz kanały `stderr`, `pomiary`, `single`
+i `daily` mają tap `App\Logging\FiltrDanychOsobowych`, który podpina procesor
+`App\Logging\BezDanychOsobowychWLogu`:
+
+- komunikat błędu bazy jest budowany OD NOWA z pól bez wartości, np.
+  `SQLSTATE[23505], insert into users, połączenie: pgsql, ograniczenie:
+  users_email_unique (treść komunikatu bazy z wartościami usunięta z logu)`;
+- wyjątek w kontekście jest zapisywany jako tablica: klasa, oczyszczony
+  komunikat, kod, plik:linia, `previous` — i ZAWSZE ślad jako lista
+  plik:linia. To więcej niż dotąd: `JsonFormatter` z produkcji
+  (`LOG_STDERR_FORMATTER`) ma domyślnie `includeStacktraces = false`
+  i śladu nie wypisywał, a procesor oddaje formaterowi gotową tablicę, więc
+  tamto ustawienie jej już nie przycina. Ślad nie niesie danych (same ścieżki
+  plików z repozytorium i numery linii), za to wpis błędu jest dłuższy;
+- w pozostałej treści i kontekście wszystko, co wygląda na adres e-mail albo
+  hash hasła (`$2y$…`, `$argon2id$…`), zamienia się na `[e-mail usunięty]` /
+  `[hash hasła usunięty]`. To siatka bezpieczeństwa, nie gwarancja: inne dane
+  (imię, treść wpisu) w zwykłym komunikacie nie są wykrywane — nie wkładaj ich
+  do `Log::…()`;
+- obiekt w kontekście (np. model `['user' => $user]`) jest serializowany
+  i czyszczony przez procesor, zanim zobaczy go formater; obiekt bez
+  `toArray()`/`jsonSerialize()`/`__toString()` zostaje samą nazwą klasy.
+  Klucze tablic są czyszczone jak wartości; zagnieżdżenie głębsze niż 8
+  poziomów zamienia się na znacznik;
+- gdy wyrażenie regularne filtra zawiedzie (błąd PCRE na bardzo długim,
+  złośliwie dobranym tekście), zamiast tekstu jest `[treść usunięta z logu:
+  filtr danych osobowych nie dał rady] (długość: N B)` — wpis nie znika
+  i nie wychodzi w oryginale.
+
+**Logi operacyjne nie niosą komunikatu obcego wyjątku (#973).** Sprzątanie
+eksportów, kasowanie i przetwarzanie zdjęć, eksport danych, list „paczka
+gotowa", ślad nieudanego listu (`ZapiszNieudanyList`), retencja moderacji,
+czyszczenie CDN i `/health` zapisują w polu `error` wynik
+`App\Logging\BezpiecznyBlad::kontekst($e)`: klasę, kod o zamkniętym kształcie
+(SQLSTATE, kod błędu R2 z HTTP), klasy przyczyn i ośmioznakowy odcisk — ten
+sam, który niesie dzwonek webhooka. Etap nazywa treść wpisu, encję jego
+identyfikator (`media_id`, `data_export_id`, własny klucz obiektu z modelu).
+Komunikatu nie ma, bo buduje go biblioteka (SQL z wartościami, adres żądania
+z tokenem, CR/LF), a filtr wyżej rozpoznaje tylko e-mail, hash i SQL.
+`App\Poczta\BezpiecznyKomunikat::z()` też nie wystarcza — maskuje adres, ale
+zostawia SQL, hash i token; w logu go nie używamy. Nowe surowe
+`$e->getMessage()` w `app/` — w `Log::…`, `Log::channel(…)->…`, `logger()`,
+`app('log')`, wstrzykniętym `$this->logger` albo `report(new …($e->getMessage()))`
+— oblewa `tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php`.
+
+Szukając błędu bazy w logach Railway, szukaj po SQLSTATE, nazwie ograniczenia
+albo pliku:linii — nie po adresie e-mail osoby, bo go tam nie ma. Pilnuje tego
+`tests/Feature/LogSerweraBezDanychOsobowychTest.php`. Kanał webhooka tego
+procesora nie ma i nie potrzebuje — tam komunikat nie wychodzi w ogóle. Procesor
+wisi na HANDLERACH kanałów, nie na loggerze: kanał `stack` zbiera procesory
+loggerów swoich składowych, więc `LOG_STACK=single,blad_webhook` zamieniłby
+webhookowi obiekt wyjątku w tablicę (bez klasy, pliku:linii i odcisku).
+
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 
 - **Nie grupuje powtórzeń.** Ten sam błąd wywalający się 50 razy na minutę
@@ -606,6 +664,7 @@ a `NIE WIEMY` jest nieprzejściem bramki, nie sukcesem (`docs/OTWARCIE.md`).
 | opóźnienie kolejki / martwy worker | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** — wcześniej nie mierzyło tego NIC | §7.2 niżej |
 | wyczerpywanie połączeń PostgreSQL | `kuking:budzet-polaczen`, co godzinę | **NOWE** — progi i wyprowadzenie w `docs/DATABASE.md` | §7.2 niżej |
 | awaria całej aplikacji (strona nie odpowiada) | zewnętrzny monitor `/health` | **NIEZROBIONE** | §6 wyżej opisuje, jak to założyć; to jest czynność właściciela |
+| stojący harmonogram (milkną wszystkie czujki) | `kuking:puls-harmonogramu` co 5 min → zewnętrzny monitor *heartbeat* | **KOD JEST, WYŁĄCZONY** bez `KUKING_PULS_HARMONOGRAMU_URL` (dopisane 25.09.2026) | [`MONITORING_599_KROKI.md`](MONITORING_599_KROKI.md) §B3 |
 
 ### 7.1. Dlaczego `/health` przestał odróżniać awarię od jej braku
 
@@ -632,7 +691,10 @@ zadań. Żeton resetu hasła wygasa `config/auth.php` → `expire` minut od
 wystawienia, więc zbiorowe `queue:retry` po tygodniu wysłałoby czterem
 osobom martwy link. Rozliczenie tabeli jest osobną czynnością na produkcji
 (`php artisan kuking:martwe-zadania`, bez `--skasuj` niczego nie usuwa)
-i należy do właściciela, nie do tej zmiany.
+i należy do właściciela, nie do tej zmiany. **Dopisek z 25.09.2026:** od tego
+dnia wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed
+--hours=720`, decyzja właściciela), więc te cztery zadania znikną same około
+10 października 2026 — rozliczenie z odbiorcami trzeba zrobić przed tą datą.
 
 ### 7.2. Trzy nowe czujki i jak sprawdzono, że naprawdę wysyłają
 
@@ -690,6 +752,16 @@ naprawiony w tej zmianie, bo pracował nad tym plikiem równoległy pakiet
 #193/#594. **Naprawiono go tam** — razem z tą samą asercją na liczbę
 wystąpień nagłówka w `CichyBrakKopiiBazyDajeAlarmTest`. Wszystkie trzy klasy
 alarmu wysyłają dziś nagłówek dokładnie raz, i każda ma na to strażnika.
+
+**Od #972 maszyna epizodu i transport są wspólne.** Pamięć, krótkie ponowienie
+po nieprzyjętej próbie, długa cisza, zmiana stanu i odwołanie żyją w jednym
+miejscu: `App\Domain\Monitoring\EpizodAlarmu`. Kontrakt „przyjęte = 2xx"
+żyje w `App\Domain\Monitoring\KanalAlarmowy`, z którego korzystają wszystkie
+trzy klasy alarmu. `AlarmKolejki` i `AlarmPolaczen` podają już tylko klucz
+pamięci, stany, długość ciszy i treść; `AlarmKopii` używa samego transportu,
+bo nie wycisza i nie odwołuje. Format pamięci (wersja 2, klucze
+`kuking:kolejka:ostatni-alarm` i `kuking:polaczenia:ostatni-alarm`) i migracja
+starego formatu się nie zmieniły.
 
 Warto zapamiętać sam wzorzec, bo nie dotyczy on wyłącznie nagłówka:
 **test na atrapie klienta HTTP sprawdza, co program CHCIAŁ wysłać, a nie co
@@ -847,7 +919,9 @@ czyli asercją, że żeton i znacznik śladu stosu NAPRAWDĘ leżą w bazie.
 `queue:retry` na starym żetonie resetu hasła wysyła człowiekowi martwy link,
 a skasowany wiersz to skasowany jedyny ślad po awarii. Obie decyzje zostają
 w `kuking:martwe-zadania`, gdzie podejmuje je człowiek po zobaczeniu, kogo
-dotyczą.
+dotyczą. Wyjątkiem są wiersze starsze niż 30 dni: te od 25.09.2026 kasuje
+harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela,
+`docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”).
 
 **Dlaczego nie log.** Bo `LOG_LEVEL` na produkcji bywa ustawiony na
 `warning`, a wszystko na poziomie `info` przepada po drodze. Przyrząd oparty
@@ -858,3 +932,55 @@ wejściu i nie zależy od poziomu logowania ani od `LOG_BLAD_WEBHOOK_URL`.
 adres i liczba różnych osób zostają w komendach, bo tam wymagają decyzji
 człowieka i nie wychodzą do przeglądarki. Nie rozlicza też tabeli: `/health`
 będzie mówić `degraded`, dopóki ktoś świadomie tych wierszy nie usunie.
+
+---
+
+## 8. Sonda `alarmy_moderacji` — pilny alarm moderacyjny nie dotarł (issue #1051)
+
+Sprawa **pilna** to oznaczenie automatu w jednej z dwóch kategorii, przy
+których doba zwłoki jest realną szkodą: treść seksualna i cokolwiek
+dotyczącego dziecka (D-055). O takiej sprawie ma natychmiast wyjść list na
+`KUKING_MODEL_ALARM_EMAIL`. Gdy nie wyszedł, wiersz w `reports` ma
+`alarm_pilny_stan` = `zalegly` / `nieudany` / `bez_adresu`
+i pusty `alarm_pilny_zlecony_at`, a `/health` zwraca `status: degraded`
+(kod 200 — sonda nie jest krytyczna i nie restartuje serwisu).
+
+| Kod w `checks.alarmy_moderacji.error` | Co znaczy | Co zrobić |
+|---|---|---|
+| `kanal_alarmowy_wylaczony` | Jest otwarta pilna sprawa bez alarmu, a `KUKING_MODEL_ALARM_EMAIL` jest **pusty** — kanał alarmowy nie istnieje. To nie jest błąd kodu i nie naprawi go ponowienie. | Wpisz adres w zmiennych usługi na Railway i wdróż. **Nic więcej:** komenda `kuking:doslij-pilne-alarmy` (co godzinę, minuta 35) dośle zaległe listy sama, najpóźniej w godzinę, a sonda zgaśnie po jej przebiegu. Do tego czasu kod zmieni się na `pilny_alarm_nie_dotarl` — to znaczy „adres jest, list jeszcze czeka na przebieg", nie nowa awaria. Obejrzyj sprawy w `/admin/sygnaly` — nie czekaj na list. |
+| `pilny_alarm_nie_dotarl` | Adres jest ustawiony, a pilna sprawa nadal nie ma zleconego alarmu: worker zginął między zapisem sprawy a listem (`zalegly`) albo zlecenie listu rzuciło wyjątkiem (`nieudany`, wyjątek poszedł do `report()`). | Otwórz `/admin/sygnaly` i obejrzyj sprawę od razu. Komenda ponawia co godzinę; jeśli kod trzyma się dłużej niż godzinę, zlecenie listu pada za każdym razem — przebieg harmonogramu kończy się wtedy błędem (kod 1) i trafia do zgłaszania błędów. Sprawdź pocztę (`checks.poczta`, `checks.listy`) i log. Ręcznie: `php artisan kuking:doslij-pilne-alarmy`. |
+| `slad_alarmow_niesprawdzalny` | Nie dało się zapytać o ślad — najczęściej kolumn `reports.alarm_pilny_*` jeszcze nie ma (kod wdrożony przed migracją). | Dokończ migrację. |
+
+### Kiedy sonda gaśnie — reguła
+
+Liczy się wyłącznie sprawa, która jest jednocześnie:
+
+1. **otwarta** (`open`, `triage`, `reviewing`) — zamknięcie sprawy w panelu
+   (rozstrzygnięcie albo „to nic takiego") gasi sondę. Człowiek ją obejrzał,
+   pytanie „czy ktoś o niej wie" ma odpowiedź. Ślad, że kanał wtedy nie
+   zadziałał, zostaje w bazie (`Report::pilneBezAlarmu()`);
+2. **młodsza niż 72 godziny** od powstania
+   (`kuking.moderation.model.alarm_sonda_godzin`). 72, nie 24 — sprawa
+   z piątku wieczorem świeci jeszcze w poniedziałek rano. Starsza sprawa
+   nadal leży w kolejce panelu i w porannym podsumowaniu automatu, a komenda
+   nadal próbuje ją dosłać; sonda przestaje tylko trzymać `degraded`.
+   Światło, którego nie da się zgasić inaczej niż SQL-em, operator uczy się
+   ignorować.
+
+Komenda i sonda patrzą na ten sam zbiór (`Report::pilneDoDoslania()`),
+żeby nie było sprawy, przy której sonda świeci, a komenda jej nie ruszy.
+Kod powodu wynika z **bieżącej** konfiguracji, nie z zapisanego stanu —
+po wpisaniu adresu sonda nie odsyła już do ustawień, które są poprawione.
+
+### Dlaczego nie wyjdą dwa listy o tej samej sprawie
+
+`AlarmujModeratora::doslij()` zajmuje wiersz warunkowym `UPDATE` i zleca
+list w tej samej transakcji (kolejka `database` — zadanie wysyłki to wiersz
+w `jobs` tej samej bazy). Dwa przebiegi naraz (stary i nowy kontener przy
+wdrożeniu) — dostaje go dokładnie jeden. Awaria zlecenia cofa zajęcie
+i zostawia stan `nieudany` do następnego przebiegu. Limit partii:
+`kuking.moderation.model.alarm_partia` (50) — żeby dzień z długą awarią
+kanału nie zjadł dobowego limitu poczty.
+
+Testy: `tests/Feature/DosylaniePilnychAlarmowTest.php`,
+`tests/Feature/PilnyAlarmModeracyjnyNieGinieTest.php`.

@@ -39,7 +39,26 @@ final class DiscoverFeed
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
-        return Post::query()
+        // JEDEN WPIS NA AUTORA W CAŁEJ SEKWENCJI, NIE TYLKO NA STRONIE (issue #940).
+        //
+        // Obietnica z nagłówka tej klasy stała tu od pierwszego commita, ale
+        // zapytanie jej nie wykonywało: jedna osoba z serią wpisów wypełniała
+        // całą pierwszą stronę i landing gościa. Reguła jest własnością
+        // zapytania — `DISTINCT ON (author_id)` w podzapytaniu, tym samym
+        // wzorcem co `DailyBoard::automaticPosts()`.
+        //
+        // „W widoku" = w całym odkrywaniu, nie w jednej stronie: wybór
+        // reprezentanta nie zależy od kursora, więc druga strona nie powtórzy
+        // autora z pierwszej i nie zgubi pozostałych. Kolejność reprezentantów
+        // jest dalej czysto chronologiczna — to nie jest ranking.
+        //
+        // WSZYSTKIE BRAMKI WIDOCZNOŚCI SĄ W PODZAPYTANIU, PRZED WYBOREM
+        // reprezentanta. Wpis odsiany dopiero na zewnątrz zabrałby ze sobą
+        // całe miejsce autora, zamiast oddać je jego starszemu dozwolonemu
+        // wpisowi. `ORDER BY` musi zaczynać się od `author_id` (wymóg
+        // Postgresa dla `DISTINCT ON`); `published_at, id` wybierają najnowszy.
+        $najnowszyKazdegoAutora = Post::query()
+            ->selectRaw('DISTINCT ON (posts.author_id) posts.id')
             ->publiclyVisible()
             // Konto autora musi być w pełni aktywne (audyt A5) — to jest
             // surowszy próg niż w Policy pojedynczego wpisu. Odkrywanie
@@ -53,8 +72,15 @@ final class DiscoverFeed
             ))
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
-            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
-            ->zWidocznymPrzepisem($viewer)
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Wpis
+            // z własną treścią idzie za własną widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
+            ->orderBy('posts.author_id')
+            ->orderByDesc('posts.published_at')
+            ->orderByDesc('posts.id');
+
+        return Post::query()
+            ->whereIn('posts.id', $najnowszyKazdegoAutora)
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -84,7 +110,8 @@ final class DiscoverFeed
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->cursorPaginate($perPage);
+            ->cursorPaginate($perPage)
+            ->tap(fn (CursorPaginator $strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer));
     }
 
     /** @return list<string> */

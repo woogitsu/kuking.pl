@@ -12,6 +12,7 @@ use App\Models\ContactMessageReply;
 use App\Models\User;
 use App\Poczta\OdmowaEmailLabs;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -41,6 +42,12 @@ final class WyslijOdpowiedz
         ?string $ip = null,
         ?string $replyKey = null,
     ): ContactMessageReply {
+        // Prawo do listu sprawdza akcja, nie tylko kontroler: bezpośrednie
+        // wywołanie (komenda, job, drugi endpoint) z osobą bez roli albo po
+        // jej odebraniu odmawia przed wierszem odpowiedzi, pocztą i audytem.
+        // Ta sama polityka co HTTP — bez drugiej kopii warunku roli (#1352).
+        Gate::forUser($moderator)->authorize('reply', $wiadomosc);
+
         $adres = $wiadomosc->adresDoOdpowiedzi();
 
         if ($adres === null) {

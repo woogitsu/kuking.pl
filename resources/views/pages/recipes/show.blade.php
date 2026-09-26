@@ -33,6 +33,16 @@
                 interactionStatistic — uczciwie i zgodnie ze znaczeniem
                 (docs/seo/SEO_TECHNICAL.md).
             --}}
+            {{--
+                `Recipe` TYLKO ZE ZDJĘCIEM (#1005). Google wymaga `image`, a bez
+                niego obiekt nie kwalifikuje się do wyniku rozszerzonego
+                i ląduje jako błąd w Search Console. Zdjęcie jest w Kuking
+                opcjonalne i przez chwilę po wgraniu nie jest `ready` — wtedy
+                lepiej nie deklarować typu, którego nie umiemy wypełnić.
+                Logo zamiast dania odpada: obraz ma przedstawiać przepis.
+                `BreadcrumbList` niżej zostaje zawsze.
+            --}}
+            @if($recipe->heroMedia?->isReady() && $recipe->heroMedia->maWariantDoPokazania('large'))
             @php
                 $recipeJsonLd = array_filter([
                 '@context' => 'https://schema.org',
@@ -134,17 +144,32 @@
                         && \Illuminate\Support\Str::isUrl((string) $recipe->source_url, ['http', 'https'])
                     ? $recipe->source_url
                     : null,
-                'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
+                'image' => [$recipe->heroMedia->url('large')],
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
                 'totalTime' => $recipe->totalTimeIso(),
                 'recipeIngredient' => $recipe->ingredients->pluck('ingredient_text')->all(),
-                'recipeInstructions' => $recipe->steps->map(fn ($step) => [
+                /*
+                 * ZDJĘCIE KROKU TYLKO WTEDY, GDY STRONA JE POKAZUJE (#1370).
+                 *
+                 * Warunek i wariant są DOKŁADNIE te, których używa lista
+                 * kroków niżej (`<x-photo :media="$step->media"
+                 * variant="feed">` pyta `maWariantDoPokazania('feed')`).
+                 * Krok ze zdjęciem jeszcze nieprzetworzonym albo w trakcie
+                 * kasowania nie dostaje `image` — dane strukturalne nie
+                 * mogą obiecywać obrazu, którego człowiek nie widzi.
+                 * `url()` wskazuje przetworzony wariant publiczny, nigdy
+                 * oryginał, i jest bezwzględny (`route()` z APP_URL).
+                 * Bez sztucznego `name` z numeru kroku — Google go nie
+                 * wymaga, a „Krok 3" nic nie mówi.
+                 */
+                'recipeInstructions' => $recipe->steps->map(fn ($step) => array_filter([
                     '@type' => 'HowToStep',
                     'position' => $step->position + 1,
                     'text' => $step->instruction,
-                ])->all(),
+                    'image' => $step->media?->maWariantDoPokazania('feed') ? $step->media->url('feed') : null,
+                ], static fn ($value) => $value !== null))->all(),
                 'interactionStatistic' => $cookedCount > 0 ? [
                     '@type' => 'InteractionCounter',
                     'interactionType' => 'https://schema.org/CookAction',
@@ -154,17 +179,17 @@
             ], static fn ($value) => $value !== null && $value !== []);
             @endphp
             <x-json-ld :data="$recipeJsonLd" />
+            @endif
 
             @php
-                $breadcrumbJsonLd = [
-                '@context' => 'https://schema.org',
-                '@type' => 'BreadcrumbList',
-                'itemListElement' => [
-                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Świeżo z Kuking', 'item' => route('discover')],
-                    ['@type' => 'ListItem', 'position' => 3, 'name' => $recipe->title],
-                ],
-            ];
+                // Ścieżka przepisu zostaje, jaka była — etykieta i cel drugiego
+                // poziomu czekają na #667. Kodowanie wspólne z wpisami,
+                // pytaniami i profilami (`Okruszki`, #1033).
+                $breadcrumbJsonLd = \App\Support\Okruszki::jsonLd([
+                    ['nazwa' => 'Kuking', 'url' => route('landing')],
+                    ['nazwa' => 'Świeżo z Kuking', 'url' => route('discover')],
+                    ['nazwa' => $recipe->title, 'url' => null],
+                ]);
             @endphp
             <x-json-ld :data="$breadcrumbJsonLd" />
         @endif
@@ -375,7 +400,7 @@
                                 <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
                                 <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
                             @elseif($zeszytyTegoPrzepisu->count() > 1)
-                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Zanim to zrobimy, zapytamy o potwierdzenie i pozwolimy wybrać jeden zeszyt.</p>
                             @endif
                             <button class="btn btn-secondary" type="submit"
                                 @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
@@ -672,10 +697,12 @@
 
             @if($cookedEvents->isNotEmpty())
                 <p class="meta">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
-                @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" />
-                @endforeach
-                <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+                <div class="stack" id="lista-wykonan">
+                    @foreach($cookedEvents as $event)
+                        <x-cooked-card :event="$event" />
+                    @endforeach
+                </div>
+                <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
                 {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako

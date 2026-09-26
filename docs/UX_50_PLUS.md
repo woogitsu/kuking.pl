@@ -166,6 +166,15 @@ terminem, a przekierowanie dotrze po nim, ten sam blok odzyskiwania stoi
 nad wątkiem, niezależnie od strony paginacji. Treść jest escapowana.
 Odmowy dotyczące cudzego lub usuniętego komentarza nie korzystają z tej drogi.
 
+### Poprawka komentarza po pierwszej odpowiedzi (#1337)
+
+Pierwsza widoczna odpowiedź (opublikowana, nieusunięta) zamyka poprawkę
+komentarza — także w oknie 15 minut. „Popraw" znika z wątku, a poprawka
+wysłana w tej samej chwili co odpowiedź wraca tą samą drogą co po czasie:
+tekst tylko do odczytu, wyjaśnienie „Ktoś już odpowiedział na ten komentarz"
+i odnośnik do komentarza z podpowiedzią, żeby dopisać sprostowanie jako
+odpowiedź. Odpowiedź ukryta przez moderację lub usunięta poprawki nie blokuje.
+
 ## Autosave
 
 Użytkownik widzi:

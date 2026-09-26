@@ -61,11 +61,34 @@ use Throwable;
  * nie patrzymy na DNS, nie wiemy, czy chodzi worker. Zbudowany transport
  * znaczy tylko tyle, że wysyłka ma czym RUSZYĆ — resztę mierzy
  * `kuking:sprawdz-poczte`, wysyłając prawdziwą wiadomość.
+ *
+ * ---
+ *
+ * TRZECIE PYTANIE, DOŁOŻONE 24 WRZEŚNIA 2026 (issue #1084): CZYM NAPRAWDĘ
+ * JEST TEN STEROWNIK
+ *
+ * Kontrola patrzyła na NAZWĘ głównego mailera. Dwie dziury:
+ *
+ * 1. `failover` z listą `['smtp', 'log']` przechodził, bo nazywa się
+ *    `failover`, a transport składa się bez błędu. Po awarii SMTP list
+ *    lądował w dzienniku, wysyłka kończyła się sukcesem, a `/health` był
+ *    zielony. To samo dotyczy `roundrobin`, który część listów od razu
+ *    kieruje do dziennika.
+ * 2. Mailer pod własną nazwą (`'dziennik' => ['transport' => 'log']`)
+ *    przechodził, bo nie nazywa się `log`.
+ *
+ * Dlatego sprawdzamy TRANSPORT, a dla `failover` i `roundrobin` — każdy
+ * transport składowy, rekurencyjnie. Wystarczy jeden niedostarczający
+ * element łańcucha, żeby poczta „nie działała": zapas, który kończy wysyłkę
+ * zapisem do logu, nie jest zapasem, tylko ukryciem awarii.
  */
 final class Poczta
 {
     /** @var list<string> */
-    private const NIEDOSTARCZAJACE = ['log', 'array', ''];
+    private const NIEDOSTARCZAJACE = ['log', 'array'];
+
+    /** @var list<string> */
+    private const ZLOZONE = ['failover', 'roundrobin'];
 
     public static function dziala(): bool
     {
@@ -86,12 +109,14 @@ final class Poczta
     {
         $sterownik = config('mail.default');
 
-        if (! is_string($sterownik) || in_array($sterownik, self::NIEDOSTARCZAJACE, true)) {
-            return match (true) {
-                $sterownik === 'log' => 'Sterownik `log` zapisuje wiadomość do dziennika aplikacji i zgłasza sukces. Nikt jej nie dostanie.',
-                $sterownik === 'array' => 'Sterownik `array` trzyma wiadomość w pamięci procesu (używa go suita testów). Nikt jej nie dostanie.',
-                default => 'Zmienna MAIL_MAILER jest pusta, więc Laravel nie ma czym wysyłać.',
-            };
+        if (! is_string($sterownik) || $sterownik === '') {
+            return 'Zmienna MAIL_MAILER jest pusta, więc Laravel nie ma czym wysyłać.';
+        }
+
+        $niedostarczajacy = self::niedostarczajacy($sterownik);
+
+        if ($niedostarczajacy !== null) {
+            return $niedostarczajacy;
         }
 
         try {
@@ -101,6 +126,56 @@ final class Poczta
             // się `Error: Class ... not found`, a to nie jest `Exception`.
             return "Sterownik „{$sterownik}” jest ustawiony, ale Laravel nie potrafi zbudować dla niego "
                 .'transportu, więc żaden list nie ma czym wyjść. Powód: '.$e->getMessage();
+        }
+
+        return null;
+    }
+
+    /**
+     * Opis niedostarczającego elementu w mailerze `$mailer` (także wewnątrz
+     * `failover`/`roundrobin`) albo `null`, gdy każdy element coś wysyła.
+     *
+     * @param  list<string>  $sciezka  mailery, przez które tu doszliśmy —
+     *                                 do opisu i przeciw zapętleniu listy
+     */
+    private static function niedostarczajacy(string $mailer, array $sciezka = []): ?string
+    {
+        $konfiguracja = config("mail.mailers.{$mailer}");
+
+        // Nazwa `log`/`array` bez własnego wpisu: Laravel i tak użyje
+        // transportu o tej nazwie. Wpis z innym transportem wygrywa nad nazwą.
+        $transport = is_array($konfiguracja) && is_string($konfiguracja['transport'] ?? null)
+            ? $konfiguracja['transport']
+            : $mailer;
+
+        if (in_array($transport, self::NIEDOSTARCZAJACE, true)) {
+            $skutek = $transport === 'log'
+                ? 'zapisuje wiadomość do dziennika aplikacji i zgłasza sukces'
+                : 'trzyma wiadomość w pamięci procesu (używa go suita testów)';
+
+            if ($sciezka === []) {
+                return $mailer === $transport
+                    ? "Sterownik `{$transport}` {$skutek}. Nikt jej nie dostanie."
+                    : "Sterownik „{$mailer}” używa transportu `{$transport}`, który {$skutek}. Nikt jej nie dostanie.";
+            }
+
+            return 'Sterownik „'.$sciezka[0].'” ma w łańcuchu transportów „'.$mailer.'” (transport `'.$transport.'`), '
+                ."który {$skutek}. Gdy poprzedni transport zawiedzie albo przyjdzie jego kolej, list nie wyjdzie, "
+                .'a wysyłka i tak zgłosi sukces. Zapasem ma być drugi dostawca, nie `'.$transport.'`.';
+        }
+
+        if (! in_array($transport, self::ZLOZONE, true) || in_array($mailer, $sciezka, true)) {
+            return null;
+        }
+
+        $skladowe = is_array($konfiguracja) ? ($konfiguracja['mailers'] ?? []) : [];
+
+        foreach (is_array($skladowe) ? $skladowe : [] as $skladowa) {
+            $opis = self::niedostarczajacy((string) $skladowa, [...$sciezka, $mailer]);
+
+            if ($opis !== null) {
+                return $opis;
+            }
         }
 
         return null;

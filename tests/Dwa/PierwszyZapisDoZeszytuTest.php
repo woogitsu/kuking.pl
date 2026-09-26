@@ -14,9 +14,9 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * #778: dwa procesy wykonują prawdziwe akcje zapisu. Blokada SHARE tabeli
- * przepuszcza SELECT, ale zatrzymuje oba INSERT-y do collections. Dopiero
- * po potwierdzeniu w pg_stat_activity, że oba czekają na INSERT, puszczamy
- * barierę. To wymuszony przeplot, nie dwa przypadkowo równoległe wywołania.
+ * przepuszcza SELECT, ale zatrzymuje INSERT do collections. Dopiero po
+ * potwierdzeniu w pg_stat_activity, że pierwszy czeka na INSERT, a drugi
+ * w kolejce za nim (zamek konta z #1022), puszczamy barierę. To wymuszony przeplot, nie dwa przypadkowo równoległe wywołania.
  * Nie mierzymy tutaj wyścigu z ręcznym zakładaniem ani usuwaniem zeszytu.
  */
 #[Group('dwa-polaczenia')]
@@ -65,12 +65,22 @@ final class PierwszyZapisDoZeszytuTest extends TestDwochPolaczen
         $b = $this->wTle('zapis-do-zeszytu', $arguments + ['typ' => $secondType, 'tresc' => (string) $second->getKey()]);
         $this->czekajNaZablokowane(2);
 
-        // Dwa różne backendy stoją konkretnie na INSERT do zeszytów.
-        // Sama liczba dowolnych blokad nie dowodzi odczytania braku zeszytu.
+        // Pierwszy backend stoi konkretnie na INSERT do zeszytów — odczytał
+        // brak domyślnego zeszytu. Od #1022 zapis bierze zamek konta
+        // (`ZamekZapisuDoZeszytu`), więc drugi zapis tej samej osoby czeka
+        // w kolejce ZA pierwszym, zanim w ogóle zapyta o zeszyt. Sprawdzamy
+        // to wprost: drugi czeka i blokuje go właśnie pierwszy. Ścieżkę
+        // złapanego 23505 w `defaultCollection()` mierzy
+        // `DomyslnyZeszytNieMaskujeInnejUnikalnosciTest`.
         $waiting = $this->obserwator->query("SELECT pid FROM pg_stat_activity
             WHERE datname = current_database() AND wait_event_type = 'Lock'
             AND query ILIKE 'insert into \"collections\"%'")->fetchAll(\PDO::FETCH_COLUMN);
-        $this->assertCount(2, array_unique($waiting));
+        $this->assertCount(1, array_unique($waiting));
+        $queued = $this->obserwator->query("SELECT pg_blocking_pids(pid)::text FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+            AND pid <> ".(int) $waiting[0])->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertCount(1, $queued);
+        $this->assertStringContainsString((string) $waiting[0], $queued[0]);
         $this->zwolnijBariere($barrier);
 
         $results = [$a->wynik(), $b->wynik()];

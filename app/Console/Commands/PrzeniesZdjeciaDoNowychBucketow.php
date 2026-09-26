@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -68,7 +70,8 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
     protected $signature = 'kuking:przenies-zdjecia
                             {--dry-run : Tryb tylko-raport: sprawdź i pokaż, co by się stało, ale niczego nie kopiuj ani nie zmieniaj}
                             {--tylko-raport : To samo co --dry-run, nazwane po polsku}
-                            {--limit=200 : Ile zdjęć wziąć w jednym przebiegu}';
+                            {--limit=200 : Ile zdjęć wziąć w jednym przebiegu}
+                            {--po= : Zacznij od zdjęć o identyfikatorze większym niż podany (kursor z poprzedniego przebiegu)}';
 
     protected $description = 'Kopiuje zdjęcia ze starego bucketu do nowych: oryginały do prywatnego, warianty do publicznego';
 
@@ -85,14 +88,36 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
             return self::FAILURE;
         }
 
+        // KURSOR PO `id` (#1031, uzupełnienie).
+        //
+        // Wiersz z brakującym plikiem CELOWO zostaje przy `r2_legacy` — ale
+        // przy zapytaniu „najstarsze N" wracał też na POCZĄTEK każdej partii.
+        // N takich wierszy (przy `--limit=1` wystarczał jeden) i kolejne
+        // przebiegi sprawdzały w kółko te same rekordy, a zdrowe, nowsze
+        // zdjęcia nie były kopiowane nigdy. `--po` przesuwa start za ostatni
+        // wiersz poprzedniej partii; przebieg BEZ `--po` zaczyna od początku,
+        // więc pominięte wiersze nie giną — to jawna droga powrotu do nich.
+        $po = $this->option('po');
+        $po = is_string($po) && $po !== '' ? $po : null;
+
+        if ($po !== null && ! Str::isUuid($po)) {
+            $this->error('Opcja --po przyjmuje identyfikator zdjęcia (UUID) wypisany przez poprzedni przebieg. '
+                .'Skopiuj go z linii „Następna partia”.');
+
+            return self::FAILURE;
+        }
+
         $doPrzeniesienia = Media::query()
             ->where('disk', $stary)
-            ->orderBy('created_at')
+            ->when($po !== null, fn ($zapytanie) => $zapytanie->where('id', '>', $po))
+            ->orderBy('id')
             ->limit((int) $this->option('limit'))
             ->get();
 
         if ($doPrzeniesienia->isEmpty()) {
-            $this->info('Nie ma zdjęć do przeniesienia.');
+            $this->info($po === null
+                ? 'Nie ma zdjęć do przeniesienia.'
+                : 'Za podanym --po nie ma już zdjęć do przeniesienia. Uruchom bez --po, żeby sprawdzić pominięte wcześniej.');
 
             return self::SUCCESS;
         }
@@ -129,6 +154,13 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
             $przeniesione++;
             $this->line(($tylkoRaport ? 'Do przeniesienia: ' : 'Przeniesione: ').$id);
+        }
+
+        $ostatni = (string) $doPrzeniesienia->last()?->getKey();
+
+        if (Media::query()->where('disk', $stary)->where('id', '>', $ostatni)->exists()) {
+            $this->warn('Następna partia: uruchom z --po='.$ostatni
+                .' (bez --po wrócisz na początek, razem z pominiętymi).');
         }
 
         return $tylkoRaport
@@ -243,12 +275,16 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
                 }
             }
         } catch (Throwable $e) {
+            $blad = BezpiecznyBlad::kontekst($e);
+
             Log::error('Nie udało się przenieść zdjęcia do nowych bucketów', [
                 'media_id' => $zdjecie->getKey(),
-                'error' => $e->getMessage(),
+                'error' => $blad,
             ]);
 
-            return [self::WYNIK_BLAD, 'wyjątek: '.$e->getMessage()];
+            // Na konsolę też bez komunikatu: klient R2 wkleja w niego pełny
+            // adres żądania, a wyjście komendy ląduje w logu wdrożenia.
+            return [self::WYNIK_BLAD, 'wyjątek: '.$blad['wyjatek'].' w '.($blad['miejsce_w_app'] ?? $blad['miejsce']).' (odcisk '.$blad['odcisk'].')'];
         }
 
         if ($tylkoRaport) {

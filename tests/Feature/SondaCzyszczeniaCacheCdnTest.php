@@ -52,7 +52,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezKonfiguracjiCzyszczenia();
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz
             // ŚWIADOMIE 200, NIE 503. `cdn` nie jest na liście KRYTYCZNE:
@@ -91,10 +91,42 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
             'kuking.media.cdn_purge.token' => 'udawany-token',
         ]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.cdn.ok', true);
+    }
+
+    /**
+     * Strefa i token są, ale adres czyszczenia prowadzi poza Cloudflare
+     * (#991, D-250). Zadanie odmawia wysłania tokenu, więc czyszczenie nie
+     * działa nigdy — sonda nie ma prawa mówić „ok" tylko dlatego, że dwie
+     * zmienne są niepuste. Publicznie: sam kod, bez adresu.
+     */
+    public function test_obcy_adres_czyszczenia_jest_degraded_i_nie_zdradza_adresu(): void
+    {
+        $this->produkcjaBezSzumu();
+
+        config([
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token',
+            'kuking.media.cdn_purge.endpoint' => 'https://przechwyt.example.com/client/v4/zones/{zone}/purge_cache',
+        ]);
+
+        $szczegoly = $this->zdrowieZeSzczegolami()
+            ->assertOk()
+            ->assertJsonPath('status', 'degraded')
+            ->assertJsonPath('checks.cdn.ok', false)
+            ->assertJsonPath('checks.cdn.error', 'czyszczenie_cdn_zly_adres');
+
+        $this->assertContains('czyszczenie_cdn_zly_adres', HealthController::POWODY);
+
+        // Ani odpowiedź z tokenem, ani publiczna (bez `checks`, A5-05) nie
+        // niesie adresu ani tokenu.
+        foreach ([$szczegoly, $this->get('/health')->assertOk()->assertJsonPath('status', 'degraded')] as $odpowiedz) {
+            $this->assertStringNotContainsString('przechwyt', (string) $odpowiedz->getContent());
+            $this->assertStringNotContainsString('udawany-token', (string) $odpowiedz->getContent());
+        }
     }
 
     /**
@@ -112,14 +144,14 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
             'kuking.media.cdn_purge.token' => '',
         ]);
 
-        $this->get('/health')->assertJsonPath('checks.cdn.error', self::POWOD);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn.error', self::POWOD);
 
         config([
             'kuking.media.cdn_purge.zone_id' => '',
             'kuking.media.cdn_purge.token' => 'udawany-token',
         ]);
 
-        $this->get('/health')->assertJsonPath('checks.cdn.error', self::POWOD);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.cdn.error', self::POWOD);
     }
 
     /**
@@ -137,7 +169,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
 
         $this->bezKonfiguracjiCzyszczenia();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.cdn.ok', true);
     }
@@ -153,7 +185,7 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezKonfiguracjiCzyszczenia();
 
-        $tresc = $this->get('/health')->getContent();
+        $tresc = $this->zdrowieZeSzczegolami()->getContent();
 
         foreach (['CLOUDFLARE_ZONE_ID', 'CLOUDFLARE_PURGE_TOKEN', 'r2_legacy', 'kuking:przenies-zdjecia'] as $czego) {
             $this->assertStringNotContainsString(
@@ -182,6 +214,9 @@ class SondaCzyszczeniaCacheCdnTest extends TestCase
         ]);
 
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
     }
 
     private function bezKonfiguracjiCzyszczenia(): void

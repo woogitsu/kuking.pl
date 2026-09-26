@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -160,7 +161,7 @@ class SearchTest extends TestCase
      */
     public function test_brak_wynikow_uzywa_tekstu_z_copy_style_i_daje_droge_dalej(): void
     {
-        $html = $this->get(route('search', ['q' => 'kartacze']))
+        $html = $this->get(route('search', ['q' => 'kartacze', 'sekcja' => 'przepisy']))
             ->assertOk()
             ->assertSee('Nic nie znaleźliśmy')
             ->assertSee('Nie ma jeszcze przepisu, który by pasował do „kartacze”. Może to Ty go dodasz?')
@@ -176,6 +177,65 @@ class SearchTest extends TestCase
             '~href="[^"]*'.preg_quote(route('discover'), '~').'"~',
             (string) $html,
         );
+    }
+
+    public static function frazyBezTrafienWeWszystkim(): array
+    {
+        return [
+            'danie' => ['kartacze'],
+            'imię' => ['Bożenka'],
+        ];
+    }
+
+    /**
+     * Regresja #944: zakres „Wszystko" szuka przepisów I ludzi, więc pusty
+     * stan nie może mówić wyłącznie o przepisie. Sprawdzamy tekst WEWNĄTRZ
+     * pustego stanu, nie echo frazy w polu formularza.
+     */
+    #[DataProvider('frazyBezTrafienWeWszystkim')]
+    public function test_pusty_stan_wszystko_mowi_o_przepisach_i_ludziach(string $fraza): void
+    {
+        $response = $this->get(route('search', ['q' => $fraza]))->assertOk();
+        $opis = $this->opisPustegoStanu((string) $response->getContent());
+
+        $this->assertStringContainsString('ani przepisu, ani osoby pasującej do „'.$fraza.'”', $opis);
+        $this->assertStringNotContainsString('Nie ma jeszcze przepisu', $opis);
+        $this->assertStringNotContainsString('Może to Ty go dodasz', $opis);
+        // Dodanie przepisu zostaje jedną z dróg, ale bez „taki" — fraza
+        // mogła być imieniem. Świeżo z Kuking też zostaje.
+        $response->assertSee('Dodaj przepis')
+            ->assertDontSee('Dodaj taki przepis')
+            ->assertSee('href="'.route('discover').'"', false);
+    }
+
+    /** Kontrola dodatnia: pozostałe zakresy zachowują swoje teksty. */
+    public function test_pozostale_zakresy_zachowuja_wlasne_puste_stany(): void
+    {
+        $przepisy = $this->get(route('search', ['q' => 'kartacze', 'sekcja' => 'przepisy']))->assertOk();
+        $this->assertStringContainsString(
+            'Nie ma jeszcze przepisu, który by pasował do „kartacze”. Może to Ty go dodasz?',
+            $this->opisPustegoStanu((string) $przepisy->getContent()),
+        );
+        $przepisy->assertSee('Dodaj taki przepis');
+
+        $ludzie = $this->get(route('search', ['q' => 'Bożenka', 'sekcja' => 'ludzie']))->assertOk();
+        $this->assertStringContainsString('Nie ma tu osoby o nazwie „Bożenka”.', $this->opisPustegoStanu((string) $ludzie->getContent()));
+        $ludzie->assertDontSee('Dodaj taki przepis')->assertDontSee('Dodaj przepis');
+
+        $szybkie = $this->get(route('search', ['q' => 'kartacze', 'sekcja' => 'szybkie']))->assertOk();
+        $opis = $this->opisPustegoStanu((string) $szybkie->getContent());
+        $this->assertStringContainsString('zmieściłby się w pół godziny', $opis);
+        $this->assertStringContainsString('Spróbuj zakresu „Przepisy”', $opis);
+    }
+
+    private function opisPustegoStanu(string $html): string
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $wezel = (new \DOMXPath($dom))->query('//p[contains(@class, "empty-state-opis")]')->item(0);
+        $this->assertNotNull($wezel, 'Brak pustego stanu na stronie.');
+
+        return (string) preg_replace('/\s+/u', ' ', trim($wezel->textContent));
     }
 
     /**

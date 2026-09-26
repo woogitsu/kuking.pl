@@ -32,5 +32,6 @@ i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
 
 ## Zanim zaczniesz implementować
 
-Sprawdź `docs/ROADMAP.md`, żeby nie budować funkcji z V2 podczas prac nad MVP.
+Sprawdź `docs/ROADMAP.md` i `docs/FEATURES.md` (sekcja „V2”), żeby nie budować
+funkcji z V2 podczas prac nad MVP.
 Pracuj z issues po kolei: `P0` → `P1` → `P2`.

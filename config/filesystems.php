@@ -2,6 +2,49 @@
 
 declare(strict_types=1);
 
+/*
+ * Para poświadczeń R2 dla JEDNEGO bucketu (#617).
+ *
+ * Aplikacja MUSI mieć prawo kasować obiekty w bucketach zdjęć i paczek:
+ * `EraseAccountData` usuwa zdjęcia natychmiast, a sprzątanie osieroconych
+ * i kompensacja nieudanego wgrania też kasują. Tego prawa nie da się jej
+ * odebrać bez złamania procedury usuwania danych. Da się natomiast zawęzić
+ * JEGO ZASIĘG: każdy bucket może dostać własny token, zamiast jednego
+ * `AWS_ACCESS_KEY_ID`, który kasuje wszędzie naraz. Kopia zdjęć NIGDY nie
+ * dostaje tu żadnego tokenu z prawem zapisu — patrz
+ * `docs/infra/DR_ZDJEC_R2.md`.
+ *
+ * Reguła jest jedna: para bucketu (`<PREFIKS>_ACCESS_KEY_ID`
+ * + `<PREFIKS>_SECRET_ACCESS_KEY`) wygrywa, gdy są OBIE zmienne; gdy nie ma
+ * żadnej, bucket bierze wspólne `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
+ * — dokładnie jak przed tą zmianą.
+ *
+ * POŁOWA PARY TO BŁĄD KONFIGURACJI, NIE CICHY POWRÓT DO WSPÓLNEGO TOKENU.
+ * Klucz jednego tokenu z sekretem drugiego to podpis, którego R2 nie
+ * przyjmie; a ciche wzięcie wspólnej pary dawałoby właścicielowi złudzenie,
+ * że zawężenie działa. Dlatego wyjątek już przy ładowaniu konfiguracji
+ * (także w `config:cache` podczas budowania), z nazwą brakującej zmiennej.
+ */
+$paraR2 = static function (string $prefiks): array {
+    $klucz = (string) env($prefiks.'_ACCESS_KEY_ID', '');
+    $sekret = (string) env($prefiks.'_SECRET_ACCESS_KEY', '');
+
+    if ($klucz === '' && $sekret === '') {
+        return ['key' => env('AWS_ACCESS_KEY_ID'), 'secret' => env('AWS_SECRET_ACCESS_KEY')];
+    }
+
+    if ($klucz === '' || $sekret === '') {
+        $brakuje = $klucz === '' ? $prefiks.'_ACCESS_KEY_ID' : $prefiks.'_SECRET_ACCESS_KEY';
+
+        throw new RuntimeException(
+            "Ustaw {$brakuje} albo usuń drugą zmienną z pary {$prefiks}_*. "
+            .'Połowa pary tokenu R2 nie zadziała, a powrót do wspólnego tokenu byłby po cichu.',
+        );
+    }
+
+    return ['key' => $klucz, 'secret' => $sekret];
+};
+
 return [
 
     /*
@@ -123,8 +166,7 @@ return [
          */
         'r2' => [
             'driver' => 'r2',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ...$paraR2('AWS_ORIGINALS'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
@@ -178,8 +220,7 @@ return [
          */
         'r2_publiczne' => [
             'driver' => 'r2',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ...$paraR2('AWS_PUBLIC'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_PUBLIC_BUCKET', env('AWS_BUCKET')),
             'endpoint' => env('AWS_ENDPOINT'),
@@ -218,8 +259,7 @@ return [
          */
         'r2_legacy' => [
             'driver' => 'r2',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ...$paraR2('AWS_LEGACY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_LEGACY_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
@@ -249,8 +289,7 @@ return [
          */
         'r2_eksporty' => [
             'driver' => 'r2',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ...$paraR2('AWS_EXPORTS'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_EXPORTS_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
@@ -306,6 +345,33 @@ return [
             'use_path_style_endpoint' => false,
             'throw' => false,
             'report' => false,
+        ],
+
+        /*
+         * KOPIA ZDJĘĆ — DYSK TYLKO DO CZYTANIA (#617, D-257).
+         *
+         * Migawki zdjęć robi proces POZA aplikacją (właściciel, z własnym
+         * tokenem zapisu — `docs/infra/DR_ZDJEC_R2.md`). Aplikacja dostaje
+         * tu wyłącznie token ODCZYTU, a korzysta z niego jedna komenda:
+         * `kuking:sprawdz-kopie-zdjec`, która porównuje wiersze `media`
+         * z migawką i niczego nie zapisuje.
+         *
+         * Gdyby aplikacja miała tu prawo zapisu, udany atak na nią kasowałby
+         * razem z oryginałami także ich kopie — czyli dokładnie to, przed
+         * czym ta warstwa ma chronić.
+         *
+         * Pusta nazwa bucketu = kopii nie ma (z tego samego powodu co przy
+         * `r2_kopie`: `''`, nie `null`). Świadomie bez `url`.
+         */
+        'r2_kopia_zdjec' => [
+            'driver' => 's3',
+            'key' => env('AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID'),
+            'secret' => env('AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_ZDJECIA_KOPIA_BUCKET', ''),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => false,
+            'throw' => true,
         ],
 
         's3' => [

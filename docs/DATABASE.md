@@ -1102,14 +1102,20 @@ element serwisu; usunięcie kont zabrałoby treść, do której realni
 użytkownicy mogli już coś dopisać (komentarz, „Ugotowałem"). Decyzja
 właściciela, do podjęcia przed otwarciem rejestracji.
 
-**Rollback:** `down()` zdejmuje kolumnę. Nic poza etykietą w interfejsie
-i wykluczeniem z WAC nie czyta `is_seeded`, więc rollback nie kasuje żadnego
-wiersza `users`/`posts`/`recipes`/`comments` — dwanaście kont z pliku staje
-się po prostu nie do odróżnienia od kont zwykłych, a ich treść (i wpływ na
-WAC) wraca do tego, jak wygląda dla każdego innego konta. To jest znany,
-opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
-rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
-co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
+**Rollback — odmawia, gdy są konta z pliku (D-088, audyt B3 W4).** `down()`
+zdejmuje kolumnę tylko wtedy, gdy żadne konto nie ma `is_seeded = true`.
+Inaczej rzuca wyjątek z liczbą takich kont i instrukcją, co zrobić ręcznie
+(wycofać sam kod; a przy cofaniu schematu najpierw zapisać
+`SELECT id FROM users WHERE is_seeded = true` i odtworzyć to po powrocie).
+Powód: po cichym cofnięciu kolejny `migrate` przywraca kolumnę z
+`DEFAULT false`, więc persony stają się nie do odróżnienia od ludzi — bez
+etykiety, w WAC i „Liczbie Kukingów" (`CookEligibility`, `LiczbaKukingow`),
+w liście kont dotkniętych naprawą #317 (`KontaBezPotwierdzonegoAdresu`).
+Wcześniej ochroną było tylko zdanie w tym dokumencie, a AGENTS.md §6 mówi
+wprost, że to nie jest zabezpieczenie. Sprawdzenie idzie pod
+`LOCK TABLE users IN ACCESS EXCLUSIVE MODE`, w transakcji migracji. Świeża
+baza i baza bez kont z pliku przechodzą bez pytania. Test odmowy i dwie
+kontrole dodatnie: `tests/Feature/CofniecieMigracjiNieGubiKontZalazkowychTest.php`.
 
 #### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
 
@@ -1427,6 +1433,10 @@ od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
 `nullOnDelete`) i **nie zmienia się tą pracą ani o jeden bajt** — zmienia się
 to, kto ją wypełnia i co z niej wynika. Nie ma tu migracji, bo nie ma zmiany
 schematu.
+Indeks `posts_recipe_idx (recipe_id) WHERE recipe_id IS NOT NULL` doszedł
+później, osobną migracją (`2026_09_25_100000_…`, rozdział „Indeksy kluczy
+obcych na gorących ścieżkach” niżej). Świadomie **nie** `UNIQUE`: `PublishPost`
+też ustawia `recipe_id`, więc jeden przepis może mieć wiele wpisów.
 
 Od issue #368 publikacja przepisu tworzy dokładnie JEDEN wiersz `posts`
 z `recipe_id` wskazującym przepis, `body = null` i bez ani jednego wiersza
@@ -1948,6 +1958,17 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
+
+**Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
+zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
+powiadomień), puste pole zapisuje NULL, limit 500 znaków pilnowany w akcji,
+nie tylko w kolumnie. Notatkę rysuje `x-notatka-zapisu` tylko właścicielowi
+zeszytu. Bez migracji.
 
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
@@ -2080,6 +2101,35 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 `NULL` znaczy „komentarz pierwszego poziomu". Kasowanie jest miękkie
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
+
+**Odpowiedź dotyczy tej samej treści co rodzic i wisi pod komentarzem
+głównym (#954).** Pilnuje tego wyzwalacz
+`comments_odpowiedz_zgodna_z_rodzicem_trg` (funkcja
+`comments_odpowiedz_zgodna_z_rodzicem()`), `BEFORE INSERT OR UPDATE OF
+parent_id, post_id, recipe_id, cooked_event_id`. Odrzuca (SQLSTATE `23000`):
+
+- odpowiedź, której `post_id`/`recipe_id`/`cooked_event_id` różni się od
+  rodzica (porównanie `IS NOT DISTINCT FROM` na wszystkich trzech);
+- odpowiedź na odpowiedź (`parent.parent_id IS NOT NULL`) — drzewo ma jeden
+  poziom, `PublishComment` spłaszcza do korzenia;
+- `parent_id = id`;
+- zamianę w odpowiedź komentarza, który ma odpowiedzi;
+- zmianę celu komentarza głównego, pod którym są odpowiedzi.
+
+CHECK nie może czytać innego wiersza, a FK złożony nie zadziała na
+NULL-owalnych kolumnach celu — stąd wyzwalacz. Rodzica czyta `FOR SHARE`,
+więc równoległe „wstaw odpowiedź” i „zmień cel rodzica” nie miną się.
+Brakującego rodzica zgłasza FK, nie wyzwalacz. Kaskada `ON DELETE` bez zmian.
+
+Migracja `2026_09_24_100000_odpowiedz_dotyczy_tej_samej_tresci_co_rodzic`
+najpierw (pod `SHARE ROW EXCLUSIVE` na `comments`) liczy zastane niespójne
+wiersze, także miękko skasowane, i przy choćby jednym **odmawia** z liczbami.
+Nie przepina rozmów. Wiersze pokazuje skrypt tylko-do-odczytu
+`docs/diagnostyka/954_odpowiedzi_niezgodne_z_rodzicem.sql`.
+
+Rollback: `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie dotyka
+wierszy, więc nie ma strażnika z D-088. Po nim regułę trzyma już tylko
+`PublishComment`.
 
 `body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
 wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
@@ -2228,12 +2278,26 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez gospodarza wskazanego `KUKING_HOST_USERNAME` w chwili
+migracji (migracja wdrożona przed #1089 — nie jest modyfikowana). Nie wysyła
+alertów. Od #1089 kod aplikacji rozpoznaje gospodarza po stabilnym
+`KUKING_HOST_USER_ID` (fallback po nazwie tylko przy pustym UUID); nowe wiersze
+zapisuje `PublishPost`, więc backfill nie jest liczony ponownie.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia (instrukcja krok po kroku: `docs/DEPLOYMENT.md`, „Konto
+gospodarza"): przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Rollback tej migracji odtwarza backfill po `KUKING_HOST_USERNAME`; po zmianie
+nazwy gospodarza może świadomie odmówić (D-088) — dane zostają.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.
@@ -2273,7 +2337,9 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
-o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+o 04:20. Zwykłe powiadomienia: `DELETE` partiami z budżetem na przebieg
+(`UsuwanieWPartiach`, #1657, opis przy `product_signals`) — wiersz nie ma
+odpowiednika w storage.
 Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
 (następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
 liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
@@ -2311,6 +2377,68 @@ Dwie rzeczy różnią ją od pozostałych w schemacie:
 
 Pełny opis sygnałów, progów i fałszywych alarmów:
 `docs/legal/SYGNALY_AUTOMATU.md`.
+
+##### Ślad po pilnym alarmie (issue #1051)
+
+Migracja `2026_09_23_110000_dodaj_slad_pilnego_alarmu_do_reports` dokłada
+dwie kolumny, jeden indeks częściowy i CHECK `reports_alarm_pilny_spojny_check`
+(stoi po `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`
+z #1441 — obie zmieniają `reports`, ale różne kolumny):
+
+| Kolumna | Po co |
+|---|---|
+| `alarm_pilny_stan` | **`NULL` = sprawa nie jest pilna** i tak wygląda ogromna większość wierszy. Każda inna wartość znaczy „automat uznał tę sprawę za pilną" i mówi, co się z alarmem stało: `zalegly`, `zlecony`, `bez_adresu`, `nieudany` (stałe `Report::ALARM_*`). |
+| `alarm_pilny_zlecony_at` | Kiedy alarm został **zlecony kanałowi pocztowemu**. Nazwa mówi `zlecony`, a nie `wyslany`, celowo: `PilnyAlarmModeracyjny` jest `ShouldQueue`, więc w tym miejscu nie da się wiedzieć, czy EmailLabs list przyjął. Za dalszy odcinek drogi odpowiadają `failed_jobs` i `mail_failures`. |
+
+Bez tych kolumn pilność sprawy **nie dawała się odtworzyć z bazy**: żyła
+w liście obiektów `Sygnal` w pamięci workera, a do `reports` trafiał sam kod
+powodu (`automat_model`), identyczny dla sprawy pilnej i niepilnej. Skutek
+był taki, że sprawa zapisana bez wysłanego alarmu wyglądała dokładnie tak
+samo jak dzień bez ani jednego pilnego zgłoszenia.
+
+`alarm_pilny_stan` zapisuje **ta sama transakcja**, która zapisuje wiersz
+(`OznaczDoPrzegladu`) — obowiązek alarmu nie może mieć własnej szczeliny,
+skoro powstał po to, żeby szczelinę zamknąć.
+
+Indeks częściowy `reports_pilny_alarm_bez_sladu` obejmuje dokładnie
+`alarm_pilny_stan IS NOT NULL AND alarm_pilny_zlecony_at IS NULL`, czyli
+wiersze, z których biorą sonda `alarmy_moderacji` w `/health` i komenda
+`kuking:doslij-pilne-alarmy` (`Report::scopePilneBezAlarmu()`, zawężane
+w `scopePilneDoDoslania()` do spraw otwartych). Wiersz **wychodzi** z indeksu w chwili,
+w której alarm dochodzi do skutku, więc indeks zostaje mały na zawsze.
+
+CHECK `reports_alarm_pilny_spojny_check` pilnuje zamkniętego słownika
+i spójności pary:
+
+```sql
+(alarm_pilny_stan IS NULL AND alarm_pilny_zlecony_at IS NULL)
+OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan IN ('zalegly','bez_adresu','nieudany') AND alarm_pilny_zlecony_at IS NULL)
+OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan = 'zlecony' AND alarm_pilny_zlecony_at IS NOT NULL)
+```
+
+`alarm_pilny_stan IS NOT NULL` w dwóch ostatnich gałęziach nie jest
+nadmiarowe: CHECK przepuszcza wynik NULL, a `NULL IN (...)` daje NULL —
+bez tego przeszedłby wiersz niepilny ze znacznikiem zlecenia.
+
+Znacznik jest ustawiony **wtedy i tylko wtedy**, gdy stan to `zlecony`.
+`AlarmujModeratora` zapisuje stany porażki tylko pod
+`alarm_pilny_zlecony_at IS NULL`, więc drugie zadanie, któremu padła poczta,
+nie nadpisze alarmu zleconego przez pierwsze; CHECK jest tym samym na
+poziomie bazy. Od `reports_resolution_complete_check` (#1441) jest
+niezależny: alarm nie zmienia statusu sprawy, a zamknięcie sprawy nie
+zmienia stanu alarmu.
+
+Kolumny wypełnia dziś **tylko automat** (`OznaczDoPrzegladu`,
+`AlarmujModeratora`). Zgłoszenia od człowieka (`ReportContent`,
+`ZglosNielegalnaTresc`) mają `alarm_pilny_stan = NULL` i sonda
+`alarmy_moderacji` ich nie widzi.
+
+Wierszom sprzed tej migracji obie kolumny zostają **puste** — świadomie.
+`'zlecony'` byłoby kłamstwem (nikt tego nie zmierzył), `'zalegly'`
+zapaliłoby sondę dla setek spraw, które alarmu nigdy nie potrzebowały.
+Granica przebiega w dacie wdrożenia. Cofnięcie migracji **odmawia**, gdy
+którakolwiek sprawa ma zapisany stan (D-088) —
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW=true` mówi to wprost.
 
 Kolumny dołożone dla drogi prawnej:
 
@@ -2443,8 +2571,11 @@ kopia tabeli).
 `open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
 Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
-`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
-harmonogram codziennie o 04:30.
+`moderation_actions` i `appeals`, w jednej komendzie, harmonogram codziennie
+o 04:30. Kasuje partiami po 500 identyfikatorów (partia w transakcji; gdy
+padnie — powtórka wiersz po wierszu) i najwyżej 20 000 wierszy z każdej
+tabeli na przebieg; resztę bierze następna noc, a ostrzeżenie w dzienniku
+mówi, ile jej zostało (issue #998).
 
 **`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
 `2026_09_07_910000_add_numer_sprawy_to_reports`).
@@ -2653,6 +2784,37 @@ zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
 znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
 decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
+Wyjątek od tej reguły ma własną kolumnę — patrz niżej `appeal_id`.
+
+#### `appeal_id` — decyzja po uznaniu odwołania (#989)
+
+Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions`.
+
+| Kolumna | Po co |
+|---|---|
+| `appeal_id uuid NULL` → `appeals`, `ON DELETE SET NULL` | Odwołanie, po którego uznaniu zapadła ta decyzja. Dziś wyłącznie odwołanie **zgłaszającego** od `no_action`/`target_unavailable`: uznanie takiego odwołania wymaga nowej decyzji (DSA art. 20 ust. 4), a wykonuje ją `App\Domain\Moderation\Actions\DecyzjaPoOdwolaniu` w transakcji `ResolveAppeal`. Pierwotna decyzja i zgłoszenie są osiągalne przez `appeals.moderation_action_id` i `appeals.report_id`. |
+
+- `moderation_actions_one_per_appeal` — częściowy `UNIQUE (appeal_id) WHERE
+  appeal_id IS NOT NULL`: jedno odwołanie, najwyżej jedna decyzja po nim.
+- `moderation_actions_appeal_or_report_check` — `CHECK (appeal_id IS NULL OR
+  report_id IS NULL)`: decyzja po odwołaniu nie jest drugą decyzją pierwszej
+  instancji, więc `moderation_actions_one_per_report` zostaje nietknięty.
+- Poza `$fillable` — ustawia ją wyłącznie `DecyzjaPoOdwolaniu` (`forceFill`).
+- `ON DELETE SET NULL`, nie `RESTRICT`: retencja kasuje `appeals` przed
+  `moderation_actions`; `RESTRICT` zatrzymywałby ją na każdym takim
+  odwołaniu na zawsze.
+- `UzasadnienieDecyzji::skadSprawa()` przy niepustym `appeal_id` mówi autorowi,
+  że sprawa zaczęła się od zgłoszenia i wróciła po odwołaniu — nie „nikt tego
+  nie zgłosił”.
+
+**Rollback:** `down()` **odmawia**, gdy istnieje choć jeden wiersz z
+`appeal_id` (D-088): bez kolumny taka decyzja wyglądałaby jak decyzja z urzędu,
+a uzasadnienie dla autora mówiłoby nieprawdę. Komunikat podaje liczbę wierszy
+i zapytanie do zachowania powiązań. Bez takich wierszy (świeża baza, żadne
+odwołanie od „Bez działania” nie zostało uznane) rollback zdejmuje CHECK,
+indeks, klucz obcy i kolumnę bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/CofniecieMigracjiDecyzjiPoOdwolaniuTest.php`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
@@ -2748,7 +2910,8 @@ Wysokiego znaczenia zmiany.
   zanonimizowane;
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
-  `user.role_changed`, `admin.user_viewed`). **Bez CHECK-a w bazie** i to jest
+  `user.role_changed`, `admin.user_viewed`,
+  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -2805,6 +2968,22 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis ukryty przez
+moderację (#1018): strona wpisu (`PostController::show()`), gdy otwiera ją
+ktoś inny niż autor. `PostPolicy::view()` wpuszcza tam poza autorem wyłącznie
+czynnego moderatora albo administratora z potwierdzonym 2FA, więc każde takie
+wejście to wgląd z urzędu — ta sama zasada 3.2 co przy `admin.user_viewed`.
+`actor_id` to moderator, `subject_type = 'Post'`, `subject_id` — obejrzany
+wpis, `ip_hash` z żądania. **Bez metadanych i bez treści wpisu**: identyfikator
+wystarcza, a treść ukrytego wpisu nie ma trafiać do drugiej tabeli, gdzie
+przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
+nie zostawia. Podgląd jest tylko do odczytu — zapis do zeszytu, zgłoszenie
+i komentarz odmawia `PostPolicy` (`save`, `report`, `comment`), więc innych
+wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
+NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
+żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
+ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
@@ -3357,6 +3536,23 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
 
+**Plik bez wiersza (audyt B5 pkt 4, 25.09.2026).** `GenerateUserExport` wgrywa
+ZIP przed `finalize()`, więc próba, która padła pomiędzy, zostawiała w magazynie
+paczkę pod kluczem nieznanym wierszowi (`failed`, `object_key IS NULL`). Teraz:
+catch i `failed()` kasują `ExportFileNames::objectKey($export)` (klucz da się
+policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
+7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
+`eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
+Bez zmiany schematu.
+
+### password_reset_tokens (tabela Laravela)
+
+Kluczowana **adresem e-mail zapisanym jawnie** (`email`, `token` — bcrypt,
+`created_at`). Retencja (audyt B5 pkt 6): `kuking:sprzataj-resety-hasel` (to samo co `auth:clear-resets`) codziennie
+o 05:40 kasuje żetony starsze niż `auth.passwords.users.expire`; wymazanie
+konta (`EraseAccountData`) kasuje wiersz po `lower(email)` sprzed
+anonimizacji, zmiana adresu (`ConfirmEmailChange`) — po starym adresie.
+
 #### `notified_at` — list „paczka gotowa" najwyżej raz (issue #820)
 
 List wysyła osobne zadanie `NotifyUserExportReady` (kolejka `default`,
@@ -3403,7 +3599,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 | Kod | Kiedy |
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
-| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał — również gdy `writeStream()` zwróci `false` bez wyjątku. Paczka nie przechodzi wtedy do `ready` i nie wysyła się informacji o gotowości. |
 | `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
@@ -3446,10 +3642,13 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
-  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
-  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
-  pierwszego eksportu po upływie godziny albo do restartu kontenera
-  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze
+  oraz pętla samego workera (zdarzenie `Looping`, najwyżej raz na 10 minut,
+  `ExportTempDirectory::SWEEP_EVERY_SECONDS`; każdy worker sprząta własny
+  dysk) — czyli po twardym przerwaniu procesu pliki pośrednie żyją przy
+  działającym workerze najdłużej ok. 85 minut (60 min progu + 10 min
+  odstępu + 15 min najdłuższego zadania blokującego pętlę), a gdy worker
+  nie wstaje — do restartu kontenera (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
   z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
   (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
   jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
@@ -3651,13 +3850,31 @@ Indeksy: `product_signals_name_time_idx (signal_name, occurred_at DESC)` —
 dashboard „upload error rate" (`docs/seo/ANALYTICS.md` §6);
 `product_signals_occurred_idx (occurred_at)` — retencja poniżej, która nie
 filtruje po `signal_name`.
+`product_signals_user_signal_idx (user_id, signal_name) WHERE user_id IS NOT NULL`
+— `RecordPromptShown` pyta po koncie i sygnale pod blokadą wiersza `users`
+(migracja `2026_09_25_100000_…`, rozdział „Indeksy kluczy obcych na gorących
+ścieżkach” niżej).
 
 **Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
 90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
 (`App\Domain\Analytics\PrzedawnioneSygnaly`), harmonogram codziennie o 04:00
-(`routes/console.php`). Zwykły masowy `DELETE ... WHERE occurred_at < ?` —
-bez `chunkById`, bo wiersz nie ma odpowiednika po stronie storage (w
-odróżnieniu od `OsieroconeZdjecia`).
+(`routes/console.php`). `DELETE ... WHERE occurred_at < ? AND id IN (...)`
+partiami — bez `chunkById` po modelach, bo wiersz nie ma odpowiednika po
+stronie storage (w odróżnieniu od `OsieroconeZdjecia`).
+
+**Retencja prostych tabel partiami (#1657)** — `product_signals`, `audit_log`,
+zwykłe `notifications`, `sessions` i `potwierdzenia_zadan_rodo` kasuje
+`App\Domain\Compliance\UsuwanieWPartiach`: partia identyfikatorów w stałym
+porządku po kluczu głównym, potem `DELETE` z tym samym predykatem wieku
+(i wyjątków: `NIGDY_NIE_KASUJ`, typy odwoławcze, wstrzymanie RODO, próg
+`SESSION_LIFETIME`) we własnej krótkiej transakcji. Najwyżej
+`kuking.retencja.budzet` wierszy z jednej tabeli na przebieg (domyślnie
+50 000, partia `kuking.retencja.partia` = 1000); reszta schodzi w kolejne
+noce, z ostrzeżeniem `stage=retention_budget_exhausted` (tabela i liczby,
+bez identyfikatorów). Przerwany przebieg zachowuje zatwierdzone partie.
+Wcześniej był tu jeden `DELETE` na cały backlog — przerwany cofał się
+w całości. Schemat ani indeksy się nie zmieniają; pomiaru `EXPLAIN` na
+danych produkcyjnych nie wykonano. Testy: `RetencjaPartiamiTest`.
 
 **Zapis sygnału nigdy nie wywraca operacji, którą opisuje:**
 `ZapiszSygnal::handle()` łapie każdy wyjątek i tylko go loguje
@@ -3668,7 +3885,7 @@ uda.
 **Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
 telemetryczne, nie dane, na podstawie których podjęto decyzję.
 
-### tags + tag_aliases + post_tags + tag_follows + tag_promotions
+### tags + tag_aliases + post_tags + tag_follows + tag_promotions + tag_highlights
 
 Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
 `2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
@@ -3785,6 +4002,20 @@ odpowiednik `topics.description`). Panel: `Admin\TagPromotionController`,
 za tą samą bramką co „kuKINGi na dziś" (`Gate` `moderate` na `User`).
 „Kto i kiedy" zmienił listę zapisuje `audit_log`, bez osobnej kolumny
 `promoted_by` — ten sam wzorzec co `daily_board.updated`.
+
+`tag_highlights` (issue #18, migracja `2026_09_25_100000_create_tag_highlights_table`)
+— **tag tygodnia**: zwykły tag wyróżniony na dni `starts_on`–`ends_on`
+(`date`, dzień w strefie `kuking.strefa`), z opcjonalną `note` (200 znaków).
+Osobna tabela, bo `tag_promotions` ma klucz `tag_id` i nie uniesie historii
+ani powrotu tego samego tagu za rok. `id` UUID, FK `tag_id` → `tags`
+`ON DELETE CASCADE`. W bazie: CHECK `ends_on >= starts_on` i
+`EXCLUDE USING gist (daterange(starts_on, ends_on, '[]') WITH &&)` —
+dwa wyróżnienia nie nachodzą na siebie, więc bieżące jest najwyżej jedno.
+Czyta `TagHighlight::doPokazania()` (blok na `/home`), pisze
+`Admin\TagHighlightController` (audyt `tag_highlight.added`/`.removed`).
+Całość za flagą `KUKING_TAG_TYGODNIA` (domyślnie wyłączona).
+**Rollback:** `DROP TABLE` bez strażnika D-088 — to plan redakcyjny, nie
+zgoda ani prywatność; ginie plan i archiwum wyróżnień, tagi i wpisy zostają.
 
 Indeksy trigramowe (Postgres, na `kuking_normalize()` z migracji
 `2026_09_05_001300_fix_search_indexes`): `tags_name_trgm_idx`,
@@ -4050,7 +4281,10 @@ a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkie
 **Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
 zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
 („wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
-i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+oraz automatycznie po 30 dniach (`queue:prune-failed --hours=720`,
+codziennie o 05:20 — decyzja właściciela z 25.09.2026, `docs/DECISIONS.md`,
+sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”) i nie da się w niej
+niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
 wskazuje na nią kolumną `failed_job_uuid`.
 
 | Kolumna | Uwagi |
@@ -4062,7 +4296,7 @@ wskazuje na nią kolumną `failed_job_uuid`.
 | `rodzaj` | `displayName` z payloadu, czyli **klasa powiadomienia** (`App\Notifications\PotwierdzenieAdresu`). To ona mówi, CO przepadło. |
 | `kolejka` | `high` \| `default` \| `low`. |
 | `prob` | Ile prób wykonał worker (na produkcji 3, w trybie `sync` 1), CHECK `mail_failures_prob_check`. |
-| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. |
+| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. Wymazanie konta (`EraseAccountData`) jawnie ustawia `NULL` — kaskada klucza nie zadziała, bo kont się nie kasuje (D-022; audyt B5 pkt 9). |
 | `komunikat` | Powód po redakcji (`App\Poczta\BezpiecznyKomunikat`): jedna linia, bez adresów e-mail, przycięta. |
 | `failed_at` | Kiedy list przepadł. Zapisane wprost, nie jako `created_at` — wiersz opisuje zdarzenie, nie encję (stąd brak `timestampsTz()`). |
 | `zauwazony_at` | „Właściciel to przeczytał" (`kuking:nieudane-listy --odhacz`). Dopóki `NULL`, `/health` zgłasza `degraded`. Jedyna kolumna, którą się tu aktualizuje. CHECK `mail_failures_zauwazony_po_awarii_check`: nie może być wcześniejsze niż `failed_at`. |
@@ -4417,6 +4651,10 @@ CREATE TABLE hero_picks (
 );
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_media_id_unique UNIQUE (media_id);
 ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_position_check CHECK (position >= 0);
+ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_post_media_foreign
+  FOREIGN KEY (post_id, media_id)
+  REFERENCES post_media (post_id, media_id)
+  ON DELETE CASCADE;
 CREATE INDEX hero_picks_position_index ON hero_picks (position);
 ```
 
@@ -4430,6 +4668,19 @@ ono wisi (`posts.visibility`, `posts.status`, stan konta autora). To samo
 zdjęcie bywa przypięte do kilku wpisów (`post_media` jest wiele-do-wielu),
 więc bez zapisania, którego wpisu dotyczy wskazanie, nie da się później
 sprawdzić, czy wciąż jest publiczny.
+
+**Para `(post_id, media_id)` musi istnieć w `post_media`.** Dwa osobne klucze
+obce do `posts` i `media` nie wystarczają: dowodzą tylko, że oba wiersze
+istnieją, nie że zdjęcie naprawdę wisi przy wskazanym wpisie. To ważne także
+dla autoryzacji bajtów zdjęcia — `DostepDoZdjecia` pyta Policy właśnie tego
+wpisu i wskazanie w kolażu nie może nadać zdjęciu obcego, publicznego rodzica.
+
+Migracja `2026_09_24_100000_powiaz_hero_picks_z_post_media` przed dodaniem
+constraintu blokuje zapisy do `hero_picks` i sprawdza wszystkie istniejące
+pary. Jeżeli znajdzie niespójność, **odmawia przed zmianą schematu**, podaje
+liczbę oraz zapytanie do ręcznego przeglądu. Niczego nie przepina ani nie
+kasuje. Usunięcie relacji zdjęcia z wpisem kasuje tylko odpowiadający wybór
+kolażu (`ON DELETE CASCADE`); wpis i zdjęcie zostają.
 
 **Kaskada nie jest zabezpieczeniem prywatności.** `ON DELETE CASCADE` sprząta
 wiersz po skasowanym wpisie albo zdjęciu — i tyle. Wpis przełączony na
@@ -4465,6 +4716,12 @@ TO 'hero_picks.csv' CSV HEADER
 
 Strażnika i obie kontrole dodatnie sprawdza
 `CofniecieMigracjiNieKasujeKolazuTest`.
+
+**Rollback migracji złożonego klucza (#955):** `down()` usuwa wyłącznie
+constraint `hero_picks_post_media_foreign`. Wszystkie wiersze `hero_picks`,
+`post_media`, `posts` i `media` pozostają bez zmian. Po cofnięciu baza ponownie
+dopuszcza niespójne pary, więc rollback osłabia ochronę, lecz nie traci ani
+nie zgaduje żadnej wartości semantycznej.
 
 ## Dwie reguły, które obowiązują CAŁY schemat
 
@@ -4528,6 +4785,47 @@ Dlaczego akurat te dwie kolumny, a nie „każda kolumna tekstowa z UNIQUE":
 to są jedyne dwie, po których człowiek **wraca do własnego konta**. Duplikat
 tutaj nie jest brzydkim wierszem w tabeli, tylko drugim kontem tej samej
 osoby albo cudzym profilem pod adresem, który ktoś rozdał znajomym.
+
+## Indeksy kluczy obcych na gorących ścieżkach (audyt B3 W1/W2/W5, B4 W4/W5/N13)
+
+PostgreSQL nie zakłada indeksu na kolumnie klucza obcego sam. Migracja
+`2026_09_25_100000_indeksy_kluczy_obcych_na_goracych_sciezkach` dokłada go
+tam, gdzie pytamy przy każdym żądaniu albo pod blokadą:
+
+| Indeks | Na czym | Kto po nim pyta |
+|---|---|---|
+| `post_media_media_idx` | `post_media (media_id)` | `DostepDoZdjecia` przy każdym wydaniu zdjęcia, `KasujZdjecie`, `OsieroconeZdjecia`, kontrola FK przy `DELETE FROM media` |
+| `cooked_event_media_media_idx` | `cooked_event_media (media_id)` | j.w. |
+| `profiles_avatar_media_idx` | `profiles (avatar_media_id) WHERE avatar_media_id IS NOT NULL` | j.w. |
+| `recipes_hero_media_idx` | `recipes (hero_media_id) WHERE hero_media_id IS NOT NULL` | j.w.; `OR` ze skanem kartki rozwiązuje `BitmapOr` |
+| `recipes_source_scan_media_idx` | `recipes (source_scan_media_id) WHERE source_scan_media_id IS NOT NULL` | j.w. |
+| `recipe_steps_media_idx` | `recipe_steps (media_id) WHERE media_id IS NOT NULL` | j.w. |
+| `posts_recipe_idx` | `posts (recipe_id) WHERE recipe_id IS NOT NULL` | `WpisWskazujacyPrzepis` pod `FOR UPDATE` przepisu, `ON DELETE SET NULL` |
+| `notifications_actor_idx` | `notifications (actor_id) WHERE actor_id IS NOT NULL` | `ON DELETE SET NULL` przy usunięciu konta |
+| `product_signals_user_signal_idx` | `product_signals (user_id, signal_name) WHERE user_id IS NOT NULL` | `RecordPromptShown` pod blokadą konta |
+
+`post_media.media_id` i `cooked_event_media.media_id` były wcześniej w indeksie
+tylko jako **druga** kolumna klucza głównego — to nie zawęża wyszukiwania po
+`media_id`. Liczy się kolumna **wiodąca**.
+
+Pilnuje tego `tests/Feature/IndeksyKluczyObcychNaGoracychSciezkachTest.php`:
+przechodzi po `DostepDoZdjecia::ODWOLANIA` (a nie po liście przepisanej
+z palca), więc nowa kolumna wskazująca na `media` bez indeksu wiodącego oblewa
+test.
+
+Indeksy powstają przez `CREATE INDEX CONCURRENTLY` w migracji z
+`$withinTransaction = false`, bo tabele są gorące, a zwykłe `CREATE INDEX`
+wstrzymuje zapisy na czas budowy. Niedokończony (INVALID) indeks po przerwanej
+budowie migracja zdejmuje i buduje od nowa.
+
+**Rollback:** `down()` zdejmuje wszystkie dziewięć indeksów
+(`DROP INDEX CONCURRENTLY IF EXISTS`). Bezstratnie — indeks nie niesie danych
+ani decyzji człowieka, więc D-088 nie ma tu czego chronić; wracają tylko skany.
+
+Pozostałe klucze obce bez indeksu wiodącego (audyt B3 N1: m.in.
+`recipe_versions.editor_id`, `moderation_actions.moderator_id`,
+`tozsamosci_zewnetrzne.user_id`) dotyczą rodziców kasowanych rzadko albo nigdy
+i świadomie zostały poza tą migracją.
 
 ## Normalizacja adresu e-mail
 
@@ -4748,6 +5046,59 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+### G. Jak zmierzyć szczyt — kroki dla właściciela (dopisane 25.09.2026)
+
+Definicja gotowości #598 wymaga **zmierzonego** szczytu, a §C daje tylko
+policzony (16 z zapasem, 13 w oknie wdrożenia). Czujka godzinna go nie
+złapie: próbkuje raz na godzinę o :25, a okno wdrożenia trwa minutę–dwie.
+Dlatego są trzy narzędzia — wszystkie tylko do odczytu, żadne nie dzwoni
+na webhook i żadne nie zmienia konfiguracji:
+
+| Narzędzie | Co mierzy | Gdzie chodzi |
+|---|---|---|
+| `scripts/szczyt-polaczen-z-dziennika.php` | min / mediana / **max** z szeregu czujki godzinnej i z okien `--probki` | lokalnie, na pliku wyeksportowanym z dziennika Railway |
+| `php artisan kuking:budzet-polaczen --probki=N --odstep=S` | szczyt w oknie N próbek co S s (max 3600 próbek, odstęp 1–60 s); jedna linia `kuking:budzet-polaczen:szczyt {...}` do kanału `pomiary` na końcu | konsola kontenera aplikacji |
+| `scripts/szczyt-polaczen.sql` + `\watch 1` | to samo zapytanie co czujka, co sekundę | psql w usłudze Postgres — **przeżywa wdrożenie aplikacji** |
+
+**Krok 1 — szczyt zwykłego ruchu (ok. 10 minut, raz w tygodniu przez miesiąc).**
+Railway → serwis aplikacji → *Logs*, filtr `kuking:budzet-polaczen`, okno
+możliwie długie (retencja zależy od planu). Skopiuj wynik do pliku
+i uruchom lokalnie:
+
+```bash
+php scripts/szczyt-polaczen-z-dziennika.php dziennik-598.txt
+```
+
+Kod wyjścia **2** znaczy „w pliku nie ma ani jednej linii pomiaru" —
+czyli szeregu nie ma (np. wrócił problem z §F), a **nie** „zapas jest".
+Zapisz tu datę, liczbę pomiarów, MAX i chwilę MAX.
+
+**Krok 2 — szczyt w oknie wdrożenia (ok. 10 minut, przy zwykłym wdrożeniu).**
+Wariant preferowany, bo konsola nie ginie razem ze starym kontenerem:
+otwórz psql w usłudze **Postgres** (nie w aplikacji), wklej zawartość
+`scripts/szczyt-polaczen.sql`, w nowej linii wpisz `\watch 1`, a potem
+uruchom zwykłe wdrożenie aplikacji. Po jego zakończeniu i minucie spokoju
+przerwij `Ctrl+C` i zanotuj największą wartość `zajete_serwer`.
+Nie wystawiaj w tym celu publicznego portu bazy (proxy TCP) — jeśli
+psql w usłudze Postgres nie jest dostępny, użyj wariantu z konsolą aplikacji.
+
+Wariant z konsolą aplikacji: `php artisan kuking:budzet-polaczen --probki=300`
+(5 minut). Uruchomiony w kontenerze, który wdrożenie zastępuje, zostanie
+przerwany razem z nim — wtedy linia podsumowania do dziennika nie powstanie,
+ale wiersze `próbka i/N` wypisane w terminalu zostają i to je się notuje.
+
+**Krok 3 — decyzja.** Zmierzony MAX porównaj z §D: poniżej 50 — progi
+zostają, #600 nie ma liczb za PgBouncerem; powyżej 50 w spokojnym ruchu —
+szukać wycieku albo nieznanych procesów, zanim doda się replikę. Ten sam
+MAX wpisz w #598 z datą i SHA wdrożenia.
+
+**Czego ta sekcja nie dowodzi.** Dostępność psql w usłudze Postgres
+na Railway i dokładna nazwa przycisku konsoli **nie były sprawdzone**
+w sesji, która to pisała — tylko zapytanie (test na PostgreSQL 18)
+i oba narzędzia PHP (`ProbkowanieSzczytuPolaczenTest`,
+`SzczytPolaczenZDziennikaTest`). Wycofanie: odwrócenie commita; nie ma
+migracji ani zmiennych środowiskowych.
 
 ## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
 

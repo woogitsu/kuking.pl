@@ -105,6 +105,9 @@ class StraznikHostaR2Test extends TestCase
         // Środowisko bierzemy z aplikacji, gdy nikt go nie poda.
         $this->assertNull(DozwolonyHostR2::powod('https://przyklad.invalid'));
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
         $this->assertNotNull(DozwolonyHostR2::powod('https://przyklad.invalid'));
     }
 
@@ -116,6 +119,9 @@ class StraznikHostaR2Test extends TestCase
     public function test_zly_host_nie_buduje_dysku_i_nic_nie_wysyla(string $dysk, string $sterownik): void
     {
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
         $zly = 'https://'.self::KLUCZ.':'.self::SEKRET.'@obcy-magazyn.example.com/sciezka';
         $this->ustawDysk($dysk, $sterownik, 'https://obcy-magazyn.example.com');
 
@@ -146,6 +152,9 @@ class StraznikHostaR2Test extends TestCase
     public function test_dobry_host_buduje_dysk_i_wysyla_pod_niego(string $dysk, string $sterownik): void
     {
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
         $this->ustawDysk($dysk, $sterownik, self::DOBRY);
 
         Storage::disk($dysk)->put('proba.txt', 'tresc');
@@ -175,7 +184,7 @@ class StraznikHostaR2Test extends TestCase
             'filesystems.disks.r2_eksporty.endpoint' => 'https://'.self::KONTO.'.r2.cloudflarestorage.com',
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()
             ->assertJsonPath('checks.magazyn.ok', false)
@@ -190,23 +199,26 @@ class StraznikHostaR2Test extends TestCase
     public function test_health_dobry_host_magazynu_przechodzi(): void
     {
         $this->produkcja();
-        $this->get('/health')->assertJsonPath('checks.magazyn.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.ok', true);
 
         config([
             'filesystems.disks.r2.key' => self::KLUCZ,
             'filesystems.disks.r2.endpoint' => self::DOBRY,
         ]);
-        $this->get('/health')->assertJsonPath('checks.magazyn.ok', true);
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.ok', true);
 
         // Klucz bez adresu: AWS SDK poszedłby do Amazona.
         config(['filesystems.disks.r2.endpoint' => '']);
-        $this->get('/health')->assertJsonPath('checks.magazyn.error', 'magazyn_r2_zly_host');
+        $this->zdrowieZeSzczegolami()->assertJsonPath('checks.magazyn.error', 'magazyn_r2_zly_host');
     }
 
     private function produkcja(): void
     {
         Artisan::call('storage:link');
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
         // Punkt wyjścia: produkcja bez R2 — żaden dysk nie ma klucza ani
         // adresu (środowisko uruchomieniowe testów potrafi wstrzyknąć

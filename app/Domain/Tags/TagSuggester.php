@@ -23,12 +23,14 @@ use Illuminate\Support\Str;
  * KOLEJNOŚĆ GAŁĘZI TO KOLEJNOŚĆ RANKINGU Z SPEC §1.5, doprecyzowana
  * pomiarem na prawdziwym słowniku (D-026): dokładna NAZWA → dokładny ALIAS →
  * początek nazwy, od najkrótszej → podobieństwo trigramowe. Popularność
- * (`withCount('posts')`) jest TYLKO tie-breakerem w obrębie trzeciej gałęzi
- * — świadomie NIE ma tu utrzymywanego ręcznie licznika `tags.usage_count`
- * (to jest dokładnie ta klasa błędu, przed którą ostrzega komentarz
- * w `LimityZdjec`: dwie kopie tej samej liczby w różnych miejscach
- * rozjeżdżają się, tutaj byłyby to co najmniej trzy miejsca aktualizujące
- * licznik — dodanie tagu, usunięcie, scalenie).
+ * NIE wchodzi do rankingu (remisy rozstrzyga alfabet, D-026) i ta klasa jej
+ * nie liczy. Licznik pokazywany człowiekowi to `public_posts_count`
+ * z `PodpowiedziTagow` — tylko wpisy publiczne i widoczne. Do #647 stał tu
+ * `withCount(['posts' => published()])`: nikt go nie czytał, a `published()`
+ * obejmuje też wpisy prywatne, więc jako licznik w interfejsie byłby
+ * wyciekiem. Świadomie NIE ma tu też utrzymywanego ręcznie licznika
+ * `tags.usage_count` (dwie kopie tej samej liczby rozjeżdżają się — patrz
+ * komentarz w `LimityZdjec`).
  *
  * `WHERE status = 'active'` wszędzie: tag scalony albo ukryty nie ma prawa
  * pojawić się jako podpowiedź, mimo że wiersz w `tags` nadal istnieje
@@ -144,10 +146,9 @@ final class TagSuggester
             return new Collection;
         }
 
-        // Popularność liczona W LOCIE, nie z osobnej kolumny — patrz komentarz
-        // klasy. `published()`, żeby nie liczyć wpisów szkicowych/usuniętych.
+        // Bez liczników — patrz komentarz klasy. Liczbę publicznych wpisów
+        // dokłada `PodpowiedziTagow`, z kontrolą widoczności.
         $tagi = Tag::query()
-            ->withCount(['posts' => fn ($q) => $q->published()])
             ->whereIn('id', $idsWKolejnosci->all())
             ->get()
             ->keyBy('id');

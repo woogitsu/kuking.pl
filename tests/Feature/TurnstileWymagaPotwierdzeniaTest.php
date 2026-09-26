@@ -94,7 +94,12 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     public function test_formularz_przechodzi_z_prawidlowym_tokenem(): void
     {
         $this->wlaczTurnstile();
-        $this->udawajOdpowiedz(['success' => true, 'hostname' => 'kuking.pl']);
+        // Host z `APP_URL` i akcja tego formularza — inaczej od #992 odmowa.
+        $this->udawajOdpowiedz([
+            'success' => true,
+            'hostname' => parse_url((string) config('app.url'), PHP_URL_HOST),
+            'action' => 'rejestracja',
+        ]);
 
         $this->zarejestruj(['cf-turnstile-response' => 'token-od-widgetu'])
             ->assertRedirect(route('onboarding.interests'));
@@ -636,8 +641,11 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         $this->wylaczTurnstile();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             // Świadomie 200, nie 503: healthcheck oddający 503 już raz położył
             // ten serwis. Monitoring pilnuje TREŚCI odpowiedzi.
             ->assertOk()
@@ -662,8 +670,11 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         $this->pocztaDziala();
         $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);
@@ -680,7 +691,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         $this->wylaczTurnstile();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);
@@ -707,8 +718,11 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         $this->pocztaDziala();
         $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
+        // Produkcja z poprawnym trybem debugowania i ciasteczkiem sesji —
+        // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
+        config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);

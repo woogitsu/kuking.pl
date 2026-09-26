@@ -16,6 +16,16 @@ use App\Support\Facebook;
 
 return [
 
+    /*
+     * TAG TYGODNIA (issue #18) — blok na `/home` i plan wyróżnień w panelu
+     * tagów promowanych. DOMYŚLNIE WYŁĄCZONY: przy wyłączonej fladze `/home`
+     * nie pokazuje bloku, a trasy panelu zwracają 404. Dane (`tag_highlights`)
+     * zostają niezależnie od flagi.
+     */
+    'tag_tygodnia' => [
+        'wlaczony' => (bool) env('KUKING_TAG_TYGODNIA', false),
+    ],
+
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
@@ -55,6 +65,30 @@ return [
          * Pilnuje tego `DlugoscNazwyProfiluTest`.
          */
         'dlugosc_nazwy' => 40,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | /health — kto widzi szczegóły i jak często wolno pytać (audyt A5-05)
+    |--------------------------------------------------------------------------
+    |
+    | Odpowiedź `/health` jest publiczna. Kod HTTP i pole `status` zostają dla
+    | każdego — z nich korzysta healthcheck Railway i zewnętrzny monitoring.
+    | Pole `checks` (który mechanizm leży i dlaczego, np. `turnstile_bez_kluczy`,
+    | `limit_poczty_wyczerpany`) dostaje WYŁĄCZNIE ktoś z tokenem w nagłówku
+    | `X-Kuking-Health-Token`: to jest mapa chwil, w których warto uderzyć
+    | w formularze. Bez tokenu w konfiguracji szczegółów nie dostaje nikt —
+    | każda porażka sondy i tak zostaje w dzienniku (`Log::error`).
+    |
+    | `probka_magazynu_sekund`: udana próba zapisu i odczytu na dysku zdjęć
+    | (R2) jest pamiętana tyle sekund. Bez tego każde wywołanie `/health`
+    | zapisywało obiekt do bucketu. Porażka NIE jest pamiętana — następne
+    | pytanie próbuje od nowa. Awaria magazynu wychodzi więc najwyżej po
+    | tylu sekundach, ile tu stoi.
+    */
+    'health' => [
+        'token' => env('KUKING_HEALTH_TOKEN') ?: null,
+        'probka_magazynu_sekund' => (int) env('KUKING_HEALTH_PROBKA_MAGAZYNU_SEKUND', 60),
     ],
 
     'media' => [
@@ -848,6 +882,34 @@ return [
          */
         'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
 
+        /*
+         * POWIADOMIENIA POZA SERWISEM — etap 1 issue #35: reguły przed kanałem.
+         *
+         * Egzekwuje je `App\Domain\Notifications\TerminPowiadomieniaZewnetrznego`.
+         * Żaden kanał (Web Push, e-mail o zdarzeniu) jeszcze z nich nie korzysta
+         * — reguły mają istnieć i być przetestowane, ZANIM powstanie kanał, żeby
+         * nie zaszyć ich w jednym dostawcy (`docs/product/RETENTION_LOOPS.md` §3.2).
+         *
+         * DOMYŚLNIE WYŁĄCZONE. Przy wyłączonej fladze rozstrzygnięcie zawsze
+         * brzmi „kanał wyłączony" — nic nie wychodzi. Powiadomień w serwisie
+         * (`NotifyUser`) to nie dotyczy i nigdy nie ma dotyczyć: in-app jest
+         * bez limitu i bez ciszy nocnej.
+         */
+        'zewnetrzne' => [
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+
+            // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
+            // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
+            'cisza_od_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_OD', 21),
+            'cisza_do_godziny' => (int) env('KUKING_POWIADOMIENIA_CISZA_DO', 8),
+
+            // Ile powiadomień poza serwisem na lokalną dobę odbiorcy. Jedno,
+            // jak e-mail transakcyjny w §3.2 — nadmiar czeka do rana następnej
+            // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
+            // konfiguracja awaryjna), nie „odkładaj bez końca".
+            'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+        ],
+
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
         //
         // DECYZJA WŁAŚCICIELA, 2026-09-07 (druga tura, po zewnętrznej ocenie
@@ -1003,6 +1065,16 @@ return [
         // odpowiada, przepuszczamy wysłanie i zapisujemy ostrzeżenie —
         // niedostępność Cloudflare nie może zamykać rejestracji.
         'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
+
+        // Hosty stagingu, na których wystawiony token przyjmujemy OPRÓCZ hosta
+        // z `APP_URL` (issue #992). Nazwy hostów po przecinku, bez protokołu
+        // i bez gwiazdek. Domyślnie puste: na produkcji i na stagingu z własnym
+        // `APP_URL` nic nie trzeba ustawiać. Host żądania nie wchodzi tu nigdy.
+        // Każdy wpis musi też stać na liście hostnames widgetu w Cloudflare.
+        'hosty_stagingu' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TURNSTILE_HOSTY_STAGINGU', '')),
+        ), static fn (string $host): bool => $host !== '')),
 
         /*
          * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
@@ -1230,6 +1302,18 @@ return [
 
     'limits' => [
         'external_link' => '60,1',
+
+        /*
+         * `/health` (audyt A5-05) — po adresie IP. Liczony W KONTROLERZE, nie
+         * middleware'em `throttle:`: licznik leży w cache w bazie, a przy
+         * awarii bazy middleware rzuciłby wyjątek i healthcheck oddałby 500
+         * zamiast 503 z polem `status`. Kontroler przy awarii licznika
+         * przepuszcza pytanie.
+         *
+         * SKĄD 60 NA MINUTĘ. Railway pyta co kilka sekund tylko podczas
+         * wdrożenia, monitoring co kilka minut — zapas jest wielokrotny.
+         */
+        'health' => '60,1',
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
         // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
@@ -1982,6 +2066,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puls harmonogramu do zewnętrznego monitora — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | Adres monitora typu „dead man's switch" (np. Healthchecks.io, Better
+    | Stack Heartbeat, UptimeRobot Heartbeat). `kuking:puls-harmonogramu`
+    | woła go co 5 minut; monitor alarmuje, gdy znak życia nie przyjdzie.
+    | Pusty = wyłączone: nic nie jest wysyłane. Adres jest sekretem (zawiera
+    | token), więc trzymaj go w zmiennych Railway, nie w repozytorium.
+    | Kroki: docs/infra/MONITORING_599_KROKI.md.
+    */
+    'monitoring' => [
+        'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
@@ -2592,6 +2692,24 @@ return [
         'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
     ],
 
+    // RETENCJA PROSTYCH TABEL PARTIAMI (#1657).
+    //
+    // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
+    // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
+    // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
+    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
+    // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
+    // (`stage=retention_budget_exhausted`).
+    //
+    // 50 000 na noc to ok. 18 mln wierszy rocznie na tabelę — rząd wielkości
+    // ponad dzisiejszy dobowy przyrost każdej z nich, więc codzienna retencja
+    // mieści się w budżecie z zapasem, a jednorazowy zator schodzi w kilka nocy.
+    'retencja' => [
+        'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
+        'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -2692,10 +2810,14 @@ return [
         //
         // To jest decyzja podjęta ZA CZŁOWIEKA, więc obowiązkowo z widoczną
         // możliwością cofnięcia — przycisk „Nie obserwuj" na profilu istnieje.
-        // Pusta wartość wyłącza mechanizm całkowicie.
-        //
-        // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
-        // a nazwa jest tym, co widać i co da się sprawdzić okiem.
+        // Stabilna tożsamość gospodarza. UUID nie zmienia się razem z nazwą
+        // profilu i nie może zostać przejęty przez inne konto (#1089).
+        // Pusta wartość uruchamia wyłącznie zgodność przejściową po nazwie.
+        'host_user_id' => env('KUKING_HOST_USER_ID', ''),
+
+        // ZGODNOŚĆ PRZEJŚCIOWA dla wdrożeń sprzed #1089. Po ustawieniu UUID
+        // ta wartość nie wybiera gospodarza; zostaje na czas bezpiecznego
+        // przejścia i może zostać usunięta w osobnym wdrożeniu.
         'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
 
         // IMIĘ GOSPODARZA — podpis, który czyta CZŁOWIEK, nie konto.
@@ -2705,10 +2827,8 @@ return [
         // Decyzja właściciela: gospodarzem jest **Ula** (patrz
         // `docs/DECISIONS.md` — wpis o imieniu gospodarza).
         //
-        // TO NIE JEST TO SAMO CO `host_username` WYŻEJ. `host_username` to
-        // nazwa konta, którą czyta MECHANIZM (auto-obserwowanie przy
-        // rejestracji, `RegisterController::zaobserwujGospodarza()`) i która
-        // musi dać się znaleźć w bazie (`Profile::where('username', ...)`).
+        // TO NIE JEST TO SAMO CO `host_user_id` WYŻEJ. `host_user_id` to
+        // stabilny identyfikator konta czytany przez mechanizmy społeczności.
         // `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem
         // — nadawca maila (`docs/brand/COPY_STYLE.md` §6 „nadawca",
         // `docs/product/RETENTION_LOOPS.md` §4 „imię gospodarza + „z
@@ -3003,6 +3123,24 @@ return [
              * podsumowaniem (`kuking:podsumowanie-automatu`).
              */
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+
+            /*
+             * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
+             * `kuking:doslij-pilne-alarmy`, co godzinę).
+             *
+             * `alarm_partia` — ile spraw jeden przebieg bierze najwyżej. Pilnych
+             * spraw jest w normalnym tygodniu kilka; limit jest bezpiecznikiem
+             * na dzień, w którym kanał leżał długo, żeby jeden przebieg nie zjadł
+             * dobowego limitu poczty (300 listów, dzielone z rejestracją).
+             *
+             * `alarm_sonda_godzin` — jak długo zaległy alarm OTWARTEJ sprawy
+             * trzyma `/health` w stanie `degraded`. 72, nie 24: sprawa z piątku
+             * wieczorem ma być widoczna jeszcze w poniedziałek rano, a serwis
+             * prowadzi jedna osoba, nie dyżur. Pełna reguła
+             * w `docs/infra/MONITORING_BLEDOW.md`.
+             */
+            'alarm_partia' => 50,
+            'alarm_sonda_godzin' => 72,
         ],
 
         /*
