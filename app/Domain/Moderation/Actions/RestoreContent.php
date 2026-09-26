@@ -143,8 +143,10 @@ final class RestoreContent
         }
 
         // Reguła rangi, ta sama co przy zdejmowaniu (`UserPolicy`): decyzję
-        // administratora cofa administrator, nie moderator.
-        if (self::tylkoAdministratorCofa($zdjecie, $moderator)) {
+        // administratora cofa administrator, nie moderator. Wyciągnięta do
+        // `wolnoCofnac()`, żeby widok kolejki (`ModerationController`) mógł
+        // schować martwy przycisk, nie kopiując tego warunku (issue #1748).
+        if (! self::wolnoCofnac($moderator, $zdjecie)) {
             throw new BladDlaCzlowieka('Tę treść schował administrator. Cofnąć tę decyzję może tylko administrator — przekaż mu sprawę.');
         }
 
@@ -218,6 +220,22 @@ final class RestoreContent
     }
 
     /**
+     * Reguła rangi B2-01: czy `$moderator` może cofnąć akurat TĘ decyzję
+     * (`$zdjecie`, zwrócone przez `zdjeciePrzezModeracje()`).
+     *
+     * Decyzję administratora cofa administrator, nie zwykły moderator —
+     * ta sama zasada co przy zdejmowaniu treści z urzędu (`UserPolicy`).
+     * Jedna metoda, dwóch odbiorców: `przywrocPodBlokada()` wyżej pilnuje
+     * jej przy zapisie, a `ModerationController::przywracalne()` — przy
+     * rysowaniu przycisku „Przywróć treść” w kolejce. Bez wspólnego miejsca
+     * przycisk mógłby obiecać to, czego backend i tak by odmówił (#1748).
+     */
+    public static function wolnoCofnac(User $moderator, ModerationAction $zdjecie): bool
+    {
+        return $zdjecie->moderator?->role !== User::ROLE_ADMIN || $moderator->isAdmin();
+    }
+
+    /**
      * Decyzja moderacji, która schowała treść w obecnym stanie — albo `null`,
      * gdy treść schował ktoś inny (audyt B2-01).
      *
@@ -234,16 +252,6 @@ final class RestoreContent
      * Nie porównujemy czasów (`deleted_at` z `created_at` decyzji): obie
      * kolumny mają dokładność sekundy, a kolejność zdarzeń daje sam log.
      */
-    /**
-     * Reguła rangi (B2-01): decyzję administratora cofa tylko administrator.
-     * Jedno miejsce dla akcji i dla kolejki zgłoszeń — kolejka nie może
-     * pokazać przycisku, którego akcja i tak odmówi (AGENTS.md §5).
-     */
-    public static function tylkoAdministratorCofa(ModerationAction $zdjecie, User $moderator): bool
-    {
-        return $zdjecie->moderator?->role === User::ROLE_ADMIN && ! $moderator->isAdmin();
-    }
-
     public static function zdjeciePrzezModeracje(string $typ, string $id, bool $usunieta): ?ModerationAction
     {
         $ostatnia = ModerationAction::query()

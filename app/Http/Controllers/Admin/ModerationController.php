@@ -266,13 +266,14 @@ class ModerationController extends Controller
      * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
      * co reguła w akcji — `ModeratedContent::osoba()`.
      *
-     * Tak samo `administrator`, gdy treść schował administrator, a patrzy
-     * moderator (reguła rangi B2-01, `RestoreContent::tylkoAdministratorCofa()`).
-     * Scalenie #1479 z B2-01 przeniosło do kolejki tylko pierwszą z dwóch
-     * odmów akcji — przy drugiej formularz był martwy.
+     * Treść, którą ukrył administrator, dostaje u zwykłego moderatora
+     * `tylko_admin` (#1748): regułę rangi B2-01 czytamy z
+     * `RestoreContent::wolnoCofnac()`, nie z kopii. Kolejność jak w akcji —
+     * najpierw własna treść, potem ranga — więc informacja w widoku mówi to
+     * samo, co powiedziałaby odmowa.
      *
      * @param  list<Report>  $reports
-     * @return array<string, 'przywroc'|'wlasna'|'administrator'> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'|'tylko_admin'> klucz: id zgłoszenia
      */
     private function przywracalne(array $reports, User $moderator): array
     {
@@ -298,21 +299,23 @@ class ModerationController extends Controller
             $usunieta = method_exists($cel, 'trashed') && $cel->trashed();
             $schowana = ModeratedContent::jestUkryta($cel) || $usunieta;
 
+            if (! $schowana) {
+                continue;
+            }
+
             // Treść schowana przez autora albo właściciela wpisu nie dostaje
             // przycisku — `RestoreContent` i tak by odmówił (B2-01).
-            $zdjecie = $schowana
-                ? RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta)
-                : null;
+            $zdjecie = RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta);
 
-            if ($zdjecie !== null) {
-                // Kolejność jak w `RestoreContent`: najpierw własna treść,
-                // potem ranga.
-                $wynik[(string) $decyzja->report_id] = match (true) {
-                    ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey() => 'wlasna',
-                    RestoreContent::tylkoAdministratorCofa($zdjecie, $moderator) => 'administrator',
-                    default => 'przywroc',
-                };
+            if ($zdjecie === null) {
+                continue;
             }
+
+            $wynik[(string) $decyzja->report_id] = match (true) {
+                ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey() => 'wlasna',
+                ! RestoreContent::wolnoCofnac($moderator, $zdjecie) => 'tylko_admin',
+                default => 'przywroc',
+            };
         }
 
         return $wynik;
