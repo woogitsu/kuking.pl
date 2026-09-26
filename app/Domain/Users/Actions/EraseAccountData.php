@@ -394,6 +394,9 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
+                // preferencję półki propozycji — issue wymaga tego wprost.
+                'moj_stol_enabled' => false,
                 // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
                 'birthday_day' => null,
                 'birthday_month' => null,
