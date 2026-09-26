@@ -63,6 +63,23 @@ final class UstawieniaPowiadomienTest extends TestCase
         $odpowiedz->assertSee('<option value="8" selected>8:00</option>', false);
     }
 
+    /**
+     * #1976: stan urządzenia podmienia skrypt po asynchronicznym sprawdzeniu
+     * przeglądarki. Akapit musi być regionem statusu JUŻ w HTML-u z serwera —
+     * czytnik ekranu ogłasza zmianę tylko w regionie, który istniał wcześniej.
+     * Treść stanów i brak powtórzeń: `resources/js/powiadomienia-push.test.mjs`.
+     */
+    public function test_stan_urzadzenia_jest_regionem_statusu_dla_czytnika_ekranu(): void
+    {
+        $basia = $this->user('basia_status');
+
+        $html = $this->actingAs($basia)->get(route('settings.notifications'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<p role="status" aria-live="polite" data-push-stan>/', $html);
+        // Komunikaty po kliknięciu mają nadal własny region — dwa różne akapity.
+        $this->assertMatchesRegularExpression('/<p class="mt-2" role="status" aria-live="polite" data-push-komunikat><\/p>/', $html);
+    }
+
     public function test_zapis_ciszy_nocnej_i_limitu(): void
     {
         $basia = $this->user('basia_zapis');
