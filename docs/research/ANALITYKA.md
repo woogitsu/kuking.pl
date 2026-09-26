@@ -226,6 +226,26 @@ kont testowych z `excluded_users` powyżej do `user_weeks` CTE. Nie przepisuję
 całego zapytania drugi raz — patrz `docs/seo/ANALYTICS.md` §3.2 i zastosuj tę
 samą poprawkę.
 
+### 1.5 „Drugi wpis w 7 dni” — czy pierwszy wpis staje się nawykiem (issue #29)
+
+`docs/product/COLD_START.md` §4.5 każe gospodarzowi w dniach 4–5 sprawdzić,
+czy nowa osoba ma drugi wpis, a warunek STOP bramki A pyta, czy ludzie
+publikują bez ręcznego przypominania. `kuking:raport` liczy to teraz jedną
+liczbą (`App\Domain\Analytics\DrugiWpisW7Dni`):
+
+- **kohorta** — autorzy, których pierwszy opublikowany wpis (`posts`, oba
+  rodzaje, `Post::published()`, bez usuniętych) ma od 7 do 90 dni. Młodsi
+  niż 7 dni nie mieli jeszcze szansy na drugi i zaniżaliby wynik;
+- **licznik** — ci, których drugi wpis (kolejność `published_at`, potem `id`)
+  przyszedł najpóźniej 7×24 h po pierwszym (`extract(epoch …)`, jak w §1.4
+  i `PowrotPoDniach`);
+- wykluczenia `CookEligibility`; wpis usunięty albo ukryty potem wypada,
+  więc miernik jest ostrożny — może zaniżać, nie zawyża;
+- **mała próba** — poniżej 10 osób raport podaje „X z Y” bez procentu.
+
+Wynik to dwa liczniki. Żaden identyfikator, nazwa ani treść wpisu nie
+wychodzi z zapytania.
+
 ---
 
 ## 2. Zdarzenia — co naprawdę wymaga trackingu, a co już jest w bazie
