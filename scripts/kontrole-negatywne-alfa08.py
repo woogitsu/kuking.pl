@@ -375,7 +375,9 @@ RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
 # żeby kontrola dowodziła jednej rzeczy: że testy łapią brak wyjątku.
 EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
-EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
+# Od #823 `markFailed` stoi pod `if ($this->bedzieKolejnaProba())` — punkt
+# mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
+EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
