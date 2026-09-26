@@ -11,6 +11,7 @@ use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ class AccountDeletionPurgeTest extends TestCase
         return $this->user($username, [
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
+            'delete_request_generation' => (string) Str::uuid(),
         ]);
     }
 
@@ -147,6 +149,19 @@ class AccountDeletionPurgeTest extends TestCase
         $this->assertNull($basia->data_erased_at);
         $this->assertSame($email, $basia->email);
         $this->assertTrue(Hash::check('haslo-testowe-123', $basia->password));
+    }
+
+    public function test_egzekutor_odmawia_wymazania_wniosku_bez_generacji(): void
+    {
+        $basia = $this->user('basia-bez-generacji', [
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now()->subDays(31),
+        ]);
+
+        $this->artisan('kuking:usun-wygasle-konta')->assertSuccessful();
+
+        $this->assertNull($basia->fresh()->data_erased_at);
+        $this->assertSame(User::STATUS_PENDING_DELETE, $basia->fresh()->status);
     }
 
     public function test_stary_kandydat_nie_wymazuje_nowego_wniosku_nawet_po_jego_terminie(): void

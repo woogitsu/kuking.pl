@@ -154,7 +154,9 @@ final class EraseAccountData
             if ($wymagajWygaslegoWniosku) {
                 $koniecKarencji = $fresh->deletionGraceEndsAt();
 
-                if ($fresh->delete_requested_at === null
+                if ($oczekiwanaGeneracja === null
+                    || $fresh->delete_request_generation === null
+                    || $fresh->delete_requested_at === null
                     || $koniecKarencji === null
                     || $koniecKarencji->isFuture()
                     || $fresh->delete_request_generation !== $oczekiwanaGeneracja
