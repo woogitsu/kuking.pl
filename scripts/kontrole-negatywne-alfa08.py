@@ -458,6 +458,8 @@ EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_
 # mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
 EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
+EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
 # jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
