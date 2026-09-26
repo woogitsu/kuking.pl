@@ -122,4 +122,54 @@ class FeedTagowTylkoOpublikowaneTest extends TestCase
             ->assertViewHas('zrodloFeedu', 'tagi')
             ->assertSee('Moj opublikowany rosol');
     }
+
+    /**
+     * Decyzja właściciela z 26 września (#1338): strona tagu pokazuje
+     * WSZYSTKIE opublikowane wpisy z tym tagiem, które widz może otworzyć —
+     * także jego własne, w każdej widoczności (autor widzi swoje, AGENTS.md
+     * §5 „poprawne dane nigdy nie znikają”). Własny wpis nie jest odsiewany
+     * ani przesuwany; stoi chronologicznie między cudzymi. Ukryty przez
+     * moderację i szkic zostają poza listą tak jak w feedzie tagów.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): w `TagController::show()`
+     * `->where('author_id', '!=', $widz->getKey())` → test oblewa na
+     * pierwszej asercji; `widoczneDla(null)` zamiast `widoczneDla($widz)` →
+     * oblewa na wpisie „tylko dla obserwujących”.
+     */
+    public function test_strona_tagu_pokazuje_wlasne_wpisy_widza_obok_cudzych(): void
+    {
+        $zupy = $this->tag();
+        $basia = $this->user('basia');
+        $ola = $this->user('ola');
+
+        $cudzyNowszy = $this->wpis($zupy, $ola, 'Pomidorowa od Oli', ['published_at' => now()->subMinutes(1)]);
+        $mojPubliczny = $this->wpis($zupy, $basia, 'Moj publiczny rosol', ['published_at' => now()->subMinutes(2)]);
+        $mojDlaObserwujacych = $this->wpis($zupy, $basia, 'Moja zupa dla obserwujacych', [
+            'visibility' => Post::VISIBILITY_FOLLOWERS,
+            'published_at' => now()->subMinutes(3),
+        ]);
+        $mojPrywatny = $this->wpis($zupy, $basia, 'Moja zupa tylko dla mnie', [
+            'visibility' => Post::VISIBILITY_PRIVATE,
+            'published_at' => now()->subMinutes(4),
+        ]);
+        $cudzyStarszy = $this->wpis($zupy, $ola, 'Barszcz od Oli', ['published_at' => now()->subMinutes(5)]);
+        $this->wpis($zupy, $basia, 'Moj ukryty przez moderacje', ['status' => Post::STATUS_HIDDEN]);
+        $this->wpis($zupy, $basia, 'Moj szkic', ['status' => Post::STATUS_DRAFT, 'published_at' => null]);
+
+        $idy = fn (User $widz): array => collect($this->actingAs($widz)->get(route('tags.show', $zupy))
+            ->assertOk()->viewData('posts')->items())
+            ->map(fn (Post $wpis): string => (string) $wpis->getKey())->all();
+
+        $this->assertSame(
+            array_map(fn (Post $p): string => (string) $p->getKey(), [$cudzyNowszy, $mojPubliczny, $mojDlaObserwujacych, $mojPrywatny, $cudzyStarszy]),
+            $idy($basia),
+            'Strona tagu nie pokazuje autorowi wszystkich jego opublikowanych wpisów z tagiem, chronologicznie między cudzymi.',
+        );
+
+        // Kontrola: inna osoba widzi tylko to, co może otworzyć.
+        $this->assertSame(
+            array_map(fn (Post $p): string => (string) $p->getKey(), [$cudzyNowszy, $mojPubliczny, $cudzyStarszy]),
+            $idy($ola),
+        );
+    }
 }

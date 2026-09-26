@@ -127,6 +127,13 @@ class TagController extends Controller
             ->published()
             // Ta sama macierz widoczności co wszędzie indziej: wpisy tylko
             // dla obserwujących i prywatne NIE MOGĄ wypłynąć przez tag.
+            //
+            // WŁASNE WPISY WIDZA STOJĄ TU JAK KAŻDE INNE (decyzja właściciela
+            // z 26.09, #1338): strona tagu pokazuje wszystkie opublikowane
+            // wpisy z tagiem, które widz może otworzyć — także jego własne
+            // w każdej widoczności, chronologicznie między cudzymi. Nie
+            // odsiewamy ich „bo to moje". Pilnuje
+            // `FeedTagowTylkoOpublikowaneTest::test_strona_tagu_pokazuje_wlasne_wpisy_widza_obok_cudzych`.
             ->widoczneDla($widz)
             // Zapowiedź przepisu (issue #368) jest na stałe `public`, bo
             // widoczność trzyma PRZEPIS, nie jego zapowiedź — `widoczneDla()`
