@@ -31,7 +31,8 @@
         <p>
             Nie ma w niej zdjęć, których nie udało się przygotować do pokazania w serwisie,
             ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.
-            W środku znajdziesz plik, który wymienia wszystkie granice paczki.
+            W środku znajdziesz plik, który wymienia wszystkie granice paczki
+            i mówi, jak dostać dane wydawane tylko na prośbę.
         </p>
 
         <form method="POST" action="{{ route('settings.data.export') }}">
@@ -61,7 +62,10 @@
                             <a class="btn btn-primary mt-2"
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
-                            <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
+                            {{-- Z GODZINĄ, tym samym formatem co list (issue #819): paczka
+                                 wygasa co do minuty, więc sam dzień obiecywałby cały dzień,
+                                 a mail i ekran podawałyby dwa różne terminy. --}}
+                            <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y, H:i') }}.</span>
                             {{-- PACZKA GOTOWA, LIST JESZCZE NIE (issue #820). List wysyła
                                  osobne zadanie z ponowieniami i przy awarii poczty może
                                  przyjść godzinę później — albo wcale. Ekran nie każe na

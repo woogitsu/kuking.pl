@@ -132,7 +132,7 @@ class PocztaNieUznajeDziennikaZaZapasTest extends TestCase
         // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
         config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.poczta.ok', false)
             ->assertJsonPath('checks.poczta.error', 'poczta_nie_wysyla');

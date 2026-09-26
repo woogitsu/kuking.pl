@@ -18,9 +18,12 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
+{{-- `priority` (#1001): tylko strona pojedynczego wpisu. Pierwsze zdjęcie
+     dostaje `fetchpriority="high"` zamiast `loading="lazy"`; reszta zdjęć
+     i karty w listach zostają leniwe. --}}
+@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null, 'priority' => false])
 @php $author = $post->author; @endphp
-<article class="card post-card">
+<article class="card post-card" data-klucz="wpis-{{ $post->getKey() }}">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
 
@@ -114,6 +117,19 @@
                      Kropkę-separator rysuje sam komponent. --}}
                 <x-konto-przykladowe :user="$author" />
             </p>
+            {{-- ŹRÓDŁO ZAWSZE NAZWANE (issue #1808, D-277). Na Starcie wpisy
+                 obserwowanych tematów stoją obok wpisów obserwowanych osób;
+                 karta, która przyszła WYŁĄCZNIE przez tag, mówi to wprost. Słowo
+                 „tag”, nie „temat” (issue pisze „Z tematu”): na ekranie obowiązuje
+                 jedno słowo — decyzja właściciela z 11 września 2026,
+                 `JednoSlowoNaTagiTest`.
+                 `zrodloTematu` ustawia tylko `FollowingFeed::podpiszTematy()`
+                 — na innych ekranach relacji nie ma i podpisu też nie. --}}
+            @if($post->relationLoaded('zrodloTematu') && $post->zrodloTematu !== null)
+                <p class="meta m-0" data-zrodlo-tematu>
+                    Z tagu: <a href="{{ route('tags.show', $post->zrodloTematu) }}">{{ $post->zrodloTematu->name }}</a>
+                </p>
+            @endif
         </div>
 
         @auth
@@ -195,6 +211,11 @@
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{-- „Dopisz przepis” (#1334) — tylko przy kwalifikującym
+                             się wpisie; reguła w `PostPolicy::dopiszPrzepis`. --}}
+                        @can('dopiszPrzepis', $post)
+                            <a href="{{ route('recipes.create.from-post', $post) }}">Dopisz przepis</a>
+                        @endcan
                         {{--
                             „Usuń wpis" — akcja destrukcyjna, odsunięta od
                             zwykłych akcji i wymagająca potwierdzenia
@@ -209,7 +230,9 @@
                                 label="Usuń wpis"
                                 question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
                         </div>
-                    @else
+                    @elseif(! \App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
+                        {{-- Podgląd ukrytego wpisu dla moderatora (#1018) jest tylko
+                             do odczytu — `PostPolicy::report` odmawia, więc bez odnośnika. --}}
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
                     @endcan
                 </div>
@@ -330,6 +353,7 @@
         <div class="photo-grid">
             <a href="{{ route('recipes.show', $post->recipe->slug) }}">
                 <x-photo :media="$post->recipe->heroMedia"
+                         :priority="$priority"
                          :zoom="false"
                          tresc="przepis"
                          :alt="$post->recipe->heroMedia->alt_text ?: 'Zdjęcie do przepisu: '.$post->recipe->title" />
@@ -338,17 +362,17 @@
     @elseif($post->media->isNotEmpty())
         @switch($post->trybWyswietlaniaZdjec())
             @case(\App\Models\Post::DISPLAY_CAROUSEL)
-                <x-karuzela-zdjec :post="$post" />
+                <x-karuzela-zdjec :post="$post" :priority="$priority" />
                 @break
 
             @case(\App\Models\Post::DISPLAY_COLLAGE)
-                <x-kolaz-zdjec :post="$post" />
+                <x-kolaz-zdjec :post="$post" :priority="$priority" />
                 @break
 
             @default
                 <div class="photo-grid">
                     @foreach($post->media as $media)
-                        <x-photo :media="$media" />
+                        <x-photo :media="$media" :priority="$priority && $loop->first" />
                     @endforeach
                 </div>
         @endswitch
@@ -443,7 +467,13 @@
         </a>
 
         @auth
+        @unless(\App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
             {{--
+                PODGLĄD UKRYTEGO WPISU JEST TYLKO DO ODCZYTU (#1018). Moderator
+                z 2FA widzi cudzy ukryty wpis, ale `PostPolicy::save` odmawia
+                mu zapisu — przycisk stałby martwy (AGENTS.md §5). Dlaczego
+                nie `@can('save')`: uzasadnienie przy `tylkoPodgladObslugi()`.
+
                 „ZAPISUJĘ" (decyzja właściciela, `docs/DECISIONS.md` D-036).
 
                 Do tej zmiany przycisk nosił „Zapisz", a przycisk zapisu
@@ -594,6 +624,7 @@
                 </form>
             @endif
             <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" :content="$post" />
+        @endunless
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).

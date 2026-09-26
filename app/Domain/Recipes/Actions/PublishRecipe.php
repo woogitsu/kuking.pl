@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
+use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
@@ -88,11 +90,12 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly MojaWersja $mojaWersja,
     ) {}
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, no_amount?: bool}>  $ingredients
+     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, substitutes?: ?string, no_amount?: bool}>  $ingredients
      * @param  list<array{instruction: string, id?: ?string, timer_minutes?: mixed, media_id?: ?string, remove_media?: bool}>  $steps
      *
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
@@ -215,6 +218,11 @@ final class PublishRecipe
                     static fn (RecipeStep $step): string => (string) $step->getKey(),
                 );
 
+            $duplicateErrors = ExistingStepDuplicates::errors($cleanSteps, $istniejaceKroki->keys());
+            if ($duplicateErrors !== []) {
+                throw new BladDlaCzlowieka(reset($duplicateErrors));
+            }
+
             /*
              * WSZYSTKIE ZDJĘCIA TEGO ZAPISU BLOKOWANE JEDNYM ZAPYTANIEM
              * (D-103, dokończenie D-083).
@@ -293,6 +301,13 @@ final class PublishRecipe
              * ze sobą), ani czyjegoś „Obserwuj".
              */
             DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
+
+            // Czy przepis był UDOSTĘPNIONY innym (opublikowany i nie
+            // prywatny) PRZED tym zapisem — potrzebne wyłącznie „Mojej
+            // wersji": powiadomienie autora oryginału idzie przy pierwszym
+            // udostępnieniu wersji innym, nie przy publikacji „tylko dla
+            // mnie" (issue #23, D-301, decyzja właściciela z 26.09.2026).
+            $byloUdostepnione = false;
 
             $payload = [
                 'title' => $title,
@@ -400,11 +415,26 @@ final class PublishRecipe
                         : null;
                 }
 
+                $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';
+
                 $recipe->update($payload);
             }
 
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
+
+            /*
+             * „MOJA WERSJA" BEZ ŻADNEJ ZMIANY NIE WYCHODZI DO LUDZI (issue #23).
+             *
+             * Stoi PO zapisie składników i kroków, bo porównuje to, co
+             * naprawdę leży w bazie, z oryginałem — a wyjątek cofa całą
+             * transakcję razem z tym zapisem. Szkicu nie dotyczy: szkic
+             * wersji zaczyna życie jako wierna kopia i ma prawo nią zostać,
+             * dopóki autor nad nim pracuje.
+             */
+            if ($recipe->isPublished()) {
+                MojaWersja::pilnujRoznicy($recipe);
+            }
 
             /*
              * OPUBLIKOWANY PRZEPIS WCHODZI DO STRUMIENI (issue #368).
@@ -474,6 +504,19 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+            }
+
+            /*
+             * „MOJA WERSJA": pierwsze udostępnienie innym (przejście z „tylko
+             * ja" albo ze szkicu na widoczność szerszą niż prywatna).
+             * Powiadomienie jest wierszem w bazie, więc wolno mu stać
+             * w transakcji — i musi: cofnięty zapis nie może zostawić autorowi
+             * oryginału wiadomości o wersji, której nikt nie widzi. „Raz na
+             * wersję" i „tylko gdy autor oryginału ją widzi" pilnuje
+             * `MojaWersja::powiadomAutoraOryginalu()`.
+             */
+            if (! $byloUdostepnione && $recipe->isPublished() && $recipe->visibility !== 'private') {
+                $this->mojaWersja->powiadomAutoraOryginalu($recipe, $author);
             }
 
             return $recipe;
@@ -570,6 +613,9 @@ final class PublishRecipe
                 'quantity' => $bezIlosci ? null : $this->quantityOrNull($row['quantity'] ?? null),
                 'unit_id' => $bezIlosci ? null : $this->unitIdOrNull($row['unit_id'] ?? null),
                 'note' => $this->nullIfBlank($row['note'] ?? null),
+                // Zamiennik od autora (D-284). Przycięty do kolumny jak tekst
+                // składnika; puste → NULL, bo tak każe CHECK.
+                'substitutes' => $this->clampOrNull($row['substitutes'] ?? null, 300),
                 'no_amount' => $bezIlosci,
             ];
         }
@@ -582,8 +628,8 @@ final class PublishRecipe
      *
      * Autor piszący dziesięć składników wpisze „Farsz" i „farsz", i będzie
      * miał rację: dla niego to jedno słowo. Bez tego przejścia byłyby to dwie
-     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do przyszłego
-     * przeliczania porcji jako dwie różne części przepisu.
+     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do
+     * przeliczania porcji (V2, D-284) jako dwie różne części przepisu.
      *
      * WYGRYWA PIERWSZA PISOWNIA, nie „ładniejsza". To słowo autora, więc
      * poprawiamy powtórzenie, a nie człowieka — i nie ma tu żadnej reguły
@@ -757,6 +803,7 @@ final class PublishRecipe
                 'quantity' => $row['quantity'],
                 'unit_id' => $row['unit_id'],
                 'note' => $row['note'],
+                'substitutes' => $row['substitutes'] ?? null,
                 'no_amount' => $row['no_amount'] ?? false,
                 'position' => $position,
             ]);

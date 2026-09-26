@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -52,6 +53,7 @@ final class RestoreContent
      *                                 — a dwa powiadomienia o jednym zdarzeniu wyglądają jak
      *                                 usterka.
      *
+     * @throws WlasnejTresciNiePrzywracasz gdy `$moderator` jest autorem tej treści (#1479)
      * @throws BladDlaCzlowieka gdy tej treści nie da się przywrócić — także gdy
      *                          nie schowała jej moderacja albo schował ją
      *                          administrator, a przywraca moderator (B2-01)
@@ -96,6 +98,16 @@ final class RestoreContent
                 throw new BladDlaCzlowieka('Tej treści już nie ma w bazie — nie da się jej przywrócić.');
             }
 
+            // NIKT NIE PRZYWRACA WŁASNEJ TREŚCI (#1479). Wcześniej sprawdzana
+            // była tylko rola: moderator, którego wpis ukrył ktoś inny
+            // z zespołu, zdejmował ukrycie sam, z pominięciem odwołania.
+            // Reguła stoi tu, pod blokadą, a nie w kontrolerze — tą akcją
+            // przywraca też „cofam" po odwołaniu (`ResolveAppeal`). Autora
+            // czytamy z zablokowanego wiersza, przed jakimkolwiek zapisem.
+            if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
+                throw new WlasnejTresciNiePrzywracasz;
+            }
+
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);
         });
     }
@@ -131,8 +143,10 @@ final class RestoreContent
         }
 
         // Reguła rangi, ta sama co przy zdejmowaniu (`UserPolicy`): decyzję
-        // administratora cofa administrator, nie moderator.
-        if ($zdjecie->moderator?->role === User::ROLE_ADMIN && ! $moderator->isAdmin()) {
+        // administratora cofa administrator, nie moderator. Wyciągnięta do
+        // `wolnoCofnac()`, żeby widok kolejki (`ModerationController`) mógł
+        // schować martwy przycisk, nie kopiując tego warunku (issue #1748).
+        if (! self::wolnoCofnac($moderator, $zdjecie)) {
             throw new BladDlaCzlowieka('Tę treść schował administrator. Cofnąć tę decyzję może tylko administrator — przekaż mu sprawę.');
         }
 
@@ -203,6 +217,22 @@ final class RestoreContent
         );
 
         return $decyzja;
+    }
+
+    /**
+     * Reguła rangi B2-01: czy `$moderator` może cofnąć akurat TĘ decyzję
+     * (`$zdjecie`, zwrócone przez `zdjeciePrzezModeracje()`).
+     *
+     * Decyzję administratora cofa administrator, nie zwykły moderator —
+     * ta sama zasada co przy zdejmowaniu treści z urzędu (`UserPolicy`).
+     * Jedna metoda, dwóch odbiorców: `przywrocPodBlokada()` wyżej pilnuje
+     * jej przy zapisie, a `ModerationController::przywracalne()` — przy
+     * rysowaniu przycisku „Przywróć treść” w kolejce. Bez wspólnego miejsca
+     * przycisk mógłby obiecać to, czego backend i tak by odmówił (#1748).
+     */
+    public static function wolnoCofnac(User $moderator, ModerationAction $zdjecie): bool
+    {
+        return $zdjecie->moderator?->role !== User::ROLE_ADMIN || $moderator->isAdmin();
     }
 
     /**

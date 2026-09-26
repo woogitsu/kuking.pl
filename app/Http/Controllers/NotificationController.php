@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
+use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -31,6 +34,7 @@ class NotificationController extends Controller
             ->paginate(30);
 
         $this->sprawdzWykonania($notifications->items());
+        $this->sprawdzPrzepisy($notifications->items());
 
         return view('pages.notifications', [
             'notifications' => $notifications,
@@ -42,12 +46,12 @@ class NotificationController extends Controller
             'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
                 || $user->unreadNotificationsCount() > 0,
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
-            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
+            'destinationUrls' => app(CelPowiadomienia::class)->adresy($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
             // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
             // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
             // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
-            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
+            'wycinkiKomentarzy' => app(WycinkiKomentarzy::class)->zywe($notifications->items()),
         ]);
     }
 
@@ -149,6 +153,42 @@ class NotificationController extends Controller
     }
 
     /**
+     * Aktualne slugi przepisów z powiadomień o zapisaniu do zeszytu
+     * (issue #1034) — JEDNYM zapytaniem, jak `sprawdzWykonania()`.
+     * Przepis usunięty miękko nie wraca (`SoftDeletes`), więc jego
+     * powiadomienie dostaje `null` i traci „Zobacz".
+     *
+     * @param  list<Notification>  $powiadomienia
+     */
+    private function sprawdzPrzepisy(array $powiadomienia): void
+    {
+        $doSprawdzenia = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            $id = $powiadomienie->data['recipe_id'] ?? null;
+
+            if ($powiadomienie->type === Notification::TYPE_SAVED && is_string($id) && Str::isUuid($id)) {
+                $doSprawdzenia[$id][] = $powiadomienie;
+            }
+        }
+
+        if ($doSprawdzenia === []) {
+            return;
+        }
+
+        $slugi = Recipe::query()
+            ->whereIn('id', array_keys($doSprawdzenia))
+            ->pluck('slug', 'id')
+            ->mapWithKeys(fn (mixed $slug, mixed $id): array => [(string) $id => (string) $slug]);
+
+        foreach ($doSprawdzenia as $id => $grupa) {
+            foreach ($grupa as $powiadomienie) {
+                $powiadomienie->zapamietajSlugPrzepisu($slugi->get($id));
+            }
+        }
+    }
+
+    /**
      * Oznaczenie wszystkiego jako przeczytane jest JAWNYM kliknięciem,
      * nie efektem ubocznym wejścia na stronę. Osoba, która przypadkiem
      * weszła w powiadomienia, nie może stracić informacji o tym, że
@@ -158,7 +198,7 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969).
+        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969, #1401).
         // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
         // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
         // choć człowiek nigdy ich nie zobaczył.
@@ -225,7 +265,26 @@ class NotificationController extends Controller
             ->notifications()
             ->visibleTo($request->user())
             ->whereKey($notification)
-            ->firstOrFail();
+            ->first();
+
+        // ISSUE #759: komentarz mógł zniknąć (usunięty, ukryty przez
+        // moderację, treść nad nim schowana) między wyświetleniem listy
+        // a kliknięciem. Zamiast gołego 404 — zdanie, co się stało, bez
+        // żadnego fragmentu komentarza. Wiersz ukryty z INNEGO powodu
+        // (blokada, zbanowany sprawca, #1351) dalej kończy się na 404:
+        // `visibleTo(..., false)` pomija tylko warunek dostępności treści.
+        if ($powiadomienie === null) {
+            $bezTresci = $request->user()
+                ->notifications()
+                ->visibleTo($request->user(), false)
+                ->whereKey($notification)
+                ->whereIn('type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
+                ->exists();
+
+            abort_unless($bezTresci, 404);
+
+            return back()->with('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
+        }
 
         // TYLKO GDY NIEPRZECZYTANE — I ROZSTRZYGA TO BAZA, NIE PHP (D-079).
         //
@@ -280,6 +339,11 @@ class NotificationController extends Controller
         // a kliknięciem. Zamiast 404 — zdanie, co się stało.
         if ($powiadomienie->wykonanieUsuniete()) {
             return back()->with('status', 'To ugotowanie zostało usunięte.');
+        }
+
+        // ISSUE #1034: to samo dla przepisu zapisanego do zeszytu.
+        if ($powiadomienie->przepisUsuniety()) {
+            return back()->with('status', 'Ten przepis został usunięty.');
         }
 
         $cel = $powiadomienie->adresDocelowy();

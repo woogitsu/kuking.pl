@@ -43,6 +43,7 @@
 @import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
+@import "./ekran-planera.css";
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
@@ -1866,6 +1867,17 @@
     outline-color: var(--color-accent-tint-ink);
   }
 
+  /* #977: komunikat „Ta strona jest nieaktualna” składany w app.js.
+     Odstępy między nagłówkiem, akapitami i przyciskiem „Odśwież stronę”. */
+  .strona-nieaktualna > * + * {
+    margin-top: var(--spacing-3);
+  }
+
+  /* Pusty dopisek (region aria-live na zdjęcie) nie robi podwójnej przerwy. */
+  .strona-nieaktualna > :empty {
+    margin-top: 0;
+  }
+
   @media (forced-colors: active) {
     .notice a:not(.btn):focus-visible {
       outline-color: Highlight;
@@ -3319,6 +3331,50 @@
     padding: var(--spacing-3) 0;
     border-bottom: 1px solid var(--color-border);
     font-size: var(--text-body-lg);
+  }
+
+  /* Zamiennik od autora pod składnikiem (D-284). Osobna linia i pełne 18 px —
+     `.meta` ma 16 px, a to jest informacja, której widz SZUKA, gdy czegoś
+     nie ma w domu, nie drobny dopisek. */
+  .skladnik-zamiennik {
+    display: block;
+    margin-top: var(--spacing-1);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  /* Wybór liczby porcji nad listą składników (D-284). Przyciski mają
+     wysokość z `.btn` (≥ 48 px); zawijają się pod siebie przy 320 px
+     i przy 200 % powiększenia, zamiast wychodzić poza ekran. */
+  .porcje-wybor {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .porcje-wybor-tytul {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-body);
+    font-weight: 700;
+  }
+
+  .porcje-wybor-przyciski {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+
+  .porcje-wybor-liczba {
+    min-width: 7ch;
+    text-align: center;
+    font-size: var(--text-body-lg);
+  }
+
+  .porcje-wybor-uwaga {
+    margin: 0 0 var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-size: var(--text-body);
   }
 
   .step-list li {
@@ -4824,6 +4880,14 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* Nazwa konta przy pytaniu, gdy pytanie samo w sobie jej nie odmienia
+   (#1819) — osobny wiersz pod pytaniem, nie osobny rozmiar tekstu: to dalej
+   ta sama, ważna informacja „kogo to dotyczy". */
+.confirm-question-nazwa {
+    margin: 0 0 var(--spacing-3);
     overflow-wrap: anywhere;
 }
 
