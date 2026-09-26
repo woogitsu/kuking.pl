@@ -19,6 +19,7 @@ use App\Support\Odmiana;
 use App\Support\Poczta;
 use App\Support\Storage\DozwolonyHostR2;
 use App\Support\Turnstile;
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -183,7 +184,7 @@ class HealthController extends Controller
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
     private const POWOD_BAZA = 'baza_nie_odpowiada';
 
-    /** Połączenie z bazą jest, ale tabela `migrations` jest pusta — deploy nie dokończył migracji. */
+    /** Połączenie z bazą jest, ale co najmniej jedna migracja z bieżącego obrazu aplikacji nie została wykonana (tabela pusta albo częściowy deploy). */
     private const POWOD_BRAK_MIGRACJI = 'brak_migracji';
 
     /** Worek na resztę awarii dysku ze zdjęciami — powód domyślny sprawdzenia `media`. */
@@ -369,16 +370,7 @@ class HealthController extends Controller
             'database' => $this->check('database', self::POWOD_BAZA, static function (): void {
                 DB::select('select 1');
             }),
-            'migrations' => $this->check('migrations', self::POWOD_BAZA, static function (): void {
-                $pending = DB::table('migrations')->count();
-
-                if ($pending === 0) {
-                    throw new KontrolaZdrowiaNieprzeszla(
-                        self::POWOD_BRAK_MIGRACJI,
-                        'Tabela `migrations` jest pusta — deploy nie dokończył migracji.',
-                    );
-                }
-            }),
+            'migrations' => $this->check('migrations', self::POWOD_BAZA, fn () => $this->sprawdzMigracje()),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
             'google' => $this->check('google', self::POWOD_GOOGLE_BEZ_KLUCZY, fn () => $this->sprawdzWejscieGoogle()),
@@ -1029,6 +1021,57 @@ class HealthController extends Controller
      * osobna praca (issue #234); to sprawdzenie tylko CZYTA to, co tamta
      * praca też czyta.
      */
+    /**
+     * Migracje OCZEKUJĄCE, nie tylko tabela pusta (issue #1844).
+     *
+     * Do 26 września 2026 kontrola sprawdzała wyłącznie
+     * `DB::table('migrations')->count() === 0` — czyli WYŁĄCZNIE „czy deploy
+     * w ogóle dotknął migracji kiedykolwiek". Baza z jedną wykonaną migracją
+     * sprzed miesięcy przechodziła ten warunek, nawet gdy obraz aplikacji
+     * niesie dziś dziesięć nowych plików migracji, których NIKT nie wykonał
+     * — częściowe wdrożenie, przerwane `php artisan migrate` albo replika,
+     * która nie zdążyła dogonić reszty. `/health` melduje `ok`, Railway
+     * kieruje na nią ruch, a pierwsze żądanie czytające nową kolumnę albo
+     * tabelę kończy się 500.
+     *
+     * Dziś porównujemy PLIKI migracji z WIERSZAMI w tabeli `migrations` —
+     * dokładnie to, co widzi `php artisan migrate:status`, bez uruchamiania
+     * czegokolwiek. `Migrator::getMigrationFiles()` tylko czyta katalog
+     * (żadnego zapytania), więc jedyny SQL w tej kontroli to ten sam
+     * `SELECT` co wcześniej. Ścieżki bierzemy jak robi to
+     * `migrate`/`migrate:status`: własne katalogi `$migrator->paths()`
+     * (np. z pakietów) plus domyślny `database/migrations`.
+     *
+     * Pusta tabela WCIĄŻ jest awarią (zbiór wykonanych migracji jest wtedy
+     * pusty, więc KAŻDY plik migracji wypada jako oczekujący) — ten sam
+     * powód, ta sama etykieta, zerowa zmiana zachowania dla dotychczasowego
+     * przypadku. Nowość to wykrycie migracji brakujących MIMO niepustej
+     * tabeli.
+     *
+     * Publicznie zostaje wyłącznie kod `brak_migracji` (patrz `check()`) —
+     * nazwy plików migracji (które ujawniałyby kształt schematu) nie
+     * pojawiają się nigdzie w odpowiedzi HTTP, tylko w komunikacie
+     * wyjątku, który trafia WYŁĄCZNIE do `Log::error` w `check()`.
+     */
+    private function sprawdzMigracje(): void
+    {
+        /** @var Migrator $migrator */
+        $migrator = app('migrator');
+
+        $sciezki = array_merge($migrator->paths(), [database_path('migrations')]);
+        $pliki = $migrator->getMigrationFiles($sciezki);
+
+        $wykonane = DB::table('migrations')->pluck('migration')->all();
+        $oczekujace = array_diff(array_keys($pliki), $wykonane);
+
+        if ($oczekujace !== []) {
+            throw new KontrolaZdrowiaNieprzeszla(
+                self::POWOD_BRAK_MIGRACJI,
+                'Oczekujące migracje względem aktualnego obrazu aplikacji: '.implode(', ', $oczekujace).'.',
+            );
+        }
+    }
+
     private function sprawdzKolejke(): void
     {
         try {
