@@ -486,6 +486,11 @@ IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
 README = "README.md"
 README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
+# oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
+# akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
+CHANGELOG_NOWOSCI = "CHANGELOG.md"
+STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -1084,6 +1089,13 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    # Strona „Co nowego” (issue #1909): wpis CHANGELOGA oznaczony
+    # `[nowa funkcja]` musi mieć akapit w resources/nowosci/tresc.md. Mutacja
+    # zdejmuje znacznik z JEDYNEGO miejsca, w którym stoi razem z „(#1909)” —
+    # dwa oznaczone wpisy w CHANGELOGU zostają jednym, dwa akapity nowości
+    # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
+    ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
 ]
@@ -1168,6 +1180,7 @@ run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
+run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"

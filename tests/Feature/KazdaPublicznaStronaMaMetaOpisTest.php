@@ -144,6 +144,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'terms' => route('terms'),
             'privacy' => route('privacy'),
             'rules' => route('rules'),
+            'nowosci' => route('nowosci'),
             'kontakt' => route('kontakt'),
             'kontakt.potwierdzenie' => route('kontakt.potwierdzenie'),
             'zglos.nielegalna' => route('zglos.nielegalna'),

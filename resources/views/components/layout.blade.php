@@ -1313,11 +1313,23 @@
                          najazdu kursorem, a informacja dostępna tylko przez
                          hover jest dla części osób niedostępna w ogóle
                          (UX_50_PLUS). Widoczna zawsze — nie chowamy jej pod
-                         hover ani pod `title`. --}}
-                    <span class="site-version">
+                         hover ani pod `title`.
+
+                         ODNOŚNIK DO „CO NOWEGO" (issue #1909, decyzja
+                         właściciela 26 września 2026). Skrót commita i data
+                         ZOSTAJĄ WIDOCZNE — kryterium akceptacji wprost tego
+                         wymaga, bo służą do zgłaszania usterek niezależnie
+                         od tego, że wersja jest teraz też odnośnikiem. Adres
+                         niesie kotwicę BIEŻĄCEGO wydania
+                         (`Wersja::kotwicaWydania()`), więc strona otwiera się
+                         od razu przy opisie tego wydania, a nie od góry
+                         dokumentu — druga część tego samego kryterium.
+                         `aria-label` mówi, dokąd prowadzi odnośnik, bo sam
+                         tekst („Alfa 0.68 · wydanie …") tego nie mówi. --}}
+                    <a class="site-version" href="{{ route('nowosci') }}#{{ \App\Support\Wersja::kotwicaWydania() }}" aria-label="Co nowego w wydaniu {{ \App\Support\Wersja::etykieta() }}">
                         <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
                         <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
-                    </span>
+                    </a>
                 </div>
             </div>
         </footer>
