@@ -76,6 +76,7 @@ final class InwentarzDanychKonta
         'reports.reporter_id' => [self::EKSPORT, 'moje_zgloszenia'],
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
+        'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
         'notifications.actor_id' => [self::NA_ZADANIE, 'Powiadomienia, które inne osoby dostały o Twoich działaniach. To są ich skrzynki; same działania (wpisy, komentarze, „Ugotowałem”) są w paczce.'],
@@ -123,6 +124,13 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
+        'birthday_day' => [self::EKSPORT, 'konto'],
+        'birthday_month' => [self::EKSPORT, 'konto'],
+        'birthday_wishes_enabled' => [self::EKSPORT, 'konto'],
+        'wants_birthday_email' => [self::EKSPORT, 'konto'],
+        'birthday_email_sent_on' => [self::EKSPORT, 'konto'],
+        'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],
