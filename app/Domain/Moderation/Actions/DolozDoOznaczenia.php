@@ -136,9 +136,10 @@ final class DolozDoOznaczenia
             return null;
         }
 
-        // WPIS POMOCNICZY (D-249, klasa 2), jak w `OznaczDoPrzegladu`: sprawa
-        // ma pełny własny ślad w `reports`, a awaria dziennika nie może
-        // cofnąć dołożonych sygnałów ani zjeść alarmu.
+        // WPIS POMOCNICZY (D-249, klasa 2 — uzupełnienie z 26 września),
+        // jak w `OznaczDoPrzegladu`: sprawa ma pełny własny ślad w `reports`,
+        // a awaria dziennika nie może cofnąć dołożonych sygnałów ani zjeść
+        // alarmu.
         AuditLogEntry::recordBezWywracania(
             action: 'content.flagged_by_automat',
             actor: null,

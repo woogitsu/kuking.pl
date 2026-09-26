@@ -299,7 +299,7 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $this->assertNull($druga->fresh()->alarm_pilny_stan);
     }
 
-    /** Awaria dziennika nie cofa dołożonych sygnałów (D-249, klasa 2 — jak w `OznaczDoPrzegladu`). */
+    /** Awaria dziennika nie cofa dołożonych sygnałów (D-249, klasa 2 — uzupełnienie z 26 września, jak w `OznaczDoPrzegladu`). */
     public function test_awaria_dziennika_nie_cofa_dolozonych_sygnalow(): void
     {
         Exceptions::fake();
