@@ -2526,6 +2526,22 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 - [ ] Railway → Usage: zużycie vs budżet
 - [ ] Podsumowanie CI: `composer audit` / `npm audit`
 - [ ] Zaległości w kolejce: `SELECT count(*) FROM jobs; SELECT count(*) FROM failed_jobs;`
+- [ ] **PR „Cotygodniowe ceny warzyw z MRiRW/ZSRIR"** (gałąź
+      `claude/ceny-warzyw-auto`, workflow `ceny-warzyw-auto.yml`, D-286
+      część 3) — otwiera się sam co sobotę, ale scala go człowiek:
+      - przejrzyj różnicę w `database/data/ceny_skladnikow.csv` (tylko
+        `ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`
+        powinny się zmienić — jeśli zmieniło się coś innego, workflow ma
+        błąd, nie merguj), potem scal zwykłym PR-em jak każdy inny;
+      - workflow **nie otwiera nowego PR-a**, jeśli w danym tygodniu ceny
+        się nie zmieniły — brak PR-a w sobotę nie jest awarią;
+      - czerwony krok „Test parsera" w tym workflow znaczy, że MRiRW
+        zmieniło układ arkusza — napraw parser w
+        `scripts/ceny-warzyw-zsrir-pobierz.py`, zanim zignorujesz;
+      - siedem warzyw liczonych z cen hurtowych (`kapusta`, `buraki`,
+        `por`, `seler`, `pietruszka`, `salata`, `ogorek`) ten workflow
+        **nie dotyka** — ich cena wymaga ręcznej aktualizacji z arkusza
+        „HURT WARZ" (patrz `docs/DECISIONS.md`, D-286 część 3).
 
 ### Co miesiąc (1 h)
 

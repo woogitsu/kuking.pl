@@ -45,6 +45,25 @@ final class SzacunekKosztuZCen
     /** Rozrzut przedziału wokół wyliczonej kwoty. */
     public const ROZRZUT = 0.15;
 
+    /**
+     * Przelicznik hurt→detal dla warzyw, których MRiRW/ZSRIR notuje TYLKO
+     * hurtowo — kapusta, buraki, por, seler, pietruszka, sałata, ogórek
+     * (decyzja właściciela z 26.09.2026, D-286 część 3).
+     *
+     * UZASADNIENIE. Na warzywach, które są w OBU arkuszach tego samego
+     * biuletynu ZSRIR — „HURT WARZ" i „ZAKUP WARZ DETAL — do 2 kg" —
+     * (cebula, marchew, ziemniaki, papryka czerwona) zmierzono stosunek
+     * ceny detalicznej do średniej ceny hurtowej z 5 rynków (Bronisze,
+     * Kalisz, Łódź, Poznań, Rzeszów): od ok. 1,0× (cebula) do ok. 2,2×
+     * (papryka). Rozrzut jest za duży, żeby dało się go zmierzyć PER
+     * warzywo bez własnej ceny detalicznej do porównania — więc ta stała
+     * to ŚRODEK zmierzonego zakresu, jawnie nazwane przybliżenie, nie
+     * wyliczona wartość. Każda cena policzona tym mnożnikiem mówi to
+     * wprost w `zrodlo` („szacunek z cen hurtowych") i w zdaniu na
+     * stronie przepisu — nigdy jako cicha liczba.
+     */
+    public const MNOZNIK_HURT_DETAL = 1.6;
+
     /** Masa miar domowych dla składnika, którego NIE znamy (tylko do pokrycia). */
     private const MASA_OGOLNA = ['szklanka' => 200.0, 'lyzka' => 12.0, 'lyzeczka' => 5.0, 'szczypta' => 0.5];
 
@@ -84,6 +103,7 @@ final class SzacunekKosztuZCen
         $koszt = 0.0;
         $okresy = [];
         $zrodla = [];
+        $hurtowe = false;
         $bezMasy = [];
         $bezCeny = [];
 
@@ -115,6 +135,7 @@ final class SzacunekKosztuZCen
                 $koszt += $gramy * $produkt->cenaZaGram();
                 $okresy[] = $produkt->okres;
                 $zrodla[] = $this->nazwaZrodla($produkt->zrodlo);
+                $hurtowe = $hurtowe || str_contains($produkt->zrodlo, 'szacunek z cen hurtowych');
 
                 continue;
             }
@@ -159,7 +180,7 @@ final class SzacunekKosztuZCen
             $do = $od + 1;
         }
 
-        return WynikSzacunku::przedzial($od, $do, $this->opisOkresu($okresy, $zrodla));
+        return WynikSzacunku::przedzial($od, $do, $this->opisOkresu($okresy, $zrodla, $hurtowe));
     }
 
     /**
@@ -260,7 +281,7 @@ final class SzacunekKosztuZCen
      * @param  list<string>  $okresy
      * @param  list<string>  $zrodla
      */
-    private function opisOkresu(array $okresy, array $zrodla): string
+    private function opisOkresu(array $okresy, array $zrodla, bool $hurtowe): string
     {
         $okresy = array_values(array_unique($okresy));
         sort($okresy);
@@ -268,6 +289,15 @@ final class SzacunekKosztuZCen
         $zrodla = array_values(array_unique($zrodla));
         sort($zrodla);
 
-        return 'średnie ceny detaliczne '.implode(' i ', $zrodla).' z '.implode(', ', $okresy).' r.';
+        $tekst = 'średnie ceny detaliczne '.implode(' i ', $zrodla).' z '.implode(', ', $okresy).' r.';
+
+        if ($hurtowe) {
+            // D-286, część 3 (decyzja właściciela): cena hurtowa × przelicznik
+            // MUSI być nazwana wprost w zdaniu, nie tylko w `zrodlo` cennika —
+            // to nie jest cena detaliczna, tylko jej szacunek.
+            $tekst .= '; część cen to szacunek z cen hurtowych MRiRW/ZSRIR';
+        }
+
+        return $tekst;
     }
 }

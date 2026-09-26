@@ -9,41 +9,49 @@ Wsi, publikowany jako otwarte dane na dane.gov.pl (zbiór 912, licencja CC BY
 4.0 / domena publiczna, format xlsx, cotygodniowa aktualizacja). Arkusz
 „ZAKUP WARZ DETAL - DO 2 KG” w tym biuletynie to średnia KRAJOWA cena zakupu
 warzyw PRZEZ PODMIOTY HANDLU DETALICZNEGO w opakowaniach do 2 kg — najbliższy
-oficjalny, cotygodniowy odpowiednik ceny detalicznej, jaki ZSRIR ma. To NIE
-jest cena hurtowa (arkusz „HURT WARZ” w tym samym biuletynie) — nie robimy
-tu żadnego przelicznika hurt→detal, bo dane w tym arkuszu już są opisane
-jako cena na poziomie handlu detalicznego.
+oficjalny, cotygodniowy odpowiednik ceny detalicznej, jaki ZSRIR ma.
 
-URUCHAMIA SIĘ NA KOMPUTERZE OSOBY PROWADZĄCEJ, NIE NA PRODUKCJI — dokładnie
-jak `ceny-gus-pobierz.py`. Skrypt zmienia tylko plik w repozytorium; zmiana
-idzie normalnym PR-em (przegląd różnic cen), a po wdrożeniu produkcja
-wczytuje ją komendą `php artisan kuking:ceny-skladnikow`. Produkcja SAMA
-niczego z sieci nie pobiera.
+URUCHAMIA SIĘ AUTOMATYCZNIE, RAZ NA TYDZIEŃ, W GITHUB ACTIONS
+(`.github/workflows/ceny-warzyw-auto.yml`, decyzja właściciela z 26.09.2026,
+D-286 część 3) — oraz ręcznie, na komputerze osoby prowadzącej, dokładnie
+jak `ceny-gus-pobierz.py`. W obu przypadkach skrypt zmienia TYLKO plik
+w repozytorium i TYLKO w gałęzi/PR-ze do przeglądu — nigdy prosto na `main`
+i nigdy w samej produkcji. Po scaleniu PR-a produkcja wczytuje nowy plik
+komendą `php artisan kuking:ceny-skladnikow`. Produkcja SAMA niczego
+z sieci nie pobiera — cotygodniowy rytm dotyczy wyłącznie tego skryptu
+w CI, nie aplikacji.
 
-CO SKRYPT AKTUALIZUJE, A CZEGO NIE. Dotyka wyłącznie wierszy, których pole
-`zrodlo` zaczyna się od „MRiRW” — te same klucze co dziś w pliku (`ziemniaki`,
-`cebula`, `marchew`, `papryka_czerwona`, `pomidor`). Nie dodaje nowych
-wierszy: nowy klucz (kolejne warzywo) dopisuje się ręcznie w PR-ze razem
+CO SKRYPT AKTUALIZUJE, A CZEGO NIE. Dotyka wyłącznie wierszy z `MAPA` niżej
+(`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`) — cen
+z arkusza „ZAKUP WARZ DETAL - DO 2 KG”. Nie dodaje nowych wierszy: nowy
+klucz (kolejne warzywo detaliczne) dopisuje się ręcznie w PR-ze razem
 z `wzorce`/`wyklucz`/miarami domowymi — to decyzje o dopasowaniu tekstu
 składnika, których żaden skrypt nie powinien zgadywać.
 
-CZEGO ZSRIR NADAL NIE POKRYWA: kapusta, buraki, por, seler, pietruszka
-korzeniowa, sałata, ogórek. Arkusz „ZAKUP WARZ DETAL” ich nie notuje;
-arkusz „HURT WARZ” notuje, ale to ceny hurtowe z pięciu różnych rynków
-(Bronisze, Kalisz, Łódź, Poznań, Rzeszów) o rozrzucie zbyt dużym, żeby dało
-się z nich uczciwie wyprowadzić JEDEN przelicznik hurt→detal wspólny dla
-wszystkich warzyw — patrz uzasadnienie w docs/DECISIONS.md, D-286.
+CZEGO TEN SKRYPT ŚWIADOMIE NIE DOTYKA: kapusta, buraki, por, seler,
+pietruszka korzeniowa, sałata, ogórek. Arkusz „ZAKUP WARZ DETAL” ich nie
+notuje — mają cenę policzoną RĘCZNIE z arkusza „HURT WARZ” (hurtowa
+średnia z 5 rynków) razy stały przelicznik `MNOZNIK_HURT_DETAL` z
+`App\Domain\Recipes\Koszt\SzacunekKosztuZCen` (decyzja właściciela
+z 26.09.2026, D-286 część 3, pełne uzasadnienie w docs/DECISIONS.md).
+Ich `zrodlo` też zaczyna się od „MRiRW”, więc ten skrypt je widzi, ale
+pomija po kluczu, bo klucza nie ma w `MAPA` — to oczekiwane, nie błąd.
+Automatyzacja arkusza „HURT WARZ” (pięć rynków, inny układ kolumn) to
+osobna praca, o którą nikt jeszcze nie poprosił.
 
 Użycie:
     python3 scripts/ceny-warzyw-zsrir-pobierz.py             # podgląd różnic
     python3 scripts/ceny-warzyw-zsrir-pobierz.py --zapisz    # zapis do pliku
 
-Wymaga: pip install openpyxl (tylko na komputerze osoby prowadzącej, nie
-w zależnościach aplikacji — to jednorazowy import, nie kod produkcyjny).
+Wymaga: pip install openpyxl (w CI instaluje to workflow; ręcznie na
+komputerze osoby prowadzącej — nie jest to zależność aplikacji).
 
-Uwaga o rytmie: ZSRIR publikuje ten biuletyn co tydzień, ale D-286 zakłada
-odświeżanie cennika raz na kwartał — tak samo jak przy GUS — żeby przedział
-kosztu dania nie migotał z tygodnia na tydzień.
+Uwaga o rytmie: ceny z tego skryptu (detal „do 2 kg") odświeżają się co
+tydzień — tyle wynosi rytm biuletynu ZSRIR, a ceny warzyw sezonowych
+(pomidor, papryka) potrafią się w ciągu paru tygodni mocno zmienić. Cennik
+mięsa i nabiału (GUS) odświeża się nadal raz na kwartał — ten inny rytm
+jest świadomy, nie pomyłką: GUS publikuje ŚREDNIE ROCZNE, więc częstszy
+odczyt niczego by nie zmienił.
 """
 
 from __future__ import annotations
@@ -168,7 +176,15 @@ def main() -> int:
             continue
 
         etykieta = MAPA.get(w["klucz"])
-        if etykieta is None or etykieta not in ceny:
+        if etykieta is None:
+            # Wiersz spoza MAPY: warzywo liczone ręcznie z cen HURTOWYCH
+            # (kapusta, buraki, por, seler, pietruszka, sałata, ogórek —
+            # D-286 część 3). Ten skrypt dotyka WYŁĄCZNIE cen z arkusza
+            # „ZAKUP WARZ DETAL — do 2 kg"; hurtowe zostają bez zmian i to
+            # jest oczekiwany stan, nie błąd do zgłoszenia.
+            continue
+
+        if etykieta not in ceny:
             brak.append(w["klucz"])
             continue
 

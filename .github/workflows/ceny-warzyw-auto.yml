@@ -1,0 +1,112 @@
+name: Ceny warzyw (ZSRIR) — odświeżenie tygodniowe
+
+# ---------------------------------------------------------------------------
+#  D-286, część 3 (decyzja właściciela z 26.09.2026): warzywa w cenniku
+#  kosztu dania (`database/data/ceny_skladnikow.csv`) mają się odświeżać CO
+#  TYDZIEŃ, bo tyle wynosi rytm biuletynu MRiRW/ZSRIR. Produkcja NADAL
+#  niczego nie pobiera z sieci — to jedyny wyjątek od tej zasady i dotyczy
+#  wyłącznie CI, nie aplikacji.
+#
+#  CO ROBI TEN WORKFLOW, KROK PO KROKU
+#    1. checkout repozytorium,
+#    2. `python3 scripts/ceny-warzyw-zsrir-pobierz.py --zapisz` — ten sam
+#       skrypt, który osoba prowadząca może uruchomić ręcznie,
+#    3. jeśli plik CSV się zmienił: commit na gałęzi `claude/ceny-warzyw-auto`,
+#       push tej gałęzi (NIGDY na `main`) i PR do `main` przez `gh` (token
+#       `GITHUB_TOKEN` tego przebiegu, bez żadnego osobistego sekretu),
+#    4. jeśli nic się nie zmieniło — workflow kończy się bez commitu i bez PR-a.
+#
+#  Merge PR-a jest RĘCZNY — ktoś z zespołu przegląda różnicę cen, dokładnie
+#  jak przy ręcznym uruchomieniu `ceny-gus-pobierz.py`/
+#  `ceny-warzyw-zsrir-pobierz.py`. Ten workflow nigdy nie scala sam siebie.
+#
+#  DLACZEGO SOBOTA RANO (UTC). Biuletyn ZSRIR na dane.gov.pl pojawia się
+#  w tygodniu roboczym (obserwowane: czwartek/piątek dla notowania kończącego
+#  się we wtorek) — sobota rano daje margines, żeby nowy zasób na pewno już
+#  tam był, zanim ten workflow po niego sięgnie.
+on:
+  schedule:
+    - cron: '13 4 * * 6' # sobota 04:13 UTC — poza równą godziną/połową, żeby nie stać w kolejce z workflowami uruchamianymi o pełnych godzinach
+  workflow_dispatch: {}
+
+# Minimalne uprawnienia tokenu tego przebiegu — tylko to, czego job naprawdę
+# używa: zapis do repozytorium (push gałęzi) i otwarcie/aktualizacja PR-a.
+permissions:
+  contents: write
+  pull-requests: write
+
+# Drugi ręczny odpal nie ma nadpisywać gałęzi w trakcie pushowania przez
+# zaplanowany przebieg — kolejkujemy, nie anulujemy w trakcie zapisu.
+concurrency:
+  group: ceny-warzyw-auto
+  cancel-in-progress: false
+
+env:
+  GALAZ: claude/ceny-warzyw-auto
+  PLIK: database/data/ceny_skladnikow.csv
+
+jobs:
+  odswiez:
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Zainstaluj openpyxl
+        run: pip install --disable-pip-version-check openpyxl==3.1.5
+
+      # Skrypt teraz działa automatycznie, bez człowieka między pobraniem
+      # a zapisem — ten test parsera chodzi PRZED prawdziwym pobraniem,
+      # żeby zmiana układu arkusza MRiRW zatrzymała workflow czerwonym
+      # krokiem, zamiast po cichu zapisać złe ceny do CSV.
+      - name: Test parsera (scripts/ceny_warzyw_zsrir_pobierz_test.py)
+        run: python3 scripts/ceny_warzyw_zsrir_pobierz_test.py
+
+      - name: Pobierz najnowsze ceny warzyw z MRiRW/ZSRIR
+        run: python3 scripts/ceny-warzyw-zsrir-pobierz.py --zapisz
+
+      - name: Sprawdź, czy cennik się zmienił
+        id: zmiana
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$PLIK"; then
+            echo "zmienione=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "zmienione=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit i push gałęzi z nowymi cenami
+        if: steps.zmiana.outputs.zmienione == '1'
+        run: |
+          set -euo pipefail
+          git config user.name "kuking-bot"
+          git config user.email "noreply@anthropic.com"
+          git checkout -B "$GALAZ"
+          git add "$PLIK"
+          git commit -m "Cotygodniowe ceny warzyw z MRiRW/ZSRIR (D-286, część 3)
+
+          Automatyczny import przez scripts/ceny-warzyw-zsrir-pobierz.py.
+          Merguje osoba prowadząca po przejrzeniu różnicy cen w PR-ze."
+          git push --force-with-lease origin "HEAD:$GALAZ"
+
+      - name: Otwórz albo zaktualizuj PR do main
+        if: steps.zmiana.outputs.zmienione == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh pr view "$GALAZ" --json number >/dev/null 2>&1; then
+            echo "PR dla $GALAZ już istnieje — gałąź zaktualizowana, PR zostaje ten sam."
+          else
+            gh pr create \
+              --base main \
+              --head "$GALAZ" \
+              --title "Cotygodniowe ceny warzyw z MRiRW/ZSRIR (D-286, część 3)" \
+              --body "Automatyczny, cotygodniowy import cen ziemniaków, cebuli, marchwi, papryki czerwonej i pomidorów z biuletynu MRiRW/ZSRIR (dane.gov.pl, zbiór 912). Wygenerowane przez \`scripts/ceny-warzyw-zsrir-pobierz.py\` w workflow \`ceny-warzyw-auto.yml\`. Przejrzyj różnicę cen w \`database/data/ceny_skladnikow.csv\` przed scaleniem — ten PR nie scala się sam."
+          fi

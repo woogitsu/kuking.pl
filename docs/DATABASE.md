@@ -1721,27 +1721,37 @@ pobiera z sieci: plik odświeża osoba prowadząca dwoma skryptami, jednym na
 - `scripts/ceny-gus-pobierz.py` — mięso, nabiał, pieczywo, produkty suche:
   API Banku Danych Lokalnych GUS, temat P1466, średnie roczne ceny
   detaliczne dla Polski. Wiersz ma numer zmiennej w `zmienna_bdl`.
-- `scripts/ceny-warzyw-zsrir-pobierz.py` — **warzywa**: GUS/BDL nie podaje
-  dziś ich cen (seria miesięczna z ziemniakami, cebulą i marchwią kończy
-  się w 2019 r.). Zamiennik to Zintegrowany System Rolniczej Informacji
-  Rynkowej (ZSRIR) Ministerstwa Rolnictwa i Rozwoju Wsi — otwarte dane
-  dane.gov.pl (zbiór 912, CC BY 4.0), arkusz „ZAKUP WARZ DETAL — do 2 kg”
-  (cena zakupu warzyw przez detal, opakowania do 2 kg — najbliższy
-  oficjalny odpowiednik detalu, jaki ZSRIR ma), aktualizowany co tydzień.
-  Wiersz ma `zmienna_bdl` puste — źródło rozpoznaje się po tym, że
-  `zrodlo` zaczyna się od `MRiRW`, nie od `GUS`.
+- `scripts/ceny-warzyw-zsrir-pobierz.py` — **warzywa detaliczne**
+  (`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`):
+  GUS/BDL nie podaje dziś ich cen (seria miesięczna z ziemniakami, cebulą
+  i marchwią kończy się w 2019 r.). Zamiennik to Zintegrowany System
+  Rolniczej Informacji Rynkowej (ZSRIR) Ministerstwa Rolnictwa i Rozwoju
+  Wsi — otwarte dane dane.gov.pl (zbiór 912, CC BY 4.0), arkusz „ZAKUP
+  WARZ DETAL — do 2 kg” (cena zakupu warzyw przez detal, opakowania do
+  2 kg — najbliższy oficjalny odpowiednik detalu, jaki ZSRIR ma). Od
+  26.09.2026 (D-286, część 3, decyzja właściciela) ten skrypt uruchamia
+  się **automatycznie, co tydzień**, w GitHub Actions
+  (`.github/workflows/ceny-warzyw-auto.yml`) — produkcja nadal niczego
+  nie pobiera z sieci, automatyzacja dotyczy wyłącznie CI, a wynik idzie
+  do `main` przez zwykły PR, który merguje człowiek.
+- **Warzywa liczone hurtowo × przelicznik** (`kapusta`, `buraki`, `por`,
+  `seler`, `pietruszka`, `salata`, `ogorek`): ZSRIR notuje je TYLKO
+  hurtowo (arkusz „HURT WARZ”, pięć rynków: Bronisze, Kalisz, Łódź,
+  Poznań, Rzeszów). Cena w pliku to średnia z min–max tych pięciu
+  rynków razy `App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL`
+  (`1,6` — decyzja właściciela z 26.09.2026, uzasadnienie stałej w kodzie
+  i w `docs/DECISIONS.md`, D-286 część 3). Liczone RĘCZNIE, nie przez
+  żaden skrypt — arkusz „HURT WARZ” ma inny układ kolumn (pięć rynków,
+  min i max osobno) i nie jest dziś zautomatyzowany. `zrodlo` każdego
+  z tych wierszy zaczyna się od frazy „szacunek z cen hurtowych” —
+  `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na stronie
+  przepisu wprost napisaną klauzulę, że to szacunek z hurtu, nie zwykła
+  cena detaliczna.
 
-Oba skrypty zmieniają WYŁĄCZNIE wiersze swojego źródła; zmiana cen
-przechodzi przegląd w PR-ze jak każda inna.
-
-Pokrycie warzyw jest dziś częściowe: ziemniaki, cebula, marchew, papryka
-czerwona i pomidor (okrągły) mają cenę z ZSRIR. Kapusta, buraki, por,
-seler, pietruszka korzeniowa, sałata i ogórek jej NIE mają — ZSRIR notuje
-je tylko hurtowo (arkusz „HURT WARZ”, pięć różnych rynków), a rozrzut
-między rynkami jest zbyt duży, żeby jeden mnożnik hurt→detal był czymś
-innym niż zgadywaniem (pełne wyliczenie w `docs/DECISIONS.md`, D-286
-część 3). Przepis oparty głównie na tych warzywach uczciwie nie dostaje
-przedziału kosztu.
+Wszystkie trzy źródła (GUS, ZSRIR detal, ZSRIR hurt × przelicznik)
+zmieniają WYŁĄCZNIE wiersze swojego źródła; zmiana cen przechodzi
+przegląd w PR-ze jak każda inna — ręcznie albo (dla warzyw detalicznych)
+przez automatyczny PR z `ceny-warzyw-auto.yml`.
 
 | Kolumna | Typ | Znaczenie |
 |---|---|---|

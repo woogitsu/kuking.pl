@@ -154,6 +154,85 @@ class KosztZCenGusTest extends TestCase
         );
     }
 
+    /**
+     * D-286, część 3 (decyzja właściciela z 26.09.2026): warzywo policzone
+     * z ceny HURTOWEJ × przelicznik musi mieć to WPROST napisane w zdaniu
+     * pod kosztem, nie tylko w `zrodlo` cennika.
+     */
+    #[Test]
+    public function kapusniak_mowi_wprost_ze_kapusta_to_szacunek_z_hurtu(): void
+    {
+        $plik = $this->plikCsv([
+            'kielbasa,kiełbasa,kielbasa|kielbasy,,32.96,1,kg,1000,,,,,2025,GUS - za 1kg,1753078',
+            'kapusta,kapusta biała,kapusta|kapusty,,2.29,1,kg,1000,,,,1200,2026,"MRiRW, ZSRIR: szacunek z cen hurtowych x 1,6, kapusta biala",',
+        ]);
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow', ['--plik' => $plik]), Artisan::output());
+
+        $przepis = $this->przepis([
+            '20 dag kiełbasy',   // 200 g × 32,96 zł/kg = 6,592 zł (GUS, detal)
+            '1 kg kapusty',      // 1000 g × 2,29 zł/kg = 2,29 zł  (MRiRW/ZSRIR, HURT × 1,6)
+        ]);
+
+        // Razem 8,882 zł → ±15% → 7,55…10,21 → „ok. 7–11 zł".
+        $wynik = app(SzacunekKosztuZCen::class)->dla($przepis);
+
+        $this->assertNotNull($wynik);
+        $this->assertTrue($wynik->jestPrzedzial(), (string) $wynik->powod);
+        $this->assertSame(7, $wynik->od);
+        $this->assertSame(11, $wynik->do);
+        $this->assertSame(
+            'Orientacyjny koszt: ok. 7–11 zł za całość (średnie ceny detaliczne GUS i MRiRW/ZSRIR z 2025, 2026 r.; '
+            .'część cen to szacunek z cen hurtowych MRiRW/ZSRIR). W Twoim sklepie może być inaczej.',
+            $wynik->zdanie(),
+        );
+    }
+
+    /**
+     * Ręcznie policzony przelicznik hurt→detal dla siedmiu warzyw, których
+     * ZSRIR notuje wyłącznie hurtowo — D-286, część 3. Wartości hurtowe to
+     * średnia z pięciu rynków (Bronisze, Kalisz, Łódź, Poznań, Rzeszów),
+     * odczytana z arkusza „HURT WARZ” biuletynu MRiRW/ZSRIR z 14-22.09.2026,
+     * ręcznie z min-max każdego rynku. Cena w pliku CSV musi być tą średnią
+     * razy `SzacunekKosztuZCen::MNOZNIK_HURT_DETAL` — inaczej mnożnik
+     * i cennik po cichu się rozjadą.
+     */
+    #[Test]
+    public function ceny_hurtowe_warzyw_w_pliku_sa_srednia_razy_mnoznik(): void
+    {
+        // [klucz w pliku => średnia hurtowa (zł/kg albo zł/szt) ręcznie
+        // policzona z min-max pięciu rynków w arkuszu „HURT WARZ”].
+        $hurtowe = [
+            'kapusta' => 1.43,
+            'buraki' => 1.63,
+            'por' => 2.455,
+            'seler' => 3.22,
+            'pietruszka' => 4.85,
+            'salata' => 3.058,
+            'ogorek' => 4.59,
+        ];
+
+        $wiersze = $this->wczytajRealnyCennik();
+
+        foreach ($hurtowe as $klucz => $hurtSrednia) {
+            $this->assertArrayHasKey($klucz, $wiersze, "Brakuje wiersza „{$klucz}” w pliku cennika.");
+
+            $oczekiwana = round($hurtSrednia * SzacunekKosztuZCen::MNOZNIK_HURT_DETAL, 2);
+
+            $this->assertEqualsWithDelta(
+                $oczekiwana,
+                (float) $wiersze[$klucz]['cena_zl'],
+                0.005,
+                "Cena „{$klucz}” w pliku nie zgadza się z hurtSrednia × MNOZNIK_HURT_DETAL "
+                .'(zmieniono jedno bez drugiego?).',
+            );
+            $this->assertStringContainsString(
+                'szacunek z cen hurtowych',
+                $wiersze[$klucz]['zrodlo'],
+                "Wiersz „{$klucz}” nie mówi wprost, że cena jest szacunkiem z hurtu.",
+            );
+        }
+    }
+
     #[Test]
     public function za_male_pokrycie_masy_daje_wyjasnienie_bez_kwoty(): void
     {
@@ -310,6 +389,34 @@ class KosztZCenGusTest extends TestCase
         ]);
 
         $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow', ['--plik' => $plik]), Artisan::output());
+    }
+
+    /**
+     * Prawdziwy plik `database/data/ceny_skladnikow.csv`, po kluczu — do
+     * testów, które sprawdzają same LICZBY w repozytorium (np. przelicznik
+     * hurt→detal), a nie zachowanie kodu na małym cenniku testowym.
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function wczytajRealnyCennik(): array
+    {
+        $uchwyt = fopen(base_path('database/data/ceny_skladnikow.csv'), 'r');
+        $this->assertNotFalse($uchwyt);
+
+        $naglowek = fgetcsv($uchwyt, escape: '');
+        $wiersze = [];
+
+        while (($wiersz = fgetcsv($uchwyt, escape: '')) !== false) {
+            if ($wiersz === [null] || $wiersz === ['']) {
+                continue;
+            }
+
+            $wiersze[$wiersz[0]] = array_combine($naglowek, $wiersz);
+        }
+
+        fclose($uchwyt);
+
+        return $wiersze;
     }
 
     /**

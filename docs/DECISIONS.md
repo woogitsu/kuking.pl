@@ -17555,14 +17555,76 @@ ale to osobna decyzja właściciela, nie coś do zgadnięcia przy okazji.
 4. Bez migracji: kolumny `ceny_skladnikow` już dopuszczały `zmienna_bdl`
    jako `NULL` (wiersze spoza GUS go po prostu nie mają).
 
-**Nadal bez ceny:** kapusta, buraki ćwikłowe, por, seler, pietruszka
-korzeniowa, sałata, ogórek (gruntowy i szklarniowy) — patrz uzasadnienie
-wyżej. Przepis oparty głównie na tych warzywach uczciwie NIE dostanie
-przedziału albo dostanie zdanie „nie mamy cen części składników”.
+**Stan do 26.09.2026 (druga tura decyzji, niżej):** kapusta, buraki
+ćwikłowe, por, seler, pietruszka korzeniowa, sałata, ogórek nie miały ceny
+z powodów opisanych wyżej. Właściciel, znając ten sam rozrzut 1,0×–2,2×,
+zdecydował inaczej niż proponowane „zostawić bez ceny” — patrz niżej.
+
+### Uzupełnienie z 26.09.2026 — decyzja właściciela: jednak hurt × 1,6,
+### jawnie nazwane, i odświeżanie co tydzień
+
+Właściciel, po przeczytaniu tabeli źródeł i zmierzonego rozrzutu (1,0×–2,2×)
+zdecydował **inaczej niż zaproponowane wyżej „zostawić bez ceny”**:
+
+> „DODAJ je jako cena hurtowa ZSRIR (środek min–max z rynków) × 1,6,
+> z jawnym opisem. W źródle i w zdaniu pod kosztem musi być wprost
+> napisane, że to szacunek z cen hurtowych. Mnożnik ma być jedną stałą
+> z komentarzem i uzasadnieniem. Odświeżanie warzyw co tydzień.”
+
+**1. Siedem warzyw dostaje cenę z arkusza „HURT WARZ”.** `kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek` — cena to
+średnia z min–max pięciu rynków (Bronisze, Kalisz, Łódź, Poznań,
+Rzeszów) w biuletynie z 14-22.09.2026, pomnożona przez
+`App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL = 1,6`
+— **jedna nazwana stała z komentarzem w kodzie**, nie liczba wpisana po
+cichu do CSV. 1,6 to środek zmierzonego zakresu 1,0×–2,2×, jawnie
+przybliżony, nie zmierzony osobno dla każdego warzywa. `por` i `salata`
+mają cenę **za sztukę** (arkusz notuje je w `szt.`, nie `kg`), pozostałe
+pięć — za kilogram.
+
+**2. Jawność w DWÓCH miejscach, nie jednym.** Pole `zrodlo` każdego z tych
+siedmiu wierszy zaczyna się od frazy „szacunek z cen hurtowych” i podaje
+sam mnożnik. `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na
+stronie przepisu zdanie wprost: „(…; część cen to szacunek z cen
+hurtowych MRiRW/ZSRIR)” — czytelnik nie ma się domyślać z samego numeru
+ceny, że to nie jest zwykła cena detaliczna.
+
+**3. Odświeżanie: co tydzień, przez GitHub Actions, nie przez człowieka.**
+Nowy workflow `.github/workflows/ceny-warzyw-auto.yml` (harmonogram
+cotygodniowy + `workflow_dispatch`) uruchamia
+`scripts/ceny-warzyw-zsrir-pobierz.py --zapisz` — TEN SAM skrypt, który
+wcześniej uruchamiała tylko osoba prowadząca ręcznie. **Produkcja nadal
+niczego nie pobiera z sieci** — automatyzacja dotyczy wyłącznie CI. Gdy
+plik się zmieni, workflow pushuje gałąź `claude/ceny-warzyw-auto`
+(NIGDY `main` wprost) i otwiera PR do `main` tokenem `GITHUB_TOKEN` tego
+przebiegu (`permissions: contents: write, pull-requests: write` —
+i nic więcej). Merge PR-a jest ręczny: ktoś z zespołu przegląda różnicę
+cen, dokładnie jak dotąd. Siedem warzyw hurtowych workflow **nie
+dotyka** — ich klucze nie są w `MAPA` skryptu, więc zostają bez zmian aż
+do następnej ręcznej aktualizacji arkusza „HURT WARZ” (automatyzacja tego
+arkusza to osobna praca, o którą nikt jeszcze nie poprosił).
+
+**4. Testy.** `KosztZCenGusTest::kapusniak_mowi_wprost_ze_kapusta_to_szacunek_z_hurtu`
+— ręcznie policzone danie (kiełbasa GUS + kapusta hurt×1,6), sprawdza
+kwotę I dokładny tekst zdania z klauzulą o cenach hurtowych; kontrola
+ujemna zepsuła wykrywanie frazy — test oblał, przywrócono, znów zielony.
+`KosztZCenGusTest::ceny_hurtowe_warzyw_w_pliku_sa_srednia_razy_mnoznik`
+— sprawdza, że KAŻDA z siedmiu cen w prawdziwym pliku CSV to naprawdę
+`hurt_średnia × MNOZNIK_HURT_DETAL` (żeby ktoś, kto zmieni jedno, nie
+zapomniał drugiego); kontrola ujemna zmieniła stałą — test oblał,
+przywrócono. `scripts/ceny_warzyw_zsrir_pobierz_test.py` (`unittest`,
+bez sieci, na małej fikturze .xlsx zbudowanej w pamięci) sprawdza parser
+skryptu — teraz uruchamiany automatycznie co tydzień, więc musi mieć
+własny test, nie tylko ręczne uruchomienie; ten test chodzi też jako
+krok w `ceny-warzyw-auto.yml`, PRZED prawdziwym pobraniem.
 
 ### Wycofanie części 3
-Usunąć pięć wierszy (`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`,
-`pomidor`) z `database/data/ceny_skladnikow.csv` i skrypt
-`scripts/ceny-warzyw-zsrir-pobierz.py`. Bez migracji do cofnięcia — kod
-`SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo jak dziś obsługuje
-brak cen warzyw w ogóle.
+Usunąć pięć wierszy detalicznych (`ziemniaki`, `cebula`, `marchew`,
+`papryka_czerwona`, `pomidor`) i siedem wierszy hurtowych (`kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek`) z
+`database/data/ceny_skladnikow.csv`, skrypt
+`scripts/ceny-warzyw-zsrir-pobierz.py` z testem
+`scripts/ceny_warzyw_zsrir_pobierz_test.py` i workflow
+`.github/workflows/ceny-warzyw-auto.yml`. Bez migracji do cofnięcia —
+kod `SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo jak dziś
+obsługuje brak cen warzyw w ogóle.
