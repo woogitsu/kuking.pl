@@ -193,6 +193,11 @@ TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
 # aplikacji dałby procesowi ze zrzutem bazy APP_KEY i klucze zdjęć/poczty.
 KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
 KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
+# Gołe `->format(` z datą dla człowieka omija `App\Support\Czas` (issue #746).
+# Strażnik czyta widoki linia po linii; mutacja przywraca w ekranie
+# potwierdzenia adresu surową godzinę UTC i strażnik ma ją zobaczyć.
+WIDOK_POTWIERDZENIA = "resources/views/auth/verify-email.blade.php"
+STREFA_STRAZNIK_TEST = "test_zaden_widok_nie_formatuje_daty_z_pominieciem_pomocnika"
 
 # Polityka nie obiecuje „pełnej kopii" danych (R1, wariant A z 20.09.2026).
 # Strażnik czyta dokument prawny; mutacja przywraca dawne sformułowanie
@@ -724,6 +729,8 @@ checks = [
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
     ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
      lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
+    ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
+     lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
      lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
@@ -808,6 +815,7 @@ run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
 run_test(POLITYKA_KOPIA_TEST, True)
+run_test(STREFA_STRAZNIK_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
