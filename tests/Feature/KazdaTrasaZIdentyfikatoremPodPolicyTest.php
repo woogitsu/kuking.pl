@@ -10,6 +10,7 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\MealPlanEntry;
 use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -703,6 +704,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             URL::signedRoute('podsumowanie.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('podsumowanie.wracam', 'powrót do podsumowania (podpisany link)', 'get',
             URL::signedRoute('podsumowanie.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        // Wypisanie z listu z życzeniami urodzinowymi (#1755) — ta sama zasada:
+        // podpis jest jedyną autoryzacją, wiersz „bez podpisu" niżej.
+        $dodaj('urodziny.wypisz', 'wypisanie z listu urodzinowego (podpisany link)', 'get',
+            URL::signedRoute('urodziny.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        $dodaj('urodziny.wracam', 'powrót do listu urodzinowego (podpisany link)', 'post',
+            URL::signedRoute('urodziny.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('settings.email.confirm', 'potwierdzenie zmiany adresu', 'get',
             URL::signedRoute('settings.email.confirm', ['zmiana' => $this->zmianaAdresu->getKey()]), [],
             [$W, $C, $C, $C, $O]);
@@ -841,6 +848,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
+        // ─── PLANER TYGODNIA ─────────────────────────────────────────────
+        // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie
+        // właściciel planu, bez wyjątku dla moderatora.
+        $pozycjaPlanu = new MealPlanEntry(['day' => '2026-11-18', 'label' => 'Obiad u mamy']);
+        $pozycjaPlanu->user_id = $wlasciciel->getKey();
+        $pozycjaPlanu->save();
+        $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
+            route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
         // (`docs/FEATURES.md`); obserwowanie zapisuje się w relacji osoby
@@ -871,6 +887,28 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'opis' => 'wypisanie z podsumowania BEZ podpisu',
             'metoda' => 'get',
             'url' => route('podsumowanie.wypisz', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'urodziny.wracam',
+            'opis' => 'powrót do listu urodzinowego BEZ podpisu',
+            'metoda' => 'post',
+            'url' => route('urodziny.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'urodziny.wypisz',
+            'opis' => 'wypisanie z listu urodzinowego BEZ podpisu',
+            'metoda' => 'get',
+            'url' => route('urodziny.wypisz', $wlasciciel),
             'dane' => [],
             'oczekiwania' => array_combine(
                 ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],

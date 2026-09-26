@@ -76,15 +76,42 @@ async function zmierz(browser, arkusz, [szerokosc, wysokosc, zKlawiatura], skala
             dol: getComputedStyle(document.querySelector('.bottom-nav')).position,
         }));
         await page.locator(cel).focus();
+        // Fokus PRZED zmianą rozmiaru potrafi sam uruchomić natywne przewinięcie
+        // przeglądarki do pola — asynchroniczne, więc jeszcze się nie skończyło.
         await page.setViewportSize({ width: szerokosc, height: zKlawiatura });
         // `setViewportSize` wraca, zanim renderer przeliczy układ na nową
         // wysokość. Przewinięcie wołane za wcześnie liczy się względem STAREGO
         // okna i pole zostaje pod klawiaturą (CI, 26 września). Czekamy więc,
         // aż layout i visual viewport naprawdę mają wysokość z klawiaturą.
         await page.waitForFunction(h => document.documentElement.clientHeight === h && visualViewport.height === h, zKlawiatura);
+        // Zanim SAMI przewiniemy pole, czekamy aż ustanie to natywne przewinięcie
+        // sprzed zmiany rozmiaru (`window.scrollY` przestaje się zmieniać klatka
+        // po klatce) — inaczej nasze przewinięcie i przeglądarki ścigają się,
+        // a które wygra zależy od tego, ile klatek zdążyła dostać przeglądarka
+        // (CI, 26 września: ta sama emulacja, ten sam arkusz, `#zapisz` czasem
+        // ląduje pod klawiaturą, bo natywne przewinięcie dogania NASZE już PO
+        // pomiarze). Stabilizacja to warunek na pozycję, nie licznik klatek.
+        await page.evaluate(async () => {
+            let poprzednia = null, stabilnych = 0;
+            while (stabilnych < 3) {
+                await new Promise(requestAnimationFrame);
+                const teraz = window.scrollY;
+                stabilnych = teraz === poprzednia ? stabilnych + 1 : 0;
+                poprzednia = teraz;
+            }
+        });
         const klaw = await page.evaluate(async cel => {
             document.querySelector(cel).scrollIntoView({ block: 'nearest' });
-            for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame);
+            // To samo co wyżej, tym razem po NASZYM przewinięciu: czekamy, aż
+            // pozycja pola przestanie się zmieniać klatka po klatce, zamiast
+            // liczyć na sztywną liczbę klatek, która czasem nie starcza.
+            let poprzednia = null, stabilnych = 0;
+            while (stabilnych < 3) {
+                await new Promise(requestAnimationFrame);
+                const teraz = document.querySelector(cel).getBoundingClientRect().top;
+                stabilnych = teraz === poprzednia ? stabilnych + 1 : 0;
+                poprzednia = teraz;
+            }
             const ramka = s => { const r = document.querySelector(s).getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
             return {
                 visual: visualViewport.height,
