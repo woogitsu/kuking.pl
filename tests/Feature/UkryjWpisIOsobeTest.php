@@ -18,6 +18,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\Czas;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,24 @@ class UkryjWpisIOsobeTest extends TestCase
         return (new DiscoverFeed)->paginate($widz, 50)->getCollection()->pluck('body')->all();
     }
 
+    private function dataKoncaUkrycia(): string
+    {
+        return Czas::lokalnie(now())->addDays(30)->translatedFormat('j F Y');
+    }
+
+    public function test_termin_ukrycia_liczy_dni_od_polskiej_daty_po_polnocy(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-26 22:30:00', 'UTC'));
+        $widz = $this->user('widz');
+        $wpis = $this->wpis($this->user('autorka'), 'Wpis po północy');
+
+        $this->actingAs($widz)->post(route('posts.hide', $wpis))
+            ->assertSessionHas('status', 'Ukryliśmy ten wpis tylko dla Ciebie do 27 października 2026. Inni widzą go jak dotąd.');
+
+        $ukrycie = Hide::query()->where('post_id', $wpis->id)->firstOrFail();
+        $this->assertSame('2026-10-27', Czas::lokalnie($ukrycie->hidden_until)->toDateString());
+    }
+
     public function test_ukryty_wpis_znika_ze_strumieni_i_zwija_sie_tam_gdzie_widz_przyszedl_sam(): void
     {
         $widz = $this->user('widz');
@@ -72,7 +91,7 @@ class UkryjWpisIOsobeTest extends TestCase
         ]);
 
         $odpowiedz = $this->actingAs($widz)->from(route('home'))->post(route('posts.hide', $ukryty))->assertRedirect(route('home'));
-        $data = Czas::data(now()->addDays(30), 'j F Y');
+        $data = $this->dataKoncaUkrycia();
         $odpowiedz->assertSessionHas('status', "Ukryliśmy ten wpis tylko dla Ciebie do {$data}. Inni widzą go jak dotąd.");
         $powrot = $odpowiedz->getSession()->get('status_powrot');
         $this->assertSame('Cofnij', $powrot['etykieta']);
@@ -120,7 +139,7 @@ class UkryjWpisIOsobeTest extends TestCase
 
         $this->post(route('social.hide', $natretna->profile->username), ['oczekiwany_id' => $natretna->getKey(), 'wroc' => '/odkryj'])
             ->assertRedirect('/odkryj')
-            ->assertSessionHas('status', 'Ukryliśmy tę osobę tylko dla Ciebie do '.Czas::data(now()->addDays(30), 'j F Y').'. Nie powiadamiamy jej o tym.');
+            ->assertSessionHas('status', 'Ukryliśmy tę osobę tylko dla Ciebie do '.$this->dataKoncaUkrycia().'. Nie powiadamiamy jej o tym.');
 
         $this->assertSame(['Wpis innej'], $this->odkrywanie($widz));
         $tablica = app(DailyBoard::class)->forViewer($widz);
@@ -171,7 +190,7 @@ class UkryjWpisIOsobeTest extends TestCase
 
         $lista = $this->get(route('settings.hidden'))->assertOk();
         $lista->assertSee('Ukryte wpisy')->assertSee('Ukryte osoby')
-            ->assertSee('Ukryte do '.Czas::data(now()->addDays(30), 'j F Y'))
+            ->assertSee('Ukryte do '.$this->dataKoncaUkrycia())
             ->assertSee('Zostaw ukryte')->assertSee('Przywróć');
 
         $ukrycieDrugiego = Hide::query()->where('post_id', $drugi->id)->firstOrFail();
