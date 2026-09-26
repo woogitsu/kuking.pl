@@ -57,10 +57,16 @@ final class WidocznoscPowiadomien
      * od moderacji) zostają zawsze: `NOT EXISTS` nie ma wtedy do czego
      * przyrównać `blocked_id` i nie znajduje żadnego wiersza.
      *
+     * `$zTrescia = false` pomija WYŁĄCZNIE ostatni warunek (czy komentarz
+     * i treść nad nim są jeszcze dostępne) — issue #759: `open()` odróżnia
+     * nim „komentarz zniknął między listą a kliknięciem" (uczciwy
+     * komunikat) od wiersza ukrytego blokadą (dalej 404). Lista, licznik
+     * i eksport wołają zawsze pełny filtr.
+     *
      * @param  Builder<Notification>  $query
      * @return Builder<Notification>
      */
-    public function zawez(Builder $query, User $viewer): Builder
+    public function zawez(Builder $query, User $viewer, bool $zTrescia = true): Builder
     {
         // `recipe.saved` NIE idzie przez filtry sprawcy (ten niżej i ten po
         // statusie): to partia wielu osób (D-070), a `actor_id` trzyma tylko
@@ -187,6 +193,10 @@ final class WidocznoscPowiadomien
         // (`$this->model->newQueryWithoutRelationships()`), nie surowy
         // `Illuminate\Database\Query\Builder` — inaczej niż każde inne miejsce
         // w tej klasie. Zły typ tutaj to `TypeError` w runtime, nie błąd SQL.
+        if (! $zTrescia) {
+            return $query;
+        }
+
         $query->where(function (Builder $tylkoIstniejaceTresci) use ($viewer): void {
             $tylkoIstniejaceTresci
                 ->whereNotIn('notifications.type', [Notification::TYPE_COMMENT, Notification::TYPE_REPLY])
