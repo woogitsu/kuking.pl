@@ -17986,7 +17986,7 @@ nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
 
 ---
 
-## D-310 — Pakiety APT w Dockerfile-ach przypięte do migawki snapshot.debian.org, nie do wersji (audyt, issue #1868, 26 września 2026)
+## D-316 — Pakiety APT w Dockerfile-ach przypięte do migawki snapshot.debian.org, nie do wersji (audyt, issue #1868, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja z audytu
 bezpieczeństwa · Rozszerza **#952** (obrazy bazowe przypięte do digestu)
