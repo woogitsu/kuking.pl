@@ -1798,6 +1798,21 @@ Snapshot po istotnych zmianach.
   stanem normalnym;
 - `created_at`.
 
+**Kiedy powstaje wersja (issue #1316).** Przy każdej publikacji
+(„Pierwsza publikacja", „Aktualizacja przepisu") oraz przy ŚWIADOMYM zapisie
+BEZ publikacji na przepisie, który jest opublikowany — „Zapisz zmiany",
+wyjście z kreatora („Nie teraz"), `action=draft` w formularzu bez
+JavaScriptu (`SnapshotRecipeVersion::poprawka()`):
+
+- treść równa ostatniej wersji → nowej wersji nie ma;
+- inaczej → nowa wersja z opisem „Poprawka opublikowanego przepisu".
+
+Autozapis kreatora (pauza w pisaniu, „Dalej", „Wstecz") zapisuje treść, ale
+wersji nie tworzy. **Istniejącej wersji nie zmienia się nigdy** (decyzja
+właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem.
+Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
+schematu — bez migracji.
+
 ### ingredients + units
 Podstawa search i późniejszego planera.
 
