@@ -31,6 +31,7 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Users\Actions\RequestAccountDeletion;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -196,6 +197,16 @@ try {
             return (string) $konto->status;
         })(),
 
+        // Formularz „Usuń konto" (#1346): prawdziwa akcja przyjęcia żądania,
+        // na modelu czytanym przed kolejką po wiersz — jak formularz, który
+        // sprawdził hasło, zanim druga karta zdążyła wysłać swój.
+        'przyjmij-usuniecie' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            app(RequestAccountDeletion::class)->handle($konto, $argumenty['zakres']);
+
+            return (string) $konto->status;
+        })(),
+
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
@@ -273,6 +284,28 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Dwa RÓŻNE konta potwierdzają zmianę na ten sam wolny adres (#1435).
+        // Bariera przyrządu staje zaraz PO aplikacyjnym „czy adres wolny",
+        // więc oba procesy mają go już za sobą, gdy ruszają do zapisu.
+        // Blokada współdzielona: po zwolnieniu bariery oba idą naraz,
+        // a rozstrzyga dopiero `users_email_lower_unique`.
+        'potwierdz-wspolny-adres' => (function () use ($argumenty): string {
+            // Sesje w bazie, jak na produkcji — inaczej `invalidateSessions()`
+            // nie rusza tabeli `sessions` i test nie widziałby jej wycofania.
+            config(['session.driver' => 'database']);
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_contains($query->sql, 'exists(') && str_contains($query->sql, 'lower(email) = ?')) {
+                    DB::select('SELECT pg_advisory_xact_lock_shared(1435, 1)');
+                }
+            });
+
+            return app(ConfirmEmailChange::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
+                biezacaSesja: $argumenty['sesja'],
+            );
+        })(),
 
         // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak
         // jak zrobiłoby to wiązanie trasy w dwóch równoległych żądaniach —

@@ -1377,6 +1377,29 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**Miękkie usunięcie nie jest stanem końcowym (audyt B5 pkt 1, 25.09.2026).**
+`posts`, `recipes` i `comments` mają `deleted_at`. Treść usunięta przez autora
+leży z `deleted_at` najwyżej `kuking.usuniete_tresci.retention_days` (30) dni;
+potem `kuking:sprzataj-usuniete-tresci`
+(`App\Domain\Compliance\PrzedawnioneUsunieteTresci`) robi `forceDelete()`
+— kaskady zabierają `post_media`, `post_tags`, `collection_items`,
+`hero_picks`, komentarze — i kasuje pliki zdjęć przez
+`KasujZdjecie::jesliNieuzywane()`. Dwa wyjątki:
+
+- treść, na którą (albo na której komentarz, zdjęcie, wykonanie) wskazuje
+  jakikolwiek wiersz `reports` lub `moderation_actions`, czeka — moderacja
+  zdejmuje treść tym samym `delete()`, a sprawa potrzebuje celu. Po retencji
+  sprawy (36 mies.) treść wraca do kolejki;
+- przepis z cudzymi `cooked_events` (FK `ON DELETE CASCADE`) nie jest
+  kasowany, tylko opróżniany do **nagrobka**: `title = 'Przepis usunięty'`,
+  `slug = 'usuniety-przepis-' || id bez kresek`, kolumny opisu, źródła
+  i zdjęć `NULL`, a `recipe_ingredients`, `recipe_steps`, `recipe_versions`,
+  `recipe_slug_redirects`, `collection_items` i komentarze przepisu znikają.
+  Gdy ostatnie cudze wykonanie zniknie, nagrobek idzie `forceDelete()`.
+
+Bez zmiany schematu — rollback to wyłączenie zadania w `routes/console.php`
+(skasowanych wierszy żaden rollback nie przywróci; to jest cel zmiany).
+
 
 **Rodzaj wpisu i tytuł pytania (#371).** Migracja
 `2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)
@@ -1958,6 +1981,11 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
 
 **Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
 zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
@@ -3103,6 +3131,25 @@ migracji i bez recenzji schematu.
 `..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
 oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
 
+**Jedna otwarta sprawa na konto (#1346):** UNIKALNY
+`potwierdzenia_zadan_rodo_jedna_w_toku_na_konto (konto_id) WHERE wynik = 'w_toku'
+AND konto_id IS NOT NULL` (migracja `2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto`).
+`RejestrPotwierdzenRodo::domknij()` zamyka jedną sprawę `w_toku` konta — druga
+zostałaby otwarta na zawsze przy żądaniu już wykonanym albo cofniętym.
+Aplikacja nie zakłada drugiej (świeży wiersz konta pod `ZamekKonta`
+w `User::markForDeletion()`, #980; drugie równoległe żądanie dostaje komunikat
+„już oznaczone" i nie nadpisuje zakresu ani daty pierwszego); indeks pilnuje
+tego dla każdej innej drogi zapisu. Oznaczenie konta, sprawa `w_toku`
+i wpis `account.delete_requested` powstają w jednej transakcji
+(`RequestAccountDeletion`, #1347, D-249 klasa 1): awaria dziennika
+cofa całe żądanie, konto zostaje czynne i zalogowane.
+**Migracja odmawia** założenia indeksu, gdy w bazie są już konta z więcej niż
+jedną sprawą `w_toku` — podaje ich LICZBĘ (nie identyfikatory: komunikat
+idzie do logu wdrożenia) i zapytanie SQL, które je wskaże, oraz każe domknąć
+nadmiarowe ręcznie (nie kasować: to dowody). **Rollback:** `DROP INDEX` — nie
+usuwa żadnego wiersza, więc nie odmawia (D-088). Odmowę, kontrolę dodatnią
+i cofnięcie pilnuje `tests/Feature/JednaSprawaRodoWTokuMigracjaTest.php`.
+
 **Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
 D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
 
@@ -3594,7 +3641,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 | Kod | Kiedy |
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
-| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał — również gdy `writeStream()` zwróci `false` bez wyjątku. Paczka nie przechodzi wtedy do `ready` i nie wysyła się informacji o gotowości. |
 | `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
@@ -4276,7 +4323,10 @@ a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkie
 **Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
 zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
 („wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
-i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+oraz automatycznie po 30 dniach (`queue:prune-failed --hours=720`,
+codziennie o 05:20 — decyzja właściciela z 25.09.2026, `docs/DECISIONS.md`,
+sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”) i nie da się w niej
+niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
 wskazuje na nią kolumną `failed_job_uuid`.
 
 | Kolumna | Uwagi |
@@ -4354,6 +4404,84 @@ decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
 bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
+
+### personal_access_tokens
+Tokeny osobistego dostępu Laravel Sanctum — logowanie aplikacji mobilnej
+(D-014 zmienione decyzją właściciela 25.09.2026, D-270, migracja
+`2026_09_25_100000_create_personal_access_tokens_table`).
+
+Ten wiersz **jest poświadczeniem**: kto ma jawną postać tokenu, działa na
+koncie przez API (prefiks `api/v1`). Jawna postać to `<id>|kuking_<sekret>` i istnieje
+wyłącznie w odpowiedzi HTTP, która token wydaje (`User::createToken()`).
+W bazie leży skrót.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, nie `bigint` jak w pakiecie. Stoi w jawnej części tokenu i w adresie odwołania urządzenia — kolejny numer zdradzałby, ile tokenów serwis wydał. |
+| `tokenable_type` | Nazwa narzucona przez Sanctum (relacja polimorficzna). **CHECK: zawsze `App\Models\User`** — tokeny ma tylko konto. `varchar(100)`. |
+| `tokenable_id` | Konto. **Prawdziwy klucz obcy do `users`**, `ON DELETE CASCADE` — relacja polimorficzna bez klucza zostawiałaby wiersz żywy po koncie. Kont się nie kasuje (anonimizuje je `EraseAccountData`, D-022), więc kaskada jest drugą linią obrony; pierwszą jest `User::invalidateSessions()`. |
+| `name` | Nazwa urządzenia podana przy logowaniu („Telefon Ani"), do 100 znaków, **CHECK: nie pusta po obcięciu spacji**. Widzi ją właściciel konta na liście urządzeń. |
+| `token` | **UNIKALNY. SHA-256 sekretu, szesnastkowo** — nigdy sekret. **CHECK `^[0-9a-f]{64}$`**: sekret zaczyna się od `kuking_`, więc zapisany jawnie odbije się od bazy. Poza `$fillable` (AGENTS.md §7) — zapisuje go `forceFill()` w `User::createToken()`. |
+| `abilities` | Uprawnienia jako JSON (`text`), dziś zawsze `["*"]`. Poza `$fillable`. |
+| `last_used_at` | Kiedy token ostatnio otworzył żądanie — aktualizuje Sanctum przy każdym uwierzytelnieniu. Na liście urządzeń odpowiada na pytanie „czy ten telefon jeszcze tego używa". |
+| `expires_at` | Termin ważności, dziś `NULL` (token działa do odwołania, `config/sanctum.php` → `expiration`). Indeks. |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+**Paczka danych (RODO art. 15).** Sekcja `urzadzenia_z_dostepem` w `dane.json`
+niesie `name`, `created_at`, `last_used_at` i `expires_at` — bez `token`
+(poświadczenie) i bez `abilities`. Wpis w `InwentarzDanychKonta`
+(`personal_access_tokens.tokenable_id`), pilnują
+`EksportObejmujeKazdaTabeleKontaTest` i `tests/Feature/Api/PaczkaDanychNiesieUrzadzeniaTest.php`.
+
+```sql
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_tokenable_type_check
+CHECK (tokenable_type = 'App\Models\User');
+
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_token_format_check
+CHECK (token ~ '^[0-9a-f]{64}$');
+
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_name_not_blank_check
+CHECK (length(btrim(name)) > 0);
+```
+
+Indeksy: `UNIQUE (token)`, `(tokenable_type, tokenable_id)`, `(expires_at)`.
+
+#### Dlaczego skrót szybki (SHA-256), a nie bcrypt
+
+Ten sam wywód co przy `login_link_tokens`: sekret to 40 losowych znaków
+z `Str::random()` — nie ma czego zgadywać, więc nie ma czego spowalniać,
+a bcrypt uniemożliwiłby wyszukanie wiersza. Wiersz szukany jest po `id`
+z jawnej części tokenu, skrót porównywany `hash_equals()`
+(`App\Models\PersonalAccessToken::findToken()`). Identyfikator, który nie jest
+UUID-em, odpada przed zapytaniem — inaczej PostgreSQL odpowiadał błędem
+składni, a klient dostawał 500 zamiast 401.
+
+#### Co kasuje wiersz
+
+`User::invalidateSessions()` → `invalidateApiTokens()`: zmiana i reset hasła,
+„wyloguj mnie z innych urządzeń", włączenie 2FA, blokada, zawieszenie
+i zgłoszenie usunięcia konta — ta sama lista co przy sesjach i linkach
+logowania, z tego samego powodu: token jest wejściem na konto. Do tego
+kaskada przy skasowaniu wiersza `users`.
+
+#### Czego w tej tabeli świadomie nie ma
+
+**Adresu IP i `user_agent`.** Nazwę urządzenia podaje człowiek i to wystarcza
+do rozpoznania go na liście; adres IP byłby kolejnym zbiorem adresów w bazie
+(AGENTS.md §7), bez pytania, na które musiałby odpowiedzieć.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()` kasuje tabelę
+**bez odmowy**, świadomie. D-088 zabrania cichego odwracania **decyzji
+człowieka**; token nie jest decyzją, tylko poświadczeniem. Po `down()` +
+`migrate` tabela wraca **pusta**, czyli każde urządzenie loguje się jeszcze
+raz — kierunek bezpieczny (odebranie dostępu), nie groźny. Konta, hasła
+i logowanie na WWW zostają nietknięte. Kolejność: **najpierw kod, potem
+migracja** — `auth:sanctum` bez tabeli odda 500. Samo zamknięcie API migracji
+nie wymaga: `KUKING_API_ENABLED=false`. Pilnuje tego
+`tests/Feature/Api/TabelaTokenowDostepuTest.php`.
 
 ### sessions
 
