@@ -69,6 +69,7 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
+use App\Http\Controllers\ZgodaOdczytuAiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -691,6 +692,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
      *                                 adresów, które ludzie mają zapisane;
      *                                 nic już do niego nie linkuje.
      */
+    // Zgoda „odczyt AI” (D-296): udzielenie i wycofanie.
+    Route::post('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'udziel'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.udziel');
+    Route::delete('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'wycofaj'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.wycofaj');
+
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');

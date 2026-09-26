@@ -89,6 +89,38 @@
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
+    {{--
+        ZGODA „ODCZYT AI” (D-296) — udzielenie i wycofanie w jednym miejscu.
+
+        Sekcja jest wtedy, gdy odczyt działa ALBO gdy ktoś ma zgodę: wycofanie
+        musi być możliwe zawsze, także po wyłączeniu funkcji (RODO art. 7
+        ust. 3). Osobny formularz, nie haczyk w formularzu wyżej — zgoda ma
+        własny dziennik i nie może się przestawić przy okazji zapisu digestu.
+    --}}
+    @php
+        $zgodaNaOdczyt = app(\App\Domain\Zgody\PrzestawZgodeNaOdczytAi::class)->udzielona(auth()->user());
+        $odczytDziala = (bool) config('kuking.import.zrodla.zdjecie') && \App\Domain\Import\KlientLuna::skonfigurowany('ocr');
+    @endphp
+    @if($zgodaNaOdczyt || $odczytDziala)
+        <section class="mt-8">
+            <h2>Odczyt zdjęć kartek przez komputer</h2>
+            @if($zgodaNaOdczyt)
+                <p>Zgoda jest udzielona: zdjęcia kartek, które dodasz do odczytu, czyta komputer firmy OpenAI (USA). Wysyłamy samo zdjęcie — bez imienia, adresu e-mail i danych z aparatu.</p>
+                <form method="POST" action="{{ route('zgoda.odczyt-ai.wycofaj') }}">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-secondary" type="submit">Wycofaj zgodę na odczyt</button>
+                </form>
+                <p class="field-help">Po wycofaniu zdjęcia kartek dalej dodasz do przepisów — tekst wpiszesz wtedy ręcznie.</p>
+            @else
+                <p>Zgody nie ma: nie wysyłamy żadnych Twoich zdjęć do odczytu. Możesz ją dać tutaj albo na ekranie „Przepisz z kartki”.</p>
+                <form method="POST" action="{{ route('zgoda.odczyt-ai.udziel') }}">
+                    @csrf
+                    <button class="btn btn-secondary" type="submit">Zgadzam się na odczyt moich kartek</button>
+                </form>
+            @endif
+        </section>
+    @endif
+
     <section class="mt-8">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
