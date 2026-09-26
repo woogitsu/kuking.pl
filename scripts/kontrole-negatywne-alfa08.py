@@ -273,6 +273,17 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# Token wydania Livewire (#977). Mutacja wraca do stałego 'a' sprzed poprawki:
+# karta sprzed wdrożenia znów wysyłałaby migawkę starego kodu bez odmowy.
+LIVEWIRE_KONFIG = "config/livewire.php"
+LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
+
+# Stan zapisu kreatora dla komunikatu „Ta strona jest nieaktualna” (#977).
+# Mutacja każe kreatorowi mówić „szkic” przed pierwszym zapisem: komunikat po
+# 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
+KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
+KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -785,6 +796,10 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
+     lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
+    ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
+     lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -872,6 +887,8 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LIVEWIRE_TOKEN_TEST, True)
+run_test(KREATOR_ZAPIS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
