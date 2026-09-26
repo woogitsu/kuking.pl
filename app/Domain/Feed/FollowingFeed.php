@@ -176,6 +176,10 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
+            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza. Ukrycie
+            // OSOBY tu nie działa: w Obserwowanych nic nie znika poza bramkami,
+            // blokadami i tym, co widz sam wskazał palcem (AGENTS.md §8).
+            ->bezUkrytychWpisow($viewer)
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Dla gałęzi

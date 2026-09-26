@@ -7,10 +7,12 @@ namespace App\Domain\Users\Exports;
 use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
@@ -20,6 +22,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -172,6 +175,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'ukryte' => $this->hides($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -257,6 +261,9 @@ final class CollectUserExportData
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
             'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+            // Znacznik „pierwsze kroki zakończone albo pominięte” (#985).
+            // Dla kont sprzed #985 migracja wpisała tu datę założenia konta.
+            'pierwsze_kroki_zakonczone' => $this->date($user->onboarding_zakonczony_at),
             'konto_zmienione' => $this->date($user->updated_at),
         ];
     }
@@ -292,7 +299,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->foreignCommentRelations($user)])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -367,7 +374,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'tags', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe', 'tags', ...$this->foreignCommentRelations($user)])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -403,7 +410,7 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe.author.profile', ...$this->foreignCommentRelations($user)])
             ->reorder('cooked_at')
             ->get();
 
@@ -618,6 +625,27 @@ final class CollectUserExportData
     }
 
     /**
+     * Cudze komentarze pod treścią użytkownika — przez tę samą granicę co
+     * ekran (issue #1245): `widoczneDla()` na korzeniach I odpowiedziach,
+     * jak w `RecipeController::show()`, `PostController` i
+     * `CookedEventController::show()`. Same relacje `comments()`/`replies()`
+     * filtrują tylko status, więc paczka niosła tekst osób wzajemnie
+     * zablokowanych oraz kont `banned`/`pending_delete`. Własne komentarze
+     * użytkownika i tak stoją w `moje_komentarze` (`ownComments()`).
+     *
+     * @return array<string, mixed>
+     */
+    private function foreignCommentRelations(User $user): array
+    {
+        return [
+            'comments' => fn ($query) => $query->widoczneDla($user),
+            'comments.author.profile',
+            'comments.replies' => fn ($query) => $query->widoczneDla($user),
+            'comments.replies.author.profile',
+        ];
+    }
+
+    /**
      * Komentarze INNYCH osób pod treścią użytkownika.
      *
      * To jedyne miejsce, w którym do paczki trafiają cudze wypowiedzi.
@@ -793,6 +821,46 @@ final class CollectUserExportData
                 'nazwa' => $tag->name,
                 'slug' => $tag->slug,
                 'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatne ukrycia (#1810, D-278) — co, czyje i do kiedy. Także wygasłe:
+     * to wciąż dane o decyzjach tej osoby. Wpis opisany początkiem treści
+     * i adresem, osoba — nazwą; bez treści cudzych wpisów w całości.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hides(User $user): array
+    {
+        $ukrycia = Hide::query()
+            ->where('user_id', $user->getKey())
+            ->with(['post:id,body', 'hiddenUser.profile'])
+            ->orderBy('created_at')
+            ->get();
+
+        // Początek treści TYLKO wpisu, który ta osoba dziś zobaczy (przegląd
+        // #1781) — ta sama bramka co lista „Ukryte". Wpis usunięty, schowany
+        // przez moderację, prywatny albo od kogoś, kto ją zablokował, zostaje
+        // w paczce jako decyzja (adres, daty), bez cudzej treści.
+        $widoczne = app(Ukrycia::class)->widoczneWpisy(
+            $user,
+            $ukrycia->whereNotNull('post_id')->pluck('post_id')->map(fn ($id) => (string) $id)->values()->all(),
+        );
+
+        return $ukrycia
+            ->map(fn (Hide $ukrycie): array => [
+                'co' => $ukrycie->post_id !== null ? 'wpis' : 'osoba',
+                'wpis' => $ukrycie->post_id === null ? null : [
+                    'adres' => route('posts.show', $ukrycie->post_id),
+                    'dostepny' => isset($widoczne[(string) $ukrycie->post_id]),
+                    'poczatek' => isset($widoczne[(string) $ukrycie->post_id]) && $ukrycie->post !== null
+                        ? Str::limit(trim((string) $ukrycie->post->body), 80)
+                        : null,
+                ],
+                'osoba' => $ukrycie->hiddenUser?->profile?->username,
+                'ukryte_od' => $this->date($ukrycie->created_at),
+                'ukryte_do' => $ukrycie->hidden_until === null ? 'na stałe' : $this->date($ukrycie->hidden_until),
             ])->all();
     }
 

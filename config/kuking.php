@@ -352,6 +352,21 @@ return [
         'max_per_post' => 6,
     ],
 
+    /*
+     * Prywatne ukrycia (issue #1810, D-278).
+     *
+     * `dni` — na ile ukrywamy domyślnie; po terminie wpis albo osoba wracają
+     * same, a lista w Ustawieniach pokazuje datę końca.
+     * `prog_ostrzezenia` — ułamek autorów aktywnych w ostatnich
+     * `okno_aktywnosci_dni` dniach, od którego lista ukrytych osób mówi, że
+     * ukrywasz już sporą część serwisu. Samo zdanie, nic nie blokuje.
+     */
+    'ukrycia' => [
+        'dni' => (int) env('KUKING_UKRYCIA_DNI', 30),
+        'prog_ostrzezenia' => (float) env('KUKING_UKRYCIA_PROG_OSTRZEZENIA', 1 / 3),
+        'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
+    ],
+
     'feed' => [
         // Ile wpisów na "stronę". Bez infinite scroll — jest przycisk
         // "Pokaż więcej" (docs/UX_50_PLUS.md).
@@ -1729,6 +1744,14 @@ return [
         'blokada' => '60,10',
 
         /*
+         * UKRYCIA — „Ukryj ten wpis", „Ukryj tę osobę", przywracanie i „Zostaw
+         * ukryte" (issue #1810). Własny koszyk: to jest porządkowanie WŁASNEGO
+         * ekranu i nikogo nie powiadamia, więc nie może zjadać budżetu
+         * obserwowania ani blokady (ta druga to narzędzie bezpieczeństwa).
+         */
+        'ukrycia' => '60,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -2505,7 +2528,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-25',
     ],
 
     'analytics' => [

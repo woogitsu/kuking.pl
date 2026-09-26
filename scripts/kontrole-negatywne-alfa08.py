@@ -254,6 +254,12 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
 # a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
+# Retencja dziennika serwera (#994). Mutacja przywraca dawne zdanie, które
+# wiązało dziennik z życiem instancji — strażnik ma zapalić.
+POLITYKA_DZIENNIK_TEST = "PolitykaOpisujeRetencjeDziennikaSerweraTest"
+POLITYKA_DZIENNIK_ZDANIE = "Jak długo go tam trzyma, zależy od planu, który mamy wykupiony u Railway."
+# Liczba dni z planu Railway (decyzja właściciela 24.09.2026: Hobby, 7 dni).
+POLITYKA_DZIENNIK_DNI = " Obecnie jest to **do 7 dni**."
 TWARDE_USUNIECIE_TEST = "TwardeUsuniecieTresciTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -297,6 +303,10 @@ STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 OSTRZEZENIE_888 = "app/Domain/Users/Actions/RequestEmailChange.php"
 OSTRZEZENIE_888_TEST = "OstrzezenieZmianyAdresuWKolejceTest"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+# Polityka obiecuje zdjęcia w UE, bo strażnik wymusza jurysdykcję `eu` (D-255).
+# Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
+# że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
+POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
@@ -406,6 +416,12 @@ DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
 DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
+# czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
+# ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
+UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
+UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
+
 # `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
 # Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
 # brak `@X.Y.Z` po `@railway/cli`.
@@ -485,6 +501,12 @@ GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
 GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
 GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
 GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
+# Przerwany onboarding (#985): backfill istniejących kont w migracji i zapis
+# końca pierwszych kroków wyłącznie w POST, nigdy w GET `/witaj/gotowe`.
+MIGRACJA_ONBOARDINGU = "database/migrations/2026_09_24_130000_add_onboarding_zakonczony_at_to_users.php"
+MIGRACJA_ONBOARDINGU_TEST = "OnboardingMigracjaZnacznikaTest"
+ONBOARDING_KONTROLER = "app/Http/Controllers/OnboardingController.php"
+ONBOARDING_WZNOWIENIE_TEST = "OnboardingWznowienieTest"
 # IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
 # (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
 # `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
@@ -981,6 +1003,10 @@ checks = [
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
+    ("Polityka wiąże dziennik z instancją", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_ZDANIE, "Dzienniki serwera żyją tyle, ile działająca instancja serwisu.")),
+    ("Polityka bez liczby dni dziennika", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_DNI, "")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
     ("Trasa ze zdjęciem pod progiem 2 MB w Caddy", CADDYFILE, CADDY_LIMIT_TEST,
@@ -1009,6 +1035,8 @@ checks = [
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1050,6 +1078,10 @@ checks = [
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
      lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
+    ("Migracja pierwszych kroków bez backfillu", MIGRACJA_ONBOARDINGU, MIGRACJA_ONBOARDINGU_TEST,
+     lambda s: replace_once(s, "        DB::table('users')->update(['onboarding_zakonczony_at' => DB::raw('created_at')]);\n", "")),
+    ("Koniec pierwszych kroków zapisywany w GET", ONBOARDING_KONTROLER, ONBOARDING_WZNOWIENIE_TEST,
+     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        return view(", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        return view(")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
@@ -1074,6 +1106,8 @@ checks = [
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1159,6 +1193,7 @@ run_test(STREFA_STRAZNIK_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
+run_test(POLITYKA_DZIENNIK_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
@@ -1171,6 +1206,7 @@ run_test(HERO_PICKS_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
+run_test(POLITYKA_R2_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
@@ -1185,6 +1221,8 @@ run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
+run_test(MIGRACJA_ONBOARDINGU_TEST, True)
+run_test(ONBOARDING_WZNOWIENIE_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
@@ -1192,6 +1230,7 @@ run_test(DEMO_SEEDER_HASLO_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
+run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(OBRAZ_PDF_TEST, True)
 run_test(MIGRACJA_IMPORTU_TEST, True)

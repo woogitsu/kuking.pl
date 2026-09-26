@@ -38,7 +38,7 @@ class OdkrywaniePustyStanZWyjsciemTest extends TestCase
             ->assertSee(route('register'), false)
             ->assertSee('href="#kuking-na-dzis"', false)
             ->assertSee('id="kuking-na-dzis"', false)
-            ->assertDontSee('Zobacz, kogo ukrywasz');
+            ->assertDontSee('Zobacz, co ukrywasz');
     }
 
     public function test_zalogowany_bez_ukryc_dostaje_nic_nowego_i_dodaj_wpis(): void
@@ -50,7 +50,7 @@ class OdkrywaniePustyStanZWyjsciemTest extends TestCase
             ->assertSee('data-pusty-stan-odkrywania="nic-nowego"', false)
             ->assertSee('Dodaj wpis')
             ->assertSee(route('posts.create'), false)
-            ->assertDontSee('Zobacz, kogo ukrywasz');
+            ->assertDontSee('Zobacz, co ukrywasz');
     }
 
     public function test_czesc_ukrywasz_prowadzi_do_listy_ukrytych(): void
@@ -63,8 +63,8 @@ class OdkrywaniePustyStanZWyjsciemTest extends TestCase
         $this->actingAs($widz)->get(route('discover'))
             ->assertOk()
             ->assertSee('data-pusty-stan-odkrywania="ukrywasz"', false)
-            ->assertSee('Część osób ukrywasz')
-            ->assertSee(route('settings.privacy').'#zablokowane', false)
+            ->assertSee('Część wpisów albo osób ukrywasz')
+            ->assertSee(route('settings.hidden'), false)
             ->assertSee('Dodaj wpis');
 
         // Start bez obserwowanych przechodzi do Odkrywania — ten sam pusty stan.
