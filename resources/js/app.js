@@ -24,6 +24,7 @@ import './tagi-w-opisie.js';
 import './licznik-znakow.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
+import './co-mam-w-domu.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';

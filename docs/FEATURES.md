@@ -108,8 +108,8 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 
 - OCR starych zeszytów;
 - import URL/PDF/zdjęcie;
-- pantry;
-- „co ugotuję z tego, co mam”;
+- pantry — **zbudowane** (D-285): prywatna lista „Co mam w domu”;
+- „co ugotuję z tego, co mam” — **zbudowane** (D-285): dopasowanie bez AI, jawna reguła doboru;
 - zamienniki;
 - skalowanie porcji;
 - nutrition;

@@ -41,6 +41,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
@@ -734,6 +735,27 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
+
+    // „Co mam w domu” i „Co ugotuję z tego, co mam” (V2, D-285).
+    //
+    // Lista jest prywatna i należy do zalogowanej osoby — żadna trasa nie
+    // bierze identyfikatora konta z adresu. Usunięcie produktu bierze jego
+    // UUID, ale decyduje `PantryItemPolicy::delete`, nie adres. Adresy poza
+    // `/zeszyt/…`, bo `/zeszyt/{collection}` łapałby `/zeszyt/co-mam-w-domu`.
+    Route::get('/co-mam-w-domu', [PantryController::class, 'index'])->name('pantry.index');
+    Route::post('/co-mam-w-domu', [PantryController::class, 'store'])
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.store');
+    Route::get('/co-mam-w-domu/podpowiedzi', [PantryController::class, 'podpowiedzi'])
+        ->middleware("throttle:{$limits['podpowiedzi_skladnikow']},podpowiedzi_skladnikow")
+        ->name('pantry.suggestions');
+    Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.destroy');
+    Route::get('/co-ugotuje', [PantryController::class, 'coUgotuje'])
+        ->middleware("throttle:{$limits['co_ugotuje']},co_ugotuje")
+        ->name('pantry.cook');
 
     // Zeszyt (kolekcje)
     //

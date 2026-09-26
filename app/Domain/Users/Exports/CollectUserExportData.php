@@ -166,6 +166,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'co_mam_w_domu' => $this->pantry($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -703,6 +704,26 @@ final class CollectUserExportData
                 'nazwa' => $tag->name,
                 'slug' => $tag->slug,
                 'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatna lista „Co mam w domu” (D-285) — nazwy tak, jak je wpisano,
+     * z datą dodania. Bez kolumn generowanych (`rdzenie`, `klucz`): to są
+     * techniczne klucze porównania wyliczone z nazwy, nie informacja od osoby.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pantry(User $user): array
+    {
+        return DB::table('pantry_items')
+            ->where('user_id', $user->getKey())
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['name', 'created_at'])
+            ->map(fn (object $produkt): array => [
+                'produkt' => $produkt->name,
+                'dodano' => $this->date($produkt->created_at),
             ])->all();
     }
 

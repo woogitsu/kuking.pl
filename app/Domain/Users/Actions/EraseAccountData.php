@@ -210,6 +210,19 @@ final class EraseAccountData
             $fresh->followedTags()->detach();
 
             /*
+             * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
+             *
+             * Lista produktów z kuchni to dana prywatna, której nikt poza
+             * właścicielem nie widział i która po wymazaniu nie ma żadnego
+             * celu. Jawnie, a nie kaskadą: kont się nie kasuje, tylko
+             * anonimizuje (D-022), więc `ON DELETE CASCADE` na
+             * `pantry_items.user_id` nigdy by tu nie zadziałało. Klucz to
+             * `user_id` tego jednego konta — dwie równoległe egzekucje nie
+             * mają wspólnego wiersza (ten sam argument co `tag_follows`, D-093).
+             */
+            $fresh->pantryItems()->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to

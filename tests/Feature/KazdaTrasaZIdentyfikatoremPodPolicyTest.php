@@ -796,6 +796,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+
+        // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
+        // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator
+        // też nie (`PantryItemPolicy::delete`, bez wyjątku z urzędu).
+        $produktZListy = $wlasciciel->pantryItems()->create(['name' => 'mąka']);
+        $dodaj('pantry.destroy', 'usunięcie produktu z listy „Co mam w domu”', 'delete',
+            route('pantry.destroy', $produktZListy), [], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą

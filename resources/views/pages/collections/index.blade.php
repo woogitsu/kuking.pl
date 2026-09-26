@@ -63,6 +63,18 @@
          formularzem. Kolejność i dostępność nadal ustala kontroler. --}}
     <x-szyna-ostatnio-zapisane :pozycje="$ostatnioZapisane" />
 
+    {{-- „Co mam w domu” (V2, D-285) — prywatna lista produktów i przepisy,
+         do których brakuje najmniej. Wejście stoi w zeszycie, bo to ta sama
+         kategoria rzeczy: prywatne, „na potem”, tylko dla właściciela. --}}
+    <section class="sekcja-strony mt-8" data-wejscie-co-mam-w-domu>
+        <h2 class="mt-0">Co mam w domu</h2>
+        <p>Wpisz, co masz w kuchni, a pokażemy przepisy, do których brakuje Ci najmniej. Listę widzisz tylko Ty.</p>
+        <p class="flex flex-wrap gap-3 mb-0">
+            <a class="btn btn-secondary" href="{{ route('pantry.index') }}">Co mam w domu</a>
+            <a class="btn btn-secondary" href="{{ route('pantry.cook') }}">Co ugotuję z tego, co mam?</a>
+        </p>
+    </section>
+
     {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
          wraca na stronę, na której nic się nie stało, a jego tekst jest
          schowany pod zwiniętym „Załóż nowy zeszyt”.

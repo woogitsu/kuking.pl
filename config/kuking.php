@@ -1693,6 +1693,28 @@ return [
         'zeszyt' => '60,10',
 
         /*
+         * „CO MAM W DOMU” (D-285) — dopisanie i usunięcie produktu z własnej,
+         * prywatnej listy. Szkoda z nadużycia żadna widoczna dla innych, ale
+         * pierwsze wypełnianie listy to kilkanaście–kilkadziesiąt produktów
+         * pod rząd, więc próg jest wyższy niż `zeszyt`.
+         */
+        'spizarnia' => '120,10',
+
+        /*
+         * Podpowiedzi pod polem „Co masz w domu?” — autouzupełnianie
+         * z opóźnieniem, ten sam rodzaj zapytania i ten sam próg co
+         * `tag_suggestions`, ale osobny koszyk.
+         */
+        'podpowiedzi_skladnikow' => '120,1',
+
+        /*
+         * „Co ugotuję z tego, co mam” (D-285). Jedno wejście liczy dopasowanie
+         * całej listy do przepisów — kosztem bliżej wyszukiwarki niż zwykłej
+         * strony, dlatego ten sam próg co `search`.
+         */
+        'co_ugotuje' => '60,1',
+
+        /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
          * prywatność, „Twoje tagi", wygląd jasny/ciemny, oznaczenie
          * powiadomień jako przeczytane, ukrycie wspomnienia, krok
