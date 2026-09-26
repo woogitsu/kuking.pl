@@ -170,6 +170,7 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
 # i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
@@ -1078,6 +1079,11 @@ checks = [
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
+    # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
+    # się poleceniem na runnerze.
+    ("Deploy: dane zdarzenia wklejone do Basha", WDROZENIE_WORKFLOW, DEPLOY_WSTRZYKNIECIE_TEST,
+     lambda s: replace_once(s, 'env_name="${ZDARZENIE_SRODOWISKO:-}"', "env_name='${{ github.event.deployment.environment }}'")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1157,6 +1163,7 @@ run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
