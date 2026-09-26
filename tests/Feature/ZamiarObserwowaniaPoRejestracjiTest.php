@@ -111,12 +111,15 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $this->assertLink($strona, 'Załóż konto, żeby obserwować autora', route('register', ['follow_user' => $osoba->getKey(), 'follow_recipe' => $przepis->slug]));
         $this->assertLink($strona, 'Zaloguj się do swojego konta', route('login', ['follow_user' => $osoba->getKey(), 'follow_recipe' => $przepis->slug]));
 
-        // Ta cząstka jest osadzana przez tablicę dnia; kontrakt linków
-        // sprawdzamy w źródle, bo na stronie powitalnej karty gościa celowo
-        // nie pokazują indywidualnych akcji.
-        $source = (string) file_get_contents(resource_path('views/components/kuking-board/people.blade.php'));
-        $this->assertStringContainsString("route('register', ['follow_user' => \$person->getKey()])", $source);
-        $this->assertStringContainsString("route('login', ['follow_user' => \$person->getKey()])", $source);
+        // Renderujemy cały komponent tablicy: to on ustala tryb karty i
+        // przekazuje go do części z osobami. Na landing page indywidualne
+        // akcje gościa są celowo schowane, w zwykłej karcie są widoczne.
+        $tablica = $this->xpath((string) view('components.kuking-board', [
+            'people' => collect([$osoba]), 'posts' => collect(),
+            'notes' => [], 'wKarcie' => true,
+        ])->render());
+        $this->assertLink($tablica, 'Załóż konto, żeby obserwować', route('register', ['follow_user' => $osoba->getKey()]));
+        $this->assertLink($tablica, 'Zaloguj się do swojego konta', route('login', ['follow_user' => $osoba->getKey()]));
     }
 
     /** @return array<string, string> */
