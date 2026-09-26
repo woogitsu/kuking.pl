@@ -37,7 +37,12 @@
 
                     @if($zgloszenie->jestRozstrzygniete() && $decyzja !== null)
                         @php
-                            $skutek = \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($decyzja);
+                            // Aktualny skutek (#1024): po cofnięciu zdjęcia
+                            // treści w odwołaniu pierwsza odpowiedź przestała
+                            // być prawdą. Historia obu decyzji jest na karcie.
+                            $skutek = isset($zmiany[(string) $decyzja->getKey()])
+                                ? \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutekPoZmianie()
+                                : \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($decyzja);
                         @endphp
                         <p><strong>{{ $skutek['naglowek'] }}</strong> {{ $skutek['reszta'] }}</p>
                     @elseif($zgloszenie->jestRozstrzygniete())

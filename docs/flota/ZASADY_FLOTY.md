@@ -94,8 +94,9 @@ Repozytorium kanoniczne: `C:\Users\matma\Documents\Codex\kuking.pl`
 ## Zasady projektu
 
 `AGENTS.md` w korzeniu repozytorium jest **jedynym źródłem prawdy**. Przeczytaj go
-przed pierwszą zmianą. `CLAUDE.md` to tylko wskaźnik. Sprawdź `docs/ROADMAP.md`,
-żeby nie budować funkcji z V2 podczas prac nad MVP.
+przed pierwszą zmianą. `CLAUDE.md` to tylko wskaźnik. Sprawdź `docs/ROADMAP.md`
+i `docs/FEATURES.md` — od D-282 (26 września 2026) V2 wolno budować; lista
+„Nie wcześnie” w `docs/FEATURES.md` pozostaje zakazana bez zmian.
 
 Skrót, który i tak trzeba znać:
 - Kuking = społeczność ludzi, którzy gotują. Grupa 50+, ale produkt NIE jest
