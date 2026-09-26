@@ -185,6 +185,21 @@ class UkryciaOdporneNaZnikanieIWyscigTest extends TestCase
         $this->assertSame('2026-10-27 23:59:59', Czas::lokalnie($termin)->format('Y-m-d H:i:s'));
     }
 
+    public function test_pokaz_na_zwinietej_karcie_jest_przyciskiem_48_px(): void
+    {
+        $widz = $this->user('widz');
+        $wpis = $this->wpis($this->user('autorka'), 'Zwinięta karta');
+        $this->actingAs($widz)->post(route('posts.hide', $wpis));
+
+        $html = (string) $this->get(route('posts.show', $wpis))->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $linki = (new \DOMXPath($dom))->query('//article[@data-wpis-ukryty]//a[contains(@href, "pokaz=1")]');
+
+        $this->assertSame(1, $linki->length, 'Kontrola: zwinięta karta ma „Pokaż”.');
+        $this->assertContains('btn', preg_split('/\s+/', (string) $linki->item(0)->getAttribute('class')), '„Pokaż” bez klasy przycisku — cel mniejszy niż 48 px.');
+    }
+
     public function test_odmowa_ukrycia_widac_na_strumieniu(): void
     {
         $widz = $this->user('widz');
