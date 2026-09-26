@@ -130,6 +130,17 @@ final class GranicaWysylki
             $kopia = clone $rodzic;
             $kopia->setRelation('recipe', $przepis);
 
+            // Od D-261 Policy wykonania odmawia też przy ZBANOWANYM kucharzu.
+            // D-241 obowiązuje i tu: ban nie zdejmuje lokalnej analizy, więc
+            // w kopii kucharz zbanowany udaje aktywnego. Karencja usunięcia
+            // zostaje wycięta, jak przy autorze wpisu i przepisu.
+            $kucharz = $rodzic->user;
+            if ($kucharz instanceof User && $kucharz->status === User::STATUS_BANNED) {
+                $aktywny = clone $kucharz;
+                $aktywny->status = User::STATUS_ACTIVE;
+                $kopia->setRelation('user', $aktywny);
+            }
+
             return app(CookedEventPolicy::class)->view(null, $kopia);
         }
 

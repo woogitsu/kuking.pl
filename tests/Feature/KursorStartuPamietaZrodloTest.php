@@ -156,6 +156,9 @@ class KursorStartuPamietaZrodloTest extends TestCase
     {
         $widz = $this->konto('widz-odkrywanie-do-tagow');
         $tag = $this->feedTagu(null, 'tag-po-odkrywaniu');
+        // Odkrywanie pokazuje jeden wpis na autora (#940), więc druga strona
+        // potrzebuje kilku autorów, a nie trzech wpisów jednej osoby.
+        $this->feedOdkrywania('tlo-odkrywania-do-tagow');
         $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'odkrywanie');
 
         $widz->followedTags()->attach($tag['tag']->getKey(), ['created_at' => now()]);
