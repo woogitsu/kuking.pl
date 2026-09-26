@@ -7,8 +7,6 @@ namespace App\Console\Commands;
 use App\Domain\Kolejka\PolecenieZadania;
 use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Console\Command;
-use Illuminate\Contracts\Database\ModelIdentifier;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Carbon;
@@ -77,7 +75,7 @@ use Throwable;
  *     jest odruchem, który dokładnie ten sekret by wyniósł;
  *  2. kolumna `exception` też nie trafia na ekran — niesie ślad stosu,
  *     a ten w Laravelu potrafi nieść argumenty wywołań;
- *  3. `unserialize()` dostaje **listę dozwolonych klas** (`WOLNO_ODTWORZYC`),
+ *  3. `unserialize()` dostaje **listę dozwolonych klas** (`PolecenieZadania::WOLNO_ODTWORZYC`),
  *     na której klas powiadomień NIE MA. Obiekt `UstawienieNowegoHasla`
  *     więc w ogóle nie powstaje — wraca jako `__PHP_Incomplete_Class`,
  *     z której nie da się przeczytać właściwości. To jest druga bariera,
@@ -158,23 +156,6 @@ use Throwable;
  */
 class KtoNieDostalListu extends Command
 {
-    /**
-     * Klasy, które wolno odtworzyć z ładunku. Wszystko spoza tej listy wraca
-     * jako `__PHP_Incomplete_Class` — patrz punkt 3 w nagłówku klasy.
-     *
-     * `SendQueuedNotifications` musi tu być, bo to on niesie odbiorców.
-     * `ModelIdentifier` i kolekcja Eloquenta — bo tak Laravel zapisuje modele
-     * w kolejce (`SerializesModels`) i bez nich odbiorcy nie odtworzą się
-     * wcale. Klas powiadomień na tej liście nie ma i nie wolno ich dopisywać.
-     *
-     * @var list<class-string>
-     */
-    private const WOLNO_ODTWORZYC = [
-        SendQueuedNotifications::class,
-        ModelIdentifier::class,
-        EloquentCollection::class,
-    ];
-
     /**
      * Tak Laravel oznacza w ładunku zadanie, które jest wysyłką powiadomienia.
      */
@@ -340,17 +321,18 @@ class KtoNieDostalListu extends Command
     /**
      * Odbiorcy powiadomienia z zserializowanego `SendQueuedNotifications`.
      *
-     * Jedyne miejsce, w którym ta komenda woła `unserialize()` — i woła je
-     * z listą dozwolonych klas, patrz `WOLNO_ODTWORZYC`.
+     * Jedyne miejsce, w którym ta komenda odtwarza ładunek — przez
+     * `PolecenieZadania::powiadomienie()`, czyli
+     * z listą dozwolonych klas, patrz `PolecenieZadania::WOLNO_ODTWORZYC`.
      *
      * @return array{0: list<string>, 1: list<string>, 2: list<string>} nazwy, adresy, identyfikatory kont
      */
     private function odbiorcy(string $serializowane): array
     {
-        // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
-        $polecenie = @unserialize(PolecenieZadania::zserializowane($serializowane), ['allowed_classes' => self::WOLNO_ODTWORZYC]);
+        // Odszyfrowanie (audyt A5-10) i odtworzenie tylko dozwolonych klas.
+        $polecenie = PolecenieZadania::powiadomienie($serializowane);
 
-        if (! $polecenie instanceof SendQueuedNotifications) {
+        if ($polecenie === null) {
             throw new RuntimeException('ładunek nie jest wysyłką powiadomienia');
         }
 
