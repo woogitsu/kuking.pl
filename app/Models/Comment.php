@@ -116,6 +116,38 @@ class Comment extends Model
             ->where('comments.status', self::STATUS_PUBLISHED);
     }
 
+    /**
+     * Ile wypowiedzi widz przeczyta w rozmowie pod przepisem albo
+     * „Ugotowałem” — komentarze główne RAZEM z odpowiedziami (D-281, D-309).
+     *
+     * Ta sama reguła co `Post::licznikWidocznychKomentarzy()` dla zwykłego
+     * wpisu: każda wypowiedź przechodzi `widoczneDla()`, a odpowiedź liczy
+     * się tylko pod korzeniem, który widz też widzi (#1396) — strona nie
+     * pokazuje odpowiedzi pod odciętym korzeniem, więc nagłówek jej nie
+     * obiecuje. Ślad usuniętego korzenia liczy się, bo strona go pokazuje.
+     *
+     * Jedno zapytanie niezależnie od liczby wątków — nagłówek przy
+     * paginacji mówi o CAŁEJ rozmowie, nie o bieżącej stronie.
+     *
+     * @param  HasMany<Comment, covariant Model>  $korzenie  relacja `comments()` podmiotu (same korzenie)
+     */
+    public static function policzRozmowe(HasMany $korzenie, ?User $widz): int
+    {
+        // Podzapytanie ma własne `from comments`, więc `comments.*` wewnątrz
+        // `widoczneDla()` wskazuje KORZEŃ, nie odpowiedź.
+        $widoczneKorzenie = $korzenie->getQuery()->clone()
+            ->reorder()
+            ->widoczneDla($widz)
+            ->select('comments.id');
+
+        return self::query()
+            ->widoczneDla($widz)
+            ->where(fn (Builder $liczone) => $liczone
+                ->whereIn('comments.id', $widoczneKorzenie)
+                ->orWhereIn('comments.parent_id', $widoczneKorzenie))
+            ->count();
+    }
+
     protected $fillable = [
         'author_id',
         'post_id',
