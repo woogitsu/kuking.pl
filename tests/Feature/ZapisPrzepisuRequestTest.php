@@ -27,7 +27,7 @@ class ZapisPrzepisuRequestTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $this->user('autor970')->getKey()]);
 
         $this->actingAs($this->user('obcy970'))
-            ->put(route('recipes.update', $przepis), ['title' => ''])
+            ->put(route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => ''])
             ->assertForbidden();
     }
 
@@ -39,7 +39,7 @@ class ZapisPrzepisuRequestTest extends TestCase
         // Kontrola dodatnia do testu wyżej: to samo żądanie od autora nie
         // jest odmową, tylko komunikatem przy polu.
         $this->actingAs($autor)
-            ->put(route('recipes.update', $przepis), ['title' => '', 'visibility' => 'public'])
+            ->put(route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => '', 'visibility' => 'public'])
             ->assertRedirect()
             ->assertSessionHasErrors(['title' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.']);
     }

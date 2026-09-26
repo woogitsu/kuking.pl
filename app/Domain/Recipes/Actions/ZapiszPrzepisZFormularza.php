@@ -55,6 +55,7 @@ final class ZapiszPrzepisZFormularza
         ?Recipe $existing = null,
         ?string $kluczWyslania = null,
         ?string $zdjecieGlowneZWpisu = null,
+        ?int $oczekiwanaRewizja = null,
     ): Recipe {
         // Zdjęcie już wgrane — z własnego wpisu (#1334). Tylko przy NOWYM
         // przepisie i tylko wtedy, gdy formularz nie przysłał własnego pliku.
@@ -111,6 +112,7 @@ final class ZapiszPrzepisZFormularza
                 publish: $publish,
                 existing: $existing,
                 ip: $ip,
+                oczekiwanaRewizja: $oczekiwanaRewizja,
             );
     }
 

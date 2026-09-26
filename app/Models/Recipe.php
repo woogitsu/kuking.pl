@@ -108,6 +108,7 @@ class Recipe extends Model
     protected function casts(): array
     {
         return [
+            'content_revision' => 'integer',
             'published_at' => 'datetime',
             'servings' => 'float',
             'prep_minutes' => 'integer',

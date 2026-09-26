@@ -25,7 +25,7 @@ class SzczegolyZachowujaKluczeWierszyTest extends TestCase
         $recipe = Recipe::factory()->draft()->create(['author_id' => $user->id]);
         $step = $recipe->steps()->create(['position' => 0, 'instruction' => 'Stary tekst.']);
         $url = route('recipes.edit', $recipe->slug);
-        $this->actingAs($user)->from($url)->put(route('recipes.update', $recipe->slug), [
+        $this->actingAs($user)->from($url)->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
             'title' => '', 'visibility' => 'private', 'action' => 'draft',
             'steps' => [
                 $first => ['instruction' => 'Pierwszy nowy krok.', 'timer_minutes' => '12'],
@@ -70,6 +70,7 @@ class SzczegolyZachowujaKluczeWierszyTest extends TestCase
         $url = route('recipes.edit', $recipe->slug);
 
         $response = $this->actingAs($user)->followingRedirects()->from($url)->put(route('recipes.update', $recipe->slug), [
+            'content_revision' => $recipe->fresh()->content_revision,
             'title' => 'Zupa domowa', 'visibility' => 'private', 'action' => 'draft',
             'ingredients' => [
                 0 => ['text' => 'Sól', 'group_name' => 'Do podania'],

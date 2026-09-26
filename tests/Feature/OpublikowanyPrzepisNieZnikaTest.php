@@ -60,7 +60,7 @@ class OpublikowanyPrzepisNieZnikaTest extends TestCase
 
         $this->actingAs($przepis->author)
             ->from(route('recipes.edit', $przepis->slug))
-            ->put(route('recipes.update', $przepis->slug), [
+            ->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
                 'action' => 'draft',
                 'title' => 'Rosół babci Zofii',
                 'visibility' => 'public',
@@ -83,7 +83,7 @@ class OpublikowanyPrzepisNieZnikaTest extends TestCase
 
         $this->actingAs($przepis->author)
             ->from(route('recipes.edit', $przepis->slug))
-            ->put(route('recipes.update', $przepis->slug), [
+            ->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
                 'action' => 'draft',
                 'title' => 'Rosół babci Zofii',
                 'visibility' => 'public',
@@ -166,7 +166,7 @@ class OpublikowanyPrzepisNieZnikaTest extends TestCase
         $przepis = Recipe::where('title', 'Roboczy')->firstOrFail();
 
         // Niepublikowany przepis zostaje w pełni edytowalny, także „w dół".
-        $this->actingAs($autor)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($autor)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'draft',
             'title' => 'Roboczy',
             'visibility' => 'public',
