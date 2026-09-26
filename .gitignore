@@ -32,6 +32,8 @@
 /storage/martwe-przyciski.json
 # Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
 /storage/kroki-kreatora/
+# PDF-y A4 z pomiaru wydruku przepisu (#765, scripts/wydruk-przepisu.mjs).
+/storage/wydruk-765/
 # Pomiar i zrzuty stopki (`scripts/stopka-pusty-pas.mjs --statycznie`).
 /storage/stopka-pusty-pas/
 # Wyniki strażnika kaskady CSS, pilotów AI i ręcznych przebiegów testów —
