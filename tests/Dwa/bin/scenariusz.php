@@ -24,6 +24,8 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Import\BudzetAi;
+use App\Domain\Import\Rezerwacja;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
@@ -435,6 +437,16 @@ try {
                 'stare' => $sesja?->get('_old_input'),
                 'zapisane' => $sesja?->get('status'),
             ];
+        })(),
+
+        // Rezerwacja budżetu modelu importu (D-297): PRAWDZIWE `BudzetAi`,
+        // z limitem dziennym podanym przez test.
+        'rezerwacja-budzetu' => (function () use ($argumenty): string {
+            config(['kuking.import.budzet.dzienny_usd' => (float) $argumenty['limit_usd']]);
+            config(['kuking.import.budzet.miesieczny_usd' => 1000.0]);
+            $wynik = app(BudzetAi::class)->zarezerwuj((int) $argumenty['kwota']);
+
+            return $wynik instanceof Rezerwacja ? 'zarezerwowano' : 'odmowa:'.$wynik;
         })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),

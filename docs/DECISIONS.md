@@ -17353,3 +17353,148 @@ najnowszy wpis autora, nie dwa naraz.
 Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
 dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
 listy odkrywania.
+
+---
+
+## D-297 — Budżet i limity odczytu przepisów modelem: 5 USD dziennie, 100 USD miesięcznie, 5/30 odczytów na osobę (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Dotyczy: V2 import/OCR (D-282, D-298), projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §3.3
+
+**Decyzja właściciela dosłownie:** budżet 5 USD/dzień i 100 USD/mies.
+(w konfiguracji) + limit na osobę 5 importów/dzień i 30/mies. (propozycja
+z projektu).
+
+### Co obowiązuje
+
+- **Budżet serwisu w PostgreSQL**, tabela `ai_budzet_dzienny` (jeden wiersz
+  na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
+  cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
+- **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
+  Rezerwacja = najgorszy przypadek: szacowane tokeny wejścia × cena wejścia +
+  sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Zapis pod
+  `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
+  Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
+  wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez
+  wydatku wyłącznie wtedy, gdy żądanie na pewno nie wyszło.
+- **Brak cennika = brak wywołań.** Ceny w USD za milion tokenów
+  (`KUKING_IMPORT_CENA_WEJSCIE`, `KUKING_IMPORT_CENA_WYJSCIE`) wpisuje się
+  ręcznie z cennika OpenAI; bez nich nie da się zarezerwować budżetu, więc
+  funkcja jest wyłączona tak samo jak bez klucza.
+- **Limit na osobę liczony z bazy** (`importy_przepisow`, dzień i miesiąc
+  w strefie człowieka), nie `RateLimiter`-em — ma być dokładny. Liczy się
+  zlecenie (także „Odczytaj jeszcze raz”); zlecenia zatrzymane na limicie
+  (`wstrzymany_limitem`) się nie liczą, bo do modelu nie poszły. Równoległe
+  zlecenia jednej osoby szereguje blokada doradcza na czas transakcji.
+  Osobno `throttle:import` (10 / 10 min) chroni samą trasę przed pętlą żądań.
+- **Próg ostrzegawczy 80%** dziennego budżetu: jeden `Log::warning`
+  (`stage=import_budzet_prog`) dziennie.
+- **Moderacja nie jest w tym budżecie** — jest bezpłatna, ma osobny klucz,
+  a wyczerpanie budżetu importu nie może jej zatrzymać.
+- **Druga linia obrony poza naszym kodem:** osobny projekt OpenAI z limitem
+  wydatków ustawionym w panelu dostawcy (krok właściciela).
+
+### Co widzi człowiek
+
+Wyczerpany budżet serwisu: przycisk zostaje, ale NAD nim stoi informacja,
+zanim ktoś kliknie; zlecenie złożone mimo to kończy się stanem
+`wstrzymany_limitem` z komunikatem „Twoje zdjęcie jest zapisane…”. Limit
+osoby: szkic ze zdjęciem i tak powstaje, a komunikat mówi, kiedy można dalej.
+
+### Dowód
+
+`tests/Feature/Import/BudzetAiTest.php`, `tests/Dwa/BudzetAiNaDwochPolaczeniachTest.php`
+(dwie rezerwacje naraz, limit na jedną — jedna przechodzi),
+`tests/Feature/Import/CofniecieBudzetuAiOdmawiaTest.php` (rollback odmawia
+przy wydatkach w bieżącym miesiącu — D-088).
+
+### Wycofanie / zmiana
+
+Kwoty i limity zmienia się w env (`KUKING_IMPORT_BUDZET_DZIEN`,
+`KUKING_IMPORT_BUDZET_MIESIAC`, `KUKING_IMPORT_NA_OSOBE_DZIEN`,
+`KUKING_IMPORT_NA_OSOBE_MIESIAC`) — zmiana domyślnych wartości w repo wymaga
+nowej decyzji właściciela.
+
+---
+
+## D-298 — Import przepisu i OCR zdjęcia kartki: architektura (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (model, klucz, zakres) +
+rozstrzygnięcia wykonawcze opisane niżej · Status: **obowiązuje** ·
+Dotyczy: D-282 (V2 wolno budować), D-296 (zgoda „odczyt AI”), D-297 (budżet),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
+
+### Decyzje właściciela z 26 września 2026
+
+- Model OpenAI **`gpt-6-luna`** — domyślna wartość `KUKING_IMPORT_MODEL`,
+  zmienialna w env. Osobny klucz **`OPENAI_IMPORT_KEY`**. **Brak klucza =
+  funkcja wyłączona, przycisk się nie pokazuje.**
+- **Intensywność myślenia (`reasoning.effort`) w konfiguracji, osobno per
+  zadanie:** odczyt zdjęcia zeszytu = `medium` (`KUKING_IMPORT_EFFORT_OCR`),
+  wyznaczanie fragmentów przepisu z URL/PDF = `low`
+  (`KUKING_IMPORT_EFFORT_TEKST`). Dozwolone wartości są w kodzie
+  (`KlientLuna::WYSILKI`: `minimal`, `low`, `medium`, `high`); wartość spoza
+  listy wyłącza TO JEDNO zadanie (żadnego żądania) i mówi o tym
+  `kuking:sprawdz-import`. Klient wysyła `reasoning.effort` dokładnie
+  z konfiguracji (test). Import z URL/PDF (osobna gałąź) używa klucza
+  `kuking.import.model.wysilek.tekst` i zadania `KlientLuna::ZADANIE_TEKST`.
+- Szkic z odczytu jest **zawsze `draft` i `private`, nigdy auto-publikacja**.
+- Przed publikacją szkicu z OCR: pole **„Sprawdziłem odczytany tekst”**,
+  a **niepewne słowa `[?…?]` blokują publikację**. Na ekranie pole brzmi
+  „Odczytany tekst jest sprawdzony ze zdjęciem” — forma „Sprawdziłem”
+  przypisuje czytelnikowi płeć, czego zabrania `docs/brand/COPY_STYLE.md` §2
+  (pilnuje `TekstyNiePrzypisujaPlciTest`); znaczenie i działanie bez zmian.
+- Na start funkcja dla **wszystkich zalogowanych**.
+
+### Architektura
+
+- **Import = zadanie w kolejce, które wypełnia prywatny SZKIC w istniejącym
+  kreatorze.** Szkic (`recipes`, `draft`, `private`) i zdjęcie kartki
+  (`recipes.source_scan_media_id`, zwykły potok zdjęć — EXIF zdjęty przed
+  czymkolwiek) powstają RAZEM ze zleceniem, zanim cokolwiek pójdzie do
+  modelu. Dlatego „zdjęcie jest zapisane” jest prawdą przy każdym błędzie,
+  limicie i wyłączonej funkcji, a zdjęcie ma od razu wszystkie ochrony skanu
+  kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`). Jedno zdjęcie na
+  zlecenie w tym etapie (`source_scan_media_id` jest jedno).
+- Publikacja idzie **zwykłym `PublishRecipe`** i zwykłą moderacją.
+  `app/Domain/Import/**` nie odwołuje się do `PublishRecipe` z `publish: true`
+  (test architektoniczny). Bramkę „Sprawdziłem / `[?`” trzyma
+  `BramkaPublikacjiOdczytu` wołana z `PublishRecipe`, więc obejmuje kreator
+  i formularz bez JavaScriptu.
+- **Klient `App\Domain\Import\KlientLuna`** — Responses API
+  (`POST https://api.openai.com/v1/responses`), host i ścieżka w kodzie
+  (`#^/v1/responses$#`, D-250), `store: false`, bez narzędzi, wyjście
+  w schemacie JSON (`strict`). Nie wysyła e-maila, nazwy, IP, identyfikatorów
+  ani pola `user`/`safety_identifier`. Trzy wyniki jak w moderacji (#1662).
+- **Obraz do modelu:** wariant `large` (≤ 1600 px) przekodowany przez GD do
+  JPEG, dłuższy bok ≤ 2000 px zmierzony z bajtów przed i po — bez EXIF/XMP/GPS.
+- **Kolejka `low`, nie osobna `import`.** Produkcja chodzi w roli `all`
+  (jeden proces na wszystkie kolejki), więc osobna kolejka trafiłaby do tego
+  samego procesu, a kosztowałaby zmianę `docker/entrypoint.sh`, IaC i
+  `UmowaKolejkiTest` oraz dodatkową pamięć po wydzieleniu workera. Po
+  wydzieleniu odczyt (do 90 s) stoi na `low` za moderacją, a nie przed
+  zdjęciami (`media`) i listami (`high`/`default`). Gdy pomiar pokaże, że
+  odczyty opóźniają moderację — wtedy osobna kolejka, nową decyzją.
+- **Tabela `importy_przepisow`** (ślad zlecenia, bez treści przepisu):
+  surowa odpowiedź modelu 30 dni, wiersz 90 dni (`kuking:sprzataj-importy`,
+  05:50). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
+  bramka publikacji. Eksport RODO: sekcja `odczyty_przepisow`; anonimizacja
+  konta kasuje wiersze.
+- **Brak powiadomienia w serwisie** w tym etapie: ekran postępu
+  `/import/{import}` (słowa, `aria-live`, działa bez JS) i lista „Moje szkice”.
+- Komenda **`kuking:sprawdz-import`** mówi, czego brakuje (klucz, model,
+  adres, intensywność, cennik, budżet) — bez wysyłania żądań.
+
+### Czego ta decyzja NIE robi
+
+Nie włącza funkcji na produkcji: wymaga klucza, cennika, umowy powierzenia
+(DPA) z OpenAI i nowej wersji polityki prywatności (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`). Nie buduje importu z URL/PDF
+ani wartości odżywczych (osobne etapy i gałęzie).
+
+### Wycofanie
+
+Najszybciej: usunąć `OPENAI_IMPORT_KEY` — przyciski znikają, zlecenia
+w kolejce kończą się `wylaczony`, szkice ze zdjęciami zostają. Cofnięcie kodu:
+odwrócić commity; migracje `importy_przepisow` cofa się bez odmowy,
+`ai_budzet_dzienny` odmawia przy wydatkach w bieżącym miesiącu (D-088).

@@ -711,6 +711,22 @@ export default defineRailway((ctx) => {
     OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",
   };
 
+  //  --- Odczyt przepisu ze zdjęcia kartki: web + worker (V2, D-298) ---------
+  //  Web: przycisk „Przepisz z kartki” pokazuje się tylko przy kluczu
+  //  i cenniku (`ZlecImportPrzepisu::dostepnyOdczytZdjecia`, D-053), a budżet
+  //  sprawdzany jest przed zleceniem. Worker: job `OdczytajPrzepis` →
+  //  `KlientLuna` (kolejka `low`). PUSTY klucz = funkcja wyłączona bez błędu.
+  //  Osobny klucz niż moderacja — najlepiej osobny projekt OpenAI z limitem
+  //  wydatków w panelu. TYLKO PRODUKCJA, z tego samego powodu co klucz
+  //  moderacji wyżej. Cennik nie jest sekretem, ale bez niego nie ma wywołań
+  //  (D-297), więc idzie tą samą drogą. Sprawdzenie: `php artisan
+  //  kuking:sprawdz-import` (bez żądań do API).
+  const importEnv = {
+    OPENAI_IMPORT_KEY: isProduction ? ctx.shared.OPENAI_IMPORT_KEY : "",
+    KUKING_IMPORT_CENA_WEJSCIE: ctx.shared.KUKING_IMPORT_CENA_WEJSCIE,
+    KUKING_IMPORT_CENA_WYJSCIE: ctx.shared.KUKING_IMPORT_CENA_WYJSCIE,
+  };
+
   //  --- Adres alarmów moderacji: web + worker + scheduler (#1014) -----------
   //  Czytają go TRZY role:
   //    web       — `AlarmujOPilnymZgloszeniu`, wołany SYNCHRONICZNIE w żądaniu
@@ -787,12 +803,13 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...importEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
     ...czyszczenieCdnEnv,
     ...modelEnv,
+    ...importEnv,
     ...alarmModeratoraEnv,
   };
   const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };

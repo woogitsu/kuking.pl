@@ -177,6 +177,7 @@ final class CollectUserExportData
             'moje_zgloszenia' => $this->ownReports($user),
             'decyzje_moderacji' => $this->moderationDecisions($user),
             'odwolania' => $this->appeals($user),
+            'odczyty_przepisow' => $this->recipeImports($user),
         ];
     }
 
@@ -724,6 +725,35 @@ final class CollectUserExportData
                 'skad' => $wpis->zrodlo,
                 'wersja_polityki' => $wpis->wersja_polityki,
                 'kiedy' => $this->date($wpis->wystapilo_at),
+            ])->all();
+    }
+
+    /**
+     * Zlecenia odczytu przepisu ze zdjęcia kartki (V2, D-298). Bez surowej
+     * odpowiedzi modelu: odczytany tekst jest w szkicu przepisu (sekcja
+     * `przepisy`), a zdjęcie kartki w sekcji `zdjecia`.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImports(User $user): array
+    {
+        return DB::table('importy_przepisow')
+            ->leftJoin('recipes', 'recipes.id', '=', 'importy_przepisow.recipe_id')
+            ->where('importy_przepisow.user_id', $user->getKey())
+            ->orderBy('importy_przepisow.created_at')
+            ->get([
+                'importy_przepisow.zrodlo', 'importy_przepisow.status', 'importy_przepisow.kod_bledu',
+                'importy_przepisow.source_url', 'importy_przepisow.created_at', 'importy_przepisow.zakonczono_at',
+                'recipes.title as przepis',
+            ])
+            ->map(fn (object $zlecenie): array => [
+                'zrodlo' => $zlecenie->zrodlo,
+                'stan' => $zlecenie->status,
+                'powod_niepowodzenia' => $zlecenie->kod_bledu,
+                'adres_strony' => $zlecenie->source_url,
+                'szkic_przepisu' => $zlecenie->przepis,
+                'zlecono' => $this->date($zlecenie->created_at),
+                'zakonczono' => $this->date($zlecenie->zakonczono_at),
             ])->all();
     }
 

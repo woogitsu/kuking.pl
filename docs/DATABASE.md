@@ -3166,9 +3166,9 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 |---|---|
 | `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
 | `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
-| `cel` | Cel zgody. Dziś jedna wartość: `tygodniowy_digest`. CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, druga zgoda wymaga migracji i recenzji. |
+| `cel` | Cel zgody: `tygodniowy_digest` \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
-| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta`. CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
+| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
 | `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
@@ -3238,6 +3238,16 @@ rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
 `docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
 prawnym (issue #8).
 
+**Zgoda `odczyt_ai` (D-296) nie ma kolumny na `users`.** Jej stanem jest
+OSTATNI wpis osoby dla tego celu (`App\Domain\Zgody\PrzestawZgodeNaOdczytAi`),
+czytany świeżo z bazy także w zadaniu odczytu tuż przed wysłaniem zdjęcia.
+Anonimizacja konta dopisuje `wycofana` / `usuniecie_konta` jak przy digeście.
+Rozszerzenie CHECK-ów (`2026_09_26_100200_…`, `NOT VALID` + `VALIDATE`) cofa
+się bez pytania, dopóki nie ma wierszy z `odczyt_ai` ani `ekran_importu`;
+przy takich wierszach `down()` **odmawia** (D-088) — dziennik jest append-only,
+więc węższy CHECK nie ma jak wrócić bez skasowania dowodu zgody
+(`CofniecieZgodyOdczytuAiOdmawiaTest`).
+
 **Rollback:** `php artisan migrate:rollback --step=1`. `down()` **ODMAWIA**,
 gdy w dzienniku jest choć jeden zapis (D-088) — bo razem z tabelą znika jedyny
 dowód na to, kto i kiedy wyraził zgodę, a boolean na `users` tego nie odtworzy.
@@ -3262,6 +3272,83 @@ Pilnuje tego `DowodZgodyNaDigestTest` (udzielenie, wycofanie, ciąg
 włącz → wyłącz → włącz, trzy źródła, brak PII, append-only w modelu i w bazie,
 usunięcie konta) oraz `CofniecieDziennikaZgodOdmawiaTest` (odmowa, kontrola
 dodatnia na pustym dzienniku, zgoda wypowiedziana wprost, wąskość skutków).
+
+### importy_przepisow
+Jedno zlecenie odczytu przepisu (V2 — OCR zdjęcia kartki; później adres strony
+i PDF), migracja `2026_09_26_100000_create_importy_przepisow_table`,
+`docs/DECISIONS.md` **D-298** (architektura), **D-297** (limity), **D-296** (zgoda).
+
+**Wiersz nie niesie treści przepisu.** Treść od pierwszej chwili stoi w zwykłym
+szkicu (`recipes`, `status = draft`, `visibility = private`), a zdjęcie kartki
+w `recipes.source_scan_media_id` — zapisane, ZANIM cokolwiek pójdzie do modelu.
+Dlatego tabela celowo **nie wskazuje na `media`**: zdjęcie ma już wszystkie
+ochrony skanu kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`,
+`KasujZdjecie`), a nowy rodzic zdjęcia trzeba by dopisać w pięciu miejscach.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `uuid`, `DEFAULT gen_random_uuid()`. Widoczny w adresie ekranu postępu `/import/{import}` — wejście i tak idzie przez właściciela (UUID ≠ autoryzacja). |
+| `user_id` | `uuid NOT NULL`, FK `users` `ON DELETE CASCADE`. Anonimizacja konta (`EraseAccountData`) kasuje wiersze jawnie. |
+| `recipe_id` | `uuid NULL`, FK `recipes` `ON DELETE SET NULL` — szkic, do którego trafia odczyt. |
+| `zrodlo` | `zdjecie` \| `url` \| `pdf`. CHECK `importy_przepisow_zrodlo_check`. |
+| `status` | `oczekuje` \| `w_toku` \| `gotowy` \| `nieudany` \| `wstrzymany_limitem`. CHECK. **Poza `$fillable`** (AGENTS.md §7). |
+| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
+| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Etap importu z adresu. |
+| `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). |
+| `rezerwacja_mikrousd`, `rezerwacja_dzien` | Rezerwacja budżetu (D-297) i dzień, pod którym ją zapisano — oba albo żadne (CHECK). Rozliczenie trafia do tego samego wiersza `ai_budzet_dzienny`, także po północy. |
+| `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Faktyczny koszt z `usage`. Kwoty ≥ 0 (CHECK). |
+| `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. |
+| `klucz_wyslania` | `uuid NULL`; `UNIQUE (user_id, klucz_wyslania) WHERE klucz_wyslania IS NOT NULL` — jedno wysłanie formularza = jedno zlecenie. |
+| `rozpoczeto_at`, `zakonczono_at`, `created_at`, `updated_at` | `timestamptz`. |
+
+Indeksy: `(user_id, created_at DESC)` — limit na osobę (5 dziennie / 30
+miesięcznie liczone w strefie `Europe/Warsaw`, bez zleceń `wstrzymany_limitem`);
+`(created_at)` — retencja; `(recipe_id) WHERE recipe_id IS NOT NULL` — bramka
+publikacji szkicu z odczytu.
+
+**Retencja** (`kuking:sprzataj-importy`, codziennie 05:50): `odpowiedz_modelu`
+→ `NULL` po 30 dniach, wiersz znika po 90. **Wyjątek:** wiersz, którego szkic
+jest nadal szkicem, zostaje (bez surowej odpowiedzi), bo jest bramką publikacji
+(„Odczytany tekst jest sprawdzony”) — znika najbliższym przebiegiem po publikacji
+albo usunięciu szkicu.
+
+**Eksport RODO:** sekcja `odczyty_przepisow` (źródło, stan, powód
+niepowodzenia, szkic, daty) — bez surowej odpowiedzi; odczytany tekst jest
+w sekcji `przepisy`, zdjęcie w `zdjecia`.
+
+**Rollback:** `php artisan migrate:rollback` kasuje tabelę bez odmowy. Dane są
+pochodne (ślad zleceń bez treści i bez zdjęć); po ponownym `migrate` limity
+na osobę liczą się od zera, co najwyżej pozwala komuś na kilka odczytów więcej
+jednego dnia — dalej pod budżetem kwotowym z `ai_budzet_dzienny`. Szkice
+z odczytu zostają zwykłymi szkicami (znika tylko bramka „Tekst sprawdzony”), więc
+przed cofnięciem na produkcji wyłącz funkcję (`OPENAI_IMPORT_KEY=`).
+
+### ai_budzet_dzienny
+Ile pieniędzy na płatny model OpenAI poszło danego dnia (D-297), migracja
+`2026_09_26_100100_create_ai_budzet_dzienny_table`. Jeden wiersz na dzień
+kalendarzowy w strefie `Europe/Warsaw`.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `dzien` | `date PRIMARY KEY`. |
+| `zarezerwowano_mikrousd` | Suma rezerwacji jeszcze nierozliczonych (1 USD = 1 000 000). |
+| `wydano_mikrousd` | Suma rozliczonych kosztów z `usage`; brak `usage` = cała rezerwacja. |
+| `liczba_wywolan` | Ile rezerwacji (wywołań) danego dnia. |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+CHECK `ai_budzet_dzienny_kwoty_check`: wszystkie liczby ≥ 0.
+
+**Rezerwacja pod `SELECT … FOR UPDATE` na wierszu dnia** szereguje równoległe
+odczyty — drugi widzi rezerwację pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`).
+Miesiąc = suma wierszy od 1. dnia miesiąca. W cache'u tego nie trzymamy:
+to są pieniądze, a licznik w cache'u znika przy restarcie (AGENTS.md §3 — bez Redisa).
+Retencji brak: wiersz na dzień to kilkadziesiąt bajtów, a historia wydatków
+jest potrzebna do rozliczeń.
+
+**Rollback:** `down()` **odmawia**, gdy w bieżącym miesiącu są wydatki (D-088):
+po ponownym `migrate` licznik zaczynałby od zera, a serwis mógłby wydać drugi
+raz tyle samo. Najpierw wyłącz funkcję (`OPENAI_IMPORT_KEY=`); świadome
+skasowanie: `KUKING_ROLLBACK_KASUJ_BUDZET_AI=true php artisan migrate:rollback`.
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,

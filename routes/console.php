@@ -291,6 +291,15 @@ Harmonogram::artisan('kuking:sprzataj-resety-hasel')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:50 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Retencja zleceń odczytu przepisu (D-298): surowa odpowiedź modelu 30 dni
+// (bywa w niej tekst z czyjejś kartki), wiersz zlecenia 90 dni.
+Harmonogram::artisan('kuking:sprzataj-importy')
+    ->name('kuking:sprzataj-importy')
+    ->dailyAt('05:50')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie

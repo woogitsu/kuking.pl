@@ -260,6 +260,18 @@ final class EraseAccountData
              */
             $fresh->tozsamosciZewnetrzne()->delete();
 
+            /*
+             * ZLECENIA ODCZYTU PRZEPISU ZNIKAJĄ RAZEM Z KONTEM (V2, D-298).
+             *
+             * Wiersz nie niesie treści przepisu, ale niesie surową odpowiedź
+             * modelu (do 30 dni — bywa w niej tekst z kartki) i ślad, kiedy
+             * ta osoba z czego korzystała. Klucz obcy ma `ON DELETE CASCADE`,
+             * ale kont się tu nie kasuje, tylko anonimizuje (D-022) — więc
+             * jawnie, jak przy `pending_email_changes` wyżej. Szkic i zdjęcie
+             * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
+             */
+            DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
 
