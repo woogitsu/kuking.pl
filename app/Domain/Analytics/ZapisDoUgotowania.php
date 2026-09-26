@@ -89,14 +89,14 @@ final class ZapisDoUgotowania
         $teraz ??= CarbonImmutable::now();
         $kohortaDo = $teraz->subDays(self::DNI);
         $kohortaOd = $teraz->subDays(2 * self::DNI);
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
         $pierwszeZapisy = DB::table('collection_items')
             ->join('collections', 'collections.id', '=', 'collection_items.collection_id')
             ->join('recipes', 'recipes.id', '=', 'collection_items.recipe_id')
             ->whereNotNull('collection_items.recipe_id')
             ->whereColumn('recipes.author_id', '<>', 'collections.owner_id')
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('collections.owner_id', $wykluczeni))
+            // Wykluczenie kont filtrem SQL (#1309), nie listą UUID w PHP.
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'collections.owner_id'))
             ->groupBy('collections.owner_id', 'collection_items.recipe_id')
             ->select('collections.owner_id as user_id', 'collection_items.recipe_id')
             ->selectRaw('min(collection_items.created_at) as zapisano_at');
