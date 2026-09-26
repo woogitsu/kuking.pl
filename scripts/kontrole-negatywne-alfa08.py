@@ -506,6 +506,16 @@ CISZA_BEZ_WARUNKU = (
     "        }\n"
     "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
 )
+# #957: pierwszy kafel kolażu hero (prawdopodobny LCP) bez `lazy`, z wysokim
+# priorytetem. Mutacja przywraca bezwarunkowe `loading="lazy"` na każdym kaflu.
+LANDING = "resources/views/pages/landing.blade.php"
+KOLAZ_LCP_TEST = "KolazPowitalnyPriorytetLcpTest"
+KOLAZ_PRIORYTET = """                                 @if($loop->first)
+                                 fetchpriority="high"
+                                 @else
+                                 loading="lazy"
+                                 @endif
+"""
 # Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
 # Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
@@ -1106,6 +1116,8 @@ checks = [
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Kolaż hero z lazy na pierwszym kaflu", LANDING, KOLAZ_LCP_TEST,
+     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                 loading="lazy"\n')),
     ("Polityka z innym terminem usunięcia treści niż konfiguracja", POLITYKA, TWARDE_USUNIECIE_TEST,
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
@@ -1247,6 +1259,7 @@ run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
+run_test(KOLAZ_LCP_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(DEMO_SEEDER_HASLO_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
