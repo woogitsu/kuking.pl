@@ -52,11 +52,15 @@ class SprawdzModel extends Command
         $this->line('<options=bold>Sprawdzenie moderacji modelem</>');
         $this->newLine();
 
-        if (! KlientOpenAI::oceniamy()) {
+        if (! KlientOpenAI::maKlucz()) {
             return $this->brakKlucza();
         }
 
         $this->stanKonfiguracji();
+
+        if (! KlientOpenAI::adresZgodny()) {
+            return $this->obcyHost();
+        }
 
         $wynik = $this->zapytaj(
             [['type' => 'text', 'text' => self::ZDANIE_TESTOWE]],
@@ -80,6 +84,16 @@ class SprawdzModel extends Command
         $this->line('Ocenę zdjęć sprawdzisz osobno: <options=bold>php artisan kuking:sprawdz-model --zdjecie</>');
 
         return self::SUCCESS;
+    }
+
+    private function obcyHost(): int
+    {
+        $this->error('Zmienna KUKING_MODEL_ENDPOINT nie prowadzi do API moderacji OpenAI. Żadne zapytanie nie wyszło.');
+        $this->newLine();
+        $this->line((string) KlientOpenAI::bladKonfiguracji());
+        $this->line('Klucz i treść do oceny wolno wysłać tylko pod: '.KlientOpenAI::ADRES.'.');
+
+        return self::FAILURE;
     }
 
     private function brakKlucza(): int
@@ -107,10 +121,19 @@ class SprawdzModel extends Command
         $klucz = (string) config('kuking.moderation.model.klucz');
 
         $this->line('Klucz:      jest (długość '.mb_strlen($klucz).' znaków, wartości nie pokazuję)');
-        $this->line('Endpoint:   '.(string) config('kuking.moderation.model.endpoint'));
+        // Sam host, nie pełny adres: zmienna bywa wklejana razem z tokenem,
+        // a wynik tej komendy ląduje w czatach i zgłoszeniach (#991).
+        $this->line('Endpoint:   host '.$this->hostEndpointu());
         $this->line('Model:      '.(string) config('kuking.moderation.model.nazwa'));
         $this->line('Zdjęcia:    '.(config('kuking.moderation.model.ocenia_zdjecia') ? 'oceniamy' : 'NIE oceniamy'));
         $this->newLine();
+    }
+
+    private function hostEndpointu(): string
+    {
+        $host = parse_url((string) config('kuking.moderation.model.endpoint'), PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? $host : '(nie da się odczytać)';
     }
 
     /**

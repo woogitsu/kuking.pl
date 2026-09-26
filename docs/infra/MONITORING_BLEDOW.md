@@ -241,6 +241,64 @@ Railway (serwis → zakładka Logs), bo `LOG_CHANNEL=stderr`
 (`.railway/railway.ts`). Webhook mówi „coś się zepsuło, sprawdź logi" —
 niczego więcej nie zastępuje.
 
+**Log serwera TEŻ jest bez e-maili i hashy haseł (od 23 września 2026).**
+Wcześniej ten akapit mówił, że „pełny komunikat zostaje w logu serwera, który
+nigdzie nie wychodzi". Połowa była nieprawdą: stderr czyta i przechowuje
+Railway, czyli zewnętrzny dostawca, a `JsonFormatter` wypisywał tam komunikat
+`QueryException` (i jego `previous`, `PDOException`) z wartościami — ten sam
+e-mail i hash hasła co wyżej. Teraz kanały `stderr`, `pomiary`, `single`
+i `daily` mają tap `App\Logging\FiltrDanychOsobowych`, który podpina procesor
+`App\Logging\BezDanychOsobowychWLogu`:
+
+- komunikat błędu bazy jest budowany OD NOWA z pól bez wartości, np.
+  `SQLSTATE[23505], insert into users, połączenie: pgsql, ograniczenie:
+  users_email_unique (treść komunikatu bazy z wartościami usunięta z logu)`;
+- wyjątek w kontekście jest zapisywany jako tablica: klasa, oczyszczony
+  komunikat, kod, plik:linia, `previous` — i ZAWSZE ślad jako lista
+  plik:linia. To więcej niż dotąd: `JsonFormatter` z produkcji
+  (`LOG_STDERR_FORMATTER`) ma domyślnie `includeStacktraces = false`
+  i śladu nie wypisywał, a procesor oddaje formaterowi gotową tablicę, więc
+  tamto ustawienie jej już nie przycina. Ślad nie niesie danych (same ścieżki
+  plików z repozytorium i numery linii), za to wpis błędu jest dłuższy;
+- w pozostałej treści i kontekście wszystko, co wygląda na adres e-mail albo
+  hash hasła (`$2y$…`, `$argon2id$…`), zamienia się na `[e-mail usunięty]` /
+  `[hash hasła usunięty]`. To siatka bezpieczeństwa, nie gwarancja: inne dane
+  (imię, treść wpisu) w zwykłym komunikacie nie są wykrywane — nie wkładaj ich
+  do `Log::…()`;
+- obiekt w kontekście (np. model `['user' => $user]`) jest serializowany
+  i czyszczony przez procesor, zanim zobaczy go formater; obiekt bez
+  `toArray()`/`jsonSerialize()`/`__toString()` zostaje samą nazwą klasy.
+  Klucze tablic są czyszczone jak wartości; zagnieżdżenie głębsze niż 8
+  poziomów zamienia się na znacznik;
+- gdy wyrażenie regularne filtra zawiedzie (błąd PCRE na bardzo długim,
+  złośliwie dobranym tekście), zamiast tekstu jest `[treść usunięta z logu:
+  filtr danych osobowych nie dał rady] (długość: N B)` — wpis nie znika
+  i nie wychodzi w oryginale.
+
+**Logi operacyjne nie niosą komunikatu obcego wyjątku (#973).** Sprzątanie
+eksportów, kasowanie i przetwarzanie zdjęć, eksport danych, list „paczka
+gotowa", ślad nieudanego listu (`ZapiszNieudanyList`), retencja moderacji,
+czyszczenie CDN i `/health` zapisują w polu `error` wynik
+`App\Logging\BezpiecznyBlad::kontekst($e)`: klasę, kod o zamkniętym kształcie
+(SQLSTATE, kod błędu R2 z HTTP), klasy przyczyn i ośmioznakowy odcisk — ten
+sam, który niesie dzwonek webhooka. Etap nazywa treść wpisu, encję jego
+identyfikator (`media_id`, `data_export_id`, własny klucz obiektu z modelu).
+Komunikatu nie ma, bo buduje go biblioteka (SQL z wartościami, adres żądania
+z tokenem, CR/LF), a filtr wyżej rozpoznaje tylko e-mail, hash i SQL.
+`App\Poczta\BezpiecznyKomunikat::z()` też nie wystarcza — maskuje adres, ale
+zostawia SQL, hash i token; w logu go nie używamy. Nowe surowe
+`$e->getMessage()` w `app/` — w `Log::…`, `Log::channel(…)->…`, `logger()`,
+`app('log')`, wstrzykniętym `$this->logger` albo `report(new …($e->getMessage()))`
+— oblewa `tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php`.
+
+Szukając błędu bazy w logach Railway, szukaj po SQLSTATE, nazwie ograniczenia
+albo pliku:linii — nie po adresie e-mail osoby, bo go tam nie ma. Pilnuje tego
+`tests/Feature/LogSerweraBezDanychOsobowychTest.php`. Kanał webhooka tego
+procesora nie ma i nie potrzebuje — tam komunikat nie wychodzi w ogóle. Procesor
+wisi na HANDLERACH kanałów, nie na loggerze: kanał `stack` zbiera procesory
+loggerów swoich składowych, więc `LOG_STACK=single,blad_webhook` zamieniłby
+webhookowi obiekt wyjątku w tablicę (bez klasy, pliku:linii i odcisku).
+
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 
 - **Nie grupuje powtórzeń.** Ten sam błąd wywalający się 50 razy na minutę
@@ -633,7 +691,10 @@ zadań. Żeton resetu hasła wygasa `config/auth.php` → `expire` minut od
 wystawienia, więc zbiorowe `queue:retry` po tygodniu wysłałoby czterem
 osobom martwy link. Rozliczenie tabeli jest osobną czynnością na produkcji
 (`php artisan kuking:martwe-zadania`, bez `--skasuj` niczego nie usuwa)
-i należy do właściciela, nie do tej zmiany.
+i należy do właściciela, nie do tej zmiany. **Dopisek z 25.09.2026:** od tego
+dnia wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed
+--hours=720`, decyzja właściciela), więc te cztery zadania znikną same około
+10 października 2026 — rozliczenie z odbiorcami trzeba zrobić przed tą datą.
 
 ### 7.2. Trzy nowe czujki i jak sprawdzono, że naprawdę wysyłają
 
@@ -691,6 +752,16 @@ naprawiony w tej zmianie, bo pracował nad tym plikiem równoległy pakiet
 #193/#594. **Naprawiono go tam** — razem z tą samą asercją na liczbę
 wystąpień nagłówka w `CichyBrakKopiiBazyDajeAlarmTest`. Wszystkie trzy klasy
 alarmu wysyłają dziś nagłówek dokładnie raz, i każda ma na to strażnika.
+
+**Od #972 maszyna epizodu i transport są wspólne.** Pamięć, krótkie ponowienie
+po nieprzyjętej próbie, długa cisza, zmiana stanu i odwołanie żyją w jednym
+miejscu: `App\Domain\Monitoring\EpizodAlarmu`. Kontrakt „przyjęte = 2xx"
+żyje w `App\Domain\Monitoring\KanalAlarmowy`, z którego korzystają wszystkie
+trzy klasy alarmu. `AlarmKolejki` i `AlarmPolaczen` podają już tylko klucz
+pamięci, stany, długość ciszy i treść; `AlarmKopii` używa samego transportu,
+bo nie wycisza i nie odwołuje. Format pamięci (wersja 2, klucze
+`kuking:kolejka:ostatni-alarm` i `kuking:polaczenia:ostatni-alarm`) i migracja
+starego formatu się nie zmieniły.
 
 Warto zapamiętać sam wzorzec, bo nie dotyczy on wyłącznie nagłówka:
 **test na atrapie klienta HTTP sprawdza, co program CHCIAŁ wysłać, a nie co
@@ -848,7 +919,9 @@ czyli asercją, że żeton i znacznik śladu stosu NAPRAWDĘ leżą w bazie.
 `queue:retry` na starym żetonie resetu hasła wysyła człowiekowi martwy link,
 a skasowany wiersz to skasowany jedyny ślad po awarii. Obie decyzje zostają
 w `kuking:martwe-zadania`, gdzie podejmuje je człowiek po zobaczeniu, kogo
-dotyczą.
+dotyczą. Wyjątkiem są wiersze starsze niż 30 dni: te od 25.09.2026 kasuje
+harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela,
+`docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”).
 
 **Dlaczego nie log.** Bo `LOG_LEVEL` na produkcji bywa ustawiony na
 `warning`, a wszystko na poziomie `info` przepada po drodze. Przyrząd oparty

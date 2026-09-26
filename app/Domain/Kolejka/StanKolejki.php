@@ -66,7 +66,9 @@ final class StanKolejki
      *     nieudane_razem: int|null,
      *     okno_godzin: int,
      *     prog_zaleglosci_sekundy: int,
-     *     prog_zawieszenia_sekundy: int
+     *     prog_zawieszenia_sekundy: int,
+     *     najstarsza_kolejka: string|null,
+     *     kolejki: array<string, array{oczekujace: int, zaleglosc_sekundy: int}>
      * }
      */
     public function sprawdz(?Carbon $teraz = null): array
@@ -92,6 +94,8 @@ final class StanKolejki
                 'zawieszone' => null,
                 'nieudane_w_oknie' => null,
                 'nieudane_razem' => null,
+                'najstarsza_kolejka' => null,
+                'kolejki' => [],
             ] + $progi;
         }
 
@@ -102,6 +106,8 @@ final class StanKolejki
             'zawieszone' => $kolejka['zawieszone'],
             'nieudane_w_oknie' => $nieudane['w_oknie'],
             'nieudane_razem' => $nieudane['razem'],
+            'najstarsza_kolejka' => $kolejka['najstarsza_kolejka'],
+            'kolejki' => $kolejka['kolejki'],
         ] + $progi;
     }
 
@@ -175,7 +181,7 @@ final class StanKolejki
      * kilka zadań, które padły, znaczy „coś jest zepsute". Zaległość znaczy
      * „NIC NIE PRACUJE" — wtedy nie padnie już nawet to, co miało paść.
      *
-     * @param  array{oczekujace: int, zaleglosc_sekundy: int, zawieszone: int}  $kolejka
+     * @param  array{oczekujace: int, zaleglosc_sekundy: int, zawieszone: int, najstarsza_kolejka: string|null, kolejki: array<string, array{oczekujace: int, zaleglosc_sekundy: int}>}  $kolejka
      * @param  array{w_oknie: int, razem: int}  $nieudane
      */
     private function ocen(array $kolejka, array $nieudane): string
@@ -192,7 +198,7 @@ final class StanKolejki
     }
 
     /**
-     * @return array{oczekujace: int, zaleglosc_sekundy: int, zawieszone: int}
+     * @return array{oczekujace: int, zaleglosc_sekundy: int, zawieszone: int, najstarsza_kolejka: string|null, kolejki: array<string, array{oczekujace: int, zaleglosc_sekundy: int}>}
      */
     private function zKolejki(Carbon $teraz): array
     {
@@ -212,6 +218,48 @@ final class StanKolejki
             'oczekujace' => (int) $wiersz->oczekujace,
             'zaleglosc_sekundy' => max(0, (int) $wiersz->zaleglosc),
             'zawieszone' => (int) $wiersz->zawieszone,
+        ] + $this->wedlugKolejek($znacznik);
+    }
+
+    /**
+     * Gotowe zadania osobno dla każdej kolejki (issue #1030).
+     *
+     * Suma z całej tabeli nie odróżnia zdrowej zaległości `default` od
+     * `media` albo `low`, których nikt nie bierze. W osobnym kontenerze
+     * workera każda kolejka ma własny proces (`listy_kolejek()` w
+     * `docker/entrypoint.sh`), więc stojąca kolejka to zwykle jeden padnięty
+     * proces. W roli `all` proces jest jeden, a stojące `media`/`low` przy
+     * żywym `default` to głodzenie przez priorytet — sygnał do wydzielenia
+     * workera. W obu przypadkach trzeba wiedzieć, która kolejka stoi.
+     *
+     * Czytamy tylko kolumny `queue` i `available_at`, nigdy `payload`.
+     *
+     * @return array{najstarsza_kolejka: string|null, kolejki: array<string, array{oczekujace: int, zaleglosc_sekundy: int}>}
+     */
+    private function wedlugKolejek(int $znacznik): array
+    {
+        $wiersze = DB::table('jobs')
+            ->selectRaw('queue, count(*) AS oczekujace, max(? - available_at) AS zaleglosc', [$znacznik])
+            ->whereNull('reserved_at')
+            ->where('available_at', '<=', $znacznik)
+            ->groupBy('queue')
+            ->orderByDesc('zaleglosc')
+            ->orderBy('queue')
+            ->get();
+
+        $kolejki = [];
+        foreach ($wiersze as $wiersz) {
+            // Nazwa trafia na zewnętrzny webhook — tylko krótka nazwa
+            // techniczna, nic, co mogłoby nieść dane.
+            $nazwa = preg_match('/\A[a-z0-9_-]{1,32}\z/', (string) $wiersz->queue) === 1 ? (string) $wiersz->queue : 'inna';
+            $kolejki[$nazwa] ??= ['oczekujace' => 0, 'zaleglosc_sekundy' => 0];
+            $kolejki[$nazwa]['oczekujace'] += (int) $wiersz->oczekujace;
+            $kolejki[$nazwa]['zaleglosc_sekundy'] = max($kolejki[$nazwa]['zaleglosc_sekundy'], (int) $wiersz->zaleglosc);
+        }
+
+        return [
+            'najstarsza_kolejka' => array_key_first($kolejki),
+            'kolejki' => $kolejki,
         ];
     }
 
