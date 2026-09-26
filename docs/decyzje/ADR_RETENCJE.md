@@ -688,7 +688,7 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   `deleted_at` — ta sama liczba co karencja usunięcia konta
   (`account.delete_grace_days`), żeby polityka miała jedną liczbę dla obu
   dróg. Okno służy odkręceniu pomyłki i spójności kopii.
-- **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:20,
+- **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:50,
   budżet 500 treści każdego rodzaju na przebieg, transakcja na treść.
 - **Wyjątek moderacyjny:** treść, na którą wskazuje jakikolwiek wiersz
   `reports`/`moderation_actions` (także przez jej komentarz, zdjęcie albo
