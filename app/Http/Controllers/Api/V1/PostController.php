@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Api\WatkiKomentarzy;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\CommentResource;
 use App\Http\Resources\Api\V1\PostResource;
@@ -33,14 +34,7 @@ class PostController extends Controller
         $this->authorize('view', $post);
 
         return CommentResource::collection(
-            $post->comments()
-                ->widoczneDla($request->user())
-                ->with([
-                    'author.profile.avatar',
-                    'replies' => fn ($q) => $q->widoczneDla($request->user()),
-                    'replies.author.profile.avatar',
-                ])
-                ->paginate((int) config('kuking.comments.page_size')),
+            WatkiKomentarzy::strona($post->comments(), $request->user()),
         );
     }
 }

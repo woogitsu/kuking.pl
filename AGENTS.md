@@ -51,9 +51,14 @@ w `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`:
 3. **Między autorem a kucharzem jest blokada** (w którąkolwiek stronę). Wtedy
    nie powstaje samo wykonanie.
 
-Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**. Jedyna
-zgoda, jaką człowiek tu przestawia, dotyczy tygodniowego listu
-(`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka. Ugotowanie
+Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**.
+Powiadomienia w serwisie nie wycisza żaden przełącznik. **Wyjątek dotyczy
+wyłącznie kanałów zewnętrznych (D-303):** na `/ustawienia/powiadomienia`
+człowiek włącza albo wyłącza Web Push (per urządzenie) i ustawia ciszę nocną
+oraz dzienny limit — to decyduje, czy i kiedy dowie się o powiadomieniu POZA
+serwisem, nigdy o tym, czy powiadomienie w serwisie powstanie. Bez ustawień
+per typ. Osobną zgodą jest tygodniowy list (`users.wants_weekly_digest`),
+który powiadomień w serwisie też nie dotyka. Ugotowanie
 **cofnięte i zrobione ponownie** powiadamia drugi raz, a ta sama osoba
 gotująca ten sam przepis dwa razy daje dwa powiadomienia — to są ZDARZENIA,
 nie STAN (`NotifyUser::TYPY_WYCISZANE_W_OKNIE`). Jedno ograniczenie jest
@@ -83,7 +88,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
+   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
+   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
+   pozostaje zakazana bez zmian,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
@@ -455,15 +463,39 @@ w EXIF-ie siedzi dokładna lokalizacja kuchni, w której zrobiono zdjęcie.
 
 ## 8. Feed
 
-MVP: obserwowani, **chronologicznie**.
+MVP: obserwowani — osoby **razem z** obserwowanymi tagami (D-277, #1808),
+**chronologicznie**.
 
 ```sql
-WHERE author_id IN (...) ORDER BY published_at DESC, id DESC
+WHERE (author_id IN (...)                                  -- obserwowane osoby i widz
+       OR (visibility = 'public' AND EXISTS (tag z obserwowanych)))
+ORDER BY published_at DESC, id DESC
 ```
 
-Paginacja kursorowa. Bez fanout-on-write. **Nie projektuj skomplikowanego
-rankingu bez danych** — algorytmiczny feed natychmiast dzieli użytkowników
+Paginacja kursorowa. Bez fanout-on-write.
+
+**Reguła doboru treści — zamknięta lista (D-275, #1806).** Żadna lista wpisów
+ani osób nie jest układana ani przycinana według reakcji innych (obserwujący,
+„Ugotowałem”, reakcje, zapisy w zeszytach, komentarze, odsłony) ani według
+przewidywania gustu z zachowania widza. Taki dobór natychmiast dzieli ludzi
 na „widzianych” i „niewidzianych” i wyłącza publikowanie u większości.
+
+Dozwolone są **wyłącznie**:
+
+- kolejność po czasie;
+- równość autorów (np. rotacja w „Świeżo z Kuking”: najpierw po jednym wpisie od każdej osoby, potem po drugim — D-276);
+- wybór gospodarza, oznaczony w interfejsie jako jego wybór;
+- bramki widoczności i blokady;
+- jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
+
+W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
+widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby, bez zmiany
+kolejności.
+
+Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
+dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
 osób. Pusty ekran u nowego użytkownika to koniec korzystania z serwisu.
@@ -688,7 +720,7 @@ transmisje live, wypłaty dla twórców.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
-algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
+ranking po popularności i uczenie z zachowania (§8), masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
 
 **Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**

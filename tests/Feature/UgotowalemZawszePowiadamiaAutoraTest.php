@@ -9,6 +9,7 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
 use App\Models\Notification;
+use App\Models\PushSubscription;
 use App\Models\Recipe;
 use App\Models\User;
 use Database\Seeders\DemoSeeder;
@@ -504,8 +505,9 @@ class UgotowalemZawszePowiadamiaAutoraTest extends TestCase
      * USTAWIENIA AUTORA: wyłącznika powiadomień w serwisie NIE MA i ten test
      * jest zapisem tego stanu.
      *
-     * Jedyna zgoda, jaką człowiek tu przestawia, dotyczy TYGODNIOWEGO LISTU
-     * (`users.wants_weekly_digest`, domyślnie wyłączonego — DB2). To jest
+     * Zgoda na list tygodniowy (`users.wants_weekly_digest`, domyślnie
+     * wyłączona — DB2) i ustawienia kanałów POZA serwisem (D-303, test
+     * niżej) to jedyne przełączniki, jakie człowiek tu przestawia. To jest
      * zgoda na POCZTĘ, nie na wiedzę o własnym przepisie: lista powiadomień
      * w serwisie jest tym, po co człowiek tu wraca. Gdyby ten przełącznik
      * kiedykolwiek zaczął wyciszać „ktoś ugotował Twój przepis", ten test
@@ -566,5 +568,45 @@ class UgotowalemZawszePowiadamiaAutoraTest extends TestCase
         $this->assertFalse($do_usuniecia->fresh()->jestDostepnyJakoAutor());
 
         $this->assertSame(User::STATUS_ERASED, $wymazany->fresh()->status);
+    }
+
+    /**
+     * D-303: ustawienia dotyczą WYŁĄCZNIE kanałów zewnętrznych. Wyłączony
+     * push (brak urządzeń) i cisza nocna trwająca właśnie teraz nie mają
+     * prawa dotknąć powiadomienia w serwisie — decydują tylko o tym, czy
+     * i kiedy człowiek dowie się o nim poza Kuking.
+     */
+    public function test_ustawienia_kanalow_zewnetrznych_nie_wyciszaja_powiadomienia_w_serwisie(): void
+    {
+        config([
+            'kuking.push.vapid_public_key' => 'BTestowyKluczPublicznyNieDoWysylki',
+            'kuking.push.vapid_private_key' => 'testowy-klucz-prywatny',
+            'kuking.notifications.zewnetrzne.wlaczone' => true,
+        ]);
+        Queue::fake();
+
+        $kucharz = $this->user('kucharz_d303');
+        $godzina = (int) now()->setTimezone((string) config('kuking.strefa'))->format('G');
+
+        // Push wyłączony (żadnego urządzenia) i cisza nocna obejmująca teraz.
+        $bezPushu = $this->user('autor_bez_pushu');
+        $bezPushu->ustawieniaPowiadomienZewnetrznych()->create(['cisza_od' => $godzina, 'cisza_do' => ($godzina + 2) % 24, 'dzienny_limit' => 1]);
+
+        // Push włączony, ale też w ciszy nocnej.
+        $zPushem = $this->user('autor_z_pushem');
+        $zPushem->ustawieniaPowiadomienZewnetrznych()->create(['cisza_od' => $godzina, 'cisza_do' => ($godzina + 2) % 24, 'dzienny_limit' => 1]);
+        $urzadzenie = new PushSubscription;
+        $urzadzenie->forceFill([
+            'user_id' => $zPushem->getKey(),
+            'endpoint' => 'https://fcm.googleapis.com/fcm/send/d303',
+            'klucz_p256dh' => str_repeat('A', 87),
+            'klucz_auth' => str_repeat('B', 22),
+        ])->save();
+
+        foreach ([$bezPushu, $zPushem] as $autor) {
+            app(RecordCookedEvent::class)->handle($kucharz, Recipe::factory()->create(['author_id' => $autor->getKey()]));
+
+            $this->assertCount(1, $this->powiadomieniaOUgotowaniu($autor), 'Ustawienia kanałów zewnętrznych wyciszyły powiadomienie w serwisie.');
+        }
     }
 }

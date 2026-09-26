@@ -105,6 +105,12 @@ Odpowiedź `201` jak przy logowaniu bez 2FA. Wyzwanie przestaje działać po
 terminie, po zmianie hasła i po każdej zmianie stanu konta — wtedy `422`
 przy polu `challenge` i trzeba zacząć od hasła.
 
+**Wyzwanie działa raz** (#1972). Po wydaniu tokenu to samo wyzwanie — także
+wysłane równolegle albo z innym ważnym kodem — dostaje `422` przy polu
+`challenge` i token nie powstaje. Błędny kod wyzwania nie zużywa: można
+poprawić cyfry i wysłać je jeszcze raz. Powtórzone wyzwanie nie zużywa też
+kodu zapasowego.
+
 ### Wylogowanie
 
 ```http
@@ -204,7 +210,13 @@ WWW (JPG, PNG, WebP; limit w `config/kuking.php` → `media`).
 
 - **Feed** — kursorowe, chronologiczne (bez algorytmu): kolejną stronę daje
   `?cursor=` z `meta.next_cursor`; `null` znaczy koniec.
-- **Komentarze** — numerowane: `?page=2`, liczby w `meta`.
+- **Komentarze** — numerowane: `?page=2`, liczby w `meta`. Każdy wątek
+  niesie najwyżej **3 najstarsze odpowiedzi** (`replies`), liczbę wszystkich
+  widocznych odpowiedzi (`replies_count`) i `more_replies_url` — adres
+  dalszych odpowiedzi albo `null`, gdy wszystkie są już w `replies` (#1970).
+- **Odpowiedzi wątku** (`more_replies_url`) — kursorowe, od najstarszej:
+  `?cursor=` z `meta.next_cursor`. Pierwsza strona zaczyna od pierwszej
+  odpowiedzi, więc zastępuje podgląd z listy komentarzy.
 
 ## 7. Lista endpointów
 
@@ -219,6 +231,7 @@ WWW (JPG, PNG, WebP; limit w `config/kuking.php` → `media`).
 | `GET /api/v1/wpisy/{post}/komentarze` | komentarze wpisu | token | `PostPolicy::view` + blokady |
 | `POST /api/v1/wpisy` | „Co dziś ugotowałeś?" — zdjęcie + kilka słów | token | konto aktywne |
 | `POST /api/v1/wpisy/{post}/komentarze` | komentarz pod wpisem | token | `PostPolicy::comment` |
+| `GET /api/v1/komentarze/{comment}/odpowiedzi` | dalsze odpowiedzi jednego wątku (tylko komentarz główny; odpowiedź → `404`) | token | `CommentPolicy::view` + blokady |
 | `GET /api/v1/przepisy/{przepis}` | przepis (po UUID) | token | `RecipePolicy::view` |
 | `GET /api/v1/przepisy/{przepis}/komentarze` | komentarze przepisu | token | `RecipePolicy::view` + blokady |
 | `POST /api/v1/przepisy/{przepis}/komentarze` | komentarz pod przepisem | token | `RecipePolicy::view` |
