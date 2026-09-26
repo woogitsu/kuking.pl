@@ -1766,10 +1766,39 @@ człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
 w postaci wpisanej przez autora: dopisek da się pominąć przy liście zakupów,
 składnika nie. `NULL` jest stanem normalnym.
 
+**`recipe_ingredients.substitutes varchar(300) NULL`** (migracja
+`2026_09_26_100000_add_substitutes_to_recipe_ingredients`, D-284) — czym autor
+radzi zastąpić TEN składnik („margaryna albo olej kokosowy”). Wolny tekst od
+człowieka, pokazywany pod składnikiem jako „Zamiast tego: …” na stronie
+przepisu i w trybie gotowania, w eksporcie danych jako
+`przepisy[].skladniki[].zamienniki` i w `recipe_versions.snapshot`
+(`ingredients[].substitutes`). Osobno od `note`, bo to informacja o INNYM
+produkcie, potrzebna wtedy, gdy czegoś nie ma w domu. `NULL` jest stanem
+normalnym. CHECK `recipe_ingredients_substitutes_check`:
+`substitutes IS NULL OR btrim(substitutes) <> ''` — pusty zamiennik to `NULL`,
+inaczej widok pisałby „Zamiast tego:” i nic; `PublishRecipe` zamienia puste na
+`NULL` przed zapisem. Kolumna `NULL` bez wartości domyślnej nie przepisuje
+tabeli; CHECK wszedł jako `NOT VALID` + osobne `VALIDATE` (AGENTS.md §6).
+Kolumna nie wskazuje na `users`, więc `InwentarzDanychKonta` jej nie wylicza —
+wchodzi do paczki razem z resztą wiersza składnika.
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden składnik ma zamiennik
+(D-088 — po `down()` idzie kolejny `migrate`, kolumna wróciłaby pusta bez
+błędu). Na pustej kolumnie i na świeżej bazie przechodzi. Sprawdzenie i DDL są
+pod `LOCK TABLE … ACCESS EXCLUSIVE`, żeby zapis nie wszedł pomiędzy. Wtedy
+wycofujemy sam kod (stary kod kolumny nie czyta) albo zapisujemy dane
+(`\copy` w komunikacie odmowy) i ustawiamy `KUKING_ROLLBACK_KASUJ_ZAMIENNIKI=true`.
+Pilnuje `tests/Feature/CofniecieMigracjiNieKasujeZamiennikowTest.php`.
+
+**Skalowanie porcji (D-284) NIE czyta `quantity` ani `unit_id`.** Formularze
+ich nie wypełniają, więc przelicznik (`App\Domain\Recipes\Porcje\PrzeliczSkladnik`)
+czyta ilość z `ingredient_text` w chwili pokazania i niczego nie zapisuje.
+Wybór widza żyje w adresie (`?porcje=N`), nie w bazie.
+
 **`no_amount boolean NOT NULL DEFAULT false`** (migracja
 `2026_09_06_130000_add_no_amount_to_recipe_ingredients`, issue #44) —
 „ten składnik nie ma wymiernej ilości": sól do smaku, pieprz, mleko — ile
-weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
+weźmie. Przy skalowaniu porcji (V2, wdrożone w D-284) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
 
@@ -1790,10 +1819,10 @@ naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować
 nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
 zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
 
-**Rollback:** `down()` zdejmuje CHECK i kolumnę. Bezstratny tylko dopóki
-skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
-utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
-tabeli.
+**Rollback:** `down()` zdejmuje CHECK i kolumnę. Od D-284 skalowanie porcji
+(V2) jest wdrożone i czyta tę flagę, więc cofnięcie tej migracji znaczy utratę
+informacji, której nie da się odtworzyć — najpierw kopia tabeli. (Strażnika
+w `down()` ta starsza migracja nie ma; dołożenie go to osobna zmiana.)
 
 #### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
 
