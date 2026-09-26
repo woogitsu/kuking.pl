@@ -46,6 +46,12 @@ final class DiscoverFeed
      * warunek, albo nie — więc własny wpis publiczny nie wyjdzie dwa razy,
      * kolejność zostaje chronologiczna, a kursor działa jak dotąd.
      *
+     * WARUNEK STOI W PODZAPYTANIU REGUŁY AUTORÓW, NIE OBOK NIEGO (decyzja
+     * właściciela z 26.09): własne wpisy widza podlegają tej samej regule
+     * co wpisy każdej osoby — jeden najnowszy na autora (#940), a po
+     * rotacji (#1807, D-276) jego rundy. Doklejenie ich na zewnątrz dałoby
+     * widzowi więcej miejsc niż innym.
+     *
      * `/discover` i strona dla gości wołają bez tej flagi: tam to jest
      * „Świeżo z Kuking" dla wszystkich, a wpis „tylko dla obserwujących"
      * nie ma prawa wyjść poza autora i obserwujących.

@@ -91,6 +91,39 @@ class WlasneWpisyWFeedzieZastepczymTest extends TestCase
         $this->assertSame([(string) $moj->getKey()], $idy);
     }
 
+    /**
+     * Decyzja właściciela z 26 września: reguła doboru „Świeżo z Kuking”
+     * (jeden wpis na autora z #940, a po #1807 rotacja autorów) obejmuje
+     * TAKŻE własne wpisy widza. Na Starcie bez obserwowanych jego najnowszy
+     * wpis — także „tylko dla obserwujących” — stoi w pierwszej rundzie jak
+     * wpis każdej innej osoby, a starszy własny wpis nie wchodzi przed
+     * najnowszy wpis kogoś innego, nawet dużo starszy.
+     *
+     * Asercja jest prawdziwa dla obu reguł (#940 i #1807): pierwsza runda
+     * to [mój najnowszy, cudzy], a mój starszy albo nie stoi wcale (#940),
+     * albo stoi dopiero za nimi (rotacja).
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): własne wpisy doklejone
+     * obok `DISTINCT ON` zamiast w nim → „Moj starszy” przed „Cudzy”.
+     */
+    public function test_wlasne_wpisy_stoja_w_regule_jednego_wpisu_na_autora_jak_kazdy(): void
+    {
+        $basia = $this->user('basia');
+        $halina = $this->user('halina');
+
+        $mojNajnowszy = $this->wpis($basia, 'Moj najnowszy dla obserwujacych', [
+            'visibility' => Post::VISIBILITY_FOLLOWERS,
+            'published_at' => now()->subMinute(),
+        ]);
+        $mojStarszy = $this->wpis($basia, 'Moj starszy publiczny', ['published_at' => now()->subMinutes(2)]);
+        $cudzy = $this->wpis($halina, 'Cudzy sprzed tygodnia', ['published_at' => now()->subDays(7)]);
+
+        $idy = $this->idy(app(DiscoverFeed::class)->paginate($basia, zWlasnymi: true));
+
+        $this->assertSame([(string) $mojNajnowszy->getKey(), (string) $cudzy->getKey()], array_slice($idy, 0, 2));
+        $this->assertNotContains((string) $mojStarszy->getKey(), array_slice($idy, 0, 2), 'Własny starszy wpis ominął regułę jednego wpisu na autora.');
+    }
+
     public function test_feed_tagow_dokleja_wlasne_bez_tagu_i_nie_dubluje_wlasnego_z_tagiem(): void
     {
         $zupy = Tag::create(['slug' => 'zupy', 'name' => 'Zupy', 'normalized_name' => 'zupy']);
