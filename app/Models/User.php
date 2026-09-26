@@ -8,6 +8,7 @@ use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Api\ZakresyTokenu;
 use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
@@ -1601,6 +1602,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Domyślny zakres tokenu wydawanego bez jawnych abilities (D-271, #1928).
+     *
+     * CAŁY dzisiejszy słownik z `ZakresyTokenu`, wypisany jawnie — NIGDY
+     * `['*']`. Dodanie nowego zakresu do `ZakresyTokenu` samo z siebie nie
+     * poszerza tej listy: trzeba dopisać go tutaj świadomie, więc nowa klasa
+     * endpointów nie rozszerza uprawnień tokenów wydanych wcześniej ani
+     * tokenów wydanych tą metodą PRZED tą zmianą.
+     *
+     * @var list<string>
+     */
+    public const DOMYSLNE_UPRAWNIENIA_API = [
+        ZakresyTokenu::PROFIL_CZYTAJ,
+        ZakresyTokenu::TRESC_CZYTAJ,
+        ZakresyTokenu::TRESC_PISZ,
+    ];
+
+    /**
      * Wydanie tokenu aplikacji mobilnej — nadpisanie metody z `HasApiTokens`.
      *
      * Pakiet zapisuje wiersz przez `create([... 'token' => ...])`, czyli
@@ -1609,10 +1627,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * kolumny `token`. Postać jawna wraca WYŁĄCZNIE w `NewAccessToken`
      * i nie jest nigdzie zapisywana.
      *
+     * Zakres (`abilities`) jest zawsze jawną listą z zamkniętego słownika
+     * `ZakresyTokenu` — nigdy pakietowym wildcardem `*` (D-271, #1928).
+     * `ZakresyTokenu::waliduj()` odrzuca każdy nieznany zakres, więc nie da
+     * się tędy wydać tokenu z uprawnieniem spoza słownika, nawet podając
+     * abilities jawnie.
+     *
      * @param  array<int, string>  $abilities
      */
-    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    public function createToken(string $name, array $abilities = self::DOMYSLNE_UPRAWNIENIA_API, ?DateTimeInterface $expiresAt = null): NewAccessToken
     {
+        ZakresyTokenu::waliduj($abilities);
+
         $jawny = $this->generateTokenString();
 
         $token = new PersonalAccessToken;

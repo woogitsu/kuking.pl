@@ -32,6 +32,8 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -331,6 +333,15 @@ return Application::configure(basePath: dirname(__DIR__))
             // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
             // komentarz klasy: zakłada, że użytkownik jest już moderatorem.
             'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
+            // Zamknięty zakres tokenu API (D-271, #1928). Sanctum niesie te
+            // dwie klasy, ale w Laravel 11+ nie rejestruje ich aliasów samo —
+            // bez tego wpisu `middleware('ability:...')` na trasie rzucałoby
+            // "Target class [ability] does not exist.", a trasa byłaby
+            // dostępna KAŻDYM tokenem, nie tylko tym z właściwym zakresem.
+            // 'ability' wymaga WSZYSTKICH podanych zakresów naraz,
+            // 'abilities' — dowolnego jednego z nich.
+            'ability' => CheckAbilities::class,
+            'abilities' => CheckForAnyAbility::class,
         ]);
 
         // DWA adresy wyjęte spod ochrony CSRF — i oba dlatego, że żąda ich
