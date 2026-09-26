@@ -193,7 +193,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
@@ -343,8 +343,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
+                           @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
+                    @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -374,8 +375,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
                            name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
                            value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="Ciasto" @endif
+                           @error("ingredients.$i.group_name") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-group_name-error" @enderror>
+                    @error("ingredients.$i.group_name")<span class="field-error" id="f-ingredients-{{ $i }}-group_name-error">{{ $message }}</span>@enderror
 
                     <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-note"
@@ -481,8 +483,9 @@
                                type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
                                min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
                                value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help{{ $errors->has('steps.'.$i.'.timer_minutes') ? ' f-steps-'.$i.'-timer_minutes-error' : '' }}"
+                               @error("steps.$i.timer_minutes") aria-invalid="true" @enderror>
+                        @error("steps.$i.timer_minutes")<span class="field-error" id="f-steps-{{ $i }}-timer_minutes-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">

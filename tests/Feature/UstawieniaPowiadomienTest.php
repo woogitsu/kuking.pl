@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Notifications\Push\ZapiszSubskrypcjePush;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\PushSubscription;
 use App\Models\User;
 use App\Models\UstawieniaPowiadomienZewnetrznych;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -197,6 +199,71 @@ final class UstawieniaPowiadomienTest extends TestCase
             ['https://fcm.googleapis.com/fcm/send/drugie', 'https://fcm.googleapis.com/fcm/send/trzecie'],
             $basia->pushSubscriptions()->pluck('endpoint')->all(),
         );
+    }
+
+    public function test_zapis_nowego_endpointu_trzyma_wspolna_blokade_konta_i_endpointu(): void
+    {
+        $user = $this->user('blokady_push');
+        $endpoint = 'https://fcm.googleapis.com/fcm/send/blokady-push';
+        $domyslna = config('database.default');
+        config(['database.connections.push_probe' => config("database.connections.$domyslna")]);
+
+        $zapytania = [];
+        $sprawdzonoDrugiPolaczenie = false;
+        DB::listen(function (QueryExecuted $query) use (&$zapytania, &$sprawdzonoDrugiPolaczenie, $endpoint): void {
+            if ($query->connectionName === 'push_probe') {
+                return;
+            }
+            $zapytania[] = $query->sql;
+            if ($sprawdzonoDrugiPolaczenie === false && str_contains($query->sql, 'pg_advisory_xact_lock')) {
+                $sprawdzonoDrugiPolaczenie = true;
+                $taken = DB::connection('push_probe')->selectOne(
+                    'SELECT pg_try_advisory_xact_lock(?, hashtext(?))::int AS taken', [1998, $endpoint],
+                );
+                $this->assertSame(0, (int) $taken->taken, 'Drugie połączenie nie może przejąć endpointu w trakcie zapisu.');
+            }
+        });
+
+        try {
+            app(ZapiszSubskrypcjePush::class)->handle($user, $endpoint, 'klucz', 'auth', 'aes128gcm');
+        } finally {
+            DB::disconnect('push_probe');
+        }
+
+        $this->assertTrue($sprawdzonoDrugiPolaczenie);
+        $endpointLock = array_search(true, array_map(fn (string $sql): bool => str_contains($sql, 'pg_advisory_xact_lock'), $zapytania), true);
+        $userLock = array_search(true, array_map(fn (string $sql): bool => str_contains($sql, '"users"') && str_contains($sql, 'for update'), $zapytania), true);
+        $this->assertIsInt($endpointLock);
+        $this->assertIsInt($userLock);
+        $this->assertLessThan($userLock, $endpointLock, 'Endpoint musi być zablokowany przed kontem.');
+        $this->assertSame(1, $user->pushSubscriptions()->count());
+    }
+
+    public function test_transfer_blokuje_obu_wlascicieli_w_stalej_kolejnosci(): void
+    {
+        config(['kuking.notifications.zewnetrzne.push_maks_urzadzen' => 1]);
+        $first = $this->user('pierwszy_transfer');
+        $second = $this->user('drugi_transfer');
+        $endpoint = 'https://fcm.googleapis.com/fcm/send/transfer-z-limitem';
+        $zapisz = app(ZapiszSubskrypcjePush::class);
+        $zapisz->handle($first, $endpoint, 'klucz', 'auth', 'aes128gcm');
+        $zapisz->handle($second, 'https://fcm.googleapis.com/fcm/send/stary', 'klucz', 'auth', 'aes128gcm');
+        PushSubscription::query()->where('endpoint', 'https://fcm.googleapis.com/fcm/send/stary')
+            ->update(['updated_at' => now()->subDay()]);
+
+        $lockedIds = [];
+        DB::listen(function (QueryExecuted $query) use (&$lockedIds): void {
+            if (str_contains($query->sql, '"users"') && str_contains($query->sql, 'for update')) {
+                $lockedIds[] = (string) $query->bindings[0];
+            }
+        });
+        $zapisz->handle($second, $endpoint, 'klucz2', 'auth2', 'aes128gcm');
+
+        $expected = [(string) $first->getKey(), (string) $second->getKey()];
+        sort($expected, SORT_STRING);
+        $this->assertSame($expected, $lockedIds);
+        $this->assertSame(0, $first->pushSubscriptions()->count());
+        $this->assertSame([$endpoint], $second->pushSubscriptions()->pluck('endpoint')->all());
     }
 
     public function test_paczka_rodo_ma_ustawienia_i_urzadzenia_bez_adresu_i_kluczy(): void

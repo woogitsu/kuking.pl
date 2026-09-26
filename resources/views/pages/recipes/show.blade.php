@@ -783,12 +783,24 @@
                 </div>
                 <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
-                {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
-                     po prostu znikała ze strony. SOUL 4.2 wymienia to jako
-                     ryzyko wprost i podaje ten tekst. --}}
-                <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p class="mb-0">Twoje wykonanie będzie pierwsze.</p>
-                </x-empty-state>
+                {{-- Pusty wynik dotyczy tego widza: blokady mogą ukryć wszystkie
+                     wykonania, więc tekst nie ocenia, czy ktoś już gotował. --}}
+                @guest
+                    <x-empty-state title="Nie ma tu widocznych wykonań" action="Załóż konto, żeby dodać wykonanie" :href="route('register')">
+                        <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                    </x-empty-state>
+                    <p class="meta">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+                @else
+                    @can('cook', $recipe)
+                        <x-empty-state title="Nie ma tu widocznych wykonań" action="Dodaj swoje wykonanie" :href="route('cooked.create', $recipe->slug)">
+                            <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                        </x-empty-state>
+                    @else
+                        <x-empty-state title="Nie ma tu widocznych wykonań">
+                            <span>Tutaj pojawią się wykonania dostępne dla Ciebie.</span>
+                        </x-empty-state>
+                    @endcan
+                @endguest
             @endif
         </section>
 
