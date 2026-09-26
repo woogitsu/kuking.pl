@@ -259,7 +259,10 @@ final class RejestrPotwierdzenRodo
 
                 return $potwierdzenie;
             } catch (UniqueConstraintViolationException $e) {
-                if ($proba === self::PROB_LOSOWANIA) {
+                // Druga otwarta sprawa tego konta (#1346) to nie kolizja
+                // numeru — losowanie od nowa nic tu nie zmieni.
+                if ($proba === self::PROB_LOSOWANIA
+                    || str_contains($e->getMessage(), 'potwierdzenia_zadan_rodo_jedna_w_toku_na_konto')) {
                     throw $e;
                 }
             }
