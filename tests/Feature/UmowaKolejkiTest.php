@@ -10,6 +10,7 @@ use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
 use App\Jobs\PurgePublicMediaCache;
+use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Post;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\PotwierdzenieAdresu;
@@ -81,6 +82,7 @@ class UmowaKolejkiTest extends TestCase
         // pilnuje `assertNotPushed`). Zostaje dla zadań sprzed wdrożenia,
         // które czekają na `low` z zapisaną wtedy nazwą kolejki.
         PrzeanalizujAwatar::class => null,
+        WyslijPowiadomieniePush::class => 'default', // powiadomienie na urządzenie — obok listów, nie za eksportem (#35)
     ];
 
     /**
@@ -98,6 +100,7 @@ class UmowaKolejkiTest extends TestCase
             PurgePublicMediaCache::class => new PurgePublicMediaCache(['https://example.test/a.webp']),
             PrzeanalizujTresc::class => new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'post-id'),
             PrzeanalizujAwatar::class => new PrzeanalizujAwatar('media-id'),
+            WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
         ];
     }
 
