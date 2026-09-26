@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\ModelIdentifier;
@@ -346,7 +347,8 @@ class KtoNieDostalListu extends Command
      */
     private function odbiorcy(string $serializowane): array
     {
-        $polecenie = @unserialize($serializowane, ['allowed_classes' => self::WOLNO_ODTWORZYC]);
+        // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
+        $polecenie = @unserialize(PolecenieZadania::zserializowane($serializowane), ['allowed_classes' => self::WOLNO_ODTWORZYC]);
 
         if (! $polecenie instanceof SendQueuedNotifications) {
             throw new RuntimeException('ładunek nie jest wysyłką powiadomienia');
