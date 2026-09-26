@@ -100,6 +100,12 @@ name: Railway IaC
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    # TYLKO PR-y kierowane do `main` (#1313). Filtr `branches` przy
+    # `pull_request` dotyczy gałęzi DOCELOWEJ (base), nie gałęzi PR-a.
+    # Bez niego PR z `.railway/**` do `staging` liczył plan z tokenem
+    # produkcyjnym. `workflow_dispatch` niżej nie podlega temu filtrowi.
+    # Staging nie ma tu żadnego joba — patrz „ŚRODOWISKO STAGING” na końcu.
+    branches: [main]
     # Uruchamiaj tylko, gdy faktycznie zmienia się infrastruktura.
     # Zmiana kontrolera nie ma powodu odpalać planu Railway.
     paths:
@@ -139,9 +145,14 @@ jobs:
     # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
     # dla PR-ów z forków. Bez tego obcy fork dostałby dostęp do tokenu Railway.
     # Bramka wdrożeniowa — patrz komentarz przy `apply` niżej.
+    #
+    # `base.ref == 'main'` powtarza filtr `branches` z bloku `on:` (#1313):
+    # token produkcyjny dostaje wyłącznie PR do `main`. Drugi zamek jest
+    # celowy — filtr gałęzi łatwo zgubić przy przeróbce `on:`.
     if: >-
       vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
     # Bramka wdrożeniowa (audyt B10-01): ten job wykonuje `.railway/railway.ts`
@@ -268,6 +279,8 @@ jobs:
 #      railway link --environment staging
 #      railway config plan
 #      railway config apply
-#  Gdy staging zacznie być krytyczny, skopiuj joby powyżej i podmień token
-#  na RAILWAY_TOKEN_STAGING.
+#  Gdy staging zacznie być krytyczny, NIE dopisuj jego jobów tutaj: ten plik
+#  zna tylko `main` → production (#1313). Staging dostaje OSOBNY workflow
+#  z `branches: [staging]`, własnym `environment: staging`, własnym tokenem
+#  RAILWAY_TOKEN_STAGING i warunkiem `base.ref == 'staging'`.
 # =============================================================================
