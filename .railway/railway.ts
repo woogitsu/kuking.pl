@@ -836,7 +836,26 @@ export default defineRailway((ctx) => {
   //  decyzji D-010, nie preferencją.
   //  Do tego czasu bramką jakości jest lokalny hook pre-push
   //  (scripts/install-hooks.sh). Szczegóły: docs/infra/CI_BEZ_ACTIONS.md
-  const czekajNaCI = process.env.KUKING_WAIT_FOR_CI === "true";
+  //
+  //  WARTOŚĆ MUSI BYĆ JAWNA: "true" albo "false" (issue #1390). Do 24.09.2026
+  //  stało tu `=== "true"`, więc BRAK zmiennej dawał `checkSuites: false`.
+  //  Automatyczny apply w .github/workflows/railway-iac.yml nie przekazywał
+  //  jej wcale, więc scalenie zmiany w .railway/** po cichu wyłączało bramkę,
+  //  którą operator włączył ręcznie. To jest zmienna PROCESU, który wykonuje
+  //  ten plik (lokalny `railway config plan/apply` albo job GitHub Actions
+  //  z `vars.KUKING_WAIT_FOR_CI`) — NIE zmienna usługi w panelu Railway, bo
+  //  tej kontener aplikacji widzi, a IaC nie.
+  const bramkaCI = process.env.KUKING_WAIT_FOR_CI;
+  if (bramkaCI !== "true" && bramkaCI !== "false") {
+    throw new Error(
+      `KUKING_WAIT_FOR_CI musi być jawnie "true" albo "false", jest: ${
+        bramkaCI === undefined ? "brak" : JSON.stringify(bramkaCI)
+      }. Lokalnie: KUKING_WAIT_FOR_CI=true railway config plan. ` +
+        "W GitHub Actions: zmienna repozytorium KUKING_WAIT_FOR_CI " +
+        "(docs/infra/CI_BEZ_ACTIONS.md).",
+    );
+  }
+  const czekajNaCI = bramkaCI === "true";
 
   const source = github(REPO, {
     branch: isStaging ? "staging" : "main",
@@ -1065,6 +1084,16 @@ export default defineRailway((ctx) => {
       // Oszczędza ~2/3 kosztu (płacisz per serwis za RAM i CPU), za cenę
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
+      //
+      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
+      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
+      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
+      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
+      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
+      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
+      // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
+      //
       // Rozdzielony web dostaje TYLKO swój zestaw; `all` robi pracę trzech
       // ról, więc dostaje ich sumę (patrz „ZESTAWY PER ROLA").
       ...(splitServices ? webEnv : wszystkieRoleEnv),
@@ -1134,6 +1163,17 @@ export default defineRailway((ctx) => {
       },
     },
 
+    // Rola "worker" = osobny proces `queue:work` na każdą kolejkę (high,
+    // default, media, low), więc żadna nie głoduje za cudzą zaległością
+    // (#1030). `media` zawsze ma jeden proces — dwa zdjęcia 50 Mpx naraz nie
+    // mieszczą się w 1024 MB. Szczegóły: `listy_kolejek()` w docker/entrypoint.sh.
+    //
+    // PAMIĘĆ: `high` (listy wejścia na konto, audyt B8-06) to CZWARTY proces.
+    // Wysyła tylko e-maile, więc do szczytu `media` (~452 MB przy 50 Mpx)
+    // i eksportu (do 512M) dokłada tyle, ile pusty proces PHP z frameworkiem
+    // (rząd kilkudziesięciu MB). Zapas w 1024 MB maleje, ale nie znika;
+    // gdyby `media` i eksport miały szczyt naraz — to ta sama granica co
+    // przed czwartym procesem, nie nowa.
     env: { ...workerEnv, APP_ROLE: "worker" },
   });
 
