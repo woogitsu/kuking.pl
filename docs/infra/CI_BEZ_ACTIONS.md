@@ -102,7 +102,8 @@ wartości co `.env.example` i `phpunit.xml` (#732). Masz własną instancję
 na innym porcie? Uruchom `DB_PORT=55439 ./scripts/check.sh`, a sonda
 sprawdzi ten port. Lokalny klaster systemowy skrypt podnosi jak dotąd,
 ale tylko dla portu domyślnego 5432 — instancji na innym porcie nie
-rusza, tylko mówi, na jakim adresie baza nie odpowiada. Sonda potwierdza
+rusza, tylko mówi, na jakim adresie baza nie odpowiada. Gdy ustawisz
+`DB_DATABASE` i `DB_USERNAME`, sonda dostaje je też (`-d`, `-U`). Sonda potwierdza
 gotowość serwera; hasło i istnienie bazy sprawdzają dopiero testy
 i migracje. Port usługi PostgreSQL w GitHub Actions zostaje dynamiczny.
 Regresja sondy bez dostępu do bazy: `bash tests/skrypty/check-postgres.sh`.
