@@ -239,7 +239,9 @@ class RegisterController extends Controller
                 ->withErrors(['email' => $e->getMessage()]);
         }
 
-        Auth::login($konto->user, remember: true);
+        // `status` ma domyślną wartość w bazie; odświeżony model musi ją
+        // widzieć także w tej sesji, zanim Policy oceni przycisk „Obserwuj”.
+        Auth::login($konto->user->refresh(), remember: true);
         $request->session()->regenerate();
         $zamiar->przypiszKonto($request);
 

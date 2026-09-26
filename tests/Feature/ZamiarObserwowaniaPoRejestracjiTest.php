@@ -135,7 +135,8 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
     private function xpath(string $html): DOMXPath
     {
         $dom = new DOMDocument;
-        @$dom->loadHTML($html);
+        // Komponent renderowany bez pełnego <head> nie ma deklaracji UTF-8.
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
 
         return new DOMXPath($dom);
     }
