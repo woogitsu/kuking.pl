@@ -67,7 +67,7 @@ class DosylaniePilnychAlarmowTest extends TestCase
 
     private function sonda(): array
     {
-        return (array) $this->get('/health')->json('checks.alarmy_moderacji');
+        return (array) $this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji');
     }
 
     public function test_komenda_dosyla_nieudany_i_zalegly(): void

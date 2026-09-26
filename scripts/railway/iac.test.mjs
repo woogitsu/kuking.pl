@@ -25,15 +25,21 @@ import { resolve } from "node:path";
 
 const KORZEN = resolve(import.meta.dirname, "..", "..");
 
-function graf(srodowisko, env = {}) {
-  const wyjscie = execFileSync(
+function uruchomGraf(srodowisko, env) {
+  return execFileSync(
     process.execPath,
     ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/iac-graf.mjs"), srodowisko],
     // Czyste środowisko procesu: KUKING_* z powłoki uruchamiającej test
     // nie może po cichu zmienić grafu, który sprawdzamy.
-    { cwd: KORZEN, encoding: "utf8", env: { PATH: process.env.PATH, ...env } },
+    { cwd: KORZEN, encoding: "utf8", env: { PATH: process.env.PATH, ...env }, stdio: ["ignore", "pipe", "pipe"] },
   );
-  return JSON.parse(wyjscie);
+}
+
+// railway.ts odmawia bez jawnego KUKING_WAIT_FOR_CI (#1390), więc graf
+// liczymy z jawnym "false" — tak jak dziś stoi produkcja bez bramki —
+// chyba że przypadek poda własną wartość.
+function graf(srodowisko, env = {}) {
+  return JSON.parse(uruchomGraf(srodowisko, { KUKING_WAIT_FOR_CI: "false", ...env }));
 }
 
 // Nazwa serwisu, na który celuje job `operate` w deploy.yml. Serwis WWW
@@ -140,7 +146,7 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     //  2. zmienna obecna w dwóch rolach ma w obu tę samą wartość.
     // Pełny podział na role pilnuje tests/Feature/ZmienneRailwayaPerRolaTest.php.
     if (www) {
-      const RDZEN = /^(APP_(?!ROLE$)|DB_|AWS_|FILESYSTEM_DISK$|LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK$|KUKING_EXPORT_DISK$|QUEUE_CONNECTION$|CACHE_STORE$|SESSION_|LOG_|MAIL_MAILER$|MAIL_FROM_ADDRESS$)/;
+      const RDZEN = /^(APP_(?!ROLE$)|DB_|AWS_|FILESYSTEM_DISK$|LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK$|KUKING_EXPORT_DISK$|KUKING_MEDIA_DISK$|KUKING_QUESTIONS_ENABLED$|QUEUE_CONNECTION$|CACHE_STORE$|SESSION_|LOG_|MAIL_MAILER$|MAIL_FROM_ADDRESS$)/;
       const zm = (s) => s.variables ?? {};
       for (const s of aplikacja) {
         if (s === www) continue;
@@ -188,8 +194,63 @@ test("KUKING_WAIT_FOR_CI przełącza „Wait for CI” w każdym serwisie aplika
   // ustawić; tu pilnujemy, że zmienna naprawdę działa.
   const aplikacja = (g) => g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
   for (const s of aplikacja(graf("production", { KUKING_WAIT_FOR_CI: "true" }))) assert.equal(s.source.checkSuites, true, s.name);
-  for (const s of aplikacja(graf("production"))) assert.equal(s.source.checkSuites, false, s.name);
+  for (const s of aplikacja(graf("production", { KUKING_WAIT_FOR_CI: "false" }))) assert.equal(s.source.checkSuites, false, s.name);
 });
+
+test("brak albo zła wartość KUKING_WAIT_FOR_CI zatrzymuje graf zamiast wyłączać bramkę (#1390)", () => {
+  // Do 24.09.2026 brak zmiennej dawał po cichu `checkSuites: false`.
+  for (const env of [{}, { KUKING_WAIT_FOR_CI: "" }, { KUKING_WAIT_FOR_CI: "1" }, { KUKING_WAIT_FOR_CI: "TRUE" }]) {
+    assert.throws(
+      () => uruchomGraf("production", env),
+      (e) => /KUKING_WAIT_FOR_CI musi być jawnie "true" albo "false"/.test(String(e.stderr)),
+      `graf policzony mimo KUKING_WAIT_FOR_CI=${JSON.stringify(env.KUKING_WAIT_FOR_CI)}`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+//  ZMIENNE, KTÓRE DO 25.09.2026 STAŁY TYLKO W PANELU (albo nigdzie)
+//
+//  `railway config apply` ustawia CAŁY zestaw zmiennych usługi: zmienna
+//  z panelu, której nie ma w pliku, znika. Właściciel (25.09.2026) kazał je
+//  dopisać — każdą do ról, które ją czytają. Macierz niżej to ta sama
+//  decyzja co `JAWNE_Z_PANELU` i `MACIERZ` w ZmienneRailwayaPerRolaTest.php,
+//  tylko sprawdzona na grafie, który zobaczy `plan`.
+//  TRUSTED_PROXIES jest tu jako MARTWA: nie czyta jej żaden kod (SEC-01),
+//  więc nie dostaje jej żadna rola, a plan pokaże jej usunięcie.
+// ---------------------------------------------------------------------------
+const Z_PANELU = {
+  KUKING_QUESTIONS_ENABLED: { role: ["web", "worker", "scheduler"], wartosc: { type: "literal", value: "true" } },
+  KUKING_MEDIA_DISK: { role: ["web", "worker", "scheduler"], wartosc: { type: "literal", value: "r2" } },
+  KUKING_EDGE_TRYB: { role: ["web"], wartosc: { type: "sharedReference", name: "KUKING_EDGE_TRYB" } },
+  KUKING_HTML_EDGE_CACHE_SECONDS: { role: ["web"], wartosc: { type: "sharedReference", name: "KUKING_HTML_EDGE_CACHE_SECONDS" } },
+  KUKING_R2_PUBLICZNE_ADRESY: { role: ["web"], wartosc: { type: "sharedReference", name: "KUKING_R2_PUBLICZNE_ADRESY" } },
+  TRUSTED_PROXIES: { role: [], wartosc: undefined },
+};
+
+function bledyZPanelu(g, { rozbity, nazwaWww }) {
+  const b = [];
+  const aplikacja = g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
+  const rolaUslugi = (s) => (!rozbity ? "all" : s.name === nazwaWww ? "web" : s.name);
+  for (const s of aplikacja) {
+    const rola = rolaUslugi(s);
+    for (const [nazwa, { role, wartosc }] of Object.entries(Z_PANELU)) {
+      const ma = s.variables?.[nazwa];
+      const powinna = rola === "all" ? role.length > 0 : role.includes(rola);
+      if (powinna && JSON.stringify(ma) !== JSON.stringify(wartosc)) {
+        b.push(`${s.name} (${rola}): ${nazwa}=${JSON.stringify(ma)}, oczekiwane ${JSON.stringify(wartosc)} — apply usunie zmienną z panelu`);
+      }
+      if (!powinna && ma !== undefined) b.push(`${s.name} (${rola}): dostaje ${nazwa}, której ta rola nie czyta`);
+    }
+  }
+  return b;
+}
+
+for (const [opis, srodowisko, env, rozbity] of PRZYPADKI) {
+  test(`graf ${opis}: zmienne z panelu w swoich rolach`, () => {
+    assert.deepEqual(bledyZPanelu(graf(srodowisko, env), { ...KONTEKST, rozbity }), []);
+  });
+}
 
 test("serwis WWW nazywa się jak żywy serwis i jak APP_SERVICE w deploy.yml", () => {
   // Pomiar 9.09.2026 (OperacjeWdrozeniaCelujaWIstniejacySerwisTest): kuking.pl.
@@ -228,6 +289,70 @@ const MUTACJE = [
     s.variables.APP_ROLE.value = "web";
   }],
 ];
+
+// ---------------------------------------------------------------------------
+//  LISTY URODZINOWE (#1755, D-269): wyłącznik wysyłki tylko w roli, która
+//  wysyła (scheduler / all) i włączony wyłącznie na produkcji.
+// ---------------------------------------------------------------------------
+function bledyUrodzin(g, { srodowisko, nazwaWww }) {
+  const b = [];
+  const aplikacja = g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
+  const produkcja = srodowisko === "production";
+  for (const s of aplikacja) {
+    const rola = ROLA(s);
+    const flaga = zmienna(s, "KUKING_URODZINY_MAIL_WLACZONY");
+    const wysyla = rola === "scheduler" || rola === "all";
+    if (!wysyla && flaga) b.push(`${s.name}: KUKING_URODZINY_MAIL_WLACZONY w roli ${rola}, która list nie kolejkuje`);
+    if (wysyla) {
+      const oczekiwana = produkcja ? "true" : "false";
+      if (flaga?.type !== "literal" || flaga.value !== oczekiwana) {
+        b.push(`${s.name}: KUKING_URODZINY_MAIL_WLACZONY=${flaga?.value}, oczekiwane „${oczekiwana}” (${srodowisko})`);
+      }
+    }
+  }
+  if (!aplikacja.some((s) => s.name === nazwaWww)) b.push("brak serwisu WWW — nie ma czego sprawdzać");
+  return b;
+}
+
+for (const [opis, srodowisko] of [["production", "production"], ["staging", "staging"], ["preview pr-123", "pr-123"]]) {
+  test(`listy urodzinowe: wyłącznik w grafie ${opis}`, () => {
+    assert.deepEqual(bledyUrodzin(graf(srodowisko), { ...KONTEKST, srodowisko }), []);
+  });
+}
+
+for (const [opis, wzor, zepsuj] of [
+  ["wysyłka wyłączona na produkcji", PROD, (g) => { usluga(g, "scheduler").variables.KUKING_URODZINY_MAIL_WLACZONY.value = "false"; }],
+  ["wyłącznik w workerze", PROD, (g) => { usluga(g, "worker").variables.KUKING_URODZINY_MAIL_WLACZONY = { type: "literal", value: "true" }; }],
+  ["wysyłka włączona na stagingu", STAGING, (g) => { usluga(g, "kuking.pl").variables.KUKING_URODZINY_MAIL_WLACZONY.value = "true"; }],
+]) {
+  test(`kontrola ujemna listów urodzinowych: ${opis}`, () => {
+    const g = structuredClone(wzor);
+    const przed = JSON.stringify(g);
+    zepsuj(g);
+    assert.notEqual(JSON.stringify(g), przed, "mutacja nic nie zmieniła");
+    const srodowisko = wzor === PROD ? "production" : "staging";
+    assert.notDeepEqual(bledyUrodzin(g, { ...KONTEKST, srodowisko }), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
+
+const MUTACJE_Z_PANELU = [
+  ["flaga pytań zdjęta z harmonogramu", PROD, (g) => { delete usluga(g, "scheduler").variables.KUKING_QUESTIONS_ENABLED; }],
+  ["flaga pytań wyłączona", PROD, (g) => { usluga(g, "kuking.pl").variables.KUKING_QUESTIONS_ENABLED.value = "false"; }],
+  ["tryb krawędzi zdjęty z WWW", PROD, (g) => { delete usluga(g, "kuking.pl").variables.KUKING_EDGE_TRYB; }],
+  ["adresy bramki R2 w workerze", PROD, (g) => { usluga(g, "worker").variables.KUKING_R2_PUBLICZNE_ADRESY = { type: "sharedReference", name: "KUKING_R2_PUBLICZNE_ADRESY" }; }],
+  ["martwe TRUSTED_PROXIES wróciło", PROD, (g) => { usluga(g, "kuking.pl").variables.TRUSTED_PROXIES = { type: "literal", value: "*" }; }],
+  ["rola all bez cache HTML", STAGING, (g) => { delete usluga(g, "kuking.pl").variables.KUKING_HTML_EDGE_CACHE_SECONDS; }],
+];
+
+for (const [opis, wzor, zepsuj] of MUTACJE_Z_PANELU) {
+  test(`kontrola ujemna zmiennych z panelu: ${opis}`, () => {
+    const g = structuredClone(wzor);
+    const przed = JSON.stringify(g);
+    zepsuj(g);
+    assert.notEqual(JSON.stringify(g), przed, "mutacja nic nie zmieniła");
+    assert.notDeepEqual(bledyZPanelu(g, { ...KONTEKST, rozbity: wzor === PROD }), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
 
 for (const [opis, wzor, zepsuj] of MUTACJE) {
   test(`kontrola ujemna: ${opis}`, () => {
@@ -369,3 +494,55 @@ for (const [opis, policz] of MUTACJE_OBRAZU) {
     assert.notDeepEqual(policz(), [], `strażnik nie zauważył: ${opis}`);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Zmienne tylko w panelu (audyt po fali 25.09, znalezisko 12 / propozycja C).
+// Skrypt dla właściciela: docs/infra/ZMIENNE_SPOZA_IAC.md. Tu pilnujemy, że
+// wskazuje zmienne spoza grafu, nie wskazuje zadeklarowanych ani
+// wstrzykiwanych przez Railway i że nie wypisuje WARTOŚCI.
+// ---------------------------------------------------------------------------
+const { zmienneSpozaIac } = await import(resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"));
+// Trzy zmienne z audytu (KUKING_EDGE_TRYB, KUKING_HTML_EDGE_CACHE_SECONDS,
+// KUKING_TAG_TYGODNIA) są od #1883 w grafie — test nie może opierać się na
+// tym, czego railway.ts akurat nie ma. Nazwy syntetyczne: na pewno spoza grafu.
+const TYLKO_W_PANELU = ["KUKING_TYLKO_W_PANELU_A", "KUKING_TYLKO_W_PANELU_B"];
+
+test("zmienne-spoza-iac wskazuje zmienne z panelu, których railway.ts nie deklaruje", () => {
+  assert.deepEqual(zmienneSpozaIac([...TYLKO_W_PANELU, "APP_NAME", "RAILWAY_PUBLIC_DOMAIN"], PROD, "kuking.pl"), TYLKO_W_PANELU);
+});
+
+test("zmienne-spoza-iac: trzy zmienne z audytu są już w grafie (#1883)", () => {
+  const zAudytu = ["KUKING_EDGE_TRYB", "KUKING_HTML_EDGE_CACHE_SECONDS", "KUKING_TAG_TYGODNIA"];
+  assert.deepEqual(zmienneSpozaIac(zAudytu, PROD, "kuking.pl"), []);
+});
+
+test("kontrola dodatnia zmienne-spoza-iac: zmienna zadeklarowana w grafie nie jest zgłaszana", () => {
+  const zadeklarowane = Object.keys(usluga(PROD, "kuking.pl").variables);
+  assert.ok(zadeklarowane.length > 10, "graf serwisu WWW nie ma zmiennych — test niczego by nie sprawdzał");
+  assert.deepEqual(zmienneSpozaIac(zadeklarowane, PROD, "kuking.pl"), []);
+});
+
+test("kontrola ujemna zmienne-spoza-iac: zmienna usunięta z grafu zaczyna być zgłaszana", () => {
+  const zepsuty = structuredClone(PROD);
+  delete usluga(zepsuty, "kuking.pl").variables.APP_NAME;
+  assert.deepEqual(zmienneSpozaIac(["APP_NAME"], zepsuty, "kuking.pl"), ["APP_NAME"]);
+});
+
+test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości", () => {
+  const sekret = "wartosc-ktora-nie-moze-wyjsc-12C";
+  let wynik;
+  try {
+    execFileSync(
+      process.execPath,
+      ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/zmienne-spoza-iac.mjs"), "production", "kuking.pl"],
+      { cwd: KORZEN, encoding: "utf8", input: JSON.stringify({ KUKING_TYLKO_W_PANELU_A: sekret, APP_NAME: sekret }), env: { PATH: process.env.PATH, KUKING_WAIT_FOR_CI: "false" } },
+    );
+    assert.fail("kod 0 mimo zmiennej tylko w panelu");
+  } catch (blad) {
+    if (blad.code === "ERR_ASSERTION") throw blad;
+    wynik = blad;
+  }
+  assert.equal(wynik.status, 1);
+  assert.equal(wynik.stdout, "KUKING_TYLKO_W_PANELU_A\n");
+  assert.ok(!String(wynik.stdout).includes(sekret) && !String(wynik.stderr).includes(sekret), "wartość zmiennej wyszła na ekran");
+});

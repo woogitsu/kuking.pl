@@ -193,6 +193,8 @@ final class MergeTags
      */
     private function przepnijPromocje(Tag $zrodlo, Tag $cel): void
     {
+        TagMutationLock::forPromotions();
+
         $promocjaZrodla = TagPromotion::query()->where('tag_id', $zrodlo->getKey())->first();
 
         if ($promocjaZrodla === null) {
