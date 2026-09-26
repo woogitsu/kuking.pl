@@ -329,6 +329,13 @@ CISZA_BEZ_WARUNKU = (
     "        }\n"
     "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
 )
+# IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
+# (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
+# `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
+# Mutacje zdejmują po kolei każdy z nich.
+IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
+IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
 def digest(path):
@@ -791,6 +798,10 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, "    branches: [main]\n", "")),
+    ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -852,6 +863,7 @@ run_test(EPIZOD_ALARMU_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(IAC_PRODUKCJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
