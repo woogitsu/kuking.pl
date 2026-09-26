@@ -89,9 +89,11 @@ final class WorkflowCenNieUruchamiaKoduZTokenemZapisuTest extends TestCase
         );
 
         foreach ($bezTokenu as $nazwa => $blok) {
+            // Bez komentarzy YAML: zdanie „z `persist-credentials: false`”
+            // w komentarzu nad krokiem nie może zastąpić samego ustawienia.
             $this->assertMatchesRegularExpression(
                 '/persist-credentials:\s*false/',
-                $blok,
+                (string) preg_replace('/^\s*#.*$/m', '', $blok),
                 "Job „{$nazwa}” uruchamia kod repozytorium i nie ma dostępu do secrets.CENY_WARZYW_PAT, "
                 .'ale jego checkout nie ma `persist-credentials: false` — przy następnej zmianie tego pliku '
                 .'token mógłby tu wrócić bez tego zabezpieczenia.',
