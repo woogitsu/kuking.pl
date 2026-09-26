@@ -33,6 +33,7 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Users\Actions\RequestAccountDeletion;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -212,6 +213,16 @@ try {
                 'zbanuj' => $konto->ban(),
                 'usun' => $konto->markForDeletion(),
             };
+
+            return (string) $konto->status;
+        })(),
+
+        // Formularz „Usuń konto" (#1346): prawdziwa akcja przyjęcia żądania,
+        // na modelu czytanym przed kolejką po wiersz — jak formularz, który
+        // sprawdził hasło, zanim druga karta zdążyła wysłać swój.
+        'przyjmij-usuniecie' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            app(RequestAccountDeletion::class)->handle($konto, $argumenty['zakres']);
 
             return (string) $konto->status;
         })(),
