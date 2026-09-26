@@ -94,7 +94,7 @@ class StraznikNowosciKazdaNowaFunkcjaMaAkapitTest extends TestCase
      */
     private function sekcja(string $tresc, string $naglowek): string
     {
-        $wzor = '/^'.preg_quote($naglowek, '/').'\R(.*?)(?=^## |\z)/ms';
+        $wzor = '/^'.preg_quote($naglowek, '/').'\R(.*?)(?=^## |\z)/msu';
 
         if (preg_match($wzor, $tresc, $dopasowanie) !== 1) {
             throw new RuntimeException("Nagłówek „{$naglowek}” nie istnieje albo jest niepoprawny.");
