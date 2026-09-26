@@ -2033,6 +2033,11 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
 
 **Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
 zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
@@ -4351,7 +4356,10 @@ a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkie
 **Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
 zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
 („wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
-i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+oraz automatycznie po 30 dniach (`queue:prune-failed --hours=720`,
+codziennie o 05:20 — decyzja właściciela z 25.09.2026, `docs/DECISIONS.md`,
+sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”) i nie da się w niej
+niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
 wskazuje na nią kolumną `failed_job_uuid`.
 
 | Kolumna | Uwagi |
