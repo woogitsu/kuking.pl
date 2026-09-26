@@ -39,6 +39,7 @@ use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
@@ -894,6 +895,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
         ->name('social.unhide');
+    // „MÓJ STÓŁ" (issue #1749, D-304) — dobrowolna półka przepisów, domyślnie
+    // wyłączona. Dobór wyłącznie z zamkniętej listy AGENTS.md §8.
+    Route::get('/moj-stol', [MojStolController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['moj_stol']},moj_stol")
+        ->name('moj-stol');
+    Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('moj-stol.ustaw');
     // Pasek „Zmieniliśmy regulamin" (#1811, D-306): zamknięcie zapisuje wersję.
     // POST, nie GET — to zapis, a podgląd linku albo prefetch nie może go zrobić.
     Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)

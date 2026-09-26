@@ -8,6 +8,9 @@
             „Z tagu: …”. Jeśli nie ma jeszcze takich wpisów, pokazujemy najnowsze
             publiczne wpisy innych osób.
             Przełącznik „Świeżo z <x-kuking-word />” prowadzi do tej publicznej listy.</p>
+        {{-- „Mój stół" (#1749, D-304) — to samo zdanie co `MojStol::DLACZEGO`. --}}
+        <p>„Mój stół” to dobrowolna półka, którą włączasz na stronie
+            <a href="{{ route('moj-stol') }}">Mój stół</a>. {{ \App\Domain\Feed\MojStol::DLACZEGO }}</p>
         <p>Opis każdej listy i droga do obserwowanych osób, tagów i ukrytych wpisów:
             <a href="{{ route('feed-rules') }}">Jak dobieramy wpisy</a>.</p>
 

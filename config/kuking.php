@@ -1646,6 +1646,23 @@ return [
         'tag_suggest' => '60,1',
 
         /*
+         * „MÓJ STÓŁ" — strona (issue #1749, D-304). Ten sam wzorzec co
+         * `search`: to jest strona za logowaniem, otwierana zwykłym
+         * przewijaniem/odświeżaniem, nie formularz — więc koszyk ma ten sam
+         * rząd wielkości, sześćdziesiąt na minutę, żeby nie łapać człowieka,
+         * który wraca na tę stronę kilka razy w trakcie gotowania.
+         *
+         * OSOBNY PREFIKS OD `search`, mimo tej samej liczby: to inna trasa
+         * i inna szkoda z nadużycia (patrz
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest` — jeden prefiks to
+         * zawsze jedna trasa). Zapis stanu (przełącznik włącz/wyłącz) ma już
+         * własny limit zapisu (`ustawienia`, PUT `/moj-stol`); ten koszyk
+         * dotyczy tylko odczytu strony (GET `/moj-stol`), który wcześniej nie
+         * miał żadnego limitu.
+         */
+        'moj_stol' => '60,1',
+
+        /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
          *
          * Trasa jest PUBLICZNA i pyta bazę o rodziców zdjęcia przy każdym
