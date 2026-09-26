@@ -67,6 +67,7 @@ final class InwentarzDanychKonta
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
         'tozsamosci_zewnetrzne.user_id' => [self::EKSPORT, 'polaczone_konta'],
         'sessions.user_id' => [self::EKSPORT, 'aktywne_sesje'],
+        'personal_access_tokens.tokenable_id' => [self::EKSPORT, 'urzadzenia_z_dostepem'],
         'pending_email_changes.user_id' => [self::EKSPORT, 'zmiana_adresu_email'],
         'weekly_digest_sends.user_id' => [self::EKSPORT, 'wyslane_podsumowania_tygodnia'],
         'data_exports.user_id' => [self::EKSPORT, 'zamowione_paczki'],
