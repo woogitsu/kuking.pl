@@ -672,8 +672,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/komentarze/{comment}', [CommentController::class, 'update'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.update');
+    // Issue #911: komentarz bez odpowiedzi jest usuwany miękko. Bez
+    // withTrashed() drugie DELETE (druga karta) kończyło się 404 zamiast
+    // komunikatu „był już usunięty". Tylko ta trasa — edycja usuniętego
+    // komentarza nadal daje 404. Policy w kontrolerze idzie pierwsza.
     Route::delete('/komentarze/{comment}', [CommentController::class, 'destroy'])
         ->middleware("throttle:{$limits['comment']},comment")
+        ->withTrashed()
         ->name('comments.destroy');
 
     /*
@@ -752,6 +757,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/zeszyt/{collection}', [CollectionController::class, 'update'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.update');
+    // Wyjęcie z zeszytu samych niedostępnych zapisów (#773). Kasuje powiązania,
+    // nie treść — ale bez drogi powrotu, więc budżet `usuwanie`.
+    Route::delete('/zeszyt/{collection}/niedostepne', [CollectionController::class, 'removeUnavailable'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.unavailable.destroy');
     // Prywatna notatka przy jednej pozycji zeszytu (#978). Odwracalna,
     // nikogo nie powiadamia — budżet `zeszyt`, jak zapis.
     Route::patch('/zeszyt/{collection}/notatka/{typ}/{pozycja}', CollectionItemNoteController::class)

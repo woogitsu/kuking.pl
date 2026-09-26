@@ -88,12 +88,12 @@
             </p>
         </x-empty-state>
     @else
-        <nav class="tag-directory-grid" aria-label="Wszystkie tagi, alfabetycznie">
+        <nav class="tag-directory-grid" id="lista-tagow" aria-label="Wszystkie tagi, alfabetycznie">
             @foreach($tagi as $tag)
                 <x-tag-directory-card :tag="$tag" :photo="$collages[$tag->getKey()]->first()" :stats="$publicStats[$tag->getKey()]" />
             @endforeach
         </nav>
 
-        <x-show-more :paginator="$tagi" czego="tagów" />
+        <x-show-more :paginator="$tagi" czego="tagów" lista="lista-tagow" />
     @endif
 </x-layout>
