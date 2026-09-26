@@ -59,9 +59,10 @@ use Throwable;
  *
  * CO Z TEGO TRACIMY I CZYM TO NADRABIAMY
  * Webhook przestaje być raportem, a staje się DZWONKIEM: mówi „coś się
- * zepsuło, tutaj, tego rodzaju". Pełny komunikat zostaje w logu serwera,
- * który nigdzie nie wychodzi. Żeby dało się jedno z drugim zestawić,
- * wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
+ * zepsuło, tutaj, tego rodzaju". Komunikat zostaje w logu serwera — ale
+ * stderr czyta Railway, więc i tam przechodzi przez `BezDanychOsobowychWLogu`
+ * (e-mail, hash hasła i wartości z SQL-a są wycięte). Żeby dało się jedno
+ * z drugim zestawić, wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
  * błąd ma zawsze ten sam odcisk, więc przy okazji widać, czy to nowa awaria,
  * czy dziesiąte powtórzenie tej samej.
  *
@@ -214,6 +215,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             // wywołania `Log::error()`.
             return $this->przytnij(implode("\n", array_filter([
                 $naglowek.' '.$this->jednalinia($record->message),
+                $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
                 $correlation,
                 $jobCorrelation,
                 $attemptCorrelation,
@@ -225,7 +227,8 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             $this->kod($wyjatek),
             sprintf('%s:%d', $this->wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
             $this->trasa(),
-            'odcisk: '.$this->odcisk($wyjatek),
+            'odcisk: '.self::odcisk($wyjatek),
+            $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
             $correlation,
             $jobCorrelation,
             $attemptCorrelation,
@@ -271,9 +274,20 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * odróżnić „nowy błąd" od „ten sam, dziesiąty raz", i odnaleźć wpis
      * w logu serwera.
      */
-    private function odcisk(Throwable $wyjatek): string
+    public static function odcisk(Throwable $wyjatek): string
     {
         return substr(sha1($wyjatek::class.'|'.$wyjatek->getFile().'|'.$wyjatek->getLine()), 0, 8);
+    }
+
+    /**
+     * Ile identycznych wystąpień `SeriaAlarmow` pominęła od poprzedniej
+     * wiadomości (#599). Tylko liczba całkowita — wszystko inne pomijamy.
+     */
+    private function powtorzenia(mixed $pominiete): ?string
+    {
+        return is_int($pominiete) && $pominiete > 0
+            ? sprintf('powtórzeń od poprzedniej wiadomości (nie wysłanych osobno): %d', $pominiete)
+            : null;
     }
 
     /**

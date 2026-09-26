@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Notifications\Push\TransportPush;
+use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
@@ -15,6 +19,7 @@ use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
+use App\Support\ZamrozonyCzas;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Events\MigrationEnded;
@@ -35,7 +40,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Singleton, bo `odswiez()` trzyma flagę „już zaplanowane na commit"
+        // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
+        $this->app->singleton(KolejkiPanelu::class);
+
+        // Rejestracja (`Users`) woła obserwowanie gospodarza przez kontrakt,
+        // a implementację dostarcza `Social` (issue #971). To wiązanie jest
+        // jedynym miejscem, które zna oba moduły — dzięki temu graf
+        // `app/Domain` nie ma cyklu `Users ↔ Social`.
+        $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+
+        // Web Push (D-303). Testy podmieniają to fałszywym transportem —
+        // żaden test nie wysyła prawdziwego pushu.
+        $this->app->bind(TransportPush::class, TransportWebPush::class);
     }
 
     /**
@@ -43,6 +60,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Issue #1836: zamrożenie zegara na jeden, wspólny moment dla joba CI
+        // „Panel marki". Musi stanąć PRZED wszystkim, co czyta `now()` przy
+        // starcie (np. `odswiezajLicznikiKolejek()` niżej) — inaczej to, co
+        // liczy się od zegara, dostałoby prawdziwy czas mimo ustawionej
+        // zmiennej. Poza `local`/`testing` `env(self::ZMIENNA)` jest zawsze
+        // puste, więc to wywołanie nic nie robi na produkcji. Uzasadnienie
+        // pełne w `App\Support\ZamrozonyCzas`.
+        ZamrozonyCzas::zastosuj();
+
         // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
         // `x-amz-acl` (issue #120, audyt G-02).
         //
@@ -236,8 +262,10 @@ class AppServiceProvider extends ServiceProvider
      * `Appeal`, `Report` i `ContactMessage` to tabele, w których pojawienie
      * się i zamknięcie sprawy MA być widoczne od razu: licznik, który
      * pokazuje „1" po zamknięciu ostatniej sprawy, kłamie raz i traci
-     * zaufanie na zawsze. Zmieniają się kilka razy na dobę, więc pięć
-     * `COUNT(*)` przy takim zapisie jest niewidoczne.
+     * zaufanie na zawsze. Hak liczy tylko cztery tanie `COUNT(*)`, po
+     * commicie i raz na transakcję — sygnały automatu przychodzą falami
+     * (audyt B4 W3, `KolejkiPanelu::odswiez()`). Drogie „Bez odpowiedzi"
+     * zostaje harmonogramowi.
      *
      * `Post` i `Comment` haka NIE MAJĄ świadomie — publikacja wpisu
      * i komentarz to główna akcja produktu (AGENTS.md §1) i nie dokładamy

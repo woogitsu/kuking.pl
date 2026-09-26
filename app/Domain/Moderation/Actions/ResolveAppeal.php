@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
@@ -12,6 +13,7 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -45,29 +47,43 @@ use Illuminate\Support\Facades\Gate;
  * i dostaje odpowiedź mailem (`NotifyReporterAppealOutcome`) na adres
  * zapisany przy jego zgłoszeniu.
  *
- * GRANICA, KTÓREJ TA KLASA ŚWIADOMIE NIE PRZESUWA: cofnięcie decyzji
- * `no_action` po odwołaniu ZGŁASZAJĄCEGO nie ma dziś żadnego mechanicznego
- * odpowiednika — `cofnij()` niżej poprawnie nic nie robi (nic nie było
- * ukryte), a rzeczywiste podjęcie działania wobec zgłoszonej treści
- * wymagałoby NOWEJ decyzji moderacyjnej na już rozstrzygniętym zgłoszeniu,
- * czego `moderation_actions_one_per_report` i `ModerationController::decide()`
- * dziś nie dopuszczają. To jest świadomie zostawiona granica tej zmiany, nie
- * przeoczenie: naprawia dostęp do systemu skarg (art. 20), nie dodaje
- * mechanizmu ponownego rozpatrzenia zgłoszenia. Jeśli moderator uzna
- * odwołanie za zasadne, realne działanie na treści wykonuje dziś ręcznie,
- * tak jak każdą decyzję poza tym systemem — `decision_note` jest miejscem,
- * w którym mówi zgłaszającemu, co konkretnie zrobi.
+ * ODWOŁANIE ZGŁASZAJĄCEGO OD DECYZJI BEZ DZIAŁANIA (#989, DSA art. 20 ust. 4)
+ * Cofnięcie `no_action` nie ma czego przywrócić, więc „cofam" bez niczego
+ * więcej byłoby odpowiedzią „zmieniamy decyzję" bez zmiany. Do 24.09.2026
+ * dokładnie tak było: moderator miał działać „ręcznie, poza systemem".
+ * Teraz uznanie takiego odwołania WYMAGA nowej decyzji
+ * (`Appeal::wymagaNowejDecyzji()`, `NowaDecyzja`), a `DecyzjaPoOdwolaniu`
+ * wykonuje ją w tej samej transakcji: skutek, wiersz `moderation_actions`
+ * z `appeal_id`, powiadomienie autora, zgłoszenie `resolved`. Jeśli nowej
+ * decyzji nie da się wykonać (celu nie ma, kara wobec wyższej rangi),
+ * odwołania nie da się uznać — zostaje „podtrzymuję" z uzasadnieniem.
  */
 final class ResolveAppeal
 {
+    public const JUZ_ROZPATRZONE = 'To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.';
+
+    public const WYBIERZ_NOWA_DECYZJE = 'Cofając decyzję „Bez działania”, wybierz nową decyzję wobec zgłoszonej treści. '
+        .'Jeśli po ponownym sprawdzeniu nadal nie trzeba nic robić, wybierz „Podtrzymuję decyzję”.';
+
+    /** Dopisek do odpowiedzi, gdy uchylona kara nie jest tą, która dziś obowiązuje (#933). */
+    public const KONTO_ZOSTAJE_ZABLOKOWANE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zablokowane '
+        .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
+    public const KONTO_ZOSTAJE_ZAWIESZONE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zawieszone '
+        .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
     public function __construct(
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
         private readonly NotifyReporterAppealOutcome $powiadomZglaszajacego,
+        private readonly NotifyReporterDecisionChanged $skorygujZglaszajacemu,
+        private readonly DecyzjaPoOdwolaniu $decyzjaPoOdwolaniu,
     ) {}
 
     /**
      * @param  string  $wynik  Appeal::STATUS_UPHELD albo Appeal::STATUS_OVERTURNED
+     * @param  ?NowaDecyzja  $nowaDecyzja  wymagana (i używana) wyłącznie przy uznaniu
+     *                                     odwołania, dla którego `wymagaNowejDecyzji()` (#989)
      *
      * @throws AuthorizationException gdy `$moderator`
      *                                nie ma roli uprawniającej do rozstrzygania odwołań (issue #1087)
@@ -79,6 +95,7 @@ final class ResolveAppeal
         string $wynik,
         string $uzasadnienie,
         ?string $ip = null,
+        ?NowaDecyzja $nowaDecyzja = null,
     ): Appeal {
         // KTO ROZSTRZYGA — PYTANIE DOMENY, NIE KONTROLERA (issue #1087).
         //
@@ -107,8 +124,11 @@ final class ResolveAppeal
         // uruchamia. Ta jest ostatnią linią, nie jedyną.
         Gate::forUser($moderator)->authorize('resolveAppeals', User::class);
 
+        // Tanie sprawdzenie na wejściu — ten sam komunikat co pod blokadą
+        // niżej. Rozstrzyga WYŁĄCZNIE sprawdzenie pod blokadą; to tutaj
+        // oszczędza tylko transakcję, gdy strona była dawno nieodświeżona.
         if (! $odwolanie->isOpen()) {
-            throw new BladDlaCzlowieka('To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.');
+            throw new BladDlaCzlowieka(self::JUZ_ROZPATRZONE);
         }
 
         if (! in_array($wynik, [Appeal::STATUS_UPHELD, Appeal::STATUS_OVERTURNED], true)) {
@@ -121,45 +141,96 @@ final class ResolveAppeal
             throw new BladDlaCzlowieka('Napisz, dlaczego tak decydujesz. Bez tego nie da się wysłać odpowiedzi.');
         }
 
-        $decyzja = $odwolanie->moderationAction;
+        // JEDNA TRANSAKCJA, POD BLOKADĄ WIERSZA ODWOŁANIA (#950).
+        //
+        // Do 24.09.2026 sprawdzenie `isOpen()` stało na obiekcie z wiązania
+        // trasy, a skutek, wynik, odpowiedź i wpis w dzienniku szły osobnymi
+        // zapisami bez transakcji. Dwa równoległe rozpatrzenia (dwie karty,
+        // dwóch administratorów) oba widziały `open`: jedno cofało decyzję
+        // i odblokowywało konto, drugie „podtrzymywało" i nadpisywało wynik —
+        // człowiek dostawał dwie sprzeczne odpowiedzi, a konto zostawało
+        // odblokowane przy odwołaniu zapisanym jako podtrzymane. Awaria
+        // w połowie zostawiała treść przywróconą przy odwołaniu dalej
+        // otwartym.
+        //
+        // Teraz: `lockForUpdate()` wstrzymuje drugie rozpatrzenie do końca
+        // pierwszego, a ponowne sprawdzenie stanu JUŻ POD BLOKADĄ daje mu
+        // „już rozpatrzone" bez żadnego skutku. Skutek, wynik, powiadomienie
+        // w serwisie i wpis w dzienniku zatwierdzają się razem albo wcale.
+        // List do zgłaszającego to zadanie w kolejce `database`, więc jego
+        // wiersz w `jobs` też jest częścią tej transakcji — po wycofaniu nie
+        // wyjdzie, a po zatwierdzeniu ponawia go kolejka, nie człowiek.
+        //
+        // Kolejność blokad: najpierw odwołanie, potem treść (`RestoreContent`)
+        // albo konto. Nikt inny nie bierze blokady odwołania, więc ta
+        // kolejność nie ma z kim się odwrócić. Pomiar na dwóch połączeniach:
+        // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+        return DB::transaction(function () use ($moderator, $odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
+            $zablokowane = Appeal::query()->whereKey($odwolanie->getKey())->lockForUpdate()->first();
 
-        if ($wynik === Appeal::STATUS_UPHELD) {
-            $this->sprawdzKarencje($moderator, $decyzja);
-        }
+            if ($zablokowane === null || ! $zablokowane->isOpen()) {
+                throw new BladDlaCzlowieka(self::JUZ_ROZPATRZONE);
+            }
 
-        if ($wynik === Appeal::STATUS_OVERTURNED) {
-            $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
-        }
+            $decyzja = $zablokowane->moderationAction;
 
-        $odwolanie->update([
-            'status' => $wynik,
-            'decided_by' => $moderator->getKey(),
-            'decision_note' => $uzasadnienie,
-            'decided_at' => now(),
-        ]);
+            if ($wynik === Appeal::STATUS_UPHELD) {
+                $this->sprawdzKarencje($moderator, $decyzja);
+            }
 
-        $odwolanie->refresh();
+            $dopisek = null;
+            $poOdwolaniu = null;
 
-        if ($odwolanie->isFromReporter()) {
-            $this->powiadomZglaszajacego->handle($odwolanie);
-        } else {
-            $this->powiadom->handle($odwolanie);
-        }
+            if ($wynik === Appeal::STATUS_OVERTURNED && $zablokowane->wymagaNowejDecyzji()) {
+                if ($nowaDecyzja === null) {
+                    throw new BladDlaCzlowieka(self::WYBIERZ_NOWA_DECYZJE);
+                }
 
-        AuditLogEntry::record(
-            action: 'appeal.resolved',
-            actor: $moderator,
-            subject: $odwolanie,
-            metadata: [
-                'outcome' => $wynik,
-                'appellant' => $odwolanie->appellant,
-                'original_decision' => $decyzja->action,
-                'original_moderator_id' => (string) $decyzja->moderator_id,
-            ],
-            ip: $ip,
-        );
+                $poOdwolaniu = $this->decyzjaPoOdwolaniu->handle($moderator, $zablokowane, $decyzja, $nowaDecyzja, $ip);
+            } elseif ($wynik === Appeal::STATUS_OVERTURNED) {
+                $dopisek = $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
+            }
 
-        return $odwolanie;
+            $zablokowane->update([
+                'status' => $wynik,
+                'decided_by' => $moderator->getKey(),
+                'decision_note' => $uzasadnienie,
+                'decided_at' => now(),
+            ]);
+
+            $zablokowane->refresh();
+
+            if ($zablokowane->isFromReporter()) {
+                $this->powiadomZglaszajacego->handle($zablokowane);
+            } else {
+                $this->powiadom->handle($zablokowane, $dopisek);
+                // Druga strona sprawy (#1024): zgłaszający dostał „treści nie
+                // ma", a po cofnięciu treść wraca. Klasa sama sprawdza, czy
+                // skutek naprawdę się zmienił — przy `upheld` nic nie robi.
+                $this->skorygujZglaszajacemu->handle($zablokowane);
+            }
+
+            AuditLogEntry::record(
+                action: 'appeal.resolved',
+                actor: $moderator,
+                subject: $zablokowane,
+                metadata: [
+                    'outcome' => $wynik,
+                    'appellant' => $zablokowane->appellant,
+                    'original_decision' => $decyzja->action,
+                    'original_moderator_id' => (string) $decyzja->moderator_id,
+                    // Uchylona kara nie była tą obowiązującą — konto zostało
+                    // przy późniejszej decyzji (#933).
+                    'later_sanction_kept' => $dopisek !== null,
+                    // Decyzja wykonana po uznaniu odwołania od „Bez działania” (#989).
+                    'new_action_id' => $poOdwolaniu === null ? null : (string) $poOdwolaniu->getKey(),
+                    'new_decision' => $poOdwolaniu?->action,
+                ],
+                ip: $ip,
+            );
+
+            return $zablokowane;
+        });
     }
 
     private function sprawdzKarencje(User $moderator, ModerationAction $decyzja): void
@@ -189,24 +260,22 @@ final class ResolveAppeal
      * ma zostać zamknięte i odpowiedź ma dojść — brak roboty technicznej nie
      * jest powodem, żeby człowiek nie dostał odpowiedzi.
      */
-    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): void
+    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): ?string
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
-            $decyzja->subject?->reinstate();
-
-            return;
+            return $this->zdejmijKareKonta($decyzja);
         }
 
         if (! in_array($decyzja->action, [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE], true)) {
             // `warn` nie zrobiło nic z treścią ani z kontem — cofnięcie jest
             // w całości treścią odpowiedzi.
-            return;
+            return null;
         }
 
         $tresc = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($tresc === null || ! ModeratedContent::daSieUkryc($tresc)) {
-            return;
+            return null;
         }
 
         try {
@@ -232,5 +301,81 @@ final class ResolveAppeal
             // (dziedziczy po nim przez `PDOException`), czyli awaria bazy
             // w środku cofania decyzji zniknęłaby bez śladu.
         }
+
+        return null;
+    }
+
+    /**
+     * Zdjęcie kary z konta — wyłącznie tej, której dotyczy odwołanie (#933).
+     *
+     * Do 24.09.2026 każde uznane odwołanie od zawieszenia albo blokady wołało
+     * `reinstate()` bez pytania, CO dziś trzyma konto. Uchylenie starego
+     * zawieszenia A zdejmowało więc późniejszy, niezależny ban B, którego
+     * nikt nie rozpatrywał — a `reinstate()` na koncie `pending_delete`
+     * albo `erased` przywracałoby do życia konto w trakcie usuwania.
+     *
+     * Reguła: kara schodzi tylko wtedy, gdy konto jest dziś zawieszone
+     * albo zablokowane — w `status`, a w cyklu usuwania w `punishment_status`
+     * (#980) — I obowiązująca kara to właśnie ta decyzja — czyli
+     * najnowsza decyzja `suspend`/`ban` wobec tej osoby, której nikt dotąd
+     * nie cofnął po odwołaniu. Kary nie zapisanej w `moderation_actions`
+     * nie ma: zawieszenie i blokadę nakłada wyłącznie decyzja moderacyjna.
+     *
+     * Blokada wiersza konta PRZED odczytem obowiązującej kary: równoległa
+     * decyzja nakładająca nową karę pisze do tego samego wiersza, więc albo
+     * zatwierdzi się przed nami (i ją zobaczymy), albo po nas (i jej kara
+     * nadpisze nasze odblokowanie). Obie kolejności kończą się stanem
+     * zgodnym z nowszą decyzją.
+     *
+     * @return ?string dopisek do odpowiedzi, gdy decyzję cofamy, a konto
+     *                 zostaje przy późniejszej karze
+     */
+    private function zdejmijKareKonta(ModerationAction $decyzja): ?string
+    {
+        if ($decyzja->subject_user_id === null) {
+            return null;
+        }
+
+        $osoba = User::query()->whereKey($decyzja->subject_user_id)->lockForUpdate()->first();
+
+        if ($osoba === null) {
+            return null;
+        }
+
+        // Kara, która dziś trzyma konto. W cyklu usuwania (`pending_delete`,
+        // `erased`) status mówi o usuwaniu, a kara czeka odłożona
+        // w `punishment_status` (#980) — i to ją trzeba zdjąć, bo inaczej
+        // uchylony ban wróciłby przy „Cofnij usunięcie konta”.
+        $kara = in_array($osoba->status, [User::STATUS_PENDING_DELETE, User::STATUS_ERASED], true)
+            ? $osoba->punishment_status
+            : $osoba->status;
+
+        if (! in_array($kara, [User::STATUS_SUSPENDED, User::STATUS_BANNED], true)) {
+            // Konto już czynne (termin minął, kara zdjęta wcześniej) albo
+            // w trakcie usuwania bez odłożonej kary — nie ma czego zdejmować.
+            return null;
+        }
+
+        $obowiazujaca = ModerationAction::query()
+            ->where('subject_user_id', $osoba->getKey())
+            ->whereIn('action', [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN])
+            ->whereNotIn('id', Appeal::query()
+                ->where('status', Appeal::STATUS_OVERTURNED)
+                ->select('moderation_action_id'))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($obowiazujaca !== null && ! $obowiazujaca->is($decyzja)) {
+            return $kara === User::STATUS_BANNED
+                ? self::KONTO_ZOSTAJE_ZABLOKOWANE
+                : self::KONTO_ZOSTAJE_ZAWIESZONE;
+        }
+
+        // Na koncie w cyklu usuwania `reinstate()` zdejmuje tylko karę
+        // odłożoną — samo żądanie usunięcia i karencja zostają (#980).
+        $osoba->reinstate();
+
+        return null;
     }
 }
