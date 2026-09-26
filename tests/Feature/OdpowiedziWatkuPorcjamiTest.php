@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Models\Block;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -248,7 +249,7 @@ class OdpowiedziWatkuPorcjamiTest extends TestCase
             ->get();
         $this->assertCount(14, $powiadomienia);
 
-        $adresy = Notification::destinationUrls($powiadomienia, $autorWatku);
+        $adresy = app(CelPowiadomienia::class)->adresy($powiadomienia, $autorWatku);
         foreach ($powiadomienia as $powiadomienie) {
             $odpowiedz = Comment::findOrFail($powiadomienie->data['comment_id']);
             $numer = $this->widoczne($odpowiedz->body)[0];

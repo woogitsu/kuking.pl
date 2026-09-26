@@ -182,7 +182,7 @@ class Comment extends Model
     {
         // `id` rozstrzyga remisy `created_at` — porcje odpowiedzi (issue
         // #939) inaczej potrafią pokazać tę samą odpowiedź dwa razy. Ta sama
-        // kolejność co w `Notification::destinationUrls()`.
+        // kolejność co w `CelPowiadomienia::adresy()`.
         return $this->hasMany(self::class, 'parent_id')
             ->where('status', self::STATUS_PUBLISHED)
             ->oldest()

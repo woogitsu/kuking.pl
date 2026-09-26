@@ -24,7 +24,7 @@ use Illuminate\Http\Request;
  *    `?watek=<id>&odpowiedzi=<n>`, n-ta porcja tego jednego wątku.
  *
  * Bez JavaScriptu: dalsza porcja to zwykły link z kotwicą wątku.
- * `Notification::destinationUrls()` składa ten sam adres, żeby powiadomienie
+ * `CelPowiadomienia::adresy()` składa ten sam adres, żeby powiadomienie
  * o odpowiedzi prowadziło do porcji, w której ta odpowiedź jest widoczna.
  */
 final class OdpowiedziWatku
