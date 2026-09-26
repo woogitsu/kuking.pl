@@ -118,6 +118,7 @@ class Recipe extends Model
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
             'family_since_year' => 'integer',
+            'forked_at' => 'datetime',
         ];
     }
 
@@ -138,6 +139,44 @@ class Recipe extends Model
     public function heroMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_id');
+    }
+
+    /**
+     * Przepis, na podstawie którego powstała ta wersja („Moja wersja",
+     * issue #23, D-301).
+     *
+     * `forked_from_id` i `forked_at` NIE SĄ w `$fillable` i to jest reguła,
+     * nie przeoczenie: podpis „Na podstawie przepisu…" jest przypisaniem
+     * autorstwa. Ustawia go wyłącznie `ZrobWlasnaWersje` (`forceFill()`),
+     * a żaden formularz przepisu nie może go zdjąć ani przepiąć na inny
+     * przepis (AGENTS.md §7).
+     *
+     * Relacja zwykła, bez `withTrashed()`: usunięty oryginał ma być dla
+     * widoku NIEOBECNY — pokazujemy wtedy „oryginał jest niedostępny"
+     * (`App\Domain\Recipes\MojaWersja::oryginalDlaWidza()`).
+     *
+     * @return BelongsTo<Recipe, $this>
+     */
+    public function forkedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'forked_from_id');
+    }
+
+    /**
+     * Wersje tego przepisu zrobione przez inne osoby. Kto co widzi, filtruje
+     * `MojaWersja::wersjeDlaWidza()` — ta relacja nie pyta o widoczność.
+     *
+     * @return HasMany<Recipe, $this>
+     */
+    public function wersje(): HasMany
+    {
+        return $this->hasMany(self::class, 'forked_from_id');
+    }
+
+    /** Czy ten przepis jest czyjąś wersją cudzego przepisu. */
+    public function jestWersja(): bool
+    {
+        return $this->forked_at !== null;
     }
 
     public function sourceScan(): BelongsTo
