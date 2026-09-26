@@ -1084,6 +1084,16 @@ export default defineRailway((ctx) => {
       // Oszczędza ~2/3 kosztu (płacisz per serwis za RAM i CPU), za cenę
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
+      //
+      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
+      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
+      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
+      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
+      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
+      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
+      // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
+      //
       // Rozdzielony web dostaje TYLKO swój zestaw; `all` robi pracę trzech
       // ról, więc dostaje ich sumę (patrz „ZESTAWY PER ROLA").
       ...(splitServices ? webEnv : wszystkieRoleEnv),
@@ -1153,6 +1163,17 @@ export default defineRailway((ctx) => {
       },
     },
 
+    // Rola "worker" = osobny proces `queue:work` na każdą kolejkę (high,
+    // default, media, low), więc żadna nie głoduje za cudzą zaległością
+    // (#1030). `media` zawsze ma jeden proces — dwa zdjęcia 50 Mpx naraz nie
+    // mieszczą się w 1024 MB. Szczegóły: `listy_kolejek()` w docker/entrypoint.sh.
+    //
+    // PAMIĘĆ: `high` (listy wejścia na konto, audyt B8-06) to CZWARTY proces.
+    // Wysyła tylko e-maile, więc do szczytu `media` (~452 MB przy 50 Mpx)
+    // i eksportu (do 512M) dokłada tyle, ile pusty proces PHP z frameworkiem
+    // (rząd kilkudziesięciu MB). Zapas w 1024 MB maleje, ale nie znika;
+    // gdyby `media` i eksport miały szczyt naraz — to ta sama granica co
+    // przed czwartym procesem, nie nowa.
     env: { ...workerEnv, APP_ROLE: "worker" },
   });
 
