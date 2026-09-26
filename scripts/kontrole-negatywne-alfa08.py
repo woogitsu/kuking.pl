@@ -291,6 +291,12 @@ WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) 
 UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
 UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
+# Metryki doboru (#1814, D-281) nie czytają ukryć ani reakcji „Smakowicie
+# wygląda”. Mutacja dokłada do klasy metryk import modelu reakcji — strażnik
+# skanujący ten plik ma zapalić się na czerwono.
+METRYKI_BEZ_REAKCJI = "app/Domain/Analytics/MetrykiDoboru.php"
+METRYKI_BEZ_REAKCJI_TEST = "test_nie_czyta_ukryc_ani_reakcji"
+
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -748,6 +754,8 @@ checks = [
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
+    ("Metryki doboru czytają reakcje „Smakowicie wygląda”", METRYKI_BEZ_REAKCJI, METRYKI_BEZ_REAKCJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\PostReaction;\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -804,6 +812,7 @@ run_test(EPIZOD_ALARMU_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
+run_test(METRYKI_BEZ_REAKCJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
