@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Paczka z danymi (`dane.json`) nazywa pole „Na czym się znasz” kluczem `na_czym_sie_znam` zamiast `w_czym_jestem_dobra`, który każdemu czytelnikowi przypisywał formę żeńską. **Zgodność wstecz:** program czytający starsze paczki powinien przyjmować oba klucze — w paczkach wygenerowanych przed tą zmianą to samo pole nazywa się `w_czym_jestem_dobra`, a jego treść się nie zmieniła. Innych kluczy zmiana nie dotyczy (#1750).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 - Przy przepisie albo wpisie we własnym zeszycie można teraz dopisać notatkę dla siebie, np. „na urodziny taty — mniej soli”. Notatkę widzisz tylko Ty: nie zobaczy jej autor ani nikt, kto ogląda zeszyt, także publiczny. Ta sama rzecz w dwóch zeszytach może mieć dwie różne notatki. Żeby notatkę usunąć, wystarczy wyczyścić pole i zapisać. Zapisywanie jednym kliknięciem działa jak dotąd (#978).
 
@@ -13,6 +15,7 @@
 - Listy „Rozmiar tekstu” i „Wygląd strony” w panelu „Aa · Wygląd” mają wyraźną ramkę i lekko przyciemnione tło, tak jak pola formularzy. Wcześniej ich granica była prawie niewidoczna i wyglądały jak zwykły tekst.
 - „Przywróć treść” w panelu moderacji cofa już tylko ukrycie albo usunięcie zdecydowane przy tym zgłoszeniu. Komentarz, który usunął właściciel wpisu, i wpis usunięty przez samego autora nie wracają decyzją moderatora, a decyzję administratora cofa tylko administrator — panel mówi wprost, dlaczego odmówił (audyt B2-01).
 - W ustawieniach profilu pola „Jak mamy Cię nazywać?” i „Nazwa użytkownika” są oznaczone dla przeglądarki tak samo jak przy zakładaniu konta, więc przeglądarka i narzędzia wspomagające rozpoznają je i mogą podpowiedzieć zapisane dane (#949).
+- Zgłoszenie nielegalnej treści z adresem profilu (`kuking.pl/@nazwa`) albo z adresem konkretnego komentarza trafia teraz do tego konta albo tego komentarza, a nie do „nierozpoznanej strony” czy wpisu nad komentarzem. Takiej sprawy nie rozstrzyga moderator, którego ona dotyczy (audyt B2-02).
 - Osoba z zawieszonym kontem może zablokować kogoś, kto ją nęka, zdjąć blokadę i zgłosić treść — także formularzem zgłoszenia nielegalnej treści. Przyciski „Zablokuj” i „Zgłoś” działają podczas zawieszenia; publikowanie, komentowanie i obserwowanie nadal są wstrzymane (audyt B2-03).
 - Ustawienia prywatności otwarte dawno temu nie zapiszą Was z powrotem na tygodniowy e-mail. Jeśli w międzyczasie wypisaliście się odnośnikiem z e-maila albo w innej karcie, zapis starego formularza nic nie zmienia, a przy polu pojawia się wyjaśnienie i odnośnik „Otwórz aktualne ustawienia” — wybory z formularza zostają na miejscu.
 - Strona główna nie zostaje pusta, gdy tuż przed jej otwarciem przestaliście kogoś obserwować, zablokowaliście kogoś albo zniknął ostatni wpis z Waszych tagów. Zamiast pustego ekranu pokazuje wtedy wpisy z tagów albo „Świeżo z Kuking” (#983).
