@@ -603,6 +603,15 @@ export default defineRailway((ctx) => {
     KUKING_EDGE_TOKEN: ctx.shared.KUKING_EDGE_TOKEN,
     KUKING_EDGE_TOKEN_POPRZEDNI: ctx.shared.KUKING_EDGE_TOKEN_POPRZEDNI,
 
+    // Tryb bramki tokenu krawędziowego (ten sam config/proxy.php co wyżej).
+    // Stał TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by go usunął, a config i tak spadłby na wartość domyślną,
+    // czyli DOKŁADNIE dzisiejsze zachowanie: `obserwacja` (tylko log, bez
+    // 403). Wpisana jawnie jako literał, żeby plan pokazał „bez zmian",
+    // a nie „usuń". Zmiana na `egzekwowanie` (blokada bez ważnego tokenu)
+    // to świadoma zmiana tej linii w PR, nie klik w panelu.
+    KUKING_EDGE_TRYB: "obserwacja",
+
     // --- Wejście kontem Google (D-069, issue #258) ----------------------------
     // Dodatkowa droga wejścia obok hasła i wiadomości z linkiem. Oba klucze
     // idą przez `ctx.shared`, bo powstają w Google Cloud Console i są
@@ -677,6 +686,37 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
+    // --- „Tag tygodnia" (config/kuking.php, kuking.tag_tygodnia) --------------
+    // Wyróżnienie tagu na tablicy „kuKINGi na dziś" (FeedController) i panel
+    // admina (Admin\TagHighlightController, Admin\TagPromotionController).
+    // Stała TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by ją usunął, a wartość domyślna (`false`, wyłączona) i tak
+    // jest bezpiecznym kierunkiem: brak wyróżnienia, nie awaria. Wpisana
+    // jawnie jako literał `"false"`, bo dzisiejszej wartości produkcyjnej
+    // nie znamy z repozytorium (nie czytamy jej z panelu) — to jest
+    // domyślne wyłączenie z kodu, nie potwierdzony stan produkcji.
+    KUKING_TAG_TYGODNIA: "false",
+
+    // --- Cache HTML gościa na krawędzi (App\Support\PublicznyHtmlGoscia, #610) ---
+    // Ile sekund Cloudflare może trzymać HTML landingu, przepisu i profilu
+    // publicznego dla gościa bez ciasteczka. Stała TYLKO w panelu serwisu
+    // `kuking.pl` — pierwsze `railway config apply` by ją usunęła, a `0`
+    // (wyłączone, zachowanie sprzed #610: `no-store, private`) jest
+    // bezpiecznym kierunkiem. Włączenie cache'u (>0) wymaga też reguły
+    // brzegu w Cloudflare — patrz docs/infra/CLOUDFLARE_CACHE_597_610.md.
+    KUKING_HTML_EDGE_CACHE_SECONDS: "0",
+
+    // --- Token szczegółów /health (config/kuking.php, health.token, audyt A5-05) ---
+    // Nagłówek `X-Kuking-Health-Token` odsłania pole `checks` w odpowiedzi
+    // `/health`; bez tokenu (albo z błędnym) `/health` oddaje tylko `status`
+    // — healthcheck Railwaya i test dymny działają tak samo w obu
+    // przypadkach. Stał TYLKO w panelu serwisu `kuking.pl`: `ctx.shared`
+    // wymaga ISTNIEJĄCEJ Shared Variable, więc kolejność jest ważna —
+    // najpierw założyć ją w panelu (wartość: `openssl rand -hex 32`),
+    // *potem* wdrożyć tę linię (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8).
+    // Sekret — w panelu Railway zaznacz „Sealed".
+    KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN,
   };
 
   //  --- Czyszczenie cache CDN: worker + web ---------------------------------

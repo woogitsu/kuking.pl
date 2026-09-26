@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: `.railway/railway.ts` opisuje teraz `KUKING_EDGE_TRYB`, `KUKING_TAG_TYGODNIA`, `KUKING_HTML_EDGE_CACHE_SECONDS` i `KUKING_HEALTH_TOKEN` — do tej pory stały tylko w panelu Railwaya i pierwszy `railway config apply` by je usunął (audyt 25.09.2026, pkt 12). Trzy pierwsze wpisane jawnie z bezpieczną wartością domyślną z kodu, czwarta (sekret) jako `ctx.shared.KUKING_HEALTH_TOKEN`.
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
