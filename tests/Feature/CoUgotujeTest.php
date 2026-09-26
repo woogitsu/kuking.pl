@@ -9,6 +9,7 @@ use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -128,6 +129,89 @@ class CoUgotujeTest extends TestCase
         $this->przepis('Makaron', ['makaron świderki']);
 
         $this->assertSame(['Makowiec'], app(CoUgotuje::class)->dla($ja)['przepisy']->pluck('title')->all());
+    }
+
+    /**
+     * #1969: „mąka” i „mak” miały ten sam rdzeń (`maka` → `mak`), więc produkt
+     * „mąka” zaliczał przepis z makiem i odwrotnie. Ekran jest odpowiedzią na
+     * pytanie „co ugotuję z tego, co mam” — fałszywe „masz” to przepis, do
+     * którego człowiek nie ma podstawowego składnika.
+     */
+    public function test_maka_i_mak_to_rozne_produkty_w_obie_strony(): void
+    {
+        $zMaka = $this->user();
+        $this->lista($zMaka, ['mąka']);
+        $this->przepis('Makowiec', ['mak do nadzienia']);
+        $this->przepis('Chleb', ['mąka żytnia']);
+
+        $this->assertSame(['Chleb'], app(CoUgotuje::class)->dla($zMaka)['przepisy']->pluck('title')->all());
+
+        $zMakiem = $this->user();
+        $this->lista($zMakiem, ['mak']);
+
+        $this->assertSame(['Makowiec'], app(CoUgotuje::class)->dla($zMakiem)['przepisy']->pluck('title')->all());
+    }
+
+    /**
+     * Produkt z listy → linijka składnika: czy „masz”. Rdzenie różnych
+     * produktów nie mogą się łapać nawzajem (#1969), a odmiany tego samego
+     * produktu dalej się łączą — bez tego poprawka byłaby wyłączeniem funkcji.
+     */
+    public function test_rdzenie_nie_lapia_sie_nawzajem_a_odmiany_dalej_pasuja(): void
+    {
+        $pasuje = fn (string $produkt, string $linijka): bool => (bool) DB::selectOne(
+            'SELECT public.kuking_rdzenie_skladnika(?) <@ public.kuking_rdzenie_skladnika(?) AS jest',
+            [$produkt, $linijka],
+        )->jest;
+
+        $rozne = [
+            ['mąka', 'mak'], ['mąka', 'mak do nadzienia'], ['mąka', 'maku'], ['mąka', 'makaron'],
+            ['mak', 'mąka'], ['mak', 'mąki'], ['mak', 'mąkę'], ['mak', 'makaron świderki'],
+            ['makaron', 'mak'], ['makaron', 'mąka'], ['kawa', 'kawior'], ['woda', 'wódka'],
+            ['ser', 'serek wiejski'], ['sól', 'solanka'], ['por', 'porzeczki'], ['sok', 'sos'],
+            ['lód', 'lody waniliowe'], ['lody', 'lód do drinków'],
+        ];
+        foreach ($rozne as [$produkt, $linijka]) {
+            $this->assertFalse($pasuje($produkt, $linijka), "„{$produkt}” nie może zaliczać składnika „{$linijka}”.");
+        }
+
+        $odmiany = [
+            ['mąka', 'mąki'], ['mąka', 'mąkę'], ['mąka', 'mąką'], ['mąka', 'Mąka pszenna typ 500'], ['mąki', 'mąka'],
+            ['mak', 'maku'], ['mak', 'mak niebieski'], ['ser', 'sera'], ['ser', 'ser żółty'], ['kawa', 'kawy'],
+            ['woda', 'wody'], ['sól', 'soli'], ['ryż', 'ryżu'], ['sok', 'soku z cytryny'], ['ryba', 'ryby'],
+            ['Cebula', 'cebule'], ['Pomidory', 'pomidorów'], ['jajka', 'Jajko'], ['masło', 'masła'],
+            ['mleko', 'mleko 3,2%'], ['ziemniaki', 'Ziemniak'], ['kasza', 'kaszy jaglanej'],
+        ];
+        foreach ($odmiany as [$produkt, $linijka]) {
+            $this->assertTrue($pasuje($produkt, $linijka), "„{$produkt}” powinno zaliczać składnik „{$linijka}”.");
+        }
+    }
+
+    /**
+     * Słownik form stoi w bazie (`kuking_formy_skladnikow()`), a wstępny filtr
+     * `LIKE` w `CoUgotuje` szuka pierwszych trzech liter krótkiego rdzenia.
+     * Filtr niczego nie gubi tylko wtedy, gdy każda forma zaczyna się od tych
+     * trzech liter, a każdy rdzeń ze słownika ma najwyżej 4 litery — ten test
+     * pilnuje tego przy każdym dopisaniu formy.
+     */
+    public function test_slownik_form_nie_psuje_wstepnego_filtra(): void
+    {
+        $slownik = json_decode((string) DB::selectOne('SELECT public.kuking_formy_skladnikow()::text AS s')->s, true);
+
+        $this->assertIsArray($slownik);
+        $this->assertGreaterThan(20, count($slownik));
+        foreach ($slownik as $forma => $rdzen) {
+            $this->assertLessThanOrEqual(4, strlen($rdzen), "Rdzeń „{$rdzen}” ze słownika jest dłuższy niż 4 litery.");
+            $this->assertStringStartsWith(substr($rdzen, 0, 3), $forma, "Forma „{$forma}” nie zaczyna się od pierwszych liter rdzenia „{$rdzen}”.");
+        }
+
+        // Z krótkim rdzeniem przepis z formą spoza rdzenia („mąki”) dalej
+        // przechodzi wstępny filtr.
+        $ja = $this->user();
+        $this->lista($ja, ['mąka']);
+        $this->przepis('Kluski', ['2 szklanki mąki']);
+
+        $this->assertSame(['Kluski'], app(CoUgotuje::class)->dla($ja)['przepisy']->pluck('title')->all());
     }
 
     public function test_cudza_lista_nie_wplywa_na_moj_wynik(): void

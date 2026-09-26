@@ -27,16 +27,35 @@ use Illuminate\Support\Facades\Schema;
  * rozjechać przy pierwszej zmianie (ten błąd repozytorium już zna — patrz
  * nagłówek `tests/Support/kuking_nazwa_testowej_bazy.php`).
  *
- * REGUŁA (celowo prosta, bez AI i bez słownika odmian):
+ * REGUŁA (celowo prosta, bez AI):
  *   1. `kuking_normalize()` — małe litery, bez polskich znaków (ta sama
  *      funkcja co w wyszukiwarce);
  *   2. wszystko poza literami i cyframi → spacja, podział na słowa;
  *   3. odpadają słowa jednoliterowe i same liczby („2 cebule”, „500 g”);
- *   4. „liczba mnoga prosta”: słowo dłuższe niż 5 liter na „-ow” traci „ow”
- *      (pomidorów → pomidor), słowo dłuższe niż 3 litery traci końcową
- *      samogłoskę (cebula/cebule → cebul, jajka/jajko → jajk, mąka/mąki → mak).
- * Znane skutki uboczne tej prostoty są wypisane w D-285 (np. „mąka” i „mak”
- * mają ten sam rdzeń, „mleko” pasuje do „mleko kokosowe”).
+ *   4. SŁOWNIK FORM (`public.kuking_formy_skladnikow()`) dla krótkich słów:
+ *      forma → rdzeń, np. mąka/mąki/mąkę → `maka`, mak/maku → `mak`,
+ *      ser/sera → `ser`. Słowo ze słownika dostaje rdzeń wyłącznie stąd;
+ *   5. poza słownikiem „liczba mnoga prosta” TYLKO dla dłuższych słów:
+ *      słowo dłuższe niż 5 liter na „-ow” traci „ow” (pomidorów → pomidor),
+ *      słowo dłuższe niż 4 litery traci końcową samogłoskę
+ *      (cebula/cebule → cebul, jajka/jajko → jajk, masło/masła → masl).
+ *      Krótsze słowa spoza słownika zostają CAŁE.
+ *
+ * DLACZEGO SŁOWNIK, A NIE OBCINANIE KOŃCÓWKI KAŻDEGO SŁOWA (#1969)
+ * Pierwsza wersja obcinała samogłoskę ze słów dłuższych niż 3 litery. Wtedy
+ * „mąka” (`maka` → `mak`) dostawała rdzeń równy CAŁEMU słowu „mak” i produkt
+ * „mąka” zaliczał makowiec, a „mak” — chleb. Przy krótkim słowie końcówka
+ * niesie znaczenie, więc rdzeń 3-literowy powstaje już tylko ze słownika,
+ * gdzie każda forma jest wpisana ręcznie. Czego słownik nie zna, pasuje
+ * tylko w tej samej formie — brak dopasowania jest lepszy niż fałszywe
+ * „masz”. Pilnuje `CoUgotujeTest::test_rdzenie_nie_lapia_sie_nawzajem_a_odmiany_dalej_pasuja`.
+ *
+ * Słownik ma jeden niezmiennik, z którego korzysta wstępny filtr `LIKE`
+ * w `CoUgotuje`: rdzeń ma najwyżej 4 litery, a każda jego forma zaczyna się
+ * od pierwszych trzech liter rdzenia (pilnuje
+ * `CoUgotujeTest::test_slownik_form_nie_psuje_wstepnego_filtra`).
+ * Pozostałe znane granice (np. „mleko” pasuje do „mleko kokosowe”) są
+ * wypisane w D-285.
  *
  * `klucz` (rdzenie posortowane i sklejone spacją) pilnuje, żeby ta sama
  * osoba nie miała na liście dwa razy tego samego produktu w dwóch
@@ -51,7 +70,7 @@ use Illuminate\Support\Facades\Schema;
  * a nie główna droga).
  *
  * ROLLBACK
- * `down()` usuwa tabelę i obie funkcje. Nie rusza niczego poza nimi — przepisy,
+ * `down()` usuwa tabelę i trzy funkcje. Nie rusza niczego poza nimi — przepisy,
  * składniki i wyszukiwarka zostają takie jak przed tą migracją. Ale lista
  * „Co mam w domu” to dane wpisane przez ludzi, a cofnięcie kasuje je
  * bezpowrotnie. Dlatego `down()` ODMAWIA, gdy w tabeli jest choć jeden
@@ -61,20 +80,66 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    /**
+     * Słownik form krótkich słów: rdzeń => formy (już po `kuking_normalize()`,
+     * bez polskich znaków). Rdzeń najwyżej 4 litery, każda forma zaczyna się
+     * od jego pierwszych trzech liter — patrz nagłówek.
+     *
+     * Świadomie: „mak” to mak. Dopełniacz liczby mnogiej „mąk” brzmi po
+     * normalizacji tak samo i w przepisach praktycznie nie występuje.
+     *
+     * @var array<string, list<string>>
+     */
+    private const FORMY = [
+        'maka' => ['maka', 'maki', 'make'],
+        'mak' => ['mak', 'maku', 'makiem'],
+        'ser' => ['ser', 'sera', 'serem', 'serze', 'sery', 'serow'],
+        'sol' => ['sol', 'soli', 'sola'],
+        'ryz' => ['ryz', 'ryzu', 'ryzem'],
+        'sok' => ['sok', 'soku', 'sokiem', 'soki', 'sokow'],
+        'sos' => ['sos', 'sosu', 'sosem', 'sosy', 'sosow'],
+        'por' => ['por', 'pora', 'pory', 'porem', 'porow'],
+        'kawa' => ['kawa', 'kawy', 'kawe', 'kawie'],
+        'woda' => ['woda', 'wody', 'wode', 'wodzie'],
+        'ryba' => ['ryba', 'ryby', 'rybe', 'ryb', 'rybie'],
+        'wino' => ['wino', 'wina', 'winem', 'winie'],
+        'piwo' => ['piwo', 'piwa', 'piwem', 'piwie'],
+        'feta' => ['feta', 'fety', 'fete'],
+        'kura' => ['kura', 'kury', 'kure'],
+        'jajk' => ['jaja', 'jajo', 'jaj', 'jajek'],
+    ];
+
     public function up(): void
     {
         if (! $this->isPostgres()) {
             return;
         }
 
+        $formy = [];
+        foreach (self::FORMY as $rdzen => $lista) {
+            foreach ($lista as $forma) {
+                $formy[$forma] = $rdzen;
+            }
+        }
+
+        // Stała w funkcji, a nie tabela: kolumna generowana wymaga funkcji
+        // IMMUTABLE, a funkcja czytająca tabelę taka nie jest.
+        DB::statement(
+            'CREATE OR REPLACE FUNCTION public.kuking_formy_skladnikow() RETURNS jsonb '
+            ."AS \$\$ SELECT '".json_encode($formy, JSON_THROW_ON_ERROR)."'::jsonb \$\$ "
+            .'LANGUAGE sql IMMUTABLE PARALLEL SAFE',
+        );
+
         DB::statement(<<<'SQL'
             CREATE OR REPLACE FUNCTION public.kuking_rdzenie_skladnika(text) RETURNS text[]
             AS $$
-                SELECT COALESCE(array_agg(DISTINCT CASE
+                SELECT COALESCE(array_agg(DISTINCT COALESCE(
+                    public.kuking_formy_skladnikow() ->> s,
+                    CASE
                         WHEN length(s) > 5 AND s LIKE '%ow' THEN left(s, -2)
-                        WHEN length(s) > 3 THEN regexp_replace(s, '[aeiouy]$', '')
+                        WHEN length(s) > 4 THEN regexp_replace(s, '[aeiouy]$', '')
                         ELSE s
-                    END), '{}')
+                    END)), '{}')
                 FROM regexp_split_to_table(
                     regexp_replace(public.kuking_normalize($1), '[^a-z0-9]+', ' ', 'g'), ' '
                 ) AS s
@@ -137,6 +202,7 @@ return new class extends Migration
         Schema::dropIfExists('pantry_items');
         DB::statement('DROP FUNCTION IF EXISTS public.kuking_klucz_skladnika(text)');
         DB::statement('DROP FUNCTION IF EXISTS public.kuking_rdzenie_skladnika(text)');
+        DB::statement('DROP FUNCTION IF EXISTS public.kuking_formy_skladnikow()');
     }
 
     private function upewnijSieZeWolnoKasowacListy(): void

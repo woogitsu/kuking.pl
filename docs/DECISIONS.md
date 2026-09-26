@@ -18063,8 +18063,11 @@ oblewa strażnika. Widoczność przepisów: ta sama co przy otwarciu
 **Dopasowanie składników (bez AI).** Jedna funkcja w bazie,
 `public.kuking_rdzenie_skladnika(text)`: `kuking_normalize()` (małe litery,
 bez polskich znaków) → podział na słowa → odrzucenie liczb i słów
-jednoliterowych → „liczba mnoga prosta” (słowo > 5 liter na „-ow” traci
-„ow”, słowo > 3 liter traci końcową samogłoskę). Produkt z listy pasuje do
+jednoliterowych → **słownik form krótkich słów**
+(`public.kuking_formy_skladnikow()`: mąka/mąki/mąkę → `maka`, mak/maku →
+`mak`, ser/sera → `ser` …) → poza słownikiem „liczba mnoga prosta” tylko
+dla dłuższych słów (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+traci końcową samogłoskę; krótsze zostają całe). Produkt z listy pasuje do
 linijki składnika, gdy **wszystkie** jego rdzenie są w rdzeniach linijki
 (`<@`). Z tej samej funkcji generują się kolumny `pantry_items.rdzenie`
 i `klucz`, więc reguła nie ma drugiej kopii w PHP. `UNIQUE (user_id, klucz)`
@@ -18073,7 +18076,13 @@ nie pozwala dopisać „jajko”, gdy na liście są „Jajka”.
 Znane granice tej prostoty (świadome, do rewizji po pomiarze):
 - dopełniacz i inne przypadki spoza „liczby mnogiej prostej” nie łączą się:
   „cukru” ≠ „cukier”, „jajek” ≠ „jajka”;
-- rdzenie bywają wspólne dla różnych rzeczy: „mąka” i „mak” (oba `mak`);
+- ~~rdzenie bywają wspólne dla różnych rzeczy: „mąka” i „mak” (oba `mak`)~~ —
+  **naprawione (#1969)**: przy krótkim słowie końcówka niesie znaczenie,
+  więc rdzeń krótszy niż 4 litery powstaje już tylko ze słownika form, gdzie
+  każda forma jest wpisana ręcznie; krótkie słowo spoza słownika pasuje
+  tylko w tej samej formie (brak dopasowania zamiast fałszywego „masz”).
+  Test par: `CoUgotujeTest::test_rdzenie_nie_lapia_sie_nawzajem_a_odmiany_dalej_pasuja`
+  (mąka ≠ mak, mak ≠ makaron, lód ≠ lody …; mąka = mąki/mąkę, ser = sera …);
 - produkt ogólny pasuje do odmiany: „mleko” zalicza „mleko kokosowe”,
   „ser” — „ser pleśniowy”;
 - sól, pieprz i woda liczą się jak każdy inny składnik — kto ich nie wpisze,

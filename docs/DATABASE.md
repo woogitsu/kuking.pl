@@ -5034,10 +5034,19 @@ Ograniczenia:
   zapytania po `user_id`.
 
 Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
+- `public.kuking_formy_skladnikow() → jsonb` — zamknięty słownik form
+  krótkich słów (forma → rdzeń, np. `maki` → `maka`, `maku` → `mak`,
+  `sera` → `ser`). Rdzeń ma najwyżej 4 litery, każda forma zaczyna się od
+  jego pierwszych trzech liter — na tym opiera się wstępny filtr `LIKE`
+  (#1969). Stała w funkcji, nie tabela, bo kolumna generowana wymaga
+  funkcji `IMMUTABLE`;
 - `public.kuking_rdzenie_skladnika(text) → text[]` — `kuking_normalize()`,
-  podział na słowa, bez liczb i słów jednoliterowych, „liczba mnoga prosta”
-  (słowo > 5 liter na „-ow” traci „ow”, słowo > 3 liter traci końcową
-  samogłoskę). Wynik posortowany i bez powtórzeń. Ta sama funkcja liczy
+  podział na słowa, bez liczb i słów jednoliterowych; słowo ze słownika
+  form dostaje rdzeń ze słownika, pozostałe — „liczbę mnogą prostą” tylko
+  gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+  traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
+  litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
+  posortowany i bez powtórzeń. Ta sama funkcja liczy
   rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
   reguła mieszka wyłącznie w bazie, bez kopii w PHP;
 - `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
@@ -5045,7 +5054,8 @@ Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
   użyć w kolumnie generowanej.
 
 Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
-'%rdzeń%'` (najdłuższy rdzeń każdego produktu), który może pójść po
+'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
+pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
 `recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
 
 Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn

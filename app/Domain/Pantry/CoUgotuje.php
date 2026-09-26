@@ -28,8 +28,8 @@ use Illuminate\Support\Facades\DB;
  * Linijka składnika w przepisie „jest w domu”, gdy któryś produkt z listy
  * ma wszystkie swoje rdzenie w rdzeniach tej linijki:
  * `pantry_items.rdzenie <@ public.kuking_rdzenie_skladnika(ingredient_text)`.
- * Reguła rdzeni (małe litery, bez polskich znaków, prosta liczba mnoga)
- * jest opisana w migracji `2026_09_26_120000_create_pantry_items_table`
+ * Reguła rdzeni (małe litery, bez polskich znaków, słownik form krótkich
+ * słów, prosta liczba mnoga dłuższych — #1969) jest opisana w migracji `2026_09_26_120000_create_pantry_items_table`
  * i mieszka wyłącznie w bazie. Bez AI.
  *
  * KTÓRE PRZEPISY W OGÓLE WCHODZĄ
@@ -71,12 +71,16 @@ final class CoUgotuje
 
         // Po jednym, najdłuższym rdzeniu z każdego produktu: wstępny filtr
         // `LIKE` na `ingredient_text_search`, który może pójść po indeksie
-        // trigramowym `recipe_ingredients_text_trgm_idx`. Rdzeń jest zawsze
-        // fragmentem znormalizowanej linijki, więc ten filtr niczego
-        // prawdziwego nie gubi — tylko zawęża kandydatów przed dokładnym
-        // porównaniem tablic.
+        // trigramowym `recipe_ingredients_text_trgm_idx`. Rdzeń dłuższy niż
+        // 4 litery powstaje z obcięcia końcówki, więc jest fragmentem każdej
+        // formy słowa. Krótszy może pochodzić ze słownika form (#1969: `maka`
+        // dla „mąki”) — wtedy szukamy jego pierwszych trzech liter, od których
+        // zaczyna się każda forma w słowniku (niezmiennik z migracji, pilnowany
+        // testem). Filtr niczego prawdziwego nie gubi — tylko zawęża
+        // kandydatów przed dokładnym porównaniem tablic.
         $rdzenie = collect(DB::select(
-            'SELECT DISTINCT ON (p.id) t AS rdzen FROM pantry_items p, unnest(p.rdzenie) AS t '
+            'SELECT DISTINCT ON (p.id) CASE WHEN length(t) > 4 THEN t ELSE left(t, 3) END AS rdzen '
+            .'FROM pantry_items p, unnest(p.rdzenie) AS t '
             .'WHERE p.user_id = ? ORDER BY p.id, length(t) DESC, t',
             [$uid],
         ))->pluck('rdzen')->unique()->values();
