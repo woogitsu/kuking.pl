@@ -62,7 +62,8 @@
         <x-show-more :paginator="$zgloszenia" czego="zgłoszeń" />
     @else
         <x-empty-state title="Nie masz jeszcze żadnych zgłoszeń.">
-            Pod każdym wpisem, przepisem i komentarzem jest przycisk „Zgłoś".
+            Przy każdym przepisie i komentarzu jest przycisk „Zgłoś”, a przy wpisie —
+            „Zgłoś ten wpis” w menu z trzema kropkami.
             Jeśli coś jest nie w porządku, napisz nam o tym — sprawdzimy i tutaj
             zobaczysz, co z tym zrobiliśmy.
         </x-empty-state>

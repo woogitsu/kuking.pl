@@ -45,7 +45,8 @@
         <p>
             Jeśli treść nie łamie prawa, ale łamie zasady Kuking — jest spamem,
             kogoś obraża albo doradza coś niebezpiecznego — użyj przycisku
-            <strong>Zgłoś</strong> pod samą treścią. Ta droga jest szybsza,
+            <strong>Zgłoś</strong> przy przepisie albo komentarzu, a przy wpisie
+            <strong>Zgłoś ten wpis</strong> w menu z trzema kropkami. Ta droga jest szybsza,
             ale wymaga zalogowania.
         </p>
         <p>

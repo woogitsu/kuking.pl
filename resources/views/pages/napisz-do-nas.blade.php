@@ -75,7 +75,8 @@
     <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o czyjś wpis, przepis albo komentarz?</h2>
         <p>
-            Pod każdą treścią jest przycisk <strong>Zgłoś</strong> — użyj go,
+            Przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>, a przy wpisie —
+            <strong>Zgłoś ten wpis</strong> w menu z trzema kropkami. Użyj go,
             jeśli ktoś kogoś obraża, wrzuca spam albo doradza coś niebezpiecznego.
         </p>
         <p class="mb-0">

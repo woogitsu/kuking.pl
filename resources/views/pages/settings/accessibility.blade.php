@@ -1,6 +1,10 @@
 <x-layout title="Czytelność" :noindex="true">
     <h1>Czytelność</h1>
 
+    {{-- Błąd przy grupie ORAZ w podsumowaniu na górze (AGENTS.md §5) — tak jak
+         na pozostałych ekranach ustawień (audyt B1, znalezisko 6). --}}
+    <x-error-summary />
+
     <h2 class="text-title-sm mb-3">Rozmiar tekstu</h2>
     <p class="mb-5">
         Wybierz rozmiar, przy którym czyta Ci się wygodnie. Ustawienie zapisze się na Twoim koncie —

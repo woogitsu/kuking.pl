@@ -12,4 +12,8 @@
         ...($requestId ? ['Kod błędu: '.$requestId.'. Podaj go, gdy do nas napiszesz.'] : []),
     ],
     'adresPowrotu' => '/',
+    // Przycisk prowadzi na stronę główną, więc tak się nazywa — domyślne
+    // „Spróbuj jeszcze raz” obiecywało ponowienie, a przenosiło gdzie indziej
+    // (audyt B9). Samo ponowienie radzi akapit wyżej.
+    'etykietaPowrotu' => 'Strona główna',
 ])

@@ -55,7 +55,7 @@ przepisy/
     powodu mówić o koncie dwóch różnych rzeczy w dwóch swoich plikach.
 --}}
 przepisy/
-    Tego katalogu w tej paczce NIE MA — nie weszedł do niej żaden
+    Tego katalogu w tej paczce NIE MA — nie wszedł do niej żaden
     przepis. Pojawi się, gdy dodasz przepis i poprosisz o paczkę
     ponownie.
 @endif
