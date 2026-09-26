@@ -101,7 +101,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 ## V1
 
 - grupy / fotofora;
-- Moja wersja — fork przepisu;
+- Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
 - rodzinna książka;
