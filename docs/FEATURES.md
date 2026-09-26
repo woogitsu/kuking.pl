@@ -99,7 +99,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - Moja wersja — fork przepisu;
 - planner;
 - lista zakupów;
-- rodzinna książka;
+- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
 - Q&A;
 - Web Push;
 - wyzwania społecznościowe.

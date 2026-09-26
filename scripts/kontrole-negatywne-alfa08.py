@@ -768,7 +768,7 @@ checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
     ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id')))", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do

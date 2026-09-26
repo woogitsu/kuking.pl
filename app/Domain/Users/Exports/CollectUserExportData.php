@@ -6,6 +6,7 @@ namespace App\Domain\Users\Exports;
 
 use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
@@ -158,6 +159,10 @@ final class CollectUserExportData
             'ugotowalem' => $this->cookedEvents($user, $photos),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
+            // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
+            // patrz `sharedCollections()` i `collectionInvitations()` niżej.
+            'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
+            'zaproszenia_do_zeszytow' => $this->collectionInvitations($user),
             'obserwuje' => $this->people($user->following()->with('profile')->get()),
             'obserwuja_mnie' => $this->people($user->followers()->with('profile')->get()),
             'zablokowane_osoby' => $this->people($user->blocking()->with('profile')->get()),
@@ -498,8 +503,14 @@ final class CollectUserExportData
             // tak liczy ekran zeszytu (`recipes_total_count`), więc przepis
             // usunięty przez autora też wychodzi tu jako brak, a nie znika.
             ->withCount(['recipes as recipes_total_count' => fn ($q) => $q->withTrashed()])
+            ->with('members.profile')
             ->orderBy('created_at')
             ->get();
+
+        $podpisy = $this->podpisyDodania($user, $collections->flatMap(fn (Collection $c) => [
+            ...$c->recipes->map(fn ($r) => $r->pivot->added_by_id),
+            ...$c->posts->map(fn ($p) => $p->pivot->added_by_id),
+        ])->all());
 
         return $collections->map(fn (Collection $collection): array => [
             'nazwa' => $collection->name,
@@ -507,11 +518,15 @@ final class CollectUserExportData
             'widocznosc' => $collection->visibility,
             'domyslna' => (bool) $collection->is_default,
             'utworzono' => $this->date($collection->created_at),
+            // Wspólny zeszyt (#1743): kto poza Tobą ma dostęp — nazwa
+            // wyświetlana, jak przy obserwujących. Nigdy e-mail ani id.
+            'osoby_z_dostepem' => $collection->members->map(fn (User $czlonek): string => $czlonek->displayName())->values()->all(),
             'przepisy' => $collection->recipes->map(fn (Recipe $recipe): array => [
                 'tytul' => $recipe->title,
                 'autor' => $recipe->author?->displayName(),
                 'moja_notatka' => $recipe->pivot->note ?? null,
                 'zapisano' => $this->date($recipe->pivot->created_at ?? null),
+                'dodane_przez' => $podpisy[(string) $recipe->pivot->added_by_id] ?? 'konto usunięte',
             ])->all(),
             'wpisy' => $collection->posts->map(fn (Post $post): array => [
                 // Danie nie ma tytułu — jego treść JEST jego tożsamością,
@@ -526,6 +541,7 @@ final class CollectUserExportData
                 'opublikowano' => $this->date($post->published_at),
                 'moja_notatka' => $post->pivot->note ?? null,
                 'zapisano' => $this->date($post->pivot->created_at ?? null),
+                'dodane_przez' => $podpisy[(string) $post->pivot->added_by_id] ?? 'konto usunięte',
             ])->all(),
             'przepisow_juz_niewidocznych' => max(
                 0,
@@ -536,6 +552,147 @@ final class CollectUserExportData
                 (int) ($collection->posts_total_count ?? 0) - $collection->posts->count(),
             ),
         ])->all();
+    }
+
+    /**
+     * Podpis „dodane przez" przy pozycjach zeszytu (#1743): „ja", nazwa
+     * wyświetlana innej osoby z dostępem albo „konto usunięte" (D-302).
+     * Jedno zapytanie na całą paczkę.
+     *
+     * @param  list<mixed>  $idAutorow
+     * @return array<string, string>
+     */
+    private function podpisyDodania(User $user, array $idAutorow): array
+    {
+        $id = array_values(array_unique(array_filter(array_map(fn ($x) => $x === null ? null : (string) $x, $idAutorow))));
+        $osoby = User::query()->with('profile')->whereKey($id)->get()->keyBy(fn (User $u) => (string) $u->getKey());
+
+        $podpisy = [];
+
+        foreach ($id as $jedno) {
+            $podpisy[$jedno] = match (true) {
+                $jedno === (string) $user->getKey() => 'ja',
+                isset($osoby[$jedno]) && $osoby[$jedno]->status !== User::STATUS_ERASED => $osoby[$jedno]->displayName(),
+                default => 'konto usunięte',
+            };
+        }
+
+        return $podpisy;
+    }
+
+    /**
+     * Cudze zeszyty, do których ta osoba ma dostęp (#1743, D-302).
+     *
+     * GRANICA RODO ART. 15 UST. 4 — PRAWO DO KOPII NIE MOŻE NARUSZAĆ PRAW
+     * I WOLNOŚCI INNYCH. Zeszyt jest właściciela, więc w TEJ paczce nie ma
+     * jego zawartości w całości, tylko:
+     *  - nazwa zeszytu i nazwa wyświetlana właściciela (to, co współpracownik
+     *    widzi na ekranie i wiedział, dołączając),
+     *  - data dołączenia,
+     *  - pozycje, które TA osoba dodała — jej własna czynność — i tylko
+     *    widoczne dla niej dziś (ta sama bramka co ekran zeszytu), razem
+     *    z notatką przy nich.
+     * Pozycji dodanych przez właściciela i innych współpracowników tu nie ma:
+     * to ich decyzje o ich zeszycie, a są w paczce właściciela (`kolekcje`).
+     * Opisu zeszytu też nie ma — napisał go właściciel dla siebie.
+     *
+     * Tylko zeszyty z WAŻNYM dostępem (`dostepneDoZapisuDla`): przy banie
+     * właściciela albo blokadzie zeszyt znika z paczki tak jak z ekranu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sharedCollections(User $user): array
+    {
+        $mojePrzepisy = fn ($q) => $q->widoczneDla($user)
+            ->wherePivot('added_by_id', $user->getKey())
+            ->where(fn ($w) => $w
+                ->where('recipes.author_id', $user->getKey())
+                ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            ->with('author.profile');
+        $mojeWpisy = fn ($q) => $q->widoczneDla($user)
+            ->wherePivot('added_by_id', $user->getKey())
+            ->where(fn ($w) => $w
+                ->where('posts.author_id', $user->getKey())
+                ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            ->with('author.profile');
+
+        return Collection::query()
+            ->dostepneDoZapisuDla($user)
+            ->where('collections.owner_id', '!=', $user->getKey())
+            ->with(['owner.profile', 'recipes' => $mojePrzepisy, 'posts' => $mojeWpisy])
+            ->addSelect(['dolaczono' => DB::table('collection_members')
+                ->select('created_at')
+                ->whereColumn('collection_members.collection_id', 'collections.id')
+                ->where('collection_members.user_id', $user->getKey())
+                ->limit(1)])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Collection $zeszyt): array => [
+                'nazwa' => $zeszyt->name,
+                'wlasciciel' => $zeszyt->owner?->displayName(),
+                'dolaczono' => $this->date($zeszyt->getAttribute('dolaczono')),
+                'dodane_przeze_mnie' => [
+                    'przepisy' => $zeszyt->recipes->map(fn (Recipe $recipe): array => [
+                        'tytul' => $recipe->title,
+                        'autor' => $recipe->author?->displayName(),
+                        'notatka' => $recipe->pivot->note ?? null,
+                        'zapisano' => $this->date($recipe->pivot->created_at ?? null),
+                    ])->all(),
+                    'wpisy' => $zeszyt->posts->map(fn (Post $post): array => [
+                        'tytul' => $post->title,
+                        'tresc' => $post->body,
+                        'autor' => $post->author?->displayName() ?? 'Konto usunięte',
+                        'notatka' => $post->pivot->note ?? null,
+                        'zapisano' => $this->date($post->pivot->created_at ?? null),
+                    ])->all(),
+                ],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Zaproszenia do wspólnych zeszytów — wysłane i otrzymane (#1743).
+     *
+     * Art. 15 ust. 4: przy WYSŁANYCH nie podajemy, kto odmówił ani kto
+     * przyjął link — odmowa jest decyzją drugiej osoby, a lista dostępu i tak
+     * jest przy zeszycie (`osoby_z_dostepem`). Przy OTRZYMANYCH — nazwa
+     * wyświetlana zapraszającego, którą adresat widział w powiadomieniu.
+     * Token linku nie wychodzi nigdy (poświadczenie).
+     *
+     * @return array{wyslane: list<array<string, mixed>>, otrzymane: list<array<string, mixed>>}
+     */
+    private function collectionInvitations(User $user): array
+    {
+        $wyslane = CollectionInvitation::query()
+            ->where('inviter_id', $user->getKey())
+            ->with('collection')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (CollectionInvitation $z): array => [
+                'zeszyt' => $z->collection?->name,
+                'sposob' => $z->jestLinkiem() ? 'link' : 'po nazwie konta',
+                'stan' => $z->status,
+                'utworzono' => $this->date($z->created_at),
+                'wazne_do' => $this->date($z->expires_at),
+                'odpowiedz' => $this->date($z->responded_at),
+            ])->all();
+
+        $otrzymane = CollectionInvitation::query()
+            ->where('invitee_id', $user->getKey())
+            ->with(['collection', 'inviter.profile'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (CollectionInvitation $z): array => [
+                'zeszyt' => $z->collection?->name,
+                'od' => $z->inviter?->displayName(),
+                'sposob' => $z->jestLinkiem() ? 'link' : 'po nazwie konta',
+                'stan' => $z->status,
+                'utworzono' => $this->date($z->created_at),
+                'odpowiedz' => $this->date($z->responded_at),
+            ])->all();
+
+        return ['wyslane' => $wyslane, 'otrzymane' => $otrzymane];
     }
 
     /**

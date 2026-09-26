@@ -2259,6 +2259,92 @@ Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.ph
 oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
 się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
 
+### collection_members + collection_invitations — wspólny zeszyt (#1743, D-302)
+
+Rodzinny zeszyt: właściciel zaprasza bliską osobę, która może w jego zeszycie
+zapisywać i wyjmować pozycje. Migracje
+`2026_09_26_120000_create_collection_sharing_tables` (dwie nowe tabele)
+i `2026_09_26_120100_add_added_by_to_collection_items` (kolumna na istniejącej
+tabeli). Reguły dostępu: `CollectionPolicy::addItem()`, `removeItem()`,
+`share()`, `leave()`; decyzja i granice — **D-302** w `docs/DECISIONS.md`.
+
+**Dokładnie jeden właściciel** — jak dotąd `collections.owner_id NOT NULL`
+z kluczem obcym. Współpracownik nie jest drugim właścicielem.
+
+`collection_members`:
+
+- `collection_id uuid NOT NULL` → `collections` `ON DELETE CASCADE` —
+  usunięty zeszyt nie zostawia członkostw;
+- `user_id uuid NOT NULL` → `users` `ON DELETE CASCADE`;
+- `created_at timestamptz NOT NULL DEFAULT now()` — od kiedy osoba ma dostęp;
+- **`PRIMARY KEY (collection_id, user_id)`** — unikalne członkostwo w bazie;
+  indeks `(user_id)` dla listy „Udostępnione Tobie";
+- **wyzwalacz `collection_members_guard`** (`BEFORE INSERT OR UPDATE`) —
+  odmawia (`check_violation`) wpisania właściciela jako członka i dopisania
+  kogokolwiek do domyślnego zeszytu (`is_default`). CHECK tego nie wyrazi, bo
+  warunek dotyczy wiersza `collections`.
+
+`collection_invitations`:
+
+- `id uuid` (`gen_random_uuid()`), `collection_id` → `collections` CASCADE,
+  `inviter_id` → `users` CASCADE, `invitee_id uuid NULL` → `users` CASCADE;
+- **`token_hash char(64) NULL UNIQUE`** — SHA-256 tokenu z linku-zaproszenia.
+  Sam token nie trafia do bazy; pokazujemy go raz, po utworzeniu. To jest
+  poświadczenie (AGENTS.md §7): poza `$fillable`, ukryte w `$hidden`, nie
+  wychodzi w eksporcie;
+- `via_link boolean NOT NULL DEFAULT false` — czy to był link; po przyjęciu
+  token znika, a `invitee_id` jest już ustawiony, więc bez tej kolumny nie
+  dałoby się tego odróżnić;
+- **`status varchar(20) NOT NULL DEFAULT 'pending'`** (CHECK
+  `collection_invitations_status_check`: `pending` \| `accepted` \|
+  `declined` \| `revoked`) — pole sterujące, poza `$fillable`;
+- `expires_at timestamptz NOT NULL` — 14 dni po nazwie konta, 7 dni linkiem
+  (`config/kuking.php`, `collections.*_days`). „Wygasłe" nie jest stanem
+  w bazie, tylko `expires_at <= now()`;
+- `responded_at timestamptz NULL`, `created_at`, `updated_at`.
+
+CHECK-i i indeksy:
+
+- `collection_invitations_target_check` — oczekujące ma adresata:
+  `num_nonnulls(invitee_id, token_hash) >= 1`;
+- `collection_invitations_token_only_pending` — **link jest jednorazowy**:
+  po odpowiedzi (`accepted`, `declined`, `revoked`) token musi zniknąć;
+- `collection_invitations_link_check` — token tylko przy `via_link`;
+- `collection_invitations_accepted_has_invitee` — przyjęte zawsze wie, kto
+  przyjął;
+- `collection_invitations_responded_check` — `responded_at` jest wtedy
+  i tylko wtedy, gdy zaproszenie nie czeka;
+- `collection_invitations_one_pending_idx` — unikalny częściowy
+  `(collection_id, invitee_id) WHERE status = 'pending' AND invitee_id IS NOT NULL`:
+  jedno oczekujące zaproszenie tej samej osoby, także przy wyścigu;
+- `collection_invitations_invitee_idx`, indeksy `collection_id`, `inviter_id`.
+
+`collection_items.added_by_id uuid NULL` → `users` `ON DELETE SET NULL`
+(`collection_items_added_by_fk`, dodany `NOT VALID` + `VALIDATE`), indeks
+częściowy `collection_items_added_by_idx` (`CONCURRENTLY`). **Kto dodał
+pozycję** — widać to we wspólnym zeszycie. Wiersze sprzed migracji dostały
+`owner_id` zeszytu (do dziś tylko on mógł dopisywać). `NULL` znaczy: dodała to
+osoba, której konto zostało usunięte (`ZerwijWspoldzielenie::przyWymazaniu()`).
+
+**Blokada** w którąkolwiek stronę kasuje członkostwa między tymi osobami
+i odwołuje oczekujące zaproszenia (`BlockUser` → `ZerwijWspoldzielenie::miedzy()`,
+pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
+
+**Rollback.**
+
+- `2026_09_26_120100_add_added_by_to_collection_items` — `down()` **odmawia**,
+  gdy choć jedna pozycja ma `added_by_id` różne od właściciela zeszytu (albo
+  `NULL`): ponowna migracja przypisałaby ją po cichu właścicielowi (D-088).
+  Na bazie, gdzie wszystko dodał właściciel, zdejmuje indeks, klucz i kolumnę
+  bez pytania.
+- `2026_09_26_120000_create_collection_sharing_tables` — `down()` **odmawia**,
+  gdy istnieje choć jedno członkostwo albo oczekujące zaproszenie, i podaje
+  liczby oraz polecenia kopii. Wymuszenie po zrobieniu kopii:
+  `KUKING_ROLLBACK_KASUJE_WSPOLDZIELENIE=1`. Zeszyty i ich zawartość zostają
+  u właścicieli — znika tylko to, kto miał dostęp. Pilnuje
+  `tests/Feature/CofniecieMigracjiWspolnegoZeszytuTest.php` (odmowa i kontrola
+  dodatnia dla obu migracji).
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od

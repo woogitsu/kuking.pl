@@ -51,6 +51,15 @@ class Notification extends Model
 
     public const TYPE_SAVED = 'recipe.saved';
 
+    /**
+     * Zaproszenie do wspólnego zeszytu po nazwie konta (#1743). Do adresata;
+     * `data.invitation_id` i nazwa zeszytu z chwili zaproszenia.
+     */
+    public const TYPE_COLLECTION_INVITED = 'collection.invited';
+
+    /** Ktoś przyjął zaproszenie do zeszytu (#1743). Do właściciela. */
+    public const TYPE_COLLECTION_JOINED = 'collection.joined';
+
     public const TYPE_MODERATION = 'moderation.decision';
 
     /**

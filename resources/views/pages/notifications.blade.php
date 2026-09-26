@@ -182,6 +182,22 @@
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
+                            @case(\App\Models\Notification::TYPE_COLLECTION_INVITED)
+                                {{-- Zaproszenie do wspólnego zeszytu (#1743). Bez
+                                     „Zobacz", gdy nie da się już odpowiedzieć —
+                                     wtedy mówimy to wprost. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaprasza Cię do wspólnego zeszytu</strong>
+                                „{{ $data['zeszyt'] ?? 'zeszyt' }}”.
+                                @if(($destinationUrls[(string) $notification->getKey()] ?? null) === null)
+                                    To zaproszenie jest już nieaktualne.
+                                @else
+                                    Możesz dołączyć albo odmówić.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_COLLECTION_JOINED)
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — dołącza do Twojego zeszytu</strong>
+                                „{{ $data['zeszyt'] ?? 'zeszyt' }}”. Od teraz może w nim zapisywać i wyjmować przepisy oraz wpisy.
+                                @break
                             @case(\App\Models\Notification::TYPE_SAVED)
                                 {{--
                                     ZBIORCZE POWIADOMIENIE (issue #906, decyzja

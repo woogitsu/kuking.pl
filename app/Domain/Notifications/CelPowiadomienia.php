@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications;
 
+use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
@@ -72,6 +74,20 @@ final class CelPowiadomienia
             // profilu = brak celu, nigdy zgadywanie po starej nazwie.
             Notification::TYPE_FOLLOW => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
+                : null,
+            // Zaproszenie do zeszytu (#1743): na ekran odpowiedzi, dopóki
+            // da się odpowiedzieć. Odwołane, wygasłe albo już rozstrzygnięte —
+            // bez „Zobacz", treść karty mówi, co się stało.
+            Notification::TYPE_COLLECTION_INVITED => is_string($data['invitation_id'] ?? null)
+                && CollectionInvitation::query()->whereKey($data['invitation_id'])
+                    ->where('status', CollectionInvitation::STATUS_PENDING)
+                    ->where('expires_at', '>', now())
+                    ->exists()
+                ? route('collections.invitations.show', $data['invitation_id'])
+                : null,
+            Notification::TYPE_COLLECTION_JOINED => is_string($data['collection_id'] ?? null)
+                && Collection::query()->whereKey($data['collection_id'])->exists()
+                ? route('collections.sharing', $data['collection_id'])
                 : null,
             Notification::TYPE_FIRST_POST => route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:

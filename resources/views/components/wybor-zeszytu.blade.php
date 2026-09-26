@@ -24,7 +24,15 @@
                                    @if($loop->first) id="{{ $id }}" @endif required
                                    @checked($wybrany === $zeszyt->getKey())
                                    @if($blad) aria-invalid="true" aria-describedby="{{ $id }}-error" @endif>
-                            <span>{{ $zeszyt->name }}<small>{{ $zeszyt->isPublic() ? 'Widoczny dla wszystkich' : 'Tylko dla Ciebie' }}</small></span>
+                            @php
+                                // Wspólny zeszyt (#1743) podpisany nazwą właściciela.
+                                $podpisZeszytu = match (true) {
+                                    $zeszyt->owner_id !== auth()->id() => 'Wspólny zeszyt osoby '.$zeszyt->owner?->displayName(),
+                                    $zeszyt->isPublic() => 'Widoczny dla wszystkich',
+                                    default => 'Tylko dla Ciebie',
+                                };
+                            @endphp
+                            <span>{{ $zeszyt->name }}<small>{{ $podpisZeszytu }}</small></span>
                         </label>
                     @endforeach
                     @if($blad)

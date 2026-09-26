@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302).
 - Powiadomienie o komentarzu pod wpisem, który tylko zapowiada przepis, znika z listy, licznika i eksportu danych, gdy autor ukryje ten przepis, zawęzi jego widoczność albo go usunie — tak jak sam wpis, który wtedy przestaje się otwierać. Gdy przepis znów jest dla Was widoczny, powiadomienie wraca (#1747).
 - Gdy osoba, która ugotowała z przepisu, poprosi o usunięcie konta, powiadomienia o komentarzach pod jej „Ugotowałem” znikają z listy, licznika i eksportu danych u innych osób — tak jak samo „Ugotowałem”, które od tej chwili nie otwiera się nikomu. Po cofnięciu usunięcia wszystko wraca (#1746).
 - Porządek za kulisami listy powiadomień: to, które powiadomienia o komentarzach widzicie, liczy teraz jedna wspólna reguła widoczności wpisów, przepisów i „Ugotowałem”, sprawdzana testem zgodności z tym, co pokazuje sama strona treści. Dla Was nic się nie zmienia — lista, licznik i eksport danych pokazują to samo co wcześniej (#1687).

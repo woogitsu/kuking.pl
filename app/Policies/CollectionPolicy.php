@@ -16,6 +16,17 @@ class CollectionPolicy
             return true;
         }
 
+        // WSPÓŁPRACOWNIK WIDZI TAK JAK WŁAŚCICIEL — ALE TYLKO Z WAŻNYM
+        // DOSTĘPEM (#1743, D-302). To jest drugie i ostatnie wpuszczenie
+        // „z nadania" przed flagą widoczności niżej. Nie jest przywilejem
+        // z urzędu, który #1092 zakazuje stawiać nad flagą: właściciel sam
+        // wpisał tę osobę do zeszytu, a `dostepWspolpracownika()` zawęża to
+        // jeszcze stanem obu kont i blokadą. Widoczność zeszytu nie zmienia
+        // się przez to ani trochę — obcy dalej odpada niżej.
+        if ($user !== null && $this->dostepWspolpracownika($user, $collection)) {
+            return true;
+        }
+
         // Konto bez właściciela nie powinno istnieć (klucz obcy z `cascade`),
         // ale odczyt w połowie kasowania konta może zwrócić `null` — tak samo
         // jak w `ProfilePolicy::view()`. Odmowa jest jedyną bezpieczną
@@ -77,6 +88,98 @@ class CollectionPolicy
     {
         return $user->getKey() === $collection->owner_id
             && ($user->isActive() || ($user->isSuspended() && ! $collection->isPublic()));
+    }
+
+    /**
+     * Dopisanie pozycji do zeszytu („Zapisuję", notatka przy pozycji).
+     *
+     * Właściciel — dokładnie jak `update()` (zawieszony tylko do prywatnego,
+     * D-253). Współpracownik — z ważnym dostępem i na tych samych zasadach
+     * zawieszenia: kara za pisanie nie pozwala dopisywać do zeszytu, który
+     * widzą wszyscy.
+     */
+    public function addItem(User $user, Collection $collection): bool
+    {
+        if ($user->getKey() === $collection->owner_id) {
+            return $this->update($user, $collection);
+        }
+
+        return $this->dostepWspolpracownika($user, $collection)
+            && ($user->isActive() || ($user->isSuspended() && ! $collection->isPublic()));
+    }
+
+    /**
+     * Wyjęcie pozycji z zeszytu. Właściciel — zawsze (tak było od #775:
+     * wyjęcie z własnego zeszytu nie pyta o nic). Współpracownik — z ważnym
+     * dostępem; wyjmować może także to, co dodał właściciel (decyzja
+     * właściciela 26.09.2026: „prawo dopisywania i usuwania pozycji").
+     */
+    public function removeItem(User $user, Collection $collection): bool
+    {
+        return $user->getKey() === $collection->owner_id
+            || $this->dostepWspolpracownika($user, $collection);
+    }
+
+    /**
+     * Zapraszanie, odwoływanie zaproszeń i odbieranie dostępu.
+     *
+     * Tylko właściciel i tylko aktywny: zaproszenie powiadamia drugiego
+     * człowieka, czyli jest pisaniem, którego zawieszenie zabrania.
+     * Domyślnego „Zapisane" nie udostępniamy (#1743, pierwsza wersja).
+     */
+    public function share(User $user, Collection $collection): bool
+    {
+        return $user->getKey() === $collection->owner_id
+            && $user->isActive()
+            && ! $collection->is_default;
+    }
+
+    /**
+     * Odejście z cudzego zeszytu. Wystarczy być wpisanym — odejść wolno
+     * zawsze, także przy zawieszeniu i przy zamkniętym koncie właściciela.
+     */
+    public function leave(User $user, Collection $collection): bool
+    {
+        return $user->getKey() !== $collection->owner_id
+            && $collection->maCzlonka($user);
+    }
+
+    /**
+     * Czy ta osoba ma teraz WAŻNY dostęp współpracownika (#1743, D-302).
+     *
+     * Wszystkie cztery warunki naraz:
+     *  1. zeszyt nie jest domyślnym „Zapisane" (wyzwalacz w bazie i tak
+     *     nie wpuści tam członka — to jest druga linia);
+     *  2. właściciel wpisał tę osobę do `collection_members`;
+     *  3. OBA konta mogą czytać serwis (`mozeCzytac()`): ban, oczekujące
+     *     usunięcie i konto usunięte zamykają dostęp w obie strony od razu.
+     *     Zawieszenie nie — odcina od pisania, nie od czytania. Członkostwo
+     *     zostaje w bazie, więc cofnięcie usunięcia konta albo zdjęcie bana
+     *     przywraca dostęp bez nowego zaproszenia;
+     *  4. między nimi nie ma blokady w żadną stronę. `BlockUser` i tak
+     *     kasuje członkostwo — ten warunek pilnuje okna i starych danych.
+     */
+    private function dostepWspolpracownika(User $user, Collection $collection): bool
+    {
+        if ($collection->is_default || $user->getKey() === $collection->owner_id) {
+            return false;
+        }
+
+        if (! $user->mozeCzytac()) {
+            return false;
+        }
+
+        $owner = $collection->owner;
+
+        if ($owner === null || ! $owner->mozeCzytac()) {
+            return false;
+        }
+
+        if (! $collection->maCzlonka($user)) {
+            return false;
+        }
+
+        return ! $user->hasBlockRelationWith($owner);
     }
 
     public function create(User $user, string $visibility = 'private'): bool
