@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Media\WariantyKontrakt;
+use App\Domain\Media\WariantyMetadanychNiepelne;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
@@ -81,6 +83,7 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
         $sprawdzone = 0;
         $doOdzyskania = 0;
         $utracone = 0;
+        $niepewne = 0;
         $bledy = 0;
 
         foreach ($zapytanie->cursor() as $zdjecie) {
@@ -100,20 +103,31 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
             }
 
             $czyUtracone = false;
+            $czyNiepewne = false;
 
             foreach ($braki as $brak) {
                 if ($brak['werdykt'] === 'UTRACONE') {
                     $czyUtracone = true;
                 }
+
+                if ($brak['werdykt'] === 'NIEPEWNE') {
+                    $czyNiepewne = true;
+                }
             }
 
-            if ($czyUtracone) {
+            // NIEPEWNE ma pierwszeństwo w liczeniu (issue #1905): wiersz,
+            // którego metadata.variants jest złamane, nie wiadomo NAWET czy
+            // stracił plik, czy da się go odzyskać — to jest osobna kategoria,
+            // nie podzbiór dwóch pozostałych.
+            if ($czyNiepewne) {
+                $niepewne++;
+            } elseif ($czyUtracone) {
                 $utracone++;
             } else {
                 $doOdzyskania++;
             }
 
-            if ((bool) $this->option('tylko-utracone') && ! $czyUtracone) {
+            if ((bool) $this->option('tylko-utracone') && ! $czyUtracone && ! $czyNiepewne) {
                 continue;
             }
 
@@ -130,15 +144,20 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
 
         $slowoDoOdzyskania = Odmiana::rzeczownik($doOdzyskania, 'wiersz', 'wiersze', 'wierszy');
         $slowoUtracone = Odmiana::rzeczownik($utracone, 'wiersz', 'wiersze', 'wierszy');
+        $slowoNiepewne = Odmiana::rzeczownik($niepewne, 'wiersz', 'wiersze', 'wierszy');
 
         $this->info("DO ODZYSKANIA (plik jest jeszcze w `{$stary}`): {$doOdzyskania} {$slowoDoOdzyskania}.");
         $this->info("UTRACONE (pliku nie ma nigdzie): {$utracone} {$slowoUtracone}.");
+        // NIEPEWNE ≠ UTRACONE (issue #1905): tu nie wiadomo, CZY plik brakuje —
+        // metadata.variants jest złamane, więc nie ma czego szukać w żadnym
+        // buckecie. Osobna linia, żeby „nic nie brakuje" nie kłamało.
+        $this->info("NIEPEWNE (metadata.variants puste albo uszkodzone): {$niepewne} {$slowoNiepewne}.");
 
         if ($bledy > 0) {
             $this->error('Wierszy, których nie dało się sprawdzić: '.$bledy.'. Wynik jest NIEPEŁNY.');
         }
 
-        if ($doOdzyskania === 0 && $utracone === 0 && $bledy === 0) {
+        if ($doOdzyskania === 0 && $utracone === 0 && $niepewne === 0 && $bledy === 0) {
             $this->info('Każdy sprawdzony wiersz ma swoje pliki tam, gdzie wskazuje.');
 
             return self::SUCCESS;
@@ -154,25 +173,31 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
      */
     private function brakujaceKlucze(Media $zdjecie, string $stary, bool $staryDziala): array
     {
-        $braki = [];
-
         $doSprawdzenia = [];
 
         if ($zdjecie->object_key !== null && $zdjecie->object_key !== '') {
             $doSprawdzenia[] = ['co' => 'oryginał', 'klucz' => $zdjecie->object_key, 'dysk' => $zdjecie->disk];
         }
 
-        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
-            if (! is_array($wariant) || ! isset($wariant['key'])) {
-                continue;
-            }
+        $wpisNiepewny = null;
 
-            $doSprawdzenia[] = [
-                'co' => 'wariant '.(string) $nazwa,
-                'klucz' => (string) $wariant['key'],
-                'dysk' => $zdjecie->variantsDisk(),
-            ];
+        try {
+            $warianty = WariantyKontrakt::wyciagnij($zdjecie);
+
+            foreach ($warianty as $nazwa => $klucz) {
+                $doSprawdzenia[] = ['co' => 'wariant '.$nazwa, 'klucz' => $klucz, 'dysk' => $zdjecie->variantsDisk()];
+            }
+        } catch (WariantyMetadanychNiepelne $e) {
+            // KONTRAKT ZŁAMANY, NIE BRAK PLIKU (issue #1905). Do 26 września
+            // 2026 pusta/uszkodzona `metadata.variants` po prostu nie dawała
+            // żadnego wariantu do sprawdzenia — wiersz kończył z pustym
+            // `$braki`, czyli wyglądał identycznie jak komplet poprawnych
+            // plików. `oryginał` (jeśli jest) sprawdzamy mimo to niżej —
+            // złamany kontrakt wariantów nie mówi nic o oryginale.
+            $wpisNiepewny = ['co' => 'metadata.variants', 'klucz' => $e->getMessage(), 'werdykt' => 'NIEPEWNE'];
         }
+
+        $braki = [];
 
         foreach ($doSprawdzenia as $pozycja) {
             if (Storage::disk($pozycja['dysk'])->exists($pozycja['klucz'])) {
@@ -188,6 +213,10 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
                 'klucz' => $pozycja['klucz'],
                 'werdykt' => $wStarym ? 'DO ODZYSKANIA' : 'UTRACONE',
             ];
+        }
+
+        if ($wpisNiepewny !== null) {
+            $braki[] = $wpisNiepewny;
         }
 
         return $braki;

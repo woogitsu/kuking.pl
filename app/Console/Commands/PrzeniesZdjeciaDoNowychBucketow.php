@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Media\WariantyKontrakt;
+use App\Domain\Media\WariantyMetadanychNiepelne;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
@@ -262,16 +264,24 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
                 }
             }
 
-            foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
-                if (! is_array($wariant) || ! isset($wariant['key'])) {
-                    continue;
-                }
+            try {
+                $warianty = WariantyKontrakt::wyciagnij($zdjecie);
+            } catch (WariantyMetadanychNiepelne $e) {
+                // KONTRAKT ZŁAMANY, NIE BRAK PLIKU (issue #1905). Do 26 września
+                // 2026 pusta/uszkodzona `metadata.variants` była nieodróżnialna
+                // od kompletu poprawnych wariantów — `foreach` po prostu nie
+                // miał po czym iterować i wiersz przechodził dalej, do
+                // przestawienia `disk`. Dziś to jest jawny błąd danych: wiersz
+                // NIE jest ruszany (jak przy `WYNIK_BLAD`), a powód trafia do
+                // raportu z bezpiecznym identyfikatorem medium.
+                return [self::WYNIK_BLAD, 'metadata.variants niepełne: '.$e->getMessage()];
+            }
 
-                $klucz = (string) $wariant['key'];
+            foreach ($warianty as $nazwa => $klucz) {
                 $wynik = $this->skopiuj($dyskStary, $dyskPubliczny, $klucz, $tylkoRaport);
 
                 if ($wynik !== self::WYNIK_OK) {
-                    return [$wynik, 'wariant '.(string) $nazwa.': '.$klucz];
+                    return [$wynik, 'wariant '.$nazwa.': '.$klucz];
                 }
             }
         } catch (Throwable $e) {
