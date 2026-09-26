@@ -22,10 +22,18 @@
     Wylogowanie jest odwracalne jednym zalogowaniem i nic nie kasuje.
     Okno „czy na pewno" przy nieszkodliwej akcji uczy odklikiwania ostrzeżeń
     i przez to osłabia te ostrzeżenia, które są potrzebne naprawdę.
+
+    WYLOGOWANIE GASI POWIADOMIENIA NA TYM URZĄDZENIU (#1979)
+    Puste pole `push_endpoint` uzupełnia `resources/js/powiadomienia-push.js`
+    adresem subskrypcji tej przeglądarki i wypisuje ją z Web Push
+    (`unsubscribe()`), zanim formularz pójdzie. Serwer na tym nie polega:
+    przeglądarkę, która włączyła powiadomienia w tej sesji, rozpoznaje po
+    sesji (`OdlaczUrzadzeniePush`). Bez skryptu przycisk działa jak dotąd.
 --}}
 @auth
-    <form method="POST" action="{{ route('logout') }}" class="{{ $formClass ?? '' }}">
+    <form method="POST" action="{{ route('logout') }}" class="{{ $formClass ?? '' }}" data-wyloguj>
         @csrf
+        <input type="hidden" name="push_endpoint" value="" data-wyloguj-push>
         <button type="submit" class="{{ $class ?? 'btn btn-secondary' }}">
             {{ $slot->isEmpty() ? 'Wyloguj się' : $slot }}
         </button>

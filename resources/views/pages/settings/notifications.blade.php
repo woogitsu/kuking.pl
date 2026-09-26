@@ -56,6 +56,7 @@
 
     <section class="mt-8">
         <h2>Twoje urządzenia</h2>
+        <p>Gdy wylogujesz się na którymś urządzeniu, powiadomienia poza Kuking wyłączą się na nim same.</p>
         @if($urzadzenia->isEmpty())
             <p>Powiadomienia poza Kuking są wyłączone na wszystkich urządzeniach.</p>
         @else

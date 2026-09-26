@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Notifications\Push\OdlaczUrzadzeniePush;
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Security\TwoFactorAuthenticator;
@@ -157,8 +158,24 @@ class LoginController extends Controller
         return redirect()->intended(route('home'));
     }
 
-    public function destroy(Request $request): RedirectResponse
+    /**
+     * Wylogowanie gasi też powiadomienia poza serwisem na TYM urządzeniu
+     * (#1979): na wspólnym komputerze prywatne „ktoś ugotował…" nie ma prawa
+     * pokazywać się dalej po wyjściu z konta. Wygaśnięcie sesji tego nie
+     * robi — patrz `OdlaczUrzadzeniePush`.
+     */
+    public function destroy(Request $request, OdlaczUrzadzeniePush $odlaczPush): RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user instanceof User) {
+            $odlaczPush->handle(
+                $user,
+                $request->session()->get(OdlaczUrzadzeniePush::KLUCZ_SESJI),
+                $request->input('push_endpoint'),
+            );
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
