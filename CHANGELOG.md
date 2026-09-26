@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- W „Moje” jest nowy przycisk „Moje wpisy”: lista wszystkich Waszych wpisów od najnowszego — także tych tylko dla Was, tylko dla obserwujących, szkiców i wpisów ukrytych przez moderację. Przy każdym wpisie jest napisane, kto go widzi i w jakim jest stanie. Tę listę widzi tylko jej właściciel (D-328).
 - W menu z trzema kropkami przy cudzym wpisie są „Ukryj ten wpis” i „Ukryj tę osobę”. Ukrycie działa tylko dla Was, domyślnie przez 30 dni — potem wpis albo osoba wracają same. Ukryty wpis znika ze Startu, „Świeżo z Kuking”, tablicy na dziś i tygodniowego e-maila, a na profilu i pod linkiem zwija się do „Ten wpis ukrywasz tylko dla siebie. Pokaż”. Ukryta osoba znika z „Świeżo z Kuking”, tablicy i propozycji osób. Nikogo o tym nie powiadamiamy. Listę z datą końca, „Zostaw ukryte” i „Przywróć” znajdziecie w Ustawieniach → Ukryte (#1810).
 - W menu z trzema kropkami przy cudzym wpisie są teraz „Obserwuj tę osobę” i „Obserwuj tag: …” (najwyżej dwa tagi wpisu, tylko te, których jeszcze nie obserwujecie). Po kliknięciu strona mówi, co się stało i co z tego wyniknie, a pod komunikatem jest przycisk „Cofnij” (#1809).
 - Na Starcie wpisy z obserwowanych tagów stoją razem z wpisami osób, które obserwujecie, od najnowszych. Wcześniej wystarczyło obserwować jedną osobę, żeby wpisy z tagów przestały się pokazywać w ogóle. Przy wpisie, który trafił do Was przez tag, jest napisane „Z tagu: …”. Wpisy tylko dla obserwujących i prywatne nie trafiają na Start przez tag, a blokady działają jak wszędzie (#1808).
