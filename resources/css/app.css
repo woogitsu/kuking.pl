@@ -6737,3 +6737,31 @@
     display: none;
   }
 }
+
+/* ODCZYT ZDJĘCIA KARTKI (V2, D-298) — oryginał obok tekstu.
+   Na telefonie zdjęcie stoi NAD polami (zwykły przepływ dokumentu), na
+   szerokim ekranie opływa je kolumna pól, więc każdą linijkę da się
+   porównać ze zdjęciem bez skakania po stronie. Przy 320 px i 200%
+   powiększenia to jedna kolumna. */
+@layer components {
+  .oryginal-kartki {
+    margin: 0 0 1.5rem;
+  }
+
+  .lista-postepu {
+    padding-left: 1.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    .oryginal-kartki {
+      float: right;
+      width: 40%;
+      margin-left: 1.5rem;
+    }
+
+    /* Panel obejmuje opływane zdjęcie, zamiast dać mu wystać pod spód. */
+    .panel-formularza:has(> .oryginal-kartki) {
+      display: flow-root;
+    }
+  }
+}

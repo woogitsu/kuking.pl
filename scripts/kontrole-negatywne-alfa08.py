@@ -998,7 +998,7 @@ checks = [
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
     # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
     ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv };", "...czyszczenieCdnEnv, ...pushPublicznyEnv };")),
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };", "...czyszczenieCdnEnv, ...pushPublicznyEnv, ...importEnv };")),
     ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
      lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
     ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
@@ -1136,6 +1136,32 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # V2 import/OCR (D-298): zadanie odczytu zapisujące szkic jako publikację
+    # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
+    ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
+    # Każda mutacja przywraca dokładnie okno opisane w zgłoszeniu.
+    # #1973: rezerwacja poza transakcją z licznikiem prób I `failed()` bez
+    # domykania księgi — obie warstwy naraz, bo każda z osobna zamyka okno.
+    ("Odczyt: rezerwacja bez śladu po awarii zapisu", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1973_awaria_po_rezerwacji",
+     lambda s: replace_once(replace_once(replace_once(s,
+        "        $rezerwacja = DB::transaction(function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {",
+        "        $rezerwacja = (function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {"),
+        "            return $wynik;\n        });",
+        "            return $wynik;\n        })();"),
+        "    {\n        app(RozliczenieOdczytu::class)->zamknijPorzucone($this->importId);\n",
+        "    {\n")),
+    ("Odczyt: porzucona rezerwacja nie wygasa", "app/Domain/Import/OdzyskanieImportow.php", "MaszynaStanowOdczytuTest::test_1973_rezerwacja_osierocona",
+     lambda s: replace_once(s, "            $this->rozliczenie->zamknijPorzucone($importId, $granicaRezerwacji);\n", "")),
+    ("Odczyt: rozliczenie bez strażnika stanu", "app/Domain/Import/BudzetAi.php", "MaszynaStanowOdczytuTest::test_1974",
+     lambda s: replace_once(s, "            if ($zamknieta !== 1) {\n                return null;\n            }\n", "")),
+    # #1977: `afterCommit()` przenosi zapis zadania za commit — czyli
+    # odtwarza okno, zamiast je zamknąć (tak jak w `ZamowEksportDanych`).
+    ("Odczyt: zadanie za commitem zlecenia", "app/Domain/Import/ZlecImportPrzepisu.php", "MaszynaStanowOdczytuTest::test_1977_awaria_kolejki",
+     lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
+    ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
+     lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
     # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie

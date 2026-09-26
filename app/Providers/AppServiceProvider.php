@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
@@ -53,6 +55,11 @@ class AppServiceProvider extends ServiceProvider
         // Web Push (D-303). Testy podmieniają to fałszywym transportem —
         // żaden test nie wysyła prawdziwego pushu.
         $this->app->bind(TransportPush::class, TransportWebPush::class);
+        // Publikacja przepisu (`Recipes`) woła bramkę „Sprawdziłem odczytany
+        // tekst" przez kontrakt, a implementację dostarcza `Import` (D-298,
+        // issue #971). Wiązanie jest jedynym miejscem, które zna oba moduły
+        // — dzięki temu graf `app/Domain` nie ma cyklu `Import ↔ Recipes`.
+        $this->app->bind(BramkaPublikacjiSzkicu::class, BramkaPublikacjiOdczytu::class);
     }
 
     /**

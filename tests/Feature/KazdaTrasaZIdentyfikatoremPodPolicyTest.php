@@ -11,6 +11,7 @@ use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
 use App\Models\Hide;
+use App\Models\ImportPrzepisu;
 use App\Models\MealPlanEntry;
 use App\Models\Media;
 use App\Models\ModerationAction;
@@ -785,6 +786,20 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
+        // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
+        // zdjęciem; moderator też nie ma tu wstępu (`ImportPrzepisuPolicy`).
+        $zlecenieOdczytu = new ImportPrzepisu;
+        $zlecenieOdczytu->forceFill([
+            'user_id' => $wlasciciel->getKey(),
+            'recipe_id' => $przepisPrywatny->getKey(),
+            'zrodlo' => ImportPrzepisu::ZRODLO_ZDJECIE,
+            'status' => ImportPrzepisu::STATUS_NIEUDANY,
+            'kod_bledu' => ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY,
+        ])->save();
+        $dodaj('import.show', 'postęp odczytu zdjęcia kartki', 'get',
+            route('import.show', $zlecenieOdczytu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('import.ponow', 'ponowienie odczytu zdjęcia kartki', 'post',
+            route('import.ponow', $zlecenieOdczytu), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.details', 'szczegóły przepisu', 'get',
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',

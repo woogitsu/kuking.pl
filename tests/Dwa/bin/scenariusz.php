@@ -26,6 +26,8 @@ use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
+use App\Domain\Import\BudzetAi;
+use App\Domain\Import\Rezerwacja;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
@@ -60,6 +62,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -533,6 +536,16 @@ try {
                 'stare' => $sesja?->get('_old_input'),
                 'zapisane' => $sesja?->get('status'),
             ];
+        })(),
+
+        // Rezerwacja budżetu modelu importu (D-297): PRAWDZIWE `BudzetAi`,
+        // z limitem dziennym podanym przez test.
+        'rezerwacja-budzetu' => (function () use ($argumenty): string {
+            config(['kuking.import.budzet.dzienny_usd' => (float) $argumenty['limit_usd']]);
+            config(['kuking.import.budzet.miesieczny_usd' => 1000.0]);
+            $wynik = app(BudzetAi::class)->zarezerwuj((int) $argumenty['kwota'], (string) Str::uuid(), 1);
+
+            return $wynik instanceof Rezerwacja ? 'zarezerwowano' : 'odmowa:'.$wynik;
         })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),

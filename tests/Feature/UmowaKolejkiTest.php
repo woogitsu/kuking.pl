@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Jobs\GenerateUserExport;
 use App\Jobs\NotifyUserExportReady;
+use App\Jobs\OdczytajPrzepis;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
@@ -83,6 +84,9 @@ class UmowaKolejkiTest extends TestCase
         // które czekają na `low` z zapisaną wtedy nazwą kolejki.
         PrzeanalizujAwatar::class => null,
         WyslijPowiadomieniePush::class => 'default', // powiadomienie na urządzenie — obok listów, nie za eksportem (#35)
+        // Odczyt zdjęcia kartki modelem (D-298) — `low`, bez osobnej kolejki:
+        // do 90 s, za moderacją, nie przed zdjęciami i listami.
+        OdczytajPrzepis::class => 'low',
     ];
 
     /**
@@ -101,6 +105,7 @@ class UmowaKolejkiTest extends TestCase
             PrzeanalizujTresc::class => new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'post-id'),
             PrzeanalizujAwatar::class => new PrzeanalizujAwatar('media-id'),
             WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
+            OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
         ];
     }
 

@@ -17928,6 +17928,276 @@ maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
 
 ---
 
+## D-296 — Wyjątek od D-240: zdjęcie kartki wychodzi do OpenAI na osobną zgodę „odczyt AI” (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Wąski wyjątek od **D-240** · Dotyczy: D-298 (import/OCR), D-072 (dziennik zgód),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §5
+
+**Decyzja właściciela dosłownie:** OCR prywatnego zdjęcia — wyjątek od D-240
+przez OSOBNĄ ZGODĘ „odczyt AI” w dzienniku zgód (wzór awatarów z D-240), do
+cofnięcia; na start dla WSZYSTKICH zalogowanych.
+
+### Problem
+
+D-240: do OpenAI wychodzi wyłącznie pomniejszona (≤ 320 px), publiczna treść;
+treść bez potwierdzonej zgody — nie. Odczyt pisma z kartki łamie oba warunki
+naraz: kartka jest prywatna, a 320 px nie wystarcza do przeczytania pisma.
+D-240 sam wskazał drogę (przy awatarze): „osobna decyzja: cel zgody, ekran
+udzielania i wycofania, sprawdzenie przed każdą wysyłką”.
+
+### Co obowiązuje
+
+- **Nowy cel w `dziennik_zgod`: `odczyt_ai`** i nowe źródło `ekran_importu`
+  (migracja `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`). Stanem zgody
+  jest OSTATNI wpis osoby dla tego celu — bez kolumny na `users`, więc nie ma
+  dwóch prawd (flaga i dowód). Zapisuje i czyta wyłącznie
+  `App\Domain\Zgody\PrzestawZgodeNaOdczytAi`; zdarzenie powstaje tylko przy
+  realnej zmianie.
+- **Ekran udzielania** przed pierwszym odczytem (`/dodaj/przepis/z-kartki`):
+  kto odczyta (OpenAI, USA), co wyślemy (samo zdjęcie kartki, bez imienia,
+  e-maila i danych z aparatu), prośba o zasłonięcie cudzych danych, jak
+  wycofać. Dwa przyciski: „Zgadzam się, odczytujcie moje kartki” / „Nie,
+  wpiszę przepis ręcznie”.
+- **Wycofanie** w `/ustawienia/prywatnosc` (osobny formularz), dostępne także
+  podczas zawieszenia konta (`EnsureAccountIsActive`, RODO art. 7 ust. 3).
+  Anonimizacja konta dopisuje `wycofana` / `usuniecie_konta`.
+- **Sprawdzenie przed każdą wysyłką:** zadanie `OdczytajPrzepis` czyta zgodę
+  świeżo z bazy jako OSTATNI krok przed żądaniem (po rezerwacji budżetu).
+  Wycofanie między zleceniem a wysyłką = zero wysłanych bajtów, rezerwacja
+  zwolniona (test).
+- **Co wychodzi:** wyłącznie zdjęcie kartki, na wyraźne żądanie jej autora,
+  przy każdym zleceniu z osobna — wariant przekodowany u nas do JPEG, dłuższy
+  bok ≤ 2000 px zmierzony z bajtów, bez EXIF/XMP/GPS; `store: false`; bez
+  e-maila, nazwy, IP, identyfikatorów i pola `user`.
+- **Poza tym wyjątkiem D-240 obowiązuje bez zmian** — moderacja dalej wysyła
+  tylko treść publiczną ≤ 320 px, awatar dalej nie wychodzi.
+- **Dla kogo:** wszyscy zalogowani (bez grupy testowej).
+
+### Warunki włączenia na produkcji (poza kodem)
+
+Umowa powierzenia (DPA) z OpenAI wpisana do `docs/legal/REJESTR_UMOW_POWIERZENIA.md`;
+nowa wersja polityki prywatności z drugim celem OpenAI (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`, wersję podbija osobny PR razem
+z pozostałymi zmianami polityki); nowa czynność w rejestrze czynności
+przetwarzania. Do tego czasu `OPENAI_IMPORT_KEY` zostaje pusty.
+
+### Dowód
+
+`tests/Feature/Import/OdczytZdjeciaKartkiTest.php` (ekran zgody, brak
+wysyłki bez zgody, wycofanie w trakcie kolejki, wycofanie przy zawieszeniu,
+usunięcie konta), `tests/Feature/Import/CofniecieZgodyOdczytuAiOdmawiaTest.php`
+(rollback odmawia przy istniejących zgodach — D-088).
+
+### Wycofanie
+
+Wyłączenie funkcji: usunąć `OPENAI_IMPORT_KEY`. Zgody w dzienniku zostają
+jako dowód i niczego nie uruchamiają. Migracja CHECK-ów cofa się tylko przy
+braku wpisów `odczyt_ai` (dziennik jest append-only).
+
+---
+
+## D-297 — Budżet i limity odczytu przepisów modelem: 5 USD dziennie, 100 USD miesięcznie, 5/30 odczytów na osobę (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Dotyczy: V2 import/OCR (D-282, D-298), projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §3.3
+
+**Decyzja właściciela dosłownie:** budżet 5 USD/dzień i 100 USD/mies.
+(w konfiguracji) + limit na osobę 5 importów/dzień i 30/mies. (propozycja
+z projektu).
+
+### Co obowiązuje
+
+- **Budżet serwisu w PostgreSQL**, tabela `ai_budzet_dzienny` (jeden wiersz
+  na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
+  cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
+- **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
+  Rezerwacja = najgorszy przypadek: szacowane tokeny wejścia × cena wejścia +
+  sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Zapis pod
+  `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
+  Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
+  wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez
+  wydatku wyłącznie wtedy, gdy żądanie na pewno nie wyszło.
+- **Brak cennika = brak wywołań.** Ceny w USD za milion tokenów
+  (`KUKING_IMPORT_CENA_WEJSCIE`, `KUKING_IMPORT_CENA_WYJSCIE`) wpisuje się
+  ręcznie z cennika OpenAI; bez nich nie da się zarezerwować budżetu, więc
+  funkcja jest wyłączona tak samo jak bez klucza.
+- **Limit na osobę liczony z bazy** (`importy_przepisow`, dzień i miesiąc
+  w strefie człowieka), nie `RateLimiter`-em — ma być dokładny. Liczy się
+  zlecenie (także „Odczytaj jeszcze raz”); zlecenia zatrzymane na limicie
+  (`wstrzymany_limitem`) się nie liczą, bo do modelu nie poszły. Równoległe
+  zlecenia jednej osoby szereguje blokada doradcza na czas transakcji.
+  Osobno `throttle:import` (10 / 10 min) chroni samą trasę przed pętlą żądań.
+- **Próg ostrzegawczy 80%** dziennego budżetu: jeden `Log::warning`
+  (`stage=import_budzet_prog`) dziennie.
+- **Moderacja nie jest w tym budżecie** — jest bezpłatna, ma osobny klucz,
+  a wyczerpanie budżetu importu nie może jej zatrzymać.
+- **Druga linia obrony poza naszym kodem:** osobny projekt OpenAI z limitem
+  wydatków ustawionym w panelu dostawcy (krok właściciela).
+
+### Co widzi człowiek
+
+Wyczerpany budżet serwisu: przycisk zostaje, ale NAD nim stoi informacja,
+zanim ktoś kliknie; zlecenie złożone mimo to kończy się stanem
+`wstrzymany_limitem` z komunikatem „Twoje zdjęcie jest zapisane…”. Limit
+osoby: szkic ze zdjęciem i tak powstaje, a komunikat mówi, kiedy można dalej.
+
+### Dowód
+
+`tests/Feature/Import/BudzetAiTest.php`, `tests/Dwa/BudzetAiNaDwochPolaczeniachTest.php`
+(dwie rezerwacje naraz, limit na jedną — jedna przechodzi),
+`tests/Feature/Import/CofniecieBudzetuAiOdmawiaTest.php` (rollback odmawia
+przy wydatkach w bieżącym miesiącu — D-088).
+
+### Wycofanie / zmiana
+
+Kwoty i limity zmienia się w env (`KUKING_IMPORT_BUDZET_DZIEN`,
+`KUKING_IMPORT_BUDZET_MIESIAC`, `KUKING_IMPORT_NA_OSOBE_DZIEN`,
+`KUKING_IMPORT_NA_OSOBE_MIESIAC`) — zmiana domyślnych wartości w repo wymaga
+nowej decyzji właściciela.
+
+---
+
+## D-298 — Import przepisu i OCR zdjęcia kartki: architektura (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (model, klucz, zakres) +
+rozstrzygnięcia wykonawcze opisane niżej · Status: **obowiązuje** ·
+Dotyczy: D-282 (V2 wolno budować), D-296 (zgoda „odczyt AI”), D-297 (budżet),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
+
+### Decyzje właściciela z 26 września 2026
+
+- Model OpenAI **`gpt-6-luna`** — domyślna wartość `KUKING_IMPORT_MODEL`,
+  zmienialna w env. Osobny klucz **`OPENAI_IMPORT_KEY`**. **Brak klucza =
+  funkcja wyłączona, przycisk się nie pokazuje.**
+- **Intensywność myślenia (`reasoning.effort`) w konfiguracji, osobno per
+  zadanie:** odczyt zdjęcia zeszytu = `medium` (`KUKING_IMPORT_EFFORT_OCR`),
+  wyznaczanie fragmentów przepisu z URL/PDF = `low`
+  (`KUKING_IMPORT_EFFORT_TEKST`). Dozwolone wartości są w kodzie
+  (`KlientLuna::WYSILKI`: `minimal`, `low`, `medium`, `high`); wartość spoza
+  listy wyłącza TO JEDNO zadanie (żadnego żądania) i mówi o tym
+  `kuking:sprawdz-import`. Klient wysyła `reasoning.effort` dokładnie
+  z konfiguracji (test). Import z URL/PDF (osobna gałąź) używa klucza
+  `kuking.import.model.wysilek.tekst` i zadania `KlientLuna::ZADANIE_TEKST`.
+- Szkic z odczytu jest **zawsze `draft` i `private`, nigdy auto-publikacja**.
+- Przed publikacją szkicu z OCR: pole **„Sprawdziłem odczytany tekst”**,
+  a **niepewne słowa `[?…?]` blokują publikację**. Na ekranie pole brzmi
+  „Odczytany tekst jest sprawdzony ze zdjęciem” — forma „Sprawdziłem”
+  przypisuje czytelnikowi płeć, czego zabrania `docs/brand/COPY_STYLE.md` §2
+  (pilnuje `TekstyNiePrzypisujaPlciTest`); znaczenie i działanie bez zmian.
+- Na start funkcja dla **wszystkich zalogowanych**.
+
+### Architektura
+
+- **Import = zadanie w kolejce, które wypełnia prywatny SZKIC w istniejącym
+  kreatorze.** Szkic (`recipes`, `draft`, `private`) i zdjęcie kartki
+  (`recipes.source_scan_media_id`, zwykły potok zdjęć — EXIF zdjęty przed
+  czymkolwiek) powstają RAZEM ze zleceniem, zanim cokolwiek pójdzie do
+  modelu. Dlatego „zdjęcie jest zapisane” jest prawdą przy każdym błędzie,
+  limicie i wyłączonej funkcji, a zdjęcie ma od razu wszystkie ochrony skanu
+  kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`). Jedno zdjęcie na
+  zlecenie w tym etapie (`source_scan_media_id` jest jedno).
+- Publikacja idzie **zwykłym `PublishRecipe`** i zwykłą moderacją.
+  `app/Domain/Import/**` nie odwołuje się do `PublishRecipe` z `publish: true`
+  (test architektoniczny). Bramkę „Sprawdziłem / `[?`” trzyma
+  `BramkaPublikacjiOdczytu` wołana z `PublishRecipe`, więc obejmuje kreator
+  i formularz bez JavaScriptu. **`PublishRecipe` (moduł `Recipes`) nie
+  importuje `Import` wprost** — woła kontrakt `App\Domain\Recipes\
+  BramkaPublikacjiSzkicu`, którego implementację (`BramkaPublikacjiOdczytu`)
+  wiąże `AppServiceProvider` (wzorem `ObserwowanieGospodarza`, issue #971).
+  Bezpośredni import zamykał cykl `Import → Recipes → Import`, bo `Import`
+  i tak zależy od `Recipes` przez `PublishRecipe` (`ZlecImportPrzepisu`,
+  `OdczytajPrzepis`) — pilnuje tego `GrafModulowDomenyBezCykliTest`.
+- **Klient `App\Domain\Import\KlientLuna`** — Responses API
+  (`POST https://api.openai.com/v1/responses`), host i ścieżka w kodzie
+  (`#^/v1/responses$#`, D-250), `store: false`, bez narzędzi, wyjście
+  w schemacie JSON (`strict`). Nie wysyła e-maila, nazwy, IP, identyfikatorów
+  ani pola `user`/`safety_identifier`. Trzy wyniki jak w moderacji (#1662).
+- **Obraz do modelu:** wariant `large` (≤ 1600 px) przekodowany przez GD do
+  JPEG, dłuższy bok ≤ 2000 px zmierzony z bajtów przed i po — bez EXIF/XMP/GPS.
+- **Kolejka `low`, nie osobna `import`.** Produkcja chodzi w roli `all`
+  (jeden proces na wszystkie kolejki), więc osobna kolejka trafiłaby do tego
+  samego procesu, a kosztowałaby zmianę `docker/entrypoint.sh`, IaC i
+  `UmowaKolejkiTest` oraz dodatkową pamięć po wydzieleniu workera. Po
+  wydzieleniu odczyt (do 90 s) stoi na `low` za moderacją, a nie przed
+  zdjęciami (`media`) i listami (`high`/`default`). Gdy pomiar pokaże, że
+  odczyty opóźniają moderację — wtedy osobna kolejka, nową decyzją.
+- **Tabela `importy_przepisow`** (ślad zlecenia, bez treści przepisu):
+  surowa odpowiedź modelu 30 dni, wiersz 90 dni (`kuking:sprzataj-importy`,
+  06:00). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
+  bramka publikacji. Eksport RODO: sekcja `odczyty_przepisow`; anonimizacja
+  konta kasuje wiersze.
+- **Brak powiadomienia w serwisie** w tym etapie: ekran postępu
+  `/import/{import}` (słowa, `aria-live`, działa bez JS) i lista „Moje szkice”.
+- Komenda **`kuking:sprawdz-import`** mówi, czego brakuje (klucz, model,
+  adres, intensywność, cennik, budżet) — bez wysyłania żądań.
+
+### Maszyna stanów płatnego wywołania (#1973, #1974, #1977, #1980)
+
+Audyt gałęzi pokazał cztery okna, w których awaria między dwoma zapisami
+psuła budżet albo zlecenie (zmierzone testami przed poprawką:
+`MaszynaStanowOdczytuTest`): rezerwacja zatwierdzona bez śladu w zleceniu
+(76 000 mikro-USD zablokowane na zawsze), rozliczenie policzone dwa razy
+(82 000 zamiast 76 000), zlecenie `oczekuje` bez zadania w kolejce (także po
+ponowieniu tym samym kluczem) i ponowienie zadania wysyłające DRUGIE płatne
+żądanie, choć odpowiedź pierwszego była zapisana. Jedna maszyna stanów
+zamiast czterech łatek:
+
+- **Księga `ai_rezerwacje`**, klucz `UNIQUE (import_id, proba)`, stany
+  `zarezerwowana → wyslana → rozliczona` albo `→ zwolniona`. Każde przejście
+  to warunkowy `UPDATE … WHERE stan IN (otwarte)`, więc powtórzone
+  rozliczenie niczego nie zmienia (#1974). Wiersz księgi powstaje w tej
+  samej transakcji co zwiększenie `zarezerwowano_mikrousd`, a zadanie
+  owija rezerwację i zwiększenie `importy_przepisow.proby` w jedną
+  transakcję (#1973). Kolumny `rezerwacja_mikrousd`/`rezerwacja_dzien`
+  zniknęły ze zlecenia (migracja gałęzi poprawiona w miejscu, przed
+  scaleniem).
+- **`wyslana` zapisywane PRZED żądaniem.** Dzięki temu rezerwacja porzucona
+  ma jednoznaczny los: niewysłana wraca do budżetu, wysłana idzie w wydatki
+  całą kwotą (D-297: lepiej zawyżyć). Domykają ją `failed()`, początek
+  następnej próby i **`kuking:odzyskaj-importy`** (co kwadrans; rezerwacja
+  otwarta ponad 30 minut — zadanie żyje najwyżej 120 s).
+- **Rozliczenie budżetu i zapis kosztu, tokenów i odpowiedzi w zleceniu —
+  jedna transakcja** (`RozliczenieOdczytu`). Koszt dopisywany w SQL
+  (`COALESCE(koszt_mikrousd, 0) + ?`), bo porzuconą rezerwację mógł domknąć
+  kto inny.
+- **Zapisana odpowiedź = etap „odczytano” zamknięty** (#1980). Ponowienie
+  zadania z `odpowiedz_modelu` odtwarza wynik (`OdpowiedzModelu::zZapisanej`)
+  i dokańcza BEZ rezerwacji i bez żądania. Zgody nie sprawdza drugi raz:
+  nic już nie wychodzi. Granica: `output_text` jest w zapisie ucięty do
+  20 000 znaków — dłuższy (niespotykany dla kartki) po wznowieniu kończy się
+  `odpowiedz_bledna`, nigdy drugim wywołaniem.
+- **Sufit płatnych żądań na zlecenie: `PROBY_MODELU` (3)** — liczony
+  z `proby`, więc obejmuje także ponowienia po zwykłym wyjątku, które
+  kolejka robi do `$tries` (8, bo obejmuje też czekanie na zdjęcie).
+- **Szkic i `gotowy` w jednej transakcji** — inaczej ponowienie po awarii
+  tuż za szkicem brało tekst modelu za pracę człowieka (`szkic_zmieniony`).
+- **Zlecenie i zadanie razem albo wcale** (#1977): `OdczytajPrzepis::dispatch()`
+  wewnątrz transakcji zapisu zlecenia — kolejka bazodanowa na tym samym
+  połączeniu, bez `after_commit`, ten sam outbox co `ZamowEksportDanych`
+  (A02) i `StoreUploadedImage` (#1456). `afterCommit()` odrzucone: przenosi
+  zapis zadania za commit, czyli zostawia to samo okno (kontrola ujemna
+  w `scripts/kontrole-negatywne-alfa08.py` robi dokładnie tę zmianę).
+  Zadanie zgubione inną drogą: zlecenie `oczekuje`/`w_toku` bez zmiany od
+  120 minut dostaje `nieudany`/`blad_wewnetrzny` i „Spróbuj jeszcze raz”.
+  **Nie wysyłamy zadania ponownie automatycznie** — gdyby „zgubione” zadanie
+  jednak żyło, dwa zadania to dwa płatne żądania; ponowienie należy do
+  człowieka i liczy się do jego limitu.
+
+### Czego ta decyzja NIE robi
+
+Nie włącza funkcji na produkcji: wymaga klucza, cennika, umowy powierzenia
+(DPA) z OpenAI i nowej wersji polityki prywatności (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`). Nie buduje importu z URL/PDF
+ani wartości odżywczych (osobne etapy i gałęzie).
+
+### Wycofanie
+
+Najszybciej: usunąć `OPENAI_IMPORT_KEY` — przyciski znikają, zlecenia
+w kolejce kończą się `wylaczony`, szkice ze zdjęciami zostają. Cofnięcie kodu:
+odwrócić commity; migracje `importy_przepisow` cofa się bez odmowy,
+`ai_budzet_dzienny` (razem z księgą `ai_rezerwacje`) odmawia przy wydatkach
+w bieżącym miesiącu (D-088).
 ## D-304 — „Mój stół”: dobrowolna półka przepisów wyłącznie z zamkniętej listy doboru (#1749, D-275, 26 września 2026)
 
 **Data:** 26 września 2026 · **Decyzja właściciela** (26.09: „budujemy teraz”,

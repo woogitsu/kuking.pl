@@ -11,7 +11,8 @@ use LogicException;
 /**
  * Jedno zdarzenie w dzienniku zgód: udzielenie albo wycofanie (D-072).
  *
- * Zapisuj WYŁĄCZNIE przez `App\Domain\Zgody\PrzestawZgodeNaDigest` — tam
+ * Zapisuj WYŁĄCZNIE przez `App\Domain\Zgody\PrzestawZgodeNaDigest` albo
+ * `PrzestawZgodeNaOdczytAi` (D-296) — tam
  * mieszka reguła „zdarzenie powstaje tylko przy realnej zmianie" i tam jest
  * rozstrzygnięta asymetria między udzieleniem a wycofaniem. Wołanie
  * `WpisZgody::create()` wprost obchodzi jedno i drugie.
@@ -40,6 +41,13 @@ class WpisZgody extends Model
      * druga zgoda wymaga migracji i recenzji, nie nowego napisu w kodzie.
      */
     public const CEL_TYGODNIOWY_DIGEST = 'tygodniowy_digest';
+
+    /**
+     * Zgoda na odczyt zdjęć kartek przez model OpenAI (V2, D-296) — wyjątek
+     * od D-240. Stan tej zgody NIE MA kolumny na `users`: jest nim ostatni
+     * wpis w tym dzienniku (`App\Domain\Zgody\PrzestawZgodeNaOdczytAi`).
+     */
+    public const CEL_ODCZYT_AI = 'odczyt_ai';
 
     /** Mail z życzeniami urodzinowymi (issue #1755, etap c). */
     public const CEL_ZYCZENIA_URODZINOWE = 'zyczenia_urodzinowe';
@@ -72,6 +80,13 @@ class WpisZgody extends Model
      * dałoby się wykazać, DLACZEGO wysyłka ustała.
      */
     public const ZRODLO_USUNIECIE_KONTA = 'usuniecie_konta';
+
+    /**
+     * Zgoda dana na ekranie „Przepisz z kartki”, przed pierwszym odczytem
+     * (D-296). Osobne źródło od `ustawienia`, bo „gdzie człowiek wtedy był”
+     * jest częścią dowodu.
+     */
+    public const ZRODLO_EKRAN_IMPORTU = 'ekran_importu';
 
     protected $fillable = [
         'user_id',

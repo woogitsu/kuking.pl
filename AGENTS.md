@@ -719,8 +719,14 @@ Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 Poza MVP (patrz `docs/FEATURES.md` i `docs/ROADMAP.md`):
 wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
-spiżarnia, OCR, generator przepisów AI, rozbudowana gamifikacja, marketplace,
+spiżarnia, generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
+
+**OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
+od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda
+„odczyt AI”, wyjątek od D-240), **D-297** (budżet i limity) i **D-298**
+(architektura: zawsze prywatny szkic, nigdy publikacja). „Generator przepisów
+AI” zostaje zakazany: odczyt przepisuje kartkę człowieka, nie wymyśla przepisu.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,

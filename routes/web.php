@@ -37,6 +37,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
@@ -75,6 +76,7 @@ use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
+use App\Http\Controllers\ZgodaOdczytuAiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -727,6 +729,42 @@ Route::middleware('auth')->group(function () use ($limits): void {
      *                                 adresów, które ludzie mają zapisane;
      *                                 nic już do niego nie linkuje.
      */
+    /*
+     * IMPORT PRZEPISU I ODCZYT ZDJĘCIA KARTKI (V2, D-296, D-297, D-298).
+     *
+     * /dodaj/przepis/skad        — cztery duże przyciski: kartka, adres
+     *                              strony, PDF, „Wpiszę sam”. Wyłączone
+     *                              źródło = brak przycisku (D-053).
+     * /dodaj/przepis/z-kartki    — zgoda „odczyt AI” (raz), potem zdjęcie.
+     *                              Zwykły POST, bez JavaScriptu.
+     * /import/{import}             — postęp słowami; tylko właściciel (Policy).
+     *                                 Odpytywana co 5 s przez JS (`?fragment=1`,
+     *                                 `resources/js/postep-importu.js`) — własny
+     *                                 koszyk `import_postep`, żeby zwykły
+     *                                 polling nie dzielił budżetu ze zleceniem
+     *                                 odczytu (issue #1959).
+     *
+     * `throttle:import` to bramka na pętlę żądań; właściwy limit osoby
+     * (5 dziennie / 30 miesięcznie) liczy się w bazie (D-297).
+     */
+    Route::get('/dodaj/przepis/skad', [ImportPrzepisuController::class, 'wybor'])->name('import.wybor');
+    Route::get('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zdjecie'])->name('import.zdjecie');
+    Route::post('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zlec'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.zlec');
+    Route::get('/import/{import}', [ImportPrzepisuController::class, 'show'])
+        ->middleware("throttle:{$limits['import_postep']},import_postep")
+        ->name('import.show');
+    Route::post('/import/{import}/ponow', [ImportPrzepisuController::class, 'ponow'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.ponow');
+    Route::post('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'udziel'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.udziel');
+    Route::delete('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'wycofaj'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.wycofaj');
+
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');

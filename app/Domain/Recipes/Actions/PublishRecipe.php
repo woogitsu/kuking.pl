@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\MojaWersja;
@@ -90,6 +91,7 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly BramkaPublikacjiSzkicu $bramkaPublikacji,
         private readonly MojaWersja $mojaWersja,
     ) {}
 
@@ -190,6 +192,16 @@ final class PublishRecipe
         if ($bedziePubliczny) {
             if ($cleanSteps === []) {
                 throw new BladDlaCzlowieka('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
+            }
+
+            // Szkic z odczytu zdjęcia kartki (V2, D-298): „Sprawdziłem
+            // odczytany tekst” i zero znaczników `[?…?]`, zanim tekst
+            // odczytany przez komputer wyjdzie do ludzi. Tu, a nie
+            // w kontrolerze — obejmuje kreator i formularz bez JS. Tylko przy
+            // PIERWSZEJ publikacji szkicu: raz sprawdzony i opublikowany
+            // przepis edytuje się dalej zwyczajnie.
+            if ($existing !== null && $existing->status === Recipe::STATUS_DRAFT) {
+                $this->bramkaPublikacji->sprawdz($existing, $attributes, $title, $cleanIngredients, $cleanSteps);
             }
         }
 

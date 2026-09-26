@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
@@ -87,6 +88,18 @@ new class extends Component
      */
     #[Locked]
     public bool $juzOpublikowany = false;
+
+    /**
+     * Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie obok pól
+     * i bramka „Odczytany tekst jest sprawdzony” przed publikacją. `#[Locked]`,
+     * bo o tym, czy bramka obowiązuje, decyduje baza, nie przeglądarka —
+     * a ostatecznie i tak `BramkaPublikacjiOdczytu` w `PublishRecipe`.
+     */
+    #[Locked]
+    public bool $zOdczytu = false;
+
+    /** Pole „Odczytany tekst jest sprawdzony ze zdjęciem” na podglądzie. */
+    public bool $odczytSprawdzony = false;
 
     public string $title = '';
 
@@ -178,6 +191,7 @@ new class extends Component
     {
         $this->recipeId = $recipe->getKey();
         $this->juzOpublikowany = $recipe->isPublished();
+        $this->zOdczytu = ! $this->juzOpublikowany && BramkaPublikacjiOdczytu::maOdczyt($recipe);
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
 
@@ -277,7 +291,7 @@ new class extends Component
             // Obejmuje zarówno `steps` (błąd „opisz przynajmniej jeden
             // krok”) jak i `steps.N.instruction` / `steps.N.photo`.
             str_starts_with($key, 'steps') => 3,
-            $key === 'publikacja' => self::STEP_PREVIEW,
+            $key === 'publikacja', $key === 'odczyt_sprawdzony' => self::STEP_PREVIEW,
             default => 1,
         };
     }
@@ -561,6 +575,20 @@ new class extends Component
             return;
         }
 
+        // Szkic z odczytu kartki (D-298): błąd przy WŁAŚCIWYM wierszu
+        // i w podsumowaniu, zanim w ogóle zapytamy bazę. Ta sama reguła stoi
+        // w `PublishRecipe` jako ostatnia linia.
+        // Szkic zapisujemy PRZED sprawdzeniem: walidacja wierszy w
+        // `saveDraft()` czyści błędy pól, więc odwrotna kolejność
+        // zjadałaby komunikat przy wierszu ze znacznikiem.
+        if ($this->zOdczytu) {
+            $this->saveDraft();
+
+            if (! $this->sprawdzOdczyt()) {
+                return;
+            }
+        }
+
         try {
             $recipe = $this->persist(publish: true);
         } catch (BladDlaCzlowieka $e) {
@@ -630,6 +658,7 @@ new class extends Component
                 'family_since_year' => $this->intOrNull($this->family_since_year),
                 'hero_media_id' => $this->heroMediaId,
                 'source_scan_media_id' => $this->sourceScanMediaId,
+                'odczyt_sprawdzony' => $this->odczytSprawdzony,
             ],
             ingredients: $this->cleanIngredients(),
             steps: $this->cleanSteps(),
@@ -642,6 +671,71 @@ new class extends Component
         $this->recipeId = $recipe->getKey();
 
         return $recipe;
+    }
+
+    /**
+     * Znaczniki `[?…?]` przy konkretnym wierszu i pole „Tekst sprawdzony” (D-298).
+     * Indeksy wierszy są indeksami formularza, więc link w podsumowaniu
+     * prowadzi dokładnie do pola ze znacznikiem.
+     */
+    private function sprawdzOdczyt(): bool
+    {
+        $ok = true;
+
+        if (str_contains($this->title, BramkaPublikacjiOdczytu::ZNACZNIK)) {
+            $this->addError('title', 'Sprawdź słowo oznaczone [?] w nazwie przepisu i usuń znaczniki [? ?].');
+            $ok = false;
+        }
+
+        if (str_contains($this->summary, BramkaPublikacjiOdczytu::ZNACZNIK)) {
+            $this->addError('summary', 'Sprawdź słowo oznaczone [?] w opisie przepisu i usuń znaczniki [? ?].');
+            $ok = false;
+        }
+
+        foreach ($this->ingredients as $index => $row) {
+            if (str_contains((string) ($row['text'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('ingredients.'.$index.'.text', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. składniku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+        }
+
+        foreach ($this->steps as $index => $row) {
+            if (str_contains((string) ($row['instruction'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('steps.'.$index.'.instruction', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. kroku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+        }
+
+        if (! $this->odczytSprawdzony) {
+            $this->addError('odczyt_sprawdzony', BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE);
+            $ok = false;
+        }
+
+        if (! $ok) {
+            $pierwszy = (string) collect($this->getErrorBag()->keys())->first();
+            $this->step = $this->stepForKey($pierwszy);
+        }
+
+        return $ok;
+    }
+
+    /** Ile znaczników `[?` stoi jeszcze w polach — dla banera. */
+    public function niepewnych(): int
+    {
+        return BramkaPublikacjiOdczytu::ileNiepewnych(
+            $this->title,
+            $this->summary,
+            ...array_map(fn (array $r): string => (string) ($r['text'] ?? ''), $this->ingredients),
+            ...array_map(fn (array $r): string => (string) ($r['instruction'] ?? ''), $this->steps),
+        );
+    }
+
+    /** Zdjęcie kartki do pokazania obok pól — tylko przy szkicu z odczytu. */
+    public function skanOdczytu(): ?\App\Models\Media
+    {
+        return $this->zOdczytu && $this->sourceScanMediaId !== null
+            ? \App\Models\Media::query()->find($this->sourceScanMediaId)
+            : null;
     }
 
     /** Przepis, który nadpisujemy — z autoryzacją przy KAŻDYM zapisie, nie tylko przy wejściu. */
@@ -1111,6 +1205,10 @@ new class extends Component
         </div>
     @endif
 
+    @if($zOdczytu)
+        @include('pages.import.partials.baner', ['niepewnych' => $this->niepewnych()])
+    @endif
+
     @if($step === 1)
         {{-- ==============================================================
              Krok 1 z 3 — o przepisie
@@ -1307,6 +1405,10 @@ new class extends Component
 
             @error('ingredients')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $this->skanOdczytu()])
+            @endif
+
             @foreach($ingredients as $index => $row)
                 <div class="wizard-row" wire:key="skladnik-{{ $row['_key'] ?? $index }}">
                     <x-field :name="'ingredients.'.$index.'.text'" :label="'Składnik '.($index + 1)"
@@ -1382,6 +1484,10 @@ new class extends Component
             </p>
 
             @error('steps')<p class="field-error mb-4">{{ $message }}</p>@enderror
+
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $this->skanOdczytu()])
+            @endif
 
             @foreach($steps as $index => $row)
                 <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
@@ -1582,6 +1688,22 @@ new class extends Component
                     @endif
                 </section>
             </article>
+
+            @if($zOdczytu)
+                {{-- „Odczytany tekst jest sprawdzony” (decyzja właściciela
+                     26.09.2026, D-298) — bez tego pola publikacja odmawia. --}}
+                <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">
+                    <label class="choice" for="f-odczyt_sprawdzony">
+                        <input id="f-odczyt_sprawdzony" type="checkbox" wire:model="odczytSprawdzony" value="1"
+                               @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror>
+                        <span>
+                            <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
+                            <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                        </span>
+                    </label>
+                    @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror
+                </div>
+            @endif
         </section>
     @endif
 

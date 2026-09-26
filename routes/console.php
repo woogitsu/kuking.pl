@@ -306,6 +306,31 @@ Harmonogram::artisan('kuking:sprzataj-usuniete-tresci')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 06:00 — dziesięć minut po poprzednim zadaniu (05:50 zajęły treści usunięte
+// przez autora, więc zlecenia odczytu przepisu idą slot dalej).
+// Retencja zleceń odczytu przepisu (D-298): surowa odpowiedź modelu 30 dni
+// (bywa w niej tekst z czyjejś kartki), wiersz zlecenia 90 dni.
+Harmonogram::artisan('kuking:sprzataj-importy')
+    ->name('kuking:sprzataj-importy')
+    ->dailyAt('06:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// Odzyskiwanie odczytów przepisu (D-298 „maszyna stanów”, #1973, #1977).
+// Rezerwacja budżetu modelu porzucona przez zabity proces blokowałaby limit
+// dzienny dla WSZYSTKICH do północy, a zlecenie bez zadania wisiałoby
+// w „trwa” do retencji. CO KWADRANS, bo pierwsze to pieniądze i limit, drugie
+// to człowiek patrzący na ekran postępu. Progi: `kuking.import.odzyskiwanie`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/15` co `kuking:sprawdz-kolejke` i `kuking:wyczysc-zalegle-cdn`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie zadania porządkowe o stałym rytmie, po kolei w jednym procesie.
+Harmonogram::artisan('kuking:odzyskaj-importy')
+    ->name('kuking:odzyskaj-importy')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
