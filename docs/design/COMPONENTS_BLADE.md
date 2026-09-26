@@ -10,7 +10,10 @@
 > `<x-pagination>`. Realne odpowiedniki tego, co te sekcje opisują, żyją pod
 > innymi nazwami: `confirm-button.blade.php` (zamiast `ConfirmDialog`),
 > `show-more.blade.php` (zamiast `Pagination` — „Pokaż więcej", zgodnie
-> z `AGENTS.md` §5, bez infinite scroll), `recipe-wizard.blade.php` (zamiast
+> z `AGENTS.md` §5, bez infinite scroll; bez skryptu odnośnik „Następna
+> strona …”, ze skryptem `resources/js/pokaz-wiecej.js` przycisk, który
+> dokleja porcję do listy wskazanej parametrem `lista` — #986),
+> `recipe-wizard.blade.php` (zamiast
 > `WizardSteps`) i klasa `.pole-zdjecia` w arkuszu (zamiast `PhotoPicker`).
 > Pozostałe cztery sekcje — `Field`, `ErrorSummary`, `PostCard`, `Avatar` —
 > opisują pliki, które w repozytorium naprawdę są.

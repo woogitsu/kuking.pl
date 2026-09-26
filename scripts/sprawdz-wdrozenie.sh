@@ -118,7 +118,14 @@ printf '%sSprawdzam: %s%s\n' "$SZARY" "$HOST" "$KONIEC"
 naglowek "Aplikacja"
 # -----------------------------------------------------------------------------
 
-zdrowie=$("${POBIERZ[@]}" "https://$HOST/health" 2>&1)
+# Pole `checks` (co dokładnie leży) tylko z tokenem (audyt A5-05). Bez
+# `KUKING_HEALTH_TOKEN` w środowisku dostajemy sam `status` — to wystarcza
+# do oceny, a szczegóły są w dzienniku aplikacji.
+TOKEN_ZDROWIA=()
+if [ -n "${KUKING_HEALTH_TOKEN:-}" ]; then
+    TOKEN_ZDROWIA=(-H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN")
+fi
+zdrowie=$("${POBIERZ[@]}" ${TOKEN_ZDROWIA[@]+"${TOKEN_ZDROWIA[@]}"} "https://$HOST/health" 2>&1)
 if grep -q '"status":"ok"' <<< "$zdrowie"; then
     ok "Healthcheck: aplikacja i baza odpowiadają"
 elif grep -q '"status":"degraded"' <<< "$zdrowie"; then
