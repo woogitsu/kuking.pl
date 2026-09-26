@@ -33,7 +33,14 @@
                                      wszystkich pozostałych kart w tablicy. --}}
                                 @if($glowne)
                                     <span class="kuking-board-post-photo">
+                                        {{-- WARIANT WYBIERA PRZEGLĄDARKA (#1310). Na powitalnej
+                                             zdjęcie ma szerokość karty (siatka `minmax(18rem, 1fr)`,
+                                             najwyżej trzy dania), nie 120 px — sztywny `feed` 960 px
+                                             szedł tam także do telefonu o zwykłej gęstości. W szynie
+                                             i w wynikach pole ma stałe 120 px (`--tablica-zdjecie`). --}}
                                         <img src="{{ $glowne->url($naPowitalnej ? 'feed' : 'thumb') }}" alt=""
+                                             srcset="{{ $glowne->srcset() }}"
+                                             sizes="{{ $naPowitalnej ? '(min-width: 64rem) 33vw, 100vw' : '120px' }}"
                                              width="{{ $naPowitalnej ? ($glowne->width('feed') ?? 960) : 120 }}" height="{{ $naPowitalnej ? ($glowne->height('feed') ?? 720) : 120 }}" loading="lazy" decoding="async">
                                     </span>
                                 @endif
