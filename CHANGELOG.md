@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Przepis można przepisać ze zdjęcia kartki albo zeszytu (V2). „Cały przepis” prowadzi do wyboru: „Przepisz z kartki lub zeszytu” albo „Wpiszę sam”. Zdjęcie odczytuje komputer firmy OpenAI — dopiero po osobnej zgodzie, którą można wycofać w ustawieniach prywatności. Wynik trafia zawsze do prywatnego szkicu, ze zdjęciem kartki obok tekstu; niepewne słowa są oznaczone znakiem [?] i przed publikacją trzeba je poprawić i zaznaczyć „Odczytany tekst jest sprawdzony ze zdjęciem”. Postęp odczytu widać słowami na osobnym ekranie, także bez JavaScriptu. Jest limit 5 odczytów dziennie i 30 miesięcznie na osobę oraz dzienny i miesięczny budżet serwisu; przy limicie albo awarii zdjęcie zostaje zapisane w szkicu. Bez klucza OpenAI do odczytu przycisku po prostu nie ma (D-296, D-297, D-298).
+
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).

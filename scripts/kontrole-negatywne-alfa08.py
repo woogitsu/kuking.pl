@@ -891,6 +891,10 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # V2 import/OCR (D-298): zadanie odczytu zapisujące szkic jako publikację
+    # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
+    ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "publish: false,", "publish: true,")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.

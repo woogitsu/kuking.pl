@@ -37,6 +37,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
@@ -692,7 +693,28 @@ Route::middleware('auth')->group(function () use ($limits): void {
      *                                 adresów, które ludzie mają zapisane;
      *                                 nic już do niego nie linkuje.
      */
-    // Zgoda „odczyt AI” (D-296): udzielenie i wycofanie.
+    /*
+     * IMPORT PRZEPISU I ODCZYT ZDJĘCIA KARTKI (V2, D-296, D-297, D-298).
+     *
+     * /dodaj/przepis/skad        — cztery duże przyciski: kartka, adres
+     *                              strony, PDF, „Wpiszę sam”. Wyłączone
+     *                              źródło = brak przycisku (D-053).
+     * /dodaj/przepis/z-kartki    — zgoda „odczyt AI” (raz), potem zdjęcie.
+     *                              Zwykły POST, bez JavaScriptu.
+     * /import/{import}             — postęp słowami; tylko właściciel (Policy).
+     *
+     * `throttle:import` to bramka na pętlę żądań; właściwy limit osoby
+     * (5 dziennie / 30 miesięcznie) liczy się w bazie (D-297).
+     */
+    Route::get('/dodaj/przepis/skad', [ImportPrzepisuController::class, 'wybor'])->name('import.wybor');
+    Route::get('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zdjecie'])->name('import.zdjecie');
+    Route::post('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zlec'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.zlec');
+    Route::get('/import/{import}', [ImportPrzepisuController::class, 'show'])->name('import.show');
+    Route::post('/import/{import}/ponow', [ImportPrzepisuController::class, 'ponow'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.ponow');
     Route::post('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'udziel'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('zgoda.odczyt-ai.udziel');
