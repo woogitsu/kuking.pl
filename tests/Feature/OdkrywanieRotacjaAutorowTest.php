@@ -280,13 +280,43 @@ class OdkrywanieRotacjaAutorowTest extends TestCase
         $this->assertSame([...$pierwszaRunda, $drugiA->body], $this->tresci(null));
     }
 
+    /**
+     * Decyzja właściciela z 26 września: reguła rotacji obejmuje TAKŻE własne
+     * wpisy widza. Jego najnowszy wpis stoi w pierwszej rundzie jak wpis
+     * każdej innej osoby — nie znika z „Świeżo z Kuking" i nie dostaje
+     * więcej miejsc niż inni. Drugi własny wpis czeka na drugą rundę.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): odsianie `author_id` widza
+     * w podzapytaniu → brak „Mój najnowszy"; własne wpisy poza rotacją
+     * (runda 1 dla wszystkich) → „Mój starszy" przed „Cudzy".
+     */
+    public function test_wlasne_wpisy_widza_stoja_w_rotacji_jak_kazdy_autor(): void
+    {
+        $widz = $this->user('widz');
+        $inna = $this->user('inna');
+        $this->wpis($widz, 'Mój najnowszy', 1);
+        $this->wpis($widz, 'Mój starszy', 2);
+        $this->wpis($inna, 'Cudzy', 60);
+
+        $this->assertSame(['Mój najnowszy', 'Cudzy', 'Mój starszy'], $this->tresci($widz));
+
+        // Ta sama lista przez `/odkryj` zalogowanego widza.
+        $this->assertSame(
+            ['Mój najnowszy', 'Cudzy', 'Mój starszy'],
+            $this->actingAs($widz)->get(route('discover'))->assertOk()->viewData('posts')->getCollection()->pluck('body')->all(),
+        );
+    }
+
     public function test_niedostepny_najnowszy_wpis_oddaje_runde_starszemu(): void
     {
         $a = $this->user('aktywna');
         $b = $this->user('druga');
         $widz = $this->user('widz');
         $schowany = Recipe::factory()->create(['author_id' => $a->getKey(), 'status' => Recipe::STATUS_HIDDEN]);
-        $this->wpis($a, 'A do schowanego przepisu', 1, ['recipe_id' => $schowany->getKey()]);
+        // Sama zapowiedź przepisu (bez własnej treści): wpis z własnym
+        // tekstem zostaje na liście według własnej widoczności (issue #1377),
+        // a zapowiedź znika razem ze schowanym przepisem.
+        $this->wpis($a, 'A do schowanego przepisu', 1, ['recipe_id' => $schowany->getKey(), 'body' => null]);
         $this->wpis($a, 'A tylko dla obserwujących', 2, ['visibility' => Post::VISIBILITY_FOLLOWERS]);
         $this->wpis($a, 'A publiczny starszy', 30);
         $this->wpis($b, 'B', 10);

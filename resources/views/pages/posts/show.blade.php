@@ -1,11 +1,13 @@
 @php
     $isPublic = $post->visibility === 'public' && $post->isPublished();
+    // Tytuł z treści wpisu, nie „Imię — wpis" (issue #967).
+    $tytulWpisu = \App\Support\TytulStronyWpisu::tytul($post);
     // Jedna lista dla okruszków i `BreadcrumbList` (#1033).
     $okruszki = \App\Support\Okruszki::dlaWpisu($post);
 @endphp
 <x-layout
-    :title="$post->author->displayName().' — wpis'"
-    :description="\Illuminate\Support\Str::limit($post->body ?? 'Zdjęcie z Kuking', 155)"
+    :title="$tytulWpisu"
+    :description="\App\Support\TytulStronyWpisu::opis($post)"
     :noindex="! $isPublic"
     {{-- Wpis to najczęściej samo zdjęcie z podpisem — bez `og:image` link
          wklejony w Messengera nie pokazuje NICZEGO poza imieniem autora. --}}
@@ -22,7 +24,15 @@
 
     <x-okruszki :elementy="$okruszki" />
 
-    <x-post-card :post="$post" />
+    {{-- Jeden H1 nazywający wpis (#967). Ukryty dla oka, bo karta niżej
+         pokazuje tę samą treść w całości — widoczny powtórzyłby jej początek
+         tuż nad nią. Czytnik ekranu i wyszukiwarka dostają nagłówek strony.
+         `priority` (#1001): pierwsze zdjęcie karty to obraz LCP tej strony. --}}
+    <h1 class="visually-hidden">{{ $tytulWpisu }}</h1>
+
+    <x-wpis-ukryty-przez-moderacje :post="$post" />
+
+    <x-post-card :post="$post" :priority="true" />
 
     {{-- „Smakowicie wygląda" (issue #1813, D-280): każdy widzi, KTO to
          napisał (decyzja właściciela 26.09; wcześniej tylko autor) — nazwy
