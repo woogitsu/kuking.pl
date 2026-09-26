@@ -158,7 +158,7 @@ class RetencjaPowiadomienCzesciowaPorazkaTest extends TestCase
 
         $log->shouldHaveReceived('error')->once()->withArgs(function (string $wiadomosc, array $kontekst) use ($wszystkie): bool {
             $this->assertSame($wszystkie[0]->getKey(), $kontekst['notification_id']);
-            $this->assertSame(RuntimeException::class, $kontekst['exception']);
+            $this->assertSame(RuntimeException::class, $kontekst['error']['wyjatek']);
             $this->assertStringNotContainsString(self::TRESC, $wiadomosc.json_encode($kontekst));
 
             return true;
