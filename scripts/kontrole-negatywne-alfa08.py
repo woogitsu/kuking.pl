@@ -440,6 +440,8 @@ GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odm
 # Mutacje zdejmują po kolei każdy z nich.
 IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
 IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+README = "README.md"
+README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
@@ -1012,6 +1014,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1088,6 +1094,7 @@ run_test(DIGEST_DOBOR_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
+run_test(README_SECURITY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
