@@ -437,4 +437,115 @@ class OdebranieDostepuFacebookaTest extends TestCase
 
         $this->assertNull($this->znacznik());
     }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): pole `signed_request` dłuższe niż
+     * `LIMIT_BAJTOW_SIGNED_REQUEST` jest odrzucane PRZED `explode`/
+     * `base64_decode`/`hash_hmac` — nie po nich. Kontrola dodatnia niżej
+     * (`test_dlugi_ale_dopuszczalny_podpis_dziala`) dowodzi, że limit nie
+     * odcina prawdziwych, tylko trochę dłuższych wiadomości.
+     */
+    #[Test]
+    public function test_zbyt_dlugi_signed_request_jest_odrzucany_bez_dekodowania(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        // Podpisany PRAWIDŁOWO (ten sam sekret), tylko z ogromnym,
+        // bezsensownym polem dodatkowym w treści — gdyby limit rozmiaru nie
+        // działał, ten podpis by się ZGODZIŁ i powiązanie zostałoby uśpione.
+        $ogromny = $this->podpisane($this->trescDomyslna([
+            'balast' => str_repeat('a', 10_000),
+        ]));
+
+        $this->assertGreaterThan(4096, strlen($ogromny), 'Fixture ma naprawdę przekraczać limit — inaczej nic nie mierzy.');
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $ogromny])
+            ->assertStatus(400);
+
+        $this->assertNull($this->znacznik(),
+            'Limit rozmiaru nie ma prawa przepuścić podpisu tylko dlatego, że jest długi.');
+    }
+
+    /**
+     * KONTROLA DODATNIA do testu wyżej: prawdziwy `signed_request` (rzędu
+     * kilkudziesięciu-kilkuset bajtów) mieści się z dużym zapasem i działa
+     * jak dotąd — limit odcina nadużycie, nie normalny ruch.
+     */
+    #[Test]
+    public function test_dlugi_ale_dopuszczalny_podpis_dziala(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        // Trochę dłuższy niż zwykle (np. dłuższy identyfikator konta), ale
+        // wciąż daleko poniżej limitu 4096 bajtów.
+        $dluzszy = $this->podpisane($this->trescDomyslna(['user_id' => str_repeat('9', 40)]));
+
+        $this->assertLessThan(4096, strlen($dluzszy));
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $dluzszy])->assertStatus(200);
+    }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): CAŁE ciało żądania, dużo większe niż
+     * sam limit pola, jest odrzucane PRZED odpytaniem `$request->input()` —
+     * czyli zanim Laravel w ogóle rozpakuje je do tablicy pól.
+     */
+    #[Test]
+    public function test_zbyt_duze_cialo_zadania_jest_odrzucane(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $poprawny = $this->podpisane($this->trescDomyslna());
+
+        // `Symfony\Component\HttpFoundation\Request::create()` (którego używa
+        // `$this->call()`) dla POST-a bierze pola WPROST z `$parameters`,
+        // niezależnie od `$content` — więc podajemy oba: `$parameters` z
+        // poprawnym, małym `signed_request` (żeby samo odczytanie pola
+        // działało tak jak w każdym innym teście w tym pliku) i osobno
+        // NAPRAWDĘ duże `$content`, żeby `$request->getContent()` naprawdę
+        // zwróciło coś ponad limit. To odwzorowuje sedno sprawdzenia: kontroler
+        // ma odrzucić żądanie na podstawie SUROWEGO rozmiaru ciała, zanim
+        // zajrzy do jakiegokolwiek pola.
+        $cialo = str_repeat('x', 20_000);
+
+        $this->assertGreaterThan(16384, strlen($cialo), 'Fixture ma naprawdę przekraczać limit całego ciała.');
+
+        $this->call(
+            'POST',
+            route('facebook.deauthorize'),
+            ['signed_request' => $poprawny],
+            [],
+            [],
+            $this->transformHeadersToServerVars(['Content-Type' => 'application/x-www-form-urlencoded']),
+            $cialo,
+        )->assertStatus(400);
+
+        $this->assertNull($this->znacznik(),
+            'Poprawny podpis zatopiony w zbyt dużym ciele żądania nie ma prawa przejść.');
+    }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): trasa ma własny limit żądań
+     * (`facebook_deauthorize`) — po jego wyczerpaniu kolejne żądania z tego
+     * samego adresu IP dostają 429, zamiast bez końca liczyć HMAC i pisać
+     * do logu. Kontrola dodatnia: ruch POD limitem przechodzi normalnie.
+     */
+    #[Test]
+    public function test_limit_zadan_odcina_seryjne_probowanie(): void
+    {
+        $limit = (int) explode(',', (string) config('kuking.limits.facebook_deauthorize'))[0];
+
+        $zly = $this->podpisane($this->trescDomyslna(), 'nie-nasz-sekret');
+
+        for ($i = 0; $i < $limit; $i++) {
+            $this->post(route('facebook.deauthorize'), ['signed_request' => $zly])
+                ->assertStatus(400);
+        }
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $zly])
+            ->assertStatus(429);
+    }
 }

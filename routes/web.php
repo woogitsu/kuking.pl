@@ -530,12 +530,18 @@ Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'
  * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
  * w kodzie.
  *
- * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
- * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
- * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
- * w nieskończoność.
+ * OGRANICZNIK ŻĄDAŃ JEST, i to CELOWO HOJNY (issue #1869, audyt — poprawia
+ * wcześniejszy wpis, który mówił, że limitu tu nie ma). Każde żądanie bez
+ * poprawnego podpisu i tak kończy się odrzuceniem po jednym `hash_hmac`,
+ * ale to wciąż praca CPU i wpis w logu na próbę — a bez ogranicznika
+ * seria takich żądań z jednego adresu robi jedno i drugie bez końca.
+ * Ogranicznik ustawiony ZA NISKO gubiłby prawdziwe powiadomienia, których
+ * Facebook nie ponawia w nieskończoność — ale to jest argument za DOBOREM
+ * liczby (`facebook_deauthorize` w `config/kuking.php`, ten sam wzorzec
+ * co `csp_report` niżej), nie za brakiem limitu w ogóle.
  */
 Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->middleware("throttle:{$limits['facebook_deauthorize']},facebook_deauthorize")
     ->name('facebook.deauthorize');
 
 Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
