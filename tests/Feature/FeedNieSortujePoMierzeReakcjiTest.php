@@ -16,7 +16,9 @@ use Tests\TestCase;
  * polecenia widza. Ten plik pilnuje jej mierzalnej części — żadna lista nie
  * jest układana po mierze cudzych reakcji. Zasięg: `app/Domain/Feed`,
  * `app/Domain/Digest` (tygodniowy list to czwarta powierzchnia z wpisami,
- * obok Obserwowanych, Odkrywania i tablicy) i każdy plik z `publiclyVisible()`.
+ * obok Obserwowanych, Odkrywania i tablicy), półkę „Mój stół” (`MojStol`,
+ * #1749, D-304 — w `app/Domain/Feed`, więc w zasięgu z definicji katalogu,
+ * z kotwicą niżej) i każdy plik z `publiclyVisible()`.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  CO TEN TEST MIERZY I DLACZEGO AKURAT TO
@@ -503,6 +505,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             'app/Domain/Feed/HeroKolaz.php',
             'app/Domain/Search/SearchQuery.php',
             'app/Domain/Digest/ZbierzTresciDigestu.php',
+            'app/Domain/Feed/MojStol.php',
         ] as $kotwica) {
             $this->assertContains($kotwica, $pliki, "Skan nie widzi {$kotwica} — zasięg strażnika przestał obejmować feed.");
         }
@@ -542,6 +545,16 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
         $argumentyDigestu = array_column($this->sortowania('app/Domain/Digest/ZbierzTresciDigestu.php'), 'argument');
         $this->assertContains("'published_at'", $argumentyDigestu, 'Skan nie widzi sortowania wpisów w tygodniowym liście.');
         $this->assertContains("'cooked_events.cooked_at'", $argumentyDigestu, 'Skan nie widzi sortowania wykonań w tygodniowym liście.');
+
+        // „Mój stół” (#1749, D-304): półka propozycji to piąta powierzchnia
+        // z wpisami. Skan musi widzieć jej sortowanie po czasie — kontrola
+        // ujemna w `scripts/kontrole-negatywne-alfa08.py` podmienia je na
+        // licznik wykonań i ten plik ma wtedy oblać.
+        $this->assertContains(
+            "'posts.published_at'",
+            array_column($this->sortowania('app/Domain/Feed/MojStol.php'), 'argument'),
+            'Skan nie widzi sortowania półki „Mój stół”.',
+        );
 
         $kolumny = $this->kolumnySchematu();
         $this->assertSame('neutralne', $this->rozstrzygnij('orderByDesc', "'cooked_events.cooked_at'", $kolumny));

@@ -8,6 +8,7 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
+use App\Domain\Feed\MojStol;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
@@ -51,6 +52,7 @@ class FeedController extends Controller
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
         private readonly HeroKolaz $heroKolaz,
+        private readonly MojStol $mojStol,
     ) {}
 
     /**
@@ -193,6 +195,9 @@ class FeedController extends Controller
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),
+            // „Mój stół" (#1749, D-304): liczony TYLKO u osoby, która go
+            // włączyła. Wyłączony = zero zapytań o propozycje.
+            'mojStol' => $user->moj_stol_enabled ? $this->mojStol->dlaWidza($user) : null,
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',

@@ -111,6 +111,7 @@ final class InwentarzDanychKonta
         'wants_weekly_digest' => [self::EKSPORT, 'konto'],
         'weekly_digest_sent_at' => [self::EKSPORT, 'konto'],
         'memories_enabled' => [self::EKSPORT, 'konto'],
+        'moj_stol_enabled' => [self::EKSPORT, 'konto'],
         'age_confirmed_at' => [self::EKSPORT, 'konto'],
         'email_verified_at' => [self::EKSPORT, 'konto'],
         'created_at' => [self::EKSPORT, 'konto'],

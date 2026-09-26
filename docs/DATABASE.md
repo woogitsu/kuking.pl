@@ -1884,6 +1884,30 @@ nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
 pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
 pusty ciąg nigdy nie był nazwą grupy.
 
+### „Mój stół” — `users.moj_stol_enabled` (issue #1749, D-304)
+
+Migracja `2026_09_26_190000_add_moj_stol_enabled_to_users`.
+
+- **`users.moj_stol_enabled`** (`boolean NOT NULL DEFAULT false`) — czy osoba
+  włączyła sobie dobrowolną półkę propozycji „Mój stół”. Domyślnie wyłączone:
+  półka jest propozycją serwisu, więc bez włączenia nie liczymy ani jednej
+  pozycji. W `$fillable` (preferencja wyświetlania, nie pole sterujące —
+  AGENTS.md §7), w eksporcie jako `konto.moj_stol_wlaczony`, a wymazanie konta
+  ustawia `false`.
+
+To **jedyne**, co zapisujemy o półce. Nie ma tabeli dopasowań, wag ani historii
+kliknięć — dobór liczy się przy każdym wyświetleniu z obserwowanych tagów,
+listy gospodarza (`tag_promotions`) i ukryć (`hides`), wyłącznie regułami
+z zamkniętej listy AGENTS.md §8. Dlatego nie ma też czego „resetować”.
+
+**Rollback:** `down()` zdejmuje kolumnę **bez odmowy**. Cykl
+`migrate:rollback` → `migrate` odtwarza ją z `DEFAULT false`, czyli wyłącza
+półkę tym, którzy ją włączyli. To świadome odstępstwo od odmowy z D-088:
+utracona wartość to preferencja wyświetlania (jak `theme`), a kierunek utraty
+jest bezpieczny — po cyklu nikt nie widzi propozycji, których nie chciał,
+najwyżej włączy półkę jeszcze raz. Cykl sprawdza
+`tests/Feature/MojStolTest.php::test_rollback_migracji_zdejmuje_kolumne_i_wraca_wylaczony`.
+
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
 Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,

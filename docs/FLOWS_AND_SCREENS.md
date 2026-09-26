@@ -166,6 +166,7 @@ App:
 - `/przepisy/{recipe}/edycja`
 - `/przepisy/{recipe}/gotuj`
 - `/zeszyt`
+- `/moj-stol` — „Mój stół”: dobrowolna półka przepisów, domyślnie wyłączona (#1749, D-304)
 - `/powiadomienia`
 - `/zgloszenia`, `/zgloszenia/{report}` — własne zgłoszenia i karta sprawy
 - `/ustawienia/profil`

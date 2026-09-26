@@ -1,4 +1,4 @@
-@props(['board', 'zeszyt' => null])
+@props(['board', 'zeszyt' => null, 'mojStol' => null])
 
 {{--
     Prawa szyna strony startowej (UI kit v2, ekran 01).
@@ -47,3 +47,36 @@
         </ul>
     </section>
 @endif
+
+{{--
+    „Mój stół" (issue #1749, D-304). Włączony: trzy pierwsze pozycje półki
+    z powodem przy każdej i odnośnik do całej. Wyłączony: jedno zdanie, czym
+    jest półka — bez żadnej propozycji (wyłączona półka niczego nie liczy).
+--}}
+<section class="card szyna-blok" aria-labelledby="szyna-moj-stol">
+    <div class="szyna-naglowek">
+        <h2 id="szyna-moj-stol" class="szyna-tytul">Mój stół</h2>
+        <a class="szyna-wiecej" href="{{ route('moj-stol') }}">{{ $mojStol === null ? 'Jak to działa' : 'Cały Mój stół' }}</a>
+    </div>
+    @if($mojStol === null)
+        <p class="meta m-0">Prywatna półka z przepisami z tagów, które obserwujesz. Jest wyłączona, dopóki jej nie włączysz.</p>
+    @else
+        @php
+            $pozycjeStolu = collect($mojStol['z_tagow'])
+                ->map(fn ($p) => ['post' => $p['post'], 'powod' => 'obserwujesz tag: '.$p['tag']->name.'.'])
+                ->concat(collect($mojStol['od_gospodarza']['wpisy'] ?? [])
+                    ->map(fn ($post) => ['post' => $post, 'powod' => 'gospodarz poleca tag: '.$mojStol['od_gospodarza']['tag']->name.'.']))
+                ->take(3);
+        @endphp
+        @if($pozycjeStolu->isEmpty())
+            <p class="meta m-0">Na razie nie mamy tu czego pokazać.</p>
+        @else
+            <ul class="szyna-lista">
+                @foreach($pozycjeStolu as $pozycja)
+                    <x-moj-stol-pozycja :post="$pozycja['post']" :powod="$pozycja['powod']" :zAkcja="false" />
+                @endforeach
+            </ul>
+        @endif
+        <p class="m-0"><a href="{{ route('moj-stol') }}#moj-stol-dlaczego">Dlaczego to widzę</a></p>
+    @endif
+</section>
