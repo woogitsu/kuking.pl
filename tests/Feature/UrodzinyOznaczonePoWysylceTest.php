@@ -22,7 +22,7 @@ use Tests\TestCase;
 
 /**
  * `users.birthday_email_sent_on` znaczy „list wyszedł”, nie „zakolejkowaliśmy”
- * (issue #1956) — ten sam wzorzec co D-293 (`DecyzjaZgloszeniaOznaczanaPoWysylceTest`).
+ * (issue #1956) — ten sam wzorzec co PR #1861 (`DecyzjaZgloszeniaOznaczanaPoWysylceTest`).
  *
  * Do 26 września 2026 `kuking:wyslij-zyczenia-urodzinowe` stawiało znacznik
  * zaraz po `Mail::queue()`, a `ZyczeniaUrodzinowe` jest `ShouldQueue` — więc

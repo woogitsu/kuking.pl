@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Schema;
  * `birthday_email_sent_on` zostaje, ale znaczenie ma teraz dosłowne: ustawia
  * ją WYŁĄCZNIE `App\Mail\ZyczeniaUrodzinowe::send()`, i to dopiero PO tym,
  * jak `parent::send()` wróci bez wyjątku — czyli po tym, jak transport
- * pocztowy PRZYJĄŁ wiadomość (ten sam standard co D-293 dla decyzji
+ * pocztowy PRZYJĄŁ wiadomość (ten sam standard co PR #1861 dla decyzji
  * moderacyjnych w sprawach prawnych, `DecyzjaWSprawieZgloszenia`).
  *
  * Awaria samego `Mail::queue()` (rzadka — to lokalny `INSERT` do `jobs`, nie

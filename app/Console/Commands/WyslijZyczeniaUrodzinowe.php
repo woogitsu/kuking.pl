@@ -42,7 +42,7 @@ use Throwable;
  * Dziś rolę bariery przed dublem przejmuje `birthday_email_queued_on`.
  * `birthday_email_sent_on` ustawia WYŁĄCZNIE `ZyczeniaUrodzinowe::send()`,
  * i to dopiero PO tym, jak transport pocztowy PRZYJĄŁ wiadomość (ten sam
- * standard co D-293 dla `DecyzjaWSprawieZgloszenia`). Awaria samego
+ * standard co PR #1861 dla `DecyzjaWSprawieZgloszenia`). Awaria samego
  * `Mail::queue()` (lokalny `INSERT` do `jobs`, rzadka) zwalnia rezerwację
  * TU, W TYM PRZEBIEGU, więc ponowienie tego samego dnia wysyła dokładnie
  * jeden list — i zwalnia też miejsce w dobowym budżecie, bo lista, która nie

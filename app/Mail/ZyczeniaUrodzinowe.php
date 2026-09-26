@@ -27,7 +27,7 @@ use Throwable;
  * mógł wycofać zgodę odnośnikiem, wyłączyć życzenia albo zamknąć konto.
  * List, który wtedy wychodzi mimo wszystko, jest listem bez podstawy prawnej.
  *
- * `birthday_email_sent_on` STAWIA TEN LIST, PO WYSŁANIU (issue #1956, D-293)
+ * `birthday_email_sent_on` STAWIA TEN LIST, PO WYSŁANIU (issue #1956, PR #1861)
  * Do 26 września 2026 stawiała go komenda zaraz po `Mail::queue()` — czyli po
  * ZAKOLEJKOWANIU, nie po wysyłce. Worker mógł potem wyczerpać próby, list
  * lądował w `failed_jobs`, a kolumna dalej twierdziła „list wyszedł". Dziś:
@@ -87,7 +87,7 @@ class ZyczeniaUrodzinowe extends Mailable implements ShouldQueue
      *
      * Wyjątek przy samym zapisie łapiemy i zapisujemy do dziennika, zamiast
      * rzucić: rzucony wyjątek kazałby workerowi powtórzyć zadanie, a każde
-     * powtórzenie wysłałoby tej samej osobie DRUGI list z życzeniami (D-293).
+     * powtórzenie wysłałoby tej samej osobie DRUGI list z życzeniami (PR #1861).
      * Wolimy stan fałszywie ostrożny — znacznik pusty, choć list wyszedł —
      * od dwóch identycznych listów.
      */
