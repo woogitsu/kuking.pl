@@ -75,6 +75,7 @@ final class InwentarzDanychKonta
         'reports.reporter_id' => [self::EKSPORT, 'moje_zgloszenia'],
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
+        'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
         'notifications.actor_id' => [self::NA_ZADANIE, 'Powiadomienia, które inne osoby dostały o Twoich działaniach. To są ich skrzynki; same działania (wpisy, komentarze, „Ugotowałem”) są w paczce.'],

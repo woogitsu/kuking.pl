@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Planer\PlanerTygodnia;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -177,6 +179,8 @@ final class CollectUserExportData
             'moje_zgloszenia' => $this->ownReports($user),
             'decyzje_moderacji' => $this->moderationDecisions($user),
             'odwolania' => $this->appeals($user),
+            // Planer tygodnia (#27, D-310).
+            'planer' => $this->mealPlan($user),
         ];
     }
 
@@ -689,6 +693,39 @@ final class CollectUserExportData
                 'zapisano' => $this->date($wersja->created_at),
                 'tresc_wersji' => json_decode((string) $wersja->snapshot, true),
             ])->all();
+    }
+
+    /**
+     * Planer tygodnia (#27, D-310) — każda pozycja z dniem.
+     *
+     * Tytuł przepisu tylko wtedy, gdy właściciel planu wciąż go widzi — ta
+     * sama reguła co na ekranie (`PlanerTygodnia::widocznePrzepisy()`).
+     * Cudzy przepis jest daną osoby, która go napisała, więc paczka nie
+     * przemyca tytułu treści zawężonej albo usuniętej; mówi tylko, że taki
+     * przepis był w planie.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function mealPlan(User $user): array
+    {
+        $wpisy = $user->mealPlanEntries()->orderBy('day')->orderBy('created_at')->orderBy('id')->get();
+        $idPrzepisow = $wpisy->pluck('recipe_id')->filter()->unique()->values();
+        $widoczne = $idPrzepisow->isEmpty()
+            ? collect()
+            : app(PlanerTygodnia::class)->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)->get()->keyBy('id');
+
+        return $wpisy->map(function (MealPlanEntry $wpis) use ($widoczne): array {
+            $przepis = $wpis->recipe_id !== null ? $widoczne->get($wpis->recipe_id) : null;
+
+            return [
+                'dzien' => $wpis->day->toDateString(),
+                'wlasny_wpis' => $wpis->label,
+                'przepis' => $przepis?->title,
+                'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
+                'przepis_niedostepny' => $wpis->recipe_id !== null && $przepis === null,
+                'dodano' => $this->date($wpis->created_at),
+            ];
+        })->all();
     }
 
     /** @return list<array<string, mixed>> */

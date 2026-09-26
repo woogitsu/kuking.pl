@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Planer tygodnia: przy przepisie jest „Dodaj do planera”, a w „Moje” — plan na siedem dni. Można dopisać też coś własnego, np. „obiad u mamy”, i jednym przyciskiem skopiować poprzedni tydzień. Plan widzisz tylko Ty; przepis, którego autor już nie pokazuje, zostaje w planie bez tytułu, a nic z planu nie znika samo (#27).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
