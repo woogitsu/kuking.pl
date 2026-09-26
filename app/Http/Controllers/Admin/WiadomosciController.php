@@ -133,7 +133,11 @@ class WiadomosciController extends Controller
             ->with('status', 'Zapisano: '.$wiadomosc->statusLabel().'.');
     }
 
-    /** Wysyłka ma osobny endpoint; wspólny formularz zachowuje sąsiedni szkic. */
+    /**
+     * Wysyłka ma osobny endpoint. Pola stanu i notatki przychodzą tu tylko
+     * jako kopie z karty (issue #845) — odsyłamy je w `withInput()`, nigdy
+     * nie zapisujemy.
+     */
     public function odpowiedz(Request $request, ContactMessage $wiadomosc): RedirectResponse
     {
         $this->authorize('reply', $wiadomosc);
