@@ -23,6 +23,7 @@ declare(strict_types=1);
 */
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\JaController;
 use App\Http\Controllers\Api\V1\KomentarzController;
@@ -95,6 +96,12 @@ Route::middleware(['auth:sanctum', EnsureApiAccountIsActive::class])->group(func
     Route::get('/przepisy/{przepis}/komentarze', [RecipeController::class, 'comments'])
         ->whereUuid('przepis')
         ->name('api.przepisy.komentarze');
+
+    // Dalsze odpowiedzi wątku (#1970): lista komentarzy niesie przy wątku
+    // tylko kilka pierwszych i adres tej trasy.
+    Route::get('/komentarze/{comment}/odpowiedzi', [CommentController::class, 'replies'])
+        ->whereUuid('comment')
+        ->name('api.komentarze.odpowiedzi');
 
     Route::get('/profile/{username}', [ProfilController::class, 'show'])
         ->name('api.profile.show');

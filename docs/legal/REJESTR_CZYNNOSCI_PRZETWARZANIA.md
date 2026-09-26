@@ -120,7 +120,13 @@ egzekwuje.
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
-- **Termin usunięcia:** do usunięcia treści albo konta. Przy usunięciu konta
+- **Termin usunięcia:** do usunięcia treści albo konta. Treść usunięta przez
+  autora znika z serwisu od razu, a z bazy i z R2 (tekst, oryginały
+  i warianty zdjęć) po `kuking.usuniete_tresci.retention_days` = **30 dni**
+  (`kuking:sprzataj-usuniete-tresci`, audyt B5 pkt 1). Wyjątki: przepis
+  ugotowany przez inną osobę zostaje pustym nagrobkiem, żeby nie zabrać
+  cudzego „Ugotowałem”; treść ze zgłoszeniem albo decyzją moderacji czeka
+  na retencję sprawy (36 miesięcy, §3.6). Przy usunięciu konta
   **decyduje użytkownik** (`users.delete_scope`, D-022): domyślnie tekst
   zostaje zanonimizowany („Użytkownik usunięty"), po zaznaczeniu haczyka
   jest kasowany razem z wpisami, przepisami, komentarzami, wykonaniami
@@ -139,6 +145,8 @@ egzekwuje.
   usunięciu konta kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) —
   bo anonimizacja podpisu nie zmienia niczego w pikselach. Zdjęcia
   nieprzypięte do żadnej treści kasuje `kuking:sprzataj-osierocone-zdjecia`.
+  Zdjęcia treści usuniętej przez autora (oryginał i warianty) kasuje
+  `kuking:sprzataj-usuniete-tresci` razem z treścią, po 30 dniach (§3.3).
 
 ### 3.5 Relacje w serwisie
 
@@ -297,9 +305,9 @@ egzekwuje.
 
 - **Cel:** jeden list na tydzień z tym, co i tak widać w serwisie.
 - **Dane:** adres e-mail, data wysłania ostatniego listu.
-- **Podstawa:** **art. 6 ust. 1 lit. a RODO — zgoda.** Jedyna czynność
-  w tym rejestrze oparta na zgodzie. Wycofanie: odnośnik na dole każdego
-  listu, bez logowania i bez pytania o powód.
+- **Podstawa:** **art. 6 ust. 1 lit. a RODO — zgoda.** Na zgodzie opiera
+  się też §3.18 (urodziny i list z życzeniami). Wycofanie: odnośnik na dole
+  każdego listu, bez logowania i bez pytania o powód.
 - **Odbiorcy:** Railway, EmailLabs.
 - **Termin usunięcia:** data ostatniej wysyłki żyje tak długo jak konto
   (jedna nadpisywana wartość, nie historia). Treść listu nie jest
@@ -369,6 +377,55 @@ egzekwuje.
   `DECYZJE_WLASCICIELA_R1_R6_DPA.md` §R1. To jest **otwarta decyzja
   właściciela**, nie stan docelowy.
 
+### 3.18 Urodziny — życzenia od gospodarza (issue #1755)
+
+- **Cel:** życzenia urodzinowe od gospodarza serwisu.
+- **Dane:** dzień i miesiąc urodzin, **bez roku** (`users.birthday_day`,
+  `users.birthday_month`).
+- **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda wyrażona dobrowolnym
+  podaniem daty; wycofanie przyciskiem „Usuń datę” w `/ustawienia/urodziny`.
+- **List z życzeniami (etap c):** wyłącznie za **osobną** zgodą
+  (`users.wants_birthday_email`, domyślnie `false`; podanie daty zgody na
+  list nie daje). Każda zmiana zgody zapisuje wiersz w dzienniku zgód
+  z celem `zyczenia_urodzinowe` (D-072). Dane: adres e-mail i dzień
+  ostatniej wysyłki (`users.birthday_email_sent_on`). Wycofanie: odnośnik
+  w liście bez logowania, odznaczenie pola albo „Usuń datę”.
+- **Przypomnienie obserwującym (etap d):** tylko po jawnym włączeniu
+  (`users.birthday_visible_to_followers`, domyślnie `false`). Wtedy
+  w dniu urodzin obserwujący dostają powiadomienie w serwisie
+  (`notifications`, typ `birthday.today`, retencja jak §3.11) — bez roku,
+  bez wpisu w feedzie. Kategoria odbiorców: osoby obserwujące.
+- **Odbiorcy:** Railway; przy liście także EmailLabs.
+- **Termin usunięcia:** do usunięcia daty przez osobę albo do wymazania
+  konta (`EraseAccountData` zeruje daty i dzień wysyłki oraz wycofuje zgodę
+  z wpisem w dzienniku). W eksporcie: `konto.urodziny`,
+  `konto.pokazuj_zyczenia_urodzinowe`, `konto.chce_zyczen_urodzinowych_mailem`,
+  `konto.pokazuj_urodziny_obserwujacym`.
+
+### 3.19 Dziennik serwera (błędy techniczne)
+
+- **Cel:** wykrywanie i naprawa błędów technicznych.
+- **Dane:** zapis błędu (bez zamierzonego zbierania treści prywatnych),
+  kod żądania (`docs/infra/MONITORING_BLEDOW.md`).
+- **Podstawa:** art. 6 ust. 1 lit. f RODO.
+- **Odbiorcy:** Railway. Produkcja pisze dziennik na `stderr`
+  (`.railway/railway.ts` → `LOG_CHANNEL`), a Railway przechwytuje
+  `stdout`/`stderr` do własnego narzędzia dzienników — wpisy **przeżywają**
+  restart i wymianę instancji.
+- **Termin usunięcia:** okres przechowywania dzienników u Railway, zależny
+  od planu konta. **Plan Hobby — 7 dni** (decyzja właściciela 24.09.2026;
+  liczba wg dokumentacji Railway: Hobby 7, Pro 30). Przy publicznym starcie
+  produkcji — przejście na Pro, 30 dni. Procedura po zmianie planu albo
+  odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera i polityka
+  prywatności”.
+- **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA (#994):**
+  - fizyczna lokalizacja (kraj/region) przechowywania logów przez Railway —
+    polityka mówi dziś, że tego nie potwierdziliśmy;
+  - czy na produkcji ustawiono `LOG_BLAD_WEBHOOK_URL` (Slack/Discord) — jeśli
+    tak, ten kanał jest kolejnym odbiorcą zapisu błędu i musi trafić do
+    polityki i do §4;
+  - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
@@ -384,8 +441,8 @@ brakuje.
 
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
-| Railway | podmiot przetwarzający | cała aplikacja i baza | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
-| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
+| Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
+| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |

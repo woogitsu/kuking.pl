@@ -91,7 +91,7 @@
                         czyta dwa razy (D-054).
                     --}}
                     <span class="btn btn-secondary profil-awatar-zmiana-akcja">
-                        {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                        {{ $p->zdjecieDoPokazania() !== null ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
                     </span>
                 </a>
             @else
@@ -368,17 +368,20 @@
         @else
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
-            <div class="stack">
+            <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        {{-- `data-klucz`: kolejna porcja doklejona przez „Pokaż więcej”
+                             zaczyna od nagłówka swojego miesiąca; jeśli to ten sam
+                             miesiąc, co na końcu poprzedniej, nie powtarzamy go (#986). --}}
+                        <h2 class="mt-8" data-klucz="miesiac-{{ $month }}">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" />
+            <x-show-more :paginator="$posts" lista="lista-wpisow" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -386,12 +389,12 @@
                            :action="$isOwner ? 'Dodaj przepis' : null"
                            :href="$isOwner ? route('recipes.create') : null" />
         @else
-            <div class="stack">
+            <div class="stack" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -401,12 +404,14 @@
                 @endif
             </x-empty-state>
         @else
-            <div class="stack">
+            <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" :showRecipe="true" />
+                    <x-cooked-card :event="$event" :showRecipe="true"
+                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null"
+                        :przepisZaBlokada="$event->recipe !== null && in_array($event->recipe->author_id, $autorzyZaBlokada, true)" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
         @endif
     @endif
     </div>

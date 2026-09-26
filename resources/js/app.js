@@ -22,10 +22,14 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
+import './niezapisane-zmiany.js';
+import './pokaz-wiecej.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
+import './powiadomienia-push.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
-import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
+import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
 import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
@@ -509,12 +513,24 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     // Możliwość wyłączenia (issue) — ten sam checkbox włącza i wyłącza.
-    checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-            kontroler.wlacz();
-        } else {
-            kontroler.wylacz();
-        }
+    // Wybór przeżywa zmianę kroku w tej karcie (issue #1302) — patrz
+    // `podlaczPrzelacznik()` w ./wake-lock-gotowania.js.
+    let pamiec = null;
+
+    try {
+        pamiec = window.sessionStorage;
+    } catch {
+        // Zablokowane dane witryny: przełącznik działa, tylko bez pamięci.
+    }
+
+    const pamiecWyboru = utworzPamiecWyboru(pamiec, kontener.dataset.wakelockRecipe ?? '');
+
+    podlaczPrzelacznik(checkbox, kontroler, pamiecWyboru);
+
+    // „Zakończ gotowanie” i „Ugotowałem” kończą też prośbę o niegaśnięcie
+    // ekranu — powrót do przepisu w tej karcie nie może jej wznowić.
+    document.querySelectorAll('[data-minutniki-koniec]').forEach((link) => {
+        link.addEventListener('click', () => pamiecWyboru.zapamietaj(false));
     });
 
     /*
@@ -1454,6 +1470,26 @@ for (const menu of document.querySelectorAll('details.topbar-konto')) {
             });
         });
     };
+
+    if (window.Livewire) {
+        podlacz();
+    } else {
+        document.addEventListener('livewire:init', podlacz);
+    }
+})();
+
+/* ==========================================================================
+   STRONA NIEAKTUALNA: 419 Z LIVEWIRE PO POLSKU (issue #977)
+   ==========================================================================
+
+   Po wdrożeniu nowej wersji karta otwarta wcześniej dostaje 419. Zamiast
+   angielskiego `confirm()` Livewire'a — komunikat w treści strony z
+   przyciskiem „Odśwież stronę”. Treść i powody: `strona-nieaktualna.js`.
+   Podłączenie jak wyżej: po `livewire:init` albo od razu, gdy Livewire
+   już stoi.
+   ========================================================================== */
+(function stronaNieaktualna() {
+    const podlacz = () => podlaczStronaNieaktualna(window.Livewire);
 
     if (window.Livewire) {
         podlacz();
