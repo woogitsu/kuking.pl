@@ -215,7 +215,7 @@ final class WidocznoscPowiadomien
                         // w powiadomieniu i w eksporcie danych (`CollectUserExportData`
                         // używa tego samego `visibleTo()`), mimo że treść w wątku jest
                         // już zastąpiona. Od #758 wycinek jest ŻYWY, więc ten sam warunek
-                        // stoi drugi raz w `Notification::zyweWycinkiKomentarzy()` — patrz
+                        // stoi drugi raz w `WycinkiKomentarzy::zywe()` — patrz
                         // komentarz tamtej metody: to nie jest powtórka przez przeoczenie.
                         ->whereNull('pc.body_removed_at')
                         // ISSUE #1378: odpowiedź widać tylko wewnątrz wątku —

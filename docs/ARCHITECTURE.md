@@ -53,7 +53,10 @@ i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
 oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
 w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
-spoza listy spada do wartości domyślnej; zapytania poza kontrolerem).
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
+oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
+zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
+`RequestAccountDeletion` (zgłoszenie usunięcia konta).
 
 ### Application
 Use cases, np.:
@@ -123,10 +126,22 @@ Zasada dla kolejnych modułów: jeśli zapytanie zbiorcze musi odtworzyć reguł
 z Policy, reguła trafia do specyfikacji w `app/Domain`, a obok powstaje test
 równoważności z Policy — nie kolejna prywatna kopia w modelu albo kontrolerze.
 
-Jeszcze niezrobione w ramach #1687 (kolejne etapy): wspólna specyfikacja dla
-list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od
-Policy m.in. statusem konta autora), wydzielenie z modelu `Notification`
-wyznaczania adresów i wycinków (resolver celu) oraz retencji.
+Etap 2 (#1687): dokąd prowadzi powiadomienie i co pokazuje jego wycinek też
+nie należy do modelu. `Domain/Notifications/CelPowiadomienia` liczy adres
+„Zobacz" dla jednego powiadomienia (`adres()`, wejście przez
+`Notification::adresDocelowy()`) i dla całej strony jednym odczytem
+komentarzy (`adresy()`, #833); `Domain/Notifications/WycinkiKomentarzy`
+czyta żywe wycinki komentarzy (D-229) dla listy i eksportu. Obie klasy
+dostają powiadomienia, które już przeszły przez `WidocznoscPowiadomien`.
+
+Etap 3 (#1687): termin ochrony odwoławczej powiadomienia (retencja, ADR
+§5.2) liczy `Domain/Compliance/TerminOchronyOdwolawczej`, obok jedynego
+odbiorcy — `PrzedawnionePowiadomienia`. Przy modelu zostaje tylko lista
+typów z własnym terminem (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`).
+
+Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
+(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
+m.in. statusem konta autora).
 
 ### Kierunek zależności (issue #971)
 
@@ -272,6 +287,24 @@ i korzeń. Dopiero świeża kontrola dostępu pozwala zapisać komentarz razem
 z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
 zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
+
+## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
+
+Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`
+i serię `INSERT`-ów. Zapis mieszka w `app/Domain/Feed/Actions/ZapiszTabliceDnia`
+i `ZapiszKolaz`; kontrolery panelu tylko autoryzują, walidują i odpowiadają.
+Jedna transakcja obejmuje trzy rzeczy, w tej kolejności:
+
+1. blokadę doradczą zasobu (`ZamekWyboruRedakcji`: tablica osobno dla
+   każdej daty, kolaż jako jeden zasób) — istnieje także przy pustym
+   zestawie, więc dwa równoległe zapisy dają zestaw A albo B, nigdy A ∪ B
+   (#1027);
+2. `DELETE` i wstawienie nowego zestawu;
+3. wpis `audit_log` (`daily_board.updated|cleared`, `hero_kolaz.updated|cleared`)
+   — awaria dziennika cofa zmianę wyboru (#1329, D-249 klasa 1).
+
+Pomiar przeplotu na dwóch połączeniach:
+`tests/Dwa/WyborRedakcjiNieZlaczaDwochZestawowTest.php`.
 
 ## PWA
 
