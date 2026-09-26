@@ -34,9 +34,11 @@ return new class extends Migration
 {
     public $withinTransaction = false;
 
-    private const CELE_NOWE = "('tygodniowy_digest', 'odczyt_ai')";
+    private const CELE_NOWE = "('tygodniowy_digest', 'zyczenia_urodzinowe', 'odczyt_ai')";
 
-    private const CELE_STARE = "('tygodniowy_digest')";
+    // Cele sprzed tej migracji: `zyczenia_urodzinowe` dołożyła wcześniejsza
+    // `2026_09_25_200200_add_birthday_email_consent_to_users` (#1755).
+    private const CELE_STARE = "('tygodniowy_digest', 'zyczenia_urodzinowe')";
 
     private const ZRODLA_NOWE = "('ustawienia', 'link_wypisania', 'link_powrotny', 'usuniecie_konta', 'ekran_importu')";
 
@@ -65,7 +67,7 @@ return new class extends Migration
 
         if ($wiersze > 0) {
             throw new RuntimeException(
-                'Cofnięcie tej migracji zwęziłoby dziennik zgód do jednego celu, a w dzienniku jest '
+                'Cofnięcie tej migracji zwęziłoby dziennik zgód do celów sprzed niej, a w dzienniku jest '
                 .$wiersze.' zapisów zgody na odczyt zdjęć kartek przez AI (cel odczyt_ai albo źródło '
                 ."ekran_importu). Dziennik jest tylko do dopisywania — tych zapisów nie da się usunąć bez zdjęcia wyzwalacza, a to są dowody zgody (RODO art. 7 ust. 1, D-072, D-296).\n\n"
                 ."CO ZROBIĆ ZAMIAST TEGO\n"

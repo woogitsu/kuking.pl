@@ -1593,6 +1593,11 @@ return [
         // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
 
+        // Potwierdzenie adresu z podpisanego linku (GET pokazuje ekran, POST
+        // potwierdza — #1862). Podpis jest autoryzacją, limit chroni przed
+        // mieleniem trasy; 6 na minutę jak domyślna trasa weryfikacji Laravela.
+        'verification_verify' => '6,1',
+
         /*
          |----------------------------------------------------------------
          | GRUPY LIMITÓW DLA TRAS ZAPISUJĄCYCH (BRAMKA_BETY §7a)
@@ -2082,6 +2087,19 @@ return [
     */
     'monitoring' => [
         'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+
+        // Seria identycznych alarmów (#599, `App\Domain\Monitoring\SeriaAlarmow`):
+        // ten sam odcisk błędu idzie na webhook najwyżej raz na tyle minut,
+        // a następna wiadomość niesie liczbę pominiętych powtórzeń. Dziennik
+        // serwera dostaje każde wystąpienie niezależnie od tej liczby.
+        'seria_okno_minut' => (int) env('KUKING_SERIA_ALARMOW_OKNO_MINUT', 15),
+
+        // Łączny czas zapytań SQL jednego żądania HTTP, po którym zapisujemy
+        // ostrzeżenie w dzienniku i dzwonimy (`App\Domain\Monitoring\CzasZapytan`).
+        // 1000 ms to wartość STARTOWA, nie zmierzona: po tygodniu odczytów
+        // `czas_bazy_ms` z dziennika ustaw ją nad p99 zwykłego ruchu.
+        // 0 = pomiar wyłączony.
+        'czas_bazy_prog_ms' => (int) env('KUKING_CZAS_BAZY_PROG_MS', 1000),
     ],
 
     /*
@@ -2402,6 +2420,31 @@ return [
             'KUKING_DIGEST_PYTANIE',
             'Czy gotujesz w tym tygodniu coś, czego nikt u nas jeszcze nie pokazał? Napisz, jestem ciekawa.',
         ),
+    ],
+
+    /*
+     * URODZINY (issue #1755).
+     *
+     * Mail idzie WYŁĄCZNIE do osób, które dały na niego OSOBNĄ zgodę (PKE
+     * art. 398, dziennik zgód D-072), i mieści się w dobowych sufitach poczty:
+     * własnym (`mail_dzienny_sufit`) i wspólnym, w klasie `podsumowanie`,
+     * która gaśnie pierwsza (`DziennyBudzetListow::dlaZyczenUrodzinowych`).
+     * Pora jest stała — harmonogram w `routes/console.php`, po ciszy nocnej.
+     */
+    'urodziny' => [
+        // Wyłącznik wysyłki maili. Domyślnie wyłączony, jak tygodniowe
+        // podsumowanie: poczta produkcyjna włącza się świadomie, zmienną.
+        'mail_wlaczony' => (bool) env('KUKING_URODZINY_MAIL_WLACZONY', false),
+
+        // Najwięcej maili urodzinowych na dobę. Nadmiar nie przepada
+        // po cichu — komenda mówi, ile osób nie dostało listu.
+        'mail_dzienny_sufit' => (int) env('KUKING_URODZINY_MAIL_DZIENNY_SUFIT', 20),
+
+        // Przypomnienie obserwującym (etap d): najwięcej tylu powiadomień
+        // „Dziś urodziny: …" na jednego odbiorcę na dobę. Osoba obserwująca
+        // wiele kont nie dostaje lawiny w jeden dzień; nadmiar przepada
+        // (to informacja o dniu, a nie wiadomość do odłożenia na jutro).
+        'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
     ],
 
     'zeszyt' => [

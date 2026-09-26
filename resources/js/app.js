@@ -28,7 +28,7 @@ import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
 import './postep-importu.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
-import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
 import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';
 
@@ -513,12 +513,24 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     // Możliwość wyłączenia (issue) — ten sam checkbox włącza i wyłącza.
-    checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-            kontroler.wlacz();
-        } else {
-            kontroler.wylacz();
-        }
+    // Wybór przeżywa zmianę kroku w tej karcie (issue #1302) — patrz
+    // `podlaczPrzelacznik()` w ./wake-lock-gotowania.js.
+    let pamiec = null;
+
+    try {
+        pamiec = window.sessionStorage;
+    } catch {
+        // Zablokowane dane witryny: przełącznik działa, tylko bez pamięci.
+    }
+
+    const pamiecWyboru = utworzPamiecWyboru(pamiec, kontener.dataset.wakelockRecipe ?? '');
+
+    podlaczPrzelacznik(checkbox, kontroler, pamiecWyboru);
+
+    // „Zakończ gotowanie” i „Ugotowałem” kończą też prośbę o niegaśnięcie
+    // ekranu — powrót do przepisu w tej karcie nie może jej wznowić.
+    document.querySelectorAll('[data-minutniki-koniec]').forEach((link) => {
+        link.addEventListener('click', () => pamiecWyboru.zapamietaj(false));
     });
 
     /*

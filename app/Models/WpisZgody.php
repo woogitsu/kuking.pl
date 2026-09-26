@@ -49,6 +49,9 @@ class WpisZgody extends Model
      */
     public const CEL_ODCZYT_AI = 'odczyt_ai';
 
+    /** Mail z życzeniami urodzinowymi (issue #1755, etap c). */
+    public const CEL_ZYCZENIA_URODZINOWE = 'zyczenia_urodzinowe';
+
     public const UDZIELONA = 'udzielona';
 
     public const WYCOFANA = 'wycofana';
