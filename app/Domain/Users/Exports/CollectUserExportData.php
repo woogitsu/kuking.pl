@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
-use App\Domain\Recipes\MojaWersja;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
@@ -15,6 +14,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -283,7 +283,12 @@ final class CollectUserExportData
             // wtedy, gdy właściciel paczki może go dziś zobaczyć — to cudza
             // treść, a paczka nie może pokazać więcej niż serwis.
             'moja_wersja_od' => $this->date($recipe->forked_at),
-            'na_podstawie_przepisu' => ($oryginal = MojaWersja::oryginalDlaWidza($recipe, $user)) === null
+            //
+            // Policy wprost, a nie `App\Domain\Recipes\MojaWersja`: import
+            // modułu Recipes stąd zamykał cykl Users → Recipes → Media → …
+            // → Users (`GrafModulowDomenyBezCykliTest`).
+            'na_podstawie_przepisu' => ($oryginal = $recipe->forkedFrom) === null
+                    || ! Gate::forUser($user)->allows('view', $oryginal)
                 ? null
                 : ['tytul' => $oryginal->title, 'adres_w_serwisie' => $oryginal->slug],
             'zdjecie_glowne' => $photos->pathFor($recipe->hero_media_id),
