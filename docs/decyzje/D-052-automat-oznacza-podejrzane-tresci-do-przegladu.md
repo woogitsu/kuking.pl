@@ -68,7 +68,8 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
-Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
+Dla komentarzy lukę zamyka D-256 (#909), dla wpisów D-258 (#936) — bez
+naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
