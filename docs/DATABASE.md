@@ -2819,6 +2819,37 @@ zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
 znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
 decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
+Wyjątek od tej reguły ma własną kolumnę — patrz niżej `appeal_id`.
+
+#### `appeal_id` — decyzja po uznaniu odwołania (#989)
+
+Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions`.
+
+| Kolumna | Po co |
+|---|---|
+| `appeal_id uuid NULL` → `appeals`, `ON DELETE SET NULL` | Odwołanie, po którego uznaniu zapadła ta decyzja. Dziś wyłącznie odwołanie **zgłaszającego** od `no_action`/`target_unavailable`: uznanie takiego odwołania wymaga nowej decyzji (DSA art. 20 ust. 4), a wykonuje ją `App\Domain\Moderation\Actions\DecyzjaPoOdwolaniu` w transakcji `ResolveAppeal`. Pierwotna decyzja i zgłoszenie są osiągalne przez `appeals.moderation_action_id` i `appeals.report_id`. |
+
+- `moderation_actions_one_per_appeal` — częściowy `UNIQUE (appeal_id) WHERE
+  appeal_id IS NOT NULL`: jedno odwołanie, najwyżej jedna decyzja po nim.
+- `moderation_actions_appeal_or_report_check` — `CHECK (appeal_id IS NULL OR
+  report_id IS NULL)`: decyzja po odwołaniu nie jest drugą decyzją pierwszej
+  instancji, więc `moderation_actions_one_per_report` zostaje nietknięty.
+- Poza `$fillable` — ustawia ją wyłącznie `DecyzjaPoOdwolaniu` (`forceFill`).
+- `ON DELETE SET NULL`, nie `RESTRICT`: retencja kasuje `appeals` przed
+  `moderation_actions`; `RESTRICT` zatrzymywałby ją na każdym takim
+  odwołaniu na zawsze.
+- `UzasadnienieDecyzji::skadSprawa()` przy niepustym `appeal_id` mówi autorowi,
+  że sprawa zaczęła się od zgłoszenia i wróciła po odwołaniu — nie „nikt tego
+  nie zgłosił”.
+
+**Rollback:** `down()` **odmawia**, gdy istnieje choć jeden wiersz z
+`appeal_id` (D-088): bez kolumny taka decyzja wyglądałaby jak decyzja z urzędu,
+a uzasadnienie dla autora mówiłoby nieprawdę. Komunikat podaje liczbę wierszy
+i zapytanie do zachowania powiązań. Bez takich wierszy (świeża baza, żadne
+odwołanie od „Bez działania” nie zostało uznane) rollback zdejmuje CHECK,
+indeks, klucz obcy i kolumnę bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/CofniecieMigracjiDecyzjiPoOdwolaniuTest.php`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
@@ -2914,7 +2945,8 @@ Wysokiego znaczenia zmiany.
   zanonimizowane;
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
-  `user.role_changed`, `admin.user_viewed`). **Bez CHECK-a w bazie** i to jest
+  `user.role_changed`, `admin.user_viewed`,
+  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -2971,6 +3003,22 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis ukryty przez
+moderację (#1018): strona wpisu (`PostController::show()`), gdy otwiera ją
+ktoś inny niż autor. `PostPolicy::view()` wpuszcza tam poza autorem wyłącznie
+czynnego moderatora albo administratora z potwierdzonym 2FA, więc każde takie
+wejście to wgląd z urzędu — ta sama zasada 3.2 co przy `admin.user_viewed`.
+`actor_id` to moderator, `subject_type = 'Post'`, `subject_id` — obejrzany
+wpis, `ip_hash` z żądania. **Bez metadanych i bez treści wpisu**: identyfikator
+wystarcza, a treść ukrytego wpisu nie ma trafiać do drugiej tabeli, gdzie
+przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
+nie zostawia. Podgląd jest tylko do odczytu — zapis do zeszytu, zgłoszenie
+i komentarz odmawia `PostPolicy` (`save`, `report`, `comment`), więc innych
+wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
+NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
+żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
+ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
@@ -3586,7 +3634,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 | Kod | Kiedy |
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
-| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał — również gdy `writeStream()` zwróci `false` bez wyjątku. Paczka nie przechodzi wtedy do `ready` i nie wysyła się informacji o gotowości. |
 | `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |

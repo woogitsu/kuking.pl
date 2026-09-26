@@ -87,6 +87,10 @@ final class FollowingFeed
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
 
+        // Wpis z własną treścią idzie za WŁASNĄ widocznością (issue #1377);
+        // niedostępny przepis zdejmujemy tylko z jego karty.
+        Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer);
+
         $this->podpiszTematy($strona->getCollection(), $authorIds, $tagIds);
 
         return $strona;
@@ -181,7 +185,8 @@ final class FollowingFeed
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Dla gałęzi
             // tematów to jest druga, nienadmiarowa bramka: zapowiedź przepisu
             // ma na stałe `visibility = public`, a widoczność trzyma przepis.
-            ->zWidocznymPrzepisem($viewer);
+            // Wpis z własną treścią idzie za własną widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
     }
 
     /**
