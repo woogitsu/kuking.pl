@@ -76,12 +76,12 @@
                 </x-empty-state>
             @endauth
         @else
-            <div class="stack">
+            <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" />
+            <x-show-more :paginator="$posts" lista="lista-wpisow" />
         @endif
     </div>
 </x-layout>
