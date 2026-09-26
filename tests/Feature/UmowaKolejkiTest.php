@@ -249,8 +249,9 @@ class UmowaKolejkiTest extends TestCase
      * każdy element to lista `--queue` jednego procesu.
      *
      * `worker` (osobny kontener) — proces na kolejkę; `all` (jeden kontener
-     * z WWW, produkcja dziś) — jeden proces, żeby szczyty pamięci zdjęcia
-     * i eksportu nie zeszły się z WWW (przegląd #1030).
+     * z WWW, produkcja dziś) — dwa procesy, lekki `high,default` i ciężki
+     * `media,low`, żeby szczyty pamięci zdjęcia i eksportu nie zeszły się
+     * z WWW (przegląd #1030, D-311).
      *
      * @return list<string>
      */
@@ -259,7 +260,7 @@ class UmowaKolejkiTest extends TestCase
         $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
         $wzor = $rola === 'worker'
             ? '/local osobne="([a-z, ]+)"/'
-            : '/QUEUE_NAMES:-([a-z,]+)\}/';
+            : '/local wspolnyKontener="([a-z, ]+)"/';
 
         $this->assertSame(1, preg_match($wzor, $entrypoint, $trafienie), "Nie znalazłem listy kolejek roli `{$rola}` w docker/entrypoint.sh.");
 
@@ -315,19 +316,20 @@ class UmowaKolejkiTest extends TestCase
         }
     }
 
-    public function test_rola_all_ma_jeden_proces_ze_zdjeciem_przed_eksportem(): void
+    public function test_rola_all_ma_lekki_proces_i_ciezki_ze_zdjeciem_przed_eksportem(): void
     {
-        // Jeden kontener 1024 MB z WWW: trzy procesy mogłyby mieć szczyt
-        // naraz (zdjęcie ~452 MB, eksport do 512M) i OOM położyłby stronę.
-        $procesy = $this->procesyRoli('all');
-        $this->assertCount(1, $procesy, 'Rola `all` ma uruchamiać JEDEN proces `queue:work`.');
+        // Jeden kontener 1024 MB z WWW (D-311, #1860). Zaległość maili nie
+        // może wstrzymać zdjęć ani eksportu, więc `default` i `media`/`low`
+        // nie dzielą jednego procesu. Ciężkie `media` i `low` dzielą — ich
+        // szczyty (~452 MB i do 512M) nie schodzą się wtedy z WWW.
+        $procesy = array_map(fn (string $l) => explode(',', $l), $this->procesyRoli('all'));
+        $this->assertSame([['high', 'default'], ['media', 'low']], $procesy);
 
-        // Kolejność w `--queue` to priorytet: zdjęcie z wpisu czeka człowiek,
-        // paczkę z danymi dostaje się e-mailem.
-        $kolejnosc = explode(',', $procesy[0]);
+        // Kolejność w `--queue` ciężkiego procesu to priorytet: zdjęcie
+        // z wpisu czeka człowiek, paczkę z danymi dostaje się e-mailem.
         $this->assertLessThan(
-            array_search('low', $kolejnosc, true),
-            array_search('media', $kolejnosc, true),
+            array_search('low', $procesy[1], true),
+            array_search('media', $procesy[1], true),
             'Kolejka `low` stoi przed `media` — paczka z danymi wyprzedzi zdjęcie z wpisu.',
         );
     }
