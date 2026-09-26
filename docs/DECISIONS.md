@@ -17377,3 +17377,50 @@ AI, sortowania po cenie.
 Ukrycie funkcji: usunąć pole z dwóch formularzy, zdanie ze strony i zakres
 z wyszukiwarki — kolumna może zostać. Zdjęcie kolumny: patrz rollback
 migracji (najpierw kopia wartości).
+
+### Część 2 — przedział z cen GUS, gdy autor nic nie wpisał (26 września 2026)
+
+**Decyzja właściciela z 26.09 („oba").** Gdy autor nie podał kwoty, strona
+przepisu może pokazać **przedział** liczony deterministycznie w PHP z cen
+GUS — podpisany jako szacunek i tylko przy dostatecznym pokryciu
+składników. Projekt: `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8.4
+(gałąź `claude/v2-import-ocr-plan`, PR #1854).
+
+1. **Kwota autora zawsze wygrywa.** Przedział liczy się tylko przy
+   `recipes.estimated_cost_pln IS NULL`.
+2. **Dane:** tabela `ceny_skladnikow` wczytywana komendą
+   `kuking:ceny-skladnikow` z pliku `database/data/ceny_skladnikow.csv`.
+   Produkcja niczego nie pobiera z sieci; plik odświeża osoba prowadząca
+   (`scripts/ceny-gus-pobierz.py`, API BDL GUS, temat P1466) i zmiana cen
+   przechodzi przegląd w PR-ze. Każdy wiersz ma `zrodlo`; jedyny wiersz
+   spoza GUS to woda z kranu (0 zł, poza pokryciem), opisany jako
+   założenie Kuking.
+3. **Rytm:** komenda raz na kwartał. Stan faktyczny źródła: BDL podaje dla
+   tego tematu **średnie roczne** (dziś 2025), a **nie podaje cen warzyw**
+   (ziemniaki, cebula, marchew są tylko w serii miesięcznej zakończonej
+   w 2019). Przepisy z dużą masą warzyw uczciwie nie dostaną przedziału,
+   dopóki właściciel nie zdecyduje o innym źródle albo ręcznym uzupełnieniu.
+4. **Liczenie** (`SzacunekKosztuZCen`): ilość z tekstu składnika
+   (`IloscZTekstu`) albo z rozbitych pól, dopasowanie całymi słowami
+   (`CennikSkladnikow`), miary domowe per składnik. Przedział ±15%,
+   zaokrąglony do pełnych złotych. Warunki: każdy składnik z ilością da się
+   przeliczyć na gramy, a składniki z ceną to ≥ 90% masy. `no_amount`,
+   drobiazgi bez ilości (sól, pieprz, zioła, „do smaku") i woda nie liczą
+   się do masy.
+5. **Tekst:** „Orientacyjny koszt: ok. 5–7 zł za całość (średnie ceny
+   detaliczne GUS z 2025 r.). W Twoim sklepie może być inaczej." Gdy
+   warunki nie są spełnione, ale choć jeden składnik ma cenę — jedno zdanie,
+   dlaczego nie liczymy. Gdy żaden składnik nie trafił w cennik — cisza.
+6. **Poza zakresem:** zakres „Do 20 zł" w wyszukiwarce patrzy wyłącznie na
+   kwotę autora (przedział nie jest zapisywany w bazie); skalowanie porcji
+   przedziału nie przelicza.
+
+**Zbieżność z wartościami odżywczymi.** Projekt §8.1 przewiduje osobne
+`miary_domowe` przy tabeli składników odżywczych. Tu miary siedzą w cenniku
+(kolumny `g_*`), bo cennik jest samodzielny i mały; gdy powstanie wspólna
+tabela miar, cennik ma z niej korzystać, a nie trzymać drugiej kopii.
+
+### Wycofanie części 2
+Usunąć przekazanie `szacunekKosztu` w `RecipeController::show` — strona
+wraca do samej kwoty autora. Tabela może zostać albo zniknąć rollbackiem
+(`DROP TABLE`, bez strat: odtwarza ją komenda z pliku).

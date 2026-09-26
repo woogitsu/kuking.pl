@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Post;
@@ -443,6 +444,11 @@ class RecipeController extends Controller
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
+            // własnej kwoty; kwota autora zawsze wygrywa (D-286).
+            'szacunekKosztu' => $model->estimated_cost_pln === null
+                ? app(SzacunekKosztuZCen::class)->dla($model)
+                : null,
             'komentarze' => $komentarze,
             // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
             // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.

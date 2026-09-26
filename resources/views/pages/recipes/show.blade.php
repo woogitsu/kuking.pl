@@ -330,6 +330,11 @@
                  jednej osoby, nie cena, którą serwis za coś ręczy. --}}
             @if($recipe->costLabel())
                 <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            @elseif(($szacunekKosztu ?? null) !== null)
+                {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
+                     go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze
+                     ze źródłem i z zastrzeżeniem o sklepie. --}}
+                <p class="przepis-koszt kolumna-czytania" data-koszt-szacunek="{{ $szacunekKosztu->jestPrzedzial() ? 'przedzial' : 'brak' }}">{{ $szacunekKosztu->zdanie() }}</p>
             @endif
 
 
