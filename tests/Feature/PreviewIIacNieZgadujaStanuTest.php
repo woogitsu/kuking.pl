@@ -58,11 +58,79 @@ class PreviewIIacNieZgadujaStanuTest extends TestCase
     {
         // Bez `deployments: read` token w prywatnym repo nie odczyta statusów
         // deploymentu, a czekanie na `success` zawsze kończy się limitem.
+        //
+        // Od #1941 `deployments: read` NIE jest już na poziomie pliku —
+        // stoi przy jobie `smoke`, jedynym, który go potrzebuje (bo tylko
+        // on uruchamia `czekaj_na_preview`). Job ten uruchamia też kod
+        // z checkoutu PR-a, więc nie dostaje przy okazji żadnego prawa
+        // zapisu — pilnuje tego osobny test niżej.
+        $smoke = $this->bezKomentarzy($this->job($this->plik('.github/workflows/preview.yml'), 'smoke'));
+
         $this->assertMatchesRegularExpression(
-            '/^permissions:\n(?:(?:  .*)?\n)*?  deployments: read$/m',
-            $this->bezKomentarzy($this->plik('.github/workflows/preview.yml')),
-            'preview.yml nie ma `deployments: read` — czekanie na status deploymentu nie zadziała w prywatnym repo.',
+            '/^    permissions:\n(?:      .*\n)*?      deployments: read$/m',
+            $smoke,
+            'Job „smoke” nie ma `deployments: read` — czekanie na status deploymentu nie zadziała w prywatnym repo.',
         );
+    }
+
+    #[Test]
+    public function job_smoke_uruchamia_kod_pr_a_i_nie_ma_prawa_zapisu_do_pull_requestow(): void
+    {
+        // #1941: `smoke` odpala `source scripts/czekaj-na-preview.sh` i
+        // `source scripts/sonda-wdrozenia.sh` z checkoutu PR-a — to kod
+        // dostarczony przez autora PR-a. Token dostępny w tym samym joku
+        // NIE MOŻE mieć `pull-requests: write`, inaczej zmieniony skrypt
+        // mógłby go użyć do zapisu komentarzy/metadanych PR-a.
+        $workflow = $this->plik('.github/workflows/preview.yml');
+        $bezKomentarzy = $this->bezKomentarzy($workflow);
+        $smoke = $this->job($bezKomentarzy, 'smoke');
+
+        $this->assertStringContainsString('source scripts/czekaj-na-preview.sh', $smoke);
+        $this->assertStringContainsString('source scripts/sonda-wdrozenia.sh', $smoke);
+        $this->assertStringNotContainsString(
+            'pull-requests: write',
+            $smoke,
+            'Job „smoke” uruchamia kod z PR-a i NIE MOŻE dostać `pull-requests: write` (#1941).',
+        );
+
+        // Plik jako całość też nie nadaje zapisu na poziomie globalnym —
+        // inaczej `smoke` dostałby go przez dziedziczenie mimo braku
+        // wpisu we własnym `permissions:`.
+        $this->assertMatchesRegularExpression(
+            '/^permissions:\n(?:  .*\n)*$/m',
+            $bezKomentarzy,
+            'Test czyta zły kształt bloku `permissions:` na poziomie pliku.',
+        );
+        $globalnyBlok = [];
+        preg_match('/^permissions:\n((?:  .*\n)*)/m', $bezKomentarzy, $globalnyBlok);
+        $this->assertStringNotContainsString(
+            'pull-requests: write',
+            $globalnyBlok[1] ?? '',
+            'Blok `permissions:` na poziomie pliku znowu nadaje `pull-requests: write` wszystkim jobom (#1941).',
+        );
+    }
+
+    #[Test]
+    public function komentarz_w_pr_idzie_z_osobnego_joba_bez_checkoutu_kodu_pr_a(): void
+    {
+        // #1941: publikacja komentarza w PR-ze ma prawo zapisu
+        // (`pull-requests: write`), więc musi stać w jobie, który NIE
+        // checkoutuje ani nie uruchamia żadnego skryptu z gałęzi PR-a —
+        // tylko `gh api` na wartościach przekazanych przez `needs.smoke.outputs`.
+        $workflow = $this->plik('.github/workflows/preview.yml');
+        $bezKomentarzy = $this->bezKomentarzy($workflow);
+        $komentarzJob = $this->job($bezKomentarzy, 'smoke-komentarz');
+
+        $this->assertStringContainsString('needs: smoke', $komentarzJob);
+        $this->assertMatchesRegularExpression(
+            '/^    permissions:\n(?:      .*\n)*?      pull-requests: write$/m',
+            $komentarzJob,
+            'Job „smoke-komentarz” nie ma `pull-requests: write` — komentarz w PR nie przejdzie.',
+        );
+        $this->assertStringNotContainsString('actions/checkout', $komentarzJob);
+        $this->assertStringNotContainsString('source scripts/', $komentarzJob);
+        $this->assertStringContainsString('needs.smoke.outputs.url', $komentarzJob);
+        $this->assertStringContainsString('needs.smoke.outputs.wynik', $komentarzJob);
     }
 
     #[Test]
