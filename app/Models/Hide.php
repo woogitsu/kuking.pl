@@ -24,7 +24,7 @@ use RuntimeException;
  * @property string $user_id
  * @property string|null $post_id
  * @property string|null $hidden_user_id
- * @property \Illuminate\Support\Carbon|null $hidden_until
+ * @property Carbon|null $hidden_until
  */
 class Hide extends Model
 {
