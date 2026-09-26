@@ -24,6 +24,8 @@ final class ZlySekretTurnstileDzwoniTest extends TestCase
 
     private const SEKRET = 'sekret-testowy-nie-do-wyslania';
 
+    private const UDANA = ['success' => true, 'hostname' => 'kuking.pl', 'action' => 'logowanie'];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,6 +35,9 @@ final class ZlySekretTurnstileDzwoniTest extends TestCase
         config()->set('logging.channels.blad_webhook.url', self::WEBHOOK);
         config()->set('kuking.turnstile.klucz_publiczny', '1x00000000000000000000AA');
         config()->set('kuking.turnstile.sekret', self::SEKRET);
+        // Udana weryfikacja musi jeszcze zgodzić się z hostem i akcją (#992).
+        config()->set('app.url', 'https://kuking.pl');
+        config()->set('kuking.turnstile.hosty_stagingu', []);
     }
 
     protected function tearDown(): void
@@ -68,13 +73,13 @@ final class ZlySekretTurnstileDzwoniTest extends TestCase
 
     private function sprawdz(): WynikTurnstile
     {
-        return (new KlientTurnstile)->sprawdz('token-od-widgetu', '203.0.113.9');
+        return (new KlientTurnstile)->sprawdz('token-od-widgetu', 'logowanie', '203.0.113.9');
     }
 
     public function test_zly_sekret_dzwoni_raz_nie_zalewa_i_wraca_jednym_odwolaniem(): void
     {
         $zly = ['success' => false, 'error-codes' => ['invalid-input-secret']];
-        $this->cloudflare([$zly, $zly, $zly, ['success' => true]]);
+        $this->cloudflare([$zly, $zly, $zly, self::UDANA]);
 
         $this->assertSame(WynikTurnstile::Nierozstrzygniety, $this->sprawdz());
         $this->assertSame(WynikTurnstile::Nierozstrzygniety, $this->sprawdz());
@@ -124,7 +129,7 @@ final class ZlySekretTurnstileDzwoniTest extends TestCase
 
     public function test_udana_weryfikacja_bez_epizodu_nie_wysyla_niczego(): void
     {
-        $this->cloudflare([['success' => true], ['success' => true]]);
+        $this->cloudflare([self::UDANA, self::UDANA]);
 
         $this->sprawdz();
         $this->sprawdz();
