@@ -129,7 +129,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
             Turnstile::POLE => TurnstileJestPotwierdzony::reguly('zgloszenie_nielegalnej_tresci'),
         ], [
             'notifier_email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
-            'target_url.required' => 'Wklej adres strony, na której jest ta treść.',
+            'target_url.required' => 'Wklej adres strony z tą treścią. Jeśli go nie masz, wpisz, gdzie ją widzisz — na przykład tytuł przepisu i nazwę autora.',
             'reason.required' => 'Wybierz, czego dotyczy zgłoszenie.',
             'illegality_explanation.required' => 'Napisz, dlaczego uważasz tę treść za niezgodną z prawem. Bez tego nie możemy jej ocenić.',
             'illegality_explanation.min' => 'Napisz trochę więcej — jedno zdanie wystarczy, ale musimy wiedzieć, o co chodzi.',
