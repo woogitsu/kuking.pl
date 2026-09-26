@@ -99,6 +99,10 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   własny wpis, przepis, komentarz, „Ugotowałem” albo na własny profil
   (autor wyznaczony przez `ModeratedContent::osoba()`, także przy treści już
   usuniętej). Taką sprawę zamyka ktoś inny z moderacji.
+  Przy zgłoszeniu prawnym ta reguła sprawdza też **adres z formularza**
+  (`CelZAdresuZgloszenia`, audyt B2-02): `/@{login}` i jego podstrony to konto,
+  a `#komentarz-{uuid}` to komentarz, nie wpis nad nim. Działa to także dla
+  zgłoszeń przyjętych wcześniej jako `unknown` albo z celem ustawionym na wpis.
 - **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
   moderator karze zwykłe konta, administrator także moderatorów. Konta
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
