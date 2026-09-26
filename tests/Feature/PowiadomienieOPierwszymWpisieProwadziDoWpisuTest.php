@@ -49,22 +49,25 @@ class PowiadomienieOPierwszymWpisieProwadziDoWpisuTest extends TestCase
         $this->actingAs($gospodarz)->get($cel)->assertOk()->assertSee('Mój pierwszy sernik');
     }
 
-    public function test_usuniety_ukryty_albo_brak_post_id_wraca_do_kolejki_ze_zdaniem(): void
+    public function test_usuniety_szkic_albo_brak_post_id_wraca_do_kolejki_ze_zdaniem(): void
     {
         $gospodarz = $this->gospodarz();
         $nowa = $this->user('nowa');
 
         $usuniety = Post::factory()->create(['author_id' => $nowa->getKey(), 'body' => 'Treść usuniętego wpisu']);
         $usuniety->delete();
-        $ukryty = Post::factory()->create([
+        // Szkic zostaje wyłącznie autora (`PostPolicy::view()`), więc obsługa
+        // go nie otworzy. Wpisu UKRYTEGO tu nie ma: od #1018 obsługa z 2FA
+        // go otwiera — patrz test niżej.
+        $szkic = Post::factory()->create([
             'author_id' => $nowa->getKey(),
-            'body' => 'Treść ukrytego wpisu',
-            'status' => Post::STATUS_HIDDEN,
+            'body' => 'Treść szkicu',
+            'status' => Post::STATUS_DRAFT,
         ]);
 
         foreach ([
             'usunięty' => ['post_id' => $usuniety->getKey()],
-            'ukryty' => ['post_id' => $ukryty->getKey()],
+            'szkic' => ['post_id' => $szkic->getKey()],
             'starszy bez post_id' => ['display_name' => 'Nowa'],
             'śmieci w post_id' => ['post_id' => 'nie-uuid'],
         ] as $przypadek => $dane) {
@@ -81,8 +84,34 @@ class PowiadomienieOPierwszymWpisieProwadziDoWpisuTest extends TestCase
                 ->assertOk()
                 ->assertSee(self::KOMUNIKAT)
                 ->assertDontSee('Treść usuniętego wpisu')
-                ->assertDontSee('Treść ukrytego wpisu');
+                ->assertDontSee('Treść szkicu');
         }
+    }
+
+    /**
+     * Wpis ukryty przez moderację obsługa z 2FA otwiera (#1018), więc
+     * „Zobacz” prowadzi do niego, a nie do kolejki ze zdaniem, że się nie da.
+     */
+    public function test_ukryty_wpis_otwiera_sie_obsludze_zgodnie_z_policy(): void
+    {
+        $gospodarz = $this->gospodarz();
+        $nowa = $this->user('nowa');
+        $ukryty = Post::factory()->create([
+            'author_id' => $nowa->getKey(),
+            'body' => 'Treść ukrytego wpisu',
+            'status' => Post::STATUS_HIDDEN,
+        ]);
+
+        $powiadomienie = $this->alert($gospodarz, $nowa, ['post_id' => $ukryty->getKey()]);
+        $cel = route('posts.show', $ukryty->getKey());
+
+        $this->assertTrue($gospodarz->can('view', $ukryty));
+        $this->assertSame($cel, $powiadomienie->adresDocelowy());
+        $this->assertFalse($powiadomienie->pierwszyWpisNiedostepny());
+
+        $this->actingAs($gospodarz)
+            ->post(route('notifications.open', $powiadomienie->getKey()))
+            ->assertRedirect($cel);
     }
 
     // -----------------------------------------------------------------
