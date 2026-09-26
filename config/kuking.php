@@ -2078,6 +2078,19 @@ return [
     */
     'monitoring' => [
         'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+
+        // Seria identycznych alarmów (#599, `App\Domain\Monitoring\SeriaAlarmow`):
+        // ten sam odcisk błędu idzie na webhook najwyżej raz na tyle minut,
+        // a następna wiadomość niesie liczbę pominiętych powtórzeń. Dziennik
+        // serwera dostaje każde wystąpienie niezależnie od tej liczby.
+        'seria_okno_minut' => (int) env('KUKING_SERIA_ALARMOW_OKNO_MINUT', 15),
+
+        // Łączny czas zapytań SQL jednego żądania HTTP, po którym zapisujemy
+        // ostrzeżenie w dzienniku i dzwonimy (`App\Domain\Monitoring\CzasZapytan`).
+        // 1000 ms to wartość STARTOWA, nie zmierzona: po tygodniu odczytów
+        // `czas_bazy_ms` z dziennika ustaw ją nad p99 zwykłego ruchu.
+        // 0 = pomiar wyłączony.
+        'czas_bazy_prog_ms' => (int) env('KUKING_CZAS_BAZY_PROG_MS', 1000),
     ],
 
     /*
@@ -2400,6 +2413,17 @@ return [
         ),
     ],
 
+    'zeszyt' => [
+        /*
+         * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
+         * na jedno wyszukiwanie. Wynik jest jeden na przepis (z listą
+         * zeszytów), więc 50 to dużo więcej, niż człowiek przejrzy — a gdy
+         * trafień jest więcej, ekran prosi o dokładniejszy tytuł zamiast
+         * stronicować.
+         */
+        'szukaj_limit' => 50,
+    ],
+
     'zgody' => [
         /*
          * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
@@ -2643,7 +2667,8 @@ return [
         //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
         //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
         //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
-        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        //      `routes/console.php` na wolnym slocie — kolizję odrzuci
+        //      `HarmonogramBezWspolnychSlotowTest`
         // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
         // wystartuje nawet przy przypadkowo ustawionej zmiennej.
         //
@@ -2708,6 +2733,32 @@ return [
     'retencja' => [
         'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
+    // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
+    //
+    // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
+    // usunięcie: wiersz dostaje `deleted_at`, znika z serwisu, ale tekst
+    // i zdjęcia (oryginał i warianty w R2) zostają. Bez tego zadania —
+    // na zawsze. Polityka prywatności obiecuje przechowywanie „do usunięcia
+    // treści przez Ciebie”, więc miękkie usunięcie może być tylko krótkim
+    // oknem, a nie stanem końcowym.
+    //
+    // TRZYDZIEŚCI DNI — ta sama liczba co karencja usunięcia konta
+    // (`account.delete_grace_days`, polityka §7 pkt 2). Jedna liczba dla
+    // obu dróg: człowiek, który przeczytał „30 dni” przy koncie, nie musi
+    // uczyć się drugiej przy wpisie. Okno służy pomyłce (przywrócenie przez
+    // kontakt@kuking.pl) i spójności kopii zapasowych, nie nam.
+    //
+    // Treści z decyzją moderacji albo zgłoszeniem NIE są tu kandydatem —
+    // żyją tyle, ile sprawa (`moderation.case_retention_months`), bo
+    // odwołanie i „cofam” potrzebują celu. Gdy retencja spraw zabierze
+    // sprawę, treść wraca do kolejki tego zadania.
+    //
+    // Egzekwuje `kuking:sprzataj-usuniete-tresci`
+    // (`App\Domain\Compliance\PrzedawnioneUsunieteTresci`).
+    'usuniete_tresci' => [
+        'retention_days' => (int) env('KUKING_USUNIETE_TRESCI_DNI', 30),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
@@ -3226,6 +3277,54 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Publiczne API dla aplikacji mobilnej (D-014, D-270)
+    |--------------------------------------------------------------------------
+    |
+    | Drugi adapter nad TYMI SAMYMI Akcjami i Policy co kontrolery HTML.
+    | Trasy leżą w `routes/api.php` pod prefiksem `/api/v1`, uwierzytelnia je
+    | Laravel Sanctum TOKENAMI OSOBISTEGO DOSTĘPU (nagłówek `Authorization:
+    | Bearer …`), nigdy ciasteczkiem sesji — patrz `config/sanctum.php`.
+    */
+    'api' => [
+        /*
+         * WYŁĄCZNIK CAŁEGO API, domyślnie ZAMKNIĘTY.
+         *
+         * `false` znaczy: każdy adres pod `/api/*` — także ten, który istnieje
+         * — odpowiada tym samym 404 co adres, którego nie ma
+         * (`App\Http\Middleware\BramaApi`). Nie 401 i nie 403: zamknięte
+         * API nie ma zdradzać, które trasy za nim stoją.
+         *
+         * Domyślnie zamknięte, bo otwarcie jest decyzją wdrożeniową, nie
+         * skutkiem ubocznym merge'a: dopóki aplikacja mobilna nie istnieje,
+         * otwarte API byłoby powierzchnią bez konsumenta — dokładnie tym,
+         * przed czym ostrzegał D-014.
+         */
+        'wlaczone' => (bool) env('KUKING_API_ENABLED', false),
+
+        /*
+         * DWA LIMITY NA KAŻDE ŻĄDANIE, LICZONE NIEZALEŻNIE: `na_adres`
+         * w `App\Http\Middleware\BramaApi` (przed sprawdzeniem tokenu),
+         * `na_token` w limiterze `api` (`App\Providers\ApiServiceProvider`).
+         * Format „próby,minuty" jak w `limits` niżej.
+         *
+         * `na_token` — jedno urządzenie jednej osoby. Aplikacja przewijająca
+         * feed i otwierająca wpisy robi kilka żądań na ekran; 120 na minutę
+         * to dwa żądania na sekundę bez przerwy, czyli sufit, którego człowiek
+         * palcem nie dotknie, a zapętlony klient dotknie w minutę.
+         *
+         * `na_adres` — jeden adres IP, z tokenem albo bez. Wyższy niż
+         * `na_token`, bo za jednym ruterem domowym (albo za NAT-em operatora
+         * komórkowego) siedzi kilka osób naraz. To on jest jedyną zaporą dla
+         * żądań bez tokenu i dla kogoś, kto zakłada tokeny seriami.
+         */
+        'limity' => [
+            'na_token' => '120,1',
+            'na_adres' => '300,1',
+        ],
     ],
 
     'demo' => [
