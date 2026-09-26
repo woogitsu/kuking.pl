@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
+use App\Http\Api\BledyApi;
 use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
+use App\Http\Middleware\BramaApi;
 use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
@@ -20,6 +22,7 @@ use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
@@ -32,6 +35,12 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // Publiczne API dla aplikacji mobilnej (D-014, D-270). Wersja stoi
+        // w prefiksie, nie w nagłówku: `/api/v2` będzie osobnym plikiem tras
+        // obok tego, a `v1` zostanie, dopóki działają aplikacje, które go
+        // wołają. Grupa `api` jest skonfigurowana niżej, w `withMiddleware`.
+        api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api/v1',
         commands: __DIR__.'/../routes/console.php',
         // Railway healthcheck celuje w /health (App\Http\Controllers\HealthController),
         // który sprawdza bazę. Frameworkowy /up zostaje jako najprostszy sygnał
@@ -288,6 +297,31 @@ return Application::configure(basePath: dirname(__DIR__))
             'web',
             PreventRequestForgery::class,
             PreventRequestForgeryExceptMediaCookie::class,
+        );
+
+        // GRUPA `api` (D-270). Framework daje jej samo `SubstituteBindings`;
+        // dokładamy dwie rzeczy:
+        //
+        //  - `BramaApi` NA POCZĄTKU — wyłącznik `KUKING_API_ENABLED`
+        //    i wymuszone `Accept: application/json`;
+        //  - limiter `api` (`App\Providers\ApiServiceProvider`): osobny
+        //    koszyk na token i na adres IP, liczby w `config/kuking.php`.
+        //
+        // Grupa NIE MA sesji, ciasteczek ani ochrony CSRF — i nie ma mieć:
+        // uwierzytelnia wyłącznie token w nagłówku (`config/sanctum.php`),
+        // a żądanie, które nie niesie ciasteczka, nie ma czego podrobić.
+        $middleware->api(prepend: [BramaApi::class]);
+        $middleware->throttleApi('api');
+
+        // `BramaApi` PIERWSZA NA LIŚCIE PRIORYTETÓW, przed wszystkim, co
+        // framework na niej trzyma. Bez tego sortowanie middleware'u
+        // (`Kernel::$middlewarePriority`) wyniosłoby `auth:sanctum`
+        // i `throttle` PRZED nią: zamknięte API odpowiadałoby 401 na trasie,
+        // która istnieje, i 404 na tej, której nie ma — czyli zdradzałoby
+        // swoją mapę — a każde odbicie zjadałoby licznik limitu.
+        $middleware->prependToPriorityList(
+            before: HandlePrecognitiveRequests::class,
+            prepend: BramaApi::class,
         );
 
         $middleware->alias([
@@ -552,6 +586,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 'exception' => $e,
                 ...app(QueueCorrelation::class)->forException($e),
             ]);
+        });
+
+        // ------------------------------------------------------------------
+        //  API: JEDEN FORMAT BŁĘDU, PO POLSKU (D-270)
+        //
+        //  OSTATNIE z wywołań `render`, celowo: dwa wyżej (419 i 429) dla
+        //  `api/*` oddają `null` — 429 po zapisaniu śladu w logu — i sprawa
+        //  trafia tutaj. Format i zdania: `App\Http\Api\BledyApi`.
+        //
+        //  Wywołanie przyjmuje `Throwable`, więc obejmuje też wyjątki,
+        //  które framework zamienia sam (`ModelNotFoundException` → 404,
+        //  `AuthorizationException` → 403): Laravel woła te wywołania PO
+        //  `prepareException()`, na już zamienionym wyjątku.
+        // ------------------------------------------------------------------
+        $exceptions->render(function (Throwable $e, Request $request) {
+            return BledyApi::dotyczy($request) ? BledyApi::odpowiedz($e) : null;
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go

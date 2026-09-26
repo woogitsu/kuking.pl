@@ -70,8 +70,6 @@ final class CookRetentionCohorts
      */
     public function weekly(): Collection
     {
-        $wykluczeni = $this->eligibility->excludedUserIds();
-
         // Ta sama strefa co w `WeeklyActiveCooks` i z tego samego powodu —
         // patrz `Czas::wStrefieCzlowieka()`. Tydzień rejestracji i tydzień
         // aktywności MUSZĄ być liczone tak samo, bo `week_offset` to różnica
@@ -81,19 +79,18 @@ final class CookRetentionCohorts
 
         $userWeeks = User::query()
             ->select('id as user_id')
-            ->selectRaw("{$tydzienRejestracji}::date as signup_week")
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni))
-            ->toBase();
+            ->selectRaw("{$tydzienRejestracji}::date as signup_week");
+        $this->eligibility->tylkoLiczeni($userWeeks, 'users.id');
 
         $activityWeeks = DB::query()
-            ->fromSub($this->activity->unionQuery($wykluczeni), 'activity')
+            ->fromSub($this->activity->unionQuery($this->eligibility), 'activity')
             ->select('user_id')
             ->selectRaw("{$tydzienAktywnosci}::date as activity_week")
             ->groupBy('user_id')
             ->groupByRaw("{$tydzienAktywnosci}::date");
 
         return DB::query()
-            ->fromSub($userWeeks, 'uw')
+            ->fromSub($userWeeks->toBase(), 'uw')
             ->joinSub($activityWeeks, 'aw', function ($join): void {
                 $join->on('aw.user_id', '=', 'uw.user_id')
                     ->whereColumn('aw.activity_week', '>=', 'uw.signup_week');
@@ -124,14 +121,14 @@ final class CookRetentionCohorts
      */
     public function rozmiaryKohort(): Collection
     {
-        $wykluczeni = $this->eligibility->excludedUserIds();
-
         $tydzienRejestracji = "date_trunc('week', ".Czas::wStrefieCzlowieka('created_at').')';
 
-        return User::query()
+        $kohorty = User::query()
             ->selectRaw("{$tydzienRejestracji}::date as signup_week")
-            ->selectRaw('count(*) as ilu')
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni))
+            ->selectRaw('count(*) as ilu');
+        $this->eligibility->tylkoLiczeni($kohorty, 'users.id');
+
+        return $kohorty
             ->groupByRaw("{$tydzienRejestracji}::date")
             ->orderByRaw("{$tydzienRejestracji}::date")
             ->toBase()

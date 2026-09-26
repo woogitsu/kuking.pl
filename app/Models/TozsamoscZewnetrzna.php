@@ -46,6 +46,8 @@ use Illuminate\Support\Carbon;
  * @property string $dostawca
  * @property string $identyfikator
  * @property Carbon $connected_at
+ * @property Carbon|null $dostep_odebrany_at
+ * @property Carbon|null $zgoda_potwierdzona_at
  */
 class TozsamoscZewnetrzna extends Model
 {
@@ -78,6 +80,7 @@ class TozsamoscZewnetrzna extends Model
         return [
             'connected_at' => 'datetime',
             'dostep_odebrany_at' => 'datetime',
+            'zgoda_potwierdzona_at' => 'datetime',
         ];
     }
 
