@@ -25,6 +25,9 @@ final class BudzetAiNaDwochPolaczeniachTest extends TestDwochPolaczen
     protected function tearDown(): void
     {
         if ($this->dzien !== null) {
+            // Rezerwacje najpierw: `ai_rezerwacje.dzien` ma klucz obcy RESTRICT
+            // do `ai_budzet_dzienny` — w odwrotnej kolejności DELETE pada.
+            DB::table('ai_rezerwacje')->where('dzien', $this->dzien)->delete();
             DB::table('ai_budzet_dzienny')->where('dzien', $this->dzien)->delete();
         }
 
@@ -34,6 +37,7 @@ final class BudzetAiNaDwochPolaczeniachTest extends TestDwochPolaczen
     public function test_dwie_rownolegle_rezerwacje_nie_przekraczaja_dziennego_limitu(): void
     {
         $this->dzien = Czas::dzisiajData();
+        DB::table('ai_rezerwacje')->where('dzien', $this->dzien)->delete();
         DB::table('ai_budzet_dzienny')->where('dzien', $this->dzien)->delete();
         DB::table('ai_budzet_dzienny')->insert(['dzien' => $this->dzien, 'created_at' => now(), 'updated_at' => now()]);
 
