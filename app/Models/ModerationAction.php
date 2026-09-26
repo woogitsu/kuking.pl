@@ -237,6 +237,15 @@ class ModerationAction extends Model
         return $this->hasOne(Appeal::class)->where('appellant', Appeal::APPELLANT_REPORTER);
     }
 
+    /**
+     * Odwołanie, po którego uznaniu zapadła ta decyzja (#989). NULL przy
+     * decyzji ze zgłoszenia, z urzędu i przy przywróceniu treści.
+     */
+    public function sourceAppeal(): BelongsTo
+    {
+        return $this->belongsTo(Appeal::class, 'appeal_id');
+    }
+
     public function label(): string
     {
         return self::ETYKIETY[$this->action] ?? $this->action;
