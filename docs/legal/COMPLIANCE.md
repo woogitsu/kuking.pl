@@ -143,20 +143,50 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 
 ### 2.2 Tabela: cel przetwarzania | dane | podstawa prawna | retencja
 
-| Cel | Dane | Podstawa prawna (Art. 6 RODO) | Sugerowana retencja |
+**Kolumna retencji podaje wartość, którą dziś egzekwuje kod i publikuje
+`resources/legal/polityka-prywatnosci.md` — nie rekomendację ani placeholder.
+Gdzie decyzja jest wciąż otwarta (prawna albo produktowa), mówi to wprost i
+nie miesza się z liczbami wdrożonymi — pełna lista otwartych pytań jest w
+akapicie „Otwarte decyzje" pod tabelą.**
+
+| Cel | Dane | Podstawa prawna (Art. 6 RODO) | Retencja (wdrożona w kodzie) |
 |---|---|---|---|
-| Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta + [do ustalenia z prawnikiem, zwykle 30–90 dni] okres "soft delete" na wypadek pomyłki, potem trwałe usunięcie |
+| Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta. Po zgłoszeniu usunięcia konto wchodzi na **30 dni** w stan tymczasowy (`config('kuking.account.delete_grace_days')`, `PurgeExpiredAccountDeletions`), w którym da się je jeszcze przywrócić; po tym terminie następuje trwałe usunięcie/anonimizacja. Ta sama liczba dni co karencja usunięcia treści niżej (`docs/decyzje/ADR_RETENCJE.md` §5.7; `resources/legal/polityka-prywatnosci.md` §7 pkt 2) |
 | Profil publiczny (username, display name, bio, avatar) | dane podane dobrowolnie przez użytkownika | Art. 6(1)(b) — realizacja funkcji usługi, do której użytkownik się zapisał | Do usunięcia konta lub zmiany przez użytkownika |
 | Zdjęcia (oryginały i warianty) | piksele, EXIF w oryginale (data, model aparatu, GPS) | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia zdjęcia przez użytkownika **lub do usunięcia konta — wtedy kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) |
-| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika. Przy usunięciu konta **decyduje sam użytkownik** (D-022, `users.delete_scope`): domyślnie **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); po zaznaczeniu haczyka na ekranie usuwania konta tekst jest **kasowany na stałe** razem z wpisami, przepisami, komentarzami, wykonaniami i zeszytami; wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
+| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Usunięta przez autora treść znika z serwisu od razu, a z bazy — razem ze zdjęciami — najpóźniej **30 dni** po usunięciu (`config('kuking.usuniete_tresci.retention_days')`, `kuking:sprzataj-usuniete-tresci`, `docs/decyzje/ADR_RETENCJE.md` §5.7); wyjątek — treść objęta zgłoszeniem/moderacją czeka na retencję sprawy (wiersz niżej). Przy usunięciu konta **decyduje sam użytkownik** (D-022, `users.delete_scope`): domyślnie **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); po zaznaczeniu haczyka na ekranie usuwania konta tekst jest kasowany razem z wpisami, przepisami, komentarzami, wykonaniami i zeszytami. Limit historycznych wersji przepisu jest **otwartą decyzją produktową**, nie prawną — patrz „Otwarte decyzje" |
 | Relacje społecznościowe (follow, block) | ID obserwującego/obserwowanego | Art. 6(1)(b) | Do usunięcia relacji lub konta |
-| Zgłoszenia treści i moderacja | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo platformy) | Dłuższa niż dane samej treści — rekomendacja [do ustalenia z prawnikiem]: 12–24 miesiące od zamknięcia sprawy, dla obrony przed roszczeniami i nadzoru DSA |
-| Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
-| Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | Do usunięcia/przeczytania + rozsądny bufor |
-| Analityka produktowa (PostHog) | zdarzenia UI, w miarę możliwości bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes, **o ile** spełnione warunki testu równoważenia i **niezależnie** od wymogu zgody na poziomie ePrivacy dla cookies/localStorage (patrz sekcja 5) | Krótka, rekomendacja 6–14 miesięcy, zagregowane dane bez limitu |
+| Zgłoszenia treści i moderacja (`reports`, `moderation_actions`, `appeals`) | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie, treść odwołania | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes z pisemnym testem równowagi (bezpieczeństwo platformy, obrona przed roszczeniami) | **36 miesięcy** od zamknięcia sprawy (decyzji moderatora albo rozstrzygnięcia odwołania, jeśli je złożono) — `config('kuking.moderation.case_retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.3–§5.6. Dane kontaktowe zgłaszającego pozostają powiązane ze sprawą przez cały ten okres — to jest świadomie NIEZREALIZOWANA rekomendacja wcześniejszego skrócenia (ADR §6, §10), nie przeoczenie |
+| Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | **12 miesięcy** od zapisania wpisu — `config('kuking.audit_log.retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.1. Wyjątek: wpisy dokumentujące złożenie, cofnięcie albo wykonanie żądania usunięcia konta zostają **bezterminowo** jako dowód wykonania żądania (`AuditLogEntry::NIGDY_NIE_KASUJ`) |
+| Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | **3 miesiące** od otrzymania, niezależnie od tego, czy zostały przeczytane — `config('kuking.notifications.retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.2. Wyjątek: powiadomienia o decyzji moderacyjnej i o wyniku odwołania żyją do upływu terminu na odwołanie, **co najmniej 6 miesięcy** od decyzji (DSA art. 20 ust. 1) — `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` |
+| Analityka produktowa własna (`App\Domain\Analytics\*`, tabela `product_signals`) | zdarzenia techniczne (nieudane wgranie zdjęcia, wykonane wyszukiwanie), bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes w ulepszaniu serwisu | **90 dni** — `config('kuking.analytics.signal_retention_days')`, `kuking:sprzataj-sygnaly` (issue #115, decyzja sprzed tego ADR-u — poza jego zakresem, patrz `docs/decyzje/ADR_RETENCJE.md` §7). **PostHog nigdy nie został wdrożony i nie wraca do rozważenia** (D-092) — poprzednia wersja tego wiersza go wymieniała błędnie, jako zamiar, nie stan |
 | Analityka odwiedzin (Cloudflare Web Analytics, **wdrożone** 10.09.2026 — D-092) | adres odsłoniętej strony i adres źródła wejścia (oba **bez query stringu** — skrypt czyści `search`, `hash`, `username` i `password`), rodzaj i wersja przeglądarki, czasy wczytania (Web Vitals), kraj doliczany przez Cloudflare z samego połączenia; **bez** ciasteczek, **bez** zapisu na urządzeniu, identyfikator odsłony losowany w pamięci na jedno wczytanie strony | Art. 6(1)(f) — uzasadniony interes (wiedza, czy serwis komukolwiek się przydaje); ePrivacy/PKE nie wchodzi w grę, bo nie ma zapisu ani odczytu na urządzeniu (sekcja 5.5) | Po stronie Cloudflare, agregaty bez limitu; my nie trzymamy kopii |
-| Błędy aplikacji (Sentry) | stack trace, czasem fragmenty requestu — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | Rekomendacja 30–90 dni; **skonfigurować scrubbing PII w Sentry (data scrubbing rules) przed startem** |
+| Błędy aplikacji | stack trace, czasem fragmenty żądania — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | **Sentry nie jest dziś wdrożone** (D-041 w `docs/DECISIONS.md` — zamiar na roadmapie, nie stan; zob. też wiersz „Monitoring" w tabeli Stack `AGENTS.md` §3) — błędy trafiają wyłącznie do dziennika serwera, który żyje tyle, ile działająca instancja (`resources/legal/polityka-prywatnosci.md`, wiersz „Wykrywanie i naprawa błędów technicznych"), bez ustalonego zewnętrznego okresu retencji. Gdyby Sentry albo inne narzędzie zewnętrzne weszło do użycia, ten wiersz i reguły scrubbingu PII wymagają aktualizacji PRZED startem, nie po |
 | Newsletter/e-mail transakcyjny (reset hasła, powiadomienia) | e-mail, treść wiadomości | Art. 6(1)(b) dla e-maili transakcyjnych; Art. 6(1)(a) zgoda dla e-maili marketingowych, jeśli takie się pojawią | Jak konto / do wycofania zgody |
+
+### Otwarte decyzje (prawne i produktowe) — NIE są dzisiejszą retencją
+
+Poniższe punkty **nie mają dziś wdrożonej liczby** i nie wolno ich czytać
+jako wiersz tabeli wyżej — każdy wymaga osobnej decyzji właściciela (i tam,
+gdzie zaznaczone, opinii prawnika), zanim trafi do polityki prywatności:
+
+- **Maksymalny czas życia kopii zapasowej bazy danych** po usunięciu wiersza
+  źródłowego — decyzja infrastrukturalna (Railway/`pg_dump`/harmonogram
+  backupów), poza zakresem retencji na poziomie aplikacji (`docs/decyzje/ADR_RETENCJE.md` §7, sekcja 2.8 niżej).
+- **Limit historycznych wersji przepisu** (`recipe_versions`) — kod dziś nie
+  narzuca żadnego limitu; czy w ogóle jest potrzebny i jaki, to decyzja
+  produktowa (`docs/decyzje/ADR_RETENCJE.md` §7).
+- **Podział retencji `reports` według `source`** (`community` vs.
+  `legal_notice`) — zostawiony jako opcja do rozważenia, nie decyzja
+  (`docs/decyzje/ADR_RETENCJE.md` §6, §7).
+- **Wcześniejsze usunięcie/redakcja danych kontaktowych zgłaszającego** (przed
+  upływem pełnych 36 miesięcy sprawy) — rekomendacja zewnętrznej oceny
+  prawnej świadomie NIEZREALIZOWANA w tej turze (`docs/decyzje/ADR_RETENCJE.md`
+  §5.6 pkt 4, 6, §10).
+- **Klasyfikacja danych szczególnych kategorii** (RODO Art. 9/10) w wolnym
+  tekście zgłoszeń i uzasadnień moderacyjnych — wymaga osobnej oceny prawnej,
+  kod dziś takich danych nie rozpoznaje (`docs/decyzje/ADR_RETENCJE.md` §5.6
+  pkt 8).
 
 **Dlaczego zdjęcia i tekst są tu rozdzielone** (D-018, audyt W4-01): tekst
 przepisu po podmianie podpisu przestaje być danymi osobowymi. Zdjęcie nie —
@@ -189,16 +219,21 @@ kilkanaście commitów; szczegóły i pomiar: `docs/DATABASE.md`, sekcja
 Każdy z poniższych podmiotów jest **procesorem** i wymaga **umowy powierzenia przetwarzania danych (DPA — data processing agreement, Art. 28 RODO)**:
 
 - **Railway** (hosting, PostgreSQL) — sprawdzić lokalizację centrów danych (deklarowane UE) i czy Railway oferuje standardową umowę DPA; jeśli infrastruktura Railway w praktyce korzysta z podwykonawców spoza UE (np. AWS/GCP regiony), potrzebne są **standardowe klauzule umowne (SCC)** — [do weryfikacji bezpośrednio w dokumentacji Railway, to się zmienia].
-- **Cloudflare R2 / S3** — podobnie: DPA + sprawdzić region bucketa (wymusić EU region), Cloudflare ma globalny DPA dostępny z poziomu panelu.
-- **Sentry** — DPA dostępny standardowo (Sentry/Functional Software Inc. — spółka US, ale oferuje hosting UE — **wybrać explicit region UE przy konfiguracji projektu** i podpiąć SCC).
-- **PostHog** — dostępny w wariancie **PostHog Cloud EU** (Frankfurt) — **wybrać ten wariant**, nie US-cloud, żeby uniknąć transferu poza EOG.
+- **Cloudflare** (R2, CDN/WAF, Web Analytics — wszystkie **wdrożone**, D-092, `docs/infra/INFRA_DECISION.md`) — podobnie: DPA + sprawdzić region bucketa R2 (wymusić EU region), Cloudflare ma globalny DPA dostępny z poziomu panelu.
 - **Dostawca poczty transakcyjnej** (np. Postmark/SES/Resend) — sprawdzić region wysyłki i DPA; e-maile zawierają dane osobowe (adres, czasem treść powiadomienia) więc też wymagają DPA.
+
+**Sentry i PostHog nie są tu wymienione, bo żadne z nich nie jest wdrożone.**
+Sentry stoi jako zamiar na roadmapie (D-041, `docs/DECISIONS.md`) — gdyby
+kiedyś wszedł do użycia, ten akapit i tabela wyżej wymagają aktualizacji
+PRZED startem, nie po. PostHog był rozważony i **odrzucony trwale** na rzecz
+Cloudflare Web Analytics (D-092) — „nie wraca do rozważenia" jest dosłownym
+sformułowaniem tej decyzji, nie tylko obecnym stanem.
 
 **Rekomendacja:** prowadzić prostą tabelę "Rejestr podprocesorów" (nazwa, cel, kraj/region, czy jest DPA podpisane, czy dane opuszczają EOG) — to samo w sobie ułatwia odpowiedź na pytania klientów/regulatora i jest dobrą praktyką nawet bez formalnego obowiązku publikacji takiej listy.
 
 ### 2.4 Transfery poza EOG
 
-Domyślnie: **unikać**. Wybierać regiony UE we wszystkich usługach (Railway, R2, Sentry, PostHog — wszystkie mają opcję UE). Jeśli jakikolwiek podprocesor jest spółką z siedzibą w USA (np. Sentry, część dostawców e-mail), nawet przy hostowaniu danych w UE **transfer może zachodzić** przez dostęp zdalny/wsparcie techniczne — od 2023 r. wielu dostawców USA jest certyfikowanych w ramach **EU-US Data Privacy Framework (DPF)**, co jest uznaną podstawą transferu — **sprawdzić certyfikację DPF konkretnego dostawcy przed podpisaniem umowy** [do weryfikacji per dostawca, lista certyfikowanych firm jest publiczna na stronie dataprivacyframework.gov].
+Domyślnie: **unikać**. Wybierać regiony UE we wszystkich usługach dziś w użyciu (Railway, Cloudflare R2/CDN/Web Analytics — wszystkie mają opcję UE). Jeśli jakikolwiek podprocesor jest spółką z siedzibą w USA (np. część dostawców e-mail), nawet przy hostowaniu danych w UE **transfer może zachodzić** przez dostęp zdalny/wsparcie techniczne — od 2023 r. wielu dostawców USA jest certyfikowanych w ramach **EU-US Data Privacy Framework (DPF)**, co jest uznaną podstawą transferu — **sprawdzić certyfikację DPF konkretnego dostawcy przed podpisaniem umowy** [do weryfikacji per dostawca, lista certyfikowanych firm jest publiczna na stronie dataprivacyframework.gov].
 
 ### 2.5 DPIA (ocena skutków dla ochrony danych)
 
@@ -227,9 +262,9 @@ Prawdopodobnie **niewymagana obowiązkowo** dla podstawowego zakresu Kuking MVP 
 
 ### 2.8 Retencja i usuwanie konta
 
-- Zaprojektować **hard delete** po okresie karencji (rekomendacja: 30 dni "pending_delete" — kolumna `status` w schemacie już to przewiduje) — w tym czasie użytkownik może cofnąć decyzję.
-- Po 30 dniach: usunięcie/anonimizacja danych osobowych, natomiast **treści z realną wartością społeczną (np. przepis, do którego inni się odwoływali) mogą zostać zachowane w formie zanonimizowanej** ("autor: konto usunięte") — to standardowa praktyka portali społecznościowych, ale **musi być jasno opisana w regulaminie i polityce prywatności**, żeby nie zaskoczyć użytkownika.
-- **Backupy bazy danych** zawierają dane osobowe do czasu rotacji backupu — polityka prywatności musi podać maksymalny czas życia backupu (np. "usunięte dane mogą pozostawać w kopiach zapasowych do X dni") — to częsty błąd pomijany w politykach prywatności małych serwisów.
+- **Wdrożone, nie rekomendacja:** hard delete po **30 dniach** karencji (`config('kuking.account.delete_grace_days')`, `PurgeExpiredAccountDeletions`) — w tym czasie użytkownik może cofnąć decyzję. Patrz tabela w §2.2.
+- Po 30 dniach: usunięcie/anonimizacja danych osobowych, natomiast **treści z realną wartością społeczną (np. przepis, do którego inni się odwoływali) mogą zostać zachowane w formie zanonimizowanej** ("autor: konto usunięte") — to jest wdrożone i opisane w regulaminie i polityce prywatności (D-018, D-022 — patrz tabela w §2.2, wiersz „Treść tekstowa").
+- **OTWARTE, nie rozstrzygnięte kodem: maksymalny czas życia kopii zapasowej bazy danych.** Backupy zawierają dane osobowe do czasu rotacji backupu — to jest decyzja infrastrukturalna (Railway/`pg_dump`/harmonogram), poza zasięgiem retencji na poziomie aplikacji (`docs/decyzje/ADR_RETENCJE.md` §7). Polityka prywatności dziś **nie podaje** maksymalnego czasu życia backupu — to musi zostać ustalone i opisane osobno, zanim dokument twierdzi inaczej.
 
 ---
 
