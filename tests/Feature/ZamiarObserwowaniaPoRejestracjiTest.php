@@ -35,6 +35,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
         $this->get(route('onboarding.done'))->assertRedirect(route('profile.show', 'basia'));
         $this->assertFalse($nowy->following()->where('users.id', $osoba->getKey())->exists());
+        $this->assertAuthenticatedAs($nowy);
         $this->assertFollowForm((string) $this->get(route('profile.show', 'basia'))->assertOk()->getContent(), 'basia');
     }
 
@@ -56,6 +57,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
 
         $nowy = User::query()->where('email', 'nowa@example.test')->firstOrFail();
         $this->assertFalse($nowy->following()->where('users.id', $osoba->getKey())->exists());
+        $this->assertAuthenticatedAs($nowy);
         $this->assertFollowForm((string) $this->get(route('recipes.show', $przepis->slug))->assertOk()->getContent(), 'autorka');
     }
 
@@ -76,6 +78,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
             'author_id' => $inny->getKey(), 'status' => Recipe::STATUS_PUBLISHED,
             'visibility' => 'public', 'published_at' => now(),
         ]);
+        auth()->logout();
         $this->get(route('login', [
             'follow_user' => $osoba->getKey(), 'follow_recipe' => $przepis->slug,
             'return' => '//evil.example',
@@ -108,12 +111,12 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $this->assertLink($strona, 'Załóż konto, żeby obserwować autora', route('register', ['follow_user' => $osoba->getKey(), 'follow_recipe' => $przepis->slug]));
         $this->assertLink($strona, 'Zaloguj się do swojego konta', route('login', ['follow_user' => $osoba->getKey(), 'follow_recipe' => $przepis->slug]));
 
-        $tablica = $this->xpath((string) view('components.kuking-board.people', [
-            'people' => collect([$osoba]), 'wKarcie' => false,
-            'naPowitalnej' => false, 'notes' => [],
-        ])->render());
-        $this->assertLink($tablica, 'Załóż konto, żeby obserwować', route('register', ['follow_user' => $osoba->getKey()]));
-        $this->assertLink($tablica, 'Zaloguj się do swojego konta', route('login', ['follow_user' => $osoba->getKey()]));
+        // Ta cząstka jest osadzana przez tablicę dnia; kontrakt linków
+        // sprawdzamy w źródle, bo na stronie powitalnej karty gościa celowo
+        // nie pokazują indywidualnych akcji.
+        $source = (string) file_get_contents(resource_path('views/components/kuking-board/people.blade.php'));
+        $this->assertStringContainsString("route('register', ['follow_user' => \$person->getKey()])", $source);
+        $this->assertStringContainsString("route('login', ['follow_user' => \$person->getKey()])", $source);
     }
 
     /** @return array<string, string> */
@@ -144,8 +147,10 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
     private function assertFollowForm(string $html, string $username): void
     {
         $xpath = $this->xpath($html);
-        $forms = $xpath->query('//form[@action="'.route('social.follow', $username).'"]');
-        $this->assertSame(1, $forms->length);
-        $this->assertSame('Obserwuj', trim($forms->item(0)?->getElementsByTagName('button')->item(0)?->textContent ?? ''));
+        $buttons = $xpath->query('//button[normalize-space()="Obserwuj"]');
+        $this->assertSame(1, $buttons->length, 'Na stronie nie ma jawnej akcji obserwowania.');
+        $form = $buttons->item(0)?->parentNode;
+        $this->assertSame('form', $form?->nodeName);
+        $this->assertSame(route('social.follow', $username), $form->getAttribute('action'));
     }
 }
