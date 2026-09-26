@@ -61,6 +61,7 @@ class IdentyfikatoryNaStronieSaUnikalneTest extends TestCase
             'profil' => ['settings.profile'],
             'zdjęcie profilowe' => ['settings.avatar'],
             'prywatność' => ['settings.privacy'],
+            'urodziny' => ['settings.birthday'],
             'dostępność' => ['settings.accessibility'],
             'dane' => ['settings.data'],
         ];
