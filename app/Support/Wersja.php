@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Wersja aplikacji pokazywana w stopce.
@@ -43,6 +45,15 @@ use Carbon\CarbonImmutable;
  * klasę wyjątku, plik:linię i wzorzec trasy — bez numeru wydania. Powiązanie
  * zgłoszenia z commitem robi się dziś ręcznie, przez stopkę, i to jest jedyny
  * powód, dla którego ten skrót w ogóle w niej stoi.
+ *
+ * KOŃCÓWKA WDROŻENIA — „.005" PO ETYKIECIE (issue #1932, D-318)
+ * Etykieta sama w sobie stoi tygodniami. Między dwoma jej podbiciami ląduje
+ * na produkcji po kilkanaście wdrożeń dziennie, a stopka nie miała jak ich
+ * rozróżnić — dwa różne wdrożenia tego samego dnia wyglądały identycznie,
+ * dopóki ktoś nie porównał skrótów commitów z pamięci. `etykietaZNumerem()`
+ * dokłada więc numer kolejny w dzienniku `wdrozenia`, liczony PRZEZ
+ * `kuking:zarejestruj-wdrozenie` w kroku wdrożenia (`.railway/railway.ts`),
+ * nie przez tę klasę — `Wersja` tylko CZYTA już zapisaną wartość, z cache'em.
  */
 final class Wersja
 {
@@ -59,7 +70,7 @@ final class Wersja
      */
     public static function pelna(): string
     {
-        return self::etykieta().' · '.self::opisWydania();
+        return self::etykietaZNumerem().' · '.self::opisWydania();
     }
 
     /**
@@ -136,6 +147,34 @@ final class Wersja
     }
 
     /**
+     * Kotwica strony „Co nowego” (`nowosci.index`) dla BIEŻĄCEGO wydania —
+     * issue #1909: kliknięcie wersji w stopce ma otworzyć tę stronę OD RAZU
+     * przy opisie wydania, na które ktoś patrzy, nie od góry dokumentu.
+     *
+     * `resources/nowosci/tresc.md` ma nagłówek `## Alfa 0.68` dla tego
+     * wydania — BEZ podtytułu w samym nagłówku (podtytuł stoi zdaniem pod
+     * nim), właśnie po to, żeby jego kotwica dała się policzyć z SAMEJ
+     * etykiety. Liczymy ją algorytmem slugów GitHuba (GFM), tym samym, co
+     * `tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php` używa do
+     * sprawdzania odnośników we WSZYSTKICH plikach `.md` repozytorium —
+     * ten plik nie jest wyjątkiem, więc kotwica MUSI się z nim zgadzać,
+     * inaczej ten ogólny strażnik i ten, węższy, przestają się zgadzać.
+     * Algorytm: małe litery, spacja → myślnik, potem zostają tylko litery
+     * (Unicode), cyfry, myślniki i podkreślenia — reszta (kropka, myślnik
+     * długi…) znika BEZ ZASTĘPCZEGO ZNAKU. „Alfa 0.68” → „alfa-068”.
+     *
+     * Nie używamy tu skrótu `Str::slug()` z innym zachowaniem separatorów —
+     * ważne jest, żeby dać DOKŁADNIE ten sam wynik co test wyżej, nie
+     * „podobny”.
+     */
+    public static function kotwicaWydania(): string
+    {
+        $wynik = SlugGfm::z(self::etykieta());
+
+        return $wynik !== '' ? $wynik : 'najnowsze-zmiany';
+    }
+
+    /**
      * PEŁNY SHA wdrożonego commita albo `null`, gdy nic nie wdrożono.
      *
      * Dla maszyn (`/wydanie`, test dymny po wdrożeniu — issue #1012), nie dla
@@ -159,5 +198,68 @@ final class Wersja
         }
 
         return substr($commit, 0, self::DLUGOSC_SKROTU);
+    }
+
+    /**
+     * Etykieta z KOŃCÓWKĄ wdrożenia, np. „Alfa 0.68.005" — issue #1932,
+     * D-318. Bez wiersza w `wdrozenia` dla bieżącego commita (lokalnie,
+     * w testach, przy awarii bazy albo przed pierwszym uruchomieniem
+     * `kuking:zarejestruj-wdrozenie` na tym commicie) zostaje SAMA etykieta,
+     * bez błędu — dokładnie ten sam wybór co przy braku znacznika daty.
+     *
+     * CELOWO NIE JEST TYM, CO ZWRACA `etykieta()`. `etykieta()` musi
+     * zostać czystą wartością z `config/kuking.php` — czyta ją dosłownie
+     * `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując z nagłówkiem
+     * CHANGELOG-a w formacie `Alfa 0.N` / `Beta 0.N`, BEZ końcówki. Gdyby
+     * `etykieta()` doklejała numer, ten strażnik przestałby cokolwiek
+     * sprawdzać.
+     */
+    public static function etykietaZNumerem(): string
+    {
+        $numer = self::numerWdrozenia();
+
+        if ($numer === null) {
+            return self::etykieta();
+        }
+
+        return self::etykieta().'.'.str_pad((string) $numer, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Końcówka wdrożenia (`wdrozenia.numer`) dla BIEŻĄCEGO commita, albo
+     * `null`, gdy nie wiadomo (brak commita, brak wiersza, baza
+     * niedostępna). Z CACHE'M — ta metoda woła się z KAŻDEJ stopki, na
+     * każdej stronie serwisu, więc bez cache'u byłoby to jedno dodatkowe
+     * zapytanie do bazy na każde żądanie, na zawsze (issue #1932 wprost
+     * tego wymaga: „stopka … z cache").
+     *
+     * Klucz cache'u niesie sam commit — inny commit (nowe wdrożenie) sam
+     * unieważnia poprzedni wpis, bez ręcznego czyszczenia. TTL jest długi
+     * (commit się przecież nie zmienia pod tym samym wdrożeniem), ale
+     * SKOŃCZONY: gdyby coś zarejestrowało wiersz PO tym, jak ta metoda już
+     * raz zwróciła `null` i to zapisała w cache'u (np. wyścig przy starcie),
+     * błąd naprawia się sam po wygaśnięciu, bez restartu procesu.
+     *
+     * BRAK TABELI/BAZY NIE WYWALA STOPKI — ten sam wybór co przy
+     * `dataWydania()`: uszkodzone albo niedostępne źródło ma zabrać jedną
+     * informację, nie całą stronę (łącznie ze stroną logowania).
+     */
+    public static function numerWdrozenia(): ?int
+    {
+        $commit = self::commit();
+
+        if ($commit === null) {
+            return null;
+        }
+
+        try {
+            return Cache::remember('kuking:wersja:numer:'.$commit, now()->addMinutes(10), static function () use ($commit): ?int {
+                $numer = DB::table('wdrozenia')->where('commit', $commit)->value('numer');
+
+                return is_int($numer) ? $numer : (is_numeric($numer) ? (int) $numer : null);
+            });
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

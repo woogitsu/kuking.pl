@@ -5411,3 +5411,111 @@ Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
 trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
 nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
 warunek przestał trafiać w jakikolwiek wiersz.
+
+## `wdrozenia` i `wdrozenia_funkcje` — numer wersji z końcówką (issue #1932, D-318)
+
+Dwie tabele odpowiadają na dwa różne pytania.
+
+### `wdrozenia`
+
+„Które wdrożenie to było" — jeden wiersz na KAŻDY commit, który realnie
+trafił na produkcję pod daną etykietą.
+
+- `id bigint` (bigincrements) — tabela wewnętrzna (dziennik operacyjny), nie
+  encja publiczna, więc bez UUID — ten sam wybór co `audit_log.id`;
+- `commit varchar(40) NOT NULL UNIQUE` — pełny SHA-1 gita
+  (`RAILWAY_GIT_COMMIT_SHA`, patrz `App\Support\Wersja::commit()`). UNIQUE
+  daje idempotencję: ten sam commit zarejestrowany drugi raz (redeploy bez
+  zmiany kodu) nie zakłada drugiego wiersza;
+- `etykieta varchar(40) NOT NULL` — `kuking.wersja.etykieta` w chwili
+  rejestracji, np. „Alfa 0.68". Etap produktu podbija się ręcznie i rzadko —
+  ta kolumna jest jego migawką, nie referencją na żywo;
+- `numer int NOT NULL` — kolejny numer wdrożenia POD TĄ ETYKIETĄ, liczony
+  jako `MAX(numer) WHERE etykieta = ?) + 1`. Wraca do 1 przy KAŻDEJ nowej
+  etykiecie (podbicie dużego numeru, AGENTS.md §3);
+- `created_at timestamptz`;
+- `UNIQUE (etykieta, numer)` — niezmiennik z drugiej strony: nawet gdyby
+  blokada doradcza w akcji (niżej) kiedyś przestała działać, baza nie
+  przyjmie dwóch wierszy z tym samym numerem pod tą samą etykietą.
+
+**Bezpieczeństwo przy równoległym starcie.** `numer` liczy
+`App\Domain\Wydania\Actions\ZarejestrujWdrozenie::handle()` wewnątrz
+`DB::transaction()`, która NAJPIERW bierze
+`pg_advisory_xact_lock(hashtext($etykieta))` — dwa równoległe starty (np.
+redeploy uruchomiony tuż po poprzednim) nie mogą dać tego samego numeru:
+drugi czeka na zwolnienie blokady (koniec transakcji pierwszego) i dopiero
+wtedy liczy `MAX` na nowo. Test na dwóch prawdziwych połączeniach:
+`tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`.
+
+**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie`, wpięta
+w `.railway/railway.ts` (`preDeployCommand`) zaraz po `php artisan migrate
+--force` — patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie i w podglądach
+bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu, nic nie zapisując.
+
+**Kto czyta.** `App\Support\Wersja::numerWdrozenia()` — dla BIEŻĄCEGO
+commita, z cache'em (10 minut, klucz niesie commit), bo metoda woła się
+z KAŻDEJ stopki na KAŻDEJ stronie. Brak wiersza (lokalnie, w testach, przy
+awarii bazy) daje `null` bez błędu — `Wersja::etykietaZNumerem()` wraca
+wtedy do samej etykiety, bez końcówki.
+
+### `wdrozenia_funkcje`
+
+„Pod jakim numerem funkcja pojawiła się PIERWSZY RAZ" — jeden wiersz na
+KAŻDY nagłówek `###`, zapisywany, póki jeszcze stoi w sekcji
+„## Najnowsze zmiany" pliku `resources/nowosci/tresc.md` (strona „Co
+nowego", issue #1909), i czytany PÓŹNIEJ niezależnie od tego, w której
+sekcji ten sam nagłówek dziś stoi (D-318, dopisek).
+
+- `id bigint` (bigincrements);
+- `etykieta varchar(40) NOT NULL`;
+- `naglowek_slug varchar(160) NOT NULL` — slug GFM nagłówka
+  (`App\Support\SlugGfm`, ten sam algorytm co kotwice wydań #1909). Strona
+  dopasowuje po slugu, nie po pełnym tekście — dopisanie zdania do akapitu
+  nie tworzy nowego wiersza (patrz niżej);
+- `naglowek_tekst varchar(300) NOT NULL` — pełny tekst nagłówka, do
+  czytelności w bazie i diagnozy;
+- `numer int NOT NULL` — numer wdrożenia (z `wdrozenia.numer`), pod którym
+  ten nagłówek pojawił się PIERWSZY RAZ, pod etykietą zapisaną OBOK niego
+  w tym samym wierszu (patrz niżej);
+- `created_at timestamptz`;
+- `UNIQUE (naglowek_slug)` — jeden wiersz na nagłówek W CAŁEJ TABELI, NIE
+  na parę (etykieta, slug). **Decyzja właściciela z 26 września 2026
+  (D-318, dopisek):** dopisek „od …" zostaje NA STAŁE, także gdy nagłówek
+  przechodzi z „## Najnowsze zmiany" do sekcji nazwanego wydania (np.
+  „## Alfa 0.69") — nagłówek trzyma tekst (i slug) bez zmian przy
+  przenosinach, więc slug sam w sobie jest kluczem trwałym, niezależnym od
+  etykiety, pod którą wiersz akurat powstał. Zapis idzie przez
+  `INSERT ... ON CONFLICT (naglowek_slug) DO NOTHING`: nagłówek widziany już
+  wcześniej — czy to pod TĄ SAMĄ etykietą (dopisano kolejne zdanie do tego
+  samego akapitu i wdrożono ponownie), czy pod WCZEŚNIEJSZĄ etykietą sprzed
+  podbicia dużego numeru — NIE dostaje nowego, późniejszego numeru: zostaje
+  przy numerze i etykiecie pierwszego pojawienia. To jest sens
+  „od Alfa 0.68.NNN": data pierwszego pojawienia się, nie data ostatniej
+  edycji ani bieżąca etykieta aplikacji.
+
+**Kto zapisuje.** Ta sama komenda i ta sama transakcja co `wdrozenia` —
+`ZarejestrujWdrozenie::handle()` zapisuje NOWE nagłówki zaraz po wstawieniu
+wiersza `wdrozenia`, w tej samej transakcji, więc obie tabele albo obie się
+zmieniają, albo żadna. Skanuje WYŁĄCZNIE sekcję „## Najnowsze zmiany" —
+celowo NIE sekcje wydań: tabela była pusta w chwili wdrożenia tej funkcji,
+więc skanowanie już wydanych sekcji przypisałoby świeżo policzony numer
+funkcjom sprzed tygodni (patrz komentarz klasy `ZarejestrujWdrozenie`).
+Trwałość dopisku przy przenosinach nagłówka do sekcji wydania załatwia sam
+slug (wyżej), nie ponowne skanowanie.
+
+**Kto czyta.** `NowosciController` — dla KAŻDEGO nagłówka `###` w CAŁYM
+dokumencie (nie tylko w „## Najnowsze zmiany" — patrz decyzja właściciela
+wyżej), którego slug ma wiersz w tabeli, dokleja kursywną linijkę
+„_od {etykieta}.{numer}_", biorąc etykietę i numer Z TEGO WIERSZA, nie
+bieżącą etykietę aplikacji. Brak wiersza nie wywala strony — nagłówek
+zostaje bez dopisku (to dotyczy też nagłówków z wydań SPRZED wprowadzenia
+tej funkcji, #1932 — nikt im nie przypisuje numeru wstecznie).
+
+### Rollback (D-088)
+
+`down()` obu tabel ODMAWIA, gdy którakolwiek ma choć jeden wiersz: numer
+wdrożenia jest już POKAZANY ludziom (stopka, „od Alfa 0.68.NNN"), a cofnięcie
+migracji na wypełnionej bazie i kolejny `migrate` zacząłby liczyć numery od 1
+dla każdej etykiety, mieszając je ze starymi. Na świeżej bazie (obie tabele
+puste) `down()` przechodzi bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.

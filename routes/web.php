@@ -40,6 +40,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
@@ -144,6 +145,14 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+ * „CO NOWEGO" — issue #1909. Wersja w stopce (`App\Support\Wersja`) linkuje
+ * tutaj, z kotwicą bieżącego wydania (`Wersja::kotwicaWydania()`). Publiczna
+ * jak reszta stron statycznych wyżej — bez `Policy`, bo nie ma tu cudzego
+ * zasobu do chronienia.
+ */
+Route::get('/co-nowego', [NowosciController::class, 'index'])->name('nowosci');
 
 /*
 |--------------------------------------------------------------------------

@@ -401,6 +401,27 @@ zostają świadomie bez strażnika (uzasadnienie w D-088).
 **Nigdy nie wykonuj destrukcyjnych operacji na produkcyjnej bazie
 bez jawnej zgody właściciela.**
 
+### Numer wersji: DUŻY numer ręcznie, KOŃCÓWKA sama (issue #1932, D-318)
+
+`kuking.wersja.etykieta` w `config/kuking.php` (np. „Alfa 0.68") to DUŻY
+numer wydania — podbijasz go RĘCZNIE, w Pull Requeście, razem z wpisem na
+górze `CHANGELOG.md` (pilnuje tego
+`tests/Feature/PodbicieWersjiWymagaWpisuWChangelogTest.php`). Zasada, KIEDY
+go podbić, stoi w komentarzu nad samą wartością w `config/kuking.php`: przy
+każdej zmianie, którą człowiek ZOBACZY — nowy ekran, zmieniony układ, nowa
+funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie (testy,
+refaktor, dokumentacja) go nie ruszają.
+
+KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
+ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
+dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, wpięta
+w krok `preDeployCommand` obok `migrate`). Gdy podbijasz DUŻY numer, końcówka
+WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
+dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
+wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,
+tabele i bezpieczeństwo przy równoległym starcie: `docs/DATABASE.md`
+(sekcja „`wdrozenia` i `wdrozenia_funkcje`") i D-318.
+
 ---
 
 ## 7. Bezpieczeństwo
@@ -628,7 +649,19 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
+  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
+  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
+  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
+  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
+  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
+  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
+  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
+  nowego” pod numerem wersji w stopce. Pilnuje tego
+  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
+  z issue #1909).
 
 ### Bugfix zawsze zawiera test regresyjny
 

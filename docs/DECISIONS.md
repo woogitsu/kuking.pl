@@ -18095,6 +18095,142 @@ obserwowanie i komentarz dalej są odbijane.
 ### Wycofanie
 Usunąć cztery nazwy tras z listy w `EnsureAccountIsActive`. Schemat bazy się
 nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
+
+## D-317 — Strona „Co nowego”: osobny opis dla czytelników, oznaczenie „nowa funkcja” w CHANGELOGU (issue #1909, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+Wersja w stopce (`App\Support\Wersja`, D-051) mówi CO jest wdrożone
+(etap, data, skrót commita), ale nie mówi, co to NAPRAWDĘ zmienia dla
+człowieka. `CHANGELOG.md` to ma, ale pisze do wszystkich zmian naraz,
+technicznym tonem repozytorium, i nie jest z niczego wprost linkowany.
+
+### Decyzja właściciela
+1. **Osobna, publiczna strona** `/co-nowego` (nazwa trasy `nowosci`),
+   pod adresem, do którego prowadzi kliknięcie wersji w stopce. Treść leży
+   w `resources/nowosci/tresc.md` — jeden plik z sekcjami na wydania,
+   renderowany tym samym bezpiecznym Markdownem co `resources/legal/*.md`
+   (wydzielonym do `App\Support\ZaufanyMarkdown`), bez JavaScriptu.
+2. **Podział na wydania „Alfa 0.xx”**, z sekcją „Najnowsze zmiany” na
+   górze — to, co już działa, a nie ma jeszcze numeru wydania (odpowiednik
+   sekcji „## Nieopublikowane” w CHANGELOGU). Kliknięcie wersji w stopce
+   otwiera stronę przy kotwicy BIEŻĄCEGO wydania
+   (`App\Support\Wersja::kotwicaWydania()`), nie od góry dokumentu.
+3. **CHANGELOG.md zostaje pełną, techniczną listą zmian.** Strona nowości
+   ma OSOBNY, krótki opis pisany dla czytelników, nie automat z CHANGELOGU:
+   nowa funkcja jest rozpisana (gdzie ją znaleźć, jak działa, co daje),
+   a poprawki, zmiany kosmetyczne i porządek za kulisami są zebrane w jedno
+   zdanie na wydanie.
+4. **Strona jest publiczna**, widoczna także dla gości — jak `/zasady`
+   i `/regulamin`. Bez `Policy`: nie ma tu cudzego zasobu do chronienia.
+5. **Oznaczenie „nowa funkcja” w CHANGELOGU.** Najmniej uciążliwy sposób:
+   dopisek `[nowa funkcja]` na końcu wiersza, tylko przy wpisach, które
+   dostają rozpisany akapit na stronie nowości. Bez osobnej kolumny, bez
+   drugiego pliku. Zasada trafiła do `AGENTS.md` §10 („Pull Request
+   zawiera”): PR z takim wpisem w sekcji „## Nieopublikowane” musi mieć
+   odpowiadający akapit (`### ...`) w sekcji „## Najnowsze zmiany” pliku
+   nowości — i odwrotnie.
+
+### Dowody
+`tests/Feature/StronaCoNowegoTest.php` (200 gościowi, stopka linkuje
+z kotwicą bieżącego wydania, kotwica istnieje, spis wydań prowadzi do
+kotwic) i `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+(kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`: zdjęcie znacznika
+`[nowa funkcja]` z CHANGELOGA ma zapalić strażnika).
+
+### Wycofanie
+Usunąć trasę `nowosci`, kontroler, plik treści i odnośnik w stopce (wraca
+do zwykłego `<span>`). CHANGELOG.md nie traci nic — dopiski
+`[nowa funkcja]` zostają nieszkodliwym tekstem, jeśli nikt ich nie sprząta.
+Schemat bazy się nie zmienia.
+
+## D-318 — Numer wersji z końcówką wdrożenia: dziennik `wdrozenia` w bazie, nie licznik z gita (issue #1932, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+`App\Support\Wersja::etykieta()` („Alfa 0.68") podbija się ręcznie, przy
+większych zmianach — stoi tygodniami bez ruchu. Między dwoma podbiciami
+ląduje na produkcji po kilkanaście wdrożeń dziennie, a stopka i strona
+„Co nowego" (D-317) nie miały jak ich rozróżnić: dwa różne wdrożenia tego
+samego dnia wyglądały identycznie, dopóki ktoś nie porównał skrótów commitów
+z pamięci.
+
+### Decyzja właściciela
+1. **Format wersji:** `Alfa 0.69.001`. Duży numer (`0.69`, `0.70`…) podbija
+   się ręcznie, przy większych zmianach — zasada się nie zmienia
+   (`config/kuking.php`, komentarz nad `wersja.etykieta`, AGENTS.md §3).
+   Końcówka `.001`, `.002`, `.003`… rośnie SAMA przy każdym wdrożeniu i
+   wraca do `.001` przy nowym dużym wydaniu — to jest NOWA sekwencja, nie
+   kontynuacja poprzedniej.
+2. **Licznik NIE liczy się z historii gita.** Build Railwaya może mieć
+   płytki klon — `git rev-list --count` liczyłby wtedy nie to, co trzeba,
+   bez żadnego widocznego błędu (licząca się liczba po prostu byłaby zła).
+   Zamiast tego: dziennik wdrożeń w bazie, dwie tabele —
+   `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
+   (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
+   opisane w `docs/DATABASE.md`.
+3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
+   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
+   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+   `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
+   `numer = MAX(numer) dla tej etykiety + 1` pod
+   `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie
+   dają tego samego numeru (test na dwóch połączeniach:
+   `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`). Jest
+   idempotentna: ten sam commit drugi raz nie zużywa kolejnego numeru
+   (`UNIQUE (commit)`).
+4. **Przy tym samym przebiegu** komenda zapisuje, które nagłówki funkcji
+   z `resources/nowosci/tresc.md` (sekcja „## Najnowsze zmiany") pojawiły
+   się pierwszy raz — strona „Co nowego" pokazuje przy nich
+   „_od Alfa 0.69.NNN_".
+   **Dopisek doprecyzowany 26 września 2026, tego samego dnia (D-318,
+   dopisek):** zostaje NA STAŁE. Gdy opis funkcji przechodzi z „Najnowsze
+   zmiany" do sekcji nazwanego wydania (np. „## Alfa 0.69" po kolejnym
+   podbiciu dużego numeru), strona „Co nowego" dalej pokazuje numer, pod
+   którym funkcja pojawiła się PIERWSZY RAZ — nie znika i nie przeskakuje na
+   numer bieżącego wdrożenia. Nagłówek nie zmienia tekstu (ani slugu) przy
+   przenosinach, więc `wdrozenia_funkcje.naglowek_slug` jest `UNIQUE` SAM
+   W SOBIE, nie para (etykieta, slug) — `ZarejestrujWdrozenie` dalej zapisuje
+   nowe nagłówki WYŁĄCZNIE ze skanu „Najnowsze zmiany" (skanowanie już
+   wydanych sekcji przy pierwszym uruchomieniu tej funkcji przypisałoby
+   świeży numer funkcjom sprzed tygodni — patrz komentarz klasy), a
+   `NowosciController` dopasowuje po samym slugu W CAŁYM dokumencie, biorąc
+   etykietę i numer z WŁASNEGO wiersza nagłówka, nie z bieżącej
+   `Wersja::etykieta()`.
+5. **Stopka** (`App\Support\Wersja::etykietaZNumerem()`) pokazuje
+   „Alfa 0.69.NNN · data · skrót commita", z cache'em (10 minut, klucz niesie
+   commit — inne wdrożenie samo unieważnia poprzedni wpis). Bez wiersza
+   w bazie (lokalnie, w testach, przy awarii bazy) zostaje dzisiejszy opis,
+   bez błędu — `Wersja::etykieta()` SAMA zostaje bez końcówki, celowo: czyta
+   ją dosłownie `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując
+   z nagłówkiem CHANGELOG-a w formacie „Alfa 0.N", bez żadnej końcówki.
+
+### Rollback (D-088)
+`down()` migracji, która zakłada obie tabele, ODMAWIA, gdy którakolwiek ma
+choć jeden wiersz — numer wdrożenia jest wartością semantyczną, już
+pokazaną ludziom (stopka, „od Alfa 0.69.NNN"), a cofnięcie na wypełnionej
+bazie i kolejny `migrate` zacząłby liczyć numery od 1 dla każdej etykiety,
+mieszając je ze starymi. Na świeżej bazie przechodzi bez pytania. Test
+odmowy i kontrola dodatnia: `tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.
+
+### Dowody
+`tests/Feature/ZarejestrujWdrozenieTest.php` (numeracja, idempotencja, mapa
+funkcji), `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`
+(bezpieczeństwo przy równoległym starcie, dwa prawdziwe połączenia),
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php` (rollback),
+`tests/Feature/WersjaWStopceTest.php` (numer w stopce, cache),
+`tests/Feature/StronaCoNowegoOdNumeruTest.php` („od Alfa 0.NN.NNN" przy
+funkcji, dopisek przeżywa przenosiny nagłówka do sekcji nazwanego wydania,
+brak wiersza nie wywala strony i nic nie dokleja).
+
+### Wycofanie
+Usunąć komendę `kuking:zarejestruj-wdrozenie` z `preDeployCommand`, cofnąć
+`Wersja::etykietaZNumerem()` do `Wersja::etykieta()` w stopce (D-088:
+migracja sama się nie cofa na wypełnionej bazie — patrz sekcja Rollback
+wyżej). Strona „Co nowego" wraca do samych nagłówków bez dopisku „od …".
+
 ## D-312 — PgBouncer jawnie uznany za jeszcze niepotrzebny; wraca przy nazwanych progach (#600, #598, 26 września 2026)
 
 Dotyczy **#600** (punkt definicji gotowości „PgBouncer jest wdrożony albo

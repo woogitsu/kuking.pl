@@ -35,6 +35,7 @@ use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -507,6 +508,16 @@ try {
                 'zapisane' => $sesja?->get('status'),
             ];
         })(),
+
+        // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
+        // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
+        // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
+        // połączeniu (ten sam klucz), żeby wymusić prawdziwe zderzenie dwóch
+        // równoległych rejestracji pod tą samą etykietą.
+        'zarejestruj-wdrozenie' => app(ZarejestrujWdrozenie::class)->handle(
+            $argumenty['commit'],
+            $argumenty['etykieta'],
+        ),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
