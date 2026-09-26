@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Moderation\AdresZgloszenia;
 use App\Domain\Moderation\OdpowiedzDlaZglaszajacego;
 use App\Models\ModerationAction;
 use App\Models\Report;
@@ -71,8 +72,8 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
         $list->line("**{$skutek['naglowek']}** {$skutek['reszta']}");
 
         $list
-            ->line('Zgłoszona przez Ciebie strona:')
-            ->line((string) $this->zgloszenie->target_url)
+            // Wartość z publicznego formularza — jako tekst, nie Markdown (#1636).
+            ->line('Zgłoszona przez Ciebie strona: '.AdresZgloszenia::doListu((string) $this->zgloszenie->target_url))
             ->line('---')
             ->line('**'.OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA.'**');
 
