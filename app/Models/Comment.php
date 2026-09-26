@@ -31,6 +31,13 @@ class Comment extends Model
     public const STATUS_REMOVED = 'removed';
 
     /**
+     * Ślad usuniętego korzenia z odpowiedziami (#1317). Stoi na modelu, nie
+     * w `DeleteComment`, bo czyta go też `Moderation\RestoreContent` — import
+     * akcji z modułu Comments zamykałby cykl modułów domeny (#971).
+     */
+    public const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
+
+    /**
      * Komentarze, które WOLNO pokazać temu widzowi (issue #41, audyt komentarzy).
      *
      * Komentarz nie ma własnej widoczności — renderuje się wewnątrz strony
