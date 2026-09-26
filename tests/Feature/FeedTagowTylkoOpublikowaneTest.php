@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Feed\TagFeed;
+use App\Domain\Feed\FollowingFeed;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -21,6 +21,10 @@ use Tests\TestCase;
  * a `maTresci()` wybierał przez niego źródło `tagi` zamiast „Świeżo".
  * Strona tagu (`TagController::show()`) i `FollowingFeed` mają `published()`
  * od początku — teraz strumień tagów jest z nimi spójny.
+ *
+ * Od #1808 (D-277) feedu tagów nie ma jako osobnego źródła — tematy weszły
+ * do `FollowingFeed` razem z osobami, a `maTresci()` zastąpiło `isEmptyFor()`.
+ * Te same gwarancje sprawdzamy teraz na połączonej liście.
  *
  * Bezpośredni dostęp autora do własnej ukrytej treści (Policy) się nie
  * zmienia; chodzi wyłącznie o dystrybucję w feedzie.
@@ -53,7 +57,7 @@ class FeedTagowTylkoOpublikowaneTest extends TestCase
     /** @return list<string> */
     private function widziane(User $widz): array
     {
-        return collect(app(TagFeed::class)->paginate($widz)->items())
+        return collect(app(FollowingFeed::class)->paginate($widz)->items())
             ->map(fn (Post $wpis) => (string) $wpis->getKey())
             ->all();
     }
@@ -96,7 +100,7 @@ class FeedTagowTylkoOpublikowaneTest extends TestCase
             'published_at' => now(),
         ]);
 
-        $this->assertFalse(app(TagFeed::class)->maTresci($basia), 'Ukryty własny wpis sprawił, że feed tagów zameldował treść.');
+        $this->assertTrue(app(FollowingFeed::class)->isEmptyFor($basia), 'Ukryty własny wpis sprawił, że Start zameldował treść.');
 
         $this->actingAs($basia)->get(route('home'))
             ->assertOk()
@@ -105,21 +109,26 @@ class FeedTagowTylkoOpublikowaneTest extends TestCase
             ->assertDontSee('Moj ukryty przez moderacje');
     }
 
-    public function test_opublikowany_wlasny_wpis_nadal_wybiera_zrodlo_tagi(): void
+    public function test_cudzy_opublikowany_wpis_z_tematu_wybiera_obserwowanych(): void
     {
         $zupy = $this->tag();
         $basia = $this->user('basia');
         $basia->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
 
-        // KONTROLA DODATNIA dla wyboru źródła: ten sam układ co wyżej, ale
-        // wpis opublikowany — `maTresci()` ma go liczyć jak dotąd.
+        // KONTROLA DODATNIA dla wyboru źródła: własny opublikowany wpis stoi
+        // na liście, ale sam jej nie „otwiera" (własne wpisy nie liczą się
+        // w `isEmptyFor()` — ta sama reguła co dla osób) ...
         $this->wpis($zupy, $basia, 'Moj opublikowany rosol');
+        $this->assertTrue(app(FollowingFeed::class)->isEmptyFor($basia));
 
-        $this->assertTrue(app(TagFeed::class)->maTresci($basia));
+        // ... a cudzy publiczny wpis z obserwowanego tematu — tak.
+        $this->wpis($zupy, $this->user('ola'), 'Pomidorowa od Oli');
+        $this->assertFalse(app(FollowingFeed::class)->isEmptyFor($basia));
 
         $this->actingAs($basia)->get(route('home'))
             ->assertOk()
-            ->assertViewHas('zrodloFeedu', 'tagi')
-            ->assertSee('Moj opublikowany rosol');
+            ->assertViewHas('zrodloFeedu', 'obserwowani')
+            ->assertSee('Moj opublikowany rosol')
+            ->assertSee('Pomidorowa od Oli');
     }
 }
