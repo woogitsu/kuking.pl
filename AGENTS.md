@@ -362,6 +362,12 @@ następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
 - **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
 - **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
   typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
+- **Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions.php`
+  łamie powyższe** (indeks i FK/CHECK na istniejącej tabeli bez CONCURRENTLY
+  i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
+  ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
+  (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
+  powtórzył się w żadnej migracji nowszej niż ta.
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 

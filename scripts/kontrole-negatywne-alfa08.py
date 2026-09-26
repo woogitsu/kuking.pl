@@ -94,6 +94,17 @@ MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push
 MIGRACJA_PUSH_TEST = "test_wycofanie_migracji_odmawia_gdy_ktos_wybral_wlasna_cisze_nocna"
 OBRAZ_ASSETOW_TEST = "ObrazAssetowMaPlikiTestowTest"
 
+# Strażnik nowych migracji wobec AGENTS.md §6 (audyt appeal_id, #989).
+# `add_appeal_id_to_moderation_actions.php` dodała FK/indeks/CHECK do
+# istniejącej tabeli z pominięciem CONCURRENTLY i NOT VALID; właściciel
+# zdecydował jej nie ruszać, ale nowe migracje mają się tego trzymać.
+# Kontrola dodatnia (`straznik_wykrywa_kazde_z_trzech_naruszen_par6`) karmi
+# strażnik trzema fabrykowanymi migracjami — po jednej na regułę. Każda
+# z trzech mutacji niżej gasi wykrywanie JEDNEJ reguły, więc każda ma
+# zapalić dokładnie ten sam test kontroli dodatniej.
+STRAZNIK_MIGRACJI = "app/Support/Baza/StraznikNowychMigracji.php"
+STRAZNIK_MIGRACJI_TEST = "straznik_wykrywa_kazde_z_trzech_naruszen_par6"
+
 # Kolejność w `down()` migracji 2FA (D-238, DB-01). Strażnik czyta źródło
 # migracji i porównuje położenie sprawdzenia liczby kont z położeniem zdjęcia
 # CHECK-a i `dropColumn`. W działaniu różnicy nie widać — wyjątek leci w obu
@@ -1154,6 +1165,14 @@ checks = [
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
+                            "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
+    ("Strażnik migracji ślepy na indeks bez CONCURRENTLY", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (! $maCONCURRENTLY) {", "if (false) {")),
+    ("Strażnik migracji ślepy na CHECK/FK bez NOT VALID", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (stripos($instrukcja, 'NOT VALID') === false) {\n                    $rodzaj",
+                            "if (false) {\n                    $rodzaj")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1244,6 +1263,7 @@ run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
+run_test(STRAZNIK_MIGRACJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
