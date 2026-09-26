@@ -109,3 +109,56 @@ self.addEventListener('fetch', (event) => {
         }))
     );
 });
+
+/*
+ * WEB PUSH (issue #35, D-303).
+ *
+ * Wiadomość przychodzi zaszyfrowana kluczem tej przeglądarki; usługa push
+ * (Google, Mozilla, Apple) tylko ją przenosi. Treść układa serwer
+ * (`App\Domain\Notifications\Push\TrescPush`): tytuł, jedno zdanie, adres
+ * w obrębie Kuking i stały `tag` — nowe powiadomienie zastępuje poprzednie
+ * na ekranie, zamiast układać się w stos.
+ *
+ * Kliknięcie otwiera WYŁĄCZNIE adres z tej samej domeny. Cokolwiek innego
+ * w treści (błąd, podmiana) kończy się listą powiadomień, nie obcą stroną.
+ */
+const PUSH_DOMYSLNY_ADRES = '/powiadomienia';
+
+function adresZPushu(adres) {
+    try {
+        const url = new URL(typeof adres === 'string' ? adres : PUSH_DOMYSLNY_ADRES, self.location.origin);
+        return url.origin === self.location.origin ? url.href : new URL(PUSH_DOMYSLNY_ADRES, self.location.origin).href;
+    } catch {
+        return new URL(PUSH_DOMYSLNY_ADRES, self.location.origin).href;
+    }
+}
+
+self.addEventListener('push', (event) => {
+    let dane = {};
+    try {
+        dane = event.data ? event.data.json() : {};
+    } catch {
+        dane = {};
+    }
+
+    const tytul = typeof dane.title === 'string' && dane.title !== '' ? dane.title : 'Kuking';
+
+    event.waitUntil(self.registration.showNotification(tytul, {
+        body: typeof dane.body === 'string' && dane.body !== '' ? dane.body : 'Masz nowe powiadomienie w Kuking.',
+        icon: '/icons/kuking-icon-192.png',
+        tag: typeof dane.tag === 'string' && dane.tag !== '' ? dane.tag : 'kuking-powiadomienia',
+        data: { url: adresZPushu(dane.url) },
+    }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const adres = adresZPushu(event.notification.data && event.notification.data.url);
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((okna) => {
+            const otwarte = okna.find((okno) => okno.url === adres && 'focus' in okno);
+            return otwarte ? otwarte.focus() : self.clients.openWindow(adres);
+        })
+    );
+});

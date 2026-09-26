@@ -182,16 +182,19 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### 3.2 Limity częstotliwości (twarde)
 
-> **Stan (issue #35, etap 1): reguły są w kodzie, kanału jeszcze nie ma.**
+> **Stan (issue #35, D-303, 26.09.2026): reguły i kanał Web Push są w kodzie.**
 > Cisza nocna i limit dobowy dla powiadomień POZA serwisem żyją w jednym
 > miejscu, niezależnym od dostawcy:
 > `app/Domain/Notifications/TerminPowiadomieniaZewnetrznego.php`
-> (konfiguracja: `kuking.notifications.zewnetrzne`). Cisza i wyczerpany limit
-> **odkładają** zdarzenie do 8:00 w strefie odbiorcy, nigdy go nie kasują.
-> Flaga `KUKING_POWIADOMIENIA_ZEWNETRZNE` jest domyślnie wyłączona i żaden
-> kanał (Web Push, e-mail o zdarzeniu) tej klasy jeszcze nie woła.
-> Grupowanie, preferencje per typ i „wyłącz wszystkie” — dalsza część etapu 1.
-> Powiadomienia w serwisie tych reguł nie dotyczą.
+> (domyślne: `kuking.notifications.zewnetrzne`; człowiek może je zmienić na
+> `/ustawienia/powiadomienia`). Cisza i wyczerpany limit **odkładają**
+> zdarzenie do końca ciszy / rana następnej doby, nigdy go nie kasują, a to,
+> co czekało, idzie JEDNYM pushem (grupowanie). Web Push działa dopiero po
+> wpisaniu kluczy VAPID; zgoda przeglądarki wyłącznie po kliknięciu
+> w ustawieniach. **Decyzja właściciela (D-303): bez preferencji per typ** —
+> jest przełącznik per kanał (push per urządzenie, „wyłącz na wszystkich
+> urządzeniach"), cisza nocna i limit. Punkt 6 z §3.3 („wyłączniki per typ")
+> jest przez to nieaktualny. Powiadomienia w serwisie tych reguł nie dotyczą.
 
 | Reguła | Wartość |
 |---|---|
