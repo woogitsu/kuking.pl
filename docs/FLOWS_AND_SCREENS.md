@@ -173,6 +173,7 @@ App:
 - `/ustawienia/czytelnosc`
 - `/ustawienia/prywatnosc`
 - `/ustawienia/twoje-dane`
+- `/ustawienia/urzadzenia` — urządzenia z dostępem przez aplikację mobilną: lista (nazwa, kiedy zalogowane, kiedy ostatnio używane), odcięcie jednego albo wszystkich, z potwierdzeniem (D-270, D-271)
 
 Admin:
 - `/admin/zgloszenia`

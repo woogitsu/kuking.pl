@@ -57,6 +57,7 @@ class UstawieniaNawigacjaTest extends TestCase
             'settings.tags',
             'settings.email',
             'settings.security',
+            'settings.devices',
             'settings.two_factor.edit',
             'settings.privacy',
             'settings.data',

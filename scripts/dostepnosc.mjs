@@ -566,6 +566,7 @@ const EKRANY = [
    * Samo dopisanie adresu tutaj mierzyłoby przekierowanie na /login.
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
+  { nazwa: 'urządzenia z dostępem', adres: '/ustawienia/urzadzenia', zalogowany: true },
 ];
 
 /*

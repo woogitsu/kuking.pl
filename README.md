@@ -77,6 +77,7 @@ i zakładka Issues.
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) |
 | Mobile | PWA |
+| API dla aplikacji mobilnej | prefiks `api/v1`, Laravel Sanctum (tokeny osobistego dostępu, bez sesji), domyślnie wyłączone flagą `KUKING_API_ENABLED` (D-270) |
 
 Ta tabela jest **kopią pierwszych dwóch kolumn** tabeli z [`AGENTS.md` §3](./AGENTS.md#3-stack-i-czego-nie-wolno-dokładać)
 i musi się z nią zgadzać co do znaku — pilnuje tego
