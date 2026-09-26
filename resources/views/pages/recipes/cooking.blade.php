@@ -92,6 +92,7 @@
                                     <span class="meta"> — do smaku</span>
                                 @endif
                                 @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
                             </li>
                         @endforeach
                     </ul>
