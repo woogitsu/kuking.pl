@@ -7,6 +7,7 @@ namespace App\Domain\Search;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\FrazaWyszukiwania;
 use App\Support\ProgPodobienstwa;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -452,33 +453,23 @@ final class SearchQuery
     }
 
     /**
-     * Fraza po stronie PHP musi być znormalizowana TAK SAMO jak kolumna
-     * po stronie bazy — inaczej „Żurek" nie znajdzie „żurek".
-     *
-     * Str::ascii odpowiada temu, co robi `unaccent` z polskimi znakami
-     * diakrytycznymi. Obie publiczne metody sprawdzają długość PRZED
-     * zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć całego tekstu (#885).
+     * Reguła normalizacji — `App\Support\FrazaWyszukiwania::normalizuj()`,
+     * wspólna z podpowiedziami tagów. Obie publiczne metody sprawdzają
+     * długość PRZED zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć
+     * całego tekstu (#885).
      */
     private static function normalize(string $phrase): string
     {
-        return mb_strtolower(Str::ascii($phrase));
+        return FrazaWyszukiwania::normalizuj($phrase);
     }
 
     /**
-     * Cytuje metaznaki operatora LIKE, żeby fraza użytkownika trafiała do
-     * `LIKE` jako dosłowny tekst, nie jako wzorzec (issue #753).
-     *
-     * PostgreSQL bierze `\` jako domyślny znak ucieczki dla `LIKE` — dlatego
-     * najpierw trzeba podwoić SAM znak ucieczki, inaczej `\` z frazy
-     * uciekałby przypadkowo następny znak wstawiony przez tę metodę.
-     * Kolejność (najpierw `\`, potem `%` i `_`) jest tu obowiązkowa.
-     *
-     * Używać WYŁĄCZNIE dla parametrów `LIKE`. Operator trigramowy `<%`
-     * i funkcje `similarity()`/`word_similarity()` mają dostawać frazę
-     * bez tej ucieczki — to nie jest LIKE i cytowanie zmieniłoby dopasowanie.
+     * Metaznaki `LIKE` z frazy jako dosłowny tekst (issue #753) — reguła
+     * i obowiązkowa kolejność ucieczek w `FrazaWyszukiwania::doLike()`.
+     * WYŁĄCZNIE dla parametrów `LIKE`, nigdy dla `<%` i `word_similarity()`.
      */
     private function uciecznijLike(string $wartosc): string
     {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $wartosc);
+        return FrazaWyszukiwania::doLike($wartosc);
     }
 }
