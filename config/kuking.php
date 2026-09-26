@@ -2078,6 +2078,19 @@ return [
     */
     'monitoring' => [
         'puls_harmonogramu_url' => env('KUKING_PULS_HARMONOGRAMU_URL'),
+
+        // Seria identycznych alarmów (#599, `App\Domain\Monitoring\SeriaAlarmow`):
+        // ten sam odcisk błędu idzie na webhook najwyżej raz na tyle minut,
+        // a następna wiadomość niesie liczbę pominiętych powtórzeń. Dziennik
+        // serwera dostaje każde wystąpienie niezależnie od tej liczby.
+        'seria_okno_minut' => (int) env('KUKING_SERIA_ALARMOW_OKNO_MINUT', 15),
+
+        // Łączny czas zapytań SQL jednego żądania HTTP, po którym zapisujemy
+        // ostrzeżenie w dzienniku i dzwonimy (`App\Domain\Monitoring\CzasZapytan`).
+        // 1000 ms to wartość STARTOWA, nie zmierzona: po tygodniu odczytów
+        // `czas_bazy_ms` z dziennika ustaw ją nad p99 zwykłego ruchu.
+        // 0 = pomiar wyłączony.
+        'czas_bazy_prog_ms' => (int) env('KUKING_CZAS_BAZY_PROG_MS', 1000),
     ],
 
     /*
@@ -2400,6 +2413,17 @@ return [
         ),
     ],
 
+    'zeszyt' => [
+        /*
+         * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
+         * na jedno wyszukiwanie. Wynik jest jeden na przepis (z listą
+         * zeszytów), więc 50 to dużo więcej, niż człowiek przejrzy — a gdy
+         * trafień jest więcej, ekran prosi o dokładniejszy tytuł zamiast
+         * stronicować.
+         */
+        'szukaj_limit' => 50,
+    ],
+
     'zgody' => [
         /*
          * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
@@ -2643,7 +2667,8 @@ return [
         //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
         //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
         //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
-        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        //      `routes/console.php` na wolnym slocie — kolizję odrzuci
+        //      `HarmonogramBezWspolnychSlotowTest`
         // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
         // wystartuje nawet przy przypadkowo ustawionej zmiennej.
         //
@@ -2708,6 +2733,32 @@ return [
     'retencja' => [
         'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
+    // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
+    //
+    // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
+    // usunięcie: wiersz dostaje `deleted_at`, znika z serwisu, ale tekst
+    // i zdjęcia (oryginał i warianty w R2) zostają. Bez tego zadania —
+    // na zawsze. Polityka prywatności obiecuje przechowywanie „do usunięcia
+    // treści przez Ciebie”, więc miękkie usunięcie może być tylko krótkim
+    // oknem, a nie stanem końcowym.
+    //
+    // TRZYDZIEŚCI DNI — ta sama liczba co karencja usunięcia konta
+    // (`account.delete_grace_days`, polityka §7 pkt 2). Jedna liczba dla
+    // obu dróg: człowiek, który przeczytał „30 dni” przy koncie, nie musi
+    // uczyć się drugiej przy wpisie. Okno służy pomyłce (przywrócenie przez
+    // kontakt@kuking.pl) i spójności kopii zapasowych, nie nam.
+    //
+    // Treści z decyzją moderacji albo zgłoszeniem NIE są tu kandydatem —
+    // żyją tyle, ile sprawa (`moderation.case_retention_months`), bo
+    // odwołanie i „cofam” potrzebują celu. Gdy retencja spraw zabierze
+    // sprawę, treść wraca do kolejki tego zadania.
+    //
+    // Egzekwuje `kuking:sprzataj-usuniete-tresci`
+    // (`App\Domain\Compliance\PrzedawnioneUsunieteTresci`).
+    'usuniete_tresci' => [
+        'retention_days' => (int) env('KUKING_USUNIETE_TRESCI_DNI', 30),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.

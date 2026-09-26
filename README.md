@@ -128,19 +128,19 @@ później jako timeout logowania.
 ### Testy i kontrola przed wysłaniem
 
 ```bash
-./scripts/check.sh            # to samo, co robiłoby CI
+./scripts/check.sh            # to samo, co robi CI
 ./scripts/install-hooks.sh    # hook pre-push — raz, na starcie
 ```
 
-Repozytorium jest prywatne, więc GitHub Actions kosztują minuty. Dopóki ich nie ma,
-**bramką jakości jest kontrola lokalna**, a workflowy w `.github/workflows/`
-czekają gotowe do włączenia. Porównanie opcji i kosztów:
-[`docs/infra/CI_BEZ_ACTIONS.md`](./docs/infra/CI_BEZ_ACTIONS.md).
+CI na GitHub Actions jest **włączone** (D-010, `.github/workflows/ci.yml`)
+i robi to samo, co `./scripts/check.sh`. Kontrola lokalna zostaje mimo to —
+jest szybsza i łapie błąd, zanim zje minuty organizacji. Plan awaryjny na
+wypadek wyczerpania minut: [`docs/infra/CI_BEZ_ACTIONS.md`](./docs/infra/CI_BEZ_ACTIONS.md).
 
 Pojedyncze kroki:
 
 ```bash
-php artisan test        # 72 testy, PostgreSQL
+php artisan test        # PostgreSQL; liczba testów — w „Stan repozytorium” wyżej
 vendor/bin/pint         # formatowanie
 npm run build           # assety
 ```
@@ -202,6 +202,13 @@ Najważniejsze:
 | [`docs/design/DESIGN_SYSTEM.md`](./docs/design/DESIGN_SYSTEM.md) | paleta, typografia, komponenty, kontrasty |
 | [`docs/legal/COMPLIANCE.md`](./docs/legal/COMPLIANCE.md) | RODO, DSA, prawo autorskie |
 | [`docs/brand/MASCOT_CONCEPT.md`](./docs/brand/MASCOT_CONCEPT.md) | Garnuś — maskotka („w KU**KING** siedzi KING”) |
+
+---
+
+## Bezpieczeństwo
+
+Lukę zgłaszaj prywatnie — jak, gdzie i czego nie robić:
+[`SECURITY.md`](./SECURITY.md). Nie zakładaj w tej sprawie issue.
 
 ---
 

@@ -842,7 +842,9 @@ pól w formularzu, sposób sformułowania jednego komunikatu.
 ## D-021 · Tematy znikają, zostają same tagi
 
 **Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
-zastępuje mechanizm z issue #31 (`topics`, `topic_follows`, `posts.topic_id`)
+zastępuje mechanizm z issue #31 (`topics`, `topic_follows`, `posts.topic_id`) ·
+**miejsce obserwowanych tagów na Starcie zmienia D-277** (25 września 2026:
+tagi razem z osobami, nie osobny stopień „gdy nie ma osób”)
 
 Właściciel: „Tematy usuwamy, tylko tagi."
 
@@ -14630,14 +14632,14 @@ publikował", ze zmierzonym powodem w komentarzu) stoi dalej. Dotyczy wyłączni
 **kolejności** propozycji, nie tego, co widać — pokazuje o jedno konto za dużo, nigdy
 o jedną treść za dużo.
 
-📄 `app/Domain/Feed/TagFeed.php` · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
+📄 `app/Domain/Feed/FollowingFeed.php` (od D-277; wcześniej `TagFeed`, usunięty) · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
 `FeedTagowNieGubiKolumnPrzepisuTest` · `app/Models/Post.php`
 
 ---
 
 ## D-194 · „Ugotowałem" jest ważniejsze niż lajk
 
-**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje**
+**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje** (sprostowany przez D-275, 25 września 2026)
 
 ### Dlaczego ten wpis powstaje dopiero teraz
 
@@ -14655,23 +14657,35 @@ Kuking to **społeczność ludzi, którzy gotują**, a nie baza przepisów. Najm
 sygnałem w serwisie jest **„ugotowałem"** — bo kosztuje wieczór przy garnku, a nie
 jedno dotknięcie ekranu. Dlatego:
 
-- „ugotowałem" **zawsze** powiadamia autora przepisu, a lajk nie ma takiej mocy;
-- liczba ugotowań stoi wyżej niż jakakolwiek liczba polubień i to ona jest widoczna
-  na karcie;
+- „ugotowałem" **zawsze** powiadamia autora przepisu, a lżejsza reakcja nie ma takiej mocy;
+- liczba ugotowań stoi wyżej niż jakakolwiek liczba lżejszych reakcji i to ona jest
+  widoczna na karcie;
 - feed obserwowanych jest **chronologiczny**, bez algorytmu: ranking zamienia dzielenie
   się jedzeniem w konkurs, a w konkursie przegrywa ten, kto gotuje zwyczajnie.
 
 ### Co z tej zasady wynika w praktyce
 
-Każda funkcja, która podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga
-osobnego uzasadnienia — nie odwrotnie. Domyślną odpowiedzią na „dodajmy licznik
-polubień na widoczne miejsce" jest **nie**.
+**Liczba „Ugotowałem” ani reakcji nie wpływa na kolejność ani dobór.** Hierarchia
+sygnałów rozstrzyga, co człowiek **zobaczy przy wpisie** i o czym dostanie
+powiadomienie — nie to, które wpisy albo osoby komu pokażemy. Dobór treści wolno
+opierać wyłącznie na regułach z zamkniętej listy w `AGENTS.md` §8 (D-275).
+
+> **Sprostowanie (25 września 2026, #1806, D-275).** Stało tu: „Każda funkcja, która
+> podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga osobnego
+> uzasadnienia”. Czytane dosłownie dopuszczało podnoszenie widoczności **za**
+> ugotowanie — czyli ranking po liczbie „Ugotowałem”. Tak nie jest i nie było
+> zamiarem: żadna miara cudzych reakcji nie układa ani nie przycina list.
+
+Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest **nie**.
 
 ### Czego ten wpis nie rozstrzyga
 
-Czy lajk w serwisie **jest**. Jest i zostaje — ludzie potrzebują taniego sposobu, żeby
-powiedzieć „widzę cię". Rozstrzygnięta jest wyłącznie **hierarchia** tych dwóch
-sygnałów wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
+Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
+i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
+2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
+sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
+jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
 📄 `AGENTS.md` · `CLAUDE.md` · `docs/brand/GLOS_MARKI.md` ·
 `resources/views/pages/landing.blade.php` · D-187
@@ -16272,6 +16286,14 @@ wywołania przypisane do klas:
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
 
+**Uzupełnienie (#1305, 25 września 2026).** `appeal.filed` — **klasa 2**.
+To czynność samego człowieka (autora treści albo zgłaszającego), a jej
+autorytatywny ślad to wiersz `appeals` z terminem DSA art. 20, zatwierdzany
+w jednej transakcji z zawiadomieniami administratorów i zleceniem listu
+z potwierdzeniem w `jobs` (`FileAppeal`, `FileReporterAppeal`). Awaria
+dziennika nie cofa pisma z biegnącym terminem. Dowód:
+`ZlozenieOdwolaniaJestAtomoweTest::test_awaria_audytu_nie_cofa_zlozonego_pisma`.
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
@@ -16569,8 +16591,10 @@ a art. 16 ust. 4 DSA wymaga potwierdzenia „bez zbędnej zwłoki".
 
 **TAK — aplikacja co godzinę dosyła zgłaszającym potwierdzenia, które
 wcześniej nie wyszły.** Robi to komenda
-`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 35 każdej
-godziny; 25 zajmuje `kuking:budzet-polaczen`).
+`kuking:dosylaj-potwierdzenia-zgloszen` w harmonogramie (minuta 45 każdej
+godziny; 25 zajmuje `kuking:budzet-polaczen`, 35 — `kuking:doslij-pilne-alarmy`.
+Pierwotnie stała tu minuta 35; przeniesiona 25.09.2026 w audycie po fali
+scaleń, bo tego samego dnia tę minutę zajęła też dosyłka pilnych alarmów).
 
 - **Najwyżej jedno potwierdzenie na zgłoszenie.** Komenda woła tę samą
   akcję co formularz (`NotifyReporterReceipt::handle()`); zamkiem jest
@@ -17471,6 +17495,223 @@ rozwiązuje.
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
 `tests/Feature/Api/`
 
+## D-275 — Reguła doboru treści: zamknięta lista dozwolonych reguł (#1806, #1781, sprostowanie D-194, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781) · Status: **obowiązuje**
+
+### Problem
+
+`AGENTS.md` §8 mówił o zakazie „skomplikowanego rankingu bez danych”, a §12
+o „algorytmicznym feedzie — nigdy”. Tymczasem w kodzie już działają reguły
+doboru: najwyżej jeden wpis od osoby w „Świeżo z Kuking” (#940), blokady,
+tablica „kuKINGi na dziś” układana przez gospodarza, propozycje osób. Zdanie
+„żadnego doboru, nigdy” było więc sprzeczne z kodem, a „bez danych” brzmiało
+tak, jakby ranking po popularności był tylko odłożony do czasu, aż dane się
+pojawią. D-194 dopuszczał dosłownie podnoszenie widoczności **za**
+ugotowanie i twierdził, że „lajk jest i zostaje” — polubienia w kodzie nie ma.
+
+### Decyzja
+
+Zamknięta lista dozwolonych reguł, łącznie ze zwijaniem serii w Obserwowanych.
+Pełne brzmienie stoi w `AGENTS.md` §8; w skrócie:
+
+- **żadna lista wpisów ani osób** nie jest układana ani przycinana według reakcji
+  innych (obserwujący, „Ugotowałem”, reakcje, zapisy, komentarze, odsłony) ani
+  według przewidywania gustu z zachowania widza;
+- dozwolone **wyłącznie**: kolejność po czasie, równość autorów, wybór gospodarza
+  oznaczony jako jego wybór, bramki widoczności i blokady, jawne polecenia widza
+  (obserwuj, ukryj) z listą do cofnięcia;
+- w **Obserwowanych** nic nie znika poza bramkami i blokadami; dopuszczalne jest
+  tylko zwinięcie serii jednej osoby bez zmiany kolejności;
+- każda nowa reguła = wpis w tym dzienniku + aktualizacja „Jak dobieramy wpisy”
+  + strażnik.
+
+`AGENTS.md` §12: w anty-wzorcach „algorytmiczny feed” zastępuje „ranking po
+popularności i uczenie z zachowania (§8)”.
+
+### Dlaczego zamknięta lista, a nie zakaz „algorytmu”
+
+„Algorytm” to każda reguła, łącznie z `ORDER BY published_at`. Zakaz
+sformułowany tym słowem albo łamie się sam (dzisiejsze reguły równości
+autorów i blokad), albo jest interpretowany dowolnie. Lista mówi, co **wolno**,
+więc spór przy kolejnej funkcji brzmi „czy to jest na liście”, a nie „czy to
+już algorytm”. Szkoda, której zapobiega, jest ta sama co w starym §8: dobór po
+popularności dzieli ludzi na widzianych i niewidzianych, a niewidziani
+przestają publikować — w społeczności ludzi, którzy gotują zwyczajnie, to jest
+większość. Podstawa: zestawienie ośmiu opinii zewnętrznych i trzech researchy
+(UX 50+, prawo, mechanika feedu) w #1781, research projektu w PR #1783.
+
+### Co to zmienia w kodzie dziś
+
+Nic w działaniu serwisu. Przegląd `app/Domain/Digest` przy tej decyzji:
+tygodniowy list układa i przycina wszystkie trzy sekcje po czasie
+(`cooked_at`, `follows.created_at`, `published_at`), a kolejka wysyłki po czasie
+ostatniego listu — reguła nie jest łamana. Strażnik
+`FeedNieSortujePoMierzeReakcjiTest` obejmuje od teraz także `app/Domain/Digest`
+(czwarta powierzchnia z wpisami), zna słowa odsłon i przyszłej reakcji
+„Smakowicie wygląda” (#1813), a kontrola ujemna w
+`scripts/kontrole-negatywne-alfa08.py` podmienia sortowanie wpisów w liście
+na licznik wykonań i wymaga czerwieni.
+
+Strażnik mierzy tylko **sortowanie po mierze cudzych reakcji**. „Przewidywania
+gustu z zachowania widza” i „nic nie znika w Obserwowanych” nie da się dziś
+zmierzyć gripem — pilnuje ich przegląd człowieka z tym wpisem w ręku.
+
+Strony „Jak dobieramy wpisy” na `main` jeszcze nie ma (stan na 25 września
+2026); jej powstanie jest osobną częścią wdrożenia #1781. Do tego czasu
+wymóg jej aktualizacji oznacza opis nowej reguły w tym dzienniku.
+
+### Sprostowanie D-194
+
+D-194 dostaje zdanie „Liczba »Ugotowałem« ani reakcji nie wpływa na kolejność
+ani dobór”. Fragment o lajku poprawiony: polubienia nie ma, lżejszą reakcją
+będzie „Smakowicie wygląda” (#1813). Hierarchia sygnałów zostaje — dotyczy tego,
+co człowiek widzi przy wpisie i o czym dostaje powiadomienie, nie doboru list.
+
+### Wycofanie
+
+Tylko decyzją właściciela. Technicznie: przywrócić poprzednie brzmienie
+`AGENTS.md` §8 i §12 oraz D-194 i zawęzić `pliki()` strażnika z powrotem do
+`app/Domain/Feed`. Schemat bazy się nie zmienia.
+
+📄 `AGENTS.md` · `tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php` ·
+`scripts/kontrole-negatywne-alfa08.py` · `app/Domain/Digest/ZbierzTresciDigestu.php` · D-194
+
+## D-276 — „Świeżo z Kuking”: rotacja autorów zamiast jednego wpisu od osoby (#1807, #1781, zmienia #940, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1807) · Status: **obowiązuje**
+
+### Problem
+
+`DiscoverFeed` brał `DISTINCT ON (author_id)` — najnowszy wpis każdej osoby
+w całej sekwencji (#940). Seria jednej osoby przestała zasłaniać innych, ale
+głębokość Odkrywania równała się liczbie aktywnych autorów: przy dziesięciu
+osobach dziesięć kart i koniec. Starsze wpisy nie wracały nigdy, a osoby
+publikujące często stały zawsze na górze.
+
+### Decyzja
+
+Rotacja (round-robin): najpierw najnowszy wpis każdej osoby, potem drugi
+każdej i tak dalej. W SQL: `row_number() OVER (PARTITION BY author_id ORDER BY
+published_at DESC, id DESC)` po wszystkich bramkach widoczności, sort
+`runda, published_at DESC, id DESC`, paginacja kursorowa po tej trójce.
+
+To reguła z listy D-275 „równość autorów” — `runda` liczy wpisy TEJ osoby,
+nie cudze reakcje. Strażnik `FeedNieSortujePoMierzeReakcjiTest` przechodzi
+bez wpisu w rejestrze (alias `rotacja.runda` nie pasuje do słów reakcji).
+
+**Stabilny kursor.** Nowy wpis osoby w trakcie przeglądania przesunąłby jej
+starsze wpisy o rundę dalej i jeden wróciłby na następnej stronie. Dlatego
+dalsze strony liczą rundy z wpisów do chwili pierwszej strony — parametr
+`stan` (unix, sekundy) w odnośniku „Pokaż więcej”. Wartość z adresu to tylko
+pozycja w czasie; bramki widoczności liczą się zawsze od teraz. Kursor
+i `stan` działają tylko razem: brak `stan`, śmieci, przyszłość albo wartość
+starsza niż doba odrzucają TAKŻE kursor i lista zaczyna się od początku
+(przegląd #1781) — stary kursor z nową chwilą po cichu gubiłby albo
+powtarzał wpisy. Granica ma sekundową
+dokładność (tak zapisuje `published_at` Eloquent), więc zdublować się może
+najwyżej wpis dodany w tej samej sekundzie co pierwsza strona. Ukrycie albo
+zablokowanie osoby w trakcie przeglądania może przesunąć jej wpisy o rundę
+wcześniej i jeden pominąć — świadomie przyjęte, wraca przy następnym wejściu.
+
+**Pusty stan z wyjściem.** Rozróżnia „nic nowego” od „część ukrywasz” (dziś:
+blokady zrobione PRZEZ widza; blokada, którą ktoś odciął widza, nie zdradza
+się) i zawsze prowadzi do listy ukrytych (gdy dotyczy), tablicy na dziś
+i „Dodaj wpis”.
+
+**Własne wpisy widza stoją w rotacji jak każdy autor (decyzja właściciela,
+26 września 2026, #1567).** Odkrywanie nie odsiewa wpisów zalogowanej osoby
+i ich nie wyróżnia: jej najnowszy wpis stoi w pierwszej rundzie obok
+najnowszego wpisu każdej innej osoby, drugi — w drugiej. Po publikacji
+człowiek widzi swój wpis na „Świeżo z Kuking” i wie, że się zapisał, a nie
+zajmuje przez to więcej miejsca niż inni. Tak samo na Starcie osoby, która
+nikogo nie obserwuje (feed zastępczy z #1318): jej wpisy „tylko dla
+obserwujących” wchodzą do jej rund, nie obok nich. Pilnuje
+`OdkrywanieRotacjaAutorowTest::test_wlasne_wpisy_widza_stoja_w_rotacji_jak_kazdy_autor`.
+
+**Wpis z własną treścią (D-274) w rotacji.** D-274 mówiło „liczy się do
+limitu jednego wpisu na autora”. Po rotacji to samo znaczy: wpis z własną
+treścią po ukryciu przepisu zajmuje miejsce w rundach swojego autora jak
+każdy inny jego wpis — nowszy wpis tej osoby stoi rundę wcześniej. Pilnuje
+`ListyWpisuZWlasnaTresciaTest::test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_rund_autora`.
+
+Automatyczna część tablicy „kuKINGi na dziś” (`DailyBoard`) zostaje bez zmian
+— pokazuje dzień, jeden wpis od osoby.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> W „Świeżo z Kuking” najpierw widzisz najnowszy wpis każdej osoby (także
+> swój), potem drugi każdej i tak dalej. Nikt nie stoi wyżej dlatego, że publikuje częściej
+> albo zebrał więcej reakcji. Wpisów osób, które ukrywasz albo blokujesz, tu
+> nie ma.
+
+### Wycofanie
+
+Bez migracji. Przywrócić `DISTINCT ON` z #940 w `DiscoverFeed::paginate()`
+i testy `OdkrywanieJedenWpisNaAutoraTest` z historii gita.
+
+📄 `app/Domain/Feed/DiscoverFeed.php` · `tests/Feature/OdkrywanieRotacjaAutorowTest.php` ·
+`tests/Feature/OdkrywaniePustyStanZWyjsciemTest.php` · `resources/views/components/pusty-stan-odkrywania.blade.php`
+
+## D-277 — Start: obserwowane tagi razem z obserwowanymi osobami (#1808, #1781, zmienia D-021, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1808) · Status: **obowiązuje**
+
+### Problem
+
+`FeedController::aktualneZrodloFeedu()` wybierał JEDNO źródło: obserwowani →
+tagi → Odkrywanie. Kto obserwował choć jedną aktywną osobę, nie widział na
+Starcie nigdy wpisów z obserwowanych tagów — „Obserwuj ten tag” było dla
+niego bez skutku, a ekran ustawień obiecywał tagi tylko „gdy nie ma wpisów od
+obserwowanych osób”.
+
+### Decyzja
+
+`FollowingFeed` zwraca sumę chronologiczną:
+
+- wpisy obserwowanych osób i własne (publiczne i „tylko dla obserwujących”),
+- publiczne wpisy z obserwowanych, **aktywnych** tagów — z `widoczneDla()`
+  (blokady w obie strony), `tylkoOdAktywnychAutorow()` i bramką przepisu
+  (`zWidocznymPrzepisem`); obserwowanie tagu nie otwiera wpisów „tylko dla
+  obserwujących” ani prywatnych;
+- bez duplikatów (`whereHas` = `EXISTS`, jeden wpis raz).
+
+Karta, która przyszła **wyłącznie** przez tag, ma podpis „Z tagu: {nazwa}”
+z odnośnikiem do strony tagu. Wpis obserwowanej osoby albo własny podpisu nie
+dostaje — przyszedł od osoby. `isEmptyFor()` i `paginate()` dzielą jedno
+zapytanie źródeł (`FollowingFeed::zrodla()`); własne wpisy dalej nie liczą się
+jako treść. Źródło „tagi” przestaje być osobnym stopniem Startu: zostały
+„obserwowani” i „odkrywanie”, a stare odnośniki `zrodlo=tagi` wracają do
+pierwszej strony. Klasa `TagFeed` usunięta; jej testy widoczności
+(`FeedTagow*Test`) sprawdzają teraz połączoną listę.
+
+**Słowo na ekranie: „tag”, nie „temat”.** Issue pisze „Z tematu: {tag}”, ale
+na ekranie obowiązuje jedno słowo — decyzja właściciela z 11 września 2026,
+pilnowana przez `JednoSlowoNaTagiTest`. Zmiana na „temat” wymaga cofnięcia
+tamtej decyzji (pytanie do właściciela w raporcie).
+
+To reguła z listy D-275 („jawne polecenia widza — obserwuj — z listą do
+cofnięcia”: `/ustawienia/tagi`) i kolejność po czasie. Nic nie jest układane
+po reakcjach.
+
+Zmiana względem wcześniejszego zachowania, zamierzona: tag ukryty albo
+scalony przez moderację nie prowadzi już wpisów na Start (dawny `TagFeed`
+tego nie sprawdzał).
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Na Starcie widzisz wpisy osób i tagów, które obserwujesz, od najnowszych.
+> Przy wpisie, który trafił do Ciebie przez tag, jest napisane „Z tagu: …”.
+> Tagi zmienisz w ustawieniach, osoby — na ich profilach.
+
+### Wycofanie
+
+Bez migracji. Przywrócić `TagFeed` i trzy stopnie w `FeedController`
+z historii gita (przed tym wpisem), teksty `/pomoc`, `/o-kuking`,
+`/ustawienia/tagi` i nagłówek Startu.
+
+📄 `app/Domain/Feed/FollowingFeed.php` · `app/Http/Controllers/FeedController.php` ·
+`resources/views/components/post-card.blade.php` · `tests/Feature/StartOsobyITagiRazemTest.php` · D-021
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
@@ -17497,7 +17738,8 @@ limitu #940 i pokazują wpis z treścią zawsze, gdy widz może go otworzyć.
 **W kodzie.** Bez zmian w zapytaniach: `DISTINCT ON (author_id)` z #940
 działa na zbiorze już przefiltrowanym przez
 `zWidocznymPrzepisemAlboWlasnaTrescia()`. Pilnuje tego
-`ListyWpisuZWlasnaTresciaTest::test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_limitu_jednego_wpisu_na_autora`
+`ListyWpisuZWlasnaTresciaTest::test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_rund_autora`
+(po D-276 w brzmieniu „liczy się do rund autora”)
 (kontrola ujemna: pominięcie jednego wpisu na autora w „Świeżo z Kuking”
 wywraca ten test), a `test_kontrola_dodatnia_*` sprawdza na odkrywaniu
 najnowszy wpis autora, nie dwa naraz.
@@ -17593,6 +17835,92 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
 
+## D-301 — „Moja wersja”: przepis na podstawie cudzego, z nieusuwalnym podpisem oryginału (issue #23, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+z 26.09.2026: budujemy teraz, bramka retencji V1 tej funkcji nie blokuje ·
+Dotyczy **#23**
+
+**Problem.** Ludzie gotują po swojemu i zapisują to dziś w `changes_note`
+przy „Ugotowałem”. Osobny przepis-wersja może zniszczyć produkt na trzy
+sposoby (treść issue): kradzież autorstwa, farma niemal identycznych stron
+w Google (`docs/seo/SEO_TECHNICAL.md` §1.4 i §7) i rozmycie oryginału.
+
+**Decyzja.**
+
+1. **Schemat:** `recipes.forked_from_id` (FK do `recipes`, `ON DELETE SET
+   NULL`) + `recipes.forked_at` (znacznik „to jest wersja”, zostaje po
+   twardym skasowaniu oryginału). Obie kolumny poza `$fillable`; ustawia je
+   tylko `App\Domain\Recipes\Actions\ZrobWlasnaWersje`. Rollback odmawia przy
+   choćby jednej wersji (D-088).
+2. **Kto może** (`RecipePolicy::fork`): konto aktywne, przepis cudzy
+   i opublikowany, **widoczny dla tej osoby** — także „dla obserwujących”
+   (blokady, ban, usuwanie konta — wszystko przez `view()`). Uzupełnienie
+   właściciela z 26.09.2026: „nie ma co utrudniać, jak nie skopiują, to
+   zrobią screena” — pierwsza wersja tej decyzji dopuszczała tylko przepisy
+   publiczne. Odbiorca wersji, który nie widzi oryginału, czyta w podpisie
+   „oryginał jest niedostępny”, a `isBasedOn` w JSON-LD dostaje tylko
+   oryginał widoczny dla gości.
+3. **Co się kopiuje:** tytuł, opis, porcje, czasy, trudność, składniki
+   (z grupami, uwagami, „bez ilości”), treść kroków z minutnikami. **Bez
+   zdjęć** (to zdjęcia autora oryginału) i **bez pochodzenia**
+   (`source_person`, `source_note`, `family_since_year` to historia autora
+   oryginału). `source_type = adaptation`. Szkic jest `draft` + `private`;
+   drugie kliknięcie oddaje istniejący szkic wersji.
+4. **Podpis:** nad tytułem, w kreatorze i w formularzu szczegółów —
+   „Na podstawie przepisu: „{tytuł}” · {nazwa konta}”, nazwy dosłownie, bez
+   odmiany (COPY_STYLE). Oryginał niewidoczny dla widza (usunięty, ukryty,
+   zawężony, autor zablokowany/zbanowany, skasowany) → „Na podstawie
+   przepisu innej osoby — oryginał jest niedostępny.” Podpis nie znika nigdy.
+5. **Realna różnica:** publikacja wersji, której składniki (tekst, grupa,
+   uwaga, „bez ilości”), kroki (treść, minutnik), porcje i czasy są takie
+   same jak w oryginale, jest odrzucana komunikatem „To jest ten sam przepis.
+   Może wystarczy „Ugotowałem”? …”. **Tytuł, opis, zdjęcie, trudność
+   i pochodzenie nie są zmianą przepisu** — inaczej wystarczyłoby
+   przemianować cudzy rosół. Porównanie idzie także z oryginałem usuniętym
+   miękko (wskrzeszenie zdjętej treści pod innym nazwiskiem).
+6. **SEO:** wersja, której mniej niż 30% trzysłowowych fragmentów tekstu
+   (składniki + kroki) nie występuje w **publicznym** oryginale, dostaje
+   `noindex, follow`; `canonical` zawsze na siebie; JSON-LD `isBasedOn` =
+   adres oryginału, gdy oryginał jest widoczny dla gościa. Oryginał poza
+   indeksem (prywatny, usunięty) nie ma z czym się dublować, więc nie
+   blokuje wersji. **Wszystkie wersje są poza mapą strony** — próg liczony
+   w pętli mapy kosztowałby tysiące zapytań; mapa ma być podzbiorem stron
+   indeksowalnych, nie pełną listą.
+7. **Oryginał zyskuje:** sekcja „Wersje innych osób” (karty przepisów,
+   chronologicznie, „Pokaż więcej”, **bez liczby wersji** — AGENTS.md §12),
+   tylko wersje opublikowane i widoczne dla widza. Przycisk „Zrób swoją
+   wersję” stoi pod przepisem, nie obok „Ugotowałem”.
+8. **Powiadomienie** `recipe.forked` do autora oryginału: przy **pierwszym
+   udostępnieniu wersji innym** — pierwszym zapisie, po którym wersja jest
+   opublikowana z widocznością szerszą niż prywatna (także przejście
+   „tylko ja” → „obserwujący”/„wszyscy” po publikacji); tylko gdy autor
+   oryginału może ją wtedy zobaczyć; raz na wersję (ponowne udostępnienie
+   po powrocie do prywatnej nie powiadamia drugi raz). Uzupełnienie
+   właściciela z 26.09.2026; wcześniej: tylko przy pierwszej publikacji. To nie jest „Ugotowałem” i nie zmienia jego obietnicy (AGENTS.md
+   §1); granice (własna akcja, konto zamknięte, blokada) daje `NotifyUser`.
+9. **Eksport danych:** przy przepisie `moja_wersja_od` i
+   `na_podstawie_przepisu` (tytuł i adres oryginału tylko wtedy, gdy
+   właściciel paczki może go dziś zobaczyć).
+
+**Czego świadomie nie zrobiono:** wariantu „wersja jako sekcja na stronie
+oryginału” zamiast osobnego adresu (SEO §1.4 pkt 2) — próg `noindex` daje
+ten sam skutek bez drugiego sposobu wyświetlania przepisu; porównania wersji
+między sobą (dwie wersje podobne do siebie, a różne od oryginału).
+„Raz na wersję” opiera się na istniejącym powiadomieniu: po jego usunięciu
+retencją (3 miesiące) ponowne udostępnienie po okresie prywatności
+powiadomiłoby jeszcze raz — świadomie bez osobnej kolumny.
+
+**W kodzie.** `App\Domain\Recipes\MojaWersja`, `ZrobWlasnaWersje`,
+`RecipePolicy::fork`, trasa `POST /przepisy/{slug}/moja-wersja`
+(`recipes.fork`, limit `post`), `components/na-podstawie-przepisu.blade.php`.
+Testy: `MojaWersjaPrzepisuTest`, `CofniecieMigracjiNieGubiPodpisuWersjiTest`.
+
+### Wycofanie
+Wyłączenie funkcji = usunięcie przycisku i trasy; istniejące wersje zostają
+z podpisem. Cofnięcie schematu odmawia, dopóki w bazie są wersje — komunikat
+migracji mówi, jak zapisać powiązania przed ręcznym cofnięciem.
+
 ## D-309 — Ta sama liczba komentarzy wszędzie: przepis i „Ugotowałem” też liczą odpowiedzi (#1801, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
@@ -17624,3 +17952,34 @@ usuniętego korzenia liczony). Pilnuje `LicznikKomentarzyLiczyOdpowiedziTest`
 
 **Wycofanie.** Bez schematu i danych — powrót do liczenia wątków to zmiana
 dwóch linijek w kontrolerach i nowa decyzja właściciela.
+## D-263 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2 (DSA
+art. 16, bezpieczeństwo ludzi) · Status: **obowiązuje** · Uzupełnia D-253
+
+### Co było
+Zawieszona osoba czyta serwis (D-253), więc widzi też komentarze i profil
+osoby, która ją nęka. `POST /@{login}/blokuj`, `DELETE /@{login}/blokuj`,
+`POST /zglos/{typ}/{id}` i `POST /zglos-nielegalna-tresc` odbijał jednak
+`EnsureAccountIsActive` komunikatem o zawieszeniu. Przyciski „Zablokuj”
+i „Zgłoś” stały na ekranie i były martwe. D-253 tych czynności nie rozstrzygał.
+
+### Decyzja
+Trasy `social.block`, `social.unblock`, `reports.store`
+i `zglos.nielegalna.store` są na liście `DOZWOLONE_MIMO_ZAWIESZENIA`.
+
+- **Blokada chroni, a nie publikuje.** Zmienia wyłącznie to, co widzi
+  blokujący i blokowany. Zawieszenie jest karą za pisanie — nie może
+  zostawiać człowieka bezbronnym wobec nękania.
+- **Zgłoszenie treści to prawo z DSA art. 16**, które nie zależy od stanu
+  konta zgłaszającego. Zgłoszenia bez konta i tak przyjmujemy, więc
+  odmowa zawieszonemu byłaby tylko przeszkodą, nie ochroną.
+- Obserwowanie, komentarze i publikacja zostają zablokowane (D-253).
+
+### Dowody
+`tests/Feature/ZawieszonyBlokujeIZglaszaTest.php` — z kontrolą dodatnią, że
+obserwowanie i komentarz dalej są odbijane.
+
+### Wycofanie
+Usunąć cztery nazwy tras z listy w `EnsureAccountIsActive`. Schemat bazy się
+nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
