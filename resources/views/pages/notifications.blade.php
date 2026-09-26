@@ -199,6 +199,10 @@
                                 --}}
                                 <strong>{{ $notification->naglowekZapisu() }}</strong>
                                 {{ $notification->resztaZapisu() }}
+                                {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
+                                @if($notification->przepisUsuniety())
+                                    Ten przepis został usunięty.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
