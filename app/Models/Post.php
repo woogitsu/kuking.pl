@@ -194,16 +194,57 @@ class Post extends Model
     // Zakresy
     // ---------------------------------------------------------------------
 
-    /** Licznik kart: ślad usunięcia zachowuje rozmowę, ale nie jest odpowiedzią.
-     * @param  Builder<Post>  $query
+    /**
+     * Licznik komentarzy karty i nagłówka rozmowy — jedna definicja (#1801).
+     *
+     * ZWYKŁY WPIS liczy WSZYSTKO, co widz przeczyta po rozwinięciu rozmowy:
+     * komentarze główne i odpowiedzi (decyzja właściciela z 26.09.2026). Do
+     * tego dnia licznik szedł po `comments()`, czyli po samych korzeniach,
+     * więc wpis z jednym komentarzem i trzema odpowiedziami pokazywał na
+     * karcie „Komentarze (1)”, a na stronie cztery wypowiedzi.
+     *
+     * PYTANIE liczy wyłącznie odpowiedzi najwyższego poziomu (#372) —
+     * rozmowa pod odpowiedzią nie jest kolejną odpowiedzią.
+     *
+     * Granice widoczności są te same co w widoku (`PostController::show`):
+     * - każda wypowiedź przechodzi `Comment::widoczneDla()` (blokada w obie
+     *   strony, konto autora, status),
+     * - odpowiedź liczy się tylko pod korzeniem, który widz też widzi — gdy
+     *   korzeń odpada, strona nie pokazuje jego odpowiedzi (#1396), więc
+     *   licznik ich nie obiecuje,
+     * - ślad usunięcia („Komentarz usunięty.”) liczy się przy daniu, bo
+     *   zachowuje rozmowę; przy pytaniu nie, bo nie jest odpowiedzią.
+     *
+     * Wynik ląduje w `comments_count`, jak dotąd — karta i
+     * `jestSamymPrzepisem()` nie muszą wiedzieć, skąd przyszedł.
+     *
+     * @return array<string, \Closure>
      */
+    public static function licznikWidocznychKomentarzy(?User $viewer): array
+    {
+        return ['allComments as comments_count' => fn (Builder $comments) => $comments
+            ->widoczneDla($viewer)
+            ->where(fn (Builder $liczone) => $liczone
+                ->where(fn (Builder $korzen) => $korzen
+                    ->whereNull('comments.parent_id')
+                    ->where(fn (Builder $tresc) => $tresc
+                        ->whereNull('comments.body_removed_at')
+                        ->orWhere('posts.kind', self::KIND_DISH)))
+                ->orWhere(fn (Builder $odpowiedz) => $odpowiedz
+                    ->where('posts.kind', self::KIND_DISH)
+                    // Podzapytanie ma własne `from comments`, więc `comments.*`
+                    // wewnątrz `widoczneDla()` wskazuje KORZEŃ, nie odpowiedź.
+                    ->whereIn('comments.parent_id', Comment::query()
+                        ->select('comments.id')
+                        ->whereColumn('comments.post_id', 'posts.id')
+                        ->whereNull('comments.parent_id')
+                        ->widoczneDla($viewer))))];
+    }
+
+    /** @param  Builder<Post>  $query */
     public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
     {
-        $query->withCount(['comments' => fn (Builder $comments) => $comments
-            ->widoczneDla($viewer)
-            ->where(fn (Builder $counted) => $counted
-                ->whereNull('comments.body_removed_at')
-                ->orWhere('posts.kind', self::KIND_DISH))]);
+        $query->withCount(self::licznikWidocznychKomentarzy($viewer));
     }
 
     /** @param  Builder<Post>  $query */
@@ -289,9 +330,10 @@ class Post extends Model
      * na tabeli wymagałby pamiętania o tym warunku — a to jest dokładnie ten
      * rodzaj rzeczy, który się zapomina przy drugiej kopii.
      *
-     * DLACZEGO NIE REUŻYWAMY `Notification::wierszTresciWidoczny()`
-     * Tamten pomocnik odpowiada na to samo pytanie, ale jest prywatny,
-     * zbudowany na surowym `Query\Builder` z aliasem tabeli i wymaga
+     * DLACZEGO NIE REUŻYWAMY `WidocznoscTresciSql::wpisLubPrzepis()`
+     * Tamta specyfikacja (#1687, dawniej prywatny pomocnik `Notification`)
+     * odpowiada na podobne pytanie, ale jest zbudowana na surowym
+     * `Query\Builder` z aliasem tabeli i wymaga
      * NIEPUSTEGO widza — a strumienie („Świeżo z Kuking", tablica dnia,
      * strona powitalna) pytają także za gościa, czyli z `?User = null`.
      * Kanonicznym odpowiednikiem w warstwie Eloquenta jest
@@ -598,6 +640,16 @@ class Post extends Model
         }
 
         return trim(trim((string) $this->title)."\n\n".$body);
+    }
+
+    /**
+     * Wpis ukryty albo zdjęty decyzją moderatora (issue #936). Taki wpis
+     * zostaje w stanie, o którym moderator zdecydował — patrz
+     * `PostPolicy::update()`.
+     */
+    public function jestPodDecyzjaModeracji(): bool
+    {
+        return in_array($this->status, [self::STATUS_HIDDEN, self::STATUS_REMOVED], true);
     }
 
     public function isPublished(): bool
