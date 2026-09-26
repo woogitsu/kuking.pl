@@ -2563,8 +2563,17 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
       evencie `pull_request`, gdy PR został otwarty (albo zaktualizowany)
       domyślnym `GITHUB_TOKEN` tego samego repozytorium — zabezpieczenie
       przed pętlą automatów, ale u nas oznaczałoby PR z cenami bez ani
-      jednego przebiegu `ci.yml`. Dlatego checkout, push gałęzi i `gh pr
-      create`/`view` w tym workflowie idą osobistym tokenem:
+      jednego przebiegu `ci.yml`. Dlatego push gałęzi i `gh pr
+      create`/`view` w tym workflowie idą osobistym tokenem — a od #1957
+      TYLKO one: workflow ma dwa joby, `pobierz` (bez tokenu, uruchamia
+      `scripts/ceny-warzyw-zsrir-pobierz.py`) i `publikuj` (z tokenem, bez
+      ani jednego wywołania kodu z `scripts/` — patrz komentarz na górze
+      `.github/workflows/ceny-warzyw-auto.yml`, „DLACZEGO DWA JOBY"). Do
+      26.09.2026 token szedł do TEGO SAMEGO checkoutu co uruchomienie
+      skryptu pobierającego dane — skompromitowany skrypt (albo jego
+      zależność `openpyxl`) mógł odczytać poświadczenie zapisu
+      z konfiguracji gita zostawionej przez checkout i wynieść je poza
+      kontrolę tego joba.
 
       1. GitHub → to repozytorium → **Settings → Developer settings →
          Personal access tokens → Fine-grained tokens → Generate new

@@ -18174,6 +18174,21 @@ przebieg czerwonym `::error::` po polsku, mówiącym dokładnie, co ustawić
 i gdzie (Settings → Secrets and variables → Actions →
 `CENY_WARZYW_PAT`) — nie cichym błędem gita czy `gh` przy pustym tokenie.
 
+**Poprawka bezpieczeństwa, 26.09.2026 (#1957): checkout i uruchomienie
+skryptu rozdzielone na dwa joby.** Zdanie wyżej — „checkout i krok
+push/PR idą TYM SAMYM tokenem” — było prawdziwe i było błędem: między
+tym checkoutem a pushem workflow uruchamiał
+`python3 scripts/ceny-warzyw-zsrir-pobierz.py`, czyli kod z repozytorium,
+mając już poświadczenie zapisu (`Contents`/`Pull requests: read/write`)
+zapisane w konfiguracji gita przez ten sam checkout. Skompromitowany
+skrypt (albo jego zależność `openpyxl`) mógł to poświadczenie odczytać
+(`git config --local --get-regexp 'credential|url'`) i wynieść poza
+kontrolę tego joba. Naprawa: `pobierz` (bez tokenu, `persist-credentials:
+false`, uruchamia skrypt) i `publikuj` (z tokenem, ale bez ani jednego
+wywołania kodu z `scripts/` — tylko `git`/`gh` z tego pliku workflow,
+plik CSV wędruje między jobami jako artefakt przebiegu). Strażnik:
+`tests/Feature/WorkflowCenNieUruchamiaKoduZTokenemZapisuTest.php`.
+
 **B. Automatyzacja obejmuje też siedem warzyw hurtowych — jeden PR
 tygodniowo na wszystkie 12 warzyw.** Ręczna aktualizacja arkusza
 „HURT WARZ” z punktu 3 była tymczasowa: skoro ten sam biuletyn niesie oba
