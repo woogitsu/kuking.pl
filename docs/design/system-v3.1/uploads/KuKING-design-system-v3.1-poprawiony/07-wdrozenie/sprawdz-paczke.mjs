@@ -15,6 +15,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tekstZHtml } from './tekst-widoczny.mjs';
 
 const KORZEN = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -126,7 +127,10 @@ for (const p of pliki) {
 /* ------------------------------------------------------------------ */
 /* Sprawdzamy tekst po usunięciu znaczników, stylów, skryptów i komentarzy.
    Powód: `--container-content` i `.karta-tresc` to nazwy w kodzie, a zakaz
-   dotyczy napisów dla człowieka (BRAND_EXTENDED.md §2.2 mówi to wprost). */
+   dotyczy napisów dla człowieka (BRAND_EXTENDED.md §2.2 mówi to wprost).
+   `tekstZHtml` mieszka w `./tekst-widoczny.mjs` — osobno, bo to jedyna
+   część tego pliku bez efektów ubocznych, więc jedyna, którą da się
+   bezpiecznie zaimportować w teście (#1910, CodeQL js/bad-tag-filter). */
 
 const ZAKAZANE = [
   'content', 'explore', 'discover', 'engage', 'engagement', 'creator',
@@ -138,15 +142,6 @@ const ZAKAZANE = [
   'odznaka', 'ranking użytkowników', 'ranking użytkownikow', 'senior', 'seniorzy', 'dla starszych', 'intuicyjny',
   'kulinarne inspiracje', 'zainspiruj się', 'jak u mamy',
 ];
-
-const tekstZHtml = (html) =>
-  html
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z]+;/gi, ' ');
 
 for (const p of pliki) {
   const rozsz = extname(p);
