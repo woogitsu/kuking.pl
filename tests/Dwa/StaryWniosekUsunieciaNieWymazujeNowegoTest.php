@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Dwa;
 
 use App\Models\User;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -21,6 +22,7 @@ final class StaryWniosekUsunieciaNieWymazujeNowegoTest extends TestDwochPolaczen
         $konto = $this->konto([
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
+            'delete_request_generation' => (string) Str::uuid(),
             'delete_scope' => User::DELETE_SCOPE_MINIMUM,
         ]);
         $id = (string) $konto->getKey();
@@ -33,8 +35,8 @@ final class StaryWniosekUsunieciaNieWymazujeNowegoTest extends TestDwochPolaczen
         // Ten sam wiersz, nowa generacja po cofnięciu i ponownym zgłoszeniu.
         // Zmiana jest zatwierdzona przed wznowieniem workera.
         $nowyTermin = now();
-        $zmiana = $bariera->prepare('UPDATE users SET delete_requested_at = ? WHERE id = ?');
-        $zmiana->execute([$nowyTermin->toDateTimeString(), $id]);
+        $zmiana = $bariera->prepare('UPDATE users SET delete_requested_at = ?, delete_request_generation = ? WHERE id = ?');
+        $zmiana->execute([$nowyTermin->toDateTimeString(), (string) Str::uuid(), $id]);
         $this->assertSame(1, $zmiana->rowCount());
         $bariera->commit();
 
@@ -47,5 +49,6 @@ final class StaryWniosekUsunieciaNieWymazujeNowegoTest extends TestDwochPolaczen
         $this->assertSame(User::STATUS_PENDING_DELETE, $stan->status);
         $this->assertNull($stan->data_erased_at);
         $this->assertTrue($stan->delete_requested_at->isAfter($staryTermin));
+        $this->assertNotSame($konto->delete_request_generation, $stan->delete_request_generation);
     }
 }

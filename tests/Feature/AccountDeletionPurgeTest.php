@@ -159,18 +159,43 @@ class AccountDeletionPurgeTest extends TestCase
         $basia->markForDeletion();
 
         $wymaz = app(EraseAccountData::class);
-        $this->assertFalse($wymaz->handle($staryKandydat, $staryTermin));
+        $this->assertFalse($wymaz->handleExpiredRequest($staryKandydat));
         $this->assertNull($basia->fresh()->data_erased_at);
         $this->assertTrue($basia->fresh()->delete_requested_at->isAfter($staryTermin));
 
         // Po upływie nowej karencji warunek samej daty już nie wystarczy:
         // stara generacja nadal nie może wykonać nowego wniosku.
         $this->travel(31)->days();
-        $this->assertFalse($wymaz->handle($staryKandydat, $staryTermin));
+        $this->assertFalse($wymaz->handleExpiredRequest($staryKandydat));
         $this->assertNull($basia->fresh()->data_erased_at);
 
         $nowyKandydat = $basia->fresh();
-        $this->assertTrue($wymaz->handle($nowyKandydat, $nowyKandydat->delete_requested_at));
+        $this->assertTrue($wymaz->handleExpiredRequest($nowyKandydat));
+        $this->assertNotNull($basia->fresh()->data_erased_at);
+    }
+
+    public function test_dwa_wnioski_w_tej_samej_sekundzie_maja_rozne_generacje(): void
+    {
+        config(['kuking.account.delete_grace_days' => 0]);
+        $this->travelTo(now()->startOfSecond());
+        $basia = $this->user('basia-ta-sama-sekunda');
+        $basia->markForDeletion();
+        $staryKandydat = $basia->fresh();
+
+        $basia->cancelDeletion();
+        $basia->markForDeletion();
+        $nowyKandydat = $basia->fresh();
+
+        $this->assertSame(
+            $staryKandydat->delete_requested_at->getTimestamp(),
+            $nowyKandydat->delete_requested_at->getTimestamp(),
+        );
+        $this->assertNotSame($staryKandydat->delete_request_generation, $nowyKandydat->delete_request_generation);
+
+        $wymaz = app(EraseAccountData::class);
+        $this->assertFalse($wymaz->handleExpiredRequest($staryKandydat));
+        $this->assertNull($basia->fresh()->data_erased_at);
+        $this->assertTrue($wymaz->handleExpiredRequest($nowyKandydat));
         $this->assertNotNull($basia->fresh()->data_erased_at);
     }
 

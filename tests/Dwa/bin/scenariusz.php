@@ -213,7 +213,7 @@ try {
         'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
             $kandydat = User::query()->whereKey($argumenty['konto'])->firstOrFail();
 
-            return app(EraseAccountData::class)->handle($kandydat, $kandydat->delete_requested_at);
+            return app(EraseAccountData::class)->handleExpiredRequest($kandydat);
         })(),
 
         // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest

@@ -1004,9 +1004,12 @@ osoby, która klika w pośpiechu.
 
 ### Uzupełnienie: ponowny wniosek rozpoczyna nową karencję (#2023)
 
-Egzekutor przekazuje do `EraseAccountData` datę wniosku, którą wybrał z listy
-kont po terminie. Akcja porównuje ją z bieżącą datą wniosku **pod blokadą
-wiersza konta** i sprawdza, czy bieżące 30 dni już minęło. Po cofnięciu i
+Każdy wniosek dostaje osobny `users.delete_request_generation` (UUID), także
+gdy dwa zgłoszenia przypadają w tej samej sekundzie. Migracja nadaje UUID
+również wnioskom oczekującym w chwili wdrożenia. Egzekutor przekazuje do
+`EraseAccountData` generację wybraną z listy kont po terminie. Akcja porównuje
+ją z bieżącą generacją **pod blokadą wiersza konta** i sprawdza, czy bieżące
+30 dni już minęło. Po cofnięciu i
 ponownym zgłoszeniu stary przebieg egzekutora pomija konto, nawet jeśli
 ponownie widzi status `pending_delete`. Dokończenie kasowania zdjęć po już
 wykonanym wymazaniu oraz odtworzenie wymazania z dziennika po przywróceniu

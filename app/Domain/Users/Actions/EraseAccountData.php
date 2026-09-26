@@ -17,7 +17,6 @@ use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\WpisZgody;
-use DateTimeInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -89,8 +88,20 @@ final class EraseAccountData
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
-    public function handle(User $user, ?DateTimeInterface $oczekiwanyWniosek = null): bool
+    public function handle(User $user): bool
     {
+        return $this->wymaz($user, false);
+    }
+
+    /** Egzekucja zwykłej karencji wymaga TEJ SAMEJ generacji wniosku. */
+    public function handleExpiredRequest(User $kandydat): bool
+    {
+        return $this->wymaz($kandydat, true);
+    }
+
+    private function wymaz(User $user, bool $wymagajWygaslegoWniosku): bool
+    {
+        $oczekiwanaGeneracja = $user->delete_request_generation;
         $fresh = User::query()->whereKey($user->getKey())->first();
 
         // PONOWIENIE (audyt/issue #17): konto jest JUŻ zanonimizowane
@@ -121,7 +132,7 @@ final class EraseAccountData
         $doSkasowania = [];
         $zakresDoDziennika = null;
 
-        $wymazano = DB::transaction(function () use ($user, $oczekiwanyWniosek, &$doSkasowania, &$zakresDoDziennika): bool {
+        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -135,18 +146,21 @@ final class EraseAccountData
                 return false;
             }
 
-            // Egzekutor przekazuje datę wniosku z materializowanej listy.
+            // Egzekutor przekazuje generację wniosku z materializowanej listy.
             // Cofnięcie i ponowne zgłoszenie może przywrócić pending_delete,
             // ale nie może skrócić NOWEJ karencji przez stary przebieg workera.
-            // Odtwarzanie po backupie (`WymazPonownie`) celowo nie podaje tej
-            // daty: odtwarza wymazanie już wykonane i zapisane w dzienniku.
-            if ($oczekiwanyWniosek !== null
-                && ($fresh->delete_requested_at === null
-                    || $fresh->delete_requested_at->getTimestamp() !== $oczekiwanyWniosek->getTimestamp()
-                    || $fresh->deletionGraceEndsAt()?->isFuture()
-                )
-            ) {
-                return false;
+            // Odtwarzanie po backupie (`WymazPonownie`) używa `handle()`:
+            // odtwarza wymazanie już wykonane i zapisane w dzienniku.
+            if ($wymagajWygaslegoWniosku) {
+                $koniecKarencji = $fresh->deletionGraceEndsAt();
+
+                if ($fresh->delete_requested_at === null
+                    || $koniecKarencji === null
+                    || $koniecKarencji->isFuture()
+                    || $fresh->delete_request_generation !== $oczekiwanaGeneracja
+                ) {
+                    return false;
+                }
             }
 
             $profile = $fresh->profile;

@@ -264,7 +264,7 @@ class PurgeExpiredAccountDeletions extends Command
     /** Pełna egzekucja jednego konta z pierwszej kolejki. */
     private function wymazKonto(User $user, int &$usuniete): void
     {
-        $wykonano = $this->usunDane->handle($user, $user->delete_requested_at);
+        $wykonano = $this->usunDane->handleExpiredRequest($user);
 
         if (! $wykonano) {
             // Ktoś cofnął usunięcie albo inny proces już to obsłużył
