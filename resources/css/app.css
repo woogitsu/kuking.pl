@@ -4618,6 +4618,15 @@
     display: inline-flex;
     flex-wrap: wrap;
     gap: 0 var(--spacing-2);
+    /* Od issue #1909 to odnośnik do „Co nowego" — podkreślenie WIDOCZNE
+       ZAWSZE (nie tylko na hover), bo AGENTS.md §5 zakazuje ważnej akcji
+       polegającej wyłącznie na hoverze/kolorze. Element sam nie zmienia
+       koloru na hover: reszta serwisu tego nie robi (D-053 mówi
+       o wymogu JavaScriptu, nie o hoverze), a to jedyny sygnał klikalności,
+       jaki ma ten mały tekst. */
+    text-decoration: underline;
+    text-decoration-color: currentColor;
+    text-underline-offset: 2px;
   }
 
   /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana — to jest

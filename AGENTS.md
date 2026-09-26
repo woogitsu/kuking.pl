@@ -628,7 +628,19 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
+  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
+  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
+  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
+  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
+  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
+  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
+  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
+  nowego” pod numerem wersji w stopce. Pilnuje tego
+  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
+  z issue #1909).
 
 ### Bugfix zawsze zawiera test regresyjny
 
