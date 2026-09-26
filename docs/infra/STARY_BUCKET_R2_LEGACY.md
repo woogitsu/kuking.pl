@@ -65,8 +65,9 @@ wiersz. **Oryginałów w starym buckecie nie kasuje.**
    ```
 
    `[do potwierdzenia w dokumentacji rclone]` — jak w `DR_ZDJEC_R2.md` §5.
-   Ten katalog ma inny układ niż `migawka-*/oryginaly|warianty`, więc
-   `kuking:sprawdz-kopie-zdjec` go nie sprawdzi. Porównaj liczbę i łączny
+   Ten katalog ma inny układ niż katalogi `migawka-*` (z podkatalogami
+   `oryginaly` i `warianty`), więc `kuking:sprawdz-kopie-zdjec` go nie
+   sprawdzi. Porównaj liczbę i łączny
    rozmiar obiektów (`rclone size`) ze źródłem i zapisz w §5.
    Kopia podlega tej samej regule lifecycle co migawki (31 dni,
    `DR_ZDJEC_R2.md` §2): zdjęcie usunięte przez człowieka nie może żyć
