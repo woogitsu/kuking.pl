@@ -722,6 +722,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
+    // „Zrób swoją wersję" (issue #23, D-301) — zakłada szkic, więc POST
+    // i ten sam limit co każde inne wytwarzanie przepisu.
+    Route::post('/przepisy/{recipe}/moja-wersja', [RecipeController::class, 'fork'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.fork');
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');

@@ -68,6 +68,11 @@
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
     <h1>{{ $isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami' }}</h1>
+    {{-- „Moja wersja" (issue #23, D-301): podpis widać też tu, a formularz
+         nie ma pola, które by go zdejmowało. --}}
+    @if($recipe)
+        <x-na-podstawie-przepisu :recipe="$recipe" />
+    @endif
     {{-- ZDANIE „NIE MUSISZ NIC PRZEWIJAĆ ANI SZUKAĆ" ZNIKŁO, BO BYŁO NIEPRAWDĄ.
 
          Zmierzone 11 września 2026 Chromium 1243 na postawionej lokalnie
