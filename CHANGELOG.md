@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Zgłoszenie nielegalnej treści: sprawa jest oznaczana jako „poinformowaliśmy o decyzji” dopiero wtedy, gdy e-mail z decyzją naprawdę wyszedł, a nie w chwili, gdy trafił do kolejki. Gdy wysyłka ostatecznie się nie uda, sprawa zostaje bez tego znacznika, a w dzienniku serwera jest jej numer. Ponowienie tego samego listu po udanej wysyłce nie wysyła go drugi raz (#1838, D-293).
 - Paczka z danymi (`dane.json`) nazywa pole „Na czym się znasz” kluczem `na_czym_sie_znam` zamiast `w_czym_jestem_dobra`, który każdemu czytelnikowi przypisywał formę żeńską. **Zgodność wstecz:** program czytający starsze paczki powinien przyjmować oba klucze — w paczkach wygenerowanych przed tą zmianą to samo pole nazywa się `w_czym_jestem_dobra`, a jego treść się nie zmieniła. Innych kluczy zmiana nie dotyczy (#1750).
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).

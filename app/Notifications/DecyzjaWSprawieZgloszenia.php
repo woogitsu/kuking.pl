@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Domain\Moderation\OdpowiedzDlaZglaszajacego;
+use App\Logging\BezpiecznyBlad;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Throwable;
 
 /**
  * Powiadomienie ZGŁASZAJĄCEGO o decyzji (DSA art. 16 ust. 5).
@@ -38,6 +42,22 @@ use Illuminate\Support\Facades\URL;
  * dostaje tę samą treść powiadomieniem w serwisie. Dwie kopie tych samych
  * zdań rozjechałyby się przy pierwszej poprawce, a to jest treść, której
  * kształtu wymaga przepis.
+ *
+ * ZNACZNIK `decision_sent_at` STAWIA TEN LIST, PO WYSŁANIU (issue #1838, D-293)
+ * Do 26 września 2026 stawiała go `RozstrzygnijZgloszenie` zaraz po
+ * `notify()` — czyli po ZAKOLEJKOWANIU. Worker mógł potem wyczerpać próby,
+ * list lądował w `failed_jobs`, a kolumna dalej mówiła „poinformowaliśmy".
+ * Teraz:
+ *  - `afterSending()` stawia znacznik dopiero, gdy transport pocztowy przyjął
+ *    wiadomość — nie znaczy to „doszło do skrzynki", ale nie znaczy też
+ *    „powstało zadanie";
+ *  - `shouldSend()` pomija wysyłkę, gdy znacznik już stoi — ponowienie tego
+ *    samego zadania (`queue:retry`, druga próba po awarii w połowie) nie
+ *    wyśle drugiego listu o sprawie, o której już poinformowaliśmy;
+ *  - `failed()` zostawia w dzienniku numer sprawy, której decyzja nie wyszła.
+ *    Sama sprawa zostaje z pustym znacznikiem, więc da się ją policzyć
+ *    i ponowić; ślad awarii transportu zapisuje dodatkowo
+ *    `App\Poczta\ZapiszNieudanyList` (`mail_failures`, `/health`).
  */
 final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueue
 {
@@ -52,6 +72,70 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
     public function via(object $notifiable): array
     {
         return ['mail'];
+    }
+
+    /**
+     * Drugi list o tej samej sprawie nie wychodzi, jeśli pierwszy wyszedł.
+     *
+     * Pytamy BAZĘ, nie model z ładunku: model odtworzony z kolejki niesie stan
+     * z chwili zakolejkowania, a znacznik mógł postawić inny przebieg.
+     */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        return Report::query()
+            ->whereKey($this->zgloszenie->getKey())
+            ->whereNull('decision_sent_at')
+            ->exists();
+    }
+
+    /**
+     * Transport przyjął list — dopiero teraz sprawa jest „poinformowana".
+     *
+     * `WHERE decision_sent_at IS NULL`: znacznik stawiamy raz i nie
+     * przesuwamy go przy ewentualnym powtórzeniu.
+     *
+     * PRZYPADEK „LIST PRZYJĘTY, ZAPIS ZNACZNIKA PADŁ" jest rozstrzygnięty
+     * świadomie (D-293): wyjątek łapiemy i zapisujemy do dziennika, zamiast
+     * go rzucić. Rzucony wyjątek kazałby workerowi powtórzyć zadanie, a każde
+     * powtórzenie wysłałoby zgłaszającemu KOLEJNY list z tą samą decyzją
+     * i linkiem do odwołania. Wolimy stan fałszywie ostrożny — znacznik
+     * pusty, choć list wyszedł, i wpis w dzienniku z numerem sprawy — od
+     * serii identycznych listów prawnych.
+     */
+    public function afterSending(object $notifiable, string $channel, mixed $response = null): void
+    {
+        try {
+            // Własna (pod)transakcja: gdy list idzie synchronicznie wewnątrz
+            // transakcji decyzji, błąd tego `UPDATE` cofa się do punktu
+            // zapisu i nie zatruwa transakcji zewnętrznej w PostgreSQL.
+            DB::transaction(fn () => Report::query()
+                ->whereKey($this->zgloszenie->getKey())
+                ->whereNull('decision_sent_at')
+                ->update(['decision_sent_at' => now()]));
+        } catch (Throwable $e) {
+            Log::error('List z decyzją w sprawie zgłoszenia wyszedł, ale nie udało się zapisać znacznika decision_sent_at.', [
+                'report_id' => $this->zgloszenie->getKey(),
+                'numer_sprawy' => $this->zgloszenie->numer_sprawy,
+                'error' => BezpiecznyBlad::kontekst($e),
+            ]);
+        }
+    }
+
+    /**
+     * Worker wyczerpał próby: decyzja NIE doszła i ma to być widać.
+     *
+     * Bez adresu zgłaszającego i bez treści zgłoszenia (AGENTS.md §7) —
+     * numer sprawy wystarcza, żeby ją znaleźć w panelu. Znacznik zostaje
+     * pusty, więc sprawa jest policzalna zapytaniem z `docs/DATABASE.md`
+     * i da się ją ponowić `php artisan queue:retry`.
+     */
+    public function failed(Throwable $e): void
+    {
+        Log::error('Decyzja w sprawie zgłoszenia prawnego nie doszła do zgłaszającego — zadanie wyczerpało próby.', [
+            'report_id' => $this->zgloszenie->getKey(),
+            'numer_sprawy' => $this->zgloszenie->numer_sprawy,
+            'error' => BezpiecznyBlad::kontekst($e),
+        ]);
     }
 
     public function toMail(object $notifiable): MailMessage

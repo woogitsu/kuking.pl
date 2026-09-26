@@ -2445,7 +2445,7 @@ Kolumny dołożone dla drogi prawnej:
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
 | `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |
-| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). |
+| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). Przy drodze prawnej stawia go list `DecyzjaWSprawieZgloszenia` **po wysłaniu**, nie akcja przy zakolejkowaniu (#1838, D-293). |
 
 Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
 powiadomiliśmy”, a przy audycie to jest pierwsze pytanie.
@@ -2458,6 +2458,14 @@ Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
 `notifier_email` niepuste — zgłoszenie prawne z adresem; nigdy oba naraz.
 Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
 zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
+
+**Zakolejkowany list to jeszcze nie „powiadomiliśmy”** (issue #1838, D-293).
+Przy drodze prawnej `decision_sent_at` stawia `afterSending()` listu z decyzją,
+gdy transport pocztowy przyjął wiadomość. Między decyzją a pracą workera
+kolumna jest pusta; po ostatecznej porażce zostaje pusta. Rozstrzygnięte
+sprawy prawne z adresem i pustym znacznikiem liczy
+`Report::decyzjaNieprzekazanaMailem()`; czy list czeka, czy przepadł, mówi
+`failed_jobs` (`php artisan queue:failed`), nie ta kolumna.
 
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
