@@ -94,6 +94,7 @@ class JedenAktywnyEksportNaKontoTest extends TestCase
             'status' => DataExport::STATUS_READY,
             'disk' => 'local',
             'object_key' => 'eksporty/basia.zip',
+            'bytes' => 1234,
             'completed_at' => now(),
             'expires_at' => now()->addDays(7),
         ]);
