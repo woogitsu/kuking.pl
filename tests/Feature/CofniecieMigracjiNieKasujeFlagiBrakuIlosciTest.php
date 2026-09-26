@@ -19,7 +19,7 @@ use Tests\TestCase;
  * Migracja `2026_09_06_130000_add_no_amount_to_recipe_ingredients` dokłada
  * kolumnę `no_amount` (issue #44) i jej `down()` zdejmowało CHECK i kolumnę
  * bez żadnego pytania. Dopóki nic tej flagi nie czytało, było to bezstratne.
- * Od skalowania porcji (V2, D-284) `no_amount` rozstrzyga, których
+ * Od skalowania porcji (V2, PR #1884) `no_amount` rozstrzyga, których
  * składników NIE mnożyć przy przeliczeniu — a tego rozstrzygnięcia nie da
  * się odtworzyć z samego tekstu składnika, bo „sól do smaku" i „sól 5 g"
  * wyglądają w `ingredient_text` identycznie. Strażnik w `down()` (D-088)

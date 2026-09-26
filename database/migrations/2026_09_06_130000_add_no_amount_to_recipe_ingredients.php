@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Schema;
  * `down()` zdejmuje CHECK i kolumnę — ale dopiero, gdy w tabeli nie ma ani
  * jednego składnika oznaczonego `no_amount = true`. Do 26 września 2026
  * kolumna była „bezstratna" tylko dlatego, że nic jej jeszcze nie czytało
- * poza widokiem: po wdrożeniu skalowania porcji (V2, D-284) ta flaga
+ * poza widokiem: po wdrożeniu skalowania porcji (V2, PR #1884) ta flaga
  * rozstrzyga, których składników NIE mnożyć przy przeliczeniu porcji, i nie
  * da się jej odtworzyć z samego tekstu składnika („sól do smaku" i „sól 5 g"
  * wyglądają w kolumnie `ingredient_text` identycznie, gdy `no_amount` już
@@ -88,7 +88,7 @@ return new class extends Migration
                 'Liczba składników oznaczonych jako „bez wymiernej ilości" (`no_amount = true`) '
                 .'w tabeli `recipe_ingredients`: '.$bezIlosci.'. '
                 .'Cofnięcie tej migracji usunie kolumnę `no_amount` razem z tym oznaczeniem — po '
-                .'wdrożeniu skalowania porcji (V2, D-284) ta flaga rozstrzyga, których składników '
+                .'wdrożeniu skalowania porcji (V2, PR #1884) ta flaga rozstrzyga, których składników '
                 .'NIE mnożyć, i nie da się jej odtworzyć z samego tekstu składnika.'
                 ."\n\n"
                 .'Zrób kopię tabeli, a potem uruchom ponownie '
