@@ -122,6 +122,7 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],

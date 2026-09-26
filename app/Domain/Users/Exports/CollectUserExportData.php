@@ -215,6 +215,9 @@ final class CollectUserExportData
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
             'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+            // Znacznik „pierwsze kroki zakończone albo pominięte” (#985).
+            // Dla kont sprzed #985 migracja wpisała tu datę założenia konta.
+            'pierwsze_kroki_zakonczone' => $this->date($user->onboarding_zakonczony_at),
             'konto_zmienione' => $this->date($user->updated_at),
         ];
     }
