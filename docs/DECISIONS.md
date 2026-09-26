@@ -17975,6 +17975,40 @@ publiczny dostaje web i worker, prywatny tylko worker (`.railway/railway.ts`).
 typ albo jakikolwiek przełącznik dla powiadomień w serwisie wymagają zmiany
 AGENTS.md §1 i testu `UgotowalemZawszePowiadamiaAutoraTest`.
 
+### Uzupełnienie: wylogowanie gasi push na tym urządzeniu (#1979, 26 września 2026)
+
+**Problem.** Subskrypcja Web Push należy do przeglądarki, nie do sesji.
+Po „Wyloguj się" na wspólnym komputerze wiersz `push_subscriptions` dalej
+wskazywał tę przeglądarkę, więc prywatne „X — ugotowane z Twojego
+przepisu…" pokazywało się osobie, która siedzi przy nim potem.
+
+**Rozstrzygnięcie.** Świadome „Wyloguj się" wyłącza push na urządzeniu,
+z którego człowiek wychodzi — bez dodatkowego pytania (jedna prosta akcja,
+bez okna „czy na pewno"; ekran ustawień mówi o tym jednym zdaniem).
+Wygaśnięcie sesji **nie** wyłącza: telefon, na którym sesja po prostu minęła,
+dostaje dalej. Inne urządzenia tej osoby — bez zmian.
+
+Serwer rozpoznaje urządzenie sam, bez polegania na skrypcie: identyfikator
+wiersza trafia do sesji przy włączeniu (`OdlaczUrzadzeniePush::KLUCZ_SESJI`).
+Skrypt formularza wylogowania dokłada adres subskrypcji (pokrywa
+przeglądarkę włączoną w dawnej sesji) i wywołuje `unsubscribe()`; każdy błąd
+albo zawieszenie po 3 s kończy się zwykłym wylogowaniem. Kasowanie działa
+wyłącznie w obrębie `$user->pushSubscriptions()` — adres albo identyfikator
+cudzego wiersza niczego nie skasuje. Adres nie trafia do HTML-a (pole
+w formularzu jest puste do chwili wysłania).
+
+**Czego to nie zmienia.** Treść pushu zostaje z imieniem i nazwą potrawy
+(RETENTION_LOOPS §3.3) — ukrywanie jej na ekranie blokady wymagałoby
+osobnej decyzji właściciela. Osoba, która zaloguje się w przeglądarce
+z subskrypcją kogoś, kto się **nie** wylogował (sesja wygasła), widzi
+„wyłączone" i może przepiąć przeglądarkę na siebie przyciskiem „Włącz";
+osobne ostrzeżenie o cudzej subskrypcji — do osobnego issue.
+
+**W kodzie.** `App\Domain\Notifications\Push\OdlaczUrzadzeniePush`,
+`LoginController::destroy`, `components/wyloguj.blade.php`,
+`resources/js/powiadomienia-push.js` (`przygotujWylogowanie`). Testy:
+`WylogowanieWylaczaPushNaUrzadzeniuTest`, `powiadomienia-push.test.mjs`.
+
 ### Wycofanie
 Usunąć klucze VAPID ze zmiennych środowiska — po restarcie usług ekran i wysyłka znikają,
 bez zmiany kodu. Wycofanie migracji odmawia, dopóki ktoś ma zapisane własne

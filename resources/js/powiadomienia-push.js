@@ -13,6 +13,10 @@
  * PO ODMOWIE NIE NALEGAMY. Przy `denied` przycisku nie ma — jest jedno zdanie,
  * gdzie to zmienić, jeśli ktoś sam zechce. Żadnych własnych okienek.
  *
+ * WYLOGOWANIE (#1979): formularz `[data-wyloguj]` przed wysłaniem wypisuje
+ * tę przeglądarkę z Web Push i podaje serwerowi jej adres — patrz
+ * `przygotujWylogowanie()`.
+ *
  * Czyste funkcje są eksportowane dla `powiadomienia-push.test.mjs` (Node).
  */
 
@@ -176,8 +180,58 @@ function setup(sekcja) {
     odswiez();
 }
 
+/**
+ * Przed wylogowaniem (#1979): adres subskrypcji tej przeglądarki dla serwera
+ * i `unsubscribe()` w przeglądarce. Po „Wyloguj się" nikt na tym urządzeniu
+ * nie jest zalogowany, więc żadna subskrypcja, która tu została, nie ma już
+ * dla kogo pokazywać powiadomień — także taka po kimś, kto wcześniej nie
+ * wylogował się sam.
+ *
+ * NIGDY NIE ZATRZYMUJE WYLOGOWANIA. Każdy błąd i każde zawieszenie kończy
+ * się pustym adresem po `limitMs`; wtedy serwer i tak gasi urządzenie
+ * rozpoznane po sesji (`OdlaczUrzadzeniePush`).
+ *
+ * @param {object} nav  `navigator` (w testach atrapa)
+ * @param {number} limitMs
+ * @returns {Promise<string>} adres subskrypcji albo ''
+ */
+export function przygotujWylogowanie(nav, limitMs = 3000) {
+    const praca = (async () => {
+        if (!nav || !nav.serviceWorker || typeof nav.serviceWorker.getRegistration !== 'function') return '';
+        const rejestracja = await nav.serviceWorker.getRegistration('/');
+        const subskrypcja = rejestracja && rejestracja.pushManager
+            ? await rejestracja.pushManager.getSubscription()
+            : null;
+        if (!subskrypcja) return '';
+        const adres = typeof subskrypcja.endpoint === 'string' ? subskrypcja.endpoint : '';
+        try { await subskrypcja.unsubscribe(); } catch { /* serwer i tak skasuje wiersz */ }
+        return adres;
+    })().catch(() => '');
+
+    return Promise.race([praca, new Promise((gotowe) => setTimeout(() => gotowe(''), limitMs))]);
+}
+
+function setupWylogowanie(formularz) {
+    if (formularz.dataset.wylogujReady) return;
+    formularz.dataset.wylogujReady = '1';
+
+    formularz.addEventListener('submit', async (zdarzenie) => {
+        if (formularz.dataset.wylogujWysylane) return;
+        zdarzenie.preventDefault();
+        formularz.dataset.wylogujWysylane = '1';
+        const pole = formularz.querySelector('[data-wyloguj-push]');
+        const adres = await przygotujWylogowanie(typeof navigator !== 'undefined' ? navigator : null);
+        if (pole) pole.value = adres;
+        // `submit()` nie wywołuje ponownie zdarzenia `submit`.
+        formularz.submit();
+    });
+}
+
 if (typeof document !== 'undefined') {
-    const start = () => document.querySelectorAll('[data-push]').forEach(setup);
+    const start = () => {
+        document.querySelectorAll('[data-push]').forEach(setup);
+        document.querySelectorAll('form[data-wyloguj]').forEach(setupWylogowanie);
+    };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
     else start();
 }
