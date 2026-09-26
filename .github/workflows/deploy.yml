@@ -135,9 +135,13 @@ on:
         options: [smoke, migrate, redeploy, instrukcja-cofniecia]
         default: smoke
 
+# MINIMALNE UPRAWNIENIA TOKENU (#1851). Żaden krok nie woła API GitHuba:
+# dane wdrożenia przychodzą w treści zdarzenia `deployment_status`, a do
+# statusu wdrożenia nic nie piszemy. `actions/checkout` potrzebuje tylko
+# `contents: read`. Stało tu jeszcze `deployments: read`, z którego nikt nie
+# korzystał — nieużywane uprawnienie to tylko większy zasięg przejętego joba.
 permissions:
   contents: read
-  deployments: read
 
 # Nie pozwalamy dwóm operacjom na tym samym środowisku biec równolegle.
 # cancel-in-progress: false — przerwanie migracji w połowie jest gorsze
@@ -222,12 +226,51 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # -----------------------------------------------------------------------
+      #  DANE ZDARZENIA TYLKO PRZEZ `env:` (issue #1851).
+      #
+      #  Stało tu `env_name='${{ github.event.deployment.environment }}'`
+      #  wprost w `run:`. GitHub podstawia wyrażenie do TREŚCI skryptu przed
+      #  uruchomieniem Basha, więc apostrof albo nowa linia w nazwie
+      #  środowiska (np. `production' ; touch /tmp/x ; #`) stawały się kodem
+      #  wykonywanym na runnerze — także na własnych maszynach z CI_RUNS_ON.
+      #  Zmienna środowiskowa dociera do powłoki jako DANE, nie jako kod.
+      #
+      #  Druga warstwa: nazwa jest walidowana względem jawnej listy, ZANIM
+      #  trafi do logu i do `$GITHUB_OUTPUT`. Znaki spoza listy albo nowa
+      #  linia mogłyby dopisać własne wyjście kroku (`url=…`) lub polecenie
+      #  przebiegu (`::…`) — taka wartość nie jest nawet wypisywana.
+      # -----------------------------------------------------------------------
       - name: Ustal adres środowiska
         id: target
+        env:
+          ZDARZENIE_SRODOWISKO: ${{ github.event.deployment.environment }}
+          ZDARZENIE_STAN: ${{ github.event.deployment_status.state }}
         run: |
           set -euo pipefail
-          env_name='${{ github.event.deployment.environment }}'
-          stan='${{ github.event.deployment_status.state }}'
+          env_name="${ZDARZENIE_SRODOWISKO:-}"
+          stan="${ZDARZENIE_STAN:-}"
+
+          # Dozwolony kształt całej nazwy: „<projekt> / <środowisko>" albo
+          # gołe „<środowisko>". Litery, cyfry, spacja, kropka, podkreślnik,
+          # myślnik i ukośnik; najwyżej 100 znaków. Nic poza tym — w tym
+          # apostrofów, `$`, średników i znaków nowej linii.
+          dozwolony_ksztalt='^[A-Za-z0-9][A-Za-z0-9 ._/-]{0,99}$'
+          if ! [[ "$env_name" =~ $dozwolony_ksztalt ]] || [[ "$env_name" == *$'\n'* ]]; then
+            echo "::error title=Niedozwolona nazwa środowiska::deployment.environment ma znaki spoza listy dozwolonych (długość: ${#env_name}). Wartości nie wypisuję. Testu dymnego nie uruchamiam."
+            echo "pomin=1" >> "$GITHUB_OUTPUT"
+            echo "env=nieprawidlowe" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$stan" in
+            success|failure|error|inactive|in_progress|queued|pending) ;;
+            *)
+              echo "::error title=Niedozwolony stan wdrożenia::deployment_status.state spoza listy stanów GitHuba (długość: ${#stan}). Wartości nie wypisuję."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              echo "env=nieprawidlowe" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
 
           # DIAGNOSTYKA, nie ozdoba. To jest jedyne miejsce, w którym da się
           # zobaczyć, jak Railway naprawdę nazywa środowisko — dokumentacja
@@ -262,6 +305,10 @@ jobs:
 
           echo "  środowisko po obcięciu    = '${srodowisko}'"
 
+          # JAWNA LISTA DOZWOLONYCH ŚRODOWISK (#1851): production, staging
+          # i preview-<litery/cyfry/myślniki>. Wszystko inne jest odrzucane
+          # i do `$GITHUB_OUTPUT` idzie stała `nieprawidlowe`, nie wartość
+          # ze zdarzenia.
           case "$srodowisko" in
             production)
               echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
@@ -269,11 +316,20 @@ jobs:
             staging)
               echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
               ;;
+            preview-*)
+              if ! [[ "$srodowisko" =~ ^preview-[A-Za-z0-9-]{1,63}$ ]]; then
+                echo "::error title=Niedozwolona nazwa środowiska::Człon środowiska wygląda na preview, ale ma znaki spoza listy dozwolonych."
+                srodowisko="nieprawidlowe"
+              fi
+              echo "Środowisko '${srodowisko}' to preview — test dymny po deployu obsługuje tylko production i staging."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              ;;
             *)
               echo "Środowisko '${env_name}' (człon: '${srodowisko}') nie jest ani production, ani staging."
               echo "Testu dymnego nie uruchamiam — nie wiem, pod jakim adresem go szukać."
               echo "JEŚLI TO NAZWA, KTÓRA POWINNA BYĆ OBSŁUGIWANA, dopisz ją w tym case."
               echo "pomin=1" >> "$GITHUB_OUTPUT"
+              srodowisko="nieprawidlowe"
               ;;
           esac
 
@@ -449,27 +505,37 @@ jobs:
         if: >-
           steps.target.outputs.pomin == '1' &&
           github.event.deployment_status.state == 'success'
+        env:
+          SRODOWISKO: ${{ steps.target.outputs.env }}
         run: |
-          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${{ steps.target.outputs.env }}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
+          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${SRODOWISKO}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
           exit 1
 
       - name: Podsumowanie
         if: always()
+        # Wartości przez `env:`, nie `${{ … }}` w skrypcie (#1851).
+        env:
+          SRODOWISKO: ${{ steps.target.outputs.env }}
+          ADRES: ${{ steps.target.outputs.url || 'NIE USTALONO' }}
+          SHA_OCZEKIWANY: ${{ steps.dymny.outputs.oczekiwany || github.event.deployment.sha }}
+          SHA_POTWIERDZONY: ${{ steps.dymny.outputs.potwierdzony || 'NIE POTWIERDZONO' }}
+          WYNIK_DYMNEGO: ${{ steps.dymny.outcome }}
+          STATUS_JOBA: ${{ job.status }}
         run: |
           # `steps.<id>.outcome` mówi, co się z krokiem STAŁO (`success`,
           # `failure`, `skipped`), a `job.status` mówi tylko, czy job jako
           # całość przeszedł. Stało tu `job.status`, więc podsumowanie
           # pisało „success" nad pominiętym testem.
           {
-            echo "## Deploy: ${{ steps.target.outputs.env }}"
+            echo "## Deploy: ${SRODOWISKO}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Adres | ${{ steps.target.outputs.url || 'NIE USTALONO' }} |"
-            echo "| Commit oczekiwany (zdarzenie) | \`${{ steps.dymny.outputs.oczekiwany || github.event.deployment.sha }}\` |"
-            echo "| Commit potwierdzony pod adresem | \`${{ steps.dymny.outputs.potwierdzony || 'NIE POTWIERDZONO' }}\` |"
-            echo "| Test dymny | ${{ steps.dymny.outcome }} |"
-            echo "| Job jako całość | ${{ job.status }} |"
+            echo "| Adres | ${ADRES} |"
+            echo "| Commit oczekiwany (zdarzenie) | \`${SHA_OCZEKIWANY}\` |"
+            echo "| Commit potwierdzony pod adresem | \`${SHA_POTWIERDZONY}\` |"
+            echo "| Test dymny | ${WYNIK_DYMNEGO} |"
+            echo "| Job jako całość | ${STATUS_JOBA} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
@@ -515,6 +581,20 @@ jobs:
       APP_SERVICE: kuking.pl
 
     steps:
+      # Obrona w głąb (#1851): `type: choice` sprawdza wartość w formularzu,
+      # ale `TARGET_ENV` trafia potem do poleceń Railway CLI. Zanim cokolwiek
+      # się zainstaluje albo połączy, wartość musi być z jawnej listy.
+      - name: Sprawdź środowisko docelowe
+        run: |
+          set -euo pipefail
+          case "${TARGET_ENV:-}" in
+            production|staging) echo "Środowisko docelowe: ${TARGET_ENV}" ;;
+            *)
+              echo "::error title=Niedozwolone środowisko::Dozwolone są tylko production i staging. Operacja przerwana, nic nie zostało zmienione."
+              exit 1
+              ;;
+          esac
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Node (dla Railway CLI)
@@ -679,16 +759,21 @@ jobs:
 
       - name: Podsumowanie
         if: always()
+        # Wartości przez `env:`, nie `${{ … }}` w skrypcie (#1851).
+        env:
+          AKCJA: ${{ github.event.inputs.action }}
+          URUCHOMIL: ${{ github.actor }}
+          STATUS_JOBA: ${{ job.status }}
         run: |
           {
-            echo "## Operacja: ${{ github.event.inputs.action }}"
+            echo "## Operacja: ${AKCJA}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Środowisko | ${{ github.event.inputs.environment }} |"
-            echo "| Uruchomił | @${{ github.actor }} |"
-            echo "| Wynik | ${{ job.status }} |"
-            if [ "${{ github.event.inputs.action }}" = "instrukcja-cofniecia" ]; then
+            echo "| Środowisko | ${TARGET_ENV} |"
+            echo "| Uruchomił | @${URUCHOMIL} |"
+            echo "| Wynik | ${STATUS_JOBA} |"
+            if [ "$AKCJA" = "instrukcja-cofniecia" ]; then
               echo ""
               echo "**Nic nie zostało cofnięte — środowisko NIE zostało zmienione.** Ta akcja wypisuje tylko instrukcję; rollback wykonuje się w panelu Railway (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 14)."
             fi
