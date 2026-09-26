@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,6 +29,9 @@ use Tests\TestCase;
  * i nagłówka rozmowy na stronie wpisu.
  *
  * Pytania liczą dalej wyłącznie odpowiedzi najwyższego poziomu (#372).
+ *
+ * D-309: ta sama reguła obowiązuje WSZĘDZIE, gdzie serwis pokazuje liczbę
+ * komentarzy — także nagłówek rozmowy pod przepisem i pod „Ugotowałem”.
  */
 class LicznikKomentarzyLiczyOdpowiedziTest extends TestCase
 {
@@ -156,5 +161,72 @@ class LicznikKomentarzyLiczyOdpowiedziTest extends TestCase
         $schemat = collect(array_map(fn ($json) => json_decode($json, true, 512, JSON_THROW_ON_ERROR), $skrypty[1]))
             ->firstWhere('@type', 'QAPage');
         $this->assertSame(1, $schemat['mainEntity']['answerCount']);
+    }
+
+    /**
+     * Rozmowa pod przepisem albo „Ugotowałem”: korzeń + dwie widoczne
+     * odpowiedzi, odpowiedź osoby zablokowanej i korzeń osoby zablokowanej
+     * z cudzą odpowiedzią. Widz widzi 3, ktoś spoza blokady 6.
+     *
+     * @param  array<string, string>  $podmiot
+     */
+    private function rozmowaZBlokada(array $podmiot, User $widz): void
+    {
+        $natret = $this->user('natret');
+        $wstaw = fn (User $kto, ?Comment $rodzic = null, string $tresc = 'Tekst') => Comment::factory()->create([
+            'post_id' => null,
+            ...$podmiot,
+            'author_id' => $kto->getKey(),
+            'parent_id' => $rodzic?->getKey(),
+            'status' => Comment::STATUS_PUBLISHED,
+            'body' => $tresc,
+        ]);
+
+        $korzen = $wstaw($this->user('pierwsza'));
+        $wstaw($this->user('druga'), $korzen);
+        $wstaw($this->user('trzecia'), $korzen);
+        $wstaw($natret, $korzen, 'Odpowiedź osoby zablokowanej');
+        $korzenNatreta = $wstaw($natret, null, 'Korzeń osoby zablokowanej');
+        $wstaw($this->user('czwarta'), $korzenNatreta, 'Odpowiedź pod zablokowanym');
+
+        app(BlockUser::class)->handle($widz, $natret);
+    }
+
+    private function naglowekPod(User $widz, string $adres): ?int
+    {
+        $odpowiedz = $this->actingAs($widz)->get($adres)->assertOk();
+        $html = (string) $odpowiedz->getContent();
+
+        return preg_match('/<h2 id="komentarze">\s*Komentarze\s*\((\d+)\)/u', $html, $m) === 1 ? (int) $m[1] : null;
+    }
+
+    public function test_naglowek_pod_przepisem_liczy_odpowiedzi_jak_karta_wpisu(): void
+    {
+        $widz = $this->user('czytelniczka');
+        $przepis = Recipe::factory()->create([
+            'author_id' => $this->user('kucharka')->getKey(),
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'public',
+        ]);
+        $this->rozmowaZBlokada(['recipe_id' => $przepis->getKey()], $widz);
+
+        $strona = $this->actingAs($widz->refresh())->get(route('recipes.show', $przepis->slug))->assertOk();
+        $strona->assertDontSee('Odpowiedź osoby zablokowanej')->assertDontSee('Odpowiedź pod zablokowanym');
+
+        $this->assertSame(3, $this->naglowekPod($widz, route('recipes.show', $przepis->slug)));
+        $this->assertSame(6, $this->naglowekPod($this->user('ktos'), route('recipes.show', $przepis->slug)));
+    }
+
+    public function test_naglowek_pod_ugotowalem_liczy_odpowiedzi_jak_karta_wpisu(): void
+    {
+        $widz = $this->user('czytelniczka');
+        $wykonanie = CookedEvent::factory()->create();
+        $this->rozmowaZBlokada(['cooked_event_id' => $wykonanie->getKey()], $widz);
+
+        $strona = $this->actingAs($widz->refresh())->get(route('cooked.show', $wykonanie))->assertOk();
+        $strona->assertDontSee('Odpowiedź osoby zablokowanej')->assertDontSee('Odpowiedź pod zablokowanym');
+
+        $this->assertSame(3, $this->naglowekPod($widz, route('cooked.show', $wykonanie)));
+        $this->assertSame(6, $this->naglowekPod($this->user('ktos'), route('cooked.show', $wykonanie)));
     }
 }
