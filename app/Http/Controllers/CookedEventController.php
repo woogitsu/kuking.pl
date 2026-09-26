@@ -14,6 +14,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -223,16 +224,17 @@ class CookedEventController extends Controller
 
         // Komentarze osobnym, PAGINOWANYM zapytaniem (issue #938), jak pod
         // wpisem i przepisem — ten sam limit i ta sama nazwa strony
-        // `komentarze`, bo `Notification::destinationUrls()` liczy numer
+        // `komentarze`, bo `CelPowiadomienia::adresy()` liczy numer
         // strony jednym wzorem dla wszystkich trzech treści. `->load()`
         // wciągał całą historię rozmowy naraz. Blokady (issue #41) na
-        // wątkach i odpowiedziach; odpowiedzi jednego wątku w całości
-        // (uzasadnienie w `KomentarzeStronamiTest`).
+        // wątkach i odpowiedziach; odpowiedzi jednego wątku porcjami
+        // (issue #939, `OdpowiedziWatku`).
         $komentarze = $cookedEvent->comments()
             ->widoczneDla($request->user())
             ->with([
                 'author.profile.avatar',
-                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                // Odpowiedzi też porcjami (issue #939) — `OdpowiedziWatku`.
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
                 'replies.author.profile.avatar',
                 // `Comment::subject()` przy każdym komentarzu — jak `recipe`
                 // w `RecipeController`.
@@ -240,6 +242,7 @@ class CookedEventController extends Controller
                 'replies.cookedEvent.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
