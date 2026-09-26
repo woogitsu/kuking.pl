@@ -2,7 +2,9 @@
     <p><a href="{{ route('questions.index') }}">Wróć do Poradźcie</a></p>
     <h1>Zadaj pytanie</h1>
     <p>Ktoś to już robił i chętnie powie, jak. Pytanie będzie widoczne dla wszystkich.</p>
-    <x-error-summary />
+    {{-- Błąd pojedynczego pliku ma klucz `photos.0`, a pole plików jest jedno:
+         `f-photos` (issue #874). --}}
+    <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
     <form class="panel-formularza" method="POST" action="{{ route('questions.store') }}" enctype="multipart/form-data">
         @csrf
         @if($kluczWyslania !== null)
@@ -16,11 +18,12 @@
             <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
         </div>
         @php
-            $zachowane = \App\Models\Media::query()->whereIn('id', (array) old('media_ids', []))
-                ->where('owner_id', auth()->id())->whereDoesntHave('posts')->get();
+            $zachowane = \App\Domain\Media\ZachowaneZdjecia::wKolejnosci(old('media_ids', []), auth()->id());
         @endphp
+        {{-- Gdy zdjęcie jest zachowane, pola pliku nie ma — celem linku
+             z podsumowania błędów jest wtedy to zdjęcie (issue #874). --}}
         @foreach($zachowane as $zdjecie)
-            <div class="notice">
+            <div class="notice" @if($loop->first) id="f-photos" tabindex="-1" @endif>
                 <p>Zdjęcie jest zachowane. Nie musisz wybierać go ponownie.</p>
                 <input type="hidden" name="media_ids[]" value="{{ $zdjecie->id }}">
                 <x-photo :media="$zdjecie" variant="thumb" :zoom="false" />
@@ -39,6 +42,7 @@
         @endif
         @error('photos')<p class="field-error">{{ $message }}</p>@enderror
         @error('photos.*')<p class="field-error">{{ $message }}</p>@enderror
+        @error('media_ids.*')<p class="field-error">{{ $message }}</p>@enderror
 
         <button class="btn btn-primary" type="submit">Opublikuj pytanie</button>
     </form>

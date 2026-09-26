@@ -58,6 +58,10 @@
 - Podpowiedzi tagów przy wpisywaniu nie proponują już przypadkowych tagów, gdy wpiszecie same emoji albo znaki „%” czy „_” — czytają wpisany tekst tak samo jak wyszukiwarka i w takiej sytuacji po prostu nic nie podpowiadają.
 - Wyszukiwarka nie pokazuje już przypadkowych wyników dla frazy, która po usunięciu polskich znaków i emoji staje się pusta (np. samo emoji) — zamiast tego prosi o wpisanie co najmniej dwóch znaków, tak samo jak przy zwykłej za krótkiej frazie, i nie zapisuje wtedy pozornie skutecznego wyszukiwania (#1050).
 
+- „Ugotowałem” nie gubi już wybranych zdjęć, gdy błąd jest w innym polu — na przykład „1h 30” zamiast liczby minut. Zdjęcia wracają do formularza z podglądem i przyciskiem „Usuń to zdjęcie”, a po poprawce zapisują się razem z wykonaniem. Wpisany czas w minutach nie kończy się już ekranem błędu (#872).
+- Uszkodzony identyfikator zachowanego zdjęcia w formularzu wpisu, pytania albo „Ugotowałem” nie kończy się już ekranem błędu: formularz wraca z wpisanym tekstem i zdaniem, co zrobić (#871).
+- Gdy odrzucone jest jedno z wybranych zdjęć, odnośnik w podsumowaniu błędów prowadzi do pola wyboru zdjęć, a nie donikąd (#874).
+- Zdjęcia zachowane po błędzie w formularzu wpisu albo pytania wracają w tej samej kolejności, w jakiej je wybraliście. Wcześniej błąd w innym polu, na przykład za długi opis, mógł po cichu zmienić, które zdjęcie jest pierwsze. Formularz wpisu pokazuje też jako zachowane tylko te zdjęcia, które naprawdę trafią do publikacji. (#934)
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 - Usunięty jednorazowy workflow audytu A7 (`audyt-a7-final-check.yml`) z 09.09. Uruchamiał się tylko po pushu na nieistniejącą już gałąź audytu, a miał prawo zapisu do repozytorium — martwy kod z uprawnieniami to niepotrzebne ryzyko (decyzja właściciela z 25.09, #1742).
 
