@@ -346,6 +346,15 @@ GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
 KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+
+# Reguła doboru treści (AGENTS.md §8, D-275, #1806): tygodniowy list nie układa
+# wpisów po liczbie „Ugotowałem”. Mutacja podmienia sortowanie wpisów
+# obserwowanych w `ZbierzTresciDigestu` z czasu publikacji na licznik wykonań —
+# dowód, że strażnik naprawdę skanuje `app/Domain/Digest`, a nie tylko feed.
+# Filtr na samą metodę głównego pomiaru, żeby czerwień pochodziła z reguły,
+# a nie z kotwic zasięgu w sąsiednich metodach.
+DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
+DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
 # `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
@@ -399,6 +408,8 @@ PLAN_IAC_ENVIRONMENT = (
     "    # przejrzał diff `.railway/**`.\n"
     "    environment: production\n"
 )
+GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
+GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -429,6 +440,8 @@ GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odm
 # Mutacje zdejmują po kolei każdy z nich.
 IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
 IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+README = "README.md"
+README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
@@ -957,6 +970,10 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
+    # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
+    ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
+     lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -985,6 +1002,8 @@ checks = [
      lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
     ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
+    ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -995,6 +1014,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1058,6 +1081,7 @@ run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
+run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
@@ -1066,9 +1090,11 @@ run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
+run_test(DIGEST_DOBOR_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
+run_test(README_SECURITY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
