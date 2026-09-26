@@ -218,6 +218,8 @@ final class CollectUserExportData
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
+            // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
+            'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
             'zakres_usuniecia' => $user->delete_scope,
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
