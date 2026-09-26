@@ -21,6 +21,23 @@ final class PowiadomieniaPushDwaPolaczeniaTest extends TestCase
 {
     use DatabaseMigrations;
 
+    private ?string $odbiorcaId = null;
+
+    protected function tearDown(): void
+    {
+        try {
+            // DatabaseMigrations wycofuje schemat po teście. Najpierw usuwamy
+            // wyłącznie własne powiadomienia z UUID grupy; strażnik down()
+            // słusznie odmówiłby utraty tych danych.
+            if ($this->odbiorcaId !== null) {
+                DB::connection()->table('notifications')->where('user_id', $this->odbiorcaId)->delete();
+            }
+            DB::disconnect('push_worker_2');
+        } finally {
+            parent::tearDown();
+        }
+    }
+
     public function test_drugi_worker_widzi_slot_zanim_pierwszy_transport_odpowie(): void
     {
         config([
@@ -35,6 +52,7 @@ final class PowiadomieniaPushDwaPolaczeniaTest extends TestCase
         ]);
         $this->travelTo(CarbonImmutable::parse('2026-09-25 10:00:00', 'UTC'));
         $autor = $this->user('autor_dwa_polaczenia');
+        $this->odbiorcaId = (string) $autor->getKey();
         $aktor = $this->user('aktor_dwa_polaczenia');
         (new PushSubscription)->forceFill([
             'user_id' => $autor->getKey(),
@@ -75,6 +93,7 @@ final class PowiadomieniaPushDwaPolaczeniaTest extends TestCase
             }
         }) implements TransportPush
         {
+
             public function __construct(private readonly \Closure $podczasTransportu) {}
 
             public function wyslij(PushSubscription $subskrypcja, string $tresc): WynikWysylkiPush
@@ -91,6 +110,5 @@ final class PowiadomieniaPushDwaPolaczeniaTest extends TestCase
         $this->assertSame([], $drugiTransport->wyslane, 'Drugi worker przekroczył limit 1.');
         $this->assertNotNull($pierwsze->refresh()->push_wyslano_at);
         Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
-        DB::disconnect('push_worker_2');
     }
 }

@@ -246,6 +246,7 @@ final class PowiadomieniaPushTest extends TestCase
             (new WyslijPowiadomieniePush((string) $autor->getKey()))->handle($drugiTransport);
         }) implements TransportPush
         {
+
             public int $wywolania = 0;
 
             public function __construct(private readonly \Closure $wTrakcieWysylki) {}
