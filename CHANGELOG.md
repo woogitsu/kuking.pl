@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: nowy strażnik (`tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`) pilnuje AGENTS.md §6 (DDL na gorącej bazie: indeks przez `CONCURRENTLY`, klucz obcy/CHECK przez `NOT VALID` + `VALIDATE CONSTRAINT`) w migracjach nowszych niż `2026_09_24_120000_add_appeal_id_to_moderation_actions.php` — tej migracji, już na produkcji, świadomie nie poprawiamy, ale ten sam błąd nie ma się powtórzyć w kolejnych (#989).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
