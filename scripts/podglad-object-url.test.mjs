@@ -22,6 +22,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import { komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru } from '../resources/js/usun-zdjecie-z-wyboru.js';
 
 const zrodloPelne = readFileSync(new URL('../resources/js/app.js', import.meta.url), 'utf8');
 const poczatek = zrodloPelne.indexOf('function kotwicaPodPolem(input) {');
@@ -81,6 +82,9 @@ class FakeElement extends FakeNode {
     set className(wartosc) { this._className = wartosc; }
     get classList() { return new Set(this._className.split(' ').filter(Boolean)); }
     setAttribute(klucz, wartosc) { this._attrs[klucz] = wartosc; }
+    focus() { FakeElement.fokus = this; }
+    get textContent() { return this._text ?? this.children.map((d) => d.textContent).join(''); }
+    set textContent(wartosc) { this._text = wartosc; }
     getAttribute(klucz) { return this._attrs[klucz] ?? null; }
 
     get nextElementSibling() {
@@ -130,6 +134,10 @@ class HTMLImageElement extends FakeElement {
 }
 
 class FakeDocument extends FakeNode {
+    createTextNode(tekst) {
+        return { textContent: tekst, children: [] };
+    }
+
     createElement(tag) {
         if (tag === 'img') {
             return new HTMLImageElement();
@@ -164,7 +172,16 @@ function plikObrazu(nazwa = 'zdjecie.jpg') {
     return { name: nazwa, type: 'image/jpeg' };
 }
 
-function fixture() {
+/* Atrapa `DataTransfer` — Node jej nie ma; zachowuje się jak prawdziwa lista. */
+class AtrapaDataTransfer {
+    constructor() {
+        const pliki = [];
+        this.files = pliki;
+        this.items = { add: (plik) => pliki.push(plik) };
+    }
+}
+
+function fixture({ usuwanie = false, KlasaDataTransfer = AtrapaDataTransfer } = {}) {
     const document = new FakeDocument();
     const window = document; // kod źródłowy nasłuchuje 'livewire-upload-error' na `window`
     const utworzoneUrls = new Set();
@@ -184,6 +201,9 @@ function fixture() {
     };
 
     const input = new HTMLInputElement('f-photos');
+    if (usuwanie) {
+        input.dataset.usuwanieZdjec = '';
+    }
     const etykieta = new HTMLLabelElement('f-photos');
     document.appendChild(input);
     document.appendChild(etykieta);
@@ -192,7 +212,11 @@ function fixture() {
         document, window, URL: URL_atrapa,
         HTMLInputElement, HTMLLabelElement,
         console,
+        komunikatWyboru,
+        moznaUsuwacZWyboru: () => moznaUsuwacZWyboru(KlasaDataTransfer),
+        usunPlikZWyboru: (pole, indeks) => usunPlikZWyboru(pole, indeks, KlasaDataTransfer),
     });
+    FakeElement.fokus = null;
 
     function wybierz(pliki) {
         input.files = pliki;
@@ -212,8 +236,13 @@ function fixture() {
         return document.getElementById('f-photos-podglad');
     }
 
+    function przyciskiUsun() {
+        return pojemnik().querySelectorAll('button.podglad-wyboru-usun');
+    }
+
     return {
-        wybierz, bladWysylkiLivewire, pojemnik,
+        input, wybierz, bladWysylkiLivewire, pojemnik, przyciskiUsun,
+        info: () => pojemnik().children[0]?.textContent,
         utworzone: () => utworzoneUrls.size,
         zwolnione: () => zwolnioneUrls.size,
         bezZwolnienia: () => utworzoneUrls.size - zwolnioneUrls.size,
@@ -291,4 +320,59 @@ test('wiele plików: nieudane pliki zwalniają adresy niezależnie od kolejnośc
 
     assert.equal(f.utworzone(), 3);
     assert.equal(f.zwolnione(), 3);
+});
+
+// --- Issue #884: „Usuń” przy miniaturze nowego zdjęcia ------------------
+
+test('#884: A/B/C, usunięcie B zostawia w polu dokładnie A i C — nie tylko w DOM-ie', () => {
+    const f = fixture({ usuwanie: true });
+    f.wybierz([plikObrazu('a.jpg'), plikObrazu('b.jpg'), plikObrazu('c.jpg')]);
+
+    const przyciski = f.przyciskiUsun();
+    assert.equal(przyciski.length, 3);
+    assert.equal(przyciski[0].type, 'button', '„Usuń” nie może być przyciskiem submit — wysłałby formularz.');
+    assert.equal(przyciski[1].textContent, 'Usuń zdjęcie 2 z 3');
+
+    przyciski[1].dispatchEvent(new Event('click'));
+
+    assert.deepEqual(f.input.files.map((p) => p.name), ['a.jpg', 'c.jpg']);
+    assert.equal(f.pojemnik().querySelectorAll('img.podglad-wyboru-zdjecie').length, 2);
+    assert.equal(f.info(), 'Usunięto zdjęcie. Wybrano 2 zdjęcia.');
+    assert.equal(FakeElement.fokus, f.przyciskiUsun()[1], 'Fokus powinien przejść na „Usuń” następnego zdjęcia.');
+    // Trzy stare miniatury (bez load/error) zwolnione przy przerysowaniu;
+    // dwie nowe są na ekranie i zwolnią się przy swoim load/error.
+    assert.equal(f.zwolnione(), 3, 'Przerysowanie podglądu zostawiło niezwolnione adresy blob:.');
+});
+
+test('#884: usunięcie ostatniego zdjęcia daje pusty stan z komunikatem i fokus na polu', () => {
+    const f = fixture({ usuwanie: true });
+    f.wybierz([plikObrazu('a.jpg')]);
+    f.przyciskiUsun()[0].dispatchEvent(new Event('click'));
+
+    assert.equal(f.input.files.length, 0);
+    assert.equal(f.przyciskiUsun().length, 0);
+    assert.equal(f.info(), 'Usunięto zdjęcie. Nie ma teraz wybranego żadnego zdjęcia.');
+    assert.equal(FakeElement.fokus, f.input);
+});
+
+test('#884: przeglądarka bez DataTransfer nie dostaje przycisków — podgląd jak dotąd', () => {
+    const f = fixture({ usuwanie: true, KlasaDataTransfer: null });
+    f.wybierz([plikObrazu('a.jpg'), plikObrazu('b.jpg')]);
+
+    assert.equal(f.przyciskiUsun().length, 0);
+    assert.equal(f.pojemnik().querySelectorAll('img.podglad-wyboru-zdjecie').length, 2);
+});
+
+test('#884: pole bez data-usuwanie-zdjec (np. kreator Livewire) nie dostaje przycisków', () => {
+    const f = fixture();
+    f.wybierz([plikObrazu('a.jpg'), plikObrazu('b.jpg')]);
+
+    assert.equal(f.przyciskiUsun().length, 0);
+});
+
+test('#884: licznik przy 7 zdjęciach mówi „zdjęć”, nie „zdjęcia”', () => {
+    const f = fixture();
+    f.wybierz(Array.from({ length: 7 }, (_, i) => plikObrazu(`p${i}.jpg`)));
+
+    assert.equal(f.info(), 'Wybrano 7 zdjęć.');
 });
