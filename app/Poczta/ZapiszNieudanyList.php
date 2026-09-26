@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Poczta;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\MailFailure;
 use App\Models\User;
 use Illuminate\Contracts\Queue\Job;
@@ -99,11 +100,13 @@ final class ZapiszNieudanyList
             $this->zapisz($zdarzenie);
         } catch (Throwable $e) {
             // Cel: NIE przerwać zapisu do `failed_jobs` (patrz komentarz
-            // klasy). Nazwa klasy i komunikat — bez payloadu zadania, bo ten
-            // niesie adres odbiorcy i token.
+            // klasy). Bez payloadu zadania (niesie adres odbiorcy i token)
+            // i bez komunikatu: tu pada zwykle zapis do bazy, a komunikat
+            // `QueryException` to SQL z wartościami, których
+            // `BezpiecznyKomunikat` nie rozpoznaje (#973).
             Log::error('Nie udało się zapisać śladu nieudanego listu.', [
-                'wyjatek' => $e::class,
-                'komunikat' => BezpiecznyKomunikat::z($e->getMessage()),
+                'failed_job_uuid' => rescue(fn (): ?string => $zdarzenie->job->uuid(), null, false),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
         }
     }
