@@ -240,6 +240,8 @@ abstract class TestDwochPolaczen extends TestCase
 
             $sprzataczka->prepare('DELETE FROM audit_log WHERE actor_id = ANY(?::uuid[]) OR subject_id = ANY(?::uuid[])')
                 ->execute([$identyfikatory, $identyfikatory]);
+            $sprzataczka->prepare('DELETE FROM potwierdzenia_zadan_rodo WHERE konto_id = ANY(?::uuid[])')
+                ->execute([$identyfikatory]);
             $sprzataczka->prepare('DELETE FROM sessions WHERE user_id = ANY(?::uuid[])')->execute([$identyfikatory]);
             $sprzataczka->prepare('DELETE FROM users WHERE id = ANY(?::uuid[])')->execute([$identyfikatory]);
 
