@@ -92,9 +92,11 @@
                         <p class="podpis">Czas: {{ (int) round($step->timer_seconds / 60) }} min</p>
                     @endif
                     {{-- `position` w bazie liczy się od zera; człowiekowi
-                         pokazujemy numery od jedynki. --}}
+                         pokazujemy numery od jedynki. Sam „Krok N” nie jest
+                         opisem zdjęcia (issue #1304): własny opis autora,
+                         a bez niego jawny kontekst „Zdjęcie do kroku N”. --}}
                     @if($stepPhotos[$step->getKey()] ?? null)
-                        <img class="zdjecie" src="{{ $stepPhotos[$step->getKey()] }}" alt="Krok {{ $loop->iteration }}">
+                        <img class="zdjecie" src="{{ $stepPhotos[$step->getKey()] }}" alt="{{ $step->media?->alt_text ?: 'Zdjęcie do kroku '.$loop->iteration }}">
                     @endif
                 </li>
             @endforeach
