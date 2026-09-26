@@ -4377,6 +4377,12 @@ W bazie leży skrót.
 | `expires_at` | Termin ważności, dziś `NULL` (token działa do odwołania, `config/sanctum.php` → `expiration`). Indeks. |
 | `created_at`, `updated_at` | `timestamptz`. |
 
+**Paczka danych (RODO art. 15).** Sekcja `urzadzenia_z_dostepem` w `dane.json`
+niesie `name`, `created_at`, `last_used_at` i `expires_at` — bez `token`
+(poświadczenie) i bez `abilities`. Wpis w `InwentarzDanychKonta`
+(`personal_access_tokens.tokenable_id`), pilnują
+`EksportObejmujeKazdaTabeleKontaTest` i `tests/Feature/Api/PaczkaDanychNiesieUrzadzeniaTest.php`.
+
 ```sql
 ALTER TABLE personal_access_tokens
 ADD CONSTRAINT personal_access_tokens_tokenable_type_check
