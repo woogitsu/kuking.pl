@@ -950,6 +950,30 @@
                         <p class="flash">{{ session('status') }}</p>
                     @endif
                     {{--
+                        JAWNY KROK PO PIERWSZEJ PUBLIKACJI (issue #1881).
+
+                        `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+                        obiecują po pierwszym „Opublikuj" nie tylko datę
+                        w komunikacie, ale JAWNY przycisk „Zobacz swój wpis" —
+                        nie samo poleganie na tym, że przekierowanie i tak
+                        czasem ląduje na wpisie. Przy dwóch i więcej zdjęciach
+                        ląduje ono na ekranie układu, więc bez tego przycisku
+                        obietnicy z dokumentu nigdzie nie było widać.
+
+                        Odnośnik, nie formularz: to jest samo OGLĄDANIE, a nie
+                        zmiana stanu — w przeciwieństwie do `status_powrot`
+                        niżej, które cofa akcję i dlatego idzie przez `POST`.
+                        Stoi w tym samym obszarze `aria-live`, więc czytnik
+                        ekranu ogłasza najpierw co się stało, a zaraz potem,
+                        co można z tym zrobić.
+                    --}}
+                    @php $statusAkcja = session('status_akcja'); @endphp
+                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
+                        <p class="flash-akcja">
+                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
+                        </p>
+                    @endif
+                    {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
                         `docs/AUDYT_2026-09.md`).
 
