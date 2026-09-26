@@ -10,6 +10,7 @@ use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
+use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -51,6 +52,7 @@ class FeedController extends Controller
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
         private readonly HeroKolaz $heroKolaz,
+        private readonly RocznicaDolaczenia $rocznica,
     ) {}
 
     /**
@@ -192,6 +194,10 @@ class FeedController extends Controller
             'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
+            // Rocznica dołączenia (issue #1754) — jedno zdanie od gospodarza
+            // albo `null`. Bez pustego stanu i bez powiadomień, jak wyżej.
+            'rocznica' => $this->rocznica->dlaOsoby($user),
+            'podpisRocznicy' => $this->rocznica->podpis(),
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
