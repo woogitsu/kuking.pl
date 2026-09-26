@@ -52,14 +52,24 @@ class IndeksPytanOpublikowanychTest extends TestCase
             ->cloneWithoutBindings(['select', 'order'])
             ->selectRaw('count(*) as aggregate');
 
-        DB::statement('DROP INDEX IF EXISTS posts_published_idx');
-        DB::statement('DROP INDEX IF EXISTS posts_author_published_idx');
+        // Zostaje JEDYNY indeks `posts`: indeks pytań. Wtedy plan zawiera go
+        // wtedy i tylko wtedy, gdy jego predykat pasuje do zapytania —
+        // niezależnie od kolejności złączeń. PostgreSQL 18 w CI sięgał do
+        // `posts` po `(author_id, id)` albo kluczu głównym, więc sam zakaz
+        // skanu sekwencyjnego mierzył plan, a nie dopasowanie indeksu.
+        // Wszystko w transakcji testu (RefreshDatabase) — wraca po teście.
+        $inne = DB::select(
+            "SELECT i.indexname, c.conname FROM pg_indexes i
+             LEFT JOIN pg_constraint c ON c.conname = i.indexname AND c.conrelid = 'posts'::regclass
+             WHERE i.tablename = 'posts' AND i.schemaname = current_schema() AND i.indexname <> ?",
+            [self::INDEKS],
+        );
+        foreach ($inne as $indeks) {
+            DB::statement($indeks->conname !== null
+                ? 'ALTER TABLE posts DROP CONSTRAINT "'.$indeks->conname.'" CASCADE'
+                : 'DROP INDEX "'.$indeks->indexname.'"');
+        }
         DB::statement('SET LOCAL enable_seqscan = off');
-        // Bez pętli zagnieżdżonych planista musi przeczytać `posts` osobno.
-        // Inaczej wynik zależał od kolejności złączeń: PostgreSQL 18 w CI
-        // zaczynał od `users` i sięgał do `posts` po `(author_id, id)`,
-        // więc test mierzył kolejność złączeń, a nie to, czy indeks pasuje.
-        DB::statement('SET LOCAL enable_nestloop = off');
 
         $wiersze = DB::select('EXPLAIN '.$licznik->toSql(), $licznik->getBindings());
 
