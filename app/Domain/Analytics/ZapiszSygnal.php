@@ -151,7 +151,7 @@ final class ZapiszSygnal
         try {
             DB::transaction(function () use ($user, $signalName, $properties): void {
                 ProductSignal::create([
-                    'user_id' => $user?->getKey(),
+                    'user_id' => $this->kontoDoPowiazania($user),
                     'signal_name' => $signalName,
                     'properties' => $properties,
                 ]);
@@ -182,5 +182,32 @@ final class ZapiszSygnal
                 'sqlstate' => $e instanceof QueryException ? (string) $e->getCode() : null,
             ]);
         }
+    }
+
+    /**
+     * SYGNAŁ WYMAZANEGO KONTA ZAPISUJE SIĘ BEZ `user_id` (issue #1324).
+     *
+     * `EraseAccountData` odpina `user_id` od sygnałów w transakcji, która
+     * trzyma wiersz `users` pod `FOR UPDATE`. Żądanie, które zaczęło się
+     * przed wymazaniem (wyszukiwanie, upload), może jednak zapisać sygnał
+     * PO jego zatwierdzeniu — i wtedy powiązanie wróciłoby tylnymi drzwiami.
+     *
+     * `FOR SHARE` na wierszu konta serializuje oba zapisy: jeśli wymazanie
+     * trwa, czekamy na jego koniec i widzimy już `data_erased_at`; jeśli
+     * pierwszy był sygnał, wymazanie czeka na nas i odpina też ten wiersz.
+     * Samo zdarzenie zostaje — liczniki zbiorcze nie tracą ani jednej sztuki.
+     */
+    private function kontoDoPowiazania(?User $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $konto = DB::table('users')
+            ->where('id', $user->getKey())
+            ->sharedLock()
+            ->first(['id', 'data_erased_at']);
+
+        return $konto !== null && $konto->data_erased_at === null ? (string) $konto->id : null;
     }
 }

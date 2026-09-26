@@ -1071,6 +1071,10 @@ checks = [
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    # #1324: nagłówek polityki z inną datą niż `kuking.zgody.wersja_polityki`
+    # ma zapalić strażnika zgodności (mutacja niezależna od bieżącej daty).
+    ("Nagłówek polityki z inną datą niż dziennik zgód", POLITYKA, "WersjaPolitykiZgadzaSieZNaglowkiemTest",
+     lambda s: replace_once(s, "stan serwisu na ", "stan serwisu na 1 stycznia 2000, a nie ")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
