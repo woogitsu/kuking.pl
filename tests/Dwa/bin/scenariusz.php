@@ -24,13 +24,17 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Feed\Actions\ZapiszKolaz;
+use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Users\Actions\RequestAccountDeletion;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -42,6 +46,7 @@ use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
@@ -72,6 +77,24 @@ function barieraPoLiczeniuAdministratorow(): void
             && str_contains($query->sql, '"status" =')
             && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
             DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
+/**
+ * Bariera #1027: uczestnik staje PO rzeczywistym `DELETE` z tabeli wyboru,
+ * a PRZED pierwszym `INSERT`-em — dokładnie w szczelinie, w której dwa
+ * zastąpienia zestawu złączały się w A ∪ B. Czeka na blokadę doradczą
+ * trzymaną przez test; zwolnienie jej puszcza uczestnika dalej.
+ */
+function barieraPoKasowaniuWyboru(string $tabela): void
+{
+    $zatrzymany = false;
+
+    DB::listen(static function (QueryExecuted $query) use ($tabela, &$zatrzymany): void {
+        if (! $zatrzymany && str_starts_with(strtolower(ltrim($query->sql)), 'delete from "'.$tabela.'"')) {
+            $zatrzymany = true;
+            DB::select('SELECT pg_advisory_xact_lock(91027, 1)');
         }
     });
 }
@@ -196,6 +219,16 @@ try {
             return (string) $konto->status;
         })(),
 
+        // Formularz „Usuń konto" (#1346): prawdziwa akcja przyjęcia żądania,
+        // na modelu czytanym przed kolejką po wiersz — jak formularz, który
+        // sprawdził hasło, zanim druga karta zdążyła wysłać swój.
+        'przyjmij-usuniecie' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            app(RequestAccountDeletion::class)->handle($konto, $argumenty['zakres']);
+
+            return (string) $konto->status;
+        })(),
+
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
@@ -273,6 +306,36 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
+        // bariera po ich własnym DELETE.
+        'tablica-dnia' => (function () use ($argumenty): array {
+            barieraPoKasowaniuWyboru('daily_picks');
+
+            return app(ZapiszTabliceDnia::class)->zastap(
+                gospodarz: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                osoby: [],
+                wpisy: (array) json_decode($argumenty['wpisy'], true),
+                notatki: [],
+                przeslaneOsoby: 0,
+                przeslaneWpisy: count((array) json_decode($argumenty['wpisy'], true)),
+                ip: null,
+                dzien: $argumenty['dzien'],
+            );
+        })(),
+
+        'kolaz' => (function () use ($argumenty): int {
+            barieraPoKasowaniuWyboru('hero_picks');
+            /** @var array<string, string> $dopuszczone */
+            $dopuszczone = (array) json_decode($argumenty['zdjecia'], true);
+
+            return app(ZapiszKolaz::class)->zastap(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                array_keys($dopuszczone),
+                $dopuszczone,
+                null,
+            );
+        })(),
 
         // Dwa RÓŻNE konta potwierdzają zmianę na ten sam wolny adres (#1435).
         // Bariera przyrządu staje zaraz PO aplikacyjnym „czy adres wolny",
@@ -405,6 +468,14 @@ try {
             details: 'To jest reklama.',
         )->getKey(),
 
+        // Zmiany listy tagów promowanych (#1308) — ta sama klasa, której
+        // używa panel gospodarza (`TagPromotionController`).
+        'promuj-tag' => app(PromowaneTagi::class)->dodaj(Tag::query()->findOrFail($argumenty['tag'])),
+
+        'przesun-promowany' => app(PromowaneTagi::class)->przesun(
+            Tag::query()->findOrFail($argumenty['tag']),
+            (int) $argumenty['kierunek'],
+        ),
         // Zmiana profilu przez PRAWDZIWE żądanie HTTP (#887): cały stos
         // middleware, walidacja i kontroler, a na koniec to, co zobaczyłby
         // człowiek — kod odpowiedzi, błąd pola i odłożone dane formularza.

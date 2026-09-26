@@ -57,7 +57,7 @@
              * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
              *
              * Bierzemy go z mapy policzonej JEDNYM zapytaniem na całą stronę
-             * (`Notification::zyweWycinkiKomentarzy()`), a nie z `data.excerpt`.
+             * (`WycinkiKomentarzy::zywe()`), a nie z `data.excerpt`.
              * Zamrożona kopia z chwili publikacji cytowała treść sprzed
              * poprawki autora; stare wiersze dalej ją mają w bazie i właśnie
              * dlatego NIE MA tu planu zapasowego „weź `data.excerpt`, gdy mapa
@@ -72,6 +72,9 @@
                 \App\Models\Notification::TYPE_REPLY,
                 \App\Models\Notification::TYPE_FOLLOW,
                 \App\Models\Notification::TYPE_SAVED,
+                // „Moja wersja" (issue #23, D-301) — zwykłe zdarzenie od
+                // jednej osoby, dołożone świadomie, nie z automatu.
+                \App\Models\Notification::TYPE_FORKED,
             ], true);
 
             /*
@@ -202,6 +205,19 @@
                                 {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
                                 @if($notification->przepisUsuniety())
                                     Ten przepis został usunięty.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_FORKED)
+                                {{-- „MOJA WERSJA" (issue #23, D-301). Miłe, nie
+                                     alarmujące: ktoś robi Twój przepis po
+                                     swojemu, a Twój przepis stoi podpisany na
+                                     jego stronie. Bez formy rodzajowej. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — własna wersja Twojego przepisu</strong>
+                                „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                @if($notification->wersjaDoPokazania())
+                                    Twój przepis jest podpisany na jej stronie.
+                                @else
+                                    Ta wersja nie jest już dostępna.
                                 @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)

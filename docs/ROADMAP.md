@@ -116,3 +116,4 @@ Musi być przed public launch.
 
 ## V1 gate
 Planner/groups/forks dopiero gdy WAC i D30 pokazują powroty.
+Wyjątek: „Moja wersja” (fork przepisu, #23) zbudowana wcześniej na decyzję właściciela z 26.09.2026 (D-301).
