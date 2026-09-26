@@ -924,6 +924,12 @@ checks = [
      lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
     ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
      lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Job smoke znów dostaje prawo zapisu do PR-ów (#1941)", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(
+         s,
+         "    permissions:\n      contents: read\n      deployments: read\n",
+         "    permissions:\n      contents: read\n      deployments: read\n      pull-requests: write\n",
+     )),
     ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
      apply_bez_bramki_ci),
     ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
