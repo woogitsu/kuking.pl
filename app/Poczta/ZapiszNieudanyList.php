@@ -10,7 +10,6 @@ use App\Models\MailFailure;
 use App\Models\User;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -266,7 +265,8 @@ final class ZapiszNieudanyList
      *
      * DLACZEGO „BEST EFFORT" I DLACZEGO NULL JEST DOBRYM WYNIKIEM
      * Adresat siedzi w zserializowanym poleceniu w payloadzie. Odczytanie go
-     * wymaga `unserialize`, a przy `SerializesModels` to odtwarza model
+     * wymaga `unserialize` (tylko klas z `PolecenieZadania::WOLNO_ODTWORZYC`),
+     * a przy `SerializesModels` to odtwarza model
      * z bazy — czyli może się nie udać (konto skasowane, baza w kiepskim
      * stanie akurat teraz). Cały ten kod jest więc dodatkiem: gdy się nie
      * udaje, wiersz powstaje bez `user_id`, a adres i tak zostaje
@@ -289,10 +289,13 @@ final class ZapiszNieudanyList
                 return null;
             }
 
-            // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
-            $obiekt = unserialize(PolecenieZadania::zserializowane($polecenie));
+            // Odszyfrowanie (audyt A5-10) i odtworzenie WYŁĄCZNIE klas
+            // z `PolecenieZadania::WOLNO_ODTWORZYC` (issue #1841) — obca klasa
+            // z `failed_jobs` nie powstaje, zamiast powstać i odpaść na
+            // `instanceof` dopiero po swoim `__wakeup`/`__destruct`.
+            $obiekt = PolecenieZadania::powiadomienie($polecenie);
 
-            if (! $obiekt instanceof SendQueuedNotifications) {
+            if ($obiekt === null) {
                 return null;
             }
 
