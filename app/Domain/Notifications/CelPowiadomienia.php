@@ -57,7 +57,14 @@ final class CelPowiadomienia
             Notification::TYPE_COOKED => isset($data['cooked_event_id']) && ! $powiadomienie->wykonanieUsuniete()
                 ? route('cooked.celebrate', $data['cooked_event_id'])
                 : null,
-            Notification::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
+            // ISSUE #1034: cel po STABILNYM `recipe_id`, nie po zamrożonym
+            // `recipe_slug`. Stary slug po usunięciu przepisu prowadził na 404,
+            // a po zmianie tytułu przez przekierowanie — tu od razu bierzemy
+            // aktualny. Brak przepisu = brak „Zobacz"; treść karty zostaje,
+            // bo ktoś naprawdę zapisał ten przepis.
+            Notification::TYPE_SAVED => is_string($slug = $powiadomienie->slugZapisanegoPrzepisu()) && $slug !== ''
+                ? route('recipes.show', $slug)
+                : null,
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,

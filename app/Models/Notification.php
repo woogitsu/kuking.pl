@@ -202,6 +202,14 @@ class Notification extends Model
      */
     private ?bool $wykonanieIstnieje = null;
 
+    /**
+     * AKTUALNY slug przepisu z `data.recipe_id` (issue #1034).
+     * `false` = jeszcze nie sprawdzano, `null` = przepisu już nie ma
+     * (miękko usunięty albo nigdy nie istniał). Lista ustawia to jednym
+     * zapytaniem dla całej strony, tak samo jak `$wykonanieIstnieje`.
+     */
+    private string|false|null $slugPrzepisu = false;
+
     protected function casts(): array
     {
         return [
@@ -257,6 +265,45 @@ class Notification extends Model
         $this->wykonanieIstnieje ??= Str::isUuid($id) && CookedEvent::query()->whereKey($id)->exists();
 
         return ! $this->wykonanieIstnieje;
+    }
+
+    /**
+     * Powiadomienie o zapisaniu przepisu, którego już nie ma (issue #1034).
+     * `RecipeController::destroy()` usuwa przepis miękko, a `recipe_id`
+     * w `data` nie jest kluczem obcym — powiadomienie zostaje jako
+     * prawdziwe zdarzenie, tylko nie może obiecywać „Zobacz".
+     */
+    public function przepisUsuniety(): bool
+    {
+        return $this->type === self::TYPE_SAVED && $this->slugZapisanegoPrzepisu() === null;
+    }
+
+    /** Wynik zbiorczego sprawdzenia z listy — patrz `$slugPrzepisu`. */
+    public function zapamietajSlugPrzepisu(?string $slug): void
+    {
+        $this->slugPrzepisu = $slug;
+    }
+
+    /**
+     * Aktualny slug zapisanego przepisu albo `null`, gdy przepisu nie ma.
+     * Publiczne, bo cel „Zobacz” liczy `CelPowiadomienia` (issue #1687).
+     */
+    public function slugZapisanegoPrzepisu(): ?string
+    {
+        if ($this->slugPrzepisu !== false) {
+            return $this->slugPrzepisu;
+        }
+
+        $id = $this->data['recipe_id'] ?? null;
+
+        // Nie-UUID nie trafi w żaden przepis (a PostgreSQL odrzuciłby je
+        // błędem rzutowania). `Recipe` ma `SoftDeletes`, więc usunięty
+        // przepis nie wraca tym zapytaniem.
+        $slug = is_string($id) && Str::isUuid($id)
+            ? Recipe::query()->whereKey($id)->value('slug')
+            : null;
+
+        return $this->slugPrzepisu = is_string($slug) ? $slug : null;
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$wykonanieIstnieje`. */

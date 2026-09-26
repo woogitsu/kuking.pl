@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Compliance;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Notification;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
@@ -146,14 +147,16 @@ final class PrzedawnionePowiadomienia
                 // przebieg spróbuje go jeszcze raz.
                 $nieudane++;
 
-                // Sam identyfikator i klasa wyjątku — bez komunikatu, który
-                // mógłby nieść treść powiadomienia. Zapis do logu we własnym
-                // `try`: awaria logowania nie może przesłonić wyniku ani
-                // przerwać kasowania kolejnych kandydatów.
+                // Sam identyfikator i bezpieczny opis wyjątku (#973:
+                // `BezpiecznyBlad` — klasa, kod, miejsce, odcisk) — bez
+                // komunikatu, który mógłby nieść treść powiadomienia. Zapis
+                // do logu we własnym `try`: awaria logowania (także samego
+                // opisu) nie może przesłonić wyniku ani przerwać kasowania
+                // kolejnych kandydatów.
                 try {
                     Log::error('Nie udało się skasować przedawnionego powiadomienia moderacyjnego', [
                         'notification_id' => $powiadomienie->getKey(),
-                        'exception' => $e::class,
+                        'error' => BezpiecznyBlad::kontekst($e),
                     ]);
                 } catch (Throwable) {
                 }
