@@ -35,6 +35,7 @@ import argparse
 import http.client
 import ipaddress
 import os
+import re
 import secrets
 import sys
 
@@ -44,6 +45,17 @@ DEFAULT_TARGET_HOST = '127.0.0.1'
 DEFAULT_TARGET_PORT = 8118
 TOKEN_HEADER = 'X-Phone-Proxy-Token'
 TOKEN_PARAM = 'token'
+
+
+MAX_BODY = 20 * 1024 * 1024
+_NAZWA_NAGLOWKA = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+
+
+def bezpieczny_naglowek(nazwa, wartosc):
+    """Nazwa wg RFC 7230 (token), wartość bez znaków sterujących CR/LF/NUL."""
+    if not _NAZWA_NAGLOWKA.match(nazwa or ''):
+        return False
+    return not any(z in (wartosc or '') for z in ('\r', '\n', '\x00'))
 
 
 def parse_args(argv=None):
@@ -125,19 +137,33 @@ def make_handler(target_host, target_port, token, allowed_ips):
                 self.send_header('Content-Length', '0')
                 self.end_headers()
                 return
-            data = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+            try:
+                dlugosc = int(self.headers.get('Content-Length', 0))
+            except ValueError:
+                dlugosc = -1
+            if dlugosc < 0 or dlugosc > MAX_BODY:
+                self.send_response(400)
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            data = self.rfile.read(dlugosc)
             # Cel jest stały (target_host/target_port) — żądanie (Host, ścieżka)
             # nie może go zmienić, więc to proxy nie służy do dowolnego forwardowania.
             conn = http.client.HTTPConnection(target_host, target_port, timeout=120)
-            headers = dict(self.headers)
+            headers = {k: v for k, v in self.headers.items() if k.lower() != 'x-phone-proxy-token'}
             headers['Connection'] = 'close'
             conn.request(self.command, self.path, data, headers)
             resp = conn.getresponse()
             body = resp.read()
             self.send_response(resp.status)
             for key, value in resp.getheaders():
-                if key.lower() not in ('connection', 'transfer-encoding', 'content-length'):
-                    self.send_header(key, value)
+                if key.lower() in ('connection', 'transfer-encoding', 'content-length'):
+                    continue
+                # Nagłówek z CR/LF albo spoza dozwolonego zestawu pomijamy —
+                # inaczej można by wstrzyknąć własne nagłówki lub treść (HTTP Response Splitting).
+                if not bezpieczny_naglowek(key, value):
+                    continue
+                self.send_header(key, value)
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)

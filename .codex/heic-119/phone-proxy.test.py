@@ -64,6 +64,15 @@ def test_wlasny_token_ma_pierwszenstwo():
     assert resolve_token(args) == 'moj-token'
 
 
+
+def test_naglowek_z_nowa_linia_odrzucony():
+    assert proxy['bezpieczny_naglowek']('X-Test', 'ok') is True
+    assert proxy['bezpieczny_naglowek']('X-Test', 'a\r\nSet-Cookie: x=1') is False
+    assert proxy['bezpieczny_naglowek']('X-Test', 'a\nb') is False
+    assert proxy['bezpieczny_naglowek']('Zły Nagłówek', 'ok') is False
+    assert proxy['bezpieczny_naglowek']('X\r\nY', 'ok') is False
+
+
 if __name__ == '__main__':
     testy = [v for k, v in list(globals().items()) if k.startswith('test_')]
     for test in testy:
