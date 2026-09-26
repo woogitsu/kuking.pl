@@ -245,6 +245,8 @@ class Notification extends Model
         return [
             'data' => 'array',
             'read_at' => 'datetime',
+            'push_wyslano_at' => 'datetime',
+            'push_proba_at' => 'datetime',
         ];
     }
 
@@ -289,6 +291,29 @@ class Notification extends Model
     public function adresDocelowy(): ?string
     {
         return app(CelPowiadomienia::class)->adres($this);
+    }
+
+    /**
+     * Wpis z `post.first`, o ile istnieje i odbiorca może go dziś zobaczyć
+     * (`PostPolicy::view()`) — issue #1371.
+     */
+    public function pierwszyWpis(): ?Post
+    {
+        $id = $this->data['post_id'] ?? null;
+
+        if ($this->type !== self::TYPE_FIRST_POST || ! is_string($id) || ! Str::isUuid($id) || $this->user === null) {
+            return null;
+        }
+
+        $post = Post::query()->find($id);
+
+        return $post !== null && Gate::forUser($this->user)->allows('view', $post) ? $post : null;
+    }
+
+    /** `post.first`, którego wpisu nie da się otworzyć — „Zobacz" wraca do kolejki. */
+    public function pierwszyWpisNiedostepny(): bool
+    {
+        return $this->type === self::TYPE_FIRST_POST && $this->pierwszyWpis() === null;
     }
 
     /**

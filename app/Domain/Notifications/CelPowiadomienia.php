@@ -82,7 +82,14 @@ final class CelPowiadomienia
             Notification::TYPE_BIRTHDAY => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
-            Notification::TYPE_FIRST_POST => route('admin.unanswered'),
+            // ISSUE #1371: wprost na wskazany wpis, nie na kolejkę — ta ma
+            // limit 50 i gubi wpis po pierwszej odpowiedzi. Adres z BIEŻĄCEGO
+            // wiersza (UUID, nie slug) i po bieżącej autoryzacji odbiorcy.
+            // Brak wpisu, brak `post_id` albo brak dostępu — kolejka
+            // (`Notification::pierwszyWpisNiedostepny()` mówi to człowiekowi słowami).
+            Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
+                ? route('posts.show', $wpis)
+                : route('admin.unanswered'),
             // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
             Notification::TYPE_SMAKOWICIE => is_string($data['post_id'] ?? null) && $data['post_id'] !== ''
                 ? route('posts.show', $data['post_id'])

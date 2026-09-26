@@ -943,7 +943,12 @@ return [
          * bez limitu i bez ciszy nocnej.
          */
         'zewnetrzne' => [
-            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+            // AWARYJNY WYŁĄCZNIK wszystkich kanałów poza serwisem (D-303).
+            // Od uruchomienia Web Push domyślnie WŁĄCZONY, bo o tym, czy kanał
+            // w ogóle istnieje, decyduje jego własna konfiguracja: brak kluczy
+            // VAPID niżej = brak Web Push i brak przycisku. `false` gasi
+            // wysyłkę i ekran ustawień bez ruszania kluczy.
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', true),
 
             // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
             // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
@@ -955,6 +960,34 @@ return [
             // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
             // konfiguracja awaryjna), nie „odkładaj bez końca".
             'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+
+            // Wybory, które człowiek może zrobić na `/ustawienia/powiadomienia`
+            // (D-303). Zamknięta lista, żeby formularz był prostym wyborem,
+            // a nie polem do wpisania liczby. Baza pilnuje zakresu CHECK-iem
+            // (`ustawienia_powiadomien_zewnetrznych`).
+            'limity_do_wyboru' => [1, 2, 3, 5],
+
+            // Starsze niż to powiadomienia nie idą już pushem — w serwisie
+            // zostają. Push jest szturchnięciem „teraz", nie archiwum.
+            'push_maks_wiek_godzin' => (int) env('KUKING_PUSH_MAKS_WIEK_GODZIN', 48),
+
+            // Ile urządzeń (przeglądarek) jedno konto może mieć zapisanych.
+            // Przy nadmiarze znika najstarsze — przeglądarki rzadko mówią,
+            // że subskrypcja umarła, póki nie spróbujemy na nią wysłać.
+            'push_maks_urzadzen' => 10,
+
+            // PONOWIENIE PO BŁĘDZIE TRANSPORTU (issue #1960, D-303). Błąd
+            // usługi push (`WynikWysylkiPush::Blad`) nie kasuje subskrypcji
+            // i nie ma zostać po cichu potraktowany jak sukces — zadanie
+            // ponawia dostarczenie WYŁĄCZNIE do urządzeń, które go jeszcze
+            // nie dostały, po krótkim odstępie.
+            'push_ponowienie_sekund' => (int) env('KUKING_PUSH_PONOWIENIE_SEKUND', 30),
+
+            // Po tylu PRÓBACH TRANSPORTU (nie: prób na urządzenie) rezygnujemy
+            // z automatycznego ponawiania. Powiadomienie w serwisie i tak
+            // czeka (push jest szturchnięciem, nie listem poleconym) —
+            // trwała porażka zostawia mierzalny, pusty `push_wyslano_at`.
+            'push_maks_prob_transportu' => (int) env('KUKING_PUSH_MAKS_PROB_TRANSPORTU', 3),
         ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
@@ -1008,6 +1041,43 @@ return [
     | z tym samym kluczem (D-027, `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
     |
     */
+
+    /*
+     * WEB PUSH (issue #35, D-303) — standard VAPID, bez dostawcy pośredniego.
+     *
+     * BRAK KLUCZA = FUNKCJI NIE MA. Dopóki `VAPID_PUBLIC_KEY`
+     * i `VAPID_PRIVATE_KEY` są puste, nie ma ekranu `/ustawienia/powiadomienia`,
+     * pozycji w spisie ustawień, przycisku ani żadnej wysyłki
+     * (`App\Domain\Notifications\Push\KanalPush::dostepny()`).
+     *
+     * Klucze generuje się RAZ (`php artisan kuking:klucze-vapid`) i nie zmienia:
+     * nowa para unieważnia wszystkie zapisane subskrypcje — przeglądarki
+     * odrzucą wysyłkę podpisaną innym kluczem niż ten, z którym się zapisały.
+     *
+     * `subject` to kontakt dla operatora usługi push (Google, Mozilla, Apple),
+     * gdyby nasze wysyłki sprawiały kłopot: `mailto:` albo adres `https:`.
+     */
+    'push' => [
+        'vapid_public_key' => env('VAPID_PUBLIC_KEY'),
+        'vapid_private_key' => env('VAPID_PRIVATE_KEY'),
+        'vapid_subject' => env('VAPID_SUBJECT', 'mailto:kontakt@kuking.pl'),
+
+        // Jak długo usługa push ma próbować doręczyć, gdy urządzenie jest
+        // wyłączone. Doba: rano po wyłączonym na noc telefonie wiadomość
+        // o wczorajszym „Ugotowałem" jeszcze ma sens, po tygodniu — nie.
+        'ttl_sekund' => 86400,
+
+        // TYLKO te hosty wolno zapisać jako adres subskrypcji. Adres podaje
+        // przeglądarka, czyli w praktyce KAŻDY, kto wyśle żądanie — bez tej
+        // listy serwer robiłby POST pod dowolny adres (SSRF). Dopasowanie:
+        // host równy wpisowi albo kończący się na „.wpis".
+        'dozwolone_hosty' => [
+            'fcm.googleapis.com',          // Chrome, Edge, Opera, Samsung Internet
+            'push.services.mozilla.com',   // Firefox
+            'push.apple.com',              // Safari (macOS, iOS 16.4+ z ekranu początkowego)
+            'notify.windows.com',          // starsze Edge / Windows
+        ],
+    ],
 
     'formularze' => [
         // WYŁĄCZNIK AWARYJNY MECHANIZMU KLUCZA WYSŁANIA (ADR §8.4, „Wyjście 1").
@@ -2549,7 +2619,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-25',
     ],
 
     'analytics' => [

@@ -79,6 +79,8 @@ final class InwentarzDanychKonta
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
+        'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
+        'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
         'hides.hidden_user_id' => [self::NA_ZADANIE, 'Kto ukrył sobie to konto („Ukryj tę osobę”, #1810). Ujawnienie tego naraziłoby osobę, która tylko porządkowała własny ekran (RODO art. 15 ust. 4) — tak samo jak przy blokadach; na żądanie powiemy, ile jest takich ukryć.'],
@@ -127,6 +129,7 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],
         'birthday_month' => [self::EKSPORT, 'konto'],
