@@ -883,6 +883,10 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
+    # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
+    ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
+     lambda s: replace_once(s, 'if ($aktywne > 0) {', 'if (false) {')),
     ("Composer błędnie deklaruje MIT", "composer.json", "DeklaracjaLicencjiJestSpojnaTest",
      lambda s: replace_once(s, '"license": "proprietary"', '"license": "MIT"')),
     ("LICENSE traci zastrzeżenie praw", "LICENSE", "DeklaracjaLicencjiJestSpojnaTest",
