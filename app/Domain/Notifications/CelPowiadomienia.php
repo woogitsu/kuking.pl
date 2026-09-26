@@ -65,6 +65,10 @@ final class CelPowiadomienia
             Notification::TYPE_SAVED => is_string($slug = $powiadomienie->slugZapisanegoPrzepisu()) && $slug !== ''
                 ? route('recipes.show', $slug)
                 : null,
+            // Do WERSJI, nie do oryginału — oryginał odbiorca zna. Tylko gdy
+            // odbiorca nadal może ją zobaczyć (autor wersji mógł ją usunąć
+            // albo zawęzić); inaczej brak „Zobacz" zamiast 403 lub 404 (#23).
+            Notification::TYPE_FORKED => $powiadomienie->wersjaDoPokazania()?->url(),
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
