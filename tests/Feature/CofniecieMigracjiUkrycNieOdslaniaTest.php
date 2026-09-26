@@ -29,6 +29,7 @@ class CofniecieMigracjiUkrycNieOdslaniaTest extends TestCase
         $widz = $this->user('widz');
         $wpis = Post::factory()->create(['author_id' => $this->user('autorka')->id]);
         $this->actingAs($widz)->post(route('posts.hide', $wpis))->assertRedirect();
+        $ukrycie = Hide::query()->firstOrFail();
 
         try {
             Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA]);
@@ -36,10 +37,15 @@ class CofniecieMigracjiUkrycNieOdslaniaTest extends TestCase
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('1 aktywnych ukryć', $e->getMessage());
             $this->assertStringContainsString('CO ZROBIĆ', $e->getMessage());
+            $this->assertTrue(Schema::hasTable('hides'));
+            $this->assertSame(1, Hide::query()->count());
+        } finally {
+            if (Schema::hasTable('hides')) {
+                Hide::query()->whereKey($ukrycie->getKey())->delete();
+            }
         }
 
-        $this->assertTrue(Schema::hasTable('hides'));
-        $this->assertSame(1, Hide::query()->count());
+        $this->assertSame(0, Hide::query()->count());
     }
 
     public function test_ukrycie_na_stale_tez_blokuje_rollback(): void
@@ -47,11 +53,23 @@ class CofniecieMigracjiUkrycNieOdslaniaTest extends TestCase
         $widz = $this->user('widz');
         $wpis = Post::factory()->create(['author_id' => $this->user('autorka')->id]);
         $this->actingAs($widz)->post(route('posts.hide', $wpis));
-        Hide::query()->firstOrFail()->forceFill(['hidden_until' => null])->save();
+        $ukrycie = Hide::query()->firstOrFail();
+        $ukrycie->forceFill(['hidden_until' => null])->save();
         $this->travel(400)->days();
 
-        $this->expectException(RuntimeException::class);
-        Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA]);
+        try {
+            Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA]);
+            $this->fail('Rollback przeszedł mimo ukrycia na stałe.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('1 aktywnych ukryć', $e->getMessage());
+            $this->assertTrue(Schema::hasTable('hides'));
+        } finally {
+            if (Schema::hasTable('hides')) {
+                Hide::query()->whereKey($ukrycie->getKey())->delete();
+            }
+        }
+
+        $this->assertSame(0, Hide::query()->count());
     }
 
     public function test_same_wygasle_ukrycia_przepuszczaja_rollback(): void
@@ -60,6 +78,9 @@ class CofniecieMigracjiUkrycNieOdslaniaTest extends TestCase
         $wpis = Post::factory()->create(['author_id' => $this->user('autorka')->id]);
         $this->actingAs($widz)->post(route('posts.hide', $wpis));
         $this->travel(31)->days();
+
+        $this->assertSame(1, Hide::query()->count());
+        $this->assertSame(0, Hide::query()->aktywne()->count());
 
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA]);
         $this->assertFalse(Schema::hasTable('hides'));
