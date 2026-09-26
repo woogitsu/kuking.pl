@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\DB;
  * moderacyjne w trakcie — mierzy sam ruch publikacji, czyli dokładnie to, co
  * zapycha pierwszą stronę.
  *
- * Z liczb wyłączone są konta z `CookEligibility::excludedUserIds()`
+ * Z liczb wyłączone są konta, które odcina `CookEligibility::tylkoLiczeni()`
  * (gospodarz, konta zalążkowe i zamknięte) — mają mierzyć społeczność.
  * Czasy trwania liczymy w godzinach (`interval 'N hours'`), nie dniach —
  * `interval 'day'` zależy od strefy sesji Postgresa (patrz `PowrotPoDniach`).
@@ -55,16 +55,15 @@ final class MetrykiDoboru
     public function wszystkie(?CarbonImmutable $teraz = null): array
     {
         $teraz ??= CarbonImmutable::now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
         return [
-            'pierwsze_wpisy_z_odpowiedzia_24h' => $this->pierwszeWpisyZOdpowiedzia($teraz, $wykluczeni),
-            'autorzy_ponownie_28_dni' => $this->autorzyPonownie($teraz, $wykluczeni),
-            'udzial_najaktywniejszych_10_procent' => $this->udzialNajaktywniejszych($teraz, $wykluczeni),
-            'autorzy_dziennie' => $this->autorzyDziennie($teraz, $wykluczeni),
-            'publiczne_z_tagiem' => $this->publiczneZTagiem($teraz, $wykluczeni),
-            'bez_pierwszej_strony_7_dni' => $this->bezPierwszejStrony($teraz, $wykluczeni),
-            'tygodnie_danych' => $this->tygodnieDanych($teraz, $wykluczeni),
+            'pierwsze_wpisy_z_odpowiedzia_24h' => $this->pierwszeWpisyZOdpowiedzia($teraz),
+            'autorzy_ponownie_28_dni' => $this->autorzyPonownie($teraz),
+            'udzial_najaktywniejszych_10_procent' => $this->udzialNajaktywniejszych($teraz),
+            'autorzy_dziennie' => $this->autorzyDziennie($teraz),
+            'publiczne_z_tagiem' => $this->publiczneZTagiem($teraz),
+            'bez_pierwszej_strony_7_dni' => $this->bezPierwszejStrony($teraz),
+            'tygodnie_danych' => $this->tygodnieDanych($teraz),
             'progi' => config('kuking.metryki'),
         ];
     }
@@ -75,10 +74,9 @@ final class MetrykiDoboru
      * osoby albo „Ugotowałem" przy przepisie, na który wpis wskazuje. Tylko
      * wpisy, którym doba już minęła — młodszy „jeszcze nie" to nie „nie".
      *
-     * @param  list<string>  $wykluczeni
      * @return array{mianownik: int, licznik: int, procent: float|null}
      */
-    private function pierwszeWpisyZOdpowiedzia(CarbonImmutable $teraz, array $wykluczeni): array
+    private function pierwszeWpisyZOdpowiedzia(CarbonImmutable $teraz): array
     {
         $wpisy = DB::table('first_post_events')
             ->join('posts', 'posts.id', '=', 'first_post_events.post_id')
@@ -86,7 +84,7 @@ final class MetrykiDoboru
             ->whereNotNull('posts.published_at')
             ->where('posts.published_at', '>=', $teraz->subHours(30 * 24))
             ->where('posts.published_at', '<=', $teraz->subHours(24))
-            ->whereNotIn('posts.author_id', $wykluczeni);
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'posts.author_id'));
 
         $mianownik = (clone $wpisy)->count();
         $licznik = $wpisy
@@ -115,17 +113,16 @@ final class MetrykiDoboru
      * w ciągu 28 dni. Kohorta: pierwszy wpis 28–56 dni temu (każdy miał pełne
      * 28 dni na powrót).
      *
-     * @param  list<string>  $wykluczeni
      * @return array{mianownik: int, licznik: int, procent: float|null}
      */
-    private function autorzyPonownie(CarbonImmutable $teraz, array $wykluczeni): array
+    private function autorzyPonownie(CarbonImmutable $teraz): array
     {
         $kohorta = DB::table('first_post_events')
             ->join('posts as pierwszy', 'pierwszy.id', '=', 'first_post_events.post_id')
             ->whereNotNull('pierwszy.published_at')
             ->where('pierwszy.published_at', '>=', $teraz->subHours(56 * 24))
             ->where('pierwszy.published_at', '<', $teraz->subHours(28 * 24))
-            ->whereNotIn('first_post_events.author_id', $wykluczeni);
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'first_post_events.author_id'));
 
         $mianownik = (clone $kohorta)->count();
         $licznik = $kohorta
@@ -145,12 +142,11 @@ final class MetrykiDoboru
      * autorów (co najmniej jedna osoba). „Najaktywniejsi" = najwięcej WŁASNYCH
      * wpisów — to liczba, której nikt tu nie sortuje w interfejsie.
      *
-     * @param  list<string>  $wykluczeni
      * @return array{autorow: int, wpisow: int, najaktywniejszych: int, procent: float|null}
      */
-    private function udzialNajaktywniejszych(CarbonImmutable $teraz, array $wykluczeni): array
+    private function udzialNajaktywniejszych(CarbonImmutable $teraz): array
     {
-        $naAutora = $this->publiczne($teraz->subHours(30 * 24), $teraz, $wykluczeni)
+        $naAutora = $this->publiczne($teraz->subHours(30 * 24), $teraz)
             ->groupBy('posts.author_id')
             ->selectRaw('count(*) as ile')
             ->pluck('ile')
@@ -176,16 +172,15 @@ final class MetrykiDoboru
      * — to jest głębokość pierwszej rundy Odkrywania. Ostatnie 28 pełnych dni,
      * bez dzisiejszego (niepełny zaniżałby średnią).
      *
-     * @param  list<string>  $wykluczeni
      * @return array{dni: array<string, int>, srednia_28_dni: float}
      */
-    private function autorzyDziennie(CarbonImmutable $teraz, array $wykluczeni): array
+    private function autorzyDziennie(CarbonImmutable $teraz): array
     {
         $dzisiaj = CarbonImmutable::parse($teraz)->setTimezone(Czas::strefa())->startOfDay();
         $od = $dzisiaj->subDays(28);
         $dzien = 'date('.Czas::wStrefieCzlowieka('posts.published_at').')';
 
-        $zBazy = $this->publiczne($od, $dzisiaj, $wykluczeni)
+        $zBazy = $this->publiczne($od, $dzisiaj)
             ->where('posts.published_at', '<', $dzisiaj)
             ->groupByRaw($dzien)
             ->selectRaw("{$dzien} as dzien, count(distinct posts.author_id) as autorow")
@@ -203,12 +198,11 @@ final class MetrykiDoboru
      * Odsetek publicznych wpisów z 30 dni z co najmniej jednym aktywnym tagiem
      * (warunek ukrywania tagów w interfejsie: 60%, `progi.publiczne_z_tagiem`).
      *
-     * @param  list<string>  $wykluczeni
      * @return array{mianownik: int, licznik: int, procent: float|null}
      */
-    private function publiczneZTagiem(CarbonImmutable $teraz, array $wykluczeni): array
+    private function publiczneZTagiem(CarbonImmutable $teraz): array
     {
-        $wpisy = $this->publiczne($teraz->subHours(30 * 24), $teraz, $wykluczeni);
+        $wpisy = $this->publiczne($teraz->subHours(30 * 24), $teraz);
         $mianownik = (clone $wpisy)->count();
         $licznik = $wpisy->whereExists(fn ($q) => $q->selectRaw('1')->from('post_tags')
             ->join('tags', 'tags.id', '=', 'post_tags.tag_id')
@@ -226,10 +220,9 @@ final class MetrykiDoboru
      * miał co najmniej dobę na „stanie" na pierwszej stronie). Czas na
      * pierwszej stronie liczymy do teraz, z ruchu publikacji od początku okna.
      *
-     * @param  list<string>  $wykluczeni
      * @return array{mianownik: int, licznik: int, procent: float|null, miejsc_na_stronie: int, prog_minut: int}
      */
-    private function bezPierwszejStrony(CarbonImmutable $teraz, array $wykluczeni): array
+    private function bezPierwszejStrony(CarbonImmutable $teraz): array
     {
         $miejsc = max(1, (int) config('kuking.feed.page_size'));
         $progMinut = (int) config('kuking.metryki.minut_na_pierwszej_stronie');
@@ -239,7 +232,7 @@ final class MetrykiDoboru
         // Tylko dwie kolumny i tylko z tego okna — kilkaset wierszy przy
         // ~60 autorach dziennie. Pętla niżej przerywa po `page_size` innych
         // autorach, więc praca jest liniowa w liczbie wpisów.
-        $wpisy = $this->publiczne($poczatek, $teraz, $wykluczeni)
+        $wpisy = $this->publiczne($poczatek, $teraz)
             ->orderBy('posts.published_at')
             ->orderBy('posts.id')
             ->get(['posts.author_id', 'posts.published_at'])
@@ -280,12 +273,10 @@ final class MetrykiDoboru
     /**
      * Ile pełnych tygodni minęło od pierwszego publicznego wpisu społeczności
      * (próg „≥ 8 tygodni danych").
-     *
-     * @param  list<string>  $wykluczeni
      */
-    private function tygodnieDanych(CarbonImmutable $teraz, array $wykluczeni): int
+    private function tygodnieDanych(CarbonImmutable $teraz): int
     {
-        $pierwszy = Post::query()->publiclyVisible()->whereNotIn('posts.author_id', $wykluczeni)->min('posts.published_at');
+        $pierwszy = Post::query()->publiclyVisible()->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'posts.author_id'))->min('posts.published_at');
 
         return $pierwszy === null ? 0 : intdiv(max(0, $teraz->getTimestamp() - CarbonImmutable::parse($pierwszy)->getTimestamp()), 7 * 86_400);
     }
@@ -293,16 +284,15 @@ final class MetrykiDoboru
     /**
      * Publiczne, opublikowane wpisy z okna, bez kont wyłączonych z liczb.
      *
-     * @param  list<string>  $wykluczeni
      * @return Builder<Post>
      */
-    private function publiczne(CarbonImmutable $od, CarbonImmutable $do, array $wykluczeni): Builder
+    private function publiczne(CarbonImmutable $od, CarbonImmutable $do): Builder
     {
         return Post::query()
             ->publiclyVisible()
             ->where('posts.published_at', '>=', $od)
             ->where('posts.published_at', '<=', $do)
-            ->whereNotIn('posts.author_id', $wykluczeni);
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'posts.author_id'));
     }
 
     /** Konto zalążkowe (`is_seeded`) — jego odpowiedź nie jest odpowiedzią człowieka. */
