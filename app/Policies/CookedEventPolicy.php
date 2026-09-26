@@ -49,7 +49,7 @@ class CookedEventPolicy
         // Do audytu A5 (znalezisko A5-07, dawniej B-03) ta metoda celowo NIE
         // patrzyła na status kucharza: wykonanie osoby ZBANOWANEJ zostawało
         // publiczne pod bezpośrednim adresem, choć `RecipePolicy::view()`,
-        // `UserPolicy::viewProfile()` i `Notification::widoczneDla()` w tym
+        // `UserPolicy::viewProfile()` i `WidocznoscPowiadomien::zawez()` w tym
         // stanie odmawiają. Gość dostawał 200 z notatką, nazwą i awatarem,
         // a profil tej samej osoby — 403. D-261 rozstrzyga to w wariancie
         // bezpieczniejszym: bezpośredni adres odpowiada tak samo jak lista.

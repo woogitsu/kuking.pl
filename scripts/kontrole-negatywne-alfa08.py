@@ -357,6 +357,24 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
+# `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
+# jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
+WIDOCZNOSC_TRESCI_SQL = "app/Domain/Widocznosc/WidocznoscTresciSql.php"
+POWIADOMIENIA_ZGODNE_Z_POLICY_TEST = "test_filtr_powiadomien_odpowiada_jak_policy_na_calej_macierzy"
+# #1746: kucharz w karencji usunięcia konta (`CookedEventPolicy::view()` p. 3a).
+KUCHARZ_W_KARENCJI = """            ->where(function (QueryBuilder $kucharz) use ($widzId): void {
+                $kucharz->where('ce.user_id', $widzId)
+                    ->orWhereNotExists(function (QueryBuilder $konto): void {
+                        $konto->selectRaw('1')
+                            ->from('users as kucharze')
+                            ->whereColumn('kucharze.id', 'ce.user_id')
+                            ->where('kucharze.status', User::STATUS_PENDING_DELETE);
+                    });
+            })
+"""
+# #1747: zapowiedź przepisu ma bramkę w przepisie (`PostPolicy::view()`).
+BRAMKA_ZAPOWIEDZI = "        if ($tabela === 'posts') {\n            self::bramkaZapowiedziPrzepisu($sub, $a, $widz);\n        }\n"
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
@@ -942,6 +960,10 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
+    ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1021,6 +1043,7 @@ run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
