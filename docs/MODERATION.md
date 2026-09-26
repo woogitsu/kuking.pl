@@ -99,6 +99,10 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   własny wpis, przepis, komentarz, „Ugotowałem” albo na własny profil
   (autor wyznaczony przez `ModeratedContent::osoba()`, także przy treści już
   usuniętej). Taką sprawę zamyka ktoś inny z moderacji.
+  Przy zgłoszeniu prawnym ta reguła sprawdza też **adres z formularza**
+  (`CelZAdresuZgloszenia`, audyt B2-02): `/@{login}` i jego podstrony to konto,
+  a `#komentarz-{uuid}` to komentarz, nie wpis nad nim. Działa to także dla
+  zgłoszeń przyjętych wcześniej jako `unknown` albo z celem ustawionym na wpis.
 - **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
   moderator karze zwykłe konta, administrator także moderatorów. Konta
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
@@ -195,7 +199,15 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   przy „cofam” po odwołaniu. Komentarz usunięty przez właściciela wpisu nie
   wraca więc decyzją moderatora.
 - Decyzję administratora cofa tylko administrator — ta sama reguła rangi co
-  przy zdejmowaniu (`UserPolicy::takeDownContentOf`).
+  przy zdejmowaniu (`UserPolicy::takeDownContentOf`). Widok kolejki
+  (`ModerationController::przywracalne()`) czyta tę regułę z
+  `RestoreContent::wolnoCofnac()`, nie kopiuje jej: moderator przy treści
+  ukrytej przez administratora nie widzi przycisku „Przywróć treść”, tylko
+  informację, kto ją ukrył (issue #1748).
+- **Nikt nie przywraca własnej treści** (#1479) — ani przyciskiem przy
+  zgłoszeniu, ani „cofam” po odwołaniu. Wpis albo komentarz moderatora
+  przywraca ktoś inny z zespołu; drogą autora jest odwołanie. Reguła stoi
+  w `RestoreContent`, pod blokadą wiersza, a odmowa niczego nie zapisuje.
 
 ## Co dostaje ZGŁASZAJĄCY (issue #10, DSA art. 16 ust. 4 i 5)
 
@@ -230,6 +242,18 @@ w serwisie. Zdania liczy jedna klasa dla obu kanałów —
 `App\Domain\Moderation\OdpowiedzDlaZglaszajacego` — żeby list i ekran mówiły
 to samo, a nie coś podobnego.
 
+**Zmiana decyzji po odwołaniu autora (#1024).** Gdy autor wygra odwołanie od
+`hide`/`remove` i treść wróci, zgłaszający dostaje korektę tym samym kanałem co
+pierwszą odpowiedź: nowe `report.decided` w serwisie albo list
+`ZmianaDecyzjiWSprawieZgloszenia` przy zgłoszeniu prawnym z adresem. Lista
+`/zgloszenia` pokazuje aktualny skutek, karta sprawy — pierwszą decyzję i pod
+nią „Zmiana decyzji". Sprawę wiąże łańcuch kluczy obcych (zgłoszenie → decyzja
+→ odwołanie autora `overturned`), a nie `reason_code`; dodatkowo ostatnią
+decyzją o stanie treści musi być `unhide` (`ZmianaDecyzjiPoOdwolaniu`).
+Ręczne „Przywróć treść" bez odwołania **nie** jest zmianą decyzji — zwykle
+znaczy, że autor poprawił treść — i karty zgłaszającego nie zmienia. Korekta
+nie zdradza autora, treści odwołania ani sankcji wobec konta.
+
 **Skarga na odrzucenie.** Formularz odwołania dla zgłaszającego
 (`FileReporterAppeal`, issue #23) obsługuje **wyłącznie zgłoszenia prawne**
 z podanym adresem e-mail; wewnętrzny system skarg z art. 20 leży w Sekcji 3,
@@ -263,6 +287,14 @@ zauważa, nikomu nic się nie dzieje.
   `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
 - „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
   oznaczenia dla tej samej treści.
+- Zamyka grupę w stanie, który moderator widział (#1059, decyzja właściciela):
+  formularz niesie klucz grupy, liczbę otwartych oznaczeń i identyfikator
+  najnowszego z nich — nie listę identyfikatorów, bo widok rozwija najwyżej
+  10 pozycji na grupę (#1060). Gdy od otwarcia strony do grupy doszło coś
+  nowego (nowsze od najnowszego albo więcej niż liczba z ekranu), nic nie
+  zostaje zamknięte: „Doszły nowe zgłoszenia — odśwież listę i sprawdź je”.
+  Oznaczenie zamknięte w międzyczasie przez kogoś innego nie dostaje drugiej
+  decyzji, a reszta grupy się zamyka.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 
@@ -400,10 +432,68 @@ obowiązuje). Zakaz wejścia kontem obsługi linkiem, przez Google albo
 Facebooka patrzy na samą rolę (`User::hasStaffRole()`), więc zawieszenie go
 nie zdejmuje.
 
-**Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
+**Jak administrator zamyka sprawę** — `/admin/odwolania` (rozstrzyga wyłącznie
+czynny administrator, `UserPolicy::resolveAppeals()`; patrz akapit wyżej): widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać
 uzasadnienie. Cofnięcie realnie przywraca treść albo odblokowuje konto.
+
+Rozpatrzenie to jedna transakcja pod blokadą wiersza odwołania (#950):
+skutek, wynik, odpowiedź w serwisie i wpis `appeal.resolved` zapisują się
+razem albo wcale. Drugie, równoległe rozpatrzenie tego samego odwołania
+(druga karta, drugi administrator) czeka na pierwsze i dostaje „To odwołanie
+zostało już rozpatrzone” — bez skutku i bez drugiej odpowiedzi. List do
+zgłaszającego wychodzi z kolejki po zatwierdzeniu. Pomiar:
+`tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+
+**Cofnięcie kary zdejmuje tylko tę karę, której dotyczy odwołanie** (#933).
+Konto wraca do `active` wyłącznie wtedy, gdy jest dziś zawieszone albo
+zablokowane i obowiązuje właśnie ta decyzja — najnowsza decyzja `suspend`/`ban`
+wobec tej osoby, której nie cofnięto po odwołaniu. Jeśli później zapadła inna
+kara (np. ban po zawieszeniu, drugie zawieszenie z innym terminem), zostaje
+w mocy z jej terminem, a odpowiedź na odwołanie mówi wprost: „Tę decyzję
+cofnęliśmy. Twoje konto pozostaje jednak zablokowane (zawieszone)…”. Konto
+w trakcie usuwania (`pending_delete`) ani wymazane (`erased`) nie wraca —
+tam obowiązująca kara to kara odłożona w `punishment_status` (#980). Jeśli
+uchylana decyzja jest tą obowiązującą, `reinstate()` czyści karę odłożoną,
+a żądanie usunięcia i karencja zostają; dzięki temu uchylony ban nie wraca
+przy „Cofnij usunięcie konta”. Późniejsza, niezależna kara odłożona zostaje.
+Odczyt obowiązującej kary idzie pod blokadą wiersza konta, więc nowa kara
+zatwierdzona w trakcie rozpatrzenia też zostaje. Granica: cofnięcie
+PÓŹNIEJSZEJ kary nie przywraca wcześniejszego zawieszenia, które jeszcze by
+trwało — konto wraca do `active`, jak przed tą zmianą.
+Druga granica: „uchylona” to decyzja z odwołaniem `overturned` w tabeli
+`appeals`, a odwołania znikają po okresie retencji sprawy
+(`moderation.case_retention_months`, domyślnie 36 miesięcy, liczone od
+`appeals.decided_at`). Gdyby po tym czasie decyzja `suspend`/`ban` jeszcze
+leżała w `moderation_actions` (np. trzyma ją żywe odwołanie drugiej strony),
+reguła nie zobaczy już jej uchylenia i może uznać ją za obowiązującą — przy
+starszych sprawach rozstrzyga wtedy człowiek, nie ta reguła.
+
+**Uznanie odwołania zgłaszającego od „Bez działania” to nowa decyzja**
+(#989, DSA art. 20 ust. 4). Cofnięcie `no_action` nie ma czego przywrócić,
+więc „cofam” bez niczego więcej byłoby odpowiedzią „zmieniamy decyzję” bez
+zmiany. Formularz rozpatrzenia pokazuje przy takim odwołaniu pola nowej
+decyzji — te same co przy decyzji ze zgłoszenia: decyzja z macierzy dla typu
+celu (bez „Bez działania”), termin przy zawieszeniu, podstawa i wiadomość dla
+autora. Przy „Podtrzymuję” pola są ignorowane. Bez wybranej decyzji odwołania
+nie da się uznać.
+
+- Nowa decyzja wykonuje się w tej samej transakcji co odpowiedź: skutek,
+  wiersz w `moderation_actions` z `report_id = NULL` i `appeal_id` (powiązanie
+  z odwołaniem, przez nie z pierwotną decyzją i zgłoszeniem), powiadomienie
+  autora z uzasadnieniem i jego własną drogą odwołania, zgłoszenie
+  przestawione z `rejected` na `resolved`, wpisy `moderation.after_appeal`
+  i `appeal.resolved` z identyfikatorami obu decyzji.
+- Zgłaszający dostaje „Zmieniamy naszą decyzję” i zdanie o tym, co stało się
+  z treścią — bez rodzaju kary nałożonej na autora (ta sama granica co przy
+  każdej decyzji, #800). Ekran jego sprawy pokazuje to samo.
+- Czego się nie da wykonać, tego się nie zapisuje: treści już nie ma, treść
+  już zdjęta, kara wobec konta równej albo wyższej rangi. Odwołanie zostaje
+  otwarte i można je podtrzymać z uzasadnieniem.
+- Ścieżka jest świadomie wąska: tylko zgłaszający i tylko decyzje bez
+  działania. Odwołanie zgłaszającego od innej decyzji (np. „za łagodnie”)
+  rozpatruje się jak dotąd.
 
 **Jak odpowiedź dociera** — powiadomieniem typu moderacyjnego. Osoba
 zablokowana czyta je na ekranie logowania (`LoginController`), bo do serwisu
