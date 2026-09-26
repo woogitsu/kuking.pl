@@ -3486,6 +3486,16 @@ return [
         'wyzwanie_minut' => 10,
 
         /*
+         * Ile odpowiedzi niesie JEDEN wątek na liście komentarzy wpisu
+         * i przepisu (issue #1970). Najstarsze, w kolejności rozmowy; resztę
+         * aplikacja pobiera stronami z `more_replies_url`
+         * (`/api/v1/komentarze/{id}/odpowiedzi`, rozmiar strony
+         * `comments.page_size`). Bez tej granicy strona 12 wątków potrafiła
+         * nieść tysiąc odpowiedzi jednego z nich.
+         */
+        'odpowiedzi_w_watku' => 3,
+
+        /*
          * ILE URZĄDZEŃ NA JEDNO KONTO. Kolejne logowanie ponad ten próg
          * odwołuje token używany najdawniej (`WydajTokenAplikacji`).
          *

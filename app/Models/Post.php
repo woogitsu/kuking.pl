@@ -89,6 +89,18 @@ class Post extends Model
         'published_at',
     ];
 
+    /**
+     * Dla kogo `ukryjNiedostepnePrzepisy()` rozstrzygnęło już relację
+     * `recipe` (issue #1971): klucz widza, `''` dla gościa, `null` — nikt.
+     *
+     * Zwykła właściwość PHP, NIE atrybut: nie trafia do bazy, do `toArray()`
+     * ani do kolejki. Żyje tyle, co ten obiekt w jednym żądaniu. Pozwala
+     * zasobowi API (`PostResource`) nie pytać `RecipePolicy::view()` drugi
+     * raz — per wpis, z niezaładowanym autorem, blokadami i obserwowaniem —
+     * o coś, co lista rozstrzygnęła już jednym zapytaniem na stronę.
+     */
+    public ?string $przepisRozstrzygnietyDla = null;
+
     protected function casts(): array
     {
         return [
@@ -481,7 +493,25 @@ class Post extends Model
             if (! in_array((string) $wpis->recipe_id, $widoczne, true)) {
                 $wpis->setRelation('recipe', null);
             }
+
+            $wpis->przepisRozstrzygnietyDla = self::kluczWidza($widz);
         }
+    }
+
+    /**
+     * Czy relacja `recipe` tego wpisu jest już przycięta do tego, co `$widz`
+     * może zobaczyć (`ukryjNiedostepnePrzepisy()`) — wtedy niepusta relacja
+     * ZNACZY „widoczny" i nie trzeba pytać polityki (issue #1971).
+     */
+    public function przepisRozstrzygnietyDla(?User $widz): bool
+    {
+        return $this->przepisRozstrzygnietyDla !== null
+            && $this->przepisRozstrzygnietyDla === self::kluczWidza($widz);
+    }
+
+    private static function kluczWidza(?User $widz): string
+    {
+        return $widz === null ? '' : (string) $widz->getKey();
     }
 
     /**

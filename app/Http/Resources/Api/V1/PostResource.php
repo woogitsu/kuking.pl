@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Gate;
  * Zasób NIE DECYDUJE, czy wpis wolno pokazać — to robi `PostPolicy::view`
  * w kontrolerze (albo zapytanie feedu, to samo co na WWW). Zasób pilnuje
  * tylko tego, czego NIE wypuścić: `klucz_wyslania`, statusu moderacji,
- * `hide_as_memory` i przepisu, którego widz nie może zobaczyć.
+ * `hide_as_memory` i przepisu, którego widz nie może zobaczyć — ten ostatni
+ * rozstrzyga lista (`Post::ukryjNiedostepnePrzepisy`) albo, dla wpisu spoza
+ * listy, `RecipePolicy::view()` (#1971).
  *
  * @mixin Post
  */
@@ -31,7 +33,14 @@ class PostResource extends JsonResource
         $widz = $request->user();
         $przepis = $wpis->recipe;
 
-        $przepisWidoczny = $przepis !== null && Gate::forUser($widz)->allows('view', $przepis);
+        // Lista (feed) przycięła już relację jednym zapytaniem na stronę
+        // (`Post::ukryjNiedostepnePrzepisy`, reguły ostrzejsze niż polityka —
+        // bez furtki moderatora). Pytanie polityki per wpis to było N+1
+        // (#1971), a przy przepisie ładowanym bez `status` i `author_id`
+        // polityka odrzucała KAŻDY przepis feedu. Wpis spoza takiej listy
+        // (`PostController::show`) idzie przez `RecipePolicy::view()`.
+        $przepisWidoczny = $przepis !== null
+            && ($wpis->przepisRozstrzygnietyDla($widz) || Gate::forUser($widz)->allows('view', $przepis));
 
         return [
             'id' => (string) $wpis->getKey(),

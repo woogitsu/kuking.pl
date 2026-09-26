@@ -499,6 +499,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'author_id' => $wlasciciel->getKey(),
             'post_id' => $wpisPubliczny->getKey(),
         ]);
+        // Wątek pod wpisem PRYWATNYM — dla `api.komentarze.odpowiedzi` (#1970):
+        // bramką jest `CommentPolicy::view`, która pyta Policy rodzica.
+        $komentarzPodPrywatnym = Comment::factory()->create([
+            'author_id' => $wlasciciel->getKey(),
+            'post_id' => $wpis->getKey(),
+        ]);
 
         $zeszyt = Collection::create([
             'owner_id' => $wlasciciel->getKey(),
@@ -942,6 +948,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('api.przepisy.show', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
         $dodaj('api.przepisy.komentarze', 'API: komentarze przepisu prywatnego', 'getJson',
             route('api.przepisy.komentarze', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.komentarze.odpowiedzi', 'API: odpowiedzi w wątku pod wpisem prywatnym', 'getJson',
+            route('api.komentarze.odpowiedzi', $komentarzPodPrywatnym), [], [$W, $O, $O, $O, $O]);
         $dodaj('api.profile.show', 'API: profil', 'getJson',
             route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
         // Ten sam MediaController i ta sama `DostepDoZdjecia` co `media.show`,
