@@ -135,6 +135,31 @@ class DodawaniePolaZdjeciaTest extends TestCase
         $komponent->assertSee('Zmień zdjęcie')->assertSee('Dodaj zdjęcie');
     }
 
+    /**
+     * Issue #884: „Usuń” przy miniaturze włącza skrypt TYLKO w polach
+     * z `data-usuwanie-zdjec` — formularz wpisu i „Ugotowałem”. Kreator
+     * Livewire wysyła zdjęcie od razu po wyborze, więc celowo go nie ma.
+     * Zachowanie samego przycisku mierzy `scripts/podglad-object-url.test.mjs`.
+     */
+    public function test_884_formularze_wpisu_i_ugotowalem_wlaczaja_usuwanie_pojedynczego_zdjecia(): void
+    {
+        $autor = $this->user('autor884');
+        $recipe = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+
+        foreach ([route('posts.create'), route('cooked.create', $recipe->slug)] as $adres) {
+            $this->actingAs($this->user('basia884'.md5($adres)))
+                ->get($adres)
+                ->assertOk()
+                ->assertSee('name="photos[]"', false)
+                ->assertSee('data-usuwanie-zdjec', false);
+        }
+
+        // Kontrola dodatnia: atrybut nie jest w każdym HTML-u serwisu.
+        $this->actingAs($autor)->get(route('recipes.show', $recipe->slug))
+            ->assertOk()
+            ->assertDontSee('data-usuwanie-zdjec', false);
+    }
+
     private function przepisZJednymZdjeciemKroku(User $autor): Recipe
     {
         $tytul = 'Kotlet z jednym zdjęciem kroku';
