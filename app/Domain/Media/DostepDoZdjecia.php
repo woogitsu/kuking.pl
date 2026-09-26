@@ -13,6 +13,7 @@ use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -432,17 +433,18 @@ final class DostepDoZdjecia
     private function wczytajRodzicow(string $tabela, string $id): array
     {
         return match ($tabela) {
-            'post_media' => Post::query()
+            'post_media' => $this->zRelacjamiPolicyWpisu(Post::query()
+                ->with('author')
                 ->whereHas('media', fn ($zapytanie) => $zapytanie->whereKey($id))
-                ->get()
-                ->all(),
+                ->get()),
 
             'cooked_event_media' => CookedEvent::query()
+                ->with(['user', 'recipe.author'])
                 ->whereHas('media', fn ($zapytanie) => $zapytanie->whereKey($id))
                 ->get()
                 ->all(),
 
-            'profiles' => Profile::query()->where('avatar_media_id', $id)->get()->all(),
+            'profiles' => Profile::query()->with('user')->where('avatar_media_id', $id)->get()->all(),
 
             // Nawias JAWNY, nie `where(...)->orWhere(...)` na płasko.
             // `Recipe` ma `SoftDeletes`, więc do zapytania dokleja się jeszcze
@@ -450,13 +452,14 @@ final class DostepDoZdjecia
             // zmiana kolejności warunków w Laravelu, żeby skasowany przepis
             // zaczął po cichu wystawiać swój skan kartki.
             'recipes' => Recipe::query()
+                ->with('author')
                 ->where(fn ($zapytanie) => $zapytanie
                     ->where('hero_media_id', $id)
                     ->orWhere('source_scan_media_id', $id))
                 ->get()
                 ->all(),
 
-            'recipe_steps' => RecipeStep::query()->where('media_id', $id)->get()->all(),
+            'recipe_steps' => RecipeStep::query()->with('recipe.author')->where('media_id', $id)->get()->all(),
 
             /*
              * KOLAŻ W HERO — rodzicem jest WPIS, przy którym zdjęcie wisi,
@@ -478,10 +481,34 @@ final class DostepDoZdjecia
              * w jednej z nich znaczy zdjęcie bez rodzica — błąd cichy
              * w obie strony.
              */
-            'hero_picks' => Post::query()
+            'hero_picks' => $this->zRelacjamiPolicyWpisu(Post::query()
+                ->with('author')
                 ->whereIn('id', DB::table('hero_picks')->where('media_id', $id)->pluck('post_id'))
-                ->get()
-                ->all(),
+                ->get()),
         };
+    }
+
+    /**
+     * RELACJE, O KTÓRE PYTAJĄ POLICY RODZICÓW, WCZYTANE Z GÓRY (#976).
+     *
+     * Jedno zdjęcie potrafi wisieć pod KILKOMA rodzicami tego samego typu —
+     * np. kilka przepisów z tym samym zdjęciem w nagłówku. Bez `with()` każda
+     * Policy doładowywała autora osobnym zapytaniem, a tryb ścisły Eloquent
+     * słusznie kończył to wyjątkiem i zdjęcie odpowiadało 500. Autor jest
+     * potrzebny `PostPolicy::view()` zawsze (poza szkicem), więc idzie
+     * w `with()`. Zapowiadany przepis — tylko dla wpisów, które mogą być
+     * zapowiedzią: `with('recipe')` bez warunku pytałby tabelę `recipes` przy każdym
+     * zdjęciu wpisu, a tego pilnuje `AutoryzacjaZdjeciaJednymPrzejsciemTest`.
+     *
+     * @param  EloquentCollection<int, Post>  $wpisy
+     * @return list<Post>
+     */
+    private function zRelacjamiPolicyWpisu(EloquentCollection $wpisy): array
+    {
+        // Ten sam warunek, od którego zaczyna `Post::czyJestZapowiedziaPrzepisu()`.
+        $wpisy->filter(fn (Post $wpis): bool => $wpis->recipe_id !== null && ! filled($wpis->body))
+            ->load('recipe.author');
+
+        return array_values($wpisy->all());
     }
 }

@@ -11,7 +11,7 @@ $path = $argv[2] ?? throw new RuntimeException('Brak zewnętrznego pliku stanu.'
 if (($argv[1] ?? '') === 'usun') {
     $state = json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
     $user = User::whereKey($state['id'])->where('email', $state['email'])->firstOrFail();
-    if ($user->google_sub !== null || $user->tozsamosciZewnetrzne()->exists()) {
+    if ($user->tozsamosciZewnetrzne()->exists()) {
         throw new RuntimeException('OAUTH345: sam odbiór ekranu utworzył powiązanie.');
     }
     $user->forceDelete();

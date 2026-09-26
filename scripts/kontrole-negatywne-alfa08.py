@@ -337,6 +337,10 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Tryb ścisły Eloquent poza produkcją (#976). Mutacja usuwa samo włączenie
+# z `AppServiceProvider` — test kontraktu ma zapalić, że ochron nie ma.
+TRYB_SCISLY = "app/Providers/AppServiceProvider.php"
+TRYB_SCISLY_TEST = "TrybScislyEloquentTest"
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -902,6 +906,8 @@ checks = [
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
      lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
+    ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
+     lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing') || $staging);\n", "")),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
@@ -993,6 +999,7 @@ run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(PODZIAL_TESTOW_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
+run_test(TRYB_SCISLY_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)

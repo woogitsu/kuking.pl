@@ -73,6 +73,9 @@ class SecurityTest extends TestCase
         // niezależnie od tego, który kontroler je woła. Eloquent bez trybu
         // strict po prostu odrzuca pola poza `$fillable`, więc widać to na
         // wartościach — dopisanie ich do listy zapala tę asercję.
+        // Poza produkcją tryb ścisły (#976) rzuciłby tu wyjątek, zanim
+        // cokolwiek trafi do bazy — mierzymy więc zachowanie produkcyjne.
+        $this->mierzMasowePrzypisanieJakWProdukcji();
         $basia->update([
             'role' => User::ROLE_ADMIN,
             'status' => User::STATUS_BANNED,

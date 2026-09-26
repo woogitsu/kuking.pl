@@ -252,7 +252,7 @@ class UsunieteKontoTresciZostajaWidoczneTest extends TestCase
             'user_id' => $s['basia']->getKey(),
             'recipe_id' => $s['przepisKontrolny']->getKey(),
             'note' => 'Wyszlo swietnie, robie znowu.',
-            'cooked_on' => now()->toDateString(),
+            'cooked_at' => now(),
         ]);
 
         $wlasnyZeszyt = Collection::create([

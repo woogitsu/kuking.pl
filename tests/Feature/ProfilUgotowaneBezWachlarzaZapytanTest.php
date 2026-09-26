@@ -41,7 +41,7 @@ class ProfilUgotowaneBezWachlarzaZapytanTest extends TestCase
         // Ustaw awatar kucharza
         $storeImage = app(StoreUploadedImage::class);
         $avatarMedia = $storeImage->handle($kucharz, UploadedFile::fake()->image('awatar.jpg', 200, 200));
-        $kucharz->profile->update(['avatar_id' => $avatarMedia->getKey()]);
+        $kucharz->profile->update(['avatar_media_id' => $avatarMedia->getKey()]);
 
         $recipe = Recipe::factory()->create([
             'author_id' => $autor->getKey(),

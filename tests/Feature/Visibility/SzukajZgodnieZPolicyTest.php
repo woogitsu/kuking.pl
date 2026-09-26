@@ -167,7 +167,7 @@ class SzukajZgodnieZPolicyTest extends TestCase
         $widzowie = ['autorka' => $this->autor, 'obserwująca' => $this->obserwujaca, 'obca' => $this->obca, 'gość' => null];
 
         foreach ($widzowie as $kto => $widz) {
-            $wolno = Recipe::query()->published()->get()
+            $wolno = Recipe::query()->published()->with('author')->get()
                 ->filter(fn (Recipe $r): bool => Gate::forUser($widz)->allows('view', $r))
                 ->pluck('id')->sort()->values()->all();
 

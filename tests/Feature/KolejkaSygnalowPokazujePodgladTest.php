@@ -55,7 +55,6 @@ class KolejkaSygnalowPokazujePodgladTest extends TestCase
         Report::create([
             'target_type' => 'post',
             'target_id' => $wpis->getKey(),
-            'subject_user_id' => $autor->getKey(),
             'source' => Report::SOURCE_AUTOMAT,
             'status' => Report::STATUS_OPEN,
             'reason' => OcenaModelem::KOD,
