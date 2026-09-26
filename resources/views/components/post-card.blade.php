@@ -195,6 +195,11 @@
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{-- „Dopisz przepis” (#1334) — tylko przy kwalifikującym
+                             się wpisie; reguła w `PostPolicy::dopiszPrzepis`. --}}
+                        @can('dopiszPrzepis', $post)
+                            <a href="{{ route('recipes.create.from-post', $post) }}">Dopisz przepis</a>
+                        @endcan
                         {{--
                             „Usuń wpis" — akcja destrukcyjna, odsunięta od
                             zwykłych akcji i wymagająca potwierdzenia
@@ -209,7 +214,9 @@
                                 label="Usuń wpis"
                                 question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
                         </div>
-                    @else
+                    @elseif(! \App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
+                        {{-- Podgląd ukrytego wpisu dla moderatora (#1018) jest tylko
+                             do odczytu — `PostPolicy::report` odmawia, więc bez odnośnika. --}}
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
                     @endcan
                 </div>
@@ -443,7 +450,13 @@
         </a>
 
         @auth
+        @unless(\App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
             {{--
+                PODGLĄD UKRYTEGO WPISU JEST TYLKO DO ODCZYTU (#1018). Moderator
+                z 2FA widzi cudzy ukryty wpis, ale `PostPolicy::save` odmawia
+                mu zapisu — przycisk stałby martwy (AGENTS.md §5). Dlaczego
+                nie `@can('save')`: uzasadnienie przy `tylkoPodgladObslugi()`.
+
                 „ZAPISUJĘ" (decyzja właściciela, `docs/DECISIONS.md` D-036).
 
                 Do tej zmiany przycisk nosił „Zapisz", a przycisk zapisu
@@ -594,6 +607,7 @@
                 </form>
             @endif
             <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" :content="$post" />
+        @endunless
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).
