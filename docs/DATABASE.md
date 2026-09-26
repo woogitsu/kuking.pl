@@ -1973,6 +1973,11 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
 
 **Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
 zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
@@ -3609,7 +3614,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 | Kod | Kiedy |
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
-| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał — również gdy `writeStream()` zwróci `false` bez wyjątku. Paczka nie przechodzi wtedy do `ready` i nie wysyła się informacji o gotowości. |
 | `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
@@ -4291,7 +4296,10 @@ a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkie
 **Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
 zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
 („wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
-i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+oraz automatycznie po 30 dniach (`queue:prune-failed --hours=720`,
+codziennie o 05:20 — decyzja właściciela z 25.09.2026, `docs/DECISIONS.md`,
+sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”) i nie da się w niej
+niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
 wskazuje na nią kolumną `failed_job_uuid`.
 
 | Kolumna | Uwagi |
