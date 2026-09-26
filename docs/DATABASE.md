@@ -1282,11 +1282,20 @@ Ograniczenia: `hides_one_target_check` (`num_nonnulls(post_id, hidden_user_id)
 = 1`), `hides_not_self_check` (`hidden_user_id <> user_id`), unikalne indeksy
 częściowe `hides_user_post_unique (user_id, post_id)` i
 `hides_user_person_unique (user_id, hidden_user_id)` — ponowne ukrycie
-przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę.
+przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę
+oraz na `user_id` pod listę widza, eksport i wymazanie konta (indeksy
+częściowe `WHERE … IS NOT NULL` tego zapytania nie obsłużą).
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
+(D-022), więc ukrycia wymazywanego konta (`user_id`) kasuje jawnie
+`EraseAccountData` — przy każdym `delete_scope`. Wpisy mają soft delete:
+ukrycie usuniętego wpisu zostaje, a lista pokazuje je jako „Ten wpis jest już
+niedostępny” z „Przywróć”; treść i autora wpisu lista i eksport pokazują
+tylko wtedy, gdy widz dziś ten wpis zobaczy (`Ukrycia::widoczneWpisy()`).
 
 Czytają ją wyłącznie filtry strumieni TEGO widza (`Post::scopeBezUkrytychWpisow`,
-`Post::scopeBezUkrytychOsob`, `User::scopeBezUkrytychPrzez`, warunek w
-`ZbierzTresciDigestu`), lista `/ustawienia/ukryte` i eksport. **Nigdy**
+`Post::scopeBezUkrytychOsob`, `DailyBoard::ukryteOsobyDla()`, warunek w
+`ZbierzTresciDigestu`), lista `/ustawienia/ukryte`, eksport i wymazanie konta. **Nigdy**
 moderacja ani analityka — pilnuje `UkryjWpisIOsobeTest::test_bez_agregacji…`.
 Eksport: `hides.user_id` w sekcji `ukryte`; `hides.hidden_user_id` na żądanie
 (art. 15 ust. 4, jak `blocks.blocked_id`).

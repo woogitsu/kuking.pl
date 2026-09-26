@@ -20,8 +20,11 @@ use Illuminate\Support\Facades\Schema;
  *  - nie można ukryć siebie: `hidden_user_id <> user_id`;
  *  - jeden wiersz na parę (widz, wpis) i (widz, osoba) — indeksy unikalne
  *    częściowe; ponowne ukrycie przedłuża istniejący wiersz, nie dubluje go.
- *  - `ON DELETE CASCADE` z trzech stron: usunięcie konta widza zabiera jego
- *    ukrycia, usunięcie wpisu albo konta ukrytej osoby — wiersze o nich.
+ *  - `ON DELETE CASCADE` z trzech stron — ale tylko przy TWARDYM usunięciu
+ *    wiersza. Kont z Kuking się nie kasuje, tylko anonimizuje (D-022), więc
+ *    ukrycia wymazywanego konta kasuje jawnie `EraseAccountData`. Wpisy mają
+ *    soft delete: ukrycie usuniętego wpisu zostaje, a lista „Ukryte" pokazuje
+ *    je jako „Ten wpis jest już niedostępny" z „Przywróć" (przegląd #1781).
  *
  * BEZ AGREGACJI. Ta tabela nie jest czytana nigdzie poza listami widza
  * i filtrami jego własnych strumieni — ani przez moderację, ani przez
@@ -49,6 +52,12 @@ return new class extends Migration
             // usunięciu wpisu albo konta nie może skanować całej tabeli.
             $table->index('post_id');
             $table->index('hidden_user_id');
+            // Po stronie widza: lista „Ukryte", eksport, wymazanie konta
+            // i kaskada z `users` pytają `WHERE user_id = ?`. Unikalne indeksy
+            // częściowe niżej tego nie obsłużą — ich warunki (`post_id IS NOT
+            // NULL`, `hidden_user_id IS NOT NULL`) nie wynikają z samego
+            // `user_id = ?` (przegląd #1781).
+            $table->index('user_id');
         });
 
         if ($this->isPostgres()) {

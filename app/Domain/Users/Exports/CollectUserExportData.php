@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
@@ -719,16 +720,30 @@ final class CollectUserExportData
      */
     private function hides(User $user): array
     {
-        return Hide::query()
+        $ukrycia = Hide::query()
             ->where('user_id', $user->getKey())
             ->with(['post:id,body', 'hiddenUser.profile'])
             ->orderBy('created_at')
-            ->get()
+            ->get();
+
+        // Początek treści TYLKO wpisu, który ta osoba dziś zobaczy (przegląd
+        // #1781) — ta sama bramka co lista „Ukryte". Wpis usunięty, schowany
+        // przez moderację, prywatny albo od kogoś, kto ją zablokował, zostaje
+        // w paczce jako decyzja (adres, daty), bez cudzej treści.
+        $widoczne = app(Ukrycia::class)->widoczneWpisy(
+            $user,
+            $ukrycia->whereNotNull('post_id')->pluck('post_id')->map(fn ($id) => (string) $id)->values()->all(),
+        );
+
+        return $ukrycia
             ->map(fn (Hide $ukrycie): array => [
                 'co' => $ukrycie->post_id !== null ? 'wpis' : 'osoba',
-                'wpis' => $ukrycie->post === null ? null : [
+                'wpis' => $ukrycie->post_id === null ? null : [
                     'adres' => route('posts.show', $ukrycie->post_id),
-                    'poczatek' => Str::limit(trim((string) $ukrycie->post->body), 80),
+                    'dostepny' => isset($widoczne[(string) $ukrycie->post_id]),
+                    'poczatek' => isset($widoczne[(string) $ukrycie->post_id]) && $ukrycie->post !== null
+                        ? Str::limit(trim((string) $ukrycie->post->body), 80)
+                        : null,
                 ],
                 'osoba' => $ukrycie->hiddenUser?->profile?->username,
                 'ukryte_od' => $this->date($ukrycie->created_at),

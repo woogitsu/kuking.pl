@@ -49,7 +49,10 @@ class UkryciaController extends Controller
             return back()->withErrors(['ukrycie' => $e->getMessage()]);
         }
 
-        return back()
+        // Na PIERWSZĄ stronę listy, bez kursora (przegląd #1781): ukryty wpis
+        // znika z rotacji Odkrywania, starsze wpisy autora przesuwają się
+        // o rundę wcześniej i jeden z nich wypadłby przed stary kursor.
+        return redirect()->to($this->bezKursora((string) url()->previous()))
             ->with('status', 'Ukryliśmy ten wpis tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Inni widzą go jak dotąd.')
             ->with('status_powrot', [
                 'akcja' => route('posts.unhide', $post),
@@ -106,7 +109,7 @@ class UkryciaController extends Controller
             return back()->withErrors(['ukrycie' => $e->getMessage()]);
         }
 
-        return redirect()->to($this->bezpiecznyPowrot((string) $request->input('wroc')))
+        return redirect()->to($this->bezKursora($this->bezpiecznyPowrot((string) $request->input('wroc'))))
             ->with('status', 'Ukryliśmy tę osobę tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Nie powiadamiamy jej o tym.')
             ->with('status_powrot', [
                 'akcja' => route('social.unhide', $osoba->profile->username),
@@ -142,6 +145,13 @@ class UkryciaController extends Controller
 
         return view('pages.settings.ukryte', [
             'wpisy' => $wszystkie->whereNotNull('post_id')->values(),
+            // Treść i autor tylko przy wpisach, które widz dziś zobaczy
+            // (przegląd #1781). Reszta: „Ten wpis jest już niedostępny"
+            // i samo „Przywróć" — wpis usunięty, schowany albo zamknięty.
+            'widoczne' => $this->ukrycia->widoczneWpisy(
+                $widz,
+                $wszystkie->whereNotNull('post_id')->pluck('post_id')->map(fn ($id) => (string) $id)->values()->all(),
+            ),
             'osoby' => $wszystkie->whereNotNull('hidden_user_id')->values(),
             'ostrzezenie' => $this->ukrycia->ostrzezenieOSkali($widz),
         ]);
@@ -161,6 +171,26 @@ class UkryciaController extends Controller
         $this->zmien->przywroc($hide);
 
         return back()->with('status', 'Przywrócone. Znów to zobaczysz.');
+    }
+
+    /**
+     * Ten sam adres bez `cursor` i `stan` — czyli pierwsza strona listy.
+     * Pozostałe parametry (np. filtr) zostają.
+     */
+    private function bezKursora(string $adres): string
+    {
+        $zapytanie = parse_url($adres, PHP_URL_QUERY);
+
+        if (! is_string($zapytanie) || $zapytanie === '') {
+            return $adres;
+        }
+
+        parse_str($zapytanie, $parametry);
+        unset($parametry['cursor'], $parametry['stan']);
+        $bezZapytania = strtok($adres, '?');
+        $reszta = http_build_query($parametry);
+
+        return $bezZapytania.($reszta !== '' ? '?'.$reszta : '');
     }
 
     private function doKiedy(Hide $ukrycie): string

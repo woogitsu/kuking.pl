@@ -13,7 +13,9 @@
 <x-layout title="Ukryj tę osobę" :noindex="true">
     <h1>Ukryj tę osobę</h1>
 
-    <x-error-summary />
+    {{-- Błąd z worka `ukrycie` pokazuje layout (jeden komunikat na ekran);
+         formularz nie ma pól, więc podsumowanie z odnośnikami nie ma dokąd
+         prowadzić. --}}
 
     <p class="text-title-lg">Osoba: {{ $osoba->displayName() }}</p>
 

@@ -30,16 +30,6 @@ final class UkryjOsobe
             throw new BladDlaCzlowieka('Obserwujesz tę osobę. Jeśli nie chcesz widzieć jej wpisów, najpierw przestań ją obserwować.');
         }
 
-        $ukrycie = Hide::query()->where('user_id', $widz->getKey())->where('hidden_user_id', $osoba->getKey())->first() ?? new Hide;
-
-        if (! $ukrycie->exists || $ukrycie->hidden_until !== null) {
-            $ukrycie->forceFill([
-                'user_id' => $widz->getKey(),
-                'hidden_user_id' => $osoba->getKey(),
-                'hidden_until' => now()->addDays((int) config('kuking.ukrycia.dni')),
-            ])->save();
-        }
-
-        return $ukrycie;
+        return Hide::ukryjDla($widz, 'hidden_user_id', (string) $osoba->getKey());
     }
 }
