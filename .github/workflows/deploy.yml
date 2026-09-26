@@ -138,6 +138,7 @@ on:
 permissions:
   contents: read
   deployments: read
+  actions: read # #2025: odczyt wyniku CI dla SHA wdrożonego na produkcji
 
 # Nie pozwalamy dwóm operacjom na tym samym środowisku biec równolegle.
 # cancel-in-progress: false — przerwanie migracji w połowie jest gorsze
@@ -147,6 +148,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Alarm po fakcie: dokumentowana semantyka Railway przepuszcza anulowane
+  # CI, jeśli inny workflow tego SHA miał success. Ten job wykrywa rozbieżność,
+  # ale nie zastępuje bramki wdrożeniowej przed zmianą ruchu.
+  audit_ci:
+    name: Produkcyjny SHA miał zielone CI przed deployem
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state == 'success'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Porównaj SHA wdrożenia z zakończonym CI
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          DEPLOYED_AT: ${{ github.event.deployment_status.created_at }}
+          DEPLOY_ENV: ${{ github.event.deployment.environment }}
+        run: node scripts/ci-po-wdrozeniu.mjs
+
   # ===========================================================================
   #  A) WERYFIKACJA PO DEPLOYU  (automatyczna)
   # ===========================================================================
