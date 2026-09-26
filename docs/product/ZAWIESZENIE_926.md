@@ -31,6 +31,8 @@ i testów rzeczywistych skutków każdej dopuszczonej trasy.
 | Reset postępu | Dostępny po potwierdzeniu; tylko oznaczenia bieżącego przepisu |
 | Publikacja wpisu, przepisu, „Ugotowałem” | Blokada bez zmian |
 | Zmiana hasła, wylogowanie innych urządzeń, włączenie, wyłączenie i nowe kody 2FA | Dostępne (D-264, audyt B2-04) |
+| Zablokowanie i odblokowanie osoby | Dostępne (D-263, audyt B2-03) |
+| Zgłoszenie treści i zgłoszenie prawne (DSA art. 16) | Dostępne (D-263, audyt B2-03) |
 
 Lista wyjątków `EnsureAccountIsActive` zawiera dokładne nazwy tras,
 nie wzorzec `collections.*` ani wyjątek dla wszystkich POST-ów.
