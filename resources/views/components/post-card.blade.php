@@ -33,13 +33,13 @@
         && ! (request()->routeIs('posts.show') && request()->query('pokaz') === '1');
 @endphp
 @if($ukrytyDlaWidza)
-<article class="card post-card post-card-ukryty stack-tight" data-wpis-ukryty>
+<article class="card post-card post-card-ukryty stack-tight" data-wpis-ukryty data-klucz="wpis-{{ $post->getKey() }}">
     <p class="m-0">Ten wpis ukrywasz tylko dla siebie.</p>
     {{-- Klasa przycisku: cel 48 px, nie słowo w linii tekstu (przegląd #1781). --}}
     <p class="m-0"><a class="btn btn-secondary" href="{{ route('posts.show', $post) }}?pokaz=1">Pokaż</a></p>
 </article>
 @else
-<article class="card post-card">
+<article class="card post-card" data-klucz="wpis-{{ $post->getKey() }}">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
 
