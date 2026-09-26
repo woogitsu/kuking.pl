@@ -3006,6 +3006,19 @@ człowieka (`account.registered`, `content.reported`), idzie przez
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
 
+**Klasyfikacja pięciu ścieżek konta (D-249, #1347, #1892–#1897).**
+`account.delete_requested` i `account.delete_cancelled` — **klasa 1**: razem
+są jedynym miejscem w bazie mówiącym, że ktoś zgłosił i (ewentualnie) cofnął
+usunięcie konta (`NIGDY_NIE_KASUJ` niżej). `account.suspension_expired`
+i `account.data_erased` — też **klasa 1**, mimo że decyzję podejmuje
+harmonogram, nie moderator: to jedyny zapis TEGO zdarzenia, więc awaria ma
+cofnąć zmianę konta i zostawić je do podjęcia przy następnym przebiegu tej
+samej komendy. `user.unblocked` i trzy wpisy zmiany adresu e-mail
+(`account.email_change_requested`, `account.email_changed`,
+`account.email_change_cancelled`) — **klasa 2**: ich autorytatywny ślad żyje
+w `blocks`/`pending_email_changes`/`users.email`. Pełne uzasadnienie
+i dowody: D-249 w `docs/DECISIONS.md`.
+
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
 uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych

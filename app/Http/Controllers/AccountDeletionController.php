@@ -8,7 +8,6 @@ use App\Domain\Security\LimitProbHasla;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
-use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
@@ -20,6 +19,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Cofnięcie zgłoszonego usunięcia konta — dla osoby, która NIE MOŻE się
@@ -194,19 +194,33 @@ class AccountDeletionController extends Controller
             $this->odmow($request, ['login' => $powodOdmowy]);
         }
 
+        // Cofnięcie i jego wpis w dzienniku audytu idą RAZEM, w jednej
+        // transakcji `CancelAccountDeletion::handle()` (D-249, klasa 1;
+        // #1893) — awaria dziennika cofa też samo cofnięcie, zamiast dawać
+        // HTTP 500 po zatwierdzonej zmianie.
         try {
-            $this->cofnij->handle($osoba);
+            $this->cofnij->handle($osoba, $request->ip());
         } catch (BladDlaCzlowieka $blad) {
             $this->odmow($request, ['login' => $blad->getMessage()]);
+        } catch (Throwable $awaria) {
+            // Awaria transakcji (najczęściej dziennika audytu). Wycofana
+            // w całości: konto zostaje `pending_delete`, jak przed
+            // kliknięciem — więc można spróbować jeszcze raz. Nie połykamy —
+            // `report()` idzie do monitoringu (ta sama zasada co
+            // w `DataSettingsController::requestDeletion()`, #1347).
+            report($awaria);
+
+            $this->odmow($request, [
+                'login' => 'Nie udało się teraz cofnąć usunięcia konta i nic się nie zmieniło. '
+                    .'Spróbuj jeszcze raz za chwilę. Jeśli to się powtórzy, napisz do nas: '
+                    .config('kuking.community.contact_email'),
+            ]);
         }
 
         // Kara sprzed zgłoszenia (albo nałożona w karencji) wraca razem
-        // z kontem (#980). Audyt zapisuje stan, do którego konto wróciło —
-        // decyzja o danych i decyzja o prawie do konta to dwie różne rzeczy.
+        // z kontem (#980) — czytane PO transakcji, żeby ekran mówił
+        // o stanie, do którego konto NAPRAWDĘ wróciło.
         $przywrocony = (string) $osoba->fresh()?->status;
-
-        AuditLogEntry::record('account.delete_cancelled', $osoba, $osoba,
-            metadata: ['status' => $przywrocony], ip: $request->ip());
 
         return redirect()->route('login')->with('status', $przywrocony === User::STATUS_ACTIVE
             ? 'Usunięcie konta zostało cofnięte. Możesz się teraz zalogować jak wcześniej.'

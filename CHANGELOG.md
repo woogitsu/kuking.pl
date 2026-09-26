@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Cofnięcie zgłoszonego usunięcia konta, odblokowanie kogoś oraz zamówienie, potwierdzenie i anulowanie zmiany adresu e-mail nie kończą się już błędem serwera, gdy zawiedzie tylko zapis w wewnętrznym dzienniku audytu — operacja, którą naprawdę wykonaliście, zostaje wykonana, a brak wpisu trafia do monitoringu zamiast do Was (#1893, #1896, #1897). Automatyczne przywracanie kont po wygasłej karze i trwałe usuwanie danych po karencji (#1894) w takiej samej sytuacji cofają całą zmianę i podejmują ją same przy najbliższym uruchomieniu, a jeden nieudany rekord nie zatrzymuje już obsługi pozostałych kont w tym samym przebiegu.
+- Nieprawidłowy identyfikator w adresie „Zobacz” przy powiadomieniu daje teraz zwykłą stronę „nie znaleziono” zamiast błędu serwera (#1880).
 - Powiadomienie o komentarzu pod wpisem, który tylko zapowiada przepis, znika z listy, licznika i eksportu danych, gdy autor ukryje ten przepis, zawęzi jego widoczność albo go usunie — tak jak sam wpis, który wtedy przestaje się otwierać. Gdy przepis znów jest dla Was widoczny, powiadomienie wraca (#1747).
 - Gdy osoba, która ugotowała z przepisu, poprosi o usunięcie konta, powiadomienia o komentarzach pod jej „Ugotowałem” znikają z listy, licznika i eksportu danych u innych osób — tak jak samo „Ugotowałem”, które od tej chwili nie otwiera się nikomu. Po cofnięciu usunięcia wszystko wraca (#1746).
 - Porządek za kulisami listy powiadomień: to, które powiadomienia o komentarzach widzicie, liczy teraz jedna wspólna reguła widoczności wpisów, przepisów i „Ugotowałem”, sprawdzana testem zgodności z tym, co pokazuje sama strona treści. Dla Was nic się nie zmienia — lista, licznik i eksport danych pokazują to samo co wcześniej (#1687).
