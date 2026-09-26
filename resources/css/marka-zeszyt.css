@@ -93,6 +93,28 @@
   gap: var(--spacing-5);
 }
 
+/* Pozycja zeszytu: karta i pod nią prywatna notatka właściciela (#978).
+   Opakowanie przejmuje rolę elementu siatki: `align-self: start` i
+   `min-width: 0` dawniej stały na samym kaflu. Kafel wewnątrz kolumny
+   flex musi się rozciągać na szerokość pozycji — jego własne
+   `align-self: start` zwęziłoby go tu do szerokości treści. */
+.marka-zeszyt-pozycja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  align-self: start;
+  min-width: 0;
+}
+
+.marka-zeszyt-pozycja > .recipe-card-kafel,
+.marka-zeszyt-pozycja > .notatka-zapisu {
+  align-self: stretch;
+}
+
+.notatka-zapisu-tresc {
+  overflow-wrap: anywhere;
+}
+
 .recipe-card-kafel {
   position: relative;
   align-self: start;

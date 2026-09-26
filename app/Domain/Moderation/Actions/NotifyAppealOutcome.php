@@ -23,7 +23,13 @@ use App\Models\Notification;
  */
 final class NotifyAppealOutcome
 {
-    public function handle(Appeal $odwolanie): Notification
+    /**
+     * @param  ?string  $dopisek  zdanie dołączane do uzasadnienia, gdy cofnięta
+     *                            decyzja nie zdejmuje kary z konta, bo obowiązuje
+     *                            późniejsza (#933) — cofnięcie decyzji to nie to
+     *                            samo co odblokowanie konta i człowiek ma to wiedzieć
+     */
+    public function handle(Appeal $odwolanie, ?string $dopisek = null): Notification
     {
         $utrzymana = $odwolanie->status === Appeal::STATUS_UPHELD;
 
@@ -39,7 +45,9 @@ final class NotifyAppealOutcome
                 // Uzasadnienie napisane przez moderatora. DSA art. 20 wymaga
                 // odpowiedzi z uzasadnieniem, nie samego wyniku — dlatego
                 // pole jest w formularzu obowiązkowe i dlatego jest tutaj.
-                'message' => $odwolanie->decision_note,
+                'message' => $dopisek === null
+                    ? $odwolanie->decision_note
+                    : $odwolanie->decision_note."\n\n".$dopisek,
                 'decision' => 'appeal.'.$odwolanie->status,
                 // Odwołanie od odwołania nie istnieje: wynik jest ostateczny
                 // w ramach Kuking (MODERATION_PLAYBOOK §3 punkt 5).
