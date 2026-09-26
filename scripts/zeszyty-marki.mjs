@@ -93,7 +93,9 @@ export async function sprawdzZeszyty({ browser, adres, sesja, zeszyt, negatywy =
         const recent = document.querySelector('section.marka-zeszyt-ostatnie');
         const details = document.querySelector('.marka-zeszyt details.panel-formularza');
         const cards = [...document.querySelectorAll('.marka-zeszyty > article')];
-        const recipes = [...document.querySelectorAll('.marka-zeszyt-przepisy > article')];
+        // Od #978 elementem siatki jest `.marka-zeszyt-pozycja` (kafel + notatka
+        // właściciela pod nim); kafel musi wypełniać całą szerokość pozycji.
+        const recipes = [...document.querySelectorAll('.marka-zeszyt-przepisy > .marka-zeszyt-pozycja > article')];
         const long = recipes.find(el => el.textContent.includes('KONIEC511'));
         const noImage = recipes.find(el => el.querySelector('a[href$="pomiar-zeszytu-511-1"]'));
         return {
@@ -107,7 +109,7 @@ export async function sprawdzZeszyty({ browser, adres, sesja, zeszyt, negatywy =
           recentLinks: [...document.querySelectorAll('.marka-zeszyt-zapis')].map(el => el.querySelectorAll('a').length === 1 && !!el.querySelector('.marka-zeszyt-zapis-link') && !el.querySelector('a img')),
           recipes: recipes.map(el => {
             const image = el.querySelector('img'), title = el.querySelector('h3');
-            return { tile: el.matches('.card.recipe-card-kafel'), x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y,
+            return { tile: el.matches('.card.recipe-card-kafel') && Math.abs(el.getBoundingClientRect().width - el.parentElement.getBoundingClientRect().width) <= 1, x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y,
               full: completeText(title), image: !image || (image.complete && image.naturalWidth > 0 && visible(image)),
               photoAbove: !image || image.getBoundingClientRect().bottom <= title.getBoundingClientRect().top + 1 };
           }),
