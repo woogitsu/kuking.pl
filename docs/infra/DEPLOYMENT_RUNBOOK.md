@@ -696,6 +696,8 @@ sekretów.
 | `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
 | `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania odebrania dostępu od Meta |
 | `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
+| `VAPID_PUBLIC_KEY` | z kroku 8G | nie | Klucz publiczny Web Push (#35, D-303) — trafia do przeglądarki przy włączaniu powiadomień. Web i worker. **Pusto = funkcji nie ma** (bez ekranu, przycisku i wysyłki) — załóż z pustą wartością, dopóki nie włączasz pushu. Na stagingu **osobna para**, nigdy klucze produkcji |
+| `VAPID_PRIVATE_KEY` | z kroku 8G | **TAK** | Klucz prywatny Web Push — podpisuje wysyłkę. **Tylko worker.** Nie zmieniaj pary na żywym środowisku: zapisane subskrypcje przestałyby działać |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -704,7 +706,8 @@ wtedy pokazywać wartość w panelu i w CLI.
 
 `railway.ts` składa zestaw każdego serwisu z mniejszych grup (`appEnv`,
 `pocztaEnv`, `wejscieEnv`, `czyszczenieCdnEnv`, `modelEnv`,
-`alarmModeratoraEnv`, `kopieOdczytEnv`, `pulsHarmonogramuEnv`, `gospodarzEnv`). Serwis w roli `all` (staging,
+`alarmModeratoraEnv`, `kopieOdczytEnv`, `pulsHarmonogramuEnv`, `gospodarzEnv`,
+`pushPublicznyEnv`, `pushWysylkaEnv`). Serwis w roli `all` (staging,
 preview i dzisiejsza produkcja `kuking.pl`) dostaje **sumę** trzech kolumn.
 Macierz pilnuje test `ZmienneRailwayaPerRolaTest` — zmienna w roli, która jej
 nie czyta, oblewa go tak samo jak zmienna brakująca.
@@ -724,6 +727,8 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `AWS_ZDJECIA_KOPIA_BUCKET`, `AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID`, `AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie-zdjec`, uruchamiane ręcznie w konsoli schedulera (`DR_ZDJEC_R2.md` §6) |
 | `KUKING_PULS_HARMONOGRAMU_URL` | — | — | ✔ | `kuking:puls-harmonogramu` z harmonogramu |
 | `KUKING_HOST_USER_ID` | ✔ | — | ✔ | web: `ZalozKonto` (auto-obserwowanie), `PublishPost` (alert pierwszego wpisu); scheduler: `kuking:policz-kukingow` (`CookEligibility`) |
+| `VAPID_PUBLIC_KEY` | ✔ | ✔ | — | web: ekran `/ustawienia/powiadomienia` i klucz dla przeglądarki (`KanalPush`); worker: nagłówek VAPID w `WyslijPowiadomieniePush` |
+| `VAPID_PRIVATE_KEY` | — | ✔ | — | `WyslijPowiadomieniePush` → `TransportWebPush` (podpis VAPID) |
 
 Serwis `kopia-bazy` ma własną, zamkniętą listę bez żadnego zestawu aplikacji
 (`KopiaBazyPozaRailwayemTest`).
@@ -1857,6 +1862,39 @@ czynności**:
    `docs/legal/COMPLIANCE.md` §5.5 — normalnym PR-em, z testami.
 
 Do czasu wykonania punktu 2 sygnał `/health` ma świecić i nie jest to usterka.
+
+---
+
+## KROK 8G. Powiadomienia na telefonie i komputerze — Web Push (klucze VAPID)
+
+**Kiedy:** gdy chcesz włączyć powiadomienia poza serwisem (#35, D-303). Do tego
+czasu zmienne zostają puste i funkcji po prostu nie ma — nic się nie psuje.
+
+**Zanim włączysz:** polityka prywatności musi opisywać Web Push (co zapisujemy:
+adres subskrypcji przeglądarki i ustawienia ciszy nocnej; kto przenosi treść:
+Google FCM, Mozilla, Apple, Microsoft — treść jest zaszyfrowana kluczem
+przeglądarki). To jest zmiana `resources/legal/polityka-prywatnosci.md`
+normalnym PR-em, z decyzją właściciela.
+
+1. W konsoli dowolnego serwisu aplikacji (albo lokalnie):
+   `php artisan kuking:klucze-vapid` — komenda wypisuje parę i niczego nie
+   zapisuje.
+2. Railway → środowisko **production** → **Shared Variables**:
+   `VAPID_PUBLIC_KEY` (zwykła) i `VAPID_PRIVATE_KEY` (**Sealed**). Staging:
+   **osobna para** z osobnego uruchomienia komendy.
+3. Opcjonalnie `VAPID_SUBJECT` (domyślnie `mailto:kontakt@kuking.pl`) — kontakt
+   dla operatorów usług push.
+4. Restart serwisów (web i worker). Sprawdzenie okiem: w „Ustawieniach" pojawia
+   się pozycja „Powiadomienia"; na telefonie z Chrome kliknij „Włącz
+   powiadomienia na tym urządzeniu", zgódź się w okienku przeglądarki, potem
+   z drugiego konta kliknij „Ugotowałem" pod przepisem pierwszego (poza ciszą
+   nocną 21–8). iPhone/iPad: push działa tylko po dodaniu Kuking do ekranu
+   początkowego (iOS 16.4+).
+
+**Wyłączenie awaryjne:** `KUKING_POWIADOMIENIA_ZEWNETRZNE=false` + restart gasi
+ekran i wysyłkę bez ruszania kluczy. **Nie wymieniaj pary kluczy** bez powodu —
+wszystkie zapisane subskrypcje przestaną przyjmować wysyłki i ludzie musieliby
+włączyć powiadomienia od nowa.
 
 ---
 

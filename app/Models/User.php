@@ -1088,6 +1088,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
     }
 
+    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
+    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    public function ustawieniaPowiadomienZewnetrznych(): HasOne
+    {
+        return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
+    }
+
     /**
      * Powiązanie konta z kontem Google — JEDYNA droga, którą identyfikator
      * z Google trafia do bazy (issue #258, D-069, D-098).

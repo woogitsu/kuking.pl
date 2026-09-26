@@ -189,6 +189,44 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
+        ];
+    }
+
+    /**
+     * Web Push i ustawienia kanałów poza serwisem (D-303).
+     *
+     * Urządzenie opisujemy nazwą przeglądarki, usługą push i datą — BEZ
+     * adresu subskrypcji i kluczy. Adres z kluczami to poświadczenie: kto ma
+     * paczkę, mógłby wysyłać na to urządzenie (ta sama zasada co sesje
+     * i hasło w `InwentarzDanychKonta`).
+     *
+     * @return array<string, mixed>
+     */
+    private function externalNotifications(User $user): array
+    {
+        $ustawienia = $user->ustawieniaPowiadomienZewnetrznych()->first();
+
+        return [
+            'cisza_nocna_od_godziny' => $ustawienia?->cisza_od,
+            'cisza_nocna_do_godziny' => $ustawienia?->cisza_do,
+            'dzienny_limit' => $ustawienia?->dzienny_limit,
+            'ustawienia_zmienione' => $this->date($ustawienia?->updated_at),
+            'objasnienie' => $ustawienia === null
+                ? 'Nie zmieniano ustawień — obowiązują domyślne: cisza nocna od '
+                    .(int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21).':00 do '
+                    .(int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8).':00, najwyżej '
+                    .(int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1).' dziennie. Godziny według czasu polskiego.'
+                : 'Godziny według czasu polskiego.',
+            'urzadzenia' => $user->pushSubscriptions()
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn ($urzadzenie): array => [
+                    'przegladarka' => $urzadzenie->nazwaPrzegladarki(),
+                    'usluga_push' => $urzadzenie->usluga(),
+                    'wlaczone' => $this->date($urzadzenie->created_at),
+                    'zmienione' => $this->date($urzadzenie->updated_at),
+                ])->all(),
         ];
     }
 
@@ -697,6 +735,8 @@ final class CollectUserExportData
                 'rodzaj' => $notification->type,
                 'kiedy' => $this->date($notification->created_at),
                 'przeczytane' => $notification->read_at !== null,
+                // Kiedy poszło także pushem na telefon/komputer (D-303); null = tylko w serwisie.
+                'wyslane_poza_serwis' => $this->date($notification->push_wyslano_at),
                 'od_kogo' => $notification->actor?->displayName(),
                 'szczegoly' => $szczegoly,
             ];
