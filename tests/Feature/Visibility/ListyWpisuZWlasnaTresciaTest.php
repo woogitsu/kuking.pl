@@ -204,12 +204,14 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
     }
 
     /**
-     * D-274 (decyzja właściciela 25.09): reguła #940 „jeden wpis na autora”
-     * jest nadrzędna. Wpis z własną treścią zostaje na „Świeżo z Kuking” po
-     * ukryciu przepisu, ale zajmuje to samo jedno miejsce autora — nowszy
-     * wpis tej osoby go wypiera, a nie staje obok.
+     * D-274 (decyzja właściciela 25.09) w brzmieniu po rotacji autorów
+     * (D-276, #1807): wpis z własną treścią zostaje na „Świeżo z Kuking” po
+     * ukryciu przepisu i zajmuje miejsce w RUNDACH swojego autora jak każdy
+     * inny jego wpis. Nowszy wpis tej osoby stoi w pierwszej rundzie, a wpis
+     * z treścią schodzi do drugiej — za pierwszym wpisem każdej innej osoby,
+     * nawet dużo starszym.
      */
-    public function test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_limitu_jednego_wpisu_na_autora(): void
+    public function test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_rund_autora(): void
     {
         $this->przygotuj();
         $this->ukryjPrzepis('private');
@@ -223,10 +225,19 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
             'visibility' => Post::VISIBILITY_PUBLIC,
             'published_at' => now()->subMinutes(10),
         ]);
+        $innaOsoba = Post::factory()->create([
+            'author_id' => $this->user('inna')->getKey(),
+            'body' => 'Bigos z zeszłego tygodnia.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subDays(7),
+        ]);
 
         $ids = $this->idWpisow($this->get(route('discover'))->assertOk());
-        $this->assertContains((string) $nowszy->getKey(), $ids, 'Odkrywanie: brak najnowszego wpisu autora.');
-        $this->assertNotContains((string) $this->wpis->getKey(), $ids, 'Wpis z własną treścią ominął limit jednego wpisu na autora (#940, D-274).');
+        $this->assertSame(
+            [(string) $nowszy->getKey(), (string) $innaOsoba->getKey(), (string) $this->wpis->getKey()],
+            array_values(array_intersect($ids, [(string) $nowszy->getKey(), (string) $innaOsoba->getKey(), (string) $this->wpis->getKey()])),
+            'Wpis z własną treścią ominął rundy autora (D-274, D-276).',
+        );
         $this->assertNotContains((string) $this->zapowiedz?->getKey(), $ids, 'Zapowiedź niedostępnego przepisu wróciła na listę.');
     }
 
@@ -234,8 +245,9 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
     {
         $this->przygotuj();
 
-        // „Świeżo z Kuking" pokazuje jeden wpis na autora (#940) — najnowszy,
-        // czyli zapowiedź. Wpis z własną treścią sprawdzają tag i profil niżej.
+        // „Świeżo z Kuking" w pierwszej rundzie pokazuje najnowszy wpis autora
+        // (D-276), czyli zapowiedź. Wpis z własną treścią sprawdzają tag
+        // i profil niżej.
         $odkrywanie = $this->get(route('discover'))->assertOk();
         $this->assertNotNull($this->zapowiedz);
         $this->assertContains((string) $this->zapowiedz->getKey(), $this->idWpisow($odkrywanie));
