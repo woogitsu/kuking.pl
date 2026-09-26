@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Notifications\Push\ZapiszSubskrypcjePush;
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\PushSubscription;
 use App\Models\User;
 use App\Models\UstawieniaPowiadomienZewnetrznych;
-use Illuminate\Database\QueryException;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -215,7 +215,7 @@ final class UstawieniaPowiadomienTest extends TestCase
                 return;
             }
             $zapytania[] = $query->sql;
-            if (! $sprawdzonoDrugiPolaczenie && str_contains($query->sql, 'pg_advisory_xact_lock')) {
+            if ($sprawdzonoDrugiPolaczenie === false && str_contains($query->sql, 'pg_advisory_xact_lock')) {
                 $sprawdzonoDrugiPolaczenie = true;
                 $taken = DB::connection('push_probe')->selectOne(
                     'SELECT pg_try_advisory_xact_lock(?, hashtext(?))::int AS taken', [1998, $endpoint],
