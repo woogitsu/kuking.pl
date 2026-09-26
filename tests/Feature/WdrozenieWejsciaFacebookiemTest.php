@@ -368,7 +368,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->facebookWlaczonyBezKluczy();
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()
             ->assertJsonPath('status', 'degraded')
@@ -402,7 +402,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         config(['kuking.google.identyfikator_klienta' => '']);
         config(['kuking.google.sekret_klienta' => '']);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.google.ok', false)
@@ -423,7 +423,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         config(['kuking.facebook.identyfikator_klienta' => 'udawany-app-id']);
         config(['kuking.facebook.sekret_klienta' => 'udawany-app-secret']);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.facebook.ok', true);
@@ -442,7 +442,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->facebookSwiadomieWylaczony();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.facebook.ok', true);
@@ -459,7 +459,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         Artisan::call('storage:link');
         $this->facebookWlaczonyBezKluczy();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.facebook.ok', true);
@@ -477,7 +477,7 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->facebookWlaczonyBezKluczy();
 
-        $tresc = (string) $this->get('/health')->getContent();
+        $tresc = (string) $this->zdrowieZeSzczegolami()->getContent();
 
         foreach ([...self::ZMIENNE, 'App Secret', 'developers.facebook.com'] as $tajne) {
             $this->assertStringNotContainsString(
