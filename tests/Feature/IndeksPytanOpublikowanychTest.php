@@ -55,6 +55,11 @@ class IndeksPytanOpublikowanychTest extends TestCase
         DB::statement('DROP INDEX IF EXISTS posts_published_idx');
         DB::statement('DROP INDEX IF EXISTS posts_author_published_idx');
         DB::statement('SET LOCAL enable_seqscan = off');
+        // Bez pętli zagnieżdżonych planista musi przeczytać `posts` osobno.
+        // Inaczej wynik zależał od kolejności złączeń: PostgreSQL 18 w CI
+        // zaczynał od `users` i sięgał do `posts` po `(author_id, id)`,
+        // więc test mierzył kolejność złączeń, a nie to, czy indeks pasuje.
+        DB::statement('SET LOCAL enable_nestloop = off');
 
         $wiersze = DB::select('EXPLAIN '.$licznik->toSql(), $licznik->getBindings());
 
