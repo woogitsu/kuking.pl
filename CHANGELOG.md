@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Link potwierdzający adres e-mail otwiera teraz ekran pośredni z przyciskiem „Potwierdź adres e-mail” — samo otwarcie linku (np. przez skaner odnośników w bramce antywirusowej albo prefetch klienta pocztowego) już nie potwierdza adresu. Kliknięcie przycisku działa tak jak dotąd, bez dodatkowego maila (#1862).
 - Powiadomienie o komentarzu pod wpisem, który tylko zapowiada przepis, znika z listy, licznika i eksportu danych, gdy autor ukryje ten przepis, zawęzi jego widoczność albo go usunie — tak jak sam wpis, który wtedy przestaje się otwierać. Gdy przepis znów jest dla Was widoczny, powiadomienie wraca (#1747).
 - Gdy osoba, która ugotowała z przepisu, poprosi o usunięcie konta, powiadomienia o komentarzach pod jej „Ugotowałem” znikają z listy, licznika i eksportu danych u innych osób — tak jak samo „Ugotowałem”, które od tej chwili nie otwiera się nikomu. Po cofnięciu usunięcia wszystko wraca (#1746).
 - Porządek za kulisami listy powiadomień: to, które powiadomienia o komentarzach widzicie, liczy teraz jedna wspólna reguła widoczności wpisów, przepisów i „Ugotowałem”, sprawdzana testem zgodności z tym, co pokazuje sama strona treści. Dla Was nic się nie zmienia — lista, licznik i eksport danych pokazują to samo co wcześniej (#1687).

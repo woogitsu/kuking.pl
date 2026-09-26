@@ -597,7 +597,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Weryfikacja e-maila. Świadomie NIE blokuje publikowania — patrz
     // RegisterController. Wymagamy jej tylko przy eksporcie danych.
     Route::get('/potwierdz-email', [EmailVerificationController::class, 'notice'])->name('verification.notice');
-    Route::get('/potwierdz-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    // GET i POST na JEDNEJ trasie (jak `appeals.reporter` wyżej i
+    // `login.link.confirm` — D-056): GET z linku w mailu tylko POKAZUJE
+    // ekran pośredni z przyciskiem, nic w koncie nie zmienia. Dopiero POST
+    // z tego przycisku (CSRF) woła `fulfill()`. Bez tego sam GET — a więc
+    // i prefetch klienta pocztowego albo skaner linków w bezpiecznej bramce
+    // — potwierdzał adres e-mail zamiast człowieka (issue #1862).
+    Route::match(['get', 'post'], '/potwierdz-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
         ->middleware('signed')
         ->name('verification.verify');
     // Liczba przeniesiona do config/kuking.php (klucz `verification_resend`),
