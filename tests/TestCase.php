@@ -8,6 +8,8 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\HealthController;
 use App\Models\Profile;
 use App\Models\User;
+use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -34,6 +36,40 @@ abstract class TestCase extends BaseTestCase
         $this->withoutVite();
         Http::preventStrayRequests();
         $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * `actingAs()` jako prawdziwe logowanie także w generacji sesji (#1046).
+     *
+     * Na produkcji każde logowanie zapisuje w sesji generację konta
+     * (listener `Login`), a `SprawdzGeneracjeSesji` odrzuca sesję ze starszą.
+     * `actingAs()` omija zdarzenie `Login`, więc bez tego konto po
+     * `suspend()`/`ban()` (generacja > 0) byłoby w teście wylogowywane przy
+     * pierwszym żądaniu — czego na produkcji nie widać, bo po odcięciu sesji
+     * ta osoba loguje się od nowa i dostaje bieżącą generację.
+     *
+     * Wartość z TEGO modelu, bo to z nim middleware porównuje (guard trzyma
+     * dokładnie tę instancję) — i bez zapytania, które psułoby testy liczące
+     * zapytania. Zapis tylko wtedy, gdy coś zmienia: brak klucza znaczy 0,
+     * a zbędny zapis do sesji między żądaniami potrafi zgubić dane flash.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        parent::be($user, $guard);
+
+        if (! $user instanceof User || ($guard ?? 'web') !== 'web') {
+            return $this;
+        }
+
+        $generacja = array_key_exists('session_generation', $user->getAttributes())
+            ? (int) $user->session_generation
+            : (int) User::query()->whereKey($user->getKey())->value('session_generation');
+
+        if ($generacja > 0 || $this->app['session']->has(GeneracjaSesji::KLUCZ)) {
+            $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
+        }
+
+        return $this;
     }
 
     /**
@@ -123,6 +159,30 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         return $user->refresh();
+    }
+
+    /**
+     * `actingAs()` udaje PEŁNE logowanie — więc dla konta z potwierdzoną 2FA
+     * także przebyty drugi składnik (#930). Bez tego każdy test panelu
+     * wołający `actingAs($this->moderator())` padałby na
+     * `EnsureModeratorHasTwoFactor`, zanim dotarłby do sprawdzanej logiki.
+     * Testy sesji BEZ dowodu kodu wołają gołe `be()`.
+     */
+    public function actingAs(Authenticatable $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        // Tylko gdy dowodu jeszcze nie ma: ponowne `withSession()` między
+        // żądaniami gubiło flash z poprzedniego (zmierzone na
+        // TerminZawieszeniaTest, który po nieudanej walidacji czyta `old()`).
+        if ($user instanceof User && $user->hasTwoFactorConfirmed() && ! TwoFactorAuthenticator::sesjaMaDowod(
+            $user,
+            $this->app['session']->get(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI),
+        )) {
+            $this->withSession(TwoFactorAuthenticator::dowodSesji($user));
+        }
+
+        return $this;
     }
 
     /**

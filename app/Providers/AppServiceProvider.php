@@ -13,20 +13,25 @@ use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
+use App\Models\User;
 use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
+use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
 use App\Support\ZamrozonyCzas;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -87,6 +92,17 @@ class AppServiceProvider extends ServiceProvider
         // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
         // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
         Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
+        // #1046: każde logowanie (hasło, link, Google, Facebook, 2FA,
+        // rejestracja, recaller „zapamiętaj mnie”) zapisuje w sesji generację
+        // konta. Zdarzenie, a nie wywołanie w każdym kontrolerze: kolejna
+        // droga logowania dostaje to sama. Sprawdza `SprawdzGeneracjeSesji`.
+        Event::listen(Login::class, function (Login $zdarzenie): void {
+            $guard = Auth::guard($zdarzenie->guard);
+            if ($zdarzenie->guard === 'web' && $guard instanceof SessionGuard && $zdarzenie->user instanceof User) {
+                GeneracjaSesji::zapamietaj($guard->getSession(), $zdarzenie->user);
+            }
+        });
 
         // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
         // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce

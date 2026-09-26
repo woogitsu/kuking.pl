@@ -1,9 +1,11 @@
 <?php
 
 declare(strict_types=1);
+use App\Http\Middleware\SprawdzGeneracjeSesji;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Events\ResponsePrepared;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\HtmlString;
 
@@ -26,6 +28,34 @@ $app->instance(Vite::class, new class extends Vite
 });
 // Atrapa wyłącznie zewnętrznej odpowiedzi HIBP, nie reguły hasła.
 Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
+// #1046: opcjonalna bariera — żądanie zatrzymuje się PO kontrolerze, a PRZED
+// zapisem sesji przez `StartSession`, czyli dokładnie tam, gdzie wolne
+// żądanie z innej przeglądarki trzyma sesję wczytaną przed unieważnieniem.
+if (isset($input['bariera'])) {
+    $katalog = $input['bariera'];
+    $app['events']->listen(ResponsePrepared::class, function () use ($katalog): void {
+        static $raz = false;
+        if ($raz) {
+            return;
+        }
+        $raz = true;
+        touch($katalog.'/wczytane');
+        $koniec = microtime(true) + 30;
+        while (! file_exists($katalog.'/dalej') && microtime(true) < $koniec) {
+            usleep(20_000);
+        }
+    });
+}
+// #1046: kontrola ujemna — strażnik generacji podmieniony na przepust.
+if (! empty($input['bez_straznika_generacji'])) {
+    $app->bind(SprawdzGeneracjeSesji::class, fn () => new class
+    {
+        public function handle($request, Closure $next)
+        {
+            return $next($request);
+        }
+    });
+}
 $request = Request::create('http://localhost'.$input['path'], $input['method'], $input['data'], $input['cookies'], [], ['HTTP_ACCEPT' => 'text/html', 'HTTP_REFERER' => 'http://localhost/ustawienia/bezpieczenstwo']);
 $response = $kernel->handle($request);
 $cookies = [];
