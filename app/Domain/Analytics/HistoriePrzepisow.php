@@ -96,7 +96,7 @@ final class HistoriePrzepisow
             ->whereNull('recipes.deleted_at')
             ->where('recipes.published_at', '>', $teraz->subDays(self::DNI))
             ->where('recipes.published_at', '<=', $teraz)
-            // Filtr w SQL (#1309), nie lista UUID wykluczonych kont w PHP.
+            // Wykluczenie kont filtrem SQL (#1309), nie listą UUID w PHP.
             ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'recipes.author_id'))
             ->selectRaw('count(*) AS przepisy')
             ->selectRaw("count(*) FILTER (WHERE recipes.visibility = 'public') AS publiczne")
