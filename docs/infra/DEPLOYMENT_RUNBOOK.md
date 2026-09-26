@@ -1120,7 +1120,7 @@ lokalnie, staging).
 | `HTTP 403` | klucz ograniczony bez prawa do `/v1/moderations` (*Model capabilities* w panelu OpenAI) |
 | `HTTP 404` | nazwa modelu nie istnieje; ustaw `KUKING_MODEL_NAZWA`, bez wdrożenia |
 | `HTTP 429` | limit tempa; odczekaj minutę |
-| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej |
+| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej, a analiza ponawia ocenę najwyżej trzy razy (#1662) |
 | `nie ma pola results` | rozmawiamy z czymś innym niż API moderacji — sprawdź `KUKING_MODEL_ENDPOINT` |
 | `nie prowadzi do API moderacji OpenAI` | `KUKING_MODEL_ENDPOINT` to nie `https://api.openai.com/v1/moderations` (#991, D-250); nic nie wyszło — usuń zmienną |
 
