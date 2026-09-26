@@ -59,6 +59,11 @@ if os.environ.get("CI") != "true":
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
+PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
+PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
+WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+PLANER_TEST = "PlanerTygodniaTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -166,12 +171,20 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # GitHub Actions nie da się uruchomić z testu. Mutacja przywraca starą sondę
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
+# Regresja #892 w przeglądarce: krok CI musi istnieć, inaczej skrypt znowu
+# leży w repozytorium bez jednego przebiegu.
+CI_WORKFLOW = ".github/workflows/ci.yml"
+AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
 # i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
 # bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
 PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
 IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+# Dane od użytkownika w treści `run:` (#1859). Strażnik czyta workflowy; mutacja
+# przywraca dokładnie tę linię, którą ręczny `pr_number` wstrzykiwał kod
+# do joba z tokenem Railway, i drugą — `inputs.*` typu boolean w IaC.
+WKLEJANIE_DO_RUN_TEST = "WorkflowyNieWklejajaDanychUzytkownikaDoRunTest"
 IAC_RAILWAY_TS = ".railway/railway.ts"
 PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
 IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
@@ -303,6 +316,35 @@ LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
 KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
 KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
+# Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
+# `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
+WYJECIE_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+WYJECIE_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+WYJECIE_ATOMOWE_TEST = "test_awaria_drugiego_odpiecia_zostawia_wszystkie_zapisy_z_notatkami"
+
+# Złożenie odwołania razem z zawiadomieniami administratorów (#1305). Mutacja
+# zamienia transakcję na zwykłe wywołanie domknięcia.
+ODWOLANIE_AUTORA = "app/Domain/Moderation/Actions/FileAppeal.php"
+ODWOLANIE_ZGLASZAJACEGO = "app/Domain/Moderation/Actions/FileReporterAppeal.php"
+ODWOLANIE_AUTORA_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_autora"
+ODWOLANIE_ZGLASZAJACEGO_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_zglaszajacego"
+
+
+def odwolanie_bez_transakcji(uzyte):
+    def mutacja(source):
+        source = replace_once(
+            source,
+            "$odwolanie = DB::transaction(function () use (" + uzyte + "): Appeal {",
+            "$odwolanie = (function () use (" + uzyte + "): Appeal {",
+        )
+        return replace_once(
+            source,
+            "            return $odwolanie;\n        });\n",
+            "            return $odwolanie;\n        })();\n",
+        )
+    return mutacja
+
+
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -323,6 +365,10 @@ ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
 ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
 UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
+DEMO_SEEDER = "database/seeders/DemoSeeder.php"
+DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
+# #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
+WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 # Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
 # nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
@@ -375,7 +421,9 @@ RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
 # żeby kontrola dowodziła jednej rzeczy: że testy łapią brak wyjątku.
 EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
-EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
+# Od #823 `markFailed` stoi pod `if ($this->bedzieKolejnaProba())` — punkt
+# mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
+EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
@@ -440,7 +488,14 @@ GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odm
 # Mutacje zdejmują po kolei każdy z nich.
 IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
 IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+README = "README.md"
+README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
+# audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
+RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
+KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
+RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
 
 def digest(path):
@@ -945,10 +1000,22 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
+     lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
+                            "return $this->zdejmij($user, $recipe, $collection);")),
+    ("Wyjęcie wpisu ze wszystkich zeszytów bez transakcji", WYJECIE_WPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));",
+                            "return $this->zdejmij($user, $post, $collection);")),
+    ("Odwołanie autora bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_AUTORA, ODWOLANIE_AUTORA_TEST,
+     odwolanie_bez_transakcji("$osoba, $decyzja, $tresc")),
+    ("Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_ZGLASZAJACEGO,
+     ODWOLANIE_ZGLASZAJACEGO_TEST, odwolanie_bez_transakcji("$zgloszenie, $decyzja, $tresc")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -988,6 +1055,8 @@ checks = [
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
+    ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
+     lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
@@ -1008,10 +1077,32 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
+    # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
+    # do treści.
+    ("Planer bez filtra widoczności przepisu", PLANER_TYGODNIA, PLANER_TEST,
+     lambda s: replace_once(s, "        return Recipe::query()\n            ->widoczneDla($user)",
+                            "        return Recipe::query()->when(false, fn ($q) => $q\n            ->widoczneDla($user))")),
+    # Ten sam plan bez dziennego limitu pozycji — pętla dopisuje wiersze bez końca.
+    ("Planer bez dziennego limitu pozycji", PLANER_DODAJ, PLANER_TEST,
+     lambda s: replace_once(s, "if ($ile >= PlanerTygodnia::wpisowNaDzien()) {", "if (false) {")),
+    # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
+    ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
+     lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
+    ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, 'echo "| Zmiany destrukcyjne | ${DESTRUKCYJNE} |"', 'echo "| Zmiany destrukcyjne | ${{ inputs.zmiany_destrukcyjne }} |"')),
     # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
+     lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1066,8 +1157,12 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
+run_test(WYJECIE_ATOMOWE_TEST, True)
+run_test(ODWOLANIE_AUTORA_TEST, True)
+run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(PODZIAL_TESTOW_TEST, True)
@@ -1082,12 +1177,15 @@ run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
+run_test(DEMO_SEEDER_HASLO_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
+run_test(README_SECURITY_TEST, True)
+run_test(KOMENDY_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

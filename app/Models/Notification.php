@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
@@ -50,6 +51,14 @@ class Notification extends Model
     public const TYPE_FOLLOW = 'follow.created';
 
     public const TYPE_SAVED = 'recipe.saved';
+
+    /**
+     * Ktoś opublikował własną wersję Twojego przepisu („Moja wersja",
+     * issue #23, D-301). Idzie do autora ORYGINAŁU raz na wersję
+     * (`App\Domain\Recipes\MojaWersja::powiadomAutoraOryginalu()`).
+     * To jest zdarzenie, więc nie stoi na liście wyciszanych w oknie.
+     */
+    public const TYPE_FORKED = 'recipe.forked';
 
     public const TYPE_MODERATION = 'moderation.decision';
 
@@ -120,6 +129,16 @@ class Notification extends Model
      * zajrzeniu do panelu.
      */
     public const TYPE_FIRST_POST = 'post.first';
+
+    /**
+     * „Dziś urodziny: Ania" (issue #1755, etap d). Aktorem jest solenizant.
+     * Powstaje TYLKO, gdy solenizant sam włączył
+     * `users.birthday_visible_to_followers`, najwyżej raz na dobę na parę
+     * (odbiorca, solenizant) i w dobowym limicie na odbiorcę
+     * (`kuking.urodziny.przypomnienia_na_odbiorce_dziennie`). Nie jest wpisem
+     * w feedzie — feed obserwowanych zostaje chronologiczny, bez wstawek.
+     */
+    public const TYPE_BIRTHDAY = 'birthday.today';
 
     /**
      * Typy powiadomień WYŁĄCZONE Z OGÓLNEGO OKRESU RETENCJI (issue #19,
@@ -210,6 +229,9 @@ class Notification extends Model
      */
     private string|false|null $slugPrzepisu = false;
 
+    /** Wersja z `data.fork_id` widoczna dla odbiorcy; `false` = nie sprawdzano. */
+    private Recipe|false|null $wersjaPrzepisu = false;
+
     protected function casts(): array
     {
         return [
@@ -276,6 +298,31 @@ class Notification extends Model
     public function przepisUsuniety(): bool
     {
         return $this->type === self::TYPE_SAVED && $this->slugZapisanegoPrzepisu() === null;
+    }
+
+    /**
+     * Wersja przepisu z `data.fork_id`, jeśli odbiorca może ją dziś zobaczyć
+     * (issue #23). `fork_id` nie jest kluczem obcym — powiadomienie zostaje
+     * jako prawdziwe zdarzenie także po usunięciu wersji, tylko bez „Zobacz".
+     */
+    public function wersjaDoPokazania(): ?Recipe
+    {
+        if ($this->type !== self::TYPE_FORKED) {
+            return null;
+        }
+
+        if ($this->wersjaPrzepisu !== false) {
+            return $this->wersjaPrzepisu;
+        }
+
+        $id = $this->data['fork_id'] ?? null;
+        $wersja = is_string($id) && Str::isUuid($id) ? Recipe::query()->find($id) : null;
+
+        if ($wersja !== null && ($this->user === null || ! Gate::forUser($this->user)->allows('view', $wersja))) {
+            $wersja = null;
+        }
+
+        return $this->wersjaPrzepisu = $wersja;
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$slugPrzepisu`. */

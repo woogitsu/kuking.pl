@@ -48,6 +48,19 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($zyczenia ?? null)
+        {{--
+            ŻYCZENIA URODZINOWE (issue #1755, etap b). Jedno zdanie od
+            gospodarza, tylko u tej osoby i tylko w dniu jej urodzin. Nie jest
+            wpisem w feedzie i nie ma pustego stanu. Wyłącznik stoi przy dacie
+            (Ustawienia → Urodziny). Tekst składa `Urodziny::tekstZyczen()`.
+        --}}
+        <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
+            <p>{{ $zyczenia }}</p>
+            <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
     @if($tagTygodnia ?? null)
         {{-- TAG TYGODNIA (issue #18). Zaproszenie, nie obowiązek: jeden
              odnośnik do zwykłego formularza wpisu z zaznaczonym tagiem, który
@@ -62,6 +75,20 @@
                 <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tagTygodnia->tag->slug]) }}">Dodaj wpis z tym tagiem</a>
                 <a class="btn btn-secondary" href="{{ route('tags.show', $tagTygodnia->tag) }}">Zobacz wpisy z tym tagiem</a>
             </div>
+        </section>
+    @endif
+
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
         </section>
     @endif
 
