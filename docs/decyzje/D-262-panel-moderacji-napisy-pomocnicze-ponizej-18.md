@@ -3,12 +3,12 @@
 **Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
 
 Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
-moderacji (widoczny wyłącznie dla moderatorów) trzy miejsca z tekstem
+moderacji (widoczny wyłącznie dla moderatorów) cztery miejsca z tekstem
 poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
 D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
 stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
 w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
-trzy miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+cztery miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
 nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
 w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
 a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
@@ -16,7 +16,12 @@ serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
 
 ### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
 
-`AGENTS.md` §5 zostaje dokładnie taki, jaki jest, wszędzie indziej. Minimum
+Reguła z `AGENTS.md` §5 zostaje bez zmian wszędzie indziej. *(Pierwotnie:
+„`AGENTS.md` §5 zostaje dokładnie taki, jaki jest”. Decyzją właściciela
+z 25 września 2026 — po audycie `docs/audyt/2026-09-25-PO-FALI.md`,
+pkt 8–9 — §5 wymienia D-262 z nazwy jako drugi nazwany wyjątek obok D-051,
+z listą czterech selektorów, żeby agent czytający tylko `AGENTS.md` nie
+„naprawiał” tych miejsc. Treść reguły się nie zmieniła.)* Minimum
 18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
 widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
 w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów
