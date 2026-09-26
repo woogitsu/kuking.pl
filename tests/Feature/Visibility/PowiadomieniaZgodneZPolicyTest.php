@@ -46,11 +46,10 @@ use Tests\TestCase;
  * wynik z nazwą komórki macierzy, zamiast cichego rozjazdu listy i ekranu.
  * Nowy stan treści dopisuje się jako kolejną pozycję `STANY`.
  *
- * ZNANE ROZJAZDY — TOLEROWANE TYLKO W JEDNYM KIERUNKU I TYLKO TE DWA:
+ * ZNANY ROZJAZD — TOLEROWANY TYLKO W JEDNYM KIERUNKU I TYLKO TEN JEDEN
+ * (#1385, kucharz a własne wykonanie, naprawiony — macierz pilnuje go już
+ * w pełni):
  *
- *   #1385  „Ugotowałem" oglądane przez kucharza: Policy wpuszcza go do
- *          własnego wykonania niezależnie od stanu przepisu, SQL tylko przez
- *          widoczny przepis. Tolerowane: Policy = tak, SQL = nie.
  *   #1378  odpowiedź pod korzeniem ukrytym przez moderację: Policy odmawia,
  *          SQL przepuszcza. Tolerowane: Policy = nie, SQL = tak.
  *
@@ -295,11 +294,6 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
      */
     private function znanyRozjazd(string $cel, string $rola, string $stan, string $rodzaj, bool $policy, bool $sql): bool
     {
-        // #1385: kucharz a własne wykonanie pod przepisem, którego sam nie widzi.
-        if ($cel === 'wykonanie' && $rola === 'wlasciciel' && $policy && ! $sql) {
-            return true;
-        }
-
         // #1378: odpowiedź pod korzeniem ukrytym przez moderację.
         if ($stan === 'korzen_ukryty' && $rodzaj === 'odpowiedz' && ! $policy && $sql) {
             return true;
