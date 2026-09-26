@@ -11,6 +11,7 @@ use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
@@ -49,7 +50,8 @@ use Illuminate\View\View;
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
  * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
- * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
+ * czyta te same wiersze. Skalowanie porcji (V2, D-284) czyta ilość z tekstu
+ * wiersza w chwili pokazania — `App\Domain\Recipes\Porcje\PrzeliczSkladnik`.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`
  * (formularze bez JavaScriptu przez `ZapiszPrzepisZFormularza`, walidacja
@@ -460,6 +462,9 @@ class RecipeController extends Controller
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
+            // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
+            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
             // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
             // własnej kwoty; kwota autora zawsze wygrywa (D-286).
             'szacunekKosztu' => $model->estimated_cost_pln === null

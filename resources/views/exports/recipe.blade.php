@@ -77,6 +77,7 @@
                     <li>
                         {{ $item->ingredient_text }}
                         @if($item->note)<span class="podpis"> — {{ $item->note }}</span>@endif
+                        @if($item->substitutes)<br><span class="podpis">Zamiast tego: {{ $item->substitutes }}</span>@endif
                     </li>
                 @endforeach
             </ul>

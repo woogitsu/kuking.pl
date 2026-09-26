@@ -66,6 +66,7 @@ final class SnapshotRecipeVersion
                         'quantity' => $i->quantity,
                         'unit' => $i->unit?->code,
                         'note' => $i->note,
+                        'substitutes' => $i->substitutes,
                         'no_amount' => (bool) $i->no_amount,
                         'position' => $i->position,
                     ])->all(),

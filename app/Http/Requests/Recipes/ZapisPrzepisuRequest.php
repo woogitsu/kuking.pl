@@ -141,6 +141,8 @@ final class ZapisPrzepisuRequest extends FormRequest
             'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
             'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
+            // Zamiennik(i) od autora (D-284) — wolny tekst, jak uwaga.
+            'ingredients.*.substitutes' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.substitutes']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -309,6 +311,7 @@ final class ZapisPrzepisuRequest extends FormRequest
                     'text' => $row['text'] ?? '',
                     'group_name' => $row['group_name'] ?? null,
                     'note' => $row['note'] ?? null,
+                    'substitutes' => $row['substitutes'] ?? null,
                     'no_amount' => (bool) ($row['no_amount'] ?? false),
                 ],
                 $data['ingredients'] ?? [],

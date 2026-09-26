@@ -4,7 +4,7 @@
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
 
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
     /*
      * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
@@ -393,10 +393,21 @@
                            @error("ingredients.$i.note") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-note-error" @enderror>
                     @error("ingredients.$i.note")<span class="field-error" id="f-ingredients-{{ $i }}-note-error">{{ $message }}</span>@enderror
 
+                    {{-- Zamiennik od autora (D-284) — na stronie przepisu stoi
+                         pod składnikiem jako „Zamiast tego: …”. Ta sama nazwa
+                         pola co w kreatorze, więc przechodzi między drogami. --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-substitutes">Czym można to zastąpić <span class="meta">(nieobowiązkowe)</span></label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-substitutes"
+                           name="ingredients[{{ $i }}][substitutes]" type="text" maxlength="300"
+                           value="{{ $ingredient['substitutes'] ?? '' }}"
+                           @if($i === 0) placeholder="margaryna albo olej kokosowy" @endif
+                           @error("ingredients.$i.substitutes") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-substitutes-error" @enderror>
+                    @error("ingredients.$i.substitutes")<span class="field-error" id="f-ingredients-{{ $i }}-substitutes-error">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
+                         przeliczaniu porcji na stronie przepisu (V2, D-284). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
