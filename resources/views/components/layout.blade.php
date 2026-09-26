@@ -258,8 +258,9 @@
          szerokości) nie zapalają się przy otwartej klawiaturze i obie
          przypięte belki zabierają resztę widoku nad polem. Zmierzone
          w `scripts/przegladarka/klawiatura-belki.test.mjs`. Safari tego klucza
-         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy. --}}
-    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy.
+         `viewport-fit=cover` (#987, D-260) — patrz `bezpieczny-obszar.css`. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 

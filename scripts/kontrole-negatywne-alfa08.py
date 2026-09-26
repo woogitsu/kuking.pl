@@ -785,6 +785,17 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+# Polskie litery w `unicode-range` Inter (#1000). Strażnik parsuje zakresy
+# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
+FONTY_CSS = "resources/css/fonts.css"
+FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
+# Kontrakt bezpiecznego obszaru (#987, D-260): meta viewport z `cover`
+# i boki dolnej belki oraz dół podpowiedzi wyglądu przez tokeny `--safe-*`.
+BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
+MARKA_RAMA_CSS = "resources/css/marka-rama.css"
+SZYBKI_WYGLAD_CSS = "resources/css/szybki-wyglad.css"
+
+
 def dockerfile_poza_wzorcem_obrazu(source):
     """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
 
@@ -1084,6 +1095,14 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
+     lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
+    ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, ", viewport-fit=cover", "")),
+    ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "left: calc(8px + var(--safe-left));", "left: 8px;")),
+    ("Podpowiedź wyglądu bez dolnego insetu", SZYBKI_WYGLAD_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "+ var(--safe-bottom) + 76px)", "+ 76px)")),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
@@ -1227,6 +1246,8 @@ run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(FONTY_TEST, True)
+run_test(BEZPIECZNY_OBSZAR_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)

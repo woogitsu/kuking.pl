@@ -22,6 +22,9 @@
  * kroje. Dlatego oba podzbiory są wymagane, a nie „opcjonalne dla dokładności".
  *
  * KOSZT, POWIEDZIANY WPROST: 133 kB przy pierwszym wejściu (48 + 85).
+ * Mniejszy podzbiór (#1000) wolno wgrać tylko razem z kontraktem znaków:
+ * `PodzbiorFontuMaPolskieZnakiTest` liczy pokrycie `unicode-range` znak po
+ * znaku dla pełnego polskiego alfabetu, cyfr i interpunkcji.
  * `font-display: swap` sprawia, że tekst jest widoczny NATYCHMIAST w foncie
  * systemowym i podmienia się po pobraniu — nikt nie ogląda pustej strony.
  * Kolejne wejścia idą z cache przeglądarki.
