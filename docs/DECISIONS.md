@@ -17996,11 +17996,12 @@ przez `Post::widoczneDla($widz)`.
 **Dlaczego.** Strona tagu jest miejscem publicznym i indeksowanym. Jeden
 zakres dla listy, licznika w spisie (D-087) i warunku indeksowania (#1007)
 sprawia, że wszystkie trzy znaczą to samo; autor ma swoje niepubliczne wpisy
-w profilu i w „Moje”.
+w „Moje wpisy” (w „Moje”, D-328).
 
 **Skutek dla #681/#1392.** Zdanie „Jeden Twój wpis z tym tagiem widzisz
 tylko Ty…” zostaje, liczone osobnym zapytaniem ograniczonym do wpisów widza,
-i mówi teraz, że taki wpis się tu nie pojawia, z odnośnikiem do profilu.
+i mówi teraz, że taki wpis się tu nie pojawia, z odnośnikiem do „Moje wpisy”
+(D-328) — listy wszystkich własnych wpisów z widocznością opisaną słowami.
 
 **Odwraca** pierwszy commit PR #1845, który przypinał odwrotną regułę
 (własne wpisy w każdej widoczności na stronie tagu).

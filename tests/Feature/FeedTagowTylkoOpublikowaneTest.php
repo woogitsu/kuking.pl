@@ -138,7 +138,7 @@ class FeedTagowTylkoOpublikowaneTest extends TestCase
      * KAŻDEMU — także autorowi — wyłącznie wpisy publiczne. Własne wpisy
      * „tylko dla obserwujących" i „tylko dla mnie" nie pojawiają się na
      * stronie tagu ani autorowi, ani osobie, która go obserwuje; autor ma
-     * je w swoim profilu i w „Moje". Własny publiczny wpis stoi
+     * je w „Moje wpisy” (w „Moje”, D-328). Własny publiczny wpis stoi
      * chronologicznie między cudzymi. Ukryty przez moderację i szkic
      * zostają poza listą.
      *

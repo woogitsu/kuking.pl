@@ -266,6 +266,41 @@ class TagiObserwowanieTest extends TestCase
             ->assertDontSee('Tylko dla obserwujących');
     }
 
+    /**
+     * Autor, który ma z tagiem wpis niepubliczny, dostaje na stronie tagu
+     * zdanie z odnośnikiem do „Moje wpisy” (D-328), a nie do profilu —
+     * i ten odnośnik naprawdę prowadzi do listy, na której ten wpis stoi.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): odnośnik z powrotem na
+     * `profile.show` → test oblewa na asercji adresu.
+     */
+    public function test_autor_niepublicznego_wpisu_dostaje_odnosnik_do_moich_wpisow(): void
+    {
+        $zupy = $this->tag('zupy', 'Zupy');
+        $autor = $this->user('basia');
+        $post = $this->wpis($zupy, $autor, 'Zupa tylko dla obserwujących');
+        $post->forceFill(['visibility' => Post::VISIBILITY_FOLLOWERS])->save();
+
+        $html = $this->actingAs($autor)
+            ->get(route('tags.show', $zupy))
+            ->assertOk()
+            ->assertSee('Znajdziesz go w', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '~<a href="'.preg_quote(route('collections.own-posts'), '~').'"[^>]*>„Moje wpisy”</a>~u',
+            $html,
+            'Zdanie o niepublicznym wpisie ma prowadzić do „Moje wpisy” (D-328).',
+        );
+        $this->assertStringNotContainsString('w swoim profilu', $html);
+
+        // Lista, do której prowadzi odnośnik, ma ten wpis z widocznością.
+        $this->actingAs($autor)
+            ->get(route('collections.own-posts'))
+            ->assertOk()
+            ->assertSeeInOrder(['Zupa tylko dla obserwujących', 'Dla obserwujących']);
+    }
+
     public function test_zablokowana_osoba_nie_wyplywa_przez_tag(): void
     {
         $zupy = $this->tag('zupy', 'Zupy');

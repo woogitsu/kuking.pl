@@ -96,7 +96,7 @@ wyłącznie wpisy publiczne**. Tabela „oczami autora” wyżej opisuje stan
 z czasu #681 — dziś autor nie widzi na stronie tagu swojego wpisu prywatnego
 ani „tylko dla obserwujących”. Zdanie z punktu 1 zostaje i jest teraz
 ważniejsze niż wtedy: mówi, że taki wpis **się tu nie pojawia** i nie liczy
-w spisie, i odsyła do profilu, gdzie autor go znajdzie. Liczy je kontroler
+w spisie, i odsyła do „Moje wpisy” (D-328), gdzie autor go znajdzie. Liczy je kontroler
 osobnym zapytaniem ograniczonym do wpisów widza (lista `$posts` ich już
 nie zawiera).
 

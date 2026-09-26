@@ -130,7 +130,7 @@ class TagController extends Controller
             // publicznym: każdy widz, zalogowany czy nie, widzi na niej to
             // samo co gość. Wpisy „tylko dla obserwujących" i „tylko dla
             // mnie" nie wypływają tu ani obserwującemu, ani samemu autorowi
-            // — autor ma je w swoim profilu i w „Moje". Zakres jest ten sam
+            // — autor ma je w „Moje wpisy” (w „Moje”, D-328). Zakres jest ten sam
             // co licznik w spisie i warunek indeksowania (`tylkoPubliczne()`
             // niżej), więc liczba, dyrektywa robota i lista znaczą jedno.
             // Pilnuje `FeedTagowTylkoOpublikowaneTest::test_strona_tagu_pokazuje_kazdemu_tylko_wpisy_publiczne_takze_autorowi`.

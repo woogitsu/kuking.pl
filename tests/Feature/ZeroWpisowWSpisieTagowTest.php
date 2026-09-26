@@ -168,7 +168,7 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
         $this->assertStringNotContainsString($zakazane, $wyjasnienie, 'Wyjaśnienie opisało widoczność, której ten wpis nie ma (#1392).');
         $this->assertStringContainsString('Na stronie tagu pokazujemy, a w spisie tagów liczymy tylko wpisy widoczne dla wszystkich', $wyjasnienie);
         $this->assertStringContainsString('ten wpis się tu nie pojawia', $wyjasnienie);
-        $this->assertStringContainsString('w swoim profilu', $wyjasnienie, 'Autor ma dostać wskazówkę, gdzie swój wpis znajdzie.');
+        $this->assertStringContainsString('„Moje wpisy”', $wyjasnienie, 'Autor ma dostać wskazówkę, gdzie swój wpis znajdzie (D-328).');
         $this->assertSame(
             0,
             $this->liczbaKartWpisow($strona->getContent()),

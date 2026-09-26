@@ -86,9 +86,10 @@
             @endif
             Na stronie tagu pokazujemy, a w spisie tagów liczymy tylko wpisy widoczne dla wszystkich,
             więc {{ $n === 1 ? 'ten wpis się tu nie pojawia' : 'te wpisy się tu nie pojawiają' }}.
-            @if(auth()->user()?->profile?->username)
-                {{ $n === 1 ? 'Znajdziesz go' : 'Znajdziesz je' }} <a href="{{ route('profile.show', auth()->user()->profile->username) }}">w swoim profilu</a>.
-            @endif
+            {{-- Odsyła do „Moje wpisy” (D-328), nie do profilu: tam stoją
+                 WSZYSTKIE własne wpisy z widocznością opisaną słowami, a adres
+                 nie zależy od nazwy użytkownika. --}}
+            {{ $n === 1 ? 'Znajdziesz go' : 'Znajdziesz je' }} w <a href="{{ route('collections.own-posts') }}" data-link-moje-wpisy>„Moje wpisy”</a>.
             Możesz to zmienić w ustawieniach widoczności wpisu.
         </p>
     @endif

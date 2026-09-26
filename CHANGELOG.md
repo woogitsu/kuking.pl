@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Strona tagu pokazuje każdemu to samo: tylko wpisy widoczne dla wszystkich. Wasze wpisy „tylko dla mnie” i „tylko dla obserwujących” się tam nie pojawiają — także Wam. Jeśli macie takie wpisy z danym tagiem, strona tagu mówi o tym jednym zdaniem i odsyła do Waszego profilu, gdzie je znajdziecie (#1338).
+- Strona tagu pokazuje każdemu to samo: tylko wpisy widoczne dla wszystkich. Wasze wpisy „tylko dla mnie” i „tylko dla obserwujących” się tam nie pojawiają — także Wam. Jeśli macie takie wpisy z danym tagiem, strona tagu mówi o tym jednym zdaniem i odsyła do „Moje wpisy”, gdzie je znajdziecie (#1338, D-328).
 - W „Moje” jest nowy przycisk „Moje wpisy”: lista wszystkich Waszych wpisów od najnowszego — także tych tylko dla Was, tylko dla obserwujących, szkiców i wpisów ukrytych przez moderację. Przy każdym wpisie jest napisane, kto go widzi i w jakim jest stanie. Tę listę widzi tylko jej właściciel (D-328).
 - W menu z trzema kropkami przy cudzym wpisie są „Ukryj ten wpis” i „Ukryj tę osobę”. Ukrycie działa tylko dla Was, domyślnie przez 30 dni — potem wpis albo osoba wracają same. Ukryty wpis znika ze Startu, „Świeżo z Kuking”, tablicy na dziś i tygodniowego e-maila, a na profilu i pod linkiem zwija się do „Ten wpis ukrywasz tylko dla siebie. Pokaż”. Ukryta osoba znika z „Świeżo z Kuking”, tablicy i propozycji osób. Nikogo o tym nie powiadamiamy. Listę z datą końca, „Zostaw ukryte” i „Przywróć” znajdziecie w Ustawieniach → Ukryte (#1810).
 - W menu z trzema kropkami przy cudzym wpisie są teraz „Obserwuj tę osobę” i „Obserwuj tag: …” (najwyżej dwa tagi wpisu, tylko te, których jeszcze nie obserwujecie). Po kliknięciu strona mówi, co się stało i co z tego wyniknie, a pod komunikatem jest przycisk „Cofnij” (#1809).
