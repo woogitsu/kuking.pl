@@ -352,7 +352,7 @@ WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) 
 UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
 UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
-# Metryki doboru (#1814, D-281) nie czytają ukryć ani reakcji „Smakowicie
+# Metryki doboru (#1814, D-283) nie czytają ukryć ani reakcji „Smakowicie
 # wygląda”. Mutacja dokłada do klasy metryk import modelu reakcji — strażnik
 # skanujący ten plik ma zapalić się na czerwono.
 METRYKI_BEZ_REAKCJI = "app/Domain/Analytics/MetrykiDoboru.php"

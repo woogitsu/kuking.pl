@@ -355,12 +355,12 @@ return [
     ],
 
     /*
-     * Metryki doboru (issue #1814, D-281) i progi, po których wolno wrócić
+     * Metryki doboru (issue #1814, D-283) i progi, po których wolno wrócić
      * do rozmowy o rankingu (D-275). Progi pokazuje panel; niczego same nie
      * włączają — przekroczenie to powód do decyzji właściciela, nie do kodu.
      *  - `autorow_dziennie`: średnia z 28 dni różnych autorów publicznych wpisów;
      *  - `tygodni_danych`: tyle pełnych tygodni od pierwszego publicznego wpisu;
-     *  - `odsetek_bez_pierwszej_strony`: wskaźnik zastępczy (D-281) — udział
+     *  - `odsetek_bez_pierwszej_strony`: wskaźnik zastępczy (D-283) — udział
      *    autorów, którym wpisy z tygodnia stały na pierwszej stronie „Świeżo
      *    z Kuking” łącznie krócej niż `minut_na_pierwszej_stronie`;
      *  - `publiczne_z_tagiem`: od tylu procent wpisów z tagiem wolno ukrywać tagi.

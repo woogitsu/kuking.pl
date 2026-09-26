@@ -1276,7 +1276,7 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
 
     /*
-     * Metryki doboru (issue #1814, D-281) — same agregaty z istniejących
+     * Metryki doboru (issue #1814, D-283) — same agregaty z istniejących
      * tabel, tylko dla admina (`UserPolicy::przegladajMetryki`). Tylko GET.
      */
     Route::get('/metryki', [MetrykiController::class, 'index'])->name('admin.metryki');

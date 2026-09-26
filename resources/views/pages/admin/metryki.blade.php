@@ -1,5 +1,5 @@
 {{--
-    Metryki doboru bez profilowania (issue #1814, D-281).
+    Metryki doboru bez profilowania (issue #1814, D-283).
 
     Same agregaty z istniejących tabel (`App\Domain\Analytics\MetrykiDoboru`):
     bez nazw osób, bez odnośników do wpisów, bez logu wyświetleń, bez ukryć
@@ -19,7 +19,7 @@
 
     <p>Liczby z tabel, które już istnieją. Nie ma tu nazw osób ani wpisów, logu wyświetleń,
         ukryć ani reakcji „Smakowicie wygląda”. Przekroczenie progu niczego samo nie zmienia —
-        to powód, żeby wrócić do rozmowy o regułach doboru (D-275, D-281).</p>
+        to powód, żeby wrócić do rozmowy o regułach doboru (D-275, D-283).</p>
 
     <section class="card" aria-labelledby="metryki-progi" data-metryka="progi">
         <h2 class="mt-0 text-title-sm" id="metryki-progi">Progi rewizji</h2>
@@ -48,7 +48,7 @@
             Ich wpisy stały na pierwszej stronie łącznie krócej niż {{ $bez['prog_minut'] }} minut u
             <strong>{{ $bez['licznik'] }}</strong> z nich ({{ $procent($bez['procent']) }}).
         </p>
-        <p class="meta">Wskaźnik zastępczy bez logu wyświetleń (D-281): pierwsza strona to najnowszy wpis
+        <p class="meta">Wskaźnik zastępczy bez logu wyświetleń (D-283): pierwsza strona to najnowszy wpis
             każdej z {{ $bez['miejsc_na_stronie'] }} osób, które publikowały ostatnio, więc czas na niej
             wynika z samych godzin publikacji.</p>
     </section>

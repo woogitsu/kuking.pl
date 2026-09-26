@@ -46,7 +46,7 @@ class PanelModeracjiWMenuTest extends TestCase
         // — bramka `UserPolicy::diagnozujKolejke`, różnicę ról mierzy
         // `PanelKolejkiZadanTest`.
         'admin/kolejka' => 'UserPolicy::diagnozujKolejke',
-        // Issue #1814 (D-281): agregaty do decyzji właściciela o regułach
+        // Issue #1814 (D-283): agregaty do decyzji właściciela o regułach
         // doboru, nie narzędzie moderacji — `UserPolicy::przegladajMetryki`,
         // różnicę ról mierzy `MetrykiDoboruTest`.
         'admin/metryki' => 'UserPolicy::przegladajMetryki',

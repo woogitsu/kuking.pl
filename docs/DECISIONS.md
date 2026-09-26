@@ -17410,13 +17410,13 @@ ani dobór”. Fragment o lajku poprawiony: polubienia nie ma, lżejszą reakcj�
 będzie „Smakowicie wygląda” (#1813). Hierarchia sygnałów zostaje — dotyczy tego,
 co człowiek widzi przy wpisie i o czym dostaje powiadomienie, nie doboru list.
 
-### Progi rewizji (dopisek 26 września 2026, #1814, D-281)
+### Progi rewizji (dopisek 26 września 2026, #1814, D-283)
 
 Do rozmowy o regule spoza listy (w tym o jakimkolwiek rankingu) wracamy
 dopiero, gdy **naraz**: średnio **≥ 60 różnych autorów dziennie** (28 dni),
 **≥ 8 pełnych tygodni danych** i **> 30% autorów praktycznie bez pierwszej
 strony „Świeżo z Kuking”** w tygodniu (wskaźnik zastępczy bez logu wyświetleń —
-definicja w D-281). Liczby pokazuje panel `/admin/metryki`; progi w
+definicja w D-283). Liczby pokazuje panel `/admin/metryki`; progi w
 `kuking.metryki`. Przekroczenie jest powodem do decyzji właściciela, nie zmianą
 w kodzie.
 
@@ -17720,7 +17720,7 @@ Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
 📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
 `tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
 
-## D-281 — Metryki doboru bez profilowania i wskaźnik zastępczy trzeciego progu (#1814, #1781, 26 września 2026)
+## D-283 — Metryki doboru bez profilowania i wskaźnik zastępczy trzeciego progu (#1814, #1781, 26 września 2026)
 
 **Data:** 26 września 2026 · Decyzja właściciela (#1781, pkt 5 z 26.09; kryteria #1814) · Status: **obowiązuje**
 

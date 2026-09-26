@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Issue #1814 (D-281) — metryki doboru bez profilowania: agregaty
+ * Issue #1814 (D-283) — metryki doboru bez profilowania: agregaty
  * z istniejących tabel, wskaźnik zastępczy trzeciego progu, tylko admin.
  *
  * Kontrole ujemne (sprawdzone przy pisaniu):
