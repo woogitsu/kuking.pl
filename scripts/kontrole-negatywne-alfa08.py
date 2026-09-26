@@ -1076,6 +1076,20 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
+# KONTROLE DODATNIE PRZED MUTACJAMI wynikają z `checks`, nie z ręcznej listy.
+# Ręczna lista (38 wywołań `run_test(..., True)`) rozjechała się z `checks`:
+# audyt po fali 25.09 znalazł siedem testów z `checks` bez kontroli dodatniej
+# PRZED mutacją (m.in. KontrolkiPaneluWygladuMajaWidocznaObwodkeTest,
+# StartKonteneraNieCzysciCacheTest). Luki nie było — pętla niżej uruchamia
+# każdy test na zielono po przywróceniu źródła — ale test czerwony od początku
+# wyglądał w logu jak „mutacja wykryta”, dopóki pętla nie doszła do końca.
+# Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
+# w kolejności z `checks`, a nowy wpis nie ma czego zapomnieć.
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in checks))
+if not kontrole_dodatnie:
+    raise RuntimeError("Lista `checks` jest pusta — nie ma czego sprawdzać.")
+for test in kontrole_dodatnie:
+    run_test(test, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
