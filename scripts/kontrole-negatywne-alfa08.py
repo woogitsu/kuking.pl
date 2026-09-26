@@ -338,6 +338,11 @@ KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
+# Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
+# brak `@X.Y.Z` po `@railway/cli`.
+RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
+RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -355,6 +360,17 @@ EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
+# wykonuje `.railway/railway.ts` Z GAŁĘZI PR-a z tokenem
+# RAILWAY_TOKEN_PRODUCTION; mutacja zdejmuje `environment: production` z
+# joba `plan` (i tylko z niego — kotwica bierze fragment poprzedzający
+# unikalny dla `plan`, żeby nie ruszyć tego samego ustawienia w `apply`).
+PLAN_IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+PLAN_IAC_TEST = "PlanIacBramkaProdukcjiTest"
+PLAN_IAC_ENVIRONMENT = (
+    "    # przejrzał diff `.railway/**`.\n"
+    "    environment: production\n"
+)
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -370,6 +386,15 @@ CISZA_BEZ_WARUNKU = (
     "        }\n"
     "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
 )
+# Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
+# Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
+# dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
+# (dopisanie w tej samej chwili z mniejszym UUID), mutacja 2 — porównanie
+# kolejności (ktoś zamknął jedno, automat dopisał nowe: liczba ta sama).
+GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
+GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
+GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
+GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
 # IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
 # (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
 # `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
@@ -698,6 +723,30 @@ def widok_zawezany_poza_pr(source):
     )
 
 
+def plan_iac_bez_bramki_produkcji(source):
+    """KONTROLA DODATNIA: zdejmij `environment: production` z joba `plan`.
+
+    Job dalej wykonuje `.railway/railway.ts` z gałęzi PR-a, z tokenem
+    RAILWAY_TOKEN_PRODUCTION, ale bez zgody recenzenta — dokładnie luka
+    z audytu B10-01.
+    `job_plan_wymaga_srodowiska_production_przed_wykonaniem_kodu_z_pr`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        PLAN_IAC_ENVIRONMENT,
+        "    # przejrzał diff `.railway/**`.\n",
+    )
+def railway_cli_bez_przypietej_wersji(source):
+    """KONTROLA DODATNIA: zdejmij przypiętą wersję z instalacji `@railway/cli`.
+
+    `npm install -g @railway/cli` bez `@X.Y.Z` bierze `latest` w chwili
+    uruchomienia, obok tokenu Railway. `kazda_instalacja_railway_cli_ma_
+    przypieta_wersje` ma zapalić (audyt B10-02).
+    """
+    return replace_once(source, "@railway/cli@5.62.1", "@railway/cli")
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -876,6 +925,10 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
+     lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
+    ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
+     lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
@@ -886,6 +939,8 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+     railway_cli_bez_przypietej_wersji),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
@@ -894,6 +949,8 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
+     plan_iac_bez_bramki_produkcji),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -958,11 +1015,14 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(PLAN_IAC_TEST, True)
+run_test(RAILWAY_CLI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
