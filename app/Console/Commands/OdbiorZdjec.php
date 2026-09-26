@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Jobs\ProcessUploadedImage;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
@@ -282,7 +283,7 @@ class OdbiorZdjec extends Command
                         $problemy[] = "wariant {$nazwa} nie leży w buckecie {$zdjecie->variantsDisk()}";
                     }
                 } catch (Throwable $e) {
-                    $problemy[] = "nie udało się sprawdzić pliku wariantu {$nazwa}: ".$e->getMessage();
+                    $problemy[] = "nie udało się sprawdzić pliku wariantu {$nazwa}: ".BezpiecznyBlad::jednaLinia($e);
                 }
             }
         }
@@ -305,7 +306,7 @@ class OdbiorZdjec extends Command
 
             return $zapytanie->count();
         } catch (Throwable $e) {
-            $this->warn('Nie udało się odczytać failed_jobs: '.$e->getMessage());
+            $this->warn('Nie udało się odczytać failed_jobs: '.BezpiecznyBlad::jednaLinia($e));
 
             return null;
         }
