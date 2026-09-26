@@ -192,6 +192,7 @@ class FeedController extends Controller
                 ? app(InstallPromptContext::class)->issue($user, $request->session()->getId())
                 : null,
             'greeting' => $this->pytanieDnia($user),
+            'pierwszeKroki' => $user->onboardingDoDokonczenia(),
             'zeszyt' => $zeszyt,
             // Życzenia urodzinowe od gospodarza (issue #1755, etap b) — jedno
             // zdanie albo `null`. Bez powiadomień i bez pustego stanu.
