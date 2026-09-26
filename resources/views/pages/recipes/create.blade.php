@@ -52,6 +52,19 @@
             Wystarczy zdjęcie, nazwa i to, co robisz. Resztę — porcje, czasy, historię
             przepisu — dopiszesz później, jeśli zechcesz.
         </p>
+        {{-- Import V2 (D-300): przycisku nie ma, gdy źródło jest wyłączone —
+             bez martwych przycisków (D-053). Oba prowadzą do prywatnego szkicu. --}}
+        @if(config('kuking.import.url.wlaczony') || config('kuking.import.pdf.wlaczony'))
+            <p class="mb-2">Masz przepis na stronie internetowej albo w pliku PDF? Zapiszemy go jako szkic dla Ciebie.</p>
+            <p class="mb-5 flex flex-wrap gap-2">
+                @if(config('kuking.import.url.wlaczony'))
+                    <a class="btn btn-secondary" href="{{ route('recipes.import.url') }}">Wklej adres strony</a>
+                @endif
+                @if(config('kuking.import.pdf.wlaczony'))
+                    <a class="btn btn-secondary" href="{{ route('recipes.import.pdf') }}">Dodaj plik PDF</a>
+                @endif
+            </p>
+        @endif
     @endif
 
     <x-error-summary />

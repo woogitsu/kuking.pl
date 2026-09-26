@@ -37,6 +37,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
@@ -729,6 +730,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
+    // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
+    // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,
+    // throttle trasy łapie serie wysłań. Jeden adres albo jeden plik na
+    // wysłanie — drogi importu wielu adresów naraz celowo nie ma.
+    Route::get('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adresForm'])->name('recipes.import.url');
+    Route::post('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adres'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.url.store');
+    Route::get('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdfForm'])->name('recipes.import.pdf');
+    Route::post('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdf'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.store');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.
     Route::get('/wpisy/{post}/dopisz-przepis', [RecipeController::class, 'createFromPost'])->name('recipes.create.from-post');

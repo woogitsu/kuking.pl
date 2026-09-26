@@ -16,6 +16,7 @@ use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -189,6 +190,7 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'importy_przepisow' => $this->recipeImports($user),
             'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
         ];
     }
@@ -228,6 +230,30 @@ final class CollectUserExportData
                     'zmienione' => $this->date($urzadzenie->updated_at),
                 ])->all(),
         ];
+    }
+
+    /**
+     * Przepisy zapisane z importu (D-300): kiedy, z jakiego źródła, z jakiego
+     * adresu i czy tekst został sprawdzony. Bez `tekst_zrodla` — to cudzy tekst
+     * ze strony, który i tak jest w szkicu (sekcja „przepisy").
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImports(User $user): array
+    {
+        return PrzepisZImportu::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('recipe_id')
+            ->get()
+            ->map(fn (PrzepisZImportu $wiersz): array => [
+                'przepis_id' => $wiersz->recipe_id,
+                'zrodlo' => $wiersz->zrodlo,
+                'adres_strony' => $wiersz->source_url,
+                'sprawdzony' => $this->date($wiersz->sprawdzone_at),
+                'zapisany' => $this->date($wiersz->created_at),
+            ])
+            ->all();
     }
 
     /** @return array<string, mixed> */

@@ -14,6 +14,7 @@ use App\Models\DataExport;
 use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
+use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -302,6 +303,7 @@ final class EraseAccountData
 
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
+            $this->usunPochodzenieImportow($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -708,6 +710,20 @@ final class EraseAccountData
      * `handled_by` (operator, który sprawę załatwił) celowo zostaje: obietnica
      * dotyczy nadawcy wiadomości, nie osoby obsługującej panel.
      */
+    /**
+     * POCHODZENIE SZKICÓW Z IMPORTU (D-300) — kasowane przy każdym zakresie.
+     *
+     * Wiersz mówi „ta osoba zapisała sobie przepis z TEGO adresu" i trzyma
+     * tekst kroków ze strony do ostrzeżenia o podobieństwie. To jest ślad
+     * zachowania osoby, nie treść dla społeczności — przy `minimum` przepis
+     * zostaje (ma własne `source_url`), ale ślad importu znika. Jawnie,
+     * bo konta się nie kasuje, więc `ON DELETE CASCADE` się nie uruchomi.
+     */
+    private function usunPochodzenieImportow(User $user): void
+    {
+        PrzepisZImportu::query()->where('user_id', $user->getKey())->delete();
+    }
+
     private function odlaczWiadomosciDoOperatora(User $user): void
     {
         ContactMessage::query()

@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Import\BezModeluFragmentow;
+use App\Domain\Import\StrazImportu;
+use App\Domain\Import\Url\RozwiazywaczNazw;
+use App\Domain\Import\Url\SystemowyRozwiazywaczNazw;
+use App\Domain\Import\WyznaczaczFragmentow;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
@@ -50,6 +56,15 @@ class AppServiceProvider extends ServiceProvider
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
 
+        // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
+        // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.
+        $this->app->bind(RozwiazywaczNazw::class, SystemowyRozwiazywaczNazw::class);
+        // Model do wyznaczania fragmentów strony bez JSON-LD. Do czasu
+        // podpięcia klienta i budżetu z fundamentu importu — bez modelu.
+        $this->app->bind(WyznaczaczFragmentow::class, BezModeluFragmentow::class);
+        // Reguły pochodzenia przepisu (zablokowane źródło, „Sprawdziłem")
+        // woła `PublishRecipe`; implementacja w module Import (bez cyklu).
+        $this->app->bind(StrazPochodzeniaPrzepisu::class, StrazImportu::class);
         // Web Push (D-303). Testy podmieniają to fałszywym transportem —
         // żaden test nie wysyła prawdziwego pushu.
         $this->app->bind(TransportPush::class, TransportWebPush::class);

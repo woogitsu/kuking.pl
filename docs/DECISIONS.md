@@ -18066,6 +18066,83 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
 
+## D-300 — Import przepisu z adresu strony i z PDF: granice prawne i techniczne (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy projektu `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` (PR #1854) §2.4, §4,
+etapów 4–5, pytań P-3, P-7, P-10, P-12 i issue #28
+
+**Problem.** Import z adresu strony to najprostsza droga do zamiany Kuking
+w agregator cudzych treści (AGENTS.md §9, §12: „masowy import cudzych
+przepisów" jest anty-wzorcem na zawsze) i zarazem furtka SSRF — serwer
+pobiera adres, który wkleił człowiek. Projekt proponował trzymać import URL
+za wyłącznikiem do opinii prawnika (P-3).
+
+**Decyzja właściciela (26.09.2026).** Import z adresu **od razu**, bez czekania
+na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
+
+1. **Wynik to wyłącznie prywatny szkic** (`status = draft`, `visibility =
+   private`). Import nie ma drogi do publikacji — publikuje człowiek zwykłym
+   „Opublikuj".
+2. **Źródło obowiązkowe i zapisane:** `source_type = external`, `source_url`
+   = adres po przekierowaniach bez parametrów śledzących. W kreatorze
+   i formularzu źródła szkicu z adresu nie da się zmienić (`StrazImportu`
+   nadpisuje je przy każdym zapisie).
+3. **Zdjęć z cudzych stron nie pobieramy** — ani do szkicu, ani jako podgląd;
+   parser JSON-LD nie przenosi nawet adresu zdjęcia.
+4. **`robots.txt` szanowany** (RFC 9309: grupa `KukingImport` przed `*`;
+   4xx = wolno, 5xx i brak odpowiedzi = nie wolno), uczciwy `User-Agent`
+   `KukingImport/1.0 (+<adres serwisu>/o-kuking)`, bez obchodzenia zabezpieczeń.
+5. **Pełna ochrona SSRF:** tylko `http`/`https`, porty 80/443, bez
+   `user:hasło@`; blokada adresów prywatnych, pętli, link-local (w tym
+   metadanych chmury), CGNAT, zakresów zarezerwowanych, IPv6 lokalnych,
+   IPv4 zapisanych jako IPv6, NAT64/6to4, nazw jednoczłonowych i stref
+   `.internal`/`.local`/`.localhost`; KAŻDY adres IP nazwy musi być publiczny;
+   połączenie przypięte do sprawdzonego IP (`CURLOPT_RESOLVE`, bez proxy
+   ze zmiennych środowiskowych); każde przekierowanie (najwyżej 3) i każdy
+   `robots.txt` przez strażnika od nowa; limit 2 MB czytany strumieniowo,
+   10 s na żądanie, 25 s na całość, tylko `text/html`.
+6. **Bez masowego importu:** jeden adres albo jeden plik na wysłanie, brak
+   pola na listę adresów, limit na osobę **5 dziennie / 30 miesięcznie**,
+   wspólny dla wszystkich źródeł importu (jak przy OCR), plus throttle trasy.
+7. **Ostrzeżenie (nie blokada, P-10)** przy publikacji, gdy opis
+   przygotowania jest podobny do strony źródłowej w ≥ 60% (`similarity()`
+   z `pg_trgm` wobec tekstu zapamiętanego przy imporcie).
+8. **„Sprawdziłem odczytany tekst" (P-12)** — pole wymagane przed pierwszą
+   publikacją szkicu z importu (adres, PDF, zdjęcie). Pilnuje go
+   `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`, więc obowiązuje
+   w kreatorze, w formularzu jednostronicowym i w każdym przyszłym wejściu.
+9. **Model „GPT-6 Luna" (`gpt-6-luna`) tylko tam, gdzie bez niego się nie
+   da:** strona BEZ danych JSON-LD `Recipe` (tryb fragmentów — model zwraca
+   same granice wierszy z etykietami, PHP składa tekst z oryginału i odrzuca
+   odpowiedź bez pełnego pokrycia) i PDF BEZ warstwy tekstu (ścieżka OCR).
+   Strona z JSON-LD i PDF z tekstem idą lokalnie, bez kosztu. Wywołania
+   modelu wyłącznie przez klienta, budżet i zgodę z fundamentu importu;
+   wysiłek rozumowania dla wyznaczania fragmentów — `low`
+   (`KUKING_IMPORT_EFFORT_TEKST`, decyzja właściciela z 26.09.2026).
+
+**W kodzie.** `app/Domain/Import/` (`Url/StraznikAdresow`, `Url/PobieraczStron`,
+`Url/RobotsTxt`, `Url/ParserJsonLdPrzepisu`, `TrybFragmentow`,
+`Pdf/TekstZPdf` przez `poppler-utils`, `ParserTekstuPrzepisu`,
+`Actions/ZapiszSzkicZImportu`, `StrazImportu`, `PodobienstwoDoZrodla`,
+`LimitImportu`), tabela `przepisy_z_importu` (`docs/DATABASE.md`), trasy
+`/dodaj/przepis/z-adresu` i `/dodaj/przepis/z-pdf`, konfiguracja
+`kuking.import`. Testy: `ImportStraznikAdresowTest`, `ImportPobieraczStronTest`,
+`ImportParseryTest`, `ImportTekstZPdfTest`, `ImportPrzepisuZAdresuIPdfTest`,
+`CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
+przez `Http::fake`, DNS przez podstawioną mapę nazw.
+
+**Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
+z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"
+cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
+opinii prawnika — jeśli prawnik wskaże inaczej, import z adresu wyłącza się
+bez wdrożenia: `KUKING_IMPORT_URL=false` (przycisku wtedy nie ma, D-053).
+
+### Wycofanie
+`KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
+i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę
+„Sprawdziłem". Zdjęcie tabeli `przepisy_z_importu` — tylko według rollbacku
+w `docs/DATABASE.md` (`down()` odmawia przy niesprawdzonych szkicach).
 ## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Zakres dopuszczony przez

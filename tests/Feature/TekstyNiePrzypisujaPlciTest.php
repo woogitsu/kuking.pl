@@ -131,7 +131,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         foreach ($pliki as $plik) {
             $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
 
-            foreach ($this->trafienia($tresc) as $trafienie) {
+            foreach ($this->trafieniaProduktu($tresc) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
             }
         }
@@ -221,7 +221,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         $winowajcy = [];
 
         foreach ($pliki as $plik) {
-            foreach ($this->trafienia((string) file_get_contents($plik)) as $trafienie) {
+            foreach ($this->trafieniaProduktu((string) file_get_contents($plik)) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
             }
         }
@@ -256,7 +256,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
 
         $winowajcy = [];
 
-        foreach ($this->trafienia((string) file_get_contents($plik)) as $trafienie) {
+        foreach ($this->trafieniaProduktu((string) file_get_contents($plik)) as $trafienie) {
             $winowajcy[] = $this->skrot($plik).':'.$trafienie;
         }
 
@@ -294,7 +294,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
 
         foreach ($pliki as $plik) {
             foreach ($this->napisyZPliku($plik) as $numerLinii => $napis) {
-                foreach ($this->trafienia($napis) as $trafienie) {
+                foreach ($this->trafieniaProduktu($napis) as $trafienie) {
                     // Numer linii bierzemy z tokena, nie z pozycji w napisie:
                     // napis wielolinijkowy dostaje numer swojego początku.
                     $winowajcy[] = $this->skrot($plik).':'.$numerLinii.' → '
@@ -330,6 +330,11 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'zostałaś/eś zalogowana/y na cudzym telefonie',
             'a to nie Ty prosiłaś/eś o zmianę',
             'Nikogo nie zablokowałaś.',
+            // Wyjątek „Sprawdziłem odczytany tekst" to fraza, nie słowo:
+            // forma żeńska, zapis małą literą i inne zdanie z tym czasownikiem obleją.
+            'Sprawdziłam odczytany tekst',
+            'Już sprawdziłem odczytany tekst.',
+            'Sprawdziłem wszystko jeszcze raz.',
             'Możesz być pierwsza albo pierwszy.',
             'Będziesz pierwsza albo pierwszy?',
             'Podaj adres e-mail, którym je zakładałaś albo zakładałeś',
@@ -370,6 +375,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'Kuking.pl — pokaż, co dziś ugotowałeś.',
             'razy Ugotowałem',
             'Pod każdym przepisem jest przycisk „Ugotowałem".',
+            // Etykieta pola wyboru przy imporcie — decyzja właściciela z 26.09.2026.
+            '<span class="choice-label">Sprawdziłem odczytany tekst</span>',
+            'zaznacz „Sprawdziłem odczytany tekst”. Nic nie zginęło.',
             // Trzecia osoba o KONKRETNEJ, znanej osobie — rodzaj poprawny.
             'Halina ugotowała Twój rosół',
             'Basia zaczęła Cię obserwować',
@@ -480,6 +488,89 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         }
     }
 
+    /**
+     * KONTROLA NEGATYWNA dla `WzorceRodzaju::WZORCE_SAM` (decyzja właściciela
+     * z 26.09.2026, PR #1899).
+     *
+     * `$zle` zaczyna się od DOSŁOWNYCH brzmień z importu przepisu sprzed
+     * poprawki. `$dobre` to „sam" jako przymiotnik albo w trzeciej osobie —
+     * brzmienia, które NAPRAWDĘ stoją dziś w repozytorium (kreator, panel,
+     * komunikaty) — oraz brzmienia po poprawce. Wzorzec, który zapaliłby się
+     * na „szkic zapisuje się sam", byłby wyłączony przy pierwszej okazji.
+     */
+    public function test_wzorce_sam_lapia_podmiot_i_przepuszczaja_przymiotnik(): void
+    {
+        $zle = [
+            // Import przepisu (PR #1899) przed poprawką.
+            'Nic się nie opublikuje, dopóki sam nie klikniesz „Opublikuj przepis”.',
+            '<a href="/przepisy/nowy">Wolę wpisać przepis sam</a>',
+            'Spróbuj znowu w przyszłym miesiącu albo wpisz przepis sam.',
+            'Spróbuj jeszcze raz za kilka minut albo skopiuj tekst przepisu i wklej go sam.',
+            'Spróbuj później albo przepisz przepis sam — nic nie zginęło.',
+            'Jutro będzie można dalej. Możesz też od razu wpisać przepis sam.',
+            // Te same konstrukcje w innym brzmieniu i w formie żeńskiej.
+            'Przy każdym wpisie sam decydujesz, kto go widzi.',
+            'Sama wybierasz, kto to zobaczy.',
+            'dla każdego konta — ciemny włączasz sam, jeśli wolisz.',
+            'Zdjęcie wybierzesz sama.',
+            'Dodaj je sama.',
+            'Tu nic nie wyjdzie bez Ciebie — sama nie wyślesz niczego przez pomyłkę.',
+        ];
+
+        foreach ($zle as $zdanie) {
+            $this->assertNotSame(
+                [],
+                WzorceRodzaju::trafieniaSam($zdanie),
+                "WZORCE_SAM przepuściły „sam” w roli podmiotu: „{$zdanie}”. ".
+                'Któryś wzorzec przestał działać — napraw wzorzec, nie ten test.',
+            );
+        }
+
+        $dobre = [
+            // Brzmienia po poprawce.
+            'Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.',
+            '<a href="/przepisy/nowy">Wolę wpisać przepis ręcznie</a>',
+            'Spróbuj znowu w przyszłym miesiącu albo wpisz przepis ręcznie.',
+            'Usuń je samodzielnie, zanim skasujesz konto.',
+            // „sam" jako przymiotnik: „ten sam", „taki sam", „sam X" = tylko X.
+            'Sam przepis zostaje w serwisie.',
+            'Opis przygotowania jest prawie taki sam jak na stronie źródłowej.',
+            'To jest ten sam przepis. Może wystarczy „Ugotowałem”?',
+            'Ten sam, którego używasz do logowania.',
+            'Kolejne zdjęcie dodasz przez ten sam formularz.',
+            'Ta sama treść drugi raz w tej samej minucie.',
+            'Sama prośba nie zmienia adresu konta.',
+            'Zgłoś pod samą treścią.',
+            'To samo w kreatorze.',
+            'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
+            'Sam gulasz to za mało na obiad.',
+            // Trzecia osoba — rzecz albo znana osoba robi coś „sama".
+            '<strong>Szkic zapisuje się sam</strong> — możesz przerwać w każdej chwili.',
+            'szkic zapisuje się sam po każdym kroku',
+            'Możesz zamknąć stronę, szkic zapisze się sam.',
+            'Twój szkic zapisze się sam.',
+            'Wyczyszczone. Kolaż dobierze zdjęcia sam.',
+            'Tablica wróci do trybu automatycznego i dobierze treści sama.',
+            'Dzisiaj tablica dobierze treści sama.',
+            'Ukryta do 3 października. Potem wróci sama.',
+            'Ta wiadomość zniknie z bazy sama, po 12 miesiącach.',
+            'Automat sam nie ukrywa treści ani nie blokuje kont.',
+            'telefon czasem sam zamienia je wtedy na JPG',
+            'Widok NIE filtruje niczego sam — dostaje z kontrolera.',
+            'Odpowiedź jest taka sama jak przy sukcesie — inaczej sam',
+            'Odpowiedź czyta się wtedy i sama („Od mamy.”).',
+        ];
+
+        foreach ($dobre as $zdanie) {
+            $this->assertSame(
+                [],
+                WzorceRodzaju::trafieniaSam($zdanie),
+                "WZORCE_SAM zapaliły się na „sam” w roli przymiotnika albo w trzeciej osobie: „{$zdanie}”. ".
+                'Zawężaj wzorzec — nie dodawaj wyjątku.',
+            );
+        }
+    }
+
     // ---------------------------------------------------------------
     // Narzędzia
     // ---------------------------------------------------------------
@@ -493,6 +584,19 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
     private function trafienia(string $tresc): array
     {
         return WzorceRodzaju::trafienia($tresc);
+    }
+
+    /**
+     * Produkt (widoki, tłumaczenia, napisy w PHP, notatki tagów): wzorce
+     * wspólne ORAZ `WzorceRodzaju::WZORCE_SAM` („sam"/„sama" w roli
+     * podmiotu, PR #1899). Teksty prawne idą samym `trafienia()` — patrz
+     * komentarz przy `WZORCE_SAM`, dlaczego.
+     *
+     * @return list<string> „numer linii → cytat"
+     */
+    private function trafieniaProduktu(string $tresc): array
+    {
+        return array_merge(WzorceRodzaju::trafienia($tresc), WzorceRodzaju::trafieniaSam($tresc));
     }
 
     /**

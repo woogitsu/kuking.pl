@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Import\StrazImportu;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
@@ -334,7 +335,11 @@ class RecipeController extends Controller
                 existing: $recipe,
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+            // Brak „Sprawdziłem odczytany tekst” przy szkicu z importu (D-300)
+            // — błąd przy tym polu, nie przy nazwie przepisu (AGENTS.md §5).
+            $pole = $e->getMessage() === StrazImportu::KOMUNIKAT_SPRAWDZ ? 'sprawdzilem_odczyt' : 'title';
+
+            return back()->withInput()->withErrors([$pole => $e->getMessage()]);
         }
 
         return redirect()->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
