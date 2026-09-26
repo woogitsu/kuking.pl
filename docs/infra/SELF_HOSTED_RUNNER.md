@@ -310,9 +310,10 @@ czy problem nie był chwilowy. Powód stoi przy nim w komentarzu w `ci.yml`.
 **Pozostałe trzy workflow-y też chodzą same.** Sprawdzone parserem YAML
 12 września 2026, plik po pliku: `deploy.yml` ma `deployment_status`
 i `workflow_dispatch`, `preview.yml` ma `pull_request` (opened, synchronize,
-reopened) i `workflow_dispatch`, `railway-iac.yml` ma sam `pull_request`
-(opened, synchronize, reopened, closed) na ścieżkach `.railway/**` i na własnym
-pliku — ręcznego wyzwalacza tam nie ma. **W żadnym z tych plików nie ma dziś
+reopened) i `workflow_dispatch`, `railway-iac.yml` ma `pull_request`
+(opened, synchronize, reopened) na ścieżkach `.railway/**` i na własnym
+pliku — to sam plan — oraz `workflow_dispatch`, jedyną drogę do `apply`
+(od 24.09.2026, #595; wcześniej `closed` po scaleniu stosował plik sam). **W żadnym z tych plików nie ma dziś
 zakomentowanego bloku `on:`.**
 
 Do 12.09.2026 stało tu zdanie odwrotne — że te trzy pliki czekają na włączenie.
