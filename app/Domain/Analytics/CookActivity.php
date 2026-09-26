@@ -26,37 +26,28 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 final class CookActivity
 {
     /**
-     * @param  list<string>  $wykluczeniUzytkownicy  identyfikatory kont pominiętych
-     *                                               (patrz `CookEligibility`)
+     * `$liczeni` — gdy podane, odcina konta, które nie liczą się do metryk
+     * (`CookEligibility::tylkoLiczeni()`), w każdej gałęzi UNION osobno.
      */
-    public function unionQuery(array $wykluczeniUzytkownicy = []): QueryBuilder
+    public function unionQuery(?CookEligibility $liczeni = null): QueryBuilder
     {
         $posty = Post::query()
             ->select('author_id as user_id', 'published_at as activity_at')
-            ->published()
-            ->when(
-                $wykluczeniUzytkownicy !== [],
-                fn ($q) => $q->whereNotIn('author_id', $wykluczeniUzytkownicy),
-            )
-            ->toBase();
+            ->published();
 
         $przepisy = Recipe::query()
             ->select('author_id as user_id', 'published_at as activity_at')
-            ->published()
-            ->when(
-                $wykluczeniUzytkownicy !== [],
-                fn ($q) => $q->whereNotIn('author_id', $wykluczeniUzytkownicy),
-            )
-            ->toBase();
+            ->published();
 
         $ugotowania = CookedEvent::query()
-            ->select('user_id', 'cooked_at as activity_at')
-            ->when(
-                $wykluczeniUzytkownicy !== [],
-                fn ($q) => $q->whereNotIn('user_id', $wykluczeniUzytkownicy),
-            )
-            ->toBase();
+            ->select('user_id', 'cooked_at as activity_at');
 
-        return $posty->unionAll($przepisy)->unionAll($ugotowania);
+        if ($liczeni !== null) {
+            $liczeni->tylkoLiczeni($posty, 'posts.author_id');
+            $liczeni->tylkoLiczeni($przepisy, 'recipes.author_id');
+            $liczeni->tylkoLiczeni($ugotowania, 'cooked_events.user_id');
+        }
+
+        return $posty->toBase()->unionAll($przepisy->toBase())->unionAll($ugotowania->toBase());
     }
 }
