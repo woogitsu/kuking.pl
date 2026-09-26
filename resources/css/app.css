@@ -4830,6 +4830,14 @@
     overflow-wrap: anywhere;
 }
 
+/* Nazwa konta przy pytaniu, gdy pytanie samo w sobie jej nie odmienia
+   (#1819) — osobny wiersz pod pytaniem, nie osobny rozmiar tekstu: to dalej
+   ta sama, ważna informacja „kogo to dotyczy". */
+.confirm-question-nazwa {
+    margin: 0 0 var(--spacing-3);
+    overflow-wrap: anywhere;
+}
+
 /* ---------------------------------------------------------------------------
    Wpisy bez odpowiedzi (issue #6)
 

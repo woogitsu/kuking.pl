@@ -64,8 +64,23 @@ Thumbs.db
 .pint.cache
 .php-cs-fixer.cache
 
+# Bajtkod Pythona (skrypty w scripts/)
+__pycache__/
+*.pyc
+
 # Stan monitora czuwania sesji głównej (docs/flota/chmura/czuwanie.py)
 docs/flota/chmura/czuwanie-stan.json
 
 # Skompilowany Python z uruchomień skryptów kontrolnych.
 __pycache__/
+# Zrzuty bazy (audyt A5-17). `git add .` po `pg_dump` do katalogu repozytorium
+# wciągał zrzut z danymi osobowymi. `*.sql` TYLKO w korzeniu i w `storage/`
+# — w `database/reference/`, `docs/obciazenie/` i `scripts/` leżą śledzone,
+# celowe pliki SQL, których wzorzec nie może zakryć.
+*.dump
+*.dump.cms
+*.pgdump
+/*.sql
+/*.sql.gz
+/storage/**/*.sql
+/storage/**/*.sql.gz
