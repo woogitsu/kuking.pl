@@ -186,6 +186,15 @@ policzeniu wyników. Zapisujemy wyłącznie:
 - `query_length` — długość frazy,
 - `has_results` — czy cokolwiek znaleziono.
 
+Sygnał liczy **wysłanie frazy**, nie każdą odsłonę wyników (issue #943).
+Odnośniki po wynikach — „Pokaż więcej", „Wróć do początku" i zakresy
+Wszystko / Przepisy / Ludzie / Do 30 minut — niosą `nawigacja=1` i nie
+zapisują sygnału, więc puste dalsze okno nie daje `has_results=false` dla
+frazy, która w pierwszym oknie miała wyniki. Ponowne wysłanie tej samej
+frazy formularzem liczy się jako nowe wyszukanie; nie ma deduplikacji po
+długości frazy ani po sesji. Zapisany w zakładkach adres takiego odnośnika
+też nie liczy się jako wyszukanie — to świadoma cena prostego rozróżnienia.
+
 **Nigdy sama fraza.** Jest tekstem wpisanym przez człowieka, tej samej natury
 co treść komentarza.
 

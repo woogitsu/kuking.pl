@@ -264,6 +264,8 @@ final class LogOperacyjnyBezKomunikatuWyjatkuTest extends TestCase
             'status' => DataExport::STATUS_READY,
             'disk' => 'local',
             'object_key' => 'exports/abc.zip',
+            'bytes' => 1234,
+            'completed_at' => now()->subDays(8),
             'expires_at' => now()->subDay(),
         ]);
 
@@ -302,6 +304,7 @@ final class LogOperacyjnyBezKomunikatuWyjatkuTest extends TestCase
             'status' => DataExport::STATUS_READY,
             'disk' => 'local',
             'object_key' => 'exports/abc.zip',
+            'bytes' => 1234,
             'completed_at' => now()->subMinute(),
             'expires_at' => now()->addDay(),
         ]);

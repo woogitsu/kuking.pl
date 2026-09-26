@@ -280,6 +280,9 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
    SQL
    ```
 6. Usuń pomocniczy serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
+7. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
+   `recipes` albo `comments` — wykonaj §3.1 („wymaż ponownie”) z `--od`
+   równym chwili, z której pochodzi naprawa.
 
 **RPO:** ~0 (PITR ma ziarnistość WAL, praktycznie do sekundy) — **o ile PITR
 jest włączony** (patrz pytanie 2 w §2.3). Jeśli nie, jedyna opcja to ostatni
@@ -340,6 +343,12 @@ railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --envir
 
 # 5. Redeploy i weryfikacja
 curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
+
+# 6. OBOWIĄZKOWO: wymaż ponownie konta wymazane po dacie kopii (§3.1)
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
 ```
 
 Potem: odtwórz DNS/WAF/Cache Rules wg `DEPLOYMENT_RUNBOOK.md` KROK 10 (jeśli
@@ -354,6 +363,46 @@ do 24 h, a wiek ostatniej kopii mówi `kuking:sprawdz-kopie`**).
 **RTO:** **oszacowanie 1-4 h** w zależności od tego, czy trzeba tylko przywrócić
 bazę, czy całe środowisko od zera wg `DEPLOYMENT_RUNBOOK.md` (tam: „3-4 godziny
 plus czekanie na DNS") — **niezmierzone.**
+
+### 3.1 Po KAŻDYM odtworzeniu: „wymaż ponownie” (audyt B5, znalezisko 3)
+
+**Dotyczy 3(a), 3(b) i ćwiczeń z §4, jeśli odtworzona baza ma obsługiwać
+ruch.** Kopia pochodzi sprzed awarii, więc zawiera konta, które po jej dacie
+wymazaliśmy na prośbę ludzi (RODO art. 17) — z prawdziwym e-mailem, profilem
+i treściami. Ślad wymazania (`users.data_erased_at`,
+`potwierdzenia_zadan_rodo`, `audit_log`) leży w tej samej bazie, więc wraca
+do stanu sprzed wymazania. Nocne zadania tego nie naprawią: konto ma w kopii
+status `active` i nikt nie prosi o jego usunięcie.
+
+Dlatego każde wymazanie zapisuje wpis **poza bazą**: obiekt
+`dziennik-wymazan/<user_id>.json` na dysku `kuking.dziennik_wymazan.dysk`
+(produkcja: bucket eksportów, `r2_eksporty`). Wpis to sam identyfikator
+konta, chwila i wykonany zakres (`minimum`/`everything`) — bez e-maila i bez
+nazwy. Wpisy żyją 120 dni (dłużej niż najstarsza kopia), dopisuje je
+i przycina `kuking:dziennik-wymazan` co noc o 05:30.
+
+Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
+podpięciu `DB_URL`):
+
+```bash
+# podgląd — lista kont do ponownego wymazania, nic nie zmienia
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>" --na-sucho
+# wykonanie
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
+```
+
+- `--od` to chwila kopii (nazwa pliku zrzutu offsite, moment PITR, data
+  Volume Backupu). Przy wątpliwości **pomiń `--od`** — komenda weźmie cały
+  dziennik; wolniej, ale nie da się pomylić daty. Konto już wymazane
+  w kopii jest pomijane, więc nadmiarowy przebieg nic nie psuje.
+- Komenda wymazuje tym samym zakresem, jaki wykonaliśmy za pierwszym razem,
+  i kończy się kodem ≠ 0, gdy któreś konto się nie udało — powtórz ją,
+  a przy stałym błędzie wymaż konto ręcznie.
+- Zdjęć w R2 nie trzeba odtwarzać: skasowane pliki nie wracają z kopii bazy.
+  Wiersze `media` z kopii wskazują nieistniejące pliki i znikną razem
+  z ponownym wymazaniem konta.
+- Test, który pilnuje tej drogi: `tests/Feature/DziennikWymazanPozaBazaTest.php`
+  (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`).
 
 ### 3(c) Utracone zdjęcia
 
