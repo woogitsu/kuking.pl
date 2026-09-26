@@ -44,7 +44,7 @@ class HarmonogramBezKolizjiTerminowTest extends TestCase
         '0 * * * *' => ['kuking:policz-kukingow', 'kuking:zdejmij-wygasle-kary'],
         // Liczniki i sondy o stałym rytmie — z natury trafiają w te same minuty.
         '*/5 * * * *' => ['kuking:policz-kolejki', 'kuking:puls-harmonogramu'],
-        '*/15 * * * *' => ['kuking:sprawdz-kolejke', 'kuking:wyczysc-zalegle-cdn'],
+        '*/15 * * * *' => ['kuking:odzyskaj-importy', 'kuking:sprawdz-kolejke', 'kuking:wyczysc-zalegle-cdn'],
     ];
 
     public function test_zadne_dwa_zadania_nie_dziela_terminu_bez_wpisu_na_liscie(): void

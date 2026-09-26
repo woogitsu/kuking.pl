@@ -322,6 +322,9 @@ Harmonogram::artisan('kuking:sprzataj-importy')
 // w „trwa” do retencji. CO KWADRANS, bo pierwsze to pieniądze i limit, drugie
 // to człowiek patrzący na ekran postępu. Progi: `kuking.import.odzyskiwanie`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/15` co `kuking:sprawdz-kolejke` i `kuking:wyczysc-zalegle-cdn`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie zadania porządkowe o stałym rytmie, po kolei w jednym procesie.
 Harmonogram::artisan('kuking:odzyskaj-importy')
     ->name('kuking:odzyskaj-importy')
     ->everyFifteenMinutes()
