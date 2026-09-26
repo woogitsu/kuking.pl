@@ -123,8 +123,19 @@ class SitemapController extends Controller
             Profile::query()
                 ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
                 ->where(function ($maPubliczonaTresc): void {
+                    // Wpis liczy się tak, jak liczy go sam profil dla gościa
+                    // (`ProfileController::tylkoWidoczne()`): wpis z własną
+                    // treścią — według własnej widoczności, a czysta
+                    // zapowiedź przepisu — tylko z przepisem, który gość
+                    // może zobaczyć (issue #1805). Zapowiedź jest zawsze
+                    // `public`, także przy przepisie „tylko dla
+                    // obserwujących", prywatnym albo ukrytym przez
+                    // moderację; bez tej bramki wpuszczała do mapy profil,
+                    // na którym gość nie ma czego oglądać.
                     $maPubliczonaTresc
-                        ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                        ->whereHas('user.posts', fn ($query) => $query
+                            ->publiclyVisible()
+                            ->zWidocznymPrzepisemAlboWlasnaTrescia(null))
                         ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible());
                 })
                 ->select(['user_id', 'username', 'updated_at'])

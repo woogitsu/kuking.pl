@@ -12,6 +12,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\MojaWersja;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
+use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
@@ -463,9 +464,10 @@ class RecipeController extends Controller
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
             'wersje' => $wersje,
             'komentarze' => $komentarze,
-            // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
-            // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
-            'komentarzyRazem' => $komentarze->total(),
+            // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
+            // jak na karcie i stronie wpisu (D-281, D-309). `total()`
+            // stronicowania liczy same wątki, więc zostaje do paginacji.
+            'komentarzyRazem' => Comment::policzRozmowe($model->comments(), $request->user()),
             'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //
