@@ -1,0 +1,633 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Domain\Moderation\Actions\DolozDoOznaczenia;
+use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\Sygnaly\Sygnal;
+use App\Domain\Posts\Actions\EditPost;
+use App\Jobs\ProcessUploadedImage;
+use App\Jobs\PrzeanalizujTresc;
+use App\Models\Media;
+use App\Models\Post;
+use App\Models\Report;
+use App\Models\User;
+use App\Moderacja\ModelChwilowoNiedostepny;
+use App\Notifications\PilnyAlarmModeracyjny;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\ImageManager;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\TestCase;
+
+/**
+ * OCENA MODELEM: BUDŻET CZASU (#829) I ZDJĘCIA GOTOWE PO PUBLIKACJI (#830).
+ *
+ * #829 — zadanie ma 30 s, każde żądanie do modelu do 8 s, a żądań jest
+ * tekst + `zdjec_na_wpis`. Mierzymy WYNIK dla moderatora przy wolnym
+ * dostawcy, którego każda odpowiedź mieści się we własnym limicie. Zegar
+ * przesuwa atrapa (`Carbon::setTestNow`) — zgodnie z limitem, który klient
+ * NAPRAWDĘ nadał żądaniu (`$opcje['timeout']`): dłuższa odpowiedź to
+ * timeout, jak w Guzzle.
+ *
+ * #830 — zdjęcie przypięte do wpisu przed gotowością było pomijane i nikt
+ * do niego nie wracał. Przepływ: wpis ze zdjęciem w kolejce → analiza →
+ * prawdziwe `ProcessUploadedImage` → zlecona analiza → zdjęcie ocenione.
+ *
+ * Każde żądanie idzie w atrapę; `TestCase` ma `preventStrayRequests()`.
+ */
+class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const ORYGINALY = 'oryginal830';
+
+    private const WARIANTY = 'wariant830';
+
+    /** Ile sekund „trwa" jedna odpowiedź dostawcy. */
+    private int $odpowiedzTrwa = 0;
+
+    /** Dostawca odpowiada błędem 5xx od razu, bez przekroczenia czasu. */
+    private bool $awariaDostawcy = false;
+
+    /** Tylko ocena ZDJĘĆ trafia na przejściowe 503 — tekst odpowiada normalnie. */
+    private bool $awariaZdjec = false;
+
+    /** Żądania, które naprawdę wyszły — także te zakończone timeoutem (`Http::recorded()` ich nie liczy). */
+    private int $wyslane = 0;
+
+    /** Automat w bazie w chwili PIERWSZEGO żądania do modelu. */
+    private ?int $oznaczenPrzedModelem = null;
+
+    /** @var array<string, float> */
+    private array $wynikTekstu = ['hate' => 0.95];
+
+    /** @var array<string, float> */
+    private array $wynikZdjecia = ['hate' => 0.95];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Notification::fake();
+        Storage::fake('public');
+        Carbon::setTestNow(Carbon::parse('2026-09-24 12:00:00'));
+
+        config([
+            'kuking.moderation.sygnaly.wlaczone' => true,
+            'kuking.moderation.model.klucz' => 'atrapa-klucza',
+            'kuking.moderation.model.limit_czasu' => 8,
+            'kuking.moderation.model.ocenia_zdjecia' => true,
+            'kuking.moderation.model.zdjec_na_wpis' => 2,
+        ]);
+
+        Http::fake(function (Request $zadanie, array $opcje) {
+            $this->wyslane++;
+            $this->oznaczenPrzedModelem ??= Report::query()->where('source', Report::SOURCE_AUTOMAT)->count();
+
+            $limit = (int) ($opcje['timeout'] ?? 0);
+            $this->assertGreaterThan(0, $limit, 'Żądanie do modelu wyszło bez limitu czasu.');
+
+            if ($this->odpowiedzTrwa > $limit) {
+                Carbon::setTestNow(Carbon::now()->addSeconds($limit));
+
+                throw new ConnectionException('Przekroczony limit czasu (atrapa).');
+            }
+
+            Carbon::setTestNow(Carbon::now()->addSeconds($this->odpowiedzTrwa));
+
+            if ($this->awariaDostawcy) {
+                return Http::response('awaria', 503);
+            }
+
+            $obraz = ($zadanie['input'][0]['type'] ?? null) === 'image_url';
+
+            if ($obraz && $this->awariaZdjec) {
+                return Http::response('awaria', 503);
+            }
+
+            return Http::response(['results' => [['category_scores' => $obraz ? $this->wynikZdjecia : $this->wynikTekstu]]]);
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
+    // ---------------------------------------------------------------
+    // #829 — SYGNAŁY LOKALNE NIE CZEKAJĄ NA MODEL
+    // ---------------------------------------------------------------
+
+    public function test_lokalny_sygnal_jest_zapisany_zanim_ruszy_model_i_model_dopisuje_sie_do_niego(): void
+    {
+        $wpis = $this->wpis($this->user('spamer'), 'Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+
+        $this->assertSame(1, $this->oznaczenPrzedModelem, 'Sygnał lokalny czekał na koniec oceny modelem.');
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Jedno oznaczenie na treść (D-052).');
+        $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details);
+        $this->assertSame('automat_model', $oznaczenia[0]->reason, 'Cięższy sygnał modelu nie przesunął sprawy w kolejce.');
+        $this->assertGreaterThanOrEqual(2, substr_count((string) $oznaczenia[0]->details, "\n— "), 'W oznaczeniu brakuje sygnału lokalnego albo modelu.');
+    }
+
+    /**
+     * Pilny sygnał modelu dołożony do istniejącego oznaczenia alarmuje raz;
+     * powtórna analiza (np. po gotowości zdjęcia) nie wysyła drugiego listu.
+     */
+    public function test_pilny_sygnal_dolozony_alarmuje_raz(): void
+    {
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@example.test']);
+        $this->wynikTekstu = ['sexual/minors' => 0.9];
+        $wpis = $this->wpis($this->user('pilny'), 'Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+        $this->analizuj($wpis);
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertCount(1, $this->oznaczenia($wpis));
+        $this->assertSame(1, substr_count((string) $this->oznaczenia($wpis)[0]->details, 'Model ocenił tekst'));
+    }
+
+    /** @return array<string, array{int, int, int, int, bool}> */
+    public static function konfiguracje(): array
+    {
+        // [zdjęć na wpis, sekund na odpowiedź, oczekiwanych żądań,
+        //  niepełnych ocen (pominięte + bez odpowiedzi), wynik tekstu dotarł]
+        return [
+            // Kontrola dodatnia: szybki dostawca — budżet niczego nie ucina.
+            'szybko, 6 zdjęć' => [6, 1, 7, 0, true],
+            // Domyślne 2 zdjęcia przy wolnym dostawcy: 3 × 6 s = 18 s < 22 s.
+            'wolno, 2 zdjęcia' => [2, 6, 3, 0, true],
+            // Stary rachunek: 7 × 6 s = 42 s przy zadaniu 30 s. Teraz:
+            // tekst + 2 zdjęcia po 6 s; trzecie wychodzi z limitem 4 s i nie
+            // wraca (timeout = ocena NIEUDANA, nie czysta), 3 pominięte.
+            'wolno, 6 zdjęć' => [6, 6, 4, 4, true],
+            // Każda odpowiedź dłuższa niż limit: tekst 8 s, zdjęcie 8 s,
+            // zdjęcie z limitem 6 s — wszystkie timeout — reszta pominięta.
+            // Model nie powiedział NIC, a sprawa nie może wyglądać na czystą.
+            'każda odpowiedź dłuższa niż limit' => [6, 9, 3, 7, false],
+        ];
+    }
+
+    #[DataProvider('konfiguracje')]
+    public function test_ocena_miesci_sie_w_czasie_zadania_i_mowi_ze_jest_niepelna(int $zdjec, int $sekund, int $zadan, int $niepelnych, bool $wynikTekstu): void
+    {
+        config(['kuking.moderation.model.zdjec_na_wpis' => $zdjec]);
+        $this->odpowiedzTrwa = $sekund;
+        $log = Log::spy();
+
+        $autor = $this->user('wolny');
+        $wpis = $this->wpis($autor, 'Zarabiaj z domu, tel. 600 100 200');
+
+        foreach (range(1, 6) as $pozycja) {
+            $wpis->media()->attach($this->gotoweZdjecie($autor), ['position' => $pozycja]);
+        }
+
+        $start = Carbon::now();
+        $this->analizuj($wpis);
+        $trwalo = (int) $start->diffInSeconds(Carbon::now());
+
+        $this->assertSame($zadan, $this->wyslane);
+        $this->assertLessThanOrEqual(
+            (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'x'))->timeout - PrzeanalizujTresc::ZAPAS_SEKUND,
+            $trwalo,
+            'Ocena modelem wyszła poza budżet zadania.',
+        );
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia);
+        $opis = (string) $oznaczenia[0]->details;
+
+        if ($wynikTekstu) {
+            $this->assertStringContainsString('Model ocenił tekst', $opis, 'Wynik modelu uzyskany przed końcem budżetu przepadł.');
+        } else {
+            $this->assertStringNotContainsString('Model ocenił', $opis);
+        }
+
+        if ($niepelnych === 0) {
+            $this->assertStringNotContainsString('NIEPEŁNA', $opis);
+            $log->shouldNotHaveReceived('warning', [\Mockery::any(), \Mockery::on(fn ($k): bool => ($k['stage'] ?? null) === 'model_budzet')]);
+
+            return;
+        }
+
+        $this->assertStringContainsString("NIEPEŁNA: {$niepelnych} z ocen", $opis);
+        $log->shouldHaveReceived('warning')->withArgs(
+            fn (string $w, array $k = []): bool => ($k['stage'] ?? null) === 'model_budzet' && ($k['niepelne'] ?? null) === $niepelnych,
+        )->once();
+
+        // Ponowna analiza nie dopisuje drugiej uwagi o niepełnej ocenie.
+        Carbon::setTestNow(Carbon::now()->addMinute());
+        $this->analizuj($wpis);
+        $this->assertSame(1, substr_count((string) $this->oznaczenia($wpis)[0]->details, 'NIEPEŁNA'), 'Uwaga o niepełnej ocenie dopisana drugi raz.');
+    }
+
+    /**
+     * Nieudane żądanie BEZ przekroczenia czasu (5xx) to też ocena niepełna,
+     * nie „model nic nie znalazł".
+     */
+    public function test_blad_dostawcy_liczy_sie_jako_ocena_niepelna(): void
+    {
+        $this->awariaDostawcy = true;
+        $wpis = $this->wpis($this->user('awaria'), 'Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+
+        $this->assertStringContainsString('NIEPEŁNA: 1 z ocen', (string) $this->oznaczenia($wpis)[0]->details);
+    }
+
+    /**
+     * Scalenie #829 z #1662: przejściowa awaria jednej oceny (zdjęcie, 503)
+     * nie zabiera ze sobą oceny, która w tej samej próbie się udała (tekst).
+     * Przed scaleniem `OcenaModelem` rzucała na pierwszej awarii i ocena
+     * tekstu przepadała razem z próbą.
+     *
+     * Próba nieostatnia: sygnał tekstu zapisany, zadanie wraca do kolejki,
+     * bez uwagi „NIEPEŁNA”. Następna próba (zdjęcia już odpowiadają) dokłada
+     * się do TEJ SAMEJ sprawy, a ocena tekstu nie dubluje się. Ostatnia
+     * próba z awarią: sygnał tekstu jest, sprawa mówi „NIEPEŁNA”, zadanie
+     * oznaczone jako nieudane.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): `throw` w `OcenaModelem::ocen()`
+     * zamiast zapamiętania awarii → test oblewa na pierwszej asercji.
+     */
+    public function test_przejsciowa_awaria_zdjecia_nie_zabiera_oceny_tekstu(): void
+    {
+        $this->awariaZdjec = true;
+        $autor = $this->user('czesciowa');
+        $wpis = $this->wpis($autor, 'Zupa pomidorowa jak u mamy.');
+        $wpis->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
+
+        $proba = function (int $numer) use ($wpis): PrzeanalizujTresc {
+            $zadanie = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $wpis->getKey()))
+                ->withFakeQueueInteractions();
+            $zadanie->job->attempts = $numer;
+            $this->app->call([$zadanie, 'handle']);
+
+            return $zadanie;
+        };
+
+        $proba(1)->assertReleased();
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Ocena tekstu przepadła razem z przejściową awarią oceny zdjęcia.');
+        $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details);
+        $this->assertStringNotContainsString('NIEPEŁNA', (string) $oznaczenia[0]->details, 'Uwaga o niepełnej ocenie przed ostatnią próbą.');
+
+        $this->awariaZdjec = false;
+        $proba(2)->assertNotReleased();
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Ponowienie postawiło drugą sprawę zamiast dołożyć do istniejącej.');
+        $this->assertSame(1, substr_count((string) $oznaczenia[0]->details, 'Model ocenił tekst'), 'Ocena tekstu zdublowała się przy ponowieniu.');
+        $this->assertStringContainsString('Model ocenił zdjęcie', (string) $oznaczenia[0]->details);
+
+        // Ostatnia próba z awarią na innym wpisie: sygnał tekstu zostaje,
+        // sprawa mówi „NIEPEŁNA”, zadanie jest nieudane.
+        $this->awariaZdjec = true;
+        $drugi = $this->wpis($autor, 'Barszcz czerwony na Wigilię.');
+        $drugi->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
+        $ostatnia = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $drugi->getKey()))->withFakeQueueInteractions();
+        $ostatnia->job->attempts = PrzeanalizujTresc::PROBY;
+        $this->app->call([$ostatnia, 'handle']);
+
+        $ostatnia->assertNotReleased();
+        $ostatnia->assertFailedWith(ModelChwilowoNiedostepny::class);
+        $sprawa = (string) $this->oznaczenia($drugi)[0]->details;
+        $this->assertStringContainsString('Model ocenił tekst', $sprawa);
+        $this->assertStringContainsString('Ocena modelem NIEPEŁNA', $sprawa);
+    }
+
+    // ---------------------------------------------------------------
+    // D-052 — ISTNIEJĄCA OTWARTA SPRAWA DOSTAJE NOWE SYGNAŁY
+    // ---------------------------------------------------------------
+
+    /**
+     * Niezależnie od tego, co `OznaczDoPrzegladu::handle()` oddaje dla
+     * treści już oglądanej (`null` przed #1051, istniejący wiersz po nim),
+     * nowe sygnały trafiają do TEJ SAMEJ, jedynej sprawy.
+     */
+    public function test_istniejaca_otwarta_sprawa_dostaje_nowe_sygnaly(): void
+    {
+        $wpis = $this->wpis($this->user('istniejaca'), 'Zupa pomidorowa jak u mamy.');
+        $sprawa = Report::query()->create([
+            'reporter_id' => null,
+            'autor_tresci_id' => $wpis->author_id,
+            'source' => Report::SOURCE_AUTOMAT,
+            'target_type' => ModeratedContent::typ($wpis),
+            'target_id' => $wpis->getKey(),
+            'reason' => 'automat_odnosnik',
+            'details' => "Automat oznaczył tę treść do przeglądu.\n— Wcześniejszy powód.",
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->analizuj($wpis);
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Nowe sygnały postawiły drugą sprawę (D-052).');
+        $this->assertSame($sprawa->getKey(), $oznaczenia[0]->getKey());
+        $this->assertStringContainsString('Wcześniejszy powód.', (string) $oznaczenia[0]->details);
+        $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details, 'Sygnał modelu nie dopisał się do istniejącej sprawy.');
+        $this->assertSame('automat_model', $oznaczenia[0]->reason);
+    }
+
+    /**
+     * Pilny sygnał DOŁOŻONY do istniejącej sprawy zapisuje obowiązek alarmu
+     * (`ZALEGLY`) w tej samej transakcji co opis (#1051). Wołamy samą akcję,
+     * bez `AlarmujModeratora` — dokładnie stan po workerze ubitym między
+     * zatwierdzeniem a listem.
+     */
+    public function test_pilny_sygnal_dolozony_zapisuje_zalegly_alarm_przed_listem(): void
+    {
+        $sprawa = $this->otwartaSprawa($this->wpis($this->user('zalegly'), 'Zupa pomidorowa jak u mamy.'));
+
+        app(DolozDoOznaczenia::class)->handle($this->tresc($sprawa), [new Sygnal('automat_model', 'Pilny sygnał modelu.', pilny: true)]);
+
+        $this->assertSame(Report::ALARM_ZALEGLY, $sprawa->fresh()->alarm_pilny_stan, 'Pilny sygnał dołożony bez śladu obowiązku alarmu.');
+
+        // Kontrola: niepilny sygnał nie zakłada obowiązku alarmu.
+        $druga = $this->otwartaSprawa($this->wpis($this->user('niepilny'), 'Pierogi ruskie.'));
+        app(DolozDoOznaczenia::class)->handle($this->tresc($druga), [new Sygnal('automat_model', 'Zwykły sygnał modelu.')]);
+        $this->assertNull($druga->fresh()->alarm_pilny_stan);
+    }
+
+    /** Awaria dziennika nie cofa dołożonych sygnałów (D-249, klasa 2 — uzupełnienie z 26 września, jak w `OznaczDoPrzegladu`). */
+    public function test_awaria_dziennika_nie_cofa_dolozonych_sygnalow(): void
+    {
+        Exceptions::fake();
+        $sprawa = $this->otwartaSprawa($this->wpis($this->user('awariadz'), 'Zupa pomidorowa jak u mamy.'));
+        DB::listen(function ($zapytanie): void {
+            if (str_contains($zapytanie->sql, 'insert into "audit_log"')
+                && in_array('content.flagged_by_automat', $zapytanie->bindings, true)) {
+                throw new \RuntimeException('Wstrzyknięta awaria dziennika.');
+            }
+        });
+
+        $wynik = app(DolozDoOznaczenia::class)->handle($this->tresc($sprawa), [new Sygnal('automat_model', 'Pilny sygnał modelu.', pilny: true)]);
+
+        $this->assertNotNull($wynik, 'Awaria dziennika zjadła wynik — alarm by nie poszedł.');
+        $this->assertStringContainsString('Pilny sygnał modelu.', (string) $sprawa->fresh()->details);
+        $this->assertSame(Report::ALARM_ZALEGLY, $sprawa->fresh()->alarm_pilny_stan);
+        Exceptions::assertReported(fn (\RuntimeException $e): bool => str_contains($e->getMessage(), '„content.flagged_by_automat"'));
+    }
+
+    private function otwartaSprawa(Post $wpis): Report
+    {
+        return Report::query()->create([
+            'reporter_id' => null,
+            'autor_tresci_id' => $wpis->author_id,
+            'source' => Report::SOURCE_AUTOMAT,
+            'target_type' => ModeratedContent::typ($wpis),
+            'target_id' => $wpis->getKey(),
+            'reason' => 'automat_odnosnik',
+            'details' => "Automat oznaczył tę treść do przeglądu.\n— Wcześniejszy powód.",
+            'status' => Report::STATUS_OPEN,
+        ]);
+    }
+
+    private function tresc(Report $sprawa): Post
+    {
+        return Post::query()->findOrFail($sprawa->target_id);
+    }
+
+    public function test_wylaczona_ocena_zdjec_i_brak_klucza_nie_zaliczaja_sie_do_niepelnej(): void
+    {
+        config(['kuking.moderation.model.ocenia_zdjecia' => false, 'kuking.moderation.model.zdjec_na_wpis' => 6]);
+        $autor = $this->user('bezzdjec');
+        $wpis = $this->wpis($autor, 'Zarabiaj z domu, tel. 600 100 200');
+        $wpis->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
+
+        $this->analizuj($wpis);
+        Http::assertSentCount(1);
+
+        config(['kuking.moderation.model.klucz' => null]);
+        $drugi = $this->wpis($autor, 'Zarabiaj z domu, tel. 600 100 201');
+        $this->analizuj($drugi);
+
+        Http::assertSentCount(1);
+        $this->assertCount(1, $this->oznaczenia($drugi), 'Bez klucza przestały działać sygnały lokalne.');
+
+        foreach ([$wpis, $drugi] as $tresc) {
+            $this->assertStringNotContainsString('NIEPEŁNA', (string) $this->oznaczenia($tresc)[0]->details);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // #830 — ZDJĘCIE GOTOWE PO PUBLIKACJI
+    // ---------------------------------------------------------------
+
+    public function test_zdjecie_przygotowane_po_analizie_zostaje_ocenione(): void
+    {
+        $this->wynikTekstu = ['hate' => 0.01];
+        $this->wynikZdjecia = ['violence/graphic' => 0.9];
+        [$wpis, $zdjecie] = $this->wpisZeZdjeciemWKolejce();
+
+        // Analiza z publikacji rusza, zanim zdjęcie ma warianty.
+        $this->analizuj($wpis);
+        Http::assertSentCount(1);
+        $this->assertCount(0, $this->oznaczenia($wpis));
+
+        Queue::fake([PrzeanalizujTresc::class]);
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+        $this->assertSame(Media::STATUS_READY, $zdjecie->refresh()->status);
+
+        Queue::assertPushed(PrzeanalizujTresc::class, 1);
+        Queue::assertPushed(PrzeanalizujTresc::class, fn (PrzeanalizujTresc $z): bool => $z->typ === PrzeanalizujTresc::TYP_WPIS && $z->id === (string) $wpis->getKey());
+
+        // Ponowne dostarczenie zadania zdjęcia nie zleca drugiej analizy.
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+        Queue::assertPushed(PrzeanalizujTresc::class, 1);
+
+        $this->analizuj($wpis);
+        $this->analizuj($wpis);
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Ponowna analiza postawiła drugie oznaczenie.');
+        $this->assertSame(1, substr_count((string) $oznaczenia[0]->details, 'Model ocenił zdjęcie'), 'Powód zdjęcia dopisany dwa razy.');
+    }
+
+    public function test_zdjecie_gotowe_dopisuje_sie_do_istniejacego_oznaczenia(): void
+    {
+        $this->wynikTekstu = ['hate' => 0.01];
+        $this->wynikZdjecia = ['violence/graphic' => 0.9];
+        [$wpis, $zdjecie] = $this->wpisZeZdjeciemWKolejce('Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+        $this->assertCount(1, $this->oznaczenia($wpis));
+        $this->assertStringNotContainsString('zdjęcie', (string) $this->oznaczenia($wpis)[0]->details);
+
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia);
+        $this->assertStringContainsString('Model ocenił zdjęcie', (string) $oznaczenia[0]->details, 'Sygnał zdjęcia przepadł na deduplikacji.');
+        $this->assertSame('automat_model', $oznaczenia[0]->reason);
+    }
+
+    public function test_zamknietej_sprawy_nie_otwiera_ale_zostawia_slad(): void
+    {
+        $this->wynikTekstu = ['hate' => 0.01];
+        $this->wynikZdjecia = ['violence/graphic' => 0.9];
+        [$wpis, $zdjecie] = $this->wpisZeZdjeciemWKolejce('Zarabiaj z domu, tel. 600 100 200');
+
+        $this->analizuj($wpis);
+        $sprawa = $this->oznaczenia($wpis)[0];
+        $sprawa->forceFill([
+            'status' => Report::STATUS_REJECTED,
+            'resolved_by' => $this->user('moderator')->getKey(),
+            'resolved_at' => now(),
+            'resolution_note' => 'To nic takiego.',
+        ])->save();
+        $przed = (string) $sprawa->details;
+        $log = Log::spy();
+
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+
+        $sprawa->refresh();
+        $this->assertSame(Report::STATUS_REJECTED, $sprawa->status, '„To nic takiego" wróciło do kolejki.');
+        $this->assertSame($przed, (string) $sprawa->details);
+        $log->shouldHaveReceived('warning')->withArgs(
+            fn (string $w, array $k = []): bool => ($k['stage'] ?? null) === 'automat_sprawa_zamknieta',
+        )->once();
+    }
+
+    /** @return array<string, array{string}> */
+    public static function zdjeciaBezOceny(): array
+    {
+        return [
+            'wpis prywatny przed gotowością' => ['prywatny_przed'],
+            'wpis prywatny po zleceniu' => ['prywatny_po'],
+            'zdjęcie odpięte' => ['odpiete'],
+            'zdjęcie poza limitem' => ['poza_limitem'],
+            'przetwarzanie nieudane' => ['odrzucone'],
+        ];
+    }
+
+    #[DataProvider('zdjeciaBezOceny')]
+    public function test_zdjecie_bez_prawa_do_oceny_nie_wychodzi(string $przypadek): void
+    {
+        [$wpis, $zdjecie] = $this->wpisZeZdjeciemWKolejce();
+        $this->analizuj($wpis);
+        Http::assertSentCount(1);
+
+        match ($przypadek) {
+            'prywatny_przed' => app(EditPost::class)->handle($wpis->author, $wpis, $wpis->body, Post::VISIBILITY_PRIVATE),
+            'odpiete' => $wpis->media()->detach($zdjecie->getKey()),
+            'poza_limitem' => $this->dopnijPrzed($wpis, $zdjecie),
+            'odrzucone' => Storage::disk(self::ORYGINALY)->delete($zdjecie->object_key),
+            default => null,
+        };
+
+        Queue::fake([PrzeanalizujTresc::class]);
+
+        try {
+            (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+        } catch (\RuntimeException) {
+            // `odrzucone`: zadanie zdjęcia rzuca, żeby kolejka je ponowiła.
+        }
+
+        if ($przypadek === 'prywatny_po') {
+            Queue::assertPushed(PrzeanalizujTresc::class, 1);
+            app(EditPost::class)->handle($wpis->author, $wpis, $wpis->body, Post::VISIBILITY_PRIVATE);
+            $this->analizuj($wpis);
+        } else {
+            Queue::assertNotPushed(PrzeanalizujTresc::class);
+        }
+
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $r): bool => ($r['input'][0]['type'] ?? null) === 'image_url');
+    }
+
+    // ---------------------------------------------------------------
+    // POMOCNICZE
+    // ---------------------------------------------------------------
+
+    private function wpis(User $autor, string $tekst): Post
+    {
+        return Post::factory()->create([
+            'author_id' => $autor->getKey(),
+            'body' => $tekst,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+    }
+
+    private function analizuj(Post $wpis): void
+    {
+        $this->app->call([new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $wpis->getKey()), 'handle']);
+    }
+
+    /** @return list<Report> */
+    private function oznaczenia(Post $wpis): array
+    {
+        return Report::query()
+            ->where('source', Report::SOURCE_AUTOMAT)
+            ->where('target_id', $wpis->getKey())
+            ->get()
+            ->all();
+    }
+
+    private function gotoweZdjecie(User $wlasciciel): Media
+    {
+        $klucz = 'media/test/'.Str::uuid()->toString().'_thumb.webp';
+        Storage::disk('public')->put($klucz, (string) ImageManager::gd()->create(320, 240)->fill('cc4400')->toWebp());
+
+        return Media::factory()->create([
+            'owner_id' => $wlasciciel->getKey(),
+            'disk' => 'public',
+            'variants_disk' => null,
+            'status' => Media::STATUS_READY,
+            'metadata' => ['variants' => ['thumb' => ['key' => $klucz, 'width' => 320, 'height' => 240]]],
+        ]);
+    }
+
+    /** @return array{Post, Media} */
+    private function wpisZeZdjeciemWKolejce(string $tekst = 'Zupa pomidorowa jak u mamy.'): array
+    {
+        Storage::fake(self::ORYGINALY);
+        Storage::fake(self::WARIANTY);
+
+        $autor = $this->user('czeka');
+        $klucz = 'incoming/'.Str::uuid()->toString().'.jpg';
+        Storage::disk(self::ORYGINALY)->put($klucz, (string) ImageManager::gd()->create(1400, 900)->fill('0a1e5a')->toJpeg());
+
+        $zdjecie = Media::create([
+            'owner_id' => $autor->getKey(),
+            'disk' => self::ORYGINALY,
+            'variants_disk' => self::WARIANTY,
+            'object_key' => $klucz,
+            'status' => Media::STATUS_PROCESSING,
+            'metadata' => [],
+        ]);
+
+        $wpis = $this->wpis($autor, $tekst);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 1]);
+
+        return [$wpis, $zdjecie];
+    }
+
+    /** Dwa gotowe zdjęcia przed badanym — przy limicie 2 badane wypada poza ocenę. */
+    private function dopnijPrzed(Post $wpis, Media $zdjecie): void
+    {
+        $wpis->media()->updateExistingPivot($zdjecie->getKey(), ['position' => 3]);
+        $wpis->media()->attach($this->gotoweZdjecie($wpis->author), ['position' => 1]);
+        $wpis->media()->attach($this->gotoweZdjecie($wpis->author), ['position' => 2]);
+    }
+}

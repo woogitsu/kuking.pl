@@ -29,7 +29,8 @@ use Tests\TestCase;
  *
  * Próby prowadzimy ręcznie (`withFakeQueueInteractions()` i numer próby),
  * bo kolejka `sync` nie ponawia zadań — a sedno leży w tym, co zadanie robi
- * MIĘDZY próbami: nie zapisuje nic i przy następnej pyta o treść od nowa.
+ * MIĘDZY próbami: zapisuje tylko to, co już wie (sygnały lokalne i oceny,
+ * które się udały — #829), i przy następnej pyta o treść od nowa.
  */
 class ModeracjaPonowienieModeluTest extends TestCase
 {
@@ -199,9 +200,11 @@ class ModeracjaPonowienieModeluTest extends TestCase
         $this->proba($wpis, 1)->assertReleased();
         $this->proba($wpis, 2)->assertReleased();
 
-        // Lokalny sygnał CZEKA na ocenę modelu, bo oznaczenie postawione bez
-        // niej zamknęłoby drogę ocenie z następnej próby.
-        $this->assertCount(0, $this->oznaczenia());
+        // Od #829 lokalny sygnał NIE CZEKA na ocenę modelu: jest zapisany już
+        // przy pierwszej próbie, a ocena z następnej dokłada się do tej samej
+        // sprawy (`DolozDoOznaczenia`) — ponowienia nie stawiają drugiej.
+        $this->assertCount(1, $this->oznaczenia(), 'Lokalny sygnał czekał na model albo ponowienie postawiło drugą sprawę.');
+        $this->assertStringNotContainsString('NIEPEŁNA', (string) $this->oznaczenia()->first()->details, 'Uwaga o niepełnej ocenie przed ostatnią próbą — kolejna może ocenić całość.');
 
         $ostatnia = $this->proba($wpis, 3);
 
@@ -211,6 +214,7 @@ class ModeracjaPonowienieModeluTest extends TestCase
         $oznaczenia = $this->oznaczenia();
         $this->assertCount(1, $oznaczenia, 'Lokalny sygnał przepadł razem z oceną modelu.');
         $this->assertSame(WykrywaczSygnalow::KOD_WZORZEC, $oznaczenia->first()->reason);
+        $this->assertStringContainsString('Ocena modelem NIEPEŁNA', (string) $oznaczenia->first()->details, 'Po ostatniej nieudanej próbie sprawa ma mówić, że model jej nie ocenił (#829).');
 
         $log->shouldHaveReceived('warning')->withArgs(
             fn (string $komunikat, array $kontekst = []): bool => ($kontekst['stage'] ?? null) === 'openai_retries_exhausted'

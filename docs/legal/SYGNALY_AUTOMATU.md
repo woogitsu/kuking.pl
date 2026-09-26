@@ -383,10 +383,13 @@ Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
   połączenie, HTTP 429 i 500/502/503/504 kończą się
   `ModelChwilowoNiedostepny`, a `PrzeanalizujTresc` wraca do kolejki
   (najwyżej 3 próby, opóźnienie ok. 30 s i 120 s z rozrzutem do 20%,
-  `Retry-After` w sekundach wydłuża je do najwyżej 600 s). Między próbami
-  nic nie jest zapisywane, a każda próba od nowa sprawdza status,
-  widoczność i `GranicaWysylki`. Po trzeciej porażce lokalne sygnały są
-  zapisane bez oceny modelu, w dzienniku zostaje
+  `Retry-After` w sekundach wydłuża je do najwyżej 600 s). Sygnały lokalne
+  są zapisane już przy pierwszej próbie, przed modelem (#829), a oceny,
+  które w danej próbie się udały (np. tekst, gdy awarię dostało tylko
+  zdjęcie), trafiają do sprawy przed ponowieniem — następna próba dokłada
+  resztę do TEJ SAMEJ sprawy (`DolozDoOznaczenia`), bez dublowania. Każda
+  próba od nowa sprawdza status, widoczność i `GranicaWysylki`. Po trzeciej
+  porażce sprawa dostaje uwagę „Ocena modelem NIEPEŁNA”, w dzienniku zostaje
   `stage=openai_retries_exhausted`, a zadanie trafia do `failed_jobs`.
   Pozostałe 4xx, 501, brak klucza i odpowiedź w nieznanym kształcie nie są
   ponawiane. Każda próba ma własny limit 30 s — ponowienia nie wydłużają

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Moderacja;
 
+use App\Domain\Moderation\Sygnaly\Sygnal;
 use RuntimeException;
 
 /**
@@ -22,9 +23,16 @@ final class ModelChwilowoNiedostepny extends RuntimeException
     /**
      * @param  ?int  $ponowZaSekund  wartość `Retry-After` z odpowiedzi 429/503,
      *                               jeśli dostawca ją podał w sekundach
+     * @param  list<Sygnal>  $czesciowe  sygnały z ocen, które w tej samej próbie
+     *                                   się udały (#829 + #1662) — zadanie
+     *                                   zapisuje je przed ponowieniem, bo
+     *                                   `DolozDoOznaczenia` dokłada następną
+     *                                   ocenę do tej samej sprawy
      */
-    public function __construct(public readonly ?int $ponowZaSekund = null)
-    {
+    public function __construct(
+        public readonly ?int $ponowZaSekund = null,
+        public readonly array $czesciowe = [],
+    ) {
         parent::__construct('Model moderacji chwilowo niedostępny.');
     }
 }

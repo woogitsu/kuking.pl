@@ -16286,6 +16286,29 @@ wywołania przypisane do klas:
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
 
+**Uzupełnienie (#829, #830, #1051, 26 września 2026 — decyzja właściciela).**
+`content.flagged_by_automat` — **klasa 2**, w obu miejscach, które go piszą:
+
+- `OznaczDoPrzegladu` (nowa sprawa automatu) — już tak od #1051.
+- `DolozDoOznaczenia` (sygnały dołożone do istniejącej sprawy, `dolozone:
+  true` w metadanych) — od dopisku `7fb4e467` do PR #1548. Wcześniej gołe
+  `record()` stało WEWNĄTRZ transakcji dokładania, więc awaria dziennika
+  cofała dołożone sygnały, a wyjątek połykany w `PrzeanalizujTresc` zjadał
+  pilny alarm.
+
+Autorytatywny ślad to wiersz `reports` (`source = automat`, powód, opis
+sygnałów, `alarm_pilny_stan`), zatwierdzany razem z obowiązkiem alarmu:
+pilny sygnał dołożony do sprawy bez stanu alarmu zapisuje `ZALEGLY` w tej
+samej transakcji. Na pytanie rozstrzygające odpowiedź brzmi „tak" — ślad
+decyzji automatu zostaje w bazie bez wpisu dziennika, a o tym, co z nim
+zrobić, i tak decyduje człowiek (`moderation.decided`, klasa 1). Awaria
+dziennika idzie do `report()` z nazwą braku; sygnały i alarm zostają.
+
+Dowód: `PilnyAlarmModeracyjnyNieGinieTest` (nowa sprawa) i
+`ModeracjaBudzetIZdjeciaPoGotowosciTest::test_awaria_dziennika_nie_cofa_dolozonych_sygnalow`
+oraz `test_pilny_sygnal_dolozony_zapisuje_zalegly_alarm_przed_listem`
+(dokładanie).
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
