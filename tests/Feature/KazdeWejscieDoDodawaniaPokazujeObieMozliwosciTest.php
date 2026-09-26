@@ -332,7 +332,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
             ],
             'home-pusty-stan' => [
                 $this->zalogujIWezAdres(fn () => route('home')),
-                'Dodaj pierwsze zdjęcie',
+                'Dodaj wpis',
                 null,
                 false,
             ],
@@ -361,7 +361,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
             ],
             'odkryj-pusty-stan' => [
                 $this->zalogujIWezAdres(fn () => route('discover')),
-                'Dodaj pierwsze zdjęcie',
+                'Dodaj wpis',
                 null,
                 false,
             ],

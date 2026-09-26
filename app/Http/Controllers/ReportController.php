@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\CelZgloszenia;
+use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -220,9 +221,14 @@ class ReportController extends Controller
             ->orderByDesc('id')
             ->paginate(20);
 
+        $decyzje = $this->decyzjeDla($zgloszenia->getCollection()->all());
+
         return view('pages.zgloszenia.lista', [
             'zgloszenia' => $zgloszenia,
-            'decyzje' => $this->decyzjeDla($zgloszenia->getCollection()->all()),
+            'decyzje' => $decyzje,
+            // Decyzje cofnięte po odwołaniu autora (#1024) — lista ma
+            // pokazywać AKTUALNY skutek, nie pierwszą odpowiedź.
+            'zmiany' => ZmianaDecyzjiPoOdwolaniu::dla($decyzje),
         ]);
     }
 
@@ -236,11 +242,16 @@ class ReportController extends Controller
     {
         $this->authorize('view', $report);
 
+        // Jedna decyzja na zgłoszenie (`moderation_actions_one_per_report`),
+        // więc to zapytanie trafia w co najwyżej jeden wiersz.
+        $decyzja = ModerationAction::query()->where('report_id', $report->getKey())->first();
+
         return view('pages.zgloszenia.szczegoly', [
             'zgloszenie' => $report,
-            // Jedna decyzja na zgłoszenie (`moderation_actions_one_per_report`),
-            // więc to zapytanie trafia w co najwyżej jeden wiersz.
-            'decyzja' => ModerationAction::query()->where('report_id', $report->getKey())->first(),
+            'decyzja' => $decyzja,
+            // Cofnięcie po odwołaniu autora (#1024). Karta pokazuje OBIE
+            // decyzje: pierwsza zapadła i nie udajemy, że jej nie było.
+            'zmiana' => $decyzja === null ? null : ZmianaDecyzjiPoOdwolaniu::czyZmieniona($decyzja),
         ]);
     }
 
