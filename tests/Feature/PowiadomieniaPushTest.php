@@ -222,6 +222,68 @@ final class PowiadomieniaPushTest extends TestCase
         $this->assertSame(0, $autor->notifications()->whereNull('push_wyslano_at')->count());
     }
 
+    /**
+     * Drugi worker startuje, gdy pierwszy jest już w transporcie (po COMMIT
+     * rezerwacji). Dotychczasowy licznik sukcesów widzi wtedy zero — to
+     * kontrola ujemna odtwarzająca #1992 bez zewnętrznej wysyłki.
+     */
+    public function test_rownolegly_transport_nie_przydziela_drugiego_slotu(): void
+    {
+        $autor = $this->user('autor_wyscig_push');
+        $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/wyscig');
+        $pierwsze = $this->powiadomienie($autor, 'Pierwsze');
+        Queue::fake();
+
+        $drugiTransport = new FalszywyTransportPush;
+        $wstrzymano = false;
+        $transport = new class(function () use ($autor, $drugiTransport, &$wstrzymano): void {
+            $wstrzymano = true;
+            $this->assertNull($autor->notifications()->first()->push_wyslano_at);
+            $this->assertNotNull($autor->notifications()->first()->push_proba_at);
+            $this->powiadomienie($autor, 'Drugie');
+            (new WyslijPowiadomieniePush((string) $autor->getKey()))->handle($drugiTransport);
+        }) implements TransportPush
+        {
+            public int $wywolania = 0;
+
+            public function __construct(private readonly \Closure $wTrakcieWysylki) {}
+
+            public function wyslij(PushSubscription $subskrypcja, string $tresc): WynikWysylkiPush
+            {
+                $this->wywolania++;
+                ($this->wTrakcieWysylki)();
+
+                return WynikWysylkiPush::Wyslano;
+            }
+        };
+
+        (new WyslijPowiadomieniePush((string) $autor->getKey()))->handle($transport);
+
+        $this->assertTrue($wstrzymano, 'Kontrola dodatnia: transport pierwszej grupy nie ruszył.');
+        $this->assertSame(1, $transport->wywolania);
+        $this->assertSame([], $drugiTransport->wyslane, 'Równoległy worker przekroczył limit 1.');
+        $this->assertNotNull($pierwsze->refresh()->push_wyslano_at);
+        $this->assertSame(1, $autor->notifications()->whereNull('push_proba_at')->count());
+        Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
+    }
+
+    public function test_rezerwacja_z_wczoraj_zajmuje_slot_podczas_trwajacego_retry(): void
+    {
+        $autor = $this->user('autor_retry_przez_polnoc');
+        $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/polnoc');
+        $pierwsze = $this->powiadomienie($autor, 'Pierwsze');
+        $pierwsze->forceFill(['push_proba_at' => now()])->save();
+
+        $this->travelTo(CarbonImmutable::parse('2026-09-26 06:00:00', 'UTC'));
+        $drugie = $this->powiadomienie($autor, 'Drugie');
+        Queue::fake();
+        $this->uruchomZadanie($autor);
+
+        $this->assertSame([], $this->transport->wyslane);
+        $this->assertNull($drugie->refresh()->push_proba_at);
+        Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
+    }
+
     public function test_przeczytane_w_serwisie_nie_idzie_pushem(): void
     {
         $autor = $this->user('autor_przeczytane');
@@ -400,6 +462,28 @@ final class PowiadomieniaPushTest extends TestCase
             $powiadomienie->refresh()->push_wyslano_at,
             'Trwała porażka nie ma prawa twierdzić, że wysłano (#1960).',
         );
+        $this->assertNotNull($powiadomienie->refresh()->push_zakonczono_at);
+
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Wyslano);
+        (new WyslijPowiadomieniePush(
+            userId: $autor->getKey(),
+            notificationIds: [(string) $powiadomienie->getKey()],
+            tresc: (string) json_encode(['body' => 'Rosół', 'url' => '/powiadomienia']),
+            probaTransportu: 3,
+        ))->handle($this->transport);
+        $this->assertCount(2, $this->transport->wyslane, 'Spóźnione retry nie wysyła zakończonej grupy.');
+
+        // Zakończona grupa zostaje poza pulą, a nowe zdarzenie czeka do jutra.
+        $drugie = $this->powiadomienie($autor, 'Drugie');
+        Queue::fake();
+        $this->uruchomZadanie($autor);
+        $this->assertNull($drugie->refresh()->push_proba_at);
+        Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
+
+        $this->travelTo(CarbonImmutable::parse('2026-09-26 06:00:00', 'UTC'));
+        $this->uruchomZadanie($autor);
+        $this->assertNotNull($drugie->refresh()->push_wyslano_at);
+        $this->assertNull($powiadomienie->refresh()->push_wyslano_at);
     }
 
     public function test_zbanowany_odbiorca_nie_dostaje_pushu(): void

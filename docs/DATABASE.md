@@ -2647,6 +2647,21 @@ ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
 porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
 push_wyslano_at IS NULL`), ale nie odwrotnie.
 
+**`push_zakonczono_at timestamptz NULL`** (#1992, migracja
+`2026_09_26_200000_zakoncz_rezerwacje_push`) — koniec wszystkich prób
+transportu bez pełnego sukcesu. Dopóki pole jest puste, `push_proba_at`
+rezerwuje slot limitu także dla równoległego zadania i przez zmianę doby
+(najwyżej 48 godzin). Udany transport rozlicza slot według
+`push_wyslano_at`. Trwała porażka zajmuje slot do końca doby zakończenia,
+potem go zwalnia; grupa nie wraca do świeżego wyboru, bo `push_proba_at`
+pozostaje. Ponowienie starsze niż 48 godzin kończy się bez wysyłki.
+Zachowujemy ostrożny rachunek także przy częściowym dostarczeniu na jedno
+z urządzeń: zakończona grupa zajmuje slot w dobie zakończenia nawet wtedy,
+gdy pełne `push_wyslano_at` nadal jest puste. Kolumna jest nullable bez
+defaultu, więc dodanie nie przepisuje tabeli. Rollback odmawia, gdy są
+zakończone rezerwacje: ich znacznik jest potrzebny do rozróżnienia od
+aktywnych prób. Wtedy wycofujemy kod i osobno rozstrzygamy dane.
+
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
 §6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,

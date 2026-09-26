@@ -60,6 +60,7 @@ use Illuminate\Support\Facades\Log;
  *    transportu rezygnujemy z automatycznego ponawiania (push jest
  *    szturchnięciem, nie listem poleconym — powiadomienie w serwisie i tak
  *    czeka) i zostawiamy TRWALE puste `push_wyslano_at` z wpisem w dzienniku;
+ *    `push_zakonczono_at` zamyka rezerwację limitu (#1992);
  *  - wygasła subskrypcja (404/410) jest kasowana od razu, jak dotąd —
  *    tego reguła nie zmienia.
  */
@@ -129,6 +130,28 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
 
         $ponowienie = $this->notificationIds !== [];
 
+        if ($ponowienie) {
+            // Stary job nie może dostarczyć grupy po zwolnieniu jej slotu.
+            // Zaległe rezerwacje liczymy przez 48 h, także przez północ.
+            $grupa = Notification::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($this->notificationIds)
+                ->whereNotNull('push_proba_at')
+                ->whereNull('push_wyslano_at')
+                ->whereNull('push_zakonczono_at');
+            $liczba = (clone $grupa)->count();
+            $zarezerwowano = (clone $grupa)->min('push_proba_at');
+            if ($liczba !== count($this->notificationIds) || $zarezerwowano === null) {
+                return;
+            }
+
+            if (CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
+                $this->zakonczProby($this->notificationIds);
+
+                return;
+            }
+        }
+
         if ($subskrypcje->isEmpty()) {
             // PONOWIENIE, KTÓREMU ZABRAKŁO ODBIORCÓW (rzadkie — subskrypcja
             // zniknęła między próbami): reszta już dostała tę grupę, więc
@@ -179,6 +202,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         $maksProb = (int) config('kuking.notifications.zewnetrzne.push_maks_prob_transportu', 3);
 
         if ($this->probaTransportu >= $maksProb) {
+            $this->zakonczProby($this->notificationIds);
             // TRWAŁA PORAŻKA — bez adresu subskrypcji (poświadczenie),
             // z liczbą, żeby dało się to policzyć i zauważyć trend.
             Log::error('Web Push: trwała porażka transportu — rezygnuję z ponawiania po wyczerpaniu prób.', [
@@ -277,14 +301,58 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         return ['id_powiadomien' => array_map(strval(...), $id), 'tresc' => TrescPush::zbuduj($oczekujace)];
     }
 
-    /** Ile pushy (nie powiadomień) wyszło w bieżącej dobie odbiorcy — liczy WYSŁANE, nie zarezerwowane. */
+    /**
+     * Ile slotów zajmują grupy odbiorcy. Rezerwacja musi być widoczna także
+     * drugiemu workerowi, zanim pierwszy transport zakończy żądanie sieciowe.
+     * Aktywną rezerwację z wczoraj liczymy dziś; retry nie może wyprzedzić
+     * dzisiejszego limitu. Po 48 h stare retry jest odrzucane wyżej.
+     * Zakończona porażka zajmuje slot do końca doby zakończenia, potem zwalnia.
+     */
     private function wyslaneWDobie(User $user, CarbonImmutable $teraz): int
     {
-        return (int) Notification::query()
+        $poczatek = Termin::poczatekDoby($teraz);
+
+        $nowe = (int) Notification::query()
             ->where('user_id', $user->getKey())
-            ->where('push_wyslano_at', '>=', Termin::poczatekDoby($teraz))
+            ->whereNotNull('push_proba_at')
+            ->where(function ($query) use ($poczatek, $teraz): void {
+                $query->where('push_proba_at', '>=', $poczatek)
+                    ->orWhere('push_wyslano_at', '>=', $poczatek)
+                    ->orWhere('push_zakonczono_at', '>=', $poczatek)
+                    ->orWhere(function ($aktywne) use ($teraz): void {
+                        $aktywne->whereNull('push_wyslano_at')
+                            ->whereNull('push_zakonczono_at')
+                            ->where('push_proba_at', '>=', $teraz->subHours(48));
+                    });
+            })
+            ->distinct()
+            ->count('push_proba_at');
+
+        // Historyczne potwierdzenia sprzed rozdzielenia próby i sukcesu
+        // nie mają `push_proba_at`; ich też nie wolno zgubić z rachunku.
+        $stare = (int) Notification::query()
+            ->where('user_id', $user->getKey())
+            ->whereNull('push_proba_at')
+            ->where('push_wyslano_at', '>=', $poczatek)
             ->distinct()
             ->count('push_wyslano_at');
+
+        return $nowe + $stare;
+    }
+
+    /** Zakończona grupa nie wraca do puli, ale przestaje być aktywnym slotem. */
+    private function zakonczProby(array $notificationIds): void
+    {
+        if ($notificationIds === []) {
+            return;
+        }
+
+        Notification::query()
+            ->whereKey($notificationIds)
+            ->whereNotNull('push_proba_at')
+            ->whereNull('push_wyslano_at')
+            ->whereNull('push_zakonczono_at')
+            ->update(['push_zakonczono_at' => CarbonImmutable::now()]);
     }
 
     /**
