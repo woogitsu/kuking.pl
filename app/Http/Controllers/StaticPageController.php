@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Feed\JakDobieramyWpisy;
+use App\Domain\Ukrycia\Ukrycia;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
@@ -46,6 +49,23 @@ class StaticPageController extends Controller
         );
     }
 
+    /**
+     * „Jak dobieramy wpisy" (#1811, D-305). Zdania stoją w
+     * `JakDobieramyWpisy`, nie w widoku — `JakDobieramyWpisyMowiPrawdeTest`
+     * wiąże każde z kodem. Zalogowany dostaje pod spodem drogę do własnych
+     * ustawień: obserwowane osoby, tagi i listę „Ukryte".
+     */
+    public function feedRules(Request $request, Ukrycia $ukrycia): View
+    {
+        $user = $request->user();
+
+        return view('pages.static.jak-dobieramy-wpisy', [
+            'sekcje' => JakDobieramyWpisy::sekcje(),
+            'ukryteOsoby' => $user !== null ? $ukrycia->ileOsob($user) : 0,
+            'ukryteWpisy' => $user !== null ? $ukrycia->ileWpisow($user) : 0,
+        ]);
+    }
+
     public function privacy(): View
     {
         return $this->markdown(
@@ -83,8 +103,19 @@ class StaticPageController extends Controller
             // Str::markdown korzysta z league/commonmark w trybie bezpiecznym:
             // surowy HTML z pliku nie jest renderowany. Te pliki są nasze,
             // ale zasada „nie renderuj cudzego HTML-a” obowiązuje wszędzie.
-            'html' => $this->owinTabelePrzewijaniem($html),
+            'html' => $this->kotwicaZmian($this->owinTabelePrzewijaniem($html)),
         ]);
+    }
+
+    /**
+     * Kotwica `#co-sie-zmienilo` przy sekcji „Co się zmieniło" (#1811, D-306).
+     * Pasek „Zmieniliśmy regulamin" prowadzi prosto do niej. Markdown w trybie
+     * bezpiecznym nie nadaje nagłówkom identyfikatorów, więc dokładamy jeden,
+     * nazwany — tylko dla tego nagłówka, żeby nie zmieniać reszty dokumentów.
+     */
+    private function kotwicaZmian(string $html): string
+    {
+        return str_replace('<h2>Co się zmieniło</h2>', '<h2 id="co-sie-zmienilo">Co się zmieniło</h2>', $html);
     }
 
     /**

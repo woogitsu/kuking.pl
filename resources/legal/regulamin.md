@@ -1,6 +1,12 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 26 września 2026 i jest aktualizowany razem z nim.**
+
+---
+
+## Co się zmieniło
+
+**26 września 2026.** W punkcie 2 dopisaliśmy, jak dobieramy wpisy na Starcie, w „Świeżo z Kuking” i na tablicy na dziś, oraz odnośnik do strony **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`). Zmiana opisuje, jak serwis już działa: nie dodaje Ci obowiązków i nie zmienia Twoich praw.
 
 ---
 
@@ -30,6 +36,10 @@ Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - komentować i odpowiadać na komentarze,
 - zapisywać przepisy w swoich kolekcjach,
 - zgłaszać treści, które naruszają zasady.
+
+### Jak dobieramy wpisy
+
+Na Starcie widzisz wpisy osób i tagów, które obserwujesz, od najnowszych. W „Świeżo z Kuking” najpierw widzisz najnowszy wpis każdej osoby, potem drugi każdej i tak dalej. Na tablicy na dziś pozycje wybrane przez gospodarza serwisu mają napis „Wybór gospodarza”. Nie układamy wpisów według liczby obserwujących, „Ugotowałem”, reakcji ani komentarzy i nie uczymy się Twojego gustu z tego, co oglądasz. To Ty decydujesz, kogo i jakie tagi obserwujesz, a wpisy i osoby możesz ukryć tylko dla siebie. Opis każdej listy i odnośniki do tych ustawień są na stronie **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`).
 
 ## 3. Kto może korzystać z Kuking
 

@@ -14,7 +14,7 @@
         z liczbami przepisów i nie lista osób z liczbą obserwujących.
     --}}
     <x-slot:rail>
-        <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+        <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :wybrane="$board['wybrane']" />
     </x-slot:rail>
 
     <h1>Szukaj</h1>

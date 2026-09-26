@@ -28,20 +28,27 @@
 <x-layout title="Świeżo z Kuking" description="Co ostatnio ugotowali ludzie w Kuking." :szynaWTresci="true">
     <div class="odkryj-uklad">
         <h1>Świeżo z <x-kuking-word /></h1>
-        <p class="mb-6">
+        <p class="mb-2">
             Co ludzie ostatnio pokazali — najpierw po jednym wpisie od każdej osoby, od najnowszego, potem kolejne.
             @if(config('kuking.questions.enabled'))
                 <br><a href="{{ route('questions.index') }}">Poradźcie — pytania do innych</a>.
                 Ktoś to już robił i chętnie powie, jak.
             @endif
         </p>
+        {{-- Stała linia pod nagłówkiem (#1811, AGENTS.md §8): skąd te wpisy i gdzie
+             je zmienić. Przy aktywnych ukryciach druga linia z liczbą i „Zmień" —
+             lista „Ukryte" jest jedynym miejscem, w którym widz może je cofnąć. --}}
+        <div class="odkryj-skad mb-6">
+            <p class="m-0"><a href="{{ route('feed-rules') }}">Skąd te wpisy i jak to zmienić</a></p>
+            <x-linia-ukryc class="meta m-0" :osoby="$ukryteOsoby ?? 0" :wpisy="$ukryteWpisy ?? 0" />
+        </div>
 
         {{-- Tablica dnia jest bezpośrednim dzieckiem siatki — inaczej
              `grid-column` z arkusza jej nie dotyczy. Owijka istnieje po to,
              żeby nie dokładać klasy do samego komponentu: ta sama tablica stoi
              w szynie `/home`, w wyszukiwarce i w pasie strony powitalnej. --}}
         <div class="odkryj-szyna">
-            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :wybrane="$board['wybrane']" />
         </div>
 
         @if($posts->count() === 0)

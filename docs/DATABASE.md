@@ -120,6 +120,29 @@ pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
 wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
 nie zmienia `users.pwa_prompt_state`.
 
+#### `terms_notice_dismissed_version` — pasek „Zmieniliśmy regulamin” (#1811, D-306)
+
+Migracja `2026_09_26_120000_add_terms_notice_dismissed_version_to_users`
+dodaje nullable `date` bez wartości domyślnej (w PostgreSQL zmiana samego
+katalogu, bez przepisywania tabeli). Wartość to data wersji regulaminu
+(`kuking.zgody.wersja_regulaminu`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji (strefa `kuking.strefa`), którego wartość jest pusta albo
+starsza od bieżącej wersji (`App\Domain\Zgody\ZmianaRegulaminu`). Kolumna
+poza `$fillable`; zapisuje ją tylko `ZmianaRegulaminu::zamknij()` (POST
+`/regulamin/zmiana/zamknij`). Zamknięcie paska NIE jest akceptacją
+regulaminu — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`, wymazanie konta zeruje
+pole.
+
+**Rollback (D-088):** migracja odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość — po ponownym `migrate` pasek „jednorazowy” wróciłby do każdego,
+kto go zamknął, i zniknąłby ślad powiadomienia. Przy samych `NULL` wycofanie
+przechodzi. Kontrola i DDL w jednej transakcji z blokadą tabeli. Nie zerować
+kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
+`ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.

@@ -8,6 +8,8 @@
             „Z tagu: …”. Jeśli nie ma jeszcze takich wpisów, pokazujemy najnowsze
             publiczne wpisy innych osób.
             Przełącznik „Świeżo z <x-kuking-word />” prowadzi do tej publicznej listy.</p>
+        <p>Opis każdej listy i droga do obserwowanych osób, tagów i ukrytych wpisów:
+            <a href="{{ route('feed-rules') }}">Jak dobieramy wpisy</a>.</p>
 
         <h2>Jak dodać zdjęcie swojego dania?</h2>
         <ol>

@@ -111,7 +111,7 @@ final class DailyBoard
     private const KLUCZ_KANDYDACI_DAN = 'tablica-dnia:kandydaci-dan';
 
     /**
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>, wybrane: array<string, true>}
      */
     public function forViewer(?User $viewer): array
     {
@@ -123,6 +123,7 @@ final class DailyBoard
                 'posts' => $this->automaticPosts($viewer),
                 'curated' => false,
                 'notes' => [],
+                'wybrane' => [],
             ];
         }
 
@@ -155,8 +156,8 @@ final class DailyBoard
      * ktoś ostatnio coś pokazał, i najwyżej jedną pozycję od osoby — żadna
      * miara popularności nie wchodzi tu ani w wybór, ani w kolejność.
      *
-     * @param  array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}  $tablica
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @param  array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>, wybrane: array<string, true>}  $tablica
+     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>, wybrane: array<string, true>}
      */
     private function uzupelnijDoSufitu(array $tablica, ?User $viewer): array
     {
@@ -190,14 +191,21 @@ final class DailyBoard
      * pustej karty ani zdradzić, że coś tu było.
      *
      * @param  Collection<int, DailyPick>  $picks
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>, wybrane: array<string, true>}
      */
     private function fromCuratedPicks(Collection $picks, ?User $viewer): array
     {
         $hidden = $this->hiddenAuthorIdsFor($viewer);
         $notes = [];
+        // Co wybrał gospodarz — karta dostaje napis „Wybór gospodarza"
+        // (#1811, AGENTS.md §8: wybór gospodarza oznaczony jako jego wybór).
+        // Pozycje dołożone potem przez `uzupelnijDoSufitu()` tego napisu nie
+        // mają, bo nikt ich nie wybrał.
+        $wybrane = [];
 
         foreach ($picks as $pick) {
+            $wybrane[(string) $pick->subject_id] = true;
+
             if ($pick->note !== null) {
                 $notes[$pick->subject_id] = $pick->note;
             }
@@ -260,6 +268,7 @@ final class DailyBoard
             'posts' => $posts,
             'curated' => true,
             'notes' => $notes,
+            'wybrane' => $wybrane,
         ];
     }
 

@@ -357,6 +357,8 @@ final class EraseAccountData
                 // i `tests/Feature/DokumentyPrawneNieKlamiaTest.php`).
                 'ostatnio_widziany_at' => null,
                 'pwa_prompt_state' => null,
+                // Ślad zamknięcia paska „Zmieniliśmy regulamin” (#1811, D-306).
+                'terms_notice_dismissed_version' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

@@ -2427,6 +2427,23 @@ return [
          * przestawić w panelu Railwaya.
          */
         'wersja_polityki' => '2026-09-10',
+
+        /*
+         * WERSJA REGULAMINU — ten sam kształt co `wersja_polityki` wyżej:
+         * data stanu dokumentu z nagłówka `resources/legal/regulamin.md`
+         * („opisuje stan serwisu na <data>"), podbijana ręcznie razem z nim
+         * i z sekcją „Co się zmieniło" (#1811, D-306). Test
+         * `ZmianaRegulaminuTest` pilnuje, że data w nagłówku i ta wartość to
+         * ten sam dzień.
+         *
+         * PODBICIE POKAZUJE PASEK. Każde zalogowane konto założone przed tym
+         * dniem, które nie zamknęło paska dla tej wersji, widzi raz
+         * „Zmieniliśmy regulamin — co się zmieniło" (decyzja właściciela
+         * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
+         * przy zmianie, o której ludzie mają się dowiedzieć — literówka
+         * w dokumencie to nie powód, żeby zaczepiać każdego.
+         */
+        'wersja_regulaminu' => '2026-09-26',
     ],
 
     'analytics' => [

@@ -297,6 +297,18 @@ UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czyta
 METRYKI_BEZ_REAKCJI = "app/Domain/Analytics/MetrykiDoboru.php"
 METRYKI_BEZ_REAKCJI_TEST = "test_nie_czyta_ukryc_ani_reakcji"
 
+# Strona „Jak dobieramy wpisy” (#1811, D-305): każde zdanie ma dowód w kodzie.
+# Mutacja zmienia porządek w rundzie rotacji Odkrywania — fragment, na który
+# powołuje się zdanie o rotacji, znika i test dowodów ma zapalić się na czerwono.
+DOBOR_ROTACJA = "app/Domain/Feed/DiscoverFeed.php"
+DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
+
+# Wersja regulaminu w konfiguracji i data w nagłówku dokumentu (#1811, D-306).
+# Mutacja podbija samą wersję — pasek ogłaszałby zmianę, której w dokumencie
+# nie ma; test daty ma oblać.
+REGULAMIN_WERSJA = "config/kuking.php"
+REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
+
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -756,6 +768,10 @@ checks = [
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("Metryki doboru czytają reakcje „Smakowicie wygląda”", METRYKI_BEZ_REAKCJI, METRYKI_BEZ_REAKCJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\PostReaction;\n")),
+    ("Strona doboru opisuje rotację, której kod nie robi", DOBOR_ROTACJA, DOBOR_STRONA_TEST,
+     lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
+    ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -813,6 +829,8 @@ run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(METRYKI_BEZ_REAKCJI_TEST, True)
+run_test(DOBOR_STRONA_TEST, True)
+run_test(REGULAMIN_WERSJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

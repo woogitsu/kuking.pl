@@ -18,6 +18,9 @@
                                     @if($person->profile->region) · {{ $person->profile->region }} @endif
                                 </p>
 
+                                @if(isset($wybrane[$person->getKey()]))
+                                    <p class="kuking-board-wybor" data-wybor-gospodarza>Wybór gospodarza</p>
+                                @endif
                                 @if(isset($notes[$person->getKey()]))
                                     <p class="kuking-board-note">{{ $notes[$person->getKey()] }}</p>
                                 @endif

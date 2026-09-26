@@ -213,6 +213,9 @@ final class CollectUserExportData
             // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
             'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
             'stan_zachety_instalacji' => $user->pwa_prompt_state,
+            // Wersja regulaminu, przy której zamknięto pasek „Zmieniliśmy
+            // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
+            'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),

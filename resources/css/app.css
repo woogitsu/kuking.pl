@@ -1826,6 +1826,17 @@
     margin-bottom: var(--spacing-5);
   }
 
+  /* Pasek „Zmieniliśmy regulamin" (#1811, D-306): zdanie z odnośnikiem
+     i „Zamknij" w jednym rzędzie, a na wąskim ekranie przycisk schodzi pod
+     zdanie — bez przewijania w poziomie przy 320 px i 200%. */
+  .pasek-zmiany-regulaminu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3) var(--spacing-4);
+  }
+
   .notice {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
@@ -4117,6 +4128,16 @@
 
   .kuking-board-excerpt {
     overflow-wrap: anywhere;
+  }
+
+  /* „Wybór gospodarza" (#1811, AGENTS.md §8) — pozycja z wyboru człowieka,
+     nie z automatu. Pełne 18 px: to informacja o tym, SKĄD karta się tu
+     wzięła, a nie dopisek. `display: block` także na `<span>` w kafelku dania. */
+  .kuking-board-wybor {
+    display: block;
+    margin: var(--spacing-1) 0 0;
+    font-weight: 600;
+    color: var(--color-ink-muted);
   }
 
   /* Jedno zdanie od gospodarza — dlaczego właśnie to. */

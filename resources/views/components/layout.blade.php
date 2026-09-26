@@ -1029,6 +1029,11 @@
                     </div>
                 @endif
 
+                {{-- Zmiana regulaminu (#1811, D-306) — zalogowani, do zamknięcia. --}}
+                @auth
+                    <x-pasek-zmiany-regulaminu />
+                @endauth
+
                 @if($wTrybiePanelu)
                     <div class="marka-panel-tresc">
                         {{ $slot }}

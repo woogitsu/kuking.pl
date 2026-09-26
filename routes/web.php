@@ -72,6 +72,7 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
+use App\Http\Controllers\ZmianaRegulaminuController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -145,6 +146,10 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+// „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
+// zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
+// Publiczna: regulamin do niej odsyła, a regulamin czyta też gość.
+Route::get('/jak-dobieramy-wpisy', [StaticPageController::class, 'feedRules'])->name('feed-rules');
 
 /*
 |--------------------------------------------------------------------------
@@ -829,6 +834,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
         ->name('social.unhide');
+    // Pasek „Zmieniliśmy regulamin" (#1811, D-306): zamknięcie zapisuje wersję.
+    // POST, nie GET — to zapis, a podgląd linku albo prefetch nie może go zrobić.
+    Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('terms.notice.dismiss');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")

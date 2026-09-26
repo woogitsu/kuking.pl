@@ -50,6 +50,9 @@
                                         <span class="kuking-board-excerpt">{{ $post->kind === \App\Models\Post::KIND_QUESTION ? $opis : \Illuminate\Support\Str::limit($opis, $naPowitalnej ? 180 : 90) }}</span>
                                     @endif
 
+                                    @if(isset($wybrane[$post->getKey()]))
+                                        <span class="kuking-board-wybor" data-wybor-gospodarza>Wybór gospodarza</span>
+                                    @endif
                                     @if(isset($notes[$post->getKey()]))
                                         <span class="kuking-board-note">{{ $notes[$post->getKey()] }}</span>
                                     @endif

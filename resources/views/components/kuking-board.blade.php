@@ -65,7 +65,7 @@
     w środku pasa, czyli kartą w karcie. Domyślnie pytamy więc o trasę, ale
     wywołanie może to rozstrzygnąć wprost: `:wKarcie="false"`.
 --}}
-@props(['people', 'posts', 'notes' => [], 'graSlowem' => true, 'wKarcie' => null])
+@props(['people', 'posts', 'notes' => [], 'wybrane' => [], 'graSlowem' => true, 'wKarcie' => null])
 
 @php
     $pusta = $people->isEmpty() && $posts->isEmpty();

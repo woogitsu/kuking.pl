@@ -19,7 +19,7 @@
     do niego dojścia ze strony startowej.
 --}}
 
-<x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :wKarcie="true" />
+<x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :wybrane="$board['wybrane']" :wKarcie="true" />
 
 @if($zeszyt !== null && $zeszyt->isNotEmpty())
     <section class="card szyna-blok" aria-labelledby="szyna-zeszyt">

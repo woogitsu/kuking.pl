@@ -474,7 +474,8 @@ obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
-dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+dobieramy wpisy” (zdanie w `App\Domain\Feed\JakDobieramyWpisy` z dowodem
+w `tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php`, D-305) + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
 albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
