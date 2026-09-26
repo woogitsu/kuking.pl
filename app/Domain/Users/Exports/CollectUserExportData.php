@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Recipes\MojaWersja;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
@@ -277,6 +278,14 @@ final class CollectUserExportData
             'od_kogo' => $recipe->source_person,
             'notatka_o_zrodle' => $recipe->source_note,
             'w_rodzinie_od_roku' => $recipe->family_since_year,
+            // „Moja wersja" (issue #23, D-301): kiedy ta osoba zaczęła swoją
+            // wersję i jaki przepis był oryginałem. Tytuł oryginału tylko
+            // wtedy, gdy właściciel paczki może go dziś zobaczyć — to cudza
+            // treść, a paczka nie może pokazać więcej niż serwis.
+            'moja_wersja_od' => $this->date($recipe->forked_at),
+            'na_podstawie_przepisu' => ($oryginal = MojaWersja::oryginalDlaWidza($recipe, $user)) === null
+                ? null
+                : ['tytul' => $oryginal->title, 'adres_w_serwisie' => $oryginal->slug],
             'zdjecie_glowne' => $photos->pathFor($recipe->hero_media_id),
             'skan_zeszytu' => $photos->pathFor($recipe->source_scan_media_id),
             'utworzono' => $this->date($recipe->created_at),

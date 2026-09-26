@@ -1565,7 +1565,43 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
   `family_since_year`, `source_scan_media_id` — patrz niżej;
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
+- „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
+
+**`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
+cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN forked_from_id uuid NULL
+    REFERENCES recipes (id) ON DELETE SET NULL;          -- recipes_forked_from_id_foreign
+ALTER TABLE recipes ADD COLUMN forked_at timestamptz(0) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_forked_spojny_check CHECK (
+    (forked_from_id IS NULL OR forked_at IS NOT NULL)
+    AND (forked_from_id IS NULL OR forked_from_id <> id));
+CREATE INDEX recipes_forked_from_idx ON recipes (forked_from_id)
+    WHERE forked_from_id IS NOT NULL;
+```
+
+- `forked_from_id` — KTÓRY przepis był oryginałem. `ON DELETE SET NULL`:
+  twarde skasowanie oryginału (wymazanie konta jego autora,
+  `EraseAccountData`) nie kasuje cudzej wersji i nie zatrzymuje kasowania
+  konta. Zwykłe usunięcie jest miękkie, więc wskazanie zostaje.
+- `forked_at` — ŻE przepis jest wersją cudzego i od kiedy. Zostaje także po
+  wyzerowaniu `forked_from_id`, więc wersja nigdy nie wygląda w bazie jak
+  przepis własny. Obie kolumny ustawia wyłącznie `ZrobWlasnaWersje`
+  (`forceFill()`); w `$fillable` ich nie ma — podpis jest nieusuwalny.
+- Indeks częściowy obsługuje listę „Wersje innych osób" na stronie oryginału
+  i `ON DELETE SET NULL`.
+
+DDL na istniejącej tabeli: `ADD COLUMN` bez `DEFAULT` (bez przepisania
+tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
+`CONCURRENTLY`, poza jedną transakcją.
+
+**Rollback odmawia, gdy w bazie jest choć jedna wersja** (D-088): po
+`migrate:rollback` → `migrate` kolumny wróciłyby puste, a każda wersja stałaby
+się po cichu przepisem swojego autora. Komunikat podaje zapytanie, którym
+zapisać powiązania przed ręcznym cofnięciem. Na bazie bez wersji cofnięcie
+przechodzi. Test: `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).

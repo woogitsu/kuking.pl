@@ -41,8 +41,16 @@ class SitemapController extends Controller
             // zbanowany albo kasuje konto. Bez tego mapa podawała Google'owi
             // adresy, pod którymi zwykły człowiek dostaje 403 — czyli
             // zapraszała do drzwi, które sama zamknęła.
+            // „Moja wersja" (issue #23, D-301) poza mapą, WSZYSTKIE wersje.
+            // Próg unikalności (`MojaWersja::czyIndeksowac()`) porównuje
+            // tekst z oryginałem, czyli czyta składniki i kroki dwóch
+            // przepisów — w pętli po całej mapie to byłyby tysiące zapytań.
+            // Mapa ma być podzbiorem stron indeksowalnych, nie ich pełną
+            // listą: wersja z własną wartością nadal jest `index` na swojej
+            // stronie i Google dojdzie do niej linkiem z oryginału.
             Recipe::query()
                 ->publiclyVisible()
+                ->whereNull('forked_at')
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->select(['id', 'slug', 'updated_at'])
                 ->chunkById(500, function ($recipes) use (&$urls): void {

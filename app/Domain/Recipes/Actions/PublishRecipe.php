@@ -7,6 +7,7 @@ namespace App\Domain\Recipes\Actions;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
+use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
@@ -89,6 +90,7 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly MojaWersja $mojaWersja,
     ) {}
 
     /**
@@ -300,6 +302,11 @@ final class PublishRecipe
              */
             DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
 
+            // Czy TEN zapis jest pierwszą publikacją przepisu — potrzebne
+            // wyłącznie „Mojej wersji" (powiadomienie autora oryginału idzie
+            // raz, przy pierwszej publikacji; issue #23, D-301).
+            $pierwszaPublikacja = false;
+
             $payload = [
                 'title' => $title,
                 'summary' => $this->nullIfBlank($attributes['summary'] ?? null),
@@ -325,6 +332,7 @@ final class PublishRecipe
                 $payload['published_at'] = $publish ? now() : null;
 
                 $recipe = Recipe::create($payload);
+                $pierwszaPublikacja = $publish;
             } else {
                 /*
                  * WIERSZ PRZEPISU POD BLOKADĄ, I DOPIERO POD NIĄ PYTAMY O STAN
@@ -406,11 +414,27 @@ final class PublishRecipe
                         : null;
                 }
 
+                $pierwszaPublikacja = $recipe->published_at === null
+                    && ($payload['status'] ?? null) === Recipe::STATUS_PUBLISHED;
+
                 $recipe->update($payload);
             }
 
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
+
+            /*
+             * „MOJA WERSJA" BEZ ŻADNEJ ZMIANY NIE WYCHODZI DO LUDZI (issue #23).
+             *
+             * Stoi PO zapisie składników i kroków, bo porównuje to, co
+             * naprawdę leży w bazie, z oryginałem — a wyjątek cofa całą
+             * transakcję razem z tym zapisem. Szkicu nie dotyczy: szkic
+             * wersji zaczyna życie jako wierna kopia i ma prawo nią zostać,
+             * dopóki autor nad nim pracuje.
+             */
+            if ($recipe->isPublished()) {
+                MojaWersja::pilnujRoznicy($recipe);
+            }
 
             /*
              * OPUBLIKOWANY PRZEPIS WCHODZI DO STRUMIENI (issue #368).
@@ -480,6 +504,13 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+
+                // Powiadomienie jest wierszem w bazie, więc wolno mu stać
+                // w transakcji — i musi: cofnięta publikacja nie może
+                // zostawić autorowi oryginału wiadomości o wersji, której nie ma.
+                if ($pierwszaPublikacja) {
+                    $this->mojaWersja->powiadomAutoraOryginalu($recipe, $author);
+                }
             }
 
             return $recipe;
