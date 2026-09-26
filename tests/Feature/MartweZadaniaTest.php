@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Models\LoginLinkToken;
 use App\Models\Profile;
 use App\Models\User;
@@ -329,7 +330,8 @@ class MartweZadaniaTest extends TestCase
     // ------------------------------------------------------------------
 
     /**
-     * W `failed_jobs.payload` żeton leży w JAWNEJ POSTACI, a w `exception`
+     * W `failed_jobs.payload` żeton leży zaszyfrowany (audyt A5-10), ale
+     * komenda go odszyfrowuje, żeby odczytać odbiorców — a w `exception`
      * bywa ślad stosu z argumentami wywołań. Kto ma żeton resetu, ustawia
      * komuś hasło; kto ma żeton logowania linkiem, wchodzi na konto od razu.
      *
@@ -364,7 +366,15 @@ class MartweZadaniaTest extends TestCase
         });
 
         // KONTROLA DODATNIA — bez niej cały ten test jest zielony nad niczym.
-        $ladunki = implode("\n", DB::table('failed_jobs')->pluck('payload')->all());
+        // Od audytu A5-10 żeton leży w ładunku ZASZYFROWANY, więc liczy się
+        // ładunek po odszyfrowaniu — dokładnie ten, który komenda czyta.
+        $ladunki = DB::table('failed_jobs')->pluck('payload')
+            ->map(function (string $payload): string {
+                $polecenie = json_decode($payload, true)['data']['command'] ?? null;
+
+                return is_string($polecenie) ? $payload."\n".PolecenieZadania::zserializowane($polecenie) : $payload;
+            })
+            ->implode("\n");
         $wyjatki = implode("\n", DB::table('failed_jobs')->pluck('exception')->all());
 
         $this->assertStringContainsString($zetonHasla, $ladunki, 'Żeton resetu miał być w ładunku.');
