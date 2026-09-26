@@ -104,11 +104,19 @@ class LicznikiPaneluRazNaTransakcjeTest extends TestCase
         }
         $this->assertSame(6, app(KolejkiPanelu::class)->liczby($moderator)['sygnaly']);
 
+        // Znacznik stanu z ekranu (#1059): liczba i najnowsze oznaczenie grupy.
+        $najnowsze = Report::query()->where('autor_tresci_id', $autor->getKey())
+            ->orderByDesc('created_at')->orderByDesc('id')->value('id');
+
         DB::enableQueryLog();
         DB::flushQueryLog();
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), [
+                'autor' => (string) $autor->getKey(),
+                'stan_ile' => '6',
+                'stan_najnowsze' => (string) $najnowsze,
+            ])
             ->assertSessionHasNoErrors();
 
         $zapytania = array_column(DB::getQueryLog(), 'query');
