@@ -347,17 +347,18 @@
 
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
-
-                    A gdy jest co przywracać, ale nie widzącemu moderatorowi
-                    (issue #1748): treść ukrył administrator, a regułę rangi
-                    B2-01 czyta stąd `RestoreContent::wolnoCofnac()` — ten
-                    sam warunek, którego backend i tak by pilnował, gdyby
-                    ten przycisk tu jednak stał. Miejsce przycisku zajmuje
-                    wtedy krótka informacja, kto ukrył i kto jedyny może
-                    przywrócić — zamiast martwego przycisku wbrew UX 50+.
+                    Przy WŁASNEJ treści patrzącego zamiast przycisku stoi
+                    informacja (#1479): akcja i tak by odmówiła. Tak samo
+                    u moderatora przy treści, którą ukrył administrator
+                    (#1748) — regułę rangi B2-01 czyta
+                    `RestoreContent::wolnoCofnac()`, ten sam warunek, którego
+                    pilnuje backend.
                 --}}
-                @php($przywrocenie = $przywracalne[$report->id] ?? null)
-                @if($przywrocenie === \App\Http\Controllers\Admin\ModerationController::PRZYWROCENIE_WIDOCZNE)
+                @if(($przywracalne[$report->id] ?? null) === 'wlasna')
+                    <p class="mt-4">
+                        To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.
+                    </p>
+                @elseif(($przywracalne[$report->id] ?? null) === 'przywroc')
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
                         {{-- Ten sam identyfikator wiersza co w formularzu decyzji
@@ -382,7 +383,7 @@
 
                         <button class="btn btn-secondary" type="submit">Przywróć treść</button>
                     </form>
-                @elseif($przywrocenie === \App\Http\Controllers\Admin\ModerationController::PRZYWROCENIE_TYLKO_ADMIN)
+                @elseif(($przywracalne[$report->id] ?? null) === 'tylko_admin')
                     <p class="meta mt-4">
                         <strong>Ukrył administrator.</strong> Przywrócić tę treść może tylko administrator — przekaż mu sprawę.
                     </p>

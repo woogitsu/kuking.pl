@@ -7,8 +7,8 @@ export DB_DATABASE=kuking_flota_gpt-monitoring DB_USERNAME=kuking DB_PASSWORD=ku
 export PGHOST=127.0.0.1 PGPORT=55439 PGUSER=kuking PGPASSWORD=kuking
 unset DB_URL
 mkdir -p output/monitoring
-vendor/bin/pint app/Domain/Monitoring/AlarmMemory.php app/Domain/Polaczenia/AlarmPolaczen.php app/Domain/Kolejka/AlarmKolejki.php tests/Feature/AlarmPrzyAwariiCacheTest.php scripts/monitoring/local.php scripts/monitoring/alerts.php
-php artisan test --compact --filter 'AlarmPrzyAwariiCacheTest|BudzetPolaczenBazyTest|CzujkaKolejkiTest|EpizodyAlarmowTest|NieudanyDzwonekNieKupujeCiszyTest|PomiarCzujekTrafiaDoDziennikaTest' > output/monitoring/focused.txt 2>&1
+vendor/bin/pint app/Domain/Monitoring/AlarmMemory.php app/Domain/Monitoring/EpizodAlarmu.php app/Domain/Monitoring/KanalAlarmowy.php app/Domain/Kopie/AlarmKopii.php tests/Feature/EpizodAlarmuTest.php app/Domain/Polaczenia/AlarmPolaczen.php app/Domain/Kolejka/AlarmKolejki.php tests/Feature/AlarmPrzyAwariiCacheTest.php scripts/monitoring/local.php scripts/monitoring/alerts.php
+php artisan test --compact --filter 'AlarmPrzyAwariiCacheTest|EpizodAlarmuTest|BudzetPolaczenBazyTest|CzujkaKolejkiTest|EpizodyAlarmowTest|NieudanyDzwonekNieKupujeCiszyTest|PomiarCzujekTrafiaDoDziennikaTest' > output/monitoring/focused.txt 2>&1
 tail -5 output/monitoring/focused.txt
 bash scripts/kontrola-ujemna.sh --nazwa 'Awaria cache zatrzymuje alarm' \
   --plik app/Domain/Monitoring/AlarmMemory.php \

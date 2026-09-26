@@ -67,6 +67,30 @@ return [
         'dlugosc_nazwy' => 40,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | /health — kto widzi szczegóły i jak często wolno pytać (audyt A5-05)
+    |--------------------------------------------------------------------------
+    |
+    | Odpowiedź `/health` jest publiczna. Kod HTTP i pole `status` zostają dla
+    | każdego — z nich korzysta healthcheck Railway i zewnętrzny monitoring.
+    | Pole `checks` (który mechanizm leży i dlaczego, np. `turnstile_bez_kluczy`,
+    | `limit_poczty_wyczerpany`) dostaje WYŁĄCZNIE ktoś z tokenem w nagłówku
+    | `X-Kuking-Health-Token`: to jest mapa chwil, w których warto uderzyć
+    | w formularze. Bez tokenu w konfiguracji szczegółów nie dostaje nikt —
+    | każda porażka sondy i tak zostaje w dzienniku (`Log::error`).
+    |
+    | `probka_magazynu_sekund`: udana próba zapisu i odczytu na dysku zdjęć
+    | (R2) jest pamiętana tyle sekund. Bez tego każde wywołanie `/health`
+    | zapisywało obiekt do bucketu. Porażka NIE jest pamiętana — następne
+    | pytanie próbuje od nowa. Awaria magazynu wychodzi więc najwyżej po
+    | tylu sekundach, ile tu stoi.
+    */
+    'health' => [
+        'token' => env('KUKING_HEALTH_TOKEN') ?: null,
+        'probka_magazynu_sekund' => (int) env('KUKING_HEALTH_PROBKA_MAGAZYNU_SEKUND', 60),
+    ],
+
     'media' => [
         // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
         // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.
@@ -1042,6 +1066,16 @@ return [
         // niedostępność Cloudflare nie może zamykać rejestracji.
         'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
 
+        // Hosty stagingu, na których wystawiony token przyjmujemy OPRÓCZ hosta
+        // z `APP_URL` (issue #992). Nazwy hostów po przecinku, bez protokołu
+        // i bez gwiazdek. Domyślnie puste: na produkcji i na stagingu z własnym
+        // `APP_URL` nic nie trzeba ustawiać. Host żądania nie wchodzi tu nigdy.
+        // Każdy wpis musi też stać na liście hostnames widgetu w Cloudflare.
+        'hosty_stagingu' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TURNSTILE_HOSTY_STAGINGU', '')),
+        ), static fn (string $host): bool => $host !== '')),
+
         /*
          * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
          * (brak tokenu odrzuca wysłanie — D-050, zaostrzenie z 9 września
@@ -1268,6 +1302,18 @@ return [
 
     'limits' => [
         'external_link' => '60,1',
+
+        /*
+         * `/health` (audyt A5-05) — po adresie IP. Liczony W KONTROLERZE, nie
+         * middleware'em `throttle:`: licznik leży w cache w bazie, a przy
+         * awarii bazy middleware rzuciłby wyjątek i healthcheck oddałby 500
+         * zamiast 503 z polem `status`. Kontroler przy awarii licznika
+         * przepuszcza pytanie.
+         *
+         * SKĄD 60 NA MINUTĘ. Railway pyta co kilka sekund tylko podczas
+         * wdrożenia, monitoring co kilka minut — zapas jest wielokrotny.
+         */
+        'health' => '60,1',
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
         // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem

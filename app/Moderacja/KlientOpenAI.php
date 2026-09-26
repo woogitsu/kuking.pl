@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Moderacja;
 
+use App\Support\DozwolonyHostApi;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -35,28 +39,152 @@ use Throwable;
  *
  * BRAK KLUCZA = FUNKCJA WYŁĄCZONA I NIC NIE PADA. Tak jest lokalnie, w CI
  * i w testach: `oceniamy()` oddaje `false`, żadne żądanie nie wychodzi.
+ * KLUCZ POD OBCYM ADRESEM (#991) też daje `false`, ale to już błąd, nie
+ * spoczynek — `bladKonfiguracji()` go nazywa, `zglosBladKonfiguracji()`
+ * zgłasza raz na godzinę.
  *
  * AWARIA PO TAMTEJ STRONIE NIE MOŻE NICZEGO WSTRZYMAĆ. Publikacja wpisu
  * dzieje się w zupełnie innym żądaniu (analiza chodzi w kolejce), więc
  * najgorsze, co może zrobić timeout, to brak jednej pozycji w kolejce
- * moderatora. Dlatego każdy błąd kończy się `null` i ostrzeżeniem w logu,
- * nigdy wyjątkiem lecącym dalej.
+ * moderatora. Każdy błąd zostawia ostrzeżenie w logu.
+ *
+ * TRZY WYNIKI, NIE DWA (#1662). Do września 2026 każda porażka kończyła się
+ * `null`, więc jednorazowy timeout albo 429 wyglądał dla zadania tak samo
+ * jak brak klucza — i treść na zawsze zostawała bez oceny. Teraz:
+ *  - `WynikOceny` — ocena wykonana, także bez trafień;
+ *  - `null` — oceny nie ma i ponowienie jej nie da (brak klucza, 4xx,
+ *    odpowiedź w nieznanym kształcie);
+ *  - `ModelChwilowoNiedostepny` — timeout, zerwane połączenie, 429 albo
+ *    przejściowe 5xx. Ponawia ZADANIE (`PrzeanalizujTresc`), nie ten klient:
+ *    ponowienie w środku żądania zjadałoby 30-sekundowy budżet zadania.
  */
 final class KlientOpenAI
 {
+    /**
+     * Statusy, po których ponowienie ma sens (#1662): limit zapytań i awarie
+     * bramy/usługi. Reszta 4xx (zły klucz, złe żądanie) i 501 nie miną same.
+     */
+    private const STATUSY_PRZEJSCIOWE = [429, 500, 502, 503, 504];
+
+    /**
+     * Jedyny host, któremu wolno dać klucz i cudzą treść do oceny (#991).
+     *
+     * @var list<string>
+     */
+    public const HOSTY = ['api.openai.com'];
+
+    /**
+     * Jedyna ścieżka: klient buduje żądanie w kształcie API moderacji, więc
+     * pod żadnym innym adresem OpenAI i tak nie miałoby sensu (D-250).
+     */
+    public const SCIEZKA = '#^/v1/moderations$#';
+
+    /** Kanoniczny adres — ten sam co wartość domyślna w `config/kuking.php`. */
+    public const ADRES = 'https://api.openai.com/v1/moderations';
+
+    /**
+     * Klucz pod obcym adresem zgłaszamy najwyżej raz na to okno. Bez tego
+     * KAŻDA oceniana treść dawała `Log::error` na kanale `blad_webhook`
+     * i jeden błąd konfiguracji zalewał alarmy.
+     */
+    public const OKNO_ZGLOSZENIA_SEKUND = 3600;
+
+    private const KLUCZ_ZGLOSZENIA = 'kuking:moderacja:obcy-adres-modelu';
+
+    /**
+     * Czy model w ogóle ocenia: jest klucz I adres prowadzi do OpenAI.
+     * Klucz z obcym adresem to NIE jest „ocenianie" — nic nie wychodzi,
+     * a nazwę błędu podaje `bladKonfiguracji()`.
+     */
     public static function oceniamy(): bool
+    {
+        return self::maKlucz() && self::adresZgodny();
+    }
+
+    public static function maKlucz(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
             && config('kuking.moderation.model.klucz') !== '';
     }
 
     /**
+     * Czy `KUKING_MODEL_ENDPOINT` to dokładnie API moderacji OpenAI. Obcy
+     * host, ścieżka, port, query albo fragment = klient odmawia każdego
+     * zapytania, zanim cokolwiek wyjdzie.
+     */
+    public static function adresZgodny(): bool
+    {
+        return self::bladAdresu() === null;
+    }
+
+    /**
+     * Zdanie dla operatora, gdy klucz jest, a adres nie prowadzi do OpenAI.
+     * Tylko nazwa zmiennej, nazwa złej części adresu i poprawna wartość —
+     * nigdy sam adres ani klucz. `null` = konfiguracja w porządku albo
+     * brak klucza (to osobny, opisany stan).
+     */
+    public static function bladKonfiguracji(): ?string
+    {
+        if (! self::maKlucz()) {
+            return null;
+        }
+
+        $powod = self::bladAdresu();
+
+        if ($powod === null) {
+            return null;
+        }
+
+        return "Zmienna KUKING_MODEL_ENDPOINT nie jest adresem API moderacji OpenAI ({$powod}). "
+            .'Moderacja modelem NIE DZIAŁA — nic nie wysyłamy. Usuń zmienną (wartość domyślna '
+            .'jest poprawna) albo wpisz '.self::ADRES.'.';
+    }
+
+    /**
+     * Jeden `Log::error` na okno, nie jeden na treść. `Cache::add` jest
+     * atomowe — przy kilku workerach zgłasza tylko pierwszy.
+     */
+    public static function zglosBladKonfiguracji(string $czego): void
+    {
+        $blad = self::bladKonfiguracji();
+
+        if ($blad === null) {
+            return;
+        }
+
+        if (! Cache::add(self::KLUCZ_ZGLOSZENIA, true, self::OKNO_ZGLOSZENIA_SEKUND)) {
+            return;
+        }
+
+        // `error`, nie `warning`: to jest błąd konfiguracji, który ma dojść do
+        // kanału alarmowego. Bez adresu w kontekście — zmienna bywa wklejana
+        // razem z tokenem, a nazwa zmiennej wystarcza, żeby wiedzieć, co zmienić.
+        Log::error($blad, [
+            'czego' => $czego,
+            'zmienna' => 'KUKING_MODEL_ENDPOINT',
+            'dozwolone' => self::HOSTY,
+            'stage' => 'openai_obcy_host',
+        ]);
+    }
+
+    private static function bladAdresu(): ?string
+    {
+        return DozwolonyHostApi::powod(
+            (string) config('kuking.moderation.model.endpoint'),
+            self::HOSTY,
+            self::SCIEZKA,
+        );
+    }
+
+    /**
      * Ocena tekstu.
      *
      * @return ?WynikOceny `null` znaczy „nie wiemy" — funkcja wyłączona,
-     *                     awaria albo odpowiedź w nieznanym kształcie.
+     *                     trwała awaria albo odpowiedź w nieznanym kształcie.
      *                     Nigdy „treść jest w porządku": pusty `WynikOceny`
      *                     mówiłby coś, czego nie sprawdziliśmy.
+     *
+     * @throws ModelChwilowoNiedostepny przy awarii, która może minąć (#1662)
      */
     public function ocenTekst(string $tekst): ?WynikOceny
     {
@@ -80,6 +208,8 @@ final class KlientOpenAI
      * (`AGENTS.md` §7, pipeline zdjęć). Wariant powstaje przez przekodowanie,
      * więc metadanych już nie ma — i to jest jedyna postać, w jakiej wolno
      * wypuścić czyjeś zdjęcie poza nasz serwer.
+     *
+     * @throws ModelChwilowoNiedostepny przy awarii, która może minąć (#1662)
      */
     public function ocenObraz(string $dataUri): ?WynikOceny
     {
@@ -95,10 +225,18 @@ final class KlientOpenAI
 
     /**
      * @param  list<array<string, mixed>>  $wejscie
+     *
+     * @throws ModelChwilowoNiedostepny
      */
     private function zapytaj(array $wejscie, string $czego): ?WynikOceny
     {
-        if (! self::oceniamy()) {
+        if (! self::maKlucz()) {
+            return null;
+        }
+
+        if (! self::adresZgodny()) {
+            self::zglosBladKonfiguracji($czego);
+
             return null;
         }
 
@@ -121,6 +259,12 @@ final class KlientOpenAI
                 ...ExceptionContext::forStage($blad, 'openai_transport'),
             ]);
 
+            // Timeout i zerwane połączenie mijają same (#1662). Inny wyjątek
+            // to błąd po naszej stronie — ponowienie dałoby ten sam wynik.
+            if ($blad instanceof ConnectionException) {
+                throw new ModelChwilowoNiedostepny;
+            }
+
             return null;
         }
 
@@ -130,10 +274,26 @@ final class KlientOpenAI
                 'status' => $odpowiedz->status(),
             ]);
 
+            if (in_array($odpowiedz->status(), self::STATUSY_PRZEJSCIOWE, true)) {
+                throw new ModelChwilowoNiedostepny($this->ponowZa($odpowiedz));
+            }
+
             return null;
         }
 
         return $this->zwynik((array) $odpowiedz->json(), $czego);
+    }
+
+    /**
+     * `Retry-After` w sekundach — albo `null`. Postać z datą HTTP pomijamy:
+     * zadanie i tak ma własne opóźnienie, a zły zegar dostawcy nie może
+     * odsunąć oceny o dowolnie długi czas.
+     */
+    private function ponowZa(Response $odpowiedz): ?int
+    {
+        $naglowek = trim($odpowiedz->header('Retry-After'));
+
+        return $naglowek !== '' && ctype_digit($naglowek) ? (int) $naglowek : null;
     }
 
     /**

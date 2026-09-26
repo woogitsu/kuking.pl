@@ -232,6 +232,31 @@ class PrzywrocenieTylkoPoDecyzjiModeracjiTest extends TestCase
             ->assertDontSee('Ukrył administrator');
     }
 
+    /**
+     * Dwie reguły naraz (#1479 i #1748): administrator ukrył komentarz
+     * moderatora. Akcja najpierw odmawia z powodu własnej treści, więc widok
+     * mówi to samo — „To Twoja treść”, nie „Ukrył administrator”.
+     */
+    public function test_kolejka_przy_wlasnej_tresci_ukrytej_przez_administratora_mowi_o_wlasnej(): void
+    {
+        $autor = $this->moderator();
+        $post = Post::factory()->create(['author_id' => $this->user()->getKey()]);
+        $komentarz = Comment::factory()->create([
+            'author_id' => $autor->getKey(),
+            'post_id' => $post->getKey(),
+        ]);
+        $report = $this->zgloszenie($this->user(), 'comment', (string) $komentarz->getKey());
+
+        $this->rozstrzygnij($this->admin(), $report, ModerationAction::ACTION_HIDE);
+
+        $this->actingAs($autor)
+            ->get(route('admin.reports', ['status' => 'resolved']))
+            ->assertOk()
+            ->assertDontSee(route('admin.reports.restore', $report))
+            ->assertSee('To Twoja treść')
+            ->assertDontSee('Ukrył administrator');
+    }
+
     public function test_kolejka_nie_pokazuje_przycisku_przy_tresci_usunietej_przez_wlascicielke(): void
     {
         [$basia, , $komentarz] = $this->komentarzPodWpisemBasi();

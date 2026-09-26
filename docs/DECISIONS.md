@@ -3560,6 +3560,14 @@ i wyłącznie tego.
 
 **Data:** 10 września 2026 · Issue #25 · Status: **obowiązuje**
 
+**Doprecyzowanie właściciela, 20 września 2026 (#889):** jeśli przed
+wykonaniem kolejki link wygasł albo został zastąpiony, pomijamy list.
+Nie wysyłamy dodatkowej wiadomości i nie tworzymy nowego tokenu przy
+ponowieniu zadania. Starsze zadania bez zapisanego terminu sprawdzają
+aktualność tokenu w bazie. Czas w liście odnosimy do chwili zamówienia,
+nie do doręczenia. Kontrola przy kliknięciu pozostaje rozstrzygająca:
+ważny przy wysyłce link może utracić ważność przed przeczytaniem listu.
+
 Kuking wpuszcza na konto **linkiem wysłanym pocztą**. Droga jest równorzędna
 z hasłem i widoczna wprost na ekranie logowania, a nie schowana pod „innymi
 opcjami". Adres: `/logowanie/link`.
@@ -3701,6 +3709,26 @@ nieudanej wysyłce zostaje w `failed_jobs`. Jest to dokładnie ta sama własnoś
 co przy resecie hasła, gdzie Laravel serializuje token tak samo. Wiersz `jobs`
 żyje sekundy; token z `failed_jobs` i tak przestaje działać po 30 minutach,
 a listu, którego wysyłka padła, nikt nie dostał.
+
+**Zmienione 25 września 2026 (audyt A5-10):** ta własność już nie obowiązuje.
+`LinkDoLogowania`, `UstawienieNowegoHasla`, `UstawienieHaslaZamiastLinku`
+i `ZaproszenieDoZalozeniaKonta` mają `ShouldBeEncrypted`, więc w `jobs`
+i `failed_jobs` leży szyfrogram kluczem aplikacji. Komendy czytające odbiorców
+z `failed_jobs` odszyfrowują go przez `App\Domain\Kolejka\PolecenieZadania`.
+Pilnuje tego `tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+
+**Decyzja właściciela z 25 września 2026: `failed_jobs` czyści się
+automatycznie po 30 dniach.** `queue:prune-failed --hours=720` chodzi
+codziennie o 05:20 (`routes/console.php`, `onOneServer()`,
+`withoutOverlapping(120)`). Powody: żetony w ładunku są szyfrowane (akapit
+wyżej), więc miesiąc leżenia nie wystawia żywego sekretu, a 30 dni wystarcza
+na diagnozę — o świeżej awarii mówią czujka kolejki, panel kolejki i `/health`
+długo wcześniej. Pierwsza wersja tej zmiany (ten sam dzień) świadomie
+automatu nie dodawała; właściciel rozstrzygnął inaczej. `kuking:martwe-zadania`
+zostaje do ręcznego, wcześniejszego czyszczenia po rozliczeniu awarii.
+Uwaga praktyczna: cztery zadania z 9 września 2026 (D-047) znikną same około
+10 października 2026 — kto chce je rozliczyć z odbiorcami, musi to zrobić
+przed tą datą. Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
 
 ### RACHUNEK LISTÓW — I CO SIĘ DZIEJE, GDY PULA PADNIE W ŚRODKU DNIA
 
@@ -16204,6 +16232,22 @@ Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
 jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
 klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
 
+**Uzupełnienie (#1429, #1530, #1573, 24 września 2026).** Trzy kolejne
+wywołania przypisane do klas:
+
+- `data.export_requested` — **klasa 2**. Autorytatywny ślad to wiersz
+  `data_exports` i zadanie w `jobs`, zatwierdzane razem (A02).
+- `user.blocked` — **klasa 2**, zgodnie z D-090 i D-080 („blokada musi się
+  udać zawsze"). Autorytatywny ślad to wiersz `blocks` z `created_at`.
+- `account.login_link_used` — **klasa 1**. Tu trwałym skutkiem jest
+  zużycie jednorazowego poświadczenia, więc wpis stoi w transakcji
+  `ZamekKonta` razem z `delete()` tokenu. Awaria cofa oba zapisy, sesja
+  ani etap 2FA nie powstają, a człowiek dostaje „link nadal działa, kliknij
+  jeszcze raz". Samej sesji HTTP transakcja nie obejmuje.
+
+Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
+i `LogowanieLinkiemTest` (sekcja #1530).
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
@@ -16216,6 +16260,83 @@ z nazwą braku (rejestracja hasłem, Google i Facebook).
 ### Wycofanie
 
 Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-250 — Klucz API wychodzi tylko pod dokładny adres dostawcy: host, port i ścieżka z kodu (#991, 23 września 2026)
+
+**Data:** 23 września 2026 · **Poprawka bezpieczeństwa** (P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+Adresy API EmailLabs (`EMAILLABS_ENDPOINT`), moderacji OpenAI
+(`KUKING_MODEL_ENDPOINT`) i czyszczenia cache Cloudflare
+(`CLOUDFLARE_PURGE_ENDPOINT`) przychodzą ze zmiennych środowiskowych.
+Poczta sprawdzała tylko `https://`, moderacja i czyszczenie — nic. Klucze
+i treść (cudze listy, cudze wpisy do oceny) szły pod każdy host, jaki stał
+w zmiennej. Pierwsza wersja poprawki (lista hostów) nie patrzyła jeszcze na
+ścieżkę, query ani fragment, a `/health` i `KlientOpenAI::oceniamy()` mówiły
+„gotowe” przy obcym adresie.
+
+### Decyzja
+
+1. **Jedna granica: `App\Support\DozwolonyHostApi`.** Każda integracja
+   podaje listę hostów i wzór CAŁEJ ścieżki, w kodzie, nie w `.env`:
+   EmailLabs `api.emaillabs.io` + `/v2.1/email`, OpenAI `api.openai.com` +
+   `/v1/moderations`, Cloudflare `api.cloudflare.com` +
+   `/client/v4/zones/<strefa>/purge_cache` (strefa: litery, cyfry, łącznik).
+2. **Każda część osobno, parserem Guzzle:** tylko `https`, bez danych
+   logowania i bez `@` gdziekolwiek, host bajt w bajt (końcowa kropka, IDN
+   i punycode odpadają), port brak/443, ścieżka pełnym dopasowaniem
+   (`..`, `%xx`, ukośnik na końcu odpadają), **zero query i fragmentu**,
+   żadnych białych, sterujących znaków ani odwrotnego ukośnika.
+3. **Ścieżka dokładna, nie prefiks `/v1/`.** Klient buduje żądanie
+   w kształcie jednej metody API; prefiks otwierałby inne metody tego
+   samego konta (np. płatne) tym samym kluczem.
+4. **Zły adres jest nazwany, nie przemilczany i nie wklejony.** Komunikat
+   niesie nazwę zmiennej i nazwę złej części (`DozwolonyHostApi::powod()`),
+   nigdy wartość — zmienna bywa wklejana razem z tokenem. Komendy
+   `kuking:sprawdz-model` i `kuking:sprawdz-poczte` drukują z adresu sam
+   host. `/health` ma kod `czyszczenie_cdn_zly_adres`; poczta wychodzi już
+   jako `poczta_nie_wysyla` (transport się nie buduje);
+   `KlientOpenAI::oceniamy()` jest `false`, a `bladKonfiguracji()` podaje
+   zdanie dla operatora.
+5. **Jedno zgłoszenie na godzinę, nie na treść.** Obcy adres modelu daje
+   `Log::error` (kanał `blad_webhook`) raz na okno
+   `KlientOpenAI::OKNO_ZGLOSZENIA_SEKUND` (`Cache::add`, atomowe).
+6. **Stały błąd konfiguracji w kolejce = `fail()` od razu.**
+   `PurgePublicMediaCache` nie robi pięciu prób z czymś, co nie mija samo.
+
+### Czego świadomie NIE robimy
+
+- **Nie przypinamy adresów IP ani certyfikatów.** Tożsamość hosta
+  potwierdza TLS z systemowym magazynem CA i systemowy DNS. Przypinanie
+  psułoby się przy każdej rotacji po stronie dostawcy, a atak na DNS/CA
+  kontenera jest poza zasięgiem tej granicy (ona chroni przed błędną
+  i podmienioną KONFIGURACJĄ).
+- **Nie ma przełącznika „zaufaj innemu hostowi” w `.env`.** Nowy host lub
+  ścieżka dostawcy to zmiana w kodzie z testem.
+- **Nie dodajemy osobnej sondy `/health` dla moderacji.** Obcy adres modelu
+  zgłasza się sam na kanale alarmowym (pkt 5) i w `kuking:sprawdz-model`;
+  brak klucza moderacji też nie ma sondy, więc to zostaje spójne.
+- **Testy nie rozluźniają granicy.** `Http::fake()` działa na kanonicznych
+  adresach; żaden tryb testowy nie przepuszcza obcego hosta.
+
+### Jak to jest zmierzone
+
+`tests/Feature/SekretyTylkoDoDostawcyTest.php` (odmowa + `Http::assertNothingSent()`
++ brak sekretu i adresu w wyjątku/logu/wyjściu; kontrole dodatnie dla adresów
+kanonicznych), `tests/Feature/SondaCzyszczeniaCacheCdnTest.php`
+(`czyszczenie_cdn_zly_adres`) i dwie mutacje w
+`scripts/kontrole-negatywne-alfa08.py` (strażnik osłabiony do samego
+`https://` oraz bez sprawdzenia ścieżki muszą oblać test).
+
+📄 `app/Support/DozwolonyHostApi.php`, `app/Moderacja/KlientOpenAI.php`,
+`app/Moderacja/OcenaModelem.php`, `app/Providers/PocztaServiceProvider.php`,
+`app/Poczta/BrakKonfiguracjiEmailLabs.php`, `app/Jobs/PurgePublicMediaCache.php`,
+`app/Http/Controllers/HealthController.php`,
+`app/Console/Commands/SprawdzModel.php`, `app/Console/Commands/SprawdzPoczte.php`
 
 ---
 
@@ -16294,6 +16415,116 @@ komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszcz
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
 
+## D-070 — Zapisy przepisu przez różne osoby łączą się w jedno powiadomienie, dopóki autor go nie przeczyta (#906, PR #1213, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (20.09 — kształt
+powiadomienia, 23.09 — potwierdzenie łączenia różnych osób) · Status:
+**obowiązuje**
+
+> Numer D-070 był wcześniej rezerwacją niescalonej gałęzi
+> `claude/priorytet-w-kolejce-moderacji` (patrz przekazanie pracy z 10.09);
+> rezerwacja została zwolniona i numer nadano tej decyzji.
+
+### Co się łączy
+
+Powiadomienia typu `recipe.saved` („ktoś ma Twój przepis w swoim zeszycie")
+dla **tego samego autora i tego samego przepisu**. Zapisy od RÓŻNYCH osób nie
+tworzą osobnych wierszy — dokładają się do jednego powiadomienia, dopóki jest
+ono **nieprzeczytane** (`read_at IS NULL`). Treść: „Jan ma Twój przepis …"
+przy jednej osobie, „Jan oraz 3 inne osoby zapisały Twój przepis …" przy
+kilku, z pełną polską odmianą liczebnika (`Notification::tresc()`).
+Powiadomienia innych typów i innych przepisów się nie łączą.
+
+### Kiedy powstaje nowe powiadomienie
+
+- **Pierwsza osoba** — gdy dla tego przepisu nie ma otwartego
+  (nieprzeczytanego) powiadomienia. Autor dostaje je **natychmiast**, bez
+  czekania na partię.
+- **Po przeczytaniu** — przeczytane powiadomienie jest zamkniętą historią
+  i nie zmienia się. Następny zapis (także osoby, która już była w tamtej
+  partii, jeśli w międzyczasie wyjęła przepis ze wszystkich zeszytów i zapisała
+  go od nowa) otwiera nowe powiadomienie.
+
+### Jak liczymy osoby
+
+- Liczą się **osoby, nie zeszyty**. Jedna osoba zapisująca przepis do kilku
+  SWOICH zeszytów liczy się **raz** — powiadomienie idzie przy pierwszym
+  zeszycie, kolejne nic nie dokładają (`SaveRecipeToCollection`).
+- Osoba już obecna w otwartej partii nie jest dopisywana drugi raz
+  (`data.savers` to lista unikalnych identyfikatorów w kolejności zapisu).
+- **Wycofanie przed przeczytaniem:** kto wyjmie przepis ze **wszystkich**
+  swoich zeszytów, znika z partii; jeśli był jedyny — powiadomienie znika.
+  Wyjęcie z jednego z kilku zeszytów niczego nie zmienia.
+- Z nazwy (i awatarem) wymieniamy pierwszą osobę z partii, która jest dla
+  autora **widoczna** — bez blokady w żadną stronę i bez statusu
+  z `User::STATUSY_UKRYWAJACE_TRESC`. Osoby niewidoczne **nie są wymieniane,
+  ale zostają w liczbie** „N innych osób” (liczba, nie imiona — D-081).
+  Blokada albo ban ustawione **po** zapisie działają tak samo: miejsce z imieniem
+  przejmuje następna widoczna osoba, reszta partii nie znika.
+- **Widoczność całego powiadomienia liczy się po `data.savers`, nie po
+  `actor_id`** (`Notification::scopeVisibleTo()`). Wiersz znika z listy
+  i z licznika dopiero wtedy, gdy niewidoczni są **wszyscy** z partii —
+  dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokada
+  nie kasuje wiersza, więc odblokowanie go przywraca. Wcześniej wystarczyło
+  zablokować pierwszą osobę, żeby zniknęło całe „A oraz 2 inne osoby…”,
+  a każdy następny zapis dopisywał się do ukrytego wiersza (przegląd PR #1213).
+- Otwarta partia, w której dziś nie widać nikogo, **przyjmuje** nową osobę:
+  ta właśnie przeszła kontrolę blokady, więc wiersz staje się widoczny
+  i pokazuje ją z imienia. Osobny wiersz złamałby zasadę jednej otwartej
+  partii na parę (autor, przepis).
+- `data.savers` trzyma **pełną** listę, bez obcinania: potrzebna do
+  pominięcia osoby już obecnej i do wycofania zapisu. Partia żyje tylko
+  do odczytania, a nagłówek kosztuje stałą liczbę zapytań niezależnie od
+  jej długości (jedno o pierwszą widoczną osobę + jej profil,
+  `Notification::zapisujacyDoPokazania()`).
+
+### Wiek partii
+
+Dołączenie nowej osoby **przesuwa `created_at` na teraz**. Lista jest
+ułożona od najnowszego, a retencja (`SprzatajPowiadomienia`, 3 miesiące)
+liczy wiek od `created_at` — bez tego świeży zapis lądował głęboko na liście
+i znikał razem z partią założoną miesiące wcześniej. Wycofanie zapisu
+`created_at` nie rusza.
+
+### Współbieżność
+
+Każda zmiana partii (zapis, dołączenie, wycofanie) idzie pod **blokadą
+doradczą** `pg_advisory_xact_lock(906, hashtext('<autor>:<przepis>'))`,
+trzymaną do końca transakcji. `SELECT … FOR UPDATE` sam nie wystarczał:
+przy braku partii nie ma czego zablokować, więc dwa równoległe pierwsze
+zapisy zakładały dwa wiersze. `SaveRecipeToCollection` bierze tę samą
+blokadę **przed** policzeniem zeszytów osoby, żeby równoległy zapis jednej
+osoby do dwóch jej zeszytów nie liczył się dwa razy. Pomiar na dwóch
+połączeniach: `tests/Dwa/ZbiorczyZapisNaDwochPolaczeniachTest.php`.
+
+**Odczytanie a dołączenie — świadomie zostawiony wyścig.** „Oznacz jako
+przeczytane” (`UPDATE … WHERE read_at IS NULL`) nie bierze blokady partii.
+Kiedy przegrywa z dołączeniem, czeka na blokadę wiersza i zamyka partię
+**razem** z osobą, która doszła, gdy autor miał otwartą starszą wersję
+listy — ta osoba jest w treści przeczytanego powiadomienia, ale autor mógł
+jej nie zauważyć jako nowej. Kiedy wygrywa, dołączenie widzi `read_at`
+i otwiera nową partię. Nic nie ginie z bazy ani z listy; najgorszy skutek to
+jedna osoba zaliczona do już przeczytanej wiadomości. Domknięcie tego
+wymagałoby wersjonowania treści przy odczycie — nie jest tego warte przy
+powiadomieniu, które tylko cieszy.
+
+### Granice — te same co w `NotifyUser`
+
+Zbiorcze powiadomienie powstaje w `NotifyRecipeSaved`, nie w `NotifyUser`
+(musi aktualizować istniejący wiersz pod blokadą partii), więc powtarza
+jego granice wprost: brak powiadomienia o własnej akcji, brak dla konta,
+które nie może czytać (`mozeCzytac()` — zawieszony autor DOSTAJE), brak przy
+blokadzie w którąkolwiek stronę. Czwarta granica jest właściwa zapisowi:
+zapis z konta, które nie jest aktywne, nikogo nie powiadamia (#926). Każda
+granica dotyczy i nowego wiersza, i dołączenia do otwartej partii —
+`tests/Feature/ZbiorczyZapisTrzymaGranicePowiadomienTest.php`,
+`tests/Feature/ZbiorczePowiadomienieOZapisieTest.php`.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Sygnał, że autorzy przegapiają nowe osoby w partii (np. chcą osobnej
+wiadomości za każdego), albo powiadomienia z ustawieniami użytkownika —
+wtedy granice trzeba przenieść do jednego miejsca, zamiast je powtarzać.
 ---
 
 ## D-252 — Aplikacja sama dosyła zaległe potwierdzenia przyjęcia zgłoszeń, co godzinę (#797, DSA art. 16 ust. 4, 23 września 2026)
@@ -16699,10 +16930,14 @@ po filtrze stanu i źródła. W MVP to jest akceptowalne: filtr domyślny to
 otwartych. Kolumna z indeksem wraca do rozmowy, gdy kolejka otwartych
 urośnie do tysięcy.
 
-**`scam` jako P1 — DO POTWIERDZENIA PRZEZ WŁAŚCICIELA.** Tabela SLA
-w podręczniku nie ma tej pozycji; P1 to mój osąd (oszustwo trwa i dotyka
-kolejnych ludzi, dopóki wisi), nie decyzja. Zmiana to jedna linijka
-w `PriorytetSprawy::MAPOWANIE`.
+**`scam` jako P1 — POTWIERDZONE PRZEZ WŁAŚCICIELA 25 września 2026.** Tabela
+SLA w podręczniku nie miała tej pozycji; P1 był moim osądem (oszustwo trwa
+i dotyka kolejnych ludzi, dopóki wisi), nie decyzją. Właściciel potwierdził
+`scam` → P1 bez zmian w kodzie: `PriorytetSprawy::MAPOWANIE` już miało
+`'scam' => self::P1`, więc to potwierdzenie istniejącego zachowania, nie
+nowa linijka. Wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` §3 dopisano
+o „oszustwo (scam)", a komentarz przy `MAPOWANIE`, mówiący że `scam` nie ma
+pozycji w podręczniku, przestał być prawdziwy i został poprawiony.
 
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
@@ -16943,6 +17178,50 @@ Odwrócić commit w `.github/workflows/ci.yml`. Schemat bazy się nie zmienia.
 Zmienne `CI_RUNS_ON_MAIN`/`CI_RUNS_ON_BROWSER_MAIN` w ustawieniach
 repozytorium przestają być czytane i można je skasować; etykiety
 `kuking-main`/`kuking-pr` na runnerach mogą zostać bez efektu.
+## D-261 — Wykonanie zbanowanego kucharza znika także pod bezpośrednim adresem (25 września 2026)
+
+**Data:** 25 września 2026 · Audyt A5-07 (dawniej B-03) · Status: **obowiązuje,
+wariant bezpieczniejszy — do potwierdzenia przez właściciela**
+
+**Co.** `CookedEventPolicy::view()` odmawia obcym, gdy kucharz nie jest
+`jestDostepnyJakoAutor()` — czyli przy `banned` tak samo jak przy
+`pending_delete`. Ta sama polityka pilnuje zdjęć wykonania
+(`DostepDoZdjecia`). Moderator i sam kucharz przechodzą jak dotąd.
+Dane nie są zmieniane: po `reinstate()` wykonanie wraca dla wszystkich.
+
+**Dlaczego.** Pytanie „ile z historii zbanowanego konta zostaje publiczne”
+czekało na decyzję. Do tego czasu gość dostawał pod `/ugotowane/{uuid}` 200
+z notatką, nazwą i awatarem (zdjęcia z `Cache-Control: public`), a profil tej
+osoby, jej przepisy (`RecipePolicy::view()`) i galeria „Komu wyszło” (`CookedEvent::
+scopeWidoczneDla()`) — odmowę. Jedno pytanie, dwie odpowiedzi. Wybieramy
+odpowiedź zgodną z resztą serwisu i ostrzejszą: łatwiej później otworzyć
+niż odwołać treść, która już wyciekła.
+
+**Czego to nie zmienia.** `suspended` dalej przechodzi (ta sama granica co
+`jestDostepnyJakoAutor()`). Nic nie jest kasowane; zdanie „treść zostaje,
+znika tylko wyróżnienie” z `KomusWyszloWidocznoscTest` znaczy od dziś
+„dane zostają w bazie”, a nie „zostają publiczne”.
+
+**Znana granica.** Kopie zdjęć już zapisane w pamięci podręcznej CDN przed
+banem wygasają według swojego `Cache-Control` — ta decyzja ich nie czyści.
+
+**Skutki uboczne.** Komentowanie świadomie zostaje — decyzja właściciela
+z 25 września 2026 („Nie, komentarze zostają”). Obcy nie otworzy wykonania
+zbanowanego kucharza, ale komentarz pod nim przechodzi: `cooked.comment`
+i `LockCommentContext` pytają o osobną zdolność `CookedEventPolicy::comment()`,
+która różni się od `view()` tylko tym, że ban kucharza nie zamyka rozmowy
+(karencja usunięcia, blokada i stan przepisu — jak w `view()`). Lokalna analiza spamu (D-241)
+działa dalej: `GranicaWysylki::pozaAutorem()` podmienia w kopii zbanowanego
+kucharza na aktywnego, tak jak autora wpisu i przepisu. Do OpenAI taki
+komentarz nie wychodzi.
+
+Dowody: `tests/Feature/KarencjaUsunieciaChowaWykonanieTest.php`
+(gość, obcy zalogowany, zdjęcie; kontrola dodatnia: moderator i powrót po
+zdjęciu bana), `tests/Feature/Visibility/KomusWyszloWidocznoscTest.php`,
+`tests/Feature/KomentarzSprawdzaSwiezyStanTest.php` (zbanowany kucharz —
+komentarz przechodzi; karencja — odmowa),
+`KarencjaUsunieciaChowaWykonanieTest::test_zbanowany_kucharz_nie_zamyka_komentowania`,
+`tests/Feature/GranicaWysylkiDoOpenAiTest.php` („wykonanie autor_zbanowany”).
 
 ## D-267 — Przepis ze WSZYSTKICH zeszytów schodzi dopiero po potwierdzeniu (#775, sprostowanie D-242 pkt 4, 25 września 2026)
 
@@ -16972,3 +17251,105 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia.
+---
+
+## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
+moderacji (widoczny wyłącznie dla moderatorów) cztery miejsca z tekstem
+poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
+D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
+stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
+w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
+cztery miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
+w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
+a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
+serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
+
+### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
+
+Reguła z `AGENTS.md` §5 zostaje bez zmian wszędzie indziej. *(Pierwotnie:
+„`AGENTS.md` §5 zostaje dokładnie taki, jaki jest”. Decyzją właściciela
+z 25 września 2026 — po audycie `docs/audyt/2026-09-25-PO-FALI.md`,
+pkt 8–9 — §5 wymienia D-262 z nazwy jako drugi nazwany wyjątek obok D-051,
+z listą czterech selektorów, żeby agent czytający tylko `AGENTS.md` nie
+„naprawiał” tych miejsc. Treść reguły się nie zmieniła.)* Minimum
+18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
+widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
+w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów
+pomocniczych w panelu moderacji, nie przycisków: `.btn` i inne cele dotyku
+w tym panelu mają nadal ≥ 48 px, bez zmian.
+
+### ZAKRES WYJĄTKU — WYŁĄCZNIE TE SELEKTORY
+
+- `.tabela-kont .drobne` — `resources/css/ekran-uzytkownikow.css` —
+  drugi, cichy wiersz w komórce tabeli kont („@nazwa", przyczyna, termin);
+  `--text-meta` (15 px).
+- `.stan-konta` — `resources/css/ekran-uzytkownikow.css` — plakietka stanu
+  konta („Zawieszone", „Zablokowane"); `--text-meta` (15 px). Kolor nadal
+  nigdy nie jest jedynym nośnikiem informacji — słowo w środku zostaje.
+- `.sygnal-podglad-cytat` — `resources/css/app.css` — cytat cudzej treści
+  w podglądzie sygnału, o jedno kliknięcie od pełnego rozmiaru;
+  `--text-help` (16 px). Komentarz przy tej regule błędnie powoływał się
+  na D-051 — poprawiony na odwołanie do tego wpisu.
+- `.side-nav-moderacja-naglowek` — `resources/css/app.css` — samodzielny
+  nagłówek sekcji „Moderacja" w bocznej nawigacji, wersalikami;
+  `--text-help` (16 px).
+
+Nigdzie indziej. W szczególności: publiczne widoki odwołań i zgłoszeń,
+ekran „Czytelność", i każdy inny ekran panelu spoza tej listy — tam
+minimum 18 px obowiązuje bez wyjątku.
+
+### CO Z TYM ZROBIONO W KODZIE
+
+W `resources/css/app.css` zamieniono błędne powołanie na D-051 przy
+`.sygnal-podglad-cytat` na powołanie na D-262 i dopisano odwołanie do
+D-262 przy `.side-nav-moderacja-naglowek`. W `resources/css/ekran-uzytkownikow.css`
+dopisano odwołanie do D-262 przy `.tabela-kont .drobne` i `.stan-konta`.
+Strażnik `tests/Feature/MinimalnyRozmiarTekstuTest.php` pilnuje ZAMKNIĘTEJ
+listy `SAMODZIELNE_ETYKIETY`, w której żaden z tych czterech selektorów nie
+stał ani wcześniej, ani teraz — nie jest to strażnik z otwartą listą
+wyjątków, więc nie ma tu nic do dopisania; gdyby ktoś kiedyś przepisał go
+na skaner całego CSS, te cztery selektory muszą wtedy dostać jawny wpis na
+liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
+
+### Wycofanie
+Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
+ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
+
+**Data:** 25 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy **#940**, **#1377**, PR-ów #1584, #1590, #1628
+
+**Problem.** #1377 każe zostawić na listach wpis z WŁASNĄ treścią, gdy
+przepis, na który wskazuje, stanie się niedostępny (prywatny, tylko dla
+obserwujących, usunięty, ukryty przez moderację). #940 pokazuje na
+„Świeżo z Kuking” i stronie powitalnej najwyżej jeden wpis od osoby —
+najnowszy, który widz może zobaczyć. Testy #1584/#1590 zakładały, że autor
+ma na odkrywaniu jednocześnie zapowiedź przepisu i starszy wpis z treścią,
+co z #940 jest niemożliwe, więc CI było czerwone.
+
+**Decyzja.** Reguła #940 jest nadrzędna. Wpis z własną treścią zostaje na
+liście po ukryciu przepisu (bez tytułu, sluga i zdjęcia przepisu na karcie),
+ale **nadal liczy się do limitu jednego wpisu na autora** — zajmuje to samo
+jedno miejsce co każdy inny wpis tej osoby. Nowszy widoczny wpis autora go
+wypiera; czysta zapowiedź niedostępnego przepisu nie zajmuje miejsca, bo
+w ogóle nie jest widoczna. Strona tagu, profil i feed obserwowanych nie mają
+limitu #940 i pokazują wpis z treścią zawsze, gdy widz może go otworzyć.
+
+**W kodzie.** Bez zmian w zapytaniach: `DISTINCT ON (author_id)` z #940
+działa na zbiorze już przefiltrowanym przez
+`zWidocznymPrzepisemAlboWlasnaTrescia()`. Pilnuje tego
+`ListyWpisuZWlasnaTresciaTest::test_wpis_z_wlasna_trescia_po_ukryciu_przepisu_liczy_sie_do_limitu_jednego_wpisu_na_autora`
+(kontrola ujemna: pominięcie jednego wpisu na autora w „Świeżo z Kuking”
+wywraca ten test), a `test_kontrola_dodatnia_*` sprawdza na odkrywaniu
+najnowszy wpis autora, nie dwa naraz.
+
+### Wycofanie
+Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
+dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
+listy odkrywania.
