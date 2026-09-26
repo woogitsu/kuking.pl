@@ -11,6 +11,7 @@ use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Notifications\PotwierdzenieOdwolaniaZglaszajacego;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -81,24 +82,58 @@ final class FileReporterAppeal
             );
         }
 
-        try {
-            $odwolanie = Appeal::create([
-                'moderation_action_id' => $decyzja->getKey(),
-                'report_id' => $zgloszenie->getKey(),
-                'appellant' => Appeal::APPELLANT_REPORTER,
-                'body' => trim($tresc),
-                'status' => Appeal::STATUS_OPEN,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Dwa kliknięcia „Wyślij" z tego samego linku. Baza odbiła
-            // drugie — i dobrze. Człowiek ma zobaczyć „mamy to", nie błąd
-            // serwera (ten sam wzorzec co w `FileAppeal`).
-            throw new BladDlaCzlowieka(
-                'Odwołanie od tej decyzji już do nas trafiło. Nie trzeba wysyłać go drugi raz.',
-            );
-        }
+        // PISMO, ZLECENIE POTWIERDZENIA I ZAWIADOMIENIA W JEDNEJ TRANSAKCJI
+        // (issue #1305) — powód przy `FileAppeal`. Potwierdzenie pocztowe
+        // wchodzi do niej jako WIERSZ W `jobs`: kolejka jest bazodanowa, na
+        // tym samym połączeniu (`config/queue.php`), więc zlecenie wysyłki
+        // zatwierdza się razem z pismem albo wcale — to ten sam outbox co
+        // przy eksporcie danych (audyt A02). Samo `afterCommit()` zostawiłoby
+        // okno między zatwierdzeniem pisma a zapisem zlecenia. Awaria
+        // dostawcy poczty dzieje się już w workerze, PO zatwierdzeniu:
+        // zlecenie zostaje w kolejce do ponowienia, a pisma nie trzeba
+        // składać drugi raz. Jedno pismo = jedno zlecenie, bo zlecenie
+        // powstaje tylko razem z nowym wierszem `appeals`.
+        $odwolanie = DB::transaction(function () use ($zgloszenie, $decyzja, $tresc): Appeal {
+            try {
+                $odwolanie = Appeal::create([
+                    'moderation_action_id' => $decyzja->getKey(),
+                    'report_id' => $zgloszenie->getKey(),
+                    'appellant' => Appeal::APPELLANT_REPORTER,
+                    'body' => trim($tresc),
+                    'status' => Appeal::STATUS_OPEN,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Dwa kliknięcia „Wyślij" z tego samego linku. Baza odbiła
+                // drugie — i dobrze. Człowiek ma zobaczyć „mamy to", nie błąd
+                // serwera (ten sam wzorzec co w `FileAppeal`).
+                throw new BladDlaCzlowieka(
+                    'Odwołanie od tej decyzji już do nas trafiło. Nie trzeba wysyłać go drugi raz.',
+                );
+            }
 
-        AuditLogEntry::record(
+            // Potwierdzenie odbioru — zgłaszający nie ma sesji ani powiadomień
+            // w serwisie, więc jedyny kanał to ten sam e-mail, na który poszedł
+            // link. Zawsze obecny na tym etapie: bez adresu nie dałoby się
+            // w ogóle dostarczyć linku, którym ta osoba tu trafiła.
+            if ($zgloszenie->notifier_email !== null) {
+                Notification::route('mail', $zgloszenie->notifier_email)
+                    ->notify(new PotwierdzenieOdwolaniaZglaszajacego($zgloszenie));
+            }
+
+            // Zawiadomienie dla administratora — ta sama droga i ten sam powód co
+            // przy odwołaniu autora (`FileAppeal`): art. 20 daje na odpowiedź
+            // termin, a nie „kiedy ktoś zajrzy". Nazwa bierze się ze zgłoszenia,
+            // bo zgłaszający nie musi mieć konta w ogóle (art. 16 ust. 2 lit. c).
+            $this->powiadom->handle(
+                $odwolanie,
+                $zgloszenie->notifier_name ?? 'zgłaszający bez podanych danych',
+            );
+
+            return $odwolanie;
+        });
+
+        // Wpis pomocniczy (D-249, klasa 2) — powód przy `FileAppeal`.
+        AuditLogEntry::recordBezWywracania(
             action: 'appeal.filed',
             actor: null,
             subject: $odwolanie,
@@ -109,24 +144,6 @@ final class FileReporterAppeal
                 'decision' => $decyzja->action,
             ],
             ip: $ip,
-        );
-
-        // Potwierdzenie odbioru — zgłaszający nie ma sesji ani powiadomień
-        // w serwisie, więc jedyny kanał to ten sam e-mail, na który poszedł
-        // link. Zawsze obecny na tym etapie: bez adresu nie dałoby się
-        // w ogóle dostarczyć linku, którym ta osoba tu trafiła.
-        if ($zgloszenie->notifier_email !== null) {
-            Notification::route('mail', $zgloszenie->notifier_email)
-                ->notify(new PotwierdzenieOdwolaniaZglaszajacego($zgloszenie));
-        }
-
-        // Zawiadomienie dla administratora — ta sama droga i ten sam powód co
-        // przy odwołaniu autora (`FileAppeal`): art. 20 daje na odpowiedź
-        // termin, a nie „kiedy ktoś zajrzy". Nazwa bierze się ze zgłoszenia,
-        // bo zgłaszający nie musi mieć konta w ogóle (art. 16 ust. 2 lit. c).
-        $this->powiadom->handle(
-            $odwolanie,
-            $zgloszenie->notifier_name ?? 'zgłaszający bez podanych danych',
         );
 
         return $odwolanie;

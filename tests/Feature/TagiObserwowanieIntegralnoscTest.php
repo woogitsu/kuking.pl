@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Feed\TagFeed;
+use App\Domain\Feed\FollowingFeed;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\TagFollowForm;
 use App\Models\Post;
@@ -228,7 +228,7 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/<input[^>]*value="'.$tag->id.'"[^>]*checked/', $html);
     }
 
-    public function test_859_opis_i_trzy_zrodla_sa_zgodne(): void
+    public function test_859_opis_i_zrodla_sa_zgodne(): void
     {
         $tag = $this->promoted();
         $user = $this->user();
@@ -239,14 +239,16 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $post = Post::factory()->create(['author_id' => $other->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()]);
         $this->actingAs($user)->get(route('home'))->assertViewHas('zrodloFeedu', 'odkrywanie');
         $post->tags()->attach($tag->id, ['position' => 0]);
-        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'tagi');
-        $friendPost = Post::factory()->create(['author_id' => $friend->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()]);
+        // Od #1808 (D-277) temat otwiera tę samą listę co osoby.
+        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
+        $friendPost = Post::factory()->create(['author_id' => $friend->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()->addSecond()]);
         $feed = $this->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
-        $this->assertSame([$friendPost->id], $feed->viewData('posts')->pluck('id')->all());
+        $this->assertSame([$friendPost->id, $post->id], $feed->viewData('posts')->pluck('id')->all());
         $html = $this->get(route('settings.tags'))->assertOk()->getContent();
         $this->assertStringNotContainsString('dopóki nikogo nie obserwujesz', $html);
         $this->assertStringNotContainsString('to one pojawią się na górze', $html);
-        $this->assertStringContainsString('Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów.', $html);
+        $this->assertStringContainsString('Wpisy z Twoich tagów stoją na Starcie razem z wpisami osób, które obserwujesz', $html);
+        $this->assertStringNotContainsString('Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów.', $html);
     }
 
     public function test_861_rozmiar_i_format_odcinaja_zapytania_a_granica_sprawdza_istnienie(): void
@@ -364,18 +366,18 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $user->followedTags()->attach($ukryty->id, ['created_at' => now()]);
         $ukryty->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
 
-        $feed = app(TagFeed::class);
-        $this->assertFalse($feed->maTresci($user), 'Ukryty tag zasilił źródło „tagi”.');
+        $feed = app(FollowingFeed::class);
+        $this->assertTrue($feed->isEmptyFor($user), 'Ukryty tag zasilił źródło „tagi”.');
         $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
         $this->actingAs($user)->get(route('home'))->assertViewHas('zrodloFeedu', 'odkrywanie');
 
         // Kontrola dodatnia: ten sam układ z aktywnym tagiem daje feed tagów.
         $zAktywnego = $this->wpisZTagiem($aktywny);
         $user->followedTags()->attach($aktywny->id, ['created_at' => now()]);
-        $this->assertTrue($feed->maTresci($user));
+        $this->assertFalse($feed->isEmptyFor($user));
         $this->assertSame([$zAktywnego->id], $feed->paginate($user)->pluck('id')->all());
         $this->assertNotContains($zUkrytego->id, $feed->paginate($user)->pluck('id')->all());
-        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'tagi');
+        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
     }
 
     public function test_853_obserwowane_scalone_zrodlo_prowadzi_do_wpisow_celu(): void
@@ -388,13 +390,13 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $user->followedTags()->attach($zrodlo->id, ['created_at' => now()]);
         $zrodlo->forceFill(['status' => Tag::STATUS_MERGED, 'merged_into_tag_id' => $cel->id])->save();
 
-        $feed = app(TagFeed::class);
-        $this->assertTrue($feed->maTresci($user));
+        $feed = app(FollowingFeed::class);
+        $this->assertFalse($feed->isEmptyFor($user));
         $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
 
         // Cel ukryty — scalenie nie jest furtką do ukrytego tagu.
         $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
-        $this->assertFalse($feed->maTresci($user));
+        $this->assertTrue($feed->isEmptyFor($user));
         $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
     }
 
