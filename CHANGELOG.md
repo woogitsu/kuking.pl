@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Powiadomienia na telefonie i komputerze (Web Push). W „Ustawienia → Powiadomienia” można je włączyć przyciskiem „Włącz powiadomienia na tym urządzeniu” — przeglądarka pyta o zgodę dopiero wtedy, nigdy sama przy wejściu na stronę. Przychodzą tylko dwie rzeczy: że ktoś ugotował z Twojego przepisu i że ktoś Ci odpowiedział (na komentarz albo pytanie). W ciszy nocnej (domyślnie 21:00–8:00, godziny do zmiany) nic nie przychodzi, a to, co się wydarzy, dostaniesz rano jednym powiadomieniem; tak samo po wyczerpaniu dziennego limitu (domyślnie 1, do zmiany). Wyłączyć można na jednym urządzeniu albo na wszystkich naraz, także bez JavaScriptu. Powiadomienia w Kuking (lista pod dzwonkiem) działają jak dotąd i nie mają przełącznika. Paczka z danymi ma nową sekcję `powiadomienia_poza_serwisem` (ustawienia i lista urządzeń, bez adresów i kluczy), a każde powiadomienie pole `wyslane_poza_serwis`. Funkcja działa dopiero po wpisaniu kluczy VAPID na serwerze (#35, D-303).
+
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).

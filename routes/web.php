@@ -55,6 +55,7 @@ use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -913,6 +914,27 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    /*
+     * POWIADOMIENIA POZA SERWISEM (issue #35, D-303) — push, cisza nocna,
+     * dzienny limit. Powiadomień w serwisie ten ekran nie dotyczy.
+     * Bez kluczy VAPID kontroler odpowiada 404, a spis ustawień go nie
+     * pokazuje. Wszystkie zapisy w grupie `ustawienia`; bez identyfikatora
+     * w adresie — każda akcja działa na koncie zalogowanej osoby.
+     */
+    Route::get('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'edit'])->name('settings.notifications');
+    Route::put('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.update');
+    Route::post('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'subscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.subscribe');
+    Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.unsubscribe');
+    Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.disable-all');
 
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])

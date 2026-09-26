@@ -787,13 +787,30 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  //  --- Web Push: klucz publiczny web + worker, prywatny TYLKO worker (#35, D-303)
+  //  PUSTE = funkcji nie ma: brak ekranu `/ustawienia/powiadomienia`,
+  //  przycisku i wysyłki (`KanalPush`). Web potrzebuje klucza publicznego,
+  //  żeby pokazać ekran i przekazać go przeglądarce przy zapisie; wysyła
+  //  WYŁĄCZNIE worker (`WyslijPowiadomieniePush`), więc tylko on ma klucz
+  //  prywatny. Para kluczy jest INNA w każdym środowisku — staging i preview
+  //  nie mogą podpisywać pushy kluczem produkcji. Klucz prywatny „Sealed".
+  //  Generowanie: `php artisan kuking:klucze-vapid` (DEPLOYMENT_RUNBOOK.md, KROK 8).
+  const pushPublicznyEnv = {
+    VAPID_PUBLIC_KEY: ctx.shared.VAPID_PUBLIC_KEY,
+  };
+  const pushWysylkaEnv = {
+    VAPID_PRIVATE_KEY: ctx.shared.VAPID_PRIVATE_KEY,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
     ...czyszczenieCdnEnv,
     ...modelEnv,
     ...alarmModeratoraEnv,
+    ...pushPublicznyEnv,
+    ...pushWysylkaEnv,
   };
   const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
@@ -1432,6 +1449,8 @@ export default defineRailway((ctx) => {
 //      OPENAI_MODERATION_KEY (Sealed), KUKING_MODEL_ALARM_EMAIL,
 //      CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN (Sealed),
 //      APP_PREVIOUS_KEYS (Sealed; puste poza rotacją APP_KEY).
+//   3c. Web Push (#35, D-303): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (Sealed) —
+//      osobna para w każdym środowisku; puste = funkcja wyłączona.
 //      Które serwisy je dostają: „ZESTAWY PER ROLA" wyżej
 //      i DEPLOYMENT_RUNBOOK.md, KROK 8.
 //   4. Alerty budżetowe — Workspace → Usage → Usage Limits.

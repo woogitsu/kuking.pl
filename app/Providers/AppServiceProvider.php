@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Notifications\Push\TransportPush;
+use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
@@ -43,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+
+        // Web Push (D-303). Testy podmieniają to fałszywym transportem —
+        // żaden test nie wysyła prawdziwego pushu.
+        $this->app->bind(TransportPush::class, TransportWebPush::class);
     }
 
     /**

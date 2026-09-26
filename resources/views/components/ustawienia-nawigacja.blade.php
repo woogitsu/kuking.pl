@@ -61,9 +61,16 @@
         'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres do wiadomości z Kuking'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
+        'notifications' => ['settings.notifications', 'Powiadomienia', 'Powiadomienia na telefonie i komputerze, cisza nocna'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
         'data' => ['settings.data', 'Twoje dane', 'Pobranie danych i usunięcie konta'],
     ];
+
+    // Web Push bez kluczy VAPID nie istnieje (D-303) — ekran odpowiada wtedy
+    // 404, więc spis nie może do niego prowadzić.
+    if (! \App\Domain\Notifications\Push\KanalPush::dostepny()) {
+        unset($ekrany['notifications']);
+    }
 @endphp
 
 {{-- Sekcja strony, nie karta: to nawigacja, nie treść. Warstwa 3 ma te same
