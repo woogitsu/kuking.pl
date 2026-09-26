@@ -20,6 +20,10 @@ namespace App\Support\Baza;
  * PRÓG
  * `PROG` to znacznik czasu OSTATNIEJ migracji w repozytorium w chwili
  * dodania tego strażnika (25.09.2026: `2026_09_25_100000_*`, dwa pliki).
+ * Podniesiony 26.09.2026 do `2026_09_25_200200`: trzy migracje urodzin
+ * (`2026_09_25_2000xx`, CHECK na `users` i `dziennik_zgod` bez `NOT VALID`)
+ * weszły do main, zanim strażnik istniał — decyzja właściciela: historia,
+ * nie przepisujemy scalonej migracji.
  * Migracja z TAKĄ SAMĄ albo WCZEŚNIEJSZĄ datą nie jest sprawdzana (to jest
  * historia, łącznie z migracją appeal_id, `2026_09_24_120000`, wcześniejszą
  * od progu). Migracja z datą PÓŹNIEJSZĄ — jest. Podnoszenie progu wymaga
@@ -55,7 +59,7 @@ final class StraznikNowychMigracji
      * (łącznie z appeal_id, `2026_09_24_120000`) są historią i nie są
      * sprawdzane — patrz komentarz klasy.
      */
-    public const PROG = '2026_09_25_100000';
+    public const PROG = '2026_09_25_200200';
 
     /**
      * Ścieżki (pełne, na dysku) do migracji nowszych niż {@see PROG},
