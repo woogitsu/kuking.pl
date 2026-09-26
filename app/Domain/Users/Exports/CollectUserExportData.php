@@ -44,6 +44,9 @@ use Illuminate\Support\Str;
  */
 final class CollectUserExportData
 {
+    /** Granica cudzych danych dla tej jednej paczki — patrz `GranicaCudzychDanych`. */
+    private GranicaCudzychDanych $granica;
+
     /**
      * Klucze z `notifications.data`, które wolno przepisać do eksportu.
      *
@@ -66,6 +69,8 @@ final class CollectUserExportData
     /** @return array<string, mixed> */
     public function handle(User $user, ExportPhotoPlan $photos, Carbon $generatedAt): array
     {
+        $this->granica = new GranicaCudzychDanych($user);
+
         $user->loadMissing('profile.avatar');
 
         return [
@@ -130,6 +135,7 @@ final class CollectUserExportData
                     .'Nie ma tu hasła, kodów weryfikacji dwuetapowej ani żadnych kluczy do logowania — nie wydajemy ich nikomu. Nie ma też danych wymienionych w „kategorie_poza_paczka”: każda ma tam powód, a wydajemy je na Twoją prośbę (patrz „jak_uzyskac_pozostale”). Tak samo na prośbę wydajemy wewnętrzne notatki moderacji i obsługi Twoich wiadomości. '
                     .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
                     .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
+                    .'Tak samo z innymi cudzymi danymi: nie ma komentarzy, których nie widzisz w serwisie, osób z kont zablokowanych, zamykanych albo objętych blokadą na listach obserwowanych i obserwujących (podajemy tylko, ile ich jest), a przy Twoich komentarzach i „Ugotowałem” — treści ani tytułu wpisu czy przepisu, którego autor już Ci nie pokazuje. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 // Paczka realizuje art. 15 RAZEM z drogą na żądanie, nie sama (#953).
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych). Kopię z art. 15 dopełniają dane z „kategorie_poza_paczka”, wydawane na prośbę.',
@@ -165,8 +171,16 @@ final class CollectUserExportData
             'ugotowalem' => $this->cookedEvents($user, $photos),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
-            'obserwuje' => $this->people($user->following()->with('profile')->get()),
-            'obserwuja_mnie' => $this->people($user->followers()->with('profile')->get()),
+            // Ta sama granica co lista na profilu (B2-05): bez kont
+            // zbanowanych, zamykanych i objętych blokadą. Relacja `follows`
+            // zostaje w bazie — gdy konto wróci albo blokada zniknie, osoba
+            // wraca w następnej paczce. Ile schowaliśmy, mówi liczba obok.
+            'obserwuje' => $this->people($this->granica->osoby($user->following())->with('profile')->get()),
+            'obserwuje_niewidocznych' => $user->following()->count()
+                - $this->granica->osoby($user->following())->count(),
+            'obserwuja_mnie' => $this->people($this->granica->osoby($user->followers())->with('profile')->get()),
+            'obserwuja_mnie_niewidocznych' => $user->followers()->count()
+                - $this->granica->osoby($user->followers())->count(),
             'zablokowane_osoby' => $this->people($user->blocking()->with('profile')->get()),
             'powiadomienia' => $this->notifications($user),
             'zdjecia' => $this->photos($photos),
@@ -266,6 +280,8 @@ final class CollectUserExportData
             'kara_odlozona_do' => $this->date($user->punishment_expires_at),
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
+            // „Mój stół" (#1749, D-304): jedyna zapisana preferencja półki.
+            'moj_stol_wlaczony' => (bool) $user->moj_stol_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
             // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
             'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
@@ -311,7 +327,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->foreignCommentRelations($user)])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->granica->relacjeKomentarzy()])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -386,7 +402,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'tags', ...$this->foreignCommentRelations($user)])
+            ->with(['media', 'recipe', 'tags', ...$this->granica->relacjeKomentarzy()])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -422,13 +438,17 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', ...$this->foreignCommentRelations($user)])
+            ->with(['media', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
             ->reorder('cooked_at')
             ->get();
 
         return $events->map(fn (CookedEvent $event): array => [
-            'przepis' => $event->recipe?->title,
-            'autor_przepisu' => $event->recipe?->author?->displayName(),
+            // Wykonanie jest moje, przepis — cudzy (B2-06). Tytuł i autor
+            // tylko wtedy, gdy przepis widać dziś pod jego adresem; inaczej
+            // (prywatny, ukryty, blokada, konto zamknięte, skasowany) samo
+            // zdanie, że przepis jest niedostępny. Moja notatka zostaje.
+            'przepis' => $this->granica->widzi($event->recipe) ? $event->recipe->title : self::TRESC_NIEDOSTEPNA,
+            'autor_przepisu' => $this->granica->widzi($event->recipe) ? $event->recipe->author?->displayName() : null,
             'kiedy' => $this->date($event->cooked_at),
             'notatka' => $event->note,
             'zrobie_jeszcze_raz' => $event->would_make_again,
@@ -464,13 +484,12 @@ final class CollectUserExportData
                 'tresc' => $comment->body,
                 'napisano' => $this->date($comment->created_at),
                 'status' => $comment->status,
-                'pod_czym' => match (true) {
-                    $subject instanceof Post => 'wpis: '.($subject->recipe?->title ?? mb_substr((string) $subject->body, 0, 60)),
-                    $subject instanceof Recipe => 'przepis: '.$subject->title,
-                    $subject instanceof CookedEvent => 'wykonanie przepisu: '.($subject->recipe?->title ?? '—'),
-                    default => null,
-                },
-                'czyje_to_bylo' => $this->subjectOwnerName($subject, $user),
+                // Mój komentarz, ale treść nad nim — cudza (B2-06, B5 pkt 12).
+                // Fragment wpisu, tytuł przepisu i nazwę autora podajemy
+                // tylko, gdy tę treść widać dziś pod jej adresem. Rodzaj
+                // zostaje, żeby komentarz dało się umiejscowić.
+                'pod_czym' => $this->podCzym($subject),
+                'czyje_to_bylo' => $this->granica->widzi($subject) ? $this->subjectOwnerName($subject, $user) : null,
             ];
         })->all();
     }
@@ -637,27 +656,6 @@ final class CollectUserExportData
     }
 
     /**
-     * Cudze komentarze pod treścią użytkownika — przez tę samą granicę co
-     * ekran (issue #1245): `widoczneDla()` na korzeniach I odpowiedziach,
-     * jak w `RecipeController::show()`, `PostController` i
-     * `CookedEventController::show()`. Same relacje `comments()`/`replies()`
-     * filtrują tylko status, więc paczka niosła tekst osób wzajemnie
-     * zablokowanych oraz kont `banned`/`pending_delete`. Własne komentarze
-     * użytkownika i tak stoją w `moje_komentarze` (`ownComments()`).
-     *
-     * @return array<string, mixed>
-     */
-    private function foreignCommentRelations(User $user): array
-    {
-        return [
-            'comments' => fn ($query) => $query->widoczneDla($user),
-            'comments.author.profile',
-            'comments.replies' => fn ($query) => $query->widoczneDla($user),
-            'comments.replies.author.profile',
-        ];
-    }
-
-    /**
      * Komentarze INNYCH osób pod treścią użytkownika.
      *
      * To jedyne miejsce, w którym do paczki trafiają cudze wypowiedzi.
@@ -755,6 +753,33 @@ final class CollectUserExportData
             'rozmiar_bajty' => $photo->bytes,
             'typ' => $photo->mime_type,
         ])->all();
+    }
+
+    public const TRESC_NIEDOSTEPNA = 'treść niedostępna';
+
+    private function podCzym(Post|Recipe|CookedEvent|null $subject): ?string
+    {
+        if ($subject === null) {
+            return null;
+        }
+
+        $rodzaj = match (true) {
+            $subject instanceof Post => 'wpis',
+            $subject instanceof Recipe => 'przepis',
+            default => 'wykonanie przepisu',
+        };
+
+        if (! $this->granica->widzi($subject)) {
+            return $rodzaj.': '.self::TRESC_NIEDOSTEPNA;
+        }
+
+        return $rodzaj.': '.match (true) {
+            $subject instanceof Post => $this->granica->widzi($subject->recipe)
+                ? $subject->recipe->title
+                : mb_substr((string) $subject->body, 0, 60),
+            $subject instanceof Recipe => $subject->title,
+            default => $this->granica->widzi($subject->recipe) ? $subject->recipe->title : '—',
+        };
     }
 
     /*
