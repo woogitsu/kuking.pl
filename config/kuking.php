@@ -1429,6 +1429,17 @@ return [
         // pętlę żądań. Właściwy limit na osobę (5 dziennie, 30 miesięcznie)
         // liczy się w PostgreSQL z `importy_przepisow`, nie tutaj.
         'import' => '10,10',
+        // Postęp importu (`import.show`, issue #1959) — OSOBNY koszyk od
+        // `import` wyżej: to jest odpytywanie o STAN, nie zlecanie nowego
+        // odczytu, więc nie ma dzielić budżetu z `import.zlec`/`import.ponow`
+        // (ten sam powód co rozdzielenie `zdjecie` od `post` wyżej —
+        // `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`). JS odpytuje co
+        // 5 s (`resources/js/postep-importu.js`, `CO_ILE_MS`) — 12/min na
+        // ZAKŁADKĘ. 40/min zostawia zapas na kilka otwartych zakładek/importów
+        // naraz i na okno startowe licznika (D-076-podobny efekt brzegu na
+        // granicy minuty), a dalej odcina pętlę czy bota: 40 razy więcej niż
+        // realny polling jednej osoby.
+        'import_postep' => '40,1',
         'report' => '10,10',
 
         /*
