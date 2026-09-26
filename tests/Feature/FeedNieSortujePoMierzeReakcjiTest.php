@@ -90,7 +90,6 @@ use Tests\TestCase;
  *  - `test_kryterium_odroznia_czas_od_popularnosci` — czy klasyfikator ma moc,
  *    gdy dostanie sortowanie po popularności. Bez tej drugiej skan mógłby
  *    czytać wszystko i nie umieć niczego odrzucić.
- *
  */
 class FeedNieSortujePoMierzeReakcjiTest extends TestCase
 {
