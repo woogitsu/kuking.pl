@@ -83,6 +83,7 @@ final class SzacunekKosztuZCen
         $niepokryte = 0.0;
         $koszt = 0.0;
         $okresy = [];
+        $zrodla = [];
         $bezMasy = [];
         $bezCeny = [];
 
@@ -113,6 +114,7 @@ final class SzacunekKosztuZCen
                 $pokryte += $gramy;
                 $koszt += $gramy * $produkt->cenaZaGram();
                 $okresy[] = $produkt->okres;
+                $zrodla[] = $this->nazwaZrodla($produkt->zrodlo);
 
                 continue;
             }
@@ -157,7 +159,7 @@ final class SzacunekKosztuZCen
             $do = $od + 1;
         }
 
-        return WynikSzacunku::przedzial($od, $do, $this->opisOkresu($okresy));
+        return WynikSzacunku::przedzial($od, $do, $this->opisOkresu($okresy, $zrodla));
     }
 
     /**
@@ -240,13 +242,32 @@ final class SzacunekKosztuZCen
     }
 
     /**
-     * @param  list<string>  $okresy
+     * Nazwa źródła dla zdania na stronie — po treści `zrodlo` z cennika,
+     * nie po osobnej kolumnie (D-286, część 3): każdy wiersz cennika mówi
+     * na początku pola `zrodlo`, skąd jest, i to jest jedyne miejsce,
+     * które to rozstrzyga.
      */
-    private function opisOkresu(array $okresy): string
+    private function nazwaZrodla(string $zrodlo): string
+    {
+        return match (true) {
+            str_starts_with($zrodlo, 'GUS') => 'GUS',
+            str_starts_with($zrodlo, 'MRiRW') => 'MRiRW/ZSRIR',
+            default => 'inne źródło',
+        };
+    }
+
+    /**
+     * @param  list<string>  $okresy
+     * @param  list<string>  $zrodla
+     */
+    private function opisOkresu(array $okresy, array $zrodla): string
     {
         $okresy = array_values(array_unique($okresy));
         sort($okresy);
 
-        return 'średnie ceny detaliczne GUS z '.implode(', ', $okresy).' r.';
+        $zrodla = array_values(array_unique($zrodla));
+        sort($zrodla);
+
+        return 'średnie ceny detaliczne '.implode(' i ', $zrodla).' z '.implode(', ', $okresy).' r.';
     }
 }

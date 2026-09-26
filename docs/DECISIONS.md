@@ -17424,3 +17424,69 @@ tabela miar, cennik ma z niej korzystać, a nie trzymać drugiej kopii.
 Usunąć przekazanie `szacunekKosztu` w `RecipeController::show` — strona
 wraca do samej kwoty autora. Tabela może zostać albo zniknąć rollbackiem
 (`DROP TABLE`, bez strat: odtwarza ją komenda z pliku).
+
+### Część 3 — ceny warzyw z MRiRW/ZSRIR, bo GUS ich nie ma (26 września 2026)
+
+**Problem właściciela.** Cennik z części 2 nie ma ANI JEDNEGO warzywa —
+GUS (BDL, temat P1466) podaje dziś ceny mięsa, nabiału, pieczywa i suchych
+produktów, ale seria z cenami ziemniaków, cebuli i marchwi jest MIESIĘCZNA
+i skończyła się w 2019 roku (sprawdzone bezpośrednio w BDL 26.09.2026 —
+metryka 1466 nie ma nowszych wartości dla tych trzech towarów). Właściciel:
+„Znajdź może jakieś źródło, skąd można wziąć aktualne detaliczne ceny
+warzyw. Jakiś sklep, jakaś hurtownia albo coś”.
+
+**Sprawdzone źródła:**
+
+| Źródło | Typ ceny | Aktualność | Format / API | Licencja | Ocena |
+|---|---|---|---|---|---|
+| GUS BDL, P1466 | detaliczna, średnia roczna | ziemniaki/cebula/marchew: **do 2019**; reszta towarów: 2025 | REST API (bez klucza) | dane publiczne GUS | źle pokrywa warzywa — stąd ten problem |
+| **MRiRW, ZSRIR** (dane.gov.pl, zbiór 912), arkusz „ZAKUP WARZ DETAL — do 2 kg” | **cena zakupu warzyw przez podmioty handlu detalicznego**, opakowania do 2 kg — najbliższy oficjalny odpowiednik ceny detalicznej | **cotygodniowa**, publikowana też tego samego dnia co research (25.09.2026) | xlsx (biuletyn), zbiór ma REST API (`api.dane.gov.pl`) do listowania i pobierania zasobów | **CC BY 4.0 / domena publiczna** — jawnie wolno pobierać automatycznie i publikować przeliczenia | **wybrane** dla 5 warzyw: ziemniaki, cebula (biała), marchew, papryka czerwona, pomidory (okrągłe) |
+| MRiRW, ZSRIR, arkusz „HURT WARZ” (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) | **hurtowa**, min–max z 5 rynków | cotygodniowa | j.w. | j.w. | szersze pokrycie warzyw (kapusta, buraki, por, seler, pietruszka, sałata, ogórek…), ale **odrzucone jako automatyczne źródło** — patrz niżej |
+| Sklepy internetowe (Frisco, Auchan, Carrefour) i gazetki (Biedronka, Lidl) | detaliczna, realny sklep | bieżąca | brak API do tego celu; regulaminy zwykle zakazują automatycznego pobierania i republikacji cen | zastrzeżona, per-sklep | **odrzucone** — to byłby scraping wbrew regulaminowi, którego D-286 świadomie unika |
+| Eurostat (ceny konsumpcyjne) | wskaźniki zagregowane (HICP), nie ceny jednostkowe konkretnych warzyw w PLN | miesięczna | API/CSV, licencja otwarta | otwarta | **odrzucone** — nie da się z tego odtworzyć ceny za kg konkretnego warzywa |
+| dane.gov.pl (poza zbiorem 912) | — | — | — | — | żadnego innego zbioru z cenami detalicznymi warzyw nie znaleziono |
+
+**Dlaczego ZSRIR „do 2 kg”, a nie „HURT WARZ” z przelicznikiem.** Rozważono
+policzenie brakujących warzyw (kapusta, buraki, por, seler, pietruszka,
+sałata, ogórek) z arkusza hurtowego przez jeden, jawny mnożnik hurt→detal.
+Sprawdzono to empirycznie na warzywach, które są w OBU arkuszach tego
+samego biuletynu (cebula, marchew, ziemniaki, papryka czerwona): stosunek
+ceny detalicznej („do 2 kg”) do średniej ceny hurtowej z 5 rynków wyniósł
+odpowiednio ok. **1,0×** (cebula), **1,5×** (ziemniaki), **1,6×** (marchew)
+i **2,2×** (papryka) — rozrzut zbyt duży, żeby jeden mnożnik dla wszystkich
+warzyw był czymkolwiek innym niż zgadywaniem przedstawionym jako fakt.
+Zamiast zmyślać liczbę, zostawiamy te warzywa BEZ ceny — dokładnie jak dziś
+przy brakujących cenach GUS (`SzacunekKosztuZCen` już to obsługuje: milczy,
+gdy żaden składnik nie trafił w cennik, i tłumaczy się, gdy trafił tylko
+częściowo). Kalibrowany, PER-WARZYWO przelicznik jest możliwy w przyszłości,
+ale to osobna decyzja właściciela, nie coś do zgadnięcia przy okazji.
+
+**Wdrożenie.**
+
+1. `database/data/ceny_skladnikow.csv` ma teraz 5 nowych wierszy: `ziemniaki`,
+   `cebula`, `marchew`, `papryka_czerwona`, `pomidor`. `zrodlo` każdego
+   zaczyna się od `MRiRW` (nie `GUS`) — to jedyne miejsce, po którym kod
+   i testy rozpoznają źródło ceny (`SzacunekKosztuZCen::nazwaZrodla`).
+2. Nowy skrypt `scripts/ceny-warzyw-zsrir-pobierz.py` (analogiczny do
+   `ceny-gus-pobierz.py`) pobiera najnowszy biuletyn ZSRIR z dane.gov.pl,
+   czyta arkusz „ZAKUP WARZ DETAL - DO 2 KG” i aktualizuje TYLKO te pięć
+   wierszy. Uruchamia się na komputerze osoby prowadzącej, tak samo raz na
+   kwartał — produkcja nadal niczego nie pobiera z sieci.
+3. Zdanie na stronie przepisu wymienia oba źródła, gdy oba wystąpiły
+   w jednym przepisie: „Orientacyjny koszt: ok. 8–12 zł za całość (średnie
+   ceny detaliczne GUS i MRiRW/ZSRIR z 2025, 2026 r.). W Twoim sklepie może
+   być inaczej.” — zamiast dawnego sztywnego „GUS z {rok} r.”.
+4. Bez migracji: kolumny `ceny_skladnikow` już dopuszczały `zmienna_bdl`
+   jako `NULL` (wiersze spoza GUS go po prostu nie mają).
+
+**Nadal bez ceny:** kapusta, buraki ćwikłowe, por, seler, pietruszka
+korzeniowa, sałata, ogórek (gruntowy i szklarniowy) — patrz uzasadnienie
+wyżej. Przepis oparty głównie na tych warzywach uczciwie NIE dostanie
+przedziału albo dostanie zdanie „nie mamy cen części składników”.
+
+### Wycofanie części 3
+Usunąć pięć wierszy (`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`,
+`pomidor`) z `database/data/ceny_skladnikow.csv` i skrypt
+`scripts/ceny-warzyw-zsrir-pobierz.py`. Bez migracji do cofnięcia — kod
+`SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo jak dziś obsługuje
+brak cen warzyw w ogóle.

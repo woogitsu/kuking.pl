@@ -1715,10 +1715,33 @@ To **słownik, nie treść użytkowników**. Jedyna droga zapisu to komenda
 `php artisan kuking:ceny-skladnikow`, która wczytuje plik
 `database/data/ceny_skladnikow.csv` z repozytorium — w całości albo wcale,
 w jednej transakcji; wiersze spoza pliku znikają. Produkcja niczego nie
-pobiera z sieci: plik odświeża osoba prowadząca skryptem
-`scripts/ceny-gus-pobierz.py` (API Banku Danych Lokalnych GUS, temat P1466,
-średnie roczne ceny detaliczne dla Polski), a zmiana cen przechodzi przegląd
-w PR-ze.
+pobiera z sieci: plik odświeża osoba prowadząca dwoma skryptami, jednym na
+źródło (D-286, część 3):
+
+- `scripts/ceny-gus-pobierz.py` — mięso, nabiał, pieczywo, produkty suche:
+  API Banku Danych Lokalnych GUS, temat P1466, średnie roczne ceny
+  detaliczne dla Polski. Wiersz ma numer zmiennej w `zmienna_bdl`.
+- `scripts/ceny-warzyw-zsrir-pobierz.py` — **warzywa**: GUS/BDL nie podaje
+  dziś ich cen (seria miesięczna z ziemniakami, cebulą i marchwią kończy
+  się w 2019 r.). Zamiennik to Zintegrowany System Rolniczej Informacji
+  Rynkowej (ZSRIR) Ministerstwa Rolnictwa i Rozwoju Wsi — otwarte dane
+  dane.gov.pl (zbiór 912, CC BY 4.0), arkusz „ZAKUP WARZ DETAL — do 2 kg”
+  (cena zakupu warzyw przez detal, opakowania do 2 kg — najbliższy
+  oficjalny odpowiednik detalu, jaki ZSRIR ma), aktualizowany co tydzień.
+  Wiersz ma `zmienna_bdl` puste — źródło rozpoznaje się po tym, że
+  `zrodlo` zaczyna się od `MRiRW`, nie od `GUS`.
+
+Oba skrypty zmieniają WYŁĄCZNIE wiersze swojego źródła; zmiana cen
+przechodzi przegląd w PR-ze jak każda inna.
+
+Pokrycie warzyw jest dziś częściowe: ziemniaki, cebula, marchew, papryka
+czerwona i pomidor (okrągły) mają cenę z ZSRIR. Kapusta, buraki, por,
+seler, pietruszka korzeniowa, sałata i ogórek jej NIE mają — ZSRIR notuje
+je tylko hurtowo (arkusz „HURT WARZ”, pięć różnych rynków), a rozrzut
+między rynkami jest zbyt duży, żeby jeden mnożnik hurt→detal był czymś
+innym niż zgadywaniem (pełne wyliczenie w `docs/DECISIONS.md`, D-286
+część 3). Przepis oparty głównie na tych warzywach uczciwie nie dostaje
+przedziału kosztu.
 
 | Kolumna | Typ | Znaczenie |
 |---|---|---|
@@ -1730,7 +1753,7 @@ w PR-ze.
 | `g_na_jednostke` | `numeric(8,2)` | ile gramów waży jednostka ceny (1 l oleju ≈ 920 g, 1 jajko ≈ 60 g) |
 | `g_szklanka`, `g_lyzka`, `g_lyzeczka`, `g_sztuka` | `numeric(8,2) NULL` | miary domowe TEGO składnika w gramach |
 | `kolejnosc` | `smallint` | kolejność dopasowania — pierwszy pasujący wiersz wygrywa |
-| `okres`, `zrodlo`, `zmienna_bdl` | `varchar` | skąd jest cena: rok, opis źródła, numer zmiennej GUS |
+| `okres`, `zrodlo`, `zmienna_bdl` | `varchar` | skąd jest cena: rok, opis źródła, numer zmiennej GUS (`NULL` dla wierszy spoza GUS, np. ZSRIR) |
 | `zaimportowano_at` | `timestamptz` | kiedy komenda wczytała wiersz |
 
 CHECK `ceny_skladnikow_liczby_check`: `cena_zl >= 0`, `za_ilosc > 0`,

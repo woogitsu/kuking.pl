@@ -119,6 +119,41 @@ class KosztZCenGusTest extends TestCase
         $this->assertEquals($wynik, app(SzacunekKosztuZCen::class)->dla($przepis->fresh()));
     }
 
+    /**
+     * D-286, część 3: warzywa (ziemniaki, cebula, marchew) z MRiRW/ZSRIR
+     * obok mięsa z GUS — zdanie musi wymienić OBA źródła, nie tylko GUS.
+     */
+    #[Test]
+    public function zupa_jarzynowa_liczy_z_gus_i_zsrir_razem(): void
+    {
+        $plik = $this->plikCsv([
+            'kielbasa,kiełbasa,kielbasa|kielbasy,,32.96,1,kg,1000,,,,,2025,GUS - za 1kg,1753078',
+            'ziemniaki,ziemniaki,ziemniak|ziemniaki|ziemniakow,,1.85,1,kg,1000,,,,150,2026,"MRiRW, ZSRIR: notowania - ziemniaki",',
+            'cebula,cebula,cebula|cebule,,2.42,1,kg,1000,,,,100,2026,"MRiRW, ZSRIR: notowania - cebula biala",',
+            'marchew,marchew,marchew|marchewki,,2.89,1,kg,1000,,,,80,2026,"MRiRW, ZSRIR: notowania - marchew",',
+        ]);
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow', ['--plik' => $plik]), Artisan::output());
+
+        $przepis = $this->przepis([
+            '20 dag kiełbasy',   // 200 g × 32,96 zł/kg = 6,592 zł  (GUS)
+            '1 kg ziemniaków',   // 1000 g × 1,85 zł/kg = 1,85 zł   (MRiRW/ZSRIR)
+            '2 cebule',          // 2 × 100 g × 2,42 zł/kg = 0,484 zł (MRiRW/ZSRIR)
+            '3 marchewki',       // 3 × 80 g × 2,89 zł/kg = 0,6936 zł (MRiRW/ZSRIR)
+        ]);
+
+        // Razem 9,6196 zł → ±15% → 8,18…11,06 → „ok. 8–12 zł".
+        $wynik = app(SzacunekKosztuZCen::class)->dla($przepis);
+
+        $this->assertNotNull($wynik);
+        $this->assertTrue($wynik->jestPrzedzial(), (string) $wynik->powod);
+        $this->assertSame(8, $wynik->od);
+        $this->assertSame(12, $wynik->do);
+        $this->assertSame(
+            'Orientacyjny koszt: ok. 8–12 zł za całość (średnie ceny detaliczne GUS i MRiRW/ZSRIR z 2025, 2026 r.). W Twoim sklepie może być inaczej.',
+            $wynik->zdanie(),
+        );
+    }
+
     #[Test]
     public function za_male_pokrycie_masy_daje_wyjasnienie_bez_kwoty(): void
     {
@@ -205,8 +240,23 @@ class KosztZCenGusTest extends TestCase
 
         foreach (CenaSkladnika::all() as $wiersz) {
             $this->assertNotSame('', trim($wiersz->zrodlo), "Cena {$wiersz->klucz} nie mówi, skąd jest.");
-            if (! $wiersz->bezplatny()) {
+
+            // GUS (BDL) odświeża się numerem zmiennej; MRiRW/ZSRIR (warzywa,
+            // D-286 część 3) numeru zmiennej nie ma — jego wiersze odświeża
+            // `scripts/ceny-warzyw-zsrir-pobierz.py` po tytule notowania,
+            // nie po numerze. Każdy priced wiersz musi jednak jawnie należeć
+            // do jednego z tych dwóch źródeł — inny napis w `zrodlo` jest
+            // pomyłką, nie trzecim, cichym źródłem.
+            if ($wiersz->bezplatny()) {
+                continue;
+            }
+
+            if (str_starts_with($wiersz->zrodlo, 'GUS')) {
                 $this->assertNotNull($wiersz->zmienna_bdl, "Cena {$wiersz->klucz} nie ma numeru zmiennej GUS — nie da się jej odświeżyć.");
+            } elseif (str_starts_with($wiersz->zrodlo, 'MRiRW')) {
+                $this->assertNull($wiersz->zmienna_bdl, "Cena {$wiersz->klucz} ma numer zmiennej GUS, ale źródło to MRiRW/ZSRIR.");
+            } else {
+                $this->fail("Cena {$wiersz->klucz} ma źródło spoza GUS i MRiRW/ZSRIR: {$wiersz->zrodlo}");
             }
         }
 

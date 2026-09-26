@@ -33,7 +33,8 @@ final readonly class WynikSzacunku
 
     /**
      * „Orientacyjny koszt: ok. 15–20 zł za całość (średnie ceny detaliczne
-     * GUS z 2025 r.). W Twoim sklepie może być inaczej." — albo powód.
+     * GUS i MRiRW/ZSRIR z 2025, 2026 r.). W Twoim sklepie może być inaczej."
+     * — albo powód.
      */
     public function zdanie(): string
     {
