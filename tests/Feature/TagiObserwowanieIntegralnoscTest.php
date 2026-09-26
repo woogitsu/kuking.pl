@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Models\TagPromotion;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -394,10 +395,19 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertFalse($feed->isEmptyFor($user));
         $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
 
-        // Cel ukryty — scalenie nie jest furtką do ukrytego tagu.
-        $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
-        $this->assertTrue($feed->isEmptyFor($user));
-        $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
+        // Cel ukryty, gdy źródło wciąż na niego wskazuje: od #1522/#996 baza
+        // w ogóle nie dopuszcza takiego stanu — wyzwalacz `tags_scalenie_jednym_skokiem`
+        // odrzuca ukrycie tagu, który jest celem innych scaleń (musisz najpierw
+        // przepiąć źródła na nowy cel, tak jak robi to `MergeTags`). Ta ścieżka
+        // FollowingFeed jest więc dziś martwym kodem obronnym — nie da się jej
+        // dojść przez zapis. Sam wyzwalacz i jego komunikat pilnuje
+        // `Tests\Feature\GrafScalenTagowWBazieTest`.
+        try {
+            $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
+            $this->fail('Baza pozwoliła ukryć tag będący celem scalenia — regresja #1522.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('jest celem innych scalen', $e->getMessage());
+        }
     }
 
     public function test_853_stary_formularz_rezygnacji_po_scaleniu_mowi_prawde_i_nie_zdejmuje_celu(): void
