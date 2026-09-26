@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Domain\Moderation\Sygnaly\Sygnal;
+use App\Domain\Security\DziennyBudzetListow;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
 use App\Models\Post;
@@ -197,6 +198,11 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $this->assertNotNull($sprawa, 'Awaria poczty zabrała pozycję z kolejki — a miała zabrać tylko list.');
         $this->assertSame(Report::ALARM_NIEUDANY, $sprawa->alarm_pilny_stan);
         $this->assertNull($sprawa->alarm_pilny_zlecony_at);
+
+        // List nie wyszedł, więc miejsce w dobowym suficie alarmów i we
+        // wspólnej puli wraca (audyt B8-02) — jutro dosyłanie ma je mieć.
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte(), 'Nieudane zlecenie zjadło miejsce w suficie bez listu.');
+        $this->assertSame(0, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(), 'Nieudane zlecenie zjadło miejsce we wspólnej puli bez listu.');
 
         // TO JEST CAŁE ZADANIE: cisza ma inny kształt niż brak zgłoszeń.
         $odpowiedz = $this->get('/health');

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Poczta\BrakKonfiguracjiEmailLabs;
+use App\Poczta\PoliczListBezRezerwacji;
 use App\Poczta\TransportEmailLabs;
 use App\Poczta\ZapiszNieudanyList;
 use App\Support\DozwolonyHostApi;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\MailManager;
 use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
@@ -96,6 +99,11 @@ class PocztaServiceProvider extends ServiceProvider
         Queue::failing(static function (JobFailed $zdarzenie): void {
             app(ZapiszNieudanyList::class)($zdarzenie);
         });
+
+        // KAŻDY LIST W RACHUNKU WSPÓLNEJ PULI (audyt B8-02): listy wysyłane
+        // bez rezerwacji w `DziennyBudzetListow` są doliczane w chwili
+        // wysyłki. Uzasadnienie w `PoliczListBezRezerwacji`.
+        Event::listen(MessageSending::class, PoliczListBezRezerwacji::class);
     }
 
     /** @param list<string> $visited */

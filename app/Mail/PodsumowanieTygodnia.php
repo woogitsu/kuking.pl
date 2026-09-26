@@ -8,6 +8,7 @@ use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Digest\TrescDigestu;
 use App\Domain\Digest\ZbierzTresciDigestu;
 use App\Models\CookedEvent;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -121,6 +122,9 @@ class PodsumowanieTygodnia extends Mailable implements ShouldQueue
         return new Headers(text: [
             'List-Unsubscribe' => '<'.OdnosnikWypisania::dla($this->tresc->odbiorca).'>',
             'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+            // Miejsce w puli zajmuje `kuking:wyslij-podsumowania` przed
+            // zakolejkowaniem (B8-02, `ListZarezerwowany`).
+            ...ListZarezerwowany::naglowekTekstowy(),
         ]);
     }
 

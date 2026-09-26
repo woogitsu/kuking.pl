@@ -3089,6 +3089,17 @@ return [
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
 
             /*
+             * DOBOWY SUFIT LISTÓW ALARMU AUTOMATU (audyt B8-02). Kategorię
+             * „pilną" wyzwala treść, którą pisze ktokolwiek z kontem, więc bez
+             * sufitu seria wpisów oznaczonych przez model dawała list za listem
+             * z puli dzielonej z logowaniem i rejestracją. Osobny od
+             * `alarm_czlowieka.dzienny_sufit`: fala oznaczeń automatu nie może
+             * uciszyć alarmu o zgłoszeniu od człowieka. Po wyczerpaniu sprawa
+             * i tak czeka w panelu, a dziennik mówi, dlaczego bez listu.
+             */
+            'alarm_dzienny_sufit' => (int) env('KUKING_MODEL_ALARM_SUFIT', 10),
+
+            /*
              * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
              * `kuking:doslij-pilne-alarmy`, co godzinę).
              *

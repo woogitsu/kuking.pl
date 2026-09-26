@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\Sygnaly\Sygnal;
+use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
@@ -70,6 +72,19 @@ use Throwable;
  * Realne podwojenie i tak jest trudne: `reports_jeden_automat_na_tresc`
  * dopuszcza jedno oznaczenie na treść, a ponowna analiza widzi już
  * ustawiony `alarm_pilny_zlecony_at` i nie robi nic.
+ *
+ * DOBOWY SUFIT (audyt B8-02). Do 25.09.2026 każdy pilny sygnał wysyłał list
+ * bez rezerwacji w `DziennyBudzetListow` — seria wpisów oznaczonych przez
+ * model zjadała pulę, a licznik aplikacji dalej pokazywał wolne miejsce.
+ * Teraz list idzie tylko spod `dlaAlarmuAutomatu()` — w `handle()` i przy
+ * dosyłaniu, bo `PilnyAlarmModeracyjny` niesie znacznik „miejsce już
+ * zarezerwowane" i list bez rezerwacji wypadłby z rachunku puli. Po
+ * wyczerpaniu sufitu stan na wierszu ZOSTAJE bez znacznika (`zalegly` albo
+ * poprzedni), więc sprawa czeka w panelu, sonda `/health` widzi ją przez
+ * `alarm_sonda_godzin` (72 h), a `kuking:doslij-pilne-alarmy` wyśle list,
+ * gdy sufit się odnowi — najstarsze pierwsze, więc przy stałym zalewie
+ * najmłodsza sprawa może wypaść z okna sondy wciąż bez listu; w panelu
+ * zostaje. Dziennik mówi, dlaczego bez listu.
  */
 final class AlarmujModeratora
 {
@@ -80,10 +95,16 @@ final class AlarmujModeratora
     public const JUZ_ZLECONY = 'juz_zlecony';
 
     /**
+     * Dobowy sufit alarmów automatu albo wspólna pula poczty wyczerpane
+     * (audyt B8-02). Listu nie ma, stan na wierszu zostaje bez znacznika.
+     */
+    public const SUFIT = 'sufit';
+
+    /**
      * @param  list<Sygnal>  $sygnaly
      * @return string jeden z: `self::NIEPILNE`, `self::JUZ_ZLECONY`,
      *                `Report::ALARM_ZLECONY`, `Report::ALARM_BEZ_ADRESU`,
-     *                `Report::ALARM_NIEUDANY`
+     *                `Report::ALARM_NIEUDANY`, `self::SUFIT`
      */
     public function handle(Report $oznaczenie, array $sygnaly): string
     {
@@ -126,9 +147,19 @@ final class AlarmujModeratora
                 : self::JUZ_ZLECONY;
         }
 
+        $miejsce = $this->zarezerwujMiejsce($oznaczenie);
+
+        if ($miejsce === null) {
+            return self::SUFIT;
+        }
+
         try {
             Notification::route('mail', $adres)->notify(new PilnyAlarmModeracyjny($oznaczenie));
         } catch (Throwable $awaria) {
+            // Zadanie wysyłki nie powstało, więc list nie wyjdzie — miejsce
+            // wraca do sufitu i do wspólnej puli (ta sama reguła co #1393).
+            $miejsce->zwolnij();
+
             /*
              * WYJĄTEK NIE LECI DALEJ, ALE TEŻ NIE GINIE.
              *
@@ -169,8 +200,18 @@ final class AlarmujModeratora
      * zadanie wysyłki powstaje W TEJ SAMEJ transakcji: albo jest znacznik
      * i zadanie, albo żadne. Awaria zlecenia cofa znacznik.
      *
+     * SUFIT (audyt B8-02) SPRAWDZAMY PRZED TRANSAKCJĄ: rezerwacja w puli to
+     * blokada i licznik w cache, nie wiersz sprawy — nie mieszamy jej
+     * z warunkowym `UPDATE`. Gdy list jednak nie wychodzi (przegrany wyścig,
+     * sprawa zamknięta w międzyczasie, awaria zlecenia cofnięta razem
+     * z transakcją), miejsce wraca przez `zwolnij()` — inaczej każdy
+     * przegrany przebieg zjadałby miejsce w suficie i we wspólnej puli
+     * logowania do końca doby, nie wysławszy listu. Nigdy list poza sufitem.
+     *
      * @return string `Report::ALARM_ZLECONY`, `Report::ALARM_BEZ_ADRESU`,
-     *                `Report::ALARM_NIEUDANY` albo `self::JUZ_ZLECONY`, gdy
+     *                `Report::ALARM_NIEUDANY`, `self::SUFIT` (stan na wierszu
+     *                bez zmian, następny przebieg spróbuje znowu)
+     *                albo `self::JUZ_ZLECONY`, gdy
      *                wiersz zajął ktoś inny albo sprawa przestała być do
      *                dosłania (zamknięta w międzyczasie)
      */
@@ -180,6 +221,12 @@ final class AlarmujModeratora
 
         if (! is_string($adres) || $adres === '') {
             return Report::ALARM_BEZ_ADRESU;
+        }
+
+        $miejsce = $this->zarezerwujMiejsce($oznaczenie);
+
+        if ($miejsce === null) {
+            return self::SUFIT;
         }
 
         try {
@@ -206,6 +253,8 @@ final class AlarmujModeratora
         } catch (Throwable $awaria) {
             // Transakcja cofnęła znacznik — wiersz wraca do „nie dotarł"
             // i następny przebieg spróbuje znowu. Powód wyjątku jak w `handle()`.
+            // Zadanie wysyłki cofnęło się razem z nim, więc miejsce też wraca.
+            $miejsce->zwolnij();
             report($awaria);
             $oznaczenie->refresh();
 
@@ -215,12 +264,38 @@ final class AlarmujModeratora
         }
 
         if (! $zajete) {
+            $miejsce->zwolnij();
             $oznaczenie->refresh();
 
             return self::JUZ_ZLECONY;
         }
 
         return Report::ALARM_ZLECONY;
+    }
+
+    /**
+     * Miejsce w dobowym suficie alarmów automatu i we wspólnej puli poczty
+     * (audyt B8-02). Odmowa zostawia ślad w dzienniku — bez treści i bez
+     * danych autora, sam numer oznaczenia.
+     *
+     * Zwraca obiekt budżetu, bo `zwolnij()` oddaje tylko rezerwację zrobioną
+     * TYM obiektem (doba rezerwacji, #1061) — nowy obiekt nie miałby czego
+     * oddać.
+     */
+    private function zarezerwujMiejsce(Report $oznaczenie): ?DziennyBudzetListow
+    {
+        $budzet = DziennyBudzetListow::dlaAlarmuAutomatu();
+
+        if ($budzet->sprobujZarezerwowac()) {
+            return $budzet;
+        }
+
+        Log::warning('Pilne oznaczenie automatu bez listu alarmowego: dobowy sufit alarmów albo pula poczty wyczerpane.', [
+            'oznaczenie' => $oznaczenie->getKey(),
+            'co_zrobic' => 'Sprawdź kolejkę /admin/sygnaly — oznaczenie tam czeka.',
+        ]);
+
+        return null;
     }
 
     /**

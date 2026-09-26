@@ -816,6 +816,10 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    # Audyt B8-02: list z rezerwacją niesie znacznik, a rejestr klas jest
+    # zamknięty w obie strony. Zgubiony znacznik = list policzony dwa razy.
+    ("Alarm automatu bez znacznika rezerwacji", "app/Notifications/PilnyAlarmModeracyjny.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "ListZarezerwowany::oznacz(new MailMessage)", "(new MailMessage)")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Domain\Moderation\Sygnaly\Sygnal;
+use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Post;
 use App\Models\Report;
 use App\Notifications\PilnyAlarmModeracyjny;
@@ -15,7 +16,9 @@ use Illuminate\Contracts\Notifications\Dispatcher as DyspozytorPowiadomien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -107,6 +110,11 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $this->assertSame(AlarmujModeratora::JUZ_ZLECONY, $alarm->doslij($drugi));
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+
+        // Przegrany przebieg nie wysłał listu, więc nie zjada miejsca ani
+        // w dobowym suficie alarmów, ani we wspólnej puli logowania (B8-02).
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte(), 'Przegrany wyścig zjadł miejsce w suficie bez listu.');
+        $this->assertSame(1, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(), 'Przegrany wyścig zjadł miejsce we wspólnej puli bez listu.');
     }
 
     /** Kontrola dodatnia wyścigu: bez zajętego wiersza drugi przebieg JEST w stanie wysłać. */
@@ -160,6 +168,8 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $sprawa->refresh();
         $this->assertSame(Report::ALARM_NIEUDANY, $sprawa->alarm_pilny_stan);
         $this->assertNull($sprawa->alarm_pilny_zlecony_at, 'Wycofana transakcja zostawiła znacznik bez listu.');
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte(), 'Wycofane zlecenie zjadło miejsce w suficie bez listu.');
+        $this->assertSame(0, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte(), 'Wycofane zlecenie zjadło miejsce we wspólnej puli bez listu.');
 
         // Poczta wraca — następna godzina dosyła sama.
         $this->app->bind(DyspozytorPowiadomien::class, fn ($app) => $app->make(ChannelManager::class));
@@ -168,6 +178,7 @@ class DosylaniePilnychAlarmowTest extends TestCase
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
         $this->assertSame(Report::ALARM_ZLECONY, $sprawa->refresh()->alarm_pilny_stan);
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte());
     }
 
     public function test_limit_partii(): void
@@ -183,6 +194,66 @@ class DosylaniePilnychAlarmowTest extends TestCase
 
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 2);
+    }
+
+    /**
+     * Audyt B8-02 po scaleniu z #1051: dosyłanie też idzie spod dobowego
+     * sufitu alarmów automatu. `PilnyAlarmModeracyjny` niesie znacznik
+     * rezerwacji, więc list bez niej wypadłby z rachunku puli. Po
+     * wyczerpaniu sufitu sprawa zostaje „do dosłania" — sonda ją widzi,
+     * a następny przebieg spróbuje znowu.
+     */
+    public function test_dosylanie_idzie_spod_dobowego_sufitu_i_zostawia_sprawe_do_doslania(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_dzienny_sufit' => 1]);
+        $pierwsza = $this->sprawa('sufit_pierwsza');
+        $druga = $this->sprawa('sufit_druga');
+
+        $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(1, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte());
+        $this->assertSame(1, Report::query()->pilneDoDoslania()->count());
+        $stany = [$pierwsza->refresh()->alarm_pilny_stan, $druga->refresh()->alarm_pilny_stan];
+        sort($stany);
+        $this->assertSame([Report::ALARM_ZALEGLY, Report::ALARM_ZLECONY], $stany);
+
+        $czeka = $pierwsza->alarm_pilny_stan === Report::ALARM_ZALEGLY ? $pierwsza : $druga;
+        $this->assertNull($czeka->alarm_pilny_zlecony_at);
+        $this->assertSame(AlarmujModeratora::SUFIT, app(AlarmujModeratora::class)->doslij($czeka));
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+    }
+
+    /**
+     * Po pierwszej odmowie sufitu przebieg kończy partię: reszta spraw
+     * czeka bez kolejnych prób i bez ostrzeżenia w dzienniku przy każdej
+     * z nich. Wynik liczy je jako czekające na sufit, a stan zostaje
+     * „do dosłania” dla następnego przebiegu.
+     */
+    public function test_po_wyczerpaniu_sufitu_przebieg_nie_probuje_reszty_partii(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_dzienny_sufit' => 1]);
+        foreach (['partia_a', 'partia_b', 'partia_c', 'partia_d'] as $login) {
+            $this->sprawa($login);
+        }
+
+        // Szpieg przez ZMIENNĄ, nie przez fasadę — patrz komentarz
+        // w `PolitykaBezpieczenstwaTest::test_zgloszenie_nie_zapisuje_fragmentu_kodu_ze_strony()`:
+        // `Log::shouldHaveReceived()` działa w czasie wykonania, ale Larastan
+        // widzi tylko fasadę, na której takiej metody nie ma.
+        $log = Log::spy();
+
+        $this->artisan('kuking:doslij-pilne-alarmy')
+            ->expectsOutputToContain('Czekają na dobowy sufit alarmów (audyt B8-02): 3.')
+            ->assertSuccessful();
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(3, Report::query()->pilneDoDoslania()->count());
+        $log->shouldHaveReceived('warning')
+            ->with(Mockery::pattern('/dobowy sufit alarmów/'), Mockery::any())
+            ->once();
     }
 
     /**

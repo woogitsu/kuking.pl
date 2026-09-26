@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Security\DziennyBudzetListow;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Notification as PowiadomienieWSerwisie;
 use App\Models\Post;
@@ -313,6 +314,31 @@ class ModeracjaModelemTest extends TestCase
 
         $this->assertCount(1, $this->oznaczenia());
         Notification::assertSentOnDemand(PilnyAlarmModeracyjny::class);
+    }
+
+    /**
+     * Audyt B8-02: alarm automatu ma dobowy sufit i zajmuje miejsce we
+     * wspólnej puli. Wcześniej każde pilne oznaczenie wysyłało list obok
+     * licznika — seria wpisów zjadała pulę logowania i rejestracji.
+     */
+    public function test_alarm_automatu_ma_dobowy_sufit_i_liczy_sie_we_wspolnej_puli(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_dzienny_sufit' => 2]);
+        $this->modelOdpowiada(['sexual/minors' => 0.44]);
+
+        foreach (['a', 'b', 'c'] as $login) {
+            $this->analizuj($this->wpis($this->osoba('pilny'.$login), 'Pilna treść numer '.$login.', której nie wolno odłożyć.'));
+        }
+
+        // Kolejka w panelu ma wszystkie trzy — sufit zabiera tylko list.
+        $this->assertCount(3, $this->oznaczenia());
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 2);
+        $this->assertSame(2, DziennyBudzetListow::dlaAlarmuAutomatu()->zuzyte());
+        $this->assertSame(2, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
+
+        // Osobny licznik: alarm o zgłoszeniu od człowieka ma nadal całe miejsce.
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
     }
 
     public function test_bez_adresu_alarmowego_poczta_nie_wychodzi_i_nic_nie_pada(): void
