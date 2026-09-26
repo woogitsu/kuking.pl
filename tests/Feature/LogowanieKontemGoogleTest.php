@@ -707,7 +707,7 @@ class LogowanieKontemGoogleTest extends TestCase
             'username' => 'basia',
             'age_confirmed' => '1',
             'terms_accepted' => '1',
-        ])->assertStatus(503);
+        ])->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('users', 0);
     }
