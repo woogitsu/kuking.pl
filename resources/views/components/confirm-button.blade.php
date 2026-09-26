@@ -29,13 +29,22 @@
 {{-- `fields`: pola ukryte dopisywane do formularza (np. `oczekiwany_id`
      przy #793 — identyfikator osoby widzianej w chwili renderowania, nie
      tej, którą nazwa użytkownika w adresie wskazuje dziś). --}}
-@props(['action', 'method' => 'DELETE', 'label', 'question', 'fields' => []])
+{{-- `name`: nazwa konta, gdy pytanie dotyczy KONKRETNEJ osoby (#1819).
+     `question` sam NIE WOLNO mu składać z odmienioną nazwą — polskiej
+     odmiany nie da się policzyć z dowolnego ciągu znaków (COPY_STYLE.md,
+     „Nie doklejaj przyimka do cudzych słów"). Dlatego nazwa stoi w
+     mianowniku, w osobnym elemencie pod pytaniem, a `question` samo w sobie
+     ma być kompletnym zdaniem bez niej („Zablokować tę osobę?"). --}}
+@props(['action', 'method' => 'DELETE', 'label', 'question', 'name' => null, 'fields' => []])
 
 <details class="confirm">
     <summary class="btn btn-danger confirm-summary">{{ $label }}</summary>
 
     <div class="confirm-body">
         <p class="confirm-question">{{ $question }}</p>
+        @if($name)
+            <p class="confirm-question-nazwa"><strong>{{ $name }}</strong></p>
+        @endif
 
         <form method="POST" action="{{ $action }}">
             @csrf
