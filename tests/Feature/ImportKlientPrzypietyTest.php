@@ -24,6 +24,8 @@ use Tests\TestCase;
  * Guzzle do obsługi strumieniowej PHP, która opcję `curl` odrzuca.
  *
  * Żaden test nie wychodzi poza 127.0.0.1.
+ *
+ * @bez-kontroli-dodatniej base_path() wskazuje tylko router podprocesowi `php -S`, a file_get_contents czyta dziennik żądań zapisany przez ten serwer w trakcie testu — żadna asercja nie dotyczy tekstu źródła aplikacji; kontrole ujemne (bez CURLOPT_RESOLVE, ze `stream: true`, bez limitu bajtów) oblewają ten test.
  */
 final class ImportKlientPrzypietyTest extends TestCase
 {
