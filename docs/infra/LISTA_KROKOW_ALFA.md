@@ -333,8 +333,9 @@ próbą — dlatego przed nim cztery rzeczy, **wszystkie**:
 ### B2. Plan produkcji i jego czytanie
 
 - **Gdzie:** terminal, `railway link` → `production`;
-  `KUKING_WAIT_FOR_CI=true railway config plan` (zmienna tylko, jeśli A1
-  pokazał włączone „Wait for CI”).
+  `KUKING_WAIT_FOR_CI=true railway config plan` (zmienna obowiązkowa od
+  #1390: `true`, gdy A1 pokazał włączone „Wait for CI”, inaczej `false`;
+  bez niej `railway.ts` odmawia).
 - **Oczekiwane:** `kuking.pl` — zmiana w miejscu na rolę `web`;
   `worker`, `scheduler` — utworzenie; `Postgres` — bez zmian; domeny — bez
   zmian; `kopia-bazy` — utworzenie; usunięcie zmiennej — wyłącznie

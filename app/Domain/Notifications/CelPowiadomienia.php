@@ -77,6 +77,11 @@ final class CelPowiadomienia
             Notification::TYPE_FOLLOW => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
+            // Urodziny (#1755) — na AKTUALNY profil solenizanta, jak przy
+            // obserwowaniu: po `actor_id`, nie po nazwie zapamiętanej w `data`.
+            Notification::TYPE_BIRTHDAY => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
+                ? route('profile.show', $nazwa)
+                : null,
             // ISSUE #1371: wprost na wskazany wpis, nie na kolejkę — ta ma
             // limit 50 i gubi wpis po pierwszej odpowiedzi. Adres z BIEŻĄCEGO
             // wiersza (UUID, nie slug) i po bieżącej autoryzacji odbiorcy.

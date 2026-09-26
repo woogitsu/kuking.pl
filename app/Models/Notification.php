@@ -131,6 +131,16 @@ class Notification extends Model
     public const TYPE_FIRST_POST = 'post.first';
 
     /**
+     * „Dziś urodziny: Ania" (issue #1755, etap d). Aktorem jest solenizant.
+     * Powstaje TYLKO, gdy solenizant sam włączył
+     * `users.birthday_visible_to_followers`, najwyżej raz na dobę na parę
+     * (odbiorca, solenizant) i w dobowym limicie na odbiorcę
+     * (`kuking.urodziny.przypomnienia_na_odbiorce_dziennie`). Nie jest wpisem
+     * w feedzie — feed obserwowanych zostaje chronologiczny, bez wstawek.
+     */
+    public const TYPE_BIRTHDAY = 'birthday.today';
+
+    /**
      * Typy powiadomień WYŁĄCZONE Z OGÓLNEGO OKRESU RETENCJI (issue #19,
      * docs/decyzje/ADR_RETENCJE.md §5.2, §5.6) — kolizja trzymiesięcznej
      * retencji (`config('kuking.notifications.retention_months')`) z
