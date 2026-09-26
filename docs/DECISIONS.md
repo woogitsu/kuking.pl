@@ -360,7 +360,31 @@ Koszt zmiany: jedna linijka w `components/kuking-board.blade.php`.
 
 ## D-014 · Nie budujemy API „pod przyszłą aplikację mobilną"
 
-**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
+**Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **zmienione decyzją właściciela 25.09.2026 — API budowane** (zasady: D-270)
+
+> **Zmiana z 25 września 2026 (decyzja właściciela).** Właściciel postanowił
+> uruchomić publiczne API, żeby mogła powstać aplikacja mobilna. Konkluzja
+> „nie budujemy API" przestaje obowiązywać; obowiązuje za to w całości
+> akapit „Gdy przyjdzie czas" niżej — `routes/api.php` + Laravel Sanctum
+> (tokeny zamiast sesji) + kontrolery API nad tymi samymi Akcjami — i to on
+> jest teraz zasadą, nie zapowiedzią. Z tego wpisu zostają trzy zobowiązania,
+> rozpisane w **D-270**:
+>
+> 1. **API nad tymi samymi Akcjami i Policy co WWW.** Kontroler API waliduje,
+>    woła Akcję z `app/Domain/…/Actions` i zwraca zasób JSON. Reguła domenowa
+>    w kontrolerze API to reguła, którą da się obejść drugim endpointem —
+>    tak samo jak w kontrolerze HTML (AGENTS.md §4). Każde wejście na cudzą
+>    treść idzie przez tę samą Policy (AGENTS.md §7).
+> 2. **Brak logiki w kontrolerach API.** Jeśli kontroler API potrzebuje
+>    czegoś, czego nie ma w Akcji, to znaczy, że kontroler HTML ma to
+>    w sobie — wtedy najpierw wyciągamy to do Akcji, dopiero potem piszemy
+>    drugi adapter. Nie kopiujemy.
+> 3. **Ryzyko „API bez konsumenta rozjeżdża się z rzeczywistością" (punkt 2
+>    niżej) zostaje prawdziwe.** Odpowiedzią jest wyłącznik
+>    `KUKING_API_ENABLED`, domyślnie zamknięty, i testy Feature na każdej
+>    trasie — nie przekonanie, że tym razem ktoś będzie pamiętał.
+>
+> Reszta wpisu zostaje jako zapis rozumowania z 5 września.
 
 > **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
 > API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
@@ -17025,6 +17049,65 @@ Dowody: `tests/Feature/StraznikHostaR2Test.php`, kontrola ujemna
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia; danych nie trzeba cofać.
 
+## D-259 — Własne „Ugotowałem” otwiera się kucharzowi mimo blokady z autorem przepisu; przepis zostaje zamknięty (#1394, PR #1503, 24 września 2026)
+
+**Data:** 24 września 2026 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+
+**Co.** Kucharz widzi własne wykonanie („Ugotowałem”) — zdjęcie, notatkę,
+czas — także wtedy, gdy między nim a autorem przepisu jest blokada,
+w którąkolwiek stronę. Dotyczy to karty na własnej zakładce „Ugotowane”,
+strony szczegółu (`cooked.show`) i zdjęcia. Przy blokadzie widok nie
+pokazuje tytułu ani adresu przepisu (`components/cooked-card`,
+`przepisZaBlokada`, tytuł strony), a sam przepis dalej odpowiada kucharzowi
+403 (`RecipePolicy::view()`). Komentarze tnie jak dotąd
+`Comment::widoczneDla()`.
+
+**Co zostaje zamknięte.**
+
+- **Przepis** — dla kucharza objętego blokadą bez zmian: 403, bez tytułu
+  i adresu na karcie wykonania.
+- **Autor przepisu** objęty blokadą nie widzi wykonania kucharza (lista
+  i szczegół, jak dotąd).
+- **Moderator** objęty blokadą z autorem przepisu nie wchodzi w wykonanie
+  (`CookedEventPolicy::view()`, gałąź moderatora bez zmian).
+- Obcy widz nie widzi wykonań z przepisów, których sam nie widzi
+  (`ProfileController::tylkoZWidocznychPrzepisow()`).
+
+**Dlaczego.** Dotychczasowa reguła zamykała kucharzowi wejście w jego własne
+wykonanie przy blokadzie z autorem przepisu. Skutek zmierzony: własna
+zakładka „Ugotowane” (lista niefiltrowana dla właściciela) dalej pokazywała
+kartę z przyciskiem „Zobacz i skomentuj”, a przycisk i zdjęcie kończyły się
+**403** — martwy przycisk, a do tego lista i polityka odpowiadały inaczej.
+Zdjęcie i notatka są treścią kucharza („poprawne dane nigdy nie znikają”,
+AGENTS.md §5); musi je móc zobaczyć i skasować. Blokada chroni treść osoby,
+z którą wiąże — czyli przepis — i ta treść dalej się nie pokazuje: granica
+przeszła z wejścia do widoku, nie zniknęła.
+
+**Relacja do wcześniejszych rozstrzygnięć.** Odwraca rozstrzygnięcie
+z commitu `c26de5f3` („blokada ma pierwszeństwo przed prawem do własnej
+treści” — jedyny wyjątek od furtki na własne wykonanie w
+`CookedEventPolicy::view()`). Pierwszeństwo blokady (AGENTS.md §4) i
+jej porządek na parze osób z **D-080** obowiązują bez zmian: blokada dalej
+wyklucza obserwowanie, powstanie nowego wykonania (AGENTS.md §1, granica 3)
+i pokazanie treści drugiej strony. Zmienia się tylko to, że **własna** treść
+kucharza nie jest już zakładnikiem blokady.
+
+**Dowody:** `tests/Feature/WykonaniePoBlokadzieAutoraPrzepisuTest.php`
+(macierz: lista, szczegół i zdjęcie w obu kierunkach blokady; autor przepisu
+dalej bez dostępu), test
+`test_wlasne_wykonanie_po_blokadzie_z_autorem_przepisu_otwiera_sie_bez_przepisu`
+w `tests/Feature/UgotowalemWlasneWykonanieNieZnikaTest.php`, mutacja
+„własne wykonanie otwiera się kucharzowi mimo blokady” w
+`tests/mutacje/autoryzacja.txt`.
+
+**Co musiałoby się stać, żeby to zmienić:** pokazanie, że widok wykonania
+przy blokadzie ujawnia treść autora przepisu (tytuł, adres, komentarze),
+albo decyzja właściciela, że blokada ma zamykać także własną treść.
+
+### Wycofanie
+Odwrócić commity PR #1503. Schemat bazy się nie zmienia; danych nie trzeba
+cofać.
+
 ## D-256 — Poprawiony komentarz przechodzi analizę automatu jeszcze raz (24 września 2026)
 
 **Data:** 24 września 2026 · Issue #909 · Status: **obowiązuje**
@@ -17336,6 +17419,72 @@ ten wpis. Nic w bazie ani w migracjach się nie zmienia.
 
 ---
 
+## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
+
+Zmienia D-014. Etap 1 to fundament: nie ma w nim jeszcze żadnej trasy
+produkcyjnej, jest wszystko, na czym trasy staną.
+
+### Co
+
+1. **Laravel Sanctum, wyłącznie tokeny osobistego dostępu.** Nagłówek
+   `Authorization: Bearer <id>|kuking_<sekret>`. Droga „SPA na ciasteczku
+   sesji" jest zamknięta z trzech stron (`config/sanctum.php`): pusta lista
+   domen stanowych, pusta lista strażników sesji (`guard => []` — zalogowana
+   przeglądarka NIE przechodzi przez `auth:sanctum`) i brak trasy
+   `/sanctum/csrf-cookie`. Grupa `api` nie ma sesji, ciasteczek ani CSRF.
+2. **Tabela `personal_access_tokens` pod nasze zasady**, nie kopia z pakietu:
+   UUID, klucz obcy do `users`, CHECK-i, `timestamptz`, skrót poza
+   `$fillable` (`docs/DATABASE.md`). Tokeny giną razem z sesjami
+   (`User::invalidateSessions()` → `invalidateApiTokens()`).
+3. **Wersja w adresie: `/api/v1`** (`bootstrap/app.php`, `apiPrefix`).
+   Zmiana niezgodna wstecz to `/api/v2` obok, nie przeróbka `v1` — aplikacji
+   w telefonach nie da się zaktualizować w dniu wdrożenia.
+4. **Wyłącznik `KUKING_API_ENABLED`, domyślnie `false`.** Przy zamkniętym API
+   każdy adres pod `/api/*` odpowiada tym samym 404 co adres nieistniejący
+   (`App\Http\Middleware\BramaApi`, pierwsza na liście priorytetów
+   middleware'u — przed `auth:sanctum` i `throttle`). Zamknięte API nie
+   zdradza swojej mapy i nie zjada liczników limitu.
+5. **Jeden format błędu, po polsku** (`App\Http\Api\BledyApi`):
+   `{"message": "…", "code": "…"}`, przy 422 dodatkowo `errors` z komunikatami
+   z `lang/pl/validation.php`. 401, 403, 404, 405, 429 i 500 mają własne
+   zdania mówiące, co zrobić. Treść wyjątku technicznego nie wychodzi NIGDY,
+   także przy `APP_DEBUG=true`; wychodzi tylko `BladDlaCzlowieka` i zdanie
+   z `Response::deny()` Policy.
+6. **Dwa limity na każde żądanie**, liczby w `config/kuking.php`
+   (`api.limity`): na adres IP (300/min) liczony w `BramaApi` PRZED
+   sprawdzeniem tokenu — inaczej fałszywe tokeny odbijałyby się na 401
+   niepoliczone — i na token (120/min) w limiterze `api`. Limity logowania
+   (etap 2) dochodzą do tego osobno.
+
+### Dlaczego tak, a nie inaczej
+
+- **Token bez terminu.** Wylogowanie z telefonu co miesiąc to dla osoby 50+
+  koniec korzystania z aplikacji. Ochroną jest odwołanie (lista urządzeń na
+  WWW, etap 2) i kasowanie razem z sesjami, nie termin.
+- **Rollback tabeli bez odmowy.** D-088 chroni decyzje człowieka; token jest
+  poświadczeniem. Po `down()` + `migrate` każde urządzenie loguje się
+  jeszcze raz — kierunek bezpieczny.
+- **Limit na adres w middlewarze, nie w `throttle:`.** Sortowanie
+  `Kernel::$middlewarePriority` stawia `ThrottleRequests` za
+  `AuthenticatesRequests` i nie da się tego zmienić dla jednej grupy bez
+  zmiany dla WWW.
+
+### Czego to NIE zmienia
+
+PWA zostaje drogą mobilną dla przeglądarki. AGENTS.md §3 dalej zabrania SPA,
+GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
+
+**Zmiana wymaga:** decyzji właściciela (zamknięcie API) albo zmierzonego
+problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
+rozwiązuje.
+
+📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
+`app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
+`app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
+`tests/Feature/Api/`
+
 ## D-275 — Reguła doboru treści: zamknięta lista dozwolonych reguł (#1806, #1781, sprostowanie D-194, 25 września 2026)
 
 **Data:** 25 września 2026 · Decyzja właściciela (#1781) · Status: **obowiązuje**
@@ -17589,3 +17738,60 @@ najnowszy wpis autora, nie dwa naraz.
 Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
 dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
 listy odkrywania.
+
+## D-282 — V2 z `docs/FEATURES.md` wolno budować od 26 września 2026 (Nie wcześnie — bez zmian)
+
+**Data:** 26 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+**Problem.** `AGENTS.md` §2 i `CLAUDE.md` kazały sprawdzić sekcję „V2”
+w `docs/FEATURES.md` wyłącznie po to, **żeby nie budować z niej podczas prac
+nad MVP** — to zdanie stało tam od początku projektu i nikt go nie cofnął,
+mimo że MVP dawno przestało być jedyną pracą w repozytorium (V1 w większości
+zbudowane, dziennik dochodzi do D-28x). Zakaz był więc coraz mniej opisem
+stanu, a coraz bardziej starym zdaniem, którego nikt nie zauważał przy
+czytaniu ze zrozumieniem.
+
+**Decyzja.** Od 26 września 2026 wolno budować funkcje V2 wymienione
+w `docs/FEATURES.md` (sekcja „## V2”): skalowanie porcji, zamienniki, import
+przepisu z adresu URL/PDF/zdjęcia, OCR starych zeszytów, spiżarnia
+(„pantry”), „co ugotuję z tego, co mam”, wartości odżywcze i koszt
+przygotowania. **Native apps zostają bez zmian** — nadal wyłącznie „jeśli PWA
+potwierdzi retencję”, to zdanie ta decyzja NIE dotyka.
+
+**Lista „Nie wcześnie” w `docs/FEATURES.md` zostaje BEZ ZMIAN i w całości** —
+DM, czat/wideo na żywo, marketplace, wypłaty (payouts), punkty za liczbę
+postów i masowy import cudzych treści są nadal zakazane, niezależnie od tej
+decyzji. Ta decyzja dotyczy wyłącznie granicy MVP↔V2, nie granicy
+V2↔„Nie wcześnie”.
+
+**Kolejność wciąż obowiązuje.** Zniesienie zakazu V2 nie zwalnia z pracy
+issues po kolei (P0 → P1 → P2, `AGENTS.md` §2/§10) — funkcja z V2 wchodzi do
+kolejki na swoich prawach, nie przed pilniejszym P0/P1 z MVP/V1.
+
+**AI w funkcjach V2 — model i konfiguracja.** Funkcje V2 wymagające modelu
+językowego (OCR starych zeszytów, import ze zdjęcia/PDF/adresu URL, a w miarę
+potrzeby też zamienniki i wartości odżywcze) korzystają z modelu OpenAI
+**„GPT-6 Luna”**. Nazwa modelu i klucz API stoją WYŁĄCZNIE w konfiguracji
+(`config/kuking.php` + zmienna w `.env`/`.env.example`), tym samym wzorcem co
+istniejąca integracja moderacji AI (`config('kuking.moderation.model')`,
+`config/kuking.php` ok. linii 3006–3040: `klucz` z `env()`, brak klucza =
+funkcja wyłączona i nic nie pada, bez wyjątku dla żadnej z tych funkcji).
+**Klucz nigdy nie stoi w kodzie** — ani wprost, ani jako domyślna wartość
+`env()` inna niż pusta.
+
+**Co z tym zrobiono w dokumentacji.** `AGENTS.md` §2 i `CLAUDE.md` — zdanie
+nakazujące sprawdzać V2 „żeby nie budować" zastąpione odesłaniem do tej
+decyzji. `docs/FEATURES.md` — adnotacja przy nagłówku „## V2” z datą i
+numerem decyzji. Sama treść list V1/V2/„Nie wcześnie” w `docs/FEATURES.md`
+się nie zmienia — zmienia się wyłącznie to, czy V2 wolno realizować.
+`docs/ROADMAP.md` nie wspominał zakazu V2 wprost, więc nie wymagał zmiany.
+
+### Wycofanie
+Cofnięcie tej decyzji przywraca zakaz budowania V2 podczas prac nad MVP —
+wymaga nowej decyzji właściciela, przywrócenia poprzedniego brzmienia
+`AGENTS.md` §2 / `CLAUDE.md` i usunięcia adnotacji przy „## V2” w
+`docs/FEATURES.md`. Nie cofa kodu już zbudowanego pod funkcje V2 — to
+wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
+
+📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
+`docs/ROADMAP.md`, `config/kuking.php`
