@@ -29,13 +29,11 @@ use Tests\TestCase;
  * i stroną, którą się porzuca. A osoba 50+ nie powie „strona wolno działa",
  * tylko przestanie tam wracać.
  *
- * DLACZEGO ODPOWIEDZI ZOSTAJĄ W CAŁOŚCI
- * Wątek ma tylko JEDEN poziom odpowiedzi (`comment-thread.blade.php`), więc
- * ich liczba jest ograniczona liczbą osób, które weszły w JEDNĄ rozmowę —
- * a nie popularnością całego przepisu. Paginowanie odpowiedzi wymagałoby
- * osobnej strony dla każdego wątku i dawałoby przycisk „Pokaż więcej"
- * w środku listy, czyli dokładnie ten rodzaj nieprzewidywalności, przed
- * którym ostrzega `docs/UX_50_PLUS.md`.
+ * ODPOWIEDZI TEŻ IDĄ PORCJAMI (issue #939)
+ * Dawniej stało tu, że odpowiedzi jednego wątku mogą zostać w całości, bo
+ * „ograniczone są liczbą osób w rozmowie”. To nie wynikało z żadnej reguły —
+ * ta sama osoba może odpowiadać bez końca. Limit i link „Pokaż dalsze
+ * odpowiedzi (N)” mierzy `OdpowiedziWatkuPorcjamiTest`.
  */
 class KomentarzeStronamiTest extends TestCase
 {

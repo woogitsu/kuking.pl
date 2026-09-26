@@ -483,6 +483,13 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
 
+Pusty stan „Komu wyszło” mówi „Nie ma tu widocznych wykonań”. Brak kart
+może oznaczać zarówno brak wykonań, jak i wykonania ukryte przed bieżącym
+widzem przez blokadę. Nie obiecujemy, że jego wykonanie będzie pierwsze.
+Osobie uprawnionej pokazujemy „Dodaj swoje wykonanie”, a gościowi drogę
+do założenia konta i osobny link do logowania. Samo otwarcie tych stron
+nie dodaje wykonania.
+
 Instrukcja formularza może zapowiadać powiadomienie innego autora, który
 może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
 „Zapisz wykonanie tego przepisu.” Zawieszony autor nadal może czytać

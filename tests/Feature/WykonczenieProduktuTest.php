@@ -99,8 +99,8 @@ class WykonczenieProduktuTest extends TestCase
         // ryzyko wprost.
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
-            ->assertSee('Jeszcze nikt tego nie gotował')
-            ->assertSee('Twoje wykonanie będzie pierwsze.', escape: false);
+            ->assertSee('Nie ma tu widocznych wykonań')
+            ->assertSee('Załóż konto, żeby dodać wykonanie', escape: false);
     }
 
     // ---------------------------------------------------------------

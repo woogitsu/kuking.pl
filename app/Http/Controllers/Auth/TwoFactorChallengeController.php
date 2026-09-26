@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -128,6 +129,7 @@ class TwoFactorChallengeController extends Controller
         // wymagany przy KAŻDYM logowaniu. Konto bez 2FA nadal jest
         // zapamiętywane normalnie (LoginController::store()).
         Auth::login($user, remember: false);
+        AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $request->ip());
 
         return redirect()->intended(route('home'));
     }
