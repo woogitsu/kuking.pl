@@ -32,7 +32,7 @@ namespace Tests\Support;
 final class WzorceRodzaju
 {
     /**
-     * WYJĄTKI — trzy nazwane brzmienia i jedno zdanie diagnostyczne.
+     * WYJĄTKI — cztery nazwane brzmienia i jedno zdanie diagnostyczne.
      *
      * Lista jest krótka celowo. Szeroki wyjątek („cały ten plik", „słowo
      * «ugotowałeś» wszędzie") sprawia, że test przestaje czegokolwiek pilnować,
@@ -47,7 +47,13 @@ final class WzorceRodzaju
      *   3.   „Ugotowałem" z wielkiej litery — NAZWA PRZYCISKA brana
      *        w cudzysłów, ustalona w PR #235. Cytowanie nazwy przycisku nie
      *        mówi nic o płci czytelnika. Zapis małą literą wyjątku nie ma.
-     *   4.   Udawany wpis podawany modelowi moderacji w `kuking:sprawdz-model`.
+     *   4.   „Sprawdziłem odczytany tekst" z wielkiej litery — ETYKIETA
+     *        POLA WYBORU przed publikacją szkicu z importu (D-300, PR #1899).
+     *        Decyzja właściciela z 26.09.2026: wyjątek na tej samej zasadzie
+     *        co „Ugotowałem" — nazwa kontrolki wypowiadana w pierwszej
+     *        osobie, cytowana też w komunikacie `StrazImportu`. Inne zdania
+     *        z „sprawdziłem" wyjątku nie mają.
+     *   5.   Udawany wpis podawany modelowi moderacji w `kuking:sprawdz-model`.
      *        To treść użytkownika w roli próbki, nie tekst serwisu do nikogo —
      *        i akurat na niej sprawdzamy, że model nie flaguje zwykłego rosołu.
      *
@@ -61,6 +67,7 @@ final class WzorceRodzaju
         'co dziś ugotowałeś' => 'hasło główne, utrwalone w COPY_STYLE.md §2',
         'co ugotowałeś' => 'to samo hasło w przycisku dodawania zdjęcia',
         'Ugotowałem' => 'nazwa przycisku w cudzysłowie (PR #235)',
+        'Sprawdziłem odczytany tekst' => 'etykieta pola wyboru przy imporcie (decyzja właściciela 26.09.2026, PR #1899)',
         'Dziś ugotowałam rosół' => 'udawany wpis podawany modelowi moderacji',
     ];
 

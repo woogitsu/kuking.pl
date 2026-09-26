@@ -330,6 +330,11 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'zostałaś/eś zalogowana/y na cudzym telefonie',
             'a to nie Ty prosiłaś/eś o zmianę',
             'Nikogo nie zablokowałaś.',
+            // Wyjątek „Sprawdziłem odczytany tekst" to fraza, nie słowo:
+            // forma żeńska, zapis małą literą i inne zdanie z tym czasownikiem obleją.
+            'Sprawdziłam odczytany tekst',
+            'Już sprawdziłem odczytany tekst.',
+            'Sprawdziłem wszystko jeszcze raz.',
             'Możesz być pierwsza albo pierwszy.',
             'Będziesz pierwsza albo pierwszy?',
             'Podaj adres e-mail, którym je zakładałaś albo zakładałeś',
@@ -370,6 +375,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'Kuking.pl — pokaż, co dziś ugotowałeś.',
             'razy Ugotowałem',
             'Pod każdym przepisem jest przycisk „Ugotowałem".',
+            // Etykieta pola wyboru przy imporcie — decyzja właściciela z 26.09.2026.
+            '<span class="choice-label">Sprawdziłem odczytany tekst</span>',
+            'zaznacz „Sprawdziłem odczytany tekst”. Nic nie zginęło.',
             // Trzecia osoba o KONKRETNEJ, znanej osobie — rodzaj poprawny.
             'Halina ugotowała Twój rosół',
             'Basia zaczęła Cię obserwować',

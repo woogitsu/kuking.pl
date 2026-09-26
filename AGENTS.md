@@ -699,6 +699,12 @@ W skrócie:
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
+  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
+  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
+  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
+  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
+  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
