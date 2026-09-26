@@ -89,7 +89,7 @@
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
-    <section class="mt-8">
+    <section class="mt-8" id="zablokowane">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
             <p class="meta">Nikogo nie blokujesz.</p>
