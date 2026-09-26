@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Support\Czas;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -293,9 +294,9 @@ final class MetrykiDoboru
      * Publiczne, opublikowane wpisy z okna, bez kont wyłączonych z liczb.
      *
      * @param  list<string>  $wykluczeni
-     * @return \Illuminate\Database\Eloquent\Builder<Post>
+     * @return Builder<Post>
      */
-    private function publiczne(CarbonImmutable $od, CarbonImmutable $do, array $wykluczeni): \Illuminate\Database\Eloquent\Builder
+    private function publiczne(CarbonImmutable $od, CarbonImmutable $do, array $wykluczeni): Builder
     {
         return Post::query()
             ->publiclyVisible()
