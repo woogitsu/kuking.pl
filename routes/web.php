@@ -53,6 +53,7 @@ use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
+use App\Http\Controllers\Settings\BirthdaySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
@@ -67,6 +68,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -179,6 +181,19 @@ Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodn
 Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('podsumowanie.wracam');
+
+// Wypisanie z listu z życzeniami urodzinowymi (issue #1755, D-269). Poza
+// `auth` z tego samego powodu co wypisanie z podsumowania wyżej: bez
+// logowania. Autoryzacją jest podpis. GET tylko pyta (strona z przyciskiem),
+// zgodę wycofuje POST z tokenem CSRF z tej strony — dlatego bez wyjątku
+// z CSRF i bez nagłówka `List-Unsubscribe-Post` w liście. „Jednak chcę"
+// włącza zgodę z powrotem, też wyłącznie POST-em.
+Route::match(['get', 'post'], '/urodziny/wypisz/{user}', [UrodzinyWypiszController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('urodziny.wypisz');
+Route::post('/urodziny/wracam/{user}', [UrodzinyWypiszController::class, 'wracam'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('urodziny.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
@@ -672,8 +687,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/komentarze/{comment}', [CommentController::class, 'update'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.update');
+    // Issue #911: komentarz bez odpowiedzi jest usuwany miękko. Bez
+    // withTrashed() drugie DELETE (druga karta) kończyło się 404 zamiast
+    // komunikatu „był już usunięty". Tylko ta trasa — edycja usuniętego
+    // komentarza nadal daje 404. Policy w kontrolerze idzie pierwsza.
     Route::delete('/komentarze/{comment}', [CommentController::class, 'destroy'])
         ->middleware("throttle:{$limits['comment']},comment")
+        ->withTrashed()
         ->name('comments.destroy');
 
     /*
@@ -711,6 +731,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
+    // „Zrób swoją wersję" (issue #23, D-301) — zakłada szkic, więc POST
+    // i ten sam limit co każde inne wytwarzanie przepisu.
+    Route::post('/przepisy/{recipe}/moja-wersja', [RecipeController::class, 'fork'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.fork');
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
@@ -917,6 +942,19 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    // Urodziny: dzień i miesiąc, bez roku (issue #1755). Własny ekran, nie
+    // pole profilu — powód w `BirthdaySettingsController`.
+    Route::get('/ustawienia/urodziny', [BirthdaySettingsController::class, 'edit'])->name('settings.birthday');
+    Route::put('/ustawienia/urodziny', [BirthdaySettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.birthday.update');
+    Route::put('/ustawienia/urodziny/wybory', [BirthdaySettingsController::class, 'preferences'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.birthday.preferences');
+    Route::delete('/ustawienia/urodziny', [BirthdaySettingsController::class, 'destroy'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.birthday.destroy');
 
     Route::get('/ustawienia/twoje-dane', [DataSettingsController::class, 'show'])->name('settings.data');
     // Paczka RODO to najdroższe pojedyncze żądanie w serwisie — własny klucz

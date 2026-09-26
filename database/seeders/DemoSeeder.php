@@ -47,7 +47,8 @@ class DemoSeeder extends Seeder
      * wynieść. To drugie jest tańsze i nie wymaga niczyjej czujności.
      *
      * Bez `KUKING_DEMO_HASLO` losujemy hasło na każdy przebieg i wypisujemy
-     * je na koniec. Celowo NIE ma tu wartości domyślnej: wartość domyślna
+     * je na koniec — ale tylko w trybie interaktywnym (patrz
+     * `komunikatKoncowy()`, #1295). Celowo NIE ma tu wartości domyślnej: wartość domyślna
      * wróciłaby do repozytorium tym samym wejściem, którym właśnie wyszła,
      * tylko pod inną nazwą.
      */
@@ -59,11 +60,33 @@ class DemoSeeder extends Seeder
             return $this->haslo;
         }
 
-        $zOtoczenia = trim((string) config('kuking.demo.haslo', ''));
+        $zOtoczenia = $this->hasloZOtoczenia();
 
         return $this->haslo = $zOtoczenia !== ''
             ? $zOtoczenia
             : Str::password(16, symbols: false);
+    }
+
+    private function hasloZOtoczenia(): string
+    {
+        return trim((string) config('kuking.demo.haslo', ''));
+    }
+
+    /**
+     * Czy wylosowane hasło wolno pokazać na ekranie.
+     *
+     * Tylko w trybie interaktywnym: `--no-interaction` stawiają CI, skrypty
+     * i wdrożenia — tam wyjście jest logiem, a log trwa dłużej niż zasiew.
+     * `migrate:fresh --seed` przekazuje tę flagę do `db:seed` (kontekst
+     * `Command::call()`), więc rozpoznanie działa także tą drogą.
+     */
+    private function wolnoPokazacWylosowaneHaslo(): bool
+    {
+        if ($this->command === null || ! $this->command->getDefinition()->hasOption('no-interaction')) {
+            return false;
+        }
+
+        return ! $this->command->option('no-interaction');
     }
 
     public function run(): void
@@ -700,6 +723,13 @@ class DemoSeeder extends Seeder
      * utworzyć personę o tym imieniu. Człowiek dostawał gotowe dane do
      * logowania, wpisywał je i widział „nieprawidłowe hasło" — i nie miał
      * skąd wiedzieć, że wina nie jest jego.
+     *
+     * HASŁA Z `KUKING_DEMO_HASLO` NIE WYPISUJEMY NIGDY (#1295). CI podaje je
+     * z sekretu i robi `migrate:fresh --seed`, więc wyjście seedera staje się
+     * logiem joba. Maskowanie sekretów przez GitHuba to cudza, tekstowa
+     * warstwa — inne CI albo `> plik` jej nie mają. Kto ustawił zmienną, zna
+     * hasło; wystarczy mu wskazać, skąd je wziąć. Hasło wylosowane pokazujemy
+     * tylko w trybie interaktywnym — bez niego nikt by go nie odzyskał.
      */
     private function komunikatKoncowy(string $emailModeratora): void
     {
@@ -714,7 +744,14 @@ class DemoSeeder extends Seeder
             return;
         }
 
-        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
+        if ($this->hasloZOtoczenia() !== '') {
+            $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: wartość zmiennej KUKING_DEMO_HASLO (nie wypisujemy jej).');
+        } elseif ($this->wolnoPokazacWylosowaneHaslo()) {
+            $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
+        } else {
+            $this->command?->info('Dane demo gotowe. Hasło do kont niżej wylosowano, ale go nie wypisujemy, bo zasiew działa bez interakcji (--no-interaction), a takie wyjście trafia do logu.');
+            $this->command?->line('Żeby się zalogować: ustaw KUKING_DEMO_HASLO w .env i zasiej ponownie albo uruchom zasiew bez --no-interaction.');
+        }
 
         foreach ($logowalne as $email) {
             $rola = $email === $emailModeratora ? ' (moderator)' : '';
