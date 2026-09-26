@@ -53,7 +53,10 @@ i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
 oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
 w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
-spoza listy spada do wartości domyślnej; zapytania poza kontrolerem).
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
+oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
+zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
+`RequestAccountDeletion` (zgłoszenie usunięcia konta).
 
 ### Application
 Use cases, np.:
@@ -92,6 +95,53 @@ Sharing · Social · Tags · Users · Wspomnienia · Zgody
 ```
 
 Nie robimy z nich osobnych serwisów ani pakietów.
+
+## Widoczność treści w zapytaniach zbiorczych (#1687)
+
+Policy (`PostPolicy`, `RecipePolicy`, `CookedEventPolicy`, `CommentPolicy`)
+odpowiada na pytanie o **jeden** rekord. Lista, licznik albo eksport, które
+filtrują wiele wierszy naraz, nie wołają Policy po jednym rekordzie (N+1),
+tylko używają **nazwanej specyfikacji zapytania** i **testu równoważności**
+z Policy. Model Eloquenta nie trzyma własnej kopii reguł innego modułu.
+
+```text
+Notification::scopeVisibleTo()           ← tylko wejście (lista, licznik,
+        │                                   „Oznacz wszystkie", otwarcie, eksport)
+        ▼
+Domain/Notifications/WidocznoscPowiadomien   reguły samego powiadomienia:
+        │                                    sprawca, blokada, typ służbowy,
+        │                                    czy komentarz wciąż istnieje
+        ▼
+Domain/Widocznosc/WidocznoscTresciSql        widoczność wpisu, przepisu
+                                             i „Ugotowałem" jako fragment EXISTS
+```
+
+Zgodności pilnuje `tests/Feature/Visibility/PowiadomieniaZgodneZPolicyTest`:
+macierz cel × widz × stan × rodzaj komentarza, stan nakładany po utworzeniu
+powiadomienia. Nowa reguła w Policy treści bez obsługi w specyfikacji daje
+czerwony test z nazwą komórki. Tolerowane są wyłącznie dwa znane rozjazdy,
+każdy w jednym kierunku i z numerem zgłoszenia (#1378, #1385).
+
+Zasada dla kolejnych modułów: jeśli zapytanie zbiorcze musi odtworzyć regułę
+z Policy, reguła trafia do specyfikacji w `app/Domain`, a obok powstaje test
+równoważności z Policy — nie kolejna prywatna kopia w modelu albo kontrolerze.
+
+Etap 2 (#1687): dokąd prowadzi powiadomienie i co pokazuje jego wycinek też
+nie należy do modelu. `Domain/Notifications/CelPowiadomienia` liczy adres
+„Zobacz" dla jednego powiadomienia (`adres()`, wejście przez
+`Notification::adresDocelowy()`) i dla całej strony jednym odczytem
+komentarzy (`adresy()`, #833); `Domain/Notifications/WycinkiKomentarzy`
+czyta żywe wycinki komentarzy (D-229) dla listy i eksportu. Obie klasy
+dostają powiadomienia, które już przeszły przez `WidocznoscPowiadomien`.
+
+Etap 3 (#1687): termin ochrony odwoławczej powiadomienia (retencja, ADR
+§5.2) liczy `Domain/Compliance/TerminOchronyOdwolawczej`, obok jedynego
+odbiorcy — `PrzedawnionePowiadomienia`. Przy modelu zostaje tylko lista
+typów z własnym terminem (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`).
+
+Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
+(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
+m.in. statusem konta autora).
 
 ### Kierunek zależności (issue #971)
 
