@@ -451,6 +451,13 @@ WERSJA_DOKUMENTU_TEST = "WersjaDokumentuTest"
 # brak `@X.Y.Z` po `@railway/cli`.
 RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
 RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
+# Runbook nie każe instalować niewdrożonych Sentry i PostHog (#1010). Strażnik
+# czyta dokument; mutacje przywracają do części wykonywanej (poza `<details>`)
+# polecenie instalacji pakietu i wiersz z kluczem PostHog w tabeli zmiennych.
+RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
+RUNBOOK_USLUGI_TEST = "RunbookNieKazeInstalowacNiewdrozonychUslugTest"
+RUNBOOK_KROK_4 = "3. Próba po wdrożeniu stoi w kroku 11.3 (punkt 19).\n"
+RUNBOOK_WIERSZ_WEBHOOKA = "| `LOG_BLAD_WEBHOOK_URL` | z kroku 4 |"
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
 # `markFailed()` przechodził, a kolejka nie wiedziała o porażce. Mutacja
@@ -1081,6 +1088,10 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
     ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_KROK_4, RUNBOOK_KROK_4 + "\n```bash\ncomposer require sentry/sentry-laravel\n```\n")),
+    ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_WIERSZ_WEBHOOKA, "| `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |\n" + RUNBOOK_WIERSZ_WEBHOOKA)),
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
@@ -1245,6 +1256,7 @@ run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(PODZIAL_TESTOW_TEST, True)
+run_test(RUNBOOK_USLUGI_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
