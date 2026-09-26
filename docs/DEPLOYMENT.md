@@ -10,14 +10,20 @@ Kuking
 
 Queue MVP: database.
 
-Po wzroście:
+Po wzroście (`PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts`):
 ```text
 Kuking
 ├── web
 ├── worker
-├── postgres
-└── cron
+├── scheduler
+└── postgres
 ```
+
+`scheduler` to **długo działający** proces Laravel `schedule:work` (nie
+Railway Cron — ten ma granulację 5 minut, a `everyMinute()` wymaga odpytania
+co minutę). Ma zawsze dokładnie 1 replikę: dwie odpalałyby ten sam
+harmonogram dwa razy. Pełne uzasadnienie: `docs/infra/INFRA_DECISION.md`
+§5, kontrakt ról: `.railway/railway.ts`.
 
 Zdjęcia docelowo: Cloudflare R2.
 
@@ -45,6 +51,80 @@ Nie projektować nowego repo wokół starego `railway.json` / `railway.toml`, po
 - HTTPS;
 - healthcheck;
 - backup.
+
+## Dziennik serwera i polityka prywatności
+
+Produkcja loguje na `stderr` (`.railway/railway.ts` → `LOG_CHANNEL`,
+`LOG_STDERR_FORMATTER`). Railway przechwytuje `stdout`/`stderr` do swojego
+narzędzia dzienników, więc wpisy **nie znikają** razem z instancją — żyją
+tyle, ile pozwala plan konta Railway.
+
+Polityka prywatności (§2, wiersz „Wykrywanie i naprawa błędów
+technicznych”, oraz tabela dostawców w §3) opisuje ten przepływ.
+
+**Stan na 24.09.2026 (decyzja właściciela, #994):** plan Railway **Hobby**,
+w polityce „**do 7 dni**”. Liczby wg dokumentacji Railway (retencja logów):
+Free 3 dni, Hobby 7, Pro 30, Enterprise do 90. Przy publicznym starcie
+produkcji właściciel przechodzi na **Pro**.
+
+Checklista przejścia na Pro (zrób wszystko w jednym PR-ze):
+
+- [ ] `resources/legal/polityka-prywatnosci.md`, wiersz „Wykrywanie i naprawa
+      błędów technicznych”: **„do 7 dni” → „do 30 dni”**;
+- [ ] podbij wersję polityki: data w nagłówku („opisuje stan serwisu na …”)
+      **i** `config/kuking.php` → `zgody.wersja_polityki` — ta sama data
+      (pilnuje `PolitykaOpisujeRetencjeDziennikaSerweraTest`);
+- [ ] `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.19: plan Pro, 30 dni;
+- [ ] zdanie dla ludzi w `CHANGELOG.md`;
+- [ ] kontrola dodatnia w `scripts/kontrole-negatywne-alfa08.py`
+      (`POLITYKA_DZIENNIK_DNI`) — tekst mutacji musi odpowiadać nowemu zdaniu.
+
+**Kiedy trzeba zmienić tekst polityki** (razem z datą stanu w jej nagłówku
+i `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.19):
+
+- zmiana planu Railway albo ustawień przechowywania dzienników
+  (przejście na Pro — checklista wyżej);
+- ustawienie `LOG_BLAD_WEBHOOK_URL` (Slack/Discord) albo eksport logów poza
+  Railway — to nowy odbiorca zapisu błędu i trafia do tabeli dostawców;
+- zmiana `LOG_CHANNEL` na inny odbiornik (plik, zewnętrzne narzędzie
+  do zbierania błędów) — nowy odbiorca trafia też do tabeli dostawców.
+
+Powrotu do zdania, które wiązało retencję z życiem instancji, pilnuje
+`PolitykaOpisujeRetencjeDziennikaSerweraTest`.
+
+## Kolejki — ile procesów `queue:work` (runbook, #1030)
+
+Liczbę procesów i ich kolejki wybiera `listy_kolejek()` w
+`docker/entrypoint.sh`:
+
+| Rola | Domyślnie | Dlaczego |
+|------|-----------|----------|
+| `worker` (osobny kontener) | 4 procesy: `high`, `default`, `media`, `low` | żadna kolejka nie czeka za zaległością innej; `high` (listy wejścia na konto, B8-06) to lekki proces z samymi e-mailami |
+| `all` (produkcja dziś, jeden kontener 1024 MB) | 1 proces: `high,default,media,low` | trzy szczyty pamięci naraz (zdjęcie 50 Mpx ~452 MB, eksport do 512M, WWW) to OOM, który kładzie też stronę |
+
+W roli `all` kolejność na liście to **ścisły priorytet**: przy stałej
+zaległości `default` (np. fala maili) zdjęcia i eksporty czekają. Widać to
+w `php artisan kuking:sprawdz-kolejke` — rośnie zaległość `media` albo `low`
+przy żywym `default`. Lekarstwo docelowe: osobny serwis `worker`
+(`PRODUCTION_SPLIT_SERVICES` w `.railway/railway.ts`).
+
+Ręczne sterowanie, bez wdrożenia kodu (zmienna w panelu Railway + restart):
+
+- `QUEUE_WORKERS` — procesy rozdzielone **spacją**, w każdym lista po
+  przecinku. Wygrywa z domyślną wartością każdej roli. Przykład dla `all`
+  przy dużym zapasie pamięci: `QUEUE_WORKERS="high,default,low media"`.
+  Każda lista musi zawierać `high` — inaczej listy logowania zostaną w bazie.
+  **Nigdy** nie dawaj `media` do dwóch procesów.
+- `QUEUE_NAMES` — dawna zmienna: lista po przecinku dla **jednego** procesu.
+  Działa jako alias, gdy `QUEUE_WORKERS` nie jest ustawione; przy obu naraz
+  `QUEUE_NAMES` jest pomijane z ostrzeżeniem w logu.
+
+Zatrzymanie (deploy, SIGTERM): entrypoint przekazuje TERM każdemu procesowi
+`queue:work` i czeka, aż dokończy bieżące zadanie. Okno na to daje
+`drainingSeconds` w `.railway/railway.ts` (serwis `worker` 120 s, rola `all`
+30 s — wystarcza na zdjęcie, nie zawsze na eksport); po nim Railway wysyła
+SIGKILL, a przerwane zadanie wraca do kolejki po `retry_after` i jest
+ponawiane.
 
 ## Migrations
 

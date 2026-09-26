@@ -151,6 +151,158 @@ else
 fi
 
 # =============================================================================
+echo "── Klucz HMAC nie trafia w argumenty procesu, widoczne przez ps (#594) ──"
+# =============================================================================
+#
+#  USTERKA: `s3_hmac` woływał `openssl dgst -mac HMAC -macopt "hexkey:$1"` —
+#  klucz HMAC (a w łańcuchu derywacji AWS SigV4 to w kolejnych krokach sekret
+#  R2, w postaci wystarczającej do podrobienia podpisu) trafiał wprost
+#  w ARGUMENT wywołania `openssl`. Argumenty procesu są na Linuksie jawne dla
+#  KAŻDEGO użytkownika maszyny przez cały czas trwania procesu (`ps -o args=`,
+#  `/proc/<pid>/cmdline`) — bez żadnych uprawnień specjalnych.
+#
+#  DLACZEGO `strace`, A NIE SAMO PRZECZYTANIE KODU
+#  Bo grep po treści pliku dowodzi tylko, że słowo „macopt” zniknęło z tekstu —
+#  nie dowodzi, że żaden PRAWDZIWY proces potomny nie dostał sekretu jako
+#  swojego argv. `strace -f -e trace=execve` widzi KAŻDE wywołanie `execve()`
+#  w całym drzewie procesów tego wywołania, razem z jego argumentami — to jest
+#  dokładnie to, co widziałby obcy użytkownik przez `ps`.
+#
+#  KONTROLA DODATNIA JEST TU NIEZBĘDNA (pułapka 4): sama nieobecność sekretu
+#  w logu `strace` niczego by nie dowodziła, gdyby ta metoda pomiaru nie
+#  potrafiła w ogóle wykryć wycieku. Dlatego ten sam pomiar uruchamiamy też
+#  na ŚWIADOMIE PRZYWRÓCONEJ starej, dziurawej implementacji (zdefiniowanej
+#  tylko lokalnie w tym teście, plik produkcyjny nie jest ruszany) i wymagamy,
+#  żeby wtedy sekret w argumentach BYŁ WIDOCZNY.
+if ! command -v strace >/dev/null 2>&1; then
+  sprawdz "strace do pomiaru argumentów procesu" "strace jest" "strace BRAK"
+else
+  # UWAGA NA TO, CZEGO SZUKAMY. `s3_hmac` dostaje klucz już jako HEX (patrz
+  # kontrakt funkcji), więc to jest wartość, która wyciekłaby w argumentach
+  # starej implementacji — nie surowy sekret ASCII, który nigdzie nie trafia
+  # do `s3_hmac` wprost. Liczymy ją TU, PRZED `strace`: samo policzenie
+  # (przez `s3_hex`, czyli `od` na stdin) niczego nie ujawnia w argumentach.
+  #
+  # Sekret idzie do procesu pod `strace` przez ZMIENNĄ ŚRODOWISKOWĄ, nie jako
+  # argument `bash -c` — inaczej test zanieczyściłby sam siebie: domyślny
+  # zapis `execve` w `strace` pokazuje argv, ale NIE pokazuje envp, więc to
+  # jest jedyna droga, którą sekret dotrze do wnętrza bez własnego wycieku
+  # w POMIARZE.
+  # shellcheck disable=SC1090
+  . "${BIBLIOTEKA_S3}"
+  export SEKRET_TESTOWY='NiechNiktNieZobaczyTegoWpsAux99887766'
+  KLUCZ_HEX_TESTOWY="$(printf 'AWS4%s' "${SEKRET_TESTOWY}" | s3_hex)"
+  export KLUCZ_HEX_TESTOWY
+
+  hmac_pod_straca() { # hmac_pod_straca <definicja_funkcji_s3_hmac> <plik_logu>
+    local definicja="$1" plik_logu="$2"
+    (
+      # shellcheck disable=SC1090
+      . "${BIBLIOTEKA_S3}"
+      eval "${definicja}"
+      # `bash -c` niżej to NOWY proces — funkcje z tego pliku (i ewentualna
+      # podmiana `s3_hmac` wyżej) trzeba mu jawnie wyeksportować, inaczej
+      # nie zobaczy ich wcale (kod wyjścia 127) i test mierzyłby powietrze.
+      local funkcja
+      for funkcja in $(declare -F | awk '{print $3}' | grep '^s3_'); do
+        # shellcheck disable=SC2163 # `export -f <nazwa>` eksportuje FUNKCJĘ,
+        # nie zmienną — SC2163 myli to ze `export "$zmienna"`.
+        export -f "${funkcja}"
+      done
+      strace -f -s 4096 -e trace=execve -o "${plik_logu}" bash -c '
+        printf "20260925" | s3_hmac "${KLUCZ_HEX_TESTOWY}" >/dev/null
+      ' >/dev/null 2>&1
+    )
+  }
+
+  # 1. Implementacja PRODUKCYJNA (ta z docker/kopia/s3.sh, po poprawce):
+  #    klucz nie ma prawa wystąpić w ŻADNYM argumencie ŻADNEGO execve.
+  LOG_NOWA="$(mktemp)"
+  hmac_pod_straca ':' "${LOG_NOWA}"
+  if grep -q "${KLUCZ_HEX_TESTOWY}" "${LOG_NOWA}"; then
+    sprawdz "produkcyjny s3_hmac: klucz NIE wychodzi w argumentach execve" "brak" "JEST: $(grep "${KLUCZ_HEX_TESTOWY}" "${LOG_NOWA}" | head -1)"
+  else
+    sprawdz "produkcyjny s3_hmac: klucz NIE wychodzi w argumentach execve" "brak" "brak"
+  fi
+
+  # Kontrola dodatkowa: żaden `execve` nie ma prawa nieść starego mechanizmu
+  # przekazywania klucza w ogóle — nawet gdyby ktoś podał go inną wartością.
+  if grep -qE 'execve\(.*(hexkey|-macopt)' "${LOG_NOWA}"; then
+    sprawdz 'produkcyjny s3_hmac: żaden execve nie niesie „-macopt"/"hexkey"' "brak" "JEST"
+  else
+    sprawdz 'produkcyjny s3_hmac: żaden execve nie niesie „-macopt"/"hexkey"' "brak" "brak"
+  fi
+  rm -f "${LOG_NOWA}"
+
+  # 2. KONTROLA DODATNIA: implementacja SPRZED poprawki, zdefiniowana tylko
+  #    tutaj (produkcyjny plik zostaje nietknięty). Bez tego bloku test
+  #    przechodziłby także wtedy, gdyby `strace` w ogóle nie widział
+  #    wywołań `openssl` z tego środowiska — czyli mierzyłby powietrze
+  #    (pułapka 4).
+  LOG_STARA="$(mktemp)"
+  hmac_pod_straca 's3_hmac() { openssl dgst -sha256 -mac HMAC -macopt "hexkey:$1" -hex | sed "s/^.*= *//"; }' "${LOG_STARA}"
+  if grep -q "${KLUCZ_HEX_TESTOWY}" "${LOG_STARA}"; then
+    sprawdz "…i metoda pomiaru NAPRAWDĘ widzi wyciek starej implementacji" "widzi" "widzi"
+  else
+    sprawdz "…i metoda pomiaru NAPRAWDĘ widzi wyciek starej implementacji" "widzi" "nie widzi: $(head -c 300 "${LOG_STARA}")"
+  fi
+  rm -f "${LOG_STARA}"
+
+  # 3. CAŁA derywacja SigV4 przez produkcyjne `s3_podpis`, nie tylko jedno
+  #    wywołanie `s3_hmac`. Klucz z pkt 1 to tylko PIERWSZY klucz łańcucha;
+  #    kDate, kRegion, kService i kSigning (każdy wystarcza do podrobienia
+  #    podpisów na swoim poziomie) oraz ich postacie po XOR z ipad/opad
+  #    (z nich da się odtworzyć klucz jednym XOR-em) też są sekretami.
+  #    Test z pkt 1 nie zauważyłby, gdyby któryś z nich wyciekł — np. gdyby
+  #    ktoś zamienił `s3_hex_xor_bajt` na wywołanie zewnętrznego narzędzia
+  #    z kluczem w argumencie albo dopisał w `s3_podpis` krok przez `openssl`.
+  #    Wartości do wyszukania liczymy PRZED `strace`, tymi samymi funkcjami
+  #    (poprawność `s3_hmac` wobec wektorów RFC 4231 i AWS sprawdza sekcja
+  #    wyżej; tu chodzi wyłącznie o to, dokąd klucze trafiają).
+  zakazane=("${SEKRET_TESTOWY}")
+  klucz_k="${KLUCZ_HEX_TESTOWY}"
+  for skladnik in '' 20260925 auto s3 aws4_request; do
+    if [[ -n "${skladnik}" ]]; then
+      klucz_k="$(printf '%s' "${skladnik}" | s3_hmac "${klucz_k}")"
+    fi
+    wypelniony="${klucz_k}"
+    for ((b = ${#wypelniony} / 2; b < 64; b++)); do wypelniony+='00'; done
+    zakazane+=("${klucz_k}" "$(s3_hex_xor_bajt "${wypelniony}" 36)" "$(s3_hex_xor_bajt "${wypelniony}" 5c)")
+  done
+
+  LOG_PODPIS="$(mktemp)"
+  (
+    # shellcheck disable=SC1090
+    . "${BIBLIOTEKA_S3}"
+    for funkcja in $(declare -F | awk '{print $3}' | grep '^s3_'); do
+      # shellcheck disable=SC2163 # eksport FUNKCJI, nie zmiennej
+      export -f "${funkcja}"
+    done
+    # Sekret wchodzi przez środowisko (strace nie loguje envp), a do
+    # `s3_podpis` — jako argument FUNKCJI, czyli bez `execve`.
+    strace -f -s 4096 -e trace=execve -o "${LOG_PODPIS}" bash -c '
+      s3_podpis PUT /kuking/baza/x "" "host:example.com
+x-amz-date:20260925T010203Z
+" "host;x-amz-date" UNSIGNED-PAYLOAD 20260925T010203Z 20260925 auto s3 "${SEKRET_TESTOWY}" >/dev/null
+    ' >/dev/null 2>&1
+  )
+  wycieki=0
+  liczba_execve="$(grep -c 'execve(' "${LOG_PODPIS}" || true)"
+  for wartosc in "${zakazane[@]}"; do
+    if grep -qF -- "${wartosc}" "${LOG_PODPIS}"; then wycieki=$((wycieki + 1)); fi
+  done
+  sprawdz "s3_podpis: żaden z ${#zakazane[@]} kluczy łańcucha SigV4 (także po XOR z ipad/opad) nie wychodzi w execve" "0" "${wycieki}"
+  # Bez tego „0 wycieków” mogłoby znaczyć „strace nic nie zobaczył”:
+  # pięć HMAC-ów to kilkadziesiąt wywołań openssl/sed/od/cat.
+  if ((liczba_execve >= 20)); then
+    sprawdz "…a strace naprawdę widział procesy potomne s3_podpis" "widział" "widział"
+  else
+    sprawdz "…a strace naprawdę widział procesy potomne s3_podpis" "widział" "tylko ${liczba_execve} execve"
+  fi
+  rm -f "${LOG_PODPIS}"
+fi
+
+# =============================================================================
 echo "── Alarm: co wychodzi na webhook (audyt A6-01) ──"
 # =============================================================================
 #
@@ -238,6 +390,102 @@ wynik="$(
   if alarm zrzut 40 2>&1 | grep -q 'alarm nie wyszedł'; then echo 'ostrzega'; else echo 'cicho'; fi
 )"
 sprawdz "brak webhooka daje ostrzeżenie w logu" "ostrzega" "${wynik}"
+
+# =============================================================================
+echo "── Alarm: odpowiedź 4xx/5xx webhooka nie liczy się jako dostarczona (#193) ──"
+# =============================================================================
+#
+#  USTERKA: `curl` bez `--fail` kończy się kodem 0 za KAŻDĄ odpowiedzią HTTP —
+#  także 404 (webhook skasowany) czy 500 (usługa padła). `alarm()` uznawała to
+#  za sukces i milczała, choć powiadomienie NIGDZIE nie doszło — dokładnie ta
+#  klasa usterki, którą po stronie aplikacji naprawiał `WebhookBleduHandler`
+#  (akapit „ALE BŁĄD WYSYŁKI JUŻ NIE GINIE PO CICHU").
+#
+#  DLACZEGO PRAWDZIWY SERWER HTTP, A NIE PODSTAWIONY `curl`
+#  Bo podstawiony `curl` (jak w bloku „Alarm: co wychodzi na webhook" wyżej)
+#  mierzy WYŁĄCZNIE treść, którą `alarm()` PRÓBUJE wysłać — nie dotyka ani
+#  jednej linii, która decyduje, czy `curl` uzna próbę za udaną. Kontrola
+#  ujemna: wycięcie `--fail` z tej funkcji nie oblałoby ani jednego testu
+#  w tamtym bloku. Tu leci prawdziwy `curl` po prawdziwym gnieździe TCP.
+if ! command -v python3 >/dev/null 2>&1; then
+  sprawdz "serwer próbny do testu alarmu 4xx/5xx" "python3 jest" "python3 BRAK"
+else
+  SERWER_ALARM_PY="$(mktemp)"
+  cat >"${SERWER_ALARM_PY}" <<'PYTON'
+import socket, sys
+PORT = int(sys.argv[1]); KOD = sys.argv[2]
+TEKSTY = {'200': b'OK', '404': b'Not Found', '500': b'Internal Server Error'}
+s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', PORT)); s.listen(1)
+print(s.getsockname()[1], flush=True)
+c, _ = s.accept()
+try:
+    c.recv(65536)
+    cialo = TEKSTY[KOD]
+    c.sendall(b'HTTP/1.1 %s X\r\nContent-Length: %d\r\nConnection: close\r\n\r\n' % (KOD.encode(), len(cialo)) + cialo)
+finally:
+    c.close()
+PYTON
+
+  # alarm_wobec_kodu <kod HTTP serwera> — wypisuje log z `alarm()` na stderr.
+  alarm_wobec_kodu() {
+    local kod_http="$1"
+    local gotowosc; gotowosc="$(mktemp)"
+    python3 "${SERWER_ALARM_PY}" 0 "${kod_http}" >"${gotowosc}" 2>/dev/null &
+    local pid=$!
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      [[ -s "${gotowosc}" ]] && break
+      kill -0 "${pid}" 2>/dev/null || break
+      sleep 0.2
+    done
+    local port_probny
+    port_probny="$(cat "${gotowosc}")"
+    rm -f "${gotowosc}"
+    if [[ ! "${port_probny}" =~ ^[0-9]+$ ]]; then
+      kill "${pid}" 2>/dev/null || true
+      wait "${pid}" 2>/dev/null || true
+      printf 'BLAD: serwer alarmu nie wystartowal'
+      return 1
+    fi
+    # Zamiana celowa: `log()` pisze na stderr, a nas interesuje TYLKO to —
+    # `2>&1` łapie bieżący cel stdout (potok podstawienia poleceń wołającego),
+    # dopiero POTEM `>/dev/null` odcina oryginalny strumień stdout.
+    # shellcheck disable=SC2069
+    (
+      wczytaj
+      export KOPIA_WEBHOOK_URL="http://127.0.0.1:${port_probny}"
+      alarm zrzut 40
+    ) 2>&1 >/dev/null
+    wait "${pid}" 2>/dev/null
+  }
+
+  wynik="$(alarm_wobec_kodu 404)"
+  if [[ "${wynik}" == *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 404 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "tak"
+  else
+    sprawdz "webhook oddający 404 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "nie: ${wynik}"
+  fi
+
+  wynik="$(alarm_wobec_kodu 500)"
+  if [[ "${wynik}" == *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 500 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "tak"
+  else
+    sprawdz "webhook oddający 500 daje OSTRZEŻENIE w logu (nie ciszę)" "tak" "nie: ${wynik}"
+  fi
+
+  # KONTROLA DODATNIA (pułapka 4): bez niej „zawsze ostrzegaj" przechodziłoby
+  # oba testy wyżej. Sprawny webhook (200) ma milczeć — to nie jest miejsce
+  # na hałas o każdym alarmie, który poszedł jak trzeba.
+  wynik="$(alarm_wobec_kodu 200)"
+  if [[ "${wynik}" != *'OSTRZEŻENIE'* ]]; then
+    sprawdz "webhook oddający 200 NIE daje ostrzeżenia" "tak" "tak"
+  else
+    sprawdz "webhook oddający 200 NIE daje ostrzeżenia" "tak" "nie: ${wynik}"
+  fi
+
+  rm -f "${SERWER_ALARM_PY}"
+fi
 
 # =============================================================================
 echo "── Bramka zgodności wersji pg_dump ──"

@@ -18,6 +18,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -67,6 +68,23 @@ class DataExportTest extends TestCase
         $data = $this->jsonFromArchive($this->runExportFor($basia));
 
         $this->assertSame('dismissed', $data['konto']['stan_zachety_instalacji']);
+    }
+
+    /**
+     * Urodziny (issue #1755): w paczce sam dzień i miesiąc, bez roku —
+     * i `null` u osoby, która daty nie podała, a nie pusty klucz do zgadywania.
+     */
+    public function test_paczka_zawiera_urodziny_bez_roku(): void
+    {
+        $basia = $this->user('basia');
+        $basia->forceFill(['birthday_day' => 7, 'birthday_month' => 3])->save();
+        $marek = $this->user('marek');
+
+        $this->assertSame('07-03', $this->jsonFromArchive($this->runExportFor($basia->fresh()))['konto']['urodziny']);
+
+        $daneMarka = $this->jsonFromArchive($this->runExportFor($marek));
+        $this->assertArrayHasKey('urodziny', $daneMarka['konto']);
+        $this->assertNull($daneMarka['konto']['urodziny']);
     }
 
     public function test_job_tworzy_plik_i_ustawia_status_rozmiar_i_termin_waznosci(): void
@@ -521,6 +539,48 @@ class DataExportTest extends TestCase
     // -----------------------------------------------------------------
     // Błędy
     // -----------------------------------------------------------------
+
+    public function test_zapis_zwracajacy_false_nie_oznacza_paczki_jako_gotowej(): void
+    {
+        Mail::fake();
+
+        $basia = $this->user('basia');
+        $export = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        $stream = null;
+        $tempZip = null;
+        $disk = \Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('writeStream')->once()->andReturnUsing(function (string $path, $resource) use (&$stream, &$tempZip): bool {
+            $this->assertNotSame('', $path);
+            $this->assertTrue(is_resource($resource));
+            $stream = $resource;
+            $tempZip = stream_get_meta_data($resource)['uri'];
+
+            return false;
+        });
+        Storage::set('local', $disk);
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+            $this->fail('Odmowa zapisu bez wyjątku musi pozwolić kolejce ponowić zadanie.');
+        } catch (DataExportStorageFailure) {
+            // Porażka zapisu ma ten sam typ i kod co wyjątek adaptera.
+        }
+
+        $export->refresh();
+        $this->assertSame(DataExport::STATUS_FAILED, $export->status);
+        $this->assertSame(DataExport::REASON_STORAGE, $export->failure_reason);
+        $this->assertNull($export->disk);
+        $this->assertNull($export->object_key);
+        $this->assertNull($export->completed_at);
+        $this->assertFalse(is_resource($stream), 'Strumień archiwum musi zostać zamknięty.');
+        $this->assertNotNull($tempZip);
+        $this->assertFileDoesNotExist($tempZip, 'Tymczasowy ZIP musi zostać usunięty.');
+        Mail::assertNotSent(DataExportReady::class);
+    }
 
     public function test_niepowodzenie_ustawia_status_failed_z_powodem(): void
     {
