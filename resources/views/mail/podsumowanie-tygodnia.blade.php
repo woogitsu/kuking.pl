@@ -175,7 +175,7 @@
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
                       font-size:18px;line-height:1.5;color:#555E53;">
-                Kuking.pl &mdash; pokaż, co dziś ugotowałeś.
+                Kuking.pl &mdash; pokaż, co dziś {{ \App\Support\Forma::dla($tresc->odbiorca, 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}.
             </p>
         </td>
     </tr>

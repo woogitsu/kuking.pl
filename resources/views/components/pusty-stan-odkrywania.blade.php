@@ -29,10 +29,15 @@
             Możesz to zmienić na liście ukrytych.
         </p>
     @else
-        {{-- Tekst z `docs/brand/COPY_STYLE.md` §6 „pusty feed" — dosłownie
-             (pilnuje `OdkrywaniePustyStanTest`). --}}
+        {{-- Tekst z `docs/brand/COPY_STYLE.md` §6 „pusty feed" (pilnuje
+             `OdkrywaniePustyStanTest`). D-268: zalogowanego znamy — forma
+             z profilu, bez wyboru bez rodzaju. Gość zostaje przy haśle. --}}
         <p class="empty-state-title">Jeszcze nic tu nie ma</p>
-        <p class="empty-state-opis">Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.</p>
+        @auth
+            <p class="empty-state-opis">Zacznij od zdjęcia tego, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}. Nie musi być ładne — ma być prawdziwe.</p>
+        @else
+            <p class="empty-state-opis">Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.</p>
+        @endauth
     @endif
     <div class="flex flex-wrap gap-3 justify-center">
         @auth

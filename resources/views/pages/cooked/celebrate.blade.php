@@ -14,19 +14,19 @@
     $zdjecia = $event->media;
     $maZdjecie = $zdjecia->isNotEmpty();
 @endphp
-<x-layout title="{{ $kucharz->displayName() }} — ugotowane z Twojego przepisu" :noindex="true">
+<x-layout title="{{ $kucharz->displayName() }} {{ \App\Support\Forma::dla($kucharz, 'ugotowała Twój przepis', 'ugotował Twój przepis', '— ugotowane z Twojego przepisu') }}" :noindex="true">
     <article class="sekcja-strony stack text-center">
         <div>
             <p class="meta m-0 mb-2">Komuś wyszło</p>
-            {{-- „ugotowane", nie „ugotowała/ugotował": ukośnika nie da się
-                 przeczytać na głos, a `docs/brand/COPY_STYLE.md` §2 każe wtedy
-                 zmienić konstrukcję zdania zamiast wybierać rodzaj. --}}
+            {{-- Bez ukośnika („ugotowała/ugotował” nie da się przeczytać na
+                 głos). Od D-268: w formie, którą KUCHARZ sam wybrał; bez wyboru
+                 — dotychczasowe „ugotowane”, bez rodzaju. --}}
             <h1 class="text-title-lg m-0">
-                {{ $kucharz->displayName() }} — ugotowane
+                {{ $kucharz->displayName() }} {{ \App\Support\Forma::dla($kucharz, 'ugotowała', 'ugotował', '— ugotowane') }}
                 @if($tytulPrzepisu)
-                    z Twojego przepisu „{{ $tytulPrzepisu }}”
+                    {{ \App\Support\Forma::dla($kucharz, 'Twój przepis', 'Twój przepis', 'z Twojego przepisu') }} „{{ $tytulPrzepisu }}”
                 @else
-                    z Twojego przepisu
+                    {{ \App\Support\Forma::dla($kucharz, 'Twój przepis', 'Twój przepis', 'z Twojego przepisu') }}
                 @endif
             </h1>
         </div>

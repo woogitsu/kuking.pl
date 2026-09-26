@@ -23,6 +23,30 @@ class Profile extends Model
 
     public $incrementing = false;
 
+    /**
+     * Forma zwracania się (D-268, #1752): „Jak mamy do Ciebie pisać?”.
+     *
+     * Dwie zapisywane wartości; forma NEUTRALNA to `NULL` — domyślna
+     * i pełnoprawna odpowiedź, nie brak odpowiedzi. CHECK w bazie:
+     * `profiles_form_of_address_check`. To preferencja językowa, NIE płeć —
+     * nie zgadujemy jej i nie bierzemy z Google ani Facebooka.
+     */
+    public const FORM_FEMININE = 'feminine';
+
+    public const FORM_MASCULINE = 'masculine';
+
+    /** Wartość pola formularza dla formy neutralnej — w bazie zapisuje się jako `NULL`. */
+    public const FORM_NEUTRAL = 'neutral';
+
+    /** Wartości, które przyjmuje formularz (trzy równorzędne odpowiedzi). */
+    public const FORM_CHOICES = [self::FORM_FEMININE, self::FORM_MASCULINE, self::FORM_NEUTRAL];
+
+    /**
+     * `form_of_address` JEST w `$fillable` świadomie: to zwykła preferencja
+     * brzmienia tekstów, nie pole sterujące (D-006 dotyczy `status`, `role`
+     * i `kind`). Zapis idzie wyłącznie przez zwalidowane pole formularza
+     * (`FormOfAddressController`), zamkniętą listę pilnuje też CHECK.
+     */
     protected $fillable = [
         'user_id',
         'username',
@@ -31,7 +55,25 @@ class Profile extends Model
         'avatar_media_id',
         'region',
         'speciality',
+        'form_of_address',
     ];
+
+    /**
+     * Wartość z formularza (`feminine`/`masculine`/`neutral`) → wartość
+     * kolumny (`feminine`/`masculine`/`NULL`).
+     */
+    public static function formOfAddressFromChoice(string $choice): ?string
+    {
+        return $choice === self::FORM_NEUTRAL ? null : $choice;
+    }
+
+    /** Odwrotnie: kolumna → zaznaczone pole formularza. `NULL` to forma neutralna. */
+    public function formOfAddressChoice(): string
+    {
+        return in_array($this->form_of_address, [self::FORM_FEMININE, self::FORM_MASCULINE], true)
+            ? $this->form_of_address
+            : self::FORM_NEUTRAL;
+    }
 
     /**
      * Profil po nazwie użytkownika, BEZ rozróżniania wielkości liter.

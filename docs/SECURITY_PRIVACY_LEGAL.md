@@ -62,6 +62,14 @@ Nie zbierać bez potrzeby:
 - pełnej daty urodzenia;
 - danych zdrowotnych.
 
+**Forma zwracania się to nie płeć (D-268).** Pytamy wyłącznie „Jak mamy do
+Ciebie pisać?” — forma żeńska, męska albo neutralna (domyślna). Cel: brzmienie
+tekstów do tej osoby i o niej. Pole jest dobrowolne, a forma jest **widoczna
+dla innych** (np. „Ania ugotowała”), co ekran wyboru mówi wprost. Nie
+zgadujemy jej z imienia ani nie pobieramy z Google/Facebooka, nie używamy
+w statystykach ani do segmentacji. Podstawa: wykonanie umowy (jak publiczny
+profil). Eksport RODO ją zawiera, anonimizacja konta ją zeruje.
+
 Urodziny (issue #1755, decyzja właściciela z 25.09.2026): zbieramy wyłącznie
 **dzień i miesiąc, bez roku**, opcjonalnie, z przyciskiem „Usuń datę”. Cel:
 życzenia od gospodarza. Data nie jest widoczna dla innych, poza przypomnieniem

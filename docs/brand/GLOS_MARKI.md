@@ -106,6 +106,8 @@ słowa na siłę.
 rodzaju wspólnego (jak „gość" w „mamy gościa"); zamiast szukać żeńskiej formy,
 zmieniamy konstrukcję zdania. Powód jest w `COPY_STYLE.md` §2 i pilnuje go
 `tests/Feature/TekstyNiePrzypisujaPlciTest.php`.
+Ta reguła dotyczy **rzeczownika** `kuKING`. Formy czasownika u osoby, która
+sama wybrała formę zwracania się („Co dziś ugotowałaś?”), rozstrzyga D-268.
 
 ### Czasownik: wolno, ale tylko tam, gdzie kontekst go tłumaczy
 
