@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications;
 
-use App\Domain\Comments\OdpowiedziWatku;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Database\Eloquent\Builder;
 
 /**

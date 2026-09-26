@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
-use App\Domain\Comments\OdpowiedziWatku;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
@@ -24,6 +23,7 @@ use App\Policies\RecipePolicy;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;

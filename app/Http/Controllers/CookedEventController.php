@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
-use App\Domain\Comments\OdpowiedziWatku;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Exceptions\BladDlaCzlowieka;
@@ -15,6 +14,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;

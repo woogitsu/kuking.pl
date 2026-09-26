@@ -89,10 +89,10 @@
                 ekran nie liczył odpowiedzi — wtedy linków nie ma.
             --}}
             @php($porcjaOdpowiedzi = $comment->porcjaOdpowiedzi)
-            @php($dalszychOdpowiedzi = $comment->odpowiedziRazem === null ? 0 : max(0, $comment->odpowiedziRazem - $porcjaOdpowiedzi * \App\Domain\Comments\OdpowiedziWatku::rozmiarPorcji()))
+            @php($dalszychOdpowiedzi = $comment->odpowiedziRazem === null ? 0 : max(0, $comment->odpowiedziRazem - $porcjaOdpowiedzi * \App\Support\OdpowiedziWatku::rozmiarPorcji()))
             @if($porcjaOdpowiedzi > 1)
                 <p class="m-0">
-                    <a class="btn btn-quiet" href="{{ ($porcjaOdpowiedzi === 2 ? request()->fullUrlWithoutQuery([\App\Domain\Comments\OdpowiedziWatku::PARAMETR_WATKU, \App\Domain\Comments\OdpowiedziWatku::PARAMETR_PORCJI]) : request()->fullUrlWithQuery([\App\Domain\Comments\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Domain\Comments\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi - 1])).'#komentarz-'.$comment->id }}">Pokaż wcześniejsze odpowiedzi</a>
+                    <a class="btn btn-quiet" href="{{ ($porcjaOdpowiedzi === 2 ? request()->fullUrlWithoutQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI]) : request()->fullUrlWithQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi - 1])).'#komentarz-'.$comment->id }}">Pokaż wcześniejsze odpowiedzi</a>
                 </p>
             @endif
 
@@ -199,7 +199,7 @@
 
             @if($dalszychOdpowiedzi > 0)
                 <p class="m-0">
-                    <a class="btn btn-quiet" href="{{ request()->fullUrlWithQuery([\App\Domain\Comments\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Domain\Comments\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi + 1]).'#komentarz-'.$comment->id }}">Pokaż dalsze odpowiedzi ({{ $dalszychOdpowiedzi }})</a>
+                    <a class="btn btn-quiet" href="{{ request()->fullUrlWithQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi + 1]).'#komentarz-'.$comment->id }}">Pokaż dalsze odpowiedzi ({{ $dalszychOdpowiedzi }})</a>
                 </p>
             @endif
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Comments;
+namespace App\Support;
 
 use App\Models\Comment;
 use App\Models\User;

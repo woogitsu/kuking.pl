@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
-use App\Domain\Comments\OdpowiedziWatku;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
@@ -18,6 +17,7 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
