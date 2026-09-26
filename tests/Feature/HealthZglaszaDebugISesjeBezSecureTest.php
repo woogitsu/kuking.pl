@@ -25,7 +25,7 @@ class HealthZglaszaDebugISesjeBezSecureTest extends TestCase
     {
         $this->produkcja(debug: true, secure: true);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.debug.ok', false)
@@ -38,7 +38,7 @@ class HealthZglaszaDebugISesjeBezSecureTest extends TestCase
     {
         $this->produkcja(debug: false, secure: false);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'degraded')
             ->assertJsonPath('checks.sesja.ok', false)
@@ -52,7 +52,7 @@ class HealthZglaszaDebugISesjeBezSecureTest extends TestCase
         // Kontrola dodatnia: obie kontrole potrafią przejść.
         $this->produkcja(debug: false, secure: true);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertJsonPath('checks.debug.ok', true)
             ->assertJsonPath('checks.sesja.ok', true);
     }
@@ -62,7 +62,7 @@ class HealthZglaszaDebugISesjeBezSecureTest extends TestCase
     {
         config(['app.debug' => true, 'session.secure' => false]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertJsonPath('checks.debug.ok', true)
             ->assertJsonPath('checks.sesja.ok', true);
     }

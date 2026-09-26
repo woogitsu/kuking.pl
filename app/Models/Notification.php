@@ -321,12 +321,18 @@ class Notification extends Model
      * (issue #1687). Model powiadomienia nie powtarza już warunków Policy
      * innych modułów.
      *
+     * `$zTrescia = false` pomija WYŁĄCZNIE ostatni warunek (czy komentarz
+     * i treść nad nim są jeszcze dostępne) — issue #759: `open()` odróżnia
+     * nim „komentarz zniknął między listą a kliknięciem" (uczciwy
+     * komunikat) od wiersza ukrytego blokadą (dalej 404). Lista, licznik
+     * i eksport wołają zawsze pełny filtr.
+     *
      * @param  Builder<Notification>  $query
      * @return Builder<Notification>
      */
-    public function scopeVisibleTo(Builder $query, User $viewer): Builder
+    public function scopeVisibleTo(Builder $query, User $viewer, bool $zTrescia = true): Builder
     {
-        return app(WidocznoscPowiadomien::class)->zawez($query, $viewer);
+        return app(WidocznoscPowiadomien::class)->zawez($query, $viewer, $zTrescia);
     }
 
     /**
