@@ -181,7 +181,7 @@
             Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
     @else
-        <div class="stack">
+        <div class="stack" id="lista-wpisow">
             @if($showingDiscover)
                 @foreach($posts as $post)
                     <x-post-card :post="$post" />
@@ -210,7 +210,7 @@
             @endif
         </div>
 
-        <x-show-more :paginator="$posts" />
+        <x-show-more :paginator="$posts" lista="lista-wpisow" />
     @endif
     <section class="marka-start-pomoc" aria-labelledby="start-jak-dziala">
         <p class="nadtytul">Gotowanie łączy</p>

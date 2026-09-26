@@ -742,6 +742,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
+        // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
+        // wpisu — tylko autorowi, nigdy moderatorowi ani obcemu.
+        $dodaj('recipes.create.from-post', 'formularz przepisu ze zdjęciem prywatnego wpisu', 'get',
+            route('recipes.create.from-post', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.edit', 'układ zdjęć wpisu', 'get',
             route('posts.media.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.media.update', 'zapis układu zdjęć', 'post',
@@ -856,6 +860,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Wyjęcie niedostępnych zapisów (#773) — kasuje powiązania, więc tylko
+        // właściciel. Zeszyt nie ma niedostępnych pozycji: właściciel dostaje
+        // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
+        $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
+            route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
         // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),

@@ -215,7 +215,7 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_USER)->pluck('subject_id'))
             ->whereNotIn('id', $hidden)
             ->where('status', User::STATUS_ACTIVE)
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')])
+            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)->latest('published_at')->limit(3)->with('media')])
             ->get();
 
         $posts = Post::query()
@@ -232,8 +232,9 @@ final class DailyBoard
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             // Przepis schowany, usunięty albo zawężony PO wyborze gospodarza
             // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
-            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
-            ->zWidocznymPrzepisem($viewer)
+            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej. Wpis
+            // z własną treścią zostaje za swoją widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -245,7 +246,8 @@ final class DailyBoard
                 'recipe.heroMedia',
             ])
             ->withVisibleCommentCount($viewer)
-            ->get();
+            ->get()
+            ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
 
         $peopleById = $people->keyBy('id');
         $people = new EloquentCollection(
@@ -432,7 +434,7 @@ final class DailyBoard
     /** @return array<int|string, mixed> */
     private function relacjeOsoby(?User $viewer): array
     {
-        return ['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')];
+        return ['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)->latest('published_at')->limit(3)->with('media')];
     }
 
     /**
@@ -546,8 +548,9 @@ final class DailyBoard
             // Widoczność przepisu (issue #368) MUSI być w TYM podzapytaniu,
             // a nie w zapytaniu po pełne modele niżej: `DISTINCT ON` wybiera
             // jeden wpis na autora, więc wpis odsiany dopiero potem zabrałby
-            // ze sobą całe miejsce tego autora na tablicy.
-            ->zWidocznymPrzepisem($viewer)
+            // ze sobą całe miejsce tego autora na tablicy. Wpis z własną
+            // treścią zostaje za swoją widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->orderBy('posts.author_id')
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id');
@@ -576,7 +579,9 @@ final class DailyBoard
             ->publiclyVisible()
             ->bezUkrytychWpisow($viewer)
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            ->zWidocznymPrzepisem($viewer)
+            // Wpis z własną treścią zostaje za swoją widocznością (issue #1377);
+            // przepis zdejmuje z kafelka `Post::ukryjNiedostepnePrzepisy()`.
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -591,7 +596,8 @@ final class DailyBoard
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
     }
 
     /**

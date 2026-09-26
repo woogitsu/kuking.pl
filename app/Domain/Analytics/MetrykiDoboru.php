@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Metryki doboru bez profilowania (issue #1814, D-281, próg rewizji z D-275).
+ * Metryki doboru bez profilowania (issue #1814, D-283, próg rewizji z D-275).
  *
  * PO CO
  * D-275 zamknął listę reguł doboru i zostawił jedną furtkę: do rozmowy
@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  *  - ukryć i reakcji „Smakowicie wygląda" (D-278, D-280: nie są źródłem
  *    analityki). Strażnik: `MetrykiDoboruTest::test_nie_czyta_ukryc_ani_reakcji`.
  *
- * TRZECI PRÓG BEZ LOGU WYŚWIETLEŃ (decyzja właściciela 26.09, D-281)
+ * TRZECI PRÓG BEZ LOGU WYŚWIETLEŃ (decyzja właściciela 26.09, D-283)
  * Propozycja z #1814 brzmiała „> 30% autorów bez pierwszej strony w 7 dni".
  * Kto był na pierwszej stronie, wie tylko log wyświetleń — którego nie ma.
  * Wskaźnik zastępczy liczymy z samych `posts`, bo pierwsza strona „Świeżo
@@ -220,7 +220,7 @@ final class MetrykiDoboru
     }
 
     /**
-     * Wskaźnik zastępczy trzeciego progu (opis w nagłówku klasy, D-281).
+     * Wskaźnik zastępczy trzeciego progu (opis w nagłówku klasy, D-283).
      *
      * Autorzy: kto opublikował publiczny wpis od 8 do 1 doby temu (każdy wpis
      * miał co najmniej dobę na „stanie" na pierwszej stronie). Czas na

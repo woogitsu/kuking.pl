@@ -323,7 +323,7 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
     /**
      * „Nie uczymy się Twojego gustu z tego, co oglądasz": w bazie nie ma
      * miejsca na zapis, KTO OGLĄDAŁ KTÓRY WPIS. Sygnały produktowe nie mają
-     * `post_id` (D-281), a żadna tabela nie nazywa się jak dziennik odsłon.
+     * `post_id` (D-283), a żadna tabela nie nazywa się jak dziennik odsłon.
      * Kto chciałby to zmienić, musi dodać tabelę albo kolumnę — i ten test
      * razem ze zdaniem na stronie zapali się na czerwono.
      */

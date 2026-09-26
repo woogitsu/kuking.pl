@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\View\View;
 
 /**
- * Metryki doboru bez profilowania (issue #1814, D-281).
+ * Metryki doboru bez profilowania (issue #1814, D-283).
  *
  * Tylko czyta i tylko agregaty — bez list osób i wpisów. Progi z
  * `kuking.metryki` są materiałem do decyzji właściciela (D-275), nie

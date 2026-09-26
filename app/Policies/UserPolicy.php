@@ -99,7 +99,7 @@ class UserPolicy
     }
 
     /**
-     * Panel „Metryki doboru" (`/admin/metryki`, issue #1814, D-281) — same
+     * Panel „Metryki doboru" (`/admin/metryki`, issue #1814, D-283) — same
      * agregaty, bez osób i wpisów. Admin, nie moderator: to materiał do
      * decyzji właściciela o regułach doboru (D-275), nie narzędzie moderacji.
      */

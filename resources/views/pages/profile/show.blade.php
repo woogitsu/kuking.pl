@@ -283,11 +283,18 @@
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
+                    {{-- #1819: pytanie NIE odmienia nazwy konta — polskiej
+                         odmiany nie da się policzyć z dowolnego ciągu znaków
+                         (COPY_STYLE.md, „Nie doklejaj przyimka do cudzych
+                         słów"). Nazwa stoi osobno, w mianowniku, pod pytaniem
+                         (`:name`), a samo pytanie jest kompletnym zdaniem
+                         bez niej. --}}
                     <x-confirm-button
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        question="Zablokować tę osobę? Nie zobaczycie już wzajemnie swoich treści."
+                        :name="$p->display_name"
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
@@ -361,17 +368,20 @@
         @else
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
-            <div class="stack">
+            <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        {{-- `data-klucz`: kolejna porcja doklejona przez „Pokaż więcej”
+                             zaczyna od nagłówka swojego miesiąca; jeśli to ten sam
+                             miesiąc, co na końcu poprzedniej, nie powtarzamy go (#986). --}}
+                        <h2 class="mt-8" data-klucz="miesiac-{{ $month }}">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" />
+            <x-show-more :paginator="$posts" lista="lista-wpisow" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -379,12 +389,12 @@
                            :action="$isOwner ? 'Dodaj przepis' : null"
                            :href="$isOwner ? route('recipes.create') : null" />
         @else
-            <div class="stack">
+            <div class="stack" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -394,12 +404,12 @@
                 @endif
             </x-empty-state>
         @else
-            <div class="stack">
+            <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
         @endif
     @endif
     </div>
