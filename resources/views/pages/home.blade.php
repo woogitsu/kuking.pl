@@ -48,6 +48,19 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($zyczenia ?? null)
+        {{--
+            ŻYCZENIA URODZINOWE (issue #1755, etap b). Jedno zdanie od
+            gospodarza, tylko u tej osoby i tylko w dniu jej urodzin. Nie jest
+            wpisem w feedzie i nie ma pustego stanu. Wyłącznik stoi przy dacie
+            (Ustawienia → Urodziny). Tekst składa `Urodziny::tekstZyczen()`.
+        --}}
+        <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
+            <p>{{ $zyczenia }}</p>
+            <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
     @if($tagTygodnia ?? null)
         {{-- TAG TYGODNIA (issue #18). Zaproszenie, nie obowiązek: jeden
              odnośnik do zwykłego formularza wpisu z zaznaczonym tagiem, który

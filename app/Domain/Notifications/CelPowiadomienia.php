@@ -77,6 +77,11 @@ final class CelPowiadomienia
             Notification::TYPE_FOLLOW => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
+            // Urodziny (#1755) — na AKTUALNY profil solenizanta, jak przy
+            // obserwowaniu: po `actor_id`, nie po nazwie zapamiętanej w `data`.
+            Notification::TYPE_BIRTHDAY => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
+                ? route('profile.show', $nazwa)
+                : null,
             Notification::TYPE_FIRST_POST => route('admin.unanswered'),
             // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
             Notification::TYPE_SMAKOWICIE => is_string($data['post_id'] ?? null) && $data['post_id'] !== ''
