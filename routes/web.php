@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\KolejkaController;
+use App\Http\Controllers\Admin\MetrykiController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagHighlightController;
@@ -64,6 +65,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
@@ -863,6 +865,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
 
+    // „SMAKOWICIE WYGLĄDA" (issue #1813, D-280) — własny koszyk `reakcje`.
+    Route::post('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'dodaj'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie');
+    Route::delete('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'cofnij'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie.cofnij');
+
     // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
     // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
     // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
@@ -1350,6 +1360,12 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
      * zobaczeniu, kogo dotyczy.
      */
     Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
+
+    /*
+     * Metryki doboru (issue #1814, D-283) — same agregaty z istniejących
+     * tabel, tylko dla admina (`UserPolicy::przegladajMetryki`). Tylko GET.
+     */
+    Route::get('/metryki', [MetrykiController::class, 'index'])->name('admin.metryki');
 });
 
 // --------------------------------------------------------------------------

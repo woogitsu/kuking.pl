@@ -367,6 +367,25 @@ return [
         'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
     ],
 
+    /*
+     * Metryki doboru (issue #1814, D-283) i progi, po których wolno wrócić
+     * do rozmowy o rankingu (D-275). Progi pokazuje panel; niczego same nie
+     * włączają — przekroczenie to powód do decyzji właściciela, nie do kodu.
+     *  - `autorow_dziennie`: średnia z 28 dni różnych autorów publicznych wpisów;
+     *  - `tygodni_danych`: tyle pełnych tygodni od pierwszego publicznego wpisu;
+     *  - `odsetek_bez_pierwszej_strony`: wskaźnik zastępczy (D-283) — udział
+     *    autorów, którym wpisy z tygodnia stały na pierwszej stronie „Świeżo
+     *    z Kuking” łącznie krócej niż `minut_na_pierwszej_stronie`;
+     *  - `publiczne_z_tagiem`: od tylu procent wpisów z tagiem wolno ukrywać tagi.
+     */
+    'metryki' => [
+        'autorow_dziennie' => (int) env('KUKING_METRYKI_AUTOROW_DZIENNIE', 60),
+        'tygodni_danych' => (int) env('KUKING_METRYKI_TYGODNI_DANYCH', 8),
+        'odsetek_bez_pierwszej_strony' => (float) env('KUKING_METRYKI_ODSETEK_BEZ_PIERWSZEJ_STRONY', 30),
+        'minut_na_pierwszej_stronie' => (int) env('KUKING_METRYKI_MINUT_NA_PIERWSZEJ_STRONIE', 60),
+        'publiczne_z_tagiem' => (float) env('KUKING_METRYKI_PUBLICZNE_Z_TAGIEM', 60),
+    ],
+
     'feed' => [
         // Ile wpisów na "stronę". Bez infinite scroll — jest przycisk
         // "Pokaż więcej" (docs/UX_50_PLUS.md).
@@ -1815,6 +1834,13 @@ return [
          * obserwowania ani blokady (ta druga to narzędzie bezpieczeństwa).
          */
         'ukrycia' => '60,10',
+
+        /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
 
         /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.

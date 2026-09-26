@@ -183,6 +183,14 @@
                                 @endif
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
+                            @case(\App\Models\Notification::TYPE_SMAKOWICIE)
+                                {{-- Zbiorcze, raz dziennie (issue #1813, D-280). Bez nazwisk:
+                                     kto napisał, autor zobaczy na stronie wpisu. --}}
+                                <strong>{{ $notification->naglowekSmakowicie() }}</strong>
+                                @if((int) ($data['wpisow'] ?? 1) > 1)
+                                    Pod kilkoma Twoimi wpisami.
+                                @endif
+                                @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break

@@ -354,10 +354,15 @@ final class ZbierzTresciDigestu
      */
     private function wpisyObserwowanych(array $identyfikatory, ?Carbon $od, int $limit, ?array $tylko = null): array
     {
-        $ranking = Post::query()
+        // NAJWYŻEJ JEDEN WPIS NA AUTORA (issue #1812, równość autorów z D-275).
+        // Gospodarz publikujący codziennie zajmowałby inaczej całą sekcję
+        // listu. Dwa okna: wewnętrzne numeruje wpisy każdego autora u danego
+        // adresata (od najnowszego), zewnętrzne — pierwsze z nich u adresata.
+        // Oba po CZASIE; nikt nie trafia wyżej za reakcje.
+        $naAutora = Post::query()
             ->select('posts.*')
             ->addSelect('follows.follower_id as digest_odbiorca_id')
-            ->selectRaw('row_number() over (partition by follows.follower_id order by posts.published_at desc, posts.id desc) as digest_row_number')
+            ->selectRaw('row_number() over (partition by follows.follower_id, posts.author_id order by posts.published_at desc, posts.id desc) as digest_na_autora')
             ->join('follows', 'follows.followed_id', '=', 'posts.author_id')
             ->whereIn('follows.follower_id', $identyfikatory)
             ->published()
@@ -399,6 +404,12 @@ final class ZbierzTresciDigestu
             ->when($tylko !== null, fn ($q) => $q->whereIn('posts.id', $tylko))
             ->orderByDesc('published_at')
             ->orderByDesc('posts.id');
+
+        $ranking = Post::query()
+            ->fromSub($naAutora, 'posts')
+            ->select('posts.*')
+            ->selectRaw('row_number() over (partition by posts.digest_odbiorca_id order by posts.published_at desc, posts.id desc) as digest_row_number')
+            ->where('posts.digest_na_autora', 1);
 
         $wpisy = Post::query()
             ->fromSub($ranking, 'posts')

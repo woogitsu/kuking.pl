@@ -817,6 +817,10 @@
                                 @can('diagnozujKolejke', \App\Models\User::class)
                                 <li><a class="side-nav-item" href="{{ route('admin.kolejka') }}" @if(request()->routeIs('admin.kolejka')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Kolejka zadań</span></a></li>
                                 @endcan
+                                {{-- Metryki doboru (issue #1814, D-283) — ta sama bramka co w kontrolerze. --}}
+                                @can('przegladajMetryki', \App\Models\User::class)
+                                <li><a class="side-nav-item" href="{{ route('admin.metryki') }}" @if(request()->routeIs('admin.metryki')) aria-current="page" @endif><x-ikona nazwa="filter" /> <span class="marka-panel-nav-etykieta">Metryki doboru</span></a></li>
+                                @endcan
                             </ul>
 
                             {{--
@@ -999,7 +1003,7 @@
                      (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
                      odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
                      nie ma formularza z podsumowaniem błędów. --}}
-                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                @foreach(['ukrycie', 'smakowicie'] as $kluczBleduAkcji)
                     @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
                     @if($bladAkcji)
                         <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
