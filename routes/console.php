@@ -429,6 +429,9 @@ Harmonogram::artisan('kuking:policz-kolejki')
 // resztę — zmianę statusu konta autora, scalenie tagów, puste cache po
 // wdrożeniu. Uzasadnienie: `App\Domain\Questions\PytaniaBezOdpowiedzi`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/5` co `kuking:policz-kolejki` i `kuking:puls-harmonogramu`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie liczniki o stałym rytmie wykonują się po kolei w jednym procesie.
 Harmonogram::artisan('kuking:policz-pytania')
     ->name('kuking:policz-pytania')
     ->everyFiveMinutes()
