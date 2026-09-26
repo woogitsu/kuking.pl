@@ -29,7 +29,8 @@ use Illuminate\Support\Collection;
  * Algorytmiczny feed wymaga danych, których nie mamy, i natychmiast dzieli
  * użytkowników na tych "widzianych" i "niewidzianych".
  *
- * Zapytanie jest celowo proste: WHERE author_id IN (...) + kursor.
+ * Zapytanie jest celowo proste: WHERE author_id IN (...) OR (publiczny
+ * AND EXISTS obserwowany tag) + kursor.
  * Żadnego fanout-on-write, żadnej osobnej tabeli feedu — dopóki pomiar nie
  * pokaże, że jest potrzebna (docs/ARCHITECTURE.md).
  */
