@@ -15,4 +15,11 @@ enum WynikZamowieniaEksportu
 
     /** Eksport utknął w kolejce, więc zlecenie ponowiono na tym samym rekordzie (audyt A02). */
     case Ponowiony;
+
+    /**
+     * Baza nie przyjęła rekordu albo zadania (issue #824). Transakcja cofnęła
+     * OBA, więc nic nie zostało zapisane — człowiek dostaje zdanie, co zrobić,
+     * zamiast ekranu 500.
+     */
+    case Nieprzyjety;
 }
