@@ -708,6 +708,16 @@ W skrócie:
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
+**Dokumenty prawne (polityka prywatności, regulamin): data publikacji to nie
+data wejścia w życie** (D-327, decyzja właściciela z 26 września 2026).
+Zmiana **istotna** obowiązuje 14 dni po publikacji, a do tego dnia obowiązuje
+poprzednia wersja; pasek o zmianie stoi od publikacji i podaje ten dzień.
+Poprawka **drobna** (redakcyjna, bez zmiany praw i obowiązków) wchodzi od
+razu. Przy każdym podbiciu `kuking.zgody.wersja_*` ustaw jawnie
+`kuking.zgody.zmiana_*.istotna` na `true` albo `false` — wartości domyślnej
+nie ma. Zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`),
+nigdy z samą datą z konfiguracji.
+
 ---
 
 ## 12. Czego świadomie NIE budujemy teraz

@@ -2552,6 +2552,28 @@ return [
         'wersja_polityki' => '2026-09-10',
 
         /*
+         * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
+         * domyślnej (D-327, decyzja właściciela z 26.09.2026). Kształt ten
+         * sam co `zmiana_regulaminu` niżej; znaczenie pól opisuje
+         * `App\Domain\Zgody\WersjaDokumentu`.
+         *
+         * Przy podbiciu `wersja_polityki` ZAWSZE przestaw i to:
+         *  - `istotna` => true — zmienia prawa lub obowiązki (nowy cel, nowy
+         *    odbiorca, dłuższe przechowywanie…). Nowa wersja obowiązuje
+         *    `okres_istotnej_zmiany_dni` po publikacji, do tego dnia
+         *    obowiązuje `poprzednia` (wpisz tu datę dotychczasowej wersji),
+         *    a dziennik zgód zapisuje właśnie ją;
+         *  - `istotna` => false — poprawka redakcyjna, obowiązuje od razu.
+         *
+         * Wersja 2026-09-10 weszła, zanim to rozróżnienie istniało.
+         */
+        'zmiana_polityki' => [
+            'istotna' => false,
+            'poprzednia' => null,
+            'obowiazuje_od' => null,
+        ],
+
+        /*
          * WERSJA REGULAMINU — ten sam kształt co `wersja_polityki` wyżej:
          * data stanu dokumentu z nagłówka `resources/legal/regulamin.md`
          * („opisuje stan serwisu na <data>"), podbijana ręcznie razem z nim
@@ -2567,6 +2589,31 @@ return [
          * w dokumencie to nie powód, żeby zaczepiać każdego.
          */
         'wersja_regulaminu' => '2026-09-26',
+
+        /*
+         * CZY ZMIANA REGULAMINU JEST ISTOTNA (D-327) — jak `zmiana_polityki`.
+         * Istotna: pasek pokazuje się od `wersja_regulaminu`, a mówi, że nowa
+         * wersja obowiązuje od dnia `wersja_regulaminu` + 14 dni (albo
+         * późniejszego `obowiazuje_od`) i że do tego dnia obowiązuje
+         * `poprzednia`. Drobna: pasek bez terminu, obowiązuje od razu.
+         *
+         * 26.09.2026 dopisaliśmy opis doboru wpisów (#1811) — opisuje, jak
+         * serwis już działa, bez zmiany praw i obowiązków, więc drobna.
+         */
+        'zmiana_regulaminu' => [
+            'istotna' => false,
+            'poprzednia' => '2026-09-07',
+            'obowiazuje_od' => null,
+        ],
+
+        /*
+         * Ile dni po publikacji wchodzi w życie zmiana ISTOTNA (D-327).
+         * Regulamin §11 obiecuje „co najmniej **14 dni**” —
+         * `WersjaDokumentuTest` pilnuje, że to ta sama liczba. W repozytorium,
+         * nie w zmiennej środowiskowej: skrócenie okresu to zmiana obietnicy
+         * z dokumentu prawnego i ma przejść przez recenzję.
+         */
+        'okres_istotnej_zmiany_dni' => 14,
     ],
 
     'analytics' => [

@@ -22,12 +22,23 @@ use Carbon\CarbonImmutable;
  *
  * Zamknięcie paska NIE jest akceptacją regulaminu i nigdzie tak nie jest
  * opisane — to ślad, że komunikat do tej osoby dotarł.
+ *
+ * Data publikacji i data wejścia w życie to dwie różne daty (D-327): pasek
+ * pokazuje się od publikacji, a przy zmianie istotnej mówi, od kiedy nowa
+ * wersja obowiązuje i że do tego dnia obowiązuje poprzednia
+ * (`WersjaDokumentu::regulamin()`).
  */
 final class ZmianaRegulaminu
 {
+    /** Data PUBLIKACJI bieżącej wersji — od niej liczy się pasek. */
     public static function wersja(): string
     {
         return (string) config('kuking.zgody.wersja_regulaminu');
+    }
+
+    public function dokument(): WersjaDokumentu
+    {
+        return WersjaDokumentu::regulamin();
     }
 
     public function pokazac(?User $user): bool

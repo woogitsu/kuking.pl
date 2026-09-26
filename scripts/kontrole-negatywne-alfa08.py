@@ -427,6 +427,13 @@ DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
 REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 
+# Data publikacji osobno od daty wejścia w życie (D-327). Mutacje: okres
+# przejściowy znika (zmiana istotna obowiązuje od razu), 14 dni zamienia się
+# w zero, zgoda zapisuje wersję opublikowaną zamiast obowiązującej.
+WERSJA_DOKUMENTU = "app/Domain/Zgody/WersjaDokumentu.php"
+WERSJA_DOKUMENTU_ZGODA = "app/Domain/Zgody/PrzestawZgodeNaDigest.php"
+WERSJA_DOKUMENTU_TEST = "WersjaDokumentuTest"
+
 # `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
 # Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
 # brak `@X.Y.Z` po `@railway/cli`.
@@ -1103,6 +1110,12 @@ checks = [
      lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
      lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
+    ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
+    ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "$najwczesniej = $publikacja->addDays(self::okresIstotnejZmianyDni());", "$najwczesniej = $publikacja;")),
+    ("Zgoda zapisuje wersję opublikowaną zamiast obowiązującej", WERSJA_DOKUMENTU_ZGODA, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "WersjaDokumentu::polityka()->obowiazujaca()", "WersjaDokumentu::polityka()->opublikowana")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
