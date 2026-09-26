@@ -348,6 +348,10 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'Wczoraj ugotowałeś rosół.',
             'Wczoraj ugotowałem rosół.',
             'Halina ugotowała/ugotował ten przepis.',
+            // „jestem/jesteś” + forma rodzajowa bez „ł” (wzorzec `jestem_przymiotnik`).
+            'Sprawdź, jakim kontem Google jesteś zalogowany na tym urządzeniu.',
+            'Jestem gotowa.',
+            'Jesteś pewny?',
         ];
 
         foreach ($zle as $zdanie) {
@@ -394,6 +398,11 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             'Przy słabym zasięgu skrypt bywa nie dociągnięty.',
             'Napis nad tłem zdjęcia jest zawsze widoczny.',
             'Zmień adres na /ustawienia/e-mail.',
+            // „jestem/jesteś” bez formy rodzajowej po nim.
+            'Jesteś na ostatnim kroku.',
+            'Jeśli jesteś konsumentem, masz prawo odstąpić od umowy.',
+            'Tu jesteś moderatorem.',
+            'Sprawdź, jakie konto Google jest zalogowane na tym urządzeniu.',
         ];
 
         foreach ($dobre as $zdanie) {
