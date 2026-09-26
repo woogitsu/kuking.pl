@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\CoMoznaDopisac;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Recipe;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -272,6 +274,10 @@ class RecipeController extends Controller
         $this->authorize('update', $recipe);
 
         $data = $request->daneZapisu();
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        if ($duplicateErrors !== []) {
+            throw ValidationException::withMessages($duplicateErrors);
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
