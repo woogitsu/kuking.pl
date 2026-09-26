@@ -79,7 +79,7 @@ class Comment extends Model
      *    Bez wyjątku dla samego autora: konto `banned`/`pending_delete` jest
      *    wylogowywane przy pierwszym żądaniu (`EnsureAccountIsActive`), więc
      *    taki widz nie istnieje. Bez wyjątku dla moderatora — tym samym
-     *    świadomym uproszczeniem co w `Notification::widoczneDla()`: pominięcie
+     *    świadomym uproszczeniem co w `WidocznoscPowiadomien::zawez()`: pominięcie
      *    furtki jest OSTRZEJSZE, a moderator ma do pracy panel moderacji.
      *
      * 3. STATUS KOMENTARZA — ukryty przez moderację nie wraca listą.
