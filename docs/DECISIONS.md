@@ -1002,6 +1002,19 @@ osoby, która klika w pośpiechu.
 📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
 `resources/views/pages/settings/data.blade.php` · D-018
 
+### Uzupełnienie: ponowny wniosek rozpoczyna nową karencję (#2023)
+
+Każdy wniosek dostaje osobny `users.delete_request_generation` (UUID), także
+gdy dwa zgłoszenia przypadają w tej samej sekundzie. Migracja nadaje UUID
+również wnioskom oczekującym w chwili wdrożenia. Egzekutor przekazuje do
+`EraseAccountData` generację wybraną z listy kont po terminie. Akcja porównuje
+ją z bieżącą generacją **pod blokadą wiersza konta** i sprawdza, czy bieżące
+30 dni już minęło. Po cofnięciu i
+ponownym zgłoszeniu stary przebieg egzekutora pomija konto, nawet jeśli
+ponownie widzi status `pending_delete`. Dokończenie kasowania zdjęć po już
+wykonanym wymazaniu oraz odtworzenie wymazania z dziennika po przywróceniu
+bazy zachowują własne ścieżki; to nie są nowe wnioski o usunięcie.
+
 ---
 
 ## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu
