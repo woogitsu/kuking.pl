@@ -107,7 +107,7 @@ final class PublishRecipe
      *                                wersję (issue #1316). `false` wyłącznie dla autozapisu
      *                                kreatora; świadome „Zapisz zmiany" i formularz bez JS — `true`
      * @param  int|null  $oczekiwanaRewizja  rewizja wyświetlona człowiekowi w formularzu;
-     *                                     sprawdzana pod blokadą przepisu przed zapisem
+     *                                       sprawdzana pod blokadą przepisu przed zapisem
      */
     public function handle(
         User $author,
