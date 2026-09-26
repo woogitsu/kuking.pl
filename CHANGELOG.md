@@ -9,6 +9,7 @@
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
 - Paczka z danymi (`dane.json`) nazywa pole „Na czym się znasz” kluczem `na_czym_sie_znam` zamiast `w_czym_jestem_dobra`, który każdemu czytelnikowi przypisywał formę żeńską. **Zgodność wstecz:** program czytający starsze paczki powinien przyjmować oba klucze — w paczkach wygenerowanych przed tą zmianą to samo pole nazywa się `w_czym_jestem_dobra`, a jego treść się nie zmieniła. Innych kluczy zmiana nie dotyczy (#1750).
+- Raport właściciela (`php artisan kuking:raport`) ma nową sekcję „Historie przepisów”: ile opublikowanych w ostatnich 90 dniach przepisów ma wpisane, od kogo pochodzą, historię, rok „w rodzinie od”, gotowy skan kartki i rodzaj „Rodzinny” — same liczby i procenty, bez treści przepisów i bez nazwisk. Przy mniej niż 20 przepisach raport mówi „za mało danych” zamiast pokazywać procent (#1045).
 - `php artisan kuking:raport` pokazuje „Drugi wpis w 7 dni”: ile osób, które niedawno opublikowały pierwszy wpis, dodało drugi w ciągu tygodnia. Same liczby, bez nazw i treści; przy mniej niż 10 osobach bez procentu (#29).
 
 - Wyszukiwarka nie pokazuje już przypadkowych wyników dla frazy, która po usunięciu polskich znaków i emoji staje się pusta (np. samo emoji) — zamiast tego prosi o wpisanie co najmniej dwóch znaków, tak samo jak przy zwykłej za krótkiej frazie, i nie zapisuje wtedy pozornie skutecznego wyszukiwania (#1050).
