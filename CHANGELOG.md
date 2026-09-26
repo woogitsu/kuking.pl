@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Licznik „Komentarze” pod wpisem liczy teraz całą rozmowę: komentarze razem z odpowiedziami, czyli dokładnie to, co przeczytasz po wejściu we wpis. Wcześniej wpis z jednym komentarzem i trzema odpowiedziami pokazywał „Komentarze (1)”. Pod pytaniami nic się nie zmienia — liczba „Odpowiedzi” dalej nie obejmuje rozmowy pod odpowiedzią (#1801).
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 - Przy przepisie albo wpisie we własnym zeszycie można teraz dopisać notatkę dla siebie, np. „na urodziny taty — mniej soli”. Notatkę widzisz tylko Ty: nie zobaczy jej autor ani nikt, kto ogląda zeszyt, także publiczny. Ta sama rzecz w dwóch zeszytach może mieć dwie różne notatki. Żeby notatkę usunąć, wystarczy wyczyścić pole i zapisać. Zapisywanie jednym kliknięciem działa jak dotąd (#978).
 
