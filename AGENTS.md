@@ -83,7 +83,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
+   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
+   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
+   pozostaje zakazana bez zmian,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
@@ -229,10 +232,24 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
-Te dwie reguły mają jeden nazwany, udokumentowany wyjątek — metryczka wersji
-i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
-`docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
-indziej w serwisie te reguły obowiązują bez zmian.
+Te dwie reguły mają dwa nazwane, udokumentowane wyjątki — oba na świadomą
+decyzję właściciela:
+
+- **D-051** — metryczka wersji i przełącznik motywu w stopce
+  (`docs/DECISIONS.md`, D-051);
+- **D-262** — tylko reguła 18 px i tylko panel moderacji: napisy pomocnicze
+  15–16 px w czterech selektorach — `.side-nav-moderacja-naglowek`
+  i `.sygnal-podglad-cytat` (`resources/css/app.css:1512` i `:1632`),
+  `.tabela-kont .drobne` i `.stan-konta`
+  (`resources/css/ekran-uzytkownikow.css:282` i `:294`). Numery linii
+  wskazują komentarz z odwołaniem do D-262 nad regułą (stan z 25 września
+  2026); przy rozjeździe wiążąca jest nazwa selektora. Przyciski i inne cele
+  dotyku w panelu mają nadal ≥ 48 px (`docs/DECISIONS.md`, D-262).
+
+To nie jest furtka ogólna: gdziekolwiek indziej w serwisie — także na innych
+ekranach panelu moderacji i w publicznych widokach odwołań — te reguły
+obowiązują bez zmian. Kolejny wyjątek wymaga nowej decyzji właściciela
+i dopisania go tutaj.
 
 **Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
 wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,

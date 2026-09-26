@@ -54,7 +54,7 @@ use RuntimeException;
  * losowaniu numeru — to jest SAVEPOINT, nie druga transakcja: bez niego
  * kolizja unikalności zatruwałaby całą otaczającą transakcję i drugie
  * losowanie odbijałoby się o „current transaction is aborted" (ta sama
- * pułapka i to samo lekarstwo co w `DataSettingsController::requestExport`).
+ * pułapka i to samo lekarstwo co w `ZamowEksportDanych`).
  */
 final class RejestrPotwierdzenRodo
 {

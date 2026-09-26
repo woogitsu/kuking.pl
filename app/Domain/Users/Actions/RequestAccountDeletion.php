@@ -14,7 +14,10 @@ use Throwable;
 
 /**
  * Przyjęcie żądania usunięcia konta (RODO art. 17, D-022) — TRZY ZAPISY,
- * JEDNA TRANSAKCJA.
+ * JEDNA TRANSAKCJA. Przypadek użycia wyjęty z
+ * `DataSettingsController::requestDeletion()` (issue #970); para do
+ * `CancelAccountDeletion`. Hasło i haczyki sprawdza wcześniej warstwa HTTP
+ * (`ProsbaOUsuniecieKontaRequest` i kontroler).
  *
  *  1. `users`: `pending_delete` z wybranym zakresem i datą zgłoszenia,
  *  2. `potwierdzenia_zadan_rodo`: sprawa `w_toku`
@@ -35,7 +38,7 @@ use Throwable;
  * i nie nadpisuje zakresu ani daty pierwszego. Indeks częściowy
  * `potwierdzenia_zadan_rodo_jedna_w_toku_na_konto` jest drugą warstwą — w bazie.
  */
-final class PrzyjmijZadanieUsunieciaKonta
+final class RequestAccountDeletion
 {
     public function __construct(private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo) {}
 

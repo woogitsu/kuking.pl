@@ -176,7 +176,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         );
 
         $this->assertSame(0, Report::query()->pilneBezAlarmu()->count());
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -199,7 +199,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $this->assertNull($sprawa->alarm_pilny_zlecony_at);
 
         // TO JEST CAŁE ZADANIE: cisza ma inny kształt niż brak zgłoszeń.
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
         $this->assertFalse($odpowiedz->json('checks.alarmy_moderacji.ok'));
         $this->assertSame('pilny_alarm_nie_dotarl', $odpowiedz->json('checks.alarmy_moderacji.error'));
         $this->assertSame('degraded', $odpowiedz->json('status'));
@@ -241,7 +241,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
 
         // Sprawy nie ma, więc nie ma też o czym alarmować — sonda MUSI być
         // zielona. Czerwień w tym miejscu nauczyłaby na nią nie patrzeć.
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -278,7 +278,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         // pilnej bez alarmu od sprawy, która pilna nigdy nie była.
         $this->assertSame(Report::ALARM_ZALEGLY, $sprawa->refresh()->alarm_pilny_stan);
         $this->assertSame(1, Report::query()->pilneBezAlarmu()->count());
-        $this->assertFalse($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertFalse($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
 
         // A TERAZ NAPRAWA: ta sama treść, ta sama analiza, drugi przebieg.
         $this->analizuj($wpis);
@@ -292,7 +292,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         // Jedna treść — jedna pozycja w kolejce. Dosłanie alarmu nie ma
         // prawa postawić drugiej (`reports_jeden_automat_na_tresc`).
         $this->assertSame(1, Report::query()->where('source', Report::SOURCE_AUTOMAT)->count());
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 
     public function test_trzecia_analiza_nie_doklada_drugiego_listu(): void
@@ -338,7 +338,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
 
         // OSOBNY KOD POWODU: operator naprawia to wpisaniem adresu, nie
         // szukaniem błędu w kodzie ani ponowieniem zadania.
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
         $this->assertFalse($odpowiedz->json('checks.alarmy_moderacji.ok'));
         $this->assertSame('kanal_alarmowy_wylaczony', $odpowiedz->json('checks.alarmy_moderacji.error'));
     }
@@ -362,19 +362,19 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         // Bez adresu komenda nie ma dokąd pisać — i nie jest to jej porażka.
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
         Notification::assertNothingSent();
-        $this->assertSame('kanal_alarmowy_wylaczony', $this->get('/health')->json('checks.alarmy_moderacji.error'));
+        $this->assertSame('kanal_alarmowy_wylaczony', $this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.error'));
 
         // Właściciel wpisuje adres. Do najbliższego przebiegu sonda mówi już
         // „nie dotarło", nie „kanał wyłączony" — ustawienia są poprawione.
         config(['kuking.moderation.model.alarm_email' => self::ALARM]);
-        $this->assertSame('pilny_alarm_nie_dotarl', $this->get('/health')->json('checks.alarmy_moderacji.error'));
+        $this->assertSame('pilny_alarm_nie_dotarl', $this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.error'));
 
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
         $this->assertSame(Report::ALARM_ZLECONY, $this->oznaczenie()?->alarm_pilny_stan);
         $this->assertNotNull($this->oznaczenie()?->alarm_pilny_zlecony_at);
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
 
         // Następna godzina: nic do dosłania, drugiego listu nie ma.
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
@@ -401,7 +401,7 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         // nikt by na nią nie patrzył po tygodniu.
         $this->assertNull($sprawa->alarm_pilny_stan);
         $this->assertSame(0, Report::query()->pilneBezAlarmu()->count());
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 
     public function test_alarm_oddaje_nazwany_stan_zamiast_golego_false(): void
@@ -508,6 +508,6 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $sprawa = $this->oznaczenie();
         $this->assertSame(Report::ALARM_ZLECONY, $sprawa?->alarm_pilny_stan);
         $this->assertNotNull($sprawa?->alarm_pilny_zlecony_at);
-        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
+        $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 }
