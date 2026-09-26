@@ -1017,6 +1017,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.unsubscribe');
+    Route::post('/ustawienia/powiadomienia/urzadzenie/uzgodnij', [NotificationSettingsController::class, 'reconcileDevice'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.reconcile-device');
     Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.disable-all');
