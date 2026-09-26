@@ -21,6 +21,9 @@
 - Raport właściciela (`php artisan kuking:raport`) ma nową sekcję „Historie przepisów”: ile opublikowanych w ostatnich 90 dniach przepisów ma wpisane, od kogo pochodzą, historię, rok „w rodzinie od”, gotowy skan kartki i rodzaj „Rodzinny” — same liczby i procenty, bez treści przepisów i bez nazwisk. Przy mniej niż 20 przepisach raport mówi „za mało danych” zamiast pokazywać procent (#1045).
 - `php artisan kuking:raport` pokazuje „Drugi wpis w 7 dni”: ile osób, które niedawno opublikowały pierwszy wpis, dodało drugi w ciągu tygodnia. Same liczby, bez nazw i treści; przy mniej niż 10 osobach bez procentu (#29).
 - Ekran łączenia konta Google nie mówi już „jesteś zalogowany” każdemu czytelnikowi — pyta, jakie konto Google jest zalogowane na tym urządzeniu. Test tekstów łapie teraz także „jestem/jesteś” z formą rodzajową bez „ł” („jesteś zalogowany”, „jestem gotowa”).
+- W rocznicę założenia konta na stronie głównej pojawia się jedno zdanie od gospodarza, na przykład „Gotujesz z nami od roku — dziękuję, że jesteś.”. Widzi je tylko właściciel konta, bez maila i bez powiadomienia. Wyłącza się je tym samym przełącznikiem co wspomnienia (Ustawienia → Prywatność) (#1754).
+
+- „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 
