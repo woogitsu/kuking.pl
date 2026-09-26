@@ -99,6 +99,10 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   własny wpis, przepis, komentarz, „Ugotowałem” albo na własny profil
   (autor wyznaczony przez `ModeratedContent::osoba()`, także przy treści już
   usuniętej). Taką sprawę zamyka ktoś inny z moderacji.
+  Przy zgłoszeniu prawnym ta reguła sprawdza też **adres z formularza**
+  (`CelZAdresuZgloszenia`, audyt B2-02): `/@{login}` i jego podstrony to konto,
+  a `#komentarz-{uuid}` to komentarz, nie wpis nad nim. Działa to także dla
+  zgłoszeń przyjętych wcześniej jako `unknown` albo z celem ustawionym na wpis.
 - **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
   moderator karze zwykłe konta, administrator także moderatorów. Konta
   administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
@@ -404,7 +408,8 @@ obowiązuje). Zakaz wejścia kontem obsługi linkiem, przez Google albo
 Facebooka patrzy na samą rolę (`User::hasStaffRole()`), więc zawieszenie go
 nie zdejmuje.
 
-**Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
+**Jak administrator zamyka sprawę** — `/admin/odwolania` (rozstrzyga wyłącznie
+czynny administrator, `UserPolicy::resolveAppeals()`; patrz akapit wyżej): widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać
 uzasadnienie. Cofnięcie realnie przywraca treść albo odblokowuje konto.
