@@ -176,6 +176,10 @@ WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
 PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
 IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+# Dane od użytkownika w treści `run:` (#1859). Strażnik czyta workflowy; mutacja
+# przywraca dokładnie tę linię, którą ręczny `pr_number` wstrzykiwał kod
+# do joba z tokenem Railway, i drugą — `inputs.*` typu boolean w IaC.
+WKLEJANIE_DO_RUN_TEST = "WorkflowyNieWklejajaDanychUzytkownikaDoRunTest"
 IAC_RAILWAY_TS = ".railway/railway.ts"
 PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
 IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
@@ -1075,6 +1079,10 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
+    ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, 'echo "| Zmiany destrukcyjne | ${DESTRUKCYJNE} |"', 'echo "| Zmiany destrukcyjne | ${{ inputs.zmiany_destrukcyjne }} |"')),
     # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
