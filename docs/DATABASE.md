@@ -1149,6 +1149,37 @@ wprost, że to nie jest zabezpieczenie. Sprawdzenie idzie pod
 baza i baza bez kont z pliku przechodzą bez pytania. Test odmowy i dwie
 kontrole dodatnie: `tests/Feature/CofniecieMigracjiNieGubiKontZalazkowychTest.php`.
 
+#### `onboarding_zakonczony_at` — pierwsze kroki zakończone albo pominięte (#985)
+
+Migracja `2026_09_24_130000_add_onboarding_zakonczony_at_to_users`.
+`timestampTz`, nullable, bez indeksu (czytana tylko dla zalogowanego konta).
+
+**Po co.** Onboarding przerwany zamknięciem karty nie miał drogi powrotu.
+`null` znaczy „pokaż na Starcie odnośnik »Dokończ pierwsze kroki«".
+`User::onboardingDoDokonczenia()` jest jedynym miejscem decyzji: prowadzi do
+`/witaj/ludzie`, gdy konto ma już zapisane zainteresowania, inaczej do
+`/witaj/zainteresowania`; zawieszone konto (tylko odczyt) przypomnienia nie
+dostaje. Po zalogowaniu NIC nie przekierowuje — `intended` zostaje nietknięte
+dla każdej drogi logowania.
+
+**Kto zapisuje.** Wyłącznie żądania POST z CSRF w `OnboardingController`:
+`saveFollows()` („Dalej" na ostatnim kroku), `skip()` („Pomiń ten krok")
+i `dismiss()` („Nie przypominaj"), i tylko gdy wartość jest pusta. GET
+`/witaj/gotowe` niczego nie zapisuje — przeglądarka może go pobrać prefetchem,
+a to po cichu zdjęłoby przypomnienie. `DemoSeeder` (`db:seed`) ustawia
+znacznik kontom demonstracyjnym, łącznie z moderatorem. Nic jej nie zeruje, więc ponowny powrót do wcześniejszego kroku czy stary
+formularz nie przywracają przypomnienia. Poza `$fillable`.
+
+**Backfill.** `up()` ustawia `created_at` wszystkim kontom istniejącym przed
+migracją — nie wiemy, czy skończyły onboarding, a przypomnienie pokazane nagle
+wszystkim byłoby gorsze od jego braku u kilku osób.
+
+**Rollback:** `down()` zdejmuje kolumnę bez strażnika D-088. Ponowny `up()`
+oznacza każde konto jako zakończone, więc cofnięcie może najwyżej wyłączyć
+przypomnienie kontom w trakcie onboardingu — nigdy nie włącza go komuś, kto
+wybrał „Nie przypominaj". Żaden inny wiersz nie ginie. Backfill i cykl
+`down()` → `up()` sprawdza `OnboardingMigracjaZnacznikaTest` na PostgreSQL.
+
 #### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
 
 Migracja `2026_09_08_200000_add_last_seen_to_users_table`. `timestampTz`,
@@ -1654,7 +1685,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   (`UNIQUE`, 220 znaków);
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
-  (CHECK: `easy` \| `medium` \| `hard`);
+  (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -1663,6 +1694,14 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 
+**`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
+(#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
+(np. surówka bez gotowania). Czas całkowity jest znany TYLKO przy obu
+kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
+`Recipe::totalMinutes()` (strona przepisu, `totalTime` w JSON-LD, podgląd
+kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
+„Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
+całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 
@@ -1829,6 +1868,21 @@ Snapshot po istotnych zmianach.
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
 - `created_at`.
+
+**Kiedy powstaje wersja (issue #1316).** Przy każdej publikacji
+(„Pierwsza publikacja", „Aktualizacja przepisu") oraz przy ŚWIADOMYM zapisie
+BEZ publikacji na przepisie, który jest opublikowany — „Zapisz zmiany",
+wyjście z kreatora („Nie teraz"), `action=draft` w formularzu bez
+JavaScriptu (`SnapshotRecipeVersion::poprawka()`):
+
+- treść równa ostatniej wersji → nowej wersji nie ma;
+- inaczej → nowa wersja z opisem „Poprawka opublikowanego przepisu".
+
+Autozapis kreatora (pauza w pisaniu, „Dalej", „Wstecz") zapisuje treść, ale
+wersji nie tworzy. **Istniejącej wersji nie zmienia się nigdy** (decyzja
+właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem.
+Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
+schematu — bez migracji.
 
 ### ingredients + units
 Podstawa search i późniejszego planera.
