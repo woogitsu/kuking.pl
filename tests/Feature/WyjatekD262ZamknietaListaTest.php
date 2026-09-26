@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\DziennikDecyzji;
 use Tests\TestCase;
 
 /**
@@ -101,10 +102,12 @@ class WyjatekD262ZamknietaListaTest extends TestCase
     public function test_agents_i_d262_wymieniaja_te_same_selektory(): void
     {
         $agents = (string) file_get_contents(base_path('AGENTS.md'));
-        $dziennik = (string) file_get_contents(base_path('docs/DECISIONS.md'));
+        // Po podziale dziennika (#1744) wpis leży w docs/decyzje/; tresc() składa
+        // pliki w jeden tekst jak dawny docs/DECISIONS.md.
+        $dziennik = "\n".(new DziennikDecyzji(base_path()))->tresc();
 
         $start = strpos($dziennik, "\n## D-262 ");
-        $this->assertNotFalse($start, 'Brak wpisu D-262 w docs/DECISIONS.md.');
+        $this->assertNotFalse($start, 'Brak wpisu D-262 w '.DziennikDecyzji::KATALOG.'/.');
         $koniec = strpos($dziennik, "\n## D-", $start + 1);
         $wpis = substr($dziennik, $start, $koniec === false ? null : $koniec - $start);
 

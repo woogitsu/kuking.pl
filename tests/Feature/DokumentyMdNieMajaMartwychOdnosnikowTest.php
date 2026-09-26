@@ -72,6 +72,10 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         // wskazywać trasy, które istnieją. Sprawdzone 21.09.2026 — dwanaście
         // zgłoszeń z tego katalogu, żadne nie było adresem naszego serwisu.
         'docs/flota/',
+        // Wpisy dziennika decyzji (od 25.09.2026 jeden plik na decyzję) — ten
+        // sam powód co przy docs/DECISIONS.md niżej. ADR-y obok nie są wykluczone.
+        'docs/decyzje/D-',
+        'docs/decyzje/U-',
     ];
 
     private const WYKLUCZONE_Z_TRAS_PLIKI = [

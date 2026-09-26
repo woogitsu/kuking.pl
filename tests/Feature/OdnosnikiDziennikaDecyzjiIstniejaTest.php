@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\DziennikDecyzji;
 use Tests\TestCase;
 
 /**
@@ -122,10 +123,12 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
 
     public function test_referencje_z_dziennika_decyzji_wskazuja_na_istniejace_cele(): void
     {
-        $sciezka = base_path('docs/DECISIONS.md');
-        $this->assertFileExists($sciezka, 'Nie ma docs/DECISIONS.md.');
+        // Od 25.09.2026 jeden plik na decyzję w docs/decyzje/; złączone wpisy
+        // mają tę samą postać, co dawny jednoplikowy dziennik.
+        $dziennik = new DziennikDecyzji(base_path());
+        $this->assertNotSame([], $dziennik->pliki(), 'Nie ma wpisów w '.DziennikDecyzji::KATALOG.'/.');
 
-        $tresc = (string) file_get_contents($sciezka);
+        $tresc = $dziennik->tresc();
         $linie = explode("\n", $tresc);
 
         $naglowki = $this->numeryNaglowkow($linie);
@@ -194,9 +197,9 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         $this->assertSame(
             [],
             $martwe,
-            "Nowe martwe referencje w docs/DECISIONS.md (nie ma ich na liście ZNANE_MARTWE):\n"
+            "Nowe martwe referencje w dzienniku docs/decyzje/ (nie ma ich na liście ZNANE_MARTWE):\n"
             .implode("\n", $martwe)
-            ."\n\ndocs/DECISIONS.md redaguje wyłącznie właściciel — zgłoś to, nie edytuj pliku.",
+            ."\n\nDziennik decyzji (docs/decyzje/) redaguje wyłącznie właściciel — zgłoś to, nie edytuj pliku.",
         );
     }
 
@@ -365,7 +368,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
                 return null; // cudza numeracja — patrz docblock klasy
             }
 
-            return isset($this->numeryNaglowkow(explode("\n", (string) file_get_contents(base_path('docs/DECISIONS.md'))))[(int) $m[1]]);
+            return isset($this->numeryNaglowkow(explode("\n", (new DziennikDecyzji(base_path()))->tresc()))[(int) $m[1]]);
         }
 
         if ($this->wygladaNaSciezke($token)) {
@@ -609,7 +612,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
 
             if (is_dir($pelna)) {
                 foreach ($this->wczytajTresciPlikow($pelna) as $sciezka => $tresc) {
-                    if (str_contains($sciezka, 'DECISIONS.md')) {
+                    if (str_contains($sciezka, 'DECISIONS.md') || DziennikDecyzji::jestWpisem($sciezka)) {
                         continue;
                     }
 
