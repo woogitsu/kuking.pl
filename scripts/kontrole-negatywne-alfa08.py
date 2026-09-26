@@ -399,6 +399,8 @@ PLAN_IAC_ENVIRONMENT = (
     "    # przejrzał diff `.railway/**`.\n"
     "    environment: production\n"
 )
+GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
+GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -957,6 +959,10 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
+    # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
+    ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
+     lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
@@ -1058,6 +1064,7 @@ run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
+run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
