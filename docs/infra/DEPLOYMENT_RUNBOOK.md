@@ -2138,10 +2138,23 @@ W logach deployu poszukaj potwierdzenia, że wszystko działa jak zaplanowano:
 
 ```text
 Using detected Dockerfile!            ← Railway użył naszego Dockerfile
-Running pre-deploy command...         ← migracje
+Running pre-deploy command...         ← migracje, seed, import wartości odżywczych
 [entrypoint] rola=web env=production  ← entrypoint wybrał rolę
 [entrypoint] przebudowa cache konfiguracji...
 ```
+
+`preDeployCommand` wykonuje trzy komendy po kolei, a niezerowy kod
+którejkolwiek zatrzymuje deploy: `migrate`, `db:seed`, a od #1961 też
+`kuking:importuj-wartosci-odzywcze` (D-299) — wypełnia słowniki CIQUAL/USDA,
+bez których sekcja wartości odżywczych na stronie przepisu milczy. Druga
+i kolejne linie w logu tej trzeciej komendy powinny mówić „Pliki danych są
+w tej samej wersji co poprzedni import — pominięto" — to normalny, szybki
+przebieg. Zdanie „Wczytano: N składników…" bez słowa „pominięto" oznacza
+pierwszy import na tym środowisku albo świadomą zmianę plików CSV — też
+prawidłowe. Komunikat „Nie wczytano niczego: …” z niezerowym kodem wyjścia
+oznacza błędny plik CSV — deploy zatrzymuje się, zanim wypuści kod polegający
+na tych danych; napraw plik (numer wiersza jest w komunikacie) i wdróż
+ponownie.
 
 ### 11.3 Checklista smoke testów
 

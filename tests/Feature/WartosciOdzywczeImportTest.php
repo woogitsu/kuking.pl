@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
+use App\Domain\Recipes\Odzywcze\JednostkiMiary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
@@ -142,6 +143,55 @@ final class WartosciOdzywczeImportTest extends TestCase
         $this->assertStringContainsString('Etalab', $zrodla);
         $this->assertStringContainsString('CC0', $zrodla);
         $this->assertStringContainsString('10.57745/RDMHWY', $zrodla, 'Wersja CIQUAL ma być wskazana identyfikatorem, nie tylko nazwą.');
+    }
+
+    /**
+     * #1963 — miara „kotlet” była w `miary.csv`, ale nie było jej w
+     * `JednostkiMiary::SLOWA`, więc parser nigdy nie mógł jej wybrać
+     * (kalkulator próbował dla takiego składnika miary „szt”, której
+     * w pliku nie ma). Ten test pilnuje odwrotnej kompletności: KAŻDA
+     * jednostka, jaka występuje w `miary.csv`, musi być kodem, na który
+     * `JednostkiMiary::SLOWA` potrafi wskazać choć jedną formę słowną —
+     * inaczej dana miara jest w pliku, ale parser nigdy jej nie wybierze.
+     */
+    #[Test]
+    public function test_kazda_jednostka_z_miary_csv_jest_rozpoznawana_przez_parser(): void
+    {
+        $kodySlow = array_unique(array_values(JednostkiMiary::SLOWA));
+        $jednostkiZPliku = array_unique(array_column(
+            $this->wczytajMiary(base_path('database/data/odzywcze/miary.csv')),
+            'jednostka',
+        ));
+
+        $nieobslugiwane = array_values(array_diff($jednostkiZPliku, $kodySlow));
+
+        $this->assertSame(
+            [],
+            $nieobslugiwane,
+            'W miary.csv są jednostki, których żadna forma słowna nie jest w JednostkiMiary::SLOWA, '
+            .'więc parser nigdy ich nie wybierze: '.implode(', ', $nieobslugiwane).'.',
+        );
+    }
+
+    /**
+     * @return list<array{klucz: string, jednostka: string}>
+     */
+    private function wczytajMiary(string $sciezka): array
+    {
+        $uchwyt = fopen($sciezka, 'r');
+        $this->assertNotFalse($uchwyt, "Nie da się otworzyć {$sciezka}.");
+
+        fgetcsv($uchwyt, escape: ''); // nagłówek
+        $wiersze = [];
+        while (($w = fgetcsv($uchwyt, escape: '')) !== false) {
+            if ($w === [null]) {
+                continue;
+            }
+            $wiersze[] = ['klucz' => (string) $w[0], 'jednostka' => (string) $w[1]];
+        }
+        fclose($uchwyt);
+
+        return $wiersze;
     }
 
     private function kopiaDanych(): string

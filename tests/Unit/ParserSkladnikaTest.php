@@ -50,6 +50,7 @@ final class ParserSkladnikaTest extends TestCase
         yield 'łyżka stołowa' => ['łyżka stołowa oleju', 1.0, 'lyzka', 'oleju'];
         yield 'dopisek po przecinku' => ['1 kurczak zagrodowy, najlepiej starsza kura', 1.0, null, 'kurczak zagrodowy'];
         yield 'przyimek po jednostce' => ['2 filety z dorsza', 2.0, 'filet', 'dorsza'];
+        yield 'kotlety (#1963)' => ['2 kotlety schabowe', 2.0, 'kotlet', 'schabowe'];
         yield 'typ mąki to nie ilość' => ['mąka typ 650', null, null, 'maka typ 650'];
         yield 'procent to nie ilość' => ['mleko 3,2% - 1 l', 1.0, 'l', 'mleko 3,2%'];
         yield 'połówki to nie pół' => ['połówki śliwek', null, null, 'polowki sliwek'];

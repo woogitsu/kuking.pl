@@ -1982,6 +1982,16 @@ Szacunek kcal, białka, tłuszczu i węglowodanów na porcję, liczony w PHP
 aplikacja niczego nie pobiera z sieci. Import jest idempotentny i idzie w jednej
 transakcji: po nim baza zawiera dokładnie to, co pliki.
 
+**Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
+po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
+ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
+Żeby zwykły deploy bez zmiany plików CSV nie przepisywał ~600 wierszy za każdym
+razem, komenda liczy hash zawartości obu plików i pomija cały import (bez
+parsowania i bez zapisu), gdy hash jest ten sam co przy poprzednim udanym
+imporcie ORAZ tabela `skladniki_odzywcze` już ma dane — ten drugi warunek jest
+samoleczący: świeża/przywrócona baza z pasującym, starym hashem w cache i tak
+dostanie pełny import. `--wymus` wymusza import mimo pasującego hasza.
+
 `skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
 
 - `klucz varchar(80) UNIQUE` (CHECK `^[a-z0-9_]+$`), `nazwa` — polska nazwa;

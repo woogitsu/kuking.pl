@@ -58,6 +58,28 @@ final class KalkulatorWartosciOdzywczychTest extends TestCase
         $this->assertTrue($wynik->naPorcje());
     }
 
+    /**
+     * #1963 — miara „kotlet” jest w `miary.csv` (`schab,kotlet,120`), ale
+     * `JednostkiMiary::SLOWA` nie znała słowa „kotlety”, więc parser nie
+     * zwracał jednostki i kalkulator szukał dla schabu miary „szt”, której
+     * nie ma — wiersz wychodził jako `BEZ_MASY`.
+     */
+    #[Test]
+    public function test_dwa_kotlety_schabowe_licza_sie_jako_240_gramow_schabu(): void
+    {
+        $wynik = $this->policz(['2 kotlety schabowe'], 1);
+
+        $this->assertTrue($wynik->policzone());
+        $wiersz = $wynik->wiersze[0];
+        $this->assertSame(WierszWyliczenia::POLICZONY, $wiersz->stan);
+        $this->assertSame('schab', $wiersz->klucz);
+        $this->assertEqualsWithDelta(240.0, $wiersz->gramy, 0.001);
+        $this->assertEqualsWithDelta(393.6, $wynik->kcal, 0.01);
+        $this->assertEqualsWithDelta(47.52, $wynik->bialko, 0.01);
+        $this->assertEqualsWithDelta(22.32, $wynik->tluszcz, 0.01);
+        $this->assertEqualsWithDelta(0.912, $wynik->weglowodany, 0.001);
+    }
+
     #[Test]
     public function test_pokrycie_ponizej_90_procent_masy_nie_daje_liczb(): void
     {

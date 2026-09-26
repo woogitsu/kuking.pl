@@ -17890,7 +17890,10 @@ sekcję w swoim przepisie; **domyślnie widoczna**.
    (CHECK-i na wartości ≥ 0, na źródło i na gramy) i
    `recipes.pokazuj_wartosci_odzywcze` — `docs/DATABASE.md`. Import:
    `php artisan kuking:importuj-wartosci-odzywcze`, idempotentny, w jednej
-   transakcji.
+   transakcji. Od poprawki #1961 (26.09.2026) komenda stoi w
+   `preDeployCommand` obok `migrate`/`db:seed` i leci przy każdym wdrożeniu;
+   pomija całą pracę (hash plików CSV bez zmian i tabela już ma dane), więc
+   deploy bez zmiany danych jej nie spowalnia.
 3. **Liczenie** (`app/Domain/Recipes/Odzywcze`). Składnik jest wolnym
    tekstem (D-017), więc `ParserSkladnika` czyta ilość, jednostkę i nazwę
    z tekstu w chwili liczenia i niczego nie zapisuje („2 szklanki mąki”,

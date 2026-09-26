@@ -65,6 +65,7 @@ final class JednostkiMiary
         'zabek' => 'zabek', 'zabki' => 'zabek', 'zabkow' => 'zabek', 'zabka' => 'zabek',
         'glowka' => 'glowka', 'glowki' => 'glowka', 'glowek' => 'glowka', 'glowke' => 'glowka',
         'plaster' => 'plaster', 'plastry' => 'plaster', 'plastrow' => 'plaster', 'plastra' => 'plaster',
+        'kotlet' => 'kotlet', 'kotlety' => 'kotlet', 'kotletow' => 'kotlet', 'kotleta' => 'kotlet',
         'plasterek' => 'plasterek', 'plasterki' => 'plasterek', 'plasterkow' => 'plasterek', 'plasterka' => 'plasterek',
         'kromka' => 'kromka', 'kromki' => 'kromka', 'kromek' => 'kromka', 'kromke' => 'kromka',
         'kostka' => 'kostka', 'kostki' => 'kostka', 'kostek' => 'kostka', 'kostke' => 'kostka',

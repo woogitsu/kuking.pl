@@ -8,6 +8,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -23,30 +24,59 @@ use Illuminate\Support\Str;
  * Żadnego pobierania z sieci — to jest świadoma decyzja właściciela
  * (26.09.2026): dane do produkcji przychodzą z repozytorium, w PR-ze,
  * który ktoś przeczytał.
+ *
+ * SZYBKIE POMIJANIE PRZY WDROŻENIU (#1961). Komenda wchodzi teraz do
+ * `preDeployCommand` obok migracji i `db:seed`, więc leci przy KAŻDYM
+ * wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły. Parsowanie
+ * ~600 wierszy i przepisanie trzech tabel w transakcji przy każdym
+ * deployu byłoby zbędnym kosztem czasu release'u, więc przed jakąkolwiek
+ * pracą liczymy hash zawartości obu plików CSV i porównujemy go z hashem
+ * zapisanym po poprzednim udanym imporcie (`Cache`, sterownik `database`
+ * — bez Redisa). Ten sam hash i choć jeden wiersz w tabeli → pomijamy
+ * całość i zwracamy bieżący stan bazy. Inny hash, pusta tabela albo
+ * `$wymus === true` → import leci normalnie i zapisuje nowy hash dopiero
+ * PO udanej transakcji (błąd importu nie ma prawa uśpić następnego razu).
  */
 final class ImportujWartosciOdzywcze
 {
     public const KATALOG = 'database/data/odzywcze';
+
+    private const CACHE_KLUCZ = 'odzywcze:import:hash-plikow';
 
     private const KOLUMNY_SKLADNIKOW = ['klucz', 'nazwa', 'aliasy', 'zrodlo', 'zrodlo_id', 'gestosc_g_ml', 'pomijalny', 'zrodlo_nazwa', 'kcal', 'bialko', 'tluszcz', 'weglowodany'];
 
     private const KOLUMNY_MIAR = ['klucz', 'jednostka', 'gramy', 'uwagi'];
 
     /**
-     * @return array{skladniki: int, aliasy: int, miary: int, usuniete: int}
+     * @return array{skladniki: int, aliasy: int, miary: int, usuniete: int, pominieto: bool}
      *
      * @throws BladDlaCzlowieka gdy plik jest niepoprawny (treść jest dla osoby uruchamiającej komendę) — z numerem wiersza
      */
-    public function handle(?string $katalog = null): array
+    public function handle(?string $katalog = null, bool $wymus = false): array
     {
         $katalog ??= base_path(self::KATALOG);
-        $skladniki = $this->czytajCsv($katalog.'/skladniki.csv', self::KOLUMNY_SKLADNIKOW);
-        $miary = $this->czytajCsv($katalog.'/miary.csv', self::KOLUMNY_MIAR);
+        $sciezkaSkladnikow = $katalog.'/skladniki.csv';
+        $sciezkaMiar = $katalog.'/miary.csv';
+
+        $hash = $this->hashPlikow($sciezkaSkladnikow, $sciezkaMiar);
+
+        if (! $wymus && $hash !== null && Cache::get(self::CACHE_KLUCZ) === $hash && SkladnikOdzywczy::query()->exists()) {
+            return [
+                'skladniki' => SkladnikOdzywczy::query()->count(),
+                'aliasy' => AliasSkladnika::query()->count(),
+                'miary' => MiaraDomowa::query()->count(),
+                'usuniete' => 0,
+                'pominieto' => true,
+            ];
+        }
+
+        $skladniki = $this->czytajCsv($sciezkaSkladnikow, self::KOLUMNY_SKLADNIKOW);
+        $miary = $this->czytajCsv($sciezkaMiar, self::KOLUMNY_MIAR);
 
         [$pozycje, $aliasy] = $this->sprawdzSkladniki($skladniki);
         $miaryDoZapisu = $this->sprawdzMiary($miary, $pozycje);
 
-        return DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu): array {
+        $wynik = DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu): array {
             $usuniete = SkladnikOdzywczy::query()->whereNotIn('klucz', array_keys($pozycje))->delete();
             $idPoKluczu = [];
 
@@ -71,8 +101,34 @@ final class ImportujWartosciOdzywcze
                 'aliasy' => count($aliasy),
                 'miary' => count($miaryDoZapisu),
                 'usuniete' => (int) $usuniete,
+                'pominieto' => false,
             ];
         });
+
+        // Hash zapisujemy DOPIERO PO udanej transakcji — błąd w połowie
+        // importu (rzucony wyżej jako BladDlaCzlowieka albo wyjątek bazy)
+        // nie ma prawa uśpić kolejnego uruchomienia fałszywym „już zrobione”.
+        if ($hash !== null) {
+            Cache::forever(self::CACHE_KLUCZ, $hash);
+        }
+
+        return $wynik;
+    }
+
+    /** Hash zawartości obu plików razem albo null, gdy któregoś nie da się przeczytać. */
+    private function hashPlikow(string $sciezkaSkladnikow, string $sciezkaMiar): ?string
+    {
+        if (! is_readable($sciezkaSkladnikow) || ! is_readable($sciezkaMiar)) {
+            return null;
+        }
+
+        $tresc = file_get_contents($sciezkaSkladnikow);
+        $tresc2 = file_get_contents($sciezkaMiar);
+        if ($tresc === false || $tresc2 === false) {
+            return null;
+        }
+
+        return hash('sha256', $tresc.'|'.$tresc2);
     }
 
     /**
