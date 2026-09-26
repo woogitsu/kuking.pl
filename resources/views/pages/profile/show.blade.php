@@ -407,7 +407,8 @@
             <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" :showRecipe="true"
-                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null" />
+                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null"
+                        :przepisZaBlokada="$event->recipe !== null && in_array($event->recipe->author_id, $autorzyZaBlokada, true)" />
                 @endforeach
             </div>
             <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
