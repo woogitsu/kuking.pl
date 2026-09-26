@@ -891,6 +891,10 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # Audyt A4 5.1: job `lint` wraca do samego `kopia-bazy.sh` zamiast
+    # wspólnego `scripts/kontrole-powloki.sh` — rozjazd CI i check.sh.
+    ("Job lint bez wspólnych kontroli powłoki", ".github/workflows/ci.yml", "KontrolePowlokiLokalnieIWCiTest",
+     lambda s: replace_once(s, "        run: bash scripts/kontrole-powloki.sh\n", "        run: bash tests/skrypty/kopia-bazy.sh\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
