@@ -65,6 +65,10 @@ final class CelPowiadomienia
             Notification::TYPE_SAVED => is_string($slug = $powiadomienie->slugZapisanegoPrzepisu()) && $slug !== ''
                 ? route('recipes.show', $slug)
                 : null,
+            // Do WERSJI, nie do oryginału — oryginał odbiorca zna. Tylko gdy
+            // odbiorca nadal może ją zobaczyć (autor wersji mógł ją usunąć
+            // albo zawęzić); inaczej brak „Zobacz" zamiast 403 lub 404 (#23).
+            Notification::TYPE_FORKED => $powiadomienie->wersjaDoPokazania()?->url(),
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
@@ -221,18 +225,17 @@ final class CelPowiadomienia
 
         $pageSize = (int) config('kuking.comments.page_size');
         foreach ($comments as $comment) {
-            if ($comment->cooked_event_id !== null) {
-                $subject = (new CookedEvent)->forceFill(['id' => $comment->cooked_event_id]);
-                $page = 1;
-            } else {
-                if ($pageSize < 1) {
-                    continue;
-                }
-                $subject = $comment->post_id !== null
-                    ? (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind])
-                    : (new Recipe)->forceFill(['slug' => $comment->slug]);
-                $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
+            if ($pageSize < 1) {
+                continue;
             }
+            // Wykonanie też paginuje komentarze (issue #938) — dawniej
+            // zawsze strona 1, bo ekran ładował całą rozmowę naraz.
+            $subject = match (true) {
+                $comment->cooked_event_id !== null => (new CookedEvent)->forceFill(['id' => $comment->cooked_event_id]),
+                $comment->post_id !== null => (new Post)->forceFill(['id' => $comment->post_id, 'kind' => $comment->kind]),
+                default => (new Recipe)->forceFill(['slug' => $comment->slug]),
+            };
+            $page = intdiv((int) $comment->preceding_count, $pageSize) + 1;
 
             $url = $subject->url();
             if ($page > 1) {
