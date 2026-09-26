@@ -228,7 +228,7 @@ class RetencjaPowiadomienTest extends TestCase
      * Odniesienie do decyzji, którego nie da się rozwiązać (brak
      * `action_id`/`appeal_id` w `data`) — retencja NIE zgaduje i NIE
      * kasuje, zostawia wiersz do wyjaśnienia (patrz komentarz
-     * `Notification::terminOchronyOdwolawczej()`).
+     * `TerminOchronyOdwolawczej::dla()`).
      */
     public function test_powiadomienie_moderacyjne_bez_ustalalnej_decyzji_nie_jest_kasowane(): void
     {
@@ -285,7 +285,7 @@ class RetencjaPowiadomienTest extends TestCase
      *
      * Sama obecność typu na liście wyjątków niczego nie dowodzi: gdyby
      * `NotifyReporterDecision` przestało zapisywać `action_id`, typ dalej
-     * byłby na liście, a `terminOchronyOdwolawczej()` zwracałoby `null`
+     * byłby na liście, a `TerminOchronyOdwolawczej::dla()` zwracałoby `null`
      * i wiersz wisiałby w `bezPowiazanejDecyzji` zamiast być realnie
      * chroniony terminem. Ten test mierzy ochronę, nie deklarację.
      */
