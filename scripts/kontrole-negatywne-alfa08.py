@@ -1001,6 +1001,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
+    # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
+    ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
+     lambda s: replace_once(s, "CLOUDFLARE_PURGE_TOKEN=\n", "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
