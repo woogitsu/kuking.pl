@@ -452,7 +452,7 @@ FORMA_WYMAZANIE = "app/Domain/Users/Actions/EraseAccountData.php"
 FORMA_TEST = "FormaZwracaniaSieTest"
 FORMA_HELPER = "app/Support/Forma.php"
 FORMA_KONIEC_ONBOARDINGU = "resources/views/pages/onboarding/done.blade.php"
-FORMA_ODKRYWANIE = "resources/views/pages/discover.blade.php"
+FORMA_ODKRYWANIE = "resources/views/components/pusty-stan-odkrywania.blade.php"
 FORMA_TEKSTY_TEST = "FormaTekstyTest"
 TEKSTY_BEZ_PLCI_TEST = "TekstyNiePrzypisujaPlciTest"
 
