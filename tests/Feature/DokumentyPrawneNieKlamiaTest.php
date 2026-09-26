@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Report;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Odmiana;
+use App\Support\Storage\DozwolonyHostR2;
 use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Sentry\Laravel\ServiceProvider;
@@ -212,58 +213,41 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     }
 
     /**
-     * WŁAŚCIWY POMIAR (#619). Polityka prywatności obiecuje, że zdjęcia
-     * w Cloudflare R2 leżą w Unii Europejskiej. Samo dopisanie `.eu.` do
-     * `AWS_ENDPOINT` NIE PRZENOSI danych, a jurysdykcji ISTNIEJĄCEGO
-     * bucketu nie da się zmienić — to ustalenie z odbioru #619
-     * (`docs/infra/R2_ODBIOR_2026_09_20.md`, gałąź `gpt/r2-jurysdykcja`).
-     * Jedyny dowód, jaki to repozytorium potrafi samo z siebie odczytać, to
-     * KSZTAŁT `AWS_ENDPOINT`: segment jurysdykcji `eu` w hoście
-     * `<konto>.eu.r2.cloudflarestorage.com` — dokładnie to samo sprawdzenie,
-     * które robi `BramkaR2::endpointNiesieJurysdykcjeUE()` (sprawdzenie 12).
+     * WŁAŚCIWY POMIAR (#619). Polityka prywatności mówi, gdzie leżą zdjęcia
+     * w Cloudflare R2 — i to zdanie ma mieć pokrycie.
      *
-     * DOPÓKI konfiguracja nie niesie tego segmentu, dokument NIE MOŻE
-     * obiecywać czytelnikowi gotowej lokalizacji „Unia Europejska" dla
-     * zdjęć — może najwyżej powiedzieć, że tego nie potwierdzono. Zmiana
-     * `AWS_ENDPOINT` na wariant z `.eu.` bez zmiany dokumentu (albo
-     * odwrotnie: podniesienie obietnicy bez takiej zmiany endpointu)
-     * automatycznie oblewa ten test — to jest ta sama logika, którą
-     * `test_kazda_podana_liczba_dni_ma_za_soba_konfiguracje` stosuje do dat.
+     * Samo dopisanie `.eu.` do `AWS_ENDPOINT` NIE PRZENOSI danych, a jurysdykcji
+     * ISTNIEJĄCEGO bucketu nie da się zmienić (`docs/infra/R2_ODBIOR_2026_09_20.md`).
+     * Pokrycie są dwa i oba muszą stać:
+     *
+     *  1. ZAPIS WERYFIKACJI z datą w `docs/infra/LOKALIZACJA_DANYCH_R2.md` §0
+     *     — właściciel potwierdził w panelu jurysdykcję `eu` (25.09.2026);
+     *     albo `AWS_ENDPOINT` tego przebiegu niesie segment `eu`;
+     *  2. STRAŻNIK HOSTA (D-255): poza `local`/`testing` aplikacja nie zbuduje
+     *     dysku R2 na endpoincie bez segmentu `eu`, więc nie zapisze zdjęcia
+     *     do bucketu spoza jurysdykcji UE.
+     *
+     * Bez pokrycia wiersz R2 musi mówić „Nie potwierdziliśmy”. Z pokryciem —
+     * „Unia Europejska” i DATĘ sprawdzenia, tę samą co ostatni zapis
+     * weryfikacji: nowszy zapis bez poprawki polityki (albo odwrotnie) oblewa.
      */
-    public function test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie(): void
+    public function test_zdanie_o_lokalizacji_zdjec_w_r2_ma_pokrycie(): void
     {
         $tresc = $this->tresc('polityka-prywatnosci.md');
 
-        $endpoint = (string) config('filesystems.disks.r2.endpoint');
-        $host = strtolower((string) parse_url($endpoint, PHP_URL_HOST));
-        $ogonEndpointuR2 = '.r2.cloudflarestorage.com';
-
-        $jurysdykcja = null;
-
-        if ($host !== '' && str_ends_with($host, $ogonEndpointuR2)) {
-            $czesci = array_values(array_filter(
-                explode('.', substr($host, 0, -strlen($ogonEndpointuR2))),
-                static fn (string $c): bool => $c !== '',
-            ));
-
-            if (count($czesci) === 2) {
-                $jurysdykcja = $czesci[1];
-            }
-        }
-
-        $potwierdzoneUE = $jurysdykcja === 'eu';
+        $weryfikacja = self::ostatniaWeryfikacjaJurysdykcjiUE(
+            (string) file_get_contents(base_path('docs/infra/LOKALIZACJA_DANYCH_R2.md')),
+        );
+        $potwierdzoneUE = $weryfikacja !== null || self::endpointNiesieJurysdykcjeUE((string) config('filesystems.disks.r2.endpoint'));
 
         // Wiersz tabeli sekcji 3, gdzie R2 obiecuje lokalizację zdjęć.
-        // Kotwicą jest nazwa dostawcy z pierwszej kolumny, tak jak przy
-        // okresach retencji wyżej w tym pliku.
         $wiersze = array_values(array_filter(
             explode("\n", $tresc),
             static fn (string $linia): bool => str_starts_with(trim($linia), '| Cloudflare R2 '),
         ));
 
         // KONTROLA: bez dokładnie jednego wiersza pętla niżej sprawdzałaby
-        // pustkę albo wiersz przypadkowy, a test byłby zielony, nie mierząc
-        // niczego (`docs/PULAPKI_TESTOW.md` §2).
+        // pustkę albo wiersz przypadkowy (`docs/PULAPKI_TESTOW.md` §2).
         $this->assertCount(
             1,
             $wiersze,
@@ -272,45 +256,101 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         );
 
         $wierszR2 = $wiersze[0];
-
-        if ($potwierdzoneUE) {
-            $this->assertStringContainsString(
-                'Unia Europejska',
-                $wierszR2,
-                '`AWS_ENDPOINT` niesie segment jurysdykcji `eu`, ale wiersz Cloudflare R2 '
-                .'tego nie mówi czytelnikowi.',
-            );
-        } else {
-            $this->assertStringNotContainsString(
-                'Unia Europejska',
-                $wierszR2,
-                'Wiersz Cloudflare R2 obiecuje „Unia Europejska", ale `AWS_ENDPOINT` nie niesie '
-                .'segmentu jurysdykcji `eu` — tej obietnicy nie da się dziś potwierdzić '
-                .'z konfiguracji (#619, docs/infra/R2_ODBIOR_2026_09_20.md).',
-            );
-
-            $this->assertStringContainsString(
-                'Nie potwierdziliśmy',
-                $wierszR2,
-                'Wiersz Cloudflare R2 powinien wprost mówić, że lokalizacji zdjęć nie '
-                .'potwierdzono, zamiast milczeć albo zgadywać kraj.',
-            );
-        }
-
-        // Ta sama obietnica powtórzona bez zastrzeżeń w streszczeniu na
-        // górze dokumentu byłaby tą samą nieprawdą w innym miejscu tego
-        // samego pliku — streszczenie musi się zgadzać z wierszem R2.
         preg_match('/## W skrócie\n\n(.+?)\n\n/su', $tresc, $skrot);
         $this->assertNotEmpty($skrot, 'Kontrola: nie znaleziono sekcji „W skrócie".');
 
         if (! $potwierdzoneUE) {
-            $this->assertDoesNotMatchRegularExpression(
-                '/dane przechowujemy na serwerach w unii europejskiej/ui',
-                $skrot[1],
-                'Streszczenie obiecuje bez zastrzeżeń, że WSZYSTKIE dane (w tym zdjęcia) '
-                .'leżą w Unii Europejskiej, choć R2 tego nie potwierdza.',
+            $this->assertStringNotContainsString('Unia Europejska', $wierszR2,
+                'Wiersz Cloudflare R2 obiecuje „Unia Europejska", a nie ma ani zapisu weryfikacji '
+                .'w docs/infra/LOKALIZACJA_DANYCH_R2.md §0, ani endpointu z segmentem `eu`.');
+            $this->assertStringContainsString('Nie potwierdziliśmy', $wierszR2,
+                'Wiersz Cloudflare R2 powinien wprost mówić, że lokalizacji zdjęć nie potwierdzono.');
+            $this->assertDoesNotMatchRegularExpression('/leżą Twoje zdjęcia/u', $skrot[1],
+                'Streszczenie obiecuje lokalizację zdjęć w UE bez pokrycia.');
+
+            return;
+        }
+
+        $this->assertStringContainsString('Unia Europejska', $wierszR2,
+            'Jurysdykcja UE jest potwierdzona, ale wiersz Cloudflare R2 tego nie mówi czytelnikowi.');
+        $this->assertStringNotContainsString('Nie potwierdziliśmy', $wierszR2,
+            'Wiersz Cloudflare R2 mówi naraz „Unia Europejska" i „Nie potwierdziliśmy".');
+        $this->assertMatchesRegularExpression('/w Unii Europejskiej, i tam też leżą Twoje zdjęcia/u', $skrot[1],
+            'Streszczenie nie mówi, że zdjęcia leżą w Unii Europejskiej, choć wiersz R2 to mówi.');
+
+        if ($weryfikacja !== null) {
+            $this->assertStringContainsString(
+                'sprawdzone '.self::dataPoPolsku($weryfikacja),
+                $wierszR2,
+                "Ostatni zapis weryfikacji jurysdykcji jest z {$weryfikacja}, a wiersz Cloudflare R2 "
+                .'podaje inną datę sprawdzenia (albo żadnej). Popraw datę w polityce.',
             );
         }
+
+        // POKRYCIE 2: strażnik hosta naprawdę odcina endpoint bez `eu` poza
+        // środowiskiem lokalnym — z kontrolą dodatnią, że poprawny przechodzi.
+        $konto = str_repeat('a', 32);
+        $this->assertNull(DozwolonyHostR2::powod("https://{$konto}.eu.r2.cloudflarestorage.com", false),
+            'Kontrola: strażnik odrzuca nawet poprawny endpoint jurysdykcji UE.');
+        $this->assertNotNull(DozwolonyHostR2::powod("https://{$konto}.r2.cloudflarestorage.com", false),
+            'Strażnik hosta (D-255) wpuszcza endpoint bez jurysdykcji UE — polityka nie może wtedy obiecywać UE.');
+        $this->assertNotNull(DozwolonyHostR2::powod('', false),
+            'Strażnik hosta (D-255) wpuszcza pusty endpoint (domyślny Amazon) poza środowiskiem lokalnym.');
+    }
+
+    public function test_odczyt_zapisu_weryfikacji_bierze_ostatnia_date_i_tylko_jurysdykcje_eu(): void
+    {
+        // Kontrola parsera — bez niej test wyżej mógłby przechodzić na zapisie,
+        // z którego nic nie wyczytano, albo na samym Location Hint.
+        $zapis = "## 0. Zapis weryfikacji\n\n"
+            ."- **2026-09-20** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (x).\n"
+            ."- **2026-10-01** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (y).\n";
+        $this->assertSame('2026-10-01', self::ostatniaWeryfikacjaJurysdykcjiUE($zapis));
+        $this->assertNull(self::ostatniaWeryfikacjaJurysdykcjiUE(
+            '- **2026-09-20** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma Location Hint `weur`.',
+        ));
+        $this->assertSame('25 września 2026', self::dataPoPolsku('2026-09-25'));
+        $this->assertTrue(self::endpointNiesieJurysdykcjeUE('https://'.str_repeat('a', 32).'.eu.r2.cloudflarestorage.com'));
+        $this->assertFalse(self::endpointNiesieJurysdykcjeUE('https://'.str_repeat('a', 32).'.r2.cloudflarestorage.com'));
+    }
+
+    private static function ostatniaWeryfikacjaJurysdykcjiUE(string $dokument): ?string
+    {
+        preg_match_all(
+            '/^- \*\*(\d{4}-\d{2}-\d{2})\*\* — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu`/mu',
+            $dokument,
+            $m,
+        );
+
+        if ($m[1] === []) {
+            return null;
+        }
+
+        sort($m[1]);
+
+        return end($m[1]);
+    }
+
+    private static function endpointNiesieJurysdykcjeUE(string $endpoint): bool
+    {
+        $host = strtolower((string) parse_url($endpoint, PHP_URL_HOST));
+        $ogon = '.r2.cloudflarestorage.com';
+
+        if ($host === '' || ! str_ends_with($host, $ogon)) {
+            return false;
+        }
+
+        $czesci = array_values(array_filter(explode('.', substr($host, 0, -strlen($ogon))), static fn (string $c): bool => $c !== ''));
+
+        return count($czesci) === 2 && $czesci[1] === 'eu';
+    }
+
+    private static function dataPoPolsku(string $iso): string
+    {
+        $miesiace = [1 => 'stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'];
+        [$rok, $miesiac, $dzien] = array_map('intval', explode('-', $iso));
+
+        return "{$dzien} {$miesiace[$miesiac]} {$rok}";
     }
 
     /**
