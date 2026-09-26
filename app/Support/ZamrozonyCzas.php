@@ -64,7 +64,9 @@ final class ZamrozonyCzas
      */
     public static function zastosuj(?string $wartosc = null): void
     {
-        $wartosc ??= (string) env(self::ZMIENNA, '');
+        // getenv(), nie env() — env() poza katalogiem config/ zwraca null,
+        // gdy konfiguracja jest zbuforowana (Larastan: noEnvCallsOutsideOfConfig).
+        $wartosc ??= (string) (getenv(self::ZMIENNA) ?: '');
         if ($wartosc === '') {
             return;
         }
