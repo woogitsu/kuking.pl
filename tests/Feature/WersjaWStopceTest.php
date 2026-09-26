@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Support\Wersja;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -197,6 +198,88 @@ class WersjaWStopceTest extends TestCase
         $this->assertNull(Wersja::dataWydania());
         $this->assertSame(Wersja::etykieta().' · lokalnie', Wersja::pelna());
         $this->assertStringNotContainsString('wydanie', Wersja::pelna());
+    }
+
+    // -----------------------------------------------------------------
+    // Numer wdrożenia z końcówką (issue #1932, D-318)
+    // -----------------------------------------------------------------
+
+    public function test_numer_wdrozenia_jest_doklejany_do_etykiety_w_pelnym_opisie(): void
+    {
+        $this->bezZnacznikaWydania();
+        $commit = str_repeat('b', 40);
+        config(['kuking.wersja.commit' => $commit]);
+
+        DB::table('wdrozenia')->insert([
+            'commit' => $commit,
+            'etykieta' => Wersja::etykieta(),
+            'numer' => 5,
+            'created_at' => now(),
+        ]);
+
+        $this->assertSame(5, Wersja::numerWdrozenia());
+        $this->assertSame(Wersja::etykieta().'.005', Wersja::etykietaZNumerem());
+        $this->assertSame(Wersja::etykieta().'.005 · bbbbbbb', Wersja::pelna());
+
+        // `etykieta()` SAMA zostaje bez końcówki — czyta ją dosłownie
+        // `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując z nagłówkiem
+        // CHANGELOG-a w formacie „Alfa 0.N", bez żadnej końcówki.
+        $this->assertMatchesRegularExpression('/^(Alfa|Beta) 0\.\d+$/', Wersja::etykieta());
+    }
+
+    public function test_bez_wiersza_w_dzienniku_etykieta_zostaje_bez_koncowki(): void
+    {
+        $this->bezZnacznikaWydania();
+        config(['kuking.wersja.commit' => str_repeat('c', 40)]);
+
+        $this->assertNull(Wersja::numerWdrozenia());
+        $this->assertSame(Wersja::etykieta(), Wersja::etykietaZNumerem());
+    }
+
+    public function test_bez_commita_numer_wdrozenia_jest_null_bez_zapytania_do_bazy(): void
+    {
+        config(['kuking.wersja.commit' => null]);
+
+        $this->assertNull(Wersja::numerWdrozenia());
+    }
+
+    public function test_numer_wdrozenia_jest_pamietany_w_cache(): void
+    {
+        $commit = str_repeat('d', 40);
+        config(['kuking.wersja.commit' => $commit]);
+
+        DB::table('wdrozenia')->insert([
+            'commit' => $commit,
+            'etykieta' => Wersja::etykieta(),
+            'numer' => 7,
+            'created_at' => now(),
+        ]);
+
+        $this->assertSame(7, Wersja::numerWdrozenia());
+
+        // Wiersz znika, ale odczyt z cache'u zostaje — bez tego stopka
+        // wysyłałaby jedno zapytanie do bazy na KAŻDE żądanie strony.
+        DB::table('wdrozenia')->where('commit', $commit)->delete();
+
+        $this->assertSame(7, Wersja::numerWdrozenia());
+    }
+
+    public function test_footer_pokazuje_numer_wdrozenia_na_stronie(): void
+    {
+        $this->bezZnacznikaWydania();
+        $commit = str_repeat('e', 40);
+        config(['kuking.wersja.commit' => $commit]);
+
+        DB::table('wdrozenia')->insert([
+            'commit' => $commit,
+            'etykieta' => Wersja::etykieta(),
+            'numer' => 12,
+            'created_at' => now(),
+        ]);
+
+        $this->get(route('landing'))
+            ->assertOk()
+            ->assertSee(Wersja::etykieta().'.012');
     }
 
     /** Stan „nie wiadomo, kiedy": ani zmiennej, ani pliku. */

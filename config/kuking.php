@@ -3281,6 +3281,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Strona „Co nowego" (issue #1909, #1932)
+    |--------------------------------------------------------------------------
+    |
+    | Ścieżka jest jedna, ale POTRZEBUJE jej DWÓCH miejsc, które muszą liczyć
+    | slugi identycznie: `NowosciController` (renderuje stronę) i
+    | `App\Domain\Wydania\Actions\ZarejestrujWdrozenie` (zapisuje, pod jakim
+    | numerem wdrożenia pojawił się każdy nagłówek `###` z „## Najnowsze
+    | zmiany"). Konfigurowalna, a nie `resource_path()` wpisane w obu
+    | miejscach na twardo, żeby test mógł podmienić plik na własną, tymczasową
+    | treść bez nadpisywania PRAWDZIWEGO `resources/nowosci/tresc.md` — ten
+    | plik jest treścią redakcyjną w repozytorium, nie fixture'em testowym.
+    |
+    */
+    'nowosci' => [
+        'tresc' => resource_path('nowosci/tresc.md'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Publiczne API dla aplikacji mobilnej (D-014, D-270)
     |--------------------------------------------------------------------------
     |

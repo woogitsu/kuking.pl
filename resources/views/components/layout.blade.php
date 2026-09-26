@@ -1325,9 +1325,21 @@
                          od razu przy opisie tego wydania, a nie od góry
                          dokumentu — druga część tego samego kryterium.
                          `aria-label` mówi, dokąd prowadzi odnośnik, bo sam
-                         tekst („Alfa 0.68 · wydanie …") tego nie mówi. --}}
+                         tekst („Alfa 0.68 · wydanie …") tego nie mówi.
+
+                         KOŃCÓWKA WDROŻENIA (issue #1932, D-318): etap
+                         produktu pokazuje się tu z `etykietaZNumerem()`, nie
+                         z `etykieta()` — „Alfa 0.68.005" zamiast samego
+                         „Alfa 0.68", żeby dwa różne wdrożenia tego samego
+                         dnia dało się rozróżnić na pierwszy rzut oka. Bez
+                         wiersza w dzienniku (lokalnie, w testach, przy
+                         awarii bazy) `etykietaZNumerem()` sama wraca do
+                         samej etykiety — ten sam wybór co przy braku
+                         znacznika daty niżej. `aria-label` zostaje przy
+                         SAMEJ etykiecie: numer wdrożenia nic tam nie
+                         wnosi, a zdanie ma zostać krótkie. --}}
                     <a class="site-version" href="{{ route('nowosci') }}#{{ \App\Support\Wersja::kotwicaWydania() }}" aria-label="Co nowego w wydaniu {{ \App\Support\Wersja::etykieta() }}">
-                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykietaZNumerem() }}</strong>
                         <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
                     </a>
                 </div>

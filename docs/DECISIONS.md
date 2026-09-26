@@ -18032,3 +18032,74 @@ Usunąć trasę `nowosci`, kontroler, plik treści i odnośnik w stopce (wraca
 do zwykłego `<span>`). CHANGELOG.md nie traci nic — dopiski
 `[nowa funkcja]` zostają nieszkodliwym tekstem, jeśli nikt ich nie sprząta.
 Schemat bazy się nie zmienia.
+
+## D-318 — Numer wersji z końcówką wdrożenia: dziennik `wdrozenia` w bazie, nie licznik z gita (issue #1932, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+`App\Support\Wersja::etykieta()` („Alfa 0.68") podbija się ręcznie, przy
+większych zmianach — stoi tygodniami bez ruchu. Między dwoma podbiciami
+ląduje na produkcji po kilkanaście wdrożeń dziennie, a stopka i strona
+„Co nowego" (D-317) nie miały jak ich rozróżnić: dwa różne wdrożenia tego
+samego dnia wyglądały identycznie, dopóki ktoś nie porównał skrótów commitów
+z pamięci.
+
+### Decyzja właściciela
+1. **Format wersji:** `Alfa 0.69.001`. Duży numer (`0.69`, `0.70`…) podbija
+   się ręcznie, przy większych zmianach — zasada się nie zmienia
+   (`config/kuking.php`, komentarz nad `wersja.etykieta`, AGENTS.md §3).
+   Końcówka `.001`, `.002`, `.003`… rośnie SAMA przy każdym wdrożeniu i
+   wraca do `.001` przy nowym dużym wydaniu — to jest NOWA sekwencja, nie
+   kontynuacja poprzedniej.
+2. **Licznik NIE liczy się z historii gita.** Build Railwaya może mieć
+   płytki klon — `git rev-list --count` liczyłby wtedy nie to, co trzeba,
+   bez żadnego widocznego błędu (licząca się liczba po prostu byłaby zła).
+   Zamiast tego: dziennik wdrożeń w bazie, dwie tabele —
+   `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
+   (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
+   opisane w `docs/DATABASE.md`.
+3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
+   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
+   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+   `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
+   `numer = MAX(numer) dla tej etykiety + 1` pod
+   `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie
+   dają tego samego numeru (test na dwóch połączeniach:
+   `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`). Jest
+   idempotentna: ten sam commit drugi raz nie zużywa kolejnego numeru
+   (`UNIQUE (commit)`).
+4. **Przy tym samym przebiegu** komenda zapisuje, które nagłówki funkcji
+   z `resources/nowosci/tresc.md` (sekcja „## Najnowsze zmiany") pojawiły
+   się pierwszy raz — strona „Co nowego" pokazuje przy nich
+   „_od Alfa 0.69.NNN_".
+5. **Stopka** (`App\Support\Wersja::etykietaZNumerem()`) pokazuje
+   „Alfa 0.69.NNN · data · skrót commita", z cache'em (10 minut, klucz niesie
+   commit — inne wdrożenie samo unieważnia poprzedni wpis). Bez wiersza
+   w bazie (lokalnie, w testach, przy awarii bazy) zostaje dzisiejszy opis,
+   bez błędu — `Wersja::etykieta()` SAMA zostaje bez końcówki, celowo: czyta
+   ją dosłownie `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując
+   z nagłówkiem CHANGELOG-a w formacie „Alfa 0.N", bez żadnej końcówki.
+
+### Rollback (D-088)
+`down()` migracji, która zakłada obie tabele, ODMAWIA, gdy którakolwiek ma
+choć jeden wiersz — numer wdrożenia jest wartością semantyczną, już
+pokazaną ludziom (stopka, „od Alfa 0.69.NNN"), a cofnięcie na wypełnionej
+bazie i kolejny `migrate` zacząłby liczyć numery od 1 dla każdej etykiety,
+mieszając je ze starymi. Na świeżej bazie przechodzi bez pytania. Test
+odmowy i kontrola dodatnia: `tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.
+
+### Dowody
+`tests/Feature/ZarejestrujWdrozenieTest.php` (numeracja, idempotencja, mapa
+funkcji), `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`
+(bezpieczeństwo przy równoległym starcie, dwa prawdziwe połączenia),
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php` (rollback),
+`tests/Feature/WersjaWStopceTest.php` (numer w stopce, cache),
+`tests/Feature/StronaCoNowegoOdNumeruTest.php` („od Alfa 0.NN.NNN" przy
+funkcji, wyłącznie w „Najnowsze zmiany", brak wiersza nie wywala strony).
+
+### Wycofanie
+Usunąć komendę `kuking:zarejestruj-wdrozenie` z `preDeployCommand`, cofnąć
+`Wersja::etykietaZNumerem()` do `Wersja::etykieta()` w stopce (D-088:
+migracja sama się nie cofa na wypełnionej bazie — patrz sekcja Rollback
+wyżej). Strona „Co nowego" wraca do samych nagłówków bez dopisku „od …".
