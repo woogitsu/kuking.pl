@@ -1958,6 +1958,11 @@ przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
 który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
 pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
 a pokazanie treści łamie ustawienie autora.
+Właściciel może wyjąć same niedostępne pozycje z jednego zeszytu (#773,
+`RemoveUnavailableFromCollection`): kasowane są wyłącznie wiersze
+`collection_items` tego zeszytu, wyznaczone tymi samymi filtrami co lista
+(`WidocznaZawartoscZeszytu`), i tylko gdy zbiór zgadza się z potwierdzonym
+odciskiem. Treść, inne zeszyty i schemat bez zmian — brak migracji.
 
 **Notatka (`note`)** ma od #978 drogę w interfejsie: `UpdateCollectionItemNote`
 zmienia wyłącznie `note` jednej pary zeszyt–treść (bez `created_at`, bez
@@ -2779,6 +2784,37 @@ zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
 znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
 decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
 
+Wyjątek od tej reguły ma własną kolumnę — patrz niżej `appeal_id`.
+
+#### `appeal_id` — decyzja po uznaniu odwołania (#989)
+
+Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions`.
+
+| Kolumna | Po co |
+|---|---|
+| `appeal_id uuid NULL` → `appeals`, `ON DELETE SET NULL` | Odwołanie, po którego uznaniu zapadła ta decyzja. Dziś wyłącznie odwołanie **zgłaszającego** od `no_action`/`target_unavailable`: uznanie takiego odwołania wymaga nowej decyzji (DSA art. 20 ust. 4), a wykonuje ją `App\Domain\Moderation\Actions\DecyzjaPoOdwolaniu` w transakcji `ResolveAppeal`. Pierwotna decyzja i zgłoszenie są osiągalne przez `appeals.moderation_action_id` i `appeals.report_id`. |
+
+- `moderation_actions_one_per_appeal` — częściowy `UNIQUE (appeal_id) WHERE
+  appeal_id IS NOT NULL`: jedno odwołanie, najwyżej jedna decyzja po nim.
+- `moderation_actions_appeal_or_report_check` — `CHECK (appeal_id IS NULL OR
+  report_id IS NULL)`: decyzja po odwołaniu nie jest drugą decyzją pierwszej
+  instancji, więc `moderation_actions_one_per_report` zostaje nietknięty.
+- Poza `$fillable` — ustawia ją wyłącznie `DecyzjaPoOdwolaniu` (`forceFill`).
+- `ON DELETE SET NULL`, nie `RESTRICT`: retencja kasuje `appeals` przed
+  `moderation_actions`; `RESTRICT` zatrzymywałby ją na każdym takim
+  odwołaniu na zawsze.
+- `UzasadnienieDecyzji::skadSprawa()` przy niepustym `appeal_id` mówi autorowi,
+  że sprawa zaczęła się od zgłoszenia i wróciła po odwołaniu — nie „nikt tego
+  nie zgłosił”.
+
+**Rollback:** `down()` **odmawia**, gdy istnieje choć jeden wiersz z
+`appeal_id` (D-088): bez kolumny taka decyzja wyglądałaby jak decyzja z urzędu,
+a uzasadnienie dla autora mówiłoby nieprawdę. Komunikat podaje liczbę wierszy
+i zapytanie do zachowania powiązań. Bez takich wierszy (świeża baza, żadne
+odwołanie od „Bez działania” nie zostało uznane) rollback zdejmuje CHECK,
+indeks, klucz obcy i kolumnę bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/CofniecieMigracjiDecyzjiPoOdwolaniuTest.php`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
@@ -2874,7 +2910,8 @@ Wysokiego znaczenia zmiany.
   zanonimizowane;
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
-  `user.role_changed`, `admin.user_viewed`). **Bez CHECK-a w bazie** i to jest
+  `user.role_changed`, `admin.user_viewed`,
+  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -2931,6 +2968,22 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis ukryty przez
+moderację (#1018): strona wpisu (`PostController::show()`), gdy otwiera ją
+ktoś inny niż autor. `PostPolicy::view()` wpuszcza tam poza autorem wyłącznie
+czynnego moderatora albo administratora z potwierdzonym 2FA, więc każde takie
+wejście to wgląd z urzędu — ta sama zasada 3.2 co przy `admin.user_viewed`.
+`actor_id` to moderator, `subject_type = 'Post'`, `subject_id` — obejrzany
+wpis, `ip_hash` z żądania. **Bez metadanych i bez treści wpisu**: identyfikator
+wystarcza, a treść ukrytego wpisu nie ma trafiać do drugiej tabeli, gdzie
+przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
+nie zostawia. Podgląd jest tylko do odczytu — zapis do zeszytu, zgłoszenie
+i komentarz odmawia `PostPolicy` (`save`, `report`, `comment`), więc innych
+wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
+NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
+żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
+ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
@@ -3546,7 +3599,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 | Kod | Kiedy |
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
-| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał — również gdy `writeStream()` zwróci `false` bez wyjątku. Paczka nie przechodzi wtedy do `ready` i nie wysyła się informacji o gotowości. |
 | `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
@@ -4228,7 +4281,10 @@ a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkie
 **Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
 zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
 („wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
-i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+oraz automatycznie po 30 dniach (`queue:prune-failed --hours=720`,
+codziennie o 05:20 — decyzja właściciela z 25.09.2026, `docs/DECISIONS.md`,
+sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”) i nie da się w niej
+niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
 wskazuje na nią kolumną `failed_job_uuid`.
 
 | Kolumna | Uwagi |
@@ -4306,6 +4362,84 @@ decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
 bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
+
+### personal_access_tokens
+Tokeny osobistego dostępu Laravel Sanctum — logowanie aplikacji mobilnej
+(D-014 zmienione decyzją właściciela 25.09.2026, D-270, migracja
+`2026_09_25_100000_create_personal_access_tokens_table`).
+
+Ten wiersz **jest poświadczeniem**: kto ma jawną postać tokenu, działa na
+koncie przez API (prefiks `api/v1`). Jawna postać to `<id>|kuking_<sekret>` i istnieje
+wyłącznie w odpowiedzi HTTP, która token wydaje (`User::createToken()`).
+W bazie leży skrót.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, nie `bigint` jak w pakiecie. Stoi w jawnej części tokenu i w adresie odwołania urządzenia — kolejny numer zdradzałby, ile tokenów serwis wydał. |
+| `tokenable_type` | Nazwa narzucona przez Sanctum (relacja polimorficzna). **CHECK: zawsze `App\Models\User`** — tokeny ma tylko konto. `varchar(100)`. |
+| `tokenable_id` | Konto. **Prawdziwy klucz obcy do `users`**, `ON DELETE CASCADE` — relacja polimorficzna bez klucza zostawiałaby wiersz żywy po koncie. Kont się nie kasuje (anonimizuje je `EraseAccountData`, D-022), więc kaskada jest drugą linią obrony; pierwszą jest `User::invalidateSessions()`. |
+| `name` | Nazwa urządzenia podana przy logowaniu („Telefon Ani"), do 100 znaków, **CHECK: nie pusta po obcięciu spacji**. Widzi ją właściciel konta na liście urządzeń. |
+| `token` | **UNIKALNY. SHA-256 sekretu, szesnastkowo** — nigdy sekret. **CHECK `^[0-9a-f]{64}$`**: sekret zaczyna się od `kuking_`, więc zapisany jawnie odbije się od bazy. Poza `$fillable` (AGENTS.md §7) — zapisuje go `forceFill()` w `User::createToken()`. |
+| `abilities` | Uprawnienia jako JSON (`text`), dziś zawsze `["*"]`. Poza `$fillable`. |
+| `last_used_at` | Kiedy token ostatnio otworzył żądanie — aktualizuje Sanctum przy każdym uwierzytelnieniu. Na liście urządzeń odpowiada na pytanie „czy ten telefon jeszcze tego używa". |
+| `expires_at` | Termin ważności, dziś `NULL` (token działa do odwołania, `config/sanctum.php` → `expiration`). Indeks. |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+**Paczka danych (RODO art. 15).** Sekcja `urzadzenia_z_dostepem` w `dane.json`
+niesie `name`, `created_at`, `last_used_at` i `expires_at` — bez `token`
+(poświadczenie) i bez `abilities`. Wpis w `InwentarzDanychKonta`
+(`personal_access_tokens.tokenable_id`), pilnują
+`EksportObejmujeKazdaTabeleKontaTest` i `tests/Feature/Api/PaczkaDanychNiesieUrzadzeniaTest.php`.
+
+```sql
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_tokenable_type_check
+CHECK (tokenable_type = 'App\Models\User');
+
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_token_format_check
+CHECK (token ~ '^[0-9a-f]{64}$');
+
+ALTER TABLE personal_access_tokens
+ADD CONSTRAINT personal_access_tokens_name_not_blank_check
+CHECK (length(btrim(name)) > 0);
+```
+
+Indeksy: `UNIQUE (token)`, `(tokenable_type, tokenable_id)`, `(expires_at)`.
+
+#### Dlaczego skrót szybki (SHA-256), a nie bcrypt
+
+Ten sam wywód co przy `login_link_tokens`: sekret to 40 losowych znaków
+z `Str::random()` — nie ma czego zgadywać, więc nie ma czego spowalniać,
+a bcrypt uniemożliwiłby wyszukanie wiersza. Wiersz szukany jest po `id`
+z jawnej części tokenu, skrót porównywany `hash_equals()`
+(`App\Models\PersonalAccessToken::findToken()`). Identyfikator, który nie jest
+UUID-em, odpada przed zapytaniem — inaczej PostgreSQL odpowiadał błędem
+składni, a klient dostawał 500 zamiast 401.
+
+#### Co kasuje wiersz
+
+`User::invalidateSessions()` → `invalidateApiTokens()`: zmiana i reset hasła,
+„wyloguj mnie z innych urządzeń", włączenie 2FA, blokada, zawieszenie
+i zgłoszenie usunięcia konta — ta sama lista co przy sesjach i linkach
+logowania, z tego samego powodu: token jest wejściem na konto. Do tego
+kaskada przy skasowaniu wiersza `users`.
+
+#### Czego w tej tabeli świadomie nie ma
+
+**Adresu IP i `user_agent`.** Nazwę urządzenia podaje człowiek i to wystarcza
+do rozpoznania go na liście; adres IP byłby kolejnym zbiorem adresów w bazie
+(AGENTS.md §7), bez pytania, na które musiałby odpowiedzieć.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()` kasuje tabelę
+**bez odmowy**, świadomie. D-088 zabrania cichego odwracania **decyzji
+człowieka**; token nie jest decyzją, tylko poświadczeniem. Po `down()` +
+`migrate` tabela wraca **pusta**, czyli każde urządzenie loguje się jeszcze
+raz — kierunek bezpieczny (odebranie dostępu), nie groźny. Konta, hasła
+i logowanie na WWW zostają nietknięte. Kolejność: **najpierw kod, potem
+migracja** — `auth:sanctum` bez tabeli odda 500. Samo zamknięcie API migracji
+nie wymaga: `KUKING_API_ENABLED=false`. Pilnuje tego
+`tests/Feature/Api/TabelaTokenowDostepuTest.php`.
 
 ### sessions
 

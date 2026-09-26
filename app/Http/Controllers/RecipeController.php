@@ -7,8 +7,11 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\CoMoznaDopisac;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
+use App\Models\Comment;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
 use App\Support\PaginationLinks;
@@ -17,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -190,9 +194,44 @@ class RecipeController extends Controller
         ]);
     }
 
+    /**
+     * „Dopisz przepis” z własnego wpisu ze zdjęciem (issue #1334).
+     *
+     * WERSJA NAJPROSTSZA, BEZ MIGRACJI DANYCH. Otwiera ten sam formularz
+     * sześciu rzeczy co „Dodaj przepis”, ze zdjęciem wpisu zamiast pola
+     * pliku (można wybrać inne). Niczego nie publikuje sama i NIE RUSZA
+     * wpisu: jego treść, komentarze, adres i widoczność zostają takie, jakie
+     * były. Przepis jest nowym, osobnym obiektem — dostaje własną
+     * zapowiedź w strumieniu (#368), jak każdy przepis. Zdjęcie jest jednym
+     * wierszem `media` wskazanym z obu miejsc; `KasujZdjecie` nie skasuje go,
+     * dopóki wskazuje je choć jedno.
+     */
+    public function createFromPost(Request $request, Post $post): View
+    {
+        $this->authorize('dopiszPrzepis', $post);
+
+        return view('pages.recipes.create', [
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+            'zWpisu' => $post,
+            'zdjecieZWpisu' => $post->zdjecieDoPrzepisu(),
+        ]);
+    }
+
     public function store(ZapisPrzepisuRequest $request): RedirectResponse
     {
         $data = $request->daneZapisu();
+
+        // Zdjęcie z własnego wpisu (#1334) — ta sama Policy co przy wejściu
+        // na formularz, sprawdzona jeszcze raz przy zapisie: identyfikator
+        // w polu ukrytym to nie autoryzacja (AGENTS.md §7). Własny plik
+        // z formularza ma pierwszeństwo.
+        $zdjecieZWpisu = null;
+
+        if ($request->zWpisu() !== null && $request->przeslanyPlik('hero_photo') === null) {
+            $wpis = Post::query()->findOrFail($request->zWpisu());
+            $this->authorize('dopiszPrzepis', $wpis);
+            $zdjecieZWpisu = $wpis->zdjecieDoPrzepisu()?->getKey();
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
@@ -204,6 +243,7 @@ class RecipeController extends Controller
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
+                zdjecieGlowneZWpisu: $zdjecieZWpisu,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
@@ -272,6 +312,10 @@ class RecipeController extends Controller
         $this->authorize('update', $recipe);
 
         $data = $request->daneZapisu();
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        if ($duplicateErrors !== []) {
+            throw ValidationException::withMessages($duplicateErrors);
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
@@ -401,9 +445,10 @@ class RecipeController extends Controller
         return view('pages.recipes.show', [
             'recipe' => $model,
             'komentarze' => $komentarze,
-            // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
-            // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
-            'komentarzyRazem' => $komentarze->total(),
+            // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
+            // jak na karcie i stronie wpisu (D-281, D-309). `total()`
+            // stronicowania liczy same wątki, więc zostaje do paginacji.
+            'komentarzyRazem' => Comment::policzRozmowe($model->comments(), $request->user()),
             'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //

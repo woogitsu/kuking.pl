@@ -11,6 +11,7 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
+use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
@@ -70,8 +71,9 @@ use ZipArchive;
  * `App\Domain\Users\Exports\ExportTempDirectory`.
  *
  * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
- * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
- * ścieżka na dysku tymczasowym) zostaje wyłącznie w `Log::warning` niżej.
+ * — patrz `reasonFor()`. Log dostaje `BezpiecznyBlad::kontekst()` (klasa,
+ * SQLSTATE, miejsce), nigdy `$e->getMessage()` — ten bywa SQL-em z
+ * wartościami albo ścieżką na dysku tymczasowym (#973).
  */
 class GenerateUserExport implements ShouldQueue
 {
@@ -195,7 +197,7 @@ class GenerateUserExport implements ShouldQueue
             }
 
             try {
-                Storage::disk($disk)->writeStream($objectKey, $stream);
+                $written = Storage::disk($disk)->writeStream($objectKey, $stream);
             } catch (Throwable $e) {
                 // Zawinięte w typ, który `reasonFor()` rozpozna nawet po tym,
                 // jak `failed()` odtworzy joba od nowa z ładunku kolejki —
@@ -207,6 +209,10 @@ class GenerateUserExport implements ShouldQueue
                 }
             }
 
+            if ($written === false) {
+                throw new DataExportStorageFailure('Nie udało się zapisać paczki w magazynie plików.');
+            }
+
             $bytes = (int) filesize($this->tempZip);
 
             if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt) && $this->kolejkaSynchroniczna()) {
@@ -215,12 +221,13 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
-                // `DataExportStorageFailure` zawija oryginalny wyjątek — tu, w logu,
-                // ma zostać JEGO pełny komunikat (SQLSTATE, ścieżka na dysku...),
-                // nie zdanie po polsku z opakowania. Do bazy idzie wyłącznie kod
-                // (patrz reasonFor()), więc to jest jedyne miejsce, gdzie ten
-                // szczegół w ogóle zostaje.
-                'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
+                'media_id' => $e instanceof DataExportPhotoUnreadable ? $e->mediaId : null,
+                // `DataExportStorageFailure` zawija oryginalny wyjątek — jego
+                // klasę i SQLSTATE niesie `przyczyny`, miejsce awarii `miejsce`.
+                // Komunikatu nie: sterownik bazy wkłada w niego wartości, klient
+                // storage pełny klucz obiektu (#973). Do bazy idzie wyłącznie
+                // kod (patrz reasonFor()).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             $this->markFailed($export, $this->reasonFor($e));
@@ -294,7 +301,7 @@ class GenerateUserExport implements ShouldQueue
 
             // List ma własne zadanie z ponowieniami (issue #820) i wchodzi
             // do TEJ transakcji: kolejka jest bazodanowa na tym samym
-            // połączeniu (`DataSettingsController::zlecWykonanie()`), więc
+            // połączeniu (`ZamowEksportDanych::zlecWykonanie()`), więc
             // wiersz w `jobs` i `ready` zatwierdzają się razem albo wcale.
             // Po commicie, a przed zleceniem, nie ma okna, w którym paczka
             // jest gotowa, a listu nie wyśle nikt. Kolejka `sync` wykonałaby
@@ -321,7 +328,7 @@ class GenerateUserExport implements ShouldQueue
      * 23 września 2026).
      *
      * Dwa zadania na jednym rekordzie to nie teoria: „ponów” w ustawieniach
-     * (`DataSettingsController::odpowiedzNaTrwajacy`) wysyła drugie zadanie
+     * (`ZamowEksportDanych::przejmijTrwajacy()`) wysyła drugie zadanie
      * dla `queued` stojącego 15 minut — a pierwsze mogło po prostu czekać
      * w kolejce i ruszyć chwilę później. Bez tego strażnika drugie zaczynało
      * od `ExportTempDirectory::remove()` i kasowało pliki pierwszego
@@ -777,6 +784,7 @@ class GenerateUserExport implements ShouldQueue
     {
         return new DataExportPhotoUnreadable(
             'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$cause.').',
+            (string) $photo->getKey(),
         );
     }
 

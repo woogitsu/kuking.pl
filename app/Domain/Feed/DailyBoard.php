@@ -206,7 +206,7 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_USER)->pluck('subject_id'))
             ->whereNotIn('id', $hidden)
             ->where('status', User::STATUS_ACTIVE)
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')])
+            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)->latest('published_at')->limit(3)->with('media')])
             ->get();
 
         $posts = Post::query()
@@ -220,12 +220,14 @@ final class DailyBoard
             // Przepis schowany, usunięty albo zawężony PO wyborze gospodarza
             // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
             // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
-            ->zWidocznymPrzepisem($viewer)
+            // Wpis z własną treścią idzie za własną widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
             // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
             // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
             ->dlaKarty($viewer, kafelek: true)
-            ->get();
+            ->get()
+            ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
 
         $peopleById = $people->keyBy('id');
         $people = new EloquentCollection(
@@ -410,7 +412,7 @@ final class DailyBoard
     /** @return array<int|string, mixed> */
     private function relacjeOsoby(?User $viewer): array
     {
-        return ['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')];
+        return ['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)->latest('published_at')->limit(3)->with('media')];
     }
 
     /**
@@ -515,8 +517,9 @@ final class DailyBoard
             // Widoczność przepisu (issue #368) MUSI być w TYM podzapytaniu,
             // a nie w zapytaniu po pełne modele niżej: `DISTINCT ON` wybiera
             // jeden wpis na autora, więc wpis odsiany dopiero potem zabrałby
-            // ze sobą całe miejsce tego autora na tablicy.
-            ->zWidocznymPrzepisem($viewer)
+            // ze sobą całe miejsce tego autora na tablicy. Wpis z własną
+            // treścią zostaje za swoją widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             ->orderBy('posts.author_id')
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id');
@@ -544,7 +547,7 @@ final class DailyBoard
             // widza: kandydaci z cache mogli zostać schowani po zapisaniu.
             ->publiclyVisible()
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            ->zWidocznymPrzepisem($viewer)
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
             // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
             // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
             // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
@@ -552,7 +555,8 @@ final class DailyBoard
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
     }
 
     /** @return list<string> */

@@ -191,7 +191,9 @@ class KartaWpisuJednymKontraktemTest extends TestCase
 
         // KONTROLA DODATNIA: zmierzyliśmy stronę z tyloma kartami, ile trzeba.
         $this->assertCount($karty, $odpowiedz->viewData($klucz)->items());
-        $this->assertSame($karty, substr_count((string) $odpowiedz->getContent(), '<article class="card post-card">'));
+        // `data-klucz` na karcie od „Pokaż więcej” (#986) — liczymy pełne karty
+        // wpisu, bez zwiniętych i bez innych `<article>`.
+        $this->assertSame($karty, substr_count((string) $odpowiedz->getContent(), '<article class="card post-card" data-klucz="wpis-'));
 
         return $ile;
     }

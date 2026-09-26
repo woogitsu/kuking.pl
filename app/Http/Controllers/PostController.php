@@ -14,6 +14,7 @@ use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
+use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
@@ -530,6 +531,23 @@ class PostController extends Controller
             return redirect()->to($post->url().($query ? '?'.$query : ''), 301);
         }
 
+        // Wgląd obsługi w wpis ukryty przez moderację (#1018). Polityka
+        // wpuszcza tu poza autorem wyłącznie moderatora z 2FA, więc każde
+        // takie wejście zostawia ślad „kto to otworzył" — jak karta konta
+        // w panelu (`admin.user_viewed`). Bez metadanych: `subject_id` mówi
+        // wszystko, a treść wpisu nie ma trafiać do drugiej tabeli.
+        $podgladModeracji = $post->status === Post::STATUS_HIDDEN
+            && $request->user()?->getKey() !== $post->author_id;
+
+        if ($podgladModeracji) {
+            AuditLogEntry::record(
+                action: 'moderation.hidden_post_viewed',
+                actor: $request->user(),
+                subject: $post,
+                ip: $request->ip(),
+            );
+        }
+
         // Wariant ROZSZERZONY kontraktu karty (#1037, `Post::scopeDlaKarty()`):
         // te same relacje co `Post::RELACJE_KARTY`, ale przepis w całości
         // i z autorem, bo niżej stoi `RecipePolicy::view()`.
@@ -694,7 +712,10 @@ class PostController extends Controller
 
         return view('pages.posts.show', [
             'komentarze' => $komentarze,
-            'komentarzyRazem' => $komentarze->total(),
+            // Nagłówek rozmowy mówi tę samą liczbę co karta w strumieniu:
+            // komentarze razem z odpowiedziami (#1801). `total()` stronicowania
+            // liczy tylko wątki, więc tu zostaje wyłącznie do paginacji.
+            'komentarzyRazem' => (int) $post->loadCount(Post::licznikWidocznychKomentarzy($request->user()))->comments_count,
             'post' => $post,
             // Zachęta do kolejnego zdjęcia brzmi inaczej przy pierwszym wpisie
             // (COLD_START.md). Liczymy TYLKO dla autora — dla kogokolwiek

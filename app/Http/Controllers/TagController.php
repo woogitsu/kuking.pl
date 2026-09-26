@@ -60,6 +60,14 @@ class TagController extends Controller
         // w spisie ma znaczyć to samo dla każdego — to, co zobaczy gość
         // wchodząc na `/tag/{slug}`. Dla zalogowanej osoby to bezpieczne
         // niedoszacowanie, nigdy zawyżenie.
+        //
+        // Wpis z własną treścią liczy się według własnej widoczności — tak
+        // jak stoi na stronie tagu (issue #1377); `LiczbyTagowWCache` trzyma
+        // ten sam zakres co `tylkoPubliczne()`, więc licznik i warunek
+        // indeksowania (#1007) dalej znaczą to samo. `TagPublicStats`,
+        // `TagCollage` i `PodpowiedziTagow` zostają przy węższym
+        // `zWidocznymPrzepisem()` — ich testy utrwalają to od #941; różnica
+        // to niedoszacowanie, nigdy zawyżenie (D-087).
         $polecane = Tag::query()
             ->promowane()
             ->get();
@@ -125,7 +133,11 @@ class TagController extends Controller
             // obserwujących" (issue #941). Ten sam zakres i w tej samej roli
             // stoi w `TagFeed`, `TagCollage`, `TagPublicStats`, `FollowingFeed`,
             // `DiscoverFeed`, `DailyBoard` i `PodpowiedziTagow`.
-            ->zWidocznymPrzepisem($widz)
+            //
+            // Wpis z własną treścią zostaje według własnej widoczności
+            // (issue #1377); przepis zdejmuje z karty
+            // `Post::ukryjNiedostepnePrzepisy()` po paginacji.
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
@@ -138,7 +150,8 @@ class TagController extends Controller
             // każdej odsłonie pełny COUNT wszystkich wpisów tagu, a dalsze
             // strony płaciły OFFSET-em. Feedy robią to tak samo.
             ->cursorPaginate((int) config('kuking.feed.page_size'))
-            ->withQueryString();
+            ->withQueryString()
+            ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $widz));
 
         // Indeksowanie (issue #1007). Pusty tag zostaje dla ludzi (D-087:
         // prawdziwe zero i „Dodaj wpis z tym tagiem"), ale wyszukiwarka nie
@@ -172,6 +185,12 @@ class TagController extends Controller
      * Wpisy widoczne dla KAŻDEGO — liczba w spisie tagów (D-087) i warunek
      * indeksowania strony tagu (issue #1007) muszą znaczyć to samo.
      *
+     * `zWidocznymPrzepisemAlboWlasnaTrescia(null)`, nie węższe
+     * `zWidocznymPrzepisem(null)`: wpis z własną treścią liczy się według
+     * własnej widoczności, tak jak na stronie tagu (issue #1377) — inaczej
+     * ukrycie cudzego przepisu zdejmowałoby z licznika i z indeksowania
+     * wpis, który dalej stoi na liście.
+     *
      * @template TQuery of \Illuminate\Database\Eloquent\Builder
      *
      * @param  TQuery  $query
@@ -182,6 +201,8 @@ class TagController extends Controller
         return $query
             ->publiclyVisible()
             ->tylkoOdAktywnychAutorow()
-            ->zWidocznymPrzepisem(null);
+            // Wpis z własną treścią według własnej widoczności (issue #1377),
+            // tak jak na liście strony tagu.
+            ->zWidocznymPrzepisemAlboWlasnaTrescia(null);
     }
 }
