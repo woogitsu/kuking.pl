@@ -279,11 +279,127 @@ final class PowiadomieniaPushTest extends TestCase
         $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/blad');
         $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
 
+        Queue::fake();
         $this->powiadomienie($autor, 'Rosół');
         $this->uruchomZadanie($autor);
 
         $this->assertCount(1, $this->transport->wyslane);
         $this->assertDatabaseHas('push_subscriptions', ['id' => $sub->getKey()]);
+    }
+
+    /**
+     * SEDNO ISSUE #1960. Błąd transportu NIE ustawia znacznika sukcesu —
+     * do 26 września 2026 `push_wyslano_at` stawało PRZED próbą wysyłki,
+     * więc awaria transportu i tak zostawiała kolumnę twierdzącą „wysłano”.
+     */
+    public function test_blad_transportu_nie_ustawia_znacznika_wyslania(): void
+    {
+        $autor = $this->user('autor_blad_znacznik');
+        $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/blad-znacznik');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($autor, 'Rosół');
+        $this->uruchomZadanie($autor);
+
+        $this->assertCount(1, $this->transport->wyslane, 'Próba wysyłki ma się odbyć, mimo że się nie uda.');
+        $this->assertNull(
+            $powiadomienie->refresh()->push_wyslano_at,
+            'Nieudana wysyłka nie ma prawa twierdzić, że powiadomienie wyszło (#1960).',
+        );
+        $this->assertNotNull($powiadomienie->refresh()->push_proba_at, 'Grupa ma zostać zarezerwowana, żeby nie wybrało jej drugie zdarzenie.');
+
+        Queue::assertPushed(WyslijPowiadomieniePush::class, fn (WyslijPowiadomieniePush $job): bool => $job->userId === $autor->getKey()
+            && $job->probaTransportu === 2
+            && $job->notificationIds === [(string) $powiadomienie->getKey()]
+            && $job->pominieteSubskrypcje === []);
+    }
+
+    /**
+     * Ponowienie (kolejna próba transportu) faktycznie WYSYŁA, gdy usługa
+     * wraca do życia — i dopiero WTEDY stawia znacznik.
+     */
+    public function test_ponowienie_po_bledzie_transportu_wysyla_i_stawia_znacznik(): void
+    {
+        $autor = $this->user('autor_ponowienie');
+        $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/ponowienie');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($autor, 'Rosół');
+        $this->uruchomZadanie($autor);
+        Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
+
+        // Usługa wraca do życia; symulujemy PONOWIENIE zadania wprost —
+        // ten sam wzorzec co `ponowKolejke()` w tym pliku.
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Wyslano);
+        (new WyslijPowiadomieniePush(
+            userId: $autor->getKey(),
+            notificationIds: [(string) $powiadomienie->getKey()],
+            tresc: (string) json_encode(['body' => 'Rosół', 'url' => '/powiadomienia']),
+            probaTransportu: 2,
+        ))->handle($this->transport);
+
+        $this->assertCount(2, $this->transport->wyslane, 'Druga próba ma faktycznie spróbować wysłać.');
+        $this->assertNotNull($powiadomienie->refresh()->push_wyslano_at, 'Udane ponowienie ma postawić znacznik.');
+    }
+
+    /**
+     * Dwa urządzenia, jedno pada: ponowienie idzie WYŁĄCZNIE do tego, które
+     * jeszcze nie dostało pushu. Urządzenie, które już go przyjęło, nie
+     * dostaje drugiej kopii.
+     */
+    public function test_czesciowa_awaria_ponawia_tylko_nieudane_urzadzenie(): void
+    {
+        $autor = $this->user('autor_czesciowa');
+        $dziala = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/dziala');
+        $pada = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/pada');
+        $this->transport->odpowiadaj($pada->endpoint, WynikWysylkiPush::Blad);
+
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($autor, 'Rosół');
+        $this->uruchomZadanie($autor);
+
+        $this->assertEqualsCanonicalizing(
+            [$dziala->endpoint, $pada->endpoint],
+            array_column($this->transport->wyslane, 'endpoint'),
+        );
+        $this->assertNull($powiadomienie->refresh()->push_wyslano_at);
+
+        Queue::assertPushed(WyslijPowiadomieniePush::class, fn (WyslijPowiadomieniePush $job): bool => $job->pominieteSubskrypcje === [(string) $dziala->getKey()]);
+    }
+
+    /**
+     * Trwała porażka: po wyczerpaniu prób transportu przestajemy ponawiać
+     * automatycznie. Znacznik wysyłki zostaje TRWALE pusty — mierzalny,
+     * bez kłamstwa o sukcesie.
+     */
+    public function test_trwala_porazka_transportu_przestaje_ponawiac_i_nie_klamie_o_wysylce(): void
+    {
+        config(['kuking.notifications.zewnetrzne.push_maks_prob_transportu' => 2]);
+        $autor = $this->user('autor_trwala_porazka');
+        $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/trwala-porazka');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+        $powiadomienie = $this->powiadomienie($autor, 'Rosół');
+
+        Queue::fake();
+        (new WyslijPowiadomieniePush(userId: $autor->getKey()))->handle($this->transport);
+        $this->assertCount(1, $this->transport->wyslane);
+
+        Queue::fake();
+        (new WyslijPowiadomieniePush(
+            userId: $autor->getKey(),
+            notificationIds: [(string) $powiadomienie->getKey()],
+            tresc: (string) json_encode(['body' => 'Rosół', 'url' => '/powiadomienia']),
+            probaTransportu: 2,
+        ))->handle($this->transport);
+
+        $this->assertCount(2, $this->transport->wyslane);
+        Queue::assertNotPushed(WyslijPowiadomieniePush::class, 'Po wyczerpaniu prób nie ma trzeciej.');
+        $this->assertNull(
+            $powiadomienie->refresh()->push_wyslano_at,
+            'Trwała porażka nie ma prawa twierdzić, że wysłano (#1960).',
+        );
     }
 
     public function test_zbanowany_odbiorca_nie_dostaje_pushu(): void

@@ -39,10 +39,29 @@ use Illuminate\Support\Facades\Log;
  * PRZECZYTANE W SERWISIE NIE IDZIE PUSHEM. Kto już zobaczył powiadomienie
  * na liście, nie dostaje o nim szturchnięcia rano.
  *
- * BEZ PONAWIANIA (`$tries = 1`). Push to szturchnięcie, nie list polecony:
- * powiadomienie i tak czeka w serwisie. Subskrypcja, której usługa push
- * odpowiada 404/410, jest kasowana od razu — nie ma nieskończonych prób
- * na martwy adres.
+ * ZNACZNIK WYSYŁKI DOPIERO PO WYSYŁCE (issue #1960). Do 26 września 2026
+ * `zaplanuj()` ustawiało `push_wyslano_at` PRZED pętlą wysyłki do urządzeń —
+ * czyli w chwili ZAREZERWOWANIA grupy, nie w chwili faktycznego dostarczenia.
+ * Awaria transportu (`WynikWysylkiPush::Blad`) była tylko logowana, `$tries`
+ * jest `1`, więc żadne ponowienie nie mogło jej podjąć — a znacznik dalej
+ * twierdził „wysłano”. Dziś:
+ *
+ *  - `push_proba_at` (osobna kolumna) jest REZERWACJĄ grupy — ustawia ją
+ *    `zaplanuj()`, pod tą samą blokadą doradczą, i TA rezerwacja jest barierą
+ *    przed dublem: dopóki stoi, żadne INNE (świeżo zdarzeniowe) zadanie tego
+ *    samego odbiorcy nie wybierze tej samej grupy powiadomień drugi raz;
+ *  - `push_wyslano_at` ustawia WYŁĄCZNIE udana wysyłka do WSZYSTKICH
+ *    urządzeń tej grupy — nigdy rezerwacja;
+ *  - błąd transportu na części albo na wszystkich urządzeniach ponawia
+ *    WYŁĄCZNIE dostarczenie do urządzeń, które go jeszcze nie dostały
+ *    (`$pominieteSubskrypcje` rośnie o te, które już się udały) — udane
+ *    urządzenie nie dostaje drugiej kopii tego samego pushu;
+ *  - po `kuking.notifications.zewnetrzne.push_maks_prob_transportu` próbach
+ *    transportu rezygnujemy z automatycznego ponawiania (push jest
+ *    szturchnięciem, nie listem poleconym — powiadomienie w serwisie i tak
+ *    czeka) i zostawiamy TRWALE puste `push_wyslano_at` z wpisem w dzienniku;
+ *  - wygasła subskrypcja (404/410) jest kasowana od razu, jak dotąd —
+ *    tego reguła nie zmienia.
  */
 final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
@@ -58,8 +77,26 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
     /** Zamek unikalności nie może przeżyć najdłuższego odłożenia (limit → rano następnej doby). */
     public int $uniqueFor = 172800;
 
-    public function __construct(public string $userId)
-    {
+    /**
+     * @param  list<string>  $notificationIds  ID powiadomień z JUŻ ZDECYDOWANEJ grupy —
+     *                                         puste znaczy „świeże zadanie, policz od zera"
+     *                                         w `zaplanuj()`; niepuste znaczy „ponowienie
+     *                                         po błędzie transportu", które pomija ciszę
+     *                                         nocną i dzienny limit (już raz rozstrzygnięte).
+     * @param  string|null  $tresc  Treść pushu ZAMROŻONA z pierwszej próby — ponowienie nie
+     *                              przelicza jej na nowo, żeby nie zmieniło się w trakcie
+     *                              (np. inna liczba zgrupowanych powiadomień).
+     * @param  list<string>  $pominieteSubskrypcje  ID subskrypcji, które już dostały TĘ
+     *                                              grupę — nie próbujemy ich drugi raz.
+     * @param  int  $probaTransportu  Która to próba DOSTARCZENIA (nie: cisza/limit).
+     */
+    public function __construct(
+        public string $userId,
+        public array $notificationIds = [],
+        public ?string $tresc = null,
+        public array $pominieteSubskrypcje = [],
+        public int $probaTransportu = 1,
+    ) {
         $this->onQueue('default');
     }
 
@@ -86,37 +123,95 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             return;
         }
 
-        $subskrypcje = $user->pushSubscriptions()->get();
+        $subskrypcje = $user->pushSubscriptions()
+            ->when($this->pominieteSubskrypcje !== [], fn ($q) => $q->whereNotIn('id', $this->pominieteSubskrypcje))
+            ->get();
+
+        $ponowienie = $this->notificationIds !== [];
 
         if ($subskrypcje->isEmpty()) {
-            return;
-        }
-
-        $teraz = CarbonImmutable::now();
-        $plan = DB::transaction(fn (): ?array => $this->zaplanuj($user, $subskrypcje->min('created_at'), $teraz));
-
-        if ($plan === null) {
-            return;
-        }
-
-        if (isset($plan['odloz'])) {
-            self::dispatch($this->userId)->delay($plan['odloz']);
+            // PONOWIENIE, KTÓREMU ZABRAKŁO ODBIORCÓW (rzadkie — subskrypcja
+            // zniknęła między próbami): reszta już dostała tę grupę, więc
+            // z punktu widzenia dostarczenia jest gotowa.
+            if ($ponowienie) {
+                $this->potwierdzWyslanie($this->notificationIds);
+            }
 
             return;
         }
 
-        $tresc = (string) json_encode($plan['tresc'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($ponowienie) {
+            $tresc = (string) $this->tresc;
+        } else {
+            $teraz = CarbonImmutable::now();
+            $plan = DB::transaction(fn (): ?array => $this->zaplanuj($user, $subskrypcje->min('created_at'), $teraz));
+
+            if ($plan === null) {
+                return;
+            }
+
+            if (isset($plan['odloz'])) {
+                self::dispatch($this->userId)->delay($plan['odloz']);
+
+                return;
+            }
+
+            $this->notificationIds = $plan['id_powiadomien'];
+            $tresc = (string) json_encode($plan['tresc'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        $nieudane = [];
 
         foreach ($subskrypcje as $subskrypcja) {
-            $this->wyslijNa($transport, $subskrypcja, $tresc);
+            $wynik = $this->wyslijNa($transport, $subskrypcja, $tresc);
+
+            if ($wynik === WynikWysylkiPush::Blad) {
+                $nieudane[] = $subskrypcja;
+            }
         }
+
+        if ($nieudane === []) {
+            $this->potwierdzWyslanie($this->notificationIds);
+
+            return;
+        }
+
+        $maksProb = (int) config('kuking.notifications.zewnetrzne.push_maks_prob_transportu', 3);
+
+        if ($this->probaTransportu >= $maksProb) {
+            // TRWAŁA PORAŻKA — bez adresu subskrypcji (poświadczenie),
+            // z liczbą, żeby dało się to policzyć i zauważyć trend.
+            Log::error('Web Push: trwała porażka transportu — rezygnuję z ponawiania po wyczerpaniu prób.', [
+                'proby' => $this->probaTransportu,
+                'nieudane_urzadzenia' => count($nieudane),
+                'wszystkie_urzadzenia' => $subskrypcje->count(),
+            ]);
+
+            return;
+        }
+
+        $udaneId = $subskrypcje
+            ->reject(fn (PushSubscription $s): bool => in_array($s, $nieudane, true))
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        $opoznienieSekund = (int) config('kuking.notifications.zewnetrzne.push_ponowienie_sekund', 30);
+
+        self::dispatch(
+            $this->userId,
+            $this->notificationIds,
+            $tresc,
+            [...$this->pominieteSubskrypcje, ...$udaneId],
+            $this->probaTransportu + 1,
+        )->delay(CarbonImmutable::now()->addSeconds($opoznienieSekund));
     }
 
     /**
-     * Pod blokadą doradczą odbiorcy: co czeka, czy wolno teraz, i oznaczenie
-     * wysłanych JEDNYM znacznikiem czasu (po nim liczy się dzienny limit).
+     * Pod blokadą doradczą odbiorcy: co czeka, czy wolno teraz, i REZERWACJA
+     * (nie: potwierdzenie) grupy jednym znacznikiem `push_proba_at`.
      *
-     * @return array{odloz: CarbonImmutable}|array{tresc: array<string, string>}|null
+     * @return array{odloz: CarbonImmutable}|array{id_powiadomien: list<string>, tresc: array<string, string>}|null
      */
     private function zaplanuj(User $user, mixed $najstarszaSubskrypcja, CarbonImmutable $teraz): ?array
     {
@@ -137,6 +232,10 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->visibleTo($user)
             ->whereIn('notifications.type', KanalPush::TYPY)
             ->whereNull('notifications.push_wyslano_at')
+            // Grupa już ZAREZERWOWANA (rezerwacja w toku albo trwale
+            // nieudana) nie wraca do puli przez zwykłe zdarzenie — jedyna
+            // droga powrotu to jawne ponowienie z `$notificationIds` wyżej.
+            ->whereNull('notifications.push_proba_at')
             ->whereNull('notifications.read_at')
             ->where('notifications.created_at', '>=', $od)
             ->with('actor.profile')
@@ -168,14 +267,17 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             return ['odloz' => $decyzja['wyslij_od']];
         }
 
-        Notification::query()
-            ->whereKey($oczekujace->modelKeys())
-            ->update(['push_wyslano_at' => $teraz]);
+        $id = $oczekujace->modelKeys();
 
-        return ['tresc' => TrescPush::zbuduj($oczekujace)];
+        Notification::query()
+            ->whereKey($id)
+            ->update(['push_proba_at' => $teraz]);
+
+        /** @var list<string> $id */
+        return ['id_powiadomien' => array_map(strval(...), $id), 'tresc' => TrescPush::zbuduj($oczekujace)];
     }
 
-    /** Ile pushy (nie powiadomień) wyszło w bieżącej dobie odbiorcy. */
+    /** Ile pushy (nie powiadomień) wyszło w bieżącej dobie odbiorcy — liczy WYSŁANE, nie zarezerwowane. */
     private function wyslaneWDobie(User $user, CarbonImmutable $teraz): int
     {
         return (int) Notification::query()
@@ -185,19 +287,41 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->count('push_wyslano_at');
     }
 
-    private function wyslijNa(TransportPush $transport, PushSubscription $subskrypcja, string $tresc): void
+    /**
+     * Transport przyjął wiadomość na WSZYSTKIE urządzenia tej grupy —
+     * dopiero teraz grupa jest „wysłana". `whereNull` chroni przed
+     * przesunięciem znacznika, gdyby to samo zadanie (np. przez ponowienie
+     * kolejki) wykonało się dwa razy.
+     *
+     * @param  list<string>  $notificationIds
+     */
+    private function potwierdzWyslanie(array $notificationIds): void
+    {
+        if ($notificationIds === []) {
+            return;
+        }
+
+        Notification::query()
+            ->whereKey($notificationIds)
+            ->whereNull('push_wyslano_at')
+            ->update(['push_wyslano_at' => CarbonImmutable::now()]);
+    }
+
+    private function wyslijNa(TransportPush $transport, PushSubscription $subskrypcja, string $tresc): WynikWysylkiPush
     {
         $wynik = $transport->wyslij($subskrypcja, $tresc);
 
         if ($wynik === WynikWysylkiPush::Wygasla) {
             $subskrypcja->delete();
 
-            return;
+            return $wynik;
         }
 
         if ($wynik === WynikWysylkiPush::Blad) {
             // Sama usługa, bez adresu subskrypcji — adres jest poświadczeniem.
             Log::warning('Web Push: nieudana wysyłka.', ['usluga' => $subskrypcja->usluga()]);
         }
+
+        return $wynik;
     }
 }

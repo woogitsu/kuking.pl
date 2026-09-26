@@ -19,10 +19,21 @@ use Illuminate\Support\Facades\Schema;
  *    WYBRANE przez człowieka. Brak wiersza = wartości domyślne z konfiguracji
  *    (`kuking.notifications.zewnetrzne`), więc zmiana domyślnych nie wymaga
  *    przepisywania danych.
- *  - `notifications.push_wyslano_at` — kiedy powiadomienie poszło pushem.
- *    Jedno pole daje dwie rzeczy: „co jeszcze czeka" (NULL) i „ile pushy
- *    wyszło dziś" (liczba różnych znaczników w dobie odbiorcy — kilka
- *    powiadomień zgrupowanych w jednym pushu dostaje ten sam znacznik).
+ *  - `notifications.push_wyslano_at` — kiedy powiadomienie NAPRAWDĘ poszło
+ *    pushem, czyli transport PRZYJĄŁ wiadomość na WSZYSTKIE urządzenia tej
+ *    grupy (issue #1960). Jedno pole daje dwie rzeczy: „co jeszcze czeka"
+ *    (NULL) i „ile pushy wyszło dziś" (liczba różnych znaczników w dobie
+ *    odbiorcy — kilka powiadomień zgrupowanych w jednym pushu dostaje ten
+ *    sam znacznik).
+ *  - `notifications.push_proba_at` — kiedy `WyslijPowiadomieniePush` ZAJĘŁO
+ *    tę grupę powiadomień do wysyłki, niezależnie od tego, czy się udało.
+ *    Bariera przed dublem: dopóki jest ustawione, żadne INNE zadanie tego
+ *    samego odbiorcy nie wybierze tej samej grupy jeszcze raz — ponowienie
+ *    po błędzie transportu dostaje listę powiadomień i subskrypcji wprost
+ *    od poprzedniej próby, nie przez ponowne zapytanie „co czeka". Bez tego
+ *    rozdzielenia błąd choćby jednego urządzenia (albo trwała porażka po
+ *    wyczerpaniu prób) zostawiał `push_wyslano_at` ustawiony na kłamstwo
+ *    (issue #1960) — patrz `App\Jobs\WyslijPowiadomieniePush`.
  *
  * `ALTER TABLE notifications ADD COLUMN … NULL` bez wartości domyślnej to
  * zmiana samego katalogu — bez przepisywania tabeli i bez skanu; blokadę
@@ -64,6 +75,7 @@ return new class extends Migration
 
         Schema::table('notifications', function (Blueprint $table): void {
             $table->timestampTz('push_wyslano_at')->nullable();
+            $table->timestampTz('push_proba_at')->nullable();
         });
 
         if (DB::connection()->getDriverName() === 'pgsql') {
@@ -89,7 +101,7 @@ return new class extends Migration
         }
 
         Schema::table('notifications', function (Blueprint $table): void {
-            $table->dropColumn('push_wyslano_at');
+            $table->dropColumn(['push_wyslano_at', 'push_proba_at']);
         });
         Schema::dropIfExists('ustawienia_powiadomien_zewnetrznych');
         Schema::dropIfExists('push_subscriptions');

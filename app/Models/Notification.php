@@ -238,6 +238,7 @@ class Notification extends Model
             'data' => 'array',
             'read_at' => 'datetime',
             'push_wyslano_at' => 'datetime',
+            'push_proba_at' => 'datetime',
         ];
     }
 

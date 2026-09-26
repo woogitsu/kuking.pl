@@ -928,6 +928,19 @@ return [
             // Przy nadmiarze znika najstarsze — przeglądarki rzadko mówią,
             // że subskrypcja umarła, póki nie spróbujemy na nią wysłać.
             'push_maks_urzadzen' => 10,
+
+            // PONOWIENIE PO BŁĘDZIE TRANSPORTU (issue #1960, D-303). Błąd
+            // usługi push (`WynikWysylkiPush::Blad`) nie kasuje subskrypcji
+            // i nie ma zostać po cichu potraktowany jak sukces — zadanie
+            // ponawia dostarczenie WYŁĄCZNIE do urządzeń, które go jeszcze
+            // nie dostały, po krótkim odstępie.
+            'push_ponowienie_sekund' => (int) env('KUKING_PUSH_PONOWIENIE_SEKUND', 30),
+
+            // Po tylu PRÓBACH TRANSPORTU (nie: prób na urządzenie) rezygnujemy
+            // z automatycznego ponawiania. Powiadomienie w serwisie i tak
+            // czeka (push jest szturchnięciem, nie listem poleconym) —
+            // trwała porażka zostawia mierzalny, pusty `push_wyslano_at`.
+            'push_maks_prob_transportu' => (int) env('KUKING_PUSH_MAKS_PROB_TRANSPORTU', 3),
         ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).

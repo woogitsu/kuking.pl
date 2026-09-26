@@ -2504,13 +2504,29 @@ identyfikatory treści i to, co trzeba pokazać w zdaniu.
 
 **`push_wyslano_at timestamptz NULL`** (D-303, migracja
 `2026_09_26_100000_utworz_powiadomienia_push`) — kiedy to powiadomienie
-poszło także pushem. `NULL` = tylko w serwisie (albo jeszcze czeka na koniec
-ciszy nocnej / limitu). Kilka powiadomień zgrupowanych w jednym pushu dostaje
-**ten sam** znacznik, więc liczba RÓŻNYCH wartości w dobie odbiorcy to liczba
-wysłanych pushy — po niej liczy się dzienny limit
+NAPRAWDĘ poszło pushem, czyli transport przyjął wiadomość na WSZYSTKIE
+urządzenia tej grupy (issue #1960). `NULL` = tylko w serwisie, albo jeszcze
+czeka (koniec ciszy nocnej / limitu, rezerwacja w toku, albo trwała porażka
+transportu — patrz `push_proba_at` niżej). Kilka powiadomień zgrupowanych
+w jednym pushu dostaje **ten sam** znacznik, więc liczba RÓŻNYCH wartości
+w dobie odbiorcy to liczba wysłanych pushy — po niej liczy się dzienny limit
 (`WyslijPowiadomieniePush`). Dodana bez wartości domyślnej, czyli bez
 przepisywania tabeli. Rollback: kolumna znika razem z tabelami pushu (opis
 przy `push_subscriptions`).
+
+**`push_proba_at timestamptz NULL`** (issue #1960, ta sama migracja) —
+kiedy `WyslijPowiadomieniePush` ZAREZERWOWAŁO tę grupę powiadomień do
+wysyłki, niezależnie od tego, czy transport się udał. Bariera przed dublem:
+dopóki jest ustawione, żadne INNE (świeżo zdarzeniowe) zadanie tego samego
+odbiorcy nie wybierze tej samej grupy jeszcze raz — ponowienie po błędzie
+transportu dostaje listę powiadomień wprost od poprzedniej próby, nie przez
+ponowne zapytanie „co czeka". Do 26 września 2026 tej kolumny nie było,
+a `push_wyslano_at` pełniło OBIE role naraz (rezerwacji i potwierdzenia) —
+błąd transportu albo trwała porażka po wyczerpaniu prób zostawiały
+`push_wyslano_at` ustawiony na kłamstwo. Dziś `push_proba_at` może być
+ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
+porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
+push_wyslano_at IS NULL`), ale nie odwrotnie.
 
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
