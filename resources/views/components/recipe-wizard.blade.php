@@ -1073,7 +1073,7 @@ new class extends Component
         <div class="notice" role="note">
             <p class="mt-0 mb-0">
                 <strong>Ten tekst odczytał komputer{{ $zrodloImportu === 'url' ? ' ze strony internetowej' : ($zrodloImportu === 'pdf' ? ' z pliku PDF' : ' ze zdjęcia') }}.</strong>
-                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki sam nie klikniesz „Opublikuj przepis”.
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.
                 @if($zrodloImportu === 'url')
                     Opis przygotowania napisz własnymi słowami — adres strony zostaje przy przepisie jako źródło.
                 @endif

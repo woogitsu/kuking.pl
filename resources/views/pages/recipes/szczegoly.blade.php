@@ -135,7 +135,7 @@
         <div class="notice" role="note">
             <p class="mt-0 mb-0">
                 <strong>Ten tekst odczytał komputer.</strong>
-                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki sam nie klikniesz „Opublikuj przepis”.
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.
             </p>
         </div>
     @endif

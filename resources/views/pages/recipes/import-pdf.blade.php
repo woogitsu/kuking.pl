@@ -33,5 +33,5 @@
         </div>
     </form>
 
-    <p class="mt-6"><a href="{{ route('recipes.create') }}">Wolę wpisać przepis sam</a></p>
+    <p class="mt-6"><a href="{{ route('recipes.create') }}">Wolę wpisać przepis ręcznie</a></p>
 </x-layout>

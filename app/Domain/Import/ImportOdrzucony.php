@@ -76,7 +76,7 @@ final class ImportOdrzucony extends BladDlaCzlowieka
         self::ZA_DUZA_STRONA => 'Ta strona jest za duża, żeby ją odczytać. Skopiuj tekst przepisu ze strony '
             .'i wklej go w polu „Przygotowanie”.',
         self::ZA_DLUGO => 'Strona odpowiadała zbyt długo. Spróbuj jeszcze raz za kilka minut albo skopiuj '
-            .'tekst przepisu i wklej go sam.',
+            .'tekst przepisu i wklej go w polu „Przygotowanie”.',
         self::NIE_STRONA => 'Pod tym adresem nie ma zwykłej strony z tekstem. Jeśli to plik PDF, '
             .'pobierz go i dodaj przyciskiem „Dodaj plik PDF”.',
         self::BRAK_PRZEPISU => 'Na tej stronie nie znaleźliśmy przepisu. Skopiuj tekst przepisu ze strony '
@@ -90,13 +90,13 @@ final class ImportOdrzucony extends BladDlaCzlowieka
         self::PDF_ZASZYFROWANY => 'Ten plik PDF jest zabezpieczony hasłem. Otwórz go u siebie, zapisz kopię '
             .'bez hasła i dodaj ją jeszcze raz.',
         self::PDF_BEZ_TEKSTU => 'Ten plik PDF to zeskanowane strony, bez tekstu do odczytania. Zrób zdjęcie '
-            .'strony z przepisem i dodaj je przyciskiem „Przepisz z kartki lub zeszytu” albo przepisz przepis sam.',
+            .'strony z przepisem i dodaj je przyciskiem „Przepisz z kartki lub zeszytu” albo wpisz przepis ręcznie.',
         self::NARZEDZIE_PDF_NIEDOSTEPNE => 'Odczyt plików PDF chwilowo nie działa. Spróbuj później '
-            .'albo przepisz przepis sam — nic nie zginęło.',
+            .'albo wpisz przepis ręcznie — nic nie zginęło.',
         self::LIMIT_OSOBY => 'Dziś odczytaliśmy już :limit Twoich przepisów — to dzienny limit. Jutro będzie można '
-            .'dalej. Możesz też od razu wpisać przepis sam.',
+            .'dalej. Możesz też od razu wpisać przepis ręcznie.',
         self::LIMIT_OSOBY_MIESIAC => 'W tym miesiącu odczytaliśmy już :limit Twoich przepisów — to miesięczny limit. '
-            .'Spróbuj znowu w przyszłym miesiącu albo wpisz przepis sam.',
+            .'Spróbuj znowu w przyszłym miesiącu albo wpisz przepis ręcznie.',
     ];
 
     /**
