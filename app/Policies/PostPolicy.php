@@ -23,7 +23,25 @@ class PostPolicy
         }
 
         if (! $post->isPublished()) {
-            return $user !== null && $user->getKey() === $post->author_id;
+            if ($user === null) {
+                return false;
+            }
+
+            if ($user->getKey() === $post->author_id) {
+                return true;
+            }
+
+            // Wpis ukryty przez moderację otwiera jeszcze obsługa, która
+            // rozpatruje sprawę albo odwołanie (#1018) — inaczej przywrócenie
+            // szło „w ciemno", bez zdjęć, wątku i skutku edycji autora.
+            // Ta sama bramka co panel `/admin` (`moderator` + `moderator.2fa`):
+            // czynna rola ORAZ potwierdzone 2FA. Szkic zostaje wyłącznie
+            // autora. Blokada działa w obie strony także tutaj (AGENTS.md §4).
+            // `removed` nie wchodzi: jest miękko usunięty, więc wiązanie trasy
+            // i tak go nie znajdzie — przywraca się go z panelu (#65).
+            return $post->status === Post::STATUS_HIDDEN
+                && self::obslugaZDwomaSkladnikami($user)
+                && ! $user->hasBlockRelationWith($post->author);
         }
 
         $isOwnerOrModerator = $user !== null
@@ -119,6 +137,74 @@ class PostPolicy
 
     public function comment(User $user, Post $post): bool
     {
+        // Podgląd ukrytego wpisu dla moderatora (#1018) to odczyt, nie
+        // rozmowa: pod cudzym nieopublikowanym wpisem nie komentuje nikt.
+        if (self::tylkoPodgladObslugi($user, $post)) {
+            return false;
+        }
+
         return $this->view($user, $post) && $user->isActive();
+    }
+
+    /**
+     * „Zapisuję" — odłożenie wpisu do własnego zeszytu.
+     *
+     * Podgląd ukrytego wpisu dla moderatora (#1018) jest TYLKO do odczytu.
+     * Samo `view` wpuszczało tu moderatora z 2FA, więc mógł włożyć cudzy
+     * ukryty wpis do własnego zeszytu — zapis, którego żaden zwykły
+     * człowiek nie zrobi, i ślad sprawy moderacyjnej w prywatnej kolekcji.
+     */
+    public function save(User $user, Post $post): bool
+    {
+        if (self::tylkoPodgladObslugi($user, $post)) {
+            return false;
+        }
+
+        return $this->view($user, $post);
+    }
+
+    /**
+     * Zgłoszenie wpisu (`ReportContent::authorize()`).
+     *
+     * Ten sam powód co `save()`: moderator na podglądzie ukrytego wpisu
+     * (#1018) nie otwiera zgłoszenia — sprawa już jest w panelu, a drugie
+     * zgłoszenie od obsługi zaśmiecałoby kolejkę. Autor dalej może zgłosić
+     * własny wpis (np. przejęte konto) — `view` go wpuszcza.
+     */
+    public function report(?User $user, Post $post): bool
+    {
+        if (self::tylkoPodgladObslugi($user, $post)) {
+            return false;
+        }
+
+        return $this->view($user, $post);
+    }
+
+    /**
+     * Cudzy nieopublikowany wpis. Jedyną drogą, którą `view` do takiego
+     * wpuszcza, jest podgląd obsługi (#1018) — a on niczego nie zmienia.
+     *
+     * Publiczna, bo pyta o nią też karta wpisu (`components/post-card`),
+     * żeby schować „Zapisuję" i „Zgłoś ten wpis". Karta NIE woła tam
+     * `@can('save')`: `view()` sprawdza blokadę zapytaniem, czyli jedno
+     * zapytanie na kartę w feedzie. Ten warunek nie pyta bazy, a kartę
+     * i tak widać dopiero po `view`.
+     */
+    public static function tylkoPodgladObslugi(?User $user, Post $post): bool
+    {
+        return $user !== null
+            && ! $post->isPublished()
+            && $user->getKey() !== $post->author_id;
+    }
+
+    /**
+     * Czynny moderator albo administrator z potwierdzonym 2FA — ten sam
+     * warunek, który stawia grupa `/admin` (`EnsureUserIsModerator`
+     * + `EnsureModeratorHasTwoFactor`), tylko zadany tu, bo strona wpisu
+     * leży poza tą grupą.
+     */
+    public static function obslugaZDwomaSkladnikami(User $user): bool
+    {
+        return $user->isModerator() && $user->hasTwoFactorConfirmed();
     }
 }
