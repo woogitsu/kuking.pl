@@ -325,6 +325,11 @@ PODZIAL_TESTOW_TEST = "PodzialTestowJestKompletnyTest"
 KLIENT_TURNSTILE = "app/Turnstile/KlientTurnstile.php"
 TURNSTILE_HOST_TEST = "test_host_spoza_listy_jest_odrzucany"
 TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
+# Graf modułów app/Domain bez cykli (#971). Strażnik czyta tokeny PHP
+# w `app/Domain`; mutacja przywraca import `Social` w `ZalozKonto`, czyli
+# dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
+ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
+GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -874,6 +879,8 @@ checks = [
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -950,6 +957,7 @@ run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
+run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
