@@ -3710,6 +3710,26 @@ co przy resecie hasła, gdzie Laravel serializuje token tak samo. Wiersz `jobs`
 żyje sekundy; token z `failed_jobs` i tak przestaje działać po 30 minutach,
 a listu, którego wysyłka padła, nikt nie dostał.
 
+**Zmienione 25 września 2026 (audyt A5-10):** ta własność już nie obowiązuje.
+`LinkDoLogowania`, `UstawienieNowegoHasla`, `UstawienieHaslaZamiastLinku`
+i `ZaproszenieDoZalozeniaKonta` mają `ShouldBeEncrypted`, więc w `jobs`
+i `failed_jobs` leży szyfrogram kluczem aplikacji. Komendy czytające odbiorców
+z `failed_jobs` odszyfrowują go przez `App\Domain\Kolejka\PolecenieZadania`.
+Pilnuje tego `tests/Feature/ZetonyWKolejceSaSzyfrowaneTest.php`.
+
+**Decyzja właściciela z 25 września 2026: `failed_jobs` czyści się
+automatycznie po 30 dniach.** `queue:prune-failed --hours=720` chodzi
+codziennie o 05:20 (`routes/console.php`, `onOneServer()`,
+`withoutOverlapping(120)`). Powody: żetony w ładunku są szyfrowane (akapit
+wyżej), więc miesiąc leżenia nie wystawia żywego sekretu, a 30 dni wystarcza
+na diagnozę — o świeżej awarii mówią czujka kolejki, panel kolejki i `/health`
+długo wcześniej. Pierwsza wersja tej zmiany (ten sam dzień) świadomie
+automatu nie dodawała; właściciel rozstrzygnął inaczej. `kuking:martwe-zadania`
+zostaje do ręcznego, wcześniejszego czyszczenia po rozliczeniu awarii.
+Uwaga praktyczna: cztery zadania z 9 września 2026 (D-047) znikną same około
+10 października 2026 — kto chce je rozliczyć z odbiorcami, musi to zrobić
+przed tą datą. Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
+
 ### RACHUNEK LISTÓW — I CO SIĘ DZIEJE, GDY PULA PADNIE W ŚRODKU DNIA
 
 EmailLabs na planie darmowym daje **300 listów na dobę na cały serwis**
@@ -17261,12 +17281,12 @@ Odwrócić commit. Schemat bazy się nie zmienia.
 **Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
 
 Audyt `docs/audyt/2026-09-25-B1.md`, znalezisko 7, znalazł w panelu
-moderacji (widoczny wyłącznie dla moderatorów) trzy miejsca z tekstem
+moderacji (widoczny wyłącznie dla moderatorów) cztery miejsca z tekstem
 poniżej 18 px z `AGENTS.md` §5, przy czym jedno z nich powoływało się na
 D-051 — decyzję, która swój zakres ogranicza wyraźnie do dwóch elementów
 stopki („ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY") i nie obejmuje niczego
 w panelu moderacji. Właściciel dostał znalezisko do decyzji: podnieść te
-trzy miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
+cztery miejsca do 18 px (rekomendacja audytu) albo zapisać dla nich osobny,
 nazwany wyjątek. **Wybrał świadomie drugi wariant** — moderator pracuje
 w tym panelu godzinami, gęstość informacji na ekranie ma dla niego wartość,
 a odbiorcą tych konkretnych napisów nigdy nie jest osoba 50+ z reszty
@@ -17274,7 +17294,12 @@ serwisu, tylko moderator zalogowany do narzędzia wewnętrznego.
 
 ### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
 
-`AGENTS.md` §5 zostaje dokładnie taki, jaki jest, wszędzie indziej. Minimum
+Reguła z `AGENTS.md` §5 zostaje bez zmian wszędzie indziej. *(Pierwotnie:
+„`AGENTS.md` §5 zostaje dokładnie taki, jaki jest”. Decyzją właściciela
+z 25 września 2026 — po audycie `docs/audyt/2026-09-25-PO-FALI.md`,
+pkt 8–9 — §5 wymienia D-262 z nazwy jako drugi nazwany wyjątek obok D-051,
+z listą czterech selektorów, żeby agent czytający tylko `AGENTS.md` nie
+„naprawiał” tych miejsc. Treść reguły się nie zmieniła.)* Minimum
 18 px dla samodzielnego tekstu nadal obowiązuje na każdym ekranie, który
 widzi członek/członkini serwisu — w tym w PUBLICZNEJ części panelu (np.
 w widokach dla odwołujących się). Wyjątek dotyczy WYŁĄCZNIE napisów

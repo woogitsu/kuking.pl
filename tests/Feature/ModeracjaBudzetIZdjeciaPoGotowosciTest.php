@@ -14,6 +14,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Moderacja\ModelChwilowoNiedostepny;
 use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -60,6 +61,9 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
 
     /** Dostawca odpowiada błędem 5xx od razu, bez przekroczenia czasu. */
     private bool $awariaDostawcy = false;
+
+    /** Tylko ocena ZDJĘĆ trafia na przejściowe 503 — tekst odpowiada normalnie. */
+    private bool $awariaZdjec = false;
 
     /** Żądania, które naprawdę wyszły — także te zakończone timeoutem (`Http::recorded()` ich nie liczy). */
     private int $wyslane = 0;
@@ -109,6 +113,10 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
             }
 
             $obraz = ($zadanie['input'][0]['type'] ?? null) === 'image_url';
+
+            if ($obraz && $this->awariaZdjec) {
+                return Http::response('awaria', 503);
+            }
 
             return Http::response(['results' => [['category_scores' => $obraz ? $this->wynikZdjecia : $this->wynikTekstu]]]);
         });
@@ -244,6 +252,66 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $this->analizuj($wpis);
 
         $this->assertStringContainsString('NIEPEŁNA: 1 z ocen', (string) $this->oznaczenia($wpis)[0]->details);
+    }
+
+    /**
+     * Scalenie #829 z #1662: przejściowa awaria jednej oceny (zdjęcie, 503)
+     * nie zabiera ze sobą oceny, która w tej samej próbie się udała (tekst).
+     * Przed scaleniem `OcenaModelem` rzucała na pierwszej awarii i ocena
+     * tekstu przepadała razem z próbą.
+     *
+     * Próba nieostatnia: sygnał tekstu zapisany, zadanie wraca do kolejki,
+     * bez uwagi „NIEPEŁNA”. Następna próba (zdjęcia już odpowiadają) dokłada
+     * się do TEJ SAMEJ sprawy, a ocena tekstu nie dubluje się. Ostatnia
+     * próba z awarią: sygnał tekstu jest, sprawa mówi „NIEPEŁNA”, zadanie
+     * oznaczone jako nieudane.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): `throw` w `OcenaModelem::ocen()`
+     * zamiast zapamiętania awarii → test oblewa na pierwszej asercji.
+     */
+    public function test_przejsciowa_awaria_zdjecia_nie_zabiera_oceny_tekstu(): void
+    {
+        $this->awariaZdjec = true;
+        $autor = $this->user('czesciowa');
+        $wpis = $this->wpis($autor, 'Zupa pomidorowa jak u mamy.');
+        $wpis->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
+
+        $proba = function (int $numer) use ($wpis): PrzeanalizujTresc {
+            $zadanie = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $wpis->getKey()))
+                ->withFakeQueueInteractions();
+            $zadanie->job->attempts = $numer;
+            $this->app->call([$zadanie, 'handle']);
+
+            return $zadanie;
+        };
+
+        $proba(1)->assertReleased();
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Ocena tekstu przepadła razem z przejściową awarią oceny zdjęcia.');
+        $this->assertStringContainsString('Model ocenił tekst', (string) $oznaczenia[0]->details);
+        $this->assertStringNotContainsString('NIEPEŁNA', (string) $oznaczenia[0]->details, 'Uwaga o niepełnej ocenie przed ostatnią próbą.');
+
+        $this->awariaZdjec = false;
+        $proba(2)->assertNotReleased();
+        $oznaczenia = $this->oznaczenia($wpis);
+        $this->assertCount(1, $oznaczenia, 'Ponowienie postawiło drugą sprawę zamiast dołożyć do istniejącej.');
+        $this->assertSame(1, substr_count((string) $oznaczenia[0]->details, 'Model ocenił tekst'), 'Ocena tekstu zdublowała się przy ponowieniu.');
+        $this->assertStringContainsString('Model ocenił zdjęcie', (string) $oznaczenia[0]->details);
+
+        // Ostatnia próba z awarią na innym wpisie: sygnał tekstu zostaje,
+        // sprawa mówi „NIEPEŁNA”, zadanie jest nieudane.
+        $this->awariaZdjec = true;
+        $drugi = $this->wpis($autor, 'Barszcz czerwony na Wigilię.');
+        $drugi->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
+        $ostatnia = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $drugi->getKey()))->withFakeQueueInteractions();
+        $ostatnia->job->attempts = PrzeanalizujTresc::PROBY;
+        $this->app->call([$ostatnia, 'handle']);
+
+        $ostatnia->assertNotReleased();
+        $ostatnia->assertFailedWith(ModelChwilowoNiedostepny::class);
+        $sprawa = (string) $this->oznaczenia($drugi)[0]->details;
+        $this->assertStringContainsString('Model ocenił tekst', $sprawa);
+        $this->assertStringContainsString('Ocena modelem NIEPEŁNA', $sprawa);
     }
 
     // ---------------------------------------------------------------

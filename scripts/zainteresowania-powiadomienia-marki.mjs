@@ -217,16 +217,36 @@ async function sprawdzStanyList513({ browser, adres, sesja, php }) {
               const empty = path === '/powiadomienia' ? 'Nie ma jeszcze żadnych powiadomień' : 'Nie mamy jeszcze listy tagów';
               if (!(await page.locator('main').innerText()).includes(empty)) throw new Error('K513_PUSTY_STAN');
             } else {
-              const next = page.locator('main a[href*="page=2"]').first();
-              if (!await next.count()) throw new Error('K513_PAGINACJA_LINK');
-              const second = await page.goto(await next.getAttribute('href'), { waitUntil: 'networkidle' });
-              if (second.status() !== 200 || await page.locator('main article').count() !== 9) throw new Error('K513_PAGINACJA_TRESC');
+              // Od #986 skrypt zamienia odnośnik „Następna strona powiadomień”
+              // na przycisk „Pokaż więcej powiadomień”, który DOKŁADA drugą
+              // porcję do listy (9 kart) zamiast otwierać osobną stronę.
+              // Ścieżka bez skryptu (sam odnośnik do page=2) jest sprawdzana niżej.
+              const more = page.locator('main').getByRole('button', { name: 'Pokaż więcej powiadomień', exact: true });
+              if (await more.count() !== 1) throw new Error('K513_PAGINACJA_LINK');
+              const articles = page.locator('main article');
+              const before = await articles.count();
+              await more.click();
+              await page.waitForFunction(n => document.querySelectorAll('main article').length >= n, before + 9, { timeout: 15000 }).catch(() => {});
+              if (await articles.count() !== before + 9 || await more.count() !== 0) throw new Error('K513_PAGINACJA_TRESC');
+              if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) throw new Error('K513_STANY_GEOMETRIA');
             }
           }
         } finally { await context.close(); }
       }
+      if (variant === 'paginacja') {
+        // Bez JavaScriptu (AGENTS.md §5) zostaje uczciwy odnośnik do drugiej strony.
+        const context = await browser.newContext({ storageState: sesja, javaScriptEnabled: false, viewport: { width: 320, height: 900 } });
+        try {
+          const page = await context.newPage();
+          await page.goto(adres + '/powiadomienia', { waitUntil: 'networkidle' });
+          const next = page.locator('main a[href*="page=2"]').first();
+          if (!await next.count()) throw new Error('K513_PAGINACJA_LINK_BEZ_JS');
+          const second = await page.goto(await next.getAttribute('href'), { waitUntil: 'networkidle' });
+          if (second.status() !== 200 || await page.locator('main article').count() !== 9) throw new Error('K513_PAGINACJA_TRESC_BEZ_JS');
+        } finally { await context.close(); }
+      }
     }
-    console.log('K513_STANY_OK 8 pustych stron, 4 przejścia paginacji');
+    console.log('K513_STANY_OK 8 pustych stron, 4 dokładania porcji i przejście paginacji bez JS');
   } finally { fixture('przywroc-listy', backup); }
 }
 

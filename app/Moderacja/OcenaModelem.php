@@ -38,10 +38,20 @@ use Throwable;
  * wpisu pomniejszone do `MAX_BOK`. Zdjęcia profilowego ta klasa nie wysyła
  * wcale — nie ma potwierdzonej zgody na jego ocenę.
  *
- * ZAWODZI W DOBRĄ STRONĘ, ALE NIE PO CICHU. Brak klucza, timeout, 5xx,
- * odpowiedź w nieznanym kształcie — każde z tych oddaje pustą listę
- * sygnałów i nigdy nie blokuje publikacji. Każde zostawia też wpis
- * w dzienniku: pusta lista znaczy „nie wiemy", a nie „sprawdzone, czyste".
+ * ZAWODZI W DOBRĄ STRONĘ, ALE NIE PO CICHU. Brak klucza, 4xx, odpowiedź
+ * w nieznanym kształcie — każde z tych oddaje pustą listę sygnałów i nigdy
+ * nie blokuje publikacji. Każde zostawia też wpis w dzienniku: pusta lista
+ * znaczy „nie wiemy", a nie „sprawdzone, czyste".
+ *
+ * AWARIA PRZEJŚCIOWA IDZIE DALEJ (#1662). Timeout, 429 i 5xx przepuszczamy
+ * jako `ModelChwilowoNiedostepny` do zadania, które ponowi CAŁĄ ocenę
+ * później. Wyjątek leci dopiero PO przejściu wszystkich ocen w budżecie
+ * i niesie sygnały z tych, które się udały (`czesciowe`): zadanie zapisuje
+ * je przed ponowieniem, a `DolozDoOznaczenia` (#829) dokłada następną próbę
+ * do tej samej sprawy, bez dublowania. Pół-ocena nie udaje oceny całości:
+ * ostatnia nieudana próba zostawia w sprawie uwagę „Ocena modelem
+ * NIEPEŁNA”. Łączny czas i liczbę żądań ogranicza budżet, nie pierwsza
+ * awaria.
  */
 final class OcenaModelem
 {
@@ -77,6 +87,9 @@ final class OcenaModelem
      * niepełna (`niepelne()`). `null` = bez wspólnego budżetu.
      *
      * @return list<Sygnal>
+     *
+     * @throws ModelChwilowoNiedostepny gdy choć jedno żądanie trafiło na
+     *                                  przejściową awarię (#1662)
      */
     public function dla(Post|Comment $tresc, ?BudzetCzasu $budzet = null): array
     {
@@ -93,6 +106,7 @@ final class OcenaModelem
         }
 
         $sygnaly = [];
+        $awaria = null;
 
         // Przy pytaniu razem z tytułem — bez opisu to on jest całą treścią (#831).
         $tekst = $tresc instanceof Post ? $tresc->tekstDoOceny() : trim((string) $tresc->body);
@@ -101,7 +115,7 @@ final class OcenaModelem
             $klient = $this->klientWBudzecie($budzet);
 
             if ($klient !== null) {
-                $sygnaly = $this->zWyniku($klient->ocenTekst($tekst), $sygnaly, $budzet);
+                $sygnaly = $this->zWyniku($this->ocen(fn () => $klient->ocenTekst($tekst), $awaria), $sygnaly, $budzet);
             }
         }
 
@@ -128,12 +142,37 @@ final class OcenaModelem
                 $klient = $this->klientWBudzecie($budzet);
 
                 if ($klient !== null) {
-                    $sygnaly = $this->zWyniku($klient->ocenObraz($dataUri), $sygnaly, $budzet);
+                    $sygnaly = $this->zWyniku($this->ocen(fn () => $klient->ocenObraz($dataUri), $awaria), $sygnaly, $budzet);
                 }
             }
         }
 
+        if ($awaria !== null) {
+            throw new ModelChwilowoNiedostepny($awaria->ponowZaSekund, $sygnaly);
+        }
+
         return $sygnaly;
+    }
+
+    /**
+     * Jedna ocena. Przejściowa awaria nie przerywa pozostałych (budżet i tak
+     * ogranicza ich czas) — liczy się jako nieudana, a zapamiętana awaria
+     * z najdłuższym `Retry-After` wychodzi z `dla()` na końcu.
+     *
+     * @param  callable(): ?WynikOceny  $ocena
+     */
+    private function ocen(callable $ocena, ?ModelChwilowoNiedostepny &$awaria): ?WynikOceny
+    {
+        try {
+            return $ocena();
+        } catch (ModelChwilowoNiedostepny $nowa) {
+            if ($awaria === null || ($nowa->ponowZaSekund ?? 0) > ($awaria->ponowZaSekund ?? 0)) {
+                $awaria = $nowa;
+            }
+
+            // `null` dalej: `zWyniku()` liczy ją jako nieudaną (raz).
+            return null;
+        }
     }
 
     /**
