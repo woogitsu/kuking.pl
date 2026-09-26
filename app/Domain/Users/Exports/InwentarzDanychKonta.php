@@ -62,6 +62,7 @@ final class InwentarzDanychKonta
         'follows.followed_id' => [self::EKSPORT, 'obserwuja_mnie'],
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
+        'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
@@ -77,9 +78,12 @@ final class InwentarzDanychKonta
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
+        'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
+        'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'importy_przepisow.user_id' => [self::EKSPORT, 'odczyty_przepisow'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
+        'hides.hidden_user_id' => [self::NA_ZADANIE, 'Kto ukrył sobie to konto („Ukryj tę osobę”, #1810). Ujawnienie tego naraziłoby osobę, która tylko porządkowała własny ekran (RODO art. 15 ust. 4) — tak samo jak przy blokadach; na żądanie powiemy, ile jest takich ukryć.'],
         'notifications.actor_id' => [self::NA_ZADANIE, 'Powiadomienia, które inne osoby dostały o Twoich działaniach. To są ich skrzynki; same działania (wpisy, komentarze, „Ugotowałem”) są w paczce.'],
         'reports.autor_tresci_id' => [self::NA_ZADANIE, 'Zgłoszenia Twoich treści przez inne osoby. Chronimy zgłaszających; decyzje, które wtedy zapadły, są w sekcji decyzje_moderacji.'],
         'audit_log.actor_id' => [self::NA_ZADANIE, 'Dziennik bezpieczeństwa (logowania, zmiany konta, skrót adresu IP). Wydajemy go na żądanie, bo zestawienie w paczce ułatwiałoby przejęcie konta komuś, kto ją zdobędzie.'],
@@ -125,6 +129,7 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],
         'birthday_month' => [self::EKSPORT, 'konto'],
