@@ -144,6 +144,19 @@ class StrefaCzasowaTest extends TestCase
                         $winne[] = str_replace(resource_path('views').'/', '', (string) $plik);
                     }
                 }
+
+                // Gołe `->format(` (#746) — ale tylko z formatem dla CZŁOWIEKA.
+                // Formaty maszynowe (`Y-m-d…` w atrybucie `datetime`, `c`, `U`)
+                // mają zostać w UTC, więc ślepy zakaz każdego `format()` byłby
+                // fałszywym alarmem, po którym ktoś wyłącza cały strażnik.
+                if (! str_contains($linia, 'Czas::')
+                    && preg_match_all("/->format\\(\\s*'([^']*)'/", $linia, $formaty) > 0) {
+                    foreach ($formaty[1] as $format) {
+                        if (! str_starts_with($format, 'Y-m-d') && ! in_array($format, ['c', 'U'], true)) {
+                            $winne[] = str_replace(resource_path('views').'/', '', (string) $plik);
+                        }
+                    }
+                }
             }
         }
 
