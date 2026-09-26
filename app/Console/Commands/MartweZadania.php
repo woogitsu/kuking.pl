@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
@@ -106,7 +107,8 @@ use Throwable;
  *
  * W `failed_jobs.payload` klucz `data.command` to zserializowane
  * `SendQueuedNotifications`, a w nim obiekt powiadomienia z polem `token`
- * W JAWNEJ POSTACI (zmierzone przy `kuking:kto-nie-dostal-listu`; przy
+ * — od audytu A5-10 zaszyfrowane kluczem aplikacji, ale PO odszyfrowaniu
+ * (`PolecenieZadania`) znów jawne (zmierzone przy `kuking:kto-nie-dostal-listu`; przy
  * `LinkDoLogowania` ten token daje od razu SESJĘ, nie tylko formularz
  * hasła). Kto go ma, ten wchodzi na cudze konto. Dlatego:
  *
@@ -129,14 +131,19 @@ use Throwable;
  * (pułapka 4 z `docs/PULAPKI_TESTOW.md`).
  *
  * ────────────────────────────────────────────────────────────────────────
- *  DLACZEGO NIE MA JEJ W HARMONOGRAMIE
+ *  DLACZEGO NIE MA JEJ W HARMONOGRAMIE — I CO CZYŚCI `failed_jobs` SAMO
  * ────────────────────────────────────────────────────────────────────────
  *
- * Bo `failed_jobs` to jedyny ślad po awarii, a ślad kasowany automatycznie
- * w nocy nie jest śladem. Sprzątanie samo z siebie wygasiłoby też `degraded`
- * w `/health` — czyli alarm zgasłby, zanim ktokolwiek go zobaczył. Decyzja
- * o wyrzuceniu tych wierszy należy do człowieka i zapada PO tym, jak zobaczy,
- * kogo dotyczyły.
+ * Ta komenda kasuje wiersze MŁODE — świeży ślad po awarii, zaraz po tym,
+ * jak człowiek zobaczył, kogo dotyczył, i zdecydował, że ponowienie nikomu
+ * nie pomoże. Taka decyzja nie może zapadać w nocy sama: sprzątanie świeżych
+ * wierszy wygasiłoby `degraded` w `/health`, zanim ktokolwiek go zobaczył.
+ *
+ * Wiersze STARE czyści od 25.09.2026 harmonogram: `queue:prune-failed
+ * --hours=720` codziennie o 05:20 (`routes/console.php`, decyzja właściciela
+ * w `docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”).
+ * Trzydzieści dni wystarcza na diagnozę, a żetony w ładunku są szyfrowane.
+ * Ta komenda zostaje do ręcznego, WCZEŚNIEJSZEGO czyszczenia.
  */
 class MartweZadania extends Command
 {
@@ -526,7 +533,8 @@ class MartweZadania extends Command
      */
     private function osoby(string $serializowane): array
     {
-        $polecenie = @unserialize($serializowane, ['allowed_classes' => self::WOLNO_ODTWORZYC]);
+        // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
+        $polecenie = @unserialize(PolecenieZadania::zserializowane($serializowane), ['allowed_classes' => self::WOLNO_ODTWORZYC]);
 
         if (! $polecenie instanceof SendQueuedNotifications) {
             return [];
