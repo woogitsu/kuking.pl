@@ -9,13 +9,17 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
+use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
+use App\Support\ZamrozonyCzas;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Events\MigrationEnded;
+use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
@@ -40,6 +44,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Issue #1836: zamrożenie zegara na jeden, wspólny moment dla joba CI
+        // „Panel marki". Musi stanąć PRZED wszystkim, co czyta `now()` przy
+        // starcie (np. `odswiezajLicznikiKolejek()` niżej) — inaczej to, co
+        // liczy się od zegara, dostałoby prawdziwy czas mimo ustawionej
+        // zmiennej. Poza `local`/`testing` `env(self::ZMIENNA)` jest zawsze
+        // puste, więc to wywołanie nic nie robi na produkcji. Uzasadnienie
+        // pełne w `App\Support\ZamrozonyCzas`.
+        ZamrozonyCzas::zastosuj();
+
         // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
         // `x-amz-acl` (issue #120, audyt G-02).
         //
@@ -58,6 +71,12 @@ class AppServiceProvider extends ServiceProvider
         // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
         // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
         Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
+        // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
+        // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce
+        // całego ruchu serwisu. Uzasadnienie w `LimitBlokadMigracji`.
+        Event::listen(MigrationStarted::class, [LimitBlokadMigracji::class, 'przyStarcie']);
+        Event::listen(MigrationEnded::class, [LimitBlokadMigracji::class, 'przyKoncu']);
 
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,
