@@ -29,42 +29,29 @@
         : "Tag „{$tag->name}” w Kuking czeka na pierwszy wpis — dodaj go i bądź pierwszą osobą.";
 
     /*
-     * DLACZEGO SPIS TAGÓW MOŻE MÓWIĆ „0 WPISÓW", GDY WIDZĘ TU SWÓJ WPIS (#681).
+     * DLACZEGO NIE WIDZĘ TU SWOJEGO WPISU (#681, #1392, #1338).
      *
-     * Właściciel zgłosił: dodał wpis z tagiem, a `/tagi` pokazało „0 wpisów".
-     * Liczba jest PRAWIDŁOWA i celowa — D-087 liczy tylko wpisy widoczne dla
-     * wszystkich, żeby ta sama liczba znaczyła to samo dla każdego i dała się
-     * policzyć jednym zapytaniem dla całej strony. Ale wpis prywatny albo
-     * „tylko dla obserwujących" widzi na tej stronie jego autor, więc bez
-     * jednego zdania liczba wygląda jak usterka.
+     * Właściciel zgłosił (#681): dodał wpis z tagiem, a `/tagi` pokazało
+     * „0 wpisów". Liczba jest PRAWIDŁOWA i celowa — D-087 liczy tylko wpisy
+     * widoczne dla wszystkich. Od decyzji z 26.09 (#1338) tak samo działa
+     * lista na tej stronie: KAŻDY, także autor, widzi tu tylko wpisy
+     * publiczne. Bez jednego zdania autor wpisu prywatnego albo „tylko dla
+     * obserwujących" widziałby usterkę: dodał wpis, a wpisu nie ma.
      *
-     * Liczymy TYLKO wpisy zalogowanej osoby z tej strony wyników i TYLKO te,
-     * które nie wchodzą do liczby publicznej. Bez dodatkowego zapytania:
-     * `$posts` jest już wczytane, a `visibility` i `status` są w kolumnach.
-     * Nie mówimy niczego o cudzych wpisach — o tym, czego nie widać, nie
-     * informujemy nawet półsłówkiem.
-     */
-    $wlasneNiepubliczneWpisy = auth()->check()
-        ? $posts->getCollection()
-            ->filter(fn ($post) => $post->author_id === auth()->id()
-                && ($post->visibility !== \App\Models\Post::VISIBILITY_PUBLIC
-                    || $post->status !== \App\Models\Post::STATUS_PUBLISHED))
-        : collect();
-    $wlasneNiepubliczne = $wlasneNiepubliczneWpisy->count();
-
-    /*
+     * `$wlasneNiepubliczne` (widoczność => liczba) liczy kontroler i TYLKO
+     * dla wpisów zalogowanej osoby. Nie mówimy niczego o cudzych wpisach —
+     * o tym, czego nie widać, nie informujemy nawet półsłówkiem.
+     *
      * „WIDZISZ TYLKO TY" WOLNO NAPISAĆ TYLKO O WPISIE PRYWATNYM (#1392).
-     *
      * Wpis „tylko dla obserwujących" widzą też obserwujący autora
      * (`PostPolicy::view()`), więc wspólne zdanie dla obu widoczności
      * wprowadzało autora w błąd co do prywatności jego treści. Przy grupie
      * mieszanej mówimy neutralnie „nie są widoczne dla wszystkich".
      */
-    $wszystkiePrywatne = $wlasneNiepubliczne > 0 && $wlasneNiepubliczneWpisy
-        ->every(fn ($post) => $post->visibility === \App\Models\Post::VISIBILITY_PRIVATE);
-    $wszystkieDlaObserwujacych = $wlasneNiepubliczne > 0 && $wlasneNiepubliczneWpisy
-        ->every(fn ($post) => $post->visibility === \App\Models\Post::VISIBILITY_FOLLOWERS
-            && $post->status === \App\Models\Post::STATUS_PUBLISHED);
+    $wlasneNiepubliczne = $wlasneNiepubliczne ?? [];
+    $wszystkiePrywatne = array_keys($wlasneNiepubliczne) === [\App\Models\Post::VISIBILITY_PRIVATE];
+    $wszystkieDlaObserwujacych = array_keys($wlasneNiepubliczne) === [\App\Models\Post::VISIBILITY_FOLLOWERS];
+    $wlasneNiepubliczne = array_sum($wlasneNiepubliczne);
     $n = $wlasneNiepubliczne;
     $mnogaOd2Do4 = $n % 10 >= 2 && $n % 10 <= 4 && ($n % 100 < 12 || $n % 100 > 14);
     $twojeWpisy = $n === 1 ? 'Jeden Twój wpis' : ($mnogaOd2Do4 ? "{$n} Twoje wpisy" : "{$n} Twoich wpisów");
@@ -97,8 +84,11 @@
             @else
                 {{ $twojeWpisy }} z tym tagiem {{ $niewidoczne }} dla wszystkich.
             @endif
-            W spisie tagów liczymy wpisy widoczne dla wszystkich, więc
-            {{ $n === 1 ? 'ten wpis się tam nie liczy' : 'te wpisy się tam nie liczą' }}.
+            Na stronie tagu pokazujemy, a w spisie tagów liczymy tylko wpisy widoczne dla wszystkich,
+            więc {{ $n === 1 ? 'ten wpis się tu nie pojawia' : 'te wpisy się tu nie pojawiają' }}.
+            @if(auth()->user()?->profile?->username)
+                {{ $n === 1 ? 'Znajdziesz go' : 'Znajdziesz je' }} <a href="{{ route('profile.show', auth()->user()->profile->username) }}">w swoim profilu</a>.
+            @endif
             Możesz to zmienić w ustawieniach widoczności wpisu.
         </p>
     @endif

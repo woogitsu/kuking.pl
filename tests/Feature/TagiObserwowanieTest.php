@@ -229,7 +229,13 @@ class TagiObserwowanieTest extends TestCase
             ->assertDontSee('Tylko dla mnie');
     }
 
-    public function test_obserwujacy_widzi_wpis_dla_obserwujacych(): void
+    /**
+     * Decyzja właściciela z 26.09 (#1338): strona tagu pokazuje KAŻDEMU
+     * wyłącznie wpisy publiczne — także osobie, która autora obserwuje.
+     * Wpis „tylko dla obserwujących" obserwujący zobaczy w feedzie i na
+     * profilu autora, nie na publicznej stronie tagu.
+     */
+    public function test_obserwujacy_nie_widzi_na_stronie_tagu_wpisu_dla_obserwujacych(): void
     {
         $zupy = $this->tag('zupy', 'Zupy');
         $autor = $this->user('basia');
@@ -241,19 +247,23 @@ class TagiObserwowanieTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $post = Post::factory()->create([
-            'author_id' => $autor->getKey(),
-            'body' => 'Tylko dla obserwujących',
-            'status' => Post::STATUS_PUBLISHED,
-            'visibility' => 'followers',
-            'published_at' => now(),
-        ]);
-        $post->tags()->attach($zupy->getKey(), ['position' => 0]);
+        foreach (['followers' => 'Tylko dla obserwujących', 'public' => 'Widoczny dla wszystkich'] as $widocznosc => $tresc) {
+            $post = Post::factory()->create([
+                'author_id' => $autor->getKey(),
+                'body' => $tresc,
+                'status' => Post::STATUS_PUBLISHED,
+                'visibility' => $widocznosc,
+                'published_at' => now(),
+            ]);
+            $post->tags()->attach($zupy->getKey(), ['position' => 0]);
+        }
 
         $this->actingAs($obserwujacy)
             ->get(route('tags.show', $zupy))
             ->assertOk()
-            ->assertSee('Tylko dla obserwujących');
+            // Kontrola dodatnia: publiczny wpis tego samego autora stoi.
+            ->assertSee('Widoczny dla wszystkich')
+            ->assertDontSee('Tylko dla obserwujących');
     }
 
     public function test_zablokowana_osoba_nie_wyplywa_przez_tag(): void
