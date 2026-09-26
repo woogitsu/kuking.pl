@@ -83,7 +83,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
+   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
+   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
+   pozostaje zakazana bez zmian,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;

@@ -53,7 +53,10 @@ i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
 oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
 w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
-spoza listy spada do wartości domyślnej; zapytania poza kontrolerem).
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
+oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
+zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
+`RequestAccountDeletion` (zgłoszenie usunięcia konta).
 
 ### Application
 Use cases, np.:
