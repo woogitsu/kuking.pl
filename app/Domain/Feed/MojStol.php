@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -27,10 +29,14 @@ use Illuminate\Database\Eloquent\Collection;
  *     obserwuje; w nim znów czas i równość autorów. To jest obowiązkowa pula
  *     „nowego tematu" z issue — przeciw bańce — i jednocześnie zimny start
  *     dla kogoś, kto nie obserwuje żadnego tagu;
- *  3. na obu częściach BRAMKI I BLOKADY (publiczny, opublikowany, aktywne
+ *  3. „kuKINGi na dziś" — OZNACZONY WYBÓR GOSPODARZA na dziś (`daily_picks`,
+ *     wpisy wskazujące przepis), w kolejności ustawionej przez gospodarza
+ *     (`daily_picks.position`) — decyzja właściciela z 26.09 (PR #1875);
+ *  4. na wszystkich częściach BRAMKI I BLOKADY (publiczny, opublikowany, aktywne
  *     konto autora, widoczny przepis, blokady w obie strony) oraz UKRYCIA
  *     widza z #1810 (wpis i osoba) — ZANIM cokolwiek zostanie wybrane;
- *  4. najwyżej jeden przepis od osoby na całej półce.
+ *  5. najwyżej jeden przepis od osoby na całej półce — część późniejsza
+ *     pomija autorów, którzy już stoją na półce.
  *
  * CZEGO TU NIE MA I NIE WOLNO DOPISAĆ BEZ DECYZJI WŁAŚCICIELA
  * Liczby „Ugotowałem", reakcji, zapisów, komentarzy, odsłon — ani do wyboru,
@@ -51,16 +57,20 @@ final class MojStol
     /** Najwięcej przepisów z tematu od gospodarza. */
     public const NA_POLCE_OD_GOSPODARZA = 3;
 
+    /** Najwięcej przepisów z „kuKINGów na dziś". */
+    public const NA_POLCE_NA_DZIS = 3;
+
     /**
      * „Dlaczego to widzę" — cała reguła doboru jednym zdaniem, pokazywana
      * na półce. Zmiana reguły = zmiana tego zdania, D-304 i strażnika.
      */
-    public const DLACZEGO = 'Pokazujemy najnowsze przepisy z tagów, które obserwujesz, i z jednego tagu polecanego przez gospodarza — po jednym od osoby, bez tego, co ukrywasz, i nigdy według liczby polubień ani Twoich kliknięć.';
+    public const DLACZEGO = 'Pokazujemy najnowsze przepisy z tagów, które obserwujesz, z jednego tagu polecanego przez gospodarza i przepisy, które gospodarz wybrał na dziś — po jednym od osoby, bez tego, co ukrywasz, i nigdy według liczby polubień ani Twoich kliknięć.';
 
     /**
      * @return array{
      *     z_tagow: list<array{post: Post, tag: Tag}>,
      *     od_gospodarza: array{tag: Tag, wpisy: list<Post>}|null,
+     *     na_dzis: list<Post>,
      *     obserwuje_tagi: bool
      * }
      */
@@ -91,15 +101,61 @@ final class MojStol
             }
         }
 
+        $zajeci = array_map(fn (array $p) => $p['post']->author_id, $zTagow);
+        $odGospodarza = $this->tematOdGospodarza($widz, $tagIds, $zajeci);
+
+        foreach ($odGospodarza['wpisy'] ?? [] as $post) {
+            $zajeci[] = $post->author_id;
+        }
+
         return [
             'z_tagow' => $zTagow,
-            'od_gospodarza' => $this->tematOdGospodarza(
-                $widz,
-                $tagIds,
-                array_map(fn (array $p) => $p['post']->author_id, $zTagow),
-            ),
+            'od_gospodarza' => $odGospodarza,
+            'na_dzis' => $this->naDzis($widz, $zajeci),
             'obserwuje_tagi' => $tagIds !== [],
         ];
+    }
+
+    /**
+     * „kuKINGi na dziś" — przepisy, które gospodarz wybrał na dziś, w JEGO
+     * kolejności (`daily_picks.position`, remis rozstrzyga identyfikator
+     * wyboru). Te same bramki co reszta półki — także ukrycie osoby, bo na
+     * półce właściciel chce jednego zestawu filtrów (inaczej niż na tablicy,
+     * gdzie ukrycie osoby wyboru nie zdejmuje, D-278). Gospodarz mógł wybrać
+     * dwa przepisy jednej osoby — na półkę idzie pierwszy w jego kolejności.
+     *
+     * @param  list<string>  $zajeciAutorzy
+     * @return list<Post>
+     */
+    private function naDzis(User $widz, array $zajeciAutorzy): array
+    {
+        /** @var Collection<int, Post> $wpisy */
+        $wpisy = Post::query()
+            ->select('posts.*')
+            ->join('daily_picks', function ($join): void {
+                $join->on('daily_picks.subject_id', '=', 'posts.id')
+                    ->where('daily_picks.subject_type', DailyPick::TYPE_POST)
+                    ->whereDate('daily_picks.shown_on', Czas::dzisiajData());
+            })
+            ->tap(fn (Builder $q) => $this->bramki($q, $widz))
+            ->when($zajeciAutorzy !== [], fn ($q) => $q->whereNotIn('posts.author_id', $zajeciAutorzy))
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
+            ->orderBy('daily_picks.position')
+            ->orderBy('daily_picks.id')
+            ->get();
+
+        Post::ukryjNiedostepnePrzepisy($wpisy, $widz);
+
+        return array_values($wpisy
+            ->filter(fn (Post $p) => $p->recipe !== null)
+            ->unique('author_id')
+            ->take(self::NA_POLCE_NA_DZIS)
+            ->all());
     }
 
     /**

@@ -952,6 +952,8 @@ checks = [
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Mój stół układa przepisy po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('posts.published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa „kuKINGi na dziś” po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderBy('daily_picks.position')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,

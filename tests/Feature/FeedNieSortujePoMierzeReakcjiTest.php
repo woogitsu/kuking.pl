@@ -18,7 +18,7 @@ use Tests\TestCase;
  * `app/Domain/Digest` (tygodniowy list to czwarta powierzchnia z wpisami,
  * obok Obserwowanych, Odkrywania i tablicy), półkę „Mój stół” (`MojStol`,
  * #1749, D-304 — w `app/Domain/Feed`, więc w zasięgu z definicji katalogu,
- * z kotwicą niżej) i każdy plik z `publiclyVisible()`.
+ * z kotwicą niżej; sortuje po czasie i po kolejności gospodarza) i każdy plik z `publiclyVisible()`.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  CO TEN TEST MIERZY I DLACZEGO AKURAT TO
@@ -550,11 +550,13 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
         // z wpisami. Skan musi widzieć jej sortowanie po czasie — kontrola
         // ujemna w `scripts/kontrole-negatywne-alfa08.py` podmienia je na
         // licznik wykonań i ten plik ma wtedy oblać.
-        $this->assertContains(
-            "'posts.published_at'",
-            array_column($this->sortowania('app/Domain/Feed/MojStol.php'), 'argument'),
-            'Skan nie widzi sortowania półki „Mój stół”.',
-        );
+        $argumentyStolu = array_column($this->sortowania('app/Domain/Feed/MojStol.php'), 'argument');
+        $this->assertContains("'posts.published_at'", $argumentyStolu, 'Skan nie widzi sortowania półki „Mój stół”.');
+        // Trzecia sekcja półki — „kuKINGi na dziś” (PR #1875): kolejność
+        // gospodarza, nie miara reakcji. Druga kontrola ujemna podmienia ją
+        // na licznik wykonań.
+        $this->assertContains("'daily_picks.position'", $argumentyStolu, 'Skan nie widzi kolejności „kuKINGów na dziś” na półce.');
+        $this->assertSame('neutralne', $this->rozstrzygnij('orderBy', "'daily_picks.position'", $this->kolumnySchematu()));
 
         $kolumny = $this->kolumnySchematu();
         $this->assertSame('neutralne', $this->rozstrzygnij('orderByDesc', "'cooked_events.cooked_at'", $kolumny));

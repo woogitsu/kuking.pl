@@ -17683,13 +17683,23 @@ z Kuking” zostają bez zmian (chronologia, D-276, D-277).
    z #1810 — wpis **i osoba** (półka to podsunięcie, jak Odkrywanie, D-278).
    Własne przepisy widza pomijamy.
 4. Najwyżej jeden przepis od osoby na całej półce.
+5. „kuKINGi na dziś” (dopisane 26.09 po odpowiedzi właściciela, PR #1875) —
+   oznaczony wybór gospodarza na dziś (`daily_picks`, tylko wpisy wskazujące
+   przepis), w kolejności gospodarza (`daily_picks.position`), najwyżej 3
+   (`MojStol::NA_POLCE_NA_DZIS`). Trzecia sekcja półki z własnym nagłówkiem
+   i „Pokazujemy, bo gospodarz wybrał ten przepis na dziś.” Te same filtry co
+   reszta półki — **także ukrycie osoby** (na tablicy dnia ukrycie osoby
+   wyboru gospodarza nie zdejmuje, D-278; na półce właściciel chce jednego
+   zestawu filtrów). Autor, który już stoi na półce, nie wchodzi drugi raz;
+   z dwóch wyborów jednej osoby zostaje pierwszy w kolejności gospodarza.
 
 **„Dlaczego to widzę”** — reguła jednym zdaniem na półce, w szynie (odnośnik)
 i na stronie pomocy (`MojStol::DLACZEGO`):
 
-> Pokazujemy najnowsze przepisy z tagów, które obserwujesz, i z jednego tagu
-> polecanego przez gospodarza — po jednym od osoby, bez tego, co ukrywasz,
-> i nigdy według liczby polubień ani Twoich kliknięć.
+> Pokazujemy najnowsze przepisy z tagów, które obserwujesz, z jednego tagu
+> polecanego przez gospodarza i przepisy, które gospodarz wybrał na dziś — po
+> jednym od osoby, bez tego, co ukrywasz, i nigdy według liczby polubień ani
+> Twoich kliknięć.
 
 Przy każdej pozycji: „Pokazujemy, bo obserwujesz tag: …” albo „…bo gospodarz
 poleca tag: …”, i przycisk „Nie pokazuj mi tego” (= „Ukryj ten wpis” z #1810,
@@ -17717,16 +17727,27 @@ docs/DATABASE.md). Wyłączona półka nie liczy żadnego zapytania o propozycje
 Eksport: `konto.moj_stol_wlaczony`; wymazanie konta ustawia `false`.
 Rollback **przechodzi bez odmowy** — świadome odstępstwo od D-088: utracona
 wartość to preferencja wyświetlania, a kierunek utraty (wyłączenie) jest
-bezpieczny.
+bezpieczny. **Właściciel zaakceptował to odstępstwo 26 września 2026**
+(odpowiedź na pytania do PR #1875).
+
+### Odpowiedzi właściciela z 26 września 2026 (PR #1875)
+
+1. Kandydaci z zapisów, wykonań i podobieństwa składników oraz scoring —
+   zostają poza półką, jak wyżej.
+2. Brak „resetu” i „ukryj temat” — zostaje, jak wyżej.
+3. Rollback bez odmowy — zaakceptowany.
+4. Na półce tylko wpisy wskazujące przepis — zostaje.
+5. „kuKINGi na dziś” — dodane jako trzecia sekcja (punkt 5 decyzji).
 
 ### Strażnik
 
 `app/Domain/Feed/MojStol.php` leży w `app/Domain/Feed`, więc skan
 `FeedNieSortujePoMierzeReakcjiTest` obejmuje go z definicji katalogu;
 dodatkowo kotwica zasięgu i asercja, że skan widzi sortowanie półki po
-`posts.published_at`. Kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`
-(„Mój stół układa przepisy po liczbie »Ugotowałem«”) podmienia to sortowanie
-na `cooked_events_count` — strażnik ma oblać (sprawdzone lokalnie).
+`posts.published_at` oraz „kuKINGów na dziś” po `daily_picks.position`. Dwie
+kontrole ujemne w `scripts/kontrole-negatywne-alfa08.py` podmieniają każde
+z tych sortowań na `cooked_events_count` — strażnik ma oblać (obie sprawdzone
+lokalnie).
 
 ### Wycofanie
 

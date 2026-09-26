@@ -8,12 +8,14 @@ use App\Domain\Feed\MojStol;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Block;
 use App\Models\CookedEvent;
+use App\Models\DailyPick;
 use App\Models\Hide;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\TagPromotion;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
@@ -32,6 +34,8 @@ use Tests\TestCase;
  *    oblewa (dwa przepisy jednej osoby);
  *  - `whereNotIn('tags.id', $obserwowane)` zdjęte z tematu gospodarza →
  *    `test_temat_gospodarza_tylko_nieobserwowany_i_bez_powtorzen_autora` oblewa;
+ *  - `unique('author_id')` zdjęte z `naDzis()` → `test_kukingi_na_dzis_w_kolejnosci_gospodarza_z_filtrami`
+ *    oblewa (dwa przepisy jednej osoby z wyboru na dziś);
  *  - kolejność półki po liczbie wykonań → strażnik `FeedNieSortujePoMierzeReakcjiTest`
  *    (mutacja w `scripts/kontrole-negatywne-alfa08.py`).
  */
@@ -63,6 +67,17 @@ class MojStolTest extends TestCase
     private function obserwujTag(User $widz, Tag $tag): void
     {
         $widz->followedTags()->attach($tag->getKey(), ['created_at' => now()]);
+    }
+
+    private function naDzis(Post $wpis, int $pozycja, ?string $dzien = null): void
+    {
+        DailyPick::create([
+            'shown_on' => $dzien ?? Czas::dzisiajData(),
+            'subject_type' => DailyPick::TYPE_POST,
+            'subject_id' => $wpis->getKey(),
+            'position' => $pozycja,
+            'curator_id' => $this->user('gospodarz'.$pozycja.substr(md5((string) $wpis->getKey()), 0, 4))->getKey(),
+        ]);
     }
 
     private function wlaczony(string $nazwa = 'widz'): User
@@ -316,5 +331,66 @@ class MojStolTest extends TestCase
         // Kierunek utraty jest bezpieczny (D-304): po cyklu półka jest
         // wyłączona, nikt nie widzi propozycji, których nie chciał.
         $this->assertFalse($widz->fresh()->moj_stol_enabled);
+    }
+
+    public function test_kukingi_na_dzis_w_kolejnosci_gospodarza_z_filtrami(): void
+    {
+        $widz = $this->wlaczony();
+        $zupy = $this->tag('zupy', 'Zupy');
+        $this->obserwujTag($widz, $zupy);
+
+        $ala = $this->user('ala');
+        $ola = $this->user('ola');
+        $ewa = $this->user('ewa');
+        $iza = $this->user('iza');
+        $ukryta = $this->user('ukryta');
+        $zablokowana = $this->user('zablokowana');
+
+        // Ala stoi już na półce z tagu — jej wybór na dziś nie wchodzi drugi raz.
+        $this->przepis($ala, 'Rosół Ali', 5);
+        $zupy->posts()->attach(Post::query()->where('author_id', $ala->getKey())->value('id'), ['position' => 0]);
+        $this->naDzis($this->przepis($ala, 'Sernik Ali', 1), 1);
+
+        // Kolejność gospodarza, nie czas i nie reakcje: starszy przepis Oli
+        // wybrany na pozycji 2 stoi przed nowszym przepisem Ewy z pozycji 3.
+        $olaStary = $this->przepis($ola, 'Bigos Oli', 90);
+        $this->naDzis($olaStary, 2);
+        $this->naDzis($this->przepis($ewa, 'Pierogi Ewy', 2), 3);
+        foreach (range(1, 4) as $i) {
+            CookedEvent::factory()->create(['recipe_id' => Post::query()->where('author_id', $ewa->getKey())->value('recipe_id'), 'user_id' => $this->user("kucharz{$i}")->getKey()]);
+        }
+        // Drugi wybór Oli — jedna osoba, jeden przepis na półce.
+        $this->naDzis($this->przepis($ola, 'Drugi przepis Oli', 3), 4);
+
+        // Filtry: ukryta osoba, blokada, własny przepis, wpis bez przepisu, wczorajszy wybór.
+        $this->naDzis($this->przepis($ukryta, 'Od ukrytej', 4), 5);
+        Hide::ukryjDla($widz, 'hidden_user_id', (string) $ukryta->getKey());
+        $this->naDzis($this->przepis($zablokowana, 'Od zablokowanej', 4), 6);
+        Block::create(['blocker_id' => $zablokowana->getKey(), 'blocked_id' => $widz->getKey(), 'created_at' => now()]);
+        $this->naDzis($this->przepis($widz, 'Mój własny', 4), 7);
+        $this->naDzis(Post::factory()->create(['author_id' => $iza->getKey(), 'body' => 'Obiad Izy', 'published_at' => now()->subMinute()]), 8);
+        $this->naDzis($this->przepis($iza, 'Wczorajszy Izy', 4), 9, now()->subDay()->toDateString());
+
+        $polka = app(MojStol::class)->dlaWidza($widz);
+
+        $this->assertSame(['Rosół Ali'], $this->tytulyZTagow($widz));
+        $this->assertSame(['Bigos Oli', 'Pierogi Ewy'], array_map(fn (Post $p) => $p->recipe->title, $polka['na_dzis']));
+
+        $this->actingAs($widz)->get(route('moj-stol'))
+            ->assertOk()
+            ->assertSee('Te przepisy gospodarz wybrał na dziś.')
+            ->assertSee('Pokazujemy, bo gospodarz wybrał ten przepis na dziś.')
+            ->assertSee('Bigos Oli')
+            ->assertDontSee('Drugi przepis Oli');
+    }
+
+    public function test_kukingi_na_dzis_bez_wyboru_nie_pokazuja_sekcji(): void
+    {
+        $widz = $this->wlaczony();
+
+        $this->actingAs($widz)->get(route('moj-stol'))
+            ->assertOk()
+            ->assertDontSee('Te przepisy gospodarz wybrał na dziś.');
+        $this->assertSame([], app(MojStol::class)->dlaWidza($widz)['na_dzis']);
     }
 }

@@ -483,7 +483,8 @@ Dozwolone są **wyłącznie**:
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
 
 Półka **„Mój stół”** (D-304, #1749) dobiera wyłącznie z tej listy: obserwowane
-tagi, tag z listy gospodarza, czas, jeden przepis od osoby, bramki i ukrycia.
+tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, czas,
+jeden przepis od osoby, bramki i ukrycia.
 
 W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
 widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).

@@ -78,6 +78,21 @@
             </section>
         @endif
 
+        @if($polka['na_dzis'] !== [])
+            {{-- Trzecia sekcja (decyzja właściciela 26.09, PR #1875): wybór
+                 gospodarza na dziś, w jego kolejności, z tymi samymi
+                 filtrami co reszta półki. --}}
+            <section class="sekcja-strony mt-8" aria-labelledby="moj-stol-na-dzis">
+                <h2 id="moj-stol-na-dzis"><x-kuking-word forma="i" /> na dziś</h2>
+                <p>Te przepisy gospodarz wybrał na dziś.</p>
+                <ul class="szyna-lista stack">
+                    @foreach($polka['na_dzis'] as $post)
+                        <x-moj-stol-pozycja :post="$post" powod="gospodarz wybrał ten przepis na dziś." />
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
         <section class="sekcja-strony mt-8" aria-labelledby="moj-stol-ustawienia">
             <h2 id="moj-stol-ustawienia">Twoje ustawienia półki</h2>
             <p>Nic tu się nie uczy z tego, co klikasz, więc nie ma czego resetować.

@@ -1897,7 +1897,8 @@ Migracja `2026_09_26_190000_add_moj_stol_enabled_to_users`.
 
 To **jedyne**, co zapisujemy o półce. Nie ma tabeli dopasowań, wag ani historii
 kliknięć — dobór liczy się przy każdym wyświetleniu z obserwowanych tagów,
-listy gospodarza (`tag_promotions`) i ukryć (`hides`), wyłącznie regułami
+listy gospodarza (`tag_promotions`), wyboru gospodarza na dziś (`daily_picks`)
+i ukryć (`hides`), wyłącznie regułami
 z zamkniętej listy AGENTS.md §8. Dlatego nie ma też czego „resetować”.
 
 **Rollback:** `down()` zdejmuje kolumnę **bez odmowy**. Cykl

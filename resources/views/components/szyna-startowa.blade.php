@@ -66,6 +66,8 @@
                 ->map(fn ($p) => ['post' => $p['post'], 'powod' => 'obserwujesz tag: '.$p['tag']->name.'.'])
                 ->concat(collect($mojStol['od_gospodarza']['wpisy'] ?? [])
                     ->map(fn ($post) => ['post' => $post, 'powod' => 'gospodarz poleca tag: '.$mojStol['od_gospodarza']['tag']->name.'.']))
+                ->concat(collect($mojStol['na_dzis'])
+                    ->map(fn ($post) => ['post' => $post, 'powod' => 'gospodarz wybrał ten przepis na dziś.']))
                 ->take(3);
         @endphp
         @if($pozycjeStolu->isEmpty())
