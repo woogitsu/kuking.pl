@@ -2058,6 +2058,31 @@ nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
 pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
 pusty ciąg nigdy nie był nazwą grupy.
 
+### „Mój stół” — `users.moj_stol_enabled` (issue #1749, D-304)
+
+Migracja `2026_09_26_190000_add_moj_stol_enabled_to_users`.
+
+- **`users.moj_stol_enabled`** (`boolean NOT NULL DEFAULT false`) — czy osoba
+  włączyła sobie dobrowolną półkę propozycji „Mój stół”. Domyślnie wyłączone:
+  półka jest propozycją serwisu, więc bez włączenia nie liczymy ani jednej
+  pozycji. W `$fillable` (preferencja wyświetlania, nie pole sterujące —
+  AGENTS.md §7), w eksporcie jako `konto.moj_stol_wlaczony`, a wymazanie konta
+  ustawia `false`.
+
+To **jedyne**, co zapisujemy o półce. Nie ma tabeli dopasowań, wag ani historii
+kliknięć — dobór liczy się przy każdym wyświetleniu z obserwowanych tagów,
+listy gospodarza (`tag_promotions`), wyboru gospodarza na dziś (`daily_picks`)
+i ukryć (`hides`), wyłącznie regułami
+z zamkniętej listy AGENTS.md §8. Dlatego nie ma też czego „resetować”.
+
+**Rollback:** `down()` zdejmuje kolumnę **bez odmowy**. Cykl
+`migrate:rollback` → `migrate` odtwarza ją z `DEFAULT false`, czyli wyłącza
+półkę tym, którzy ją włączyli. To świadome odstępstwo od odmowy z D-088:
+utracona wartość to preferencja wyświetlania (jak `theme`), a kierunek utraty
+jest bezpieczny — po cyklu nikt nie widzi propozycji, których nie chciał,
+najwyżej włączy półkę jeszcze raz. Cykl sprawdza
+`tests/Feature/MojStolTest.php::test_rollback_migracji_zdejmuje_kolumne_i_wraca_wylaczony`.
+
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
 Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,
@@ -3859,7 +3884,7 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | Kolumna | Uwagi |
 |---|---|
 | `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
-| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`); komplet metadanych przy `ready` — CHECK `data_exports_ready_complete_check`, niżej. |
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
@@ -3875,6 +3900,31 @@ policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
 7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
 `eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
 Bez zmiany schematu.
+
+#### `data_exports_ready_complete_check` — gotowa paczka ma komplet metadanych (issue #1365)
+
+Migracja `2026_09_24_200000_require_complete_ready_data_exports`. Przy
+`status = 'ready'` wymagane są: niepusty `disk` i `object_key`, `bytes > 0`,
+`completed_at` i `expires_at`. Wcześniej baza przyjmowała `ready` bez tych
+pól, a `DataExport::isDownloadable()` pokazywał taki wiersz jako gotową
+paczkę — „Pobierz” kończyło się 404. `isDownloadable()` sprawdza teraz ten
+sam komplet (obrona dla modelu w pamięci).
+
+Celowo **bez** warunku na czas: `EraseAccountData` unieważnia gotową paczkę,
+przestawiając `expires_at` w przeszłość (także przed `completed_at`),
+a `expires_at > now()` nie jest wyrażeniem niezmiennym, jakiego PostgreSQL
+wymaga od CHECK. `expired` nie ma wymagań — `CleanUpDataExports` zostawia
+adres po nieudanym kasowaniu, żeby ponowić.
+
+**Audyt przed CHECK:** migracja liczy `ready` bez kompletu i **odmawia**
+(`RuntimeException` z zapytaniem `SELECT` i instrukcją), zamiast zgadywać
+dysk, klucz albo rozmiar. Naprawa ręczna: uzupełnić prawdziwe wartości, gdy
+plik istnieje, albo `status = 'failed'`, `failure_reason = 'unknown'`, gdy
+go nie ma — człowiek zamówi paczkę ponownie.
+
+**Rollback:** `down()` zdejmuje CHECK bez odmowy. Ograniczenie nie przechowuje
+żadnej wartości (niczyjej decyzji, zgody ani zakresu w rozumieniu D-088) — po
+cofnięciu wraca poprzednia, luźniejsza granica, dane zostają bez zmian.
 
 ### password_reset_tokens (tabela Laravela)
 
@@ -4763,6 +4813,37 @@ decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
 bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
+
+### przypomnienia_dobowe
+
+Znaczniki „ten list już dziś wyszedł", migracja
+`2026_09_24_140000_utworz_przypomnienia_dobowe` (issue #1333). Do niej
+`kuking:pilnuj-terminow-odwolan` obiecywał jeden list na dobę tylko
+w komentarzu: każde wywołanie z zaległym odwołaniem (ręczne ponowienie,
+restart, zdublowany harmonogram) kolejkowało kolejny. `withoutOverlapping()`
+chroni tylko przed przebiegami NARAZ, a `Cache::add()` nie wystarcza, bo
+`docker/entrypoint.sh` czyści cache przy każdym starcie kontenera.
+
+| Kolumna | Opis |
+|---|---|
+| `rodzaj varchar(64) NOT NULL` | Rodzaj listu (`termin-odwolania`). CHECK `przypomnienia_dobowe_rodzaj_niepusty_check`: niepusty. |
+| `doba date NOT NULL` | Doba **UTC** — ta sama co dobowy sufit poczty (`DziennyBudzetListow`). |
+| `odbiorca char(64) NOT NULL` | SHA-256 adresu (małe litery, bez spacji), **nie adres**. CHECK `przypomnienia_dobowe_odbiorca_sha256_check`: `^[0-9a-f]{64}$`. Nowy adres alarmowy = nowy klucz = list tego samego dnia. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy zarezerwowano. |
+
+**Klucz główny `(rodzaj, doba, odbiorca)` jest rezerwacją:**
+`PrzypomnienieDobowe::zarezerwuj()` robi `insertOrIgnore` PRZED kolejkowaniem
+listu, więc z dwóch równoległych przebiegów wysyła tylko ten, który wiersz
+wstawił. Nieudane wstawienie listu do kolejki usuwa wiersz (`zwolnij()`)
+i komenda kończy się błędem — kolejny przebieg tego samego dnia próbuje
+ponownie. Wiersze starsze niż 30 dni kasuje `zarezerwuj()` przy okazji.
+Pilnuje tego `tests/Feature/TerminOdwolaniaJedenListNaDobeTest.php`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` zrzuca tabelę **bez
+odmowy** — wiersz jest znacznikiem deduplikacji, nie decyzją człowieka
+(D-088 nie dotyczy). Kosztem jest najwyżej jeden powtórzony list tego dnia.
+**Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod z tej zmiany bez
+tabeli kończy komendę błędem i nie wysyła przypomnienia.
 
 ### personal_access_tokens
 Tokeny osobistego dostępu Laravel Sanctum — logowanie aplikacji mobilnej

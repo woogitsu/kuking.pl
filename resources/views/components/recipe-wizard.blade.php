@@ -1191,8 +1191,10 @@ new class extends Component
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
             <div class="siatka-pol">
+                {{-- Krok 0,01 musi się zgadzać z regułą `decimal:0,2` wyżej (#750),
+                     inaczej zapisana 1,25 jest dla przeglądarki `stepMismatch`. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal" wire="servings"
-                         :value="$servings" :min="0.5" :max="999" :step="0.5" />
+                         :value="$servings" :min="0.5" :max="999" :step="0.01" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric" wire="prep_minutes"
                          :value="$prep_minutes" :min="0" :max="10080" />
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric" wire="cook_minutes"

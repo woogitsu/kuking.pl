@@ -374,6 +374,8 @@ KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+OFFLINE_HTML = "public/offline.html"
+OFFLINE_PONOWIENIE_TEST = "test_offline_ma_droge_powrotu_i_obydwa_dotychczasowe_motywy"
 ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
 UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
@@ -418,6 +420,12 @@ WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) 
 # Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
 # czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
 # ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
+# „Mój stół” (#1749, D-304): półka dobiera wyłącznie regułami z zamkniętej
+# listy AGENTS.md §8. Mutacja podmienia kolejność półki z czasu publikacji na
+# licznik wykonań — strażnik ma zobaczyć nowe miejsce, a nie tylko feed sprzed
+# półki. Kontrola dodatnia przed mutacją: ten sam test co DIGEST_DOBOR_TEST.
+MOJ_STOL = "app/Domain/Feed/MojStol.php"
+
 UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
 UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
@@ -450,6 +458,8 @@ EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_
 # mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
 EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
+EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
 # jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
@@ -1084,6 +1094,8 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
+     lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
@@ -1116,6 +1128,10 @@ checks = [
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa przepisy po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('posts.published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa „kuKINGi na dziś” po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderBy('daily_picks.position')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1227,6 +1243,7 @@ run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)
