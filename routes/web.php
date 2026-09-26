@@ -882,7 +882,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('social.unhide');
     // „MÓJ STÓŁ" (issue #1749, D-304) — dobrowolna półka przepisów, domyślnie
     // wyłączona. Dobór wyłącznie z zamkniętej listy AGENTS.md §8.
-    Route::get('/moj-stol', [MojStolController::class, 'pokaz'])->name('moj-stol');
+    Route::get('/moj-stol', [MojStolController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['moj_stol']},moj_stol")
+        ->name('moj-stol');
     Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('moj-stol.ustaw');

@@ -503,4 +503,55 @@ class MojStolTest extends TestCase
             array_map(fn (Post $p) => $p->recipe->title, app(MojStol::class)->dlaWidza($widz)['na_dzis']),
         );
     }
+
+    /**
+     * GET `/moj-stol` (dokończenie #1968) nie miała żadnego limitu zapytań —
+     * strona odczytywana przez gotujące podczas gotowania na telefonie mogła
+     * być odświeżana bez końca. Koszyk `moj_stol` w `config/kuking.php`
+     * (wzorzec `search`, D-304).
+     *
+     * Trzy rzeczy naraz:
+     *  1. zwykłe użycie (kilkanaście odświeżeń podczas gotowania) NIE dostaje 429;
+     *  2. przekroczenie budżetu DOSTAJE 429 — inaczej ten test świeciłby na
+     *     zielono, nawet gdyby limit w ogóle nie działał (byłby wydmuszką);
+     *  3. KONTROLA UJEMNA: wyczerpanie licznika strony (GET, prefiks `moj_stol`)
+     *     nie blokuje przełącznika (PUT, prefiks `ustawienia`) — to osobne
+     *     koszyki, zgodnie z `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+     */
+    public function test_strona_ma_limit_ktory_miesci_zwykle_uzycie_i_nie_miesza_sie_z_zapisem(): void
+    {
+        $widz = $this->wlaczony();
+
+        $limit = (int) explode(',', (string) config('kuking.limits.moj_stol'))[0];
+
+        $this->assertGreaterThanOrEqual(
+            30,
+            $limit,
+            'Limit strony „Mój stół" spadł poniżej rzędu wielkości zwykłego wieczoru '
+            .'gotowania, kiedy człowiek wraca na tę stronę wielokrotnie między krokami '
+            .'przepisu. Limit, który to złapie, jest gorszy niż jego brak.',
+        );
+
+        for ($i = 1; $i <= $limit; $i++) {
+            $this->assertNotSame(
+                429,
+                $this->actingAs($widz)->get(route('moj-stol'))->getStatusCode(),
+                "Odsłona strony numer {$i}, mieszcząca się jeszcze w deklarowanym "
+                ."budżecie {$limit}, odbiła się o limit.",
+            );
+        }
+
+        // Pierwsze żądanie PONAD budżet.
+        $this->actingAs($widz)->get(route('moj-stol'))->assertStatus(429);
+
+        // KONTROLA UJEMNA: przełącznik (PUT, koszyk zapisu `ustawienia`) dalej
+        // działa, mimo wyczerpanego licznika strony. Gdyby oba dzieliły
+        // prefiks, to żądanie też dostałoby 429.
+        $this->assertNotSame(
+            429,
+            $this->actingAs($widz)->put(route('moj-stol.ustaw'), ['wlaczony' => '0'])->getStatusCode(),
+            'Wyczerpanie limitu strony „Mój stół" zablokowało też przełącznik. '
+            .'Obie trasy dzielą licznik, mimo że powinny mieć osobne koszyki.',
+        );
+    }
 }
