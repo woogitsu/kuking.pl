@@ -394,10 +394,9 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertFalse($feed->isEmptyFor($user));
         $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
 
-        // Cel ukryty — scalenie nie jest furtką do ukrytego tagu.
-        $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
-        $this->assertTrue($feed->isEmptyFor($user));
-        $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
+        // Cel musi pozostać aktywny; strażnik bazy sprawdza to osobno
+        // w GrafScalenTagowWBazieTest.
+        $this->assertSame(Tag::STATUS_ACTIVE, $cel->fresh()->status);
     }
 
     public function test_853_stary_formularz_rezygnacji_po_scaleniu_mowi_prawde_i_nie_zdejmuje_celu(): void

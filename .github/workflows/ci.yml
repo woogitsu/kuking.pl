@@ -868,9 +868,12 @@ jobs:
     # 24.09.2026: pełny zestaw trwał 14 min na szybkich runnerach i do 24 min
     # na wolniejszych (i5-6500T, WSL), a przy 25 min przebiegi #1081 i #1464
     # zostały ucięte w trakcie zielonych testów — stąd było 40. Część ma
-    # ćwierć plików, więc 25 min zostawia ten sam zapas na wolny runner,
-    # a zawieszony test nadal zostanie przerwany.
-    timeout-minutes: 25
+    # ćwierć plików, ale część `kontrole` uruchamia również odwracalność
+    # migracji i kontrole negatywne. Na main 64dbdefd ta część została ucięta
+    # po 25 min w trakcie testów (run 36268510588), mimo że cztery zwykłe
+    # części przeszły. Przywracamy 40 min dla całej macierzy; job nadal ma
+    # twardą granicę czasu, a szybkie części nie zużyją dodatkowych minut.
+    timeout-minutes: 40
     strategy:
       # Bez tego pierwsza czerwona część anulowałaby pozostałe i raport
       # pokazywałby jedną przyczynę zamiast wszystkich.
