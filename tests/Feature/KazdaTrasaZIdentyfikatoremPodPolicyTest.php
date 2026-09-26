@@ -631,9 +631,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('admin.tag-promotions.update', 'zmiana promocji tagu', 'put',
             route('admin.tag-promotions.update', $tagPromowany), ['position' => 3], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-promotions.destroy', 'zdjęcie promocji tagu', 'delete',
-            route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), [], [$O, $O, $O, $W, $O]);
+            route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
-            route('admin.tag-highlights.destroy', $wyroznienieTagu), [], [$O, $O, $O, $W, $O]);
+            route('admin.tag-highlights.destroy', $wyroznienieTagu), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);

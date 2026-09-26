@@ -94,6 +94,14 @@ class TagHighlightController extends Controller
         $this->authorize('moderate', User::class);
         abort_unless(config('kuking.tag_tygodnia.wlaczony', false), 404);
 
+        // Akcja destrukcyjna (AGENTS.md §5): przycisk na ekranie niesie
+        // `potwierdzam=1` dopiero z rozwiniętego pytania. Żądanie bez niego
+        // (stara karta, ręcznie złożony formularz) niczego nie usuwa.
+        if (! $request->boolean('potwierdzam')) {
+            return redirect()->route('admin.tag-promotions')
+                ->with('status', 'Nic nie usunięto. Żeby usunąć wyróżnienie, kliknij „Usuń to wyróżnienie” i potwierdź.');
+        }
+
         // Usuwa sam plan wyróżnienia. Tag, jego strona i wpisy zostają.
         $wyroznienie->delete();
 
