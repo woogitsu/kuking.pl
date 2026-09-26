@@ -169,6 +169,7 @@ final class CollectUserExportData
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
+            'urzadzenia_z_dostepem' => $this->apiDevices($user),
             'zmiana_adresu_email' => $this->pendingEmailChanges($user),
             'wyslane_podsumowania_tygodnia' => $this->digestSends($user),
             'zamowione_paczki' => $this->dataExports($user),
@@ -768,6 +769,31 @@ final class CollectUserExportData
                 'adres_ip' => $sesja->ip_address,
                 'przegladarka' => $sesja->user_agent,
                 'ostatnia_aktywnosc' => Carbon::createFromTimestamp((int) $sesja->last_activity)->toIso8601String(),
+            ])->all();
+    }
+
+    /**
+     * Urządzenia z dostępem przez API (D-270): nazwa, kiedy zalogowane,
+     * kiedy ostatnio użyte i do kiedy ważne.
+     *
+     * Bez kolumny `token` — to skrót sekretu, czyli poświadczenie; z paczki
+     * nie wolno dać się zalogować. Tak samo jak przy sesjach: człowiek ma
+     * zobaczyć urządzenie, którego nie rozpoznaje, a nie dostać klucz do niego.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function apiDevices(User $user): array
+    {
+        return DB::table('personal_access_tokens')
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['name', 'created_at', 'last_used_at', 'expires_at'])
+            ->map(fn (object $urzadzenie): array => [
+                'nazwa' => $urzadzenie->name,
+                'zalogowano' => $this->date($urzadzenie->created_at),
+                'ostatnio_uzyte' => $this->date($urzadzenie->last_used_at),
+                'wazne_do' => $this->date($urzadzenie->expires_at),
             ])->all();
     }
 
