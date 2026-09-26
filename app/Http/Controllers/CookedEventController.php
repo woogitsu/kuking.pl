@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
@@ -230,7 +231,13 @@ class CookedEventController extends Controller
             'comments.replies.cookedEvent.recipe',
         ]);
 
-        return view('pages.cooked.show', ['event' => $cookedEvent]);
+        return view('pages.cooked.show', [
+            'event' => $cookedEvent,
+            // Nagłówek „Komentarze (N)” liczy odpowiedzi jak karta wpisu
+            // i strona przepisu (D-281, D-309) — bez tego mówił o samych
+            // wątkach, a pod nim stało więcej wypowiedzi.
+            'komentarzyRazem' => Comment::policzRozmowe($cookedEvent->comments(), $request->user()),
+        ]);
     }
 
     /**
