@@ -64,6 +64,7 @@
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
         // Issue #1810: jawne polecenia widza z drogą do cofnięcia (AGENTS.md §8).
         'hidden' => ['settings.hidden', 'Ukryte', 'Wpisy i osoby, które ukrywasz tylko dla siebie'],
+        'birthday' => ['settings.birthday', 'Urodziny', 'Dzień i miesiąc — życzenia od nas, bez roku'],
         'data' => ['settings.data', 'Twoje dane', 'Pobranie danych i usunięcie konta'],
     ];
 @endphp
