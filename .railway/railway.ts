@@ -351,6 +351,17 @@ export default defineRailway((ctx) => {
     //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
     //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
+    // Dysk oryginałów zdjęć (`config('kuking.media.disk')`). Do 25.09.2026
+    // stała TYLKO w panelu serwisu `kuking.pl` — pierwszy `railway config
+    // apply` by ją usunął. Wartość nie jest wyborem, tylko powtórzeniem
+    // FILESYSTEM_DISK: bez niej config i tak spada na FILESYSTEM_DISK, ale
+    // jawna linia sprawia, że plan pokazuje „bez zmian", a nie „usuń".
+    // Dowód, że produkcja ma dziś `r2` (pomiar z zewnątrz, 25.09.2026, bez
+    // odczytu wartości w panelu): `/zdjecia/{id}/thumb` przekierowuje na
+    // bucket wariantów w R2, a dysk `r2_publiczne` config wybiera WYŁĄCZNIE
+    // wtedy, gdy `kuking.media.disk` === `r2`. Czytają ją wszystkie trzy role:
+    // web zapisuje upload i `/health`, worker przetwarza, scheduler sprząta.
+    KUKING_MEDIA_DISK: "r2",
     // Surowe uploady kreatora muszą być dostępne między replikami.
     // Prywatny bucket oryginałów: pliki tymczasowe mogą zawierać EXIF/GPS.
     LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: "r2",
@@ -494,6 +505,26 @@ export default defineRailway((ctx) => {
     // --- Turnstile, Google, Facebook, analityka odwiedzin -------------------
     // Żyją w `wejscieEnv` niżej i trafiają WYŁĄCZNIE do web (#1013): czyta je
     // tylko warstwa HTTP (formularze, trasy logowania, HTML strony, `/health`).
+
+    // --- Flagi produktu ------------------------------------------------------
+    // „Poradźcie" (#371, #372). Do 25.09.2026 flaga stała TYLKO w panelu
+    // serwisu `kuking.pl` — pierwszy `railway config apply` usunąłby ją
+    // i po cichu wyłączył pytania, bo wartość domyślna to `false`.
+    // Wpisana `true`, bo tak działa produkcja DZIŚ: `GET https://kuking.pl/pytania`
+    // oddaje 200 „Poradźcie" (pomiar z zewnątrz 25.09.2026; `QuestionController`
+    // przy wyłączonej fladze oddaje 404). Wartości w panelu nie czytano.
+    // Wszystkie trzy role, bo flagę czyta model (`Post`, `Notification`,
+    // `PostPolicy`): web — trasy i widoki, worker — powiadomienia
+    // (`QuestionNotificationContext`), scheduler — zapytania digestu. Rozjazd
+    // między rolami dawałby pytania na stronie i dziury w powiadomieniach.
+    // Wyłączenie pytań = zmiana tej linii w PR, nie klik w panelu.
+    KUKING_QUESTIONS_ENABLED: "true",
+
+    // --- TRUSTED_PROXIES: ŚWIADOMIE NIEOBECNA (SEC-01, potwierdzone 25.09.2026) ---
+    // Stoi w panelu serwisu `kuking.pl`, ale NIE CZYTA JEJ ŻADEN KOD
+    // (patrz „Zaufane proxy" wyżej) — nie ma roli, która by ją dostała.
+    // `railway config plan` pokaże jej usunięcie z `kuking.pl` i to jest
+    // OCZEKIWANE: zachowanie aplikacji się nie zmieni.
 
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
@@ -787,7 +818,32 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  //  --- Przełączniki brzegu i bramka R2: TYLKO web --------------------------
+  //  Do 25.09.2026 żadnej z tych trzech zmiennych nie było w tym pliku, choć
+  //  czyta je kod — ustawienie ich w panelu serwisu `kuking.pl` zniknęłoby
+  //  przy pierwszym `apply`. Idą przez `ctx.shared`, bo to pokrętła, które
+  //  właściciel przestawia w panelu per środowisko (staging przed produkcją),
+  //  a nie stałe projektu. PUSTE (Shared Variable nie założona) daje
+  //  DOKŁADNIE zachowanie domyślne, czyli dzisiejsze:
+  //    KUKING_EDGE_TRYB               "" ≠ `egzekwowanie` → tryb obserwacji
+  //                                   (`TokenKrawedzi`, `config/proxy.php`);
+  //    KUKING_HTML_EDGE_CACHE_SECONDS "" → 0 → cache HTML wyłączony
+  //                                   (`PublicznyHtmlGoscia`; produkcja 25.09
+  //                                   oddaje `no-store, private`);
+  //    KUKING_R2_PUBLICZNE_ADRESY     "" → pusta lista → bramka `kuking:bramka-r2`
+  //                                   mówi `NIE WIEMY` (docs/infra/BRAMKA_R2.md).
+  //  Czyta je wyłącznie web: dwie pierwsze — żądania HTTP, trzecią — bramka
+  //  R2 uruchamiana `railway ssh` w serwisie `kuking.pl`.
+  //  UWAGA PRZED `apply`: jeśli któraś z nich stoi dziś w panelu jako zmienna
+  //  SERWISU, przenieś wartość do Shared Variables środowiska, zanim
+  //  uruchomisz `apply` — inaczej plan podmieni ją na pustą referencję.
+  const brzegWebEnv = {
+    KUKING_EDGE_TRYB: ctx.shared.KUKING_EDGE_TRYB,
+    KUKING_HTML_EDGE_CACHE_SECONDS: ctx.shared.KUKING_HTML_EDGE_CACHE_SECONDS,
+    KUKING_R2_PUBLICZNE_ADRESY: ctx.shared.KUKING_R2_PUBLICZNE_ADRESY,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
