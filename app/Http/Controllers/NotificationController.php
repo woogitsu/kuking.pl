@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -44,12 +46,12 @@ class NotificationController extends Controller
             'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
                 || $user->unreadNotificationsCount() > 0,
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
-            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
+            'destinationUrls' => app(CelPowiadomienia::class)->adresy($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
             // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
             // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
             // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
-            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
+            'wycinkiKomentarzy' => app(WycinkiKomentarzy::class)->zywe($notifications->items()),
         ]);
     }
 
@@ -196,7 +198,7 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969).
+        // `visibleTo()` — TEN SAM zbiór co lista i licznik (issue #969, #1401).
         // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
         // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
         // choć człowiek nigdy ich nie zobaczył.
@@ -263,7 +265,26 @@ class NotificationController extends Controller
             ->notifications()
             ->visibleTo($request->user())
             ->whereKey($notification)
-            ->firstOrFail();
+            ->first();
+
+        // ISSUE #759: komentarz mógł zniknąć (usunięty, ukryty przez
+        // moderację, treść nad nim schowana) między wyświetleniem listy
+        // a kliknięciem. Zamiast gołego 404 — zdanie, co się stało, bez
+        // żadnego fragmentu komentarza. Wiersz ukryty z INNEGO powodu
+        // (blokada, zbanowany sprawca, #1351) dalej kończy się na 404:
+        // `visibleTo(..., false)` pomija tylko warunek dostępności treści.
+        if ($powiadomienie === null) {
+            $bezTresci = $request->user()
+                ->notifications()
+                ->visibleTo($request->user(), false)
+                ->whereKey($notification)
+                ->whereIn('type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
+                ->exists();
+
+            abort_unless($bezTresci, 404);
+
+            return back()->with('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
+        }
 
         // TYLKO GDY NIEPRZECZYTANE — I ROZSTRZYGA TO BAZA, NIE PHP (D-079).
         //

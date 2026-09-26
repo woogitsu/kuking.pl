@@ -50,11 +50,85 @@ s3_sha256() { openssl dgst -sha256 -hex | sed 's/^.*= *//'; }
 
 s3_sha256_pliku() { openssl dgst -sha256 -hex "$1" | sed 's/^.*= *//'; }
 
-s3_hmac() { openssl dgst -sha256 -mac HMAC -macopt "hexkey:$1" -hex | sed 's/^.*= *//'; }
-
 # Bajty ze stdin na hex. `od`, nie `xxd`: `xxd` jest w paczce `vim-common`,
 # `od` w `coreutils`, czyli w każdym obrazie bez wyjątku.
 s3_hex() { od -A n -v -t x1 | tr -d ' \n'; }
+
+# Odwrotność `s3_hex`: hex (bez spacji, parzysta liczba znaków) na surowe
+# bajty na stdout. Argumentem `sed` jest tu STAŁY wzorzec (podział na pary
+# znaków), nie żaden sekret, więc to wywołanie nic nie ujawnia w `ps`.
+# shellcheck disable=SC2001 # podział na PARY znaków wymaga grupy przechwytującej
+# `sed`; `${var//search/replace}` Basha nie ma jak tego wyrazić.
+s3_hex_do_bajtow() { printf '%b' "$(sed 's/\(..\)/\\x\1/g' <<<"$1")"; }
+
+# XOR bajtu (hex, np. „36" albo „5c") ze wszystkimi bajtami hex-stringu $1.
+# Czysta arytmetyka Basha — żaden zewnętrzny proces nie dostaje klucza jako
+# swój argument, więc `ps` nie ma czego pokazać.
+s3_hex_xor_bajt() {
+  local hex="$1" bajt_hex="$2"
+  local bajt=$((16#${bajt_hex}))
+  local i wynik=''
+  for ((i = 0; i < ${#hex}; i += 2)); do
+    wynik+="$(printf '%02x' $(( $((16#${hex:i:2})) ^ bajt )))"
+  done
+  printf '%s' "${wynik}"
+}
+
+# -----------------------------------------------------------------------------
+#  s3_hmac — HMAC-SHA256(klucz, wiadomość-ze-stdin), BEZ KLUCZA W ARGUMENTACH
+#  PROCESU (issue #594).
+#
+#  Poprzednia wersja woływała `openssl dgst -mac HMAC -macopt "hexkey:$1"` —
+#  czyli klucz HMAC (a w łańcuchu derywacji AWS SigV4 to w kolejnych krokach
+#  m.in. SEKRET R2, w postaci wystarczającej do podrobienia podpisu) trafiał
+#  wprost do argumentów wywołania `openssl`. Argumenty procesu są na Linuksie
+#  jawne dla KAŻDEGO użytkownika maszyny (`ps -o args=`, `/proc/<pid>/cmdline`)
+#  przez cały czas trwania procesu — nie trzeba nawet uprawnień roota. Ten sam
+#  footgun, co przy DSN-ie bazy (patrz `kopia-bazy.sh`, sekcja „POŚWIADCZENIE
+#  POZA LISTĄ PROCESÓW"), tu dotyczy klucza podpisu S3.
+#
+#  Naprawa liczy HMAC RĘCZNIE z prymitywu, który klucza jako argumentu nie
+#  przyjmuje: dwa wywołania `s3_sha256`, którym klucz (po wypełnieniu zerami
+#  do 64 bajtów i XOR z ipad/opad) trafia WYŁĄCZNIE strumieniem na stdin.
+#  Definicja wprost z RFC 2104:
+#
+#    HMAC(K, m) = SHA256((K ⊕ opad) || SHA256((K ⊕ ipad) || m))
+#
+#  Klucz dłuższy niż blok (64 B) najpierw skracamy przez SHA256 — tak samo
+#  robi to specyfikacja i tak samo robił to `openssl -macopt`.
+#
+#  Zweryfikowano wobec: wektora RFC 4231 (klucz „key", wiadomość „The quick
+#  brown fox…") oraz łańcucha derywacji klucza z dokumentacji AWS SigV4 —
+#  oba dają identyczny wynik jak poprzednia implementacja przez `openssl`.
+#  Wektory: tests/skrypty/kopia-bazy.sh.
+# -----------------------------------------------------------------------------
+s3_hmac() {
+  local klucz_hex="$1"
+  local bajtow_klucza=$(( ${#klucz_hex} / 2 ))
+
+  if ((bajtow_klucza > 64)); then
+    klucz_hex="$(s3_hex_do_bajtow "${klucz_hex}" | s3_sha256)"
+    bajtow_klucza=32
+  fi
+
+  local i
+  for ((i = bajtow_klucza; i < 64; i++)); do klucz_hex+='00'; done
+
+  local ipad opad
+  ipad="$(s3_hex_xor_bajt "${klucz_hex}" 36)"
+  opad="$(s3_hex_xor_bajt "${klucz_hex}" 5c)"
+
+  # Wiadomość ze stdin trzymamy w zmiennej: w tym pliku jest zawsze tekstem
+  # (data, region, nazwa usługi, poprzedni klucz pośredni w hex) bez znaków
+  # NUL, więc podstawienie polecenia jej nie ucina.
+  local wiadomosc
+  wiadomosc="$(cat)"
+
+  local wewnetrzny
+  wewnetrzny="$( { s3_hex_do_bajtow "${ipad}"; printf '%s' "${wiadomosc}"; } | s3_sha256)"
+
+  { s3_hex_do_bajtow "${opad}"; s3_hex_do_bajtow "${wewnetrzny}"; } | s3_sha256
+}
 
 # -----------------------------------------------------------------------------
 #  s3_podpis — sygnatura AWS SigV4.
