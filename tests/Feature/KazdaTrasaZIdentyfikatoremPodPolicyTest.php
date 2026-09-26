@@ -884,8 +884,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('api.przepisy.komentarze', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
         $dodaj('api.profile.show', 'API: profil', 'getJson',
             route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
+        // Ten sam MediaController i ta sama `DostepDoZdjecia` co `media.show`,
+        // więc moderator ma tu ODMOWĘ jak na WWW (#1360, AUTHZ-02).
         $dodaj('api.zdjecia.show', 'API: zdjęcie z prywatnego wpisu', 'get',
-            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $W, $O]);
+            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze
