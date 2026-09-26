@@ -36,7 +36,8 @@ class SitemapChunkCompletenessTest extends TestCase
         $author = User::factory()->create()->refresh();
         // Profil ma publiczny wpis w obu wariantach; reguła profili pozostaje osobną sprawą.
         $anchor = Post::factory()->create(['author_id' => $author->id]);
-        $expected = array_map(fn ($name) => route($name), ['landing', 'discover', 'help', 'rules']);
+        // Huby i strony stałe (#1032); pytania są tu wyłączone flagą.
+        $expected = array_map(fn ($name) => route($name), ['landing', 'discover', 'tags.index', 'about', 'help', 'rules', 'kontakt', 'terms', 'privacy']);
         $expected[] = route('profile.show', $author->profile->username);
         $expected[] = route('posts.show', $anchor->id);
         $model = $type === 'posts' ? Post::class : Recipe::class;
