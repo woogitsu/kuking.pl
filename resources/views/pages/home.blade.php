@@ -156,7 +156,9 @@
         {{-- Od #1808 (D-277) lista obserwowanych łączy osoby i tematy — nagłówek
              mówi o obu, a każda karta z tagu ma własny podpis „Z tagu: …". --}}
         <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
-        <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
+        {{-- Od #1811 odnośnik prowadzi na „Jak dobieramy wpisy" — tam jest opis
+             każdej listy i droga do obserwowanych osób, tagów i „Ukrytych". --}}
+        <a href="{{ route('feed-rules') }}">Skąd te wpisy i jak to zmienić</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
@@ -223,9 +225,32 @@
         </x-empty-state>
     @else
         <div class="stack" id="lista-wpisow">
-            @foreach($posts as $post)
-                <x-post-card :post="$post" />
-            @endforeach
+            @if($showingDiscover)
+                @foreach($posts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            @else
+                {{-- ZWIJANIE SERII (issue #1812, AGENTS.md §8 / D-275). Więcej
+                     niż dwa kolejne wpisy jednej osoby albo jednego tagu:
+                     dwa widać, reszta w `<details>` — kolejność bez zmian,
+                     nic nie znika, otwiera się bez JavaScriptu. Cel dotknięcia
+                     `summary` 48 px (`.seria-wpisow > summary`). --}}
+                @foreach(\App\Domain\Feed\SerieWpisow::grupuj($posts) as $seria)
+                    @foreach($seria['widoczne'] as $post)
+                        <x-post-card :post="$post" />
+                    @endforeach
+                    @if($seria['zwiniete'] !== [])
+                        <details class="seria-wpisow" data-seria-wpisow>
+                            <summary><span>{{ $seria['podpis'] }}</span> <span class="seria-wpisow-pokaz">— Pokaż</span></summary>
+                            <div class="stack">
+                                @foreach($seria['zwiniete'] as $post)
+                                    <x-post-card :post="$post" />
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endforeach
+            @endif
         </div>
 
         <x-show-more :paginator="$posts" lista="lista-wpisow" />

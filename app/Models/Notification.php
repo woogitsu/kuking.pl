@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\WidocznoscPowiadomien;
+use App\Support\Odmiana;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -49,6 +50,13 @@ class Notification extends Model
     public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY];
 
     public const TYPE_FOLLOW = 'follow.created';
+
+    /**
+     * Zbiorcze „N osób napisało: Smakowicie wygląda" — raz dziennie, bez
+     * nadawcy (`actor_id` NULL), z liczbą RÓŻNYCH osób w `data.osob`
+     * (issue #1813, D-280, `App\Domain\Reakcje\PowiadomOSmakowicie`).
+     */
+    public const TYPE_SMAKOWICIE = 'post.smakowicie';
 
     public const TYPE_SAVED = 'recipe.saved';
 
@@ -255,6 +263,22 @@ class Notification extends Model
     public function isUnread(): bool
     {
         return $this->read_at === null;
+    }
+
+    /**
+     * „3 osoby napisały: Smakowicie wygląda" — polska odmiana w jednym
+     * miejscu dla widoku i testów (issue #1813).
+     */
+    public function naglowekSmakowicie(): string
+    {
+        $osob = max(1, (int) (($this->data ?? [])['osob'] ?? 1));
+
+        $podmiot = $osob === 1
+            ? 'Jedna osoba napisała'
+            : $osob.' '.Odmiana::rzeczownik($osob, 'osoba', 'osoby', 'osób').' '
+                .Odmiana::rzeczownik($osob, 'napisała', 'napisały', 'napisało');
+
+        return $podmiot.': Smakowicie wygląda';
     }
 
     /**

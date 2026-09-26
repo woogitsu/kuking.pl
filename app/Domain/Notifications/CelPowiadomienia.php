@@ -90,6 +90,10 @@ final class CelPowiadomienia
             Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
                 ? route('posts.show', $wpis)
                 : route('admin.unanswered'),
+            // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
+            Notification::TYPE_SMAKOWICIE => is_string($data['post_id'] ?? null) && $data['post_id'] !== ''
+                ? route('posts.show', $data['post_id'])
+                : null,
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
             // na niej najstarsze na górze, czyli to z najbliższym terminem

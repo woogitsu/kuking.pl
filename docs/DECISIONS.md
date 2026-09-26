@@ -14684,7 +14684,8 @@ Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest 
 Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
 i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
 2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
-sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+sygnałem jest reakcja **„Smakowicie wygląda”** (#1813, **D-280**) — nie lajk: bez
+licznika, powiadomienie zbiorczo raz dziennie, „Ugotowałem” powiadamia od razu.
 Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
 jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
@@ -17611,12 +17612,26 @@ Strony „Jak dobieramy wpisy” na `main` jeszcze nie ma (stan na 25 września
 2026); jej powstanie jest osobną częścią wdrożenia #1781. Do tego czasu
 wymóg jej aktualizacji oznacza opis nowej reguły w tym dzienniku.
 
+> **Dopisek (26 września 2026, #1811, D-305).** Strona już jest:
+> `/jak-dobieramy-wpisy`. Nowa reguła = zdanie w `App\Domain\Feed\JakDobieramyWpisy`
+> i dowód w `JakDobieramyWpisyMowiPrawdeTest`.
+
 ### Sprostowanie D-194
 
 D-194 dostaje zdanie „Liczba »Ugotowałem« ani reakcji nie wpływa na kolejność
 ani dobór”. Fragment o lajku poprawiony: polubienia nie ma, lżejszą reakcją
 będzie „Smakowicie wygląda” (#1813). Hierarchia sygnałów zostaje — dotyczy tego,
 co człowiek widzi przy wpisie i o czym dostaje powiadomienie, nie doboru list.
+
+### Progi rewizji (dopisek 26 września 2026, #1814, D-283)
+
+Do rozmowy o regule spoza listy (w tym o jakimkolwiek rankingu) wracamy
+dopiero, gdy **naraz**: średnio **≥ 60 różnych autorów dziennie** (28 dni),
+**≥ 8 pełnych tygodni danych** i **> 30% autorów praktycznie bez pierwszej
+strony „Świeżo z Kuking”** w tygodniu (wskaźnik zastępczy bez logu wyświetleń —
+definicja w D-283). Liczby pokazuje panel `/admin/metryki`; progi w
+`kuking.metryki`. Przekroczenie jest powodem do decyzji właściciela, nie zmianą
+w kodzie.
 
 ### Wycofanie
 
@@ -17781,11 +17796,18 @@ rozszerza).
 | | Start (Obserwowani) | Odkrywanie | Tablica: wybór gospodarza | Tablica: część automatyczna, propozycje osób | Tygodniowy list | Profil, wyszukiwarka, link |
 |---|---|---|---|---|---|---|
 | Ukryty wpis | znika | znika | znika | znika | znika | karta zwinięta: „Ten wpis ukrywasz tylko dla siebie. Pokaż” |
-| Ukryta osoba | **nie działa** | znika | **nie działa** | znika | nie działa | nie działa |
+| Ukryta osoba | **nie działa** dla osób obserwowanych; **znika** z wpisów „Z tagu: …” | znika | **nie działa** | znika | nie działa | nie działa |
 
 Ukrycie osoby działa wyłącznie tam, gdzie serwis sam podsuwa ludzi. W
 Obserwowanych nic nie znika poza bramkami, blokadami i tym, co widz sam
-wskazał palcem (pojedynczy wpis) — AGENTS.md §8. Kogoś, kogo się obserwuje,
+wskazał palcem (pojedynczy wpis albo osoba w gałęzi tagów) — AGENTS.md §8.
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Wpis ukrytej
+> osoby, który przychodzi na Start **wyłącznie przez obserwowany tag**, znika
+> — tag podsuwa autora, którego widz nie wybrał (`FollowingFeed`: gałąź tagów
+> z `bezUkrytychOsob`). Wpisy osób obserwowanych wprost są zawsze widoczne,
+> także z obserwowanym tagiem. Test:
+> `UkryjWpisIOsobeTest::test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`. Kogoś, kogo się obserwuje,
 się nie ukrywa: menu pokazuje wtedy „Przestań obserwować”, a akcja odmawia.
 Wybór gospodarza to oznaczony wybór, nie podsunięcie — ukrycie osoby go nie
 zdejmuje (ukrycie konkretnego wpisu — tak).
@@ -17827,6 +17849,158 @@ i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
 
 📄 `app/Domain/Ukrycia/Ukrycia.php` · `app/Http/Controllers/UkryciaController.php` ·
 `tests/Feature/UkryjWpisIOsobeTest.php` · `tests/Feature/CofniecieMigracjiUkrycNieOdslaniaTest.php` · D-275 · D-276
+
+## D-279 — Zwijanie serii w Obserwowanych i jeden wpis na autora w tygodniowym liście (#1812, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1812) · Status: **obowiązuje**
+
+Dwie reguły z listy D-275, obie po czasie, żadna po reakcjach:
+
+1. **Zwijanie serii (Obserwowani).** Więcej niż dwa kolejne wpisy tej samej
+   osoby na stronie — albo, od D-277, tego samego tagu (karty „Z tagu: …”) —
+   stoją jako dwa wpisy i `<details>` „{nazwa}: jeszcze N wpisów — Pokaż”.
+   Kolejność dokładnie ta z `FollowingFeed`, żaden wpis nie znika, bez JS.
+   W obrębie jednej strony (seria rozcięta przez „Pokaż więcej” zaczyna się
+   od nowa). Nazwa dosłownie, przed dwukropkiem; tag jako „Tag {nazwa}”.
+   `App\Domain\Feed\SerieWpisow`.
+2. **Tygodniowy list: najwyżej jeden wpis na autora** w sekcji obserwowanych —
+   najnowszy. Równość autorów: gospodarz publikujący codziennie nie zajmuje
+   całej sekcji. Dwa okna `row_number()` w `ZbierzTresciDigestu` (na autora,
+   potem na adresata), oba po `published_at`.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Gdy ktoś opublikuje kilka wpisów pod rząd, na Starcie widzisz dwa, a resztę
+> po naciśnięciu „Pokaż” — nic nie znika i kolejność się nie zmienia.
+> W tygodniowym e-mailu od każdej obserwowanej osoby jest jeden, najnowszy wpis.
+
+### Wycofanie
+
+Bez migracji: zdjąć grupowanie w `pages/home.blade.php` i wewnętrzne okno
+w `ZbierzTresciDigestu::wpisyObserwowanych()`.
+
+📄 `app/Domain/Feed/SerieWpisow.php` · `app/Domain/Digest/ZbierzTresciDigestu.php` ·
+`tests/Feature/ZwijanieSeriiWObserwowanychTest.php` · D-275 · D-277
+
+## D-280 — Reakcja „Smakowicie wygląda”: bez licznika, zbiorczo raz dziennie (#1813, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1813) · Status: **obowiązuje**
+
+### Decyzja
+
+Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** (D-194 —
+„Ugotowałem” stoi wyżej):
+
+- przycisk drugiego planu na karcie cudzego wpisu, za komentarzami; cofnięcie
+  tym samym przyciskiem („Smakowicie wygląda — cofnij”), bez pytania, bez JS;
+- **bez licznika** — nikt, także autor, nie widzi liczby; na stronie wpisu
+  **każdy widz** (także niezalogowany) widzi, KTO napisał — nazwy dosłownie,
+  bez osób z blokadą autora albo widza i bez kont niedostępnych (zmiana
+  26 września 2026, dopisek niżej);
+- **powiadomienie zbiorczo raz dziennie** (15:47 UTC, czyli 17:47 latem i 16:47 zimą w Polsce — dopisek niżej, `kuking:powiadom-smakowicie`):
+  jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
+  zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
+  powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
+- **nigdy nie sortuje i nie przycina list** (D-275) — strażnik zna słowa
+  „smakowic”, „reakcj” i „reaction” (tabela `post_reactions`);
+- pod własnym wpisem przycisku nie ma; blokady działają w obie strony (Policy
+  wpisu i akcja).
+
+„Respektuje ustawienia powiadomień”: jedynym ustawieniem powiadomień w serwisie
+jest zgoda na tygodniowy list (AGENTS.md §1), która tych powiadomień nie dotyczy;
+obowiązują granice `NotifyUser` (konto, które nie może czytać, nic nie dostaje).
+
+Dane: tabela `post_reactions` (docs/DATABASE.md), rollback odmawia przy
+niepustej tabeli (D-088). Eksport: `moje_reakcje`, `reakcje_otrzymane`.
+Reakcje nie są źródłem analityki (#1814).
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Lista osób,
+> które napisały „Smakowicie wygląda”, jest widoczna dla **wszystkich** pod
+> wpisem (strona wpisu), nie tylko dla autora. Nadal bez licznika i bez
+> „i N innych”. Filtry: te same co dotąd dla autora (konto dostępne jako
+> autor, bez blokady z autorem w którąkolwiek stronę) oraz — dla
+> zalogowanego widza — bez osób, z którymi ma blokadę w którąkolwiek stronę.
+> Komunikat po reakcji mówi wprost: „Twoja nazwa jest teraz pod tym wpisem —
+> widzą ją wszyscy”. Polityka prywatności (#1816) opisuje, że nazwa
+> reagującego jest publiczna pod wpisem. Eksport bez zmian (`reakcje_otrzymane`
+> filtruje po autorze). Test:
+> `SmakowicieWygladaTest::test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja`.
+
+> **Dopisek (26 września 2026, pora powiadomienia).** Pierwsza wersja
+> ustawiała 17:47 czasu polskiego (`->timezone(Czas::strefa())`, przegląd
+> #1781: 17:47 UTC to 19:47 latem). Po scaleniu `main`
+> `HarmonogramBezWspolnychSlotowTest` (#1717) wymaga, żeby wszystkie zadania
+> codzienne chodziły w jednej strefie — inaczej odstęp dziesięciu minut
+> między nimi nie da się sprawdzić, a zadanie w czasie polskim przesuwa się
+> względem reszty o godzinę dwa razy w roku. Zadanie chodzi więc o **15:47
+> UTC** w strefie harmonogramu (wolny slot, najbliższe zadanie codzienne
+> o 08:40), jak życzenia urodzinowe: w Polsce 17:47 latem i 16:47 zimą,
+> zawsze po południu. Komenda nie liczy „dziś”, więc pora nie zmienia jej
+> wyniku. Test: `SmakowicieWygladaTest::test_harmonogram_ma_zbiorcze_powiadomienie_raz_dziennie`.
+
+### Wycofanie
+
+Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
+
+📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
+`tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
+
+## D-283 — Metryki doboru bez profilowania i wskaźnik zastępczy trzeciego progu (#1814, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, pkt 5 z 26.09; kryteria #1814) · Status: **obowiązuje**
+
+### Decyzja
+
+Panel admina **„Metryki doboru”** (`/admin/metryki`, bramka
+`UserPolicy::przegladajMetryki` — tylko admin) pokazuje wyłącznie **agregaty
+z istniejących tabel** (`posts`, `first_post_events`, `comments`,
+`cooked_events`, `post_tags`). Bez nowych zdarzeń, bez `post_id` i nazw osób
+w wyniku, bez logu wyświetleń; **ukrycia (D-278) i reakcje „Smakowicie
+wygląda” (D-280) nie są źródłem** — strażnik
+`MetrykiDoboruTest::test_nie_czyta_ukryc_ani_reakcji` (i dotychczasowy skan
+`app/Domain/Analytics` w `UkryjWpisIOsobeTest`). Z liczb wyłączone są konta
+z `CookEligibility::excludedUserIds()` (gospodarz, zalążkowe, zamknięte).
+
+| Metryka | Definicja |
+|---|---|
+| Pierwsze wpisy z odpowiedzią w 24 h | wpisy z `first_post_events` sprzed 1–30 dni; odpowiedź = opublikowany komentarz innej osoby (nie konta zalążkowego) albo „Ugotowałem” przy wskazanym przepisie, najpóźniej 24 h po publikacji |
+| Autorzy publikujący ponownie w 28 dni | kohorta: pierwszy wpis 28–56 dni temu; powrót = kolejny opublikowany wpis w 672 h |
+| Udział 10% najaktywniejszych | publiczne wpisy z 30 dni; `ceil(10%)` autorów (co najmniej jeden) z największą liczbą **własnych** wpisów |
+| Różnych autorów dziennie | publiczne wpisy, dni czasu polskiego, 28 pełnych dni bez dzisiejszego; średnia = głębokość pierwszej rundy Odkrywania |
+| Publiczne z tagiem | publiczne wpisy z 30 dni z ≥ 1 aktywnym tagiem (warunek ukrywania tagów: 60%) |
+| Tygodnie danych | pełne tygodnie od pierwszego publicznego wpisu społeczności |
+
+### Wskaźnik zastępczy trzeciego progu
+
+Propozycja z #1814 — „> 30% autorów bez pierwszej strony w 7 dni” — wymaga
+wiedzy, co kto widział, czyli logu wyświetleń, którego nie prowadzimy. Wybrany
+zastępnik liczy się **z samych godzin publikacji**, bo pierwsza strona „Świeżo
+z Kuking” jest deterministyczna (D-276): to najnowszy wpis każdej z
+`feed.page_size` osób, które publikowały ostatnio. Wpis stoi więc na pierwszej
+stronie od publikacji do chwili, gdy po nim opublikuje `page_size` **innych**
+osób (albo autor doda nowszy wpis — wtedy stoi nowy). Dla każdego autora
+z publicznym wpisem sprzed 1–8 dni sumujemy ten czas (liczony do teraz);
+**„praktycznie bez pierwszej strony” = łącznie mniej niż 60 minut**
+(`kuking.metryki.minut_na_pierwszej_stronie`). Próg rewizji: > 30%
+(`odsetek_bez_pierwszej_strony`).
+
+Dlaczego ten, a nie inny: mierzy dokładnie to, czego próg dotyczy — tłok na
+pierwszej stronie przy rosnącej liczbie autorów — nie wymaga żadnej nowej
+danej i nie mówi nic o konkretnym widzu. Odrzucone: „wpisy bez odpowiedzi
+w 7 dni” (mierzy odzew, nie widoczność, i dubluje pierwszą metrykę) oraz
+liczniki z `product_signals` (nie mają `post_id` z założenia). Znane
+uproszczenie: pomija bramki per widz (blokady, ukrycia) i zdjęcia moderacyjne
+w trakcie — dla progu liczonego w dziesiątkach procent bez znaczenia.
+
+Progi rewizji — dopisek w D-275.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `admin.metryki`, `MetrykiController`,
+`App\Domain\Analytics\MetrykiDoboru`, widok i `kuking.metryki`.
+
+📄 `app/Domain/Analytics/MetrykiDoboru.php` · `app/Http/Controllers/Admin/MetrykiController.php` ·
+`tests/Feature/MetrykiDoboruTest.php` · D-275 · D-276 · D-278 · D-280
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
@@ -18183,6 +18357,164 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-305 — Strona „Jak dobieramy wpisy”: zdania z rejestru, każde z dowodem w kodzie (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, kryteria #1811) · Status: **obowiązuje**
+
+### Decyzja
+
+Strona `/jak-dobieramy-wpisy` (trasa `feed-rules`, publiczna) opisuje po kolei
+każdą listę wpisów: Start, „Świeżo z Kuking”, tablicę na dziś i polecane tagi,
+wyszukiwarkę, tygodniowy e-mail, ukrywanie i „czego nie robimy”. Zdania stoją
+w `App\Domain\Feed\JakDobieramyWpisy`, widok rysuje wyłącznie je, a
+`JakDobieramyWpisyMowiPrawdeTest` (wzorem `TabelaStackuMowiPrawdeTest`, D-104)
+trzyma dla każdego klucza dowody w trzech dozwolonych kształtach: `test:`
+(metoda testu istnieje), `kod:` (plik zawiera fragment), `config:` (liczba
+w zdaniu = wartość konfiguracji). Zdanie bez dowodu, dowód bez zdania, liczba
+bez konfiguracji i akapit dopisany wprost w widoku oblewają. Trzy obietnice
+mają testy zachowania w tym samym pliku: reakcje, „Ugotowałem” i komentarze
+nie zmieniają kolejności (Start i Odkrywanie); w bazie nie ma miejsca na zapis,
+kto oglądał który wpis; wybór gospodarza jest podpisany.
+
+Nigdzie nie piszemy „nie mamy systemu rekomendacji” — dobór wpisów jest systemem
+rekomendacji w rozumieniu DSA, tyle że prostym i jawnym; test skanuje widoki
+i dokumenty prawne.
+
+**Linia w „Świeżo z Kuking”.** Pod nagłówkiem stała linia „Skąd te wpisy i jak
+to zmienić” → strona; przy aktywnych ukryciach druga: „Ukrywasz wpisy N osób.
+Zmień” (albo „Ukrywasz N wpisów”, gdy ukryte są tylko wpisy) → Ustawienia →
+Ukryte. Liczby tylko z ukryć tego widza (`Ukrycia::ileOsob()`, `ileWpisow()`).
+Odnośnik „Jak działa kolejność?” na Starcie prowadzi teraz na tę stronę.
+Na stronie zalogowany ma odnośniki do obserwowanych osób, tagów i „Ukrytych”.
+
+**Wybór gospodarza podpisany.** AGENTS.md §8 dopuszcza wybór gospodarza
+„oznaczony w interfejsie jako jego wybór”, a tablica go nie oznaczała. Od teraz
+pozycja z `daily_picks` ma napis „Wybór gospodarza” (`DailyBoard` zwraca
+`wybrane`); pozycje dołożone przez automat do sufitu — nie.
+
+**Słowo „tag”**, nie „temat” (decyzja właściciela z 11.09, `JednoSlowoNaTagiTest`).
+
+Regulamin (§2, „Jak dobieramy wpisy”) odsyła do strony — zmiana ogłoszona
+według D-306.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `feed-rules`, `JakDobieramyWpisy`, widok, linie
+w `discover.blade.php`/`home.blade.php` i test; napis na tablicy zostawić
+(wymaga go AGENTS.md §8).
+
+📄 `app/Domain/Feed/JakDobieramyWpisy.php` · `resources/views/pages/static/jak-dobieramy-wpisy.blade.php` ·
+`tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php` · `app/Domain/Feed/DailyBoard.php` · D-275 · D-276 · D-277 · D-278 · D-279 · D-280
+
+## D-306 — Zmiana regulaminu ogłaszana paskiem w serwisie, wersja z datą w konfiguracji (#1811, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje**
+
+### Decyzja
+
+Zmianę regulaminu ogłaszamy **komunikatem w serwisie, bez maili**:
+
+- wersja regulaminu to data w `kuking.zgody.wersja_regulaminu`, tym samym
+  kształtem co `wersja_polityki` (D-072): dzień stanu dokumentu z nagłówka
+  „opisuje stan serwisu na …”, podbijany ręcznie razem z nim;
+- dokument ma na górze sekcję „Co się zmieniło” (kotwica `#co-sie-zmienilo`)
+  z wpisem datowanym dniem wersji; `ZmianaRegulaminuTest` pilnuje zgodności
+  nagłówka, sekcji i konfiguracji;
+- zalogowane konto założone przed dniem wersji widzi na każdym ekranie pasek
+  „Zmieniliśmy regulamin. Zobacz, co się zmieniło” z przyciskiem „Zamknij”
+  (POST, bez JS); zamknięcie zapisuje wersję w
+  `users.terms_notice_dismissed_version` i przy tej wersji pasek nie wraca.
+  Konto założone w dniu wersji albo później paska nie dostaje;
+- zamknięcie paska **nie jest akceptacją** regulaminu — to ślad, że komunikat
+  dotarł. Eksport: `konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`;
+  wymazanie konta zeruje pole. Rollback migracji odmawia, gdy ktoś pasek
+  zamknął (D-088, wzorem `pwa_prompt_state`).
+
+Pierwsza wersja: 26 września 2026 — dopisany opis doboru wpisów i odnośnik do
+„Jak dobieramy wpisy” (D-305). Zmiana opisuje działanie serwisu i nie dodaje
+obowiązków, dlatego weszła od razu; §11 regulaminu (14 dni przy zmianach
+istotnych) zostaje bez zmian — **pytanie do właściciela/prawnika**, czy przy
+następnej zmianie istotnej pasek ma się pokazywać z wyprzedzeniem (data
+wejścia w życie osobno od daty publikacji).
+
+**Rozstrzygnięte 26 września 2026 w D-327:** tak — przy zmianie istotnej
+data wejścia w życie jest osobna od daty publikacji (+14 dni).
+
+### Wycofanie
+
+Kod: `ZmianaRegulaminu`, `ZmianaRegulaminuController`, trasa
+`terms.notice.dismiss`, komponent `pasek-zmiany-regulaminu`. Kolumny nie
+cofać, gdy ktoś pasek zamknął (migracja odmówi).
+
+📄 `app/Domain/Zgody/ZmianaRegulaminu.php` · `resources/views/components/pasek-zmiany-regulaminu.blade.php` ·
+`database/migrations/2026_09_26_120000_add_terms_notice_dismissed_version_to_users.php` ·
+`tests/Feature/ZmianaRegulaminuTest.php` · `resources/legal/regulamin.md` · D-072 · D-088 · D-305
+
+## D-327 — Dokument prawny: data publikacji osobno od daty wejścia w życie; zmiana istotna po 14 dniach (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje** ·
+Rozstrzyga pytanie otwarte w D-306 · Dotyczy D-072 (dziennik zgód), #1816
+
+### Decyzja
+
+Przy **istotnej** zmianie polityki prywatności albo regulaminu data wejścia
+w życie jest osobna od daty publikacji. Pasek o zmianie pokazuje się od
+publikacji, a nowa wersja obowiązuje **14 dni później**; do tego dnia
+obowiązuje poprzednia. **Drobne** poprawki (redakcyjne, bez zmiany praw
+i obowiązków) wchodzą od razu.
+
+### Jak to jest zapisane
+
+- `kuking.zgody.wersja_polityki` / `wersja_regulaminu` — bez zmian: data
+  PUBLIKACJI, ta sama co w nagłówku dokumentu („opisuje stan serwisu na …”);
+- `kuking.zgody.zmiana_polityki` / `zmiana_regulaminu` — **jawne**
+  oznaczenie: `istotna` (true/false, bez wartości domyślnej — brak klucza
+  albo inna wartość to wyjątek), `poprzednia` (data dotychczasowej wersji,
+  wymagana przy istotnej) i `obowiazuje_od` (null = publikacja + 14 dni;
+  wolno później, nigdy wcześniej; przy drobnej zabronione);
+- `kuking.zgody.okres_istotnej_zmiany_dni` = 14, w repozytorium, nie w `.env`.
+  `WersjaDokumentuTest` pilnuje, że regulamin §11 obiecuje tę samą liczbę;
+- logika w jednym miejscu: `App\Domain\Zgody\WersjaDokumentu`
+  (`obowiazujeOd()`, `wOkresiePrzejsciowym()`, `obowiazujaca()`).
+
+### Co z tego wynika
+
+- **Pasek regulaminu** (D-306) pokazuje się od dnia publikacji jak dotąd.
+  Przy zmianie istotnej mówi „Nowa wersja obowiązuje od <data>. Do tego dnia
+  obowiązuje poprzednia.”, a od dnia wejścia w życie — samo „Nowa wersja
+  obowiązuje od <data>.”. Przy drobnej nie podaje żadnego terminu.
+- **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
+  OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
+  nie ostatnio opublikowaną. **Akceptacji regulaminu repozytorium nie
+  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
+  rejestracji), więc tu nie ma czego przeliczać.
+- Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
+  2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
+  opisują działanie serwisu, nie zmieniają praw i obowiązków.
+
+### Przy następnym podbiciu (np. #1816)
+
+1. Podbij datę w nagłówku dokumentu i `wersja_*` na dzień publikacji.
+2. Ustaw `zmiana_*.istotna` jawnie. Przy `true` wpisz `poprzednia`,
+   a we wpisie „Co się zmieniło” podaj dzień wejścia w życie.
+3. **Polityka nie ma dziś własnego paska**, a §9 polityki obiecuje przy
+   zmianie istotnej powiadomienie w serwisie. `WersjaDokumentuTest`
+   oblewa, gdy `zmiana_polityki.istotna` = true bez komponentu
+   `pasek-zmiany-polityki` — pasek polityki trzeba dołożyć razem z #1816.
+4. Poprzedni tekst nie jest dziś osobno publikowany; w okresie przejściowym
+   strona dokumentu pokazuje już nowy. Jeśli prawnik uzna, że poprzednia
+   wersja musi być dostępna do przeczytania, to osobna zmiana.
+
+### Wycofanie
+
+Bez migracji. Wycofanie kodu przywraca D-306 (pasek bez terminu, zgoda
+z `config('kuking.zgody.wersja_polityki')`). Wpisy dziennika zgód zapisane
+w okresie przejściowym zostają z wersją poprzednią — to prawda o chwili
+zgody, nie błąd do poprawienia.
+
+📄 `app/Domain/Zgody/WersjaDokumentu.php` · `app/Domain/Zgody/ZmianaRegulaminu.php` ·
+`resources/views/components/pasek-zmiany-regulaminu.blade.php` · `config/kuking.php` (`zgody`) ·
+`tests/Feature/WersjaDokumentuTest.php` · D-072 · D-306
 
 ## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
 

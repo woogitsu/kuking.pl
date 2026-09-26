@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Cron\CronExpression;
+use DateTimeZone;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Console\Scheduling\ScheduleRunCommand;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,8 +65,16 @@ class HarmonogramJednegoSerweraTest extends TestCase
         $events = app(Schedule::class)->events();
         $this->assertGreaterThanOrEqual(20, count($events), 'Nie wczytano harmonogramu aplikacji.');
         foreach ($events as $event) {
+            // Minuta w strefie ZADANIA, tak jak liczy ją `Event::isDue()`.
+            // Zadanie z własnym `->timezone(...)` liczone w UTC trafiałoby
+            // w złą minutę i scheduler słusznie by go wtedy nie uruchomił.
+            // Dziś wszystkie zadania chodzą w strefie harmonogramu
+            // (`HarmonogramBezWspolnychSlotowTest`), ale ta ścieżka zostaje.
+            $strefa = $event->timezone instanceof DateTimeZone
+                ? $event->timezone->getName()
+                : ($event->timezone ?: 'UTC');
             $date = (new CronExpression($event->expression))
-                ->getNextRunDate('2026-09-21 00:00:00', 0, true, 'UTC');
+                ->getNextRunDate('2026-09-21 00:00:00', 0, true, $strefa);
             $this->travelTo(Carbon::instance($date));
             $before = $calls;
             $this->runFreshScheduler();

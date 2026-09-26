@@ -172,6 +172,17 @@ class Post extends Model
             ->orderBy('post_tags.position');
     }
 
+    /**
+     * „Smakowicie wygląda" pod tym wpisem (issue #1813, D-280). Bez liczników
+     * gdziekolwiek w listach — patrz `FeedNieSortujePoMierzeReakcjiTest`.
+     *
+     * @return HasMany<PostReaction, $this>
+     */
+    public function reakcje(): HasMany
+    {
+        return $this->hasMany(PostReaction::class, 'post_id');
+    }
+
     public function comments(): HasMany
     {
         // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa
@@ -329,8 +340,9 @@ class Post extends Model
     /**
      * Bez wpisów osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810).
      *
-     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie i automatyczna
-     * część tablicy. Nie w Obserwowanych, nie w wyszukiwarce i nie pod linkiem
+     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie, automatyczna
+     * część tablicy i wpisy z obserwowanego tagu na Starcie (26.09). Nie przy
+     * osobach obserwowanych wprost, nie w wyszukiwarce i nie pod linkiem
      * — tam człowiek przyszedł po tę osobę sam (AGENTS.md §8, D-278).
      *
      * @param  Builder<Post>  $query

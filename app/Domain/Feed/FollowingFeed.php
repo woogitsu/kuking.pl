@@ -168,6 +168,12 @@ final class FollowingFeed
                         ->whereIn('tags.id', $tagIds)
                         ->where('tags.status', Tag::STATUS_ACTIVE))
                     ->widoczneDla($viewer)
+                    // „Ukryj tę osobę" (#1810, D-278, decyzja właściciela
+                    // 26.09) działa też tutaj: wpis z tagu PODSUWA autora,
+                    // którego widz nie wybrał. Tylko w tej gałęzi — osoby
+                    // obserwowane wprost (gałąź 1.) zostają zawsze widoczne,
+                    // także gdy ich wpis ma obserwowany tag.
+                    ->bezUkrytychOsob($viewer)
                     ->when(! $zWlasnymi, fn (Builder $q) => $q->where('posts.author_id', '!=', $viewer->getKey())));
             })
             // Wąski próg (`status = active`), nie `jestDostepnyJakoAutor()`,
@@ -177,9 +183,9 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
-            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza. Ukrycie
-            // OSOBY tu nie działa: w Obserwowanych nic nie znika poza bramkami,
-            // blokadami i tym, co widz sam wskazał palcem (AGENTS.md §8).
+            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza, dla obu
+            // gałęzi. Ukrycie OSOBY działa tylko w gałęzi tagów (wyżej): osób
+            // obserwowanych wprost się nie ukrywa (AGENTS.md §8).
             ->bezUkrytychWpisow($viewer)
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na

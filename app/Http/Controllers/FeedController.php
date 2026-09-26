@@ -13,6 +13,7 @@ use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\Ukrycia\Ukrycia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -259,7 +260,7 @@ class FeedController extends Controller
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
-    public function discover(Request $request): View
+    public function discover(Request $request, Ukrycia $ukrycia): View
     {
         $user = $request->user();
         $posts = $this->discoverFeed->paginate(
@@ -273,6 +274,9 @@ class FeedController extends Controller
             'board' => $this->dailyBoard->forViewer($user),
             // Liczone tylko dla pustej listy — tylko tam pusty stan o tym mówi.
             'ileUkrywasz' => $user !== null && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
+            // Linia „Ukrywasz wpisy N osób. Zmień" pod nagłówkiem (#1811).
+            'ukryteOsoby' => $user !== null ? $ukrycia->ileOsob($user) : 0,
+            'ukryteWpisy' => $user !== null ? $ukrycia->ileWpisow($user) : 0,
         ]);
     }
 

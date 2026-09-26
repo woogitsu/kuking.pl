@@ -120,6 +120,29 @@ pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
 wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
 nie zmienia `users.pwa_prompt_state`.
 
+#### `terms_notice_dismissed_version` — pasek „Zmieniliśmy regulamin” (#1811, D-306)
+
+Migracja `2026_09_26_120000_add_terms_notice_dismissed_version_to_users`
+dodaje nullable `date` bez wartości domyślnej (w PostgreSQL zmiana samego
+katalogu, bez przepisywania tabeli). Wartość to data wersji regulaminu
+(`kuking.zgody.wersja_regulaminu`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji (strefa `kuking.strefa`), którego wartość jest pusta albo
+starsza od bieżącej wersji (`App\Domain\Zgody\ZmianaRegulaminu`). Kolumna
+poza `$fillable`; zapisuje ją tylko `ZmianaRegulaminu::zamknij()` (POST
+`/regulamin/zmiana/zamknij`). Zamknięcie paska NIE jest akceptacją
+regulaminu — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`, wymazanie konta zeruje
+pole.
+
+**Rollback (D-088):** migracja odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość — po ponownym `migrate` pasek „jednorazowy” wróciłby do każdego,
+kto go zamknął, i zniknąłby ślad powiadomienia. Przy samych `NULL` wycofanie
+przechodzi. Kontrola i DDL w jednej transakcji z blokadą tabeli. Nie zerować
+kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
+`ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -1301,6 +1324,41 @@ dla niego problemem, a bariera potrafiąca jej odmówić byłaby zamkniętymi
 drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
 `App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
 pod blokadą wierszy.
+
+### post_reactions
+Reakcja „Smakowicie wygląda” (issue #1813, D-280). Migracja
+`2026_09_26_110000_create_post_reactions_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `post_id uuid NOT NULL` → `posts` (`ON DELETE CASCADE`),
+- `user_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto napisał,
+- `notified_at timestamptz NULL` — kiedy weszła do zbiorczego powiadomienia
+  (raz dziennie, `kuking:powiadom-smakowicie`); `NULL` = czeka,
+- `created_at timestamptz`.
+
+`UNIQUE (post_id, user_id)` — reakcja to STAN jednej osoby przy jednym wpisie
+(odwrotnie niż `cooked_events`, gdzie unikalność jest zakazana). Indeks
+częściowy `post_reactions_pending_idx (created_at) WHERE notified_at IS NULL`
+pod zbiorcze powiadomienie, indeks `user_id` pod kaskadę konta.
+
+Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
+(`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
+to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — każdy widz na stronie
+wpisu (od 26.09.2026; wcześniej tylko autor), bez liczby, bez osób z blokadą
+autora albo widza i bez kont niedostępnych (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
+`moje_reakcje` i `reakcje_otrzymane` — ta druga z nazwą konta tylko przy
+osobach, które autor zobaczyłby przy wpisie (`osobyWidoczneDlaAutora()`, filtry autora z `ktoDla()`),
+reszta jako liczba w `reakcje_otrzymane_od_osob_niewidocznych`.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
+(D-022), więc reakcje wymazywanego konta (`user_id`) kasuje jawnie
+`EraseAccountData` — przy każdym `delete_scope`. Reakcja pod wpisem usuniętym
+(soft delete) zostaje w tabeli, ale zbiorcze powiadomienie jej nie liczy.
+
+**Rollback:** `down()` ODMAWIA, gdy w tabeli są reakcje (słowa ludzi do autorów,
+`up()` ich nie odtworzy — D-088); na pustej przechodzi. Ręcznie:
+`\copy post_reactions TO reakcje.csv CSV HEADER`, decyzja właściciela, potem
+usunięcie wierszy. Test: `SmakowicieWygladaTest::test_rollback_odmawia…`.
 
 ### hides
 Prywatne ukrycia jednego widza (issue #1810, D-278): „Ukryj ten wpis” i „Ukryj
@@ -3525,7 +3583,7 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 | `cel` | Cel zgody. Dziś jedna wartość: `tygodniowy_digest`. CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, druga zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
 | `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta`. CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
-| `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wersja_polityki` | Wersja polityki prywatności OBOWIĄZUJĄCA w chwili zdarzenia: `WersjaDokumentu::polityka()->obowiazujaca()` (D-327). Zwykle `config('kuking.zgody.wersja_polityki')`; w okresie przejściowym zmiany istotnej (14 dni od publikacji) — wersja poprzednia. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
 ```sql

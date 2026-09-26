@@ -14,6 +14,7 @@ use App\Models\DataExport;
 use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
+use App\Models\PostReaction;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -239,6 +240,18 @@ final class EraseAccountData
             Hide::query()->where('user_id', $fresh->getKey())->delete();
 
             /*
+             * „SMAKOWICIE WYGLĄDA" (`post_reactions`, #1813) ZNIKA RAZEM
+             * Z KONTEM (przegląd #1781) — z tego samego powodu co ukrycia
+             * wyżej: kaskada klucza obcego przy anonimizacji nie zadziała.
+             * Bez tego autorzy dalej widzieliby przy swoich wpisach reakcję
+             * „Użytkownika usuniętego". Tylko reakcje NAPISANE przez to konto
+             * (`user_id`); reakcje innych pod jego wpisami to słowa tamtych
+             * osób. Kluczem jest `user_id`, więc dwie egzekucje nie mają
+             * wspólnego wiersza (D-093).
+             */
+            PostReaction::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -382,6 +395,8 @@ final class EraseAccountData
                 // i `tests/Feature/DokumentyPrawneNieKlamiaTest.php`).
                 'ostatnio_widziany_at' => null,
                 'pwa_prompt_state' => null,
+                // Ślad zamknięcia paska „Zmieniliśmy regulamin” (#1811, D-306).
+                'terms_notice_dismissed_version' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

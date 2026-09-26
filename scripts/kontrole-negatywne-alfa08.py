@@ -429,6 +429,31 @@ MOJ_STOL = "app/Domain/Feed/MojStol.php"
 UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
 UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
+# Metryki doboru (#1814, D-283) nie czytają ukryć ani reakcji „Smakowicie
+# wygląda”. Mutacja dokłada do klasy metryk import modelu reakcji — strażnik
+# skanujący ten plik ma zapalić się na czerwono.
+METRYKI_BEZ_REAKCJI = "app/Domain/Analytics/MetrykiDoboru.php"
+METRYKI_BEZ_REAKCJI_TEST = "test_nie_czyta_ukryc_ani_reakcji"
+
+# Strona „Jak dobieramy wpisy” (#1811, D-305): każde zdanie ma dowód w kodzie.
+# Mutacja zmienia porządek w rundzie rotacji Odkrywania — fragment, na który
+# powołuje się zdanie o rotacji, znika i test dowodów ma zapalić się na czerwono.
+DOBOR_ROTACJA = "app/Domain/Feed/DiscoverFeed.php"
+DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
+
+# Wersja regulaminu w konfiguracji i data w nagłówku dokumentu (#1811, D-306).
+# Mutacja podbija samą wersję — pasek ogłaszałby zmianę, której w dokumencie
+# nie ma; test daty ma oblać.
+REGULAMIN_WERSJA = "config/kuking.php"
+REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
+
+# Data publikacji osobno od daty wejścia w życie (D-327). Mutacje: okres
+# przejściowy znika (zmiana istotna obowiązuje od razu), 14 dni zamienia się
+# w zero, zgoda zapisuje wersję opublikowaną zamiast obowiązującej.
+WERSJA_DOKUMENTU = "app/Domain/Zgody/WersjaDokumentu.php"
+WERSJA_DOKUMENTU_ZGODA = "app/Domain/Zgody/PrzestawZgodeNaDigest.php"
+WERSJA_DOKUMENTU_TEST = "WersjaDokumentuTest"
+
 # `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
 # Mutacja zdejmuje `@5.62.1` z instalacji w `deploy.yml` — test ma zauważyć
 # brak `@X.Y.Z` po `@railway/cli`.
@@ -1132,6 +1157,18 @@ checks = [
      lambda s: replace_once(s, "            ->orderBy('daily_picks.position')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
+    ("Metryki doboru czytają reakcje „Smakowicie wygląda”", METRYKI_BEZ_REAKCJI, METRYKI_BEZ_REAKCJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\PostReaction;\n")),
+    ("Strona doboru opisuje rotację, której kod nie robi", DOBOR_ROTACJA, DOBOR_STRONA_TEST,
+     lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
+    ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
+    ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
+    ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "$najwczesniej = $publikacja->addDays(self::okresIstotnejZmianyDni());", "$najwczesniej = $publikacja;")),
+    ("Zgoda zapisuje wersję opublikowaną zamiast obowiązującej", WERSJA_DOKUMENTU_ZGODA, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "WersjaDokumentu::polityka()->obowiazujaca()", "WersjaDokumentu::polityka()->opublikowana")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1253,6 +1290,9 @@ run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
+run_test(METRYKI_BEZ_REAKCJI_TEST, True)
+run_test(DOBOR_STRONA_TEST, True)
+run_test(REGULAMIN_WERSJA_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)

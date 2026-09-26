@@ -493,12 +493,16 @@ tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, c
 jeden przepis od osoby, bramki i ukrycia.
 
 W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
-widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
-Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby, bez zmiany
+widz sam ukrył („Ukryj ten wpis”, a przy wpisach z obserwowanego tagu także
+„Ukryj tę osobę”; D-278 — z listą „Ukryte” do cofnięcia). Osoby obserwowane
+wprost nie znikają nigdy.
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
+obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
-dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+dobieramy wpisy” (zdanie w `App\Domain\Feed\JakDobieramyWpisy` z dowodem
+w `tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php`, D-305) + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
 albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
@@ -712,6 +716,16 @@ W skrócie:
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
+
+**Dokumenty prawne (polityka prywatności, regulamin): data publikacji to nie
+data wejścia w życie** (D-327, decyzja właściciela z 26 września 2026).
+Zmiana **istotna** obowiązuje 14 dni po publikacji, a do tego dnia obowiązuje
+poprzednia wersja; pasek o zmianie stoi od publikacji i podaje ten dzień.
+Poprawka **drobna** (redakcyjna, bez zmiany praw i obowiązków) wchodzi od
+razu. Przy każdym podbiciu `kuking.zgody.wersja_*` ustaw jawnie
+`kuking.zgody.zmiana_*.istotna` na `true` albo `false` — wartości domyślnej
+nie ma. Zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`),
+nigdy z samą datą z konfiguracji.
 
 ---
 

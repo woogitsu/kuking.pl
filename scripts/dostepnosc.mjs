@@ -465,6 +465,14 @@ const EKRANY = [
   { nazwa: 'regulamin', adres: '/regulamin' },
   { nazwa: 'zasady', adres: '/zasady' },
 
+  /*
+   * JAK DOBIERAMY WPISY (#1811, D-305) — strona otwarta dla każdego, jak
+   * `/pomoc`, więc bez `zalogowany: true`. Długi tekst z nagłówkami
+   * i listami, do którego odsyła regulamin; ma być czytelny przy 320 px
+   * i przy tekście 140% tak samo jak dokumenty prawne tuż nad nią.
+   */
+  { nazwa: 'jak dobieramy wpisy', adres: '/jak-dobieramy-wpisy' },
+
   /* ===========================================================================
    * SIEDEM STRON PUBLICZNYCH DOPISANYCH 11 WRZEŚNIA — SPŁATA DŁUGU Z D-099
    * ===========================================================================

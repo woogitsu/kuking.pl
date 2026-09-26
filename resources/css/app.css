@@ -1827,6 +1827,17 @@
     margin-bottom: var(--spacing-5);
   }
 
+  /* Pasek „Zmieniliśmy regulamin" (#1811, D-306): zdanie z odnośnikiem
+     i „Zamknij" w jednym rzędzie, a na wąskim ekranie przycisk schodzi pod
+     zdanie — bez przewijania w poziomie przy 320 px i 200%. */
+  .pasek-zmiany-regulaminu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3) var(--spacing-4);
+  }
+
   .notice {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
@@ -4197,6 +4208,16 @@
     overflow-wrap: anywhere;
   }
 
+  /* „Wybór gospodarza" (#1811, AGENTS.md §8) — pozycja z wyboru człowieka,
+     nie z automatu. Pełne 18 px: to informacja o tym, SKĄD karta się tu
+     wzięła, a nie dopisek. `display: block` także na `<span>` w kafelku dania. */
+  .kuking-board-wybor {
+    display: block;
+    margin: var(--spacing-1) 0 0;
+    font-weight: 600;
+    color: var(--color-ink-muted);
+  }
+
   /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
   .kuking-board-note {
     margin: var(--spacing-1) 0 0;
@@ -6006,6 +6027,35 @@
 .post-card-menu-tresc [data-skrot-obserwuj]:hover,
 .post-card-menu-tresc [data-menu-akcja]:hover {
   background-color: var(--color-surface-sunken);
+}
+
+/* --- Zwinięta seria wpisów w Obserwowanych (issue #1812) ----------------
+   `<details>` bez JavaScriptu. `summary` to przycisk z tekstem: 48 px celu,
+   tekst w rozmiarze podstawowym, obwódka jak przy innych przyciskach —
+   bez niej zwinięta seria wyglądałaby na zwykły napis. Po rozwinięciu
+   „— Pokaż" znika, bo nie ma już czego pokazać.
+   ------------------------------------------------------------------------ */
+
+.seria-wpisow > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--control-height-min);
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-raised);
+  cursor: pointer;
+  list-style: none;
+}
+
+.seria-wpisow > summary::-webkit-details-marker { display: none; }
+
+.seria-wpisow[open] > summary .seria-wpisow-pokaz { display: none; }
+
+.seria-wpisow > .stack {
+  margin-top: var(--spacing-4);
 }
 
 /* --- Chipsy zakresu wyszukiwania (UI kit v2, ekran 03) -------------------

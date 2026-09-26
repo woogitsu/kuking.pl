@@ -222,7 +222,7 @@
     {{-- Prawdziwe osoby i dania pozostają po wprowadzeniu do funkcji. --}}
     <section class="pas pas--kreska-gora">
         <div class="pas-wnetrze">
-            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
+            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :wybrane="$board['wybrane']" :graSlowem="false" />
         </div>
     </section>
 

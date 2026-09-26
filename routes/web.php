@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\KolejkaController;
+use App\Http\Controllers\Admin\MetrykiController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagHighlightController;
@@ -65,6 +66,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
@@ -75,6 +77,7 @@ use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
+use App\Http\Controllers\ZmianaRegulaminuController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -148,6 +151,10 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+// „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
+// zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
+// Publiczna: regulamin do niej odsyła, a regulamin czyta też gość.
+Route::get('/jak-dobieramy-wpisy', [StaticPageController::class, 'feedRules'])->name('feed-rules');
 
 /*
 |--------------------------------------------------------------------------
@@ -864,6 +871,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
 
+    // „SMAKOWICIE WYGLĄDA" (issue #1813, D-280) — własny koszyk `reakcje`.
+    Route::post('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'dodaj'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie');
+    Route::delete('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'cofnij'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie.cofnij');
+
     // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
     // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
     // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
@@ -888,6 +903,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('moj-stol.ustaw');
+    // Pasek „Zmieniliśmy regulamin" (#1811, D-306): zamknięcie zapisuje wersję.
+    // POST, nie GET — to zapis, a podgląd linku albo prefetch nie może go zrobić.
+    Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('terms.notice.dismiss');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
@@ -1359,6 +1379,12 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
      * zobaczeniu, kogo dotyczy.
      */
     Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
+
+    /*
+     * Metryki doboru (issue #1814, D-283) — same agregaty z istniejących
+     * tabel, tylko dla admina (`UserPolicy::przegladajMetryki`). Tylko GET.
+     */
+    Route::get('/metryki', [MetrykiController::class, 'index'])->name('admin.metryki');
 });
 
 // --------------------------------------------------------------------------

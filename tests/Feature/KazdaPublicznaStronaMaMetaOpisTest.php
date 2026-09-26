@@ -142,6 +142,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'register' => route('register'),
             'login' => route('login'),
             'terms' => route('terms'),
+            'feed-rules' => route('feed-rules'),
             'privacy' => route('privacy'),
             'rules' => route('rules'),
             'kontakt' => route('kontakt'),
