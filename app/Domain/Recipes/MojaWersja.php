@@ -164,7 +164,9 @@ final class MojaWersja
     }
 
     /**
-     * Powiadomienie autora oryginału o PIERWSZEJ publikacji wersji.
+     * Powiadomienie autora oryginału o PIERWSZYM UDOSTĘPNIENIU wersji innym
+     * (opublikowana z widocznością szerszą niż prywatna — woła to
+     * `PublishRecipe` przy takim przejściu).
      *
      * Tylko wtedy, gdy autor oryginału może tę wersję zobaczyć — wersja
      * prywatna nie powiadamia nikogo, bo „Zobacz" prowadziłby w ścianę.

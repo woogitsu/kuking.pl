@@ -111,7 +111,7 @@ class MojaWersjaPrzepisuTest extends TestCase
         $this->assertSame(1, Recipe::query()->where('forked_from_id', $oryginal->getKey())->count());
     }
 
-    public function test_policy_nie_pozwala_na_wersje_wlasnego_zawezonego_ani_przy_blokadzie(): void
+    public function test_policy_nie_pozwala_na_wersje_wlasnego_niewidocznego_ani_przy_blokadzie(): void
     {
         $basia = $this->user('basia23c');
         $jan = $this->user('jan23c');
@@ -119,10 +119,9 @@ class MojaWersjaPrzepisuTest extends TestCase
         // Własny przepis się poprawia, nie „forkuje".
         $this->actingAs($basia)->post(route('recipes.fork', $this->oryginal($basia)->slug))->assertForbidden();
 
-        // Przepis dla obserwujących — nawet obserwujący nie wyniesie go dalej.
+        // Przepis dla obserwujących: kto go nie widzi, ten go nie skopiuje.
         $dlaObserwujacych = $this->oryginal($basia, 'followers');
-        $jan->following()->attach($basia->getKey());
-        $this->assertTrue($jan->can('view', $dlaObserwujacych), 'Kontrola: obserwujący przepis widzi.');
+        $this->assertFalse($jan->can('view', $dlaObserwujacych), 'Kontrola: nieobserwujący przepisu nie widzi.');
         $this->actingAs($jan)->post(route('recipes.fork', $dlaObserwujacych->slug))->assertForbidden();
 
         // Blokada w którąkolwiek stronę.
@@ -295,6 +294,64 @@ class MojaWersjaPrzepisuTest extends TestCase
             ->assertOk()
             ->assertSee('własna wersja Twojego przepisu')
             ->assertSee('„Rosół babci Zofii”', false);
+    }
+
+    public function test_obserwujacy_kopiuje_przepis_dla_obserwujacych_a_goscie_widza_oryginal_niedostepny(): void
+    {
+        // Decyzja właściciela z 26.09.2026: kopiowanie przepisu „dla
+        // obserwujących” jest dozwolone temu, kto go widzi.
+        $basia = $this->user('basia23n');
+        $oryginal = $this->oryginal($basia, 'followers');
+        $jan = $this->user('jan23n');
+        $jan->following()->attach($basia->getKey());
+
+        $wersja = $this->zrobWersje($jan, $oryginal);
+        $this->opublikujPrzezFormularz($jan, $wersja, ['ingredients' => [['text' => 'indyk'], ['text' => 'lubczyk']]])
+            ->assertSessionHasNoErrors();
+        $wersja->refresh()->forceFill(['hero_media_id' => Media::factory()->create(['owner_id' => $jan->getKey()])->getKey()])->save();
+
+        // Obserwujący (autor wersji) widzi link do oryginału.
+        $this->actingAs($jan)->get(route('recipes.show', $wersja->slug))
+            ->assertSee('href="'.route('recipes.show', $oryginal->slug).'"', false);
+
+        // Gość oryginału nie widzi: podpis mówi „niedostępny”, a JSON-LD nie
+        // obiecuje wyszukiwarce adresu, pod którym dostałaby 403.
+        auth()->logout();
+        $html = (string) $this->get(route('recipes.show', $wersja->slug))
+            ->assertOk()
+            ->assertSee('oryginał jest niedostępny')
+            ->assertDontSee('href="'.route('recipes.show', $oryginal->slug).'"', false)
+            ->getContent();
+        preg_match_all('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $bloki);
+        $przepis = collect($bloki[1])->map(fn ($b) => json_decode($b, true))->firstWhere('@type', 'Recipe');
+        $this->assertNotNull($przepis, 'Brak bloku Recipe — test nie mierzyłby niczego.');
+        $this->assertArrayNotHasKey('isBasedOn', $przepis);
+
+        // Autor oryginału nie obserwuje Jana, a wersja jest publiczna —
+        // widzi ją, więc dostaje powiadomienie.
+        $this->assertSame(1, Notification::query()->where('user_id', $basia->getKey())->where('type', Notification::TYPE_FORKED)->count());
+    }
+
+    public function test_powiadomienie_idzie_przy_pierwszym_udostepnieniu_wersji_innym_i_tylko_raz(): void
+    {
+        $basia = $this->user('basia23o');
+        $jan = $this->user('jan23o');
+        $wersja = $this->zrobWersje($jan, $this->oryginal($basia));
+        $ile = fn (): int => Notification::query()->where('user_id', $basia->getKey())->where('type', Notification::TYPE_FORKED)->count();
+
+        // Publikacja „tylko dla mnie” — nikomu nie udostępniona.
+        $this->opublikujPrzezFormularz($jan, $wersja, ['visibility' => 'private', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
+        $this->assertTrue($wersja->fresh()->isPublished());
+        $this->assertSame(0, $ile());
+
+        // Pierwsze udostępnienie: prywatna → publiczna.
+        $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'public', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
+        $this->assertSame(1, $ile());
+
+        // Z powrotem prywatna i jeszcze raz publiczna — to nie jest nowa wiadomość.
+        $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'private', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
+        $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'public', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
+        $this->assertSame(1, $ile());
     }
 
     public function test_prywatna_wersja_nie_powiadamia_autora_oryginalu(): void

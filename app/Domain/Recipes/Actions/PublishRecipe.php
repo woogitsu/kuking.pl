@@ -302,10 +302,12 @@ final class PublishRecipe
              */
             DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
 
-            // Czy TEN zapis jest pierwszą publikacją przepisu — potrzebne
-            // wyłącznie „Mojej wersji" (powiadomienie autora oryginału idzie
-            // raz, przy pierwszej publikacji; issue #23, D-301).
-            $pierwszaPublikacja = false;
+            // Czy przepis był UDOSTĘPNIONY innym (opublikowany i nie
+            // prywatny) PRZED tym zapisem — potrzebne wyłącznie „Mojej
+            // wersji": powiadomienie autora oryginału idzie przy pierwszym
+            // udostępnieniu wersji innym, nie przy publikacji „tylko dla
+            // mnie" (issue #23, D-301, decyzja właściciela z 26.09.2026).
+            $byloUdostepnione = false;
 
             $payload = [
                 'title' => $title,
@@ -332,7 +334,6 @@ final class PublishRecipe
                 $payload['published_at'] = $publish ? now() : null;
 
                 $recipe = Recipe::create($payload);
-                $pierwszaPublikacja = $publish;
             } else {
                 /*
                  * WIERSZ PRZEPISU POD BLOKADĄ, I DOPIERO POD NIĄ PYTAMY O STAN
@@ -414,8 +415,7 @@ final class PublishRecipe
                         : null;
                 }
 
-                $pierwszaPublikacja = $recipe->published_at === null
-                    && ($payload['status'] ?? null) === Recipe::STATUS_PUBLISHED;
+                $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';
 
                 $recipe->update($payload);
             }
@@ -504,13 +504,19 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+            }
 
-                // Powiadomienie jest wierszem w bazie, więc wolno mu stać
-                // w transakcji — i musi: cofnięta publikacja nie może
-                // zostawić autorowi oryginału wiadomości o wersji, której nie ma.
-                if ($pierwszaPublikacja) {
-                    $this->mojaWersja->powiadomAutoraOryginalu($recipe, $author);
-                }
+            /*
+             * „MOJA WERSJA": pierwsze udostępnienie innym (przejście z „tylko
+             * ja" albo ze szkicu na widoczność szerszą niż prywatna).
+             * Powiadomienie jest wierszem w bazie, więc wolno mu stać
+             * w transakcji — i musi: cofnięty zapis nie może zostawić autorowi
+             * oryginału wiadomości o wersji, której nikt nie widzi. „Raz na
+             * wersję" i „tylko gdy autor oryginału ją widzi" pilnuje
+             * `MojaWersja::powiadomAutoraOryginalu()`.
+             */
+            if (! $byloUdostepnione && $recipe->isPublished() && $recipe->visibility !== 'private') {
+                $this->mojaWersja->powiadomAutoraOryginalu($recipe, $author);
             }
 
             return $recipe;

@@ -17429,10 +17429,14 @@ w Google (`docs/seo/SEO_TECHNICAL.md` §1.4 i §7) i rozmycie oryginału.
    twardym skasowaniu oryginału). Obie kolumny poza `$fillable`; ustawia je
    tylko `App\Domain\Recipes\Actions\ZrobWlasnaWersje`. Rollback odmawia przy
    choćby jednej wersji (D-088).
-2. **Kto może** (`RecipePolicy::fork`): konto aktywne, przepis cudzy,
-   opublikowany i **publiczny**, widoczny dla tej osoby (blokady, ban,
-   usuwanie konta — wszystko przez `view()`). Przepisu „dla obserwujących”
-   nie da się skopiować, bo kopię można by potem opublikować dla wszystkich.
+2. **Kto może** (`RecipePolicy::fork`): konto aktywne, przepis cudzy
+   i opublikowany, **widoczny dla tej osoby** — także „dla obserwujących”
+   (blokady, ban, usuwanie konta — wszystko przez `view()`). Uzupełnienie
+   właściciela z 26.09.2026: „nie ma co utrudniać, jak nie skopiują, to
+   zrobią screena” — pierwsza wersja tej decyzji dopuszczała tylko przepisy
+   publiczne. Odbiorca wersji, który nie widzi oryginału, czyta w podpisie
+   „oryginał jest niedostępny”, a `isBasedOn` w JSON-LD dostaje tylko
+   oryginał widoczny dla gości.
 3. **Co się kopiuje:** tytuł, opis, porcje, czasy, trudność, składniki
    (z grupami, uwagami, „bez ilości”), treść kroków z minutnikami. **Bez
    zdjęć** (to zdjęcia autora oryginału) i **bez pochodzenia**
@@ -17463,9 +17467,13 @@ w Google (`docs/seo/SEO_TECHNICAL.md` §1.4 i §7) i rozmycie oryginału.
    chronologicznie, „Pokaż więcej”, **bez liczby wersji** — AGENTS.md §12),
    tylko wersje opublikowane i widoczne dla widza. Przycisk „Zrób swoją
    wersję” stoi pod przepisem, nie obok „Ugotowałem”.
-8. **Powiadomienie** `recipe.forked` do autora oryginału: przy **pierwszej**
-   publikacji wersji, tylko gdy autor oryginału może ją zobaczyć, raz na
-   wersję. To nie jest „Ugotowałem” i nie zmienia jego obietnicy (AGENTS.md
+8. **Powiadomienie** `recipe.forked` do autora oryginału: przy **pierwszym
+   udostępnieniu wersji innym** — pierwszym zapisie, po którym wersja jest
+   opublikowana z widocznością szerszą niż prywatna (także przejście
+   „tylko ja” → „obserwujący”/„wszyscy” po publikacji); tylko gdy autor
+   oryginału może ją wtedy zobaczyć; raz na wersję (ponowne udostępnienie
+   po powrocie do prywatnej nie powiadamia drugi raz). Uzupełnienie
+   właściciela z 26.09.2026; wcześniej: tylko przy pierwszej publikacji. To nie jest „Ugotowałem” i nie zmienia jego obietnicy (AGENTS.md
    §1); granice (własna akcja, konto zamknięte, blokada) daje `NotifyUser`.
 9. **Eksport danych:** przy przepisie `moja_wersja_od` i
    `na_podstawie_przepisu` (tytuł i adres oryginału tylko wtedy, gdy
@@ -17474,9 +17482,10 @@ w Google (`docs/seo/SEO_TECHNICAL.md` §1.4 i §7) i rozmycie oryginału.
 **Czego świadomie nie zrobiono:** wariantu „wersja jako sekcja na stronie
 oryginału” zamiast osobnego adresu (SEO §1.4 pkt 2) — próg `noindex` daje
 ten sam skutek bez drugiego sposobu wyświetlania przepisu; porównania wersji
-między sobą (dwie wersje podobne do siebie, a różne od oryginału); zmiany
-powiadomienia przy późniejszej zmianie widoczności z prywatnej na publiczną
-(powiadomienie idzie tylko przy pierwszej publikacji).
+między sobą (dwie wersje podobne do siebie, a różne od oryginału).
+„Raz na wersję” opiera się na istniejącym powiadomieniu: po jego usunięciu
+retencją (3 miesiące) ponowne udostępnienie po okresie prywatności
+powiadomiłoby jeszcze raz — świadomie bez osobnej kolumny.
 
 **W kodzie.** `App\Domain\Recipes\MojaWersja`, `ZrobWlasnaWersje`,
 `RecipePolicy::fork`, trasa `POST /przepisy/{slug}/moja-wersja`
