@@ -151,6 +151,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
             $step['instruction'] = str_repeat('b', 3996).sprintf('%04d', $i);
         }
         unset($step);
+        $dane['content_revision'] = $recipe->content_revision;
         $url = route('recipes.update', $recipe);
         if ($status === 429) {
             for ($i = 0; $i < 19; $i++) {
@@ -172,6 +173,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $this->assertSame('POST', $form['method']);
         $this->assertArrayHasKey('_method', $form['data']);
         $this->assertSame('PUT', $form['data']['_method']);
+        $this->assertSame((string) $dane['content_revision'], $form['data']['content_revision']);
         $this->assertSame($dane['steps'], $form['data']['steps']);
         $this->assertSame($ids, $recipe->steps()->orderBy('position')->pluck('id')->all());
         $this->assertSame($przed->pluck('instruction')->all(), $recipe->steps()->orderBy('position')->pluck('instruction')->all());
