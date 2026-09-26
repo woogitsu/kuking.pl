@@ -1098,10 +1098,12 @@ poziom uprawnień:
    „przy koncie, nie tylko w regulaminie — nikt nie czyta regulaminu, żeby
    dowiedzieć się, czy pisze do człowieka".
 2. **Wykluczenie z Weekly Active Cooks i z kohorty retencji**
-   (`App\Domain\Analytics\CookEligibility::excludedUserIds()`) — dwanaście
-   person publikuje z definicji plikowej i nie ma zasilać liczby, która ma
-   mierzyć żywą społeczność (issue #114, ten sam powód, dla którego tamta
-   klasa już wyklucza gospodarza i konta testowe).
+   (`App\Domain\Analytics\CookEligibility::tylkoLiczeni()` — dawne
+   `excludedUserIds()` zniknęło w #1309, wykluczenie jest teraz filtrem SQL,
+   nie listą UUID w PHP) — dwanaście person publikuje z definicji plikowej
+   i nie ma zasilać liczby, która ma mierzyć żywą społeczność (issue #114,
+   ten sam powód, dla którego ta metoda już wyklucza gospodarza i konta
+   testowe).
 
 **Dlaczego na `users`, nie na `profiles`.** Wszystkie cztery miejsca z punktu
 1 i tak już ładują `User` (`$post->author`, `$recipe->author`,
