@@ -283,7 +283,7 @@ class DalszeWynikiWyszukiwaniaTest extends TestCase
             libxml_use_internal_errors($previous);
         }
         $matches = [];
-        foreach ((new DOMXPath($dom))->query('//main//a') as $link) {
+        foreach (self::elementyDom((new DOMXPath($dom))->query('//main//a')) as $link) {
             if (trim($link->textContent) === $label) {
                 $matches[] = $link->getAttribute('href');
             }

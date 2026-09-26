@@ -193,7 +193,7 @@ class LinkLogowaniaTerminIPonowienieTest extends TestCase
 
     private function html(): string
     {
-        $html = app('mailer')->getSymfonyTransport()->messages()->last()->getOriginalMessage()->getHtmlBody();
+        $html = self::transportTablicowy()->messages()->last()->getOriginalMessage()->getHtmlBody();
 
         return html_entity_decode(preg_replace('/\s+/', ' ', (string) $html) ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Collections;
 
 use App\Models\Collection;
+use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class WidocznaZawartoscZeszytu
 {
+    /** @return BelongsToMany<Recipe, Collection> */
     public function przepisy(Collection $collection, ?User $viewer): BelongsToMany
     {
         return $collection->recipes()
@@ -28,6 +31,7 @@ final class WidocznaZawartoscZeszytu
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
     }
 
+    /** @return BelongsToMany<Post, Collection> */
     public function wpisy(Collection $collection, ?User $viewer): BelongsToMany
     {
         // Cztery granice w jednym zakresie (`Post::scopeWidoczneWZeszycieDla()`):

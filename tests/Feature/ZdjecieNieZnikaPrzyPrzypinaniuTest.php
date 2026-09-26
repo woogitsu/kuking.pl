@@ -293,6 +293,8 @@ class ZdjecieNieZnikaPrzyPrzypinaniuTest extends TestCase
      *
      * Dekorator jest tym samym wzorcem co w
      * `KasowanieZdjeciaOdpornoscNaAwarieTest` — nie drugą kopią pomysłu.
+     *
+     * @return FilesystemAdapter&object{kontekst: list<array{poziom: int, status: string|null}>}
      */
     private function dyskZapisujacyKontekst(string $nazwaDysku, string $mediaId, bool $zawodzi = false): FilesystemAdapter
     {

@@ -117,7 +117,7 @@ class CollectionController extends Controller
      * plus dociągnięcie zdjęć i autorów, niezależnie od tego, czy w zeszytach
      * leży pięć rzeczy, czy pięćset (`SzynaBezWachlarzaZapytanTest`).
      *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * @return \Illuminate\Support\Collection<int, covariant array{href: string, nazwa: string, podpis: string, media: \App\Models\Media|null, zapisano_at: mixed}>
      */
     private function ostatnioZapisane(User $user): \Illuminate\Support\Collection
     {
@@ -144,7 +144,7 @@ class CollectionController extends Controller
                 'nazwa' => $przepis->title,
                 'podpis' => 'Przepis · '.$przepis->author->displayName(),
                 'media' => $przepis->heroMedia,
-                'zapisano_at' => $przepis->zapisano_at,
+                'zapisano_at' => $przepis->getAttribute('zapisano_at'),
             ]);
 
         // Wpisy przez pełną regułę wnętrza zeszytu (#1319): zapowiedź
@@ -166,7 +166,7 @@ class CollectionController extends Controller
                 'nazwa' => (string) $wpis->title,
                 'podpis' => 'Pytanie · '.$wpis->author->displayName(),
                 'media' => $wpis->media->first(),
-                'zapisano_at' => $wpis->zapisano_at,
+                'zapisano_at' => $wpis->getAttribute('zapisano_at'),
             ] : [
                 'href' => $wpis->url(),
                 // Danie nie ma tytułu. Pierwsze słowa są tym, po czym człowiek
@@ -177,7 +177,7 @@ class CollectionController extends Controller
                     : 'Zdjęcie bez opisu',
                 'podpis' => 'Wpis · '.$wpis->author->displayName(),
                 'media' => $wpis->media->first(),
-                'zapisano_at' => $wpis->zapisano_at,
+                'zapisano_at' => $wpis->getAttribute('zapisano_at'),
             ]);
 
         // Sortowanie po ZNACZNIKU CZASU, nie po tekście z bazy. `timestamptz`

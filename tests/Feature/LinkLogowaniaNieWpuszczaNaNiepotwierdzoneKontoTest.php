@@ -669,7 +669,7 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
 
     private function komunikat(TestResponse $odpowiedz): string
     {
-        return (string) $odpowiedz->getSession()->get('status', '');
+        return (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
     }
 
     /**
@@ -725,7 +725,7 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
 
         return match (true) {
             $bledy === null => [],
-            $bledy instanceof ViewErrorBag => $bledy->getBag('default')->messages(),
+            $bledy instanceof ViewErrorBag => $bledy->getBag('default')->getMessages(),
             $bledy instanceof MessageBag => $bledy->messages(),
             is_array($bledy) => array_map(
                 static fn ($worek) => $worek instanceof MessageBag ? $worek->messages() : (array) $worek,

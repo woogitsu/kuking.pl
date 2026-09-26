@@ -32,11 +32,17 @@ class Block extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function blocker(): BelongsTo
     {
         return $this->belongsTo(User::class, 'blocker_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function blocked(): BelongsTo
     {
         return $this->belongsTo(User::class, 'blocked_id');

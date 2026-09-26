@@ -271,7 +271,11 @@ class SygnalyController extends Controller
             || ($r->created_at->equalTo($granica) && strcmp((string) $r->getKey(), $najnowszeId) > 0));
     }
 
-    /** Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka". */
+    /**
+     * Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka".
+     *
+     * @return Builder<Report>
+     */
     private function otwarte(): Builder
     {
         return Report::query()
@@ -313,7 +317,7 @@ class SygnalyController extends Controller
      * `POZYCJI_W_GRUPIE` pozycji z każdego z nich.
      *
      * @param  LengthAwarePaginator<int, Report>  $grupy
-     * @return Collection<string, Collection<int, Report>>
+     * @return Collection<array-key, EloquentCollection<int, Report>> klucz: `autor_tresci_id` albo `'brak'`
      */
     private function pozycje(LengthAwarePaginator $grupy): Collection
     {
@@ -389,11 +393,11 @@ class SygnalyController extends Controller
      * Odnośnik ZOSTAJE. Podgląd nie zastępuje przeczytania całości przed
      * decyzją — pozwala odsiać oczywiste przypadki bez otwierania.
      *
-     * @param  Collection<string, Collection<int, Report>>  $pozycje
-     *                                                                `odnosnik` i `pusto` są w tej mapie, a nie w widoku, bo zależą od
-     *                                                                RODZAJU oznaczonej treści: „Otwórz treść i przeczytaj ją" jest zdaniem
-     *                                                                bez sensu przy zdjęciu profilowym, przy którym nie ma ani jednego słowa
-     *                                                                do przeczytania. Widok ma pokazywać, nie zgadywać.
+     * @param  Collection<array-key, EloquentCollection<int, Report>>  $pozycje
+     *                                                                           `odnosnik` i `pusto` są w tej mapie, a nie w widoku, bo zależą od
+     *                                                                           RODZAJU oznaczonej treści: „Otwórz treść i przeczytaj ją" jest zdaniem
+     *                                                                           bez sensu przy zdjęciu profilowym, przy którym nie ma ani jednego słowa
+     *                                                                           do przeczytania. Widok ma pokazywać, nie zgadywać.
      * @return array<string, array{adres: string, tekst: ?string, miniatura: ?string, odnosnik: string, pusto: string}>
      */
     private function podglady(Collection $pozycje): array

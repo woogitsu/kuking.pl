@@ -50,7 +50,7 @@ final class Udostepnianie
      * `RecipePolicy`) przyjmują `?User`, więc gość jest dla nich
      * normalnym, przewidzianym przypadkiem.
      */
-    public function wolnoWyslac(Model $tresc): bool
+    public function wolnoWyslac(Post|Recipe $tresc): bool
     {
         return Gate::forUser(null)->allows('view', $tresc);
     }
@@ -65,7 +65,7 @@ final class Udostepnianie
      *
      * Zwraca `null`, gdy powodu nie ma — czyli gdy wysyłać wolno.
      */
-    public function powodBrakuPrzycisku(Model $tresc): ?string
+    public function powodBrakuPrzycisku(Post|Recipe $tresc): ?string
     {
         if ($this->wolnoWyslac($tresc)) {
             return null;
@@ -95,7 +95,7 @@ final class Udostepnianie
      * i canonical wskazują apex — jedna treść zbierałaby udostępnienia
      * pod dwoma adresami.
      */
-    public function adres(Model $tresc): string
+    public function adres(Post|Recipe $tresc): string
     {
         return AdresKanoniczny::zbuduj(fn (): string => $tresc instanceof Recipe
             ? route('recipes.show', $tresc)
@@ -109,7 +109,7 @@ final class Udostepnianie
      * niesie go imię autora. Formy zakładające rodzaj („ugotowała")
      * świadomie nie ma (`AGENTS.md` §11).
      */
-    public function tytul(Model $tresc): string
+    public function tytul(Post|Recipe $tresc): string
     {
         if ($tresc instanceof Recipe) {
             return $tresc->title;
@@ -129,7 +129,7 @@ final class Udostepnianie
      * wpisu skracamy: WhatsApp i tak utnie długą treść, a wiadomość ma
      * być zachętą do kliknięcia, nie kopią strony.
      */
-    public function opis(Model $tresc): string
+    public function opis(Post|Recipe $tresc): string
     {
         if ($tresc instanceof Recipe) {
             return 'Przepis z Kuking: '.$tresc->title;
@@ -168,7 +168,7 @@ final class Udostepnianie
      *
      * @return list<array{nazwa: string, adres: string, opis: string, zewnetrzny: bool}>
      */
-    public function drogi(Model $tresc): array
+    public function drogi(Post|Recipe $tresc): array
     {
         $adres = $this->adres($tresc);
         $tytul = $this->tytul($tresc);
@@ -208,6 +208,8 @@ final class Udostepnianie
      *
      * Świadomie wąska lista: nowy typ treści ma tu trafić razem z decyzją,
      * co znaczy dla niego „publiczny", a nie odziedziczyć przycisk po cichu.
+     * Pozostałe metody tej klasy przyjmują już wyłącznie `Post|Recipe`
+     * (issue #1731) — widok pyta najpierw tutaj, dopiero potem o resztę.
      */
     public function obslugiwana(Model $tresc): bool
     {

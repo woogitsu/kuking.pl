@@ -13,8 +13,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy przepis
+ * wczytano przez `Collection::recipes()`:
+ *
+ * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
+ */
 class Recipe extends Model
 {
     /** @use HasFactory<RecipeFactory> */
@@ -125,16 +132,25 @@ class Recipe extends Model
     // Relacje
     // ---------------------------------------------------------------------
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function heroMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_id');
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function sourceScan(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'source_scan_media_id');
@@ -154,21 +170,33 @@ class Recipe extends Model
         return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
+    /**
+     * @return HasMany<RecipeIngredient, $this>
+     */
     public function ingredients(): HasMany
     {
         return $this->hasMany(RecipeIngredient::class)->orderBy('position');
     }
 
+    /**
+     * @return HasMany<RecipeStep, $this>
+     */
     public function steps(): HasMany
     {
         return $this->hasMany(RecipeStep::class)->orderBy('position');
     }
 
+    /**
+     * @return HasMany<RecipeVersion, $this>
+     */
     public function versions(): HasMany
     {
         return $this->hasMany(RecipeVersion::class)->orderByDesc('version_number');
     }
 
+    /**
+     * @return HasMany<CookedEvent, $this>
+     */
     public function cookedEvents(): HasMany
     {
         // DRUGI KLUCZ SORTOWANIA NIE JEST OZDOBĄ — TO WARUNEK POPRAWNEJ
@@ -195,6 +223,9 @@ class Recipe extends Model
             ->latest('id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)

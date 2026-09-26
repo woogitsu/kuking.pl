@@ -43,7 +43,7 @@ class StanWiadomosciCelBleduTest extends TestCase
         $this->assertStringContainsString('Wybierz stan wiadomości.', $error->textContent);
         $radios = $xp->query('//input[@type="radio" and @name="status"]');
         $this->assertCount(count(ContactMessage::STATUSY), $radios);
-        foreach ($radios as $radio) {
+        foreach (self::elementyDom($radios) as $radio) {
             $this->assertSame('true', $radio->getAttribute('aria-invalid'));
             $this->assertContains('f-status-error', explode(' ', $radio->getAttribute('aria-describedby')));
             $this->assertSame(1, $xp->query('ancestor::fieldset//*[@id="f-status-error"]', $radio)->length);

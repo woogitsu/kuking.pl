@@ -38,7 +38,7 @@ class JednaGranicaNaKazdejPowierzchniTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @return list<array{0: string, 1: bool}> */
+    /** @return array<string, array{0: string, 1: bool}> */
     public static function statusy(): array
     {
         return [

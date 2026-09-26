@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,9 +13,6 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Unit extends Model
 {
-    /** @use HasFactory<UnitFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     public const UPDATED_AT = null;

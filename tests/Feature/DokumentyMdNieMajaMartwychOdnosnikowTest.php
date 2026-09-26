@@ -461,7 +461,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         // tras POST-only (np. `/logout`, `/wejdz/facebook/odebranie-dostepu`,
         // `/ustawienia/twoje-dane/eksport`) — trasa „nie istnieje" oznacza
         // tu 404 dla KAŻDEJ metody, nie tylko brak GET-a.
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $wynik[$this->znormalizujTrase('/'.$trasa->uri())] = true;
         }
 

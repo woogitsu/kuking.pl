@@ -91,8 +91,7 @@ class OdkrywanieUzywaKolumnySzynyTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
 
-        $wezel = $xpath->query($selektor)->item(0);
-        $this->assertNotNull($wezel, "W dokumencie nie ma elementu „{$selektor}” — układ strony się zmienił.");
+        $wezel = self::elementDom($xpath->query($selektor)->item(0), "W dokumencie nie ma elementu „{$selektor}” — układ strony się zmienił.");
 
         return ' '.preg_replace('/\s+/', ' ', (string) $wezel->getAttribute('class')).' ';
     }

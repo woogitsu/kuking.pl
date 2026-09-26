@@ -34,6 +34,9 @@ class TagAlias extends Model
         'source',
     ];
 
+    /**
+     * @return BelongsTo<Tag, $this>
+     */
     public function tag(): BelongsTo
     {
         return $this->belongsTo(Tag::class);

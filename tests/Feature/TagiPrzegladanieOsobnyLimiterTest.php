@@ -94,7 +94,9 @@ class TagiPrzegladanieOsobnyLimiterTest extends TestCase
         }
 
         $this->assertNotNull($odpowiedz);
-        $odpowiedz->assertStatus(302, 'Pięćdziesiąte żądanie przeglądania odbiło się o limit zapisu — koszyki nie są rozdzielone.');
+        // `assertStatus()` nie przyjmuje komunikatu — drugi argument był po cichu
+        // gubiony (issue #1731), dlatego porównanie wprost.
+        $this->assertSame(302, $odpowiedz->getStatusCode(), 'Pięćdziesiąte żądanie przeglądania odbiło się o limit zapisu — koszyki nie są rozdzielone.');
     }
 
     /**
@@ -114,7 +116,7 @@ class TagiPrzegladanieOsobnyLimiterTest extends TestCase
         }
 
         $this->assertNotNull($odpowiedz);
-        $odpowiedz->assertStatus(429, 'Limit zapisu zniknął albo się rozluźnił — ma zostać przy 30/10.');
+        $this->assertSame(429, $odpowiedz->getStatusCode(), 'Limit zapisu zniknął albo się rozluźnił — ma zostać przy 30/10.');
     }
 
     /**
@@ -154,7 +156,7 @@ class TagiPrzegladanieOsobnyLimiterTest extends TestCase
         }
 
         $this->assertNotNull($odpowiedz);
-        $odpowiedz->assertStatus(429, 'Test nie wymusił prawdziwej odmowy 429 — kontrola metody pomiaru zawiodła.');
+        $this->assertSame(429, $odpowiedz->getStatusCode(), 'Test nie wymusił prawdziwej odmowy 429 — kontrola metody pomiaru zawiodła.');
 
         // Zaznaczenie zupy ma zostać WIDOCZNE na odzyskanym ekranie —
         // niezależnie od tego, że filtr akurat pokazywałby samo ciasto.

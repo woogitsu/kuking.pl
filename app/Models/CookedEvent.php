@@ -59,16 +59,25 @@ class CookedEvent extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsToMany<Media, $this>
+     */
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'cooked_event_media')
@@ -76,6 +85,9 @@ class CookedEvent extends Model
             ->orderBy('cooked_event_media.position');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)

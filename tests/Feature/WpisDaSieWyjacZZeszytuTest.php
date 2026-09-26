@@ -186,7 +186,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         // I to, co ten formularz wysyła, naprawdę wyjmuje wpis — RAZEM
         // z ukrytymi polami, bo to one niosą zakres (`collection_id`).
         $pola = [];
-        foreach ($xpath->query('.//input[@type="hidden"]', $formularz) as $ukryte) {
+        foreach (self::elementyDom($xpath->query('.//input[@type="hidden"]', $formularz)) as $ukryte) {
             $pola[$ukryte->getAttribute('name')] = $ukryte->getAttribute('value');
         }
 

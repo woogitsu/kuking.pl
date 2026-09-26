@@ -79,7 +79,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
         $fields = $xpath->query('//form[.//input[@name="title"]]//*[self::input or self::textarea or self::select][@name]');
         $this->assertGreaterThan(10, $fields->length, 'Parser musi czytać właściwy formularz.');
         $pairs = [];
-        foreach ($fields as $field) {
+        foreach (self::elementyDom($fields) as $field) {
             $type = $field->getAttribute('type');
             if (in_array($type, ['file', 'submit', 'button'], true) || $field->hasAttribute('disabled')) {
                 continue;
@@ -90,7 +90,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
             $value = $field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value');
             if ($field->tagName === 'select') {
                 $option = $xpath->query('.//option[@selected]', $field)->item(0) ?? $xpath->query('.//option', $field)->item(0);
-                $value = $option?->getAttribute('value') ?? '';
+                $value = $option === null ? '' : self::elementDom($option)->getAttribute('value');
             }
             $pairs[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($value);
         }

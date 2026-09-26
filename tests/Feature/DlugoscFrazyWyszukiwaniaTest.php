@@ -48,7 +48,7 @@ class DlugoscFrazyWyszukiwaniaTest extends TestCase
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
         $xpath = new \DOMXPath($dom);
-        $input = $xpath->query('//input[@id="f-q"]')->item(0);
+        $input = self::elementDom($xpath->query('//input[@id="f-q"]')->item(0));
         $this->assertSame($phrase, $input->getAttribute('value'));
         $this->assertSame('true', $input->getAttribute('aria-invalid'), 'Długa fraza nie ma błędu przy polu.');
         $this->assertStringContainsString('f-q-error', $input->getAttribute('aria-describedby'));

@@ -207,7 +207,7 @@ class AkcjeKomentarzaWJednymRzedzieTest extends TestCase
             ->get(route('posts.show', $wpis))->assertOk()->getContent());
         $strefy = $xpath->query('.//*[contains(concat(" ", normalize-space(@class), " "), " danger-zone ")]', $this->sekcjaKomentarzy($xpath));
         $this->assertCount(2, $strefy, 'Musi istnieć strefa własnego komentarza i własnej odpowiedzi.');
-        foreach ($strefy as $strefa) {
+        foreach (self::elementyDom($strefy) as $strefa) {
             // D-154: odstęp 32 + 24 pochodzi z systemu. Lokalne utility
             // nadpisują go po cichu; piksele sprawdza osobny pomiar Chromium.
             $this->assertDoesNotMatchRegularExpression('/(?:^|\s)(?:[a-z0-9-]+:)*[mp][ty]?-(?:\d|\[)/', $strefa->getAttribute('class'));

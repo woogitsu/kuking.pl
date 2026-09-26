@@ -96,7 +96,7 @@ final class TagCollage
 
     /**
      * @param  array<string, Collection<int, Media>>  $result
-     * @param  SupportCollection<int, object{tag_id: string, post_id: string, media_id: string}>  $rows
+     * @param  SupportCollection<int, \stdClass>  $rows  wiersze `DB::query()`: tag_id, post_id, media_id
      * @return array<string, Collection<int, Media>>
      */
     private function kafle(array $result, SupportCollection $rows, ?User $viewer): array
@@ -131,7 +131,7 @@ final class TagCollage
      * Wiersze doboru dla gościa: z cache per tag, brakujące liczone razem.
      *
      * @param  list<string>  $tagIds
-     * @return SupportCollection<int, object{tag_id: string, post_id: string, media_id: string}>
+     * @return SupportCollection<int, \stdClass> wiersze `DB::query()`: tag_id, post_id, media_id
      */
     private function wierszeGoscia(array $tagIds): SupportCollection
     {
@@ -168,7 +168,7 @@ final class TagCollage
 
     /**
      * @param  list<string>  $tagIds
-     * @return SupportCollection<int, object{tag_id: string, post_id: string, media_id: string}>
+     * @return SupportCollection<int, \stdClass> wiersze `DB::query()`: tag_id, post_id, media_id
      */
     private function wiersze(array $tagIds, ?User $viewer): SupportCollection
     {

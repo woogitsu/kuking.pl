@@ -122,7 +122,7 @@ final class ZeszytUsuwaZapisanyWpisTest extends TestCase
 
         $xpath = new \DOMXPath($dom);
         $forms = [];
-        foreach ($xpath->query('//form[@action="'.$action.'"]') as $form) {
+        foreach (self::elementyDom($xpath->query('//form[@action="'.$action.'"]')) as $form) {
             if ($this->hiddenValue($form, '_method') === 'DELETE') {
                 $forms[] = $form;
             }
@@ -136,6 +136,6 @@ final class ZeszytUsuwaZapisanyWpisTest extends TestCase
         $xpath = new \DOMXPath($form->ownerDocument);
         $nodes = $xpath->query('.//input[@name="'.$name.'"]', $form);
 
-        return $nodes->length > 0 ? $nodes->item(0)->getAttribute('value') : null;
+        return $nodes->length > 0 ? self::elementDom($nodes->item(0))->getAttribute('value') : null;
     }
 }

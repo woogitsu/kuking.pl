@@ -195,13 +195,16 @@ class BezpiecznyPanelKontaktuTest extends TestCase
     }
 
     /** Pola, których właścicielem jest formularz `#$id` (potomek albo `form="$id"`). */
-    private function wlasne(\DOMDocument $dom, string $id): \DOMNodeList
+    /** @return list<\DOMElement> */
+    private function wlasne(\DOMDocument $dom, string $id): array
     {
         $xpath = new \DOMXPath($dom);
         $this->assertSame(1, $xpath->query("//form[@id='$id']")->length, "Brak formularza #$id.");
 
-        return $xpath->query("//form[@id='$id']//*[(self::input or self::textarea or self::select) and not(@form)]"
+        $pola = $xpath->query("//form[@id='$id']//*[(self::input or self::textarea or self::select) and not(@form)]"
             ."|//*[(self::input or self::textarea or self::select) and @form='$id']");
+
+        return array_map(static fn (\DOMNode $pole): \DOMElement => self::elementDom($pole), iterator_to_array($pola, false));
     }
 
     /** Wpisanie wartości tak, jak robi to człowiek w polu. */
@@ -246,7 +249,7 @@ class BezpiecznyPanelKontaktuTest extends TestCase
             $wartosc = $pole->nodeName === 'textarea' ? $pole->textContent : $pole->getAttribute('value');
             if ($skrypt && $pole->hasAttribute('data-kopia-z')) {
                 $zrodlo = $xpath->query($css->toXPath($pole->getAttribute('data-kopia-z')))->item(0);
-                if ($zrodlo !== null) {
+                if ($zrodlo instanceof \DOMElement) {
                     $pole->removeAttribute('disabled');
                     $wartosc = $zrodlo->nodeName === 'textarea' ? $zrodlo->textContent : $zrodlo->getAttribute('value');
                 }

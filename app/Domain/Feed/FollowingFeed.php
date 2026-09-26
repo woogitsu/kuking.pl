@@ -7,7 +7,7 @@ namespace App\Domain\Feed;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Pagination\CursorPaginator;
 
 /**
  * Feed obserwowanych — chronologicznie, bez algorytmu.

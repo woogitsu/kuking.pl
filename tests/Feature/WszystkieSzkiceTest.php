@@ -37,7 +37,7 @@ class WszystkieSzkiceTest extends TestCase
             $dom = new \DOMDocument;
             @$dom->loadHTML('<?xml encoding="UTF-8">'.$page->getContent());
             $xpath = new \DOMXPath($dom);
-            foreach ($xpath->query('//main//a[contains(@href, "szkic=")]') as $link) {
+            foreach (self::elementyDom($xpath->query('//main//a[contains(@href, "szkic=")]')) as $link) {
                 $seen[] = $link->getAttribute('href');
                 $this->get($link->getAttribute('href'))->assertOk();
             }

@@ -52,11 +52,17 @@ class Profile extends Model
         return self::whereRaw('lower(username) = ?', [mb_strtolower(trim($username))])->first();
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function avatar(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'avatar_media_id');

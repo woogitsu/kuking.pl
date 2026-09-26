@@ -31,8 +31,8 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
         $doc = new \DOMDocument;
         @$doc->loadHTML('<?xml encoding="utf-8" ?>'.$component->html());
         $xpath = new \DOMXPath($doc);
-        $this->assertSame($tekst, $xpath->query('//input[@id="f-title"]')->item(0)->getAttribute('value'));
-        $this->assertSame('true', $xpath->query('//input[@id="f-title"]')->item(0)->getAttribute('aria-invalid'));
+        $this->assertSame($tekst, self::elementDom($xpath->query('//input[@id="f-title"]')->item(0))->getAttribute('value'));
+        $this->assertSame('true', self::elementDom($xpath->query('//input[@id="f-title"]')->item(0))->getAttribute('aria-invalid'));
         $component->set('title', '')->assertHasNoErrors('title')->assertSet('saveState', 'waiting');
         $this->assertDatabaseCount('recipes', 0);
         $component->set('title', str_repeat('a', 180))->assertHasNoErrors('title')->assertSet('saveState', 'saved');

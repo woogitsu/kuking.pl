@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\MessageBag;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -51,7 +53,7 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
         // Podsumowanie błędów w tym stanie MUSI wiedzieć, że pole jest na
         // kroku 3, nie na kroku 2 — inaczej link byłby zwykłym `<a href>`
         // do celu, którego w HTML w ogóle nie ma.
-        $this->assertSame(3, $component->instance()->stepForKey('steps.0.instruction'));
+        $this->assertSame(3, $this->krokDla($component, 'steps.0.instruction'));
 
         // Kliknięcie takiego odnośnika w prawdziwym widoku wywołuje
         // `jumpToError()` — przełącza krok i prosi przeglądarkę o fokus na
@@ -67,13 +69,13 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
 
         $component = Livewire::actingAs($user)->test(self::COMPONENT);
 
-        $this->assertSame(1, $component->instance()->stepForKey('title'));
-        $this->assertSame(1, $component->instance()->stepForKey('heroPhoto'));
-        $this->assertSame(2, $component->instance()->stepForKey('ingredients.0.text'));
-        $this->assertSame(3, $component->instance()->stepForKey('steps'));
-        $this->assertSame(3, $component->instance()->stepForKey('steps.2.instruction'));
-        $this->assertSame(3, $component->instance()->stepForKey('steps.0.photo'));
-        $this->assertSame(4, $component->instance()->stepForKey('publikacja'));
+        $this->assertSame(1, $this->krokDla($component, 'title'));
+        $this->assertSame(1, $this->krokDla($component, 'heroPhoto'));
+        $this->assertSame(2, $this->krokDla($component, 'ingredients.0.text'));
+        $this->assertSame(3, $this->krokDla($component, 'steps'));
+        $this->assertSame(3, $this->krokDla($component, 'steps.2.instruction'));
+        $this->assertSame(3, $this->krokDla($component, 'steps.0.photo'));
+        $this->assertSame(4, $this->krokDla($component, 'publikacja'));
     }
 
     /**
@@ -107,15 +109,13 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
             ->set('title', 'Przepis z odrzuconym zdjęciem kroku')
             ->set('steps.0.instruction', 'Podsmaż cebulę.');
 
-        $instance = $c->instance();
-        $instance->steps[0]['photo'] = $zepsuty;
-        $instance->publish();
+        [$krok, $bledy] = $this->opublikujZeZdjeciem($c, 'krok', $zepsuty);
 
         // Błąd wisi przy `steps.0.photo`, które jest TYLKO na kroku 3.
         // Stałe „krok 1" z issue #747 pokazywałoby puste zdjęcie główne
         // i żaden widoczny komunikat błędu.
-        $this->assertSame(3, $instance->step, 'Błąd steps.0.photo istnieje tylko na kroku 3.');
-        $this->assertTrue($instance->getErrorBag()->has('steps.0.photo'));
+        $this->assertSame(3, $krok, 'Błąd steps.0.photo istnieje tylko na kroku 3.');
+        $this->assertTrue($bledy->has('steps.0.photo'));
     }
 
     public function test_odrzucone_zdjecie_glowne_przy_publikacji_nadal_wraca_na_krok_pierwszy(): void
@@ -130,14 +130,61 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
             ->set('title', 'Przepis z odrzuconym zdjęciem głównym')
             ->set('steps.0.instruction', 'Podsmaż cebulę.');
 
-        $instance = $c->instance();
-        $instance->heroPhoto = $zepsuty;
-        $instance->publish();
+        [$krok, $bledy] = $this->opublikujZeZdjeciem($c, 'glowne', $zepsuty);
 
         // Kontrola: ta ścieżka MIAŁA już działać poprawnie przed poprawką —
         // zdjęcie główne jest jedynym polem na kroku 1, więc stała „krok 1"
         // przypadkiem trafiała. Test pilnuje, żeby refaktor jej nie popsuł.
-        $this->assertSame(1, $instance->step);
-        $this->assertTrue($instance->getErrorBag()->has('heroPhoto'));
+        $this->assertSame(1, $krok);
+        $this->assertTrue($bledy->has('heroPhoto'));
+    }
+
+    /**
+     * Kreator to anonimowa klasa komponentu z pliku Blade — analiza nie ma
+     * skąd znać jego metod i pól, więc test sprawdza je jawnie, zanim ich
+     * użyje (issue #1731). Zmiana nazwy w komponencie daje wtedy zdanie,
+     * a nie „Call to undefined method".
+     */
+    private function krokDla(Testable $component, string $klucz): int
+    {
+        $kreator = $component->instance();
+
+        if (! method_exists($kreator, 'stepForKey')) {
+            self::fail('Kreator nie ma już metody stepForKey() — ten test pilnuje metody, której nie ma.');
+        }
+
+        return $kreator->stepForKey($klucz);
+    }
+
+    /**
+     * Wstawia plik wprost do instancji kreatora i publikuje; oddaje krok,
+     * na którym kreator stanął, i błędy — z tego samego powodu co `krokDla()`
+     * pola i metoda są sprawdzane jawnie.
+     *
+     * Wprost do instancji, a nie przez `->set()`: `set()` na polu pliku
+     * przechodzi przez upload Livewire'a i wtedy krok po publikacji wychodzi
+     * inny (sprawdzone) — a te testy pilnują właśnie ścieżki `publish()`.
+     *
+     * @param  'krok'|'glowne'  $gdzie
+     * @return array{0: mixed, 1: MessageBag}
+     */
+    private function opublikujZeZdjeciem(Testable $component, string $gdzie, UploadedFile $plik): array
+    {
+        $kreator = $component->instance();
+
+        if (! property_exists($kreator, 'step') || ! property_exists($kreator, 'steps')
+            || ! property_exists($kreator, 'heroPhoto') || ! method_exists($kreator, 'publish')) {
+            self::fail('Kreator nie ma już pól step, steps, heroPhoto albo metody publish() — te testy pilnują czegoś, czego nie ma.');
+        }
+
+        if ($gdzie === 'glowne') {
+            $kreator->heroPhoto = $plik;
+        } else {
+            $kreator->steps[0]['photo'] = $plik;
+        }
+
+        $kreator->publish();
+
+        return [$kreator->step, $kreator->getErrorBag()];
     }
 }

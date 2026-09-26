@@ -12,6 +12,7 @@ use App\Notifications\PotwierdzenieAdresu;
 use App\Poczta\PowodOdmowy;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -79,7 +80,7 @@ class DatyBezStrefyNaEkranieTest extends TestCase
         $slad->prob = 3;
         $slad->user_id = (string) $osoba->getKey();
         $slad->komunikat = 'Dostawca odmówił.';
-        $slad->failed_at = $moment;
+        $slad->failed_at = Carbon::instance($moment);
         $slad->save();
 
         $odpowiedz = $this->actingAs($osoba->fresh())->get('/potwierdz-email');

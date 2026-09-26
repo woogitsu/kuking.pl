@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Support\AdresKanoniczny;
+use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -158,7 +159,7 @@ final class LinkDoLogowania extends Notification implements ShouldBeEncrypted, S
     }
 
     /** Termin tego linku; przekazana data może go skrócić, nigdy wydłużyć. */
-    private function termin(LoginLinkToken $wiersz): ?Carbon
+    private function termin(LoginLinkToken $wiersz): ?CarbonInterface
     {
         $zBazy = $wiersz->expires_at;
         if ($zBazy === null) {

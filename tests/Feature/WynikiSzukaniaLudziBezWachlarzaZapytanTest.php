@@ -233,7 +233,7 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
         foreach ($wiersze as $wiersz) {
             $pola = $xpath->query('./input[@type="checkbox" and @name="follow[]"]', $wiersz);
             $this->assertSame(1, $pola->length);
-            $nazwa = $pola->item(0)->getAttribute('value');
+            $nazwa = self::elementDom($pola->item(0))->getAttribute('value');
             $this->assertMatchesRegularExpression('/^pierogarz([1-9]|10)$/', $nazwa);
             $etykieta = $xpath->evaluate('string(.//span[contains(concat(" ", normalize-space(@class), " "), " choice-label ")])', $wiersz);
             $this->assertSame('Pierogarz numer '.substr($nazwa, strlen('pierogarz')), trim($etykieta));

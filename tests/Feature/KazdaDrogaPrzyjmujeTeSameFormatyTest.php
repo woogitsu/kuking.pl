@@ -179,7 +179,7 @@ class KazdaDrogaPrzyjmujeTeSameFormatyTest extends TestCase
 
         $odpowiedz->assertSessionHasErrors('photos.0');
 
-        $bledy = $odpowiedz->baseResponse->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
         $komunikat = (string) $bledy->get('photos.0')[0];
 
         foreach (['JPG', 'PNG', 'WebP', 'AVIF'] as $nazwa) {

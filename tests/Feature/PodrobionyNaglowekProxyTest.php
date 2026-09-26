@@ -275,7 +275,7 @@ class PodrobionyNaglowekProxyTest extends TestCase
             return true;
         }
 
-        $bledy = $odpowiedz->getSession()->get('errors');
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
 
         $tekst = match (true) {
             $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => (string) $bledy->first('login'),

@@ -234,9 +234,11 @@ class NieudanyListZostawiaSladTest extends TestCase
         $odpowiedz->assertOk(); // NIE 503: poczta nie jest krytyczna, Railway nie ma czego restartować.
         $odpowiedz->assertJsonPath('status', 'degraded');
         $odpowiedz->assertJsonPath('checks.listy.ok', false);
-        $odpowiedz->assertJsonPath(
-            'checks.listy.error',
+        // `assertJsonPath()` nie przyjmuje komunikatu — trzeci argument był
+        // dotąd po cichu gubiony (PHPStan, poziom 2 — issue #1731).
+        $this->assertSame(
             'limit_poczty_wyczerpany',
+            $odpowiedz->json('checks.listy.error'),
             'Wyczerpany limit ma własny kod — monitoring odróżnia „skończyła się pula" od „coś się psuje".',
         );
 

@@ -11,6 +11,7 @@ use App\Models\ModerationAction;
 use App\Models\Notification;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -153,7 +154,7 @@ final class RetencjaNieGubiMiesiacaNaKoncuMiesiacaTest extends TestCase
     public function termin_odwolania_nie_zostaje_skrocony_przy_okazji(): void
     {
         $decyzja = new ModerationAction;
-        $decyzja->created_at = CarbonImmutable::parse('2026-08-31 12:00:00', 'UTC');
+        $decyzja->created_at = Carbon::parse('2026-08-31 12:00:00', 'UTC');
 
         $termin = $decyzja->appealDeadline();
         $bezPrzepelnienia = CarbonImmutable::parse('2026-08-31 12:00:00', 'UTC')->addMonthsNoOverflow(6);

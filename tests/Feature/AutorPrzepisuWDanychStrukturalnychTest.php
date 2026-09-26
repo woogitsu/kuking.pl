@@ -259,7 +259,7 @@ class AutorPrzepisuWDanychStrukturalnychTest extends TestCase
      * może pilnować wyłącznie tego jednego miejsca, w którym błąd stał.
      *
      * @param  list<array<string, mixed>>  $bloki
-     * @return array<string, array{@type: string, name: string}>
+     * @return array<string, array{'@type': string, name: string}>
      */
     private function wszystkieEncjeNazwane(array $bloki): array
     {

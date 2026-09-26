@@ -35,7 +35,7 @@ class PanelNazywaEkranTakSamoWszedzieTest extends TestCase
     /**
      * Rodzaje treści z rodziny „bez odpowiedzi” i nazwa, jaką ekran ma nosić.
      *
-     * @return list<array{0: string, 1: string}>
+     * @return array<string, array{0: string, 1: string}>
      */
     public static function rodzajeTresci(): array
     {

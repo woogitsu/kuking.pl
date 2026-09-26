@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\IngredientFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -15,9 +13,6 @@ use Illuminate\Support\Str;
  */
 class Ingredient extends Model
 {
-    /** @use HasFactory<IngredientFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     public const UPDATED_AT = null;

@@ -96,11 +96,17 @@ class ContactMessage extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function handler(): BelongsTo
     {
         return $this->belongsTo(User::class, 'handled_by');

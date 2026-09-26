@@ -312,7 +312,7 @@ class ZrodloZewnetrzneWDanychStrukturalnychTest extends TestCase
      * Każda encja z nazwą i typem, jaka stoi gdziekolwiek w podanych blokach.
      *
      * @param  list<array<string, mixed>>  $bloki
-     * @return array<string, array{@type: string, name: string}>
+     * @return array<string, array{'@type': string, name: string}>
      */
     private function wszystkieEncjeNazwane(array $bloki): array
     {

@@ -280,7 +280,7 @@ class LimityTrasZapisujacychTest extends TestCase
         $bezLimitu = [];
         $zbadanych = 0;
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $metody = array_diff($trasa->methods(), ['GET', 'HEAD', 'OPTIONS']);
 
             if ($metody === []) {

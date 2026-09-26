@@ -42,8 +42,8 @@ class NotatkiTagowFormularzeNiezalezneTest extends TestCase
         foreach ($tags as $tag) {
             $row = $initialXpath->query('//form[@action="'.route('admin.tag-promotions.update', $tag).'"][input[@name="_method" and @value="PUT"]]/input[@name="_wiersz"]');
             $this->assertCount(1, $row);
-            $this->assertSame((string) $tag->id, $row->item(0)->getAttribute('value'));
-            $rowValues[] = $row->item(0)->getAttribute('value');
+            $this->assertSame((string) $tag->id, self::elementDom($row->item(0))->getAttribute('value'));
+            $rowValues[] = self::elementDom($row->item(0))->getAttribute('value');
         }
         $this->from(route('admin.tag-promotions'))
             ->put(route('admin.tag-promotions.update', $target), ['note' => $invalid, '_wiersz' => $rowValues[$submitted]])
@@ -55,20 +55,20 @@ class NotatkiTagowFormularzeNiezalezneTest extends TestCase
         $fields = $xpath->query('//input[@name="note"]');
         $this->assertCount(2, $fields);
         foreach ([0, 1] as $index) {
-            $this->assertSame($index === $submitted ? $invalid : $original[$index], $fields->item($index)->getAttribute('value'));
-            $id = $fields->item($index)->getAttribute('id');
+            $this->assertSame($index === $submitted ? $invalid : $original[$index], self::elementDom($fields->item($index))->getAttribute('value'));
+            $id = self::elementDom($fields->item($index))->getAttribute('id');
             $this->assertSame('f-note-'.$tags[$index]->id, $id);
             $this->assertCount(1, $xpath->query('//label[@for="'.$id.'"]'));
-            $this->assertSame($index === $submitted ? 'true' : '', $fields->item($index)->getAttribute('aria-invalid'));
+            $this->assertSame($index === $submitted ? 'true' : '', self::elementDom($fields->item($index))->getAttribute('aria-invalid'));
         }
-        $this->assertNotSame($fields->item(0)->getAttribute('id'), $fields->item(1)->getAttribute('id'));
+        $this->assertNotSame(self::elementDom($fields->item(0))->getAttribute('id'), self::elementDom($fields->item(1))->getAttribute('id'));
         $this->assertCount(1, $xpath->query('//a[@href="#f-note-'.$target->id.'"]'));
         $this->assertCount(1, $xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," field-error ")]'));
-        $error = $xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," field-error ")]')->item(0);
+        $error = self::elementDom($xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," field-error ")]')->item(0));
         $errorId = $error->getAttribute('id');
         $this->assertNotSame('', $errorId);
-        $this->assertContains($errorId, explode(' ', $fields->item($submitted)->getAttribute('aria-describedby')));
-        $this->assertNotContains($errorId, explode(' ', $fields->item(1 - $submitted)->getAttribute('aria-describedby')));
+        $this->assertContains($errorId, explode(' ', self::elementDom($fields->item($submitted))->getAttribute('aria-describedby')));
+        $this->assertNotContains($errorId, explode(' ', self::elementDom($fields->item(1 - $submitted))->getAttribute('aria-describedby')));
         $this->assertTrue($xpath->query('ancestor::form', $error)->item(0)->isSameNode($xpath->query('ancestor::form', $fields->item($submitted))->item(0)));
         $this->assertSame('FIRST ORIGINAL', $first->fresh()->promotion->note);
         $this->assertSame('SECOND ORIGINAL', $second->fresh()->promotion->note);

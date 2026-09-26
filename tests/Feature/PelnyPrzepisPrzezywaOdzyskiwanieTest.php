@@ -72,7 +72,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $xpath = new \DOMXPath($doc);
         $expected = Arr::dot($dane);
         $encoded = [];
-        foreach ($xpath->query('//main//form//input[@name] | //main//form//textarea[@name]') as $field) {
+        foreach (self::elementyDom($xpath->query('//main//form//input[@name] | //main//form//textarea[@name]')) as $field) {
             $encoded[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value'));
         }
         parse_str(implode('&', $encoded), $actual);
@@ -205,14 +205,14 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $forms = $xpath->query('//main//form');
         $this->assertCount(1, $forms);
         $fields = [];
-        foreach ($xpath->query('.//input[@name] | .//textarea[@name]', $forms->item(0)) as $field) {
+        foreach (self::elementyDom($xpath->query('.//input[@name] | .//textarea[@name]', $forms->item(0))) as $field) {
             $value = $field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value');
             $fields[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($value);
         }
         parse_str(implode('&', $fields), $data);
         $this->assertNotEmpty($data['_token']);
 
-        return ['action' => $forms->item(0)->getAttribute('action'), 'method' => strtoupper($forms->item(0)->getAttribute('method')), 'data' => $data];
+        return ['action' => self::elementDom($forms->item(0))->getAttribute('action'), 'method' => strtoupper(self::elementDom($forms->item(0))->getAttribute('method')), 'data' => $data];
     }
 
     /**

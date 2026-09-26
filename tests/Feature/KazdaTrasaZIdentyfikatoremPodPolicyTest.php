@@ -191,7 +191,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $zParametrem = 0;
         $niepokryte = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (! str_contains($trasa->uri(), '{')) {
                 continue;
             }

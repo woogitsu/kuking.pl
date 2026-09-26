@@ -32,6 +32,11 @@ class RecipeWidocznoscTest extends WidocznoscTestCase
 
     protected function adres(Model $tresc): string
     {
+        // `utworz()` tej klasy tworzy przepis; typ zawężamy jawnie (#1731).
+        if (! $tresc instanceof Recipe) {
+            self::fail('Ten test sprawdza przepis, a dostał '.$tresc::class.'.');
+        }
+
         return route('recipes.show', $tresc->slug);
     }
 

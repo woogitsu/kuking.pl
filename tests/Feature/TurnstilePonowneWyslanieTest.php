@@ -73,17 +73,17 @@ class TurnstilePonowneWyslanieTest extends TestCase
             $fields = $xpath->query('//*[@name="'.$name.'"]');
             $this->assertGreaterThan(0, $fields->length, $name);
             if ($name === 'password') {
-                $this->assertSame('', $fields->item(0)->getAttribute('value'));
+                $this->assertSame('', self::elementDom($fields->item(0))->getAttribute('value'));
                 $page->assertDontSee($value);
 
                 continue;
             }
             $this->assertSame($value, $old[$name] ?? null);
-            $field = $fields->item(0);
+            $field = self::elementDom($fields->item(0));
             if (in_array($field->getAttribute('type'), ['radio', 'checkbox'], true)) {
                 $checked = $xpath->query('//*[@name="'.$name.'" and @checked]');
                 $this->assertSame(1, $checked->length, $name);
-                $this->assertSame($value, $checked->item(0)->getAttribute('value'));
+                $this->assertSame($value, self::elementDom($checked->item(0))->getAttribute('value'));
             } else {
                 $this->assertSame($value, $field->nodeName === 'textarea' ? trim($field->textContent) : $field->getAttribute('value'), $name);
             }

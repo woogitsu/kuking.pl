@@ -118,7 +118,7 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         $przeskanowane = 0;
         $bezBramki = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $metoda = $this->metodaKontrolera($trasa);
 
             if ($metoda === null) {
@@ -167,7 +167,7 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
     {
         $istniejace = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if ($trasa->getName() !== null) {
                 $istniejace[$trasa->getName()] = true;
             }

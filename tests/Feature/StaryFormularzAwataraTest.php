@@ -44,7 +44,7 @@ class StaryFormularzAwataraTest extends TestCase
         $forms = $xpath->query('//form[input[@name="_method" and @value="DELETE"]]');
         $this->assertCount(1, $forms);
         $fields = [];
-        foreach ($xpath->query('.//input[@name]', $forms->item(0)) as $input) {
+        foreach (self::elementyDom($xpath->query('.//input[@name]', $forms->item(0))) as $input) {
             $fields[$input->getAttribute('name')] = $input->getAttribute('value');
         }
 

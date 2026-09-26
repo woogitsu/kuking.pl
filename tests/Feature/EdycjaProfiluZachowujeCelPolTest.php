@@ -81,7 +81,7 @@ class EdycjaProfiluZachowujeCelPolTest extends TestCase
         libxml_clear_errors();
 
         $wynik = [];
-        foreach ((new DOMXPath($dom))->query('//input[@name="display_name" or @name="username"]') as $input) {
+        foreach (self::elementyDom((new DOMXPath($dom))->query('//input[@name="display_name" or @name="username"]')) as $input) {
             $wynik[$input->getAttribute('name')] = $input->getAttribute('autocomplete');
         }
 

@@ -17,7 +17,7 @@ use Tests\TestCase;
  * ZMIERZONE I W PORZĄDKU, zapisane testem, żeby zostało w porządku.
  *
  * `ProfileController::stats` liczy te trzy liczniki DOKŁADNIE tym samym
- * `tap(fn ($query) => $this->tylkoWidoczne(...))` / `tylkoZWidocznychPrzepisow`,
+ * `tap(fn ($query) => $this->tylkoWidoczneWpisy(...))` / `tylkoZWidocznychPrzepisow`,
  * którego używają zakładki „Wszystko", „Przepisy" i „Ugotowane" — to nie jest
  * przypadek, tylko jedna metoda prywatna wywołana w dwóch miejscach. Ten test
  * nie naprawia niczego: zamyka drzwi przed przyszłym rozjazdem (np. gdyby

@@ -18,7 +18,7 @@ final class QueueCorrelation
 
     private const KEYS = ['request_id', 'job_id', 'attempt_id'];
 
-    /** @var WeakMap<object, array{previous: array<string, string>, current: array<string, string>}> */
+    /** @var WeakMap<object, array{previous: array<string, mixed>, current: array<string, string>}> */
     private WeakMap $jobs;
 
     /** @var WeakMap<Throwable, array<string, string>> */
@@ -87,13 +87,14 @@ final class QueueCorrelation
         return $this->exceptions[$exception] ?? [];
     }
 
+    /** @phpstan-assert-if-true string $id */
     public static function validId(mixed $id): bool
     {
         return is_string($id)
             && preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/D', $id) === 1;
     }
 
-    /** @param array<string, string> $context */
+    /** @param array<string, mixed> $context poprzedni kontekst dziennika albo identyfikatory tego zadania */
     private function replace(array $context): void
     {
         $other = array_diff_key((array) Log::sharedContext(), array_flip(self::KEYS));

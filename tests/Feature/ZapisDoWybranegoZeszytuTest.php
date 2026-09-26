@@ -84,11 +84,11 @@ class ZapisDoWybranegoZeszytuTest extends TestCase
         $xpath = new DOMXPath($dom);
         $invalid = $xpath->query('//input[@name="collection_id"][@aria-invalid="true"][@id]');
         $this->assertCount(1, $invalid);
-        $id = $invalid->item(0)->getAttribute('id');
+        $id = self::elementDom($invalid->item(0))->getAttribute('id');
         $this->assertSame('f-collection_id-'.$row, $id);
         $this->assertCount(1, $xpath->query('//details[@open][.//input[@id="'.$id.'"]]'));
         $this->assertCount(1, $xpath->query('//a[@href="#'.$id.'"]'));
-        $this->assertCount(1, $xpath->query('//*[@id="'.$invalid->item(0)->getAttribute('aria-describedby').'"]'));
+        $this->assertCount(1, $xpath->query('//*[@id="'.self::elementDom($invalid->item(0))->getAttribute('aria-describedby').'"]'));
         $this->assertCount(0, $xpath->query('//details[@open][.//input[@id="f-collection_id-wpis-'.$first->id.'"]]'));
         $this->assertDatabaseCount('collection_items', 0);
     }
@@ -134,8 +134,8 @@ class ZapisDoWybranegoZeszytuTest extends TestCase
         $options = $xpath->query('.//input[@type="radio"][@name="collection_id"][@value="'.$own->id.'"]', $form);
         $this->assertCount(1, $options);
         $this->assertCount(0, $xpath->query('.//input[@name="collection_id"][@value="'.$foreign->id.'"]', $form));
-        $data = ['collection_id' => $options->item(0)->getAttribute('value')];
-        foreach ($xpath->query('.//input[@type="hidden"]', $form) as $input) {
+        $data = ['collection_id' => self::elementDom($options->item(0))->getAttribute('value')];
+        foreach (self::elementyDom($xpath->query('.//input[@type="hidden"]', $form)) as $input) {
             if ($input->getAttribute('name') !== '_token') {
                 $data[$input->getAttribute('name')] = $input->getAttribute('value');
             }
