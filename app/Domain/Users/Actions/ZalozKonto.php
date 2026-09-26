@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
-use App\Domain\Community\HostUserResolver;
-use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Users\ObserwowanieGospodarza;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
@@ -67,10 +66,7 @@ use Throwable;
  */
 final class ZalozKonto
 {
-    public function __construct(
-        private readonly FollowUser $followUser,
-        private readonly HostUserResolver $hostUser,
-    ) {}
+    public function __construct(private readonly ObserwowanieGospodarza $obserwowanieGospodarza) {}
 
     /**
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
@@ -256,7 +252,8 @@ final class ZalozKonto
      * wielkości niż rejestracja, która się nie udała.
      *
      * DWA RODZAJE AWARII, DWIE DROGI
-     * `BladDlaCzlowieka` rzuca `FollowUser` świadomie (konto niedostępne,
+     * `BladDlaCzlowieka` rzuca `FollowUser` (za kontraktem
+     * `ObserwowanieGospodarza`) świadomie (konto niedostępne,
      * blokada, próba obserwowania samego siebie) — to stan konfiguracji,
      * nie usterka, i przechodzi po cichu jak dotąd.
      *
@@ -275,17 +272,10 @@ final class ZalozKonto
     private function zaobserwujGospodarza(User $user): void
     {
         try {
-            DB::transaction(function () use ($user): void {
-                // Gospodarz rozpoznawany po UUID konta, nie po edytowalnej
-                // nazwie profilu (#1089) — jedno źródło: HostUserResolver.
-                $gospodarz = $this->hostUser->resolve();
-
-                if ($gospodarz === null || $gospodarz->getKey() === $user->getKey()) {
-                    return;
-                }
-
-                $this->followUser->handle($user, $gospodarz);
-            });
+            // Samo obserwowanie (i odszukanie gospodarza) mieszka w `Social`
+            // za kontraktem `ObserwowanieGospodarza` — bez importu `Social`
+            // tutaj, żeby nie zamknąć cyklu `Users ↔ Social` (#971).
+            DB::transaction(fn () => $this->obserwowanieGospodarza->zacznij($user));
         } catch (BladDlaCzlowieka) {
             // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
             // idzie dalej; feed ratują tematy z onboardingu (#31).
