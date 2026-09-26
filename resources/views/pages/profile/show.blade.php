@@ -406,7 +406,7 @@
         @else
             <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" :showRecipe="true" />
+                    <x-cooked-card :event="$event" :showRecipe="true" :przepisZaBlokada="$event->recipe !== null && in_array($event->recipe->author_id, $autorzyZaBlokada, true)" />
                 @endforeach
             </div>
             <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
