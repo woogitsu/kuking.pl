@@ -17433,6 +17433,16 @@ blokady zrobione PRZEZ widza; blokada, którą ktoś odciął widza, nie zdradza
 się) i zawsze prowadzi do listy ukrytych (gdy dotyczy), tablicy na dziś
 i „Dodaj wpis”.
 
+**Własne wpisy widza stoją w rotacji jak każdy autor (decyzja właściciela,
+26 września 2026, #1567).** Odkrywanie nie odsiewa wpisów zalogowanej osoby
+i ich nie wyróżnia: jej najnowszy wpis stoi w pierwszej rundzie obok
+najnowszego wpisu każdej innej osoby, drugi — w drugiej. Po publikacji
+człowiek widzi swój wpis na „Świeżo z Kuking” i wie, że się zapisał, a nie
+zajmuje przez to więcej miejsca niż inni. Tak samo na Starcie osoby, która
+nikogo nie obserwuje (feed zastępczy z #1318): jej wpisy „tylko dla
+obserwujących” wchodzą do jej rund, nie obok nich. Pilnuje
+`OdkrywanieRotacjaAutorowTest::test_wlasne_wpisy_widza_stoja_w_rotacji_jak_kazdy_autor`.
+
 **Wpis z własną treścią (D-274) w rotacji.** D-274 mówiło „liczy się do
 limitu jednego wpisu na autora”. Po rotacji to samo znaczy: wpis z własną
 treścią po ukryciu przepisu zajmuje miejsce w rundach swojego autora jak
@@ -17444,8 +17454,8 @@ Automatyczna część tablicy „kuKINGi na dziś” (`DailyBoard`) zostaje bez 
 
 ### Zdanie do strony „Jak dobieramy wpisy” (#1811)
 
-> W „Świeżo z Kuking” najpierw widzisz najnowszy wpis każdej osoby, potem
-> drugi każdej i tak dalej. Nikt nie stoi wyżej dlatego, że publikuje częściej
+> W „Świeżo z Kuking” najpierw widzisz najnowszy wpis każdej osoby (także
+> swój), potem drugi każdej i tak dalej. Nikt nie stoi wyżej dlatego, że publikuje częściej
 > albo zebrał więcej reakcji. Wpisów osób, które ukrywasz albo blokujesz, tu
 > nie ma.
 
