@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Users\Exports;
 
 use App\Domain\Notifications\WycinkiKomentarzy;
+use App\Domain\Rocznice\Urodziny;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
@@ -195,6 +196,12 @@ final class CollectUserExportData
             'jezyk' => $user->locale,
             'rozmiar_tekstu_procent' => $user->text_scale,
             'chce_podsumowania_tygodnia' => (bool) $user->wants_weekly_digest,
+            // Urodziny (issue #1755): sam dzień i miesiąc jako DD-MM. Roku nie
+            // zbieramy, więc nie ma go i tutaj. `null`, gdy daty nie podano.
+            'urodziny' => Urodziny::doEksportu($user),
+            'pokazuj_zyczenia_urodzinowe' => (bool) $user->birthday_wishes_enabled,
+            'chce_zyczen_urodzinowych_mailem' => (bool) $user->wants_birthday_email,
+            'pokazuj_urodziny_obserwujacym' => (bool) $user->birthday_visible_to_followers,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
             // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO
@@ -214,6 +221,8 @@ final class CollectUserExportData
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
+            // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
+            'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
             'zakres_usuniecia' => $user->delete_scope,
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
