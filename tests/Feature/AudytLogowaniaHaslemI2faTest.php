@@ -112,7 +112,7 @@ class AudytLogowaniaHaslemI2faTest extends TestCase
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.two_factor_enabled')->count());
 
         $this->post(route('settings.two_factor.disable'), ['password' => 'zle-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('disable', ['password']);
         $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.two_factor_disabled')->count());
 
         $this->post(route('settings.two_factor.disable'), ['password' => self::HASLO])
