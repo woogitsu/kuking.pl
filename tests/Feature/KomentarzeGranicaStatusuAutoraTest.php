@@ -294,14 +294,17 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
     }
 
     /**
-     * Licznik komentarzy głównych NIE zmienia się od odpowiedzi.
+     * Licznik zwykłego wpisu liczy WIDOCZNE odpowiedzi — i tylko widoczne.
      *
-     * `withCount('comments')` idzie przez relację `comments()`, która ma
-     * `whereNull('parent_id')`. Gdyby ktoś kiedyś tę relację poszerzył,
-     * licznik zacząłby zliczać odpowiedzi ukryte o poziom niżej — i znowu
-     * obiecywałby treść, której nie ma na ekranie.
+     * Do 26.09.2026 ten test pilnował odwrotności: licznik szedł po
+     * `comments()` z `whereNull('parent_id')` i odpowiedzi nie liczył wcale.
+     * Właściciel rozstrzygnął w #1801, że „Komentarze (N)” to wszystko, co
+     * widz przeczyta po rozwinięciu. Obawa, której ten test pilnował —
+     * licznik obiecujący odpowiedź ukrytą o poziom niżej — zostaje:
+     * odpowiedź zbanowanego konta nie jest na ekranie, więc nie ma jej
+     * w liczbie.
      */
-    public function test_licznik_komentarzy_nie_liczy_odpowiedzi(): void
+    public function test_licznik_komentarzy_liczy_tylko_widoczne_odpowiedzi(): void
     {
         $autorWpisu = $this->user('autorkawpisu');
         $rozmowca = $this->user('rozmowca');
@@ -326,6 +329,16 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
+        $zbanowany = $this->user('zbanowanyrozmowca');
+        Comment::create([
+            'author_id' => $zbanowany->getKey(),
+            'post_id' => $wpis->getKey(),
+            'parent_id' => $rodzic->getKey(),
+            'body' => 'Odpowiedz zbanowanego konta.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $zbanowany->ban();
+
         $czytelnik = $this->user('czytelniczka');
 
         $wFeedzie = app(DiscoverFeed::class)->paginate($czytelnik)
@@ -333,6 +346,6 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
             ->firstWhere('id', $wpis->getKey());
 
         $this->assertNotNull($wFeedzie);
-        $this->assertSame(1, (int) $wFeedzie->comments_count, 'Licznik wlicza odpowiedzi.');
+        $this->assertSame(2, (int) $wFeedzie->comments_count, 'Licznik ma liczyc rodzica i widoczna odpowiedz, bez odpowiedzi zbanowanego konta.');
     }
 }
