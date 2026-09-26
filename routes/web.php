@@ -41,6 +41,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
@@ -56,6 +57,7 @@ use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\BirthdaySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -68,6 +70,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
@@ -648,6 +651,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/witaj/ludzie', [OnboardingController::class, 'saveFollows'])
         ->middleware("throttle:{$limits['masowe_obserwowanie']},masowe_obserwowanie");
     Route::get('/witaj/gotowe', [OnboardingController::class, 'done'])->name('onboarding.done');
+    Route::post('/witaj/pomin', [OnboardingController::class, 'skip'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('onboarding.skip');
+    Route::post('/witaj/nie-przypominaj', [OnboardingController::class, 'dismiss'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('onboarding.dismiss');
 
     // Dodawanie treści
     Route::view('/dodaj', 'pages.add')->name('add');
@@ -772,6 +781,19 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
 
+    // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
+    // zapisy pod własnym koszykiem `planer`.
+    Route::get('/planer', [PlanerController::class, 'show'])->name('planer.show');
+    Route::post('/planer', [PlanerController::class, 'store'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.store');
+    Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.copy');
+    Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.destroy');
+
     // Zeszyt (kolekcje)
     //
     // Zapis i wypisanie chodzą pod WŁASNYM kluczem `zeszyt`, a nie pod
@@ -846,6 +868,30 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
+
+    // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
+    // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
+    // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
+    Route::post('/wpisy/{post}/ukryj', [UkryciaController::class, 'ukryjWpis'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('posts.hide');
+    Route::delete('/wpisy/{post}/ukryj', [UkryciaController::class, 'cofnijWpis'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('posts.unhide');
+    Route::get('/@{username}/ukryj', [UkryciaController::class, 'ekranOsoby'])->name('social.hide.confirm');
+    Route::post('/@{username}/ukryj', [UkryciaController::class, 'ukryjOsobe'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('social.hide');
+    Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('social.unhide');
+    Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
+    Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('settings.hidden.keep');
+    Route::delete('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'przywroc'])
+        ->middleware("throttle:{$limits['ukrycia']},ukrycia")
+        ->name('settings.hidden.restore');
 
     // BLOKADA MA WŁASNY KOSZYK, ODDZIELONY OD OBSERWOWANIA — świadomie.
     // To narzędzie bezpieczeństwa: sięga po nie ktoś, komu ktoś inny właśnie
@@ -950,6 +996,27 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    /*
+     * POWIADOMIENIA POZA SERWISEM (issue #35, D-303) — push, cisza nocna,
+     * dzienny limit. Powiadomień w serwisie ten ekran nie dotyczy.
+     * Bez kluczy VAPID kontroler odpowiada 404, a spis ustawień go nie
+     * pokazuje. Wszystkie zapisy w grupie `ustawienia`; bez identyfikatora
+     * w adresie — każda akcja działa na koncie zalogowanej osoby.
+     */
+    Route::get('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'edit'])->name('settings.notifications');
+    Route::put('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.update');
+    Route::post('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'subscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.subscribe');
+    Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.unsubscribe');
+    Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.disable-all');
 
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])

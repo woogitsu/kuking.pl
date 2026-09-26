@@ -10,6 +10,8 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\Hide;
+use App\Models\MealPlanEntry;
 use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -451,6 +453,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
 
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // Ukrycie właściciela (#1810) — cel `settings.hidden.*`.
+        $ukrycieWlasciciela = new Hide;
+        $ukrycieWlasciciela->forceFill([
+            'user_id' => $wlasciciel->getKey(),
+            'post_id' => Post::factory()->create(['author_id' => $przedmiot->getKey()])->getKey(),
+            'hidden_until' => now()->addDays(30),
+        ])->save();
 
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
@@ -612,6 +621,22 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('social.block', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
         $dodaj('social.unblock', 'odblokowuję kogoś trzeciego', 'delete',
             route('social.unblock', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
+        // Prywatne ukrycia (#1810, D-278). Ekran wyboru i zapis pytają
+        // `UserPolicy::viewProfile` (blokada wycina), a siebie nie da się
+        // ukryć — stąd odmowa właściciela. Cofnięcie działa jak `unfollow`:
+        // kasuje wiersz OSOBY DZIAŁAJĄCEJ, więc cel to ktoś trzeci.
+        $dodaj('social.hide.confirm', 'ekran „Ukryj tę osobę”', 'get',
+            route('social.hide.confirm', $wlasciciel->profile->username), [], [$O, $W, $O, $W, $O]);
+        $dodaj('social.hide', 'ukrycie właściciela', 'post',
+            route('social.hide', $wlasciciel->profile->username), [], [$O, $W, $O, $W, $O]);
+        $dodaj('social.unhide', 'cofnięcie ukrycia kogoś trzeciego', 'delete',
+            route('social.unhide', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
+        // Wiersz z listy „Ukryte” należy do jednej osoby (`HidePolicy`).
+        // „Zostaw” przed „Przywróć”: drugi kasuje wiersz.
+        $dodaj('settings.hidden.keep', 'zostaw ukryte — cudzy wiersz', 'patch',
+            route('settings.hidden.keep', $ukrycieWlasciciela), [], [$W, $O, $O, $O, $O]);
+        $dodaj('settings.hidden.restore', 'przywróć — cudzy wiersz', 'delete',
+            route('settings.hidden.restore', $ukrycieWlasciciela), [], [$W, $O, $O, $O, $O]);
 
         // ─── PANEL MODERACJI ─────────────────────────────────────────────
         // 404, nie 403: `EnsureUserIsModerator` celowo nie potwierdza
@@ -747,6 +772,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // `recipes.destroy`, `cooked.destroy` i `comments.destroy` niżej.
         $dodaj('posts.destroy', 'usunięcie wpisu', 'delete',
             route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // „Ukryj ten wpis” (#1810) pyta `PostPolicy::view` — prywatnego
+        // wpisu nie ukryje nikt, kto go nie widzi. Właściciel wchodzi
+        // i dostaje komunikat „własnego wpisu nie ukrywasz” (302, nie 403).
+        $dodaj('posts.hide', 'ukrycie prywatnego wpisu', 'post',
+            route('posts.hide', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.unhide', 'cofnięcie ukrycia prywatnego wpisu', 'delete',
+            route('posts.unhide', $wpis), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
@@ -850,6 +882,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+
+        // ─── PLANER TYGODNIA ─────────────────────────────────────────────
+        // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie
+        // właściciel planu, bez wyjątku dla moderatora.
+        $pozycjaPlanu = new MealPlanEntry(['day' => '2026-11-18', 'label' => 'Obiad u mamy']);
+        $pozycjaPlanu->user_id = $wlasciciel->getKey();
+        $pozycjaPlanu->save();
+        $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
+            route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
