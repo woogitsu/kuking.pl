@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\NewAccessToken;
 
 /**
  * Konto użytkownika.
@@ -36,6 +38,15 @@ use Illuminate\Support\Str;
  */
 class User extends Authenticatable implements MustVerifyEmailContract
 {
+    /**
+     * Tokeny aplikacji mobilnej (D-014, D-270). Bez tego traitu
+     * `Laravel\Sanctum\Guard` nie uzna konta za zdolne do tokenów
+     * i `auth:sanctum` odpowie 401 każdemu.
+     *
+     * @use HasApiTokens<PersonalAccessToken>
+     */
+    use HasApiTokens;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
@@ -1132,11 +1143,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * oznaczać — powiadomienie o odebraniu dostępu może przyjść dla
      * identyfikatora, którego u nas nie ma, i to nie jest awaria.
      */
-    public function oznaczOdebranieDostepu(string $dostawca): int
+    public function oznaczOdebranieDostepu(string $dostawca, DateTimeInterface $wydanoO): int
     {
+        /*
+         * STARSZA WIADOMOŚĆ NIE NADPISUJE NOWSZEJ ZGODY (issue #1025).
+         * Powiadomienie wystawione przed ostatnim przejściem człowieka przez
+         * ekran zgody opisuje stan, którego już nie ma. Granicą jest
+         * `zgoda_potwierdzona_at`, a dla powiązania, które od założenia nie
+         * widziało ponownego wejścia — `connected_at`.
+         *
+         * RÓWNE SEKUNDY (`<=`, nie `<`): WYGRYWA ODEBRANIE DOSTĘPU.
+         * `issued_at` od Facebooka ma dokładność sekundy, więc przy tej samej
+         * sekundzie nie wiemy, co było pierwsze. Błąd w stronę uśpienia
+         * kosztuje człowieka jedno kliknięcie „Połącz konto Facebooka jeszcze
+         * raz"; błąd w drugą stronę zostawiłby nam dostęp, który ktoś
+         * naprawdę odebrał w ustawieniach Facebooka — tego cofnąć się nie da.
+         */
         return $this->tozsamosciZewnetrzne()
             ->where('dostawca', $dostawca)
             ->whereNull('dostep_odebrany_at')
+            ->whereRaw('COALESCE(zgoda_potwierdzona_at, connected_at) <= ?', [$wydanoO])
             ->update(['dostep_odebrany_at' => now()]);
     }
 
@@ -1146,13 +1172,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
      *
      * Odmowa wejścia komuś, kto WŁAŚNIE na nowo przeszedł przez ekran zgody
      * dostawcy, byłaby karą za skorzystanie z własnych ustawień.
+     *
+     * Przy okazji zapisuje GRANICĘ tej zgody (`zgoda_potwierdzona_at`,
+     * issue #1025) — przy KAŻDYM wejściu, nie tylko po uśpieniu. Wejście
+     * przez dostawcę znaczy, że w tej chwili dostęp był dany, więc każde
+     * powiadomienie o odebraniu wystawione wcześniej jest nieaktualne —
+     * także takie, które zdążyło się spóźnić i przyjdzie dopiero teraz.
      */
     public function cofnijOdebranieDostepu(string $dostawca): void
     {
         $this->tozsamosciZewnetrzne()
             ->where('dostawca', $dostawca)
-            ->whereNotNull('dostep_odebrany_at')
-            ->update(['dostep_odebrany_at' => null]);
+            ->update([
+                'dostep_odebrany_at' => null,
+                'zgoda_potwierdzona_at' => now(),
+            ]);
     }
 
     /** Czy powiązanie z tym dostawcą jest uśpione (dostęp odebrany u dostawcy). */
@@ -1514,6 +1548,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // niczyją bieżącą przeglądarką.
         $this->invalidateLoginLinks();
 
+        // TOKENY APLIKACJI MOBILNEJ GINĄ TĄ SAMĄ DROGĄ (D-270), z tego samego
+        // powodu co link wyżej: token JEST wejściem na konto, tyle że leżącym
+        // w telefonie, a nie w skrzynce. Zmiana hasła, „wyloguj mnie
+        // z innych urządzeń", blokada, zawieszenie i zgłoszenie usunięcia
+        // konta, które zostawiałyby żywy token, odcinałyby przeglądarkę
+        // i zostawiały otwartą aplikację. `$exceptSessionId` nie ma tu
+        // odpowiednika z tego samego powodu co przy linku: wyjątek jest dla
+        // BIEŻĄCEJ przeglądarki, a telefon nią nie jest.
+        $this->invalidateApiTokens();
+
         if (config('session.driver') !== 'database') {
             return;
         }
@@ -1540,6 +1584,48 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function invalidateLoginLinks(): void
     {
         LoginLinkToken::query()->where('user_id', $this->getKey())->delete();
+    }
+
+    /**
+     * Odwołanie WSZYSTKICH tokenów aplikacji mobilnej tego konta (D-270).
+     *
+     * Osobna, nazwana metoda z tego samego powodu co `invalidateLoginLinks()`:
+     * da się ją wywołać samą, a nazwa mówi, co znika.
+     */
+    public function invalidateApiTokens(): void
+    {
+        PersonalAccessToken::query()
+            ->where('tokenable_type', self::class)
+            ->where('tokenable_id', $this->getKey())
+            ->delete();
+    }
+
+    /**
+     * Wydanie tokenu aplikacji mobilnej — nadpisanie metody z `HasApiTokens`.
+     *
+     * Pakiet zapisuje wiersz przez `create([... 'token' => ...])`, czyli
+     * masowym przypisaniem poświadczenia (AGENTS.md §7). Tu skrót idzie
+     * przez `forceFill()`, a `PersonalAccessToken::$fillable` nie zna
+     * kolumny `token`. Postać jawna wraca WYŁĄCZNIE w `NewAccessToken`
+     * i nie jest nigdzie zapisywana.
+     *
+     * @param  array<int, string>  $abilities
+     */
+    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    {
+        $jawny = $this->generateTokenString();
+
+        $token = new PersonalAccessToken;
+        $token->forceFill([
+            'tokenable_type' => self::class,
+            'tokenable_id' => $this->getKey(),
+            'name' => $name,
+            'token' => hash('sha256', $jawny),
+            'abilities' => $abilities,
+            'expires_at' => $expiresAt,
+        ])->save();
+
+        return new NewAccessToken($token, $token->getKey().'|'.$jawny);
     }
 
     /**
