@@ -354,6 +354,17 @@ EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
+# wykonuje `.railway/railway.ts` Z GAŁĘZI PR-a z tokenem
+# RAILWAY_TOKEN_PRODUCTION; mutacja zdejmuje `environment: production` z
+# joba `plan` (i tylko z niego — kotwica bierze fragment poprzedzający
+# unikalny dla `plan`, żeby nie ruszyć tego samego ustawienia w `apply`).
+PLAN_IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+PLAN_IAC_TEST = "PlanIacBramkaProdukcjiTest"
+PLAN_IAC_ENVIRONMENT = (
+    "    # przejrzał diff `.railway/**`.\n"
+    "    environment: production\n"
+)
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -706,6 +717,22 @@ def widok_zawezany_poza_pr(source):
     )
 
 
+def plan_iac_bez_bramki_produkcji(source):
+    """KONTROLA DODATNIA: zdejmij `environment: production` z joba `plan`.
+
+    Job dalej wykonuje `.railway/railway.ts` z gałęzi PR-a, z tokenem
+    RAILWAY_TOKEN_PRODUCTION, ale bez zgody recenzenta — dokładnie luka
+    z audytu B10-01.
+    `job_plan_wymaga_srodowiska_production_przed_wykonaniem_kodu_z_pr`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        PLAN_IAC_ENVIRONMENT,
+        "    # przejrzał diff `.railway/**`.\n",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -904,6 +931,8 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
+     plan_iac_bez_bramki_produkcji),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -974,6 +1003,7 @@ run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(PLAN_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
