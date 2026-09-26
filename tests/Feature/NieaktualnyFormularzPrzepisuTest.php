@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Exceptions\BladDlaCzlowieka;
+use App\Models\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -106,5 +108,37 @@ class NieaktualnyFormularzPrzepisuTest extends TestCase
         $this->assertSame('Zupa poprawiona', $recipe->fresh()->title);
         $this->assertSame(1, $recipe->fresh()->content_revision);
         $second->assertSet('title', 'Stara poprawka');
+    }
+
+    public function test_zmiana_zdjecia_kroku_przed_blokada_odmawia_zapisu_zamiast_je_usunac(): void
+    {
+        $author = $this->user();
+        $oldMedia = Media::factory()->create(['owner_id' => $author->id]);
+        $newMedia = Media::factory()->create(['owner_id' => $author->id]);
+        $recipe = app(PublishRecipe::class)->handle($author, ['title' => 'Zupa domowa'], [],
+            [['instruction' => 'Gotuj.', 'media_id' => $oldMedia->id]]);
+        $step = $recipe->steps()->sole();
+        $armed = true;
+
+        DB::listen(function ($query) use (&$armed, $step, $newMedia): void {
+            if (! $armed || ! preg_match('/^select .*from "recipe_steps"/i', $query->sql)) {
+                return;
+            }
+            $armed = false;
+            $step->update(['media_id' => $newMedia->id]);
+        });
+
+        try {
+            app(PublishRecipe::class)->handle($author, ['title' => 'Zupa poprawiona'], [],
+                [['id' => $step->id, 'instruction' => 'Gotuj dłużej.']], false, $recipe);
+            $this->fail('Zapis nie może dziedziczyć zdjęcia, którego nie zablokował.');
+        } catch (BladDlaCzlowieka $error) {
+            $this->assertStringContainsString('Zdjęcie przy kroku zmieniło się', $error->getMessage());
+        }
+
+        $this->assertFalse($armed, 'Test musi zmienić zdjęcie po pierwszej mapie.');
+        $this->assertSame('Zupa domowa', $recipe->fresh()->title);
+        $this->assertSame(0, $recipe->fresh()->content_revision);
+        $this->assertSame($oldMedia->id, $recipe->steps()->sole()->media_id);
     }
 }
