@@ -89,7 +89,7 @@ return new class extends Migration
         DB::statement('CREATE INDEX collection_invitations_invitee_idx ON collection_invitations (invitee_id) WHERE invitee_id IS NOT NULL');
 
         DB::statement(<<<'SQL'
-            CREATE FUNCTION collection_members_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+            CREATE OR REPLACE FUNCTION collection_members_guard() RETURNS trigger LANGUAGE plpgsql AS $$
             DECLARE
                 zeszyt record;
             BEGIN

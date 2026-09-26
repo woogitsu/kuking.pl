@@ -387,7 +387,7 @@ class CollectionController extends Controller
             ->values();
 
         $wspolny = $dostep && ($czlonkowie->isNotEmpty()
-            || $idAutorow->contains(fn ($id) => $id !== $collection->owner_id));
+            || $idAutorow->contains(fn ($id) => $id !== null && $id !== $collection->owner_id));
 
         $podpisy = [];
 

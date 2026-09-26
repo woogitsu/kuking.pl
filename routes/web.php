@@ -787,26 +787,26 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/zeszyt/{collection}/moj-dostep', [CollectionSharingController::class, 'leave'])
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.leave');
-    Route::get('/zaproszenie/{invitation}', [CollectionSharingController::class, 'showInvitation'])
+    Route::get('/zaproszenie-do-zeszytu/{invitation}', [CollectionSharingController::class, 'showInvitation'])
         ->whereUuid('invitation')
         ->name('collections.invitations.show');
-    Route::post('/zaproszenie/{invitation}/dolaczam', [CollectionSharingController::class, 'acceptInvitation'])
+    Route::post('/zaproszenie-do-zeszytu/{invitation}/dolaczam', [CollectionSharingController::class, 'acceptInvitation'])
         ->whereUuid('invitation')
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.invitations.accept');
-    Route::post('/zaproszenie/{invitation}/odmawiam', [CollectionSharingController::class, 'declineInvitation'])
+    Route::post('/zaproszenie-do-zeszytu/{invitation}/odmawiam', [CollectionSharingController::class, 'declineInvitation'])
         ->whereUuid('invitation')
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.invitations.decline');
     // Link-zaproszenie: token w adresie, jednorazowy. Gość trafia najpierw
     // na logowanie (`auth` tej grupy) i wraca tu po nim.
-    Route::get('/zaproszenie-linkiem/{token}', [CollectionSharingController::class, 'showLink'])
+    Route::get('/zaproszenie-do-zeszytu/link/{token}', [CollectionSharingController::class, 'showLink'])
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.link.show');
-    Route::post('/zaproszenie-linkiem/{token}/dolaczam', [CollectionSharingController::class, 'acceptLink'])
+    Route::post('/zaproszenie-do-zeszytu/link/{token}/dolaczam', [CollectionSharingController::class, 'acceptLink'])
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.link.accept');
-    Route::post('/zaproszenie-linkiem/{token}/odmawiam', [CollectionSharingController::class, 'declineLink'])
+    Route::post('/zaproszenie-do-zeszytu/link/{token}/odmawiam', [CollectionSharingController::class, 'declineLink'])
         ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
         ->name('collections.link.decline');
     Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])
