@@ -141,6 +141,10 @@ new class extends Component
     #[Locked]
     public int $acknowledgedRevision = 0;
 
+    /** Rewizja treści z bazy; różna od licznika zmian interfejsu. */
+    #[Locked]
+    public int $contentRevision = 0;
+
     /** Licznik stabilnych kluczy wierszy — bez nich zmiana kolejności gubi treść pól. */
     public int $rowCounter = 0;
 
@@ -177,6 +181,7 @@ new class extends Component
     private function fillFrom(Recipe $recipe): void
     {
         $this->recipeId = $recipe->getKey();
+        $this->contentRevision = $recipe->content_revision;
         $this->juzOpublikowany = $recipe->isPublished();
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
@@ -635,11 +640,13 @@ new class extends Component
             steps: $this->cleanSteps(),
             publish: $publish,
             existing: $this->existingRecipe(),
+            oczekiwanaRewizja: $this->recipeId === null ? null : $this->contentRevision,
             wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
         );
 
         $this->recipeId = $recipe->getKey();
+        $this->contentRevision = $recipe->content_revision;
 
         return $recipe;
     }

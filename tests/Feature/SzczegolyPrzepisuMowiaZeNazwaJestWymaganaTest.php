@@ -24,7 +24,7 @@ final class SzczegolyPrzepisuMowiaZeNazwaJestWymaganaTest extends TestCase
         $this->assertDatabaseMissing('recipes', ['title' => $data['title']]);
         $przepis = Recipe::factory()->for($autor, 'author')->create();
         $przepis->steps()->create(['position' => 1, 'instruction' => 'Gotuj wodę.']);
-        $this->put(route('recipes.update', $przepis), $data)->assertSessionHasErrors('przygotowanie_tekst');
+        $this->put(route('recipes.update', $przepis), [...$data, 'content_revision' => $przepis->fresh()->content_revision])->assertSessionHasErrors('przygotowanie_tekst');
         $this->assertSame('Gotuj wodę.', $przepis->fresh()->steps->first()->instruction);
         $data['action'] = 'draft';
         $this->post(route('recipes.store'), $data)->assertSessionHasNoErrors();
@@ -92,7 +92,7 @@ final class SzczegolyPrzepisuMowiaZeNazwaJestWymaganaTest extends TestCase
         }
 
         $this->from(route('recipes.edit', $przepis))
-            ->put(route('recipes.update', $przepis), ['title' => '', 'summary' => 'Opis do zachowania'])
+            ->put(route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => '', 'summary' => 'Opis do zachowania'])
             ->assertSessionHasErrors('title')
             ->assertSessionHasInput('summary', 'Opis do zachowania');
         $this->assertSame('Zupa jarzynowa', $przepis->fresh()->title);

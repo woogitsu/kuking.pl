@@ -105,7 +105,7 @@ final class FormularzeKlawiaturaINiezapisaneZmianyTest extends TestCase
 
         $html = $this->from(route('recipes.edit', $szkic))
             ->followingRedirects()
-            ->put(route('recipes.update', $szkic), ['title' => '', 'action' => 'draft'])
+            ->put(route('recipes.update', $szkic), ['content_revision' => $szkic->fresh()->content_revision, 'title' => '', 'action' => 'draft'])
             ->assertOk()->getContent();
         $this->assertStringContainsString('formularz-szczegolow', $html, 'Po błędzie nie wróciliśmy na ekran szczegółów.');
         $xp = $this->xpath($html);

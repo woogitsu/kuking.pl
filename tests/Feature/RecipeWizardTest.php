@@ -406,7 +406,7 @@ class RecipeWizardTest extends TestCase
         ]);
 
         $this->actingAs($basia)
-            ->put(route('recipes.update', $recipe->slug), [
+            ->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
                 'title' => 'Ciasto babci, poprawiona nazwa',
                 'visibility' => 'public',
                 'source_type' => 'family',

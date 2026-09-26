@@ -144,7 +144,10 @@
     <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
           @if($errors->any()) data-niezapisane-od-serwera @endif>
         @csrf
-        @if($isEdit) @method('PUT') @endif
+        @if($isEdit)
+            @method('PUT')
+            <input type="hidden" name="content_revision" value="{{ old('content_revision', $recipe->content_revision) }}">
+        @endif
 
         {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
              Tylko przy DODAWANIU: edycja pracuje na przepisie, który już

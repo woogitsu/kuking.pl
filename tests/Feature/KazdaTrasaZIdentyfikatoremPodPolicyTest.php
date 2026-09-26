@@ -788,7 +788,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('recipes.details', 'szczegóły przepisu', 'get',
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',
-            route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+            route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
         // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje

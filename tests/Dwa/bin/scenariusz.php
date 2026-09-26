@@ -272,6 +272,7 @@ try {
                 steps: [['instruction' => 'Gotuj do miękkości.']],
                 publish: true,
                 existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
             );
 
             return (string) $przepis->title;

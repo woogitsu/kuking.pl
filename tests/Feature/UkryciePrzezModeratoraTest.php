@@ -49,7 +49,7 @@ class UkryciePrzezModeratoraTest extends TestCase
         [$autor, $recipe] = $this->ukrytyPrzepis();
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $recipe->slug), [
+            ->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
                 'title' => 'Nalewka na spirytusie',
                 'visibility' => 'public',
                 'source_type' => 'own',
@@ -73,7 +73,7 @@ class UkryciePrzezModeratoraTest extends TestCase
         $this->actingAs($obcy)->get(route('recipes.show', $recipe->slug))->assertForbidden();
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $recipe->slug), [
+            ->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
                 'title' => 'Nalewka na spirytusie',
                 'visibility' => 'public',
                 'source_type' => 'own',
@@ -128,7 +128,7 @@ class UkryciePrzezModeratoraTest extends TestCase
         // Naprawa moderacji nie może zabrać ludziom publikowania własnych
         // szkiców — to jest główna droga produktu, nie przypadek brzegowy.
         $this->actingAs($autor)
-            ->put(route('recipes.update', $szkic->slug), [
+            ->put(route('recipes.update', $szkic->slug), ['content_revision' => $szkic->fresh()->content_revision,
                 'title' => 'Rosol niedzielny',
                 'visibility' => 'public',
                 'source_type' => 'own',
@@ -158,7 +158,7 @@ class UkryciePrzezModeratoraTest extends TestCase
         $pierwotnaData = $recipe->published_at;
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $recipe->slug), [
+            ->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
                 'title' => 'Bigos, wersja poprawiona',
                 'visibility' => 'public',
                 'source_type' => 'own',
