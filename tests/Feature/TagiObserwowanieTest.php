@@ -326,19 +326,20 @@ class TagiObserwowanieTest extends TestCase
 
         $odpowiedz = $this->actingAs($basia)->get(route('home'))->assertOk();
 
-        $odpowiedz->assertViewHas('zrodloFeedu', 'tagi');
+        $odpowiedz->assertViewHas('zrodloFeedu', 'obserwowani');
         $trescFeedu = $odpowiedz->viewData('posts')->pluck('body');
 
         $this->assertContains('Rosol na niedziele', $trescFeedu);
         $this->assertNotContains('Sernik na sobote', $trescFeedu);
-        $odpowiedz->assertSee('To wpisy z tagów, które obserwujesz.', escape: false);
+        // Od #1808 źródło nazywa każda karta z osobna, nie ogólny baner.
+        $odpowiedz->assertSee('Z tagu:', escape: false);
     }
 
     public function test_wpis_z_dwoma_obserwowanymi_tagami_wystepuje_w_feedzie_raz(): void
     {
         // TO JEST NAJWAŻNIEJSZY TEST W TYM PLIKU (SPEC §1.9): ten sam wpis
         // nie może wystąpić kilka razy dlatego, że ma kilka obserwowanych
-        // tagów. `whereHas()` w `TagFeed` sprawdza ISTNIENIE dopasowania
+        // tagów. `whereHas()` w `FollowingFeed` sprawdza ISTNIENIE dopasowania
         // (EXISTS), nie robi JOIN-a — gdyby robił, ten wpis wypłynąłby
         // na liście dwa razy.
         $zupy = $this->tag('zupy', 'Zupy');
@@ -363,7 +364,7 @@ class TagiObserwowanieTest extends TestCase
         $this->assertSame(['Zupa na dwa tagi'], $trescFeedu, 'Wpis z dwoma obserwowanymi tagami wystąpił więcej niż raz.');
     }
 
-    public function test_wpisy_obserwowanych_ludzi_sa_wazniejsze_niz_tagi(): void
+    public function test_wpisy_obserwowanych_ludzi_i_tematow_stoja_razem(): void
     {
         $zupy = $this->tag('zupy', 'Zupy');
         $obcy = $this->user('obcy');
@@ -391,8 +392,12 @@ class TagiObserwowanieTest extends TestCase
         $odpowiedz->assertViewHas('zrodloFeedu', 'obserwowani');
         $trescFeedu = $odpowiedz->viewData('posts')->pluck('body');
 
+        // Do #1808 wpisy osób wypierały wpisy z tematów w całości — kto
+        // obserwował choć jedną aktywną osobę, nie widział tematów nigdy.
+        // Teraz stoją razem (D-277); osoby są ważniejsze tylko w tym, że wpis
+        // obserwowanej osoby nie dostaje podpisu tematu.
         $this->assertContains('Wpis od znajomej', $trescFeedu);
-        $this->assertNotContains('Wpis z tagu', $trescFeedu);
+        $this->assertContains('Wpis z tagu', $trescFeedu);
     }
 
     public function test_tag_bez_wpisow_nie_daje_pustego_ekranu(): void
