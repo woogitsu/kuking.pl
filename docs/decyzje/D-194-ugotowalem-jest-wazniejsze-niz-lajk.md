@@ -1,6 +1,6 @@
 ## D-194 · „Ugotowałem" jest ważniejsze niż lajk
 
-**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje**
+**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje** (sprostowany przez D-275, 25 września 2026)
 
 ### Dlaczego ten wpis powstaje dopiero teraz
 
@@ -18,23 +18,35 @@ Kuking to **społeczność ludzi, którzy gotują**, a nie baza przepisów. Najm
 sygnałem w serwisie jest **„ugotowałem"** — bo kosztuje wieczór przy garnku, a nie
 jedno dotknięcie ekranu. Dlatego:
 
-- „ugotowałem" **zawsze** powiadamia autora przepisu, a lajk nie ma takiej mocy;
-- liczba ugotowań stoi wyżej niż jakakolwiek liczba polubień i to ona jest widoczna
-  na karcie;
+- „ugotowałem" **zawsze** powiadamia autora przepisu, a lżejsza reakcja nie ma takiej mocy;
+- liczba ugotowań stoi wyżej niż jakakolwiek liczba lżejszych reakcji i to ona jest
+  widoczna na karcie;
 - feed obserwowanych jest **chronologiczny**, bez algorytmu: ranking zamienia dzielenie
   się jedzeniem w konkurs, a w konkursie przegrywa ten, kto gotuje zwyczajnie.
 
 ### Co z tej zasady wynika w praktyce
 
-Każda funkcja, która podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga
-osobnego uzasadnienia — nie odwrotnie. Domyślną odpowiedzią na „dodajmy licznik
-polubień na widoczne miejsce" jest **nie**.
+**Liczba „Ugotowałem” ani reakcji nie wpływa na kolejność ani dobór.** Hierarchia
+sygnałów rozstrzyga, co człowiek **zobaczy przy wpisie** i o czym dostanie
+powiadomienie — nie to, które wpisy albo osoby komu pokażemy. Dobór treści wolno
+opierać wyłącznie na regułach z zamkniętej listy w `AGENTS.md` §8 (D-275).
+
+> **Sprostowanie (25 września 2026, #1806, D-275).** Stało tu: „Każda funkcja, która
+> podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga osobnego
+> uzasadnienia”. Czytane dosłownie dopuszczało podnoszenie widoczności **za**
+> ugotowanie — czyli ranking po liczbie „Ugotowałem”. Tak nie jest i nie było
+> zamiarem: żadna miara cudzych reakcji nie układa ani nie przycina list.
+
+Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest **nie**.
 
 ### Czego ten wpis nie rozstrzyga
 
-Czy lajk w serwisie **jest**. Jest i zostaje — ludzie potrzebują taniego sposobu, żeby
-powiedzieć „widzę cię". Rozstrzygnięta jest wyłącznie **hierarchia** tych dwóch
-sygnałów wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
+Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
+i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
+2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
+sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
+jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
 📄 `AGENTS.md` · `CLAUDE.md` · `docs/brand/GLOS_MARKI.md` ·
 `resources/views/pages/landing.blade.php` · D-187

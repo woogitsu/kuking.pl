@@ -1,7 +1,9 @@
 ## D-021 · Tematy znikają, zostają same tagi
 
 **Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
-zastępuje mechanizm z issue #31 (`topics`, `topic_follows`, `posts.topic_id`)
+zastępuje mechanizm z issue #31 (`topics`, `topic_follows`, `posts.topic_id`) ·
+**miejsce obserwowanych tagów na Starcie zmienia D-277** (25 września 2026:
+tagi razem z osobami, nie osobny stopień „gdy nie ma osób”)
 
 Właściciel: „Tematy usuwamy, tylko tagi."
 
