@@ -235,6 +235,9 @@ final class CollectUserExportData
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
             'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+            // Znacznik „pierwsze kroki zakończone albo pominięte” (#985).
+            // Dla kont sprzed #985 migracja wpisała tu datę założenia konta.
+            'pierwsze_kroki_zakonczone' => $this->date($user->onboarding_zakonczony_at),
             'konto_zmienione' => $this->date($user->updated_at),
         ];
     }
@@ -270,7 +273,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->foreignCommentRelations($user)])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -345,7 +348,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'tags', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe', 'tags', ...$this->foreignCommentRelations($user)])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -381,7 +384,7 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe.author.profile', ...$this->foreignCommentRelations($user)])
             ->reorder('cooked_at')
             ->get();
 
@@ -593,6 +596,27 @@ final class CollectUserExportData
         }
 
         return $out;
+    }
+
+    /**
+     * Cudze komentarze pod treścią użytkownika — przez tę samą granicę co
+     * ekran (issue #1245): `widoczneDla()` na korzeniach I odpowiedziach,
+     * jak w `RecipeController::show()`, `PostController` i
+     * `CookedEventController::show()`. Same relacje `comments()`/`replies()`
+     * filtrują tylko status, więc paczka niosła tekst osób wzajemnie
+     * zablokowanych oraz kont `banned`/`pending_delete`. Własne komentarze
+     * użytkownika i tak stoją w `moje_komentarze` (`ownComments()`).
+     *
+     * @return array<string, mixed>
+     */
+    private function foreignCommentRelations(User $user): array
+    {
+        return [
+            'comments' => fn ($query) => $query->widoczneDla($user),
+            'comments.author.profile',
+            'comments.replies' => fn ($query) => $query->widoczneDla($user),
+            'comments.replies.author.profile',
+        ];
     }
 
     /**
