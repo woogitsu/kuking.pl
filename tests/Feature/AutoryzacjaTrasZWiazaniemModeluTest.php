@@ -377,10 +377,18 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         return preg_match('/\b(findOrFail|firstOrFail)\s*\(/', $zrodlo) === 1;
     }
 
-    /** Czy trasa ma jakąkolwiek bramkę autoryzacji (patrz docblock testu). */
+    /**
+     * Czy trasa ma jakąkolwiek bramkę autoryzacji (patrz docblock testu).
+     *
+     * Napis `authorize(` liczy się tylko w KODZIE (audyt B7-17): wcześniej
+     * wystarczał zakomentowany `// $this->authorize(...)` albo to słowo
+     * w napisie, żeby trasa bez bramki przeszła skan. Czy bramka pilnuje
+     * WŁAŚCIWEJ zdolności na WŁAŚCIWYM modelu, skan nadal nie wie — to mierzy
+     * żądaniami `KazdaTrasaZIdentyfikatoremPodPolicyTest`.
+     */
     private function maBramke(TrasaFrameworku $trasa, string $zrodlo): bool
     {
-        if (preg_match('/authorize\s*\(|Gate::/', $zrodlo) === 1) {
+        if (preg_match('/authorize\s*\(|Gate::/', $this->samKod($zrodlo)) === 1) {
             return true;
         }
 
@@ -399,5 +407,33 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         }
 
         return false;
+    }
+
+    /**
+     * Źródło metody bez komentarzy i bez literałów napisowych — to, co PHP
+     * faktycznie wykona. Tokenizer, nie wyrażenie regularne: komentarz
+     * blokowy w środku linii albo `//` w napisie zmyliłyby każde wyrażenie.
+     */
+    private function samKod(string $zrodlo): string
+    {
+        $kod = '';
+
+        foreach (token_get_all('<?php '.$zrodlo) as $token) {
+            if (is_array($token)) {
+                if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT, T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE, T_OPEN_TAG], true)) {
+                    $kod .= ' ';
+
+                    continue;
+                }
+
+                $kod .= $token[1];
+
+                continue;
+            }
+
+            $kod .= $token;
+        }
+
+        return $kod;
     }
 }
