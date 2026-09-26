@@ -193,7 +193,8 @@ final class LimityZdjec
      */
     public static function komunikatNieudanejWysylki(): string
     {
-        return 'Nie udało się wysłać tego zdjęcia. Sprawdź, czy plik waży mniej niż '
+        return 'Nie udało się wysłać tego zdjęcia. Sprawdź, czy to plik '
+            .self::formatyDlaCzlowieka().' i czy waży mniej niż '
             .self::maksMegabajtowDoKomunikatu().' MB, i spróbuj jeszcze raz.';
     }
 
