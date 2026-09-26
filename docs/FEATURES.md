@@ -110,8 +110,10 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - import URL/PDF/zdjęcie;
 - pantry;
 - „co ugotuję z tego, co mam”;
-- zamienniki;
-- skalowanie porcji;
+- zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,
+  „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
+- skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
+  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
 - nutrition;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
