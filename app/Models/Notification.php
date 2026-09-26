@@ -203,6 +203,14 @@ class Notification extends Model
      */
     private ?bool $wykonanieIstnieje = null;
 
+    /**
+     * AKTUALNY slug przepisu z `data.recipe_id` (issue #1034).
+     * `false` = jeszcze nie sprawdzano, `null` = przepisu już nie ma
+     * (miękko usunięty albo nigdy nie istniał). Lista ustawia to jednym
+     * zapytaniem dla całej strony, tak samo jak `$wykonanieIstnieje`.
+     */
+    private string|false|null $slugPrzepisu = false;
+
     protected function casts(): array
     {
         return [
@@ -334,7 +342,14 @@ class Notification extends Model
             self::TYPE_COOKED => isset($data['cooked_event_id']) && ! $this->wykonanieUsuniete()
                 ? route('cooked.celebrate', $data['cooked_event_id'])
                 : null,
-            self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
+            // ISSUE #1034: cel po STABILNYM `recipe_id`, nie po zamrożonym
+            // `recipe_slug`. Stary slug po usunięciu przepisu prowadził na 404,
+            // a po zmianie tytułu przez przekierowanie — tu od razu bierzemy
+            // aktualny. Brak przepisu = brak „Zobacz"; treść karty zostaje,
+            // bo ktoś naprawdę zapisał ten przepis.
+            self::TYPE_SAVED => is_string($slug = $this->slugZapisanegoPrzepisu()) && $slug !== ''
+                ? route('recipes.show', $slug)
+                : null,
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
@@ -415,6 +430,41 @@ class Notification extends Model
         $this->wykonanieIstnieje ??= Str::isUuid($id) && CookedEvent::query()->whereKey($id)->exists();
 
         return ! $this->wykonanieIstnieje;
+    }
+
+    /**
+     * Powiadomienie o zapisaniu przepisu, którego już nie ma (issue #1034).
+     * `RecipeController::destroy()` usuwa przepis miękko, a `recipe_id`
+     * w `data` nie jest kluczem obcym — powiadomienie zostaje jako
+     * prawdziwe zdarzenie, tylko nie może obiecywać „Zobacz".
+     */
+    public function przepisUsuniety(): bool
+    {
+        return $this->type === self::TYPE_SAVED && $this->slugZapisanegoPrzepisu() === null;
+    }
+
+    /** Wynik zbiorczego sprawdzenia z listy — patrz `$slugPrzepisu`. */
+    public function zapamietajSlugPrzepisu(?string $slug): void
+    {
+        $this->slugPrzepisu = $slug;
+    }
+
+    private function slugZapisanegoPrzepisu(): ?string
+    {
+        if ($this->slugPrzepisu !== false) {
+            return $this->slugPrzepisu;
+        }
+
+        $id = $this->data['recipe_id'] ?? null;
+
+        // Nie-UUID nie trafi w żaden przepis (a PostgreSQL odrzuciłby je
+        // błędem rzutowania). `Recipe` ma `SoftDeletes`, więc usunięty
+        // przepis nie wraca tym zapytaniem.
+        $slug = is_string($id) && Str::isUuid($id)
+            ? Recipe::query()->whereKey($id)->value('slug')
+            : null;
+
+        return $this->slugPrzepisu = is_string($slug) ? $slug : null;
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$wykonanieIstnieje`. */
@@ -785,6 +835,16 @@ class Notification extends Model
                         // stoi drugi raz w `zyweWycinkiKomentarzy()` — patrz komentarz
                         // tamtej metody: to nie jest powtórka przez przeoczenie.
                         ->whereNull('pc.body_removed_at')
+                        // ISSUE #1378: odpowiedź widać tylko wewnątrz wątku —
+                        // ekran pobiera najpierw widoczne komentarze główne
+                        // (`Comment::scopeWidoczneDla()`), a dopiero pod nimi
+                        // odpowiedzi. Niewidoczny korzeń zabiera odpowiedź z ekranu,
+                        // więc zabiera też powiadomienie. Filtr przy odczycie:
+                        // odblokowanie przywraca wątek i powiadomienie razem.
+                        ->where(function (QueryBuilder $watek) use ($viewer): void {
+                            $watek->whereNull('pc.parent_id')
+                                ->orWhereExists(fn (QueryBuilder $s) => $this->korzenWatkuWidoczny($s, $viewer));
+                        })
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc
                                 ->where(fn (QueryBuilder $q) => $q->whereExists(
@@ -801,6 +861,43 @@ class Notification extends Model
         });
 
         return $query;
+    }
+
+    /**
+     * EXISTS potwierdzający, że komentarz główny odpowiedzi `pc` jest dziś
+     * widoczny dla $widz pod TĄ SAMĄ treścią — regułami relacji `comments()`
+     * i `Comment::scopeWidoczneDla()`: opublikowany, nieskasowany, autor
+     * dostępny, bez blokady widz↔autor korzenia (issue #1378).
+     */
+    private function korzenWatkuWidoczny(QueryBuilder $sub, User $widz): void
+    {
+        $widzId = $widz->getKey();
+
+        $sub->selectRaw('1')
+            ->from('comments as kw')
+            ->whereColumn('kw.id', 'pc.parent_id')
+            ->whereNull('kw.parent_id')
+            ->whereRaw('kw.post_id is not distinct from pc.post_id')
+            ->whereRaw('kw.recipe_id is not distinct from pc.recipe_id')
+            ->whereRaw('kw.cooked_event_id is not distinct from pc.cooked_event_id')
+            ->where('kw.status', Comment::STATUS_PUBLISHED)
+            ->whereNull('kw.deleted_at')
+            ->whereNotExists(function (QueryBuilder $autor): void {
+                $autor->selectRaw('1')
+                    ->from('users as autorzy_korzeni')
+                    ->whereColumn('autorzy_korzeni.id', 'kw.author_id')
+                    ->whereIn('autorzy_korzeni.status', User::STATUSY_UKRYWAJACE_TRESC);
+            })
+            ->whereNotExists(function (QueryBuilder $blok) use ($widzId): void {
+                $blok->selectRaw('1')
+                    ->from('blocks')
+                    ->where(function (QueryBuilder $w) use ($widzId): void {
+                        $w->where('blocks.blocker_id', $widzId)->whereColumn('blocks.blocked_id', 'kw.author_id');
+                    })
+                    ->orWhere(function (QueryBuilder $w) use ($widzId): void {
+                        $w->whereColumn('blocks.blocker_id', 'kw.author_id')->where('blocks.blocked_id', $widzId);
+                    });
+            });
     }
 
     /**
