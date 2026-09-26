@@ -180,7 +180,10 @@
         </div>
     @endif
 
-    @if($posts->count() === 0)
+    @if($posts->count() === 0 && $showingDiscover)
+        {{-- Issue #1807: pusty Start po przejściu do Odkrywania też ma wyjście. --}}
+        <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
+    @elseif($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
             Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>

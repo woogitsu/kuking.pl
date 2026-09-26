@@ -346,6 +346,15 @@ GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
 KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+
+# Reguła doboru treści (AGENTS.md §8, D-275, #1806): tygodniowy list nie układa
+# wpisów po liczbie „Ugotowałem”. Mutacja podmienia sortowanie wpisów
+# obserwowanych w `ZbierzTresciDigestu` z czasu publikacji na licznik wykonań —
+# dowód, że strażnik naprawdę skanuje `app/Domain/Digest`, a nie tylko feed.
+# Filtr na samą metodę głównego pomiaru, żeby czerwień pochodziła z reguły,
+# a nie z kotwic zasięgu w sąsiednich metodach.
+DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
+DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
 # `@railway/cli` bez przypiętej wersji, obok tokenu produkcji (audyt B10-02).
@@ -991,6 +1000,8 @@ checks = [
      lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
     ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
+    ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1073,6 +1084,7 @@ run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
+run_test(DIGEST_DOBOR_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
