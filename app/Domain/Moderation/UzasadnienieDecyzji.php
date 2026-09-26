@@ -132,6 +132,15 @@ final class UzasadnienieDecyzji
                 .'a decyzję podjął potem człowiek, który ją przeczytał.';
         }
 
+        // Decyzja po uznaniu odwołania zgłaszającego (#989): `report_id` jest
+        // tu puste, a mimo to sprawa zaczęła się od zgłoszenia — bez tej
+        // gałęzi autor przeczytałby „nikt tego nie zgłosił”.
+        if ($decyzja->appeal_id !== null) {
+            return 'Sprawa zaczęła się od zgłoszenia, które dostaliśmy od innej osoby. '
+                .'Najpierw nie podjęliśmy działania, a po odwołaniu tej osoby sprawdziliśmy sprawę jeszcze raz. '
+                .'Nie podajemy, kto je złożył.';
+        }
+
         if ($decyzja->report_id !== null) {
             return 'Sprawa zaczęła się od zgłoszenia, które dostaliśmy od innej osoby. '
                 .'Nie podajemy, kto je złożył.';
