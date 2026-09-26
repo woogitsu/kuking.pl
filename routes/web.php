@@ -754,6 +754,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/zeszyt/{collection}', [CollectionController::class, 'update'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.update');
+    // Wyjęcie z zeszytu samych niedostępnych zapisów (#773). Kasuje powiązania,
+    // nie treść — ale bez drogi powrotu, więc budżet `usuwanie`.
+    Route::delete('/zeszyt/{collection}/niedostepne', [CollectionController::class, 'removeUnavailable'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.unavailable.destroy');
     // Prywatna notatka przy jednej pozycji zeszytu (#978). Odwracalna,
     // nikogo nie powiadamia — budżet `zeszyt`, jak zapis.
     Route::patch('/zeszyt/{collection}/notatka/{typ}/{pozycja}', CollectionItemNoteController::class)
