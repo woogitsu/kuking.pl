@@ -18,9 +18,12 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
+{{-- `priority` (#1001): tylko strona pojedynczego wpisu. Pierwsze zdjęcie
+     dostaje `fetchpriority="high"` zamiast `loading="lazy"`; reszta zdjęć
+     i karty w listach zostają leniwe. --}}
+@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null, 'priority' => false])
 @php $author = $post->author; @endphp
-<article class="card post-card">
+<article class="card post-card" data-klucz="wpis-{{ $post->getKey() }}">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
 
@@ -195,6 +198,11 @@
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{-- „Dopisz przepis” (#1334) — tylko przy kwalifikującym
+                             się wpisie; reguła w `PostPolicy::dopiszPrzepis`. --}}
+                        @can('dopiszPrzepis', $post)
+                            <a href="{{ route('recipes.create.from-post', $post) }}">Dopisz przepis</a>
+                        @endcan
                         {{--
                             „Usuń wpis" — akcja destrukcyjna, odsunięta od
                             zwykłych akcji i wymagająca potwierdzenia
@@ -332,6 +340,7 @@
         <div class="photo-grid">
             <a href="{{ route('recipes.show', $post->recipe->slug) }}">
                 <x-photo :media="$post->recipe->heroMedia"
+                         :priority="$priority"
                          :zoom="false"
                          tresc="przepis"
                          :alt="$post->recipe->heroMedia->alt_text ?: 'Zdjęcie do przepisu: '.$post->recipe->title" />
@@ -340,17 +349,17 @@
     @elseif($post->media->isNotEmpty())
         @switch($post->trybWyswietlaniaZdjec())
             @case(\App\Models\Post::DISPLAY_CAROUSEL)
-                <x-karuzela-zdjec :post="$post" />
+                <x-karuzela-zdjec :post="$post" :priority="$priority" />
                 @break
 
             @case(\App\Models\Post::DISPLAY_COLLAGE)
-                <x-kolaz-zdjec :post="$post" />
+                <x-kolaz-zdjec :post="$post" :priority="$priority" />
                 @break
 
             @default
                 <div class="photo-grid">
                     @foreach($post->media as $media)
-                        <x-photo :media="$media" />
+                        <x-photo :media="$media" :priority="$priority && $loop->first" />
                     @endforeach
                 </div>
         @endswitch
