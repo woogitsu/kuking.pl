@@ -120,6 +120,12 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         $this->assertFalse($this->klasaTestowaIstnieje('KlasaKtorejNieMaWRepozytoriumTest', null));
     }
 
+    public function test_skaner_rozpoznaje_stala_klasy_tylko_po_deklaracji(): void
+    {
+        $this->assertTrue($this->sklasyfikujISprawdz('DOMYSLNE_UPRAWNIENIA_API', '`app/Models/User.php`'));
+        $this->assertFalse($this->sklasyfikujISprawdz('STALA_KTOREJ_NIE_MA_W_APP', '`app/Models/User.php`'));
+    }
+
     public function test_referencje_z_dziennika_decyzji_wskazuja_na_istniejace_cele(): void
     {
         $sciezka = base_path('docs/DECISIONS.md');
@@ -510,7 +516,10 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         }
 
         if (preg_match('/^[A-Z][A-Z0-9_]{3,}$/', $token) === 1) {
-            return $this->wystepujeWRepo($token, ['.env.example', '.env', '.railway/railway.ts']);
+            // Zmienna środowiskowa ALBO stała klasy (`User::DOMYSLNE_UPRAWNIENIA_API`,
+            // D-320) — samą deklarację `const`, nie dowolne wystąpienie słowa.
+            return $this->wystepujeWRepo($token, ['.env.example', '.env', '.railway/railway.ts'])
+                || $this->stalaIstnieje($token);
         }
 
         // Ostatnia deska ratunku: bare słowo (tabela, migracja, nazwa
@@ -572,6 +581,11 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         }
 
         return true;
+    }
+
+    private function stalaIstnieje(string $nazwa): bool
+    {
+        return $this->wystepujeWApp('/\\bconst\\s+(?:[A-Za-z_\\\\?|]+\\s+)?'.preg_quote($nazwa, '/').'\\s*=/');
     }
 
     private function wystepujeWApp(string $wzorzecRegex): bool
