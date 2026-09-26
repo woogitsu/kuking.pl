@@ -50,9 +50,28 @@ class SocialController extends Controller
             return back()->withErrors(['follow' => $e->getMessage()]);
         }
 
-        return back()->with('status', $followed
-            ? 'Obserwujesz '.$target->displayName().'. Nowe wpisy pojawią się na Twojej stronie głównej.'
-            : 'Już obserwujesz tę osobę.');
+        if (! $followed) {
+            return back()->with('status', 'Już obserwujesz tę osobę.');
+        }
+
+        // KOMUNIKAT, KTÓRY MÓWI PRAWDĘ (issue #1809). Bez nazwy konta —
+        // „Obserwujesz Anna" to odmiana, której z dowolnego ciągu znaków nie
+        // policzymy (COPY_STYLE, 11 września 2026). Zdanie o powiadomieniu
+        // tylko wtedy, gdy powiadomienie naprawdę powstało: powtórka tej
+        // samej pary w oknie (obserwuj → cofnij → obserwuj) jest wyciszona.
+        //
+        // `status_powrot` — przycisk „Cofnij" pod komunikatem, który nie
+        // znika sam (ten sam mechanizm co „Przywróć do zeszytu", D-242).
+        // Formularz jest POST-em, więc DELETE idzie polem `_method`.
+        return back()
+            ->with('status', $this->followUser->czyPowiadomiono()
+                ? 'Obserwujesz. Ta osoba dostanie powiadomienie. Jej nowe wpisy zobaczysz na Starcie.'
+                : 'Obserwujesz. Nowe wpisy tej osoby zobaczysz na Starcie.')
+            ->with('status_powrot', [
+                'akcja' => route('social.unfollow', $target->profile->username),
+                'etykieta' => 'Cofnij',
+                'pola' => ['_method' => 'DELETE', 'oczekiwany_id' => (string) $target->getKey()],
+            ]);
     }
 
     public function unfollow(Request $request, string $username): RedirectResponse
@@ -76,7 +95,8 @@ class SocialController extends Controller
 
         $this->unfollowUser->handle($request->user(), $target);
 
-        return back()->with('status', 'Nie obserwujesz już '.$target->displayName().'.');
+        // Bez nazwy konta po „już" (dopełniacz) — patrz komunikat w `follow()`.
+        return back()->with('status', 'Nie obserwujesz już tej osoby.');
     }
 
     public function block(Request $request, string $username): RedirectResponse
@@ -167,13 +187,13 @@ class SocialController extends Controller
     }
 
     /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */
-    public function followers(Request $request, string $username): Response
+    public function followers(Request $request, string $username): Response|RedirectResponse
     {
         return $this->connections($request, $username, 'followers', 'Obserwujący');
     }
 
     /** Lista osób, które dany profil obserwuje: /@{username}/obserwowani */
-    public function following(Request $request, string $username): Response
+    public function following(Request $request, string $username): Response|RedirectResponse
     {
         return $this->connections($request, $username, 'following', 'Obserwowani');
     }
@@ -188,7 +208,7 @@ class SocialController extends Controller
      * znaleźć ktoś, kogo zablokował akurat OSOBA OGLĄDAJĄCA listę, a nie
      * właściciel profilu.
      */
-    private function connections(Request $request, string $username, string $relation, string $title): Response
+    private function connections(Request $request, string $username, string $relation, string $title): Response|RedirectResponse
     {
         $target = $this->findUser($username);
         $this->authorize('viewProfile', $target);
@@ -294,6 +314,29 @@ class SocialController extends Controller
             ->orderByDesc('users.id')
             ->paginate(20)
             ->withQueryString();
+
+        // STRONA POZA ZAKRESEM TO NIE PUSTA LISTA (#748).
+        //
+        // „Przestań obserwować" przy ostatniej karcie drugiej strony wraca
+        // przez `back()` na `?page=2`, która jest już pusta. Widok pytał
+        // `count()` bieżącej strony i mówił „Jeszcze nikogo nie obserwuje",
+        // choć na pierwszej zostawało dwadzieścia osób — a pusta strona nie
+        // ma żadnego przycisku, którym dałoby się do nich wrócić. Przenosimy
+        // więc na ostatnią istniejącą stronę; komunikat po akcji jedzie dalej.
+        if ($paginator->currentPage() > 1 && $paginator->currentPage() > $paginator->lastPage()) {
+            $request->session()->reflash();
+
+            $parametry = $request->query();
+            unset($parametry['page']);
+            if ($paginator->lastPage() > 1) {
+                $parametry['page'] = $paginator->lastPage();
+            }
+
+            return redirect()->route(
+                $relation === 'followers' ? 'social.followers' : 'social.following',
+                ['username' => $username, ...$parametry],
+            );
+        }
 
         $profile = $target->profile;
 

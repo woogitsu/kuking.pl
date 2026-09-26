@@ -252,6 +252,33 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:20 — dziesięć minut po sesjach, tak jak rozsunięta jest cała reszta tej
+// listy (uzasadnienie odstępów wyżej).
+// Retencja `failed_jobs`: 30 dni (720 godzin) od `failed_at` — decyzja
+// właściciela z 25.09.2026, `docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY
+// WYŁĄCZNIE JAKO SKRÓT”.
+//
+// DLACZEGO AUTOMATYCZNIE, SKORO `failed_jobs` TO ŚLAD PO AWARII
+// Bo 30 dni wystarcza na diagnozę: o świeżej awarii mówią czujka kolejki
+// (`kuking:sprawdz-kolejke`, co kwadrans), panel kolejki i `/health` — długo
+// przed tym, zanim wiersz zniknie. Po miesiącu wiersz nie jest już śladem,
+// na który ktoś czeka, tylko ładunkiem z danymi odbiorcy (AGENTS.md §7 —
+// minimalizacja). Żetony w ładunku są szyfrowane kluczem aplikacji (audyt
+// A5-10, `ShouldBeEncrypted`), więc te trzydzieści dni nie wystawia żywego
+// sekretu.
+// Wcześniejsze, ręczne sprzątanie po rozliczeniu awarii zostaje
+// w `kuking:martwe-zadania` (domyślnie na sucho, kasuje dopiero `--skasuj`).
+//
+// `queue:prune-failed` to komenda Laravela; przez `Harmonogram::artisan()`
+// idzie tak samo jak nasze — w tym samym procesie, z kontrolą kodu wyjścia.
+// Pilnuje tego `tests/Feature/CzyszczenieNieudanychZadanTest.php`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])
+    ->name('queue:prune-failed')
+    ->dailyAt('05:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
 // Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
 // jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
@@ -261,6 +288,21 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
 Harmonogram::artisan('kuking:sprzataj-resety-hasel')
     ->name('kuking:sprzataj-resety-hasel')
     ->dailyAt('05:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// 05:50 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// 05:20 zajął `queue:prune-failed`, 05:30 rezerwuje dziennik wymazań (#1719).
+// Treści usunięte przez autora (audyt B5, znalezisko 1): po
+// `config('kuking.usuniete_tresci.retention_days')` dniach od `deleted_at`
+// wpis, przepis albo komentarz znika z bazy na stałe, a jego zdjęcia z R2.
+// Treści ze sprawą moderacyjną czekają na retencję sprawy — reguły
+// w `App\Domain\Compliance\PrzedawnioneUsunieteTresci`.
+// PRZED sprzątaczem osieroconych zdjęć z następnej nocy (03:40): zdjęcia,
+// których nie dało się skasować od razu, dobierze on jako nieprzypięte.
+Harmonogram::artisan('kuking:sprzataj-usuniete-tresci')
+    ->name('kuking:sprzataj-usuniete-tresci')
+    ->dailyAt('05:50')
     ->onOneServer()
     ->withoutOverlapping(120);
 
@@ -411,7 +453,8 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
 // w godzinę, bez niczyjej ręki.
 //
 // Minuta 35: o 00 tykają zdejmowanie kar i licznik społeczności, o 25 budżet
-// połączeń (uzasadnienie rozsunięcia przy sprzątaniu zmian adresu).
+// połączeń, o 45 dosyłka potwierdzeń zgłoszeń (uzasadnienie rozsunięcia przy
+// sprzątaniu zmian adresu).
 // Blokada 50 minut — reguła „co godzinę → 50" z nagłówka tego pliku.
 // Wyścigu dwóch przebiegów i tak pilnuje baza (`AlarmujModeratora::doslij()`).
 //
@@ -484,6 +527,34 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Listy z życzeniami urodzinowymi (issue #1755, etap c). Tylko za osobną
+// zgodą i w sufitach poczty (`kuking.urodziny.mail_dzienny_sufit` plus
+// wspólna pula w klasie, która gaśnie pierwsza).
+//
+// 08:40 — STAŁA PORA. Harmonogram liczy w `app.timezone` (UTC), więc w Polsce
+// to 9:40 zimą i 10:40 latem: zawsze po ciszy nocnej (21–8), zawsze rano.
+// Dziesięć minut po podsumowaniu, żeby oba zadania nie startowały w tej samej
+// minucie. „Dziś"
+// komenda liczy w strefie Europe/Warsaw (`Czas::dzisiajData()`), więc
+// harmonogram w UTC nie przesuwa urodzin o dobę. Przed dublem chroni warunkowy
+// `UPDATE` na `users.birthday_email_sent_on`, nie `withoutOverlapping()`.
+Harmonogram::artisan('kuking:wyslij-zyczenia-urodzinowe')
+    ->name('kuking:wyslij-zyczenia-urodzinowe')
+    ->dailyAt('08:40')
+    ->onOneServer()
+    ->withoutOverlapping(60);
+
+// Przypomnienie „Dziś urodziny: …" dla obserwujących (issue #1755, etap d) —
+// tylko u osób, które to same włączyły; powiadomienie w serwisie, nie wpis
+// w feedzie. 07:50 UTC to w Polsce 8:50 zimą i 9:50 latem, czyli zawsze po
+// ciszy nocnej (21–8); komenda i tak sprawdza ciszę sama. Limit na odbiorcę
+// i jedno przypomnienie na parę na dobę pilnuje komenda, nie harmonogram.
+Harmonogram::artisan('kuking:przypomnij-o-urodzinach')
+    ->name('kuking:przypomnij-o-urodzinach')
+    ->dailyAt('07:50')
+    ->onOneServer()
+    ->withoutOverlapping(60);
+
 // Dosyłka zaległych potwierdzeń przyjęcia zgłoszenia (issue #797, D-252 —
 // decyzja właściciela z 23.09.2026, DSA art. 16 ust. 4).
 //
@@ -495,9 +566,11 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
 // jest obowiązkiem, nie uprzejmością.
 //
 // CO GODZINĘ, nie raz na dobę: przepis mówi „bez zbędnej zwłoki", a zaległość
-// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 35:
-// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`; nocne
-// pasmo sprzątania też omijamy — cała ta lista jest świadomie porozsuwana.
+// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 45:
+// 00 zajmują `hourly()` innych zadań, 25 — `kuking:budzet-polaczen`, 35 —
+// `kuking:doslij-pilne-alarmy`. Do 25.09.2026 stało tu 35: dwa PR-y z tego
+// samego dnia (#1051 i D-252) wybrały tę samą „wolną" minutę niezależnie.
+// Pilnuje tego `HarmonogramBezKolizjiTerminowTest`.
 //
 // `onOneServer()` — jak każde zadanie w tym pliku (#595): przy wdrożeniu dwa
 // kontenery nie odpalą tego samego terminu. Przed dublem potwierdzenia chroni
@@ -516,6 +589,6 @@ Harmonogram::artisan('kuking:wyslij-podsumowania')
 // (kontrola dodatnia) na udanym.
 Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
     ->name('kuking:dosylaj-potwierdzenia-zgloszen')
-    ->hourlyAt(35)
+    ->hourlyAt(45)
     ->onOneServer()
     ->withoutOverlapping(50);

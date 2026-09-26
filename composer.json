@@ -10,9 +10,11 @@
         "bacon/bacon-qr-code": "^3.1",
         "intervention/image": "^3.0",
         "laravel/framework": "^13.17",
+        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.0",
         "livewire/livewire": "^4.0",
+        "minishlink/web-push": "^11.0",
         "pragmarx/google2fa": "^9.1"
     },
     "require-dev": {

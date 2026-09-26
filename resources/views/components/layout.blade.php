@@ -251,7 +251,15 @@
 <html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif @if($theme === 'dark') data-theme="dark" @endif>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- `interactive-widget=resizes-content` (issue #947): klawiatura ekranowa
+         zmniejsza LAYOUT viewport, nie tylko visual viewport. Bez tego Chrome
+         od wersji 108 zostawia układ w pełnej wysokości, progi wysokości
+         z `marka-rama.css` (40rem przy wąskim oknie, 25rem przy każdej
+         szerokości) nie zapalają się przy otwartej klawiaturze i obie
+         przypięte belki zabierają resztę widoku nad polem. Zmierzone
+         w `scripts/przegladarka/klawiatura-belki.test.mjs`. Safari tego klucza
+         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 
@@ -987,6 +995,16 @@
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
+                {{-- To samo dla akcji z menu karty, które wracają na strumień
+                     (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
+                     odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
+                     nie ma formularza z podsumowaniem błędów. --}}
+                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                    @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
+                    @if($bladAkcji)
+                        <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
+                    @endif
+                @endforeach
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).

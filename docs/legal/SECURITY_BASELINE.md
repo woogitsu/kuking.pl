@@ -23,7 +23,7 @@ Konfiguracja przez middleware (np. pakiet `spatie/laravel-csp` lub własny middl
 > bez `new Function`).
 >
 > **Jedyna niedomknięta dyrektywa:** `style-src` ma jeszcze `unsafe-inline`,
-> bo w widokach zostało 215 atrybutów `style="…"` w 15 plikach. Nonce ich nie
+> bo w widokach zostało 225 atrybutów `style="…"` w 16 plikach. Nonce ich nie
 > ratuje — działa na elementy `<style>`, a nie na atrybut `style`. Nagłówek
 > `Report-Only` jest ustawiony ostrzej (`style-src` z samym nonce), żeby
 > mierzyć dokładnie tę pozostałość, a nie coś, co jest już w porządku.
@@ -204,6 +204,12 @@ z niej fałszywego wniosku o poziomie ochrony:
    w dzienniku. To jest świadome: awaria cudzej usługi albo nasza literówka
    w sekrecie nie może zamykać rejestracji, odzyskiwania hasła i drogi z DSA
    art. 16 naraz.
+4. **Token jest związany z hostem i formularzem** (issue #992). `success=true`
+   przechodzi tylko z `hostname` z listy środowiska (host z `APP_URL` plus
+   jawne `TURNSTILE_HOSTY_STAGINGU`, nigdy host żądania) i z `action` równym
+   miejscu wysyłanego formularza. Brak albo niezgodność to odmowa jak przy
+   podrobionym tokenie — nie „nie wiem" z punktu 3. Lista hostnames widgetu
+   w panelu Cloudflare ma odpowiadać liście w aplikacji (runbook, krok 8A.2).
 
 Pełne uzasadnienie, droga wycofania i to, co idzie razem z zaciśnięciem:
 `docs/DECISIONS.md` D-050.
