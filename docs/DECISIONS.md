@@ -3238,7 +3238,8 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
-Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
+Dla komentarzy lukę zamyka D-256 (#909), dla wpisów D-258 (#936) — bez
+naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -17358,6 +17359,55 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia.
+## D-258 — Poprawiony wpis przechodzi analizę automatu jeszcze raz; wpisu pod decyzją moderacji nie da się edytować (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #936 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+
+**Co.**
+1. Gdy autor **rzeczywiście zmieni** treść opublikowanego wpisu — tekst,
+   tytuł pytania albo zestaw tagów — `EditPost` zleca
+   `PrzeanalizujTresc::dlaWpisu()`: to samo zadanie, w tej samej kolejce
+   `low`, co po publikacji, dopiero po zatwierdzeniu transakcji
+   (`afterCommit`). Zapis bez zmiany i sama zmiana widoczności nie zlecają
+   nic — z jednym wyjątkiem: wpis wychodzący z „tylko ja”. Prywatnego wpisu
+   analiza przy publikacji nie ogląda, więc pierwsze pokazanie go ludziom
+   jest pierwszą okazją do analizy.
+2. Wpis `hidden` albo `removed` nie jest edytowalny (`PostPolicy::update()`,
+   także zdjęcia i „wspomnienia”, które idą przez tę samą regułę). Status
+   jest sprawdzany ponownie pod blokadą wiersza w `EditPost`. Autor dostaje
+   komunikat, co może zrobić (odwołanie), a tekst wpisany mimo to wraca
+   na ekranie do skopiowania.
+
+**Dlaczego wariant „zablokuj”, a nie „pozwól poprawić i oznacz do
+ponownego przeglądu”.** Ten sam kontrakt co dla komentarzy (#937). Drugi
+wariant wymaga nowego stanu workflow (kolumna, ekran, przegląd przed
+przywróceniem), którego nie ma. Przy blokadzie `RestoreContent` przywraca
+dokładnie tę treść, o której moderator zdecydował, a odwołanie (DSA art. 20)
+dotyczy tego samego tekstu. Autor, który chce poprawić wpis, odwołuje się
+albo publikuje nowy.
+
+**Obietnica „odrzucone nie wraca” (D-052)** — nienaruszona:
+`OznaczDoPrzegladu::juzOgladane()` i indeks `reports_jeden_automat_na_tresc`
+przepuszczają jedno oznaczenie na wpis, na zawsze. Kilka szybkich poprawek
+daje kilka zadań (ograniczonych limitem trasy i tylko rzeczywistą zmianą),
+ale każde czyta wpis po ID w chwili wykonania, więc ocenia najnowszą wersję,
+a wynik to najwyżej jedna pozycja w kolejce.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+wpis zostaje opublikowany, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji.
+
+**Znana granica.** Wpis, którego oznaczenie moderator już odrzucił, po
+edycji nie wraca do kolejki automatu — cena obietnicy z D-052. Zostaje
+zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiWpisuTest.php`.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.
 ---
 
 ## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
@@ -17712,6 +17762,71 @@ z historii gita (przed tym wpisem), teksty `/pomoc`, `/o-kuking`,
 
 📄 `app/Domain/Feed/FollowingFeed.php` · `app/Http/Controllers/FeedController.php` ·
 `resources/views/components/post-card.blade.php` · `tests/Feature/StartOsobyITagiRazemTest.php` · D-021
+
+## D-278 — Prywatne ukrycia: „Ukryj ten wpis” i „Ukryj tę osobę”, 30 dni, bez agregacji (#1810, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1810) · Status: **obowiązuje**
+
+### Decyzja
+
+Druga połowa jawnych poleceń widza z listy D-275 („mniej”, obok „więcej” =
+obserwuj). Ukrywamy **pojedynczy wpis** i **osobę**; tag później. Domyślnie
+**na 30 dni** (`kuking.ukrycia.dni`), po terminie wraca samo; lista
+w Ustawieniach → „Ukryte” pokazuje datę końca, „Zostaw ukryte” (bez terminu)
+i „Przywróć”. Miejsce: menu trzech kropek, nad „Zgłoś” (wyjątek D-172 się nie
+rozszerza).
+
+**Gdzie działa:**
+
+| | Start (Obserwowani) | Odkrywanie | Tablica: wybór gospodarza | Tablica: część automatyczna, propozycje osób | Tygodniowy list | Profil, wyszukiwarka, link |
+|---|---|---|---|---|---|---|
+| Ukryty wpis | znika | znika | znika | znika | znika | karta zwinięta: „Ten wpis ukrywasz tylko dla siebie. Pokaż” |
+| Ukryta osoba | **nie działa** | znika | **nie działa** | znika | nie działa | nie działa |
+
+Ukrycie osoby działa wyłącznie tam, gdzie serwis sam podsuwa ludzi. W
+Obserwowanych nic nie znika poza bramkami, blokadami i tym, co widz sam
+wskazał palcem (pojedynczy wpis) — AGENTS.md §8. Kogoś, kogo się obserwuje,
+się nie ukrywa: menu pokazuje wtedy „Przestań obserwować”, a akcja odmawia.
+Wybór gospodarza to oznaczony wybór, nie podsunięcie — ukrycie osoby go nie
+zdejmuje (ukrycie konkretnego wpisu — tak).
+
+**Słowa.** Każdy komunikat mówi „tylko dla Ciebie”, bo „ukryj” ma w serwisie
+drugie znaczenie (moderacja ukrywa treść wszystkim). Po akcji `status_powrot`
+z „Cofnij”, bez „czy na pewno”. Osobę ukrywa się przez ekran wyboru (GET +
+POST, bez JS) z nazwą dosłownie, zakresem, „Nie powiadamiamy tej osoby”
+i linią „Ktoś Ci dokucza? … Zablokuj … albo zgłoś”.
+
+**Bez agregacji** (EROD 3/2025 pkt 95). Ukrycia nie wpływają na zasięg
+autora, nie trafiają do moderacji ani analityki, autor nie dostaje
+powiadomienia. „Ugotowałem” dalej powiadamia autora ukrytego przez kucharza —
+ukrycie nie jest czwartym wyjątkiem z AGENTS.md §1. Ostrzeżenie „ukrywasz już
+co najmniej jedną trzecią osób, które ostatnio coś pokazały” liczy się
+z ukryć TEGO widza i publicznej aktywności autorów
+(`kuking.ukrycia.prog_ostrzezenia`, `okno_aktywnosci_dni`).
+
+**Dane.** Tabela `hides` (docs/DATABASE.md), rollback odmawia przy aktywnych
+ukryciach (D-088). Eksport: sekcja `ukryte` (co, do kiedy); kto ukrył to
+konto — na żądanie z uzasadnieniem art. 15 ust. 4, jak blokady.
+
+Pusty stan Odkrywania (D-276) liczy teraz blokady i aktywne ukrycia i prowadzi
+do listy „Ukryte”.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Możesz ukryć pojedynczy wpis albo osobę — tylko dla siebie, domyślnie na 30
+> dni. Ukryty wpis znika z Twoich list; ukryta osoba znika z miejsc, w których
+> sami podsuwamy Ci ludzi. Nikogo o tym nie powiadamiamy i nie liczymy, ile
+> osób kogoś ukryło. Wszystko cofniesz w Ustawieniach → Ukryte.
+
+### Wycofanie
+
+Wycofanie funkcji wymaga decyzji, co z aktywnymi ukryciami (rollback migracji
+odmawia). Kod: `app/Domain/Ukrycia`, `UkryciaController`, zakresy w `Post`
+i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
+`ZbierzTresciDigestu`.
+
+📄 `app/Domain/Ukrycia/Ukrycia.php` · `app/Http/Controllers/UkryciaController.php` ·
+`tests/Feature/UkryjWpisIOsobeTest.php` · `tests/Feature/CofniecieMigracjiUkrycNieOdslaniaTest.php` · D-275 · D-276
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
@@ -17748,6 +17863,122 @@ najnowszy wpis autora, nie dwa naraz.
 Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
 dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
 listy odkrywania.
+## D-269 — Urodziny (dzień i miesiąc), życzenia, mail za osobną zgodą, przypomnienie obserwującym, rocznica dołączenia (#1754, #1755, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
+`claude/research-profil-forma-urodziny`). Właściciel przyjął część
+rekomendacji i świadomie poszedł dalej w dwóch miejscach, które research
+odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
+
+### CO ZOSTAŁO POSTANOWIONE
+
+1. **Urodziny = dzień i miesiąc, bez roku.** Pole opcjonalne
+   (`users.birthday_day`, `users.birthday_month`, CHECK zakresów), przycisk
+   „Usuń datę”, osobny ekran `/ustawienia/urodziny`. Roku nie zbieramy ani do
+   życzeń, ani do weryfikacji wieku (`docs/legal/COMPLIANCE.md` §4). 29 lutego
+   obchodzimy 28 lutego w latach nieprzestępnych. Data jest prywatna: nie ma
+   jej na profilu publicznym. Eksport RODO (`konto.urodziny`, DD-MM),
+   anonimizacja przy wymazaniu konta. `docs/SECURITY_PRIVACY_LEGAL.md`
+   („Data minimization”) dostaje dopisek — pełna data nadal na liście „nie
+   zbierać”.
+2. **Życzenia od gospodarza na `/home`** — jedno zdanie w dniu urodzin, tylko
+   u samego zainteresowanego, z wyłącznikiem przy dacie
+   (`users.birthday_wishes_enabled`, domyślnie włączone; zasada żałoby).
+3. **Mail z życzeniami — wyłącznie za OSOBNĄ zgodą** (PKE art. 398):
+   `users.wants_birthday_email`, domyślnie wyłączone; podanie daty zgody nie
+   daje. Każda zmiana zgody w dzienniku zgód (cel `zyczenia_urodzinowe`,
+   D-072). Wysyłka w dobowych sufitach poczty (własny 20/dobę + wspólna pula
+   w klasie `podsumowanie`, która gaśnie pierwsza), o stałej porze 08:40 UTC
+   z harmonogramu. Po scaleniu **włączona na produkcji**
+   (`KUKING_URODZINY_MAIL_WLACZONY` w roli scheduler, `.railway/railway.ts`);
+   staging i PR-y nie wysyłają.
+   **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
+   **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
+   wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
+4. **Przypomnienie obserwującym („Dziś urodziny: Ania”) — tylko gdy osoba
+   sama WŁĄCZY** „Pokaż moje urodziny obserwującym”
+   (`users.birthday_visible_to_followers`, domyślnie wyłączone). Powiadomienie
+   w serwisie (`birthday.today`), **nie wpis w feedzie** — feed obserwowanych
+   zostaje chronologiczny bez wstawek (AGENTS.md §8). Najwyżej jedno na parę
+   dziennie, dobowy limit na odbiorcę, nigdy w ciszy nocnej (21–8).
+5. **Konta zawieszone są wykluczone** — solenizantem w mailu i w
+   przypomnieniu może być tylko konto o statusie `active`.
+6. **Rocznica dołączenia** — jedno zdanie od gospodarza na `/home` w rocznicę
+   `users.created_at` (Europe/Warsaw), bez maila i powiadomień, zero nowych
+   danych. **Wyłącznik wspólny ze Wspomnieniami** (`users.memories_enabled`) —
+   jeden przełącznik dla „tego dnia w poprzednich latach”.
+
+### CZEGO TA DECYZJA NIE ZMIENIA
+
+- Formy gramatycznej (#1752/#1753) — teksty rocznicy i życzeń są dziś bez
+  rodzaju i powstają w jednym miejscu (`RocznicaDolaczenia::tekst()`,
+  `Urodziny::tekstZyczen()`), gotowe na helper formy.
+- Zasady „nie pytamy o płeć” (D-206) ani listy „nie zbierać” — rok urodzenia
+  i pełna data dalej są poza zakresem.
+- Imienin — dalej V1, po testach z ludźmi (#15).
+
+### Wycofanie
+
+Każdy element ma własną migrację z `down()` odmawiającym przy decyzjach
+ludzi (D-088) — opis w `docs/DATABASE.md` („Urodziny bez roku”). Wysyłkę
+maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
+
+
+## D-303 — Ustawienia powiadomień dotyczą WYŁĄCZNIE kanałów zewnętrznych; Web Push przez VAPID (issue #35, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · **Decyzja właściciela** ·
+Dotyczy **#35**, `AGENTS.md` §1, `docs/product/RETENTION_LOOPS.md` §3.2–3.3
+
+**Problem.** AGENTS.md §1 mówił: „ustawień użytkownika na tej liście nie ma
+i mieć nie ma" — a #35 i RETENTION_LOOPS §3.3 zakładały przełączniki per typ
+i „wyłącz wszystkie". Bez rozstrzygnięcia każdy kanał poza serwisem albo
+łamałby AGENTS.md, albo wysyłał bez możliwości wyłączenia.
+
+**Decyzja.**
+
+1. **Powiadomienia w serwisie — bez zmian.** Żadnych ustawień per typ,
+   żadnego wyłącznika. „Ugotowałem" zawsze powiadamia autora (AGENTS.md §1).
+2. **Ustawienia dotyczą WYŁĄCZNIE kanałów zewnętrznych** (Web Push, w przyszłości
+   ewentualnie e-mail o zdarzeniu): prosty przełącznik „włącz/wyłącz" per kanał,
+   **cisza nocna** (domyślnie 21–8, Europe/Warsaw, do zmiany przez człowieka)
+   i **dzienny limit** liczby pushy (domyślnie 1, wybór z listy 1/2/3/5).
+   Ekran: `/ustawienia/powiadomienia`. Bez ustawień per typ także tutaj.
+3. **Web Push przez standard VAPID**, bez pośrednika (`minishlink/web-push`).
+   Klucze w zmiennych środowiska; **brak klucza = funkcji nie ma** (ani ekranu,
+   ani przycisku, ani wysyłki). `KUKING_POWIADOMIENIA_ZEWNETRZNE` przestaje być
+   bramką uruchomienia (domyślnie `true`) i zostaje awaryjnym wyłącznikiem.
+4. **Zgoda przeglądarki dopiero po kliknięciu** „Włącz powiadomienia na tym
+   urządzeniu" w ustawieniach. Nigdy przy wejściu na stronę, nigdy własnymi
+   okienkami, bez ponawiania po odmowie. (RETENTION_LOOPS §3.2 mówi „nie
+   wcześniej niż po 3. wpisie" — przy zgodzie wyłącznie z ustawień ten próg
+   jest zbędny: nikt nie zobaczy prośby, o którą sam nie poprosił.)
+5. **Pushem idą tylko odzewy na własne treści:** „Ugotowałem" z mojego przepisu,
+   odpowiedź na mój komentarz / w rozmowie pod moją treścią, odpowiedź na moje
+   pytanie. Granice z AGENTS.md §1 obowiązują same z siebie — push powstaje
+   tylko z wiersza, który `NotifyUser` już zapisał, i przechodzi przez
+   `Notification::visibleTo()`.
+
+**W kodzie.** `App\Domain\Notifications\Push\KanalPush` (dostępność, typy,
+lista hostów usług push przeciw SSRF), `App\Jobs\WyslijPowiadomieniePush`
+(jedno zadanie na odbiorcę, grupowanie, odłożenie zamiast skasowania,
+404/410 kasuje subskrypcję, bez ponawiania), `TerminPowiadomieniaZewnetrznego`
+(cisza i limit — teraz z wartościami człowieka), `TransportPush` z fałszywą
+implementacją w testach. Schemat: `push_subscriptions`,
+`ustawienia_powiadomien_zewnetrznych`, `notifications.push_wyslano_at`
+(`docs/DATABASE.md`). Paczka RODO: sekcja `powiadomienia_poza_serwisem` bez
+adresów i kluczy; `EraseAccountData` kasuje oba rodzaje wierszy. Klucz
+publiczny dostaje web i worker, prywatny tylko worker (`.railway/railway.ts`).
+
+**Zmiana wymaga:** nowej decyzji właściciela. W szczególności ustawienia per
+typ albo jakikolwiek przełącznik dla powiadomień w serwisie wymagają zmiany
+AGENTS.md §1 i testu `UgotowalemZawszePowiadamiaAutoraTest`.
+
+### Wycofanie
+Usunąć klucze VAPID ze zmiennych środowiska — po restarcie usług ekran i wysyłka znikają,
+bez zmiany kodu. Wycofanie migracji odmawia, dopóki ktoś ma zapisane własne
+godziny ciszy lub limit (D-088; instrukcja w komunikacie migracji).
 
 ## D-281 — „Komentarze (N)” pod zwykłym wpisem liczy odpowiedzi; pytanie nie (#1801, 26 września 2026)
 
@@ -17835,6 +18066,78 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
 
+## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Zakres dopuszczony przez
+właściciela 26 września 2026 (funkcje V2, D-282) · Dotyczy `docs/FEATURES.md` (V2:
+„skalowanie porcji”, „zamienniki”), #750/#1642 (porcje w setnych)
+
+**Problem.** Strona przepisu pokazywała ilości wyłącznie na liczbę porcji
+autora. Kto gotuje dla dwojga z przepisu na sześć osób, liczył w pamięci —
+a „⅓ szklanki razy ⅓” to rachunek, którego przy garnku nikt nie chce robić.
+Autor nie miał też miejsca na „zamiast masła: margaryna”; wpisywał to w uwagę
+do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne”).
+
+**Decyzja.**
+
+1. **Skalowanie porcji na stronie przepisu.** Nad listą składników widz ma
+   „Na ile porcji?” z przyciskami „− Mniej” / „Więcej +” (linki GET
+   `?porcje=N#skladniki`, działają bez JavaScriptu). Zakres 1–100, krok do
+   pełnej liczby; wartość z przepisu autora zawsze przyjęta. Po przeliczeniu:
+   „Przeliczone na N porcji. Autor podał ilości na M porcji…” i link
+   „Pokaż ilości z przepisu”. Zła wartość w adresie pokazuje przepis autora
+   i zdanie, co zrobić. Przepis bez liczby porcji nie ma wyboru.
+2. **Ilość czytana z tekstu wiersza w chwili pokazania, nic nie jest
+   zapisywane.** Składnik to jedno pole wolnego tekstu (D-017), `quantity`
+   i `unit_id` są puste. `App\Domain\Recipes\Porcje\PrzeliczSkladnik` szuka
+   liczby na początku wiersza, po myślniku/dwukropku albo przed znaną
+   jednostką; „szklanka mąki” bez liczby to jedna szklanka. Przeliczana jest
+   tylko ta jedna liczba, reszta zdania autora zostaje co do znaku.
+3. **Zaokrąglenie kuchenne** (`IloscKuchenna`): g/dag/ml do kroku 0,1 → 0,5 →
+   1 → 5 → 10 → 50 zależnie od wielkości; kg/l dziesiętnie co 0,05; łyżki,
+   szklanki, sztuki i rzeczy bez jednostki — ułamki ½ ¼ ¾ ⅓ ⅔ (⅛ poniżej ¼)
+   do 5, połówki do 10, całości powyżej. Wynik nigdy nie jest zerem.
+4. **Nie przeliczamy:** składnika „Bez ilości” (`no_amount`, #44), szczypty,
+   odrobiny, „do smaku”, „ile weźmie”, „na oko”, „według uznania” i wiersza
+   bez liczby. Jednostki słowem odmieniamy („1 łyżka / 3 łyżki / 5 łyżek /
+   ½ łyżki”), skrótów nie („200 g”).
+5. **Zamienniki od autora:** nowa kolumna
+   `recipe_ingredients.substitutes varchar(300) NULL` (CHECK: nie pusta), pole
+   „Czym można to zastąpić (nieobowiązkowe)” w kreatorze i w formularzu bez
+   JavaScriptu, na stronie przepisu i w trybie gotowania linia
+   „Zamiast tego: …” (18 px) pod składnikiem. Zamiennik jest w eksporcie
+   danych (`przepisy[].skladniki[].zamienniki`), w eksporcie HTML przepisu
+   i w `recipe_versions.snapshot`.
+
+**Znana granica.** Rzeczownika bez jednostki nie odmieniamy: „2 jajka” razy
+2,5 daje „5 jajka”, „1 cebula” razy 1,5 — „1½ cebula”. Poprawna odmiana
+wymaga słownika odmiany produktów. Łagodzi to informacja „Przeliczone na N
+porcji” i powrót jednym dotknięciem. Tryb gotowania pokazuje ilości autora
+(parametr `porcje` nie przechodzi do `/gotuj`) — do decyzji, czy przenosić.
+
+**Czego świadomie NIE ma w tym kroku — propozycja na później.** Zamienniki
+podpowiadane przez AI. Model AI projektu ma być według zlecenia OpenAI
+„GPT-6 Luna”, wybierany konfiguracją — w repozytorium takiego wpisu jeszcze
+nie ma (dziś `config/kuking.php` zna tylko `omni-moderation-latest` do
+moderacji), więc to też część przyszłego issue. Propozycja: przy składniku bez zamiennika autorskiego przycisk
+„Podpowiedz zamiennik” (na żądanie widza, nie automatycznie), wynik wyraźnie
+podpisany jako podpowiedź automatu, a nie słowo autora, nigdy nie zapisywany
+w przepisie bez zgody autora; alergeny i bezpieczeństwo żywności — zgodnie
+z `docs/decyzje/PRZEGLAD_BEZPIECZENSTWA_ZYWNOSCI.md`. Wymaga osobnego issue
+z kosztami, limitem zapytań (`config/kuking.php`) i decyzją właściciela.
+
+**W kodzie.** `app/Domain/Recipes/Porcje/` (`WyborPorcji`, `PrzeliczSkladnik`,
+`IloscKuchenna`, `JednostkaKuchenna`), `resources/views/pages/recipes/_wybor-porcji.blade.php`,
+migracja `2026_09_26_100000_add_substitutes_to_recipe_ingredients`. Testy:
+`tests/Unit/PrzeliczSkladnikTest.php`, `tests/Feature/SkalowaniePorcjiNaStroniePrzepisuTest.php`,
+`tests/Feature/ZamiennikiSkladnikowTest.php`, `tests/Feature/CofniecieMigracjiNieKasujeZamiennikowTest.php`.
+
+### Wycofanie
+Skalowanie nie zmienia danych — wycofanie kodu przywraca stronę sprzed D-284.
+Kolumna `substitutes`: `down()` migracji odmawia, gdy choć jeden składnik ma
+zamiennik (D-088); wtedy wycofujemy sam kod i zostawiamy kolumnę, albo po
+zapisaniu danych ustawiamy `KUKING_ROLLBACK_KASUJ_ZAMIENNIKI=true`.
+
 ## D-301 — „Moja wersja”: przepis na podstawie cudzego, z nieusuwalnym podpisem oryginału (issue #23, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
@@ -17920,6 +18223,69 @@ Testy: `MojaWersjaPrzepisuTest`, `CofniecieMigracjiNieGubiPodpisuWersjiTest`.
 Wyłączenie funkcji = usunięcie przycisku i trasy; istniejące wersje zostają
 z podpisem. Cofnięcie schematu odmawia, dopóki w bazie są wersje — komunikat
 migracji mówi, jak zapisać powiązania przed ręcznym cofnięciem.
+## D-310 — Planer tygodnia bez listy zakupów: pierwszy krok z #27 (26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy **#27**, opiera się na **D-282**
+
+**Co powstało.** `/planer` — tydzień od poniedziałku do niedzieli, każdy dzień
+z listą pozycji. Pozycja to przepis (dodany przyciskiem „Dodaj do planera” na
+stronie przepisu) albo własny wpis wpisany ręcznie („obiad u mamy”). Do tego
+„Skopiuj poprzedni tydzień”. Wejście z ekranu „Moje”, bo dolna nawigacja ma
+najwyżej pięć pozycji (`AGENTS.md` §5) i planer się do niej nie dopisuje.
+
+**Czego NIE ma i to jest wybór, nie brak czasu.** Listy zakupów, sumowania
+składników, trybu offline i współdzielenia z domownikami. Issue #27 opisuje
+„najmniejszą kolejność” po spełnieniu bramki i ta zmiana realizuje wyłącznie
+jej punkt 1. Powód jest w samym issue: składnik jest u nas wolnym tekstem
+(`ingredient_text`), więc automatyczne „1 jajko + 2 jajka = 3 jajka”
+wymagałoby parsera i potwierdzania wyniku przez człowieka. Obiecywanie tego
+jako „prostego wykorzystania gotowych danych” byłoby nieprawdą.
+
+**Plan jest prywatny i nie jest furtką do treści.** Nie ma widoczności do
+ustawienia, bo nie ma czego pokazać innym. Przepis widnieje w planie z
+tytułem i linkiem TYLKO wtedy, gdy właściciel planu wciąż go widzi — ta sama
+reguła co na liście zeszytu. Przepis zawężony, usunięty miękko albo odcięty
+blokadą zostaje w planie jako „Przepis jest już niedostępny.”, bez tytułu;
+po twardym usunięciu — „Przepis został usunięty.”. Pozycja NIE znika:
+„poprawne dane nigdy nie znikają” dotyczy też planu, a kryterium z #27 mówi
+to wprost.
+
+**Dlaczego `ON DELETE SET NULL`, a nie `CASCADE`.** Bo `CASCADE` kasowałby
+ręcznie ułożony plan przy usunięciu cudzego przepisu. Kosztem jest wiersz bez
+przepisu i bez tekstu — dlatego CHECK mówi „najwyżej jedno z dwóch”, a nie
+„dokładnie jedno” jak w `collection_items`. Szczegóły schematu:
+`docs/DATABASE.md`, sekcja `meal_plan_entries`.
+
+**Bez przeciągania i bez skryptu.** Każda akcja to zwykły formularz z
+przyciskiem ≥ 48 px, wybór dnia to lista radiowa, nie `<select>`. Ekran działa
+z wyłączonym JavaScriptem w całości (D-053 nie wymaga tu skryptu).
+
+**Limity.** Własny koszyk `kuking.limits.planer` (60/10), żeby układanie
+tygodnia nie zjadało budżetu zapisywania przepisów — ta sama pomyłka, którą
+naprawiono przy zeszycie. Najwyżej `kuking.planer.wpisow_na_dzien` (10)
+pozycji na dzień, okno dni: 60 wstecz i rok do przodu.
+
+**RODO.** Paczka danych wydaje plan w sekcji `planer` (bez tytułów przepisów,
+których właściciel już nie widzi — to dane ich autorów), a wymazanie konta
+kasuje pozycje bezwarunkowo, niezależnie od zakresu usunięcia: plan nigdy nie
+był pokazany nikomu innemu.
+
+**Czego ta decyzja NIE przesądza.** Czy planer będzie funkcją premium
+(`docs/MONETIZATION.md` wymienia go jako kandydata) i czy lista zakupów
+w ogóle powstanie — issue #27 każe najpierw zmierzyć użycie. Pomiar przejścia
+`plan → ugotowanie` liczy się z istniejących tabel (`meal_plan_entries` razem
+z `cooked_events`), więc nie dokładamy pod to nowego sygnału produktowego.
+
+### Wycofanie
+Bez zmian w cudzych danych: trasy, ekran i akcje są samodzielne. Migracja
+`2026_09_26_100000_create_meal_plan_entries_table` przy cofaniu ODMAWIA, gdy
+w tabeli są plany ludzi (D-088 — powód i droga ręczna w komunikacie).
+Wycofanie funkcji wymaga zdjęcia wpisu z `InwentarzDanychKonta` i sekcji
+`planer` z paczki danych, inaczej test inwentarza oblewa.
+
+📄 `docs/DATABASE.md`, `docs/FLOWS_AND_SCREENS.md`, `config/kuking.php`,
+`routes/web.php`, `app/Domain/Planer/`, `tests/Feature/PlanerTygodniaTest.php`
 
 ## D-309 — Ta sama liczba komentarzy wszędzie: przepis i „Ugotowałem” też liczą odpowiedzi (#1801, 26 września 2026)
 
@@ -17983,3 +18349,55 @@ obserwowanie i komentarz dalej są odbijane.
 ### Wycofanie
 Usunąć cztery nazwy tras z listy w `EnsureAccountIsActive`. Schemat bazy się
 nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
+## D-312 — PgBouncer jawnie uznany za jeszcze niepotrzebny; wraca przy nazwanych progach (#600, #598, 26 września 2026)
+
+Dotyczy **#600** (punkt definicji gotowości „PgBouncer jest wdrożony albo
+jawnie uznany za jeszcze niepotrzebny”) i **#598**
+
+**Problem.** #600 każe wdrożyć PgBouncer tylko wtedy, gdy budżet połączeń
+z #598 tego wymaga, i nie dokładać warstwy „na zapas”. Liczby z #598 są
+w `docs/DATABASE.md` („Budżet połączeń PostgreSQL”), ale decyzji na ich
+podstawie nikt nie zapisał, więc punkt #600 wisiał otwarty bez właściciela.
+
+**Liczby, na których stoi decyzja** (wszystkie z `docs/DATABASE.md` §598
+i komentarzy #598 z 17.09.2026):
+
+| Co | Wartość | Skąd |
+|---|---|---|
+| `max_connections` / rezerwa superusera | 500 / 3 → 497 miejsc | odczyt produkcji 17.09.2026 |
+| równoległość HTTP na replikę | `max_threads = 4` | log startowy FrankenPHP 17.09.2026 |
+| budżet szczytowy dzisiejszej topologii | 16 (6 w spoczynku, 13 w oknie wdrożenia, +3 CLI) | policzone, pomiar lokalny modelu wykonania |
+| każda dodatkowa replika `web` | +4 w spoczynku, +8 w oknie wdrożenia | policzone |
+
+Budżet zajmuje ok. 3% puli. Druga replika `web` z #600 dokłada 8 w oknie
+wdrożenia, osobny worker `media` jeden proces (dwa w oknie wdrożenia).
+Proces kolejki więcej w roli `all` (D-311, jeśli wejdzie) to +1 w spoczynku
+i +2 w oknie wdrożenia. Żadna z tych zmian nie zbliża budżetu do progu
+ostrzegawczego 50.
+
+**Decyzja.** PgBouncera **nie wdrażamy** na obecnej i na planowanej
+topologii z #595/#600 (2 repliki `web`, osobny worker, scheduler). Punkt #600
+jest tą decyzją zamknięty — nie przez brak czasu, tylko przez liczby.
+
+**Kiedy decyzja wraca — którykolwiek z warunków:**
+
+1. `kuking:budzet-polaczen` przekracza próg ostrzegawczy (50) poza oknem
+   wdrożenia — alarm na `blad_webhook`;
+2. planowany budżet szczytowy (policzony wg tabeli wyżej) przekracza 125,
+   czyli próg krytyczny — np. przy kilkunastu replikach `web` albo po
+   podniesieniu `max_threads`;
+3. zmiana planu bazy obniża `max_connections` poniżej czterokrotności
+   budżetu szczytowego;
+4. HA/failover Postgresa (#604) wymaga stabilnej warstwy połączeń.
+
+**Czego ta decyzja NIE stwierdza.** Że szczyt z produkcji jest znany: szeregu
+czasowego z produkcji nadal nie ma (#598 zostaje otwarte). Pierwszy odczyt
+z dziennika (`scripts/szczyt-polaczen-z-dziennika.php`, `docs/DATABASE.md`
+§598 G) albo alarm z warunku 1 ma pierwszeństwo przed liczbami policzonymi.
+
+### Wycofanie
+Decyzja nie zmienia kodu, schematu ani konfiguracji. Wdrożenie PgBouncera
+po spełnieniu warunku to osobna zmiana (`DB_HOST`/port poolera w
+`.railway/railway.ts`, tryb transakcyjny wymaga sprawdzenia `SET` sesyjnych
+— m.in. `lock_timeout` z `LimitBlokadMigracji`, który migracje muszą
+dostawać z bezpośredniego połączenia).
