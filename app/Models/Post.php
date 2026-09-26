@@ -139,6 +139,27 @@ class Post extends Model
     }
 
     /**
+     * Zdjęcie, które „Dopisz przepis” (issue #1334) podstawia jako zdjęcie
+     * główne przepisu: pierwsze GOTOWE zdjęcie wpisu tego samego autora.
+     * Zdjęcie odrzucone, w obróbce albo cudze nie przechodzi — wtedy akcji
+     * nie ma wcale.
+     */
+    public function zdjecieDoPrzepisu(): ?Media
+    {
+        // Karta wpisu ma zdjęcia już załadowane — bez tego `@can` w menu
+        // karty dokładałby jedno zapytanie na każdy własny wpis w strumieniu.
+        if ($this->relationLoaded('media')) {
+            return $this->media->first(fn (Media $zdjecie): bool => $zdjecie->owner_id === $this->author_id
+                && $zdjecie->status === Media::STATUS_READY);
+        }
+
+        return $this->media()
+            ->where('media.owner_id', $this->author_id)
+            ->where('media.status', Media::STATUS_READY)
+            ->first();
+    }
+
+    /**
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
@@ -299,6 +320,85 @@ class Post extends Model
     }
 
     /**
+     * Wpisy z WŁASNĄ treścią — niepustym tekstem albo choć jednym zdjęciem.
+     * SQL-owa strona `czyJestZapowiedziaPrzepisu()`: wpis, który ją spełnia,
+     * nie jest zapowiedzią, więc `PostPolicy::view()` nie bramkuje go
+     * przepisem (issue #1377).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWlasnaTrescia(Builder $query): void
+    {
+        $query->where(function (Builder $w): void {
+            // `~ '\S'` = `filled()` z PHP: sam biały znak to brak treści.
+            $w->whereRaw("posts.body ~ '\\S'")
+                ->orWhereExists(function ($sub): void {
+                    $sub->selectRaw('1')->from('post_media')->whereColumn('post_media.post_id', 'posts.id');
+                });
+        });
+    }
+
+    /**
+     * Zapowiedź przepisu wychodzi na listy tylko z widocznym przepisem
+     * (`zWidocznymPrzepisem()`, #368/#941), a wpis z własną treścią — według
+     * WŁASNEJ widoczności, jak na swojej stronie (`PostPolicy::view()`,
+     * issue #1377). Lista, która go pokazuje, musi przed kartą zdjąć
+     * niedostępną relację: `ukryjNiedostepnePrzepisy()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisemAlboWlasnaTrescia(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->where(fn (Builder $tresc) => $tresc->zWlasnaTrescia())
+                ->orWhere(fn (Builder $zapowiedz) => $zapowiedz->zWidocznymPrzepisem($widz));
+        });
+    }
+
+    /**
+     * Zdejmuje z wpisów relację przepisu, którego widz nie może zobaczyć —
+     * to samo `setRelation('recipe', null)` co `PostController::show()`,
+     * tylko jednym zapytaniem na stronę listy (issue #1377). Karta czyta
+     * z relacji tytuł, slug, zdjęcie, plakietkę i przycisk „Ugotowałem”;
+     * bez relacji pokazuje sam wpis z jego własną widocznością.
+     *
+     * Reguły `RecipePolicy::view()` w SQL: `Recipe::widoczneDla()` (własne
+     * zawsze, cudze opublikowane, widoczność, blokada) plus dostępny autor
+     * cudzego przepisu. Bez furtki moderatora — ostrzej, nigdy luźniej.
+     *
+     * @param  iterable<Post>  $wpisy
+     */
+    public static function ukryjNiedostepnePrzepisy(iterable $wpisy, ?User $widz): void
+    {
+        $zPrzepisem = collect($wpisy)->filter(
+            fn (Post $wpis): bool => $wpis->relationLoaded('recipe') && $wpis->recipe !== null,
+        );
+
+        if ($zPrzepisem->isEmpty()) {
+            return;
+        }
+
+        $widoczne = Recipe::query()
+            ->whereIn('recipes.id', $zPrzepisem->pluck('recipe_id')->unique()->values())
+            ->widoczneDla($widz)
+            ->where(function (Builder $autor) use ($widz): void {
+                $autor->whereHas('author', fn ($a) => $a->dostepnyJakoAutor());
+                if ($widz !== null) {
+                    $autor->orWhere('recipes.author_id', $widz->getKey());
+                }
+            })
+            ->pluck('recipes.id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        foreach ($zPrzepisem as $wpis) {
+            if (! in_array((string) $wpis->recipe_id, $widoczne, true)) {
+                $wpis->setRelation('recipe', null);
+            }
+        }
+    }
+
+    /**
      * Wpisy, które MOŻE zobaczyć konkretna osoba — licząc per autor wiersza.
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE
@@ -365,6 +465,42 @@ class Post extends Model
                         });
                 });
         });
+    }
+
+    /**
+     * Zapisane wpisy, które widz może OTWORZYĆ — jedna reguła dla wnętrza
+     * zeszytu, licznika na jego karcie i szyny „Ostatnio zapisane" (#1319).
+     *
+     * Cztery granice, wszystkie obowiązkowe: widoczność wpisu, bramka
+     * przepisu (`zWidocznymPrzepisem()`, #368), status konta autora wpisu
+     * i status konta autora PRZEPISU (W5-08) — ten ostatni osobno, bo
+     * zapowiedź przepisu może należeć do kogo innego niż przepis.
+     *
+     * Wcześniej tylko `CollectionController::show()` miał komplet; karta
+     * zeszytu i „Ostatnio zapisane" miały tylko pierwszą i trzecią.
+     * Zapowiedź schowanego przepisu znikała z wnętrza
+     * zeszytu, a karta dalej mówiła „1 wpis", szyna zaś dawała odnośnik,
+     * który `PostPolicy::view()` kończy odmową.
+     *
+     * Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu.
+     *
+     * OBIE BRAMKI PRZEPISU DOTYCZĄ TYLKO CZYSTEJ ZAPOWIEDZI (#1377, komentarz
+     * w #1319 z 23.09). Wpis z własnym tekstem albo zdjęciem, który wskazuje
+     * przepis, `PostPolicy::view()` wpuszcza według WŁASNEJ widoczności —
+     * więc zostaje we wnętrzu, na karcie i w „Ostatnio zapisane", a nie
+     * wpada do „niedostępnych". Wnętrze zeszytu zdejmuje mu wtedy przepis
+     * z karty (`ukryjNiedostepnePrzepisy()` w `CollectionController::show()`).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeWidoczneWZeszycieDla(Builder $query, ?User $widz): void
+    {
+        $query->widoczneDla($widz)
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 
     /**
