@@ -335,7 +335,22 @@ GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
 KONTROLER_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
 ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
+
+# Reguła doboru treści (AGENTS.md §8, D-275, #1806): tygodniowy list nie układa
+# wpisów po liczbie „Ugotowałem”. Mutacja podmienia sortowanie wpisów
+# obserwowanych w `ZbierzTresciDigestu` z czasu publikacji na licznik wykonań —
+# dowód, że strażnik naprawdę skanuje `app/Domain/Digest`, a nie tylko feed.
+# Filtr na samą metodę głównego pomiaru, żeby czerwień pochodziła z reguły,
+# a nie z kotwic zasięgu w sąsiednich metodach.
+DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
+DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
+
+# Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
+# czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
+# ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
+UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
+UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
 # Awaria eksportu danych dociera do kolejki (#822). Testy łapały kiedyś
 # `\Throwable`, więc połykały własne `fail()`; job bez `throw $e` po
@@ -887,6 +902,10 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -959,6 +978,8 @@ run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DIGEST_DOBOR_TEST, True)
+run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"

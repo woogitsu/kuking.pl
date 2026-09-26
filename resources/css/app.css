@@ -5910,7 +5910,12 @@
   box-shadow: var(--shadow-popover);
 }
 
-.post-card-menu-tresc a {
+/* Skróty „Obserwuj tę osobę" / „Obserwuj tag: …" (issue #1809) to przyciski
+   formularzy POST — wyglądają i mierzą tyle samo co odnośniki menu: 48 px
+   celu, tekst w rozmiarze karty, wyrównanie do lewej. */
+.post-card-menu-tresc a,
+.post-card-menu-tresc [data-skrot-obserwuj],
+.post-card-menu-tresc [data-menu-akcja] {
   display: flex;
   align-items: center;
   min-height: var(--control-height-min);
@@ -5920,7 +5925,19 @@
   color: inherit;
 }
 
-.post-card-menu-tresc a:hover {
+.post-card-menu-tresc [data-skrot-obserwuj],
+.post-card-menu-tresc [data-menu-akcja] {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.post-card-menu-tresc a:hover,
+.post-card-menu-tresc [data-skrot-obserwuj]:hover,
+.post-card-menu-tresc [data-menu-akcja]:hover {
   background-color: var(--color-surface-sunken);
 }
 

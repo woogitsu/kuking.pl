@@ -264,6 +264,50 @@ class Post extends Model
     }
 
     /**
+     * Bez wpisów, które TEN widz ukrył sobie („Ukryj ten wpis", #1810, D-278).
+     *
+     * Tylko w strumieniach z kartą (Start, Odkrywanie, tablica, tygodniowy
+     * list). Profil, wyszukiwarka i strona wpisu wpisu nie wycinają — karta
+     * zwija się tam do „Ten wpis ukrywasz. Pokaż". Gość nic nie ukrywa.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychWpisow(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.post_id', 'posts.id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
+     * Bez wpisów osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810).
+     *
+     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie i automatyczna
+     * część tablicy. Nie w Obserwowanych, nie w wyszukiwarce i nie pod linkiem
+     * — tam człowiek przyszedł po tę osobę sam (AGENTS.md §8, D-278).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychOsob(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.hidden_user_id', 'posts.author_id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
      * Wpisy, których PRZEPIS wolno dziś pokazać temu widzowi — czyli wpisy
      * bez przepisu (zwykłe „co dziś ugotowałem") ORAZ wpisy wskazujące
      * przepis, który jest opublikowany, nieusunięty i widoczny dla widza.
