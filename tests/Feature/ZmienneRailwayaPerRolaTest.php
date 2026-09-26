@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionClass;
 use Tests\TestCase;
 
 /**
@@ -190,6 +192,9 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
+        'KUKING_HEALTH_TOKEN' => 'Opcjonalna (audyt A5-05): pusto = `/health` oddaje tylko `status`, healthcheck '
+            .'Railwaya działa tak samo. `ctx.shared` wymaga istniejącej zmiennej, więc najpierw panel, potem '
+            .'`railway.ts` — kolejność w `docs/infra/DEPLOYMENT_RUNBOOK.md`.',
         'TURNSTILE_HOSTY_STAGINGU' => 'Pusto = token Turnstile tylko z hosta `APP_URL` (#992); ustawiane ręcznie '
             .'wyłącznie na stagingu, który odpowiada też pod innym hostem. Na produkcji zostaje puste.',
 
@@ -564,9 +569,24 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             }
         }
 
+        // Komendy frameworka (np. `queue:prune-failed`) nie leżą
+        // w `app/Console/Commands`, ale też wykonują się W PROCESIE
+        // schedulera. Plik bierzemy z rejestru Artisana i sprawdzamy tak samo
+        // jak nasze — bez listy wyjątków, która mogłaby przepuścić mailer.
+        $zarejestrowane = Artisan::all();
+        foreach ($nazwy as $nazwa) {
+            if (isset($pliki[$nazwa]) || ! isset($zarejestrowane[$nazwa])) {
+                continue;
+            }
+            $plik = (new ReflectionClass($zarejestrowane[$nazwa]))->getFileName();
+            if (is_string($plik)) {
+                $pliki[$nazwa] = $plik;
+            }
+        }
+
         $wynik = [];
         foreach ($nazwy as $nazwa) {
-            $this->assertArrayHasKey($nazwa, $pliki, "Nie znalazłem klasy komendy `{$nazwa}` w `app/Console/Commands`.");
+            $this->assertArrayHasKey($nazwa, $pliki, "Nie znalazłem klasy komendy `{$nazwa}` ani w `app/Console/Commands`, ani w rejestrze Artisana.");
 
             // Komentarze wycina tokenizer PHP, nie wyrażenie na liniach:
             // `preg_split('/\R/')` bez `/u` tnie polskie „ą" (bajty C4 85,

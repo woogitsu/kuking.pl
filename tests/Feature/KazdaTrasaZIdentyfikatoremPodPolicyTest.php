@@ -829,6 +829,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Wyjęcie niedostępnych zapisów (#773) — kasuje powiązania, więc tylko
+        // właściciel. Zeszyt nie ma niedostępnych pozycji: właściciel dostaje
+        // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
+        $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
+            route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
         // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
