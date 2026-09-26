@@ -385,6 +385,16 @@ final class ZbierzTresciDigestu
                     });
             })
             ->tylkoOdAktywnychAutorow()
+            // „Ukryj ten wpis" (#1810, D-278) — wpis, który ADRESAT ukrył
+            // sobie, nie wraca do niego w liście. Paczka liczy wielu adresatów
+            // naraz, więc warunek łączy ukrycie z `follows.follower_id`, nie
+            // z jednym widzem. Przed `row_number()`: ukryty wpis oddaje
+            // miejsce następnemu, zamiast zmniejszać list.
+            ->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+                ->from('hides')
+                ->whereColumn('hides.user_id', 'follows.follower_id')
+                ->whereColumn('hides.post_id', 'posts.id')
+                ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())))
             ->when($od !== null, fn ($q) => $q->where('published_at', '>=', $od))
             ->when($tylko !== null, fn ($q) => $q->whereIn('posts.id', $tylko))
             ->orderByDesc('published_at')

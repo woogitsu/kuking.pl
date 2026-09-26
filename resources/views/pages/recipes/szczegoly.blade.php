@@ -4,7 +4,7 @@
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
 
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
     /*
      * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
@@ -68,6 +68,11 @@
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
     <h1>{{ $isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami' }}</h1>
+    {{-- „Moja wersja" (issue #23, D-301): podpis widać też tu, a formularz
+         nie ma pola, które by go zdejmowało. --}}
+    @if($recipe)
+        <x-na-podstawie-przepisu :recipe="$recipe" />
+    @endif
     {{-- ZDANIE „NIE MUSISZ NIC PRZEWIJAĆ ANI SZUKAĆ" ZNIKŁO, BO BYŁO NIEPRAWDĄ.
 
          Zmierzone 11 września 2026 Chromium 1243 na postawionej lokalnie
@@ -103,10 +108,20 @@
         {{-- Ten sam ekran w krokach — dla kogoś, komu jedna długa strona
              jest za długa. Kreator wymaga JavaScriptu, więc NIE jest jedyną
              drogą do szczegółów; ta strona działa bez skryptu. --}}
+        {{-- Kreator wczytuje przepis z bazy, więc niezapisane zmiany z tej
+             strony do niego nie przechodzą (issue #899). Zdanie mówi to wprost
+             także bez skryptu; ze skryptem zmieniony formularz najpierw pyta
+             (`resources/js/niezapisane-zmiany.js`), niezmieniony nie. --}}
+        @php
+            $kreatorUrl = route('recipes.details', $recipe->slug);
+            $przyciskZapisu = $recipe->isPublished() ? 'Zapisz zmiany' : 'Zapisz szkic';
+        @endphp
         <p class="field-help mb-5">
             Wolisz przechodzić to krok po kroku, z zapisywaniem po drodze?
-            <a href="{{ route('recipes.details', $recipe->slug) }}">Otwórz kreator w trzech krokach</a>.
+            <a href="{{ $kreatorUrl }}" data-niezapisane-formularz="formularz-szczegolow" data-niezapisane-ostrzezenie="ostrzezenie-kreatora-gora">Otwórz kreator w trzech krokach</a>.
+            Kreator otworzy ostatnią zapisaną wersję — zmiany wpisane tutaj najpierw zapisz.
         </p>
+        <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-gora" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
     @endif
 
     <x-error-summary />
@@ -126,7 +141,8 @@
          hierarchii z `docs/design/ROLE_KART.md`. To są cztery części JEDNEGO
          formularza, więc jedna rola i jedna powierzchnia; rozdziela je
          kreska i nagłówek z `.form-section`, tak jak było to pomyślane. --}}
-    <form class="panel-formularza" method="POST" action="{{ $action }}" enctype="multipart/form-data">
+    <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
+          @if($errors->any()) data-niezapisane-od-serwera @endif>
         @csrf
         @if($isEdit) @method('PUT') @endif
 
@@ -177,7 +193,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
@@ -327,8 +343,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
+                           @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
+                    @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -358,8 +375,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
                            name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
                            value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="Ciasto" @endif
+                           @error("ingredients.$i.group_name") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-group_name-error" @enderror>
+                    @error("ingredients.$i.group_name")<span class="field-error" id="f-ingredients-{{ $i }}-group_name-error">{{ $message }}</span>@enderror
 
                     <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-note"
@@ -368,10 +386,21 @@
                            @error("ingredients.$i.note") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-note-error" @enderror>
                     @error("ingredients.$i.note")<span class="field-error" id="f-ingredients-{{ $i }}-note-error">{{ $message }}</span>@enderror
 
+                    {{-- Zamiennik od autora (D-284) — na stronie przepisu stoi
+                         pod składnikiem jako „Zamiast tego: …”. Ta sama nazwa
+                         pola co w kreatorze, więc przechodzi między drogami. --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-substitutes">Czym można to zastąpić <span class="meta">(nieobowiązkowe)</span></label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-substitutes"
+                           name="ingredients[{{ $i }}][substitutes]" type="text" maxlength="300"
+                           value="{{ $ingredient['substitutes'] ?? '' }}"
+                           @if($i === 0) placeholder="margaryna albo olej kokosowy" @endif
+                           @error("ingredients.$i.substitutes") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-substitutes-error" @enderror>
+                    @error("ingredients.$i.substitutes")<span class="field-error" id="f-ingredients-{{ $i }}-substitutes-error">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
+                         przeliczaniu porcji na stronie przepisu (V2, D-284). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
@@ -388,10 +417,13 @@
                     Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
                 @endunless
                 @if($isEdit)
-                    W <a href="{{ route('recipes.details', $recipe->slug) }}">kreatorze w trzech krokach</a> wiersze
-                    dodaje się i usuwa od razu, bez zapisywania.
+                    W <a href="{{ $kreatorUrl }}" data-niezapisane-formularz="formularz-szczegolow" data-niezapisane-ostrzezenie="ostrzezenie-kreatora-skladniki">kreatorze w trzech krokach</a> wiersze
+                    dodaje się i usuwa od razu, bez zapisywania. Otworzy on ostatnią zapisaną wersję przepisu.
                 @endif
             </p>
+            @if($isEdit)
+                <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-skladniki" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
+            @endif
         </section>
 
         {{-- ---------------------------------------------------------------
@@ -451,8 +483,9 @@
                                type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
                                min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
                                value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help{{ $errors->has('steps.'.$i.'.timer_minutes') ? ' f-steps-'.$i.'-timer_minutes-error' : '' }}"
+                               @error("steps.$i.timer_minutes") aria-invalid="true" @enderror>
+                        @error("steps.$i.timer_minutes")<span class="field-error" id="f-steps-{{ $i }}-timer_minutes-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">

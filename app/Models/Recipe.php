@@ -113,6 +113,7 @@ class Recipe extends Model
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
             'family_since_year' => 'integer',
+            'forked_at' => 'datetime',
         ];
     }
 
@@ -133,6 +134,44 @@ class Recipe extends Model
     public function heroMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_id');
+    }
+
+    /**
+     * Przepis, na podstawie którego powstała ta wersja („Moja wersja",
+     * issue #23, D-301).
+     *
+     * `forked_from_id` i `forked_at` NIE SĄ w `$fillable` i to jest reguła,
+     * nie przeoczenie: podpis „Na podstawie przepisu…" jest przypisaniem
+     * autorstwa. Ustawia go wyłącznie `ZrobWlasnaWersje` (`forceFill()`),
+     * a żaden formularz przepisu nie może go zdjąć ani przepiąć na inny
+     * przepis (AGENTS.md §7).
+     *
+     * Relacja zwykła, bez `withTrashed()`: usunięty oryginał ma być dla
+     * widoku NIEOBECNY — pokazujemy wtedy „oryginał jest niedostępny"
+     * (`App\Domain\Recipes\MojaWersja::oryginalDlaWidza()`).
+     *
+     * @return BelongsTo<Recipe, $this>
+     */
+    public function forkedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'forked_from_id');
+    }
+
+    /**
+     * Wersje tego przepisu zrobione przez inne osoby. Kto co widzi, filtruje
+     * `MojaWersja::wersjeDlaWidza()` — ta relacja nie pyta o widoczność.
+     *
+     * @return HasMany<Recipe, $this>
+     */
+    public function wersje(): HasMany
+    {
+        return $this->hasMany(self::class, 'forked_from_id');
+    }
+
+    /** Czy ten przepis jest czyjąś wersją cudzego przepisu. */
+    public function jestWersja(): bool
+    {
+        return $this->forked_at !== null;
     }
 
     public function sourceScan(): BelongsTo
@@ -308,13 +347,43 @@ class Recipe extends Model
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
     }
 
+    /**
+     * CZAS CAŁKOWITY JEST ZNANY TYLKO WTEDY, GDY PODANO OBA CZASY (#1090).
+     *
+     * Puste pole znaczy „nie wiem", a nie „zero": przy 10 min przygotowania
+     * i pustym gotowaniu nikt nie zmierzył, ile to zajmie razem. Jawne `0`
+     * znaczy „tego etapu nie ma" (np. surówka bez gotowania), więc 10 + 0
+     * to znane 10 minut. Suma 0 (0 + 0) też jest „nie wiem" — obiecywanie
+     * dania w zero minut byłoby tak samo nieprawdą.
+     *
+     * Tę samą regułę stosują: strona przepisu, `totalTime` w JSON-LD,
+     * podgląd w kreatorze i filtr „Do 30 minut" (`scopeGotoweWCiagu()`
+     * niżej). Przedtem strona pokazywała „Około 10 min", a filtr ten sam
+     * przepis pomijał.
+     */
     public function totalMinutes(): ?int
     {
-        if ($this->prep_minutes === null && $this->cook_minutes === null) {
+        if ($this->prep_minutes === null || $this->cook_minutes === null) {
             return null;
         }
 
-        return (int) $this->prep_minutes + (int) $this->cook_minutes;
+        $suma = $this->prep_minutes + $this->cook_minutes;
+
+        return $suma > 0 ? $suma : null;
+    }
+
+    /**
+     * Przepisy, których czas całkowity jest ZNANY (reguła z `totalMinutes()`)
+     * i mieści się w `$maksMinut`. SQL-owy odpowiednik tamtej metody — obie
+     * muszą zmieniać się razem.
+     */
+    public function scopeGotoweWCiagu(Builder $query, int $maksMinut): void
+    {
+        $query
+            ->whereNotNull('recipes.prep_minutes')
+            ->whereNotNull('recipes.cook_minutes')
+            ->whereRaw('(recipes.prep_minutes + recipes.cook_minutes) > 0')
+            ->whereRaw('(recipes.prep_minutes + recipes.cook_minutes) <= ?', [$maksMinut]);
     }
 
     /** Czas w formacie ISO 8601 dla structured data (np. PT1H30M). */

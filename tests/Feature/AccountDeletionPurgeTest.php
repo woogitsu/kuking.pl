@@ -100,6 +100,8 @@ class AccountDeletionPurgeTest extends TestCase
             'status' => DataExport::STATUS_READY,
             'disk' => 'local',
             'object_key' => 'eksporty/paczka.zip',
+            'bytes' => 1234,
+            'completed_at' => now()->subDays(2),
             'expires_at' => now()->addDays(5),
         ]);
 
