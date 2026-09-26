@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
@@ -82,6 +83,7 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly DziennikWymazan $dziennik = new DziennikWymazan,
         private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
 
@@ -116,8 +118,9 @@ final class EraseAccountData
 
         /** @var list<Media> $doSkasowania */
         $doSkasowania = [];
+        $zakresDoDziennika = null;
 
-        $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
+        $wymazano = DB::transaction(function () use ($user, &$doSkasowania, &$zakresDoDziennika): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -454,9 +457,20 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
+            $zakresDoDziennika = $zakresWykonany;
 
             return true;
         });
+
+        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
+        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
+        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
+        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
+        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
+        // nocne `kuking:dziennik-wymazan`.
+        if ($wymazano && $zakresDoDziennika !== null) {
+            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.
         //

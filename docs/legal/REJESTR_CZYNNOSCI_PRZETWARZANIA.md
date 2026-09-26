@@ -369,6 +369,14 @@ egzekwuje.
   (także plik próby, która padła przed zapisaniem paczki); przy wymazaniu
   konta znika od razu cały katalog paczek konta (audyt B5 pkt 4);
   konto po karencji 30 dni — `kuking:usun-wygasle-konta`.
+- **Dziennik wykonanych wymazań (poza bazą, audyt B5 pkt 3):** obiekt
+  `dziennik-wymazan/<user_id>.json` na dysku `kuking.dziennik_wymazan.dysk`
+  (Cloudflare R2, bucket eksportów) — identyfikator konta, chwila wymazania,
+  wykonany zakres; bez e-maila i nazwy. Cel: ponowne wymazanie po odtworzeniu
+  bazy z kopii (`kuking:wymaz-ponownie`, `docs/infra/KOPIE_I_ODTWORZENIE.md`
+  §3.1). Termin: **120 dni** od wymazania (dłużej niż najstarsza kopia),
+  przycina `kuking:dziennik-wymazan`. Podstawa: art. 6 ust. 1 lit. c w zw.
+  z art. 17 RODO.
 - **Znane ograniczenie, opisane osobno:** paczka **nie zawiera** ośmiu
   kategorii danych, które serwis przechowuje (tożsamości zewnętrzne,
   wiadomości „Napisz do nas", zgłoszenia i decyzje moderacyjne, dziennik

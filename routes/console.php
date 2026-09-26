@@ -293,6 +293,17 @@ Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:30 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Dziennik wymazań kont POZA bazą (audyt B5, znalezisko 3): dopisuje wpisy,
+// których zapis przy wymazaniu się nie udał, i kasuje wpisy starsze niż
+// najstarsza kopia bazy. Wejście procedury „wymaż ponownie” po odtworzeniu
+// kopii (`kuking:wymaz-ponownie`, docs/infra/KOPIE_I_ODTWORZENIE.md).
+Harmonogram::artisan('kuking:dziennik-wymazan')
+    ->name('kuking:dziennik-wymazan')
+    ->dailyAt('05:30')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
 // Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
 // jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz

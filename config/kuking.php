@@ -2906,6 +2906,31 @@ return [
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
     ],
 
+    // DZIENNIK WYMAZAŃ KONT POZA BAZĄ (audyt B5, znalezisko 3, 25.09.2026).
+    //
+    // Odtworzenie bazy z kopii przywraca konta wymazane po dacie kopii,
+    // a ślad wymazania leży w tej samej bazie. Dziennik — jeden obiekt na
+    // konto: identyfikator, chwila, zakres — leży w magazynie obiektów
+    // (`App\Domain\Compliance\DziennikWymazan`) i czyta go
+    // `kuking:wymaz-ponownie`, obowiązkowy krok procedury odtworzenia
+    // (`docs/infra/KOPIE_I_ODTWORZENIE.md`).
+    //
+    // DYSK: domyślnie ten sam prywatny dysk co paczki eksportu (na produkcji
+    // `r2_eksporty`), prefiks `dziennik-wymazan/`. NIE bucket kopii bazy —
+    // tam aplikacja nie ma prawa zapisu (D-043), i NIE baza.
+    //
+    // 120 DNI: dłużej niż najstarsza kopia, z której konto mogłoby wrócić
+    // (zrzut offsite 30 dni, PITR ok. 4 tygodni, miesięczny Volume Backup
+    // Railwaya 89 dni — KOPIE_I_ODTWORZENIE.md §5.3). Starszy wpis nie ma już
+    // przed czym chronić, więc znika.
+    'dziennik_wymazan' => [
+        'dysk' => env('KUKING_DZIENNIK_WYMAZAN_DYSK', env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        )),
+        'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+    ],
+
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
     //
     // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
