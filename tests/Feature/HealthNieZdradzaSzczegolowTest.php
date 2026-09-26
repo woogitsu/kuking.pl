@@ -74,7 +74,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
         ]);
 
         try {
-            $odpowiedz = $this->get('/health');
+            $odpowiedz = $this->zdrowieZeSzczegolami();
         } finally {
             // Przywracamy PRZED czymkolwiek innym: `RefreshDatabase` wycofuje
             // transakcję na połączeniu domyślnym dopiero w `tearDown()`,
@@ -127,7 +127,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
             ],
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('checks.media.ok', false);
 
@@ -145,6 +145,12 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
 
     public function test_martwa_droga_publiczna_nie_pokazuje_katalogu_dysku(): void
     {
+        // `public/storage` ma istnieć i wskazywać na domyślny dysk — dopiero
+        // wtedy dysk `bez_linku` jest „gdzie indziej”. Bez tego wynik zależał od
+        // tego, czy wcześniej w tym samym procesie inny test wywołał
+        // `storage:link` (po podziale testów na części — nie wywołał).
+        Artisan::call('storage:link');
+
         $katalog = storage_path('framework/testing/zdjecia-bez-linku-kody');
         File::ensureDirectoryExists($katalog);
 
@@ -157,7 +163,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
             ],
         ]);
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('checks.media.ok', false);
 
@@ -179,7 +185,7 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
     {
         Artisan::call('storage:link');
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()->assertJsonPath('status', 'ok');
 

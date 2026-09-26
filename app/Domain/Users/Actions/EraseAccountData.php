@@ -8,8 +8,10 @@ use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
@@ -80,6 +82,7 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
@@ -210,6 +213,32 @@ final class EraseAccountData
             $fresh->followedTags()->detach();
 
             /*
+             * PLANER TYGODNIA ZNIKA RAZEM Z KONTEM (#27, D-310).
+             *
+             * To prywatne notatki jednej osoby („obiad u mamy”, przepis na
+             * wtorek) — nikt inny ich nie widział i nikomu nie są potrzebne,
+             * więc nie ma tu nic do zachowania ani do anonimizowania.
+             * Bezwarunkowo, jak relacje wyżej: zakres usunięcia („minimum” /
+             * „wszystko”) dotyczy treści pokazanych innym, a plan nigdy nie
+             * był pokazany. Wiersze kluczem `user_id` — dwie egzekucje nie
+             * mają wspólnych wierszy (ten sam argument co przy `tag_follows`).
+             */
+            $fresh->mealPlanEntries()->delete();
+
+            /*
+             * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
+             * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
+             * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie
+             * kaskadą `ON DELETE CASCADE` z migracji: kont z Kuking się nie
+             * kasuje, tylko anonimizuje (D-022), więc kaskada nigdy tu nie
+             * zadziała. Tylko wiersze PO STRONIE WIDZA (`user_id`) — ukrycia,
+             * w których to konto jest ukrytą osobą, należą do innych ludzi.
+             * Kluczem jest `user_id`, więc dwie egzekucje różnych kont nie
+             * mają wspólnego wiersza (ten sam rachunek co `tag_follows`, D-093).
+             */
+            Hide::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -260,6 +289,17 @@ final class EraseAccountData
              */
             $fresh->tozsamosciZewnetrzne()->delete();
 
+            /*
+             * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).
+             *
+             * Subskrypcja to adres, pod który serwer może pisać na czyjś
+             * ekran, a ustawienia ciszy nocnej mówią, kiedy ta osoba śpi.
+             * Konto bez właściciela nie ma komu wysyłać ani czego chronić.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            $fresh->pushSubscriptions()->delete();
+            $fresh->ustawieniaPowiadomienZewnetrznych()->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
 
@@ -290,6 +330,9 @@ final class EraseAccountData
              * (`PrzestawZgodeNaDigest`), a nie rzucany dalej.
              */
             $this->przestawZgode->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
+            // Zgoda na mail urodzinowy (issue #1755) — tak samo: wycofanie
+            // z dowodem w dzienniku, nigdy nie wywraca kasowania konta.
+            $this->zgodaNaZyczenia->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -317,6 +360,12 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
+                'birthday_day' => null,
+                'birthday_month' => null,
+                'wants_birthday_email' => false,
+                'birthday_visible_to_followers' => false,
+                'birthday_email_sent_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
                 // KONKRETNA osoba ostatnio korzystała z serwisu. Konto
