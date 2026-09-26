@@ -25,7 +25,16 @@ class TagFollowController extends Controller
             return back()->with('status', 'Tego tagu nie da się już obserwować. Wybierz inny tag.');
         }
 
-        return back()->with('status', "Obserwujesz tag „{$tag->name}”.");
+        // Issue #1809: komunikat mówi, co z tego wyniknie, i daje „Cofnij"
+        // (`status_powrot`, nie znika sam). „Tag", nie „temat" — jedno słowo
+        // na ekranie (decyzja z 11 września 2026, `JednoSlowoNaTagiTest`).
+        return back()
+            ->with('status', "Obserwujesz tag „{$tag->name}”. Nowe wpisy z tego tagu zobaczysz na Starcie.")
+            ->with('status_powrot', [
+                'akcja' => route('tags.unfollow', $tag),
+                'etykieta' => 'Cofnij',
+                'pola' => ['_method' => 'DELETE'],
+            ]);
     }
 
     public function unfollow(Request $request, Tag $tag, UpdateTagFollows $follows): RedirectResponse

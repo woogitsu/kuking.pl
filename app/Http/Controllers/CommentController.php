@@ -28,6 +28,8 @@ use Illuminate\Http\Response;
  */
 class CommentController extends Controller
 {
+    private const ALREADY_DELETED = 'Ten komentarz był już usunięty. Nic więcej nie trzeba robić.';
+
     public function __construct(
         private readonly DeleteComment $deleteComment,
         private readonly EditComment $editComment,
@@ -138,6 +140,13 @@ class CommentController extends Controller
 
         $actor = $request->user();
 
+        // Issue #911: stary formularz z drugiej karty albo ponowione wysłanie.
+        // Przed walidacją powodu — nie każemy uzasadniać czegoś, co już się stało.
+        // Komentarz bez odpowiedzi jest miękko usunięty (trasa ma withTrashed).
+        if ($comment->trashed() || $comment->body_removed_at !== null) {
+            return back()->with('status', self::ALREADY_DELETED);
+        }
+
         $isSelfDelete = $actor->getKey() === $comment->author_id;
         $isContentOwnerRemovingOthers = ! $isSelfDelete
             && $actor->getKey() === $comment->notifiableUserId();
@@ -149,8 +158,8 @@ class CommentController extends Controller
             'reason.max' => 'Powód jest za długi. Zmieść się w 500 znakach.',
         ]);
 
-        $this->deleteComment->handle($actor, $comment, $data['reason'] ?? null);
+        $deleted = $this->deleteComment->handle($actor, $comment, $data['reason'] ?? null);
 
-        return back()->with('status', 'Komentarz usunięty.');
+        return back()->with('status', $deleted ? 'Komentarz usunięty.' : self::ALREADY_DELETED);
     }
 }

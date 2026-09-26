@@ -36,6 +36,11 @@ class SprawdzKolejke extends Command
 
         if ($wynik['stan'] === StanKolejki::NIEDOSTEPNA) {
             $this->error('Nie udało się odczytać stanu tabel kolejki.');
+            // Pomiar TEŻ wtedy (#599): bez tej linii szereg czasowy w kanale
+            // `pomiary` miał dziurę dokładnie w chwili awarii, a z
+            // `--bez-alarmu` nie zostawał żaden trwały ślad. Liczniki są
+            // `null`, nie zero — nikt nie przeczyta tego jako „kolejka pusta”.
+            $this->zapiszWDzienniku($wynik);
 
             if (! $this->option('bez-alarmu')) {
                 $alarm->zadzwonJesliTrzeba($wynik);
@@ -53,6 +58,14 @@ class SprawdzKolejke extends Command
             ['nieudane w oknie', (string) $wynik['nieudane_w_oknie']],
             ['okno (h)', (string) $wynik['okno_godzin']],
             ['nieudane razem', (string) $wynik['nieudane_razem']],
+            ...array_map(
+                fn (string $nazwa, array $liczby) => [
+                    "kolejka {$nazwa}: gotowe / zaległość (s)",
+                    $liczby['oczekujace'].' / '.$liczby['zaleglosc_sekundy'],
+                ],
+                array_keys($wynik['kolejki']),
+                $wynik['kolejki'],
+            ),
         ]);
 
         match ($wynik['stan']) {
@@ -118,7 +131,7 @@ class SprawdzKolejke extends Command
      * Postgresa nie ma dostępu z zewnątrz.
      *
      * CZEGO W TEJ LINII NIE MA: `payload`, `exception`, adresów odbiorców
-     * ani nazw klas zadań. Same liczby i nazwa stanu.
+     * ani nazw klas zadań. Same liczby, nazwa stanu i nazwy kolejek (#1030).
      *
      * KANAŁ `pomiary`, A NIE ZWYKŁE `Log::info()` — ta sama poprawka, co
      * w `BudzetPolaczen`: zwykłe `info` szło kanałem `stderr`, a ten bierze
@@ -144,6 +157,9 @@ class SprawdzKolejke extends Command
             'nieudane_w_oknie' => $wynik['nieudane_w_oknie'],
             'nieudane_razem' => $wynik['nieudane_razem'],
             'prog_zaleglosci_sekundy' => $wynik['prog_zaleglosci_sekundy'],
+            'najstarsza_kolejka' => $wynik['najstarsza_kolejka'],
+            // Pełne rozbicie z `poKolejkach()` (#599); `najstarsza_kolejka`
+            // i skrót w tabeli wyżej pochodzą z `sprawdz()` (#1030).
             'kolejki' => $kolejki,
         ]);
     }
