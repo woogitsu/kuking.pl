@@ -29,7 +29,9 @@ use Tests\TestCase;
  *  - `withExists(... czy_smakowicie)` zdjęte z `ZapisyWpisu::dolicz()` →
  *    `test_przycisk…` nie widzi stanu „— cofnij";
  *  - warunek blokad zdjęty z `PowiadomOSmakowicie` → test blokad liczy trzy osoby;
- *  - `throw` zdjęty z `down()` migracji → test odmowy rollbacku oblewa.
+ *  - `throw` zdjęty z `down()` migracji → test odmowy rollbacku oblewa;
+ *  - filtr blokad widza zdjęty z `Smakowicie::ktoDla()` →
+ *    `test_kazdy_widzi_kto_napisal…` widzi osobę, która go zablokowała.
  */
 class SmakowicieWygladaTest extends TestCase
 {
@@ -72,25 +74,52 @@ class SmakowicieWygladaTest extends TestCase
         $this->from(route('discover'))->post(route('posts.smakowicie', $wpis))->assertSessionHasErrors('smakowicie');
     }
 
-    public function test_autor_widzi_kto_napisal_inni_nie_a_blokady_dzialaja_w_obie_strony(): void
+    /**
+     * Decyzja właściciela 26.09 (D-280, dopisek): listę widzi każdy pod
+     * wpisem, bez liczby; blokady autora ORAZ widza odcinają osobę z listy.
+     */
+    public function test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja(): void
     {
         $autorka = $this->user('autorka');
         $wpis = $this->wpis($autorka);
         $anna = $this->user('anna');
         $zablokowana = $this->user('zablokowana');
+        $bartek = $this->user('bartek');
         $inna = $this->user('inna');
-        foreach ([$anna, $zablokowana] as $kto) {
-            $this->actingAs($kto)->post(route('posts.smakowicie', $wpis));
+        foreach ([$anna, $zablokowana, $bartek] as $kto) {
+            $this->actingAs($kto)->post(route('posts.smakowicie', $wpis))
+                ->assertSessionHas('status', 'Zapisane: „Smakowicie wygląda”. Twoja nazwa jest teraz pod tym wpisem — widzą ją wszyscy. Autor dostanie powiadomienie raz dziennie, razem z innymi.');
         }
         DB::table('blocks')->insert(['blocker_id' => $autorka->id, 'blocked_id' => $zablokowana->id, 'created_at' => now()]);
+        // Bartek zablokował „inną" — ona nie zobaczy go na liście, autorka tak.
+        DB::table('blocks')->insert(['blocker_id' => $bartek->id, 'blocked_id' => $inna->id, 'created_at' => now()]);
+
+        $profil = fn (User $u): string => route('profile.show', $u->profile->username);
 
         $this->actingAs($autorka)->get(route('posts.show', $wpis))->assertOk()
             ->assertSee('Kto napisał „Smakowicie wygląda”:')
             ->assertSee($anna->displayName())
-            ->assertSee(route('profile.show', $anna->profile->username), false)
-            ->assertDontSee(route('profile.show', $zablokowana->profile->username), false);
+            ->assertSee($profil($anna), false)
+            ->assertSee($profil($bartek), false)
+            ->assertDontSee($profil($zablokowana), false);
 
-        $this->actingAs($inna)->get(route('posts.show', $wpis))->assertOk()->assertDontSee('Kto napisał „Smakowicie wygląda”');
+        // Inna zalogowana osoba: lista jest, bez blokady autorki i bez osoby z blokadą widza.
+        $html = (string) $this->actingAs($inna)->get(route('posts.show', $wpis))->assertOk()
+            ->assertSee('Kto napisał „Smakowicie wygląda”:')
+            ->assertSee($profil($anna), false)
+            ->assertDontSee($profil($bartek), false)
+            ->assertDontSee($profil($zablokowana), false)
+            ->getContent();
+        // Bez licznika — także na liście.
+        $this->assertDoesNotMatchRegularExpression('/\d+\s*(osob|osoby|osób|innych)/iu', strip_tags((string) preg_replace('~.*data-rola="kto-smakowicie"(.*?)</p>.*~s', '$1', $html)));
+
+        // Niezalogowany też widzi listę (bez filtra widza).
+        auth()->logout();
+        $this->get(route('posts.show', $wpis))->assertOk()
+            ->assertSee('Kto napisał „Smakowicie wygląda”:')
+            ->assertSee($profil($anna), false)
+            ->assertSee($profil($bartek), false)
+            ->assertDontSee($profil($zablokowana), false);
 
         // Zablokowana nie zareaguje ponownie (Policy wpisu albo akcja odmawia).
         // Reakcja sprzed blokady zostaje w bazie, ale nigdzie jej nie widać.

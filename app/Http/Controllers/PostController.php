@@ -704,11 +704,9 @@ class PostController extends Controller
             // Widoczność liczy `SasiedniWpisAutora`, nie ten kontroler.
             'poprzedniWpis' => $this->sasiedniWpis->poprzedni($post, $request->user()),
             'nastepnyWpis' => $this->sasiedniWpis->nastepny($post, $request->user()),
-            // „Smakowicie wygląda" (#1813): KTO napisał — tylko autorowi,
-            // bez liczby. Dla każdego innego pusta kolekcja bez zapytania.
-            'smakowicie' => $request->user()?->getKey() === $post->author_id
-                ? app(Smakowicie::class)->ktoDla($request->user(), $post)
-                : null,
+            // „Smakowicie wygląda" (#1813, D-280): KTO napisał — każdemu
+            // widzowi (od 26.09), bez liczby, z filtrami blokad autora i widza.
+            'smakowicie' => app(Smakowicie::class)->ktoDla($request->user(), $post),
         ]);
     }
 

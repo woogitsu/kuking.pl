@@ -1257,10 +1257,11 @@ pod zbiorcze powiadomienie, indeks `user_id` pod kaskadę konta.
 
 Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
 (`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
-to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — tylko autor, na stronie
-wpisu, bez blokad (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
+to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — każdy widz na stronie
+wpisu (od 26.09.2026; wcześniej tylko autor), bez liczby, bez osób z blokadą
+autora albo widza i bez kont niedostępnych (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
 `moje_reakcje` i `reakcje_otrzymane` — ta druga z nazwą konta tylko przy
-osobach, które autor zobaczyłby przy wpisie (te same filtry co `ktoDla()`),
+osobach, które autor zobaczyłby przy wpisie (`osobyWidoczneDlaAutora()`, filtry autora z `ktoDla()`),
 reszta jako liczba w `reakcje_otrzymane_od_osob_niewidocznych`.
 
 **Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje

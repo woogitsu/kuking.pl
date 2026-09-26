@@ -28,7 +28,7 @@ class SmakowicieController extends Controller
             return back()->withErrors(['smakowicie' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Zapisane: „Smakowicie wygląda”. Autor dostanie o tym powiadomienie raz dziennie, razem z innymi.');
+        return back()->with('status', 'Zapisane: „Smakowicie wygląda”. Twoja nazwa jest teraz pod tym wpisem — widzą ją wszyscy. Autor dostanie powiadomienie raz dziennie, razem z innymi.');
     }
 
     public function cofnij(Request $request, Post $post): RedirectResponse

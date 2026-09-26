@@ -12,12 +12,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * „Smakowicie wygląda" — zapis, cofnięcie i lista dla autora (issue #1813, D-280).
+ * „Smakowicie wygląda" — zapis, cofnięcie i lista pod wpisem (issue #1813, D-280).
  *
  * Lżejsze niż „Ugotowałem" i świadomie ciche: autor nie dostaje powiadomienia
  * od razu, tylko zbiorczo raz dziennie (`PowiadomOSmakowicie`), żeby nie
  * zagłuszać „Ugotowałem", które powiadamia natychmiast (AGENTS.md §1).
- * Nie ma licznika: autor widzi, KTO napisał, nikt nie widzi, ILU.
+ * Nie ma licznika: pod wpisem każdy widzi, KTO napisał (od 26.09 — wcześniej
+ * tylko autor), nikt nie widzi, ILU.
  * Czy widz może zobaczyć wpis (bramki, blokady), sprawdza Policy w kontrolerze.
  */
 final class Smakowicie
@@ -53,19 +54,29 @@ final class Smakowicie
     }
 
     /**
-     * Kto napisał „Smakowicie wygląda" — WYŁĄCZNIE dla autora wpisu. Bez osób,
-     * z którymi autor ma blokadę (w którąkolwiek stronę), i bez kont, których
-     * nie da się już pokazać jako autora.
+     * Kto napisał „Smakowicie wygląda" — lista pod wpisem dla KAŻDEGO widza,
+     * także niezalogowanego (decyzja właściciela 26.09, D-280). Nadal bez
+     * liczby. Filtry autora jak dotąd: bez osób, z którymi AUTOR ma blokadę
+     * (w którąkolwiek stronę), i bez kont, których nie da się pokazać jako
+     * autora. Dla zalogowanego widza dodatkowo bez osób, z którymi TEN WIDZ
+     * ma blokadę — lista nie może pokazać mu kogoś, kogo zablokował albo kto
+     * zablokował jego (tak jak komentarze i profile).
+     *
+     * Czy widz może w ogóle zobaczyć wpis, sprawdza Policy w kontrolerze.
      *
      * @return Collection<int, User>
      */
-    public function ktoDla(User $autor, Post $post): Collection
+    public function ktoDla(?User $widz, Post $post): Collection
     {
-        if ($post->author_id !== $autor->getKey()) {
+        $autor = $post->author;
+
+        if ($autor === null) {
             return new Collection;
         }
 
         return $this->osobyWidoczneDlaAutora($autor)
+            ->when($widz !== null && $widz->getKey() !== $autor->getKey(), fn (Builder $q) => $q
+                ->whereNotExists($this->blokadaZ($widz)))
             ->select('users.*')
             ->join('post_reactions', 'post_reactions.user_id', '=', 'users.id')
             ->where('post_reactions.post_id', $post->getKey())
@@ -88,8 +99,14 @@ final class Smakowicie
     {
         return User::query()
             ->dostepnyJakoAutor()
-            ->whereNotExists(fn ($sub) => $sub->selectRaw('1')->from('blocks')
-                ->where(fn ($w) => $w->where('blocks.blocker_id', $autor->getKey())->whereColumn('blocks.blocked_id', 'users.id'))
-                ->orWhere(fn ($w) => $w->whereColumn('blocks.blocker_id', 'users.id')->where('blocks.blocked_id', $autor->getKey())));
+            ->whereNotExists($this->blokadaZ($autor));
+    }
+
+    /** Podzapytanie: blokada między tą osobą a `users.id`, w którąkolwiek stronę. */
+    private function blokadaZ(User $osoba): \Closure
+    {
+        return fn ($sub) => $sub->selectRaw('1')->from('blocks')
+            ->where(fn ($w) => $w->where('blocks.blocker_id', $osoba->getKey())->whereColumn('blocks.blocked_id', 'users.id'))
+            ->orWhere(fn ($w) => $w->whereColumn('blocks.blocker_id', 'users.id')->where('blocks.blocked_id', $osoba->getKey()));
     }
 }
