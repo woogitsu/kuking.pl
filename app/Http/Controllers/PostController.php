@@ -709,7 +709,10 @@ class PostController extends Controller
 
         return view('pages.posts.show', [
             'komentarze' => $komentarze,
-            'komentarzyRazem' => $komentarze->total(),
+            // Nagłówek rozmowy mówi tę samą liczbę co karta w strumieniu:
+            // komentarze razem z odpowiedziami (#1801). `total()` stronicowania
+            // liczy tylko wątki, więc tu zostaje wyłącznie do paginacji.
+            'komentarzyRazem' => (int) $post->loadCount(Post::licznikWidocznychKomentarzy($request->user()))->comments_count,
             'post' => $post,
             // Zachęta do kolejnego zdjęcia brzmi inaczej przy pierwszym wpisie
             // (COLD_START.md). Liczymy TYLKO dla autora — dla kogokolwiek
