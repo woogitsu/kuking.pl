@@ -17916,7 +17916,12 @@ nie na listę produktów.
    i przycisk działają tak samo (D-053). Lista jest widoczna wyłącznie dla
    właściciela (`PantryItemPolicy`, bez wyjątku dla moderatora), trafia do
    paczki danych (`InwentarzDanychKonta`, sekcja `co_mam_w_domu`) i znika
-   przy wymazaniu konta (`EraseAccountData`). Limit: 150 produktów.
+   przy wymazaniu konta (`EraseAccountData`). Limit: 150 produktów —
+   egzekwowany pod blokadą wiersza właściciela listy (`CoMamWDomu::dodaj()`
+   bierze `lockForUpdate()` na wierszu `users` przed liczeniem i zapisem),
+   bo bez niej dwa równoległe żądania na koncie z 149 produktami mogły oba
+   przejść limit (#1958, test na dwóch połączeniach:
+   `tests/Dwa/PantryLimitNaDwochPolaczeniachTest.php`).
 2. **„Co ugotuję z tego, co mam”** (`/co-ugotuje`): przepisy, w których
    pasuje co najmniej jeden składnik z listy, a przy każdym zdanie
    „Masz 5 z 7 składników. Brakuje: …” (brakujące linijki dosłownie tak,

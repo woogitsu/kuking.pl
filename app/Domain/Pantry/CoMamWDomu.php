@@ -56,30 +56,45 @@ final class CoMamWDomu
             ]);
         }
 
-        $juzJest = $user->pantryItems()->where('klucz', $klucz)->first();
+        return DB::transaction(function () use ($user, $nazwa, $klucz): array {
+            // Blokada wiersza właściciela listy (#1958): bez niej sprawdzenie
+            // limitu (`count()`) i późniejszy `create()` nie są atomowe — przy
+            // dwóch równoległych żądaniach na koncie z 149 produktami oba
+            // mogą zobaczyć 149, przejść limit i utworzyć dwa nowe rekordy.
+            // `lockForUpdate()` na wierszu `users` serializuje wszystkie
+            // równoległe wywołania `dodaj()` TEGO SAMEGO konta — drugie
+            // czeka na zwolnienie blokady, aż pierwsze skończy transakcję,
+            // i widzi już policzony (albo odrzucony) stan. Ten sam wzorzec
+            // co `App\Domain\Tags\Actions\UpdateTagFollows`.
+            /** @var User $zablokowany */
+            $zablokowany = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
-        if ($juzJest !== null) {
-            return ['produkt' => $juzJest, 'nowy' => false];
-        }
+            $juzJest = $zablokowany->pantryItems()->where('klucz', $klucz)->first();
 
-        if ($user->pantryItems()->count() >= self::MAKS_PRODUKTOW) {
-            throw ValidationException::withMessages([
-                'nazwa' => 'Na liście jest już '.self::MAKS_PRODUKTOW.' produktów. Usuń te, których już nie masz, i dodaj nowy.',
-            ]);
-        }
+            if ($juzJest !== null) {
+                return ['produkt' => $juzJest, 'nowy' => false];
+            }
 
-        try {
-            /** @var PantryItem $produkt */
-            $produkt = $user->pantryItems()->create(['name' => $nazwa]);
-        } catch (UniqueConstraintViolationException) {
-            // Dwa wysłania naraz (podwójne dotknięcie przycisku): drugie
-            // trafia na UNIQUE (user_id, klucz). To nie jest błąd człowieka.
-            /** @var PantryItem $produkt */
-            $produkt = $user->pantryItems()->where('klucz', $klucz)->firstOrFail();
+            if ($zablokowany->pantryItems()->count() >= self::MAKS_PRODUKTOW) {
+                throw ValidationException::withMessages([
+                    'nazwa' => 'Na liście jest już '.self::MAKS_PRODUKTOW.' produktów. Usuń te, których już nie masz, i dodaj nowy.',
+                ]);
+            }
 
-            return ['produkt' => $produkt, 'nowy' => false];
-        }
+            try {
+                /** @var PantryItem $produkt */
+                $produkt = $zablokowany->pantryItems()->create(['name' => $nazwa]);
+            } catch (UniqueConstraintViolationException) {
+                // Zabezpieczenie dodatkowe — przy blokadzie wiersza wyżej to
+                // wyjątek nie powinien już powstać w normalnym przepływie,
+                // ale zostawiamy go na wypadek nietypowej ścieżki zapisu.
+                /** @var PantryItem $produkt */
+                $produkt = $zablokowany->pantryItems()->where('klucz', $klucz)->firstOrFail();
 
-        return ['produkt' => $produkt, 'nowy' => true];
+                return ['produkt' => $produkt, 'nowy' => false];
+            }
+
+            return ['produkt' => $produkt, 'nowy' => true];
+        });
     }
 }
