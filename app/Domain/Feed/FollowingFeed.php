@@ -222,6 +222,10 @@ final class FollowingFeed
         // a jego chip karta i tak chowa, więc widz nie miałby jak zobaczyć,
         // skąd wpis. Scalony tag prowadzi do CELU, jeśli ten jest aktywny —
         // ta sama semantyka co w `MergeTags::przepnijObserwacje()`.
+        // Warunek stoi tutaj, nie w relacji `followedTags()` (#1824): ekran
+        // ustawień musi nadal widzieć zastany ukryty tag, żeby człowiek mógł
+        // go sam zdjąć w „Twoich tagach”; ten sam warunek decyduje też
+        // w `isEmptyFor()`.
         $obserwowane = DB::table('tag_follows')->select('tag_id')->where('user_id', $viewer->getKey());
 
         return Tag::query()->aktywne()
