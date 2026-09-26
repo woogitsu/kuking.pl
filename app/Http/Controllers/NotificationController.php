@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -44,12 +46,12 @@ class NotificationController extends Controller
             'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
                 || $user->unreadNotificationsCount() > 0,
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
-            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
+            'destinationUrls' => app(CelPowiadomienia::class)->adresy($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
             // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
             // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
             // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
-            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
+            'wycinkiKomentarzy' => app(WycinkiKomentarzy::class)->zywe($notifications->items()),
         ]);
     }
 
@@ -354,6 +356,12 @@ class NotificationController extends Controller
         }
 
         $odeslanie = redirect()->to($cel);
+
+        // ISSUE #1371: wpis z alertu zniknął albo nie ma już do niego dostępu —
+        // mówimy to wprost, zamiast udawać, że kolejka go pokazuje.
+        if ($powiadomienie->pierwszyWpisNiedostepny()) {
+            $odeslanie->with('status', 'Tego wpisu nie da się już otworzyć — mógł zostać usunięty albo ukryty. Poniżej są wpisy, które nadal czekają na odpowiedź.');
+        }
 
         // ISSUE #770: PIERWSZE „Zobacz" przy ugotowaniu ma pokazać ekran
         // „Komuś wyszło". `celebrate()` rozpoznaje „już pokazano" po `read_at`,
