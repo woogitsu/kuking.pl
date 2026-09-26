@@ -384,6 +384,12 @@ DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
 # #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
 WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Jeden kontrakt danych karty wpisu (#1037). Test jest behawioralny: renderuje
+# siedem list i liczy zapytania. Mutacje zdejmują ze wspólnej listy zdjęcie
+# przepisu i tematy — każda ma zapalić test na wszystkich zależnych
+# powierzchniach, czyli dowieść, że listy naprawdę idą przez `dlaKarty()`.
+KONTRAKT_KARTY = "app/Models/Post.php"
+KONTRAKT_KARTY_TEST = "KartaWpisuJednymKontraktemTest"
 # Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
 # nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
 # Pierwsza mutacja gubi plik w SAMYM ODKRYWANIU listy — własny sprawdzian
@@ -1088,6 +1094,10 @@ checks = [
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
+    ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'recipe.heroMedia',\n    ];", "    ];")),
+    ("Kontrakt karty bez tematów", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'tags:id,slug,name,status',\n    ];", "    ];")),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
@@ -1232,6 +1242,7 @@ run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
+run_test(KONTRAKT_KARTY_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)

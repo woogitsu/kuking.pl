@@ -549,6 +549,9 @@ class PostController extends Controller
             );
         }
 
+        // Wariant ROZSZERZONY kontraktu karty (#1037, `Post::scopeDlaKarty()`):
+        // te same relacje co `Post::RELACJE_KARTY`, ale przepis w całości
+        // i z autorem, bo niżej stoi `RecipePolicy::view()`.
         $post->load([
             'author.profile.avatar',
             'media',

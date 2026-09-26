@@ -224,20 +224,13 @@ final class DailyBoard
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             // Przepis schowany, usunięty albo zawężony PO wyborze gospodarza
             // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
-            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej. Wpis
-            // z własną treścią zostaje za swoją widocznością (issue #1377).
+            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
+            // Wpis z własną treścią idzie za własną widocznością (issue #1377).
             ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->get()
             ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
 
@@ -577,20 +570,11 @@ final class DailyBoard
             ->publiclyVisible()
             ->bezUkrytychWpisow($viewer)
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            // Wpis z własną treścią zostaje za swoją widocznością (issue #1377);
-            // przepis zdejmuje z kafelka `Post::ukryjNiedostepnePrzepisy()`.
             ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)
