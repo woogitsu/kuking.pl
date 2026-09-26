@@ -246,7 +246,8 @@ class ProfileController extends Controller
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)
-            ->withQueryString();
+            ->withQueryString()
+            ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer));
     }
 
     /**
@@ -360,7 +361,10 @@ class ProfileController extends Controller
         // Bramka PRZEPISU — patrz akapit w opisie `tylkoWidoczne()`. Tylko dla
         // wpisów: zakładka „Przepisy" pyta wprost o `Recipe`, jej granicą jest
         // `visibility` samego przepisu, a `recipes.recipe_id` nie istnieje.
-        $query->zWidocznymPrzepisem($viewer);
+        // Wpis z własną treścią idzie za WŁASNĄ widocznością, jak na
+        // swojej stronie (issue #1377); przepis zdejmuje z karty
+        // `Post::ukryjNiedostepnePrzepisy()` w `postsFor()`.
+        $query->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
 
         // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
         //
@@ -381,6 +385,7 @@ class ProfileController extends Controller
         // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
         // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
         $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+            ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
             ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 

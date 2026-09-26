@@ -15,7 +15,7 @@ final class DailyBoardCandidates
     public function posts(User $moderator): Builder
     {
         return Post::query()->publiclyVisible()->tylkoOdAktywnychAutorow()
-            ->zWidocznymPrzepisem(null)->widoczneDla($moderator);
+            ->zWidocznymPrzepisemAlboWlasnaTrescia(null)->widoczneDla($moderator);
     }
 
     /** Istniejący wybór osoby pozostaje edytowalny także bez świeżego wpisu.
@@ -50,6 +50,6 @@ final class DailyBoardCandidates
      */
     private function wpisWidocznyPublicznie(Builder $query): Builder
     {
-        return $query->publiclyVisible()->zWidocznymPrzepisem(null);
+        return $query->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia(null);
     }
 }
