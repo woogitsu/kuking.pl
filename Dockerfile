@@ -201,9 +201,13 @@ RUN install-php-extensions \
   && apt-get update \
   && apt-get install -y --no-install-recommends \
       postgresql-client \
+      poppler-utils \
       tini \
   && rm -rf /var/lib/apt/lists/*
 #  postgresql-client → pg_dump / psql dla awaryjnego backupu i restore drill
+#  poppler-utils     → pdfinfo / pdftotext dla importu przepisu z PDF (D-300);
+#                      pakiet systemowy, nie zależność Composera. Bez niego
+#                      import PDF mówi „odczyt PDF chwilowo nie działa".
 #  tini              → poprawny init w PID 1 (reaping zombie, przekazywanie sygnałów)
 
 # Konfiguracja PHP i serwera

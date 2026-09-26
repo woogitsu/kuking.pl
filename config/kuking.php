@@ -1425,6 +1425,11 @@ return [
         // bo następna osoba podniesie tę liczbę i uzna sprawę za załatwioną.
         'comment' => '10,1',
         'post' => '20,10',
+        // Import przepisu z adresu strony / PDF-a (D-300) — bramka przed
+        // kontrolerem. Właściwy limit (5 dziennie, 30 miesięcznie) liczy
+        // `LimitImportu` z sekcji `import`; ta liczba łapie serię wysłań,
+        // np. próbę skanowania adresów przez formularz.
+        'import' => '6,10',
         'report' => '10,10',
 
         /*
@@ -3163,6 +3168,59 @@ return [
             'okno_celu_godzin' => (int) env('KUKING_ALARM_CZLOWIEKA_OKNO_GODZIN', 6),
             'dzienny_sufit' => (int) env('KUKING_ALARM_CZLOWIEKA_SUFIT', 10),
         ],
+    ],
+
+    /*
+     * IMPORT PRZEPISU Z ADRESU STRONY I Z PLIKU PDF (V2, D-300).
+     *
+     * Decyzja właściciela z 26.09.2026: import z adresu działa od razu, dla
+     * wszystkich zalogowanych, ale wynik to ZAWSZE prywatny szkic ze
+     * źródłem zapisanym obowiązkowo, bez zdjęć z cudzej strony, z szacunkiem
+     * dla robots.txt, pełną ochroną SSRF i limitem na osobę. Projekt:
+     * `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §2.4, §4.
+     *
+     * Strona z danymi JSON-LD `Recipe` i PDF z warstwą tekstu idą LOKALNIE,
+     * bez modelu i bez kosztu. Model wchodzi tylko dla strony bez JSON-LD
+     * (tryb fragmentów) i dla PDF-a bez warstwy tekstu — przez klienta
+     * i budżet z fundamentu importu.
+     */
+    'import' => [
+        'url' => [
+            // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
+            // w ogóle (bez martwych przycisków, D-053).
+            'wlaczony' => (bool) env('KUKING_IMPORT_URL', true),
+            // Najwięcej bajtów strony czytanych strumieniowo; większa = odmowa.
+            'max_bajtow' => (int) env('KUKING_IMPORT_URL_MAX_BAJTOW', 2_000_000),
+            // Limit czasu JEDNEGO żądania (strona, przekierowanie, robots.txt).
+            'limit_czasu' => (int) env('KUKING_IMPORT_URL_LIMIT_CZASU', 10),
+            // Limit czasu całego pobrania razem z przekierowaniami i robots.txt.
+            'limit_czasu_calosci' => (int) env('KUKING_IMPORT_URL_LIMIT_CALOSCI', 25),
+        ],
+        'pdf' => [
+            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', true),
+            'max_mb' => (int) env('KUKING_IMPORT_PDF_MAX_MB', 10),
+            'max_stron' => (int) env('KUKING_IMPORT_PDF_MAX_STRON', 5),
+            // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
+            // procesu na dłużej.
+            'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
+        ],
+        // Limit na osobę — WSPÓLNY dla wszystkich źródeł importu (adres, PDF,
+        // zdjęcie). Liczy się zlecenie, nie odświeżenie strony. Brak drogi
+        // importu wielu adresów naraz jest w kodzie, nie w tej liczbie.
+        'limity' => [
+            'na_osobe_dzien' => (int) env('KUKING_IMPORT_NA_OSOBE_DZIEN', 5),
+            'na_osobe_miesiac' => (int) env('KUKING_IMPORT_NA_OSOBE_MIESIAC', 30),
+        ],
+        'model' => [
+            // Decyzja właściciela z 26.09.2026: wysiłek rozumowania modelu
+            // per zadanie. Wyznaczanie granic fragmentów przepisu ze strony
+            // bez JSON-LD to zadanie proste — „low".
+            'effort_tekst' => (string) env('KUKING_IMPORT_EFFORT_TEKST', 'low'),
+        ],
+        // Od jakiego podobieństwa (pg_trgm similarity, 0–1) opis przygotowania
+        // szkicu z adresu uznajemy za „prawie taki sam jak na stronie" i
+        // ostrzegamy przed publikacją (projekt §4 pkt 4, P-10 = ostrzeżenie).
+        'podobienstwo_ostrzezenie' => (float) env('KUKING_IMPORT_PODOBIENSTWO', 0.6),
     ],
 
     'wersja' => [

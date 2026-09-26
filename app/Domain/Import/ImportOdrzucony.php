@@ -57,6 +57,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
 
     public const LIMIT_OSOBY = 'limit_osoby';
 
+    public const LIMIT_OSOBY_MIESIAC = 'limit_osoby_miesiac';
+
     /**
      * @var array<string, string>
      */
@@ -93,6 +95,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
             .'albo przepisz przepis sam — nic nie zginęło.',
         self::LIMIT_OSOBY => 'Dziś odczytaliśmy już :limit Twoich przepisów — to dzienny limit. Jutro będzie można '
             .'dalej. Możesz też od razu wpisać przepis sam.',
+        self::LIMIT_OSOBY_MIESIAC => 'W tym miesiącu odczytaliśmy już :limit Twoich przepisów — to miesięczny limit. '
+            .'Spróbuj znowu w przyszłym miesiącu albo wpisz przepis sam.',
     ];
 
     /**

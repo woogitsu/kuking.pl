@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Domain\Import\PodobienstwoDoZrodla;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
@@ -86,6 +88,21 @@ new class extends Component
      */
     #[Locked]
     public bool $juzOpublikowany = false;
+
+    /**
+     * Szkic z importu (D-300): `url`, `pdf` albo `zdjecie`; `null` = zwykły
+     * przepis. `#[Locked]`, bo decyduje o zablokowanym źródle i o bramce
+     * „Sprawdziłem odczytany tekst" — i tak pilnuje ich `PublishRecipe`,
+     * a to pole tylko rysuje baner i pole wyboru.
+     */
+    #[Locked]
+    public ?string $zrodloImportu = null;
+
+    /** Czy przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst". */
+    #[Locked]
+    public bool $wymagaSprawdzenia = false;
+
+    public bool $sprawdzilemOdczyt = false;
 
     public string $title = '';
 
@@ -177,6 +194,10 @@ new class extends Component
     {
         $this->recipeId = $recipe->getKey();
         $this->juzOpublikowany = $recipe->isPublished();
+
+        $pochodzenie = PrzepisZImportu::query()->find($recipe->getKey());
+        $this->zrodloImportu = $pochodzenie?->zrodlo;
+        $this->wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
 
@@ -585,6 +606,7 @@ new class extends Component
                 'family_since_year' => $this->intOrNull($this->family_since_year),
                 'hero_media_id' => $this->heroMediaId,
                 'source_scan_media_id' => $this->sourceScanMediaId,
+                'sprawdzilem_odczyt' => $this->sprawdzilemOdczyt,
             ],
             ingredients: $this->cleanIngredients(),
             steps: $this->cleanSteps(),
@@ -998,6 +1020,19 @@ new class extends Component
         </span>
     </div>
 
+    @if($zrodloImportu !== null && ! $juzOpublikowany)
+        {{-- Baner szkicu z importu (D-300) — na KAŻDYM kroku. --}}
+        <div class="notice" role="note">
+            <p class="mt-0 mb-0">
+                <strong>Ten tekst odczytał komputer{{ $zrodloImportu === 'url' ? ' ze strony internetowej' : ($zrodloImportu === 'pdf' ? ' z pliku PDF' : ' ze zdjęcia') }}.</strong>
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki sam nie klikniesz „Opublikuj przepis”.
+                @if($zrodloImportu === 'url')
+                    Opis przygotowania napisz własnymi słowami — adres strony zostaje przy przepisie jako źródło.
+                @endif
+            </p>
+        </div>
+    @endif
+
     {{-- Plakietka autosave. aria-live="polite", żeby czytnik ekranu ogłosił
          „Szkic zapisany.” bez przerywania pisania. --}}
     <div aria-live="polite">
@@ -1196,10 +1231,13 @@ new class extends Component
 
                 <fieldset class="border-0 p-0">
                     <legend class="font-bold mb-3">Ten przepis jest…</legend>
+                    @if($zrodloImportu === 'url')
+                        <p class="field-help">Ten przepis pochodzi ze strony {{ $source_url }} — źródła szkicu zapisanego ze strony nie da się zmienić.</p>
+                    @endif
                     <div class="choice-grid">
                         @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                             <label class="choice">
-                                <input type="radio" wire:model="source_type" value="{{ $value }}">
+                                <input type="radio" wire:model="source_type" value="{{ $value }}" @disabled($zrodloImportu === 'url')>
                                 <span class="choice-label">{{ $label }}</span>
                             </label>
                         @endforeach
@@ -1426,6 +1464,25 @@ new class extends Component
             </p>
 
             @error('publikacja')<p class="field-error mb-4">{{ $message }}</p>@enderror
+
+            @if($wymagaSprawdzenia)
+                @if($recipeId !== null && app(PodobienstwoDoZrodla::class)->ostrzegac(\App\Models\Recipe::findOrFail($recipeId), implode("\n", array_column($this->cleanSteps(), 'instruction'))))
+                    <div class="notice" role="note">
+                        <p class="mt-0 mb-0">
+                            <strong>Opis przygotowania jest prawie taki sam jak na stronie źródłowej.</strong>
+                            Napisz go własnymi słowami, zanim opublikujesz — cudzy tekst należy do jego autora.
+                            Wróć przyciskiem „Wstecz” do kroku „przygotowanie”.
+                        </p>
+                    </div>
+                @endif
+                <div class="field @error('sprawdzilemOdczyt') has-error @enderror">
+                    <label class="choice">
+                        <input type="checkbox" wire:model="sprawdzilemOdczyt" id="f-sprawdzilem">
+                        <span class="choice-label">Sprawdziłem odczytany tekst</span>
+                    </label>
+                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.</span>
+                </div>
+            @endif
 
             <article class="stack">
                 <h3 class="naglowek-podgladu">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
