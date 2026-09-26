@@ -238,6 +238,18 @@ w serwisie. Zdania liczy jedna klasa dla obu kanałów —
 `App\Domain\Moderation\OdpowiedzDlaZglaszajacego` — żeby list i ekran mówiły
 to samo, a nie coś podobnego.
 
+**Zmiana decyzji po odwołaniu autora (#1024).** Gdy autor wygra odwołanie od
+`hide`/`remove` i treść wróci, zgłaszający dostaje korektę tym samym kanałem co
+pierwszą odpowiedź: nowe `report.decided` w serwisie albo list
+`ZmianaDecyzjiWSprawieZgloszenia` przy zgłoszeniu prawnym z adresem. Lista
+`/zgloszenia` pokazuje aktualny skutek, karta sprawy — pierwszą decyzję i pod
+nią „Zmiana decyzji". Sprawę wiąże łańcuch kluczy obcych (zgłoszenie → decyzja
+→ odwołanie autora `overturned`), a nie `reason_code`; dodatkowo ostatnią
+decyzją o stanie treści musi być `unhide` (`ZmianaDecyzjiPoOdwolaniu`).
+Ręczne „Przywróć treść" bez odwołania **nie** jest zmianą decyzji — zwykle
+znaczy, że autor poprawił treść — i karty zgłaszającego nie zmienia. Korekta
+nie zdradza autora, treści odwołania ani sankcji wobec konta.
+
 **Skarga na odrzucenie.** Formularz odwołania dla zgłaszającego
 (`FileReporterAppeal`, issue #23) obsługuje **wyłącznie zgłoszenia prawne**
 z podanym adresem e-mail; wewnętrzny system skarg z art. 20 leży w Sekcji 3,
@@ -271,6 +283,14 @@ zauważa, nikomu nic się nie dzieje.
   `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
 - „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
   oznaczenia dla tej samej treści.
+- Zamyka grupę w stanie, który moderator widział (#1059, decyzja właściciela):
+  formularz niesie klucz grupy, liczbę otwartych oznaczeń i identyfikator
+  najnowszego z nich — nie listę identyfikatorów, bo widok rozwija najwyżej
+  10 pozycji na grupę (#1060). Gdy od otwarcia strony do grupy doszło coś
+  nowego (nowsze od najnowszego albo więcej niż liczba z ekranu), nic nie
+  zostaje zamknięte: „Doszły nowe zgłoszenia — odśwież listę i sprawdź je”.
+  Oznaczenie zamknięte w międzyczasie przez kogoś innego nie dostaje drugiej
+  decyzji, a reszta grupy się zamyka.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 

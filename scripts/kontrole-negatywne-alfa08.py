@@ -369,6 +369,15 @@ CISZA_BEZ_WARUNKU = (
     "        }\n"
     "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
 )
+# Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
+# Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
+# dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
+# (dopisanie w tej samej chwili z mniejszym UUID), mutacja 2 — porównanie
+# kolejności (ktoś zamknął jedno, automat dopisał nowe: liczba ta sama).
+GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
+GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
+GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
+GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
 # IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
 # (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
 # `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
@@ -875,6 +884,10 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
+     lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
+    ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
+     lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
@@ -955,6 +968,7 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
