@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Social\Actions\BlockUser;
 use App\Models\CookedEvent;
 use App\Models\Recipe;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -59,7 +62,7 @@ class KomuWyszloUkladTest extends TestCase
         $odpowiedz->assertDontSee('Jak wyszło innym', escape: false);
     }
 
-    /** C3 (SOUL 4.2): zero wykonań NIE usuwa sekcji, tylko pokazuje ten tekst. */
+    /** Zero widocznych wykonań nie usuwa sekcji ani nie sugeruje wiedzy o ukrytych. */
     public function test_zero_wykonan_pokazuje_pusty_stan_c3(): void
     {
         $przepis = $this->opublikowanyPrzepis();
@@ -67,12 +70,84 @@ class KomuWyszloUkladTest extends TestCase
         $odpowiedz = $this->get(route('recipes.show', $przepis->slug))->assertOk();
 
         $odpowiedz->assertSee('Komu wyszło', escape: false);
-        $odpowiedz->assertSee('Jeszcze nikt tego nie gotował', escape: false);
-        $odpowiedz->assertSee('Twoje wykonanie będzie pierwsze.', escape: false);
+        $odpowiedz->assertSee('Nie ma tu widocznych wykonań', escape: false);
+        $odpowiedz->assertDontSee('Jeszcze nikt tego nie gotował', escape: false);
         // Bez paska liczb, kiedy nie ma czego liczyć — „0 osób ugotowało"
         // byłoby tym samym rozminięciem się z prawdą, przed którym ostrzega
         // C3, tylko w innej formie.
         $odpowiedz->assertDontSee('osób ugotowało', escape: false);
+    }
+
+    public function test_pusty_stan_prowadzi_goscia_do_rejestracji_i_logowania(): void
+    {
+        $przepis = $this->opublikowanyPrzepis();
+        $odpowiedz = $this->get(route('recipes.show', $przepis->slug))->assertOk();
+        $xpath = $this->xpath((string) $odpowiedz->getContent());
+
+        $this->assertSame('Załóż konto, żeby dodać wykonanie', $this->actionText($xpath));
+        $this->assertSame(route('register'), $this->actionHref($xpath));
+        $this->assertSame(
+            route('login'),
+            $xpath->query('//section[@aria-labelledby="komu-wyszlo"]//a[normalize-space()="Zaloguj się"]')->item(0)?->getAttribute('href'),
+        );
+    }
+
+    public function test_pusty_stan_prowadzi_uprawnionego_do_formularza_wykonania(): void
+    {
+        $przepis = $this->opublikowanyPrzepis();
+        $widz = $this->user('kucharz');
+        $odpowiedz = $this->actingAs($widz)->get(route('recipes.show', $przepis->slug))->assertOk();
+        $xpath = $this->xpath((string) $odpowiedz->getContent());
+
+        $this->assertSame('Dodaj swoje wykonanie', $this->actionText($xpath));
+        $this->assertSame(route('cooked.create', $przepis->slug), $this->actionHref($xpath));
+    }
+
+    public function test_wykonanie_ukryte_blokada_nie_zmienia_tekstu_ani_nie_zdradza_liczby(): void
+    {
+        $przepis = $this->opublikowanyPrzepis();
+        $widz = $this->user('widz');
+        $kucharz = $this->user('kucharz');
+        CookedEvent::factory()->create([
+            'recipe_id' => $przepis->getKey(),
+            'user_id' => $kucharz->getKey(),
+            'note' => 'Ukryte wykonanie',
+        ]);
+
+        // Kontrola dodatnia: wpis istnieje i bez blokady jest widoczny.
+        $this->actingAs($widz)->get(route('recipes.show', $przepis->slug))
+            ->assertOk()->assertSee('Ukryte wykonanie');
+
+        app(BlockUser::class)->handle($widz, $kucharz);
+        $odpowiedz = $this->actingAs($widz)->get(route('recipes.show', $przepis->slug))->assertOk();
+        $odpowiedz->assertDontSee('Ukryte wykonanie');
+        $odpowiedz->assertDontSee('Jeszcze nikt tego nie gotował');
+        $odpowiedz->assertDontSee('Twoje wykonanie będzie pierwsze.');
+        $odpowiedz->assertDontSee('Ugotowane 1 ×');
+        $xpath = $this->xpath((string) $odpowiedz->getContent());
+        $this->assertSame(
+            'Nie ma tu widocznych wykonań',
+            trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//p[contains(@class,"empty-state-title")]')->item(0)?->textContent ?? ''),
+        );
+        $this->assertSame(route('cooked.create', $przepis->slug), $this->actionHref($xpath));
+    }
+
+    private function xpath(string $html): DOMXPath
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML($html);
+
+        return new DOMXPath($dom);
+    }
+
+    private function actionText(DOMXPath $xpath): string
+    {
+        return trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0)?->textContent ?? '');
+    }
+
+    private function actionHref(DOMXPath $xpath): ?string
+    {
+        return $xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0)?->getAttribute('href');
     }
 
     /**
