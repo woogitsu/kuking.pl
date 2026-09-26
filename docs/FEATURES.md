@@ -121,6 +121,15 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 
+**V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
+z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
+
+- strukturalne alergeny składników i filtr bezpiecznego wyboru (#1902);
+- spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
+  rozszerzenie pantry;
+- wybrane przepisy do czytania offline w PWA (#1904);
+- głosowy tryb gotowania bez dotykania telefonu (#1906).
+
 ## Nie wcześnie
 
 - DM;
