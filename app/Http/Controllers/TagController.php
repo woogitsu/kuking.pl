@@ -57,11 +57,12 @@ class TagController extends Controller
         // przy każdej odsłonie. Liczba jest ta sama dla każdego widza, więc
         // cache jej nie zmienia — tylko przesuwa świeżość o kilka minut.
         //
-        // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
-        // tamten zakres liczy się PER WIDZ (blokady, obserwowanie), a liczba
+        // ŚWIADOMIE BEZ `Post::widoczneDla($widz)` (który `show()` niżej
+        // dokłada dla blokad): tamten zakres liczy się PER WIDZ, a liczba
         // w spisie ma znaczyć to samo dla każdego — to, co zobaczy gość
-        // wchodząc na `/tag/{slug}`. Dla zalogowanej osoby to bezpieczne
-        // niedoszacowanie, nigdy zawyżenie.
+        // wchodząc na `/tag/{slug}`. Od #1338 lista na stronie tagu to ten
+        // sam zakres publiczny dla każdego widza; różnić się może tylko
+        // o wpisy osób, z którymi widz ma blokadę.
         //
         // Wpis z własną treścią liczy się według własnej widoczności — tak
         // jak stoi na stronie tagu (issue #1377); `LiczbyTagowWCache` trzyma
@@ -124,25 +125,34 @@ class TagController extends Controller
 
         $wpisy = Post::query()
             ->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey()))
-            ->published()
-            // Ta sama macierz widoczności co wszędzie indziej: wpisy tylko
-            // dla obserwujących i prywatne NIE MOGĄ wypłynąć przez tag.
+            // TYLKO WPISY PUBLICZNE — DLA KAŻDEGO, TAKŻE DLA AUTORA (decyzja
+            // właściciela z 26.09, #1338). Strona tagu jest miejscem
+            // publicznym: każdy widz, zalogowany czy nie, widzi na niej to
+            // samo co gość. Wpisy „tylko dla obserwujących" i „tylko dla
+            // mnie" nie wypływają tu ani obserwującemu, ani samemu autorowi
+            // — autor ma je w „Moje wpisy” (w „Moje”, D-328). Zakres jest ten sam
+            // co licznik w spisie i warunek indeksowania (`tylkoPubliczne()`
+            // niżej), więc liczba, dyrektywa robota i lista znaczą jedno.
+            // Pilnuje `FeedTagowTylkoOpublikowaneTest::test_strona_tagu_pokazuje_kazdemu_tylko_wpisy_publiczne_takze_autorowi`.
+            ->tap(fn ($query) => $this->tylkoPubliczne($query))
+            // `widoczneDla($widz)` zostaje dla BLOKAD: publiczny wpis osoby,
+            // z którą widz ma blokadę (w którąkolwiek stronę), nadal nie
+            // może wypłynąć przez tag.
             ->widoczneDla($widz)
-            // Zapowiedź przepisu (issue #368) jest na stałe `public`, bo
-            // widoczność trzyma PRZEPIS, nie jego zapowiedź — `widoczneDla()`
-            // wyżej jej więc nie odcina. Bez tej drugiej bramki strona tagu
-            // wypisywała tytuł i zdjęcie główne cudzego przepisu „tylko dla
-            // obserwujących" (issue #941). Ten sam zakres i w tej samej roli
-            // stoi w `TagFeed`, `TagCollage`, `TagPublicStats`, `FollowingFeed`,
-            // `DiscoverFeed`, `DailyBoard` i `PodpowiedziTagow`.
-            //
-            // Wpis z własną treścią zostaje według własnej widoczności
-            // (issue #1377); przepis zdejmuje z karty
-            // `Post::ukryjNiedostepnePrzepisy()` po paginacji.
-            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
-            // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
-            // konto pod sankcją nie ma być z niej promowane (audyt A5).
-            ->tylkoOdAktywnychAutorow()
+            // `tylkoPubliczne()` niesie też dwie bramki, które stały tu
+            // osobno:
+            //   - `zWidocznymPrzepisemAlboWlasnaTrescia(null)` — zapowiedź
+            //     przepisu (issue #368) jest na stałe `public`, bo widoczność
+            //     trzyma PRZEPIS; bez tej bramki strona tagu wypisywała tytuł
+            //     i zdjęcie cudzego przepisu „tylko dla obserwujących"
+            //     (issue #941). Z `null`, nie z `$widz`: własny nie-publiczny
+            //     przepis autora też tu nie wypływa (#1338). Wpis z własną
+            //     treścią zostaje według własnej widoczności (issue #1377);
+            //     przepis zdejmuje z karty `Post::ukryjNiedostepnePrzepisy()`
+            //     po paginacji;
+            //   - `tylkoOdAktywnychAutorow()` — strona tagu POLECA treść
+            //     nieznajomym, konto pod sankcją nie ma być z niej promowane
+            //     (audyt A5).
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -195,8 +205,28 @@ class TagController extends Controller
             Post::query()->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey())),
         )->exists();
 
+        // Własne niepubliczne wpisy widza z tym tagiem — TYLKO do zdania,
+        // które tłumaczy autorowi, dlaczego ich tu nie ma (#681, #1392,
+        // #1338). Od #1338 lista wyżej ich nie pokazuje, więc bez tego
+        // zdania autor widziałby „dodałem wpis z tagiem i go nie ma".
+        // Liczymy wyłącznie wpisy widza: o cudzych, niewidocznych wpisach
+        // nie mówimy nawet półsłówkiem.
+        $wlasneNiepubliczne = $widz === null ? [] : Post::query()
+            ->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey()))
+            ->enabledKinds()
+            ->published()
+            ->where('author_id', $widz->getKey())
+            ->where('visibility', '!=', Post::VISIBILITY_PUBLIC)
+            ->selectRaw('visibility, count(*) as liczba')
+            ->groupBy('visibility')
+            ->toBase()
+            ->pluck('liczba', 'visibility')
+            ->map(fn ($liczba): int => (int) $liczba)
+            ->all();
+
         return view('pages.tags.show', [
             'tag' => $tag,
+            'wlasneNiepubliczne' => $wlasneNiepubliczne,
             'indeksowalny' => $maPublicznyWpis,
             'collage' => $this->collage->forTagsWCache([$tag->getKey()], $widz)[$tag->getKey()],
             'tagNote' => $tag->promotion?->note,

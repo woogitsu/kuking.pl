@@ -229,7 +229,13 @@ class TagiObserwowanieTest extends TestCase
             ->assertDontSee('Tylko dla mnie');
     }
 
-    public function test_obserwujacy_widzi_wpis_dla_obserwujacych(): void
+    /**
+     * Decyzja właściciela z 26.09 (#1338): strona tagu pokazuje KAŻDEMU
+     * wyłącznie wpisy publiczne — także osobie, która autora obserwuje.
+     * Wpis „tylko dla obserwujących" obserwujący zobaczy w feedzie i na
+     * profilu autora, nie na publicznej stronie tagu.
+     */
+    public function test_obserwujacy_nie_widzi_na_stronie_tagu_wpisu_dla_obserwujacych(): void
     {
         $zupy = $this->tag('zupy', 'Zupy');
         $autor = $this->user('basia');
@@ -241,19 +247,58 @@ class TagiObserwowanieTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $post = Post::factory()->create([
-            'author_id' => $autor->getKey(),
-            'body' => 'Tylko dla obserwujących',
-            'status' => Post::STATUS_PUBLISHED,
-            'visibility' => 'followers',
-            'published_at' => now(),
-        ]);
-        $post->tags()->attach($zupy->getKey(), ['position' => 0]);
+        foreach (['followers' => 'Tylko dla obserwujących', 'public' => 'Widoczny dla wszystkich'] as $widocznosc => $tresc) {
+            $post = Post::factory()->create([
+                'author_id' => $autor->getKey(),
+                'body' => $tresc,
+                'status' => Post::STATUS_PUBLISHED,
+                'visibility' => $widocznosc,
+                'published_at' => now(),
+            ]);
+            $post->tags()->attach($zupy->getKey(), ['position' => 0]);
+        }
 
         $this->actingAs($obserwujacy)
             ->get(route('tags.show', $zupy))
             ->assertOk()
-            ->assertSee('Tylko dla obserwujących');
+            // Kontrola dodatnia: publiczny wpis tego samego autora stoi.
+            ->assertSee('Widoczny dla wszystkich')
+            ->assertDontSee('Tylko dla obserwujących');
+    }
+
+    /**
+     * Autor, który ma z tagiem wpis niepubliczny, dostaje na stronie tagu
+     * zdanie z odnośnikiem do „Moje wpisy” (D-328), a nie do profilu —
+     * i ten odnośnik naprawdę prowadzi do listy, na której ten wpis stoi.
+     *
+     * Kontrola ujemna (sprawdzona przy pisaniu): odnośnik z powrotem na
+     * `profile.show` → test oblewa na asercji adresu.
+     */
+    public function test_autor_niepublicznego_wpisu_dostaje_odnosnik_do_moich_wpisow(): void
+    {
+        $zupy = $this->tag('zupy', 'Zupy');
+        $autor = $this->user('basia');
+        $post = $this->wpis($zupy, $autor, 'Zupa tylko dla obserwujących');
+        $post->forceFill(['visibility' => Post::VISIBILITY_FOLLOWERS])->save();
+
+        $html = $this->actingAs($autor)
+            ->get(route('tags.show', $zupy))
+            ->assertOk()
+            ->assertSee('Znajdziesz go w', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '~<a href="'.preg_quote(route('collections.own-posts'), '~').'"[^>]*>„Moje wpisy”</a>~u',
+            $html,
+            'Zdanie o niepublicznym wpisie ma prowadzić do „Moje wpisy” (D-328).',
+        );
+        $this->assertStringNotContainsString('w swoim profilu', $html);
+
+        // Lista, do której prowadzi odnośnik, ma ten wpis z widocznością.
+        $this->actingAs($autor)
+            ->get(route('collections.own-posts'))
+            ->assertOk()
+            ->assertSeeInOrder(['Zupa tylko dla obserwujących', 'Dla obserwujących']);
     }
 
     public function test_zablokowana_osoba_nie_wyplywa_przez_tag(): void
