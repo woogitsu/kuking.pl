@@ -103,8 +103,12 @@ class BlokadaPoZmianieNazwyUzytkownikaTest extends TestCase
     public function test_pytanie_o_blokade_nie_odmienia_nazwy_konta(): void
     {
         foreach (['Marek', 'Żaneta', 'Krzysztof'] as $nazwa) {
-            $widz = $this->user('widzaca_'.Str::lower($nazwa));
-            $wlasciciel = $this->user('do_zablokowania_'.Str::lower($nazwa), ['display_name' => $nazwa]);
+            // Login musi spełnić `profiles_username_check` (tylko ASCII),
+            // więc „Żaneta” idzie do loginu jako `zaneta`. Polska litera
+            // zostaje tam, gdzie jest sprawdzana: w nazwie wyświetlanej.
+            $login = Str::lower(Str::ascii($nazwa));
+            $widz = $this->user('widzaca_'.$login);
+            $wlasciciel = $this->user('do_zablokowania_'.$login, ['display_name' => $nazwa]);
 
             $odpowiedz = $this->actingAs($widz)
                 ->get(route('profile.show', $wlasciciel->profile->username))
