@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * "Twoje dane" — eksport i usunięcie konta.
@@ -156,6 +157,11 @@ class DataSettingsController extends Controller
 
         $zakres = $request->zakres();
 
+        // OZNACZENIE KONTA, SPRAWA W REJESTRZE RODO I WPIS W DZIENNIKU —
+        // JEDNA TRANSAKCJA w `RequestAccountDeletion` (#1347). Wpis audytu
+        // stał tu za zatwierdzeniem: jego awaria zostawiała konto
+        // w `pending_delete` z odpowiedzią 500, bez wylogowania i bez
+        // wiadomości o karencji.
         try {
             $zglos->handle($user, $zakres, $request->ip());
         } catch (OdmowaOstatniegoAdministratora) {
@@ -167,8 +173,21 @@ class DataSettingsController extends Controller
             ])->withInput($request->only('usun_tresci'));
         } catch (BladDlaCzlowieka $blad) {
             // Świeży stan pod blokadą mówi, że konto już jest w usuwaniu
-            // (drugie kliknięcie, druga karta — #980). Nic nie zapisano.
+            // (drugie kliknięcie, druga karta — #980, #1346). Nic nie zapisano;
+            // zakres i data pierwszego żądania zostają.
             return back()->withErrors(['confirm' => $blad->getMessage()]);
+        } catch (Throwable $awaria) {
+            // Awaria któregoś z trzech zapisów (np. dziennika). Transakcja
+            // wycofana w całości: konto działa jak dotąd, sesja zostaje, więc
+            // człowiek może po prostu kliknąć jeszcze raz. Nie połykamy —
+            // `report()` idzie do monitoringu.
+            report($awaria);
+
+            return back()->withErrors([
+                'confirm' => 'Nie udało się przyjąć żądania usunięcia konta i nic się nie zmieniło — konto działa '
+                    .'jak dotąd. Spróbuj jeszcze raz za chwilę. Jeśli to się powtórzy, napisz do nas: '
+                    .config('kuking.community.contact_email'),
+            ])->withInput($request->only('usun_tresci'));
         }
 
         $days = (int) config('kuking.account.delete_grace_days');
