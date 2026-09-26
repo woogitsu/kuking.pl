@@ -53,7 +53,10 @@ i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
 oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
 w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
-spoza listy spada do wartości domyślnej; zapytania poza kontrolerem).
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
+oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
+zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
+`RequestAccountDeletion` (zgłoszenie usunięcia konta).
 
 ### Application
 Use cases, np.:
@@ -82,20 +85,112 @@ Reguły:
 
 ## Granice
 
+`app/Domain` ma dziś 26 modułów (stan z 24.09.2026):
+
 ```text
-app/Domain/
-├── Users
-├── Social
-├── Posts
-├── Recipes
-├── Media
-├── Collections
-├── Search
-├── Notifications
-└── Moderation
+Analytics · Collections · Comments · Compliance · Contact · Digest · Feed ·
+Kolejka · Kopie · Media · Moderation · Monitoring · Notifications ·
+Polaczenia · Posts · Pwa · Questions · Recipes · Search · Security ·
+Sharing · Social · Tags · Users · Wspomnienia · Zgody
 ```
 
 Nie robimy z nich osobnych serwisów ani pakietów.
+
+## Widoczność treści w zapytaniach zbiorczych (#1687)
+
+Policy (`PostPolicy`, `RecipePolicy`, `CookedEventPolicy`, `CommentPolicy`)
+odpowiada na pytanie o **jeden** rekord. Lista, licznik albo eksport, które
+filtrują wiele wierszy naraz, nie wołają Policy po jednym rekordzie (N+1),
+tylko używają **nazwanej specyfikacji zapytania** i **testu równoważności**
+z Policy. Model Eloquenta nie trzyma własnej kopii reguł innego modułu.
+
+```text
+Notification::scopeVisibleTo()           ← tylko wejście (lista, licznik,
+        │                                   „Oznacz wszystkie", otwarcie, eksport)
+        ▼
+Domain/Notifications/WidocznoscPowiadomien   reguły samego powiadomienia:
+        │                                    sprawca, blokada, typ służbowy,
+        │                                    czy komentarz wciąż istnieje
+        ▼
+Domain/Widocznosc/WidocznoscTresciSql        widoczność wpisu, przepisu
+                                             i „Ugotowałem" jako fragment EXISTS
+```
+
+Zgodności pilnuje `tests/Feature/Visibility/PowiadomieniaZgodneZPolicyTest`:
+macierz cel × widz × stan × rodzaj komentarza, stan nakładany po utworzeniu
+powiadomienia. Nowa reguła w Policy treści bez obsługi w specyfikacji daje
+czerwony test z nazwą komórki. Tolerowane są wyłącznie dwa znane rozjazdy,
+każdy w jednym kierunku i z numerem zgłoszenia (#1378, #1385).
+
+Zasada dla kolejnych modułów: jeśli zapytanie zbiorcze musi odtworzyć regułę
+z Policy, reguła trafia do specyfikacji w `app/Domain`, a obok powstaje test
+równoważności z Policy — nie kolejna prywatna kopia w modelu albo kontrolerze.
+
+Etap 2 (#1687): dokąd prowadzi powiadomienie i co pokazuje jego wycinek też
+nie należy do modelu. `Domain/Notifications/CelPowiadomienia` liczy adres
+„Zobacz" dla jednego powiadomienia (`adres()`, wejście przez
+`Notification::adresDocelowy()`) i dla całej strony jednym odczytem
+komentarzy (`adresy()`, #833); `Domain/Notifications/WycinkiKomentarzy`
+czyta żywe wycinki komentarzy (D-229) dla listy i eksportu. Obie klasy
+dostają powiadomienia, które już przeszły przez `WidocznoscPowiadomien`.
+
+Etap 3 (#1687): termin ochrony odwoławczej powiadomienia (retencja, ADR
+§5.2) liczy `Domain/Compliance/TerminOchronyOdwolawczej`, obok jedynego
+odbiorcy — `PrzedawnionePowiadomienia`. Przy modelu zostaje tylko lista
+typów z własnym terminem (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`).
+
+Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
+(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
+m.in. statusem konta autora).
+
+### Kierunek zależności (issue #971)
+
+Zależność między modułami to użycie nazwy `App\Domain\<Inny>\…` w kodzie
+modułu (`use`, `new`, `::class`, typ). Zasada jest jedna: **graf zależności
+modułów nie ma cykli.** Jeśli A używa B, to B nie używa A — ani wprost, ani
+przez trzeci moduł. Wtedy granica modułu mówi, co może zepsuć zmiana w nim.
+
+Gdy moduł niżej musi wywołać coś z modułu wyżej, odwracamy krawędź:
+kontrakt mieszka u wołającego, implementacja w module, który ją dostarcza,
+a łączy je `AppServiceProvider`. Wzorzec: rejestracja (`Users\Actions\ZalozKonto`)
+woła `Users\ObserwowanieGospodarza`, a implementację daje
+`Social\Actions\ObserwujGospodarza` — bo `Social` już zależy od `Users`
+(`ZamekPary` → `ZamekKonta`, D-079/D-080).
+
+Krawędzie w chwili wprowadzenia zasady (skrót, nie lista dozwolonych —
+nowa krawędź jest w porządku, dopóki nie zamyka cyklu):
+
+```text
+Users        → Compliance, Media, Zgody
+Social       → Notifications, Users
+Comments     → Notifications, Users
+Posts        → Media, Moderation, Notifications, Tags
+Recipes      → Media, Notifications
+Feed         → Collections
+Wspomnienia  → Collections
+Collections  → Notifications
+Moderation   → Notifications, Security
+Security     → Moderation, Users     ← znany cykl, do rozcięcia
+Contact      → Security
+Media, Pwa   → Analytics
+Kolejka, Polaczenia → Monitoring
+```
+
+Pilnuje tego `tests/Unit/GrafModulowDomenyBezCykliTest.php` (tokenizer PHP,
+bez nowych bibliotek). Lista zastanych cykli w teście jest dokładna w obie
+strony: nowy cykl oblewa test, a rozcięty znany też — żeby wpis nie został
+furtką. Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
+(`AlarmujOPilnymZgloszeniu` → `DziennyBudzetListow`,
+`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`). Wejście przez
+dostawcę (#1035) dołożyło krawędź `Security → Users`
+(`WejdzPrzezDostawce` → `ZalozKonto`, `ZamekKonta`), więc ten sam cykl
+objął `Compliance → Moderation → Security → Users → Compliance`. Do 25.09
+urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
+`Media → Moderation` (`DostepDoZdjecia`), `Media → Analytics`
+(`StoreUploadedImage`) i `Analytics → Compliance` (`PrzedawnioneSygnaly` →
+`UsuwanieWPartiach`, #1657). Jedna silnie spójna składowa: Analytics,
+Compliance, Media, Moderation, Security, Users. Do rozcięcia osobnym
+zadaniem.
 
 ## Queue
 
@@ -192,6 +287,24 @@ i korzeń. Dopiero świeża kontrola dostępu pozwala zapisać komentarz razem
 z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
 zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
+
+## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
+
+Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`
+i serię `INSERT`-ów. Zapis mieszka w `app/Domain/Feed/Actions/ZapiszTabliceDnia`
+i `ZapiszKolaz`; kontrolery panelu tylko autoryzują, walidują i odpowiadają.
+Jedna transakcja obejmuje trzy rzeczy, w tej kolejności:
+
+1. blokadę doradczą zasobu (`ZamekWyboruRedakcji`: tablica osobno dla
+   każdej daty, kolaż jako jeden zasób) — istnieje także przy pustym
+   zestawie, więc dwa równoległe zapisy dają zestaw A albo B, nigdy A ∪ B
+   (#1027);
+2. `DELETE` i wstawienie nowego zestawu;
+3. wpis `audit_log` (`daily_board.updated|cleared`, `hero_kolaz.updated|cleared`)
+   — awaria dziennika cofa zmianę wyboru (#1329, D-249 klasa 1).
+
+Pomiar przeplotu na dwóch połączeniach:
+`tests/Dwa/WyborRedakcjiNieZlaczaDwochZestawowTest.php`.
 
 ## PWA
 
