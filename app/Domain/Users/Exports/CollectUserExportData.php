@@ -280,6 +280,8 @@ final class CollectUserExportData
             'kara_odlozona_do' => $this->date($user->punishment_expires_at),
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
+            // „Mój stół" (#1749, D-304): jedyna zapisana preferencja półki.
+            'moj_stol_wlaczony' => (bool) $user->moj_stol_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
             // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
             'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
