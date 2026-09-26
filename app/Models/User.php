@@ -352,6 +352,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
             'moj_stol_enabled' => 'boolean',
+            // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
+            // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
+            'birthday_day' => 'integer',
+            'birthday_month' => 'integer',
+            'birthday_wishes_enabled' => 'boolean',
+            // Zgoda na mail z życzeniami (etap c) — zapis tylko przez
+            // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
+            'wants_birthday_email' => 'boolean',
+            'birthday_email_sent_on' => 'date',
+            'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
