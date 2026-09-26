@@ -128,7 +128,10 @@ final class SasiedniWpisAutora
             ->where('author_id', $post->author_id)
             ->published()
             ->widoczneDla($widz)
-            ->zWidocznymPrzepisem($widz)
+            // Wpis z własną treścią otwiera się pod swoim adresem bez
+            // przekierowania na przepis (`PostPolicy::view()`), więc
+            // nawigacja prowadzi do niego jak do każdego innego (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
     }
 }

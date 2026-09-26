@@ -70,6 +70,23 @@ Przy wyłączonym CI Railway czekałby na check suite, który nigdy nie powstani
 i **nic by się nie zdeployowało**. Dlatego `KUKING_WAIT_FOR_CI=true`
 ustawiamy **dopiero po pierwszym zielonym przebiegu**.
 
+**Gdzie ta zmienna żyje (issue #1390).** `KUKING_WAIT_FOR_CI` to zmienna
+**procesu, który wykonuje `.railway/railway.ts`** — nie zmienna usługi
+w panelu Railway. Zmienne usługi widzi kontener aplikacji; plik IaC ich nie
+widzi. Są dwa takie procesy i oba muszą dostać tę samą wartość:
+
+| Kto wykonuje IaC | Skąd bierze `KUKING_WAIT_FOR_CI` |
+|---|---|
+| lokalny `railway config plan/apply` | z powłoki: `KUKING_WAIT_FOR_CI=true railway config plan` |
+| `railway-iac.yml` (plan w PR, apply po scaleniu) | ze **zmiennej repozytorium** GitHuba `KUKING_WAIT_FOR_CI` (Settings → Secrets and variables → Actions → Variables), mapowanej jawnie w `env:` obu jobów |
+
+Dopuszczalne wartości to wyłącznie `true` albo `false`. Brak zmiennej albo
+inna wartość (np. `TRUE`, `1`) **zatrzymuje** plan i apply — i `railway.ts`,
+i krok „Bramka Wait for CI” w workflow odmawiają. Wcześniej brak dawał po
+cichu `checkSuites: false`, więc automatyczny apply zdejmował bramkę
+włączoną ręcznie. Wartość bramki widać w podsumowaniu joba przed planem
+i przed apply.
+
 ---
 
 ## Kontrola lokalna — zostaje mimo działającego CI
@@ -79,6 +96,18 @@ zanim ten trafi na GitHuba — czyli zanim zje minuty z puli.
 
 ### 1. Kontrola lokalna — dokładnie to samo, co robi CI
 
+Nic nie trzeba eksportować. Krok „PostgreSQL” pyta `pg_isready` o host
+i port z `DB_HOST` i `DB_PORT`, a bez nich o `127.0.0.1:5432` — te same
+wartości co `.env.example` i `phpunit.xml` (#732). Masz własną instancję
+na innym porcie? Uruchom `DB_PORT=55439 ./scripts/check.sh`, a sonda
+sprawdzi ten port. Lokalny klaster systemowy skrypt podnosi jak dotąd,
+ale tylko dla portu domyślnego 5432 — instancji na innym porcie nie
+rusza, tylko mówi, na jakim adresie baza nie odpowiada. Gdy ustawisz
+`DB_DATABASE` i `DB_USERNAME`, sonda dostaje je też (`-d`, `-U`). Sonda potwierdza
+gotowość serwera; hasło i istnienie bazy sprawdzają dopiero testy
+i migracje. Port usługi PostgreSQL w GitHub Actions zostaje dynamiczny.
+Regresja sondy bez dostępu do bazy: `bash tests/skrypty/check-postgres.sh`.
+
 ```bash
 ./scripts/check.sh          # pełna kontrola
 ./scripts/check.sh --szybko # bez budowania assetów
@@ -87,18 +116,6 @@ zanim ten trafi na GitHuba — czyli zanim zje minuty z puli.
 Sprawdza: PostgreSQL, formatowanie (Pint), składnię PHP, analizę statyczną,
 testy, **odwracalność migracji** (`migrate:refresh`, czyli czy `down()` działa)
 i build assetów.
-
-**Baza testowa musi być podana jawnie** (issue #732): `DB_HOST`, `DB_PORT`,
-`DB_DATABASE` i `DB_USERNAME`. Bez nich pełna kontrola kończy się od razu
-z listą brakujących zmiennych; w trybie `--szybko` (hook `pre-push`) brak
-zmiennych daje tylko ostrzeżenie i pomija sondę — nie zgaduje domyślnego portu, bo w środowisku
-współdzielonym to może być cudza baza. Sonda nie uruchamia żadnego klastra;
-„przyjmuje połączenia” nie znaczy jeszcze, że hasło i baza są poprawne
-(to sprawdzają testy). Przykład z własną bazą na 55439:
-
-```bash
-DB_HOST=127.0.0.1 DB_PORT=55439 DB_DATABASE=kuking_test_zadanie DB_USERNAME=kuking ./scripts/check.sh
-```
 
 ### 2. Hook `pre-push` — żeby nie dało się o tym zapomnieć
 
@@ -151,8 +168,9 @@ Kroki:
    są tam po to, żeby joby nie trafiały na starą pulę WSL-ową
    (`woogitsu-wsl-DOM-NEW-01`–`04`), która ich nie ma.
 3. Odkomentuj blok `on:` w `ci.yml`.
-4. Ustaw `KUKING_WAIT_FOR_CI=true` przy `railway config apply`, żeby przywrócić
-   bramkę „Wait for CI”.
+4. Ustaw `KUKING_WAIT_FOR_CI=true` przy `railway config apply` **i** w zmiennej
+   repozytorium `KUKING_WAIT_FOR_CI`, żeby przywrócić bramkę „Wait for CI”
+   i żeby automatyczny apply jej nie zdjął (patrz wyżej: gdzie ta zmienna żyje).
 
 Uwaga bezpieczeństwa: własny runner wykonuje kod z repozytorium. Dla
 repozytorium prywatnego z zaufanym zespołem to jest w porządku. **Nigdy nie
@@ -227,3 +245,5 @@ Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
 - [ ] Sekrety `RAILWAY_TOKEN_PRODUCTION` i `RAILWAY_TOKEN_STAGING`
       (dopiero przy deployu — #3, zablokowane przez D-011)
 - [ ] **Na końcu** `KUKING_WAIT_FOR_CI=true` przy stosowaniu konfiguracji Railway
+      — lokalnie w powłoce **i** jako zmienna repozytorium GitHuba (dla
+      `railway-iac.yml`); zmienna usługi w panelu Railway tu nie działa

@@ -121,8 +121,9 @@ class ModerationController extends Controller
             'status' => $status,
             'zrodlo' => $zrodlo,
             'reports' => $reports,
-            // Które zgłoszenia da się dziś cofnąć (issue #65).
-            'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Które zgłoszenia da się dziś cofnąć (issue #65) — i przy
+            // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
+            'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -260,10 +261,15 @@ class ModerationController extends Controller
      * a strona kolejki ma 25 pozycji obsługiwanych przez jedną osobę.
      * Optymalizacja tego miejsca kosztowałaby więcej czytelności niż daje.
      *
+     * Treść, której autorem jest patrzący moderator, dostaje `wlasna`
+     * zamiast `przywroc` (#1479): `RestoreContent` i tak by odmówił, więc
+     * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
+     * co reguła w akcji — `ModeratedContent::osoba()`.
+     *
      * @param  list<Report>  $reports
-     * @return array<string, true> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'> klucz: id zgłoszenia
      */
-    private function przywracalne(array $reports): array
+    private function przywracalne(array $reports, User $moderator): array
     {
         if ($reports === []) {
             return [];
@@ -290,7 +296,9 @@ class ModerationController extends Controller
             // Treść schowana przez autora albo właściciela wpisu nie dostaje
             // przycisku — `RestoreContent` i tak by odmówił (B2-01).
             if ($schowana && RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta) !== null) {
-                $wynik[(string) $decyzja->report_id] = true;
+                $wynik[(string) $decyzja->report_id] = ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()
+                    ? 'wlasna'
+                    : 'przywroc';
             }
         }
 
