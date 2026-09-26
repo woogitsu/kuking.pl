@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Mapa strony dla wyszukiwarek nie podaje już profilu osoby, która ma na nim tylko zapowiedź przepisu „tylko dla obserwujących”, prywatnego albo ukrytego przez moderację. Taki profil jest dla gościa pusty, więc wyszukiwarka nie ma tam czego szukać. Profile z publicznym wpisem albo publicznym przepisem zostają w mapie jak dotąd (#1805).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).
