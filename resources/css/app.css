@@ -1818,11 +1818,19 @@
      odstępu, gdy przycisk za nią stoi. `:has` w przeglądarce bez obsługi po
      prostu nic nie zmienia — zostaje zwykły, większy odstęp, czyli stan
      sprzed tej zmiany. */
-  .flash:has(+ .flash-powrot) {
+  .flash:has(+ .flash-powrot),
+  .flash:has(+ .flash-akcja) {
     margin-bottom: var(--spacing-3);
   }
 
   .flash-powrot {
+    margin-bottom: var(--spacing-5);
+  }
+
+  /* Jawny krok „Zobacz swój wpis" po pierwszej publikacji (issue #1881) —
+     ten sam odstęp co `.flash-powrot`, bo stoi w tym samym miejscu w układzie
+     i pełni tę samą rolę: jedna akcja tuż pod plakietką potwierdzenia. */
+  .flash-akcja {
     margin-bottom: var(--spacing-5);
   }
 

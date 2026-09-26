@@ -21,6 +21,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Policies\RecipePolicy;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Czas;
 use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
@@ -282,6 +283,19 @@ class PostController extends Controller
 
         $isFirstPost = $user->posts()->published()->count() === 1;
 
+        // DATA I JAWNY KROK „ZOBACZ SWÓJ WPIS" — issue #1881.
+        //
+        // Obietnica z `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+        // brzmi: „Gotowe. To Twój pierwszy wpis w Kuking — {data}." + link
+        // „Zobacz swój wpis". Do 26 września 2026 komunikat mówił tylko „od
+        // teraz masz swoje archiwum" — bez daty, czyli bez dowodu na to, co
+        // właśnie obiecał („archiwum od pierwszej sekundy"), i bez żadnego
+        // linku: przy jednym/zero zdjęć przekierowanie i tak ląduje na
+        // wpisie, ale przy dwóch i więcej zdjęciach ląduje na ekranie układu
+        // — tam „Zobacz swój wpis" nie było nigdzie, więc jawny krok z
+        // dokumentu produktowego po prostu nie istniał.
+        $dataPublikacji = $post->published_at !== null ? Czas::data($post->published_at) : null;
+
         // Zdjęcie przetwarza się w kolejce (StoreUploadedImage) — w chwili
         // tego przekierowania prawie na pewno jeszcze nie jest `ready`.
         // Autor MUSI się o tym dowiedzieć TERAZ, na najbardziej widocznym
@@ -307,22 +321,46 @@ class PostController extends Controller
         // przenosić — pytanie bez treści jest gorsze niż brak pytania,
         // zwłaszcza na drodze do opublikowania zdjęcia.
         if (count($mediaIds) >= 2) {
-            return redirect()->route('posts.media.edit', $post)
+            $odpowiedz = redirect()->route('posts.media.edit', $post)
                 ->with('poPublikacji', true)
                 ->with('status', $isFirstPost
-                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.'
+                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.'
                     : 'Opublikowane.');
+
+            if ($isFirstPost) {
+                // Ekran układu prowadzi dalej do wpisu własnym przyciskiem
+                // („Zapisz i pokaż wpis” / „Zostaw tak, jak jest”), ale to
+                // NIE jest to samo, co jawny krok z dokumentu produktowego —
+                // ten sam przycisk „Zobacz swój wpis” ma się pojawić wszędzie,
+                // gdzie ląduje pierwsza publikacja, żeby potwierdzenie było
+                // SPÓJNE niezależnie od liczby zdjęć.
+                $odpowiedz->with('status_akcja', [
+                    'url' => $post->url(),
+                    'etykieta' => 'Zobacz swój wpis',
+                ]);
+            }
+
+            return $odpowiedz;
         }
 
-        return redirect()->route('posts.show', $post)->with(
+        $odpowiedz = redirect()->route('posts.show', $post)->with(
             'status',
             match (true) {
-                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
-                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.',
+                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
+                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.',
                 $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
                 default => 'Opublikowane. Dziękujemy.',
             },
         );
+
+        if ($isFirstPost) {
+            $odpowiedz->with('status_akcja', [
+                'url' => $post->url(),
+                'etykieta' => 'Zobacz swój wpis',
+            ]);
+        }
+
+        return $odpowiedz;
     }
 
     /**
