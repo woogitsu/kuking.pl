@@ -121,7 +121,7 @@
         </section>
     @endif
 
-    <section class="mt-8">
+    <section class="mt-8" id="zablokowane">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
             <p class="meta">Nikogo nie blokujesz.</p>
