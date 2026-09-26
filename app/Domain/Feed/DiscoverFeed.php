@@ -107,8 +107,9 @@ final class DiscoverFeed
             ->when($viewer !== null, fn ($query) => $this->bezUkrytychPrzez($query, $viewer))
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
-            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
-            ->zWidocznymPrzepisem($viewer);
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Wpis
+            // z własną treścią idzie za własną widocznością (issue #1377).
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
 
         $strona = Post::query()
             ->select('posts.*', 'rotacja.runda')
@@ -148,6 +149,10 @@ final class DiscoverFeed
             // Pusty napis, nie `null`: na `null` Laravel sięga po kursor z adresu
             // jeszcze raz — ten sam, który właśnie odrzuciliśmy.
             ->cursorPaginate($perPage, ['*'], 'cursor', $kursor ?? '');
+
+        // Karta nie pokazuje tytułu ani zdjęcia przepisu, którego widz nie
+        // zobaczy (issue #1377) — wpis z własną treścią zostaje bez nich.
+        Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer);
 
         return $strona->appends('stan', (string) $chwila->getTimestamp());
     }
