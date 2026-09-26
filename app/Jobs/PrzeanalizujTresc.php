@@ -58,7 +58,7 @@ class PrzeanalizujTresc implements ShouldQueue
 
     public int $timeout = 30;
 
-    /** Za wszystkim, co robi człowiek — `docker/entrypoint.sh` uruchamia `--queue=high,default,media,low`. */
+    /** Kolejka `low`: w osobnym kontenerze workera ma własny proces (`listy_kolejek()` w `docker/entrypoint.sh`, #1030). */
     private const KOLEJKA = 'low';
 
     public const TYP_WPIS = 'post';
