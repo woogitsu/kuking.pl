@@ -240,6 +240,13 @@ class LimityTrasZapisujacychTest extends TestCase
             // kto właśnie próbuje ją zamknąć.
             'logout',
 
+            // To samo w aplikacji mobilnej (D-270): „Wyloguj" odwołuje token,
+            // którym przyszło żądanie. Limitu na trasie nie ma z tego samego
+            // powodu co wyżej, ale trasa NIE jest bez limitu — grupa `api`
+            // liczy każde żądanie na token (limiter `api`) i na adres IP
+            // (`BramaApi`), czego ten skan nie widzi, bo patrzy na trasę.
+            'api.tokeny.biezacy.destroy',
+
             // NIE NASZA TRASA. `PUT /storage/{path}` rejestruje sam framework
             // dla każdego dysku, który ma `serve => true` — u nas dysk `local`
             // (`config/filesystems.php`). W `routes/web.php` jej nie ma i nie

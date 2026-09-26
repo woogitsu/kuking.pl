@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- W ustawieniach jest nowy ekran „Urządzenia z dostępem”. Widać na nim telefony i tablety zalogowane na Wasze konto w aplikacji Kuking — z nazwą, datą zalogowania i tym, kiedy ostatnio były używane — i można każde z nich odciąć jednym przyciskiem (z potwierdzeniem) albo odciąć wszystkie naraz. Zmiana hasła i „Wyloguj mnie z innych urządzeń” odcinają teraz także aplikację. Samo API dla aplikacji jest przygotowane, ale do czasu jej wydania pozostaje wyłączone.
 - Paczka z danymi (`dane.json`) nazywa pole „Na czym się znasz” kluczem `na_czym_sie_znam` zamiast `w_czym_jestem_dobra`, który każdemu czytelnikowi przypisywał formę żeńską. **Zgodność wstecz:** program czytający starsze paczki powinien przyjmować oba klucze — w paczkach wygenerowanych przed tą zmianą to samo pole nazywa się `w_czym_jestem_dobra`, a jego treść się nie zmieniła. Innych kluczy zmiana nie dotyczy (#1750).
 
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).

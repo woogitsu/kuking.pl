@@ -116,6 +116,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+| API dla aplikacji mobilnej | prefiks `api/v1`, Laravel Sanctum (tokeny osobistego dostępu, bez sesji), domyślnie wyłączone flagą `KUKING_API_ENABLED` (D-270) | `composer.json`: `laravel/sanctum` · w repozytorium: `routes/api.php` |
 
 Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
 i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
