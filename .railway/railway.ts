@@ -708,6 +708,29 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
+    // --- „Tag tygodnia" (config/kuking.php, kuking.tag_tygodnia) --------------
+    // Wyróżnienie tagu na tablicy „kuKINGi na dziś" (FeedController) i panel
+    // admina (Admin\TagHighlightController, Admin\TagPromotionController).
+    // Stała TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by ją usunął. Idzie przez `ctx.shared`, jak przełączniki brzegu
+    // niżej (`brzegWebEnv`, #1775): to pokrętło właściciela per środowisko,
+    // nie stała projektu. PUSTE (Shared Variable nie założona) = `false`,
+    // czyli wyróżnienie wyłączone — bezpieczny kierunek, nie awaria.
+    // UWAGA PRZED `apply`: jeśli stoi dziś w panelu jako zmienna SERWISU,
+    // przenieś wartość do Shared Variables środowiska.
+    KUKING_TAG_TYGODNIA: ctx.shared.KUKING_TAG_TYGODNIA,
+
+    // --- Token szczegółów /health (config/kuking.php, health.token, audyt A5-05) ---
+    // Nagłówek `X-Kuking-Health-Token` odsłania pole `checks` w odpowiedzi
+    // `/health`; bez tokenu (albo z błędnym) `/health` oddaje tylko `status`
+    // — healthcheck Railwaya i test dymny działają tak samo w obu
+    // przypadkach. Stał TYLKO w panelu serwisu `kuking.pl`: `ctx.shared`
+    // wymaga ISTNIEJĄCEJ Shared Variable, więc kolejność jest ważna —
+    // najpierw założyć ją w panelu (wartość: `openssl rand -hex 32`),
+    // *potem* wdrożyć tę linię (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8).
+    // Sekret — w panelu Railway zaznacz „Sealed".
+    KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN,
   };
 
   //  --- Czyszczenie cache CDN: worker + web ---------------------------------
@@ -818,6 +841,17 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
+  //  --- Listy z życzeniami urodzinowymi: TYLKO scheduler (#1755, D-269) -----
+  //  Wyłącznik `kuking.urodziny.mail_wlaczony` czyta WYŁĄCZNIE komenda
+  //  `kuking:wyslij-zyczenia-urodzinowe`, która chodzi z harmonogramu; worker
+  //  tylko wysyła to, co już jest w kolejce (i sam sprawdza zgodę w chwili
+  //  wysyłki). Decyzja właściciela z 25.09.2026: po scaleniu wysyłka włączona.
+  //  TYLKO PRODUKCJA: staging i PR-y nie wysyłają ludziom życzeń z kopii
+  //  danych — tak samo jak alarmy moderacji wyżej.
+  const urodzinyEnv = {
+    KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
+  };
+
   //  --- Przełączniki brzegu i bramka R2: TYLKO web --------------------------
   //  Do 25.09.2026 żadnej z tych trzech zmiennych nie było w tym pliku, choć
   //  czyta je kod — ustawienie ich w panelu serwisu `kuking.pl` zniknęłoby
@@ -851,7 +885,7 @@ export default defineRailway((ctx) => {
     ...modelEnv,
     ...alarmModeratoraEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
