@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Paczka z danymi (`dane.json`) nazywa pole „Na czym się znasz” kluczem `na_czym_sie_znam` zamiast `w_czym_jestem_dobra`, który każdemu czytelnikowi przypisywał formę żeńską. **Zgodność wstecz:** program czytający starsze paczki powinien przyjmować oba klucze — w paczkach wygenerowanych przed tą zmianą to samo pole nazywa się `w_czym_jestem_dobra`, a jego treść się nie zmieniła. Innych kluczy zmiana nie dotyczy (#1750).
+
 - „Usuń z zeszytu” przy przepisie, który leży w kilku Waszych zeszytach, najpierw pyta: pokazuje, z ilu zeszytów przepis zniknie i ile notatek przepadnie, i pozwala zamiast tego usunąć go tylko z jednego wybranego zeszytu. Ze wszystkich zeszytów przepis schodzi dopiero po naciśnięciu „Tak, usuń ze wszystkich”, a zaraz potem można go przywrócić razem z notatkami (#775).
 - Przy przepisie albo wpisie we własnym zeszycie można teraz dopisać notatkę dla siebie, np. „na urodziny taty — mniej soli”. Notatkę widzisz tylko Ty: nie zobaczy jej autor ani nikt, kto ogląda zeszyt, także publiczny. Ta sama rzecz w dwóch zeszytach może mieć dwie różne notatki. Żeby notatkę usunąć, wystarczy wyczyścić pole i zapisać. Zapisywanie jednym kliknięciem działa jak dotąd (#978).
 
