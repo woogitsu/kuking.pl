@@ -360,7 +360,11 @@
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
                     Przy WŁASNEJ treści patrzącego zamiast przycisku stoi
-                    informacja (#1479): akcja i tak by odmówiła.
+                    informacja (#1479): akcja i tak by odmówiła. Tak samo
+                    u moderatora przy treści, którą ukrył administrator
+                    (#1748) — regułę rangi B2-01 czyta
+                    `RestoreContent::wolnoCofnac()`, ten sam warunek, którego
+                    pilnuje backend.
                 --}}
                 @if(($przywracalne[$report->id] ?? null) === 'wlasna')
                     <p class="mt-4">
@@ -391,6 +395,10 @@
 
                         <button class="btn btn-secondary" type="submit">Przywróć treść</button>
                     </form>
+                @elseif(($przywracalne[$report->id] ?? null) === 'tylko_admin')
+                    <p class="meta mt-4">
+                        <strong>Ukrył administrator.</strong> Przywrócić tę treść może tylko administrator — przekaż mu sprawę.
+                    </p>
                 @endif
             @endif
         </article>
@@ -398,5 +406,5 @@
         <x-empty-state title="Nic tu nie ma">Brak zgłoszeń w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $reports->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$reports" /></div>
 </x-layout>
