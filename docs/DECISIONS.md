@@ -17897,7 +17897,7 @@ Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** 
   **każdy widz** (także niezalogowany) widzi, KTO napisał — nazwy dosłownie,
   bez osób z blokadą autora albo widza i bez kont niedostępnych (zmiana
   26 września 2026, dopisek niżej);
-- **powiadomienie zbiorczo raz dziennie** (17:47 czasu polskiego — `->timezone(Czas::strefa())`, `kuking:powiadom-smakowicie`):
+- **powiadomienie zbiorczo raz dziennie** (15:47 UTC, czyli 17:47 latem i 16:47 zimą w Polsce — dopisek niżej, `kuking:powiadom-smakowicie`):
   jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
   zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
   powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
@@ -17925,6 +17925,18 @@ Reakcje nie są źródłem analityki (#1814).
 > reagującego jest publiczna pod wpisem. Eksport bez zmian (`reakcje_otrzymane`
 > filtruje po autorze). Test:
 > `SmakowicieWygladaTest::test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja`.
+
+> **Dopisek (26 września 2026, pora powiadomienia).** Pierwsza wersja
+> ustawiała 17:47 czasu polskiego (`->timezone(Czas::strefa())`, przegląd
+> #1781: 17:47 UTC to 19:47 latem). Po scaleniu `main`
+> `HarmonogramBezWspolnychSlotowTest` (#1717) wymaga, żeby wszystkie zadania
+> codzienne chodziły w jednej strefie — inaczej odstęp dziesięciu minut
+> między nimi nie da się sprawdzić, a zadanie w czasie polskim przesuwa się
+> względem reszty o godzinę dwa razy w roku. Zadanie chodzi więc o **15:47
+> UTC** w strefie harmonogramu (wolny slot, najbliższe zadanie codzienne
+> o 08:40), jak życzenia urodzinowe: w Polsce 17:47 latem i 16:47 zimą,
+> zawsze po południu. Komenda nie liczy „dziś”, więc pora nie zmienia jej
+> wyniku. Test: `SmakowicieWygladaTest::test_harmonogram_ma_zbiorcze_powiadomienie_raz_dziennie`.
 
 ### Wycofanie
 

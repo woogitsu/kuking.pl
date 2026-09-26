@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Support\Czas;
 use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -71,11 +70,16 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
 // Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
 // dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
 // powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
+//
+// 15:47 UTC — STAŁA PORA w strefie całego harmonogramu, jak urodziny niżej.
+// W Polsce to 17:47 latem i 16:47 zimą: zawsze po południu (przegląd #1781
+// odrzucił 17:47 UTC, czyli 19:47 latem). Własna strefa zadania
+// (`->timezone(Czas::strefa())`) odpada: `HarmonogramBezWspolnychSlotowTest`
+// porównuje godziny zadań codziennych tylko w jednej strefie, a zadanie
+// w czasie polskim przesuwałoby się względem reszty o godzinę dwa razy
+// w roku. Komenda nie liczy „dziś”, więc pora nie zmienia jej wyniku.
 Harmonogram::artisan('kuking:powiadom-smakowicie')
-    ->dailyAt('17:47')
-    // 17:47 czasu POLSKIEGO. Harmonogram liczy w `app.timezone` (UTC), więc
-    // bez strefy wychodziłoby 19:47 latem i 18:47 zimą (przegląd #1781).
-    ->timezone(Czas::strefa())
+    ->dailyAt('15:47')
     ->name('kuking:powiadom-smakowicie')
     ->onOneServer()
     ->withoutOverlapping(120);

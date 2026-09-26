@@ -178,9 +178,12 @@ class SmakowicieWygladaTest extends TestCase
         $zdarzenia = collect(app(Schedule::class)->events())
             ->filter(fn ($e) => ($e->description ?? '') === 'kuking:powiadom-smakowicie');
         $this->assertCount(1, $zdarzenia);
-        $this->assertSame('47 17 * * *', $zdarzenia->first()->expression);
-        // Przegląd #1781: 17:47 czasu polskiego, nie UTC.
-        $this->assertSame('Europe/Warsaw', (string) $zdarzenia->first()->timezone);
+        // 15:47 UTC = 17:47 latem i 16:47 zimą w Polsce — po południu przez
+        // cały rok (przegląd #1781 odrzucił 17:47 UTC, czyli 19:47 latem).
+        $this->assertSame('47 15 * * *', $zdarzenia->first()->expression);
+        // Strefa całego harmonogramu, nie własna zadania:
+        // `HarmonogramBezWspolnychSlotowTest` porównuje godziny w jednej strefie.
+        $this->assertSame('UTC', (string) $zdarzenia->first()->timezone);
     }
 
     public function test_eksport_ma_reakcje_dane_i_otrzymane(): void
