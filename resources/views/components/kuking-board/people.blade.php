@@ -95,7 +95,8 @@
                                          profilu (`pages/profile/show.blade.php`), żeby
                                          to samo wyjście z serwisu nazywało się wszędzie
                                          tak samo. --}}
-                                    <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
+                                    <a class="btn btn-secondary" href="{{ route('register', ['follow_user' => $person->getKey()]) }}">Załóż konto, żeby obserwować</a>
+                                    <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $person->getKey()]) }}">Zaloguj się do swojego konta</a>
                                 @endauth
                             </div>
                             @endif
