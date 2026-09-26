@@ -10,7 +10,22 @@
 !.env.example
 .phpactor.json
 .phpunit.result.cache
-/.codex
+# `.codex/heic-119` to katalog roboczy sondy #119 (HEIC): próbki z telefonu,
+# logi przebiegów i pomiary lokalnego urządzenia NIE mają być śledzone —
+# `docs/research/heic-119/RAPORT.md:61` mówi wprost, że to narzędzia
+# zainstalowane WYŁĄCZNIE tutaj, poza repozytorium (#1911). Dwa pliki są
+# wyjątkiem: `phone-proxy.py` i `phone-proxy.test.py` to świadomie
+# utrzymywane narzędzie (proxy LAN do testów z telefonu) i jego test,
+# poprawione i dopisane do repozytorium w #1863 — reszta katalogu (media,
+# logi, dumpy SQL, skrypty z zaszytymi ścieżkami jednej maszyny) zostaje
+# ignorowana. Rodzic musi być odignorowany (`/*`, nie cały katalog), żeby
+# wyjątki `!` niżej w ogóle zadziałały — gita nie da się cofnąć do środka
+# katalogu, który sam jest wykluczony.
+/.codex/*
+!/.codex/heic-119/
+/.codex/heic-119/*
+!/.codex/heic-119/phone-proxy.py
+!/.codex/heic-119/phone-proxy.test.py
 /.idea
 /.nova
 /.phpstan-cache
