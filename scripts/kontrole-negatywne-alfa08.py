@@ -495,6 +495,11 @@ STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
 # DROP TABLE zgubiłby numerację. Mutacja zdejmuje warunek odmowy.
 MIGRACJA_DZIENNIK_WDROZEN = "database/migrations/2026_09_26_130000_utworz_dziennik_wdrozen.php"
 DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
+# Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
+# audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
+RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
+KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
+RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
 
 def digest(path):
@@ -1100,6 +1105,8 @@ checks = [
     # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
     ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
      lambda s: replace_once(s, "$numer = $mapa[$slug] ?? null;", "$numer = null;")),
+    ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
+     lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1185,6 +1192,7 @@ run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(DZIENNIK_WDROZEN_TEST, True)
+run_test(KOMENDY_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
