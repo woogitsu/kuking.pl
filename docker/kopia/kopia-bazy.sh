@@ -180,12 +180,33 @@ Szczegóły zostają w logu serwisu — na webhook nie wychodzą."
   # czego uciekać poza znakami nowej linii.
   local json_tresc="${tresc//$'\n'/\\n}"
 
-  curl --silent --show-error --max-time 10 \
+  # -------------------------------------------------------------------------
+  #  `--fail` — BEZ NIEGO ODPOWIEDŹ 4xx/5xx LICZYŁA SIĘ JAKO DOSTARCZONA (#193)
+  #
+  #  `curl` bez `--fail` kończy się kodem 0 za każdym razem, gdy dostanie
+  #  JAKĄKOLWIEK odpowiedź HTTP — także 404 (webhook skasowany), 401
+  #  (odwołany token) czy 500 (usługa po drugiej stronie padła). Ta funkcja
+  #  jest ostatnią linią: gdy ona się myli co do dostarczenia, człowiek nie
+  #  dowiaduje się o awarii kopii NICZYM — dokładnie ta sama klasa usterki,
+  #  którą po stronie aplikacji naprawiał `App\Logging\WebhookBleduHandler`
+  #  (patrz jego komentarz klasy, akapit „ALE BŁĄD WYSYŁKI JUŻ NIE GINIE
+  #  PO CICHU").
+  #
+  #  `--fail` każe `curl`owi zwrócić NIEZEROWY kod wyjścia przy odpowiedzi
+  #  ≥ 400, więc gałąź niżej faktycznie się wykonuje zamiast milczeć.
+  #  Kod wyjścia zbieramy WPROST (nie przez goły `||`), żeby OSTRZEŻENIE
+  #  w logu niosło, CO konkretnie zawiodło — kod 22 (`--fail`: serwer oddał
+  #  ≥ 400) to inna naprawa niż 28 (`--max-time`: sieć nie odpowiada wcale).
+  local kod_curla=0
+  curl --silent --show-error --fail --max-time 10 \
     --header 'Content-Type: application/json' \
     --data "{\"text\":\"${json_tresc}\"}" \
     --output /dev/null \
-    "${KOPIA_WEBHOOK_URL}" \
-    || log 'OSTRZEŻENIE: nie udało się wysłać alarmu na webhook.'
+    "${KOPIA_WEBHOOK_URL}" || kod_curla=$?
+
+  if ((kod_curla != 0)); then
+    log "OSTRZEŻENIE: nie udało się wysłać alarmu na webhook (curl: kod ${kod_curla})."
+  fi
 }
 
 # Porażka: alarm i wyjście. Kod wyjścia jest różny dla różnych etapów, żeby
