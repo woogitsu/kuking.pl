@@ -16,6 +16,15 @@ namespace App\Domain\Import;
  *  - `store: false`;
  *  - wysiłek rozumowania z konfiguracji (`kuking.import.model.effort_tekst`,
  *    domyślnie `low` — decyzja właściciela z 26.09.2026).
+ *
+ * STAN NA 26.09.2026: klasa jest gotowa, ale jeszcze NIEUŻYWANA — `WyznaczaczFragmentow`
+ * jest tu na razie związany z `BezModeluFragmentow` (`AppServiceProvider`), bo klient HTTP
+ * do modelu („fundament importu" — `KlientLuna`, budżet, zgoda) buduje równolegle gałąź
+ * `claude/v2-import-ocr`. Strona bez JSON-LD `Recipe` kończy się do czasu tego scalenia
+ * uczciwym „nie znaleźliśmy przepisu", bez żadnego żądania do OpenAI (zgodnie z D-300 —
+ * brak fundamentu = funkcja wyłączona, nic nie pada). Kiedy fundament wyląduje, nowa klasa
+ * implementująca `WyznaczaczFragmentow` woła `KlientLuna::wyslij(ZadanieFragmentow::tresc(...))`
+ * i podmienia wiązanie w `AppServiceProvider`.
  */
 final class ZadanieFragmentow
 {
