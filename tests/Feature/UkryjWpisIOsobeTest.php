@@ -197,7 +197,11 @@ class UkryjWpisIOsobeTest extends TestCase
         $this->patch(route('settings.hidden.keep', $ukrycieDrugiego))->assertSessionHasNoErrors();
         $this->assertNull($ukrycieDrugiego->fresh()->hidden_until);
 
-        $this->travel(31)->days();
+        $terminPierwszego = Hide::query()->where('post_id', $jeden->id)->firstOrFail()->hidden_until;
+        $this->assertNotNull($terminPierwszego);
+        // Ukrycie kończy się wraz z polskim dniem; 31 dób od kliknięcia
+        // może wypaść przed terminem, gdy po drodze zmieni się czas letni.
+        $this->travelTo($terminPierwszego->copy()->addSecond());
         $widoczne = $this->odkrywanie($widz);
         $this->assertContains('Pierwszy do ukrycia', $widoczne, 'Ukrycie po 30 dniach nie wygasło.');
         $this->assertNotContains('Drugi do ukrycia', $widoczne, '„Zostaw ukryte" nie trzyma bez terminu.');
