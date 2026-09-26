@@ -119,6 +119,8 @@ class PaczkaDanychPrzezywaOsobneKontenderyTest extends TestCase
         $niekasujacy->shouldReceive('delete')->andReturn(false);
         $niekasujacy->shouldReceive('exists')->andReturn(true);
 
+        // Kod błędu (#1331): nieudane kasowanie nie może wyglądać jak sukces
+        // w harmonogramie.
         $this->artisan('kuking:sprzataj-eksporty')->assertFailed();
 
         $export->refresh();
