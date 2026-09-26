@@ -22,6 +22,7 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
+import './niezapisane-zmiany.js';
 import './pokaz-wiecej.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
