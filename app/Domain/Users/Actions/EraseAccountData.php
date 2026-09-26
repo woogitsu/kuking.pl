@@ -17,6 +17,7 @@ use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\WpisZgody;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -88,7 +89,7 @@ final class EraseAccountData
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
-    public function handle(User $user): bool
+    public function handle(User $user, ?DateTimeInterface $oczekiwanyWniosek = null): bool
     {
         $fresh = User::query()->whereKey($user->getKey())->first();
 
@@ -120,7 +121,7 @@ final class EraseAccountData
         $doSkasowania = [];
         $zakresDoDziennika = null;
 
-        $wymazano = DB::transaction(function () use ($user, &$doSkasowania, &$zakresDoDziennika): bool {
+        $wymazano = DB::transaction(function () use ($user, $oczekiwanyWniosek, &$doSkasowania, &$zakresDoDziennika): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -130,6 +131,20 @@ final class EraseAccountData
             if ($fresh === null
                 || $fresh->status !== User::STATUS_PENDING_DELETE
                 || $fresh->data_erased_at !== null
+            ) {
+                return false;
+            }
+
+            // Egzekutor przekazuje datę wniosku z materializowanej listy.
+            // Cofnięcie i ponowne zgłoszenie może przywrócić pending_delete,
+            // ale nie może skrócić NOWEJ karencji przez stary przebieg workera.
+            // Odtwarzanie po backupie (`WymazPonownie`) celowo nie podaje tej
+            // daty: odtwarza wymazanie już wykonane i zapisane w dzienniku.
+            if ($oczekiwanyWniosek !== null
+                && ($fresh->delete_requested_at === null
+                    || $fresh->delete_requested_at->getTimestamp() !== $oczekiwanyWniosek->getTimestamp()
+                    || $fresh->deletionGraceEndsAt()?->isFuture()
+                )
             ) {
                 return false;
             }

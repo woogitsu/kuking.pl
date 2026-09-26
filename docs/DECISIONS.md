@@ -1002,6 +1002,16 @@ osoby, która klika w pośpiechu.
 📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
 `resources/views/pages/settings/data.blade.php` · D-018
 
+### Uzupełnienie: ponowny wniosek rozpoczyna nową karencję (#2023)
+
+Egzekutor przekazuje do `EraseAccountData` datę wniosku, którą wybrał z listy
+kont po terminie. Akcja porównuje ją z bieżącą datą wniosku **pod blokadą
+wiersza konta** i sprawdza, czy bieżące 30 dni już minęło. Po cofnięciu i
+ponownym zgłoszeniu stary przebieg egzekutora pomija konto, nawet jeśli
+ponownie widzi status `pending_delete`. Dokończenie kasowania zdjęć po już
+wykonanym wymazaniu oraz odtworzenie wymazania z dziennika po przywróceniu
+bazy zachowują własne ścieżki; to nie są nowe wnioski o usunięcie.
+
 ---
 
 ## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu

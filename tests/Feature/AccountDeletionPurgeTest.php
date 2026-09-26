@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\Profile;
@@ -146,6 +147,31 @@ class AccountDeletionPurgeTest extends TestCase
         $this->assertNull($basia->data_erased_at);
         $this->assertSame($email, $basia->email);
         $this->assertTrue(Hash::check('haslo-testowe-123', $basia->password));
+    }
+
+    public function test_stary_kandydat_nie_wymazuje_nowego_wniosku_nawet_po_jego_terminie(): void
+    {
+        $basia = $this->kontoPoTerminie();
+        $staryKandydat = $basia->fresh();
+        $staryTermin = $staryKandydat->delete_requested_at;
+
+        $basia->cancelDeletion();
+        $basia->markForDeletion();
+
+        $wymaz = app(EraseAccountData::class);
+        $this->assertFalse($wymaz->handle($staryKandydat, $staryTermin));
+        $this->assertNull($basia->fresh()->data_erased_at);
+        $this->assertTrue($basia->fresh()->delete_requested_at->isAfter($staryTermin));
+
+        // Po upływie nowej karencji warunek samej daty już nie wystarczy:
+        // stara generacja nadal nie może wykonać nowego wniosku.
+        $this->travel(31)->days();
+        $this->assertFalse($wymaz->handle($staryKandydat, $staryTermin));
+        $this->assertNull($basia->fresh()->data_erased_at);
+
+        $nowyKandydat = $basia->fresh();
+        $this->assertTrue($wymaz->handle($nowyKandydat, $nowyKandydat->delete_requested_at));
+        $this->assertNotNull($basia->fresh()->data_erased_at);
     }
 
     public function test_konto_z_cofnietym_usunieciem_zostaje_nietkniete(): void
