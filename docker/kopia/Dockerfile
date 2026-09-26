@@ -52,13 +52,26 @@ LABEL org.opencontainers.image.description="pg_dump 18 + szyfrowanie kluczem pub
 # `postgres:18` niesie już bibliotekę OpenSSL, ale nie gwarantuje narzędzia
 # `openssl` w PATH — a bez niego skrypt nie zaszyfruje ani nie podpisze
 # niczego. Instalujemy je więc jawnie, zamiast liczyć na obraz bazowy.
+#
+# PRZYPIĘTE DO MIGAWKI snapshot.debian.org, tym samym mechanizmem i z tym
+# samym uzasadnieniem co w głównym `Dockerfile` (audyt, issue #1868):
+# `postgres:18` (Debian trixie — `versions.json` docker-library/postgres)
+# schodziłby inaczej ze zwykłego `deb.debian.org`, który trzyma tylko
+# NAJNOWSZY punkt wydania, nie historię. Ten kontener trzyma w rękach zrzut
+# CAŁEJ bazy (patrz nagłówek pliku) — reprodukowalność jego obrazu jest tu
+# tym samym argumentem co gdzie indziej, tylko z wyższą stawką.
+ARG SNAPSHOT_DEBIAN=20260926T082540Z
+
 RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
+    mkdir -p /tmp/apt-snapshot/puste; \
+    printf 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg check-valid-until=no] https://snapshot.debian.org/archive/debian/%s/ trixie main\n' "${SNAPSHOT_DEBIAN}" \
+      > /tmp/apt-snapshot/snapshot.list; \
+    apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste update; \
+    apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install -y --no-install-recommends \
       openssl \
       curl \
       ca-certificates; \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /tmp/apt-snapshot
 
 # Skrypty. Oba w JEDNYM katalogu, bo `kopia-bazy.sh` wczytuje `s3.sh`
 # ze swojego własnego katalogu (`dirname "${BASH_SOURCE[0]}"`) — bez ścieżki
