@@ -59,6 +59,11 @@ if os.environ.get("CI") != "true":
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
+PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
+PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
+WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+PLANER_TEST = "PlanerTygodniaTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -1076,6 +1081,18 @@ checks = [
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
+    # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
+    # do treści.
+    ("Planer bez filtra widoczności przepisu", PLANER_TYGODNIA, PLANER_TEST,
+     lambda s: replace_once(s, "        return Recipe::query()\n            ->widoczneDla($user)",
+                            "        return Recipe::query()->when(false, fn ($q) => $q\n            ->widoczneDla($user))")),
+    # Ten sam plan bez dziennego limitu pozycji — pętla dopisuje wiersze bez końca.
+    ("Planer bez dziennego limitu pozycji", PLANER_DODAJ, PLANER_TEST,
+     lambda s: replace_once(s, "if ($ile >= PlanerTygodnia::wpisowNaDzien()) {", "if (false) {")),
+    # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
+    ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
+     lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,

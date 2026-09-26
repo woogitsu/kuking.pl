@@ -4857,6 +4857,55 @@ oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
 zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
 
 
+### meal_plan_entries
+
+Planer tygodnia (#27, **D-310**) — pierwszy krok z „najmniejszej kolejności”
+opisanej w issue: dzień plus przepis ALBO własny wpis („obiad u mamy”). Listy
+zakupów tu nie ma i nie było w tej zmianie.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` |
+| `day` | `date` | dzień planu, data kalendarzowa (nie `timestamptz`) |
+| `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`** |
+| `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+**Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
+innym: każda trasa (`/planer`) chodzi po pozycjach zalogowanego, a usunięcie
+przechodzi przez `MealPlanEntryPolicy`.
+
+Ograniczenia:
+
+- `meal_plan_entries_jedno_z_dwoch_check` — `recipe_id IS NULL OR label IS NULL`,
+  czyli NAJWYŻEJ jedno z dwóch. **Nie `num_nonnulls(...) = 1`** jak
+  w `collection_items`, i to jest różnica zamierzona: `ON DELETE SET NULL`
+  zostawia po twardo usuniętym przepisie wiersz bez obu wartości. Plan ma
+  przetrwać zniknięcie przepisu (kryterium z #27), a ekran mówi wtedy
+  „Przepis został usunięty.”;
+- `meal_plan_entries_label_check` — tekst po obcięciu białych znaków ma 1–120
+  znaków, więc `label` nie bywa pusty ani sam ze spacji;
+- `meal_plan_entries_przepis_raz_na_dzien` i `meal_plan_entries_wpis_raz_na_dzien`
+  — indeksy unikalne częściowe: ten sam przepis i ten sam tekst nie stoją
+  dwa razy w jednym dniu. To one czynią „Skopiuj poprzedni tydzień”
+  idempotentnym (`insertOrIgnore`) i chronią przed podwójnym kliknięciem;
+- `meal_plan_entries_user_day_idx` (odczyt tygodnia) i
+  `meal_plan_entries_recipe_idx` (klucz obcy — bez niego kasowanie przepisu
+  robi pełny skan).
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze: kasowanie tabeli
+zabrałoby ludziom prywatne plany bez śladu. Komunikat mówi, co zrobić ręcznie
+(kopia `pg_dump -t meal_plan_entries`, usunięcie wierszy, ponowny rollback).
+Na świeżej i pustej bazie — w CI i przy `migrate:refresh` — przechodzi bez
+pytania. Odmowa i kontrola dodatnia:
+`tests/Feature/PlanerTygodniaTest.php`.
+
+**Wymazanie konta** kasuje wiersze bezwarunkowo
+(`EraseAccountData`) — to prywatne notatki jednej osoby, nikomu innemu
+niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
+(`InwentarzDanychKonta`).
+
 ## V1 / V2
 
 Później:
@@ -4866,7 +4915,7 @@ Później:
 - family_books;
 - questions;
 - answers;
-- meal_plans;
+- meal_plans (rozbudowa planera ponad `meal_plan_entries`);
 - shopping_lists;
 - pantry_items;
 - subscriptions;
