@@ -60,19 +60,22 @@ Liczbę procesów i ich kolejki wybiera `listy_kolejek()` w
 | Rola | Domyślnie | Dlaczego |
 |------|-----------|----------|
 | `worker` (osobny kontener) | 4 procesy: `high`, `default`, `media`, `low` | żadna kolejka nie czeka za zaległością innej; `high` (listy wejścia na konto, B8-06) to lekki proces z samymi e-mailami |
-| `all` (produkcja dziś, jeden kontener 1024 MB) | 1 proces: `high,default,media,low` | trzy szczyty pamięci naraz (zdjęcie 50 Mpx ~452 MB, eksport do 512M, WWW) to OOM, który kładzie też stronę |
+| `all` (produkcja dziś, jeden kontener 1024 MB) | 2 procesy: `high,default` i `media,low` (D-311) | zaległość maili nie wstrzymuje zdjęć ani eksportu; ciężkie `media` i `low` dzielą proces, więc ich szczyty (zdjęcie 50 Mpx ~452 MB, eksport do 512M) nie schodzą się z WWW |
 
-W roli `all` kolejność na liście to **ścisły priorytet**: przy stałej
-zaległości `default` (np. fala maili) zdjęcia i eksporty czekają. Widać to
-w `php artisan kuking:sprawdz-kolejke` — rośnie zaległość `media` albo `low`
-przy żywym `default`. Lekarstwo docelowe: osobny serwis `worker`
-(`PRODUCTION_SPLIT_SERVICES` w `.railway/railway.ts`).
+W każdym procesie kolejność na liście to **ścisły priorytet**. W roli `all`
+fala maili na `default` nie wstrzymuje już zdjęć ani eksportu (osobny
+proces), ale w ciężkim procesie `low` czeka za stałą zaległością `media`.
+Widać to w `php artisan kuking:sprawdz-kolejke` — rośnie zaległość `low`
+przy żywym `media`. Lekarstwo docelowe: osobny serwis `worker`
+(`PRODUCTION_SPLIT_SERVICES` w `.railway/railway.ts`). Do 26.09.2026 rola
+`all` miała jeden proces `high,default,media,low` — powrót do niego:
+`QUEUE_WORKERS="high,default,media,low"`.
 
 Ręczne sterowanie, bez wdrożenia kodu (zmienna w panelu Railway + restart):
 
 - `QUEUE_WORKERS` — procesy rozdzielone **spacją**, w każdym lista po
   przecinku. Wygrywa z domyślną wartością każdej roli. Przykład dla `all`
-  przy dużym zapasie pamięci: `QUEUE_WORKERS="high,default,low media"`.
+  przy dużym zapasie pamięci: `QUEUE_WORKERS="high,default media low"`.
   Każda lista musi zawierać `high` — inaczej listy logowania zostaną w bazie.
   **Nigdy** nie dawaj `media` do dwóch procesów.
 - `QUEUE_NAMES` — dawna zmienna: lista po przecinku dla **jednego** procesu.

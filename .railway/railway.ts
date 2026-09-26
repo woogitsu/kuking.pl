@@ -1175,12 +1175,14 @@ export default defineRailway((ctx) => {
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
       //
-      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
-      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
-      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
-      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
-      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
-      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Rola "all" uruchamia DWA procesy `queue:work` (D-311): lekki
+      // `high,default` i ciężki `media,low`, nie proces na kolejkę jak rola
+      // "worker". Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt
+      // naraz — zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP —
+      // a OOM kładzie też stronę; `media` i `low` dzielą więc jeden proces.
+      // Zaległość maili nie głodzi już zdjęć ani eksportu (#1030, #1860);
+      // zostaje `low` za stałą zaległością `media` — lekarstwem jest osobny
+      // serwis `worker`.
       // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
       // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
       //
