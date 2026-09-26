@@ -50,7 +50,10 @@ Granica przyjęta w #970: **Form Request odpowiada za wejście HTTP** (rola,
 reguły, komunikaty, kolejność sprawdzeń), **akcja w `app/Domain` za regułę
 i transakcję**, a **kontroler za orkiestrację odpowiedzi**. Wzorce:
 `ZapisPrzepisuRequest` + `ZapiszPrzepisZFormularza` (przepis) oraz
-`DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna).
+`DecyzjaModeracyjnaRequest` + `RozstrzygnijZgloszenie` (decyzja moderacyjna)
+oraz `ListaKontRequest` + `App\Domain\Moderation\ListaKont` (lista kont
+w panelu — wejście z adresu bez reguł odsyłających z błędem, bo parametr
+spoza listy spada do wartości domyślnej; zapytania poza kontrolerem).
 
 ### Application
 Use cases, np.:
@@ -150,6 +153,13 @@ ORDER BY published_at DESC, id DESC
 ```
 
 Cursor pagination. Bez fanout-on-write.
+
+Kursor strony głównej jest zawsze związany z serwerowo wybranym źródłem:
+`obserwowani`, `tagi` albo `odkrywanie`. Parametr adresu tylko potwierdza
+źródło, nie pozwala go wybrać. Jeżeli między żądaniami zmieni się podstawa
+źródła (np. obserwowana osoba przestanie być obserwowana), kontynuacja wraca
+przekierowaniem do czystej pierwszej strony zamiast stosować stary kursor do
+innego zapytania.
 
 ## Zdjęcia: adresem jest trasa aplikacji
 

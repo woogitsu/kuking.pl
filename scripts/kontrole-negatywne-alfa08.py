@@ -100,6 +100,22 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Strażnik adresów z sekretami (#991, D-250). Kryterium issue wprost: kontrola
+# ujemna osłabiająca sprawdzenie do samego `https://` ma oblać test hosta
+# podszywającego się sufiksem. Druga mutacja zabiera sprawdzenie ścieżki.
+STRAZNIK_HOSTA = "app/Support/DozwolonyHostApi.php"
+STRAZNIK_HOSTA_TEST = "test_straznik_odrzuca_adres_spoza_listy"
+# Log serwera bez danych osobowych (audyt prywatności 23.09.2026). Test czyta
+# zapisany plik logu i asertuje na jego treści — bez mutacji nic nie dowodzi,
+# że asercje „nie zawiera e-maila/hasha" potrafią w ogóle zapalić.
+LOG_SERWERA = "app/Logging/BezDanychOsobowychWLogu.php"
+LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
+
+# Logi operacyjne bez komunikatu obcego wyjątku (#973). Test skanuje kod
+# `app/` i czyta kontekst loggera — mutacja przywraca surowe getMessage().
+LOG_OPERACYJNY = "app/Domain/Media/KasujZdjecie.php"
+LOG_OPERACYJNY_TEST = "LogOperacyjnyBezKomunikatuWyjatkuTest"
+
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -177,7 +193,17 @@ TYLKO_PRODUKCJA_TEST = "klucz_modelu_i_adres_alarmu_tylko_na_produkcji"
 # aplikacji dałby procesowi ze zrzutem bazy APP_KEY i klucze zdjęć/poczty.
 KOPIA_BEZ_SPREADU_TEST = "serwis_kopii_nie_rozwija_zadnego_zestawu_aplikacji"
 KOPIA_DB_URL = "      DB_URL: db.env.DATABASE_URL,\n"
+# Gołe `->format(` z datą dla człowieka omija `App\Support\Czas` (issue #746).
+# Strażnik czyta widoki linia po linii; mutacja przywraca w ekranie
+# potwierdzenia adresu surową godzinę UTC i strażnik ma ją zobaczyć.
+WIDOK_POTWIERDZENIA = "resources/views/auth/verify-email.blade.php"
+STREFA_STRAZNIK_TEST = "test_zaden_widok_nie_formatuje_daty_z_pominieciem_pomocnika"
 
+# Polityka nie obiecuje „pełnej kopii" danych (R1, wariant A z 20.09.2026).
+# Strażnik czyta dokument prawny; mutacja przywraca dawne sformułowanie
+# i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
+POLITYKA = "resources/legal/polityka-prywatnosci.md"
+POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -196,8 +222,7 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # Polityka nazywa każde ciasteczko ustawień (R6). Strażnik czyta dokument
 # prawny; mutacja zdejmuje NAZWĘ ciasteczka motywu w backtickach, a zwykłe
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
-# a nie wyrazu.
-POLITYKA = "resources/legal/polityka-prywatnosci.md"
+# a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -207,23 +232,47 @@ POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
 CADDYFILE = "docker/Caddyfile"
 CACHE_MANIFESTU_TEST = "test_manifest_bez_hasha_nie_dostaje_rocznego_cache_assetow"
 
+# Limit ciała żądania w Caddy (audyt A5-16). Strażnik czyta `docker/Caddyfile`:
+# każda trasa ze zdjęciem stoi poza progiem 2 MB. Mutacja zdejmuje
+# `/ustawienia/zdjecie` z listy odmowy 413 — zdjęcie profilowe powyżej 2 MB
+# dostałoby wtedy „Za duże żądanie", a test ma zapalić.
+CADDY_LIMIT_TEST = "CaddyLimitCialaZadaniaTest"
+CADDY_LIMIT_WYJATKI = "@zaDuzeBezPlikow {\n\t\tnot path /dodaj/* /pytania /przepisy/* /wpisy/* /ustawienia/zdjecie "
+
 # Rejestr wyjątków nazywa tylko istniejące symbole (audyt A5-18). Strażnik
 # czyta własną stałą REJESTR; mutacje wracają do nazw sprzed poprawki —
 # klasy, której nie ma, i stałej, której model nie definiuje.
 REJESTR_WYJATKOW = "tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php"
 REJESTR_WYJATKOW_TEST = "test_rejestr_nazywa_tylko_istniejace_klasy_i_stale"
+# Wiersz `media` i zadanie przetwarzania w jednej transakcji (issue #1456).
+# Test wymusza fizyczną odmowę INSERT-u do `jobs`; mutacja wynosi dispatch
+# z powrotem ZA granicę transakcji i kompensacji — test ma wtedy oblać, bo
+# zostaje wiersz `pending` bez zadania i pliki w buckecie.
+STORE_UPLOADED_IMAGE = "app/Domain/Media/Actions/StoreUploadedImage.php"
+ZLECENIE_ZDJECIA_TEST = "ZlecenieZdjeciaWTransakcjiTest"
 
 # Strażnik hosta magazynu R2 (D-255). Mutacja 1 przepuszcza endpoint bez
 # jurysdykcji `eu` (i każdą inną jurysdykcję), mutacja 2 zdejmuje kotwicę
 # końca, więc przechodzi host podszywający się sufiksem.
 STRAZNIK_R2 = "app/Support/Storage/DozwolonyHostR2.php"
 STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
+# Ostrzeżenie o zmianie adresu utrwala STARY adres przy prośbie (#888).
+# Mutacja wraca do `$user->notify()` — adres czytany przy wysyłce, po
+# potwierdzeniu już nowy — i test przechodzący przez kolejkę ma zapalić.
+OSTRZEZENIE_888 = "app/Domain/Users/Actions/RequestEmailChange.php"
+OSTRZEZENIE_888_TEST = "OstrzezenieZmianyAdresuWKolejceTest"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
 ZMIANA_ROLI = "app/Domain/Users/Actions/ChangeUserRole.php"
 AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
+# Wybór kolażu należy do wpisu (#955). Strażnik ładuje migrację przez
+# `base_path(...)` i sprawdza definicję złożonego FK w `pg_constraint`.
+# Mutacja zdejmuje z migracji `ON DELETE CASCADE` — FK nadal istnieje, więc
+# sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
+MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
+HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -241,7 +290,15 @@ KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+ENTRYPOINT = "docker/entrypoint.sh"
+KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
+UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Turnstile wiąże token z hostem i formularzem (#992). Każda mutacja zdejmuje
+# jedno porównanie w `KlientTurnstile` — test tej gałęzi ma wtedy oblać.
+KLIENT_TURNSTILE = "app/Turnstile/KlientTurnstile.php"
+TURNSTILE_HOST_TEST = "test_host_spoza_listy_jest_odrzucany"
+TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -264,6 +321,30 @@ EKSPORT_JOB = "app/Jobs/GenerateUserExport.php"
 EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_powod_niepowodzenia_eksportu_nigdy"
 EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($e));\n            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
+EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
+# przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
+# wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
+# wycisza epizod na godziny. Jeden punkt mutacji w komponencie ma zapalić
+# i test samej maszyny, i test obu czujek, które z niej korzystają.
+EPIZOD_ALARMU = "app/Domain/Monitoring/EpizodAlarmu.php"
+EPIZOD_ALARMU_TEST = "EpizodAlarmuTest|NieudanyDzwonekNieKupujeCiszyTest"
+CISZA_TYLKO_PO_PRZYJECIU = (
+    "            $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+    "        }\n"
+)
+CISZA_BEZ_WARUNKU = (
+    "        }\n"
+    "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
+)
+# IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
+# (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
+# `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
+# Mutacje zdejmują po kolei każdy z nich.
+IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
+IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
 def digest(path):
@@ -454,6 +535,15 @@ def bez_digestu_obrazu_kopii(source):
     return source[:start] + "FROM postgres:18" + source[end:]
 
 
+def dispatch_zdjecia_poza_transakcja(source):
+    source = replace_once(source, "ProcessUploadedImage::dispatch($media->getKey());", "null;")
+    return replace_once(
+        source,
+        "            throw $e;\n        }\n\n        return $media;",
+        "            throw $e;\n        }\n\n        ProcessUploadedImage::dispatch($media->getKey());\n\n        return $media;",
+    )
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -465,6 +555,28 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
         source,
         "    .hero .hero-lead {\n      margin-bottom: var(--spacing-4);\n",
         "    .hero .hero-lead {\n      font-size: 1rem;\n      margin-bottom: var(--spacing-4);\n",
+    )
+
+
+def bez_sprawdzenia_hosta(source):
+    """KONTROLA DODATNIA: strażnik adresu zostaje przy samym `https://`."""
+    return replace_once(
+        source,
+        "        if (! in_array(strtolower($uri->getHost()), $hosty, true)) {\n"
+        "            return 'host spoza listy dostawcy';\n"
+        "        }\n",
+        "",
+    )
+
+
+def bez_sprawdzenia_sciezki(source):
+    """KONTROLA DODATNIA: strażnik adresu przestaje patrzeć na ścieżkę."""
+    return replace_once(
+        source,
+        "        if (preg_match($sciezka, $uri->getPath()) !== 1) {\n"
+        "            return 'ścieżka spoza API dostawcy';\n"
+        "        }\n",
+        "",
     )
 
 
@@ -537,6 +649,14 @@ checks = [
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
+    # `--color-border` (1,3:1 na tle panelu) ma zapalić test kontrastu.
+    ("Obwódka listy wyglądu poniżej 3:1", "resources/css/szybki-wyglad.css", "KontrolkiPaneluWygladuMajaWidocznaObwodkeTest",
+     lambda s: replace_once(s, "select { border: 2px solid var(--color-border-strong);", "select { border: 2px solid var(--color-border);")),
+    # D-262 (AGENTS.md §5): piąty selektor nie może powołać się na wyjątek
+    # panelu moderacji bez zmiany zamkniętej listy.
+    ("Piąty selektor powołuje się na D-262", CSS, "WyjatekD262ZamknietaListaTest",
+     lambda s: replace_once(s, "\n  .badge-cichy {\n", "\n  /* wyjątek D-262 */\n  .badge-cichy {\n")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
@@ -550,6 +670,39 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Strażnik sekretów osłabiony do samego https", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_hosta),
+    ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_sciezki),
+    ("Komunikat bazy z wartościami w logu serwera", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $this->komunikatBazy($e);", "return $e->getMessage();")),
+    ("Błąd PCRE w filtrze logu po cichu zeruje treść", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $czysty ?? self::BLAD_FILTRA.' (długość: '.strlen($tekst).' B)';",
+                            "return (string) $czysty;")),
+    ("Filtr logu na loggerze zabiera webhookowi obiekt wyjątku", "app/Logging/FiltrDanychOsobowych.php", LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "if ($handler instanceof ProcessableHandlerInterface) {", "if (false) {")),
+    ("Surowy komunikat wyjątku w logu kasowania zdjęcia", LOG_OPERACYJNY, LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => $e->getMessage(),")),
+    ("Wzorzec e-maila z katastrofalnym nawracaniem", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, r"'/(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]++@(?=[A-Za-z0-9\-.]*?\.[A-Za-z]{2})[A-Za-z0-9\-]++(?:\.[A-Za-z0-9\-]++)*+/'",
+                            r"'/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/'")),
+    ("Klucz tablicy z adresem przechodzi do logu", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "$klucz = $this->oczyscTekst($klucz);", "$klucz = (string) $klucz;")),
+    ("Obiekt w kontekście logu idzie do formatera w całości", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $this->obiekt($wartosc, $glebokosc);", "return $wartosc;")),
+    ("Za głęboka tablica przechodzi surowa", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return self::ZA_GLEBOKO;", "return $wartosc;")),
+    ("Połknięty wyjątek bez miejsca przyczyny", "app/Logging/BezpiecznyBlad.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "$miejscaPrzyczyn[] = self::miejsceWApp($p);", "$miejscaPrzyczyn[] = null;")),
+    ("Komunikat wyjątku w kontekście budowanym przez metodę pomocniczą", "app/Turnstile/KlientTurnstile.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'Cloudflare nie odpowiedział na weryfikację Turnstile.', [\n                'error' => BezpiecznyBlad::kontekst($e),",
+                            "'Cloudflare nie odpowiedział na weryfikację Turnstile.', [\n                'komunikat' => $e->getMessage(),")),
+    ("Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce", "app/Jobs/NotifyUserExportReady.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => \\App\\Poczta\\BezpiecznyKomunikat::z($e->getMessage()),")),
+    ("Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu", "app/Poczta/ZapiszNieudanyList.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => BezpiecznyKomunikat::z($e->getMessage()),")),
+    ("Skaner logów ślepy na report()", "tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "(?:logger|report)", "(?:logger)")),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
@@ -581,7 +734,7 @@ checks = [
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
-     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+     lambda s: replace_once(s, "$wynik = self::usunXmp(self::usunGpsZExif($bajty));", "$wynik = self::usunGpsZExif($bajty);")),
     ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
@@ -602,6 +755,10 @@ checks = [
      lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
     ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
+    ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
+     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
+    ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
+     lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
      lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
     ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
@@ -610,16 +767,24 @@ checks = [
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Trasa ze zdjęciem pod progiem 2 MB w Caddy", CADDYFILE, CADDY_LIMIT_TEST,
+     lambda s: replace_once(s, CADDY_LIMIT_WYJATKI, CADDY_LIMIT_WYJATKI.replace("/ustawienia/zdjecie ", ""))),
     ("Rejestr wyjątków z nieistniejącą klasą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
      lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
     ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
      lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
+    ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
+     dispatch_zdjecia_poza_transakcja),
     ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Ostrzeżenie o zmianie adresu czyta adres przy wysyłce", OSTRZEZENIE_888, OSTRZEZENIE_888_TEST,
+     lambda s: replace_once(s, "Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(", "$user->notify(new ZgloszonaZmianaAdresu(")),
     ("Awans roli bez odwołania sesji", ZMIANA_ROLI, AWANS_ROLI_TEST,
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
+    ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
+     lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -628,16 +793,33 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
+     lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
+    ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
+     lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
+    ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
+     lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
+     lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
+     lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
+    ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
+     lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, "    branches: [main]\n", "")),
+    ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -661,6 +843,9 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(STRAZNIK_HOSTA_TEST, True)
+run_test(LOG_SERWERA_TEST, True)
+run_test(LOG_OPERACYJNY_TEST, True)
 run_test(KONTAKT_MIGRACJA_TEST, True)
 run_test(KONTAKT_ZNACZNIKI_TEST, True)
 run_test(BRAMKA_AKCJE_TEST, True)
@@ -674,18 +859,31 @@ run_test(WYDANIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
+run_test(POLITYKA_KOPIA_TEST, True)
+run_test(STREFA_STRAZNIK_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
+run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
+run_test(ZLECENIE_ZDJECIA_TEST, True)
 run_test(STRAZNIK_R2_TEST, True)
+run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
+run_test(HERO_PICKS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
+run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
+run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(EPIZOD_ALARMU_TEST, True)
+run_test(TURNSTILE_HOST_TEST, True)
+run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(IAC_PRODUKCJA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
