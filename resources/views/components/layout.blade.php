@@ -435,11 +435,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth
@@ -995,6 +1002,16 @@
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
+                {{-- To samo dla akcji z menu karty, które wracają na strumień
+                     (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
+                     odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
+                     nie ma formularza z podsumowaniem błędów. --}}
+                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                    @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
+                    @if($bladAkcji)
+                        <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
+                    @endif
+                @endforeach
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).

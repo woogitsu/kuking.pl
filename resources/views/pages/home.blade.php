@@ -8,7 +8,7 @@
         (docs/product/COLD_START.md).
     --}}
     <x-slot:rail>
-        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" :mojStol="$mojStol ?? null" />
     </x-slot:rail>
 
     <header class="start-naglowek">
@@ -58,6 +58,22 @@
         <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
             <p>{{ $zyczenia }}</p>
             <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
+    @if($pierwszeKroki ?? null)
+        {{-- Przerwany onboarding (#985): droga powrotu bez przymusu.
+             Znika po dojściu do końca albo po „Nie przypominaj”. --}}
+        <section class="ramka-pomocnicza" aria-labelledby="pierwsze-kroki">
+            <h2 id="pierwsze-kroki">Pierwsze kroki nie są jeszcze dokończone</h2>
+            <p>Wybierz, co lubisz gotować i kogo obserwować — wtedy Start pokaże więcej wpisów dla Ciebie. To zajmie minutę i nie jest obowiązkowe.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route($pierwszeKroki) }}">Dokończ pierwsze kroki</a>
+                <form method="POST" action="{{ route('onboarding.dismiss') }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie przypominaj</button>
+                </form>
+            </div>
         </section>
     @endif
 

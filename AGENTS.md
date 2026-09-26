@@ -51,9 +51,14 @@ w `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`:
 3. **Między autorem a kucharzem jest blokada** (w którąkolwiek stronę). Wtedy
    nie powstaje samo wykonanie.
 
-Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**. Jedyna
-zgoda, jaką człowiek tu przestawia, dotyczy tygodniowego listu
-(`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka. Ugotowanie
+Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**.
+Powiadomienia w serwisie nie wycisza żaden przełącznik. **Wyjątek dotyczy
+wyłącznie kanałów zewnętrznych (D-303):** na `/ustawienia/powiadomienia`
+człowiek włącza albo wyłącza Web Push (per urządzenie) i ustawia ciszę nocną
+oraz dzienny limit — to decyduje, czy i kiedy dowie się o powiadomieniu POZA
+serwisem, nigdy o tym, czy powiadomienie w serwisie powstanie. Bez ustawień
+per typ. Osobną zgodą jest tygodniowy list (`users.wants_weekly_digest`),
+który powiadomień w serwisie też nie dotyka. Ugotowanie
 **cofnięte i zrobione ponownie** powiadamia drugi raz, a ta sama osoba
 gotująca ten sam przepis dwa razy daje dwa powiadomienia — to są ZDARZENIA,
 nie STAN (`NotifyUser::TYPY_WYCISZANE_W_OKNIE`). Jedno ograniczenie jest
@@ -483,8 +488,14 @@ Dozwolone są **wyłącznie**:
 - bramki widoczności i blokady;
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
 
-W **Obserwowanych** nic nie znika poza bramkami i blokadami. Dopuszczalne jest
-tylko zwinięcie serii wpisów jednej osoby, bez zmiany kolejności.
+Półka **„Mój stół”** (D-304, #1749) dobiera wyłącznie z tej listy: obserwowane
+tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, czas,
+jeden przepis od osoby, bramki i ukrycia.
+
+W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
+widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby, bez zmiany
+kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
 dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`

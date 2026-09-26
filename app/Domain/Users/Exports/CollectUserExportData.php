@@ -7,10 +7,12 @@ namespace App\Domain\Users\Exports;
 use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
@@ -19,6 +21,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -41,6 +44,9 @@ use Illuminate\Support\Facades\Gate;
  */
 final class CollectUserExportData
 {
+    /** Granica cudzych danych dla tej jednej paczki — patrz `GranicaCudzychDanych`. */
+    private GranicaCudzychDanych $granica;
+
     /**
      * Klucze z `notifications.data`, które wolno przepisać do eksportu.
      *
@@ -63,6 +69,8 @@ final class CollectUserExportData
     /** @return array<string, mixed> */
     public function handle(User $user, ExportPhotoPlan $photos, Carbon $generatedAt): array
     {
+        $this->granica = new GranicaCudzychDanych($user);
+
         $user->loadMissing('profile.avatar');
 
         return [
@@ -127,6 +135,7 @@ final class CollectUserExportData
                     .'Nie ma tu hasła, kodów weryfikacji dwuetapowej ani żadnych kluczy do logowania — nie wydajemy ich nikomu. Nie ma też danych wymienionych w „kategorie_poza_paczka”: każda ma tam powód, a wydajemy je na Twoją prośbę (patrz „jak_uzyskac_pozostale”). Tak samo na prośbę wydajemy wewnętrzne notatki moderacji i obsługi Twoich wiadomości. '
                     .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
                     .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
+                    .'Tak samo z innymi cudzymi danymi: nie ma komentarzy, których nie widzisz w serwisie, osób z kont zablokowanych, zamykanych albo objętych blokadą na listach obserwowanych i obserwujących (podajemy tylko, ile ich jest), a przy Twoich komentarzach i „Ugotowałem” — treści ani tytułu wpisu czy przepisu, którego autor już Ci nie pokazuje. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 // Paczka realizuje art. 15 RAZEM z drogą na żądanie, nie sama (#953).
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych). Kopię z art. 15 dopełniają dane z „kategorie_poza_paczka”, wydawane na prośbę.',
@@ -162,8 +171,16 @@ final class CollectUserExportData
             'ugotowalem' => $this->cookedEvents($user, $photos),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
-            'obserwuje' => $this->people($user->following()->with('profile')->get()),
-            'obserwuja_mnie' => $this->people($user->followers()->with('profile')->get()),
+            // Ta sama granica co lista na profilu (B2-05): bez kont
+            // zbanowanych, zamykanych i objętych blokadą. Relacja `follows`
+            // zostaje w bazie — gdy konto wróci albo blokada zniknie, osoba
+            // wraca w następnej paczce. Ile schowaliśmy, mówi liczba obok.
+            'obserwuje' => $this->people($this->granica->osoby($user->following())->with('profile')->get()),
+            'obserwuje_niewidocznych' => $user->following()->count()
+                - $this->granica->osoby($user->following())->count(),
+            'obserwuja_mnie' => $this->people($this->granica->osoby($user->followers())->with('profile')->get()),
+            'obserwuja_mnie_niewidocznych' => $user->followers()->count()
+                - $this->granica->osoby($user->followers())->count(),
             'zablokowane_osoby' => $this->people($user->blocking()->with('profile')->get()),
             'powiadomienia' => $this->notifications($user),
             'zdjecia' => $this->photos($photos),
@@ -171,6 +188,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'ukryte' => $this->hides($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -185,6 +203,44 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
+        ];
+    }
+
+    /**
+     * Web Push i ustawienia kanałów poza serwisem (D-303).
+     *
+     * Urządzenie opisujemy nazwą przeglądarki, usługą push i datą — BEZ
+     * adresu subskrypcji i kluczy. Adres z kluczami to poświadczenie: kto ma
+     * paczkę, mógłby wysyłać na to urządzenie (ta sama zasada co sesje
+     * i hasło w `InwentarzDanychKonta`).
+     *
+     * @return array<string, mixed>
+     */
+    private function externalNotifications(User $user): array
+    {
+        $ustawienia = $user->ustawieniaPowiadomienZewnetrznych()->first();
+
+        return [
+            'cisza_nocna_od_godziny' => $ustawienia?->cisza_od,
+            'cisza_nocna_do_godziny' => $ustawienia?->cisza_do,
+            'dzienny_limit' => $ustawienia?->dzienny_limit,
+            'ustawienia_zmienione' => $this->date($ustawienia?->updated_at),
+            'objasnienie' => $ustawienia === null
+                ? 'Nie zmieniano ustawień — obowiązują domyślne: cisza nocna od '
+                    .(int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21).':00 do '
+                    .(int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8).':00, najwyżej '
+                    .(int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1).' dziennie. Godziny według czasu polskiego.'
+                : 'Godziny według czasu polskiego.',
+            'urzadzenia' => $user->pushSubscriptions()
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn ($urzadzenie): array => [
+                    'przegladarka' => $urzadzenie->nazwaPrzegladarki(),
+                    'usluga_push' => $urzadzenie->usluga(),
+                    'wlaczone' => $this->date($urzadzenie->created_at),
+                    'zmienione' => $this->date($urzadzenie->updated_at),
+                ])->all(),
         ];
     }
 
@@ -224,6 +280,8 @@ final class CollectUserExportData
             'kara_odlozona_do' => $this->date($user->punishment_expires_at),
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
+            // „Mój stół" (#1749, D-304): jedyna zapisana preferencja półki.
+            'moj_stol_wlaczony' => (bool) $user->moj_stol_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
             // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
             'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
@@ -231,6 +289,9 @@ final class CollectUserExportData
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
             'weryfikacja_dwuetapowa_od' => $this->date($user->two_factor_confirmed_at),
+            // Znacznik „pierwsze kroki zakończone albo pominięte” (#985).
+            // Dla kont sprzed #985 migracja wpisała tu datę założenia konta.
+            'pierwsze_kroki_zakonczone' => $this->date($user->onboarding_zakonczony_at),
             'konto_zmienione' => $this->date($user->updated_at),
         ];
     }
@@ -266,7 +327,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->granica->relacjeKomentarzy()])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -341,7 +402,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'tags', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe', 'tags', ...$this->granica->relacjeKomentarzy()])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -377,13 +438,17 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
             ->reorder('cooked_at')
             ->get();
 
         return $events->map(fn (CookedEvent $event): array => [
-            'przepis' => $event->recipe?->title,
-            'autor_przepisu' => $event->recipe?->author?->displayName(),
+            // Wykonanie jest moje, przepis — cudzy (B2-06). Tytuł i autor
+            // tylko wtedy, gdy przepis widać dziś pod jego adresem; inaczej
+            // (prywatny, ukryty, blokada, konto zamknięte, skasowany) samo
+            // zdanie, że przepis jest niedostępny. Moja notatka zostaje.
+            'przepis' => $this->granica->widzi($event->recipe) ? $event->recipe->title : self::TRESC_NIEDOSTEPNA,
+            'autor_przepisu' => $this->granica->widzi($event->recipe) ? $event->recipe->author?->displayName() : null,
             'kiedy' => $this->date($event->cooked_at),
             'notatka' => $event->note,
             'zrobie_jeszcze_raz' => $event->would_make_again,
@@ -419,13 +484,12 @@ final class CollectUserExportData
                 'tresc' => $comment->body,
                 'napisano' => $this->date($comment->created_at),
                 'status' => $comment->status,
-                'pod_czym' => match (true) {
-                    $subject instanceof Post => 'wpis: '.($subject->recipe?->title ?? mb_substr((string) $subject->body, 0, 60)),
-                    $subject instanceof Recipe => 'przepis: '.$subject->title,
-                    $subject instanceof CookedEvent => 'wykonanie przepisu: '.($subject->recipe?->title ?? '—'),
-                    default => null,
-                },
-                'czyje_to_bylo' => $this->subjectOwnerName($subject, $user),
+                // Mój komentarz, ale treść nad nim — cudza (B2-06, B5 pkt 12).
+                // Fragment wpisu, tytuł przepisu i nazwę autora podajemy
+                // tylko, gdy tę treść widać dziś pod jej adresem. Rodzaj
+                // zostaje, żeby komentarz dało się umiejscowić.
+                'pod_czym' => $this->podCzym($subject),
+                'czyje_to_bylo' => $this->granica->widzi($subject) ? $this->subjectOwnerName($subject, $user) : null,
             ];
         })->all();
     }
@@ -669,6 +733,8 @@ final class CollectUserExportData
                 'rodzaj' => $notification->type,
                 'kiedy' => $this->date($notification->created_at),
                 'przeczytane' => $notification->read_at !== null,
+                // Kiedy poszło także pushem na telefon/komputer (D-303); null = tylko w serwisie.
+                'wyslane_poza_serwis' => $this->date($notification->push_wyslano_at),
                 'od_kogo' => $notification->actor?->displayName(),
                 'szczegoly' => $szczegoly,
             ];
@@ -687,6 +753,33 @@ final class CollectUserExportData
             'rozmiar_bajty' => $photo->bytes,
             'typ' => $photo->mime_type,
         ])->all();
+    }
+
+    public const TRESC_NIEDOSTEPNA = 'treść niedostępna';
+
+    private function podCzym(Post|Recipe|CookedEvent|null $subject): ?string
+    {
+        if ($subject === null) {
+            return null;
+        }
+
+        $rodzaj = match (true) {
+            $subject instanceof Post => 'wpis',
+            $subject instanceof Recipe => 'przepis',
+            default => 'wykonanie przepisu',
+        };
+
+        if (! $this->granica->widzi($subject)) {
+            return $rodzaj.': '.self::TRESC_NIEDOSTEPNA;
+        }
+
+        return $rodzaj.': '.match (true) {
+            $subject instanceof Post => $this->granica->widzi($subject->recipe)
+                ? $subject->recipe->title
+                : mb_substr((string) $subject->body, 0, 60),
+            $subject instanceof Recipe => $subject->title,
+            default => $this->granica->widzi($subject->recipe) ? $subject->recipe->title : '—',
+        };
     }
 
     /*
@@ -767,6 +860,46 @@ final class CollectUserExportData
                 'nazwa' => $tag->name,
                 'slug' => $tag->slug,
                 'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatne ukrycia (#1810, D-278) — co, czyje i do kiedy. Także wygasłe:
+     * to wciąż dane o decyzjach tej osoby. Wpis opisany początkiem treści
+     * i adresem, osoba — nazwą; bez treści cudzych wpisów w całości.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hides(User $user): array
+    {
+        $ukrycia = Hide::query()
+            ->where('user_id', $user->getKey())
+            ->with(['post:id,body', 'hiddenUser.profile'])
+            ->orderBy('created_at')
+            ->get();
+
+        // Początek treści TYLKO wpisu, który ta osoba dziś zobaczy (przegląd
+        // #1781) — ta sama bramka co lista „Ukryte". Wpis usunięty, schowany
+        // przez moderację, prywatny albo od kogoś, kto ją zablokował, zostaje
+        // w paczce jako decyzja (adres, daty), bez cudzej treści.
+        $widoczne = app(Ukrycia::class)->widoczneWpisy(
+            $user,
+            $ukrycia->whereNotNull('post_id')->pluck('post_id')->map(fn ($id) => (string) $id)->values()->all(),
+        );
+
+        return $ukrycia
+            ->map(fn (Hide $ukrycie): array => [
+                'co' => $ukrycie->post_id !== null ? 'wpis' : 'osoba',
+                'wpis' => $ukrycie->post_id === null ? null : [
+                    'adres' => route('posts.show', $ukrycie->post_id),
+                    'dostepny' => isset($widoczne[(string) $ukrycie->post_id]),
+                    'poczatek' => isset($widoczne[(string) $ukrycie->post_id]) && $ukrycie->post !== null
+                        ? Str::limit(trim((string) $ukrycie->post->body), 80)
+                        : null,
+                ],
+                'osoba' => $ukrycie->hiddenUser?->profile?->username,
+                'ukryte_od' => $this->date($ukrycie->created_at),
+                'ukryte_do' => $ukrycie->hidden_until === null ? 'na stałe' : $this->date($ukrycie->hidden_until),
             ])->all();
     }
 

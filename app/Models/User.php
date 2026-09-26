@@ -223,6 +223,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // wyświetlania, nie stan konta — dlatego wolno ją tu trzymać,
         // w odróżnieniu od `status` i `role` (AGENTS.md §7).
         'memories_enabled',
+        // „Mój stół" (issue #1749, D-304) — dobrowolna półka propozycji.
+        // Preferencja wyświetlania, nie pole sterujące (AGENTS.md §7).
+        'moj_stol_enabled',
     ];
 
     protected $hidden = [
@@ -336,6 +339,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Masowe przypisanie z żądania nadpisywałoby cudzy znacznik
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
+            // Poza `$fillable`: ustawiają to wyłącznie żądania POST
+            // `OnboardingController` (koniec, „Pomiń ten krok”, „Nie przypominaj”)
+            // i `DemoSeeder`, nigdy formularz ustawień (#985).
+            'onboarding_zakonczony_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
             // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
@@ -348,6 +355,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
+            'moj_stol_enabled' => 'boolean',
             // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
             // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
             'birthday_day' => 'integer',
@@ -652,6 +660,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function roleLabel(): string
     {
         return self::ETYKIETY_ROLI[$this->role] ?? (string) $this->role;
+    }
+
+    /**
+     * Dokąd prowadzi odnośnik „Dokończ pierwsze kroki" na Starcie — albo
+     * `null`, gdy przypomnienia ma nie być (#985).
+     *
+     * Jedno miejsce decyzji dla każdej drogi logowania: nie przekierowujemy
+     * po zalogowaniu (`intended` zostaje nietknięte), tylko Start pokazuje
+     * spokojny odnośnik. Zapisane zainteresowania = wracamy od razu do
+     * kroku z ludźmi, bez ponownego wybierania tagów. Zawieszone konto jest
+     * tylko do odczytu, więc przypomnienie z przyciskiem zapisu nie ma sensu.
+     */
+    public function onboardingDoDokonczenia(): ?string
+    {
+        if ($this->onboarding_zakonczony_at !== null || ! $this->isActive()) {
+            return null;
+        }
+
+        return $this->followedTags()->exists() ? 'onboarding.people' : 'onboarding.interests';
     }
 
     public function isSuspended(): bool
@@ -1063,6 +1090,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function tozsamosciZewnetrzne(): HasMany
     {
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
+    }
+
+    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
+    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    public function ustawieniaPowiadomienZewnetrznych(): HasOne
+    {
+        return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
     }
 
     /**
