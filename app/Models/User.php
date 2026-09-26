@@ -386,6 +386,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(Collection::class, 'owner_id');
     }
 
+    /**
+     * Cudze zeszyty, do których tę osobę zaproszono (#1743, D-302).
+     *
+     * Wpis w `collection_members`, nie ocena dostępu — tę robi
+     * `CollectionPolicy` (stan konta właściciela, blokada). Do listy
+     * „Udostępnione Tobie" zawsze razem z `dostepneDoZapisuDla()`.
+     *
+     * @return BelongsToMany<Collection, $this>
+     */
+    public function sharedCollections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_members')
+            ->withPivot(['created_at']);
+    }
+
     public function media(): HasMany
     {
         return $this->hasMany(Media::class, 'owner_id');

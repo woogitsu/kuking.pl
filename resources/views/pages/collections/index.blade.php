@@ -14,6 +14,25 @@
          jedyny formularz na tej stronie siedzi w zwiniętym <details>. --}}
     <x-error-summary />
 
+    {{--
+        ZAPROSZENIA DO WSPÓLNYCH ZESZYTÓW (#1743) — na górze, bo czekają na
+        decyzję. Po nazwie konta; link otwiera się z adresu, który ktoś
+        dostał. Te same dwa przyciski co na ekranie zaproszenia.
+    --}}
+    @if($zaproszenia->isNotEmpty())
+        <section class="panel-formularza mb-6" aria-labelledby="zaproszenia-do-zeszytow" data-zaproszenia-do-zeszytow>
+            <h2 id="zaproszenia-do-zeszytow" class="mt-0">Zaproszenia do wspólnych zeszytów</h2>
+            <ul class="stack list-none p-0">
+                @foreach($zaproszenia as $zaproszenie)
+                    <li>
+                        <p class="m-0"><strong>{{ $zaproszenie->inviter?->displayName() }}</strong> zaprasza Cię do zeszytu „{{ $zaproszenie->collection?->name }}”.</p>
+                        <a class="btn btn-primary mt-2" href="{{ route('collections.invitations.show', $zaproszenie) }}">Zobacz zaproszenie</a>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     @if($collections->isEmpty())
         <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])">
             Kiedy znajdziesz przepis albo czyjeś danie, które chcesz zachować,
@@ -43,7 +62,10 @@
                         @if(($collection->posts_count ?? 0) > 0)
                             · {{ $collection->posts_count }} {{ \App\Support\Odmiana::rzeczownik($collection->posts_count, 'wpis', 'wpisy', 'wpisów') }}
                         @endif
-                        · {{ $collection->isPublic() ? 'Widoczny dla wszystkich' : 'Tylko dla Ciebie' }}
+                        · {{ $collection->isPublic() ? 'Widoczny dla wszystkich' : (($collection->members_count ?? 0) > 0 ? 'Dla Ciebie i zaproszonych osób' : 'Tylko dla Ciebie') }}
+                        @if(($collection->members_count ?? 0) > 0)
+                            · Wspólny: {{ $collection->members_count }} {{ \App\Support\Odmiana::rzeczownik($collection->members_count, 'osoba', 'osoby', 'osób') }} poza Tobą
+                        @endif
                     </p>
                     @if($niedostepneWTymZeszycie > 0)
                         <p class="meta m-0" data-niedostepne-zapisy>
@@ -54,6 +76,29 @@
                     @if($collection->description)
                         <p class="mt-3">{{ $collection->description }}</p>
                     @endif
+                </article>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- CUDZE ZESZYTY, DO KTÓRYCH MASZ DOSTĘP (#1743) — osobno od własnych,
+         z nazwą właściciela: listy jednoznacznie rozdzielają „moje"
+         i „udostępnione mi". --}}
+    @if($udostepnione->isNotEmpty())
+        <h2 class="mt-8">Udostępnione Tobie</h2>
+        <div class="marka-zeszyty" data-udostepnione-zeszyty>
+            @foreach($udostepnione as $collection)
+                <article class="card blok-ciemny marka-zeszyt-karta">
+                    <h3 class="mt-0">
+                        <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
+                    </h3>
+                    <p class="meta m-0">
+                        Zeszyt osoby {{ $collection->owner?->displayName() }}
+                        · {{ $collection->recipes_count }} {{ \App\Support\Odmiana::rzeczownik($collection->recipes_count, 'przepis', 'przepisy', 'przepisów') }}
+                        @if(($collection->posts_count ?? 0) > 0)
+                            · {{ $collection->posts_count }} {{ \App\Support\Odmiana::rzeczownik($collection->posts_count, 'wpis', 'wpisy', 'wpisów') }}
+                        @endif
+                    </p>
                 </article>
             @endforeach
         </div>

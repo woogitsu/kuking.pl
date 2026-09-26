@@ -30,6 +30,7 @@ use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
+use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
@@ -766,6 +767,48 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
+    // Wspólny zeszyt (#1743, D-302). Zaproszenie po nazwie powiadamia
+    // drugiego człowieka, więc wszystkie zmiany idą pod własnym kluczem
+    // `zaproszenia`, nie pod budżetem prywatnego zapisu `zeszyt`.
+    Route::get('/zeszyt/{collection}/wspolny', [CollectionSharingController::class, 'show'])->name('collections.sharing');
+    Route::post('/zeszyt/{collection}/zaproszenia', [CollectionSharingController::class, 'invite'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.store');
+    Route::post('/zeszyt/{collection}/zaproszenia/link', [CollectionSharingController::class, 'createLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.link');
+    Route::delete('/zeszyt/{collection}/zaproszenia/{invitation}', [CollectionSharingController::class, 'revoke'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.destroy');
+    Route::delete('/zeszyt/{collection}/osoby/{member}', [CollectionSharingController::class, 'removeMember'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.members.destroy');
+    Route::delete('/zeszyt/{collection}/moj-dostep', [CollectionSharingController::class, 'leave'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.leave');
+    Route::get('/zaproszenie/{invitation}', [CollectionSharingController::class, 'showInvitation'])
+        ->whereUuid('invitation')
+        ->name('collections.invitations.show');
+    Route::post('/zaproszenie/{invitation}/dolaczam', [CollectionSharingController::class, 'acceptInvitation'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.accept');
+    Route::post('/zaproszenie/{invitation}/odmawiam', [CollectionSharingController::class, 'declineInvitation'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.decline');
+    // Link-zaproszenie: token w adresie, jednorazowy. Gość trafia najpierw
+    // na logowanie (`auth` tej grupy) i wraca tu po nim.
+    Route::get('/zaproszenie-linkiem/{token}', [CollectionSharingController::class, 'showLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.show');
+    Route::post('/zaproszenie-linkiem/{token}/dolaczam', [CollectionSharingController::class, 'acceptLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.accept');
+    Route::post('/zaproszenie-linkiem/{token}/odmawiam', [CollectionSharingController::class, 'declineLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.decline');
     Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.save');

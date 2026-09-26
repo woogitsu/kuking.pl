@@ -8,6 +8,7 @@ use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
+use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Exceptions\BladDlaCzlowieka;
@@ -50,6 +51,7 @@ class CollectionController extends Controller
             'saveContext' => app(CollectionSaveContext::class)->parameters($request),
             'saveContent' => app(CollectionSaveContext::class)->content($request),
             'collections' => $user->collections()
+                ->withCount('members')
                 ->withCount([
                     // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
                     // ZOBACZY PO WEJŚCIU (issue #774).
@@ -80,6 +82,23 @@ class CollectionController extends Controller
                 ->get(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
+            // WSPÓLNE ZESZYTY (#1743, D-302) — OSOBNĄ LISTĄ, nie wmieszane
+            // w własne: „mój" i „czyjś, do którego mnie wpuszczono" to dwie
+            // różne rzeczy (kto może usunąć, kto zmienia nazwę). Ten sam
+            // zakres co lista wyboru przy „Zapisuję", więc zeszyt właściciela
+            // zbanowanego albo zablokowanego stąd znika.
+            'udostepnione' => Collection::query()
+                ->dostepneDoZapisuDla($user)
+                ->where('collections.owner_id', '!=', $user->getKey())
+                ->with('owner.profile')
+                ->withCount([
+                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
+                ])
+                ->orderBy('name')
+                ->get(),
+            'zaproszenia' => app(ZaproszeniaDoZeszytow::class)->oczekujaceDla($user),
         ]);
     }
 
@@ -247,6 +266,9 @@ class CollectionController extends Controller
         PaginationLinks::preserveOtherPage($recipes, $posts);
         PaginationLinks::preserveOtherPage($posts, $recipes);
 
+        $wspoldzielenie = $this->wspoldzielenie($request->user(), $collection, [...$recipes->items(), ...$posts->items()]);
+        $collection->wyjmowanieDozwolone = $wspoldzielenie['jestWspolpracownikiem'];
+
         $niewidoczne = $request->user()?->getKey() === $collection->owner_id
             ? max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
                 + max(0, $collection->posts()->withTrashed()->count() - $posts->total())
@@ -256,6 +278,7 @@ class CollectionController extends Controller
             'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
             'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request) : null,
             'collection' => $collection,
+            ...$wspoldzielenie,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
             // o tym, co jest w środku. W środku są przepisy wielu różnych
             // autorów, każdy z własną widocznością i własnymi blokadami —
@@ -333,6 +356,61 @@ class CollectionController extends Controller
                 ->limit(5)
                 ->get(),
         ]);
+    }
+
+    /**
+     * Wspólny zeszyt na ekranie zeszytu (#1743, D-302): kto ma dostęp, kto co
+     * dodał, czy notatki są wspólne.
+     *
+     * KTO DODAŁ — TYLKO DLA OSÓB Z DOSTĘPEM. Obcy oglądający publiczny
+     * zeszyt nie dowiaduje się, że ktoś poza właścicielem w nim zapisuje, ani
+     * kto. Osoba zablokowana przez oglądającego (albo blokująca go) jest
+     * podpisana „inna osoba z dostępem" — blokada działa też tutaj.
+     *
+     * Jedno zapytanie o autorów na stronę, nie jedno na pozycję.
+     *
+     * @param  list<Recipe|Post>  $pozycje
+     * @return array<string, mixed>
+     */
+    private function wspoldzielenie(?User $user, Collection $collection, array $pozycje): array
+    {
+        $jestWlascicielem = $user !== null && $user->getKey() === $collection->owner_id;
+        $jestWspolpracownikiem = $user !== null && ! $jestWlascicielem
+            && Gate::forUser($user)->allows('removeItem', $collection);
+        $dostep = $jestWlascicielem || $jestWspolpracownikiem;
+
+        $czlonkowie = $dostep ? $collection->members()->with('profile')->get() : collect();
+
+        $idAutorow = collect($pozycje)
+            ->map(fn ($p) => $p->pivot?->added_by_id)
+            ->unique()
+            ->values();
+
+        $wspolny = $dostep && ($czlonkowie->isNotEmpty()
+            || $idAutorow->contains(fn ($id) => $id !== $collection->owner_id));
+
+        $podpisy = [];
+
+        if ($wspolny) {
+            $autorzy = User::query()->with('profile')->whereKey($idAutorow->filter()->all())->get()->keyBy(fn (User $u) => (string) $u->getKey());
+
+            foreach ($idAutorow as $id) {
+                $podpisy[(string) $id] = match (true) {
+                    $id === null => 'osoba, która usunęła konto',
+                    $id === $user?->getKey() => 'Ty',
+                    ! isset($autorzy[(string) $id]) || $user?->hasBlockRelationWith($autorzy[(string) $id]) => 'inna osoba z dostępem',
+                    default => $autorzy[(string) $id]->displayName(),
+                };
+            }
+        }
+
+        return [
+            'dostepDoNotatek' => $dostep,
+            'wspolny' => $wspolny,
+            'jestWspolpracownikiem' => $jestWspolpracownikiem,
+            'czlonkowie' => $czlonkowie,
+            'podpisyDodania' => $podpisy,
+        ];
     }
 
     public function store(Request $request): RedirectResponse
@@ -626,7 +704,11 @@ class CollectionController extends Controller
         return [
             'collection_id' => [
                 'bail', 'nullable', 'uuid',
-                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
+                // Własne zeszyty ORAZ wspólne, do których ta osoba ma ważny
+                // dostęp (#1743, D-302) — jeden zakres dla listy wyboru,
+                // walidacji i akcji. Cudzy zeszyt bez dostępu dalej daje ten
+                // sam komunikat co nieistniejący (#473).
+                Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id'))),
             ],
         ];
     }
@@ -644,7 +726,7 @@ class CollectionController extends Controller
         ]);
 
         return isset($data['collection_id'])
-            ? $request->user()->collections()->findOrFail($data['collection_id'])
+            ? Collection::query()->dostepneDoZapisuDla($request->user())->findOrFail($data['collection_id'])
             : null;
     }
 
@@ -712,7 +794,7 @@ class CollectionController extends Controller
         ]);
 
         return isset($data['collection_id'])
-            ? $request->user()->collections()->find($data['collection_id'])
+            ? Collection::query()->dostepneDoZapisuDla($request->user())->find($data['collection_id'])
             : null;
     }
 
@@ -726,12 +808,12 @@ class CollectionController extends Controller
      * „Nie usunęliśmy go z serwisu" zostaje w obu wariantach: to jedyne
      * zdanie, które rozróżnia wyjęcie z zeszytu od skasowania treści.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      */
     private function komunikatPoWyjeciu(string $co, User $user, array $zdjete): string
     {
         if (count($zdjete) === 1) {
-            $nazwa = $user->collections()->whereKey($zdjete[0]['collection_id'])->value('name');
+            $nazwa = Collection::query()->dostepneDoZapisuDla($user)->whereKey($zdjete[0]['collection_id'])->value('name');
 
             return $nazwa === null
                 ? "{$co} wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go przywrócić."
@@ -755,7 +837,7 @@ class CollectionController extends Controller
      * jest jeden, ostatni. Notatki idą do sesji, a nie do adresu: to treść
      * pisana przez człowieka i nie ma czego szukać w logach serwera.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      */
     private function zapamietajWyjecie(Request $request, string $typ, string $id, array $zdjete): void
     {

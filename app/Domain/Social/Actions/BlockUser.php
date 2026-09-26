@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
 use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -95,6 +96,11 @@ final class BlockUser
 
             $blokujacy->following()->detach($blokowany->getKey());
             $blokowany->following()->detach($blokujacy->getKey());
+
+            // Wspólny zeszyt też się kończy, w obie strony (#1743, D-302).
+            // Pod tym samym zamkiem pary co przyjęcie zaproszenia, więc
+            // członkostwo nie przeżyje obok blokady.
+            app(ZerwijWspoldzielenie::class)->miedzy($blokujacy, $blokowany);
         });
 
         AuditLogEntry::recordBezWywracania(

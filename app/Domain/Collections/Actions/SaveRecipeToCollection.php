@@ -43,7 +43,9 @@ final class SaveRecipeToCollection
 
     private function saveWithNotification(User $user, Recipe $recipe, Collection $collection, ?string $note): Collection
     {
-        Gate::forUser($user)->authorize('update', $collection);
+        // `addItem`, nie `update`: dopisywać może też współpracownik
+        // wspólnego zeszytu (#1743), a zmieniać nazwę i widoczność — nie.
+        Gate::forUser($user)->authorize('addItem', $collection);
 
         // DRUGIE KLIKNIĘCIE „ZAPISUJĘ” NIE JEST NOWYM ZAPISEM (issue #43).
         //
@@ -76,6 +78,8 @@ final class SaveRecipeToCollection
             DB::transaction(fn () => $collection->recipes()->attach($recipe->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
+                // Kto dodał — widać przy pozycji we wspólnym zeszycie (D-302).
+                'added_by_id' => $user->getKey(),
             ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
@@ -145,7 +149,7 @@ final class SaveRecipeToCollection
      * w adresie nie sięga cudzego zeszytu (AGENTS.md §7) — tak było i tak
      * zostaje.
      *
-     * @return list<array{collection_id: string, note: ?string, created_at: ?string}>
+     * @return list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>
      *                                                                                Zdjęte wiersze w kolejności zdejmowania. Pusta lista znaczy
      *                                                                                „nie było czego zdejmować" i to NIE jest błąd.
      */
@@ -154,7 +158,10 @@ final class SaveRecipeToCollection
         $zeszyty = $collection !== null
             // Przez `$user->collections()`, a nie prosto po `$collection` —
             // cudzy zeszyt ma tu wyjść jako brak zeszytu, a nie jako zeszyt.
-            ? $user->collections()->whereKey($collection->getKey())->get()
+            // Wskazany zeszyt: własny ALBO wspólny z ważnym dostępem (#1743).
+            // Bez wskazania — wyłącznie własne: „ze wszystkich moich" nigdy
+            // nie sięga do cudzego zeszytu, nawet wspólnego.
+            ? Collection::query()->dostepneDoZapisuDla($user)->whereKey($collection->getKey())->get()
             : $user->collections()->get();
 
         $zdjete = [];
@@ -171,6 +178,7 @@ final class SaveRecipeToCollection
             $zdjete[] = [
                 'collection_id' => (string) $zeszyt->getKey(),
                 'note' => $wiersz->pivot->note,
+                'added_by_id' => $wiersz->pivot->added_by_id === null ? null : (string) $wiersz->pivot->added_by_id,
                 'created_at' => $wiersz->pivot->created_at === null
                     ? null
                     : (string) $wiersz->pivot->created_at,
@@ -195,7 +203,7 @@ final class SaveRecipeToCollection
      * ponownie" tego nie daje: zrobiłoby nowy wiersz z pustą notatką i dzisiejszą
      * datą, czyli zgubiłoby dokładnie to, o co chodzi w #775.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      * @return int ile wierszy faktycznie wróciło
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int
@@ -214,7 +222,7 @@ final class SaveRecipeToCollection
 
             foreach ($zdjete as $pozycja) {
                 // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
-                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+                $zeszyt = Collection::query()->dostepneDoZapisuDla($user)->whereKey($pozycja['collection_id'] ?? null)->first();
 
                 if ($zeszyt === null) {
                     continue;
@@ -233,6 +241,7 @@ final class SaveRecipeToCollection
                     DB::transaction(fn () => $zeszyt->recipes()->attach($recipe->getKey(), [
                         'note' => $pozycja['note'] ?? null,
                         'created_at' => $pozycja['created_at'] ?? now(),
+                        'added_by_id' => array_key_exists('added_by_id', $pozycja) ? $pozycja['added_by_id'] : $user->getKey(),
                     ]));
                 } catch (UniqueConstraintViolationException) {
                     // Dwa kliknięcia „wróć" naraz — dla człowieka to jeden powrót.

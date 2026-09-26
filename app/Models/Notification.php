@@ -51,6 +51,15 @@ class Notification extends Model
 
     public const TYPE_SAVED = 'recipe.saved';
 
+    /**
+     * Zaproszenie do wspólnego zeszytu po nazwie konta (#1743). Do adresata;
+     * `data.invitation_id` i nazwa zeszytu z chwili zaproszenia.
+     */
+    public const TYPE_COLLECTION_INVITED = 'collection.invited';
+
+    /** Ktoś przyjął zaproszenie do zeszytu (#1743). Do właściciela. */
+    public const TYPE_COLLECTION_JOINED = 'collection.joined';
+
     public const TYPE_MODERATION = 'moderation.decision';
 
     /**
@@ -356,6 +365,20 @@ class Notification extends Model
             // profilu = brak celu, nigdy zgadywanie po starej nazwie.
             self::TYPE_FOLLOW => is_string($nazwa = $this->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
+                : null,
+            // Zaproszenie do zeszytu (#1743): na ekran odpowiedzi, dopóki
+            // da się odpowiedzieć. Odwołane, wygasłe albo już rozstrzygnięte —
+            // bez „Zobacz", treść karty mówi, co się stało.
+            self::TYPE_COLLECTION_INVITED => is_string($data['invitation_id'] ?? null)
+                && CollectionInvitation::query()->whereKey($data['invitation_id'])
+                    ->where('status', CollectionInvitation::STATUS_PENDING)
+                    ->where('expires_at', '>', now())
+                    ->exists()
+                ? route('collections.invitations.show', $data['invitation_id'])
+                : null,
+            self::TYPE_COLLECTION_JOINED => is_string($data['collection_id'] ?? null)
+                && Collection::query()->whereKey($data['collection_id'])->exists()
+                ? route('collections.sharing', $data['collection_id'])
                 : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
