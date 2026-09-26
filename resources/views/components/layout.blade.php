@@ -376,7 +376,7 @@
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
 <body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026"
-      @auth data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endauth>
+      @auth @if(config('kuking.push.vapid_public_key')) data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endif @endauth>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     {{--
@@ -948,11 +948,11 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
-                @auth
+                @auth @if(config('kuking.push.vapid_public_key'))
                     <p class="flash" role="status" data-push-uzgodnij-komunikat hidden>
                         Powiadomienia poprzedniej osoby zostały wyłączone w tej przeglądarce. Twoje powiadomienia możesz włączyć w ustawieniach.
                     </p>
-                @endauth
+                @endif @endauth
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
 
                      `komunikaty` jest tu po to, żeby układ pasów (strona
