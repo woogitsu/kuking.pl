@@ -317,6 +317,10 @@
                         @endif
                     @endif
                 @endauth
+                @guest
+                    <a class="btn btn-secondary" href="{{ route('register', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Załóż konto, żeby obserwować autora</a>
+                    <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Zaloguj się do swojego konta</a>
+                @endguest
             </div>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)

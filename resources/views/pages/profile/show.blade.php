@@ -298,7 +298,8 @@
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
-                <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-primary" href="{{ route('register', ['follow_user' => $owner->getKey()]) }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $owner->getKey()]) }}">Zaloguj się do swojego konta</a>
             @endif
         </div>
     </header>

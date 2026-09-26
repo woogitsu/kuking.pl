@@ -333,6 +333,11 @@ podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
 wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
 powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
 
+Gdy gość wybiera obserwowanie konkretnej osoby, po rejestracji i pierwszych
+krokach wraca do jej profilu albo do przepisu, z którego przyszedł. Musi
+jeszcze sam kliknąć „Obserwuj”; samo założenie konta nikogo nie obserwuje.
+Obok rejestracji jest droga logowania dla osoby, która ma już konto.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 

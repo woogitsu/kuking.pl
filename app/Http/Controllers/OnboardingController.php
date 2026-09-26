@@ -12,6 +12,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -323,11 +324,15 @@ class OnboardingController extends Controller
         return $dalej->with('status', implode(' ', $komunikaty));
     }
 
-    public function done(Request $request): View
+    public function done(Request $request, ZamiarObserwowania $zamiar): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
         $request->session()->forget('onboarding.selection');
+
+        if ($cel = $zamiar->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
 
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
