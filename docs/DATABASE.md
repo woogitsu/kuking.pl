@@ -1377,6 +1377,29 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**Miękkie usunięcie nie jest stanem końcowym (audyt B5 pkt 1, 25.09.2026).**
+`posts`, `recipes` i `comments` mają `deleted_at`. Treść usunięta przez autora
+leży z `deleted_at` najwyżej `kuking.usuniete_tresci.retention_days` (30) dni;
+potem `kuking:sprzataj-usuniete-tresci`
+(`App\Domain\Compliance\PrzedawnioneUsunieteTresci`) robi `forceDelete()`
+— kaskady zabierają `post_media`, `post_tags`, `collection_items`,
+`hero_picks`, komentarze — i kasuje pliki zdjęć przez
+`KasujZdjecie::jesliNieuzywane()`. Dwa wyjątki:
+
+- treść, na którą (albo na której komentarz, zdjęcie, wykonanie) wskazuje
+  jakikolwiek wiersz `reports` lub `moderation_actions`, czeka — moderacja
+  zdejmuje treść tym samym `delete()`, a sprawa potrzebuje celu. Po retencji
+  sprawy (36 mies.) treść wraca do kolejki;
+- przepis z cudzymi `cooked_events` (FK `ON DELETE CASCADE`) nie jest
+  kasowany, tylko opróżniany do **nagrobka**: `title = 'Przepis usunięty'`,
+  `slug = 'usuniety-przepis-' || id bez kresek`, kolumny opisu, źródła
+  i zdjęć `NULL`, a `recipe_ingredients`, `recipe_steps`, `recipe_versions`,
+  `recipe_slug_redirects`, `collection_items` i komentarze przepisu znikają.
+  Gdy ostatnie cudze wykonanie zniknie, nagrobek idzie `forceDelete()`.
+
+Bez zmiany schematu — rollback to wyłączenie zadania w `routes/console.php`
+(skasowanych wierszy żaden rollback nie przywróci; to jest cel zmiany).
+
 
 **Rodzaj wpisu i tytuł pytania (#371).** Migracja
 `2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)
@@ -3107,6 +3130,25 @@ migracji i bez recenzji schematu.
 `potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
 `..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
 oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Jedna otwarta sprawa na konto (#1346):** UNIKALNY
+`potwierdzenia_zadan_rodo_jedna_w_toku_na_konto (konto_id) WHERE wynik = 'w_toku'
+AND konto_id IS NOT NULL` (migracja `2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto`).
+`RejestrPotwierdzenRodo::domknij()` zamyka jedną sprawę `w_toku` konta — druga
+zostałaby otwarta na zawsze przy żądaniu już wykonanym albo cofniętym.
+Aplikacja nie zakłada drugiej (świeży wiersz konta pod `ZamekKonta`
+w `User::markForDeletion()`, #980; drugie równoległe żądanie dostaje komunikat
+„już oznaczone" i nie nadpisuje zakresu ani daty pierwszego); indeks pilnuje
+tego dla każdej innej drogi zapisu. Oznaczenie konta, sprawa `w_toku`
+i wpis `account.delete_requested` powstają w jednej transakcji
+(`RequestAccountDeletion`, #1347, D-249 klasa 1): awaria dziennika
+cofa całe żądanie, konto zostaje czynne i zalogowane.
+**Migracja odmawia** założenia indeksu, gdy w bazie są już konta z więcej niż
+jedną sprawą `w_toku` — podaje ich LICZBĘ (nie identyfikatory: komunikat
+idzie do logu wdrożenia) i zapytanie SQL, które je wskaże, oraz każe domknąć
+nadmiarowe ręcznie (nie kasować: to dowody). **Rollback:** `DROP INDEX` — nie
+usuwa żadnego wiersza, więc nie odmawia (D-088). Odmowę, kontrolę dodatnią
+i cofnięcie pilnuje `tests/Feature/JednaSprawaRodoWTokuMigracjaTest.php`.
 
 **Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
 D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
