@@ -623,7 +623,7 @@ Konkretne wektory ryzyka dla Kuking i mitygacje:
 - [ ] Pomiar RUM (Core Web Vitals w PostHog lub Search Console) od dnia pierwszego publicznego ruchu
 
 **Anty-spam / anty-duplikacja (przed V1 z „Moja wersja”):**
-- [ ] Próg unikalności treści dla forków przepisu + domyślny `noindex` poniżej progu
+- [x] Próg unikalności treści dla forków przepisu + domyślny `noindex` poniżej progu (#23, D-301: `App\Domain\Recipes\MojaWersja::czyIndeksowac()`, fragmenty trzysłowowe, próg 30%, porównanie z publicznym oryginałem; wersje poza mapą strony)
 - [ ] Rate limit publikacji per konto/IP (posty, przepisy, komentarze)
 - [ ] Obowiązkowy `source_url` przy `source_type='external'` w kreatorze przepisu
 - [ ] Zasada „pytanie kontrolne przed każdą nową klasą generowanych URL-i” udokumentowana w `CONTRIBUTING`/`AGENTS.md`
