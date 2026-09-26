@@ -283,11 +283,18 @@
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
+                    {{-- #1819: pytanie NIE odmienia nazwy konta — polskiej
+                         odmiany nie da się policzyć z dowolnego ciągu znaków
+                         (COPY_STYLE.md, „Nie doklejaj przyimka do cudzych
+                         słów"). Nazwa stoi osobno, w mianowniku, pod pytaniem
+                         (`:name`), a samo pytanie jest kompletnym zdaniem
+                         bez niej. --}}
                     <x-confirm-button
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        question="Zablokować tę osobę? Nie zobaczycie już wzajemnie swoich treści."
+                        :name="$p->display_name"
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
