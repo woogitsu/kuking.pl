@@ -239,7 +239,11 @@ class DosylaniePilnychAlarmowTest extends TestCase
             $this->sprawa($login);
         }
 
-        Log::spy();
+        // Szpieg przez ZMIENNĄ, nie przez fasadę — patrz komentarz
+        // w `PolitykaBezpieczenstwaTest::test_zgloszenie_nie_zapisuje_fragmentu_kodu_ze_strony()`:
+        // `Log::shouldHaveReceived()` działa w czasie wykonania, ale Larastan
+        // widzi tylko fasadę, na której takiej metody nie ma.
+        $log = Log::spy();
 
         $this->artisan('kuking:doslij-pilne-alarmy')
             ->expectsOutputToContain('Czekają na dobowy sufit alarmów (audyt B8-02): 3.')
@@ -247,7 +251,7 @@ class DosylaniePilnychAlarmowTest extends TestCase
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
         $this->assertSame(3, Report::query()->pilneDoDoslania()->count());
-        Log::shouldHaveReceived('warning')
+        $log->shouldHaveReceived('warning')
             ->with(Mockery::pattern('/dobowy sufit alarmów/'), Mockery::any())
             ->once();
     }
