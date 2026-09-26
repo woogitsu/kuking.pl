@@ -49,19 +49,47 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 
 # --- 1. Baza danych -------------------------------------------------------
 krok "PostgreSQL"
-if ! pg_isready -q 2>/dev/null; then
-    printf "Baza nie odpowiada — próbuję ją uruchomić…\n"
-    for wersja in 18 17 16 15; do
-        [ -d "/usr/lib/postgresql/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
-    done
-    sleep 2
+# SONDA PYTA O TĘ BAZĘ, NA KTÓREJ PÓJDĄ TESTY (#732). Wcześniej `pg_isready`
+# szło bez `-h`/`-p`, więc sprawdzało domyślny endpoint libpq (albo `PG*`),
+# a nie `DB_HOST`/`DB_PORT`, które dostają PHPUnit i migracje — „PostgreSQL
+# działa” nie mówiło nic o bazie z testów na innym porcie.
+#
+# NIC NIE TRZEBA EKSPORTOWAĆ. Bez zmiennych wartości są te same co dotąd
+# i te same co w `.env.example` i `phpunit.xml`: 127.0.0.1 i 5432. Kto ma
+# własną instancję na innym porcie, ustawia `DB_PORT` — i wtedy sonda pyta
+# o ten port. Portu stanowiska (np. 55439) tu nie zaszywamy: świeży klon
+# i CI (port losowy) dostałyby czerwień bez powodu.
+#
+# START KLASTRA JAK DOTĄD, ALE TYLKO DLA PORTU DOMYŚLNEGO. Na 5432 stoi
+# lokalny klaster systemowy, który ten skrypt zawsze umiał podnieść. Przy
+# innym porcie to czyjaś własna instancja — cudzego klastra nie ruszamy,
+# tylko mówimy, na jakim adresie baza nie odpowiada.
+_pg_host="${DB_HOST:-127.0.0.1}"
+_pg_port="${DB_PORT:-5432}"
+_pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
+sonda_pg() { pg_isready -q -h "$_pg_host" -p "$_pg_port" 2>/dev/null; }
+
+if ! sonda_pg; then
+    if [ "$_pg_port" = 5432 ]; then
+        printf "Baza nie odpowiada na %s:%s — próbuję uruchomić lokalny klaster…\n" "$_pg_host" "$_pg_port"
+        for wersja in 18 17 16 15; do
+            [ -d "$_pg_katalog/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
+        done
+        sleep 2
+    else
+        printf "Baza nie odpowiada na %s:%s — to nie jest port domyślny, więc nie uruchamiam klastra systemowego.\n" "$_pg_host" "$_pg_port"
+    fi
 fi
 
-if pg_isready -q 2>/dev/null; then
-    ok "PostgreSQL działa"
+if sonda_pg; then
+    ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
 else
-    zle "PostgreSQL nie działa — testy Kuking nie chodzą na SQLite"
-    printf "  Uruchom: pg_ctlcluster 16 main start\n"
+    zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
+    if [ "$_pg_port" = 5432 ]; then
+        printf "  Uruchom: pg_ctlcluster 18 main start\n"
+    else
+        printf "  Uruchom własną instancję na porcie %s albo usuń DB_PORT, żeby sprawdzić domyślny 5432.\n" "$_pg_port"
+    fi
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -116,6 +144,8 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
     # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
+elif ! bash tests/skrypty/check-postgres.sh >/dev/null 2>&1; then
+    zle "Sonda PostgreSQL w check.sh oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
 elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
@@ -125,6 +155,10 @@ elif ! python3 scripts/kontrole-negatywne-alfa08.py --lista >/dev/null 2>&1; the
     # unikalne nazwy, brak wpisów w starym punkcie wejścia, kotwice mutacji
     # sprawdzone w pamięci. Bez bazy i bez pisania po źródłach.
     zle "Katalog kontroli negatywnych odmawia — uruchom: python3 scripts/kontrole-negatywne-alfa08.py --lista"
+elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
+    # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
+    # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
+    zle "Czekanie na preview oblewa — uruchom: bash tests/skrypty/kontrola-czekania-preview.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi

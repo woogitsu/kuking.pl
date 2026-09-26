@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\DlugoscZawieszenia;
+use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Moderation\PodstawaDecyzji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Appeal;
+use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -57,7 +63,7 @@ class AppealController extends Controller
             'status' => $status,
             'appeals' => Appeal::query()
                 ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
-                ->with(['user.profile', 'report', 'decider.profile', 'moderationAction.moderator.profile'])
+                ->with(['user.profile', 'report', 'decider.profile', 'moderationAction.moderator.profile', 'decisionAfterAppeal'])
                 // Otwarte najstarsze na górze: termin odpowiedzi liczy się od
                 // złożenia, więc kolejność „najnowsze pierwsze" gwarantowałaby,
                 // że przeterminowane leżą najgłębiej i nikt ich nie widzi.
@@ -93,15 +99,81 @@ class AppealController extends Controller
         // ZOBACZYĆ, ta bramka zawęża, kto może ją ZAMKNĄĆ.
         $this->authorize('resolveAppeals', User::class);
 
-        $data = $request->validate([
+        // Uznanie odwołania zgłaszającego od „Bez działania” wymaga NOWEJ
+        // decyzji (#989). Pola są te same co przy decyzji ze zgłoszenia
+        // (`ModerationController::decide()`), a rozstrzyga o nich domena —
+        // tu jest kształt formularza i błędy przy właściwych polach.
+        $zNowaDecyzja = $appeal->wymagaNowejDecyzji()
+            && $request->input('outcome') === Appeal::STATUS_OVERTURNED;
+        $dozwolone = array_diff(
+            array_keys(ModerationAction::dozwoloneDla($appeal->moderationAction?->target_type)),
+            [ModerationAction::ACTION_NONE],
+        );
+
+        $walidator = Validator::make($request->all(), [
             'outcome' => ['required', 'in:'.Appeal::STATUS_UPHELD.','.Appeal::STATUS_OVERTURNED],
             'decision_note' => ['required', 'string', 'min:10', 'max:2000'],
+            'nowa_decyzja' => $zNowaDecyzja ? ['required', Rule::in($dozwolone)] : ['nullable'],
+            'reason_code' => $zNowaDecyzja ? ['required', Rule::in(array_keys(PodstawaDecyzji::dlaFormularza()))] : ['nullable'],
+            'user_message' => $zNowaDecyzja
+                ? ['nullable', 'string', 'max:2000', 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM]
+                : ['nullable'],
+            'suspend_days' => ['nullable', Rule::in(DlugoscZawieszenia::wartosci())],
+            'suspend_days_custom' => $zNowaDecyzja && DlugoscZawieszenia::wymagaLiczby($request->input('suspend_days'))
+                ? ['required', 'integer', 'min:'.DlugoscZawieszenia::MIN_DNI, 'max:'.DlugoscZawieszenia::MAX_DNI]
+                : ['nullable'],
         ], [
             'outcome.required' => 'Wybierz, czy podtrzymujesz decyzję, czy ją cofasz.',
             'outcome.in' => 'Wybierz jedną z dwóch odpowiedzi.',
             'decision_note.required' => 'Napisz uzasadnienie — to jest odpowiedź, którą przeczyta ta osoba.',
             'decision_note.min' => 'Uzasadnienie ma być zdaniem, nie jednym słowem.',
+            'nowa_decyzja.required' => ResolveAppeal::WYBIERZ_NOWA_DECYZJE,
+            'nowa_decyzja.in' => 'Ta decyzja nie ma zastosowania do zgłoszonej treści. Wybierz jedną z pokazanych.',
+            'reason_code.required' => 'Wybierz podstawę nowej decyzji — autor treści zobaczy ją w powiadomieniu.',
+            'reason_code.in' => 'Wybierz podstawę z listy.',
+            'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem” napisz autorowi, '
+                .'co dokładnie uznaliśmy za niezgodne z prawem.',
+            'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
+            'suspend_days_custom.required' => 'Przy „Własnym terminie” wpisz liczbę dni od '
+                .DlugoscZawieszenia::MIN_DNI.' do '.DlugoscZawieszenia::MAX_DNI.'.',
+            'suspend_days_custom.integer' => 'Wpisz własny termin jako liczbę dni, na przykład 14.',
+            'suspend_days_custom.min' => 'Najkrótsze zawieszenie to '.DlugoscZawieszenia::MIN_DNI.' dzień.',
+            'suspend_days_custom.max' => 'Najdłuższe zawieszenie z terminem to '.DlugoscZawieszenia::MAX_DNI.' dni.',
         ]);
+
+        // „Zawieś konto” bez terminu to pomyłka, nie bezterminowość — ta sama
+        // reguła co w `ModerationController::decide()`.
+        $walidator->after(function ($sprawdzenie) use ($request, $zNowaDecyzja): void {
+            if (! $zNowaDecyzja || $request->input('nowa_decyzja') !== ModerationAction::ACTION_SUSPEND) {
+                return;
+            }
+
+            $wybor = $request->input('suspend_days');
+
+            if (! DlugoscZawieszenia::zawiesza(is_string($wybor) ? $wybor : null)) {
+                $sprawdzenie->errors()->add('suspend_days', 'Przy decyzji „Zawieś konto” zaznacz jeszcze, na jak długo.');
+            }
+        });
+
+        $data = $walidator->validate();
+
+        $nowaDecyzja = null;
+
+        if ($zNowaDecyzja) {
+            $wybor = $data['suspend_days'] ?? null;
+            $dni = $data['suspend_days_custom'] ?? null;
+
+            $nowaDecyzja = new NowaDecyzja(
+                akcja: $data['nowa_decyzja'],
+                podstawa: $data['reason_code'],
+                wiadomoscDlaAutora: isset($data['user_message']) && trim((string) $data['user_message']) !== ''
+                    ? trim((string) $data['user_message'])
+                    : null,
+                terminZawieszenia: $data['nowa_decyzja'] === ModerationAction::ACTION_SUSPEND
+                    ? DlugoscZawieszenia::termin(is_string($wybor) ? $wybor : null, is_numeric($dni) ? (int) $dni : null)
+                    : null,
+            );
+        }
 
         try {
             $this->rozpatrz->handle(
@@ -110,6 +182,7 @@ class AppealController extends Controller
                 wynik: $data['outcome'],
                 uzasadnienie: $data['decision_note'],
                 ip: $request->ip(),
+                nowaDecyzja: $nowaDecyzja,
             );
         } catch (BladDlaCzlowieka $blad) {
             return back()->withErrors(['outcome' => $blad->getMessage()])->withInput();

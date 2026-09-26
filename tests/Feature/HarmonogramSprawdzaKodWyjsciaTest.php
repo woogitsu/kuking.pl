@@ -118,7 +118,8 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
                 // Wspólny adapter: nazwa komendy i kod (ogon wyjścia — HarmonogramPokazujePrzyczyneTest).
                 $this->assertInstanceOf(RuntimeException::class, $exception, $event->description);
                 $this->assertMatchesRegularExpression(
-                    '/^Komenda harmonogramu \'kuking:[a-z-]+\' zakończyła się niepowodzeniem \(kod wyjścia: '.$code.'\)\.$/u',
+                    // `queue:prune-failed` (komenda Laravela) też idzie przez adapter.
+                    '/^Komenda harmonogramu \'(?:kuking|queue):[a-z-]+\' zakończyła się niepowodzeniem \(kod wyjścia: '.$code.'\)\.$/u',
                     $exception->getMessage(),
                     'Zadanie nie przechodzi przez Harmonogram::artisan(): '.$event->description,
                 );
