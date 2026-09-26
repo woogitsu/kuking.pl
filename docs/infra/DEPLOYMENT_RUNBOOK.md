@@ -987,6 +987,23 @@ konfigurację przy starcie.
 Dla środowiska `staging` zrób osobny widget albo dopisz domenę staginu do
 listy hostnames w tym samym widgetcie. Ten sam Secret Key wolno użyć w obu.
 
+**Lista hostnames w panelu musi odpowiadać liście, którą sprawdza aplikacja**
+(issue #992). Od tej zmiany serwer przyjmuje token tylko wtedy, gdy Siteverify
+zwróci `hostname` z tej listy i `action` formularza, który jest wysyłany:
+
+- host z `APP_URL` danego środowiska (`kuking.pl` na produkcji,
+  `staging.kuking.pl` na stagingu),
+- plus hosty wpisane jawnie w `TURNSTILE_HOSTY_STAGINGU` (po przecinku, bez
+  `https://`; domyślnie puste i na produkcji puste ma zostać).
+
+Host dopisany tylko w panelu Cloudflare aplikacja odrzuci („Nie udało się
+potwierdzić…”), a w dzienniku zobaczysz `Turnstile odrzucił token wystawiony
+w innym kontekście` z `powod: host_spoza_listy`. Host dopisany tylko
+w aplikacji nie wystawi tokenu wcale (`Error: 400020`). Zmieniasz jedno —
+zmień drugie. Wpis `kuking-pl-production.up.railway.app` w panelu nie otwiera
+formularzy na tym adresie: aplikacja nie przyjmuje ruchu na ten host
+(`ZaufaneHosty`) i nie przyjmie z niego tokenu.
+
 ### 8A.3 Sprawdzenie, że naprawdę działa
 
 ```bash
@@ -1103,7 +1120,7 @@ lokalnie, staging).
 | `HTTP 403` | klucz ograniczony bez prawa do `/v1/moderations` (*Model capabilities* w panelu OpenAI) |
 | `HTTP 404` | nazwa modelu nie istnieje; ustaw `KUKING_MODEL_NAZWA`, bez wdrożenia |
 | `HTTP 429` | limit tempa; odczekaj minutę |
-| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej |
+| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej, a analiza ponawia ocenę najwyżej trzy razy (#1662) |
 | `nie ma pola results` | rozmawiamy z czymś innym niż API moderacji — sprawdź `KUKING_MODEL_ENDPOINT` |
 | `nie prowadzi do API moderacji OpenAI` | `KUKING_MODEL_ENDPOINT` to nie `https://api.openai.com/v1/moderations` (#991, D-250); nic nie wyszło — usuń zmienną |
 
