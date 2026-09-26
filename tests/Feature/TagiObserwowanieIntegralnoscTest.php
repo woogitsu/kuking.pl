@@ -227,7 +227,7 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/<input[^>]*value="'.$tag->id.'"[^>]*checked/', $html);
     }
 
-    public function test_859_opis_i_trzy_zrodla_sa_zgodne(): void
+    public function test_859_opis_i_zrodla_sa_zgodne(): void
     {
         $tag = $this->promoted();
         $user = $this->user();
@@ -238,14 +238,16 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $post = Post::factory()->create(['author_id' => $other->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()]);
         $this->actingAs($user)->get(route('home'))->assertViewHas('zrodloFeedu', 'odkrywanie');
         $post->tags()->attach($tag->id, ['position' => 0]);
-        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'tagi');
-        $friendPost = Post::factory()->create(['author_id' => $friend->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()]);
+        // Od #1808 (D-277) temat otwiera tę samą listę co osoby.
+        $this->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
+        $friendPost = Post::factory()->create(['author_id' => $friend->id, 'status' => Post::STATUS_PUBLISHED, 'visibility' => 'public', 'published_at' => now()->addSecond()]);
         $feed = $this->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
-        $this->assertSame([$friendPost->id], $feed->viewData('posts')->pluck('id')->all());
+        $this->assertSame([$friendPost->id, $post->id], $feed->viewData('posts')->pluck('id')->all());
         $html = $this->get(route('settings.tags'))->assertOk()->getContent();
         $this->assertStringNotContainsString('dopóki nikogo nie obserwujesz', $html);
         $this->assertStringNotContainsString('to one pojawią się na górze', $html);
-        $this->assertStringContainsString('Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów.', $html);
+        $this->assertStringContainsString('Wpisy z Twoich tagów stoją na Starcie razem z wpisami osób, które obserwujesz', $html);
+        $this->assertStringNotContainsString('Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów.', $html);
     }
 
     public function test_861_rozmiar_i_format_odcinaja_zapytania_a_granica_sprawdza_istnienie(): void

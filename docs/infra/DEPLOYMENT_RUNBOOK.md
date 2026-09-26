@@ -588,8 +588,11 @@ Jeśli kreator oferuje tylko 17:
 - **Opcja B:** utwórz serwis z obrazu `ghcr.io/railwayapp-templates/postgres-ssl:18.3`
   — tracisz wtedy część integracji panelu (Database View).
 
-→ Zmień nazwę serwisu na **`postgres`** (dokładnie tak — `railway.ts` się do
-niej odwołuje).
+→ Nazwij serwis **`Postgres`** — wielką literą, dokładnie tak jak
+`NAZWA_BAZY` w `.railway/railway.ts` (od 24.09.2026, #595; wcześniej stało tu
+`postgres`). Plan IaC porównuje plik z żywym środowiskiem **po nazwie**: przy
+innej nazwie `railway config apply` utworzy obok **nową, pustą bazę**
+i przepnie na nią `DB_URL` (`docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`).
 
 ### 6.4 Backupy — **zrób to teraz, nie później**
 
@@ -598,7 +601,7 @@ niej odwołuje).
 > dokument w razie sprzeczności wygrywa. Tu zostaje tylko włączenie backupów
 > jako część wdrożenia od zera.
 
-→ serwis `postgres` → zakładka **Backups**:
+→ serwis `Postgres` → zakładka **Backups**:
 
 1. Włącz **Daily** (6 dni retencji)
 2. Włącz **Weekly** (1 miesiąc retencji)
@@ -668,6 +671,7 @@ sekretów.
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | `R2_ZDJECIA_KOPIA_BUCKET`, `R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID`, `R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY` | z `DR_ZDJEC_R2.md` §4, kroki 2 i 6 (token **odczytu** kopii zdjęć) | **TAK** (poza nazwą bucketu) | Kopia zdjęć (#1497, D-257). `railway.ts` → `AWS_ZDJECIA_KOPIA_*` → dysk `r2_kopia_zdjec`, **tylko scheduler** (ręczne `kuking:sprawdz-kopie-zdjec`, `DR_ZDJEC_R2.md` §6). Dopóki kopii zdjęć nie ma, **załóż je z pustą wartością** — na referencję do zmiennej, której nie ma, nie polegamy. Pusto = komenda odmawia z komunikatem, nic więcej się nie psuje |
+| `KUKING_HEALTH_TOKEN` | losowy ciąg, np. `openssl rand -hex 32` | nie | Odsłania pole `checks` w `/health` zapytaniu z nagłówkiem `X-Kuking-Health-Token` (audyt A5-05). Bez niego `/health` oddaje tylko kod HTTP i `status` — healthcheck Railway i test dymny działają tak samo, ale polecenia `curl … \| jq '.checks…'` w tym runbooku zwracają `null`. Od 26.09.2026 zmienna jest przewleczona w `.railway/railway.ts` (`KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN`, serwis WWW) — `ctx.shared` wymaga ISTNIEJĄCEJ zmiennej, więc kolejność zostaje: najpierw załóż ją w panelu Shared Variables, potem deploy. Zaznacz „Sealed" |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
 | `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
@@ -752,6 +756,8 @@ produkcji.
 
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
+Token wydania Livewire (`livewire.release_token`, #977) bierze się z
+`RAILWAY_GIT_COMMIT_SHA`; bez tej zmiennej (lokalnie, testy, wdrożenie bez gita) jest stały `lokalnie`.
 
 > **`AWS_URL` zniknęło z tej listy i nie wróci.** Była to własna domena bucketa
 > wariantów i to ona była adresem każdego zdjęcia — adres, który nikogo o nic
@@ -1048,7 +1054,7 @@ formularzy na tym adresie: aplikacja nie przyjmuje ruchu na ten host
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.turnstile'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.turnstile'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Widget jest na stronie rejestracji
@@ -1218,7 +1224,7 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 > ## ✅ WYKONANE — potwierdzone 12 września 2026
 >
-> `curl -s https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
+> `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
 > a `/login` zawiera przycisk „Wejdź kontem Google". Klucze doszły do
 > aplikacji. Sprawdzone na żywej produkcji przy okazji domykania 8E.
 >
@@ -1336,7 +1342,7 @@ adres staginu do listy z 8D.1.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.google'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.google'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1415,7 +1421,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 >
 > | co | polecenie | wynik |
 > |---|---|---|
-> | klucze doszły do aplikacji | `curl -s https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
+> | klucze doszły do aplikacji | `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
 > | przycisk jest na ekranie logowania | `curl -s https://kuking.pl/login \| grep -c 'wejdz/facebook'` | `1` |
 > | kolejność przycisków | odczyt napisów z `/login` | „Wejdź kontem Google", potem „Wejdź kontem Facebooka" — zgodnie z wymogiem 8E.3 („obok przycisku Google i **nie przed nim**") |
 >
@@ -1594,7 +1600,7 @@ jest już na liście z 8E.1 pkt 5.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.facebook'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.facebook'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1779,7 +1785,7 @@ i `/health` o niego nie pyta.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wpisaniem tokenu: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.analityka'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.analityka'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Beacon jest w HTML-u DOKŁADNIE RAZ (dwa = włączone wstrzykiwanie z 8F.1 pkt 3)
@@ -1886,11 +1892,15 @@ railway config plan
 ```
 
 Docelowo — jeśli plan wygląda tak, jak zakłada `railway.ts` — zobaczysz listę
-zmian: utworzenie serwisów `web`, `worker`, `scheduler`, przypisanie domen,
-zmiennych, healthchecku. Ale to jest opis ZAMIERZONEGO wyniku, nie gwarancja:
-skoro na produkcji istnieje dziś serwis o innej nazwie (`kuking.pl`, nie
-`web`), `plan` może pokazać coś innego niż samo „utworzenie" — czytaj wynik,
-nie tę listę.
+zmian: utworzenie serwisów `worker` i `scheduler`, zmianę konfiguracji
+ISTNIEJĄCEGO serwisu `kuking.pl` (w pliku to rola `web` pod nazwą
+`NAZWA_SERWISU_WWW`, od 24.09.2026, #595), przypisanie domen, zmiennych,
+healthchecku. **Utworzenie serwisu `web` albo drugiej bazy w planie = stop** —
+znaczy, że nazwy w `railway.ts` rozjechały się z żywymi zasobami. Ale to jest
+opis ZAMIERZONEGO wyniku, nie gwarancja — czytaj wynik, nie tę listę.
+Aktualna procedura rozbicia na trzy serwisy, krok po kroku, stoi
+w `docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`; w razie sprzeczności
+wygrywa ona.
 
 ```bash
 # Zastosowanie (poprosi o potwierdzenie)
@@ -1905,8 +1915,8 @@ produkcji z tej samej sekcji §8 — **przed** `railway config apply` wyżej.
 `sleepApplication`, `checkSuites`): usuń je z `railway.ts` i ustaw ręcznie
 w panelu (krok 12). Reszta konfiguracji zadziała bez zmian.
 
-**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `web`, `worker`,
-`scheduler`, `postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
+**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `kuking.pl` (rola
+`web`), `worker`, `scheduler`, `Postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
 `apply` zostało uruchomione i przebiegło zgodnie z planem**. Stan sprzed tego
 kroku (i stan na 9 września 2026, zanim ktokolwiek to uruchomił) to jeden
 serwis `kuking.pl` w trybie `all` + `Postgres`.
@@ -2211,6 +2221,8 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 # Od audytu B10-04 to samo mówi /health na produkcji: checks.debug.error =
 # debug_wlaczony (APP_DEBUG=true) i checks.sesja.error = sesja_bez_secure
 # (jawne SESSION_SECURE_COOKIE=false; bez zmiennej produkcja ma Secure).
+# Pole checks widać tylko z tokenem (A5-05):
+# curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.checks.debug, .checks.sesja'
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
@@ -2788,7 +2800,7 @@ wygoda (stare linki z maili i ciasteczka).
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
-| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
+| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq .checks.analityka` |
 | **Jedno zadanie harmonogramu milczy** (np. liczniki panelu moderacji stoją), a pętla harmonogramu żyje | stara blokada `withoutOverlapping` po procesie zabitym bez sygnału (SIGKILL, OOM, ubity kontener) | sekcja „Stara blokada harmonogramu" niżej |
 
 ### Stara blokada harmonogramu (#1002)
