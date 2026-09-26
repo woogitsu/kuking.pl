@@ -63,6 +63,7 @@
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'notifications' => ['settings.notifications', 'Powiadomienia', 'Powiadomienia na telefonie i komputerze, cisza nocna'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
+        'birthday' => ['settings.birthday', 'Urodziny', 'Dzień i miesiąc — życzenia od nas, bez roku'],
         'data' => ['settings.data', 'Twoje dane', 'Pobranie danych i usunięcie konta'],
     ];
 
