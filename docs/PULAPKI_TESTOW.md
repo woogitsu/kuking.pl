@@ -115,6 +115,28 @@ niezależnym spisem nazw w tym katalogu. Sam próg „ponad 100 plików” nie
 wystarczy, jeśli rzeczywistych plików jest kilkaset. Nie poprawiaj poprawnych
 odnośników w dokumentacji w odpowiedzi na niepełny skan.
 
+## 2c. Dziura z §2 wraca przez ZAWĘŻENIE — i jest wtedy lepiej ukryta
+
+**Złapało: `scripts/kaskada-martwe-reguly.mjs --tylko`, 20.09.2026.**
+
+Strażnik z bramką zawężaną argumentem (`--tylko <fragment>`) ma dwa różne
+zbiory: to, co MIERZY, i to, na czym zapada WERDYKT. Samokontrole pisze się
+zwykle dla pierwszego — „zero zmierzonych konfiguracji to błąd przyrządu" —
+i one działają. Werdykt tymczasem zapada na drugim, a ten bywa pusty przy
+pomiarze, który przebiegł bez zarzutu.
+
+Skutek jest gorszy niż zwykłe zero z §2, bo **wygląda na wynik**: konsola
+wypisuje tysiące zbadanych reguł, pełną listę szerokości i motywów, po czym
+melduje zieleń na zbiorze pustym. Literówka w zawężeniu albo zmiana nazwy
+klasy wyłącza bramkę bez jednego czerwonego przebiegu i bez jednego
+podejrzanego wiersza w logu.
+
+**Co robić:** samokontrola musi stać przy ZBIORZE WERDYKTU, nie przy pomiarze.
+Zawężenie, które nie objęło ani jednego realnego przedmiotu badania, to błąd
+przyrządu (kod 2), nie wynik pozytywny. I licz przedmioty, nie dopasowania
+tekstowe: selektor obecny w arkuszu, ale bez nosiciela na mierzonych stronach,
+jest „niezmierzony", a nie „czysty".
+
 ---
 
 ## 3. Twój sabotaż może być za słaby — i uznasz dobry test za atrapę

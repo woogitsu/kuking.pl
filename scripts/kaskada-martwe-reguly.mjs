@@ -225,7 +225,7 @@ const ZBIERZ_PROGI = () => {
  *  szerokości i tym motywie — wraz z informacją, kto je przykrywa.
  */
 const POMIAR = () => {
-  const wynik = { martwe: [], niezmierzone: [], zbadane: [], bledyPrzywrocenia: [], regulSprawdzonych: 0, deklaracjiSprawdzonych: 0 };
+  const wynik = { martwe: [], niezmierzone: [], zbadane: [], zNosicielem: [], bledyPrzywrocenia: [], regulSprawdzonych: 0, deklaracjiSprawdzonych: 0 };
 
   /* --- 1. KOLEJNOŚĆ WARSTW TAK, JAK USTALA JĄ PRZEGLĄDARKA ---------------
      Warstwa zajmuje miejsce w kaskadzie przy PIERWSZYM wystąpieniu — obojętne,
@@ -392,6 +392,9 @@ const POMIAR = () => {
       continue;
     }
     wynik.regulSprawdzonych++;
+    /* Selektory, dla których NA TEJ STRONIE stał realny nosiciel. Służą
+       wyłącznie samokontroli zawężenia (`--tylko`) — patrz `main`. */
+    wynik.zNosicielem.push(w.selektor);
     for (const d of w.deklaracje) {
       // PRZESIEW: czy ktokolwiek późniejszy dotyka tej samej składowej
       // na którymkolwiek z naszych elementów?
@@ -463,6 +466,9 @@ async function main() {
   let kolejnoscWarstw = [];
   let deklaracjiSprawdzonych = 0;
   let regulSprawdzonych = 0;
+  /* Selektory, pod którymi na którejkolwiek mierzonej stronie stał realny
+     nosiciel. Potrzebne WYŁĄCZNIE do samokontroli zawężenia `--tylko`. */
+  const selektoryZNosicielem = new Set();
 
   try {
     // Progi z arkusza — raz, na dowolnej stronie.
@@ -505,6 +511,7 @@ async function main() {
           regulSprawdzonych += p.regulSprawdzonych;
           const gdzie = `${sciezka.nazwa}/${szer}/${motyw}`;
           for (const k of p.zbadane) zbadane.set(k, (zbadane.get(k) || 0) + 1);
+          for (const s of p.zNosicielem) selektoryZNosicielem.add(s);
           for (const m of p.martwe) {
             const klucz = `${m.warstwa} | ${m.selektor} | ${m.wlasnosc}`;
             if (!wszedzieMartwe.has(klucz)) wszedzieMartwe.set(klucz, { ...m, gdzie: [] });
@@ -601,6 +608,33 @@ async function main() {
     console.error('Przy sześciu warstwach i ponad tysiącu reguł to znaczy, że przesiew jest zepsuty,');
     console.error('a nie że repozytorium jest czyste.');
     process.exit(2);
+  }
+
+  /* ─── SAMOKONTROLA ZAWĘŻENIA (`--tylko`) ───────────────────────────────
+     docs/PULAPKI_TESTOW.md §2: skan, który nie znajduje ŻADNEGO pliku,
+     przechodzi. Samokontrole wyżej pilnują pomiaru JAKO CAŁOŚCI i dlatego
+     nie widzą tej dziury: przy `--tylko` werdykt zapada na garstce reguł,
+     a całość mierzy się dalej poprawnie. Literówka w zawężeniu
+     (`--tylko .przepis-liczbа` z cyrylicznym „а", `--tylko .przepis-liczby`
+     po zmianie nazwy klasy) dawała wtedy pełną zieleń z pełnym pomiarem
+     pod spodem — najbardziej przekonujący możliwy wariant zera.
+
+     Zawężenie, pod które na ŻADNEJ mierzonej stronie nie podpadła ani jedna
+     reguła z nosicielem, jest więc BŁĘDEM PRZYRZĄDU, a nie wynikiem
+     pozytywnym. Liczymy reguły Z NOSICIELEM, nie same dopasowania tekstowe:
+     selektor obecny w arkuszu, ale bez elementu na mierzonych stronach, też
+     niczego nie dowodzi — a to jest właśnie różnica między „zmierzone
+     i czyste" a „niezmierzone". */
+  if (TYLKO) {
+    const trafione = [...selektoryZNosicielem].filter((s) => s.includes(TYLKO));
+    if (trafione.length === 0) {
+      console.error(`\nBŁĄD PRZYRZĄDU: zawężenie --tylko "${TYLKO}" nie objęło ANI JEDNEJ reguły z nosicielem`);
+      console.error('na mierzonych stronach. Werdykt zapadłby na pustym zbiorze, a pusty zbiór nie ma');
+      console.error('martwych reguł zawsze — niezależnie od tego, co jest w arkuszu.');
+      console.error('Sprawdź pisownię zawężenia albo to, czy selektor ma nosiciela na stronach z `SCIEZKI`.');
+      process.exit(2);
+    }
+    console.log(`Zawężenie objęło ${trafione.length} reguł z nosicielem, m.in.: ${trafione.slice(0, 3).join(' / ')}`);
   }
 
   if (zamierzone.length) {

@@ -15251,6 +15251,125 @@ mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnę
 reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
 pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
 
+### Kontrola ujemna strażnika — ZMIERZONA (20.09.2026, stanowisko `kaskada`)
+
+`scripts/kaskada-kontrola-ujemna.sh`. Przebieg PASS → FAIL → PASS, powtórzony
+trzykrotnie na dwóch niezależnie postawionych runtime'ach WSL (72 konfiguracje
+pomiarowe: 6 stron × 6 szerokości × motyw jasny).
+
+Mutacja **nie dotyka pliku, w którym stoi pilnowana wartość**. `app.css` zostaje
+bajt w bajt taki sam — dokładamy regułę o wyższej swoistości w `marka-przepis.css`,
+arkuszu bez warstwy:
+
+```
+[data-marka] .marka-przepis-tekst .przepis-liczba svg { color: var(--color-ink-muted); }
+```
+
+Strażnik czytający TREŚĆ `app.css` byłby po tej mutacji zielony — w pliku dalej
+stoi `.przepis-liczba svg { color: var(--color-brand) }`, czyli dokładnie to,
+czego pilnuje. Strażnik pytający o `getComputedStyle` oblał z oczekiwanego
+powodu (`martwe własności: color`, kod 1). **To jest cały argument za tym
+strażnikiem, wykonany jako pomiar, a nie jako zdanie w opisie.**
+
+Przywrócenie: MD5 `ecc442a60b07922afbe9031b7283b1df` przed i po, mtime
+porównany przez przyrząd, `cmp` z kopią w worktree — identyczne bajt w bajt.
+
+### Zawężenie `--tylko` też potrzebowało kontroli dodatniej
+
+Samokontrole strażnika (brak warstw, zero konfiguracji, zero przepytanych
+deklaracji) pilnują pomiaru JAKO CAŁOŚCI i dlatego nie widziały dziury
+w `--tylko`: przy zawężeniu werdykt zapada na garstce reguł, a całość dalej
+mierzy się poprawnie. Literówka w zawężeniu — albo zmiana nazwy klasy — dawała
+**pełną zieleń z pełnym pomiarem pod spodem**, czyli najbardziej przekonujący
+możliwy wariant zera (`PULAPKI_TESTOW.md` §2).
+
+Zmierzone: `--tylko .selektor-ktorego-nie-ma` przechodziło na zielono.
+Po poprawce daje BŁĄD PRZYRZĄDU (kod 2), a zawężenie prawdziwe wypisuje, ile
+reguł z nosicielem objęło. Liczymy reguły **z nosicielem**, nie dopasowania
+tekstowe: selektor obecny w arkuszu, ale bez elementu na mierzonych stronach,
+też niczego nie dowodzi.
+
+### `.przepis-liczba` NIE było obszarem zielonym — zmierzone, i już naprawione
+
+> **Stan po 20.09.2026 (stanowisko `martwe-kaskady`): te trzy deklaracje
+> NIE ISTNIEJĄ.** Właściciel rozstrzygnął je do usunięcia; usunięto, a domyślne
+> zawężenie strażnika poszerzono z `.przepis-liczba svg` na całe
+> `.przepis-liczba`. Szczegóły niżej, w „Usunięcie martwych deklaracji".
+> Poniższy opis zostaje jako historia pomiaru, nie jako opis dnia dzisiejszego.
+
+Zastane założenie mówiło, że `--tylko .przepis-liczba` nadaje się na kontrolę
+dodatnią. Pomiar mówi inaczej — przy tym zawężeniu strażnik był **czerwony**
+w 12/12 zbadanych konfiguracji:
+
+| reguła (warstwa `components`) | martwe własności | przykrywa (warstwa `marka`) |
+|---|---|---|
+| `.przepis-liczba` | `padding`, `border-radius` | `.przepis-liczba` z `marka-ekrany.css` |
+| `.przepis-liczba span` | `font-size` | `.przepis-liczba span` z `marka-ekrany.css` |
+
+To nie jest artefakt pomiaru „tylko z włączoną marką": `data-marka="kuking-2026"`
+stoi na `<body>` na sztywno (`components/layout.blade.php`), bez flagi i bez
+warunku. Warstwa `marka` obowiązuje zawsze, więc te deklaracje z `components`
+naprawdę nie dochodzą do nikogo.
+
+**To są prawdziwe znaleziska tego samego rodzaju, którego strażnik pilnuje —
+nie do `WYJATKI`.** Wyjątek bez powodu jest tylko wyciszeniem strażnika.
+Dopóki trwały, kontrola dodatnia stała na `.przepis-liczba svg` (zmierzone:
+zielone, jedna reguła z nosicielem) i `scripts/kaskada-kontrola-polecenie.sh`
+miał to zawężenie jako domyślne.
+
+### Usunięcie martwych deklaracji — 20.09.2026, decyzja właściciela
+
+Właściciel rozstrzygnął: **usunąć**. Wykonane przez stanowisko `martwe-kaskady`.
+Pomiar z tabeli wyżej został najpierw **powtórzony od zera** na własnym runtime
+i własnej bazie — zgodny co do reguły, własności i liczby 12/12. Dopiero potem
+cokolwiek usunięto; cudze zdanie o regule CSS nie jest podstawą do kasowania,
+bo pomyłka tutaj nie daje czerwieni, tylko cichą zmianę wyglądu.
+
+Ciężar tej zmiany leżał w dowodzie, że usunięcie jest **niewidoczne**. Przyrząd:
+`docs/design/evidence/martwe-liczby/odcisk-liczb.mjs`. Zdejmuje odcisk kafli
+`.przepis-liczba` przed i po — **komplet `getComputedStyle`** (641 własności),
+nie wybrane trzy, plus geometrię do setnej piksela. Zawężenie do `padding`,
+`border-radius` i `font-size` odpowiadałoby na pytanie, które sam sobie zadałem,
+i przeszłoby na zielono, gdyby ruszyła się czwarta własność — skrótowce
+rozwijają się na cztery, `font-size` dziecka liczy się z rodzica, `em` liczy się
+z `font-size`.
+
+Zmierzone: 96 konfiguracji (2 przepisy × 8 szerokości wokół progów 30/48/64rem
+× 2 motywy × 3 ustawienia pisma), 2208 węzłów, **1 415 328 porównanych wartości
+wyliczonych — zero różnic**. Ani jeden piksel, ani jedna wartość.
+
+Osobno, bo to był warunek: podpis kafla ma `font-size: 18px` przed usunięciem
+i `18px` po — wartość i tak pochodziła z `var(--text-body)` w warstwie `marka`.
+Próg UX 50+ „tekst ≥ 18 px" nietknięty.
+
+**Kontrola dodatnia samego przyrządu**: „odciski identyczne" nic nie znaczy,
+dopóki nie wiadomo, że przyrząd umie zobaczyć różnicę tej wielkości. Mutacja
+ŻYWEJ deklaracji w warstwie `marka` (`padding: var(--spacing-4)` →
+`var(--spacing-3)`, czyli dokładnie to, co usunięta deklaracja zrobiłaby, GDYBY
+żyła: 16 px → 12 px) dała **6664 różnice**. Przyrząd widzi. Zieleń nie jest
+zerem przebranym za dowód.
+
+Po usunięciu strażnik na **całym** `.przepis-liczba` jest zielony przy **7
+regułach z nosicielem** — tylu samych co przed usunięciem, więc zieleń nie wzięła
+się z tego, że zawężenie przestało cokolwiek obejmować. Domyślne zawężenie
+w `scripts/kaskada-kontrola-polecenie.sh` **poszerzono** na `.przepis-liczba`,
+a kontrola ujemna przeszła PASS → FAIL → PASS na tym poszerzonym zakresie.
+
+Dowód: `docs/design/evidence/martwe-liczby/`.
+
+### Wymaganie wstępne — PRZENIESIONE, nie już dublowane z gałęzi obcej
+
+Kontrola ujemna nie ruszy bez poprawki SIGPIPE w `scripts/kontrola-ujemna.sh`
+(`grep -qE … <<<` zamiast `printf … | grep -q`; `PULAPKI_TESTOW.md` §5c).
+Wyjście strażnika ma kilkadziesiąt linii, więc przyrząd meldował fałszywe
+`ZLA_PRZYCZYNA` dla kontroli, która była poprawna.
+
+Do 20.09.2026 poprawka żyła wyłącznie na gałęzi `narzedzia/kontrola-ujemna-v2`
+i każdy nakładał ją sobie na runtime — czyli **dowód z kontroli ujemnej nie dawał
+się odtworzyć z samego repozytorium**. Stanowisko `martwe-kaskady` przeniosło ją
+do `scripts/kontrola-ujemna.sh` jako osobny commit. Przeniesiony jest **sam ten
+hunk**, nie cała wersja v2 — reszta tamtej gałęzi to zmiany niezwiązane z tym
+zadaniem i nie ma powodu wciągać ich przy okazji.
 ## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
 Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
