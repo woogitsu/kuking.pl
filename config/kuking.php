@@ -1392,6 +1392,22 @@ return [
         'facebook_domkniecie' => '5,10',
 
         /*
+         * ODEBRANIE DOSTĘPU U FACEBOOKA — webhook, nie klik człowieka
+         * (issue #1869, audyt). Osobny koszyk od `facebook_*` wyżej: to woła
+         * serwer Facebooka, nie przeglądarka, więc mieszanie go z limitami
+         * kliknięć nie ma sensu — a licznik po adresie IP musiałby wtedy
+         * pomieścić naraz i ludzi klikających „Wejdź kontem Facebooka",
+         * i serwery Meta.
+         *
+         * Ta sama liczba i ten sam wzorzec co `csp_report` niżej: sześćdziesiąt
+         * na minutę, po adresie IP. Prawdziwe powiadomienia są RZADKIE — jedno
+         * na osobę, która akurat odebrała dostęp — więc ten limit nie gubi
+         * żadnego z nich w normalnym ruchu, a jednocześnie ogranicza koszt
+         * (HMAC + wpis w logu) każdego niepodpisanego żądania seryjnego.
+         */
+        'facebook_deauthorize' => '60,1',
+
+        /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
