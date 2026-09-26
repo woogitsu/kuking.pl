@@ -16286,6 +16286,14 @@ wywołania przypisane do klas:
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
 
+**Uzupełnienie (#1305, 25 września 2026).** `appeal.filed` — **klasa 2**.
+To czynność samego człowieka (autora treści albo zgłaszającego), a jej
+autorytatywny ślad to wiersz `appeals` z terminem DSA art. 20, zatwierdzany
+w jednej transakcji z zawiadomieniami administratorów i zleceniem listu
+z potwierdzeniem w `jobs` (`FileAppeal`, `FileReporterAppeal`). Awaria
+dziennika nie cofa pisma z biegnącym terminem. Dowód:
+`ZlozenieOdwolaniaJestAtomoweTest::test_awaria_audytu_nie_cofa_zlozonego_pisma`.
+
 ### Dowód
 
 `tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
@@ -17858,3 +17866,34 @@ usuniętego korzenia liczony). Pilnuje `LicznikKomentarzyLiczyOdpowiedziTest`
 
 **Wycofanie.** Bez schematu i danych — powrót do liczenia wątków to zmiana
 dwóch linijek w kontrolerach i nowa decyzja właściciela.
+## D-263 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2 (DSA
+art. 16, bezpieczeństwo ludzi) · Status: **obowiązuje** · Uzupełnia D-253
+
+### Co było
+Zawieszona osoba czyta serwis (D-253), więc widzi też komentarze i profil
+osoby, która ją nęka. `POST /@{login}/blokuj`, `DELETE /@{login}/blokuj`,
+`POST /zglos/{typ}/{id}` i `POST /zglos-nielegalna-tresc` odbijał jednak
+`EnsureAccountIsActive` komunikatem o zawieszeniu. Przyciski „Zablokuj”
+i „Zgłoś” stały na ekranie i były martwe. D-253 tych czynności nie rozstrzygał.
+
+### Decyzja
+Trasy `social.block`, `social.unblock`, `reports.store`
+i `zglos.nielegalna.store` są na liście `DOZWOLONE_MIMO_ZAWIESZENIA`.
+
+- **Blokada chroni, a nie publikuje.** Zmienia wyłącznie to, co widzi
+  blokujący i blokowany. Zawieszenie jest karą za pisanie — nie może
+  zostawiać człowieka bezbronnym wobec nękania.
+- **Zgłoszenie treści to prawo z DSA art. 16**, które nie zależy od stanu
+  konta zgłaszającego. Zgłoszenia bez konta i tak przyjmujemy, więc
+  odmowa zawieszonemu byłaby tylko przeszkodą, nie ochroną.
+- Obserwowanie, komentarze i publikacja zostają zablokowane (D-253).
+
+### Dowody
+`tests/Feature/ZawieszonyBlokujeIZglaszaTest.php` — z kontrolą dodatnią, że
+obserwowanie i komentarz dalej są odbijane.
+
+### Wycofanie
+Usunąć cztery nazwy tras z listy w `EnsureAccountIsActive`. Schemat bazy się
+nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
