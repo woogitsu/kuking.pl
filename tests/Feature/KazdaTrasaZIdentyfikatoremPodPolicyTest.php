@@ -754,6 +754,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
+        // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje
+        // (właściciel — odmowa), zablokowany i gość nie wchodzą, obca osoba
+        // i moderator dostają swój szkic. Prywatnego nie kopiuje nikt, bo
+        // nikt poza autorem go nie widzi (`fork` idzie przez `view`).
+        $dodaj('recipes.fork', 'moja wersja publicznego przepisu', 'post',
+            route('recipes.fork', $przepis), [], [$O, $W, $O, $W, $O]);
+        $dodaj('recipes.fork', 'moja wersja prywatnego przepisu', 'post',
+            route('recipes.fork', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('cooking.show', 'tryb gotowania z prywatnego przepisu', 'get',
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
