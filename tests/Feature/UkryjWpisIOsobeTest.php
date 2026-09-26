@@ -16,6 +16,7 @@ use App\Models\Hide;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,11 @@ use Tests\TestCase;
  *  - `bezUkrytychWpisow()` zdjęte z `DiscoverFeed` → `test_ukryty_wpis_znika_ze_strumieni…`;
  *  - warunek `hides` zdjęty z `ZbierzTresciDigestu` → to samo (część listu);
  *  - `ukryteOsobyDla()` zdjęte z `DailyBoard::wykluczeniOsob()` → `test_ukryta_osoba…`;
- *  - `scopeAktywne()` bez warunku terminu → `test_po_terminie_wraca…`.
+ *  - `scopeAktywne()` bez warunku terminu → `test_po_terminie_wraca…`;
+ *  - `bezUkrytychOsob()` zdjęte z gałęzi tagów `FollowingFeed` →
+ *    `test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`;
+ *    przeniesione na całe zapytanie (obie gałęzie) → ten sam test (znika
+ *    wpis osoby obserwowanej wprost).
  */
 class UkryjWpisIOsobeTest extends TestCase
 {
@@ -138,6 +143,45 @@ class UkryjWpisIOsobeTest extends TestCase
         // Po zaobserwowaniu Obserwowani pokazują wpisy — ukrycie osoby tam nie działa.
         $this->obserwuj($widz, $natretna);
         $this->assertContains('Kolejny wpis natrętnej', collect(app(FollowingFeed::class)->paginate($widz)->items())->pluck('body')->all());
+    }
+
+    /**
+     * Decyzja właściciela 26.09 (D-278, dopisek): tag podsuwa autora, którego
+     * widz nie wybrał, więc ukryta osoba znika też z wpisów „Z tagu: …".
+     * Osoba obserwowana wprost zostaje — nawet gdy jej wpis ma ten sam tag.
+     */
+    public function test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag(): void
+    {
+        $widz = $this->user('widz');
+        $natretna = $this->user('natretna');
+        $obca = $this->user('obca');
+        $znajoma = $this->user('znajoma');
+        $this->obserwuj($widz, $znajoma);
+        $zupy = Tag::create(['slug' => 'zupy', 'name' => 'Zupy', 'normalized_name' => 'zupy']);
+        $widz->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
+        foreach ([[$natretna, 'Zupa natrętnej', 1], [$obca, 'Zupa obcej', 2], [$znajoma, 'Zupa znajomej', 3]] as [$autor, $tresc, $minut]) {
+            $zupy->posts()->attach($this->wpis($autor, $tresc, $minut)->getKey(), ['position' => 0]);
+        }
+
+        $this->actingAs($widz)->post(route('social.hide', $natretna->profile->username), ['oczekiwany_id' => $natretna->getKey(), 'wroc' => '/'])
+            ->assertRedirect('/');
+
+        $feed = app(FollowingFeed::class);
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+
+        // Znajomą też ukrywamy (obejście przez bazę — akcja odmawia przy
+        // obserwowanej): obserwowana wprost dalej widoczna, mimo tagu.
+        Hide::query()->forceCreate(['user_id' => $widz->getKey(), 'hidden_user_id' => $znajoma->getKey(), 'hidden_until' => now()->addDays(30)]);
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+
+        // `isEmptyFor()` liczy te same źródła: sam wpis ukrytej z tagu to pustka.
+        $samaUkryta = $this->user('sama');
+        $samaUkryta->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $natretna->getKey(), 'hidden_until' => now()->addDays(30)]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $obca->getKey(), 'hidden_until' => now()->addDays(30)]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $znajoma->getKey(), 'hidden_until' => now()->addDays(30)]);
+        $this->assertTrue($feed->isEmptyFor($samaUkryta));
+        $this->assertFalse($feed->isEmptyFor($widz));
     }
 
     public function test_obserwowanej_osoby_sie_nie_ukrywa_menu_proponuje_przestan_obserwowac(): void

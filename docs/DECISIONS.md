@@ -14684,7 +14684,8 @@ Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest 
 Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
 i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
 2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
-sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+sygnałem jest reakcja **„Smakowicie wygląda”** (#1813, **D-280**) — nie lajk: bez
+licznika, powiadomienie zbiorczo raz dziennie, „Ugotowałem” powiadamia od razu.
 Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
 jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
@@ -17781,11 +17782,18 @@ rozszerza).
 | | Start (Obserwowani) | Odkrywanie | Tablica: wybór gospodarza | Tablica: część automatyczna, propozycje osób | Tygodniowy list | Profil, wyszukiwarka, link |
 |---|---|---|---|---|---|---|
 | Ukryty wpis | znika | znika | znika | znika | znika | karta zwinięta: „Ten wpis ukrywasz tylko dla siebie. Pokaż” |
-| Ukryta osoba | **nie działa** | znika | **nie działa** | znika | nie działa | nie działa |
+| Ukryta osoba | **nie działa** dla osób obserwowanych; **znika** z wpisów „Z tagu: …” | znika | **nie działa** | znika | nie działa | nie działa |
 
 Ukrycie osoby działa wyłącznie tam, gdzie serwis sam podsuwa ludzi. W
 Obserwowanych nic nie znika poza bramkami, blokadami i tym, co widz sam
-wskazał palcem (pojedynczy wpis) — AGENTS.md §8. Kogoś, kogo się obserwuje,
+wskazał palcem (pojedynczy wpis albo osoba w gałęzi tagów) — AGENTS.md §8.
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Wpis ukrytej
+> osoby, który przychodzi na Start **wyłącznie przez obserwowany tag**, znika
+> — tag podsuwa autora, którego widz nie wybrał (`FollowingFeed`: gałąź tagów
+> z `bezUkrytychOsob`). Wpisy osób obserwowanych wprost są zawsze widoczne,
+> także z obserwowanym tagiem. Test:
+> `UkryjWpisIOsobeTest::test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`. Kogoś, kogo się obserwuje,
 się nie ukrywa: menu pokazuje wtedy „Przestań obserwować”, a akcja odmawia.
 Wybór gospodarza to oznaczony wybór, nie podsunięcie — ukrycie osoby go nie
 zdejmuje (ukrycie konkretnego wpisu — tak).
@@ -17827,6 +17835,89 @@ i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
 
 📄 `app/Domain/Ukrycia/Ukrycia.php` · `app/Http/Controllers/UkryciaController.php` ·
 `tests/Feature/UkryjWpisIOsobeTest.php` · `tests/Feature/CofniecieMigracjiUkrycNieOdslaniaTest.php` · D-275 · D-276
+
+## D-279 — Zwijanie serii w Obserwowanych i jeden wpis na autora w tygodniowym liście (#1812, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1812) · Status: **obowiązuje**
+
+Dwie reguły z listy D-275, obie po czasie, żadna po reakcjach:
+
+1. **Zwijanie serii (Obserwowani).** Więcej niż dwa kolejne wpisy tej samej
+   osoby na stronie — albo, od D-277, tego samego tagu (karty „Z tagu: …”) —
+   stoją jako dwa wpisy i `<details>` „{nazwa}: jeszcze N wpisów — Pokaż”.
+   Kolejność dokładnie ta z `FollowingFeed`, żaden wpis nie znika, bez JS.
+   W obrębie jednej strony (seria rozcięta przez „Pokaż więcej” zaczyna się
+   od nowa). Nazwa dosłownie, przed dwukropkiem; tag jako „Tag {nazwa}”.
+   `App\Domain\Feed\SerieWpisow`.
+2. **Tygodniowy list: najwyżej jeden wpis na autora** w sekcji obserwowanych —
+   najnowszy. Równość autorów: gospodarz publikujący codziennie nie zajmuje
+   całej sekcji. Dwa okna `row_number()` w `ZbierzTresciDigestu` (na autora,
+   potem na adresata), oba po `published_at`.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Gdy ktoś opublikuje kilka wpisów pod rząd, na Starcie widzisz dwa, a resztę
+> po naciśnięciu „Pokaż” — nic nie znika i kolejność się nie zmienia.
+> W tygodniowym e-mailu od każdej obserwowanej osoby jest jeden, najnowszy wpis.
+
+### Wycofanie
+
+Bez migracji: zdjąć grupowanie w `pages/home.blade.php` i wewnętrzne okno
+w `ZbierzTresciDigestu::wpisyObserwowanych()`.
+
+📄 `app/Domain/Feed/SerieWpisow.php` · `app/Domain/Digest/ZbierzTresciDigestu.php` ·
+`tests/Feature/ZwijanieSeriiWObserwowanychTest.php` · D-275 · D-277
+
+## D-280 — Reakcja „Smakowicie wygląda”: bez licznika, zbiorczo raz dziennie (#1813, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1813) · Status: **obowiązuje**
+
+### Decyzja
+
+Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** (D-194 —
+„Ugotowałem” stoi wyżej):
+
+- przycisk drugiego planu na karcie cudzego wpisu, za komentarzami; cofnięcie
+  tym samym przyciskiem („Smakowicie wygląda — cofnij”), bez pytania, bez JS;
+- **bez licznika** — nikt, także autor, nie widzi liczby; na stronie wpisu
+  **każdy widz** (także niezalogowany) widzi, KTO napisał — nazwy dosłownie,
+  bez osób z blokadą autora albo widza i bez kont niedostępnych (zmiana
+  26 września 2026, dopisek niżej);
+- **powiadomienie zbiorczo raz dziennie** (17:47 czasu polskiego — `->timezone(Czas::strefa())`, `kuking:powiadom-smakowicie`):
+  jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
+  zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
+  powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
+- **nigdy nie sortuje i nie przycina list** (D-275) — strażnik zna słowa
+  „smakowic”, „reakcj” i „reaction” (tabela `post_reactions`);
+- pod własnym wpisem przycisku nie ma; blokady działają w obie strony (Policy
+  wpisu i akcja).
+
+„Respektuje ustawienia powiadomień”: jedynym ustawieniem powiadomień w serwisie
+jest zgoda na tygodniowy list (AGENTS.md §1), która tych powiadomień nie dotyczy;
+obowiązują granice `NotifyUser` (konto, które nie może czytać, nic nie dostaje).
+
+Dane: tabela `post_reactions` (docs/DATABASE.md), rollback odmawia przy
+niepustej tabeli (D-088). Eksport: `moje_reakcje`, `reakcje_otrzymane`.
+Reakcje nie są źródłem analityki (#1814).
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Lista osób,
+> które napisały „Smakowicie wygląda”, jest widoczna dla **wszystkich** pod
+> wpisem (strona wpisu), nie tylko dla autora. Nadal bez licznika i bez
+> „i N innych”. Filtry: te same co dotąd dla autora (konto dostępne jako
+> autor, bez blokady z autorem w którąkolwiek stronę) oraz — dla
+> zalogowanego widza — bez osób, z którymi ma blokadę w którąkolwiek stronę.
+> Komunikat po reakcji mówi wprost: „Twoja nazwa jest teraz pod tym wpisem —
+> widzą ją wszyscy”. Polityka prywatności (#1816) opisuje, że nazwa
+> reagującego jest publiczna pod wpisem. Eksport bez zmian (`reakcje_otrzymane`
+> filtruje po autorze). Test:
+> `SmakowicieWygladaTest::test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja`.
+
+### Wycofanie
+
+Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
+
+📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
+`tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)

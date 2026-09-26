@@ -1817,6 +1817,13 @@ return [
         'ukrycia' => '60,10',
 
         /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt

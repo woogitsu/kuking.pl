@@ -11,6 +11,7 @@ use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Posts\SasiedniWpisAutora;
+use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
@@ -725,6 +726,9 @@ class PostController extends Controller
             // Widoczność liczy `SasiedniWpisAutora`, nie ten kontroler.
             'poprzedniWpis' => $this->sasiedniWpis->poprzedni($post, $request->user()),
             'nastepnyWpis' => $this->sasiedniWpis->nastepny($post, $request->user()),
+            // „Smakowicie wygląda" (#1813, D-280): KTO napisał — każdemu
+            // widzowi (od 26.09), bez liczby, z filtrami blokad autora i widza.
+            'smakowicie' => app(Smakowicie::class)->ktoDla($request->user(), $post),
         ]);
     }
 

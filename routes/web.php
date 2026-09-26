@@ -64,6 +64,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
@@ -862,6 +863,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
+
+    // „SMAKOWICIE WYGLĄDA" (issue #1813, D-280) — własny koszyk `reakcje`.
+    Route::post('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'dodaj'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie');
+    Route::delete('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'cofnij'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie.cofnij');
 
     // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
     // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania

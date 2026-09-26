@@ -6008,6 +6008,35 @@
   background-color: var(--color-surface-sunken);
 }
 
+/* --- Zwinięta seria wpisów w Obserwowanych (issue #1812) ----------------
+   `<details>` bez JavaScriptu. `summary` to przycisk z tekstem: 48 px celu,
+   tekst w rozmiarze podstawowym, obwódka jak przy innych przyciskach —
+   bez niej zwinięta seria wyglądałaby na zwykły napis. Po rozwinięciu
+   „— Pokaż" znika, bo nie ma już czego pokazać.
+   ------------------------------------------------------------------------ */
+
+.seria-wpisow > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--control-height-min);
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-raised);
+  cursor: pointer;
+  list-style: none;
+}
+
+.seria-wpisow > summary::-webkit-details-marker { display: none; }
+
+.seria-wpisow[open] > summary .seria-wpisow-pokaz { display: none; }
+
+.seria-wpisow > .stack {
+  margin-top: var(--spacing-4);
+}
+
 /* --- Chipsy zakresu wyszukiwania (UI kit v2, ekran 03) -------------------
    Zwykłe odnośniki w kształcie pigułki. `aria-current` niesie stan dla
    czytnika ekranu, kolor i tło dla oka — jedno nie zastępuje drugiego.
