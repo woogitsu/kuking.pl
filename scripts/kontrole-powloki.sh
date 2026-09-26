@@ -60,7 +60,10 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 #  * check-postgres — krok „PostgreSQL” z `check.sh` na atrapach `pg_isready`
 #    i `pg_ctlcluster`: port ze zmiennej DB_PORT, cudzy klaster nieruszany (#732);
 #  * kontrola-sondy-wdrozenia — sondy testu dymnego po wdrożeniu (#1012,
-#    #1332) chodzą tylko w GitHub Actions, na produkcji; tu na atrapach curl.
+#    #1332) chodzą tylko w GitHub Actions, na produkcji; tu na atrapach curl;
+#  * kontrola-czekania-preview — czekanie na gotowe preview (#1389) chodzi
+#    tylko w GitHub Actions; tu na atrapie `gh`, bez sieci: sam adres
+#    deploymentu to jeszcze nie gotowość.
 while IFS='|' read -r test opis; do
     [ -n "$test" ] || continue
     [ -f "$test" ] || oblane "Brak pliku $test — lista w scripts/kontrole-powloki.sh jest nieaktualna"
@@ -77,6 +80,7 @@ tests/skrypty/cache-assetow.sh|Sonda cache oblewa
 tests/skrypty/kontrola-ujemna.sh|Przyrząd kontroli ujemnych oblewa
 tests/skrypty/check-postgres.sh|Sonda PostgreSQL w check.sh oblewa
 tests/skrypty/kontrola-sondy-wdrozenia.sh|Sondy testu dymnego oblewają
+tests/skrypty/kontrola-czekania-preview.sh|Czekanie na preview oblewa
 LISTA
 
 echo "Składnia i testy skryptów powłoki przechodzą"
