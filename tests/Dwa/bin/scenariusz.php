@@ -22,6 +22,8 @@ declare(strict_types=1);
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
+use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Moderation\Actions\ReportContent;
@@ -37,6 +39,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
 use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
@@ -268,6 +271,18 @@ try {
             // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
             collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
+
+        // Wspólny zeszyt (#1743): dwa równoległe przyjęcia tego samego
+        // zaproszenia i zapis współpracownika kontra odebranie dostępu.
+        'przyjmij-zaproszenie' => (string) app(OdpowiedzNaZaproszenie::class)->przyjmij(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CollectionInvitation::query()->whereKey($argumenty['zaproszenie'])->firstOrFail(),
+        )->getKey(),
+        'odbierz-dostep' => app(DostepDoZeszytu::class)->odbierz(
+            User::query()->whereKey($argumenty['wlasciciel'])->firstOrFail(),
+            Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
+            User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
+        ) ? 'odebrano' : 'nie-bylo',
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
