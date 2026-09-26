@@ -22,6 +22,15 @@ use RuntimeException;
  * działa na nowej instancji joba.
  *
  * Komunikat niesie tylko identyfikator zdjęcia i klasę pierwotnego błędu —
- * komunikat z magazynu bywa ścieżką albo szczegółem dostawcy.
+ * komunikat z magazynu bywa ścieżką albo szczegółem dostawcy. Identyfikator
+ * jest też w `mediaId`, bo log joba komunikatu nie czyta (#973: loguje
+ * `BezpiecznyBlad::kontekst()`), a bez niego nie wiadomo, które zdjęcie
+ * naprawić.
  */
-final class DataExportPhotoUnreadable extends RuntimeException {}
+final class DataExportPhotoUnreadable extends RuntimeException
+{
+    public function __construct(string $message, public readonly ?string $mediaId = null)
+    {
+        parent::__construct($message);
+    }
+}
