@@ -2643,7 +2643,8 @@ return [
         //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
         //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
         //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
-        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        //      `routes/console.php` na wolnym slocie — kolizję odrzuci
+        //      `HarmonogramBezWspolnychSlotowTest`
         // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
         // wystartuje nawet przy przypadkowo ustawionej zmiennej.
         //
