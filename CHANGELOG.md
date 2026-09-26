@@ -4,6 +4,15 @@
 
 - Dla osób rozwijających serwis: nowy skrypt `scripts/railway/zmienne-spoza-iac.mjs` wypisuje nazwy zmiennych serwisu ustawionych tylko w panelu Railway, a nie w `railway.ts` (bez wartości), a `docs/infra/ZMIENNE_SPOZA_IAC.md` opisuje, jak przed pierwszym `railway config apply` sprawdzić, czy apply by je usunął — samym odczytem, bez stagingu. Komentarz w `railway-iac.yml` nie mówi już o apply „po merge'u” (audyt po fali 25.09, znaleziska 11 i 12).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
+- Piksel śledzący otwarcia w listach transakcyjnych z EmailLabs (#204):
+  ponownie potwierdzone w oficjalnej dokumentacji dostawcy, że śledzenia
+  otwarć nie da się wyłączyć per wiadomość przez API — to wyłącznie
+  ustawienie konta wysyłkowego w panelu, w przeciwieństwie do śledzenia
+  odnośników (`X-TRACKING-OFF`), które serwis wyłącza już dla każdego listu.
+  `docs/infra/POCZTA_URUCHOMIENIE.md` (Krok 6) ma zaktualizowaną, niezależną
+  weryfikację; polityka prywatności nadal mówi prawdę o tym, co robi
+  EmailLabs. Do zrobienia zostaje wyłącznie krok po stronie właściciela:
+  przełącznik w panelu EmailLabs.
 - „Zrób swoją wersję” pod cudzym przepisem, który widzicie (także „dla obserwujących”): jednym przyciskiem dostajecie kopię tego przepisu do zmiany, widoczną tylko dla Was — składniki i kroki, bez cudzych zdjęć. Nad tytułem wersji zawsze stoi podpis „Na podstawie przepisu: „…” · autor”, którego nie da się usunąć. Wersji bez żadnej zmiany w składnikach, krokach, czasie albo porcjach nie da się opublikować („To jest ten sam przepis. Może wystarczy »Ugotowałem«?”). Autor oryginału dostaje jedno powiadomienie, gdy wersja po raz pierwszy zostanie pokazana innym (nie „tylko ja”) i może ją zobaczyć, a pod jego przepisem pojawia się lista „Wersje innych osób” — bez liczników. Usunięcie oryginału nie usuwa wersji: podpis zostaje z dopiskiem, że oryginał jest niedostępny — tak samo widzi go każdy, kto oryginału nie może zobaczyć. Wersja bardzo podobna do oryginału nie trafia do wyszukiwarek, a żadna wersja nie trafia do mapy strony. Paczka z danymi mówi przy przepisie, od kiedy jest Waszą wersją i czego (#23, D-301).
 - Powiadomienie o komentarzu pod wpisem, który tylko zapowiada przepis, znika z listy, licznika i eksportu danych, gdy autor ukryje ten przepis, zawęzi jego widoczność albo go usunie — tak jak sam wpis, który wtedy przestaje się otwierać. Gdy przepis znów jest dla Was widoczny, powiadomienie wraca (#1747).
 - Gdy osoba, która ugotowała z przepisu, poprosi o usunięcie konta, powiadomienia o komentarzach pod jej „Ugotowałem” znikają z listy, licznika i eksportu danych u innych osób — tak jak samo „Ugotowałem”, które od tej chwili nie otwiera się nikomu. Po cofnięciu usunięcia wszystko wraca (#1746).
