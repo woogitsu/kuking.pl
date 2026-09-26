@@ -69,6 +69,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         $existing = $this->przepis();
 
         return [
+            'content_revision' => $existing === null ? ['prohibited'] : ['required', 'integer', 'min:0'],
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
             'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
             /*
@@ -169,6 +170,10 @@ final class ZapisPrzepisuRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'content_revision.required' => 'Odśwież formularz przepisu przed zapisem — brakuje informacji, którą wersję edytujesz.',
+            'content_revision.integer' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.min' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.prohibited' => 'Przy dodawaniu nowego przepisu nie podawaj wersji edycji.',
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
             'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
