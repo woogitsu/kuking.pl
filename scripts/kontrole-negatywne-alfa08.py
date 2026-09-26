@@ -130,6 +130,12 @@ KONTAKT_MIGRACJA_TEST = "UsuniecieOperatoraNiePsujeWiadomosciTest"
 # formularzu, więc `down()` przechodzi i test odmowy ma oblać.
 KONTAKT_ZNACZNIKI = "database/migrations/2026_09_24_120000_add_contact_reply_delivery_markers.php"
 KONTAKT_ZNACZNIKI_TEST = "AwarieOdpowiedziKontaktuTest"
+
+# Jedna sprawa RODO `w_toku` na konto (#1346). Test wczytuje migrację przez
+# `database_path(...)`; mutacja zdejmuje odmowę w `up()`, więc przy
+# duplikatach nie ma komunikatu „co zrobić" — test odmowy ma oblać.
+RODO_W_TOKU_MIGRACJA = "database/migrations/2026_09_24_160000_jedna_sprawa_rodo_w_toku_na_konto.php"
+RODO_W_TOKU_MIGRACJA_TEST = "JednaSprawaRodoWTokuMigracjaTest"
 # Warunki reguł Cloudflare (#597). Strażnik czyta sparsowany JSON; mutacja
 # zdejmuje warunek pustego ciasteczka z reguły zdjęć — to jest dokładnie
 # wyciek treści prywatnej do wspólnego cache, którego #597 zakazuje.
@@ -829,6 +835,8 @@ checks = [
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
+    ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
     ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
     ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
