@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
+use App\Logging\BezpiecznyBlad;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -55,7 +56,7 @@ final class ZarejestrujWdrozenieCommand extends Command
         try {
             $numer = $akcja->handle($commit, (string) $etykieta);
         } catch (Throwable $e) {
-            $this->error('Rejestracja wdrożenia nie powiodła się: '.$e->getMessage());
+            $this->error('Rejestracja wdrożenia nie powiodła się: '.BezpiecznyBlad::jednaLinia($e));
 
             return self::FAILURE;
         }

@@ -74,7 +74,7 @@ class NowosciController extends Controller
             return $tresc;
         }
 
-        $wzor = '/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/ms';
+        $wzor = '/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/msu';
 
         if (preg_match($wzor, $tresc, $dopasowanie, PREG_OFFSET_CAPTURE) !== 1) {
             return $tresc;

@@ -159,7 +159,7 @@ final class ZarejestrujWdrozenie
      */
     private function sekcjaNajnowszychZmian(string $tresc): ?string
     {
-        $wzor = '/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/ms';
+        $wzor = '/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/msu';
 
         if (preg_match($wzor, $tresc, $dopasowanie) !== 1) {
             return null;

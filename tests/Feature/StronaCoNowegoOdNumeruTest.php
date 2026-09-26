@@ -29,7 +29,7 @@ class StronaCoNowegoOdNumeruTest extends TestCase
     {
         $tresc = (string) file_get_contents(config('kuking.nowosci.tresc'));
 
-        if (preg_match('/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/ms', $tresc, $dopasowanie) !== 1
+        if (preg_match('/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/msu', $tresc, $dopasowanie) !== 1
             || preg_match('/^###\s+(.+)$/mu', $dopasowanie[1], $naglowek) !== 1) {
             $this->markTestSkipped('resources/nowosci/tresc.md nie ma obecnie żadnego nagłówka „###” w „## Najnowsze zmiany”.');
         }
