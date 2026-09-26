@@ -344,6 +344,8 @@ CISZA_BEZ_WARUNKU = (
 # Mutacje zdejmują po kolei każdy z nich.
 IAC_PRODUKCJA = ".github/workflows/railway-iac.yml"
 IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
+README = "README.md"
+README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 
 
@@ -820,6 +822,10 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -884,6 +890,7 @@ run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(README_SECURITY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
