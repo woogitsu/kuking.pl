@@ -263,6 +263,8 @@ export default defineRailway((ctx) => {
     // restarcie. JsonFormatter daje w Railway structured logs (filtrowanie
     // po polach, nie po regexie).
     // https://docs.railway.com/guides/laravel#logging
+    // Railway przechowuje te logi wg planu konta — zmiana odbiornika albo planu
+    // wymaga poprawki polityki prywatności (docs/DEPLOYMENT.md, #994).
     LOG_CHANNEL: "stderr",
     LOG_STDERR_FORMATTER: "\\Monolog\\Formatter\\JsonFormatter",
     LOG_LEVEL: isProduction ? "warning" : "debug",
@@ -351,6 +353,17 @@ export default defineRailway((ctx) => {
     //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
     //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
+    // Dysk oryginałów zdjęć (`config('kuking.media.disk')`). Do 25.09.2026
+    // stała TYLKO w panelu serwisu `kuking.pl` — pierwszy `railway config
+    // apply` by ją usunął. Wartość nie jest wyborem, tylko powtórzeniem
+    // FILESYSTEM_DISK: bez niej config i tak spada na FILESYSTEM_DISK, ale
+    // jawna linia sprawia, że plan pokazuje „bez zmian", a nie „usuń".
+    // Dowód, że produkcja ma dziś `r2` (pomiar z zewnątrz, 25.09.2026, bez
+    // odczytu wartości w panelu): `/zdjecia/{id}/thumb` przekierowuje na
+    // bucket wariantów w R2, a dysk `r2_publiczne` config wybiera WYŁĄCZNIE
+    // wtedy, gdy `kuking.media.disk` === `r2`. Czytają ją wszystkie trzy role:
+    // web zapisuje upload i `/health`, worker przetwarza, scheduler sprząta.
+    KUKING_MEDIA_DISK: "r2",
     // Surowe uploady kreatora muszą być dostępne między replikami.
     // Prywatny bucket oryginałów: pliki tymczasowe mogą zawierać EXIF/GPS.
     LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: "r2",
@@ -494,6 +507,26 @@ export default defineRailway((ctx) => {
     // --- Turnstile, Google, Facebook, analityka odwiedzin -------------------
     // Żyją w `wejscieEnv` niżej i trafiają WYŁĄCZNIE do web (#1013): czyta je
     // tylko warstwa HTTP (formularze, trasy logowania, HTML strony, `/health`).
+
+    // --- Flagi produktu ------------------------------------------------------
+    // „Poradźcie" (#371, #372). Do 25.09.2026 flaga stała TYLKO w panelu
+    // serwisu `kuking.pl` — pierwszy `railway config apply` usunąłby ją
+    // i po cichu wyłączył pytania, bo wartość domyślna to `false`.
+    // Wpisana `true`, bo tak działa produkcja DZIŚ: `GET https://kuking.pl/pytania`
+    // oddaje 200 „Poradźcie" (pomiar z zewnątrz 25.09.2026; `QuestionController`
+    // przy wyłączonej fladze oddaje 404). Wartości w panelu nie czytano.
+    // Wszystkie trzy role, bo flagę czyta model (`Post`, `Notification`,
+    // `PostPolicy`): web — trasy i widoki, worker — powiadomienia
+    // (`QuestionNotificationContext`), scheduler — zapytania digestu. Rozjazd
+    // między rolami dawałby pytania na stronie i dziury w powiadomieniach.
+    // Wyłączenie pytań = zmiana tej linii w PR, nie klik w panelu.
+    KUKING_QUESTIONS_ENABLED: "true",
+
+    // --- TRUSTED_PROXIES: ŚWIADOMIE NIEOBECNA (SEC-01, potwierdzone 25.09.2026) ---
+    // Stoi w panelu serwisu `kuking.pl`, ale NIE CZYTA JEJ ŻADEN KOD
+    // (patrz „Zaufane proxy" wyżej) — nie ma roli, która by ją dostała.
+    // `railway config plan` pokaże jej usunięcie z `kuking.pl` i to jest
+    // OCZEKIWANE: zachowanie aplikacji się nie zmieni.
 
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
@@ -677,6 +710,29 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
+    // --- „Tag tygodnia" (config/kuking.php, kuking.tag_tygodnia) --------------
+    // Wyróżnienie tagu na tablicy „kuKINGi na dziś" (FeedController) i panel
+    // admina (Admin\TagHighlightController, Admin\TagPromotionController).
+    // Stała TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by ją usunął. Idzie przez `ctx.shared`, jak przełączniki brzegu
+    // niżej (`brzegWebEnv`, #1775): to pokrętło właściciela per środowisko,
+    // nie stała projektu. PUSTE (Shared Variable nie założona) = `false`,
+    // czyli wyróżnienie wyłączone — bezpieczny kierunek, nie awaria.
+    // UWAGA PRZED `apply`: jeśli stoi dziś w panelu jako zmienna SERWISU,
+    // przenieś wartość do Shared Variables środowiska.
+    KUKING_TAG_TYGODNIA: ctx.shared.KUKING_TAG_TYGODNIA,
+
+    // --- Token szczegółów /health (config/kuking.php, health.token, audyt A5-05) ---
+    // Nagłówek `X-Kuking-Health-Token` odsłania pole `checks` w odpowiedzi
+    // `/health`; bez tokenu (albo z błędnym) `/health` oddaje tylko `status`
+    // — healthcheck Railwaya i test dymny działają tak samo w obu
+    // przypadkach. Stał TYLKO w panelu serwisu `kuking.pl`: `ctx.shared`
+    // wymaga ISTNIEJĄCEJ Shared Variable, więc kolejność jest ważna —
+    // najpierw założyć ją w panelu (wartość: `openssl rand -hex 32`),
+    // *potem* wdrożyć tę linię (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8).
+    // Sekret — w panelu Railway zaznacz „Sealed".
+    KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN,
   };
 
   //  --- Czyszczenie cache CDN: worker + web ---------------------------------
@@ -787,15 +843,68 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  //  --- Listy z życzeniami urodzinowymi: TYLKO scheduler (#1755, D-269) -----
+  //  Wyłącznik `kuking.urodziny.mail_wlaczony` czyta WYŁĄCZNIE komenda
+  //  `kuking:wyslij-zyczenia-urodzinowe`, która chodzi z harmonogramu; worker
+  //  tylko wysyła to, co już jest w kolejce (i sam sprawdza zgodę w chwili
+  //  wysyłki). Decyzja właściciela z 25.09.2026: po scaleniu wysyłka włączona.
+  //  TYLKO PRODUKCJA: staging i PR-y nie wysyłają ludziom życzeń z kopii
+  //  danych — tak samo jak alarmy moderacji wyżej.
+  const urodzinyEnv = {
+    KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
+  };
+
+  //  --- Web Push: klucz publiczny web + worker, prywatny TYLKO worker (#35, D-303)
+  //  PUSTE = funkcji nie ma: brak ekranu `/ustawienia/powiadomienia`,
+  //  przycisku i wysyłki (`KanalPush`). Web potrzebuje klucza publicznego,
+  //  żeby pokazać ekran i przekazać go przeglądarce przy zapisie; wysyła
+  //  WYŁĄCZNIE worker (`WyslijPowiadomieniePush`), więc tylko on ma klucz
+  //  prywatny. Para kluczy jest INNA w każdym środowisku — staging i preview
+  //  nie mogą podpisywać pushy kluczem produkcji. Klucz prywatny „Sealed".
+  //  Generowanie: `php artisan kuking:klucze-vapid` (DEPLOYMENT_RUNBOOK.md, KROK 8).
+  const pushPublicznyEnv = {
+    VAPID_PUBLIC_KEY: ctx.shared.VAPID_PUBLIC_KEY,
+  };
+  const pushWysylkaEnv = {
+    VAPID_PRIVATE_KEY: ctx.shared.VAPID_PRIVATE_KEY,
+  };
+
+  //  --- Przełączniki brzegu i bramka R2: TYLKO web --------------------------
+  //  Do 25.09.2026 żadnej z tych trzech zmiennych nie było w tym pliku, choć
+  //  czyta je kod — ustawienie ich w panelu serwisu `kuking.pl` zniknęłoby
+  //  przy pierwszym `apply`. Idą przez `ctx.shared`, bo to pokrętła, które
+  //  właściciel przestawia w panelu per środowisko (staging przed produkcją),
+  //  a nie stałe projektu. PUSTE (Shared Variable nie założona) daje
+  //  DOKŁADNIE zachowanie domyślne, czyli dzisiejsze:
+  //    KUKING_EDGE_TRYB               "" ≠ `egzekwowanie` → tryb obserwacji
+  //                                   (`TokenKrawedzi`, `config/proxy.php`);
+  //    KUKING_HTML_EDGE_CACHE_SECONDS "" → 0 → cache HTML wyłączony
+  //                                   (`PublicznyHtmlGoscia`; produkcja 25.09
+  //                                   oddaje `no-store, private`);
+  //    KUKING_R2_PUBLICZNE_ADRESY     "" → pusta lista → bramka `kuking:bramka-r2`
+  //                                   mówi `NIE WIEMY` (docs/infra/BRAMKA_R2.md).
+  //  Czyta je wyłącznie web: dwie pierwsze — żądania HTTP, trzecią — bramka
+  //  R2 uruchamiana `railway ssh` w serwisie `kuking.pl`.
+  //  UWAGA PRZED `apply`: jeśli któraś z nich stoi dziś w panelu jako zmienna
+  //  SERWISU, przenieś wartość do Shared Variables środowiska, zanim
+  //  uruchomisz `apply` — inaczej plan podmieni ją na pustą referencję.
+  const brzegWebEnv = {
+    KUKING_EDGE_TRYB: ctx.shared.KUKING_EDGE_TRYB,
+    KUKING_HTML_EDGE_CACHE_SECONDS: ctx.shared.KUKING_HTML_EDGE_CACHE_SECONDS,
+    KUKING_R2_PUBLICZNE_ADRESY: ctx.shared.KUKING_R2_PUBLICZNE_ADRESY,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
     ...czyszczenieCdnEnv,
     ...modelEnv,
     ...alarmModeratoraEnv,
+    ...pushPublicznyEnv,
+    ...pushWysylkaEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
@@ -836,7 +945,26 @@ export default defineRailway((ctx) => {
   //  decyzji D-010, nie preferencją.
   //  Do tego czasu bramką jakości jest lokalny hook pre-push
   //  (scripts/install-hooks.sh). Szczegóły: docs/infra/CI_BEZ_ACTIONS.md
-  const czekajNaCI = process.env.KUKING_WAIT_FOR_CI === "true";
+  //
+  //  WARTOŚĆ MUSI BYĆ JAWNA: "true" albo "false" (issue #1390). Do 24.09.2026
+  //  stało tu `=== "true"`, więc BRAK zmiennej dawał `checkSuites: false`.
+  //  Automatyczny apply w .github/workflows/railway-iac.yml nie przekazywał
+  //  jej wcale, więc scalenie zmiany w .railway/** po cichu wyłączało bramkę,
+  //  którą operator włączył ręcznie. To jest zmienna PROCESU, który wykonuje
+  //  ten plik (lokalny `railway config plan/apply` albo job GitHub Actions
+  //  z `vars.KUKING_WAIT_FOR_CI`) — NIE zmienna usługi w panelu Railway, bo
+  //  tej kontener aplikacji widzi, a IaC nie.
+  const bramkaCI = process.env.KUKING_WAIT_FOR_CI;
+  if (bramkaCI !== "true" && bramkaCI !== "false") {
+    throw new Error(
+      `KUKING_WAIT_FOR_CI musi być jawnie "true" albo "false", jest: ${
+        bramkaCI === undefined ? "brak" : JSON.stringify(bramkaCI)
+      }. Lokalnie: KUKING_WAIT_FOR_CI=true railway config plan. ` +
+        "W GitHub Actions: zmienna repozytorium KUKING_WAIT_FOR_CI " +
+        "(docs/infra/CI_BEZ_ACTIONS.md).",
+    );
+  }
+  const czekajNaCI = bramkaCI === "true";
 
   const source = github(REPO, {
     branch: isStaging ? "staging" : "main",
@@ -1065,6 +1193,16 @@ export default defineRailway((ctx) => {
       // Oszczędza ~2/3 kosztu (płacisz per serwis za RAM i CPU), za cenę
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
+      //
+      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
+      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
+      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
+      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
+      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
+      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
+      // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
+      //
       // Rozdzielony web dostaje TYLKO swój zestaw; `all` robi pracę trzech
       // ról, więc dostaje ich sumę (patrz „ZESTAWY PER ROLA").
       ...(splitServices ? webEnv : wszystkieRoleEnv),
@@ -1134,6 +1272,17 @@ export default defineRailway((ctx) => {
       },
     },
 
+    // Rola "worker" = osobny proces `queue:work` na każdą kolejkę (high,
+    // default, media, low), więc żadna nie głoduje za cudzą zaległością
+    // (#1030). `media` zawsze ma jeden proces — dwa zdjęcia 50 Mpx naraz nie
+    // mieszczą się w 1024 MB. Szczegóły: `listy_kolejek()` w docker/entrypoint.sh.
+    //
+    // PAMIĘĆ: `high` (listy wejścia na konto, audyt B8-06) to CZWARTY proces.
+    // Wysyła tylko e-maile, więc do szczytu `media` (~452 MB przy 50 Mpx)
+    // i eksportu (do 512M) dokłada tyle, ile pusty proces PHP z frameworkiem
+    // (rząd kilkudziesięciu MB). Zapas w 1024 MB maleje, ale nie znika;
+    // gdyby `media` i eksport miały szczyt naraz — to ta sama granica co
+    // przed czwartym procesem, nie nowa.
     env: { ...workerEnv, APP_ROLE: "worker" },
   });
 
@@ -1392,6 +1541,8 @@ export default defineRailway((ctx) => {
 //      OPENAI_MODERATION_KEY (Sealed), KUKING_MODEL_ALARM_EMAIL,
 //      CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN (Sealed),
 //      APP_PREVIOUS_KEYS (Sealed; puste poza rotacją APP_KEY).
+//   3c. Web Push (#35, D-303): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (Sealed) —
+//      osobna para w każdym środowisku; puste = funkcja wyłączona.
 //      Które serwisy je dostają: „ZESTAWY PER ROLA" wyżej
 //      i DEPLOYMENT_RUNBOOK.md, KROK 8.
 //   4. Alerty budżetowe — Workspace → Usage → Usage Limits.

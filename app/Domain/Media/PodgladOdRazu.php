@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -143,7 +144,7 @@ final class PodgladOdRazu
             // za duże na próg — a to dwie zupełnie różne rzeczy.
             Log::warning('Nie udało się zrobić podglądu od razu; zdjęcie pokaże się po przetworzeniu w tle', [
                 'object_key' => $objectKey,
-                'error' => $e->getMessage(),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             return [];

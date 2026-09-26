@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Domain\Media\OrientacjaZdjecia;
 use App\Domain\Media\PodgladOdRazu;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -55,11 +56,13 @@ class ProcessUploadedImage implements ShouldQueue
     /**
      * Kolejka `media`, nie `default` (audyt W3-05).
      *
-     * `docker/entrypoint.sh` uruchamia workera z `--queue=high,default,media,low`
-     * i komentarz mówi, że interakcje użytkownika mają wyprzedzać ciężkie
+     * `docker/entrypoint.sh` uruchamiał workera z `--queue=high,default,media,low`
+     * i komentarz mówił, że interakcje użytkownika mają wyprzedzać ciężkie
      * przetwarzanie obrazów. Żaden job nie przypisywał się jednak do kolejki,
      * więc wszystkie lądowały na `default` — a kolejność w tej fladze nie
-     * robiła nic.
+     * robiła nic. Dziś w osobnym kontenerze workera `media` ma własny,
+     * jedyny proces; w roli `all` dzieli jeden proces z `default` i `low`
+     * (`listy_kolejek()` w entrypoincie, #1030).
      */
     private const KOLEJKA = 'media';
 
@@ -256,7 +259,8 @@ class ProcessUploadedImage implements ShouldQueue
         } catch (\Throwable $e) {
             Log::warning('Nie udało się przetworzyć zdjęcia', [
                 'media_id' => $media->getKey(),
-                'error' => $e->getMessage(),
+                // Klasa, kod i odcisk — nie komunikat dekodera/storage (#973).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             // `rejected` NIE nadpisuje `deleted` (issue #1003). Zdjęcie, które
@@ -394,7 +398,7 @@ class ProcessUploadedImage implements ShouldQueue
                     'media_id' => $this->mediaId,
                     'dysk' => $nazwaDysku,
                     'klucz' => $klucz,
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
 
                 continue;
@@ -447,7 +451,7 @@ class ProcessUploadedImage implements ShouldQueue
         Log::warning('Przetwarzanie zdjęcia nie powiodło się do końca', [
             'media_id' => $this->mediaId,
             // Bez treści wyjątku przy timeoucie — wtedy wyjątku po prostu nie ma.
-            'error' => $e?->getMessage() ?? 'przekroczony limit czasu zadania',
+            'error' => $e !== null ? BezpiecznyBlad::kontekst($e) : 'przekroczony limit czasu zadania',
         ]);
 
         $media->update([

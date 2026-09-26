@@ -106,11 +106,17 @@ final class ZapisPrzepisuRequest extends FormRequest
             'source_url' => ['nullable', $existing !== null && $this->input('source_url') === $existing->source_url ? 'url' : 'url:http,https', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            // „Dopisz przepis” z własnego wpisu (#1334): identyfikator wpisu,
+            // którego zdjęcie ma zostać zdjęciem głównym. O tym, czy wolno,
+            // rozstrzyga `PostPolicy::dopiszPrzepis` w kontrolerze, nie ta reguła.
+            'z_wpisu' => ['nullable', 'uuid'],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:'.Recipe::MAX_INGREDIENTS],
             'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
             'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
+            // Zamiennik(i) od autora (D-284) — wolny tekst, jak uwaga.
+            'ingredients.*.substitutes' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.substitutes']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -278,6 +284,7 @@ final class ZapisPrzepisuRequest extends FormRequest
                     'text' => $row['text'] ?? '',
                     'group_name' => $row['group_name'] ?? null,
                     'note' => $row['note'] ?? null,
+                    'substitutes' => $row['substitutes'] ?? null,
                     'no_amount' => (bool) ($row['no_amount'] ?? false),
                 ],
                 $data['ingredients'] ?? [],
@@ -367,6 +374,14 @@ final class ZapisPrzepisuRequest extends FormRequest
             'ingredients' => $ingredients,
             'steps' => $steps,
         ];
+    }
+
+    /** Identyfikator wpisu z „Dopisz przepis” (#1334) albo `null`. */
+    public function zWpisu(): ?string
+    {
+        $id = $this->validated('z_wpisu');
+
+        return is_string($id) && $id !== '' ? $id : null;
     }
 
     /**
