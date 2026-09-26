@@ -38,6 +38,7 @@ use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
@@ -798,6 +799,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt', [CollectionController::class, 'store'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.store');
+    // „Moje wpisy” (D-328): własne wpisy autora, także szkice, prywatne
+    // i ukryte przez moderację. PRZED `/zeszyt/{collection}` — inaczej
+    // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
+    // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
+    Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
