@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 
 final class DeleteComment
 {
-    private const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
+    private const DELETED_PLACEHOLDER = Comment::DELETED_PLACEHOLDER;
 
     public function __construct(private readonly NotifyUser $notify) {}
 
@@ -42,8 +42,14 @@ final class DeleteComment
             $originalBody = $fresh->body;
 
             // Decyzja dopiero POD zamkiem wspólnym z publikacją odpowiedzi.
-            // Zakres replies i reguła placeholder/delete pozostają bez zmian.
-            if ($fresh->replies()->exists()) {
+            //
+            // Liczy się KAŻDA żywa odpowiedź, nie tylko opublikowana (#1317).
+            // `replies()` filtruje `status = published`, więc odpowiedź ukryta
+            // przez moderację nie chroniła korzenia: szedł do kosza, a po
+            // przywróceniu odpowiedź wisiała pod niewidocznym rodzicem. Treść
+            // ukrytej odpowiedzi nie wychodzi stąd nigdzie — pytamy tylko,
+            // czy wiersz istnieje.
+            if (Comment::query()->where('parent_id', $fresh->getKey())->exists()) {
                 $fresh->forceFill(['body' => self::DELETED_PLACEHOLDER, 'body_removed_at' => now()])->save();
             } else {
                 $fresh->delete();
