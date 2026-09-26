@@ -6,8 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
+use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
@@ -46,7 +49,8 @@ use Illuminate\View\View;
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
  * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
- * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
+ * czyta te same wiersze. Skalowanie porcji (V2, D-284) czyta ilość z tekstu
+ * wiersza w chwili pokazania — `App\Domain\Recipes\Porcje\PrzeliczSkladnik`.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`
  * (formularze bez JavaScriptu przez `ZapiszPrzepisZFormularza`, walidacja
@@ -60,6 +64,7 @@ class RecipeController extends Controller
     public function __construct(
         private readonly ZapiszPrzepisZFormularza $zapiszPrzepis,
         private readonly PublishComment $publishComment,
+        private readonly ZrobWlasnaWersje $zrobWlasnaWersje,
     ) {}
 
     /**
@@ -439,11 +444,30 @@ class RecipeController extends Controller
             ->with(['user.profile.avatar', 'media'])
             ->paginate(12, ['*'], 'wykonania');
 
-        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
-        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
+        // „Wersje innych osób" (issue #23, D-301) — osobna, trzecia
+        // paginacja na tym ekranie, z własnym parametrem adresu. Liczba
+        // wszystkich wersji NIE trafia do widoku: lista ma wyróżniać autora
+        // oryginału, a nie tworzyć licznika popularności (AGENTS.md §12).
+        $wersje = MojaWersja::wersjeDlaWidza($model, $request->user())
+            ->paginate(6, ['*'], 'wersje');
+
+        foreach ([$komentarze, $cookedEvents, $wersje] as $cel) {
+            foreach ([$komentarze, $cookedEvents, $wersje] as $inna) {
+                if ($cel !== $inna) {
+                    PaginationLinks::preserveOtherPage($cel, $inna);
+                }
+            }
+        }
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
+            // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
+            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
+            // Wersja zbyt podobna do publicznego oryginału nie idzie do
+            // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
+            'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
+            'wersje' => $wersje,
             'komentarze' => $komentarze,
             // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
             // jak na karcie i stronie wpisu (D-281, D-309). `total()`
@@ -560,6 +584,24 @@ class RecipeController extends Controller
         }
 
         return back()->with('status', 'Komentarz dodany.');
+    }
+
+    /**
+     * „Zrób swoją wersję" (issue #23, D-301) — prywatny szkic kopii cudzego
+     * przepisu, od razu w kreatorze. Reguły (kto może, co się kopiuje,
+     * drugie kliknięcie) żyją w `ZrobWlasnaWersje` i `RecipePolicy::fork()`.
+     */
+    public function fork(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $this->authorize('fork', $recipe);
+
+        $wersja = $this->zrobWlasnaWersje->handle($request->user(), $recipe, $request->ip());
+
+        return redirect()
+            ->route('recipes.create', ['szkic' => $wersja->getKey()])
+            ->with('status', $wersja->wasRecentlyCreated
+                ? 'Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.'
+                : 'Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.');
     }
 
     public function destroy(Request $request, string $recipe): RedirectResponse
