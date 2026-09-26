@@ -1519,6 +1519,34 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+
+        /*
+         * „ŚWIEŻO Z KUKING" (`/odkryj`, trasa `discover`) — issue #1952.
+         *
+         * Trasa jest PUBLICZNA, dostępna bez konta i bez limitu do 26 września
+         * 2026 — dokładnie tak, jak przy `zdjecie` wyżej, to jest nowa, tania
+         * droga do zalania serwisu, tylko droższa: `DiscoverFeed::paginate()`
+         * liczy `row_number() OVER (PARTITION BY posts.author_id ...)` na
+         * WSZYSTKICH publicznych wpisach PRZED odcięciem strony (issue #1807),
+         * dokłada podzapytanie widoczności i doładowuje autora, zdjęcia,
+         * przepis, zdjęcie przepisu, tagi i liczniki komentarzy/zapisów.
+         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`),
+         * ale ma własną, mniejszą trasę (`landing`) i świadomie zostaje poza
+         * tym limitem: to jedyne wejście na cały serwis, a `PublicznyHtmlGoscia`
+         * i tak trzyma dla niej gotowy (dziś wyłączony, `KUKING_HTML_EDGE_CACHE_SECONDS=0`)
+         * wspólny cache brzegu — `/odkryj` z tego cache świadomie NIE korzysta
+         * (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej), więc jedyną
+         * bramką kosztu zostaje limit zapytań, nie cache HTML.
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search` WYŻEJ, z tego samego powodu: to
+         * jest zasób strony, nie formularz, a paginacja „Pokaż więcej" (AGENTS.md
+         * §5) generuje jedno żądanie na kliknięcie. Sześćdziesiąt na minutę
+         * mieści wieczór przeglądania i kilka osób za jednym łączem (limit
+         * liczy się PO ADRESIE IP dla gościa), a nie starcza na powtarzalne,
+         * automatyczne odpytywanie, przed którym stoi to zgłoszenie.
+         */
+        'discover' => '60,1',
+
         // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
         'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd

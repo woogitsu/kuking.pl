@@ -97,7 +97,12 @@ $limits = config('kuking.limits');
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
-Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+// Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
+// na wszystkich publicznych wpisach przed odcięciem strony — patrz
+// uzasadnienie przy `limits.discover` w config/kuking.php.
+Route::get('/odkryj', [FeedController::class, 'discover'])
+    ->middleware("throttle:{$limits['discover']},discover")
+    ->name('discover');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
