@@ -948,6 +948,10 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
+    # (`scheduler`, długo działający `schedule:work`), nie `cron`.
+    ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
+     lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
