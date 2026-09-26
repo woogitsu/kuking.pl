@@ -17333,3 +17333,47 @@ najnowszy wpis autora, nie dwa naraz.
 Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
 dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
 listy odkrywania.
+
+## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+(dopuszczenie V2 z `docs/FEATURES.md` od 26.09 — D-282; wybór „oba":
+koszt wg autora oraz przedział liczony z cen GUS, gdy autor nic nie wpisze)
+
+**Problem.** „Koszt" jest na liście V2. Serwis nie zna cen w sklepie
+czytelnika, a przepisy domowe nie mają gramów, więc każda liczba „od
+serwisu" byłaby zgadywaniem przedstawionym jako fakt.
+
+**Decyzja (część 1 — autor).**
+
+1. Autor **może** (nie musi) wpisać przybliżony koszt CAŁEGO przepisu
+   w złotych — w kreatorze i w formularzu szczegółów. Ekran dodawania
+   („sześć rzeczy", #364) tego pola nie dostaje.
+2. Walidacja: liczba ≥ 0, najwyżej 9999,99, najwyżej dwa miejsca po
+   przecinku; „24,50", „24 zł" i „1 200" są poprawne. Komunikaty po polsku
+   mówią, co zrobić. Źródło reguł i tekstów: `App\Domain\Recipes\KosztPrzepisu`.
+3. Strona przepisu mówi pełnym zdaniem: **„Szacunkowy koszt: ok. 24 zł
+   (wg autora)"**. Zawsze „ok." i zawsze „wg autora" — to deklaracja jednej
+   osoby, nie cennik.
+4. Brak kwoty to brak zdania. `0 zł` jest odpowiedzią i się wyświetla.
+5. Koszt **nie** wchodzi do `CoMoznaDopisac` — zaproszenie „Dopisz
+   szczegóły" nie ma namawiać do liczenia pieniędzy przy rodzinnym rosole.
+6. Wyszukiwarka dostaje zakres **„Do 20 zł"** (`sekcja=tanie`) — sam filtr,
+   bez żadnego wpływu na kolejność wyników (AGENTS.md §8: żadnego rankingu).
+   Przepis bez kosztu z tego zakresu wypada: brak kwoty nie znaczy „tanio".
+7. Skalowanie porcji (jeszcze nie na `main`): koszt przelicza się
+   proporcjonalnie (`KosztPrzepisu::naPorcje`), zaokrąglony do pełnych
+   złotych, z dopiskiem „przeliczone z kosztu podanego przez autora"
+   (`zdaniePrzeliczone`). Bez liczby porcji autora nie przeliczamy.
+   Strona przepisu niesie kwotę w `data-koszt-autora` dla tego przełącznika.
+
+**Rollback kolumny odmawia**, gdy ktoś już wpisał koszt (D-088; opis
+w `docs/DATABASE.md`, sekcja `estimated_cost_pln`).
+
+**Czego świadomie nie ma:** cen sklepów, linków afiliacyjnych, porównań,
+AI, sortowania po cenie.
+
+### Wycofanie
+Ukrycie funkcji: usunąć pole z dwóch formularzy, zdanie ze strony i zakres
+z wyszukiwarki — kolumna może zostać. Zdjęcie kolumny: patrz rollback
+migracji (najpierw kopia wartości).

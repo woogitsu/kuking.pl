@@ -1560,6 +1560,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`);
+- `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -1612,6 +1613,46 @@ składnikami. Idzie też do `<meta name="description">` (przycięte do 155 znak�
 i do `description` w JSON-LD, więc jest tekstem, który człowiek zobaczy
 w wynikach wyszukiwania. `NULL` jest stanem normalnym — przepis bez opisu
 publikuje się tak samo.
+
+#### `estimated_cost_pln` — szacunkowy koszt całego przepisu wg autora (V2, D-286)
+
+Migracja `2026_09_26_100000_add_estimated_cost_pln_to_recipes`.
+
+```sql
+ALTER TABLE recipes ADD COLUMN estimated_cost_pln numeric(6,2) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_estimated_cost_pln_check
+    CHECK (estimated_cost_pln IS NULL OR estimated_cost_pln >= 0) NOT VALID;
+ALTER TABLE recipes VALIDATE CONSTRAINT recipes_estimated_cost_pln_check;
+```
+
+- **Złote z groszami za CAŁY przepis** (nie za porcję), najwyżej
+  9999,99 zł — sufit niesie sam typ `numeric(6,2)`, dolną granicę CHECK.
+- **`NULL` = autor nie podał** i strona przepisu o koszcie milczy. **`0` to
+  odpowiedź** („z tego, co w ogródku"), dlatego kolumna nie ma `DEFAULT`
+  ani backfillu.
+- Wpisuje ją wyłącznie autor: kreator (`KrokOPrzepisie`) i formularz
+  szczegółów (`ZapisPrzepisuRequest`), wspólne reguły i komunikaty
+  w `App\Domain\Recipes\KosztPrzepisu` (przecinek, spacje i dopisek „zł"
+  są przyjmowane; więcej niż dwa miejsca po przecinku — komunikat, nie
+  ciche zaokrąglenie). **Brak pola w żądaniu nie czyści kwoty**
+  (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł) — ekran dodawania
+  tego pola nie ma.
+- Idzie do snapshotu wersji (`SnapshotRecipeVersion`), do paczki danych
+  (`CollectUserExportData`: `szacunkowy_koszt_zl`) i do czytelnego pliku
+  przepisu w paczce. Sekcja `przepisy` jest już w `InwentarzDanychKonta`
+  przez `recipes.author_id`, więc rejestr nie wymagał nowego wpisu.
+- Wyszukiwarka: zakres „Do 20 zł" (`sekcja=tanie`) to sam warunek
+  `estimated_cost_pln <= 20`, bez wpływu na kolejność; przepis bez kosztu
+  wypada. Bez indeksu — warunek działa na zbiorze kandydatów z trigramów,
+  tak jak „Do 30 minut".
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden przepis ma koszt —
+zdjęcie kolumny skasowałoby liczbę wpisaną przez człowieka, a kolejny
+`migrate` odtworzyłby ją jako `NULL` bez śladu (D-088). Komunikat mówi, jak
+najpierw zachować wartości (kopia tabeli), wyczyścić kolumnę i powtórzyć.
+Przy samych `NULL`-ach i na świeżej bazie przechodzi bez pytania
+(`tests/Feature/KosztPrzepisuMigracjaTest.php`: odmowa + dwie kontrole
+dodatnie).
 
 #### Pochodzenie przepisu: `source_type`, `source_person`, `source_note`, `source_url`
 

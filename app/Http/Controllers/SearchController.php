@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Feed\DailyBoard;
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Search\SearchQuery;
 use App\Models\Tag;
 use Illuminate\Http\Request;
@@ -73,13 +74,16 @@ class SearchController extends Controller
             'ludzie' => 'ludzie',
             'przepisy' => 'przepisy',
             'szybkie' => 'szybkie',
+            'tanie' => 'tanie',
             default => 'wszystko',
         };
 
         // „Do 30 minut" to zakres przepisów z dodatkowym warunkiem, nie
         // osobny rodzaj treści.
         $maksMinut = $section === 'szybkie' ? 30 : null;
-        $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'szybkie'], true);
+        // „Do 20 zł" tak samo: przepisy z kosztem wg autora (D-286).
+        $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
+        $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'szybkie', 'tanie'], true);
         $szukaLudzi = in_array($section, ['wszystko', 'ludzie'], true);
 
         // ILE WYNIKÓW, I SKĄD SIĘ BIERZE „POKAŻ WIĘCEJ"
@@ -125,7 +129,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
+            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu, $maksKosztZl)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".

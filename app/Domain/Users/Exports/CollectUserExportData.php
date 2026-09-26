@@ -266,6 +266,8 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Szacunek autora w złotych za CAŁY przepis (D-286); `null` = nie podano.
+            'szacunkowy_koszt_zl' => $recipe->estimated_cost_pln,
             'przygotowanie_minuty' => $recipe->prep_minutes,
             'gotowanie_minuty' => $recipe->cook_minutes,
             'trudnosc' => $recipe->difficulty,

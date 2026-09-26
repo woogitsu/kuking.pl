@@ -162,7 +162,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — widoczność (#1320), blokady i licznik ugotowań
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?int $maksKosztZl = null): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -247,6 +247,13 @@ final class SearchQuery
                 ->whereNotNull('prep_minutes')
                 ->whereNotNull('cook_minutes')
                 ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
+            // Filtr „Do 20 zł" (D-286) — ta sama zasada co przy czasie:
+            // przepis BEZ kosztu wypada, bo brak kwoty nie znaczy „tanio".
+            // Sam warunek, bez żadnego wpływu na kolejność (AGENTS.md §8:
+            // żadnego rankingu) — wyniki sortują się dalej po trafności.
+            ->when($maksKosztZl !== null, fn ($query) => $query
+                ->whereNotNull('estimated_cost_pln')
+                ->where('estimated_cost_pln', '<=', $maksKosztZl))
             // KOLEJNOŚĆ: NAJPIERW TO, CO ZDECYDOWAŁO O TRAFIENIU (issue #187)
             //
             // Wiersz jest w wyniku dlatego, że fraza pasuje do FRAGMENTU

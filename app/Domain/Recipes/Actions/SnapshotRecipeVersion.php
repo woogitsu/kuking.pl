@@ -51,6 +51,7 @@ final class SnapshotRecipeVersion
                     'title' => $recipe->title,
                     'summary' => $recipe->summary,
                     'servings' => $recipe->servings,
+                    'estimated_cost_pln' => $recipe->estimated_cost_pln,
                     'prep_minutes' => $recipe->prep_minutes,
                     'cook_minutes' => $recipe->cook_minutes,
                     'difficulty' => $recipe->difficulty,

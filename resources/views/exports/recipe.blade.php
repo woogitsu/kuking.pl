@@ -48,6 +48,7 @@
         @if($recipe->prep_minutes)<span>Przygotowanie: {{ $recipe->prep_minutes }} min</span>@endif
         @if($recipe->cook_minutes)<span>Gotowanie: {{ $recipe->cook_minutes }} min</span>@endif
         @if($recipe->difficultyLabel())<span>Trudność: {{ $recipe->difficultyLabel() }}</span>@endif
+        @if($recipe->costLabel())<span>{{ $recipe->costLabel() }}</span>@endif
     </p>
 
     @if($recipe->ingredients->isNotEmpty())

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\Odmiana;
 use Database\Factories\RecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -90,6 +91,9 @@ class Recipe extends Model
         'slug',
         'summary',
         'servings',
+        // Szacunkowy koszt całego przepisu w złotych, wpisany przez autora
+        // (D-286). Treść przepisu, nie stan — jak `servings`.
+        'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
         'difficulty',
@@ -110,6 +114,7 @@ class Recipe extends Model
         return [
             'published_at' => 'datetime',
             'servings' => 'float',
+            'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
             'family_since_year' => 'integer',
@@ -387,6 +392,20 @@ class Recipe extends Model
         $tekst = rtrim(rtrim(number_format($liczba, 2, ',', ''), '0'), ',');
 
         return $tekst.' porcji';
+    }
+
+    /**
+     * „Szacunkowy koszt: ok. 24 zł (wg autora)" albo `null`, gdy autor
+     * kosztu nie podał (D-286). Tekst liczy `KosztPrzepisu` — to samo
+     * źródło, którego używa podgląd kreatora.
+     */
+    public function costLabel(): ?string
+    {
+        if ($this->estimated_cost_pln === null) {
+            return null;
+        }
+
+        return KosztPrzepisu::zdanie((float) $this->estimated_cost_pln);
     }
 
     /**

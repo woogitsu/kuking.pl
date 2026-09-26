@@ -325,6 +325,12 @@
                     @endif
                 </ul>
             @endif
+            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
+                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
+                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
+            @if($recipe->costLabel())
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            @endif
 
 
             </div>
