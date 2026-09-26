@@ -59,6 +59,11 @@ if os.environ.get("CI") != "true":
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
+PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
+PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
+WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+PLANER_TEST = "PlanerTygodniaTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -176,6 +181,10 @@ WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
 PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
 IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+# Dane od użytkownika w treści `run:` (#1859). Strażnik czyta workflowy; mutacja
+# przywraca dokładnie tę linię, którą ręczny `pr_number` wstrzykiwał kod
+# do joba z tokenem Railway, i drugą — `inputs.*` typu boolean w IaC.
+WKLEJANIE_DO_RUN_TEST = "WorkflowyNieWklejajaDanychUzytkownikaDoRunTest"
 IAC_RAILWAY_TS = ".railway/railway.ts"
 PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
 IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
@@ -482,6 +491,11 @@ IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
 README = "README.md"
 README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
+# audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
+RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
+KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
+RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
 
 def digest(path):
@@ -1063,6 +1077,22 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
+    # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
+    # do treści.
+    ("Planer bez filtra widoczności przepisu", PLANER_TYGODNIA, PLANER_TEST,
+     lambda s: replace_once(s, "        return Recipe::query()\n            ->widoczneDla($user)",
+                            "        return Recipe::query()->when(false, fn ($q) => $q\n            ->widoczneDla($user))")),
+    # Ten sam plan bez dziennego limitu pozycji — pętla dopisuje wiersze bez końca.
+    ("Planer bez dziennego limitu pozycji", PLANER_DODAJ, PLANER_TEST,
+     lambda s: replace_once(s, "if ($ile >= PlanerTygodnia::wpisowNaDzien()) {", "if (false) {")),
+    # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
+    ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
+     lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
+    ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, 'echo "| Zmiany destrukcyjne | ${DESTRUKCYJNE} |"', 'echo "| Zmiany destrukcyjne | ${{ inputs.zmiany_destrukcyjne }} |"')),
     # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
@@ -1071,6 +1101,8 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
+     lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1153,6 +1185,7 @@ run_test(IAC_PRODUKCJA_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
+run_test(KOMENDY_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
