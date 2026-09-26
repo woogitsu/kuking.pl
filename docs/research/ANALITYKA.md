@@ -104,6 +104,47 @@ gotujący z `CookEligibility` (gospodarz, konta testowe, zalążkowe,
 zamknięte) są wyłączeni. Wynik jest tylko zbiorczy — bez nazw, tytułów,
 notatek i bez rankingu przepisów lub autorów.
 
+**„Historie przepisów” w `kuking:raport` (issue #1045).** Mierzy dwa
+wskaźniki jakości z `docs/product/RETENTION_LOOPS.md` §5.3 („skąd ten
+przepis” ≥30–35%, „po kim ten przepis” ≥25–35%) i sygnał alarmowy #9
+(<20%). Liczy `App\Domain\Analytics\HistoriePrzepisow` wprost z tabeli
+`recipes` — bez nowego zdarzenia, trackera ani kopiowania treści.
+
+- **Mianownik:** przepisy `status = published` bez `deleted_at`,
+  z `published_at` w ostatnich 90 dniach (przedział chwil), autor spoza
+  wykluczeń `CookEligibility` (gospodarz, konta testowe, zalążkowe,
+  zamknięte). Szkice, ukryte i usunięte nie wchodzą.
+- **Widoczność: liczą się wszystkie** — `public`, `followers` i `private`.
+  Pytanie brzmi, czy autor zapisał historię, a prywatny przepis po babci
+  to wzorcowy przypadek tych pól. Raport podaje osobno, ile przepisów
+  z mianownika jest publicznych.
+- **Liczniki:** `source_person` i `source_note` z choć jednym znakiem
+  niebiałym (pusty napis i same spacje się nie liczą); `family_since_year`
+  niepuste; skan — `source_scan_media_id` wskazuje istniejące zdjęcie
+  w stanie `ready` (brak, `pending`, `processing`, `rejected`, `deleted`
+  się nie liczą); `source_type = family`.
+- **Zbiorcze:** „choć jeden konkretny ślad” = od kogo LUB historia LUB rok
+  LUB skan; „Rodzinny i choć jeden ślad” = `family` ORAZ ślad. Samo
+  wybranie „Rodzinny” nie jest śladem — różnica między `rodzinny`
+  a `rodzinny_ze_sladem` pokazuje przepisy oznaczone jako rodzinne bez
+  żadnej zachowanej historii.
+- **Mała próba:** poniżej 20 przepisów raport podaje same liczniki
+  i „za mało danych”; pusta próba jest opisana słowami, nie jako 0%.
+- **Prywatność:** tylko liczniki. Raport nie wypisuje `source_person`,
+  `source_note`, tytułów, nazw kont, adresów URL ani identyfikatorów.
+
+Mapowanie na `RETENTION_LOOPS.md`: „po kim ten przepis” = licznik
+„od kogo albo skąd” (`source_person` — to jedno pole w kreatorze);
+„skąd ten przepis” w szerokim sensie = „choć jeden konkretny ślad”.
+
+**Pierwszy rzeczywisty wynik: jeszcze nie odczytany.** Wymaga uruchomienia
+`php artisan kuking:raport` na produkcji przez właściciela; wynik należy
+dopisać tutaj z datą. Bramka diagnostyczna z issue #1045: pola używane —
+bez nowych zachęt; częste „Rodzinny” przy pustych śladach — test kreatora
+z osobami 50+ i copy pól; wszystko rzadkie — rodzinny temat tygodnia (#18)
+i przykłady gospodarza przed przebudową formularza. Rodzinna książka,
+współautorzy i OCR zostają w V1/V2.
+
 **Liczba główna: WAC.** Liczby pomocnicze, w tej kolejności ważności:
 
 1. `% kont, które w tygodniu cokolwiek opublikowały` (post LUB przepis LUB

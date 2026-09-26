@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Illuminate\Console\Command;
@@ -122,7 +123,7 @@ class SprawdzKopieZdjec extends Command
                 $rozbieznosci = $this->rozbieznosci($dysk, $prefiks, $zdjecie, $sumy);
             } catch (Throwable $e) {
                 $bledy++;
-                $this->error('BŁĄD ODCZYTU: media '.$zdjecie->getKey().' — '.$e->getMessage());
+                $this->error('BŁĄD ODCZYTU: media '.$zdjecie->getKey().' — '.BezpiecznyBlad::jednaLinia($e));
 
                 continue;
             }
@@ -152,7 +153,7 @@ class SprawdzKopieZdjec extends Command
                 $this->wypiszNadmiarowe($dysk, $prefiks);
             } catch (Throwable $e) {
                 $bledy++;
-                $this->error('BŁĄD LISTOWANIA migawki: '.$e->getMessage());
+                $this->error('BŁĄD LISTOWANIA migawki: '.BezpiecznyBlad::jednaLinia($e));
             }
         }
 
