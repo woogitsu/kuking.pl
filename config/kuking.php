@@ -1557,6 +1557,11 @@ return [
         // się częściej niż pisanie komentarzy.
         'cooking_krok' => '60,1',
 
+        // Pokaż/ukryj szacunkowe wartości odżywcze przy własnym przepisie
+        // (D-299). Jedna kolumna w jednym wierszu, bez nowej wersji
+        // przepisu — ale to wciąż zapis, więc ma sufit jak każdy formularz.
+        'wartosci_odzywcze' => '20,1',
+
         // Weryfikacja kodu 2FA (logowanie i wyłączanie, issue #12). Kod ma
         // sześć cyfr — milion możliwości brzmi dużo, ale bez limitu prób to
         // pytanie o minuty, nie o bezpieczeństwo. Format „próby,minuty” jak

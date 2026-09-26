@@ -1,0 +1,365 @@
+klucz,jednostka,gramy,uwagi
+maka_pszenna,szklanka,140,szklanka 250 ml nieprzesianej mąki; USDA podaje 125 g na kubek 237 ml
+maka_pszenna,lyzka,10,płaska łyżka
+maka_pszenna,lyzeczka,3,
+maka_pszenna_razowa,szklanka,135,
+maka_pszenna_razowa,lyzka,10,
+maka_zytnia,szklanka,130,USDA: 128 g na kubek mąki żytniej ciemnej
+maka_zytnia,lyzka,9,
+maka_ziemniaczana,szklanka,160,
+maka_ziemniaczana,lyzka,12,
+maka_ziemniaczana,lyzeczka,4,
+maka_kukurydziana,szklanka,150,
+maka_kukurydziana,lyzka,10,
+skrobia_kukurydziana,lyzka,10,
+skrobia_kukurydziana,lyzeczka,3,
+maka_gryczana,szklanka,130,
+cukier,szklanka,220,USDA: 200 g na kubek 237 ml
+cukier,lyzka,15,
+cukier,lyzeczka,5,
+cukier_trzcinowy,szklanka,220,
+cukier_trzcinowy,lyzka,15,
+cukier_trzcinowy,lyzeczka,5,
+cukier_puder,szklanka,125,USDA: 120 g na kubek nieprzesianego
+cukier_puder,lyzka,8,USDA: 8 g na łyżkę
+cukier_puder,lyzeczka,3,
+cukier_waniliowy,opakowanie,16,typowa torebka
+cukier_waniliowy,torebka,16,
+cukier_waniliowy,lyzeczka,4,
+cukier_waniliowy,lyzka,12,
+miod,lyzka,20,
+miod,lyzeczka,7,
+proszek_do_pieczenia,lyzeczka,4,"USDA: 4,6 g na łyżeczkę"
+proszek_do_pieczenia,lyzka,12,
+proszek_do_pieczenia,opakowanie,18,typowa torebka
+proszek_do_pieczenia,torebka,18,
+soda,lyzeczka,5,
+drozdze,kostka,100,kostka drożdży świeżych
+drozdze,opakowanie,100,
+drozdze,lyzka,15,
+drozdze,lyzeczka,5,
+drozdze_suszone,opakowanie,7,typowa torebka
+drozdze_suszone,torebka,7,
+drozdze_suszone,lyzeczka,3,
+kakao,lyzka,6,"USDA: 5,4 g na łyżkę"
+kakao,lyzeczka,2,
+czekolada_gorzka,szt,100,tabliczka
+czekolada_gorzka,tabliczka,100,
+czekolada_gorzka,kostka,5,kostka z tabliczki
+zelatyna,lyzeczka,3,
+zelatyna,lyzka,10,
+zelatyna,opakowanie,20,
+zelatyna,listek,2,
+sol,lyzeczka,6,USDA: 6 g na łyżeczkę
+sol,lyzka,18,
+pieprz,lyzeczka,2,
+papryka_slodka_mielona,lyzeczka,2,
+papryka_slodka_mielona,lyzka,7,
+majeranek,lyzeczka,1,
+majeranek,lyzka,3,
+oregano,lyzeczka,1,
+kminek,lyzeczka,2,
+cynamon,lyzeczka,3,
+cynamon,szt,3,kora cynamonu
+cynamon,kawalek,3,kawałek kory
+galka_muszkatolowa,lyzeczka,2,
+gozdziki,szt,0.1,
+lisc_laurowy,szt,0.2,
+lisc_laurowy,lisc,0.2,
+lisc_laurowy,listek,0.2,
+ziele_angielskie,szt,0.2,
+ziele_angielskie,ziarno,0.2,
+imbir,kawalek,10,kawałek wielkości kciuka
+imbir,lyzeczka,3,tarty
+imbir,lyzka,8,tarty
+imbir_mielony,lyzeczka,2,
+chili,szt,15,
+natka,peczek,30,
+natka,lyzka,4,posiekana
+natka,garsc,15,
+koperek,peczek,30,
+koperek,lyzka,4,posiekany
+koperek,garsc,15,
+szczypiorek,peczek,25,
+szczypiorek,lyzka,4,posiekany
+koper_suszony,lyzeczka,1,
+musztarda,lyzka,15,
+musztarda,lyzeczka,5,
+chrzan,lyzka,15,
+chrzan,lyzeczka,5,
+chrzan,kawalek,30,kawałek korzenia
+ocet,lyzka,15,
+ocet,lyzeczka,5,
+majonez,lyzka,14,"USDA: 13,8 g na łyżkę"
+majonez,lyzeczka,5,
+ketchup,lyzka,17,
+koncentrat_pomidorowy,lyzka,17,
+koncentrat_pomidorowy,lyzeczka,6,
+koncentrat_pomidorowy,sloik,90,mały słoiczek
+koncentrat_pomidorowy,sloiczek,90,
+pomidory_z_puszki,puszka,400,z zalewą
+passata,butelka,500,
+passata,karton,500,
+kostka_rosolowa,szt,10,
+kostka_rosolowa,kostka,10,
+woda,szklanka,250,
+maslo,kostka,200,
+maslo,szt,200,kostka
+maslo,lyzka,15,
+maslo,lyzeczka,5,
+maslo,opakowanie,200,
+margaryna,kostka,250,
+margaryna,lyzka,15,
+margaryna,opakowanie,250,
+smalec,lyzka,13,"USDA: 12,8 g na łyżkę"
+smalec,lyzeczka,4,
+smalec,kostka,200,
+olej,lyzka,14,USDA: 14 g na łyżkę
+olej,lyzeczka,5,
+olej_slonecznikowy,lyzka,14,
+olej_slonecznikowy,lyzeczka,5,
+oliwa,lyzka,14,
+oliwa,lyzeczka,5,
+mleko,szklanka,258,
+jogurt,opakowanie,400,duży kubek
+jogurt,kubek,150,mały kubek
+jogurt_grecki,opakowanie,400,
+smietana_18,lyzka,18,gęsta śmietana
+smietana_18,lyzeczka,6,
+smietana_18,opakowanie,400,
+smietana_18,kubek,200,
+smietanka_30,opakowanie,500,karton
+smietanka_30,karton,500,
+smietanka_30,lyzka,15,
+twarog,kostka,250,
+twarog,opakowanie,250,
+twarog,szt,250,kostka
+twarog,szklanka,230,
+twarog,lyzka,20,
+serek_wiejski,opakowanie,200,
+serek_wiejski,szt,200,
+serek_homogenizowany,opakowanie,150,
+mascarpone,opakowanie,250,
+ricotta,opakowanie,250,
+ser_zolty,plaster,17,
+ser_zolty,plasterek,17,
+ser_zolty,szklanka,100,tarty
+ser_zolty,lyzka,7,tarty
+ser_zolty,garsc,30,tarty
+parmezan,lyzka,5,tarty
+parmezan,lyzeczka,2,tarty
+mozzarella,szt,125,kulka
+mozzarella,opakowanie,125,
+mozzarella,kulka,125,
+feta,opakowanie,200,
+feta,kostka,200,
+jajko,szt,50,jajko średnie bez skorupki
+zoltko,szt,17,
+bialko_jaja,szt,33,
+ziemniaki,szt,120,średni ziemniak po obraniu
+ziemniaki_gotowane,szt,120,
+ziemniaki_gotowane,szklanka,210,
+cebula,szt,110,średnia cebula
+cebula,glowka,110,
+cebula,lyzka,10,posiekana
+cebula_czerwona,szt,110,
+szalotka,szt,30,
+dymka,szt,20,
+dymka,peczek,100,
+czosnek,zabek,5,
+czosnek,szt,5,ząbek
+czosnek,glowka,50,
+czosnek,lyzeczka,5,przeciśnięty
+czosnek_granulowany,lyzeczka,3,"USDA: 3,1 g na łyżeczkę"
+marchew,szt,80,średnia marchew po obraniu
+pietruszka,szt,70,
+seler,szt,300,mała bulwa
+seler,kawalek,80,
+seler,plaster,40,
+seler_naciowy,szt,40,łodyga
+seler_naciowy,lodyga,40,
+por,szt,150,biała i jasnozielona część
+kapusta,szt,1500,główka
+kapusta,glowka,1500,
+kapusta,lisc,40,
+kapusta,szklanka,90,poszatkowana
+kapusta_czerwona,szt,1000,główka
+kapusta_czerwona,glowka,1000,
+kapusta_kiszona,szklanka,150,USDA: 142 g na kubek bez zalewy
+kapusta_kiszona,sloik,800,
+kapusta_pekinska,szt,800,
+kapusta_pekinska,glowka,800,
+kalafior,szt,600,główka bez liści
+kalafior,glowka,600,
+brokul,szt,400,
+brokul,glowka,400,
+burak,szt,150,
+burak_gotowany,szt,150,
+ogorek,szt,180,
+ogorek_kiszony,szt,80,
+ogorek_konserwowy,szt,40,
+ogorek_konserwowy,sloik,450,bez zalewy
+pomidor,szt,150,średni pomidor
+pomidor,puszka,400,
+cukinia,szt,300,
+dynia,kawalek,300,
+dynia,szklanka,140,w kostce
+papryka,szt,150,
+baklazan,szt,300,
+fasolka_szparagowa,garsc,50,
+fasolka_szparagowa,opakowanie,450,mrożona
+groszek,szklanka,145,
+groszek,opakowanie,450,mrożony
+groszek_konserwowy,puszka,240,po odsączeniu
+groszek_konserwowy,szklanka,160,
+kukurydza,puszka,285,po odsączeniu
+kukurydza,szklanka,165,
+szpinak,garsc,30,świeże liście
+szpinak,opakowanie,450,mrożony
+salata,szt,250,główka
+salata,glowka,250,
+salata,lisc,10,
+rzodkiewka,szt,10,
+rzodkiewka,peczek,120,
+pieczarki,szt,20,
+pieczarki,garsc,50,
+pieczarki,opakowanie,500,
+grzyby,garsc,40,
+grzyby,szklanka,70,
+kurki,garsc,40,
+kurki,szklanka,70,
+boczniaki,garsc,40,
+grzyby_suszone,garsc,10,
+grzyby_suszone,szt,2,
+koper_wloski,szt,250,bulwa
+kalarepa,szt,250,
+jablko,szt,180,średnie jabłko
+gruszka,szt,170,
+sliwki,szt,35,
+sliwki,garsc,100,
+sliwki,szklanka,160,
+sliwki_suszone,szt,8,
+sliwki_suszone,garsc,40,
+wisnie,szklanka,150,
+wisnie,garsc,80,
+truskawki,szklanka,150,
+truskawki,garsc,80,
+maliny,szklanka,125,
+maliny,garsc,60,
+borowki,szklanka,145,
+borowki,garsc,60,
+porzeczki,szklanka,115,
+porzeczki_czarne,szklanka,115,
+agrest,szklanka,150,
+jezyny,szklanka,145,
+rabarbar,szt,100,łodyga
+rabarbar,lodyga,100,
+morele,szt,40,
+pigwa,szt,200,
+cytryna,szt,90,miąższ średniej cytryny
+sok_z_cytryny,lyzka,15,
+sok_z_cytryny,lyzeczka,5,
+skorka_cytryny,lyzeczka,2,
+skorka_cytryny,szt,6,skórka z jednej cytryny
+pomarancza,szt,150,miąższ średniej pomarańczy
+banan,szt,120,bez skórki
+rodzynki,garsc,30,
+rodzynki,lyzka,10,
+powidla,lyzka,20,
+powidla,sloik,300,
+dzem,lyzka,20,
+dzem,lyzeczka,7,
+dzem,sloik,280,
+mus_jablkowy,sloik,500,
+orzechy_wloskie,garsc,30,
+orzechy_wloskie,szklanka,110,
+orzechy_wloskie,lyzka,8,
+orzechy_laskowe,garsc,30,
+orzechy_laskowe,szklanka,135,
+migdaly,garsc,30,
+migdaly,szklanka,110,
+migdaly,lyzka,8,
+mak,szklanka,140,
+mak,lyzka,9,"USDA: 8,8 g na łyżkę"
+mak,lyzeczka,3,
+slonecznik,garsc,30,
+slonecznik,lyzka,9,
+sezam,lyzka,9,
+sezam,lyzeczka,3,
+siemie_lniane,lyzka,10,
+wiorki_kokosowe,szklanka,85,
+wiorki_kokosowe,lyzka,5,
+ryz,szklanka,200,
+ryz,woreczek,100,
+ryz,torebka,100,
+kasza_gryczana,szklanka,175,
+kasza_gryczana,woreczek,100,
+kasza_gryczana,torebka,100,
+kasza_jeczmienna,szklanka,200,
+kasza_jeczmienna,woreczek,100,
+kasza_jeczmienna,torebka,100,
+kasza_jaglana,szklanka,200,
+kasza_jaglana,woreczek,100,
+kasza_jaglana,torebka,100,
+kasza_manna,szklanka,175,
+kasza_manna,lyzka,12,
+platki_owsiane,szklanka,90,USDA: 81 g na kubek
+platki_owsiane,lyzka,6,
+makaron,opakowanie,500,
+makaron,szklanka,100,
+makaron_jajeczny,opakowanie,250,
+chleb,kromka,35,
+chleb,szt,500,bochenek
+chleb,bochenek,500,
+chleb_zytni,kromka,35,
+chleb_zytni,szt,500,bochenek
+bulka,szt,50,
+bulka_tarta,szklanka,110,
+bulka_tarta,lyzka,7,
+chalka,szt,400,
+chalka,kromka,30,
+biszkopty,szt,5,
+biszkopty,opakowanie,120,
+fasola_sucha,szklanka,200,
+fasola_czerwona_puszka,puszka,240,po odsączeniu
+groch,szklanka,200,
+soczewica,szklanka,190,
+ciecierzyca,puszka,240,po odsączeniu
+ciecierzyca_sucha,szklanka,200,
+kurczak,szt,900,"mięso ze skórą z kurczaka ok. 1,5 kg (bez kości)"
+piers_kurczaka,szt,200,pojedynczy filet
+piers_kurczaka,filet,200,
+udko_kurczaka,szt,110,udko: mięso i skóra bez kości
+indyk,szt,300,
+schab,plaster,120,
+schab,kotlet,120,
+karkowka,plaster,150,
+boczek,plaster,15,
+boczek,plasterek,15,
+boczek_surowy,plaster,40,
+kielbasa,szt,100,
+kielbasa,plaster,10,
+kielbasa,laska,400,
+kielbasa,kawalek,100,
+parowki,szt,50,
+szynka,plaster,15,
+szynka,plasterek,15,
+kaszanka,szt,300,
+sledz,szt,60,filet
+sledz,filet,60,
+sledz_marynowany,szt,60,
+dorsz,filet,150,
+mintaj,filet,120,
+losos,filet,150,
+losos,plaster,20,wędzony plaster
+losos_wedzony,plaster,20,
+losos_wedzony,opakowanie,100,
+makrela,szt,200,
+pstrag,szt,250,filety z jednej ryby
+tunczyk,puszka,120,po odsączeniu
+sardynki,puszka,90,po odsączeniu
+oliwki,szt,4,
+oliwki,sloik,160,bez zalewy
+kapary,lyzka,9,"USDA: 8,6 g na łyżkę"
+kapary,lyzeczka,3,
+gnocchi,opakowanie,500,

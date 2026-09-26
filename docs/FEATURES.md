@@ -112,7 +112,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - „co ugotuję z tego, co mam”;
 - zamienniki;
 - skalowanie porcji;
-- nutrition;
+- wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 

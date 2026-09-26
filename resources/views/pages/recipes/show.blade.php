@@ -578,6 +578,10 @@
                         </ul>
                     @endforeach
                 @endif
+                {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
+                     bo liczą się z nich. Komponent sam nic nie pokazuje,
+                     gdy składników nie ma albo autor sekcję ukrył. --}}
+                <x-wartosci-odzywcze :recipe="$recipe" />
             </section>
 
             <section class="sekcja-strony">
