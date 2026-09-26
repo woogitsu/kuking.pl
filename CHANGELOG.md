@@ -32,6 +32,7 @@
 - Wiadomość „ustaw hasło”, którą dostaje konto z niepotwierdzonym adresem zamiast linku do logowania, nie przychodzi już z nieważnym linkiem. Jeśli w międzyczasie poproszono o nową wiadomość albo link wygasł, stara nie wychodzi — działa ta najnowsza.
 - Przy każdym polu hasła jest przycisk „Pokaż hasło”, który odsłania wpisane hasło, żeby przed wysłaniem sprawdzić literówkę albo włączony Caps Lock. Drugie naciśnięcie („Ukryj hasło”) znów je zasłania, a przy wysyłaniu formularza hasło zasłania się samo. Menedżer haseł i wklejanie działają jak dotąd (#948).
 
+- Przy wydzielonym serwisie pracy w tle zdjęcia, paczki z danymi i sprawdzanie treści nie czekają już w kolejce za mailami: każdy rodzaj pracy ma własny proces. W obecnym układzie z jednym kontenerem praca w tle zostaje w jednym procesie, żeby nie zabrakło pamięci dla strony. Przy wdrożeniu praca w tle dokańcza bieżące zadanie, zamiast przerywać je w połowie (#1030).
 - Style i skrypty strony zostają zapamiętane w przeglądarce już po pierwszej wizycie, więc kolejne wejście nie pobiera ich ponownie, a przy braku sieci wygląd strony się nie rozsypuje. Gdy w pamięci przeglądarki brakuje miejsca, strona nadal działa normalnie (#1348).
 - Wyszukiwanie w zakresie „Wszystko” bez wyników mówi teraz, że nie znaleźliśmy ani przepisu, ani osoby — wcześniej wspominało tylko o przepisie, choć szukało też ludzi. Podpowiada, żeby sprawdzić pisownię albo wpisać krócej (#944).
 

@@ -283,6 +283,9 @@ KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+ENTRYPOINT = "docker/entrypoint.sh"
+KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
+UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
 # Turnstile wiąże token z hostem i formularzem (#992). Każda mutacja zdejmuje
 # jedno porównanie w `KlientTurnstile` — test tej gałęzi ma wtedy oblać.
@@ -768,6 +771,10 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
+     lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
+    ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
+     lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
@@ -837,6 +844,8 @@ run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
+run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
