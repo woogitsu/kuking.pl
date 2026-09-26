@@ -40,7 +40,8 @@ final class DiscoverFeed
 
     /**
      * Najdalszy wstecz „stan", jaki przyjmujemy z adresu. Kursor starszy niż
-     * doba to zakładka, nie przeglądanie — wtedy liczymy od teraz.
+     * doba to zakładka, nie przeglądanie — wtedy lista zaczyna się od
+     * początku (kursor też odpada, patrz `paginate()`).
      */
     private const STAN_NAJWYZEJ_SEKUND_WSTECZ = 86_400;
 
@@ -52,7 +53,15 @@ final class DiscoverFeed
     public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginatorContract
     {
         $perPage ??= (int) config('kuking.feed.page_size');
-        $chwila = $this->chwilaListy($stan);
+
+        // DALSZA STRONA = kursor rotacji I ważna chwila z `stan`, zawsze razem.
+        // Kursor to pozycja w rundach policzonych na tę jedną chwilę — z inną
+        // chwilą (zepsuty `stan`, brak `stan`, zakładka starsza niż doba) te
+        // same rundy wyglądają inaczej i kursor po cichu gubiłby albo
+        // powtarzał wpisy. Wtedy zaczynamy od początku (przegląd #1781, pkt 7).
+        $chwilaZAdresu = $this->chwilaZAdresu($stan);
+        $kursor = $chwilaZAdresu !== null ? $this->kursorRotacji() : null;
+        $chwila = $kursor !== null ? $chwilaZAdresu : CarbonImmutable::now()->startOfSecond();
 
         // ROTACJA AUTORÓW (issue #1807, reguła doboru z AGENTS.md §8: „równość
         // autorów"). Najpierw najnowszy wpis każdej osoby, potem drugi każdej,
@@ -86,7 +95,7 @@ final class DiscoverFeed
             // biorą wpisy do pełnej sekundy chwili pierwszej. Eloquent zapisuje
             // `published_at` z dokładnością do sekundy, więc zdublować się może
             // najwyżej wpis dodany w TEJ SAMEJ sekundzie co pierwsza strona.
-            ->when($stan !== null, fn ($query) => $query->where('posts.published_at', '<=', $chwila->format('Y-m-d H:i:sP')))
+            ->when($kursor !== null, fn ($query) => $query->where('posts.published_at', '<=', $chwila->format('Y-m-d H:i:sP')))
             // Konto autora musi być w pełni aktywne (audyt A5) — to jest
             // surowszy próg niż w Policy pojedynczego wpisu. Odkrywanie
             // aktywnie POLECA treść nieznajomym, więc zawieszenie (kara
@@ -138,7 +147,7 @@ final class DiscoverFeed
             ->orderByDesc('posts.id')
             // Pusty napis, nie `null`: na `null` Laravel sięga po kursor z adresu
             // jeszcze raz — ten sam, który właśnie odrzuciliśmy.
-            ->cursorPaginate($perPage, ['*'], 'cursor', $this->kursorRotacji() ?? '');
+            ->cursorPaginate($perPage, ['*'], 'cursor', $kursor ?? '');
 
         return $strona->appends('stan', (string) $chwila->getTimestamp());
     }
@@ -168,25 +177,27 @@ final class DiscoverFeed
     }
 
     /**
-     * Chwila, od której liczymy listę: z `stan` dalszej strony albo teraz.
+     * Chwila pierwszej strony z `stan` dalszej strony — albo `null`, gdy jej
+     * nie ma albo nie da się jej przyjąć.
      *
      * Wartość z adresu jest tylko POZYCJĄ w czasie — nie otwiera niczego, czego
      * widz nie mógłby zobaczyć (bramki widoczności liczą się zawsze od teraz).
-     * Przyszłość i wartości starsze niż doba wracają do „teraz".
+     * Przyszłość, śmieci i wartości starsze niż doba dają `null`, a `null`
+     * odrzuca też kursor: lista zaczyna się od początku, zamiast łączyć stary
+     * kursor z nową chwilą.
      */
-    private function chwilaListy(?string $stan): CarbonImmutable
+    private function chwilaZAdresu(?string $stan): ?CarbonImmutable
     {
-        $teraz = CarbonImmutable::now()->startOfSecond();
-
         if ($stan === null || preg_match('/^\d{1,12}$/', $stan) !== 1) {
-            return $teraz;
+            return null;
         }
 
+        $teraz = CarbonImmutable::now()->startOfSecond();
         $chwila = CarbonImmutable::createFromTimestamp((int) $stan, $teraz->getTimezone());
 
         if ($chwila->greaterThan($teraz)
             || $chwila->lessThan($teraz->subSeconds(self::STAN_NAJWYZEJ_SEKUND_WSTECZ))) {
-            return $teraz;
+            return null;
         }
 
         return $chwila;
