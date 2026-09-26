@@ -497,7 +497,7 @@ jobs:
           # „pełny" — pomyłka w konfiguracji ma dać nadmiarowy przebieg,
           # nie pominięty pomiar. `scripts/panel-*` są na liście, bo od
           # 24.09 filtr pilnuje także `port_panelu`.
-          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
+          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|przegladarka/strona-nieaktualna\.test|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -1184,6 +1184,13 @@ jobs:
       - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
         run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
 
+      # Test DOM „Pokaż więcej” (#986): kolejne porcje doklejane do listy,
+      # fokus, `aria-live`, odświeżenie, powrót i błąd pobrania. Stoi TU,
+      # a nie na liście `node --test` w `build`, z tego samego powodu co dwa
+      # kroki wyżej — potrzebuje Chromium.
+      - name: Regresja „Pokaż więcej” (DOM w Chromium)
+        run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
@@ -1318,6 +1325,18 @@ jobs:
           mkdir -p "$KATALOG/bin" "$KATALOG/cache"
           echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+          # Issue #1836: fixture (`scripts/fixtures/panel-marki.php`) i panel
+          # oglądany przez `php artisan serve` to DWA osobne procesy PHP —
+          # między zapisem `DailyPick::shown_on` a zrzutem ekranu mija
+          # logowanie, TOTP i kilka żądań HTTP. Jeden przebieg o 25.09
+          # 22:00 UTC (00:00 CEST) padł, bo ten odstęp przeszedł przez
+          # północ czasu polskiego: fixture zapisał wybór na „dziś",
+          # a panel chwilę później pokazywał „dziś" już jutrzejsze.
+          # Licząc `now()` RAZ, tutaj, i podając go OBU procesom (dziedziczą
+          # `env` w `scripts/panel-marki-run.mjs`), przejście przez północ
+          # w trakcie joba przestaje mieć znaczenie — oba widzą ten sam
+          # moment niezależnie od tego, ile job faktycznie trwa.
+          echo "KUKING_ZAMROZONY_CZAS=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" >> "$GITHUB_ENV"
       - name: Konfiguracja PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
@@ -1598,6 +1617,13 @@ jobs:
         env:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
+
+      # #977: 419 z Livewire (token wydania) → polski komunikat zamiast
+      # angielskiego `confirm()`. Tu, a nie w zadaniu `assets`, bo test czyta
+      # prawdziwy klient Livewire z `vendor/` (tam nie ma `composer install`)
+      # i mierzy przycisk na zbudowanym CSS z kroku „Przygotowanie”.
+      - name: Strona nieaktualna po wdrożeniu (Livewire 419 w Chromium)
+        run: node --test scripts/przegladarka/strona-nieaktualna.test.mjs
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
         run: |
