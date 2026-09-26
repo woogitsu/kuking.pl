@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -42,6 +43,7 @@ use Tests\TestCase;
 class SygnalyAutomatuTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Tekst dłuższy niż próg 40 znaków, żeby sygnał powtórzenia miał się o co oprzeć. */
     private const DLUGI = 'Rosół z kury zagrodowej, gotowany na wolnym ogniu przez cztery godziny, z korzeniem pietruszki.';
@@ -396,7 +398,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(1, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $oznaczenie = $this->oznaczenia()->first();
@@ -426,7 +428,7 @@ class SygnalyAutomatuTest extends TestCase
         $this->assertCount(3, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $spamer->getKey(), ...$this->stanGrupySygnalow((string) $spamer->getKey())])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0, Report::query()
