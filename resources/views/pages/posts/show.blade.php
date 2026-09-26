@@ -29,6 +29,9 @@
          tuż nad nią. Czytnik ekranu i wyszukiwarka dostają nagłówek strony.
          `priority` (#1001): pierwsze zdjęcie karty to obraz LCP tej strony. --}}
     <h1 class="visually-hidden">{{ $tytulWpisu }}</h1>
+
+    <x-wpis-ukryty-przez-moderacje :post="$post" />
+
     <x-post-card :post="$post" :priority="true" />
 
     @if($poprzedniWpis || $nastepnyWpis)

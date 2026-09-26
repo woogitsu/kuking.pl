@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
@@ -330,7 +331,7 @@ final class PrzedawnioneSprawyModeracyjne
                     $bledy++;
                     Log::error($komunikatBledu, [
                         $kluczLogu => $id,
-                        'error' => $e->getMessage(),
+                        'error' => BezpiecznyBlad::kontekst($e),
                     ]);
                 }
             }
