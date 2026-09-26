@@ -106,8 +106,12 @@
             Bez JavaScriptu ten blok nigdy się nie pokazuje — czyli nigdy
             nie obiecuje działania, którego nie ma (issue: „brak wsparcia
             nie może niczego psuć").
+
+            Checkbox przychodzi z serwera ZAWSZE odznaczony: wybór z poprzedniego
+            kroku odtwarza skrypt z `sessionStorage` tej karty (issue #1302),
+            dopiero po ponownej, udanej albo jawnie odrzuconej prośbie.
         --}}
-        <div id="cook-wakelock-wrap" hidden>
+        <div id="cook-wakelock-wrap" data-wakelock-recipe="{{ $recipe->slug }}" hidden>
             <label class="cook-wakelock" for="cook-wakelock-checkbox">
                 <input type="checkbox" id="cook-wakelock-checkbox">
                 <span>Nie usypiaj ekranu podczas gotowania</span>
@@ -121,8 +125,17 @@
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
-                    {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752). --}}
+                    {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752).
+                         Bez `loading="lazy"` (issue #1368): to jedyne zdjęcie treści
+                         tego dokumentu, zaraz pod krótką zwykle instrukcją, a osoba
+                         weszła w ten krok właśnie po nie. `fetchpriority` zostaje
+                         domyślne — nie mierzyliśmy, że to element LCP.
+                         Opis dla czytnika (issue #1304): własny opis autora, a bez
+                         niego sam kontekst kroku — nie pusty `alt`, który każe
+                         czytnikowi pominąć treść instrukcji. --}}
                     <x-photo :media="$aktualnyKrok->media" variant="feed" class="post-photo"
+                             :leniwie="false"
+                             :alt="$aktualnyKrok->media->alt_text ?: 'Zdjęcie do kroku '.$krok"
                              tresc="przepis"
                              :wymien-url="auth()->user()?->isActive() && auth()->user()->can('update', $recipe) ? route('recipes.edit', $recipe->slug).'#f-steps-'.($krok - 1).'-photo' : null" />
                 </div>

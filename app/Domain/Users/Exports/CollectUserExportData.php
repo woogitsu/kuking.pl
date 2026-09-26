@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Domain\Notifications\WycinkiKomentarzy;
+use App\Domain\Rocznice\Urodziny;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
@@ -15,6 +17,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Zbiera CAŁĄ treść jednego konta w jedną tablicę — to zawartość `dane.json`.
@@ -170,6 +173,7 @@ final class CollectUserExportData
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
+            'urzadzenia_z_dostepem' => $this->apiDevices($user),
             'zmiana_adresu_email' => $this->pendingEmailChanges($user),
             'wyslane_podsumowania_tygodnia' => $this->digestSends($user),
             'zamowione_paczki' => $this->dataExports($user),
@@ -193,6 +197,12 @@ final class CollectUserExportData
             'jezyk' => $user->locale,
             'rozmiar_tekstu_procent' => $user->text_scale,
             'chce_podsumowania_tygodnia' => (bool) $user->wants_weekly_digest,
+            // Urodziny (issue #1755): sam dzień i miesiąc jako DD-MM. Roku nie
+            // zbieramy, więc nie ma go i tutaj. `null`, gdy daty nie podano.
+            'urodziny' => Urodziny::doEksportu($user),
+            'pokazuj_zyczenia_urodzinowe' => (bool) $user->birthday_wishes_enabled,
+            'chce_zyczen_urodzinowych_mailem' => (bool) $user->wants_birthday_email,
+            'pokazuj_urodziny_obserwujacym' => (bool) $user->birthday_visible_to_followers,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
             // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO
@@ -212,6 +222,8 @@ final class CollectUserExportData
             'motyw' => $user->theme,
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
+            // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
+            'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),
             'zakres_usuniecia' => $user->delete_scope,
             'dane_wymazane' => $this->date($user->data_erased_at),
             // Sam fakt i data włączenia — sekret i kody zapasowe nie wychodzą.
@@ -286,6 +298,19 @@ final class CollectUserExportData
             'od_kogo' => $recipe->source_person,
             'notatka_o_zrodle' => $recipe->source_note,
             'w_rodzinie_od_roku' => $recipe->family_since_year,
+            // „Moja wersja" (issue #23, D-301): kiedy ta osoba zaczęła swoją
+            // wersję i jaki przepis był oryginałem. Tytuł oryginału tylko
+            // wtedy, gdy właściciel paczki może go dziś zobaczyć — to cudza
+            // treść, a paczka nie może pokazać więcej niż serwis.
+            'moja_wersja_od' => $this->date($recipe->forked_at),
+            //
+            // Policy wprost, a nie `App\Domain\Recipes\MojaWersja`: import
+            // modułu Recipes stąd zamykał cykl Users → Recipes → Media → …
+            // → Users (`GrafModulowDomenyBezCykliTest`).
+            'na_podstawie_przepisu' => ($oryginal = $recipe->forkedFrom) === null
+                    || ! Gate::forUser($user)->allows('view', $oryginal)
+                ? null
+                : ['tytul' => $oryginal->title, 'adres_w_serwisie' => $oryginal->slug],
             'zdjecie_glowne' => $photos->pathFor($recipe->hero_media_id),
             'skan_zeszytu' => $photos->pathFor($recipe->source_scan_media_id),
             'utworzono' => $this->date($recipe->created_at),
@@ -623,7 +648,7 @@ final class CollectUserExportData
         // opisywalby stan, ktorego w bazie juz nie ma. Jedno zapytanie na
         // CALY eksport, nie jedno na powiadomienie - pozycji bywa tu wiecej
         // niz trzydziesci mieszczace sie na ekranie (D-196).
-        $wycinki = Notification::zyweWycinkiKomentarzy($notifications);
+        $wycinki = app(WycinkiKomentarzy::class)->zywe($notifications);
 
         return $notifications->map(function ($notification) use ($wycinki): array {
             $data = is_array($notification->data) ? $notification->data : [];
@@ -777,6 +802,31 @@ final class CollectUserExportData
                 'adres_ip' => $sesja->ip_address,
                 'przegladarka' => $sesja->user_agent,
                 'ostatnia_aktywnosc' => Carbon::createFromTimestamp((int) $sesja->last_activity)->toIso8601String(),
+            ])->all();
+    }
+
+    /**
+     * Urządzenia z dostępem przez API (D-270): nazwa, kiedy zalogowane,
+     * kiedy ostatnio użyte i do kiedy ważne.
+     *
+     * Bez kolumny `token` — to skrót sekretu, czyli poświadczenie; z paczki
+     * nie wolno dać się zalogować. Tak samo jak przy sesjach: człowiek ma
+     * zobaczyć urządzenie, którego nie rozpoznaje, a nie dostać klucz do niego.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function apiDevices(User $user): array
+    {
+        return DB::table('personal_access_tokens')
+            ->where('tokenable_type', User::class)
+            ->where('tokenable_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['name', 'created_at', 'last_used_at', 'expires_at'])
+            ->map(fn (object $urzadzenie): array => [
+                'nazwa' => $urzadzenie->name,
+                'zalogowano' => $this->date($urzadzenie->created_at),
+                'ostatnio_uzyte' => $this->date($urzadzenie->last_used_at),
+                'wazne_do' => $this->date($urzadzenie->expires_at),
             ])->all();
     }
 

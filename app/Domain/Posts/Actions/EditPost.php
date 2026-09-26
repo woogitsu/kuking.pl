@@ -8,6 +8,7 @@ use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -42,9 +43,20 @@ use Illuminate\Support\Facades\Gate;
  * niż źródło. Zapis bez zmian przechodzi (nazwa źródła jest aliasem celu,
  * więc stan docelowy równa się zapisanemu), a zapis ze zmianą pokazuje
  * ekran konfliktu z zapisaną wersją — nic nie ginie, to rzadki przypadek.
+ *
+ * ANALIZA PO EDYCJI (issue #936, D-258)
+ * Rzeczywista zmiana treści (tekst, tytuł pytania, tagi) zleca tę samą
+ * analizę co publikacja, w kolejce `low` i dopiero po zatwierdzeniu
+ * transakcji. Sama zmiana widoczności nie zleca nic — chyba że wpis
+ * wychodzi z „tylko ja": prywatnego wpisu analiza przy publikacji nie
+ * oglądała, więc pierwsze pokazanie go ludziom jest pierwszą okazją.
+ * Wynik to sygnał dla moderatora (D-052, D-055), nie decyzja.
  */
 final class EditPost
 {
+    public const KOMUNIKAT_POD_DECYZJA = 'Moderacja ukryła albo usunęła ten wpis, więc nie da się go teraz poprawić. '
+        .'Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.';
+
     public function __construct(private readonly ResolvePostTags $resolveTags) {}
 
     /** @param  list<string>  $tagNames  to, co ktoś WPISAŁ jako tagi (wolny tekst, nie id) — D-021 */
@@ -74,12 +86,19 @@ final class EditPost
         return DB::transaction(function () use ($post, $body, $visibility, $tagNames, $questionTitle, $wersjaFormularza): Post {
             TagMutationLock::forPost();
             $locked = Post::query()->whereKey($post->getKey())->lockForUpdate()->firstOrFail();
+            // Moderator mógł ukryć wpis między sprawdzeniem Policy a blokadą
+            // wiersza (issue #936). Pod blokadą status jest już pewny.
+            if ($locked->jestPodDecyzjaModeracji()) {
+                throw new BladDlaCzlowieka(self::KOMUNIKAT_POD_DECYZJA);
+            }
             // Porównanie POD blokadą: dwa równoległe zapisy z tą samą wersją
             // startową szeregują się na `FOR UPDATE`, więc drugi widzi już
             // wersję zapisaną przez pierwszy. `null` = wołający bez formularza
             // (zadanie, komenda, test) — nie ma czego porównywać.
             // Niezgodność nie jest jeszcze konfliktem — patrz niżej.
             $wersjaZapisana = $this->wersja($locked);
+            $trescPrzed = $this->odciskTresci($locked);
+            $bylPrywatny = $locked->visibility === Post::VISIBILITY_PRIVATE;
             $innaWersja = $wersjaFormularza !== null && ! hash_equals($wersjaZapisana, $wersjaFormularza);
             if ($locked->kind === Post::KIND_QUESTION) {
                 if (! config('kuking.questions.enabled')) {
@@ -127,6 +146,15 @@ final class EditPost
             $locked->tags()->detach();
             $locked->tags()->attach($tags);
 
+            // Issue #936: zadanie czyta wpis po ID, więc przy kilku szybkich
+            // poprawkach każde ogląda najnowszą wersję, a indeks jednego
+            // oznaczenia na treść (`reports_jeden_automat_na_tresc`) nie
+            // pozwala postawić drugiej pozycji w kolejce moderatora.
+            $wychodziZPrywatnych = $bylPrywatny && $visibility !== Post::VISIBILITY_PRIVATE;
+            if ($wychodziZPrywatnych || ! hash_equals($trescPrzed, $this->odciskTresci($locked))) {
+                PrzeanalizujTresc::dlaWpisu($locked)->afterCommit();
+            }
+
             return $locked;
         }, 3);
     }
@@ -143,6 +171,17 @@ final class EditPost
             ->all();
 
         return $this->odcisk($post->kind, $post->title, $post->body, $post->visibility, $tagi);
+    }
+
+    /**
+     * Odcisk samej TREŚCI — bez widoczności. Tagi tylko jako id: sama zmiana
+     * pochodzenia tagu (ręczny ↔ z opisu) nie zmienia tego, co widać.
+     */
+    private function odciskTresci(Post $post): string
+    {
+        $tagi = $post->tags()->pluck('tags.id')->all();
+
+        return hash('sha256', json_encode([$post->title, $post->body, $tagi], JSON_THROW_ON_ERROR));
     }
 
     /** @param  list<array{0: int|string, 1: bool}>  $tagi  id tagu i pochodzenie, w kolejności */

@@ -70,6 +70,12 @@ zgadujemy jej z imienia ani nie pobieramy z Google/Facebooka, nie używamy
 w statystykach ani do segmentacji. Podstawa: wykonanie umowy (jak publiczny
 profil). Eksport RODO ją zawiera, anonimizacja konta ją zeruje.
 
+Urodziny (issue #1755, decyzja właściciela z 25.09.2026): zbieramy wyłącznie
+**dzień i miesiąc, bez roku**, opcjonalnie, z przyciskiem „Usuń datę”. Cel:
+życzenia od gospodarza. Data nie jest widoczna dla innych, poza przypomnieniem
+obserwującym, które osoba musi sama włączyć. Roku nie bierzemy ani do życzeń,
+ani do weryfikacji wieku (`docs/legal/COMPLIANCE.md` §4).
+
 ## DSA
 
 Od początku:

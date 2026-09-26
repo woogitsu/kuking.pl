@@ -29,7 +29,7 @@
     <div class="odkryj-uklad">
         <h1>Świeżo z <x-kuking-word /></h1>
         <p class="mb-6">
-            Wszystko, co ludzie pokazali w ostatnich dniach — po kolei, od najnowszego.
+            Co ludzie ostatnio pokazali — najpierw po jednym wpisie od każdej osoby, od najnowszego, potem kolejne.
             @if(config('kuking.questions.enabled'))
                 <br><a href="{{ route('questions.index') }}">Poradźcie — pytania do innych</a>.
                 Ktoś to już robił i chętnie powie, jak.
@@ -55,6 +55,9 @@
                 inny niż w `docs/brand/COPY_STYLE.md` §6 „pusty feed", mimo że to
                 dokładnie ten sam przypadek, który `home.blade.php` ma poprawnie.
 
+                Od issue #1807 pusty stan mieszka w `pusty-stan-odkrywania`:
+                rozróżnia „nic nowego" od „część ukrywasz" i ma trzy wyjścia.
+
                 Przycisk zależy od tego, KTO patrzy: `/odkryj` działa też bez
                 konta (FeedController::discover), a `/dodaj/zdjecie` konta
                 wymaga — więc gość dostaje to samo zaproszenie co na stronie
@@ -66,16 +69,7 @@
                 rzecz, która ratuje ten ekran, gdy nie ma ani jednego wpisu
                 (docs/product/COLD_START.md).
             --}}
-            @auth
-                <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
-                    {{-- D-268: zalogowanego znamy — forma z profilu, bez wyboru bez rodzaju. Gość niżej zostaje przy haśle. --}}
-                    Zacznij od zdjęcia tego, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}. Nie musi być ładne — ma być prawdziwe.
-                </x-empty-state>
-            @else
-                <x-empty-state title="Jeszcze nic tu nie ma" action="Załóż konto i pokaż swoje" :href="route('register')">
-                    Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
-                </x-empty-state>
-            @endauth
+            <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
         @else
             <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
