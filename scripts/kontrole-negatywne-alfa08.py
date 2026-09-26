@@ -59,6 +59,11 @@ if os.environ.get("CI") != "true":
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
+PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
+PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
+WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+PLANER_TEST = "PlanerTygodniaTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -246,6 +251,12 @@ DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowiek
 # słowo „motyw" zostaje w tekście — test ma wtedy oblać, bo szuka nazwy,
 # a nie wyrazu. Ten sam plik co `POLITYKA` wyżej.
 POLITYKA_CIASTECZKA_TEST = "PolitykaNazywaCiasteczkaUstawienTest"
+# Retencja dziennika serwera (#994). Mutacja przywraca dawne zdanie, które
+# wiązało dziennik z życiem instancji — strażnik ma zapalić.
+POLITYKA_DZIENNIK_TEST = "PolitykaOpisujeRetencjeDziennikaSerweraTest"
+POLITYKA_DZIENNIK_ZDANIE = "Jak długo go tam trzyma, zależy od planu, który mamy wykupiony u Railway."
+# Liczba dni z planu Railway (decyzja właściciela 24.09.2026: Hobby, 7 dni).
+POLITYKA_DZIENNIK_DNI = " Obecnie jest to **do 7 dni**."
 TWARDE_USUNIECIE_TEST = "TwardeUsuniecieTresciTest"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
@@ -289,6 +300,10 @@ STRAZNIK_R2_TEST = "test_straznik_r2_odrzuca_host_spoza_wzoru"
 OSTRZEZENIE_888 = "app/Domain/Users/Actions/RequestEmailChange.php"
 OSTRZEZENIE_888_TEST = "OstrzezenieZmianyAdresuWKolejceTest"
 WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
+# Polityka obiecuje zdjęcia w UE, bo strażnik wymusza jurysdykcję `eu` (D-255).
+# Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
+# że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
+POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
@@ -973,6 +988,10 @@ checks = [
      lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
     ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
      lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
+    ("Polityka wiąże dziennik z instancją", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_ZDANIE, "Dzienniki serwera żyją tyle, ile działająca instancja serwisu.")),
+    ("Polityka bez liczby dni dziennika", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_DNI, "")),
     ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
      lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
     ("Trasa ze zdjęciem pod progiem 2 MB w Caddy", CADDYFILE, CADDY_LIMIT_TEST,
@@ -1001,6 +1020,8 @@ checks = [
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1072,6 +1093,18 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
+    # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
+    # do treści.
+    ("Planer bez filtra widoczności przepisu", PLANER_TYGODNIA, PLANER_TEST,
+     lambda s: replace_once(s, "        return Recipe::query()\n            ->widoczneDla($user)",
+                            "        return Recipe::query()->when(false, fn ($q) => $q\n            ->widoczneDla($user))")),
+    # Ten sam plan bez dziennego limitu pozycji — pętla dopisuje wiersze bez końca.
+    ("Planer bez dziennego limitu pozycji", PLANER_DODAJ, PLANER_TEST,
+     lambda s: replace_once(s, "if ($ile >= PlanerTygodnia::wpisowNaDzien()) {", "if (false) {")),
+    # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
+    ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
+     lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
@@ -1131,6 +1164,7 @@ run_test(STREFA_STRAZNIK_TEST, True)
 run_test(KOMPENSACJA_UPLOADU_TEST, True)
 run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 run_test(POLITYKA_CIASTECZKA_TEST, True)
+run_test(POLITYKA_DZIENNIK_TEST, True)
 run_test(CACHE_MANIFESTU_TEST, True)
 run_test(CADDY_LIMIT_TEST, True)
 run_test(REJESTR_WYJATKOW_TEST, True)
@@ -1143,6 +1177,7 @@ run_test(HERO_PICKS_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
+run_test(POLITYKA_R2_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)

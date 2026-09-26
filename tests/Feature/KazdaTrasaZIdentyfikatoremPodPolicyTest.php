@@ -10,6 +10,7 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\MealPlanEntry;
 use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -846,6 +847,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+
+        // ─── PLANER TYGODNIA ─────────────────────────────────────────────
+        // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie
+        // właściciel planu, bez wyjątku dla moderatora.
+        $pozycjaPlanu = new MealPlanEntry(['day' => '2026-11-18', 'label' => 'Obiad u mamy']);
+        $pozycjaPlanu->user_id = $wlasciciel->getKey();
+        $pozycjaPlanu->save();
+        $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
+            route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
