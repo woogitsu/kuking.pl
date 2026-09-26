@@ -462,9 +462,11 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         ];
 
         foreach ($okresy as $nazwa => [$kotwica, $miesiecy, $dopisek]) {
+            // Kotwica tylko w PIERWSZEJ kolumnie: inne wiersze mogą odsyłać
+            // do kategorii z nazwy (np. urodziny → „Powiadomienia w serwisie”).
             $wiersze = array_values(array_filter(
                 explode("\n", $tresc),
-                static fn (string $linia): bool => str_contains($linia, $kotwica),
+                static fn (string $linia): bool => str_starts_with(trim($linia), '| '.$kotwica),
             ));
 
             // DRUGA ASERCJA KONTROLNA: bez niej przemianowanie kategorii

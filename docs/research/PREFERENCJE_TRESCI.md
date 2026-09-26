@@ -95,17 +95,21 @@ zmiany ich kształtu.
 
 - `tag_follows (user_id, tag_id, created_at)` jest ustawiane w
   `/ustawienia/tagi` i przez `POST /tag/{tag}/obserwuj`.
-- **Luka znaleziona przy okazji:** eksport danych
-  (`app/Domain/Users/Exports/CollectUserExportData.php`) **nie zawiera
-  obserwowanych tagów**. Komentarz przy `co_zawiera` mówi to wprost (#492).
-  Każda nowa „preferencja” powinna trafić do eksportu. Najlepiej załatwić tagi
-  przy tej samej okazji (issue P-6 niżej).
+- **Nieaktualne od #953 (26 września 2026, issue #1815):** ten akapit
+  twierdził, że eksport danych (`app/Domain/Users/Exports/CollectUserExportData.php`)
+  **nie zawiera obserwowanych tagów**. Od #953 zawiera — klucz `obserwowane_tagi`
+  (metoda `followedTags()`, czyta `tag_follows` przez `join` z `tags`) jest
+  w eksporcie i pilnuje go `EksportObejmujeKazdaTabeleKontaTest`. P-6 niżej
+  jest więc zrobione; zostaje tu jako zapis, że luka istniała i jak ją znaleziono
+  — nie jako aktualny stan.
 - `EraseAccountData` czyści `tag_follows`. Nowe tabele muszą tam dołączyć.
 - `resources/legal/polityka-prywatnosci.md` nie ma dziś ani słowa
   o profilowaniu ani o tym, jak dobieramy treści. Nie było takiej potrzeby.
-- `docs/legal/COMPLIANCE.md` zakłada: „feed jest chronologiczny (brak systemu
-  rekomendacji w rozumieniu DSA na MVP)”. **To założenie jest za wąskie** —
-  patrz §4.1.
+- `docs/legal/COMPLIANCE.md` zakładał (przed sprostowaniem z 25 września 2026,
+  commit `88d7e85bc`, issue #1815): „feed jest chronologiczny (brak systemu
+  rekomendacji w rozumieniu DSA na MVP)”. **To założenie było za wąskie** —
+  patrz §4.1 niżej i `docs/legal/COMPLIANCE.md` §1.2a, który już to sprostowanie
+  niesie.
 
 ---
 
@@ -194,6 +198,15 @@ Koszt: **tygodnie** plus stała obsługa. **Rekomendacja: odrzucić.**
 > `docs/prawo/DO_WERYFIKACJI_PRAWNEJ.md`.
 
 ### 4.1 DSA (rozporządzenie 2022/2065)
+
+> **Adnotacja, 26 września 2026 (issue #1815).** Zdanie niżej „Zdanie
+> w `COMPLIANCE.md` («brak systemu rekomendacji») warto poprawić” zostało
+> zrobione: commit `88d7e85bc` (25 września 2026) przepisał `:5` i `:48`
+> oraz dodał §1.2a z analizą powierzchni („Świeżo z Kuking”, automatyczna
+> część „kuKINGi na dziś”, wyszukiwarka) i notą o rozjeździe PL/EN w art. 27
+> ust. 1. Rekomendacja z akapitu niżej („dopisać do regulaminu «Jak
+> dobieramy wpisy»”) jest w realizacji: issue #1811, decyzja D-305, PR #1879
+> (jeszcze niescalony do main w chwili tej adnotacji).
 
 - **Definicja jest szeroka.** Art. 3 lit. s: system rekomendacji to „w pełni
   lub częściowo zautomatyzowany system wykorzystywany przez platformę

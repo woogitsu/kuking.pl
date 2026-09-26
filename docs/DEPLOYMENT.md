@@ -10,14 +10,20 @@ Kuking
 
 Queue MVP: database.
 
-Po wzroście:
+Po wzroście (`PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts`):
 ```text
 Kuking
 ├── web
 ├── worker
-├── postgres
-└── cron
+├── scheduler
+└── postgres
 ```
+
+`scheduler` to **długo działający** proces Laravel `schedule:work` (nie
+Railway Cron — ten ma granulację 5 minut, a `everyMinute()` wymaga odpytania
+co minutę). Ma zawsze dokładnie 1 replikę: dwie odpalałyby ten sam
+harmonogram dwa razy. Pełne uzasadnienie: `docs/infra/INFRA_DECISION.md`
+§5, kontrakt ról: `.railway/railway.ts`.
 
 Zdjęcia docelowo: Cloudflare R2.
 
@@ -68,13 +74,13 @@ Checklista przejścia na Pro (zrób wszystko w jednym PR-ze):
 - [ ] podbij wersję polityki: data w nagłówku („opisuje stan serwisu na …”)
       **i** `config/kuking.php` → `zgody.wersja_polityki` — ta sama data
       (pilnuje `PolitykaOpisujeRetencjeDziennikaSerweraTest`);
-- [ ] `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.18: plan Pro, 30 dni;
+- [ ] `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.19: plan Pro, 30 dni;
 - [ ] zdanie dla ludzi w `CHANGELOG.md`;
 - [ ] kontrola dodatnia w `scripts/kontrole-negatywne-alfa08.py`
       (`POLITYKA_DZIENNIK_DNI`) — tekst mutacji musi odpowiadać nowemu zdaniu.
 
 **Kiedy trzeba zmienić tekst polityki** (razem z datą stanu w jej nagłówku
-i `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.18):
+i `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.19):
 
 - zmiana planu Railway albo ustawień przechowywania dzienników
   (przejście na Pro — checklista wyżej);
