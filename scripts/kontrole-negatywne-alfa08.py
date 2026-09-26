@@ -161,6 +161,14 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+# Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
+# i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
+# bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
+PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
+IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+IAC_RAILWAY_TS = ".railway/railway.ts"
+PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
+IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
 # `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
 # pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
 WYDANIE_TRASY = "bootstrap/app.php"
@@ -273,6 +281,17 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# Token wydania Livewire (#977). Mutacja wraca do stałego 'a' sprzed poprawki:
+# karta sprzed wdrożenia znów wysyłałaby migawkę starego kodu bez odmowy.
+LIVEWIRE_KONFIG = "config/livewire.php"
+LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
+
+# Stan zapisu kreatora dla komunikatu „Ta strona jest nieaktualna” (#977).
+# Mutacja każe kreatorowi mówić „szkic” przed pierwszym zapisem: komunikat po
+# 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
+KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
+KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -294,11 +313,23 @@ ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
 UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
+# nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
+# Pierwsza mutacja gubi plik w SAMYM ODKRYWANIU listy — własny sprawdzian
+# skryptu jej nie widzi (porównuje części ze swoją, też krótszą listą), więc
+# zapalić ma porównanie z listą PHPUnita. Druga skraca macierz w ci.yml.
+PODZIAL_TESTOW = "scripts/podzial-testow.php"
+PODZIAL_TESTOW_TEST = "PodzialTestowJestKompletnyTest"
 # Turnstile wiąże token z hostem i formularzem (#992). Każda mutacja zdejmuje
 # jedno porównanie w `KlientTurnstile` — test tej gałęzi ma wtedy oblać.
 KLIENT_TURNSTILE = "app/Turnstile/KlientTurnstile.php"
 TURNSTILE_HOST_TEST = "test_host_spoza_listy_jest_odrzucany"
 TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
+# Graf modułów app/Domain bez cykli (#971). Strażnik czyta tokeny PHP
+# w `app/Domain`; mutacja przywraca import `Social` w `ZalozKonto`, czyli
+# dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
+ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
+GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -323,6 +354,17 @@ EKSPORT_BEZ_RETHROW = "            $this->markFailed($export, $this->reasonFor($
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# Bramka produkcji przed jobem `plan` w IaC Railway (audyt B10-01). Job
+# wykonuje `.railway/railway.ts` Z GAŁĘZI PR-a z tokenem
+# RAILWAY_TOKEN_PRODUCTION; mutacja zdejmuje `environment: production` z
+# joba `plan` (i tylko z niego — kotwica bierze fragment poprzedzający
+# unikalny dla `plan`, żeby nie ruszyć tego samego ustawienia w `apply`).
+PLAN_IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+PLAN_IAC_TEST = "PlanIacBramkaProdukcjiTest"
+PLAN_IAC_ENVIRONMENT = (
+    "    # przejrzał diff `.railway/**`.\n"
+    "    environment: production\n"
+)
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
 # przyjętym dzwonkiem: nieudana próba daje tylko krótkie ponowienie. Mutacja
 # wyjmuje ustawienie `cisza_do` spod `if ($przyjeto)` — wtedy odrzucony webhook
@@ -338,6 +380,15 @@ CISZA_BEZ_WARUNKU = (
     "        }\n"
     "        $pamiec['cisza_do'] = $this->teraz() + $ciszaGodzin * 3600;\n"
 )
+# Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
+# Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
+# dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
+# (dopisanie w tej samej chwili z mniejszym UUID), mutacja 2 — porównanie
+# kolejności (ktoś zamknął jedno, automat dopisał nowe: liczba ta sama).
+GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
+GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
+GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
+GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
 # IaC: plan produkcji tylko dla PR-a do `main` (#1313). Apply jest ręczny
 # (workflow_dispatch z `main`, #595), więc zamki dotyczą joba plan: filtr
 # `branches` w `on.pull_request` i `base.ref == 'main'` w jego warunku.
@@ -578,6 +629,16 @@ def bez_sprawdzenia_sciezki(source):
         "        }\n",
         "",
     )
+def apply_bez_bramki_ci(source):
+    """KONTROLA DODATNIA: zdejmij mapowanie `KUKING_WAIT_FOR_CI` z joba apply.
+
+    Plan i apply mają je po razie; mutacja zdejmuje drugie (apply), czyli
+    dokładnie ścieżkę, która po scaleniu wyłączała „Wait for CI” (#1390).
+    """
+    if source.count(IAC_BRAMKA_ENV) != 2:
+        raise RuntimeError("Kontrola nie znalazła dokładnie dwóch mapowań bramki CI.")
+    poczatek = source.rindex(IAC_BRAMKA_ENV)
+    return source[:poczatek] + source[poczatek + len(IAC_BRAMKA_ENV):]
 
 
 def akcje_poza_filtrem_widoku(source):
@@ -633,12 +694,42 @@ def wzorzec_przyrzadu_lapie_wszystko(source):
     return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
 
 
+def podzial_gubi_plik(source):
+    """KONTROLA DODATNIA: odkrywanie plików testów gubi pierwszy plik listy."""
+    return replace_once(
+        source,
+        "    $pliki = array_values(array_unique(array_merge(...$pliki)));",
+        "    $pliki = array_slice(array_values(array_unique(array_merge(...$pliki))), 1);",
+    )
+
+
+def macierz_krotsza_niz_podzial(source):
+    """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
+    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
+
+
 def widok_zawezany_poza_pr(source):
     """KONTROLA DODATNIA: filtr widoku zawęża także na `main`."""
     return replace_once(
         source,
         """if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '""",
         """if grep -qE '""",
+    )
+
+
+def plan_iac_bez_bramki_produkcji(source):
+    """KONTROLA DODATNIA: zdejmij `environment: production` z joba `plan`.
+
+    Job dalej wykonuje `.railway/railway.ts` z gałęzi PR-a, z tokenem
+    RAILWAY_TOKEN_PRODUCTION, ale bez zgody recenzenta — dokładnie luka
+    z audytu B10-01.
+    `job_plan_wymaga_srodowiska_production_przed_wykonaniem_kodu_z_pr`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        PLAN_IAC_ENVIRONMENT,
+        "    # przejrzał diff `.railway/**`.\n",
     )
 
 
@@ -729,6 +820,14 @@ checks = [
      koncowa_sonda_jedna_proba),
     ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      akcja_rollback_wraca),
+    ("Preview gotowe po samym adresie", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
+    ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
+     apply_bez_bramki_ci),
+    ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if (bramkaCI !== "true" && bramkaCI !== "false") {', 'if (false) {')),
     ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
      lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
@@ -785,6 +884,10 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
+     lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
+    ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
+     lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -793,6 +896,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
+    ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
@@ -806,10 +911,16 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
+     lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
+    ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
+     lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -820,6 +931,8 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
+     plan_iac_bez_bramki_produkcji),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -856,6 +969,7 @@ run_test(WIDOK_POZA_PR_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
+run_test(PREVIEW_IAC_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
@@ -872,18 +986,24 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LIVEWIRE_TOKEN_TEST, True)
+run_test(KREATOR_ZAPIS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(PODZIAL_TESTOW_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
+run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(PLAN_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
