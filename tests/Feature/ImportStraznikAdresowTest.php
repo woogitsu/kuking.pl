@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Import\ImportOdrzucony;
+use App\Domain\Import\Url\SprawdzonyAdres;
 use App\Domain\Import\Url\StraznikAdresow;
+use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\MapaNazw;
 use Tests\TestCase;
@@ -30,7 +32,8 @@ final class ImportStraznikAdresowTest extends TestCase
             ->ustaw('petla.example.pl', '127.0.0.1')
             ->ustaw('v6petla.example.pl', '::1')
             ->ustaw('v6ula.example.pl', 'fd00::1')
-            ->ustaw('v6mapped.example.pl', '::ffff:127.0.0.1');
+            ->ustaw('v6mapped.example.pl', '::ffff:127.0.0.1')
+            ->ustaw('xn--przepisy-bbci-rsb.pl', '93.184.216.35');
     }
 
     private function straznik(): StraznikAdresow
@@ -52,6 +55,72 @@ final class ImportStraznikAdresowTest extends TestCase
         $adres = $this->straznik()->sprawdz('http://ipv6.example.pl/');
 
         $this->assertSame('ipv6.example.pl:80:[2606:4700:4700::1111]', $adres->przypiecie());
+    }
+
+    /**
+     * #1978: każdy zapis hosta, który cURL albo resolver przeczyta inaczej niż
+     * człowiek, ma trafić do żądania w JEDNEJ postaci — tej samej, dla której
+     * strażnik zapytał DNS i zbudował przypięcie.
+     *
+     * @return array<string, array{string, string, string, ?string, ?string}>
+     */
+    public static function zapisyHosta(): array
+    {
+        return [
+            // wklejony adres, adres dla cURL-a, host, przypięcie, pytanie do DNS-u
+            'końcowa kropka' => ['https://przepisy.example.pl./sernik', 'https://przepisy.example.pl/sernik', 'przepisy.example.pl', 'przepisy.example.pl:443:93.184.216.34', 'przepisy.example.pl'],
+            'wielkie litery' => ['https://PRZEPISY.Example.PL/Sernik?Kawalek=1', 'https://przepisy.example.pl/Sernik?Kawalek=1', 'przepisy.example.pl', 'przepisy.example.pl:443:93.184.216.34', 'przepisy.example.pl'],
+            'wielkie litery i kropka' => ['http://PRZEPISY.EXAMPLE.PL./', 'http://przepisy.example.pl/', 'przepisy.example.pl', 'przepisy.example.pl:80:93.184.216.34', 'przepisy.example.pl'],
+            'polskie znaki (IDN)' => ['https://przepisy-bąbci.pl/sernik', 'https://xn--przepisy-bbci-rsb.pl/sernik', 'xn--przepisy-bbci-rsb.pl', 'xn--przepisy-bbci-rsb.pl:443:93.184.216.35', 'xn--przepisy-bbci-rsb.pl'],
+            'IDN wielkimi literami z kropką' => ['https://PRZEPISY-BĄBCI.PL./', 'https://xn--przepisy-bbci-rsb.pl/', 'xn--przepisy-bbci-rsb.pl', 'xn--przepisy-bbci-rsb.pl:443:93.184.216.35', 'xn--przepisy-bbci-rsb.pl'],
+            'kropki pełnoszerokie' => ['https://przepisy。example。pl。/', 'https://przepisy.example.pl/', 'przepisy.example.pl', 'przepisy.example.pl:443:93.184.216.34', 'przepisy.example.pl'],
+            'port domyślny wpisany' => ['https://przepisy.example.pl:443/sernik', 'https://przepisy.example.pl/sernik', 'przepisy.example.pl', 'przepisy.example.pl:443:93.184.216.34', 'przepisy.example.pl'],
+            'port nie domyślny i kropka' => ['https://przepisy.example.pl.:80/', 'https://przepisy.example.pl:80/', 'przepisy.example.pl', 'przepisy.example.pl:80:93.184.216.34', 'przepisy.example.pl'],
+            'bez ścieżki' => ['https://przepisy.example.pl.?x=1#y', 'https://przepisy.example.pl/?x=1', 'przepisy.example.pl', 'przepisy.example.pl:443:93.184.216.34', 'przepisy.example.pl'],
+            'IP z końcową kropką' => ['http://93.184.216.34./', 'http://93.184.216.34/', '93.184.216.34', null, null],
+            'IP jako liczba' => ['http://1572395042/przepis', 'http://93.184.216.34/przepis', '93.184.216.34', null, null],
+            'IP ósemkowo' => ['http://0135.0270.0330.042/', 'http://93.184.216.34/', '93.184.216.34', null, null],
+            'IP szesnastkowo' => ['http://0x5DB8D822/', 'http://93.184.216.34/', '93.184.216.34', null, null],
+            'IP skrócone' => ['http://93.12113954/', 'http://93.184.216.34/', '93.184.216.34', null, null],
+            'IPv6 pełny zapis' => ['http://[2606:4700:4700:0:0:0:0:1111]/', 'http://[2606:4700:4700::1111]/', '2606:4700:4700::1111', null, null],
+            'IPv6 wielkie litery' => ['https://[2606:4700:4700::ABCD]/', 'https://[2606:4700:4700::abcd]/', '2606:4700:4700::abcd', null, null],
+        ];
+    }
+
+    #[DataProvider('zapisyHosta')]
+    public function test_host_trafia_do_curla_w_tej_samej_postaci_co_do_przypiecia(string $wklejony, string $url, string $host, ?string $przypiecie, ?string $pytanie): void
+    {
+        $adres = $this->straznik()->sprawdz($wklejony);
+
+        $this->assertSame($url, $adres->url);
+        $this->assertSame($host, $adres->host);
+        $this->assertSame($przypiecie, $adres->przypiecie());
+        $this->assertSame($pytanie === null ? [] : [$pytanie], $this->dns->pytania);
+
+        // Sedno #1978: host, o który zapyta cURL (z adresu), jest DOKŁADNIE
+        // kluczem przypięcia. `example.com.` w adresie i `example.com`
+        // w przypięciu to dla cURL-a dwie różne nazwy.
+        $hostWAdresie = trim((string) parse_url($adres->url, PHP_URL_HOST), '[]');
+        $this->assertSame($adres->host, $hostWAdresie);
+
+        if ($przypiecie !== null) {
+            $this->assertStringStartsWith($hostWAdresie.':'.$adres->port.':', $przypiecie);
+        }
+    }
+
+    public function test_adres_z_hostem_innym_niz_przypiety_nie_da_sie_zbudowac(): void
+    {
+        $this->expectException(LogicException::class);
+
+        new SprawdzonyAdres('https://example.com./', 'https', 'example.com', 443, '93.184.216.34');
+    }
+
+    public function test_adres_z_hostem_zgodnym_z_przypieciem_da_sie_zbudowac(): void
+    {
+        $adres = new SprawdzonyAdres('https://example.com/', 'https', 'example.com', 443, '93.184.216.34');
+
+        $this->assertSame('example.com:443:93.184.216.34', $adres->przypiecie());
+        $this->assertSame('https://example.com', $adres->korzen());
     }
 
     /**
@@ -91,6 +160,18 @@ final class ImportStraznikAdresowTest extends TestCase
             'DNS oddaje IPv6 ULA' => ['https://v6ula.example.pl/'],
             'DNS oddaje IPv4 w IPv6' => ['https://v6mapped.example.pl/'],
             'jeden z adresów prywatny' => ['https://rebind.example.pl/'],
+            // #1978: te same cele w innym zapisie hosta
+            'localhost wielkimi z kropką' => ['http://LOCALHOST./'],
+            'Railway wielkimi z kropką' => ['http://Postgres.Railway.Internal./'],
+            'pętla IPv4 z kropką' => ['http://127.0.0.1./'],
+            'pętla jako liczba szesnastkowa' => ['http://0x7F000001/'],
+            'pętla jako jedna liczba ósemkowa' => ['http://017700000001/'],
+            'metadane skrócone' => ['http://169.254.43518/'],
+            'IPv6 pętla pełnym zapisem' => ['http://[0:0:0:0:0:0:0:1]/'],
+            'IPv4 w IPv6 wielkimi' => ['http://[::FFFF:127.0.0.1]/'],
+            'DNS oddaje pętlę, nazwa wielkimi z kropką' => ['https://PETLA.Example.PL./'],
+            'DNS oddaje metadane, nazwa z kropką' => ['http://metadane.example.pl./'],
+            'człon liczbowy spoza IPv4' => ['http://1.2.3.999/'],
         ];
     }
 
@@ -124,6 +205,13 @@ final class ImportStraznikAdresowTest extends TestCase
             'spacja w środku' => ['https://przepisy.example.pl/ser nik'],
             'znak nowej linii' => ["https://przepisy.example.pl/\r\nHost: x"],
             'za długi' => ['https://przepisy.example.pl/'.str_repeat('a', 2100)],
+            // #1978
+            'dwie końcowe kropki' => ['https://przepisy.example.pl../'],
+            'sama kropka' => ['http://./'],
+            'kodowanie procentowe w nazwie' => ['https://przepisy.example.pl%2e/'],
+            'kodowana kropka w środku' => ['https://przepisy%2eexample.pl/'],
+            'strefa IPv6' => ['http://[fe80::1%25eth0]/'],
+            'nawias bez pary' => ['http://przepisy.example.pl]/'],
         ];
     }
 

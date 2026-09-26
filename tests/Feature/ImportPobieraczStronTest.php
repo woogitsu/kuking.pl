@@ -180,6 +180,79 @@ final class ImportPobieraczStronTest extends TestCase
         Http::assertSent(fn (Request $r): bool => $r->url() === 'https://inny.example.pl/robots.txt');
     }
 
+    public function test_adres_z_koncowa_kropka_i_wielkimi_literami_idzie_do_klienta_w_postaci_kanonicznej(): void
+    {
+        // #1978: cURL dostaje ten sam host, dla którego strażnik zbudował
+        // przypięcie — bez kropki, małymi literami.
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/sernik' => Http::response(self::HTML, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $strona = $this->pobieracz()->pobierz('https://PRZEPISY.Example.pl./sernik');
+
+        $this->assertSame('https://przepisy.example.pl/sernik', $strona->url);
+        Http::assertSentCount(2);
+        Http::assertNotSent(fn (Request $r): bool => ! in_array($r->url(), [
+            'https://przepisy.example.pl/robots.txt',
+            'https://przepisy.example.pl/sernik',
+        ], true));
+    }
+
+    public function test_przekierowanie_na_nazwe_prywatna_z_kropka_i_wielkimi_literami_jest_zatrzymane(): void
+    {
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/sernik' => Http::response('', 302, ['Location' => 'https://WEWNETRZNY.Example.PL./panel']),
+            '*' => Http::response('sekret', 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->assertSame(
+            ImportOdrzucony::ADRES_NIEPUBLICZNY,
+            $this->odrzucenie(fn () => $this->pobieracz()->pobierz('https://przepisy.example.pl/sernik'))->kod,
+        );
+        Http::assertNotSent(fn (Request $r): bool => str_contains(strtolower($r->url()), 'wewnetrzny'));
+        $this->assertContains('wewnetrzny.example.pl', $this->dns->pytania);
+    }
+
+    public function test_przekierowanie_na_petle_zapisana_liczba_jest_zatrzymane(): void
+    {
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/sernik' => Http::response('', 301, ['Location' => 'http://0x7f000001./']),
+            '*' => Http::response('sekret', 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->assertSame(
+            ImportOdrzucony::ADRES_NIEPUBLICZNY,
+            $this->odrzucenie(fn () => $this->pobieracz()->pobierz('https://przepisy.example.pl/sernik'))->kod,
+        );
+        Http::assertSentCount(2);
+    }
+
+    public function test_przekierowanie_z_koncowa_kropka_idzie_na_adres_kanoniczny(): void
+    {
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/s/1' => Http::response('', 301, ['Location' => 'https://INNY.example.pl./sernik-babci']),
+            'https://inny.example.pl/robots.txt' => Http::response('', 404),
+            'https://inny.example.pl/sernik-babci' => Http::response(self::HTML, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $strona = $this->pobieracz()->pobierz('https://przepisy.example.pl/s/1');
+
+        $this->assertSame('https://inny.example.pl/sernik-babci', $strona->url);
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'example.pl./') || str_contains($r->url(), 'INNY'));
+    }
+
+    public function test_wzgledne_przekierowanie_z_hosta_ipv6_zachowuje_jedna_pare_nawiasow(): void
+    {
+        $this->assertSame(
+            'http://[2606:4700:4700::1111]/nowy',
+            PobieraczStron::rozwiaz('http://[2606:4700:4700::1111]/stary/sernik', '/nowy'),
+        );
+    }
+
     public function test_wzgledne_przekierowanie_jest_rozwiazywane_wzgledem_biezacego_adresu(): void
     {
         Http::fake([

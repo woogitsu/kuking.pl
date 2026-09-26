@@ -18099,9 +18099,15 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
    IPv4 zapisanych jako IPv6, NAT64/6to4, nazw jednoczłonowych i stref
    `.internal`/`.local`/`.localhost`; KAŻDY adres IP nazwy musi być publiczny;
    połączenie przypięte do sprawdzonego IP (`CURLOPT_RESOLVE`, bez proxy
-   ze zmiennych środowiskowych); każde przekierowanie (najwyżej 3) i każdy
-   `robots.txt` przez strażnika od nowa; limit 2 MB czytany strumieniowo,
-   10 s na żądanie, 25 s na całość, tylko `text/html`.
+   ze zmiennych środowiskowych); host sprowadzany do jednej postaci
+   (małe litery, punycode, bez końcowej kropki, IPv4 z zapisów
+   `inet_aton`, IPv6 skrócony) i adres dla cURL-a składany z niej na nowo,
+   żeby przypięcie i żądanie miały ten sam klucz, a po połączeniu
+   `CURLOPT_PREREQFUNCTION` przerywa żądanie do adresu innego niż
+   sprawdzony (#1978); każde przekierowanie (najwyżej 3) i każdy
+   `robots.txt` przez strażnika od nowa; limit 2 MB liczony w trakcie
+   pobierania, bez rozpakowywania, 10 s na żądanie, 25 s na całość,
+   tylko `text/html`.
 6. **Bez masowego importu:** jeden adres albo jeden plik na wysłanie, brak
    pola na listę adresów, limit na osobę **5 dziennie / 30 miesięcznie**,
    wspólny dla wszystkich źródeł importu (jak przy OCR), plus throttle trasy.

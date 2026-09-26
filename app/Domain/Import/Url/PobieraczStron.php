@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Import\Url;
 
 use App\Domain\Import\ImportOdrzucony;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -20,14 +18,16 @@ use Psr\Http\Message\StreamInterface;
  *     przekierowaniem i przed pobraniem `robots.txt`. Przekierowań nie
  *     wykonuje biblioteka HTTP (`allow_redirects: false`), tylko ta pętla,
  *     bo inaczej `302 → http://10.0.0.1/` ominęłoby kontrolę;
- *  2. połączenie idzie na adres IP sprawdzony przez strażnika
- *     (`CURLOPT_RESOLVE`), a nie na to, co DNS odpowie za drugim razem;
+ *  2. połączenie idzie na adres IP sprawdzony przez strażnika, przypięty do
+ *     dokładnie tej nazwy, której używa cURL, a nie na to, co DNS odpowie za
+ *     drugim razem — robi to `KlientPrzypiety` (#1978);
  *  3. zmienne środowiskowe proxy są wyłączone (`proxy: ''`) — pośrednik
  *     rozwiązywałby nazwę po swojemu i przypięcie adresu nic by nie dało;
  *  4. `robots.txt` szanowany: 4xx = wolno, 5xx i brak odpowiedzi = nie wolno
  *     (RFC 9309 §2.3.1); uczciwy `User-Agent`, bez udawania przeglądarki;
  *  5. tylko `text/html` / `application/xhtml+xml`, najwyżej `url_max_bajtow`
- *     czytanych strumieniowo, limit czasu na żądanie i na całość.
+ *     (pobieranie przerywane po przekroczeniu), limit czasu na żądanie
+ *     i na całość.
  *
  * Zdjęć ze strony NIE pobieramy (decyzja właściciela z 26.09.2026) — ta klasa
  * pobiera wyłącznie dokument HTML i `robots.txt`, nic więcej.
@@ -52,7 +52,10 @@ final class PobieraczStron
 
     private float $koniec = 0.0;
 
-    public function __construct(private readonly StraznikAdresow $straznik) {}
+    public function __construct(
+        private readonly StraznikAdresow $straznik,
+        private readonly KlientPrzypiety $klient = new KlientPrzypiety,
+    ) {}
 
     public static function userAgent(): string
     {
@@ -74,7 +77,7 @@ final class PobieraczStron
                 throw new ImportOdrzucony(ImportOdrzucony::ROBOTS_ZABRANIA);
             }
 
-            $odpowiedz = $this->zadanie($adres, 'text/html,application/xhtml+xml;q=0.9');
+            $odpowiedz = $this->zadanie($adres, 'text/html,application/xhtml+xml;q=0.9', $this->maksBajtow());
 
             if ($odpowiedz->redirect()) {
                 if ($skok >= self::MAKS_PRZEKIEROWAN) {
@@ -145,7 +148,7 @@ final class PobieraczStron
             $adres = $this->straznik->sprawdz($korzen.'/robots.txt');
 
             for ($skok = 0; ; $skok++) {
-                $odpowiedz = $this->zadanie($adres, 'text/plain');
+                $odpowiedz = $this->zadanie($adres, 'text/plain', self::MAKS_BAJTOW_ROBOTS);
 
                 if ($odpowiedz->redirect()) {
                     if ($skok >= self::MAKS_PRZEKIEROWAN) {
@@ -175,7 +178,7 @@ final class PobieraczStron
     /**
      * @throws ImportOdrzucony
      */
-    private function zadanie(SprawdzonyAdres $adres, string $accept): Response
+    private function zadanie(SprawdzonyAdres $adres, string $accept, int $maksBajtow): Response
     {
         $zostalo = $this->koniec - microtime(true);
 
@@ -183,28 +186,13 @@ final class PobieraczStron
             throw new ImportOdrzucony(ImportOdrzucony::ZA_DLUGO);
         }
 
-        try {
-            return Http::withOptions([
-                'allow_redirects' => false,
-                'stream' => true,
-                'proxy' => '',
-                'connect_timeout' => min(5.0, $zostalo),
-                'timeout' => min((float) $this->limitZadania(), $zostalo),
-                'curl' => [
-                    CURLOPT_RESOLVE => [$adres->przypiecie()],
-                    CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-                ],
-            ])->withHeaders([
-                'User-Agent' => self::userAgent(),
-                'Accept' => $accept,
-            ])->get($adres->url);
-        } catch (ConnectionException $e) {
-            throw new ImportOdrzucony(
-                str_contains(strtolower($e->getMessage()), 'timed out') || str_contains($e->getMessage(), 'cURL error 28')
-                    ? ImportOdrzucony::ZA_DLUGO
-                    : ImportOdrzucony::STRONA_NIEDOSTEPNA,
-            );
-        }
+        return $this->klient->pobierz(
+            $adres,
+            $accept,
+            $maksBajtow,
+            min(5.0, $zostalo),
+            min((float) $this->limitZadania(), $zostalo),
+        );
     }
 
     /**
@@ -233,7 +221,7 @@ final class PobieraczStron
 
         $czesci = parse_url($baza);
         $schemat = $czesci['scheme'] ?? 'https';
-        $host = $czesci['host'] ?? '';
+        $host = trim($czesci['host'] ?? '', '[]');
         $port = isset($czesci['port']) ? ':'.$czesci['port'] : '';
 
         if (str_starts_with($cel, '//')) {
