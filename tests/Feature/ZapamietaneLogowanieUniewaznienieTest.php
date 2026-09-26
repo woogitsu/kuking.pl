@@ -245,4 +245,49 @@ class ZapamietaneLogowanieUniewaznienieTest extends TestCase
         $this->assertSame('http://localhost/login', $response['location']);
         $this->assertSame(200, $this->request($a, 'GET', '/admin/zgloszenia')['status']);
     }
+
+    /**
+     * #930: wyłączenie 2FA też zamyka inne urządzenia. Klient B loguje się
+     * hasłem i kodem już przy włączonej 2FA; A wyłącza ją hasłem.
+     */
+    public function test_wylaczenie_2fa_odcina_inne_sesje_a_biezaca_zostaje(): void
+    {
+        $user = $this->user();
+        $a = $this->login($user);
+        $this->assertSame(302, $this->enableTwoFactor($a, $user));
+
+        // Proces potomny ma prawdziwy zegar, a kod z włączenia jest zużyty w tym
+        // oknie 30 s. Zamiast czekać, zdejmujemy znacznik ostatniego użycia.
+        $user->fresh()->forceFill(['two_factor_last_used_at' => null])->save();
+        $b = [];
+        $token = $this->token($this->request($b, 'GET', '/login'));
+        $this->assertSame(302, $this->request($b, 'POST', '/login', ['_token' => $token, 'login' => $user->email, 'password' => 'haslo-testowe-123'])['status']);
+        $token = $this->token($this->request($b, 'GET', '/logowanie/kod'));
+        $code = (new Google2FA)->getCurrentOtp($user->fresh()->two_factor_secret);
+        $this->assertSame(302, $this->request($b, 'POST', '/logowanie/kod', ['_token' => $token, 'code' => $code])['status']);
+        $probe = $b;
+        $this->assertSame(200, $this->request($probe, 'GET', '/ustawienia/bezpieczenstwo')['status']);
+
+        $token = $this->token($this->request($a, 'GET', '/ustawienia/2fa'));
+        $this->assertSame(302, $this->request($a, 'POST', '/ustawienia/2fa/wylacz', ['_token' => $token, 'password' => 'haslo-testowe-123'])['status']);
+
+        $this->assertFalse($user->fresh()->hasTwoFactorConfirmed());
+        $this->denied($b);
+        $this->assertSame(200, $this->request($a, 'GET', '/ustawienia/bezpieczenstwo')['status']);
+        $this->assertSame(1, DB::table('sessions')->where('user_id', $user->getKey())->count());
+    }
+
+    public function test_wylaczenie_2fa_ze_zlym_haslem_niczego_nie_odwoluje(): void
+    {
+        $user = $this->user();
+        $a = $this->login($user);
+        $this->assertSame(302, $this->enableTwoFactor($a, $user));
+        $old = $user->fresh()->getRememberToken();
+
+        $token = $this->token($this->request($a, 'GET', '/ustawienia/2fa'));
+        $this->assertSame(302, $this->request($a, 'POST', '/ustawienia/2fa/wylacz', ['_token' => $token, 'password' => 'wrong'])['status']);
+
+        $this->assertTrue($user->fresh()->hasTwoFactorConfirmed());
+        $this->assertTrue(hash_equals($old, $user->fresh()->getRememberToken()));
+    }
 }

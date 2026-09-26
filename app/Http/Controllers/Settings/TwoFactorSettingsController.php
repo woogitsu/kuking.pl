@@ -147,6 +147,10 @@ class TwoFactorSettingsController extends Controller
         // niczego nie odwołują.
         $user->invalidateSessions($request->session()->getId());
 
+        // Kod padł właśnie w tej sesji, więc moderator wchodzi do panelu bez
+        // ponownego logowania (`moderator.2fa`, #930).
+        $request->session()->put(TwoFactorAuthenticator::dowodSesji($user->refresh()));
+
         // Kody zapasowe idą do sesji TYLKO na ten jeden, następny widok
         // (`->with()` = flash na jedno żądanie) — to jest jedyny moment,
         // w którym serwis w ogóle zna ich jawną treść.
@@ -240,6 +244,16 @@ class TwoFactorSettingsController extends Controller
         }
 
         $request->user()->disableTwoFactor();
+
+        // WYŁĄCZENIE ZAMYKA INNE URZĄDZENIA JAK WŁĄCZENIE (#930).
+        //
+        // Zmiana drugiego składnika jest zmianą zabezpieczeń konta tej samej
+        // wagi co zmiana hasła: inne przeglądarki i ciasteczka „zapamiętaj
+        // mnie" muszą zalogować się od nowa, na nowych zasadach. Bieżąca sesja
+        // zostaje — to w niej właściciel właśnie podał hasło. Jej dowód 2FA
+        // traci sens, bo 2FA już nie ma.
+        $request->user()->invalidateSessions($request->session()->getId());
+        $request->session()->forget(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI);
 
         return redirect()->route('settings.two_factor.edit')
             ->with('status', 'Weryfikacja dwuetapowa jest wyłączona.');
