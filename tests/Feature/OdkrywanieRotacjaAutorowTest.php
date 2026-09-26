@@ -286,7 +286,10 @@ class OdkrywanieRotacjaAutorowTest extends TestCase
         $b = $this->user('druga');
         $widz = $this->user('widz');
         $schowany = Recipe::factory()->create(['author_id' => $a->getKey(), 'status' => Recipe::STATUS_HIDDEN]);
-        $this->wpis($a, 'A do schowanego przepisu', 1, ['recipe_id' => $schowany->getKey()]);
+        // Sama zapowiedź przepisu (bez własnej treści): wpis z własnym
+        // tekstem zostaje na liście według własnej widoczności (issue #1377),
+        // a zapowiedź znika razem ze schowanym przepisem.
+        $this->wpis($a, 'A do schowanego przepisu', 1, ['recipe_id' => $schowany->getKey(), 'body' => null]);
         $this->wpis($a, 'A tylko dla obserwujących', 2, ['visibility' => Post::VISIBILITY_FOLLOWERS]);
         $this->wpis($a, 'A publiczny starszy', 30);
         $this->wpis($b, 'B', 10);
