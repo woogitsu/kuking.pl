@@ -440,10 +440,13 @@ w EXIF-ie siedzi dokładna lokalizacja kuchni, w której zrobiono zdjęcie.
 
 ## 8. Feed
 
-MVP: obserwowani, **chronologicznie**.
+MVP: obserwowani — osoby **razem z** obserwowanymi tagami (D-277, #1808),
+**chronologicznie**.
 
 ```sql
-WHERE author_id IN (...) ORDER BY published_at DESC, id DESC
+WHERE (author_id IN (...)                                  -- obserwowane osoby i widz
+       OR (visibility = 'public' AND EXISTS (tag z obserwowanych)))
+ORDER BY published_at DESC, id DESC
 ```
 
 Paginacja kursorowa. Bez fanout-on-write.

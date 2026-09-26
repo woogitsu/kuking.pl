@@ -196,6 +196,39 @@ class OdkrywanieRotacjaAutorowTest extends TestCase
     }
 
     /**
+     * Regresja (przegląd #1781, pkt 7): kursor rotacji z `stan` starszym niż
+     * doba albo bez `stan` był łączony z NOWĄ chwilą — rundy liczone na inną
+     * chwilę niż ta, na którą powstał kursor, więc lista po cichu gubiła albo
+     * powtarzała wpisy. Teraz taki adres zaczyna od początku.
+     *
+     * Kontrola ujemna: `$kursor = $this->kursorRotacji()` bez warunku na
+     * chwilę → stary `stan` daje „B1" (dalszą stronę) zamiast „A1".
+     */
+    public function test_kursor_ze_starym_albo_brakujacym_stanem_zaczyna_od_poczatku(): void
+    {
+        $a = $this->user('aktywna');
+        $b = $this->user('druga');
+        $this->wpis($a, 'A1', 1);
+        $this->wpis($b, 'B1', 2);
+        $this->wpis($a, 'A2', 3);
+
+        $pierwsza = (new DiscoverFeed)->paginate(null, 1);
+        parse_str((string) parse_url((string) $pierwsza->nextPageUrl(), PHP_URL_QUERY), $zapytanie);
+        $kursor = $zapytanie['cursor'];
+        config(['kuking.feed.page_size' => 1]);
+
+        $tresci = fn (array $parametry): array => $this->get(route('discover', $parametry))
+            ->assertOk()->viewData('posts')->getCollection()->pluck('body')->all();
+
+        // Kontrola dodatnia: kursor ze swoją chwilą prowadzi dalej.
+        $this->assertSame(['B1'], $tresci(['cursor' => $kursor, 'stan' => $zapytanie['stan']]));
+
+        $this->assertSame(['A1'], $tresci(['cursor' => $kursor, 'stan' => (string) now()->subDays(3)->timestamp]), 'Stan starszy niż doba');
+        $this->assertSame(['A1'], $tresci(['cursor' => $kursor]), 'Brak stanu');
+        $this->assertSame(['A1'], $tresci(['cursor' => $kursor, 'stan' => 'nie-liczba']), 'Zepsuty stan');
+    }
+
+    /**
      * Regresja: kursor sprzed rotacji (#940 — `published_at` + `id`) z zakładki
      * albo z karty otwartej w chwili wdrożenia dawał 500 („Unable to find
      * parameter [rotacja.runda]"). Teraz zaczyna od pierwszej strony.
