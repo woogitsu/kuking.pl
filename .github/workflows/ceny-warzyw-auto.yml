@@ -1,0 +1,225 @@
+name: Ceny warzyw (ZSRIR) — odświeżenie tygodniowe
+
+# ---------------------------------------------------------------------------
+#  D-286, część 3 (decyzja właściciela z 26.09.2026): warzywa w cenniku
+#  kosztu dania (`database/data/ceny_skladnikow.csv`) mają się odświeżać CO
+#  TYDZIEŃ, bo tyle wynosi rytm biuletynu MRiRW/ZSRIR. Produkcja NADAL
+#  niczego nie pobiera z sieci — to jedyny wyjątek od tej zasady i dotyczy
+#  wyłącznie CI, nie aplikacji.
+#
+#  CO ROBI TEN WORKFLOW, KROK PO KROKU — DWA JOBY, ROZDZIELONE #1957
+#    1. `pobierz` sprawdza sekret, robi checkout BEZ tokenu zapisu
+#       (`persist-credentials: false`, bez `token:`) i URUCHAMIA KOD
+#       Z REPOZYTORIUM: test parsera i `ceny-warzyw-zsrir-pobierz.py`.
+#       Ten job nigdy nie widzi `CENY_WARZYW_PAT` — nie ma go w jego env
+#       ani w konfiguracji gita, więc żaden z uruchamianych skryptów nie
+#       ma jak go odczytać ani wynieść. Zmieniony plik CSV trafia do
+#       artefaktu przebiegu (`actions/upload-artifact`), nie do gita.
+#    2. `publikuj` (tylko gdy `pobierz` zgłosił zmianę) pobiera TEN
+#       artefakt, robi WŁASNY checkout TYM RAZEM z osobistym tokenem
+#       (`CENY_WARZYW_PAT`) i wykonuje WYŁĄCZNIE polecenia `git`/`gh`
+#       zapisane w tym pliku workflow — żaden skrypt z `scripts/` ani
+#       inny kod repozytorium nie uruchamia się w tym jobie. Token zapisu
+#       jest więc dostępny wyłącznie w kroku, który go faktycznie
+#       potrzebuje (commit, push, `gh pr create`), nigdy obok kodu, który
+#       mógłby go odczytać z `.git/config` albo ze środowiska.
+#
+#  Merge PR-a jest RĘCZNY — ktoś z zespołu przegląda różnicę cen, dokładnie
+#  jak przy ręcznym uruchomieniu `ceny-gus-pobierz.py`/
+#  `ceny-warzyw-zsrir-pobierz.py`. Ten workflow nigdy nie scala sam siebie.
+#
+#  DLACZEGO OSOBISTY TOKEN, NIE `GITHUB_TOKEN` (decyzja właściciela
+#  z 26.09.2026). GitHub świadomie NIE uruchamia workflowów CI na evencie
+#  `pull_request`, gdy ten PR został otwarty (albo zaktualizowany) tokenem
+#  `GITHUB_TOKEN` — to zabezpieczenie przed nieskończoną pętlą automatów,
+#  ale u nas miało efekt uboczny: PR z cenami warzyw stał BEZ ANI JEDNEGO
+#  zielonego ptaszka, bo `ci.yml` po prostu się nie odpalał. Token
+#  z fine-grained PAT (`CENY_WARZYW_PAT`, sekret repozytorium) nie ma tego
+#  ograniczenia — PR otwarty nim wygląda dla GitHuba jak PR otwarty przez
+#  człowieka i CI rusza normalnie.
+#
+#  DLACZEGO DWA JOBY, A NIE JEDEN (#1957). Do 26.09.2026 checkout w jedynym
+#  jobie brał `token: ${{ secrets.CENY_WARZYW_PAT }}` i zapisywał go
+#  w konfiguracji gita NA CAŁY PRZEBIEG — a zaraz potem ten sam przebieg
+#  uruchamiał `python3 scripts/ceny-warzyw-zsrir-pobierz.py`, kod
+#  z repozytorium. Fine-grained PAT ma `Contents: read/write` i
+#  `Pull requests: read/write` — skompromitowany skrypt (albo jego
+#  zależność) mógł odczytać ten token z `.git/config` (`git config --local
+#  --get-regexp 'credential|url'`) i wypchnąć zmiany albo otworzyć PR-y poza
+#  kontrolą tego joba. Rozdzielenie na `pobierz` (bez tokenu, z kodem
+#  repozytorium) i `publikuj` (z tokenem, bez kodu repozytorium poza
+#  poleceniami zapisanymi wprost w tym pliku) usuwa tę ścieżkę: token
+#  i kod repozytorium nie współistnieją już w żadnym uruchomieniu.
+#
+#  MINIMALNE UPRAWNIENIA PAT-A I JAK GO WSTAWIĆ: opisane w
+#  `docs/infra/DEPLOYMENT_RUNBOOK.md`, sekcja „Co tydzień” / ceny warzyw.
+#  W skrócie: tylko to repozytorium, `Contents` (odczyt+zapis),
+#  `Pull requests` (odczyt+zapis), z terminem ważności.
+#
+#  DLACZEGO SOBOTA RANO (UTC). Biuletyn ZSRIR na dane.gov.pl pojawia się
+#  w tygodniu roboczym (obserwowane: czwartek/piątek dla notowania kończącego
+#  się we wtorek) — sobota rano daje margines, żeby nowy zasób na pewno już
+#  tam był, zanim ten workflow po niego sięgnie.
+on:
+  schedule:
+    - cron: '13 4 * * 6' # sobota 04:13 UTC — poza równą godziną/połową, żeby nie stać w kolejce z workflowami uruchamianymi o pełnych godzinach
+  workflow_dispatch: {}
+
+# Domyślny token tego przebiegu (`GITHUB_TOKEN`) nic tu nie zapisuje —
+# job `pobierz` dostaje tylko odczyt, job `publikuj` ma własny,
+# jeszcze węższy blok `permissions:` przy sobie. Zapis do repozytorium
+# i do Pull Requestów idzie WYŁĄCZNIE osobistym tokenem
+# (`secrets.CENY_WARZYW_PAT`) w jobie `publikuj` — patrz „DLACZEGO DWA
+# JOBY” wyżej.
+permissions:
+  contents: read
+
+# Drugi ręczny odpal nie ma nadpisywać gałęzi w trakcie pushowania przez
+# zaplanowany przebieg — kolejkujemy, nie anulujemy w trakcie zapisu.
+concurrency:
+  group: ceny-warzyw-auto
+  cancel-in-progress: false
+
+env:
+  GALAZ: claude/ceny-warzyw-auto
+  PLIK: database/data/ceny_skladnikow.csv
+  ARTEFAKT: cennik-zaktualizowany
+
+jobs:
+  # ---------------------------------------------------------------------
+  #  JOB 1/2: POBIERZ — uruchamia kod z repozytorium, BEZ tokenu zapisu.
+  # ---------------------------------------------------------------------
+  #  Checkout niżej NIE dostaje `token:` i ma `persist-credentials: false`
+  #  wprost — w konfiguracji gita tego joba nie ma żadnego poświadczenia
+  #  do wyniesienia, niezależnie od tego, co zrobi `ceny-warzyw-zsrir-pobierz.py`
+  #  albo jego zależności (#1957). Zmieniony plik CSV trafia do artefaktu
+  #  przebiegu (`upload-artifact`) — nie do żadnego commitu w tym jobie.
+  pobierz:
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 10
+    outputs:
+      zmienione: ${{ steps.zmiana.outputs.zmienione }}
+    steps:
+      # Ten krok NIE potrzebuje checkoutu — sprawdza tylko obecność sekretu,
+      # żeby workflow zatrzymał się jasnym komunikatem PRZED próbą użycia
+      # pustego tokenu w jobie `publikuj` (co i tak by się nie udało, ale
+      # z niejasnym błędem gita/`gh`, a nie zdaniem po polsku mówiącym,
+      # co zrobić — i lepiej to wiedzieć PRZED godziną pobierania danych).
+      - name: Sprawdź sekret CENY_WARZYW_PAT
+        env:
+          PAT_USTAWIONY: ${{ secrets.CENY_WARZYW_PAT != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$PAT_USTAWIONY" != "true" ]; then
+            echo "::error::Brak sekretu CENY_WARZYW_PAT. Ten workflow potrzebuje osobistego tokenu (fine-grained PAT) zapisanego jako sekret repozytorium — bez niego GitHub nie uruchomi CI na PR-ze, który ten automat otwiera (patrz komentarz na górze pliku .github/workflows/ceny-warzyw-auto.yml). Ustaw go: Settings -> Secrets and variables -> Actions -> New repository secret -> CENY_WARZYW_PAT. Jakie uprawnienia ma mieć token: docs/infra/DEPLOYMENT_RUNBOOK.md, sekcja 'Co tydzień' / ceny warzyw."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # BEZ `token:` i z `persist-credentials: false` — ten job
+          # uruchamia zaraz kod z repozytorium (test parsera, pobieranie),
+          # więc świadomie nie ma czym zapisać ani wynieść (#1957).
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Zainstaluj openpyxl
+        run: pip install --disable-pip-version-check openpyxl==3.1.5
+
+      # Skrypt teraz działa automatycznie, bez człowieka między pobraniem
+      # a zapisem — ten test parsera chodzi PRZED prawdziwym pobraniem,
+      # żeby zmiana układu arkusza MRiRW zatrzymała workflow czerwonym
+      # krokiem, zamiast po cichu zapisać złe ceny do CSV.
+      - name: Test parsera (scripts/ceny_warzyw_zsrir_pobierz_test.py)
+        run: python3 scripts/ceny_warzyw_zsrir_pobierz_test.py
+
+      # Aktualizuje w jednym przebiegu wszystkie 12 warzyw: 5 z arkusza
+      # „ZAKUP WARZ DETAL - DO 2 KG” i 7 liczonych z arkusza „HURT WARZ”
+      # × `SzacunekKosztuZCen::MNOZNIK_HURT_DETAL` (D-286 część 3).
+      - name: Pobierz najnowsze ceny warzyw z MRiRW/ZSRIR
+        run: python3 scripts/ceny-warzyw-zsrir-pobierz.py --zapisz
+
+      - name: Sprawdź, czy cennik się zmienił
+        id: zmiana
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$PLIK"; then
+            echo "zmienione=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "zmienione=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wgraj zaktualizowany cennik jako artefakt
+        if: steps.zmiana.outputs.zmienione == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ env.ARTEFAKT }}
+          path: ${{ env.PLIK }}
+          retention-days: 1
+
+  # ---------------------------------------------------------------------
+  #  JOB 2/2: PUBLIKUJ — ma token zapisu, ale NIE URUCHAMIA kodu repozytorium.
+  # ---------------------------------------------------------------------
+  #  Jedyne polecenia w tym jobie to `git`/`gh` zapisane WPROST w tym pliku
+  #  workflow — żaden `python3 scripts/...` ani inny skrypt z repozytorium
+  #  (#1957). Token ma tu więc towarzystwo tylko poleceń, które same
+  #  wybraliśmy, nigdy kodu, który mógłby go odczytać i wynieść.
+  publikuj:
+    needs: pobierz
+    if: needs.pobierz.outputs.zmienione == '1'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # Osobisty token TYLKO w tym jobie — a w tym jobie, poniżej
+          # tego kroku, nie ma ani jednego wywołania kodu z repozytorium.
+          token: ${{ secrets.CENY_WARZYW_PAT }}
+
+      - name: Pobierz artefakt ze zaktualizowanym cennikiem
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: ${{ env.ARTEFAKT }}
+          path: /tmp/cennik-artefakt
+
+      - name: Podmień plik cennika pobraną wersją
+        run: cp /tmp/cennik-artefakt/"$(basename "$PLIK")" "$PLIK"
+
+      - name: Commit i push gałęzi z nowymi cenami
+        run: |
+          set -euo pipefail
+          git config user.name "kuking-bot"
+          git config user.email "noreply@anthropic.com"
+          git checkout -B "$GALAZ"
+          git add "$PLIK"
+          git commit -m "Cotygodniowe ceny warzyw z MRiRW/ZSRIR (D-286, część 3)
+
+          Automatyczny import przez scripts/ceny-warzyw-zsrir-pobierz.py —
+          wszystkie 12 warzyw (5 detalicznych + 7 hurtowych x MNOZNIK_HURT_DETAL).
+          Merguje osoba prowadząca po przejrzeniu różnicy cen w PR-ze."
+          git push --force-with-lease origin "HEAD:$GALAZ"
+
+      - name: Otwórz albo zaktualizuj PR do main
+        env:
+          # Osobisty token (patrz komentarz na górze pliku) — TEN SAM, którym
+          # poszedł checkout i push gałęzi wyżej, żeby PR wyglądał dla
+          # GitHuba jak otwarty przez człowieka i uruchomił CI.
+          GH_TOKEN: ${{ secrets.CENY_WARZYW_PAT }}
+        run: |
+          set -euo pipefail
+          if gh pr view "$GALAZ" --json number >/dev/null 2>&1; then
+            echo "PR dla $GALAZ już istnieje — gałąź zaktualizowana, PR zostaje ten sam."
+          else
+            gh pr create \
+              --base main \
+              --head "$GALAZ" \
+              --title "Cotygodniowe ceny warzyw z MRiRW/ZSRIR (D-286, część 3)" \
+              --body "Automatyczny, cotygodniowy import cen wszystkich 12 warzyw z biuletynu MRiRW/ZSRIR (dane.gov.pl, zbiór 912): ziemniaki, cebula, marchew, papryka czerwona i pomidor z arkusza detalicznego; kapusta, buraki, por, seler, pietruszka, sałata i ogórek liczone z cen hurtowych (arkusz \"HURT WARZ\") razy SzacunekKosztuZCen::MNOZNIK_HURT_DETAL. Wygenerowane przez \`scripts/ceny-warzyw-zsrir-pobierz.py\` w workflow \`ceny-warzyw-auto.yml\`. Przejrzyj różnicę cen w \`database/data/ceny_skladnikow.csv\` przed scaleniem — ten PR nie scala się sam."
+          fi

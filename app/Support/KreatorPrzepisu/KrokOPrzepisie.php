@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\KreatorPrzepisu;
 
+use App\Domain\Recipes\KosztPrzepisu;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as WalidatorLaravela;
 
@@ -35,6 +36,7 @@ final class KrokOPrzepisie
         'title',
         'summary',
         'servings',
+        'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
         'difficulty',
@@ -55,6 +57,8 @@ final class KrokOPrzepisie
         'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
         'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
         'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
+        // Koszt wg autora (D-286) — te same zdania co w formularzu szczegółów.
+        ...KosztPrzepisu::KOMUNIKATY,
         'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
         'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
         'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
@@ -100,6 +104,7 @@ final class KrokOPrzepisie
             'title' => trim((string) ($pola['title'] ?? '')),
             'summary' => self::textOrNull($pola['summary'] ?? null),
             'servings' => self::textOrNull($pola['servings'] ?? null),
+            'estimated_cost_pln' => KosztPrzepisu::normalizuj($pola['estimated_cost_pln'] ?? null),
             'prep_minutes' => self::textOrNull($pola['prep_minutes'] ?? null),
             'cook_minutes' => self::textOrNull($pola['cook_minutes'] ?? null),
             'difficulty' => self::textOrNull($pola['difficulty'] ?? null),
@@ -123,6 +128,7 @@ final class KrokOPrzepisie
             'title' => ['required', 'string', 'min:3', 'max:180'],
             'summary' => ['nullable', 'string', 'max:2000'],
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
+            'estimated_cost_pln' => KosztPrzepisu::REGULY,
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],

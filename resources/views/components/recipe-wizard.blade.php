@@ -11,6 +11,7 @@ use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use Illuminate\Support\Facades\Gate;
@@ -93,6 +94,9 @@ new class extends Component
     public string $summary = '';
 
     public string $servings = '';
+
+    /** Koszt całego przepisu w złotych, tak jak go wpisano („24,50") — D-286. */
+    public string $estimated_cost_pln = '';
 
     public string $prep_minutes = '';
 
@@ -184,6 +188,7 @@ new class extends Component
         $this->title = (string) $recipe->title;
         $this->summary = (string) $recipe->summary;
         $this->servings = $this->numberToText($recipe->servings);
+        $this->estimated_cost_pln = KosztPrzepisu::doPola($recipe->estimated_cost_pln);
         $this->prep_minutes = $this->numberToText($recipe->prep_minutes);
         $this->cook_minutes = $this->numberToText($recipe->cook_minutes);
         $this->difficulty = (string) $recipe->difficulty;
@@ -619,6 +624,7 @@ new class extends Component
                 'title' => trim($this->title),
                 'summary' => $this->textOrNull($this->summary),
                 'servings' => $this->numberOrNull($this->servings),
+                'estimated_cost_pln' => KosztPrzepisu::naLiczbe($this->estimated_cost_pln),
                 'prep_minutes' => $this->intOrNull($this->prep_minutes),
                 'cook_minutes' => $this->intOrNull($this->cook_minutes),
                 'difficulty' => $this->textOrNull($this->difficulty),
@@ -918,6 +924,14 @@ new class extends Component
         return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel(afterNa: true);
     }
 
+    /** Zdanie o koszcie do podglądu — to samo co na stronie przepisu (D-286). */
+    public function previewCostLabel(): ?string
+    {
+        $koszt = KosztPrzepisu::naLiczbe($this->estimated_cost_pln);
+
+        return $koszt === null ? null : KosztPrzepisu::zdanie($koszt);
+    }
+
     /** Ta sama reguła co na stronie przepisu i w filtrze „Do 30 minut" (#1090). */
     public function totalMinutes(): ?int
     {
@@ -1198,6 +1212,12 @@ new class extends Component
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric" wire="cook_minutes"
                          :value="$cook_minutes" :min="0" :max="10080" />
             </div>
+
+            {{-- Koszt wg autora (D-286) — pole tekstowe, bo „24,50" z przecinkiem
+                 ma przejść (uzasadnienie przy tym samym polu w `szczegoly.blade.php`). --}}
+            <x-field name="estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal" wire="estimated_cost_pln"
+                     :value="$estimated_cost_pln"
+                     help="Ile mniej więcej kosztują składniki na cały przepis. Wpisz samą liczbę złotych, na przykład 24 albo 24,50. Na stronie przepisu pokażemy to jako szacunek autora." />
 
             <fieldset class="border-0 p-0 mt-6">
                 <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
@@ -1490,6 +1510,9 @@ new class extends Component
                     @endif
                     @if($this->totalMinutes() !== null)
                         <li><span class="badge">Razem około {{ $this->totalMinutes() }} min</span></li>
+                    @endif
+                    @if($this->previewCostLabel() !== null)
+                        <li><span class="badge">{{ $this->previewCostLabel() }}</span></li>
                     @endif
                     @if($difficulty !== '')
                         <li><span class="badge">{{ \App\Models\Recipe::DIFFICULTY_LABELS[$difficulty] ?? $difficulty }}</span></li>

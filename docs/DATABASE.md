@@ -1686,6 +1686,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
+- `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -1783,6 +1784,46 @@ i do `description` w JSON-LD, więc jest tekstem, który człowiek zobaczy
 w wynikach wyszukiwania. `NULL` jest stanem normalnym — przepis bez opisu
 publikuje się tak samo.
 
+#### `estimated_cost_pln` — szacunkowy koszt całego przepisu wg autora (V2, D-286)
+
+Migracja `2026_09_26_100000_add_estimated_cost_pln_to_recipes`.
+
+```sql
+ALTER TABLE recipes ADD COLUMN estimated_cost_pln numeric(6,2) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_estimated_cost_pln_check
+    CHECK (estimated_cost_pln IS NULL OR estimated_cost_pln >= 0) NOT VALID;
+ALTER TABLE recipes VALIDATE CONSTRAINT recipes_estimated_cost_pln_check;
+```
+
+- **Złote z groszami za CAŁY przepis** (nie za porcję), najwyżej
+  9999,99 zł — sufit niesie sam typ `numeric(6,2)`, dolną granicę CHECK.
+- **`NULL` = autor nie podał** i strona przepisu o koszcie milczy. **`0` to
+  odpowiedź** („z tego, co w ogródku"), dlatego kolumna nie ma `DEFAULT`
+  ani backfillu.
+- Wpisuje ją wyłącznie autor: kreator (`KrokOPrzepisie`) i formularz
+  szczegółów (`ZapisPrzepisuRequest`), wspólne reguły i komunikaty
+  w `App\Domain\Recipes\KosztPrzepisu` (przecinek, spacje i dopisek „zł"
+  są przyjmowane; więcej niż dwa miejsca po przecinku — komunikat, nie
+  ciche zaokrąglenie). **Brak pola w żądaniu nie czyści kwoty**
+  (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł) — ekran dodawania
+  tego pola nie ma.
+- Idzie do snapshotu wersji (`SnapshotRecipeVersion`), do paczki danych
+  (`CollectUserExportData`: `szacunkowy_koszt_zl`) i do czytelnego pliku
+  przepisu w paczce. Sekcja `przepisy` jest już w `InwentarzDanychKonta`
+  przez `recipes.author_id`, więc rejestr nie wymagał nowego wpisu.
+- Wyszukiwarka: zakres „Do 20 zł" (`sekcja=tanie`) to sam warunek
+  `estimated_cost_pln <= 20`, bez wpływu na kolejność; przepis bez kosztu
+  wypada. Bez indeksu — warunek działa na zbiorze kandydatów z trigramów,
+  tak jak „Do 30 minut".
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden przepis ma koszt —
+zdjęcie kolumny skasowałoby liczbę wpisaną przez człowieka, a kolejny
+`migrate` odtworzyłby ją jako `NULL` bez śladu (D-088). Komunikat mówi, jak
+najpierw zachować wartości (kopia tabeli), wyczyścić kolumnę i powtórzyć.
+Przy samych `NULL`-ach i na świeżej bazie przechodzi bez pytania
+(`tests/Feature/KosztPrzepisuMigracjaTest.php`: odmowa + dwie kontrole
+dodatnie).
+
 #### Pochodzenie przepisu: `source_type`, `source_person`, `source_note`, `source_url`
 
 Cztery kolumny z pierwszej migracji przepisów
@@ -1834,6 +1875,79 @@ dziennej; więcej nie zbieramy. `source_scan_media_id uuid NULL` → `media`
 To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
 idzie tą samą drogą co do każdego innego zdjęcia przepisu
 (`App\Domain\Media\DostepDoZdjecia`).
+
+### ceny_skladnikow
+Cennik składników do **orientacyjnego kosztu dania**, gdy autor nie wpisał
+własnej kwoty (V2, D-286 część 2; migracja
+`2026_09_26_110000_create_ceny_skladnikow_table`).
+
+To **słownik, nie treść użytkowników**. Jedyna droga zapisu to komenda
+`php artisan kuking:ceny-skladnikow`, która wczytuje plik
+`database/data/ceny_skladnikow.csv` z repozytorium — w całości albo wcale,
+w jednej transakcji; wiersze spoza pliku znikają. Produkcja niczego nie
+pobiera z sieci: plik odświeża osoba prowadząca dwoma skryptami, jednym na
+źródło (D-286, część 3):
+
+- `scripts/ceny-gus-pobierz.py` — mięso, nabiał, pieczywo, produkty suche:
+  API Banku Danych Lokalnych GUS, temat P1466, średnie roczne ceny
+  detaliczne dla Polski. Wiersz ma numer zmiennej w `zmienna_bdl`.
+- `scripts/ceny-warzyw-zsrir-pobierz.py` — **warzywa detaliczne**
+  (`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`):
+  GUS/BDL nie podaje dziś ich cen (seria miesięczna z ziemniakami, cebulą
+  i marchwią kończy się w 2019 r.). Zamiennik to Zintegrowany System
+  Rolniczej Informacji Rynkowej (ZSRIR) Ministerstwa Rolnictwa i Rozwoju
+  Wsi — otwarte dane dane.gov.pl (zbiór 912, CC BY 4.0), arkusz „ZAKUP
+  WARZ DETAL — do 2 kg” (cena zakupu warzyw przez detal, opakowania do
+  2 kg — najbliższy oficjalny odpowiednik detalu, jaki ZSRIR ma). Od
+  26.09.2026 (D-286, część 3, decyzja właściciela) ten skrypt uruchamia
+  się **automatycznie, co tydzień**, w GitHub Actions
+  (`.github/workflows/ceny-warzyw-auto.yml`) — produkcja nadal niczego
+  nie pobiera z sieci, automatyzacja dotyczy wyłącznie CI, a wynik idzie
+  do `main` przez zwykły PR, który merguje człowiek.
+- **Warzywa liczone hurtowo × przelicznik** (`kapusta`, `buraki`, `por`,
+  `seler`, `pietruszka`, `salata`, `ogorek`): ZSRIR notuje je TYLKO
+  hurtowo (arkusz „HURT WARZ”, pięć rynków: Bronisze, Kalisz, Łódź,
+  Poznań, Rzeszów). Cena w pliku to średnia z min–max tych pięciu
+  rynków razy `App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL`
+  (`1,6` — decyzja właściciela z 26.09.2026, uzasadnienie stałej w kodzie
+  i w `docs/DECISIONS.md`, D-286 część 3). Liczone RĘCZNIE, nie przez
+  żaden skrypt — arkusz „HURT WARZ” ma inny układ kolumn (pięć rynków,
+  min i max osobno) i nie jest dziś zautomatyzowany. `zrodlo` każdego
+  z tych wierszy zaczyna się od frazy „szacunek z cen hurtowych” —
+  `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na stronie
+  przepisu wprost napisaną klauzulę, że to szacunek z hurtu, nie zwykła
+  cena detaliczna.
+
+Wszystkie trzy źródła (GUS, ZSRIR detal, ZSRIR hurt × przelicznik)
+zmieniają WYŁĄCZNIE wiersze swojego źródła; zmiana cen przechodzi
+przegląd w PR-ze jak każda inna — ręcznie albo (dla warzyw detalicznych)
+przez automatyczny PR z `ceny-warzyw-auto.yml`.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `klucz` | `varchar(60)` PK | stały klucz z pliku (`maka_pszenna`) |
+| `nazwa` | `varchar(160)` | nazwa dla człowieka |
+| `wzorce` | `text` | formy słowa w tekście składnika, ASCII, rozdzielone `\|`; dopasowanie CAŁYMI słowami (CHECK: niepuste) |
+| `wyklucz` | `text NULL` | początki słów, które odrzucają dopasowanie („ziemniaczan") |
+| `cena_zl`, `za_ilosc`, `jednostka` | `numeric(8,2)`, `numeric(8,3)`, `varchar(3)` | cena za `za_ilosc` jednostek `kg` \| `l` \| `szt` (CHECK) |
+| `g_na_jednostke` | `numeric(8,2)` | ile gramów waży jednostka ceny (1 l oleju ≈ 920 g, 1 jajko ≈ 60 g) |
+| `g_szklanka`, `g_lyzka`, `g_lyzeczka`, `g_sztuka` | `numeric(8,2) NULL` | miary domowe TEGO składnika w gramach |
+| `kolejnosc` | `smallint` | kolejność dopasowania — pierwszy pasujący wiersz wygrywa |
+| `okres`, `zrodlo`, `zmienna_bdl` | `varchar` | skąd jest cena: rok, opis źródła, numer zmiennej GUS (`NULL` dla wierszy spoza GUS, np. ZSRIR) |
+| `zaimportowano_at` | `timestamptz` | kiedy komenda wczytała wiersz |
+
+CHECK `ceny_skladnikow_liczby_check`: `cena_zl >= 0`, `za_ilosc > 0`,
+`g_na_jednostke > 0`, miary domowe `NULL` albo `> 0`. `cena_zl = 0` ma
+dokładnie jeden sens: składnik bez kosztu (woda), który **nie liczy się do
+pokrycia** masy przepisu.
+
+Szacunek liczy `App\Domain\Recipes\Koszt\SzacunekKosztuZCen` — w PHP,
+deterministycznie, bez AI: przedział ±15% wokół sumy, tylko gdy składniki
+z ceną to ≥ 90% masy przepisu i każdy składnik z ilością da się przeliczyć
+na gramy. Tekst składnika nie jest zmieniany.
+
+**Rollback:** `DROP TABLE ceny_skladnikow` bez strażnika — nikt tu nic nie
+wpisał, a ponowne uruchomienie komendy odtwarza stan z pliku.
 
 ### recipe_slug_redirects
 Stary adres przepisu nadal działa po zmianie tytułu — link wysłany córce

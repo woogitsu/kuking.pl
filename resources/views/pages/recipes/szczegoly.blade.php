@@ -204,6 +204,15 @@
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
 
+            {{-- Koszt wg autora (D-286). `type="text"` z `inputmode="decimal"`,
+                 a nie `type="number"`: po polsku pisze się „24,50", a pole
+                 liczbowe w części przeglądarek odrzuca przecinek po cichu —
+                 wysyła pusty ciąg i kwota znika. Przecinek, spacje i dopisek
+                 „zł" normalizuje serwer (`KosztPrzepisu::normalizuj`). --}}
+            <x-field name="estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal"
+                     :value="$isEdit ? \App\Domain\Recipes\KosztPrzepisu::doPola($recipe->estimated_cost_pln) : null"
+                     help="Ile mniej więcej kosztują składniki na cały przepis. Wpisz samą liczbę złotych, na przykład 24 albo 24,50. Na stronie przepisu pokażemy to jako szacunek autora." />
+
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
                  ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
             <fieldset class="border-0 p-0 mt-6" id="f-difficulty"

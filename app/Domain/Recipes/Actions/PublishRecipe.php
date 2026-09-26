@@ -330,6 +330,14 @@ final class PublishRecipe
                 'source_scan_media_id' => $this->zdjecieDoPrzypiecia($attributes['source_scan_media_id'] ?? null, $doPrzypiecia),
             ];
 
+            // Koszt wg autora (D-286). Klucz BRAKUJĄCY w atrybutach to NIE
+            // „wyczyść": droga, która tego pola nie zna (ekran dodawania),
+            // nie może po cichu skasować kwoty wpisanej wcześniej
+            // w szczegółach. Jawne `null` czyści.
+            if (array_key_exists('estimated_cost_pln', $attributes)) {
+                $payload['estimated_cost_pln'] = $attributes['estimated_cost_pln'];
+            }
+
             if ($existing === null) {
                 $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;

@@ -104,6 +104,12 @@ final class KrokOPrzepisieKreatoraTest extends TestCase
             'servings.numeric' => ['servings', 'cztery', 'servings.numeric'],
             'servings.min' => ['servings', '0.4', 'servings.min'],
             'servings.max' => ['servings', '1000', 'servings.max'],
+            // Koszt wg autora (D-286): przecinek jest poprawny, więc
+            // „24,555" odpada wyłącznie na groszach.
+            'estimated_cost_pln.numeric' => ['estimated_cost_pln', 'dużo', 'estimated_cost_pln.numeric'],
+            'estimated_cost_pln.min' => ['estimated_cost_pln', '-1', 'estimated_cost_pln.min'],
+            'estimated_cost_pln.max' => ['estimated_cost_pln', '10000', 'estimated_cost_pln.max'],
+            'estimated_cost_pln.decimal' => ['estimated_cost_pln', '24,555', 'estimated_cost_pln.decimal'],
             'prep_minutes.integer' => ['prep_minutes', '1.5', 'prep_minutes.integer'],
             'prep_minutes.min' => ['prep_minutes', '-1', 'prep_minutes.min'],
             'prep_minutes.max' => ['prep_minutes', '10081', 'prep_minutes.max'],

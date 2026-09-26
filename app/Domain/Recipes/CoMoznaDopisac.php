@@ -39,6 +39,12 @@ final class CoMoznaDopisac
         'source_url',
         'family_since_year',
         'source_scan_media_id',
+        // ŚWIADOMIE BEZ `estimated_cost_pln` (D-286). Koszt jest dobrowolną
+        // deklaracją, nie brakującą częścią przepisu — gdyby tu stał,
+        // zaproszenie „Dopisz szczegóły" wisiałoby przy każdym przepisie
+        // autora, który kosztu podawać nie chce, i namawiało go do liczenia
+        // pieniędzy przy rodzinnym rosole. Pole jest w formularzu szczegółów
+        // i w kreatorze, więc da się do niego dojść bez tego zaproszenia.
     ];
 
     public static function jest(Recipe $recipe): bool

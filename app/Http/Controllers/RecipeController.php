@@ -9,6 +9,7 @@ use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Exceptions\BladDlaCzlowieka;
@@ -464,6 +465,11 @@ class RecipeController extends Controller
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
             'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
+            // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
+            // własnej kwoty; kwota autora zawsze wygrywa (D-286).
+            'szacunekKosztu' => $model->estimated_cost_pln === null
+                ? app(SzacunekKosztuZCen::class)->dla($model)
+                : null,
             // Wersja zbyt podobna do publicznego oryginału nie idzie do
             // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),

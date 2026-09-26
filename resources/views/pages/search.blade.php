@@ -69,6 +69,7 @@
             'przepisy' => 'Przepisy',
             'ludzie' => 'Ludzie',
             'szybkie' => 'Do 30 minut',
+            'tanie' => 'Do '.\App\Domain\Recipes\KosztPrzepisu::TANIE_DO.' zł',
         ] as $klucz => $etykieta)
             <a class="chip"
                href="{{ route('search', ['q' => $phrase, 'sekcja' => $klucz]) }}"
@@ -130,6 +131,12 @@
                 @if($section === 'szybkie')
                     Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w pół godziny.
                     Spróbuj zakresu „Przepisy” — może być trochę dłuższy.
+                @elseif($section === 'tanie')
+                    {{-- Koszt podaje autor i nie każdy go podaje (D-286) — to
+                         trzeba powiedzieć, inaczej „nic" brzmi jak „nie ma
+                         tanich przepisów". --}}
+                    Nie ma przepisu do „{{ $phrase }}” z kosztem do {{ \App\Domain\Recipes\KosztPrzepisu::TANIE_DO }} zł.
+                    Koszt podaje autor, a nie każdy go wpisuje — spróbuj zakresu „Przepisy”.
                 @elseif($section === 'ludzie')
                     Nie ma tu osoby o nazwie „{{ $phrase }}”.
                 @elseif($section === 'wszystko')

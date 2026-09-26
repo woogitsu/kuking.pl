@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Recipes;
 
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
 use App\Models\Recipe;
@@ -62,6 +63,29 @@ final class ZapisPrzepisuRequest extends FormRequest
     }
 
     /**
+     * „24,50" i „24 zł" to poprawny koszt po polsku — walidator `numeric`
+     * dostaje go już z kropką i bez dopisku (`KosztPrzepisu::normalizuj`).
+     *
+     * `validationData()`, a nie `prepareForValidation()` + `merge()`: żądanie
+     * zostaje takie, jak przyszło, więc po nieudanej walidacji `old()` oddaje
+     * w polu DOKŁADNIE to, co człowiek wpisał („24,555"), a nie naszą
+     * przeróbkę z kropką. Tylko wtedy, gdy pole PRZYSZŁO: ekran dodawania go
+     * nie ma, a brak pola znaczy „bez zmiany", nie „wyczyść" (D-286).
+     *
+     * @return array<string, mixed>
+     */
+    public function validationData(): array
+    {
+        $dane = parent::validationData();
+
+        if (array_key_exists('estimated_cost_pln', $dane)) {
+            $dane['estimated_cost_pln'] = KosztPrzepisu::normalizuj($dane['estimated_cost_pln']);
+        }
+
+        return $dane;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -88,6 +112,8 @@ final class ZapisPrzepisuRequest extends FormRequest
              * musi się z tym zgadzać, inaczej wraca ten sam błąd na nowo.
              */
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
+            // Szacunkowy koszt całego przepisu w złotych (D-286).
+            'estimated_cost_pln' => KosztPrzepisu::REGULY,
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
@@ -177,6 +203,7 @@ final class ZapisPrzepisuRequest extends FormRequest
             'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
             'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
             'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
+            ...KosztPrzepisu::KOMUNIKATY,
             'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
             'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
             'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
@@ -356,21 +383,29 @@ final class ZapisPrzepisuRequest extends FormRequest
             );
         }
 
+        $przepis = [
+            'title' => $data['title'],
+            'summary' => $data['summary'] ?? null,
+            'servings' => $data['servings'] ?? null,
+            'prep_minutes' => $data['prep_minutes'] ?? null,
+            'cook_minutes' => $data['cook_minutes'] ?? null,
+            'difficulty' => $data['difficulty'] ?? null,
+            'visibility' => $data['visibility'],
+            'source_type' => $data['source_type'] ?? null,
+            'source_person' => $data['source_person'] ?? null,
+            'source_note' => $data['source_note'] ?? null,
+            'source_url' => $data['source_url'] ?? null,
+            'family_since_year' => $data['family_since_year'] ?? null,
+        ];
+
+        // Koszt tylko wtedy, gdy formularz ma to pole (szczegóły tak, ekran
+        // dodawania nie). Brak klucza = `PublishRecipe` zostawia dawną kwotę.
+        if ($this->exists('estimated_cost_pln')) {
+            $przepis['estimated_cost_pln'] = KosztPrzepisu::naLiczbe($data['estimated_cost_pln'] ?? null);
+        }
+
         return [
-            'recipe' => [
-                'title' => $data['title'],
-                'summary' => $data['summary'] ?? null,
-                'servings' => $data['servings'] ?? null,
-                'prep_minutes' => $data['prep_minutes'] ?? null,
-                'cook_minutes' => $data['cook_minutes'] ?? null,
-                'difficulty' => $data['difficulty'] ?? null,
-                'visibility' => $data['visibility'],
-                'source_type' => $data['source_type'] ?? null,
-                'source_person' => $data['source_person'] ?? null,
-                'source_note' => $data['source_note'] ?? null,
-                'source_url' => $data['source_url'] ?? null,
-                'family_since_year' => $data['family_since_year'] ?? null,
-            ],
+            'recipe' => $przepis,
             'ingredients' => $ingredients,
             'steps' => $steps,
         ];
