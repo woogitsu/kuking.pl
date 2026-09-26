@@ -131,7 +131,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
   „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
 - skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
   przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
-- nutrition;
+- wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 

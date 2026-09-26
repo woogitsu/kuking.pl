@@ -144,6 +144,9 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
             'Commands/NadajRole.php' => [
                 '$this->error($exception->getMessage())' => 'DomainException z ChangeUserRole — własne zdanie po polsku',
             ],
+            'Commands/ImportujWartosciOdzywcze.php' => [
+                "\$this->error('Nie wczytano niczego: '.\$e->getMessage())" => 'BladDlaCzlowieka z importu tabeli — wyjątek z założenia niesie zdanie dla człowieka, bez danych użytkownika',
+            ],
             'Commands/RaportPrzejrzystosci.php' => [
                 '$this->error($e->getMessage())' => 'InvalidArgumentException z własnej dzien() — zdanie po polsku z datą, którą operator sam wpisał w --od/--do',
             ],

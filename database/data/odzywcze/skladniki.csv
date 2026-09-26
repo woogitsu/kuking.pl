@@ -1,0 +1,219 @@
+klucz,nazwa,aliasy,zrodlo,zrodlo_id,gestosc_g_ml,pomijalny,zrodlo_nazwa,kcal,bialko,tluszcz,weglowodany
+maka_pszenna,mąka pszenna,mąka|mąki|mąką|mąka pszenna|mąki pszennej|mąką pszenną|mąka tortowa|mąki tortowej|mąka krupczatka|mąki krupczatki|krupczatka|krupczatki|mąka chlebowa|mąki chlebowej|mąka pszenna chlebowa|mąki pszennej chlebowej|mąka poznańska|mąki poznańskiej|mąka luksusowa|mąki luksusowej,ciqual,9435,0.56,0,Farine de blé tendre ou froment T65,346,10,1,71.5
+maka_pszenna_razowa,mąka pszenna razowa,mąka razowa|mąki razowej|mąka pszenna razowa|mąki pszennej razowej|mąka pełnoziarnista|mąki pełnoziarnistej|mąka graham|mąki graham,ciqual,9415,0.52,0,Farine de blé tendre ou froment T150,342,11.4,1.52,64.9
+maka_zytnia,mąka żytnia,mąka żytnia|mąki żytniej|mąką żytnią|mąka żytnia razowa|mąki żytniej razowej,ciqual,9532,0.5,0,Farine de seigle T85,345,9.82,1.33,68.7
+maka_ziemniaczana,mąka ziemniaczana,mąka ziemniaczana|mąki ziemniaczanej|mąką ziemniaczaną|skrobia ziemniaczana|skrobi ziemniaczanej,ciqual,4090,0.65,0,Fécule de pomme de terre,348,0,0.2,86.3
+maka_kukurydziana,mąka kukurydziana,mąka kukurydziana|mąki kukurydzianej|kaszka kukurydziana|kaszki kukurydzianej,ciqual,9545,0.6,0,Farine de maïs,362,5.59,1.39,80.9
+skrobia_kukurydziana,skrobia kukurydziana,skrobia kukurydziana|skrobi kukurydzianej|maizena|maizeny,ciqual,9510,0.55,0,Amidon de maïs ou fécule de maïs,365,0.26,0.05,90.4
+maka_gryczana,mąka gryczana,mąka gryczana|mąki gryczanej,ciqual,9540,0.5,0,Farine de sarrasin,348,11.5,2.19,68.4
+cukier,cukier,cukier|cukru|cukrem|cukier biały|cukru białego|cukier kryształ|cukru kryształu|drobny cukier|drobnego cukru|cukier drobny,ciqual,31016,0.85,0,Sucre blanc,399,0,0,99.7
+cukier_trzcinowy,cukier trzcinowy,cukier trzcinowy|cukru trzcinowego|cukier brązowy|cukru brązowego,ciqual,31017,0.85,0,Sucre roux,393,0.12,0,98.1
+cukier_puder,cukier puder,cukier puder|cukru pudru|cukrem pudrem|cukier w pudrze,usda,169656,0.51,0,"Sugars, powdered",389,0,0,99.77
+cukier_waniliowy,cukier waniliowy,cukier waniliowy|cukru waniliowego|cukier wanilinowy|cukru wanilinowego,ciqual,31044,0.85,0,Sucre vanillé,397,0.1,0.33,98.6
+miod,miód,miód|miodu|miodem|miód pszczeli|miodu pszczelego,ciqual,31008,1.42,0,Miel,331,0.65,0,82.1
+proszek_do_pieczenia,proszek do pieczenia,proszek do pieczenia|proszku do pieczenia,ciqual,11046,0.9,0,Levure chimique ou poudre à lever,108,0.1,0,26.9
+soda,soda oczyszczona,soda oczyszczona|sody oczyszczonej|soda|sody,ciqual,11017,1.0,1,"Sel blanc alimentaire, non iodé, non fluoré (marin, ignigène ou gemme)",0,0,0,0
+drozdze,drożdże świeże,drożdże|drożdży|drożdże świeże|drożdży świeżych|świeżych drożdży,ciqual,11010,,0,Levure de boulanger fraîche,115,8.4,1.9,11.9
+drozdze_suszone,drożdże suszone,drożdże suszone|drożdży suszonych|drożdże instant|drożdży instant|suszonych drożdży,ciqual,11045,0.6,0,Levure de boulanger déshydratée,341,42.7,6.56,14.3
+kakao,kakao,kakao|kakao naturalne|ciemne kakao|kakao gorzkie,ciqual,18100,0.36,0,"Cacao, sans sucres ajoutés, poudre soluble",387,22.4,20.6,11.6
+czekolada_gorzka,czekolada gorzka,czekolada|czekolady|czekolada gorzka|czekolady gorzkiej|gorzka czekolada|gorzkiej czekolady|czekolada deserowa|czekolady deserowej,ciqual,31005,,0,"Chocolat noir 50 % de cacao environ, tablette",521,5.98,29.6,53
+zelatyna,żelatyna,żelatyna|żelatyny|żelatyną,ciqual,11007,0.7,0,"Gélatine, sèche",348,86.9,0.1,0
+sol,sól,sól|soli|solą|sól kuchenna|soli kuchennej|sól morska|soli morskiej|sól himalajska,ciqual,11017,1.2,1,"Sel blanc alimentaire, non iodé, non fluoré (marin, ignigène ou gemme)",0,0,0,0
+pieprz,pieprz,pieprz|pieprzu|pieprz czarny|pieprzu czarnego|czarny pieprz|czarnego pieprzu|pieprz mielony|pieprzu mielonego|pieprz ziołowy,ciqual,11015,0.5,1,"Poivre noir, poudre",331,13.3,7.5,39.9
+papryka_slodka_mielona,papryka słodka mielona,papryka słodka|papryki słodkiej|papryka mielona|papryki mielonej|papryka wędzona|papryki wędzonej|papryka ostra|papryki ostrej|słodka papryka|słodkiej papryki,ciqual,11049,0.45,1,"Paprika, poudre",318,14.1,12.9,18.8
+majeranek,majeranek,majeranek|majeranku|majerankiem,ciqual,11034,0.2,1,"Marjolaine, séchée",276,12.7,7.04,20.3
+oregano,oregano,oregano,ciqual,11035,0.2,1,"Origan, séché",265,9,4.28,26.4
+kminek,kminek,kminek|kminku|kmin rzymski|kminu rzymskiego|kumin,ciqual,11042,0.4,1,"Cumin, graine",427,17.8,22.3,33.7
+cynamon,cynamon,cynamon|cynamonu|cynamonem,ciqual,11025,0.5,1,"Cannelle, poudre",243,3.99,1.24,27.5
+galka_muszkatolowa,gałka muszkatołowa,gałka muszkatołowa|gałki muszkatołowej,ciqual,11048,0.5,1,Noix de muscade,506,5.84,36.3,27.4
+gozdziki,goździki,goździki|goździków|goździk,ciqual,11052,,1,Clou de girofle,335,5.97,13,31.6
+lisc_laurowy,liść laurowy,liść laurowy|liście laurowe|liści laurowych|liścia laurowego|listek laurowy|listki laurowe|liść bobkowy,ciqual,11053,,1,"Laurier, feuille",353,7.61,8.36,48.6
+ziele_angielskie,ziele angielskie,ziele angielskie|ziela angielskiego|ziarna ziela angielskiego|ziaren ziela angielskiego,usda,171315,,1,"Spices, allspice, ground",263,6.09,8.69,72.12
+imbir,imbir świeży,imbir|imbiru|imbir świeży|świeży imbir|świeżego imbiru,ciqual,11074,,0,"Gingembre, racine fraîche",33.3,1.1,1.1,3.4
+imbir_mielony,imbir mielony,imbir mielony|imbiru mielonego,ciqual,11006,0.5,1,"Gingembre, poudre",335,8.98,4.24,58.3
+chili,papryczka chili,chili|papryczka chili|papryczki chili|papryczka|papryczki,ciqual,20151,,0,"Piment, cru",37.4,1.87,0.44,5.75
+natka,natka pietruszki,natka|natki|natka pietruszki|natki pietruszki|natką pietruszki|pietruszka natka|zielona pietruszka|zielonej pietruszki,ciqual,11014,,1,"Persil, frais",42.5,2.97,0.63,4.1
+koperek,koperek,koperek|koperku|koperkiem|koper|kopru,ciqual,11093,,1,"Aneth, frais",48.2,3.93,1.1,3.9
+szczypiorek,szczypiorek,szczypiorek|szczypiorku|szczypiorkiem|szczypior|szczypioru,ciqual,11003,,1,"Ciboule ou ciboulette, fraîche",30.8,2.55,0.46,2.85
+koper_suszony,koper suszony,koper suszony|suszony koperek|koperek suszony,ciqual,11063,0.2,1,"Aneth, séché",315,20,4.36,42.2
+musztarda,musztarda,musztarda|musztardy|musztardą|musztarda sarepska|musztardy sarepskiej|musztarda dijon|musztardy dijon,ciqual,11013,1.05,0,Moutarde,151,6.92,11.2,4.33
+chrzan,chrzan,chrzan|chrzanu|chrzan tarty|chrzanu tartego,usda,173472,1.0,0,"Horseradish, prepared",48,1.18,0.69,11.29
+ocet,ocet,ocet|octu|octem|ocet spirytusowy|octu spirytusowego|ocet jabłkowy|octu jabłkowego|ocet winny|octu winnego,ciqual,11018,1.0,0,Vinaigre,22.5,0.04,0.1,0.95
+majonez,majonez,majonez|majonezu|majonezem,usda,171009,0.92,0,"Salad dressing, mayonnaise, regular",680,0.96,74.85,0.57
+ketchup,ketchup,ketchup|ketchupu,ciqual,11008,1.1,0,"Ketchup, préemballé",108,1.23,0.16,23.7
+koncentrat_pomidorowy,koncentrat pomidorowy,koncentrat pomidorowy|koncentratu pomidorowego|koncentrat|koncentratu|przecier pomidorowy|przecieru pomidorowego,ciqual,20068,1.1,0,"Tomate, concentré, appertisé",99.2,4.4,0.53,17.1
+passata,passata,passata|passaty|pomidory przecierane|pomidorów przecieranych|przecier z pomidorów|przecieru z pomidorów,ciqual,20260,1.05,0,"Tomate, coulis, appertisé (purée de tomates mi-réduite à 11%)",45.5,2.05,0.2,7.57
+pomidory_z_puszki,pomidory z puszki,pomidory z puszki|pomidorów z puszki|pomidory krojone|pomidorów krojonych|pomidory w puszce|pomidorów w puszce|pomidory pelati|pomidorów pelati,ciqual,20137,1.03,0,"Tomate, pelée, appertisée, au jus, non égouttée",21.8,0.79,0.25,3.15
+sos_sojowy,sos sojowy,sos sojowy|sosu sojowego,ciqual,11104,1.15,0,"Sauce soja, préemballée",39.9,7.25,0,1.72
+bulion,bulion,bulion|bulionu|rosół|rosołu|wywar|wywaru|bulion warzywny|bulionu warzywnego|bulion drobiowy|bulionu drobiowego|wywar warzywny|wywaru warzywnego,ciqual,25909,1.0,0,"Bouillon de viande et légumes type pot-au-feu, prêt à consommer",5.76,0.53,0.3,0.24
+kostka_rosolowa,kostka rosołowa,kostka rosołowa|kostki rosołowej|kostka bulionowa|kostki bulionowej,ciqual,11041,,0,"Bouillon de légumes, déshydraté",287,9.66,16,26
+woda,woda,woda|wody|wodą|woda przegotowana|wody przegotowanej|przegotowanej wody|woda mineralna|wody mineralnej|woda gazowana|wody gazowanej,ciqual,18066,1.0,1,Eau du robinet,0,0,0,0
+wino_biale,wino białe,wino białe|wina białego|białe wino|białego wina|białego wytrawnego wina,ciqual,5215,0.99,0,Vin blanc sec,55.3,0.25,0,0.17
+wino_czerwone,wino czerwone,wino czerwone|wina czerwonego|czerwone wino|czerwonego wina|wino|wina,ciqual,5214,0.99,0,Vin rouge,75.7,0.16,0,0
+piwo,piwo,piwo|piwa|piwem|piwo jasne|piwa jasnego,ciqual,5001,1.01,0,"Bière ""coeur de marché"" (4-5° alcool)",39,0.39,0,3.12
+maslo,masło,masło|masła|masłem|masło extra|masła extra|masło ekstra|masła ekstra|masło niesolone|masła niesolonego|masło klarowane|masła klarowanego,ciqual,16400,0.96,0,"Beurre à 80% MG minimum, doux",753,0.64,83,0.71
+margaryna,margaryna,margaryna|margaryny|margaryną|margaryna do pieczenia|margaryny do pieczenia|kasia|kasi,ciqual,16080,0.96,0,Matière grasse ou graisse végétale solide (type margarine) pour friture ou graisse à frire,898,0.25,99.8,0
+smalec,smalec,smalec|smalcu|smalcem,ciqual,16520,0.92,0,Saindoux,900,0,100,0
+olej,olej,olej|oleju|olejem|olej rzepakowy|oleju rzepakowego|olej roślinny|oleju roślinnego|olej do smażenia|oleju do smażenia,ciqual,17130,0.92,0,Huile de colza,900,0,100,0
+olej_slonecznikowy,olej słonecznikowy,olej słonecznikowy|oleju słonecznikowego,ciqual,17440,0.92,0,Huile de tournesol,900,0.25,100,0
+oliwa,oliwa z oliwek,oliwa|oliwy|oliwą|oliwa z oliwek|oliwy z oliwek|oliwa extra vergine|oliwy extra vergine,ciqual,17270,0.91,0,Huile d'olive vierge extra,899,0.25,99.9,0
+mleko,mleko,"mleko|mleka|mlekiem|mleko 2%|mleka 2%|mleko 3,2%|mleka 3,2%|mleko krowie|mleka krowiego|mleko pełne|mleka pełnego|mleko pełnotłuste|mleka pełnotłustego|mleko świeże|mleka świeżego",ciqual,19033,1.03,0,Lait demi-écrémé (aliment moyen),47.5,3.46,1.55,4.97
+mleko_skondensowane,mleko skondensowane niesłodzone,mleko skondensowane|mleka skondensowanego|mleko zagęszczone|mleka zagęszczonego,ciqual,19026,1.07,0,"Lait concentré sans sucres ajoutés, entier",119,6.44,5.9,9.91
+mleko_skondensowane_slodzone,mleko skondensowane słodzone,mleko skondensowane słodzone|mleka skondensowanego słodzonego|masa krówkowa|masy krówkowej,ciqual,19027,1.3,0,"Lait concentré sucré, entier",327,7.7,7.87,56.5
+maslanka,maślanka,maślanka|maślanki|maślanką,usda,170874,1.03,0,"Milk, buttermilk, fluid, cultured, lowfat",40,3.31,1.07,4.79
+kefir,kefir,kefir|kefiru|kefirem,ciqual,19865,1.03,0,Kéfir de lait,61.1,3.19,3.4,4.5
+kwasne_mleko,kwaśne mleko,kwaśne mleko|kwaśnego mleka|zsiadłe mleko|zsiadłego mleka,ciqual,19593,1.03,0,"Yaourt ou lait fermenté, nature",50.1,3.83,1.68,4.26
+jogurt,jogurt naturalny,jogurt|jogurtu|jogurtem|jogurt naturalny|jogurtu naturalnego|naturalny jogurt|naturalnego jogurtu,ciqual,19593,1.04,0,"Yaourt ou lait fermenté, nature",50.1,3.83,1.68,4.26
+jogurt_grecki,jogurt grecki,jogurt grecki|jogurtu greckiego|jogurt typu greckiego|jogurtu typu greckiego,ciqual,19860,1.05,0,Yaourt à la grecque nature,103,3.02,8.16,3.73
+smietana_18,śmietana 18%,śmietana|śmietany|śmietaną|śmietana 18%|śmietany 18%|kwaśna śmietana|kwaśnej śmietany|śmietana kwaśna|śmietany kwaśnej|śmietana 12%|śmietany 12%|gęsta śmietana|gęstej śmietany,ciqual,19431,1.0,0,"Crème 12 à 25% MG, légère, épaisse, rayon frais",162,2.65,14.4,4.55
+smietanka_30,śmietanka 30%,śmietanka|śmietanki|śmietanka 30%|śmietanki 30%|śmietanka 36%|śmietanki 36%|śmietana 30%|śmietany 30%|śmietana 36%|śmietany 36%|śmietanka kremówka|śmietanki kremówki|kremówka|kremówki,ciqual,19417,1.0,0,"Crème 30% MG, fluide, UHT",293,2.2,30,3.69
+twarog,twaróg,twaróg|twarogu|twarogiem|twaróg półtłusty|twarogu półtłustego|twaróg tłusty|twarogu tłustego|twaróg chudy|twarogu chudego|ser biały|sera białego|biały ser|białego sera|twaróg sernikowy|twarogu sernikowego|ser twarogowy|sera twarogowego,usda,172179,0.95,0,"Cheese, cottage, creamed, large or small curd",98,11.12,4.3,3.38
+serek_wiejski,serek wiejski,serek wiejski|serka wiejskiego|ser wiejski|sera wiejskiego,usda,172179,1.0,0,"Cheese, cottage, creamed, large or small curd",98,11.12,4.3,3.38
+serek_homogenizowany,serek homogenizowany,serek homogenizowany|serka homogenizowanego,ciqual,19664,1.05,0,"Fromage frais type petit suisse, nature, 4% MG environ",88,9.71,3.9,3.11
+mascarpone,mascarpone,mascarpone|serek mascarpone|serka mascarpone,ciqual,19584,1.0,0,Mascarpone,369,6,37,3.1
+ricotta,ricotta,ricotta|ricotty|serek ricotta|serka ricotta,usda,170851,1.0,0,"Cheese, ricotta, whole milk",150,7.54,10.18,7.27
+ser_zolty,ser żółty,ser żółty|sera żółtego|żółty ser|żółtego sera|ser gouda|sera gouda|gouda|ser edamski|sera edamskiego|ser salami|sera salami|ser tarty|sera tartego|tarty ser|tartego sera,ciqual,12736,,0,Gouda,369,24.7,30.2,0
+ser_ementaler,ser ementaler,ementaler|ementalera|ser ementaler|sera ementalera,ciqual,12115,,0,Emmental ou emmenthal,373,27.9,28.8,0
+parmezan,parmezan,parmezan|parmezanu|ser parmezan|sera parmezan,ciqual,12120,,0,Parmesan,411,31.1,31,1.14
+mozzarella,mozzarella,mozzarella|mozzarelli|ser mozzarella|sera mozzarella,ciqual,19590,,0,Mozzarella au lait de vache,227,16.5,17.7,0.7
+feta,ser feta,feta|fety|ser feta|sera feta|ser typu feta|sera typu feta|ser sałatkowy|sera sałatkowego,ciqual,12060,,0,"Fromage type feta, au lait de vache 100%",273,15.4,22.6,1.22
+jajko,jajko,jajko|jajka|jajek|jajkiem|jaja|jaj|jajo|jajami|jajkami|jajka kurze|jaj kurzych|jajko kurze,ciqual,22000,,0,Oeuf cru,140,12.8,9.83,0.06
+zoltko,żółtko,żółtko|żółtka|żółtek|żółtkami,ciqual,22002,,0,"Oeuf, jaune (jaune d'oeuf), cru",307,15.5,26.7,1.09
+bialko_jaja,białko jaja,białko|białka|białek|białkami|białka jaj|białko jaja,ciqual,22001,,0,"Oeuf, blanc (blanc d'oeuf), cru",48.1,10.9,0.17,0.73
+ziemniaki,ziemniaki,ziemniak|ziemniaki|ziemniaków|ziemniakami|kartofle|kartofli|kartofel|pyry|pyr|młode ziemniaki|młodych ziemniaków|ziemniaki młode,ciqual,4008,,0,"Pomme de terre, sans peau, crue",80,2.02,0.09,16.2
+ziemniaki_gotowane,ziemniaki gotowane,ugotowane ziemniaki|ugotowanych ziemniaków|ziemniaki gotowane|ziemniaków gotowanych|gotowane ziemniaki|gotowanych ziemniaków|ziemniaki ugotowane|ziemniaków ugotowanych,ciqual,4003,,0,"Pomme de terre, bouillie/cuite à l'eau",81,1.8,0.34,16.8
+cebula,cebula,cebula|cebuli|cebulę|cebule|cebul|cebulą|cebulka|cebulki|cebula biała|cebuli białej|cebula żółta|cebuli żółtej|cebula cukrowa|cebuli cukrowej,ciqual,20034,,0,"Oignon, cru",39,1.1,0.62,6.25
+cebula_czerwona,cebula czerwona,cebula czerwona|cebuli czerwonej|czerwona cebula|czerwonej cebuli|cebule czerwone|czerwone cebule,ciqual,20238,,0,"Oignon rouge, cru",35,1.31,0.4,5.63
+szalotka,szalotka,szalotka|szalotki|szalotek,ciqual,20034,,0,"Oignon, cru",39,1.1,0.62,6.25
+dymka,cebula dymka,dymka|dymki|cebula dymka|cebuli dymki|cebulka dymka|cebulki dymki,ciqual,11003,,0,"Ciboule ou ciboulette, fraîche",30.8,2.55,0.46,2.85
+czosnek,czosnek,czosnek|czosnku|czosnkiem|ząbek czosnku|ząbki czosnku|ząbków czosnku|główka czosnku|główki czosnku|czosnek świeży,ciqual,11000,,0,"Ail, cru",109,5.31,0,18.6
+czosnek_granulowany,czosnek granulowany,czosnek granulowany|czosnku granulowanego|czosnek suszony|czosnku suszonego|czosnek w proszku,usda,171325,0.5,1,"Spices, garlic powder",331,16.55,0.73,72.73
+marchew,marchew,marchew|marchewka|marchewki|marchwi|marchewek|marchewkę|marchwie|marchewką,ciqual,20009,,0,"Carotte, crue",30.2,0.78,0,5.16
+pietruszka,pietruszka korzeń,pietruszka|pietruszki|korzeń pietruszki|korzenie pietruszki|korzenia pietruszki|pietruszka korzeń,ciqual,20181,,0,"Panais, cru",67.9,1.2,0.3,12.6
+seler,seler,seler|selera|selerem|seler korzeniowy|selera korzeniowego|korzeń selera|kawałek selera,ciqual,20055,,0,"Céleri-rave, cru",26.3,1.38,0,3.98
+seler_naciowy,seler naciowy,seler naciowy|selera naciowego|łodyga selera|łodygi selera|łodyg selera,ciqual,20023,,0,"Céleri branche, cru",15.4,0.63,0,2.41
+por,por,por|pora|porem|pory|porów,ciqual,20039,,0,"Poireau, cru",30.4,1.5,0.3,4.55
+kapusta,kapusta biała,kapusta|kapusty|kapustę|kapustą|kapusta biała|kapusty białej|biała kapusta|białej kapusty|kapusta młoda|kapusty młodej|młoda kapusta|młodej kapusty|kapusta włoska|kapusty włoskiej,ciqual,20116,,0,"Chou blanc, cru",35.2,1.38,0.6,4.63
+kapusta_czerwona,kapusta czerwona,kapusta czerwona|kapusty czerwonej|czerwona kapusta|czerwonej kapusty|modra kapusta|modrej kapusty,ciqual,20014,,0,"Chou rouge, cru",26.4,1.13,0,4.33
+kapusta_kiszona,kapusta kiszona,kapusta kiszona|kapusty kiszonej|kiszona kapusta|kiszonej kapusty|kiszonej kapusty z beczki,usda,169279,,0,"Sauerkraut, canned, solids and liquids",19,0.91,0.14,4.28
+kapusta_pekinska,kapusta pekińska,kapusta pekińska|kapusty pekińskiej,ciqual,20167,,0,"Chou chinois pé-tsaï, cru",16.4,1.25,0.2,2.1
+kalafior,kalafior,kalafior|kalafiora|kalafiorem|różyczki kalafiora|różyczek kalafiora,ciqual,20016,,0,"Chou-fleur, cru",24.9,1.81,0.7,2.13
+brokul,brokuł,brokuł|brokuły|brokułu|brokułów|brokułem|różyczki brokuła|różyczek brokuła,ciqual,20057,,0,"Brocoli, cru",31.9,2.9,0.36,2.15
+brukselka,brukselka,brukselka|brukselki|brukselką,ciqual,20058,,0,"Chou de Bruxelles, cru",43.9,3.38,0.3,4.59
+burak,burak,burak|buraki|buraka|buraków|burakami|buraczki|buraczków|buraki czerwone|buraków czerwonych,ciqual,20091,,0,"Betterave rouge, crue",40.2,1.61,0.17,6.34
+burak_gotowany,burak gotowany,buraki gotowane|buraków gotowanych|ugotowane buraki|ugotowanych buraków|pieczone buraki|pieczonych buraków,ciqual,20003,,0,"Betterave rouge, cuite",41.5,1.44,0.4,7.13
+ogorek,ogórek,ogórek|ogórka|ogórki|ogórków|ogórkiem|ogórek świeży|ogórka świeżego|świeży ogórek|świeżego ogórka|ogórek zielony|ogórka zielonego|ogórek gruntowy|ogórki gruntowe|ogórków gruntowych|ogórek szklarniowy,ciqual,20019,,0,"Concombre, chair et peau, cru",16.8,0.65,0.11,2.87
+ogorek_kiszony,ogórek kiszony,ogórek kiszony|ogórka kiszonego|ogórki kiszone|ogórków kiszonych|kiszony ogórek|kiszonego ogórka|kiszone ogórki|kiszonych ogórków|ogórek kwaszony|ogórki kwaszone|ogórków kwaszonych|kwaśne ogórki|kwaśnych ogórków|ogórki małosolne|ogórków małosolnych,usda,169379,,0,"Pickles, cucumber, sour",11,0.33,0.2,2.26
+ogorek_konserwowy,ogórek konserwowy,ogórek konserwowy|ogórka konserwowego|ogórki konserwowe|ogórków konserwowych|korniszon|korniszony|korniszonów,ciqual,11097,,0,"Cornichon, aigre-doux",36,1.25,0.35,5
+pomidor,pomidor,pomidor|pomidora|pomidory|pomidorów|pomidorem|pomidorami|pomidor malinowy|pomidory malinowe|pomidorów malinowych|pomidory koktajlowe|pomidorów koktajlowych,ciqual,20276,,0,"Tomate ronde, crue",17.5,0.5,0,3.42
+cukinia,cukinia,cukinia|cukinii|cukinie|cukinię|cukinią,ciqual,20020,,0,"Courgette, chair et peau, crue",16.7,1.21,0.32,1.75
+dynia,dynia,dynia|dyni|dynię|dynią|dynia hokkaido|dyni hokkaido|dynia piżmowa|dyni piżmowej,ciqual,20044,,0,"Potiron, cru",20.1,1.05,0.1,3.5
+papryka,papryka,papryka czerwona|papryki czerwonej|czerwona papryka|czerwonej papryki|papryka żółta|papryki żółtej|papryka zielona|papryki zielonej|papryka|papryki|papryk|paprykę|papryka świeża|papryki świeżej,ciqual,20041,,0,"Poivron, vert, jaune ou rouge, cru",22.6,0.8,0.27,3.5
+baklazan,bakłażan,bakłażan|bakłażana|bakłażany|bakłażanów|oberżyna|oberżyny,ciqual,20053,,0,"Aubergine, crue",22.9,0.98,0.18,2.7
+fasolka_szparagowa,fasolka szparagowa,fasolka szparagowa|fasolki szparagowej|fasolka|fasolki|fasola szparagowa|fasoli szparagowej,ciqual,20061,,0,"Haricot vert, cru",31.9,1.83,0.22,4.14
+groszek,groszek zielony,groszek|groszku|groszek zielony|groszku zielonego|zielony groszek|zielonego groszku|groszek mrożony|groszku mrożonego,ciqual,20084,,0,"Petits pois, surgelés, crus",77.9,5.86,0.4,9.5
+groszek_konserwowy,groszek konserwowy,groszek konserwowy|groszku konserwowego|groszek z puszki|groszku z puszki,ciqual,20036,,0,"Petits pois, appertisés, égouttés",92.5,4.87,0.8,13.7
+kukurydza,kukurydza konserwowa,kukurydza|kukurydzy|kukurydza konserwowa|kukurydzy konserwowej|kukurydza z puszki|kukurydzy z puszki,ciqual,20066,,0,"Maïs doux, appertisé, égoutté",105,2.66,1.68,18.3
+szpinak,szpinak,szpinak|szpinaku|szpinakiem|szpinak świeży|szpinak mrożony|szpinaku mrożonego|liście szpinaku|liści szpinaku,ciqual,20059,,0,"Épinard, cru",33.3,2.68,0.39,3.06
+salata,sałata,sałata|sałaty|sałatę|sałata masłowa|sałaty masłowej|sałata lodowa|sałaty lodowej|sałata rzymska|sałaty rzymskiej|liście sałaty|liści sałaty,ciqual,20031,,0,"Laitue, crue",14.7,1.35,0.2,1.22
+rzodkiewka,rzodkiewka,rzodkiewka|rzodkiewki|rzodkiewek|rzodkiewkami,ciqual,20045,,0,"Radis rouge, cru",11,0.94,0,1.53
+pieczarki,pieczarki,pieczarka|pieczarki|pieczarek|pieczarkami,ciqual,20056,,0,"Champignon de Paris ou champignon de couche, cru",21,2.11,0.36,1.83
+grzyby,grzyby leśne,grzyby|grzybów|grzybami|grzyby leśne|grzybów leśnych|borowiki|borowików|prawdziwki|prawdziwków|podgrzybki|podgrzybków|grzyby świeże|grzybów świeżych,ciqual,20160,,0,"Champignon, cèpe, cru",28.8,3.23,0.49,2
+kurki,kurki,kurki|kurek,ciqual,20103,,0,"Champignon, chanterelle ou girolle, crue",24.7,1.49,0.53,1.77
+boczniaki,boczniaki,boczniak|boczniaki|boczniaków,ciqual,20114,,0,"Champignon, pleurote, crue",26.8,3.31,0.41,1.5
+grzyby_suszone,grzyby suszone,grzyby suszone|grzybów suszonych|suszone grzyby|suszonych grzybów|suszone prawdziwki|suszonych prawdziwków,ciqual,20211,,0,"Champignon, lentin comestible ou shiitaké, séché",316,9.58,0.99,63.9
+koper_wloski,koper włoski,koper włoski|kopru włoskiego|fenkuł|fenkułu,ciqual,20028,,0,"Fenouil, cru",18.2,1,0,2.63
+kalarepa,kalarepa,kalarepa|kalarepy,ciqual,20065,,0,"Chou-rave, cru",25.1,1.7,0.1,2.44
+jarmuz,jarmuż,jarmuż|jarmużu,ciqual,20218,,0,"Chou frisé, cru",49.5,4.28,0.93,4.2
+jablko,jabłko,jabłko|jabłka|jabłek|jabłkiem|jabłkami|jabłko kwaśne|kwaśne jabłko|kwaśnego jabłka|kwaśnych jabłek|kwaśne jabłka|szara reneta|szarej renety|antonówka|antonówki|antonówek,ciqual,13039,,0,"Pomme, chair et peau, crue",54,0.25,0.25,11.6
+gruszka,gruszka,gruszka|gruszki|gruszek|gruszkami,ciqual,13037,,0,"Poire, chair et peau, crue",56.6,0.36,0.27,12.3
+sliwki,śliwki,śliwka|śliwki|śliwek|śliwkami|węgierki|węgierek|śliwki węgierki|śliwek węgierek|połówki śliwek|połówek śliwek,ciqual,13583,,0,"Prune violette, sans noyau, crue",46.4,0.8,0.1,9.6
+sliwki_suszone,śliwki suszone,śliwki suszone|śliwek suszonych|suszone śliwki|suszonych śliwek|suszona śliwka,ciqual,13042,,0,"Pruneau, sans noyau, sec",229,1.63,0.4,55.4
+wisnie,wiśnie,wiśnie|wiśni|wiśnia|czereśnie|czereśni|czereśnia,ciqual,13008,,0,"Ceriser, chair et peau, sans noyau, crue",53.7,0.81,0,13
+truskawki,truskawki,truskawka|truskawki|truskawek|truskawkami,ciqual,13014,,0,"Fraise, crue",35.1,0.63,0,6.03
+maliny,maliny,malina|maliny|malin|malinami,ciqual,13015,,0,"Framboise, crue",47.9,1.19,0.8,5.83
+borowki,borówki,borówki|borówek|jagody|jagód|borówka amerykańska|borówki amerykańskie|borówek amerykańskich,ciqual,13028,,0,"Myrtille, crue",57.7,0.87,0.33,10.6
+porzeczki,porzeczki czerwone,porzeczki|porzeczek|porzeczki czerwone|porzeczek czerwonych|czerwone porzeczki|czerwonych porzeczek,ciqual,13019,,0,"Groseille, crue",67.2,1.56,0.7,7.06
+porzeczki_czarne,porzeczki czarne,porzeczki czarne|porzeczek czarnych|czarne porzeczki|czarnych porzeczek,ciqual,13007,,0,"Cassis, cru",70.2,1.4,0.41,9.68
+agrest,agrest,agrest|agrestu,ciqual,13020,,0,"Groseille à maquereau, crue",39.4,0.88,0.58,4.45
+jezyny,jeżyny,jeżyny|jeżyn,ciqual,13029,,0,"Mûre (de ronce), crue",46,1.13,0.7,6.53
+rabarbar,rabarbar,rabarbar|rabarbaru|łodygi rabarbaru|łodyg rabarbaru,ciqual,13047,,0,"Rhubarbe, tige, crue",18.1,0.73,0.16,1.12
+morele,morele,morela|morele|moreli,ciqual,13000,,0,"Abricot, dénoyauté, cru",44.1,0.81,0,9.01
+pigwa,pigwa,pigwa|pigwy|pigwowiec|pigwowca,ciqual,13010,,0,"Coing, cru",59,0.4,0.1,12.5
+cytryna,cytryna,cytryna|cytryny|cytrynę|cytryn,ciqual,13009,,0,"Citron, chair sans peau, sans pépins, cru",24.3,0.25,0,1.56
+sok_z_cytryny,sok z cytryny,sok z cytryny|soku z cytryny|sok cytrynowy|soku cytrynowego|sok z połówki cytryny|sok z 1 cytryny,ciqual,2007,1.03,0,"Jus de citron, fait maison",28.6,0.35,0.24,2.52
+skorka_cytryny,skórka z cytryny,skórka z cytryny|skórki z cytryny|otarta skórka z cytryny|otartej skórki z cytryny|skórka cytrynowa|skórki cytrynowej,usda,167749,,1,"Lemon peel, raw",47,1.5,0.3,16
+pomarancza,pomarańcza,pomarańcza|pomarańczy|pomarańcze|pomarańcz,ciqual,13034,,0,"Orange, chair sans peau, sans pépins, crue",42,0.75,0,8.03
+sok_pomaranczowy,sok pomarańczowy,sok pomarańczowy|soku pomarańczowego|sok z pomarańczy|soku z pomarańczy,ciqual,2070,1.04,0,"Jus d'orange, pur jus",45.4,0.61,0.11,9.61
+banan,banan,banan|banana|banany|bananów,ciqual,13005,,0,"Banane, chair sans peau, crue",87.6,1.06,0,19.7
+rodzynki,rodzynki,rodzynki|rodzynek|rodzynkami,ciqual,13046,0.65,0,Raisin sec,322,3,0.9,73.2
+powidla,powidła,powidła|powideł|powidła śliwkowe|powideł śliwkowych,ciqual,31053,1.3,0,"Confiture de prune, par ex. mirabelle, quetsche, reine-claude (extra ou classique)",240,0.28,0.09,58.9
+dzem,dżem,dżem|dżemu|konfitura|konfitury|dżem truskawkowy|dżemu truskawkowego|dżem wiśniowy|dżemu wiśniowego|marmolada|marmolady,ciqual,30887,1.3,0,"Confiture, autres fruits ou mélange de fruits, allégée en sucres (extra ou classique)",162,0.75,0.21,38
+mus_jablkowy,mus jabłkowy,mus jabłkowy|musu jabłkowego|prażone jabłka|prażonych jabłek,ciqual,13187,1.05,0,"Purée de pommes, type ""compote sans sucres ajoutés"", rayon ambiant",56.4,1.13,0.28,11.6
+sok_jablkowy,sok jabłkowy,sok jabłkowy|soku jabłkowego,ciqual,2074,1.04,0,"Jus de pomme, pur jus",48.9,0.17,0.14,11.4
+orzechy_wloskie,orzechy włoskie,orzechy|orzechów|orzechy włoskie|orzechów włoskich|orzech włoski|włoskie orzechy|włoskich orzechów,ciqual,15005,0.45,0,"Noix, cerneau, séchée",709,13.3,67.3,6.88
+orzechy_laskowe,orzechy laskowe,orzechy laskowe|orzechów laskowych|laskowe orzechy|laskowych orzechów,ciqual,15004,0.55,0,"Noisette, sans sel ajouté",632,14.4,56.9,7.16
+migdaly,migdały,migdały|migdałów|płatki migdałów|płatków migdałów|płatki migdałowe|płatków migdałowych|mielone migdały|mielonych migdałów,ciqual,15041,0.45,0,"Amande, émondée, sans sel ajouté",631,21.4,52.5,8.76
+mak,mak,mak|maku|mak niebieski|maku niebieskiego|mielony mak|mielonego maku,ciqual,11061,0.55,0,"Pavot, graine",534,21.2,41.6,13.7
+slonecznik,słonecznik,słonecznik|słonecznika|pestki słonecznika|pestek słonecznika|ziarna słonecznika|ziaren słonecznika,ciqual,15011,0.55,0,"Tournesol, graine",653,21.3,55.5,10.1
+sezam,sezam,sezam|sezamu|ziarna sezamu|ziaren sezamu,ciqual,15010,0.6,0,"Sésame, graine",606,17.7,49.7,12.8
+siemie_lniane,siemię lniane,siemię lniane|siemienia lnianego|len|lnu,ciqual,15034,0.6,0,"Lin, graine",528,19,40.3,6.49
+wiorki_kokosowe,wiórki kokosowe,wiórki kokosowe|wiórków kokosowych|wiórki|wiórków,ciqual,15007,0.35,0,"Noix de coco, chair, sèche",692,6.83,66.8,7.81
+ryz,ryż,ryż|ryżu|ryżem|ryż biały|ryżu białego|biały ryż|białego ryżu|ryż długoziarnisty|ryżu długoziarnistego|ryż basmati|ryżu basmati|ryż jaśminowy|ryżu jaśminowego|ryż okrągłoziarnisty|ryżu okrągłoziarnistego|ryż arborio|ryżu arborio,ciqual,9100,0.8,0,"Riz blanc, cru",350,7.02,0.79,77.5
+kasza_gryczana,kasza gryczana,kasza gryczana|kaszy gryczanej|kaszą gryczaną|gryka|gryki|kasza gryczana prażona|kaszy gryczanej prażonej,usda,170685,0.7,0,"Buckwheat groats, roasted, dry",346,11.73,2.71,74.95
+kasza_jeczmienna,kasza jęczmienna,kasza jęczmienna|kaszy jęczmiennej|pęczak|pęczaku|kasza perłowa|kaszy perłowej|kasza pęczak|kaszy pęczak|kasza mazurska|kaszy mazurskiej,ciqual,9321,0.8,0,"Orge perlée, crue",346,9.91,1.16,68.6
+kasza_jaglana,kasza jaglana,kasza jaglana|kaszy jaglanej|jagła|jagły|proso|prosa,usda,169702,0.8,0,"Millet, raw",378,11.02,4.22,72.85
+kasza_manna,kasza manna,kasza manna|kaszy manny|kaszy mannej|kaszka manna|kaszki manny|grysik|grysiku,ciqual,9610,0.7,0,"Semoule de blé dur, crue",350,11.8,1.28,69.8
+platki_owsiane,płatki owsiane,płatki owsiane|płatków owsianych|owsianka|płatki owsiane górskie|płatków owsianych górskich|płatki górskie|płatków górskich,ciqual,32140,0.35,0,Flocons d'avoine,369,10.6,7.82,57.7
+makaron,makaron,makaron|makaronu|makaronem|makaron spaghetti|makaronu spaghetti|spaghetti|penne|świderki|świderków|kokardki|kokardek|łazanki|łazanek|makaron rurki|makaronu rurki|makaron łazanki|makaronu łazanki,ciqual,9810,,0,"Pâtes sèches, standard, crues",364,12,1.6,72.7
+makaron_jajeczny,makaron jajeczny,makaron jajeczny|makaronu jajecznego|nitki|nitek|makaron nitki|makaronu nitki|lane kluski|makaron domowy|makaronu domowego,ciqual,9821,,0,"Pâtes sèches, aux oeufs, crues",381,14,4.72,68
+chleb,chleb,chleb|chleba|chlebem|chleb pszenny|chleba pszennego|chleb wiejski|chleba wiejskiego|chleb czerstwy|czerstwy chleb|czerstwego chleba|chleb pszenno-żytni|chleba pszenno-żytniego|kromka chleba|kromki chleba|kromek chleba,ciqual,7100,,0,Pain de campagne,253,7.52,1.3,50
+chleb_zytni,chleb żytni,chleb żytni|chleba żytniego|chleb razowy|chleba razowego|żytni chleb|żytniego chleba|razowy chleb|razowego chleba|chleb ciemny|chleba ciemnego|ciemny chleb|ciemnego chleba|ciemniejszy chleb,usda,172684,,0,"Bread, rye",259,8.5,3.3,48.3
+bulka,bułka,bułka|bułki|bułek|bułką|bułka pszenna|bułki pszennej|kajzerka|kajzerki|czerstwa bułka|czerstwej bułki|bułka czerstwa|bułki czerstwej|bagietka|bagietki,ciqual,7001,,0,"Pain blanc (par ex. : baguette, boule…)",287,8.27,1.4,58.3
+bulka_tarta,bułka tarta,bułka tarta|bułki tartej|bułką tartą|tarta bułka|tartej bułki,ciqual,7500,0.45,0,Chapelure,365,9.41,1.6,74.3
+chalka,chałka,chałka|chałki|drożdżówka|drożdżówki,ciqual,7225,,0,"Pain brioché ou viennois, artisanal",338,8.89,11.2,48.6
+biszkopty,biszkopty,biszkopty|biszkoptów|podłużne biszkopty|podłużnych biszkoptów,ciqual,24430,,0,Biscuit sec aux oeufs à la cuillère (cuiller) ou boudoir,366,7.75,3.4,74.5
+fasola_sucha,fasola biała sucha,fasola|fasoli|fasola biała|fasoli białej|biała fasola|białej fasoli|fasola sucha|fasoli suchej|sucha fasola|suchej fasoli|fasola jaś|fasoli jaś|jaś|fasola piękny jaś|fasoli piękny jaś,ciqual,20501,0.8,0,"Haricot blanc, sec",307,23.4,0.85,43.9
+fasola_czerwona_puszka,fasola czerwona z puszki,fasola czerwona|fasoli czerwonej|czerwona fasola|czerwonej fasoli|fasola z puszki|fasoli z puszki|fasola konserwowa|fasoli konserwowej,ciqual,20524,,0,"Haricot rouge, appertisé, égoutté",108,8.31,0.97,13
+groch,groch łuskany,groch|grochu|grochem|groch łuskany|grochu łuskanego|groch połówki|grochu połówki|żółty groch|żółtego grochu,ciqual,20515,0.8,0,"Pois cassé, sec",347,23.8,1.16,47.5
+soczewica,soczewica,soczewica|soczewicy|soczewicą|soczewica czerwona|soczewicy czerwonej|czerwona soczewica|czerwonej soczewicy|soczewica zielona|soczewicy zielonej,ciqual,20585,0.8,0,"Lentille verte, sèche",327,25.1,1.8,44.5
+ciecierzyca,ciecierzyca z puszki,ciecierzyca|ciecierzycy|cieciorka|cieciorki|ciecierzyca z puszki|ciecierzycy z puszki,ciqual,20532,,0,"Pois chiche, appertisé, égoutté",122,6.74,2.68,15
+ciecierzyca_sucha,ciecierzyca sucha,ciecierzyca sucha|ciecierzycy suchej|sucha ciecierzyca|suchej ciecierzycy,ciqual,20516,0.8,0,"Pois chiche, sec",350,20.5,6.04,47.5
+kurczak,kurczak (mięso ze skórą),kurczak|kurczaka|kurczakiem|kura|kury|kurę|kurczak zagrodowy|kurczaka zagrodowego|kura rosołowa|kury rosołowej|kawałki kurczaka|kawałków kurczaka|mięso z kurczaka|mięsa z kurczaka|porcja rosołowa|porcji rosołowej|porcje rosołowe,ciqual,36016,,0,"Poulet, viande et peau crues",173,21.5,9.54,0.3
+piers_kurczaka,pierś z kurczaka,pierś z kurczaka|piersi z kurczaka|piersią z kurczaka|filet z kurczaka|filety z kurczaka|filetu z kurczaka|filetów z kurczaka|pierś kurczaka|piersi kurczaka|filet z piersi kurczaka|filety z piersi kurczaka,ciqual,36017,,0,"Poulet, filet sans peau cru",110,23.4,1.5,0
+udko_kurczaka,udko z kurczaka,udko|udka|udek|udko z kurczaka|udka z kurczaka|udek z kurczaka|podudzie|podudzia|podudzi|ćwiartka z kurczaka|ćwiartki z kurczaka|udziec z kurczaka|udźce z kurczaka,ciqual,36002,,0,"Poulet, cuisse, viande et peau crue",192,17.3,13.5,0
+indyk,pierś z indyka,indyk|indyka|pierś z indyka|piersi z indyka|filet z indyka|filetu z indyka|mięso z indyka|mięsa z indyka,ciqual,36304,,0,"Dinde, escalope crue",108,23.7,1.48,0
+watrobka,wątróbka drobiowa,wątróbka|wątróbki|wątróbek|wątróbka drobiowa|wątróbki drobiowej|wątróbek drobiowych|wątróbka z kurczaka|wątróbki z kurczaka,ciqual,40111,,0,"Foie, poulet, cru",114,16.9,4.83,0.73
+zoladki,żołądki drobiowe,żołądki|żołądków|żołądki drobiowe|żołądków drobiowych|żołądki z kurczaka,ciqual,40700,,0,"Gésier, poulet, cru",99.1,16.8,3.53,0
+kaczka,kaczka,kaczka|kaczki|kaczkę|udko z kaczki|udka z kaczki|pierś z kaczki|piersi z kaczki,ciqual,36200,,0,"Canard, viande et peau rôties/cuites au four",331,19,28.4,0
+schab,schab,schab|schabu|schabem|schab bez kości|schabu bez kości|kotlet schabowy|kotlety schabowe|kotletów schabowych,ciqual,28100,,0,"Porc, côte crue",164,19.8,9.3,0.38
+karkowka,karkówka,karkówka|karkówki|karkówkę|karczek|karczku|karczek wieprzowy|karczku wieprzowego,ciqual,28302,,0,"Porc, échine crue",238,17.1,18.8,0.1
+lopatka,łopatka wieprzowa,łopatka|łopatki|łopatka wieprzowa|łopatki wieprzowej|mięso wieprzowe|mięsa wieprzowego|wieprzowina|wieprzowiny,ciqual,28001,,0,"Porc, épaule crue",178,18.9,11.2,0.38
+poledwiczka,polędwiczka wieprzowa,polędwiczka|polędwiczki|polędwiczka wieprzowa|polędwiczki wieprzowej|polędwiczki wieprzowe,ciqual,28204,,0,"Porc, filet mignon cru",123,21.2,4.09,0.4
+mieso_mielone,mięso mielone wieprzowe,mięso mielone|mięsa mielonego|mielone|mielonego|mięso mielone wieprzowe|mięsa mielonego wieprzowego|mielone wieprzowe|mielonego wieprzowego|mięso mielone wieprzowo-wołowe|mięsa mielonego wieprzowo-wołowego|mielone mieszane|mielonego mieszanego,usda,167902,,0,"Pork, fresh, ground, raw",263,16.88,21.19,0
+mieso_mielone_wolowe,mięso mielone wołowe,mięso mielone wołowe|mięsa mielonego wołowego|mielona wołowina|mielonej wołowiny|wołowina mielona|wołowiny mielonej,ciqual,6254,,0,"Boeuf, steak haché 15% MG cru",215,20.2,14.8,0.47
+wolowina,wołowina,wołowina|wołowiny|wołowinę|mięso wołowe|mięsa wołowego|wołowina gulaszowa|wołowiny gulaszowej|plastry wołowiny|plastrów wołowiny|zrazowa|zrazowej|wołowina zrazowa|wołowiny zrazowej|udziec wołowy|udźca wołowego|mostek wołowy|mostka wołowego|szponder|szpondra|pręga wołowa|pręgi wołowej|łata wołowa|łaty wołowej,ciqual,6231,,0,"Boeuf, à bourguignon ou pot-au-feu, cru",164,24,7.5,0
+cielecina,cielęcina,cielęcina|cielęciny|cielęcinę|mięso cielęce|mięsa cielęcego,ciqual,6521,,0,"Veau, escalope crue",114,20.5,3.28,0.58
+krolik,królik,królik|królika|mięso z królika|mięsa z królika,ciqual,34001,,0,"Lapin, viande crue",188,20.4,11.6,0.58
+jagniecina,jagnięcina,jagnięcina|jagnięciny|baranina|baraniny,ciqual,21502,,0,"Agneau, gigot cru",128,20,5.13,0.48
+boczek,boczek wędzony,boczek|boczku|boczkiem|boczek wędzony|boczku wędzonego|wędzony boczek|wędzonego boczku|słonina|słoniny|skwarki|skwarek|bekon|bekonu,ciqual,28502,,0,"Poitrine de porc en salaison, fumée, crue",303,15.6,26.1,0.79
+boczek_surowy,boczek surowy,boczek surowy|boczku surowego|surowy boczek|surowego boczku|boczek świeży|boczku świeżego|żeberka|żeberek|żeberka wieprzowe|żeberek wieprzowych,ciqual,28002,,0,"Porc, poitrine crue",253,17,20.5,0
+kielbasa,kiełbasa,kiełbasa|kiełbasy|kiełbasę|kiełbasą|kiełbasa wędzona|kiełbasy wędzonej|kiełbasa zwyczajna|kiełbasy zwyczajnej|kiełbasa podwawelska|kiełbasy podwawelskiej|kiełbasa śląska|kiełbasy śląskiej|kiełbasa krakowska|kiełbasy krakowskiej|kiełbasa biała|kiełbasy białej|biała kiełbasa|białej kiełbasy|kiełbaska|kiełbaski|kabanosy|kabanosów,usda,172954,,0,"Sausage, Polish, pork and beef, smoked",301,12.07,26.56,1.98
+parowki,parówki,parówka|parówki|parówek|serdelki|serdelków,ciqual,30050,,0,Chair à saucisse crue,323,14.7,29.1,0.6
+szynka,szynka,szynka|szynki|szynką|szynka gotowana|szynki gotowanej|szynka wędzona|szynki wędzonej|szynka konserwowa|szynki konserwowej|plasterki szynki|plasterków szynki,ciqual,28900,,0,"Jambon cuit, supérieur",113,21,2.83,0.76
+kaszanka,kaszanka,kaszanka|kaszanki|kaszankę,ciqual,8703,,0,"Boudin noir, à cuire",297,12.2,27.1,0.29
+sledz,śledź,śledź|śledzia|śledzie|śledzi|filety śledziowe|filetów śledziowych|filet śledziowy|matiasy|matiasów|śledzie solone|śledzi solonych|śledzie a'la matjas,ciqual,26011,,0,"Hareng, cru",176,17.7,11.7,0
+sledz_marynowany,śledź marynowany,śledź marynowany|śledzie marynowane|śledzi marynowanych|rolmopsy|rolmopsów,ciqual,26010,,0,"Hareng mariné ou rollmops, préemballé",189,13.7,13.8,1.95
+dorsz,dorsz,dorsz|dorsza|dorszem|filet z dorsza|filety z dorsza|filetu z dorsza|filetów z dorsza,ciqual,26043,,0,"Cabillaud, cru",77.4,18.1,0.57,0
+mintaj,mintaj,mintaj|mintaja|filet z mintaja|filety z mintaja|filetu z mintaja|filetów z mintaja|morszczuk|morszczuka|ryba biała|ryby białej|filet rybny|filety rybne|filetu rybnego|ryba|ryby|rybę|kawałki ryby|kawałków ryby,ciqual,26006,,0,"Lieu ou colin d'Alaska, cru",72.6,16.3,0.61,0.51
+losos,łosoś,łosoś|łososia|łososiem|filet z łososia|filety z łososia|filetu z łososia|filetów z łososia,ciqual,26036,,0,"Saumon, élevage, cru",193,20.5,12.4,0
+losos_wedzony,łosoś wędzony,łosoś wędzony|łososia wędzonego|wędzony łosoś|wędzonego łososia,ciqual,25993,,0,"Saumon fumé, à l'aneth et au citron",201,21.2,12.8,0.37
+makrela,makrela,makrela|makreli|makrelę|makrela wędzona|makreli wędzonej|wędzona makrela|wędzonej makreli,ciqual,26051,,0,"Maquereau, cru",198,18.1,13.5,0.93
+karp,karp,karp|karpia|karpiem|dzwonka karpia|dzwonek karpia|filet z karpia,ciqual,27003,,0,"Carpe,  élevage, crue",114,17.7,4.76,0
+pstrag,pstrąg,pstrąg|pstrąga|pstrągi|pstrągów,ciqual,27009,,0,"Truite arc en ciel, élevage, crue",132,19,6.24,0
+tunczyk,tuńczyk z puszki,tuńczyk|tuńczyka|tuńczyk w sosie własnym|tuńczyka w sosie własnym|tuńczyk z puszki|tuńczyka z puszki,ciqual,26039,,0,"Thon, au naturel, appertisé, égoutté",143,26.8,3.94,0
+sardynki,sardynki w oleju,sardynki|sardynek|sardynki w oleju|sardynek w oleju|szproty|szprotów|szprotki|szprotek,ciqual,26034,,0,"Sardine, à l'huile, appertisée, égouttée",217,23.3,13.7,0.31
+krewetki,krewetki,krewetki|krewetek|krewetkami,ciqual,10007,,0,"Crevette, cuite",91.3,20.5,0.79,0.2
+oliwki,oliwki,oliwki|oliwek|oliwki zielone|oliwek zielonych|oliwki czarne|oliwek czarnych|czarne oliwki|czarnych oliwek|zielone oliwki|zielonych oliwek,ciqual,13186,,0,Olive noire (aliment moyen),182,1.41,18,0.26
+kapary,kapary,kapary|kaparów,usda,172238,,1,"Capers, canned",23,2.36,0.86,4.89
+gnocchi,gnocchi,gnocchi,ciqual,26264,,0,"Gnocchi à la pomme de terre, à cuire",176,4.66,1.42,35

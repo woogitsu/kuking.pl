@@ -1136,6 +1136,13 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
+    # ma zapalić test przepisu z 85% pokrycia.
+    ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
+     lambda s: replace_once(s, "public const PROG_POKRYCIA = 0.9;", "public const PROG_POKRYCIA = 0.8;")),
+    # D-299: licencja CIQUAL (Etalab) wymaga wskazania źródła i wersji.
+    ("Źródła wartości odżywczych bez identyfikatora wersji CIQUAL", "database/data/odzywcze/ZRODLA.md", "WartosciOdzywczeImportTest",
+     lambda s: replace_once(s, "DOI **10.57745/RDMHWY**", "DOI (brak)")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
     # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie

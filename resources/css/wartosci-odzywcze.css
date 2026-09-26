@@ -1,0 +1,60 @@
+/* Szacunkowe wartości odżywcze pod listą składników (V2, D-299).
+   Osobny arkusz, żeby nie ruszać sekcji przepisu w app.css. Tekst nie
+   schodzi poniżej 18 px (AGENTS.md §5), przycisk ma 48 px z klasy .btn. */
+@layer components {
+  .wartosci-odzywcze {
+    margin-top: var(--spacing-6);
+    padding-top: var(--spacing-5);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .wartosci-odzywcze h3 {
+    margin: 0 0 var(--spacing-3);
+  }
+
+  .wartosci-odzywcze p {
+    margin: var(--spacing-2) 0;
+    font-size: var(--text-body);
+  }
+
+  .wartosci-odzywcze-lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--spacing-3);
+    margin: 0 0 var(--spacing-3);
+  }
+
+  .wartosci-odzywcze-lista > div {
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .wartosci-odzywcze-lista dt {
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  .wartosci-odzywcze-lista dd {
+    margin: 0;
+    font-size: var(--text-body-lg);
+    font-weight: 700;
+  }
+
+  .wartosci-odzywcze-jak {
+    margin-top: var(--spacing-3);
+  }
+
+  .wartosci-odzywcze-jak summary {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: var(--text-body);
+    text-decoration: underline;
+  }
+
+  .wartosci-odzywcze-przelacznik {
+    margin-top: var(--spacing-4);
+  }
+}

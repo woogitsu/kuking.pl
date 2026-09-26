@@ -789,6 +789,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',
             route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+        // „Ukryj wartości odżywcze” (D-299) — ustawienie widoku WŁASNEGO
+        // przepisu; moderator też nie przełącza go za autora.
+        $dodaj('recipes.wartosci-odzywcze', 'ukrycie wartości odżywczych przepisu', 'patch',
+            route('recipes.wartosci-odzywcze', $przepis), ['pokazuj' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
         // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje
