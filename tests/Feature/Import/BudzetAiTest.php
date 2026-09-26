@@ -103,13 +103,13 @@ final class BudzetAiTest extends TestCase
 
     public function test_prog_ostrzegawczy_zostawia_jeden_wpis_dziennie(): void
     {
-        Log::spy();
+        $log = Log::spy();
 
         $this->budzet->zarezerwuj(3_000_000);
         $this->budzet->zarezerwuj(1_100_000); // 4,1 z 5 USD — ponad 80%
         $this->budzet->zarezerwuj(100_000);
 
-        Log::shouldHaveReceived('warning')
+        $log->shouldHaveReceived('warning')
             ->withArgs(fn (string $m, array $k = []): bool => ($k['stage'] ?? null) === 'import_budzet_prog')
             ->once();
     }

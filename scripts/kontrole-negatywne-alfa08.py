@@ -876,7 +876,7 @@ checks = [
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
     # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
     ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv };", "...czyszczenieCdnEnv };")),
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...importEnv };", "...czyszczenieCdnEnv, ...importEnv };")),
     ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
      lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
     ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,

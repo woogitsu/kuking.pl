@@ -17682,7 +17682,13 @@ projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
   `app/Domain/Import/**` nie odwołuje się do `PublishRecipe` z `publish: true`
   (test architektoniczny). Bramkę „Sprawdziłem / `[?`” trzyma
   `BramkaPublikacjiOdczytu` wołana z `PublishRecipe`, więc obejmuje kreator
-  i formularz bez JavaScriptu.
+  i formularz bez JavaScriptu. **`PublishRecipe` (moduł `Recipes`) nie
+  importuje `Import` wprost** — woła kontrakt `App\Domain\Recipes\
+  BramkaPublikacjiSzkicu`, którego implementację (`BramkaPublikacjiOdczytu`)
+  wiąże `AppServiceProvider` (wzorem `ObserwowanieGospodarza`, issue #971).
+  Bezpośredni import zamykał cykl `Import → Recipes → Import`, bo `Import`
+  i tak zależy od `Recipes` przez `PublishRecipe` (`ZlecImportPrzepisu`,
+  `OdczytajPrzepis`) — pilnuje tego `GrafModulowDomenyBezCykliTest`.
 - **Klient `App\Domain\Import\KlientLuna`** — Responses API
   (`POST https://api.openai.com/v1/responses`), host i ścieżka w kodzie
   (`#^/v1/responses$#`, D-250), `store: false`, bez narzędzi, wyjście

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
-use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
@@ -90,6 +90,7 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly BramkaPublikacjiSzkicu $bramkaPublikacji,
     ) {}
 
     /**
@@ -194,7 +195,7 @@ final class PublishRecipe
             // PIERWSZEJ publikacji szkicu: raz sprawdzony i opublikowany
             // przepis edytuje się dalej zwyczajnie.
             if ($existing !== null && $existing->status === Recipe::STATUS_DRAFT) {
-                BramkaPublikacjiOdczytu::sprawdz($existing, $attributes, $title, $cleanIngredients, $cleanSteps);
+                $this->bramkaPublikacji->sprawdz($existing, $attributes, $title, $cleanIngredients, $cleanSteps);
             }
         }
 

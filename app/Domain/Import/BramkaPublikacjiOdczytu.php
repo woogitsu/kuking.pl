@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Import;
 
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Models\ImportPrzepisu;
 use App\Models\Recipe;
 use Illuminate\Validation\ValidationException;
@@ -25,12 +26,23 @@ use Illuminate\Validation\ValidationException;
  * źródłem `zdjecie` i stanem `gotowy`). Zwykły przepis z nawiasem
  * kwadratowym w tekście publikuje się jak dotąd.
  */
-final class BramkaPublikacjiOdczytu
+final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
 {
     public const ZNACZNIK = '[?';
 
     public const KOMUNIKAT_SPRAWDZENIE = 'Zaznacz „Odczytany tekst jest sprawdzony ze zdjęciem”, zanim opublikujesz. '
         .'Porównaj każdą linijkę ze zdjęciem kartki — tekst odczytał komputer i mógł się pomylić.';
+
+    /**
+     * Implementacja kontraktu `App\Domain\Recipes\BramkaPublikacjiSzkicu`
+     * (wołana z `PublishRecipe` przez `AppServiceProvider`, issue #971) —
+     * cienka nakładka na `sprawdz()`, żeby ta metoda statyczna zostawała
+     * jedynym miejscem z regułą, jak dotąd.
+     */
+    public function sprawdz(Recipe $przepis, array $atrybuty, string $tytul, array $skladniki, array $kroki): void
+    {
+        self::sprawdzStatycznie($przepis, $atrybuty, $tytul, $skladniki, $kroki);
+    }
 
     public static function maOdczyt(Recipe $przepis): bool
     {
@@ -48,7 +60,7 @@ final class BramkaPublikacjiOdczytu
      *
      * @throws ValidationException
      */
-    public static function sprawdz(Recipe $przepis, array $atrybuty, string $tytul, array $skladniki, array $kroki): void
+    public static function sprawdzStatycznie(Recipe $przepis, array $atrybuty, string $tytul, array $skladniki, array $kroki): void
     {
         if (! self::maOdczyt($przepis)) {
             return;
