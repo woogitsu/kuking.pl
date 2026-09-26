@@ -703,6 +703,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             URL::signedRoute('podsumowanie.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('podsumowanie.wracam', 'powrót do podsumowania (podpisany link)', 'get',
             URL::signedRoute('podsumowanie.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        // Wypisanie z listu z życzeniami urodzinowymi (#1755) — ta sama zasada:
+        // podpis jest jedyną autoryzacją, wiersz „bez podpisu" niżej.
+        $dodaj('urodziny.wypisz', 'wypisanie z listu urodzinowego (podpisany link)', 'get',
+            URL::signedRoute('urodziny.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        $dodaj('urodziny.wracam', 'powrót do listu urodzinowego (podpisany link)', 'post',
+            URL::signedRoute('urodziny.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('settings.email.confirm', 'potwierdzenie zmiany adresu', 'get',
             URL::signedRoute('settings.email.confirm', ['zmiana' => $this->zmianaAdresu->getKey()]), [],
             [$W, $C, $C, $C, $O]);
@@ -753,6 +759,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
+        // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje
+        // (właściciel — odmowa), zablokowany i gość nie wchodzą, obca osoba
+        // i moderator dostają swój szkic. Prywatnego nie kopiuje nikt, bo
+        // nikt poza autorem go nie widzi (`fork` idzie przez `view`).
+        $dodaj('recipes.fork', 'moja wersja publicznego przepisu', 'post',
+            route('recipes.fork', $przepis), [], [$O, $W, $O, $W, $O]);
+        $dodaj('recipes.fork', 'moja wersja prywatnego przepisu', 'post',
+            route('recipes.fork', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('cooking.show', 'tryb gotowania z prywatnego przepisu', 'get',
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
@@ -823,6 +837,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.update', $zeszyt),
             ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
             [$W, $O, $O, $O, $O]);
+        // Wyjęcie niedostępnych zapisów (#773) — kasuje powiązania, więc tylko
+        // właściciel. Zeszyt nie ma niedostępnych pozycji: właściciel dostaje
+        // przekierowanie z „niczego nie wyjęliśmy", reszta — odmowę.
+        $dodaj('collections.unavailable.destroy', 'wyjęcie niedostępnych zapisów', 'delete',
+            route('collections.unavailable.destroy', $zeszyt), ['zakres' => 'dowolny'], [$W, $O, $O, $O, $O]);
         // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
@@ -858,6 +877,28 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'opis' => 'wypisanie z podsumowania BEZ podpisu',
             'metoda' => 'get',
             'url' => route('podsumowanie.wypisz', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'urodziny.wracam',
+            'opis' => 'powrót do listu urodzinowego BEZ podpisu',
+            'metoda' => 'post',
+            'url' => route('urodziny.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'urodziny.wypisz',
+            'opis' => 'wypisanie z listu urodzinowego BEZ podpisu',
+            'metoda' => 'get',
+            'url' => route('urodziny.wypisz', $wlasciciel),
             'dane' => [],
             'oczekiwania' => array_combine(
                 ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],

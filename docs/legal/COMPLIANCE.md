@@ -68,6 +68,42 @@ To nie jest „algorytmiczny feed” w znaczeniu, którego AGENTS.md zakazuje (p
 
 **Rekomendacja produktowa niezależna od obowiązku prawnego:** opisać w regulaminie krótko, jak dobieramy wpisy w „Świeżo z Kuking” i „kuKINGi na dziś” (jeden wpis na autora, bez liczenia popularności) — tym samym podejściem „stosować się tak, jakby obowiązywało”, którym wyżej potraktowano art. 25, niezależnie od tego, czy art. 27 formalnie wiąże.
 
+### 1.2b Parametry, które dziś rządzą tymi powierzchniami — i gdzie użytkownik je widzi
+
+To jest tabela „głównych parametrów” w rozumieniu art. 27 ust. 2 — pisana tak,
+jakby obowiązek wiązał (patrz rekomendacja wyżej), mimo że formalnie nie wiąże.
+Reguła nadrzędna, z której wynika każdy wiersz, to **zamknięta lista dozwolonych
+reguł doboru** (`AGENTS.md` §8, **D-275**, #1806): żadna z tych powierzchni nie
+szereguje ani nie przycina wpisów według reakcji innych osób (obserwujący,
+„Ugotowałem”, reakcje, zapisy, komentarze, odsłony) ani według przewidywania
+gustu widza z jego zachowania. To odróżnia definicję DSA (szeroką — patrz
+§1.2a) od profilowania w rozumieniu RODO (art. 4 pkt 4): Kuking ma dziś
+powierzchnie mieszczące się w pierwszej definicji, ale żadnej mieszczącej się
+w drugiej.
+
+| Powierzchnia | Jedyny dozwolony parametr | Gdzie widać wybór/wyjaśnienie | Stan na `main` |
+|---|---|---|---|
+| Start (Obserwowani) | czas (`published_at DESC`) + obserwowane osoby i tagi (**D-277**, #1808); bramki widoczności i blokady | Sama kolejność to jedyne „wyjaśnienie” — nic tu nie jest ukrywane poza bramkami | Wdrożone |
+| „Świeżo z Kuking” (`App\Domain\Feed\DiscoverFeed`) | równość autorów: rotacja — najpierw po jednym wpisie od każdej osoby, potem po drugim (**D-276**, #1807); nigdy popularność | Dziś: brak zdania w interfejsie i w `resources/legal/*` (luka opisana w `docs/research/PREFERENCJE_TRESCI.md` §1.3) — zamyka ją strona „Jak dobieramy wpisy” | **W toku**: issue #1811, decyzja **D-305**, PR #1879 (jeszcze niescalony) |
+| Automatyczna część „kuKINGi na dziś” (`App\Domain\Feed\DailyBoard`) | wybór gospodarza (`daily_picks`, kolejność gospodarza) + uzupełnienie po czasie | W interfejsie oznaczone wprost jako wybór gospodarza (AGENTS.md §8) | Wdrożone (oznaczenie); strona wyjaśniająca — jak wyżej, w PR #1879 |
+| Wyszukiwarka (`App\Domain\Search\SearchQuery`) | podobieństwo do **frazy, którą widz sam wpisał** (`pg_trgm`/`word_similarity`, próg 0,5) — nie do jego historii ani profilu | Wynik jest bezpośrednią odpowiedzią na to, co ktoś wpisał — nie wymaga osobnego wyjaśnienia w tym samym sensie co powierzchnie „podsuwane” | Wdrożone |
+| „Mój stół” | obserwowane tagi + jeden tag polecany przez gospodarza + wybór gospodarza na dziś, po jednym wpisie na osobę, bez ukrytych/zablokowanych; przy każdej pozycji podpis „Pokazujemy, bo…” i przycisk „Nie pokazuj mi tego” (opt-out per pozycja, nie profil) | Podpis przy pozycji + strona pomocy (`MojStol::DLACZEGO`) | **Nie na `main`** — decyzja **D-304** (#1749), gałąź `claude/1749-moj-stol`, jeszcze niescalona w chwili pisania tego rozdziału (26 września 2026) |
+| „Ukryj ten wpis” / „Ukryj tę osobę” (jawne polecenie widza z listy D-275) | wyłącznie polecenie samego widza, 30 dni, z listą do cofnięcia | Ustawienia → „Ukryte” | **Nie na `main`** — decyzja **D-278** (#1810), niescalona w chwili pisania tego rozdziału |
+
+**Opcja „bez profilowania” — czym jest u nas naprawdę.** Art. 38 DSA daje
+takie prawo tylko odbiorcom bardzo dużych platform (VLOP), więc formalnie
+nas nie dotyczy — ale pytanie ma sens niezależnie od obowiązku, bo ktoś może
+chcieć wiedzieć, czy istnieje wariant Kuking bez dopasowania do zachowania.
+**Odpowiedź: to nie jest osobny wariant do włączenia — to jest jedyny tryb,
+w jakim serwis działa.** D-275 zabrania profilowania na zachowaniu **na
+całym serwisie**, nie tylko na jednej powierzchni z przełącznikiem. Praktyczna
+rada dla kogoś, kto chce widzieć jak najmniej „podsuwania” w ogóle:
+korzystać ze Startu (Obserwowani) i pomijać „Świeżo z Kuking”, tablicę dnia
+i (docelowo) „Mój stół” — żadna z tych trzech nie zniknie funkcjonalnie inaczej
+niż nieodwiedzaniem jej, bo Kuking nie ma feedu głównego innego niż
+chronologiczny. To zdanie samo nie jest jeszcze nigdzie w interfejsie ani
+w dokumencie dla użytkownika — patrz luka opisana wyżej, zamykana przez #1811.
+
 ### 1.3 Co to oznacza praktycznie — minimalny zestaw DSA dla Kuking na start
 
 1. Formularz zgłaszania treści spełniający Art. 16 (nie tylko ikonka flagi — patrz `MODERATION.md`, już to zakłada) **wraz z odpowiedzią dla zgłaszającego: potwierdzeniem przyjęcia (ust. 4) i informacją o decyzji z pouczeniem o dostępnych środkach (ust. 5)**. To są osobne obowiązki od samego formularza i obowiązują obie drogi zgłoszenia — z kontem i bez (issue #10, `docs/MODERATION.md`, „Co dostaje ZGŁASZAJĄCY”).
@@ -350,7 +386,7 @@ Pilnuje tego `DokumentyPrawneNieKlamiaTest::test_kazdy_wiersz_listy_gotowosci_ma
 | P0 | OpenAI: treść wpisu i pomniejszone zdjęcie wychodzą poza EOG — granica opisana w polityce i egzekwowana w kodzie | `app/Moderacja/KlientOpenAI.php`, polityka §„Przekazywanie poza EOG"; `PolitykaPrywatnosciWymieniaKazdaUslugeTest` | **Tak — podstawa przekazania** |
 | P0 | Logowanie kontem Google i Facebookiem: zakres danych zgodny z polityką | `PolitykaPrywatnosciWymieniaKazdaUslugeTest`; `/health` na produkcji potwierdza, że obie drogi są włączone | **Tak — rola Meta jako osobnego administratora** |
 | P0 | `SESSION_SECURE_COOKIE` ustawione na produkcji | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` w repozytorium stoi `.env.example:47 SESSION_SECURE_COOKIE=false` (wartość lokalna). Wartości produkcyjnej nie widać z kodu — odczytać w panelu Railway | Nie |
-| P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny | Nie |
+| P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny. Od 25.09.2026 wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela w `docs/DECISIONS.md`) — zadania z 9.09.2026 znikną same około 10.10.2026, więc przyczynę trzeba zrozumieć przed tą datą | Nie |
 | P1 | Baner cookies — niepotrzebny, dopóki statystyka jest bezciasteczkowa (D-092); wrócić do tematu przy zmianie dostawcy albo dołożeniu identyfikatorów | `AnalitykaBezCiasteczekTest` — gdy padnie, ten wiersz staje się P0 | **Tak, przy zmianie dostawcy** |
 | P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` oba szablony i ścieżka decyzyjna stoją w `SZABLONY_NARUSZENIE_DANYCH.md`. Zostały dwie rzeczy, których dokument nie może rozstrzygnąć za właściciela: **kto stwierdza naruszenie i kto go zastępuje**, oraz **droga złożenia zgłoszenia do UODO sprawdzona ZANIM będzie potrzebna** | Zalecane |
 | P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` retencja danych w aplikacji jest egzekwowana dziesięcioma komendami (§7.3), ale kopie zapasowe rządzą się osobnym cyklem — #193, #594 | Nie |

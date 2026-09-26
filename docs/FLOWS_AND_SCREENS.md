@@ -172,6 +172,7 @@ App:
 - `/ustawienia/zdjecie` — zdjęcie profilowe (osobny, krótki ekran; skróty prowadzą tu z własnego profilu)
 - `/ustawienia/czytelnosc`
 - `/ustawienia/prywatnosc`
+- `/ustawienia/urodziny` — dzień i miesiąc urodzin, bez roku; „Usuń datę” (#1755)
 - `/ustawienia/twoje-dane`
 
 Admin:
