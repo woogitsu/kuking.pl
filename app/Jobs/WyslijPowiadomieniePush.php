@@ -13,11 +13,13 @@ use App\Models\Notification;
 use App\Models\PushSubscription;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Wysyła JEDEN push z tym, co czeka na odbiorcę (issue #35, D-303).
@@ -295,7 +297,10 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
 
         Notification::query()
             ->whereKey($id)
-            ->update(['push_proba_at' => $teraz]);
+            ->update([
+                'push_proba_at' => $teraz,
+                'push_grupa_id' => (string) Str::uuid(),
+            ]);
 
         /** @var list<string> $id */
         return ['id_powiadomien' => array_map(strval(...), $id), 'tresc' => TrescPush::zbuduj($oczekujace)];
@@ -312,30 +317,32 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
     {
         $poczatek = Termin::poczatekDoby($teraz);
 
+        $wlicz = static function (Builder $query) use ($poczatek, $teraz): void {
+            $query->where('push_proba_at', '>=', $poczatek)
+                ->orWhere('push_wyslano_at', '>=', $poczatek)
+                ->orWhere('push_zakonczono_at', '>=', $poczatek)
+                ->orWhere(function (Builder $aktywne) use ($teraz): void {
+                    $aktywne->whereNull('push_wyslano_at')
+                        ->whereNull('push_zakonczono_at')
+                        ->where('push_proba_at', '>=', $teraz->subHours(48));
+                });
+        };
+
         $nowe = (int) Notification::query()
             ->where('user_id', $user->getKey())
-            ->whereNotNull('push_proba_at')
-            ->where(function ($query) use ($poczatek, $teraz): void {
-                $query->where('push_proba_at', '>=', $poczatek)
-                    ->orWhere('push_wyslano_at', '>=', $poczatek)
-                    ->orWhere('push_zakonczono_at', '>=', $poczatek)
-                    ->orWhere(function ($aktywne) use ($teraz): void {
-                        $aktywne->whereNull('push_wyslano_at')
-                            ->whereNull('push_zakonczono_at')
-                            ->where('push_proba_at', '>=', $teraz->subHours(48));
-                    });
-            })
+            ->whereNotNull('push_grupa_id')
+            ->where($wlicz)
             ->distinct()
-            ->count('push_proba_at');
+            ->count('push_grupa_id');
 
-        // Historyczne potwierdzenia sprzed rozdzielenia próby i sukcesu
-        // nie mają `push_proba_at`; ich też nie wolno zgubić z rachunku.
+        // Stare wiersze nie mają UUID grupy. Liczymy je każdy osobno:
+        // to może odłożyć push za długo, ale dwa niezależne transporty
+        // z tym samym znacznikiem czasu nie obniżą rachunku limitu.
         $stare = (int) Notification::query()
             ->where('user_id', $user->getKey())
-            ->whereNull('push_proba_at')
-            ->where('push_wyslano_at', '>=', $poczatek)
-            ->distinct()
-            ->count('push_wyslano_at');
+            ->whereNull('push_grupa_id')
+            ->where($wlicz)
+            ->count();
 
         return $nowe + $stare;
     }

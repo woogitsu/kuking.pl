@@ -202,9 +202,9 @@ final class PowiadomieniaPushTest extends TestCase
         $this->assertCount(1, $this->transport->wyslane, 'Pierwszy push w dobie wychodzi od razu.');
 
         $this->travelTo(CarbonImmutable::parse('2026-09-25 11:00:00', 'UTC'));
-        $this->powiadomienie($autor, 'Drugie');
+        $drugie = $this->powiadomienie($autor, 'Drugie');
         $this->travelTo(CarbonImmutable::parse('2026-09-25 11:05:00', 'UTC'));
-        $this->powiadomienie($autor, 'Trzecie');
+        $trzecie = $this->powiadomienie($autor, 'Trzecie');
 
         Queue::fake();
         $this->uruchomZadanie($autor);
@@ -220,6 +220,8 @@ final class PowiadomieniaPushTest extends TestCase
             $this->transport->wyslane[1]['tresc']['body'],
         );
         $this->assertSame(0, $autor->notifications()->whereNull('push_wyslano_at')->count());
+        $this->assertNotNull($drugie->refresh()->push_grupa_id);
+        $this->assertSame($drugie->push_grupa_id, $trzecie->refresh()->push_grupa_id);
     }
 
     /**
@@ -281,6 +283,35 @@ final class PowiadomieniaPushTest extends TestCase
 
         $this->assertSame([], $this->transport->wyslane);
         $this->assertNull($drugie->refresh()->push_proba_at);
+        Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
+    }
+
+    public function test_dwie_osobne_grupy_z_tym_samym_czasem_zuzywaja_dwa_sloty(): void
+    {
+        config(['kuking.notifications.zewnetrzne.dzienny_limit' => 2]);
+        $autor = $this->user('autor_ten_sam_czas');
+        $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/ten-sam-czas');
+
+        // Zegar jest zamrożony przez setUp; sam timestamp nie identyfikuje grupy.
+        $pierwsze = $this->powiadomienie($autor, 'Pierwsze');
+        $this->uruchomZadanie($autor);
+        $drugie = $this->powiadomienie($autor, 'Drugie');
+        $this->uruchomZadanie($autor);
+
+        $this->assertSame(
+            $pierwsze->refresh()->push_proba_at?->toISOString(),
+            $drugie->refresh()->push_proba_at?->toISOString(),
+        );
+        $this->assertNotNull($pierwsze->push_grupa_id);
+        $this->assertNotSame($pierwsze->push_grupa_id, $drugie->push_grupa_id);
+        $this->assertCount(2, $this->transport->wyslane, 'Kontrola: obie osobne grupy naprawdę wyszły.');
+
+        $trzecie = $this->powiadomienie($autor, 'Trzecie');
+        Queue::fake();
+        $this->uruchomZadanie($autor);
+
+        $this->assertCount(2, $this->transport->wyslane, 'Trzecia grupa przekroczyła limit 2.');
+        $this->assertNull($trzecie->refresh()->push_proba_at);
         Queue::assertPushed(WyslijPowiadomieniePush::class, 1);
     }
 

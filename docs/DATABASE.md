@@ -2647,6 +2647,14 @@ ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
 porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
 push_wyslano_at IS NULL`), ale nie odwrotnie.
 
+**`push_grupa_id uuid NULL`** (#1992, migracja
+`2026_09_26_200000_zakoncz_rezerwacje_push`) — jeden UUID dla wszystkich
+powiadomień objętych tą samą rezerwacją. Dwie osobne grupy mogą mieć
+identyczny `push_proba_at` (np. przy zamrożonym zegarze), więc limit liczy
+różne UUID, a nie różne znaczniki czasu. Historyczne wiersze bez UUID liczą
+się każdy osobno: może to ostrożnie odłożyć wysyłkę, ale nie przepuścić
+nadmiaru. Nullable bez defaultu, bez przepisywania tabeli.
+
 **`push_zakonczono_at timestamptz NULL`** (#1992, migracja
 `2026_09_26_200000_zakoncz_rezerwacje_push`) — koniec wszystkich prób
 transportu bez pełnego sukcesu. Dopóki pole jest puste, `push_proba_at`
@@ -2659,8 +2667,8 @@ Zachowujemy ostrożny rachunek także przy częściowym dostarczeniu na jedno
 z urządzeń: zakończona grupa zajmuje slot w dobie zakończenia nawet wtedy,
 gdy pełne `push_wyslano_at` nadal jest puste. Kolumna jest nullable bez
 defaultu, więc dodanie nie przepisuje tabeli. Rollback odmawia, gdy są
-zakończone rezerwacje: ich znacznik jest potrzebny do rozróżnienia od
-aktywnych prób. Wtedy wycofujemy kod i osobno rozstrzygamy dane.
+grupy albo zakończone rezerwacje: oba znaczniki są potrzebne do
+prawidłowego rachunku. Wtedy wycofujemy kod i osobno rozstrzygamy dane.
 
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
