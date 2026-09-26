@@ -145,6 +145,6 @@ final class WeryfikacjaEmailWymagaPostTest extends TestCase
         // Sam widok formularza nie wysyła żadnej dodatkowej wiadomości.
         Notification::fake();
         $this->actingAs($user)->get(route('verification.notice'))->assertOk();
-        Notification::assertNothingSentTo($user, PotwierdzenieAdresu::class);
+        Notification::assertNotSentTo($user, PotwierdzenieAdresu::class);
     }
 }

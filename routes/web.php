@@ -604,7 +604,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // i prefetch klienta pocztowego albo skaner linków w bezpiecznej bramce
     // — potwierdzał adres e-mail zamiast człowieka (issue #1862).
     Route::match(['get', 'post'], '/potwierdz-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-        ->middleware('signed')
+        ->middleware(['signed', "throttle:{$limits['verification_verify']},verification_verify"])
         ->name('verification.verify');
     // Liczba przeniesiona do config/kuking.php (klucz `verification_resend`),
     // wartość bez zmian — AGENTS.md §7 mówi, że limity mieszkają w konfiguracji,
