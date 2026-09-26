@@ -17420,8 +17420,11 @@ bez wpisu w rejestrze (alias `rotacja.runda` nie pasuje do słów reakcji).
 starsze wpisy o rundę dalej i jeden wróciłby na następnej stronie. Dlatego
 dalsze strony liczą rundy z wpisów do chwili pierwszej strony — parametr
 `stan` (unix, sekundy) w odnośniku „Pokaż więcej”. Wartość z adresu to tylko
-pozycja w czasie: przyszłość, śmieci i wartości starsze niż doba wracają do
-„teraz”; bramki widoczności liczą się zawsze od teraz. Granica ma sekundową
+pozycja w czasie; bramki widoczności liczą się zawsze od teraz. Kursor
+i `stan` działają tylko razem: brak `stan`, śmieci, przyszłość albo wartość
+starsza niż doba odrzucają TAKŻE kursor i lista zaczyna się od początku
+(przegląd #1781) — stary kursor z nową chwilą po cichu gubiłby albo
+powtarzał wpisy. Granica ma sekundową
 dokładność (tak zapisuje `published_at` Eloquent), więc zdublować się może
 najwyżej wpis dodany w tej samej sekundzie co pierwsza strona. Ukrycie albo
 zablokowanie osoby w trakcie przeglądania może przesunąć jej wpisy o rundę

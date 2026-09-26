@@ -26,7 +26,7 @@
         <p class="empty-state-title">Nic więcej do pokazania</p>
         <p class="empty-state-opis">
             Część wpisów albo osób ukrywasz, więc tu ich nie widać. To widzisz tylko Ty.
-            Możesz to zmienić na liście ukrytych osób.
+            Możesz to zmienić na liście ukrytych.
         </p>
     @else
         {{-- Tekst z `docs/brand/COPY_STYLE.md` §6 „pusty feed" — dosłownie

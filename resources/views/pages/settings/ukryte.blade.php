@@ -24,26 +24,37 @@
         @else
             <div class="stack-tight">
                 @foreach($wpisy as $ukrycie)
-                    <div class="card stack-tight" data-ukrycie="wpis">
-                        <p class="m-0">
-                            @php $poczatek = \Illuminate\Support\Str::limit(trim((string) $ukrycie->post->body), 80); @endphp
-                            <a href="{{ route('posts.show', $ukrycie->post) }}?pokaz=1">{{ $poczatek !== '' ? $poczatek : 'Wpis bez opisu' }}</a>
-                            · Autor: {{ $ukrycie->post->author->displayName() }}
-                        </p>
-                        <p class="meta m-0">
-                            @if($ukrycie->naStale())
-                                Ukryte, dopóki nie przywrócisz.
-                            @else
-                                Ukryte do {{ \App\Support\Czas::data($ukrycie->hidden_until, 'j F Y') }}. Potem wróci samo.
-                            @endif
-                        </p>
+                    {{-- Treść i autor TYLKO przy wpisie, który widz dziś zobaczy
+                         (`Ukrycia::widoczneWpisy()`, przegląd #1781). Wpis
+                         usunięty, schowany przez moderację, zamknięty dla widza
+                         albo od osoby, która go zablokowała: sama informacja
+                         i „Przywróć", żeby dało się posprzątać listę. --}}
+                    @php $dostepny = $ukrycie->post !== null && isset($widoczne[(string) $ukrycie->post_id]); @endphp
+                    <div class="card stack-tight" data-ukrycie="wpis" @unless($dostepny) data-ukrycie-niedostepne @endunless>
+                        @if($dostepny)
+                            <p class="m-0">
+                                @php $poczatek = \Illuminate\Support\Str::limit(trim((string) $ukrycie->post->body), 80); @endphp
+                                <a href="{{ route('posts.show', $ukrycie->post) }}?pokaz=1">{{ $poczatek !== '' ? $poczatek : 'Wpis bez opisu' }}</a>
+                                · Autor: {{ $ukrycie->post->author->displayName() }}
+                            </p>
+                            <p class="meta m-0">
+                                @if($ukrycie->naStale())
+                                    Ukryte, dopóki nie przywrócisz.
+                                @else
+                                    Ukryte do {{ \App\Support\Czas::data($ukrycie->hidden_until, 'j F Y') }}. Potem wróci samo.
+                                @endif
+                            </p>
+                        @else
+                            <p class="m-0">Ten wpis jest już niedostępny.</p>
+                            <p class="meta m-0">Mógł zostać usunięty albo schowany. „Przywróć” zdejmie go z tej listy.</p>
+                        @endif
                         <div class="flex flex-wrap gap-3">
-                            @unless($ukrycie->naStale())
+                            @if($dostepny && ! $ukrycie->naStale())
                                 <form method="POST" action="{{ route('settings.hidden.keep', $ukrycie) }}">
                                     @csrf @method('PATCH')
                                     <button class="btn btn-secondary" type="submit">Zostaw ukryte</button>
                                 </form>
-                            @endunless
+                            @endif
                             <form method="POST" action="{{ route('settings.hidden.restore', $ukrycie) }}">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-secondary" type="submit">Przywróć</button>

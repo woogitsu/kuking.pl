@@ -10,6 +10,7 @@ use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
@@ -208,6 +209,19 @@ final class EraseAccountData
              * `INSERT` — nie `DELETE`.
              */
             $fresh->followedTags()->detach();
+
+            /*
+             * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
+             * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
+             * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie
+             * kaskadą `ON DELETE CASCADE` z migracji: kont z Kuking się nie
+             * kasuje, tylko anonimizuje (D-022), więc kaskada nigdy tu nie
+             * zadziała. Tylko wiersze PO STRONIE WIDZA (`user_id`) — ukrycia,
+             * w których to konto jest ukrytą osobą, należą do innych ludzi.
+             * Kluczem jest `user_id`, więc dwie egzekucje różnych kont nie
+             * mają wspólnego wiersza (ten sam rachunek co `tag_follows`, D-093).
+             */
+            Hide::query()->where('user_id', $fresh->getKey())->delete();
 
             /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).

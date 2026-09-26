@@ -27,16 +27,6 @@ final class UkryjWpis
             throw new BladDlaCzlowieka('Własnego wpisu nie ukrywasz — możesz go edytować albo usunąć.');
         }
 
-        $ukrycie = Hide::query()->where('user_id', $widz->getKey())->where('post_id', $post->getKey())->first() ?? new Hide;
-
-        if (! $ukrycie->exists || $ukrycie->hidden_until !== null) {
-            $ukrycie->forceFill([
-                'user_id' => $widz->getKey(),
-                'post_id' => $post->getKey(),
-                'hidden_until' => now()->addDays((int) config('kuking.ukrycia.dni')),
-            ])->save();
-        }
-
-        return $ukrycie;
+        return Hide::ukryjDla($widz, 'post_id', (string) $post->getKey());
     }
 }
