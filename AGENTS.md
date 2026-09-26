@@ -464,9 +464,28 @@ MVP: obserwowani, **chronologicznie**.
 WHERE author_id IN (...) ORDER BY published_at DESC, id DESC
 ```
 
-Paginacja kursorowa. Bez fanout-on-write. **Nie projektuj skomplikowanego
-rankingu bez danych** — algorytmiczny feed natychmiast dzieli użytkowników
+Paginacja kursorowa. Bez fanout-on-write.
+
+**Reguła doboru treści — zamknięta lista (D-275, #1806).** Żadna lista wpisów
+ani osób nie jest układana ani przycinana według reakcji innych (obserwujący,
+„Ugotowałem”, reakcje, zapisy w zeszytach, komentarze, odsłony) ani według
+przewidywania gustu z zachowania widza. Taki dobór natychmiast dzieli ludzi
 na „widzianych” i „niewidzianych” i wyłącza publikowanie u większości.
+
+Dozwolone są **wyłącznie**:
+
+- kolejność po czasie;
+- równość autorów (np. najwyżej jeden wpis od osoby w „Świeżo z Kuking”);
+- wybór gospodarza, oznaczony w interfejsie jako jego wybór;
+- bramki widoczności i blokady;
+- jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
+
+W **Obserwowanych** nic nie znika poza bramkami i blokadami. Dopuszczalne jest
+tylko zwinięcie serii wpisów jednej osoby, bez zmiany kolejności.
+
+Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
+dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
 osób. Pusty ekran u nowego użytkownika to koniec korzystania z serwisu.
@@ -691,7 +710,7 @@ transmisje live, wypłaty dla twórców.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
-algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
+ranking po popularności i uczenie z zachowania (§8), masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
 
 **Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**
