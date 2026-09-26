@@ -11,6 +11,7 @@ use App\Domain\Feed\HeroKolaz;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Rocznice\RocznicaDolaczenia;
+use App\Domain\Rocznice\Urodziny;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
@@ -192,6 +193,10 @@ class FeedController extends Controller
                 : null,
             'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
+            // Życzenia urodzinowe od gospodarza (issue #1755, etap b) — jedno
+            // zdanie albo `null`. Bez powiadomień i bez pustego stanu.
+            'zyczenia' => Urodziny::zyczeniaNaDzis($user),
+            'podpisZyczen' => Urodziny::podpis(),
             'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
