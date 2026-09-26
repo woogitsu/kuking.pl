@@ -37,7 +37,7 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $moderator->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $moderator->getKey(), ...$this->znacznik()])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasErrors(['autor' => SygnalyController::WLASNE_OZNACZENIA]);
 
@@ -56,7 +56,7 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => strtoupper((string) $moderator->getKey())])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => strtoupper((string) $moderator->getKey()), ...$this->znacznik()])
             ->assertSessionHasErrors(['autor' => SygnalyController::WLASNE_OZNACZENIA]);
 
         $this->assertNicSieNieZmienilo();
@@ -76,7 +76,7 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
         foreach ([str_replace('-', '', $uuid), '{'.$uuid.'}'] as $zapis) {
             $this->actingAs($moderator)
                 ->from(route('admin.sygnaly'))
-                ->post(route('admin.sygnaly.dismiss'), ['autor' => $zapis])
+                ->post(route('admin.sygnaly.dismiss'), ['autor' => $zapis, ...$this->znacznik()])
                 ->assertSessionHasErrors('autor');
 
             $this->assertNicSieNieZmienilo();
@@ -92,7 +92,7 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
 
         $this->actingAs($inny)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->znacznik()])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, Report::query()
@@ -139,6 +139,25 @@ class SygnalyWlasnychTresciModeratorTest extends TestCase
             ->where('status', Report::STATUS_OPEN)
             ->where('autor_tresci_id', $autor->getKey())
             ->count());
+    }
+
+    /**
+     * Znacznik stanu z ekranu (#1059): liczba otwartych oznaczeń i najnowsze
+     * z nich — formularz grupy zawsze go niesie. Bez niego kontroler odmawia
+     * wcześniej, niż dojdzie do reguły własnych treści.
+     *
+     * @return array{stan_ile: string, stan_najnowsze: string}
+     */
+    private function znacznik(): array
+    {
+        $otwarte = Report::query()
+            ->where('source', Report::SOURCE_AUTOMAT)
+            ->where('status', Report::STATUS_OPEN);
+
+        return [
+            'stan_ile' => (string) (clone $otwarte)->count(),
+            'stan_najnowsze' => (string) $otwarte->orderByDesc('created_at')->orderByDesc('id')->value('id'),
+        ];
     }
 
     private function assertNicSieNieZmienilo(): void
