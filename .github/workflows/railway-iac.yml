@@ -142,6 +142,17 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
+    # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
+    # railway.ts czyta ją z `process.env` PROCESU, który go wykonuje — czyli
+    # tego joba. Zmienna usługi w panelu Railway tu NIE dociera, a `vars`
+    # GitHuba nie trafiają do procesu same. Bez tego mapowania każdy
+    # automatyczny apply liczył `checkSuites: false` i po cichu zdejmował
+    # bramkę włączoną ręcznie. Plan i apply czytają TO SAMO źródło: zmienną
+    # REPOZYTORIUM `KUKING_WAIT_FOR_CI` („true” albo „false”). Brak albo inna
+    # wartość zatrzymuje job w kroku „Bramka Wait for CI”, zanim ruszy Railway.
+    env:
+      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}
+
     # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
     # dla PR-ów z forków. Bez tego obcy fork dostałby dostęp do tokenu Railway.
     # Bramka wdrożeniowa — patrz komentarz przy `apply` niżej.
@@ -154,6 +165,19 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
+
+    # Bramka wdrożeniowa (audyt B10-01): ten job wykonuje `.railway/railway.ts`
+    # Z GAŁĘZI PR-a, z tokenem RAILWAY_TOKEN_PRODUCTION. Bez tego każdy, kto
+    # może wypchnąć gałąź w tym repozytorium (nie tylko fork — warunek wyżej
+    # blokuje tylko forki), dopisuje do railway.ts jedną linię wysyłającą
+    # token/env na zewnątrz i dostaje pełny dostęp do projektu produkcyjnego.
+    #
+    # `environment: production` wymaga zatwierdzenia recenzenta (Settings →
+    # Environments → production → Required reviewers — to samo ustawienie,
+    # co przy `apply` niżej) ZANIM job wykona choćby jeden krok, więc kod
+    # z PR-a nie dostaje tokenu bez świadomej zgody człowieka, który wcześniej
+    # przejrzał diff `.railway/**`.
+    environment: production
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -168,6 +192,19 @@ jobs:
 
       - name: Instalacja zależności
         run: npm ci --no-audit --no-fund
+
+      - name: Bramka Wait for CI
+        run: |
+          set -euo pipefail
+          case "${KUKING_WAIT_FOR_CI:-}" in
+            true|false) ;;
+            *)
+              echo "::error title=KUKING_WAIT_FOR_CI bez jawnej wartości::Ustaw zmienną repozytorium KUKING_WAIT_FOR_CI na true albo false (Settings → Secrets and variables → Actions → Variables). Brak wartości nie może udawać świadomego wyłączenia bramki (#1390)."
+              exit 1
+              ;;
+          esac
+          echo "Bramka „Wait for CI” (checkSuites) = ${KUKING_WAIT_FOR_CI}"
+          echo "Bramka „Wait for CI” (\`checkSuites\`): **${KUKING_WAIT_FOR_CI}**" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Plan zmian infrastruktury
         uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
@@ -191,6 +228,17 @@ jobs:
     name: Apply (production)
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
+
+    # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
+    # railway.ts czyta ją z `process.env` PROCESU, który go wykonuje — czyli
+    # tego joba. Zmienna usługi w panelu Railway tu NIE dociera, a `vars`
+    # GitHuba nie trafiają do procesu same. Bez tego mapowania każdy
+    # automatyczny apply liczył `checkSuites: false` i po cichu zdejmował
+    # bramkę włączoną ręcznie. Plan i apply czytają TO SAMO źródło: zmienną
+    # REPOZYTORIUM `KUKING_WAIT_FOR_CI` („true” albo „false”). Brak albo inna
+    # wartość zatrzymuje job w kroku „Bramka Wait for CI”, zanim ruszy Railway.
+    env:
+      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}
 
     # Bramka wdrożeniowa: bez projektu Railway i sekretu RAILWAY_TOKEN_PRODUCTION
     # ten workflow pada na każdym Pull Requeście (D-011 odkłada deploy, #3).
@@ -224,6 +272,19 @@ jobs:
 
       - name: Instalacja zależności
         run: npm ci --no-audit --no-fund
+
+      - name: Bramka Wait for CI
+        run: |
+          set -euo pipefail
+          case "${KUKING_WAIT_FOR_CI:-}" in
+            true|false) ;;
+            *)
+              echo "::error title=KUKING_WAIT_FOR_CI bez jawnej wartości::Ustaw zmienną repozytorium KUKING_WAIT_FOR_CI na true albo false (Settings → Secrets and variables → Actions → Variables). Brak wartości nie może udawać świadomego wyłączenia bramki (#1390)."
+              exit 1
+              ;;
+          esac
+          echo "Bramka „Wait for CI” (checkSuites) = ${KUKING_WAIT_FOR_CI}"
+          echo "Bramka „Wait for CI” (\`checkSuites\`): **${KUKING_WAIT_FOR_CI}**" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Zastosowanie zmian
         uses: railwayapp/config@9e17d413dbe219f19d62538d9c06b5dbb5e9abf8 # v1.2.0
