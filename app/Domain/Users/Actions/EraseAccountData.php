@@ -11,6 +11,7 @@ use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\User;
@@ -225,6 +226,19 @@ final class EraseAccountData
             $fresh->mealPlanEntries()->delete();
 
             /*
+             * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
+             * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
+             * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie
+             * kaskadą `ON DELETE CASCADE` z migracji: kont z Kuking się nie
+             * kasuje, tylko anonimizuje (D-022), więc kaskada nigdy tu nie
+             * zadziała. Tylko wiersze PO STRONIE WIDZA (`user_id`) — ukrycia,
+             * w których to konto jest ukrytą osobą, należą do innych ludzi.
+             * Kluczem jest `user_id`, więc dwie egzekucje różnych kont nie
+             * mają wspólnego wiersza (ten sam rachunek co `tag_follows`, D-093).
+             */
+            Hide::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -274,6 +288,17 @@ final class EraseAccountData
              * tu nie zadziałało.
              */
             $fresh->tozsamosciZewnetrzne()->delete();
+
+            /*
+             * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).
+             *
+             * Subskrypcja to adres, pod który serwer może pisać na czyjś
+             * ekran, a ustawienia ciszy nocnej mówią, kiedy ta osoba śpi.
+             * Konto bez właściciela nie ma komu wysyłać ani czego chronić.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            $fresh->pushSubscriptions()->delete();
+            $fresh->ustawieniaPowiadomienZewnetrznych()->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);

@@ -275,14 +275,14 @@ final class SearchQuery
             ])
             // Filtr „Do 30 minut" (UI kit v2, ekran 03).
             //
-            // Przepis BEZ podanych czasów wypada z tego filtra, a nie wpada.
-            // Brak danych nie znaczy „szybki" — obiecanie, że coś zajmie
-            // pół godziny, gdy nikt tego nie zmierzył, jest gorsze niż
-            // nieujęcie przepisu w wynikach.
-            ->when($maksMinut !== null, fn ($query) => $query
-                ->whereNotNull('prep_minutes')
-                ->whereNotNull('cook_minutes')
-                ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
+            // Przepis BEZ znanego czasu całkowitego wypada z tego filtra,
+            // a nie wpada. Brak danych nie znaczy „szybki" — obiecanie, że
+            // coś zajmie pół godziny, gdy nikt tego nie zmierzył, jest
+            // gorsze niż nieujęcie przepisu w wynikach. Co jest „znanym
+            // czasem", mówi JEDNA reguła w modelu (`Recipe::totalMinutes()`
+            // i jej odpowiednik SQL `gotoweWCiagu`) — ta sama, której używa
+            // strona przepisu (#1090).
+            ->when($maksMinut !== null, fn ($query) => $query->gotoweWCiagu($maksMinut))
             // Filtr „Do 20 zł" (D-286) — ta sama zasada co przy czasie:
             // przepis BEZ kosztu wypada, bo brak kwoty nie znaczy „tanio".
             // Sam warunek, bez żadnego wpływu na kolejność (AGENTS.md §8:
