@@ -123,6 +123,13 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
+        'birthday_day' => [self::EKSPORT, 'konto'],
+        'birthday_month' => [self::EKSPORT, 'konto'],
+        'birthday_wishes_enabled' => [self::EKSPORT, 'konto'],
+        'wants_birthday_email' => [self::EKSPORT, 'konto'],
+        'birthday_email_sent_on' => [self::EKSPORT, 'konto'],
+        'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],
