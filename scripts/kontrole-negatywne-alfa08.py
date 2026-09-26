@@ -161,6 +161,14 @@ PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 # HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+# Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
+# i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
+# bez sondy wydania, apply bez przekazanej bramki CI i `=== "true"`.
+PREVIEW_WORKFLOW = ".github/workflows/preview.yml"
+IAC_WORKFLOW = ".github/workflows/railway-iac.yml"
+IAC_RAILWAY_TS = ".railway/railway.ts"
+PREVIEW_IAC_TEST = "PreviewIIacNieZgadujaStanuTest"
+IAC_BRAMKA_ENV = "    env:\n      KUKING_WAIT_FOR_CI: ${{ vars.KUKING_WAIT_FOR_CI }}\n"
 # `/wydanie` bez sesji i CSRF (przegląd #1439). Mutacja wraca z trasą do
 # pełnej grupy `web` i ma zapalić test braku `Set-Cookie`.
 WYDANIE_TRASY = "bootstrap/app.php"
@@ -305,11 +313,23 @@ ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
 UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
+# nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
+# Pierwsza mutacja gubi plik w SAMYM ODKRYWANIU listy — własny sprawdzian
+# skryptu jej nie widzi (porównuje części ze swoją, też krótszą listą), więc
+# zapalić ma porównanie z listą PHPUnita. Druga skraca macierz w ci.yml.
+PODZIAL_TESTOW = "scripts/podzial-testow.php"
+PODZIAL_TESTOW_TEST = "PodzialTestowJestKompletnyTest"
 # Turnstile wiąże token z hostem i formularzem (#992). Każda mutacja zdejmuje
 # jedno porównanie w `KlientTurnstile` — test tej gałęzi ma wtedy oblać.
 KLIENT_TURNSTILE = "app/Turnstile/KlientTurnstile.php"
 TURNSTILE_HOST_TEST = "test_host_spoza_listy_jest_odrzucany"
 TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
+# Graf modułów app/Domain bez cykli (#971). Strażnik czyta tokeny PHP
+# w `app/Domain`; mutacja przywraca import `Social` w `ZalozKonto`, czyli
+# dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
+ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
+GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -604,6 +624,16 @@ def bez_sprawdzenia_sciezki(source):
         "        }\n",
         "",
     )
+def apply_bez_bramki_ci(source):
+    """KONTROLA DODATNIA: zdejmij mapowanie `KUKING_WAIT_FOR_CI` z joba apply.
+
+    Plan i apply mają je po razie; mutacja zdejmuje drugie (apply), czyli
+    dokładnie ścieżkę, która po scaleniu wyłączała „Wait for CI” (#1390).
+    """
+    if source.count(IAC_BRAMKA_ENV) != 2:
+        raise RuntimeError("Kontrola nie znalazła dokładnie dwóch mapowań bramki CI.")
+    poczatek = source.rindex(IAC_BRAMKA_ENV)
+    return source[:poczatek] + source[poczatek + len(IAC_BRAMKA_ENV):]
 
 
 def akcje_poza_filtrem_widoku(source):
@@ -657,6 +687,20 @@ def wzorzec_przyrzadu_lapie_wszystko(source):
     Strażnik zmiany obok ma zapalić.
     """
     return replace_once(source, "ciezki obciazenie '^(scripts/", "ciezki obciazenie '^(|scripts/")
+
+
+def podzial_gubi_plik(source):
+    """KONTROLA DODATNIA: odkrywanie plików testów gubi pierwszy plik listy."""
+    return replace_once(
+        source,
+        "    $pliki = array_values(array_unique(array_merge(...$pliki)));",
+        "    $pliki = array_slice(array_values(array_unique(array_merge(...$pliki))), 1);",
+    )
+
+
+def macierz_krotsza_niz_podzial(source):
+    """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
+    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
 
 
 def widok_zawezany_poza_pr(source):
@@ -755,6 +799,14 @@ checks = [
      koncowa_sonda_jedna_proba),
     ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      akcja_rollback_wraca),
+    ("Preview gotowe po samym adresie", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
+    ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
+     apply_bez_bramki_ci),
+    ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if (bramkaCI !== "true" && bramkaCI !== "false") {', 'if (false) {')),
     ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
      lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
     ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
@@ -823,6 +875,8 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
+    ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
@@ -840,6 +894,8 @@ checks = [
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
@@ -890,6 +946,7 @@ run_test(WIDOK_POZA_PR_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(WYDANIE_TEST, True)
+run_test(PREVIEW_IAC_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
@@ -910,6 +967,7 @@ run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
+run_test(PODZIAL_TESTOW_TEST, True)
 run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
@@ -918,6 +976,7 @@ run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(TURNSTILE_HOST_TEST, True)
 run_test(TURNSTILE_AKCJA_TEST, True)
+run_test(GRAF_MODULOW_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
