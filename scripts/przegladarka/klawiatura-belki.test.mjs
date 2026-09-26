@@ -77,6 +77,11 @@ async function zmierz(browser, arkusz, [szerokosc, wysokosc, zKlawiatura], skala
         }));
         await page.locator(cel).focus();
         await page.setViewportSize({ width: szerokosc, height: zKlawiatura });
+        // `setViewportSize` wraca, zanim renderer przeliczy układ na nową
+        // wysokość. Przewinięcie wołane za wcześnie liczy się względem STAREGO
+        // okna i pole zostaje pod klawiaturą (CI, 26 września). Czekamy więc,
+        // aż layout i visual viewport naprawdę mają wysokość z klawiaturą.
+        await page.waitForFunction(h => document.documentElement.clientHeight === h && visualViewport.height === h, zKlawiatura);
         const klaw = await page.evaluate(async cel => {
             document.querySelector(cel).scrollIntoView({ block: 'nearest' });
             for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame);
