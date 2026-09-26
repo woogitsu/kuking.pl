@@ -3478,6 +3478,26 @@ return [
             'odpowiedz_dni' => 30,
             'wiersz_dni' => 90,
         ],
+
+        /*
+         * ODZYSKIWANIE PO CZASIE (D-298 „maszyna stanów”, #1973, #1977) —
+         * `kuking:odzyskaj-importy`, co kwadrans.
+         *
+         * `rezerwacja_minut`: rezerwacja budżetu żyje najwyżej jedno
+         * wykonanie zadania (`OdczytajPrzepis::$timeout` = 120 s) — jest
+         * domykana przed każdym `release()` i w `failed()`. Otwarta dłużej
+         * niż pół godziny znaczy proces zabity bez `failed()`.
+         *
+         * `zlecenie_minut`: zlecenie `oczekuje`/`w_toku` odświeża
+         * `updated_at` przy każdej próbie; najdłuższa legalna przerwa to
+         * opóźnienie ponowienia (≤ 12 min) plus kolejka `low`. Dwie
+         * godziny ciszy = zadanie zgubione — zlecenie dostaje jawny błąd
+         * z „Spróbuj jeszcze raz”, zamiast wisieć w „trwa” do retencji.
+         */
+        'odzyskiwanie' => [
+            'rezerwacja_minut' => 30,
+            'zlecenie_minut' => 120,
+        ],
     ],
 
     'wersja' => [

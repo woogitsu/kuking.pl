@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Import;
 
 use App\Support\Czas;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -33,6 +34,20 @@ use Illuminate\Support\Facades\Log;
  * przekroczyć (wymaganie z pilota #814/#912).
  *
  * „DZIEŃ" TO DZIEŃ W POLSCE (`Czas::dzisiajData()`), nie w UTC.
+ *
+ * KSIĘGA REZERWACJI (`ai_rezerwacje`, D-298 „maszyna stanów”, #1973/#1974).
+ * Każda rezerwacja ma trwały wiersz pod kluczem (zlecenie, próba), zapisany
+ * w TEJ SAMEJ transakcji co zwiększenie `zarezerwowano_mikrousd`:
+ *
+ *     zarezerwowana ──oznaczWyslana()──► wyslana ──rozlicz()──► rozliczona
+ *           └──zwolnij()──► zwolniona
+ *
+ * Każde przejście to warunkowy `UPDATE … WHERE stan IN (otwarte)`. Wiersz
+ * już zamknięty nie jest trafiany, więc powtórzone `rozlicz()`/`zwolnij()`
+ * NIE DOTYKA budżetu — zwraca `null`/`false`. `zamknijOtwarte()` domyka
+ * rezerwację porzuconą: niewysłaną zwalnia (żądanie na pewno nie wyszło,
+ * bo stan `wyslana` zapisujemy PRZED żądaniem), wysłaną rozlicza całą
+ * kwotą (dostawca mógł policzyć — lepiej zawyżyć).
  */
 final class BudzetAi
 {
@@ -40,17 +55,30 @@ final class BudzetAi
 
     public const ODMOWA_MIESIAC = 'miesiac';
 
+    /** Ta próba tego zlecenia ma już rezerwację — drugiej nie będzie. */
+    public const ODMOWA_POWTORZONA = 'powtorzona';
+
+    public const STAN_ZAREZERWOWANA = 'zarezerwowana';
+
+    public const STAN_WYSLANA = 'wyslana';
+
+    public const STAN_ROZLICZONA = 'rozliczona';
+
+    public const STAN_ZWOLNIONA = 'zwolniona';
+
+    private const OTWARTE = "('zarezerwowana', 'wyslana')";
+
     private const KLUCZ_OSTRZEZENIA = 'kuking:import:budzet-ostrzezenie:';
 
     /**
      * @return Rezerwacja|string rezerwacja albo powód odmowy (`ODMOWA_*`)
      */
-    public function zarezerwuj(int $mikroUsd): Rezerwacja|string
+    public function zarezerwuj(int $mikroUsd, string $importId, int $proba): Rezerwacja|string
     {
         $mikroUsd = max(0, $mikroUsd);
         $dzien = Czas::dzisiajData();
 
-        $wynik = DB::transaction(function () use ($mikroUsd, $dzien): Rezerwacja|string {
+        $wynik = DB::transaction(function () use ($mikroUsd, $dzien, $importId, $proba): Rezerwacja|string {
             DB::statement(
                 'INSERT INTO ai_budzet_dzienny (dzien, created_at, updated_at) VALUES (?, now(), now()) ON CONFLICT (dzien) DO NOTHING',
                 [$dzien],
@@ -71,12 +99,24 @@ final class BudzetAi
                 return self::ODMOWA_MIESIAC;
             }
 
+            // Wiersz księgi PRZED zwiększeniem licznika i w tej samej
+            // transakcji: albo są oba, albo żadne (#1973).
+            $wiersz = DB::selectOne(
+                'INSERT INTO ai_rezerwacje (import_id, proba, dzien, mikrousd, stan, created_at, updated_at) '
+                ."VALUES (?, ?, ?, ?, 'zarezerwowana', now(), now()) ON CONFLICT (import_id, proba) DO NOTHING RETURNING id",
+                [$importId, $proba, $dzien, $mikroUsd],
+            );
+
+            if ($wiersz === null) {
+                return self::ODMOWA_POWTORZONA;
+            }
+
             DB::update(
                 'UPDATE ai_budzet_dzienny SET zarezerwowano_mikrousd = zarezerwowano_mikrousd + ?, liczba_wywolan = liczba_wywolan + 1, updated_at = now() WHERE dzien = ?',
                 [$mikroUsd, $dzien],
             );
 
-            return new Rezerwacja($dzien, $mikroUsd);
+            return new Rezerwacja((int) $wiersz->id, $importId, $proba, $dzien, $mikroUsd);
         });
 
         if ($wynik instanceof Rezerwacja) {
@@ -87,37 +127,134 @@ final class BudzetAi
     }
 
     /**
+     * Zapisuje „żądanie za chwilę wychodzi" — WOŁANE PRZED żądaniem. Od tej
+     * chwili porzucona rezerwacja jest liczona jako wydana, a nie zwalniana.
+     * `false` = rezerwacji już nie ma (wygaszona) i żądanie NIE MOŻE wyjść.
+     */
+    public function oznaczWyslana(Rezerwacja $rezerwacja): bool
+    {
+        return DB::update(
+            "UPDATE ai_rezerwacje SET stan = 'wyslana', updated_at = now() WHERE id = ? AND stan = 'zarezerwowana'",
+            [$rezerwacja->id],
+        ) === 1;
+    }
+
+    /**
      * Zamienia rezerwację na wydatek. `null` = nie znamy faktycznego kosztu,
      * więc cała rezerwacja zostaje policzona jako wydana.
      *
      * Faktyczny koszt WIĘKSZY od rezerwacji (dostawca policzył więcej, niż
      * zakładał szacunek wejścia) też jest wpisywany w całości — budżet ma
      * mówić prawdę o wydatkach, nawet jeśli ta prawda przekracza limit.
+     *
+     * IDEMPOTENTNE (#1974): rezerwacja już zamknięta daje `null` i nie
+     * zmienia budżetu. Zwraca kwotę wpisaną w wydatki TYM wywołaniem.
      */
-    public function rozlicz(Rezerwacja $rezerwacja, ?int $faktycznyMikroUsd): int
+    public function rozlicz(Rezerwacja $rezerwacja, ?int $faktycznyMikroUsd): ?int
     {
         $wydano = $faktycznyMikroUsd === null ? $rezerwacja->mikroUsd : max(0, $faktycznyMikroUsd);
 
-        DB::update(
-            'UPDATE ai_budzet_dzienny SET zarezerwowano_mikrousd = GREATEST(0, zarezerwowano_mikrousd - ?), '
-            .'wydano_mikrousd = wydano_mikrousd + ?, updated_at = now() WHERE dzien = ?',
-            [$rezerwacja->mikroUsd, $wydano, $rezerwacja->dzien],
-        );
+        return DB::transaction(function () use ($rezerwacja, $wydano): ?int {
+            $zamknieta = DB::update(
+                "UPDATE ai_rezerwacje SET stan = 'rozliczona', wydano_mikrousd = ?, zamknieto_at = now(), updated_at = now() "
+                .'WHERE id = ? AND stan IN '.self::OTWARTE,
+                [$wydano, $rezerwacja->id],
+            );
+
+            if ($zamknieta !== 1) {
+                return null;
+            }
+
+            DB::update(
+                'UPDATE ai_budzet_dzienny SET zarezerwowano_mikrousd = GREATEST(0, zarezerwowano_mikrousd - ?), '
+                .'wydano_mikrousd = wydano_mikrousd + ?, updated_at = now() WHERE dzien = ?',
+                [$rezerwacja->mikroUsd, $wydano, $rezerwacja->dzien],
+            );
+
+            return $wydano;
+        });
+    }
+
+    /**
+     * Zwraca rezerwację bez wydatku — WYŁĄCZNIE wtedy, gdy żądanie na pewno
+     * nie wyszło (brak konfiguracji, zgoda cofnięta przed wysyłką, błąd
+     * stały 4xx). Idempotentne jak `rozlicz()`: `false` = już zamknięta.
+     */
+    public function zwolnij(Rezerwacja $rezerwacja): bool
+    {
+        return DB::transaction(function () use ($rezerwacja): bool {
+            $zamknieta = DB::update(
+                "UPDATE ai_rezerwacje SET stan = 'zwolniona', zamknieto_at = now(), updated_at = now() "
+                .'WHERE id = ? AND stan IN '.self::OTWARTE,
+                [$rezerwacja->id],
+            );
+
+            if ($zamknieta !== 1) {
+                return false;
+            }
+
+            DB::update(
+                'UPDATE ai_budzet_dzienny SET zarezerwowano_mikrousd = GREATEST(0, zarezerwowano_mikrousd - ?), '
+                .'liczba_wywolan = GREATEST(0, liczba_wywolan - 1), updated_at = now() WHERE dzien = ?',
+                [$rezerwacja->mikroUsd, $rezerwacja->dzien],
+            );
+
+            return true;
+        });
+    }
+
+    /**
+     * Domyka rezerwacje zlecenia, których nikt nie domknął — `failed()`,
+     * początek następnej próby i sprzątanie po czasie (#1973).
+     *
+     *  - `zarezerwowana` → zwolniona: stan `wyslana` pada PRZED żądaniem,
+     *    więc bez niego żądanie na pewno nie wyszło;
+     *  - `wyslana` → rozliczona CAŁĄ kwotą: żądanie mogło dojść i zostać
+     *    policzone, a `usage` nie przetrwało (D-297: lepiej zawyżyć).
+     *
+     * @param  ?CarbonInterface  $starszeNiz  tylko rezerwacje założone przed tą chwilą
+     * @return int ile wpisano w wydatki TYM wywołaniem
+     */
+    public function zamknijOtwarte(string $importId, ?CarbonInterface $starszeNiz = null): int
+    {
+        $otwarte = DB::table('ai_rezerwacje')
+            ->where('import_id', $importId)
+            ->whereIn('stan', [self::STAN_ZAREZERWOWANA, self::STAN_WYSLANA])
+            ->when($starszeNiz !== null, fn ($q) => $q->where('created_at', '<', $starszeNiz))
+            ->orderBy('proba')
+            ->get();
+
+        $wydano = 0;
+
+        foreach ($otwarte as $wiersz) {
+            $rezerwacja = new Rezerwacja((int) $wiersz->id, (string) $wiersz->import_id, (int) $wiersz->proba, (string) $wiersz->dzien, (int) $wiersz->mikrousd);
+
+            if ($wiersz->stan === self::STAN_WYSLANA) {
+                $wydano += $this->rozlicz($rezerwacja, null) ?? 0;
+            } else {
+                $this->zwolnij($rezerwacja);
+            }
+        }
 
         return $wydano;
     }
 
     /**
-     * Zwraca rezerwację bez wydatku — WYŁĄCZNIE wtedy, gdy żądanie na pewno
-     * nie wyszło (brak konfiguracji, zgoda cofnięta przed wysyłką).
+     * Zlecenia, które mają rezerwację otwartą dłużej niż `$starszeNiz` —
+     * dla sprzątania po czasie.
+     *
+     * @return list<string>
      */
-    public function zwolnij(Rezerwacja $rezerwacja): void
+    public function zleceniaZPorzuconymiRezerwacjami(CarbonInterface $starszeNiz): array
     {
-        DB::update(
-            'UPDATE ai_budzet_dzienny SET zarezerwowano_mikrousd = GREATEST(0, zarezerwowano_mikrousd - ?), '
-            .'liczba_wywolan = GREATEST(0, liczba_wywolan - 1), updated_at = now() WHERE dzien = ?',
-            [$rezerwacja->mikroUsd, $rezerwacja->dzien],
-        );
+        return DB::table('ai_rezerwacje')
+            ->whereIn('stan', [self::STAN_ZAREZERWOWANA, self::STAN_WYSLANA])
+            ->where('created_at', '<', $starszeNiz)
+            ->distinct()
+            ->pluck('import_id')
+            ->map(fn ($id): string => (string) $id)
+            ->values()
+            ->all();
     }
 
     /**

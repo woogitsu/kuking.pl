@@ -50,11 +50,9 @@ return new class extends Migration
             // Adres strony dla importu z URL (osobny etap, D-298).
             $table->text('source_url')->nullable();
             $table->unsignedSmallInteger('proby')->default(0);
-            // Budżet (D-297): ile zarezerwowano przed wywołaniem i pod którym
-            // dniem — rozliczenie trafia do TEGO SAMEGO wiersza budżetu, także
-            // gdy odczyt skończy się po północy.
-            $table->bigInteger('rezerwacja_mikrousd')->nullable();
-            $table->date('rezerwacja_dzien')->nullable();
+            // Rezerwacje budżetu NIE stoją w tym wierszu, tylko w księdze
+            // `ai_rezerwacje` (klucz: zlecenie + próba, D-298 „maszyna
+            // stanów”). Tu jest suma tego, co rozliczono za wszystkie próby.
             $table->bigInteger('koszt_mikrousd')->nullable();
             $table->integer('tokeny_wejscia')->nullable();
             $table->integer('tokeny_wyjscia')->nullable();
@@ -82,8 +80,7 @@ return new class extends Migration
         DB::statement(
             "ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_kod_przy_bledzie_check CHECK ((status IN ('nieudany', 'wstrzymany_limitem')) = (kod_bledu IS NOT NULL))",
         );
-        DB::statement('ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_kwoty_check CHECK ((rezerwacja_mikrousd IS NULL OR rezerwacja_mikrousd >= 0) AND (koszt_mikrousd IS NULL OR koszt_mikrousd >= 0))');
-        DB::statement('ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_rezerwacja_z_dniem_check CHECK ((rezerwacja_mikrousd IS NULL) = (rezerwacja_dzien IS NULL))');
+        DB::statement('ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_kwoty_check CHECK (koszt_mikrousd IS NULL OR koszt_mikrousd >= 0)');
         DB::statement("ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_url_check CHECK (source_url IS NULL OR zrodlo = 'url')");
 
         // Limity na osobę („ile zleceń dziś / w tym miesiącu") i lista zleceń osoby.
@@ -92,6 +89,10 @@ return new class extends Migration
         DB::statement('CREATE INDEX importy_przepisow_created_idx ON importy_przepisow (created_at)');
         // Bramka publikacji szkicu z odczytu pyta „czy ten przepis ma odczyt".
         DB::statement('CREATE INDEX importy_przepisow_recipe_idx ON importy_przepisow (recipe_id) WHERE recipe_id IS NOT NULL');
+        // Odzyskiwanie porzuconych zleceń (`kuking:odzyskaj-importy`, co
+        // kwadrans) pyta tylko o stany przejściowe — reszta tabeli to stany
+        // końcowe, których indeks nie potrzebuje.
+        DB::statement("CREATE INDEX importy_przepisow_przejsciowe_idx ON importy_przepisow (updated_at) WHERE status IN ('oczekuje', 'w_toku')");
         // Idempotencja: jedno wysłanie formularza = jedno zlecenie (ADR_IDEMPOTENCJA_FORMULARZY).
         DB::statement('CREATE UNIQUE INDEX importy_przepisow_klucz_wyslania_unique ON importy_przepisow (user_id, klucz_wyslania) WHERE klucz_wyslania IS NOT NULL');
     }

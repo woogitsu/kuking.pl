@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -44,9 +45,9 @@ final class BudzetAiTest extends TestCase
 
     public function test_rezerwacja_miesci_sie_do_limitu_dziennego_i_ani_mikrodolara_dalej(): void
     {
-        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(3_000_000));
-        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(2_000_000));
-        $this->assertSame(BudzetAi::ODMOWA_DZIEN, $this->budzet->zarezerwuj(1));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(3_000_000, (string) Str::uuid(), 1));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(2_000_000, (string) Str::uuid(), 1));
+        $this->assertSame(BudzetAi::ODMOWA_DZIEN, $this->budzet->zarezerwuj(1, (string) Str::uuid(), 1));
         $this->assertSame(5_000_000, $this->budzet->stan()['dzisiaj_mikrousd']);
     }
 
@@ -60,8 +61,8 @@ final class BudzetAiTest extends TestCase
             ['dzien' => '2026-08-31', 'wydano_mikrousd' => 99_000_000, 'zarezerwowano_mikrousd' => 0, 'liczba_wywolan' => 1, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(2_000_000));
-        $this->assertSame(BudzetAi::ODMOWA_MIESIAC, $this->budzet->zarezerwuj(1));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(2_000_000, (string) Str::uuid(), 1));
+        $this->assertSame(BudzetAi::ODMOWA_MIESIAC, $this->budzet->zarezerwuj(1, (string) Str::uuid(), 1));
     }
 
     public function test_dzien_to_dzien_w_polsce_nie_w_utc(): void
@@ -69,7 +70,7 @@ final class BudzetAiTest extends TestCase
         // 23:30 UTC 30 września = 01:30 1 października w Warszawie.
         Carbon::setTestNow(Carbon::parse('2026-09-30 23:30', 'UTC'));
 
-        $rezerwacja = $this->budzet->zarezerwuj(1000);
+        $rezerwacja = $this->budzet->zarezerwuj(1000, (string) Str::uuid(), 1);
 
         $this->assertInstanceOf(Rezerwacja::class, $rezerwacja);
         $this->assertSame('2026-10-01', $rezerwacja->dzien);
@@ -77,7 +78,7 @@ final class BudzetAiTest extends TestCase
 
     public function test_rozliczenie_z_usage_zwalnia_nadwyzke_rezerwacji(): void
     {
-        $rezerwacja = $this->budzet->zarezerwuj(4_000_000);
+        $rezerwacja = $this->budzet->zarezerwuj(4_000_000, (string) Str::uuid(), 1);
         $this->assertInstanceOf(Rezerwacja::class, $rezerwacja);
 
         $this->budzet->rozlicz($rezerwacja, 250_000);
@@ -86,12 +87,12 @@ final class BudzetAiTest extends TestCase
         $this->assertSame(0, (int) $wiersz->zarezerwowano_mikrousd);
         $this->assertSame(250_000, (int) $wiersz->wydano_mikrousd);
         // Zwolnione miejsce jest znowu do wzięcia.
-        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(4_000_000));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(4_000_000, (string) Str::uuid(), 1));
     }
 
     public function test_brak_usage_zostawia_cala_rezerwacje_jako_wydana(): void
     {
-        $rezerwacja = $this->budzet->zarezerwuj(1_500_000);
+        $rezerwacja = $this->budzet->zarezerwuj(1_500_000, (string) Str::uuid(), 1);
         $this->assertInstanceOf(Rezerwacja::class, $rezerwacja);
 
         $this->budzet->rozlicz($rezerwacja, null);
@@ -105,9 +106,9 @@ final class BudzetAiTest extends TestCase
     {
         $log = Log::spy();
 
-        $this->budzet->zarezerwuj(3_000_000);
-        $this->budzet->zarezerwuj(1_100_000); // 4,1 z 5 USD — ponad 80%
-        $this->budzet->zarezerwuj(100_000);
+        $this->budzet->zarezerwuj(3_000_000, (string) Str::uuid(), 1);
+        $this->budzet->zarezerwuj(1_100_000, (string) Str::uuid(), 1); // 4,1 z 5 USD — ponad 80%
+        $this->budzet->zarezerwuj(100_000, (string) Str::uuid(), 1);
 
         $log->shouldHaveReceived('warning')
             ->withArgs(fn (string $m, array $k = []): bool => ($k['stage'] ?? null) === 'import_budzet_prog')

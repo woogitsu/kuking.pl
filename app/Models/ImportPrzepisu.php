@@ -26,9 +26,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $status
  * @property ?string $kod_bledu
  * @property int $proby
- * @property ?int $rezerwacja_mikrousd
- * @property ?string $rezerwacja_dzien
  * @property ?int $koszt_mikrousd
+ * @property ?int $tokeny_wejscia
+ * @property ?int $tokeny_wyjscia
  * @property ?array<string, mixed> $odpowiedz_modelu
  */
 class ImportPrzepisu extends Model
@@ -86,7 +86,6 @@ class ImportPrzepisu extends Model
         return [
             'odpowiedz_modelu' => 'array',
             'proby' => 'integer',
-            'rezerwacja_mikrousd' => 'integer',
             'koszt_mikrousd' => 'integer',
             'tokeny_wejscia' => 'integer',
             'tokeny_wyjscia' => 'integer',

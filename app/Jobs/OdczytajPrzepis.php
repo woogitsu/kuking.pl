@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Domain\Import\BudzetAi;
-use App\Domain\Import\Cennik;
 use App\Domain\Import\KlientLuna;
 use App\Domain\Import\ObrazDoOdczytu;
 use App\Domain\Import\OdczytKartki;
 use App\Domain\Import\OdpowiedzModelu;
 use App\Domain\Import\Rezerwacja;
+use App\Domain\Import\RozliczenieOdczytu;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Models\ImportPrzepisu;
@@ -43,6 +43,22 @@ use Throwable;
  * PONOWIENIA: chwilowa awaria modelu (429, 5xx, timeout) wraca do kolejki
  * z opóźnieniem 30 s / 120 s, najwyżej `PROBY_MODELU` razy. Zdjęcie jeszcze
  * w obróbce (`pending`/`processing`) — krótkie odłożenie, bez wywołania.
+ *
+ * MASZYNA STANÓW PŁATNEGO WYWOŁANIA (D-298, #1973, #1974, #1980) — każde
+ * przejście jest trwałe, zanim ruszy następne, więc zadanie przerwane
+ * w dowolnym miejscu i uruchomione od nowa wie, gdzie jest:
+ *
+ *   0. porządek: rezerwacje poprzedniej próby, których nikt nie domknął,
+ *      są domykane (`RozliczenieOdczytu::zamknijPorzucone()`);
+ *   1. odpowiedź już zapisana? → dokończenie Z NIEJ, bez żądania (#1980);
+ *   2. rezerwacja + licznik prób — jedna transakcja (#1973);
+ *   3. `wyslana` zapisane PRZED żądaniem (porzucona po tym = wydana);
+ *   4. rozliczenie + zapis odpowiedzi — jedna transakcja, rozliczenie
+ *      idempotentne po kluczu (zlecenie, próba) (#1974);
+ *   5. szkic + `gotowy` — jedna transakcja.
+ *
+ * Proces zabity tak, że `failed()` nie ruszy: rezerwację domyka następna
+ * próba albo `kuking:odzyskaj-importy`, a zlecenie — to samo polecenie.
  */
 class OdczytajPrzepis implements ShouldQueue
 {
@@ -69,10 +85,17 @@ class OdczytajPrzepis implements ShouldQueue
     public function handle(
         KlientLuna $klient,
         BudzetAi $budzet,
+        RozliczenieOdczytu $rozliczenie,
         PrzestawZgodeNaOdczytAi $zgoda,
         ObrazDoOdczytu $obraz,
         PublishRecipe $przepisy,
     ): void {
+        // 0. Rezerwacja poprzedniej próby (proces zabity, timeout, wyjątek
+        // przed rozliczeniem) nie może wisieć w budżecie (#1973). Kolejka
+        // nie wydaje zadania drugi raz przed `retry_after`, więc otwarta
+        // rezerwacja tego zlecenia w tej chwili jest porzucona.
+        $rozliczenie->zamknijPorzucone($this->importId);
+
         $zlecenie = ImportPrzepisu::query()->find($this->importId);
 
         if ($zlecenie === null || $zlecenie->jestKoncowy()) {
@@ -93,6 +116,20 @@ class OdczytajPrzepis implements ShouldQueue
 
         if (! $media instanceof Media || in_array($media->status, [Media::STATUS_REJECTED, Media::STATUS_DELETED], true)) {
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_ZDJECIE_NIEDOSTEPNE);
+
+            return;
+        }
+
+        // 1. Odpowiedź modelu jest już zapisana — poprzednia próba padła
+        // dopiero za nią (np. przy zapisie szkicu). Dokończenie z zapisu,
+        // BEZ rezerwacji i bez drugiego płatnego żądania (#1980).
+        if (is_array($zlecenie->odpowiedz_modelu)) {
+            $this->dokoncz(
+                $zlecenie,
+                $szkic,
+                OdpowiedzModelu::zZapisanej($zlecenie->odpowiedz_modelu, $zlecenie->tokeny_wejscia, $zlecenie->tokeny_wyjscia),
+                $przepisy,
+            );
 
             return;
         }
@@ -124,9 +161,40 @@ class OdczytajPrzepis implements ShouldQueue
             return;
         }
 
-        $rezerwacja = $budzet->zarezerwuj(BudzetAi::szacunek(KlientLuna::ZADANIE_OCR) ?? PHP_INT_MAX);
+        // Sufit płatnych żądań na zlecenie — niezależnie od tego, czy
+        // poprzednie próby skończyły się awarią modelu, czy dowolnym innym
+        // wyjątkiem ponawianym przez kolejkę (`$tries` jest większe, bo
+        // obejmuje też czekanie na zdjęcie) (#1980).
+        if ($zlecenie->proby >= self::PROBY_MODELU) {
+            $this->zakoncz($zlecenie, ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY);
+
+            return;
+        }
+
+        // 2. Rezerwacja i licznik prób W JEDNEJ TRANSAKCJI (#1973): awaria
+        // zapisu zlecenia cofa też rezerwację, a wiersz księgi pod kluczem
+        // (zlecenie, próba) powstaje razem z nią.
+        $proba = $zlecenie->proby + 1;
+        $rezerwacja = DB::transaction(function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {
+            $wynik = $budzet->zarezerwuj(BudzetAi::szacunek(KlientLuna::ZADANIE_OCR) ?? PHP_INT_MAX, (string) $zlecenie->getKey(), $proba);
+
+            if ($wynik instanceof Rezerwacja) {
+                $zlecenie->forceFill(['proby' => $proba])->save();
+            }
+
+            return $wynik;
+        });
 
         if (! $rezerwacja instanceof Rezerwacja) {
+            if ($rezerwacja === BudzetAi::ODMOWA_POWTORZONA) {
+                // Ta próba ma już rezerwację, a licznik prób o niej nie wie —
+                // stan, do którego transakcja wyżej nie powinna dopuścić.
+                Log::error('Odczyt przepisu: powtórzona rezerwacja tej samej próby.', ['import_id' => $this->importId, 'proba' => $proba, 'stage' => 'import_rezerwacja']);
+                $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
+
+                return;
+            }
+
             $this->zakoncz(
                 $zlecenie,
                 $rezerwacja === BudzetAi::ODMOWA_DZIEN ? ImportPrzepisu::KOD_BUDZET_DZIENNY : ImportPrzepisu::KOD_BUDZET_MIESIECZNY,
@@ -136,22 +204,23 @@ class OdczytajPrzepis implements ShouldQueue
             return;
         }
 
-        $zlecenie->forceFill([
-            'rezerwacja_mikrousd' => $rezerwacja->mikroUsd,
-            'rezerwacja_dzien' => $rezerwacja->dzien,
-        ])->save();
-
         // ZGODA SPRAWDZANA OSTATNIA, tuż przed żądaniem — wycofanie w trakcie
         // kolejki ma znaczyć zero wysłanych bajtów (D-296).
         if (! $zgoda->udzielona($zlecenie->user)) {
             $budzet->zwolnij($rezerwacja);
-            $this->bezRezerwacji($zlecenie);
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BRAK_ZGODY);
 
             return;
         }
 
-        $zlecenie->forceFill(['proby' => $zlecenie->proby + 1])->save();
+        // 3. „Wychodzi” zapisane PRZED żądaniem. Rezerwacji wygaszonej
+        // w międzyczasie nie ma czym pokryć — żądanie nie wychodzi.
+        if (! $budzet->oznaczWyslana($rezerwacja)) {
+            Log::error('Odczyt przepisu: rezerwacja zamknięta przed wysyłką.', ['import_id' => $this->importId, 'proba' => $proba, 'stage' => 'import_rezerwacja']);
+            $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
+
+            return;
+        }
 
         try {
             $odpowiedz = $klient->odczytaj(
@@ -164,7 +233,7 @@ class OdczytajPrzepis implements ShouldQueue
         } catch (ModelChwilowoNiedostepny $awaria) {
             // Żądanie mogło dojść i zostać policzone — rezerwacja idzie
             // w wydatki (D-297: lepiej zawyżyć niż przekroczyć).
-            $this->rozlicz($zlecenie, $budzet, $rezerwacja, null);
+            $rozliczenie->rozlicz($zlecenie, $rezerwacja, null);
 
             if ($this->wroci() && $zlecenie->proby < self::PROBY_MODELU) {
                 $zlecenie->forceFill(['status' => ImportPrzepisu::STATUS_OCZEKUJE])->save();
@@ -181,14 +250,44 @@ class OdczytajPrzepis implements ShouldQueue
         if ($odpowiedz === null) {
             // Żądanie nie wyszło albo odpadło na stałe (4xx) — nic nie kosztowało.
             $budzet->zwolnij($rezerwacja);
-            $this->bezRezerwacji($zlecenie);
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_ODPOWIEDZ_BLEDNA);
 
             return;
         }
 
-        $this->rozlicz($zlecenie, $budzet, $rezerwacja, $odpowiedz);
+        // 4. Rozliczenie i odpowiedź razem, idempotentnie (#1974).
+        $rozliczenie->rozlicz($zlecenie, $rezerwacja, $odpowiedz);
 
+        $this->dokoncz($zlecenie, $szkic, $odpowiedz, $przepisy);
+    }
+
+    /**
+     * Zadanie padło (timeout, wyjątek) — zlecenie nie może zostać w `w_toku`
+     * na zawsze. Rezerwacja, której nikt nie domknął, jest domykana:
+     * niewysłana zwolniona, wysłana rozliczona całą kwotą (#1973, #1974).
+     * Powtórzone `failed()` niczego nie liczy drugi raz.
+     */
+    public function failed(?Throwable $blad): void
+    {
+        app(RozliczenieOdczytu::class)->zamknijPorzucone($this->importId);
+
+        $zlecenie = ImportPrzepisu::query()->find($this->importId);
+
+        if ($zlecenie === null || $zlecenie->jestKoncowy()) {
+            return;
+        }
+
+        Log::warning('Odczyt przepisu ze zdjęcia nie powiódł się.', [
+            'import_id' => $this->importId,
+            ...($blad === null ? ['stage' => 'import_failed'] : ExceptionContext::forStage($blad, 'import_failed')),
+        ]);
+
+        $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
+    }
+
+    /** Etap po odpowiedzi modelu — ten sam dla pierwszej próby i dla wznowienia. */
+    private function dokoncz(ImportPrzepisu $zlecenie, Recipe $szkic, OdpowiedzModelu $odpowiedz, PublishRecipe $przepisy): void
+    {
         if ($odpowiedz->dane === null) {
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_ODPOWIEDZ_BLEDNA);
 
@@ -206,31 +305,6 @@ class OdczytajPrzepis implements ShouldQueue
         $this->wpiszDoSzkicu($zlecenie, $szkic, $wynik, $przepisy);
     }
 
-    /**
-     * Zadanie padło (timeout, wyjątek) — zlecenie nie może zostać w `w_toku`
-     * na zawsze. Rezerwacja, której nikt nie rozliczył, idzie w wydatki.
-     */
-    public function failed(?Throwable $blad): void
-    {
-        $zlecenie = ImportPrzepisu::query()->find($this->importId);
-
-        if ($zlecenie === null || $zlecenie->jestKoncowy()) {
-            return;
-        }
-
-        if ($zlecenie->rezerwacja_mikrousd !== null && $zlecenie->koszt_mikrousd === null) {
-            app(BudzetAi::class)->rozlicz(new Rezerwacja((string) $zlecenie->rezerwacja_dzien, (int) $zlecenie->rezerwacja_mikrousd), null);
-            $zlecenie->forceFill(['koszt_mikrousd' => $zlecenie->rezerwacja_mikrousd]);
-        }
-
-        Log::warning('Odczyt przepisu ze zdjęcia nie powiódł się.', [
-            'import_id' => $this->importId,
-            ...($blad === null ? ['stage' => 'import_failed'] : ExceptionContext::forStage($blad, 'import_failed')),
-        ]);
-
-        $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
-    }
-
     private function szkicNietkniety(?Recipe $szkic): bool
     {
         return $szkic !== null
@@ -244,7 +318,18 @@ class OdczytajPrzepis implements ShouldQueue
      */
     private function wpiszDoSzkicu(ImportPrzepisu $zlecenie, Recipe $szkic, array $wynik, PublishRecipe $przepisy): void
     {
-        $zapisano = DB::transaction(function () use ($szkic, $wynik, $przepisy): bool {
+        // 5. Szkic i `gotowy` W JEDNEJ TRANSAKCJI. Osobno awaria tuż za
+        // szkicem zostawiała zlecenie `w_toku` ze szkicem pełnym tekstu,
+        // a ponowienie brało ten tekst za pracę człowieka (`szkic_zmieniony`).
+        $zapisano = DB::transaction(function () use ($zlecenie, $szkic, $wynik, $przepisy): ?bool {
+            $biezace = ImportPrzepisu::query()->whereKey($zlecenie->getKey())->lockForUpdate()->first();
+
+            // Zlecenie domknięte w międzyczasie (odzyskiwanie po czasie) —
+            // nic nie piszemy, stan końcowy już jest.
+            if ($biezace === null || $biezace->jestKoncowy()) {
+                return null;
+            }
+
             $swiezy = Recipe::query()->whereKey($szkic->getKey())->lockForUpdate()->first();
 
             if (! $this->szkicNietkniety($swiezy)) {
@@ -283,45 +368,18 @@ class OdczytajPrzepis implements ShouldQueue
                 existing: $swiezy,
             );
 
+            $zlecenie->forceFill([
+                'status' => ImportPrzepisu::STATUS_GOTOWY,
+                'kod_bledu' => null,
+                'zakonczono_at' => now(),
+            ])->save();
+
             return true;
         });
 
-        if (! $zapisano) {
+        if ($zapisano === false) {
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_SZKIC_ZMIENIONY);
-
-            return;
         }
-
-        $zlecenie->forceFill([
-            'status' => ImportPrzepisu::STATUS_GOTOWY,
-            'kod_bledu' => null,
-            'zakonczono_at' => now(),
-        ])->save();
-    }
-
-    private function rozlicz(ImportPrzepisu $zlecenie, BudzetAi $budzet, Rezerwacja $rezerwacja, ?OdpowiedzModelu $odpowiedz): void
-    {
-        $cennik = Cennik::zKonfiguracji();
-        $faktyczny = $odpowiedz !== null && $odpowiedz->maUsage() && $cennik !== null
-            ? $cennik->koszt((int) $odpowiedz->tokenyWejscia, (int) $odpowiedz->tokenyWyjscia)
-            : null;
-
-        $wydano = $budzet->rozlicz($rezerwacja, $faktyczny);
-
-        $zlecenie->forceFill([
-            'koszt_mikrousd' => (int) $zlecenie->koszt_mikrousd + $wydano,
-            'tokeny_wejscia' => $odpowiedz?->tokenyWejscia,
-            'tokeny_wyjscia' => $odpowiedz?->tokenyWyjscia,
-            'odpowiedz_modelu' => $odpowiedz?->surowa,
-            // Rezerwacja rozliczona — kolejna próba zarezerwuje od nowa.
-            'rezerwacja_mikrousd' => null,
-            'rezerwacja_dzien' => null,
-        ])->save();
-    }
-
-    private function bezRezerwacji(ImportPrzepisu $zlecenie): void
-    {
-        $zlecenie->forceFill(['rezerwacja_mikrousd' => null, 'rezerwacja_dzien' => null])->save();
     }
 
     private function zakoncz(ImportPrzepisu $zlecenie, string $kod, string $status = ImportPrzepisu::STATUS_NIEUDANY): void

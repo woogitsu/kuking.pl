@@ -18124,13 +18124,65 @@ projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
   odczyty opóźniają moderację — wtedy osobna kolejka, nową decyzją.
 - **Tabela `importy_przepisow`** (ślad zlecenia, bez treści przepisu):
   surowa odpowiedź modelu 30 dni, wiersz 90 dni (`kuking:sprzataj-importy`,
-  05:50). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
+  06:00). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
   bramka publikacji. Eksport RODO: sekcja `odczyty_przepisow`; anonimizacja
   konta kasuje wiersze.
 - **Brak powiadomienia w serwisie** w tym etapie: ekran postępu
   `/import/{import}` (słowa, `aria-live`, działa bez JS) i lista „Moje szkice”.
 - Komenda **`kuking:sprawdz-import`** mówi, czego brakuje (klucz, model,
   adres, intensywność, cennik, budżet) — bez wysyłania żądań.
+
+### Maszyna stanów płatnego wywołania (#1973, #1974, #1977, #1980)
+
+Audyt gałęzi pokazał cztery okna, w których awaria między dwoma zapisami
+psuła budżet albo zlecenie (zmierzone testami przed poprawką:
+`MaszynaStanowOdczytuTest`): rezerwacja zatwierdzona bez śladu w zleceniu
+(76 000 mikro-USD zablokowane na zawsze), rozliczenie policzone dwa razy
+(82 000 zamiast 76 000), zlecenie `oczekuje` bez zadania w kolejce (także po
+ponowieniu tym samym kluczem) i ponowienie zadania wysyłające DRUGIE płatne
+żądanie, choć odpowiedź pierwszego była zapisana. Jedna maszyna stanów
+zamiast czterech łatek:
+
+- **Księga `ai_rezerwacje`**, klucz `UNIQUE (import_id, proba)`, stany
+  `zarezerwowana → wyslana → rozliczona` albo `→ zwolniona`. Każde przejście
+  to warunkowy `UPDATE … WHERE stan IN (otwarte)`, więc powtórzone
+  rozliczenie niczego nie zmienia (#1974). Wiersz księgi powstaje w tej
+  samej transakcji co zwiększenie `zarezerwowano_mikrousd`, a zadanie
+  owija rezerwację i zwiększenie `importy_przepisow.proby` w jedną
+  transakcję (#1973). Kolumny `rezerwacja_mikrousd`/`rezerwacja_dzien`
+  zniknęły ze zlecenia (migracja gałęzi poprawiona w miejscu, przed
+  scaleniem).
+- **`wyslana` zapisywane PRZED żądaniem.** Dzięki temu rezerwacja porzucona
+  ma jednoznaczny los: niewysłana wraca do budżetu, wysłana idzie w wydatki
+  całą kwotą (D-297: lepiej zawyżyć). Domykają ją `failed()`, początek
+  następnej próby i **`kuking:odzyskaj-importy`** (co kwadrans; rezerwacja
+  otwarta ponad 30 minut — zadanie żyje najwyżej 120 s).
+- **Rozliczenie budżetu i zapis kosztu, tokenów i odpowiedzi w zleceniu —
+  jedna transakcja** (`RozliczenieOdczytu`). Koszt dopisywany w SQL
+  (`COALESCE(koszt_mikrousd, 0) + ?`), bo porzuconą rezerwację mógł domknąć
+  kto inny.
+- **Zapisana odpowiedź = etap „odczytano” zamknięty** (#1980). Ponowienie
+  zadania z `odpowiedz_modelu` odtwarza wynik (`OdpowiedzModelu::zZapisanej`)
+  i dokańcza BEZ rezerwacji i bez żądania. Zgody nie sprawdza drugi raz:
+  nic już nie wychodzi. Granica: `output_text` jest w zapisie ucięty do
+  20 000 znaków — dłuższy (niespotykany dla kartki) po wznowieniu kończy się
+  `odpowiedz_bledna`, nigdy drugim wywołaniem.
+- **Sufit płatnych żądań na zlecenie: `PROBY_MODELU` (3)** — liczony
+  z `proby`, więc obejmuje także ponowienia po zwykłym wyjątku, które
+  kolejka robi do `$tries` (8, bo obejmuje też czekanie na zdjęcie).
+- **Szkic i `gotowy` w jednej transakcji** — inaczej ponowienie po awarii
+  tuż za szkicem brało tekst modelu za pracę człowieka (`szkic_zmieniony`).
+- **Zlecenie i zadanie razem albo wcale** (#1977): `OdczytajPrzepis::dispatch()`
+  wewnątrz transakcji zapisu zlecenia — kolejka bazodanowa na tym samym
+  połączeniu, bez `after_commit`, ten sam outbox co `ZamowEksportDanych`
+  (A02) i `StoreUploadedImage` (#1456). `afterCommit()` odrzucone: przenosi
+  zapis zadania za commit, czyli zostawia to samo okno (kontrola ujemna
+  w `scripts/kontrole-negatywne-alfa08.py` robi dokładnie tę zmianę).
+  Zadanie zgubione inną drogą: zlecenie `oczekuje`/`w_toku` bez zmiany od
+  120 minut dostaje `nieudany`/`blad_wewnetrzny` i „Spróbuj jeszcze raz”.
+  **Nie wysyłamy zadania ponownie automatycznie** — gdyby „zgubione” zadanie
+  jednak żyło, dwa zadania to dwa płatne żądania; ponowienie należy do
+  człowieka i liczy się do jego limitu.
 
 ### Czego ta decyzja NIE robi
 
@@ -18144,7 +18196,8 @@ ani wartości odżywczych (osobne etapy i gałęzie).
 Najszybciej: usunąć `OPENAI_IMPORT_KEY` — przyciski znikają, zlecenia
 w kolejce kończą się `wylaczony`, szkice ze zdjęciami zostają. Cofnięcie kodu:
 odwrócić commity; migracje `importy_przepisow` cofa się bez odmowy,
-`ai_budzet_dzienny` odmawia przy wydatkach w bieżącym miesiącu (D-088).
+`ai_budzet_dzienny` (razem z księgą `ai_rezerwacje`) odmawia przy wydatkach
+w bieżącym miesiącu (D-088).
 ## D-303 — Ustawienia powiadomień dotyczą WYŁĄCZNIE kanałów zewnętrznych; Web Push przez VAPID (issue #35, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · **Decyzja właściciela** ·

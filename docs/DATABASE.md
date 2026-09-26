@@ -3625,19 +3625,26 @@ ochrony skanu kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`,
 | `status` | `oczekuje` \| `w_toku` \| `gotowy` \| `nieudany` \| `wstrzymany_limitem`. CHECK. **Poza `$fillable`** (AGENTS.md §7). |
 | `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
 | `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Etap importu z adresu. |
-| `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). |
-| `rezerwacja_mikrousd`, `rezerwacja_dzien` | Rezerwacja budżetu (D-297) i dzień, pod którym ją zapisano — oba albo żadne (CHECK). Rozliczenie trafia do tego samego wiersza `ai_budzet_dzienny`, także po północy. |
-| `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Faktyczny koszt z `usage`. Kwoty ≥ 0 (CHECK). |
-| `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. |
+| `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). Zwiększana w tej samej transakcji co rezerwacja budżetu — numer próby jest częścią klucza `ai_rezerwacje (import_id, proba)`. |
+| `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Suma rozliczeń wszystkich prób (z `usage`, a bez niego cała rezerwacja). Dopisywana w tej samej transakcji co rozliczenie budżetu (`RozliczenieOdczytu`). Kwota ≥ 0 (CHECK `importy_przepisow_kwoty_check`). Rezerwacje **nie** stoją w tym wierszu — są w `ai_rezerwacje`. |
+| `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. Zapisana = etap „odczytano” zamknięty: ponowienie zadania dokańcza z niej, **bez drugiego płatnego żądania** (#1980). |
 | `klucz_wyslania` | `uuid NULL`; `UNIQUE (user_id, klucz_wyslania) WHERE klucz_wyslania IS NOT NULL` — jedno wysłanie formularza = jedno zlecenie. |
 | `rozpoczeto_at`, `zakonczono_at`, `created_at`, `updated_at` | `timestamptz`. |
 
 Indeksy: `(user_id, created_at DESC)` — limit na osobę (5 dziennie / 30
 miesięcznie liczone w strefie `Europe/Warsaw`, bez zleceń `wstrzymany_limitem`);
 `(created_at)` — retencja; `(recipe_id) WHERE recipe_id IS NOT NULL` — bramka
-publikacji szkicu z odczytu.
+publikacji szkicu z odczytu; `importy_przepisow_przejsciowe_idx (updated_at)
+WHERE status IN ('oczekuje', 'w_toku')` — odzyskiwanie porzuconych zleceń.
 
-**Retencja** (`kuking:sprzataj-importy`, codziennie 05:50): `odpowiedz_modelu`
+**Zlecenie i zadanie razem albo wcale (#1977).** `ZlecImportPrzepisu` wysyła
+`OdczytajPrzepis` wewnątrz transakcji zapisu zlecenia — kolejka jest bazodanowa,
+na tym samym połączeniu, bez `after_commit`, więc wiersz w `jobs` zatwierdza się
+razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadanie
+zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
+`blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
+
+**Retencja** (`kuking:sprzataj-importy`, codziennie 06:00): `odpowiedz_modelu`
 → `NULL` po 30 dniach, wiersz znika po 90. **Wyjątek:** wiersz, którego szkic
 jest nadal szkicem, zostaje (bez surowej odpowiedzi), bo jest bramką publikacji
 („Odczytany tekst jest sprawdzony”) — znika najbliższym przebiegiem po publikacji
@@ -3680,6 +3687,51 @@ jest potrzebna do rozliczeń.
 po ponownym `migrate` licznik zaczynałby od zera, a serwis mógłby wydać drugi
 raz tyle samo. Najpierw wyłącz funkcję (`OPENAI_IMPORT_KEY=`); świadome
 skasowanie: `KUKING_ROLLBACK_KASUJ_BUDZET_AI=true php artisan migrate:rollback`.
+Ta sama migracja i ten sam `down()` kasują `ai_rezerwacje` (niżej) — otwarte
+rezerwacje są już policzone w `zarezerwowano_mikrousd`, więc odmowa obejmuje
+także je.
+
+### ai_rezerwacje
+Księga rezerwacji budżetu modelu — jeden wiersz na **jedną próbę płatnego
+wywołania** (D-298 „maszyna stanów płatnego wywołania”, #1973, #1974). Ta sama
+migracja co `ai_budzet_dzienny` (`2026_09_26_100100_create_ai_budzet_dzienny_table`).
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `bigint` identity. |
+| `import_id` | `uuid NOT NULL` — zlecenie z `importy_przepisow`. **Bez klucza obcego, świadomie:** usunięcie konta kasuje zlecenia, a otwarta rezerwacja musi przeżyć zlecenie, żeby sprzątanie ją domknęło (kaskada zostawiłaby kwotę w `zarezerwowano_mikrousd` na zawsze). Po skasowaniu zlecenia UUID nikogo nie wskazuje. |
+| `proba` | `smallint NOT NULL`, ≥ 1 — numer próby zlecenia (`importy_przepisow.proby`). |
+| `dzien` | `date NOT NULL`, FK `ai_budzet_dzienny(dzien)` `ON DELETE RESTRICT` — rozliczenie trafia do tego samego dnia, także po północy. |
+| `mikrousd` | Kwota zarezerwowana (najgorszy przypadek z cennika), ≥ 0. |
+| `stan` | `zarezerwowana` \| `wyslana` \| `rozliczona` \| `zwolniona` (CHECK `ai_rezerwacje_stan_check`). |
+| `wydano_mikrousd` | Kwota wpisana w wydatki — **dokładnie** przy `rozliczona` (CHECK `ai_rezerwacje_wydano_check`). |
+| `zamknieto_at` | `timestamptz` — **dokładnie** przy `rozliczona`/`zwolniona` (CHECK `ai_rezerwacje_zamkniecie_check`). |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+Indeksy: `UNIQUE (import_id, proba)` (`ai_rezerwacje_import_proba_unique`) —
+klucz idempotencji; `(created_at) WHERE stan IN ('zarezerwowana', 'wyslana')` —
+sprzątanie po czasie. CHECK `ai_rezerwacje_kwoty_check`: `proba ≥ 1`, kwoty ≥ 0.
+
+**Przejścia** — wyłącznie warunkowym `UPDATE … WHERE stan IN ('zarezerwowana', 'wyslana')`:
+
+    zarezerwowana ──(przed żądaniem)──► wyslana ──(usage / brak usage)──► rozliczona
+          └──(zgoda cofnięta, 4xx, porzucona niewysłana)──► zwolniona
+    porzucona `wyslana` (failed(), następna próba, odzyskiwanie) ──► rozliczona całą kwotą
+
+- Wiersz powstaje w **tej samej transakcji** co zwiększenie `zarezerwowano_mikrousd`
+  (i co zwiększenie `importy_przepisow.proby`) — nie ma rezerwacji bez śladu (#1973).
+- Drugie rozliczenie tej samej próby nie trafia w żaden wiersz, więc nie dotyka
+  budżetu (#1974). Rozliczenie budżetu i zapis kosztu/odpowiedzi w zleceniu idą
+  w jednej transakcji (`RozliczenieOdczytu`).
+- Otwartą rezerwację domyka `OdczytajPrzepis::failed()`, początek następnej próby
+  i `kuking:odzyskaj-importy` (co kwadrans, po 30 minutach).
+
+**Retencja** (`kuking:sprzataj-importy`): wiersz **zamknięty** znika po 90 dniach;
+otwartych retencja nie rusza. **Eksport RODO / kasowanie konta:** tabela nie ma
+`user_id` i nie niesie treści — nie wchodzi do paczki; zlecenia znikają z kontem,
+a osierocone wiersze księgi niczego nie wskazują.
+
+**Rollback:** razem z `ai_budzet_dzienny` (wyżej) — ta sama odmowa.
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,

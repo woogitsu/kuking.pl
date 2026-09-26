@@ -24,7 +24,7 @@ class SprzatajImporty extends Command
         $wynik = $sprzataj->posprzataj($naSucho);
 
         $this->info(($naSucho ? 'Do wyczyszczenia' : 'Wyczyszczono').": {$wynik['odpowiedzi']} odpowiedzi modelu; "
-            .($naSucho ? 'do skasowania' : 'skasowano').": {$wynik['wiersze']} zleceń odczytu.");
+            .($naSucho ? 'do skasowania' : 'skasowano').": {$wynik['wiersze']} zleceń odczytu i {$wynik['rezerwacje']} zamkniętych rezerwacji budżetu.");
 
         return self::SUCCESS;
     }

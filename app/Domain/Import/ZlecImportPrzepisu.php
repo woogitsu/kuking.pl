@@ -131,6 +131,18 @@ final class ZlecImportPrzepisu
                     'zakonczono_at' => $kod === null ? null : now(),
                 ])->save();
 
+                // ZLECENIE I ZADANIE W JEDNEJ TRANSAKCJI (#1977). Kolejka jest
+                // bazodanowa, na tym samym połączeniu, z `after_commit => false`
+                // (`config/queue.php`), więc INSERT do `jobs` zatwierdza się
+                // razem z wierszem zlecenia albo cofa razem z nim — ten sam
+                // outbox co `ZamowEksportDanych` i `StoreUploadedImage`.
+                // `afterCommit()` NIE wystarczy: przenosi wysyłkę za commit,
+                // czyli zostawia to samo okno. Zadanie zgubione inną drogą
+                // (wyczyszczone `jobs`) domyka `kuking:odzyskaj-importy`.
+                if ($status === ImportPrzepisu::STATUS_OCZEKUJE) {
+                    OdczytajPrzepis::dispatch((string) $zlecenie->getKey());
+                }
+
                 return $zlecenie;
             });
         } catch (UniqueConstraintViolationException $e) {
@@ -141,10 +153,6 @@ final class ZlecImportPrzepisu
             }
 
             return $juz;
-        }
-
-        if ($zlecenie->status === ImportPrzepisu::STATUS_OCZEKUJE) {
-            OdczytajPrzepis::dispatch((string) $zlecenie->getKey());
         }
 
         return $zlecenie;

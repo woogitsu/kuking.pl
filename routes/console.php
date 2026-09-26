@@ -316,6 +316,18 @@ Harmonogram::artisan('kuking:sprzataj-importy')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Odzyskiwanie odczytów przepisu (D-298 „maszyna stanów”, #1973, #1977).
+// Rezerwacja budżetu modelu porzucona przez zabity proces blokowałaby limit
+// dzienny dla WSZYSTKICH do północy, a zlecenie bez zadania wisiałoby
+// w „trwa” do retencji. CO KWADRANS, bo pierwsze to pieniądze i limit, drugie
+// to człowiek patrzący na ekran postępu. Progi: `kuking.import.odzyskiwanie`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:odzyskaj-importy')
+    ->name('kuking:odzyskaj-importy')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
