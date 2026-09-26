@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\HeroKolaz;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Models\HeroPick;
 use App\Models\User;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -63,7 +61,10 @@ class HeroKolazController extends Controller
      */
     private const KANDYDATOW = 60;
 
-    public function __construct(private readonly HeroKolaz $kolaz) {}
+    public function __construct(
+        private readonly HeroKolaz $kolaz,
+        private readonly ZapiszKolaz $zapis,
+    ) {}
 
     public function edit(Request $request): View
     {
@@ -98,58 +99,9 @@ class HeroKolazController extends Controller
 
         $dopuszczone = $this->kolaz->dopuszczZdjecia($zadane);
 
-        $moderator = $request->user();
-
-        // TRANSAKCJA I PRZECHWYCENIE ZDERZENIA — ten sam wzorzec i ten sam
-        // powód co w `Admin\DailyBoardController::update()`: gospodarz
-        // klika „Zapisz" drugi raz, bo strona wolno się ładuje, i dwa niemal
-        // jednoczesne żądania mogą przepleść się tak, że oba wykonają DELETE,
-        // a potem oba spróbują wstawić TO SAMO zdjęcie. Drugi INSERT zderza
-        // się wtedy z UNIQUE (`hero_picks.media_id`).
-        //
-        // W PostgreSQL zderzenie z UNIQUE unieważnia CAŁĄ otaczającą
-        // transakcję, więc samo `try/catch` nic by nie dało — zagnieżdżone
-        // `DB::transaction()` Laravel zamienia na SAVEPOINT i wycofuje
-        // wyłącznie ten jeden INSERT.
-        DB::transaction(function () use ($zadane, $dopuszczone, $moderator): void {
-            HeroPick::query()->delete();
-
-            $pozycja = 0;
-
-            // Kolejność Z FORMULARZA, nie z wyniku bramki: gospodarz widzi
-            // listę w jednym porządku i pozycje w kolażu mają za nim iść.
-            foreach ($zadane as $mediaId) {
-                if (! isset($dopuszczone[$mediaId])) {
-                    continue;
-                }
-
-                try {
-                    DB::transaction(function () use ($mediaId, $dopuszczone, $pozycja, $moderator): void {
-                        HeroPick::create([
-                            'media_id' => $mediaId,
-                            'post_id' => $dopuszczone[$mediaId],
-                            'position' => $pozycja,
-                            'curator_id' => $moderator?->getKey(),
-                        ]);
-                    });
-                } catch (UniqueConstraintViolationException) {
-                    // Konkurencyjne żądanie zapisało dokładnie to zdjęcie.
-                    // Dla człowieka to wciąż jeden zapis — kończymy cicho.
-                }
-
-                $pozycja++;
-            }
-        });
-
-        AuditLogEntry::record(
-            action: 'hero_kolaz.updated',
-            actor: $moderator,
-            metadata: [
-                'zapisanych' => count($dopuszczone),
-                'odrzuconych' => count($zadane) - count($dopuszczone),
-            ],
-            ip: $request->ip(),
-        );
+        // Blokada kolażu, zastąpienie całego wyboru i wpis audytu w jednej
+        // transakcji — uzasadnienie w `ZapiszKolaz` (#1027, #1329).
+        $this->zapis->zastap($request->user(), $zadane, $dopuszczone, $request->ip());
 
         return back()->with('status', $this->komunikat(count($dopuszczone), count($zadane) - count($dopuszczone)));
     }
@@ -159,14 +111,7 @@ class HeroKolazController extends Controller
     {
         $this->authorize('moderate', User::class);
 
-        HeroPick::query()->delete();
-
-        AuditLogEntry::record(
-            action: 'hero_kolaz.cleared',
-            actor: $request->user(),
-            metadata: [],
-            ip: $request->ip(),
-        );
+        $this->zapis->wyczysc($request->user(), $request->ip());
 
         return back()->with('status', 'Wyczyszczone. Kolaż dobierze zdjęcia sam — najnowsze publiczne, najpierw po jednym od osoby, a w razie potrzeby po dwa.');
     }
