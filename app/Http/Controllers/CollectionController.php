@@ -66,8 +66,9 @@ class CollectionController extends Controller
                     // jest dostępnych" — i te dwie liczby razem dają całość.
                     'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
                         ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
-                    'posts as posts_count' => fn ($q) => $q->widoczneDla($user)
-                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    // Wpisy — ta sama reguła co wnętrze zeszytu, łącznie
+                    // z bramką przepisu i statusem jego autora (#1319).
+                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
                     // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
                     // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
                     // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
@@ -146,9 +147,11 @@ class CollectionController extends Controller
                 'zapisano_at' => $przepis->zapisano_at,
             ]);
 
+        // Wpisy przez pełną regułę wnętrza zeszytu (#1319): zapowiedź
+        // schowanego przepisu nie może zająć miejsca w pięciu pozycjach
+        // ani dać odnośnika, który Policy kończy odmową.
         $wpisy = Post::query()
-            ->widoczneDla($user)
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->widoczneWZeszycieDla($user)
             ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
             ->addSelect(['zapisano_at' => $zapisano('post_id', 'posts')])
             ->with(['media', 'author.profile'])
@@ -235,12 +238,19 @@ class CollectionController extends Controller
             return redirect()->route('collections.show', ['collection' => $collection, ...$pages]);
         }
 
+        // Wpis z własną treścią zostaje w zeszycie także wtedy, gdy jego
+        // przepis stał się niedostępny (#1377) — ale karta nie może wtedy
+        // pokazać tytułu, zdjęcia ani odnośnika tego przepisu (#1036).
+        Post::ukryjNiedostepnePrzepisy($posts->items(), $request->user());
+
         // Każdy przycisk przesuwa swoją listę i zachowuje pozycję drugiej.
         PaginationLinks::preserveOtherPage($recipes, $posts);
         PaginationLinks::preserveOtherPage($posts, $recipes);
 
-        $niewidoczne = max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
-            + max(0, $collection->posts()->withTrashed()->count() - $posts->total());
+        $niewidoczne = $request->user()?->getKey() === $collection->owner_id
+            ? max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
+                + max(0, $collection->posts()->withTrashed()->count() - $posts->total())
+            : 0;
 
         return view('pages.collections.show', [
             'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
@@ -289,6 +299,13 @@ class CollectionController extends Controller
             // Paginatory policzyły już wszystkie widoczne pozycje. Liczymy
             // także przepisy i treści usunięte miękko: ich zapisy nadal istnieją.
             // withTrashed dotyczy wyłącznie COUNT, nigdy listy ani treści.
+            //
+            // TYLKO WŁAŚCICIELOWI (#1297). Liczba ukrytych zapisów to metadana
+            // o cudzej, prywatnej aktywności: gość publicznego zeszytu mógłby
+            // z wizyty na wizytę śledzić, ile prywatnych rzeczy właściciel
+            // odkłada. Obcy widzi wyłącznie to, co może otworzyć — a gdy nie
+            // może nic, ten sam pusty stan co w naprawdę pustym zeszycie,
+            // żeby sam wygląd strony nie potwierdzał istnienia ukrytych zapisów.
             'niewidoczne' => $niewidoczne,
             // Odcisk dla przycisku „Wyjmij niedostępne zapisy" (#773) — tylko
             // właścicielowi i tylko wtedy, gdy jest co wyjmować.
@@ -552,10 +569,13 @@ class CollectionController extends Controller
      * Policy `view` PRZED zapisem, nie po. Bez tego dałoby się odłożyć
      * do zeszytu cudzy wpis prywatny, znając sam jego identyfikator —
      * a UUID w adresie to nie autoryzacja (AGENTS.md §7).
+     *
+     * `save`, a nie samo `view`: podgląd ukrytego wpisu dla moderatora
+     * (#1018) przechodzi `view`, ale jest tylko do odczytu.
      */
     public function savePost(Request $request, Post $post): RedirectResponse
     {
-        $this->authorize('view', $post);
+        $this->authorize('save', $post);
 
         $collection = $this->selectedCollection($request);
 
