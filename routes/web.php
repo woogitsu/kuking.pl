@@ -860,7 +860,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „Zobacz" przy pojedynczym powiadomieniu: oznacza JE jako przeczytane
     // i odsyła do treści. POST, nie GET, bo to zapis — pełne uzasadnienie
     // w `NotificationController::open()`.
+    //
+    // `whereUuid` (#1880): `notifications.id` jest UUID w PostgreSQL. Bez tej
+    // granicy niepoprawny identyfikator dochodził do `whereKey()` w środku
+    // kontrolera i dawał SQLSTATE[22P02] (HTTP 500) zamiast zwykłego 404 —
+    // tanią awarię dostępną dla każdego zalogowanego, bez żadnego realnego
+    // identyfikatora powiadomienia.
     Route::post('/powiadomienia/{notification}/zobacz', [NotificationController::class, 'open'])
+        ->whereUuid('notification')
         ->middleware("throttle:{$limits['powiadomienia']},powiadomienia")
         ->name('notifications.open');
 

@@ -7,6 +7,9 @@ namespace App\Console\Commands;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Przywracanie kont po odsiedzeniu kary (issue #40).
@@ -82,6 +85,8 @@ class RestoreExpiredSuspensions extends Command
             return self::SUCCESS;
         }
 
+        $nieudane = 0;
+
         foreach ($expired as $user) {
             if ($dryRun) {
                 $this->line("[dry-run] {$user->getKey()} — kara minęła {$user->status_expires_at->format('Y-m-d H:i')}");
@@ -89,20 +94,55 @@ class RestoreExpiredSuspensions extends Command
                 continue;
             }
 
-            $user->reinstate();
+            // PRZYWRÓCENIE I WPIS DO AUDYTU W JEDNEJ TRANSAKCJI (D-249,
+            // klasa 1; #1894). Wpis do dziennika audytu: przywrócenie
+            // dostępu jest decyzją moderacyjną tak samo jak jego odebranie,
+            // nawet gdy wykonuje ją zegar — bez niego w historii konta
+            // zostaje samo „zawieszony” i nie widać, że kara skończyła się
+            // zgodnie z terminem. To jest jedyny zapis TEGO zdarzenia:
+            // `reinstate()` nie zostawia po sobie żadnego innego śladu, że
+            // przywrócenie było wykonaniem WYGASŁEJ kary, a nie inną drogą
+            // (np. cofnięciem odwołania).
+            //
+            // Dlatego `record()` — nie `recordBezWywracania()` — WEWNĄTRZ
+            // `DB::transaction()`: gdy zapis audytu padnie, transakcja się
+            // wycofuje razem z `reinstate()`, konto ZOSTAJE `suspended`
+            // i to samo uruchomienie komendy za godzinę znajdzie je znowu
+            // w zapytaniu wyżej. Bez tego jedno uruchomienie wcześniej
+            // zamieniało zapis w HTTP 500 tej komendy: `record()` rzucał
+            // PO wykonanym `reinstate()`, więc konto wracało do `active`
+            // bez wpisu, a kolejne uruchomienie już go nie widziało
+            // (`WHERE status = suspended` go nie łapie) — czyli brak
+            // audytu bez drogi ponowienia.
+            //
+            // KAŻDE KONTO OSOBNO: wyjątek jednego konta (tu i tak głównie
+            // z audytu, bo `reinstate()` sam w sobie rzadko zawodzi) nie ma
+            // przerywać przywracania reszty — ta sama zasada co
+            // w `kuking:usun-wygasle-konta` (#1028).
+            try {
+                DB::transaction(function () use ($user): void {
+                    $user->reinstate();
 
-            // Wpis do dziennika audytu: przywrócenie dostępu jest decyzją
-            // moderacyjną tak samo jak jego odebranie, nawet gdy wykonuje ją
-            // zegar. Bez tego w historii konta zostaje samo „zawieszony”
-            // i nie widać, że kara się skończyła zgodnie z terminem.
-            AuditLogEntry::record('account.suspension_expired', null, $user);
+                    AuditLogEntry::record('account.suspension_expired', null, $user);
+                });
+            } catch (Throwable $e) {
+                $nieudane++;
+                $this->error("Nie udało się przywrócić konta {$user->getKey()} — spróbuję przy następnym przebiegu.");
+                Log::error('Zdejmowanie wygasłych kar: nieudana próba dla konta', [
+                    'konto_id' => (string) $user->getKey(),
+                    'wyjatek' => $e::class,
+                ]);
+
+                continue;
+            }
 
             $this->line("Przywrócono: {$user->getKey()}");
         }
 
         $this->info($dryRun
             ? 'Kar z minionym terminem: '.$expired->count().' (nic nie zmieniono).'
-            : 'Przywrócono kont: '.$expired->count().'.');
+            : 'Przywrócono kont: '.($expired->count() - $nieudane).'.'
+                .($nieudane > 0 ? ' Nieudane: '.$nieudane.' (spróbujemy przy następnym przebiegu).' : ''));
 
         return self::SUCCESS;
     }

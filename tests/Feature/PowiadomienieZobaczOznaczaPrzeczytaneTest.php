@@ -86,6 +86,25 @@ class PowiadomienieZobaczOznaczaPrzeczytaneTest extends TestCase
     }
 
     /**
+     * REGRESJA #1880: `notifications.id` jest UUID w PostgreSQL, a trasa nie
+     * miała `whereUuid`. Wartość spoza formatu UUID docierała do
+     * `whereKey()` i dawała `SQLSTATE[22P02] invalid input syntax for type
+     * uuid` — czyli HTTP 500 zamiast zwykłego 404 — bez żadnego prawdziwego
+     * identyfikatora powiadomienia, tanim kosztem zalewając logi błędów.
+     *
+     * Kontrola ujemna (wykonana ręcznie): zdjęcie `->whereUuid('notification')`
+     * z trasy w `routes/web.php` daje na tym teście HTTP 500 zamiast 404.
+     */
+    public function test_niepoprawny_identyfikator_powiadomienia_daje_404_nie_500(): void
+    {
+        $odbiorca = $this->user('basia');
+
+        $this->actingAs($odbiorca)
+            ->post(route('notifications.open', ['notification' => 'nie-jest-to-uuid']))
+            ->assertNotFound();
+    }
+
+    /**
      * POWTÓRNE KLIKNIĘCIE NIE PRZESUWA ZNACZNIKA — I TO NIE JEST KOSMETYKA.
      *
      * Od `read_at` liczy się retencja powiadomień (`PrzedawnionePowiadomienia`,

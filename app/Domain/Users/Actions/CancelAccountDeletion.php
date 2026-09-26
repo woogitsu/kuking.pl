@@ -6,6 +6,7 @@ namespace App\Domain\Users\Actions;
 
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +29,18 @@ use Illuminate\Support\Facades\DB;
  *     tylko `status = active` na koncie bez e-maila, hasła i profilu: pusta
  *     powłoka, która wygląda jak wskrzeszone konto, a nie jest nim. To gorsze
  *     niż odmowa — więc odmawiamy, z wyjaśnieniem, co się stało i dokąd pisać.
+ *
+ * DZIENNIK AUDYTU W TEJ SAMEJ TRANSAKCJI (D-249, klasa 1; #1893), tą samą
+ * drogą co `account.delete_requested` w `RequestAccountDeletion` (#1347).
+ * `cancelDeletion()` ZERUJE `delete_requested_at` i `delete_scope`, więc po
+ * wyjściu z tej transakcji ten wpis oraz `account.delete_requested` są
+ * jedynym miejscem w całej bazie, które mówi, że ktoś w ogóle zgłosił
+ * usunięcie konta i potem zmienił zdanie (`AuditLogEntry::NIGDY_NIE_KASUJ`).
+ * Wcześniej ten zapis szedł z kontrolera, PO zatwierdzonej transakcji: jego
+ * awaria dawała HTTP 500 mimo cofniętego usunięcia, a ponowienie odbijało
+ * się od „to konto nie jest oznaczone do usunięcia — nie ma czego cofać".
+ * Teraz awaria dziennika cofa też cofnięcie: konto zostaje `pending_delete`,
+ * a formularz da się wysłać jeszcze raz.
  */
 final class CancelAccountDeletion
 {
@@ -82,7 +95,7 @@ final class CancelAccountDeletion
             .config('kuking.community.contact_email').'.';
     }
 
-    public function handle(User $user): void
+    public function handle(User $user, ?string $ip = null): void
     {
         // Transakcja z blokadą, nie odczyt z argumentu: formularz i egzekutor
         // karencji (`kuking:usun-wygasle-konta`) mogą teoretycznie zetknąć się
@@ -90,7 +103,7 @@ final class CancelAccountDeletion
         // wykonuje karencję) — bez blokady wygrałby ten, kto zapisał drugi,
         // a „cofnięcie” mogłoby ustawić `active` na koncie, któremu w
         // międzyczasie wymazano e-mail i hasło.
-        DB::transaction(function () use ($user): void {
+        DB::transaction(function () use ($user, $ip): void {
             $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
             // Ta sama reguła co `powodOdmowy()`, ale na świeżym wierszu pod
@@ -118,6 +131,15 @@ final class CancelAccountDeletion
             // wiersz istnieje. Dowodzi tego
             // `PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`.
             $this->rejestr->domknijJakoCofniete($fresh);
+
+            // WPIS AUDYTU RAZEM Z RESZTĄ (D-249, klasa 1; #1893) — patrz
+            // komentarz klasy. Kara sprzed zgłoszenia (albo nałożona
+            // w karencji) wraca razem z kontem (#980); audyt zapisuje stan,
+            // do którego konto NAPRAWDĘ wróciło, czytany z modelu PO
+            // `cancelDeletion()` (`User::przejdz()` odświeża go stanem
+            // z bazy), nie z domysłu.
+            AuditLogEntry::record('account.delete_cancelled', $fresh, $fresh,
+                metadata: ['status' => $fresh->status], ip: $ip);
         });
     }
 }
