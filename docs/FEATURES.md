@@ -35,6 +35,13 @@ roku lub więcej, z cichym podpisem („Rok temu, 6 września"). Blok pojawia si
 tylko wtedy, gdy jest co pokazać. Całość wyłącza jeden przełącznik
 w `/ustawienia/prywatnosc`, a pojedyncze wspomnienie chowa przycisk przy nim.
 
+Urodziny (#1755): opcjonalny dzień i miesiąc bez roku w `/ustawienia/urodziny`.
+W dniu urodzin (strefa Europe/Warsaw, 29.02 → 28.02 w latach nieprzestępnych)
+na `/home` jedno zdanie z życzeniami od gospodarza, z wyłącznikiem przy dacie.
+Mail z życzeniami tylko za osobną zgodą, w sufitach poczty. Przypomnienie
+obserwującym („Dziś urodziny: …”) tylko po włączeniu przez solenizanta, jako
+powiadomienie w serwisie w dobowym limicie i poza ciszą nocną — nie w feedzie.
+
 Rocznica dołączenia (#1754): w rocznicę założenia konta (dzień w strefie
 Europe/Warsaw, 29 lutego → 28 lutego w latach nieprzestępnych) na stronie
 głównej jedno zdanie od gospodarza. Zero nowych danych (`users.created_at`),

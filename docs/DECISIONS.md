@@ -3238,7 +3238,8 @@ bez tego automat kłóci się z człowiekiem w kółko.
 Cena jest nazwana wprost: wpis opublikowany niewinnie i poprawiony edycją nie
 jest analizowany drugi raz. Ta luka jest opisana
 w `docs/legal/SYGNALY_AUTOMATU.md` §4 i zamykana zgłoszeniem od człowieka.
-Dla komentarzy lukę zamyka D-256 (#909) — bez naruszania tej obietnicy.
+Dla komentarzy lukę zamyka D-256 (#909), dla wpisów D-258 (#936) — bez
+naruszania tej obietnicy.
 
 ### OSOBNY EKRAN, BO TO JEST INNA PRACA
 
@@ -17358,6 +17359,55 @@ przepisu. Rozszerzenie na wpisy to osobne zgłoszenie.
 
 ### Wycofanie
 Odwrócić commit. Schemat bazy się nie zmienia.
+## D-258 — Poprawiony wpis przechodzi analizę automatu jeszcze raz; wpisu pod decyzją moderacji nie da się edytować (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #936 · **Decyzja właściciela 24.09.2026** · Status: **obowiązuje**
+(zmienia jeden wiersz „ODŁOŻONE” z D-052)
+
+**Co.**
+1. Gdy autor **rzeczywiście zmieni** treść opublikowanego wpisu — tekst,
+   tytuł pytania albo zestaw tagów — `EditPost` zleca
+   `PrzeanalizujTresc::dlaWpisu()`: to samo zadanie, w tej samej kolejce
+   `low`, co po publikacji, dopiero po zatwierdzeniu transakcji
+   (`afterCommit`). Zapis bez zmiany i sama zmiana widoczności nie zlecają
+   nic — z jednym wyjątkiem: wpis wychodzący z „tylko ja”. Prywatnego wpisu
+   analiza przy publikacji nie ogląda, więc pierwsze pokazanie go ludziom
+   jest pierwszą okazją do analizy.
+2. Wpis `hidden` albo `removed` nie jest edytowalny (`PostPolicy::update()`,
+   także zdjęcia i „wspomnienia”, które idą przez tę samą regułę). Status
+   jest sprawdzany ponownie pod blokadą wiersza w `EditPost`. Autor dostaje
+   komunikat, co może zrobić (odwołanie), a tekst wpisany mimo to wraca
+   na ekranie do skopiowania.
+
+**Dlaczego wariant „zablokuj”, a nie „pozwól poprawić i oznacz do
+ponownego przeglądu”.** Ten sam kontrakt co dla komentarzy (#937). Drugi
+wariant wymaga nowego stanu workflow (kolumna, ekran, przegląd przed
+przywróceniem), którego nie ma. Przy blokadzie `RestoreContent` przywraca
+dokładnie tę treść, o której moderator zdecydował, a odwołanie (DSA art. 20)
+dotyczy tego samego tekstu. Autor, który chce poprawić wpis, odwołuje się
+albo publikuje nowy.
+
+**Obietnica „odrzucone nie wraca” (D-052)** — nienaruszona:
+`OznaczDoPrzegladu::juzOgladane()` i indeks `reports_jeden_automat_na_tresc`
+przepuszczają jedno oznaczenie na wpis, na zawsze. Kilka szybkich poprawek
+daje kilka zadań (ograniczonych limitem trasy i tylko rzeczywistą zmianą),
+ale każde czyta wpis po ID w chwili wykonania, więc ocenia najnowszą wersję,
+a wynik to najwyżej jedna pozycja w kolejce.
+
+**Czego to nie zmienia.** Wynik jest sygnałem dla moderatora (D-052, D-055):
+wpis zostaje opublikowany, autor nie dostaje powiadomienia. Wyłącznik
+`KUKING_SYGNALY_AUTOMATU` i granica widoczności (`GranicaWysylki`, D-240)
+działają jak przy publikacji.
+
+**Znana granica.** Wpis, którego oznaczenie moderator już odrzucił, po
+edycji nie wraca do kolejki automatu — cena obietnicy z D-052. Zostaje
+zgłoszenie od człowieka.
+
+Dowody: `tests/Feature/AnalizaPoEdycjiWpisuTest.php`.
+
+### Wycofanie
+Odwrócić commit. Schemat bazy się nie zmienia; oznaczenia postawione po
+edycji zostają w kolejce jak każde inne.
 ---
 
 ## D-262 — Panel moderacji: napisy pomocnicze poniżej 18 px, świadomy wyjątek od AGENTS.md §5 (audyt B1, znalezisko 7, 25 września 2026)
@@ -17748,6 +17798,68 @@ najnowszy wpis autora, nie dwa naraz.
 Decyzja nie zmienia schematu ani danych. Zmiana reguły (np. wyjątek od #940
 dla wpisów z treścią) wymaga nowej decyzji właściciela i zmiany zapytania
 listy odkrywania.
+## D-269 — Urodziny (dzień i miesiąc), życzenia, mail za osobną zgodą, przypomnienie obserwującym, rocznica dołączenia (#1754, #1755, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela · Status: **obowiązuje**
+
+Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
+`claude/research-profil-forma-urodziny`). Właściciel przyjął część
+rekomendacji i świadomie poszedł dalej w dwóch miejscach, które research
+odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
+
+### CO ZOSTAŁO POSTANOWIONE
+
+1. **Urodziny = dzień i miesiąc, bez roku.** Pole opcjonalne
+   (`users.birthday_day`, `users.birthday_month`, CHECK zakresów), przycisk
+   „Usuń datę”, osobny ekran `/ustawienia/urodziny`. Roku nie zbieramy ani do
+   życzeń, ani do weryfikacji wieku (`docs/legal/COMPLIANCE.md` §4). 29 lutego
+   obchodzimy 28 lutego w latach nieprzestępnych. Data jest prywatna: nie ma
+   jej na profilu publicznym. Eksport RODO (`konto.urodziny`, DD-MM),
+   anonimizacja przy wymazaniu konta. `docs/SECURITY_PRIVACY_LEGAL.md`
+   („Data minimization”) dostaje dopisek — pełna data nadal na liście „nie
+   zbierać”.
+2. **Życzenia od gospodarza na `/home`** — jedno zdanie w dniu urodzin, tylko
+   u samego zainteresowanego, z wyłącznikiem przy dacie
+   (`users.birthday_wishes_enabled`, domyślnie włączone; zasada żałoby).
+3. **Mail z życzeniami — wyłącznie za OSOBNĄ zgodą** (PKE art. 398):
+   `users.wants_birthday_email`, domyślnie wyłączone; podanie daty zgody nie
+   daje. Każda zmiana zgody w dzienniku zgód (cel `zyczenia_urodzinowe`,
+   D-072). Wysyłka w dobowych sufitach poczty (własny 20/dobę + wspólna pula
+   w klasie `podsumowanie`, która gaśnie pierwsza), o stałej porze 08:40 UTC
+   z harmonogramu. Po scaleniu **włączona na produkcji**
+   (`KUKING_URODZINY_MAIL_WLACZONY` w roli scheduler, `.railway/railway.ts`);
+   staging i PR-y nie wysyłają.
+   **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
+   **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
+   wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
+4. **Przypomnienie obserwującym („Dziś urodziny: Ania”) — tylko gdy osoba
+   sama WŁĄCZY** „Pokaż moje urodziny obserwującym”
+   (`users.birthday_visible_to_followers`, domyślnie wyłączone). Powiadomienie
+   w serwisie (`birthday.today`), **nie wpis w feedzie** — feed obserwowanych
+   zostaje chronologiczny bez wstawek (AGENTS.md §8). Najwyżej jedno na parę
+   dziennie, dobowy limit na odbiorcę, nigdy w ciszy nocnej (21–8).
+5. **Konta zawieszone są wykluczone** — solenizantem w mailu i w
+   przypomnieniu może być tylko konto o statusie `active`.
+6. **Rocznica dołączenia** — jedno zdanie od gospodarza na `/home` w rocznicę
+   `users.created_at` (Europe/Warsaw), bez maila i powiadomień, zero nowych
+   danych. **Wyłącznik wspólny ze Wspomnieniami** (`users.memories_enabled`) —
+   jeden przełącznik dla „tego dnia w poprzednich latach”.
+
+### CZEGO TA DECYZJA NIE ZMIENIA
+
+- Formy gramatycznej (#1752/#1753) — teksty rocznicy i życzeń są dziś bez
+  rodzaju i powstają w jednym miejscu (`RocznicaDolaczenia::tekst()`,
+  `Urodziny::tekstZyczen()`), gotowe na helper formy.
+- Zasady „nie pytamy o płeć” (D-206) ani listy „nie zbierać” — rok urodzenia
+  i pełna data dalej są poza zakresem.
+- Imienin — dalej V1, po testach z ludźmi (#15).
+
+### Wycofanie
+
+Każdy element ma własną migrację z `down()` odmawiającym przy decyzjach
+ludzi (D-088) — opis w `docs/DATABASE.md` („Urodziny bez roku”). Wysyłkę
+maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
+
 
 ## D-281 — „Komentarze (N)” pod zwykłym wpisem liczy odpowiedzi; pytanie nie (#1801, 26 września 2026)
 
