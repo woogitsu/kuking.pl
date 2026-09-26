@@ -106,6 +106,11 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 
 ## V2
 
+> **D-282 (26 września 2026):** decyzja właściciela zniosła zakaz budowania
+> tej sekcji podczas prac nad MVP — funkcje niżej wolno budować od tej daty
+> (kolejność P0 → P1 → P2 nadal obowiązuje, `AGENTS.md` §10). Lista
+> „Nie wcześnie” poniżej pozostaje zakazana bez zmian.
+
 - OCR starych zeszytów;
 - import URL/PDF/zdjęcie;
 - pantry;
