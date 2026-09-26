@@ -215,6 +215,16 @@ final class FollowingFeed
     /** @return list<string> */
     private function obserwowaneTematy(User $viewer): array
     {
-        return $viewer->followedTags()->pluck('tags.id')->all();
+        // TYLKO AKTYWNE (issue #1824). Tag ukryty przez moderację po tym, jak
+        // ktoś zaczął go obserwować, ma 404 na własnej stronie i znika
+        // z katalogu, ale wiersz w `tag_follows` zostaje — świadomie, żeby
+        // człowiek mógł go sam zdjąć w „Twoich tagach”. Taki temat nie może
+        // sterować Startem: ani zasilać listy, ani decydować w `isEmptyFor()`.
+        // Warunek stoi tutaj, nie w relacji `followedTags()`: ekran ustawień
+        // musi nadal widzieć zastany ukryty tag, żeby dało się go usunąć.
+        return $viewer->followedTags()
+            ->where('tags.status', Tag::STATUS_ACTIVE)
+            ->pluck('tags.id')
+            ->all();
     }
 }
