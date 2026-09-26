@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Api\WyzwanieDwuetapowe;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Middleware\EnsureApiAccountIsActive;
 use App\Models\AuditLogEntry;
@@ -310,9 +311,100 @@ class LogowanieApiTest extends TestCase
 
         $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'backup_code' => 'ABCD-1234'])->assertCreated();
 
-        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'backup_code' => 'ABCD-1234'])
+        // Nowe wyzwanie: stare jest już zużyte (#1972) i odpadłoby na polu
+        // `challenge`, zanim ktokolwiek sprawdziłby sam kod zapasowy.
+        $noweWyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $noweWyzwanie, 'backup_code' => 'ABCD-1234'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('backup_code');
+    }
+
+    /**
+     * #1972: wyzwanie jest jednorazowe. Przed poprawką to samo wyzwanie
+     * z kolejnym ważnym kodem wydawało kolejny token aż do terminu.
+     *
+     * Drugi kod to niewykorzystany kod zapasowy — kod TOTP liczy się od
+     * zegara systemowego, którego `travel()` nie przesuwa, a drugi kod z tego
+     * samego okna odrzuciłaby już ochrona TOTP i test nie mierzyłby wyzwania.
+     */
+    public function test_wyzwanie_po_udanym_logowaniu_nie_wydaje_drugiego_tokenu(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $sekret = $this->wlacz2fa($basia);
+
+        $wyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => (new Google2FA)->getCurrentOtp($sekret)])
+            ->assertCreated();
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'backup_code' => 'EFGH-5678'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('challenge')
+            ->assertJsonMissingPath('token');
+
+        $this->assertSame(1, PersonalAccessToken::query()->count(), 'Powtórzone wyzwanie wydało drugi token.');
+
+        // KONTROLA DODATNIA: ten sam kod zapasowy z NOWYM wyzwaniem przechodzi.
+        // Odmowa wyżej wynikała więc z powtórzenia wyzwania, nie ze złego
+        // kodu — i powtórzone wyzwanie nie spaliło kodu zapasowego.
+        $noweWyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $noweWyzwanie, 'backup_code' => 'EFGH-5678'])
+            ->assertCreated();
+
+        $this->assertSame(2, PersonalAccessToken::query()->count());
+    }
+
+    public function test_bledny_kod_nie_zuzywa_wyzwania(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $sekret = $this->wlacz2fa($basia);
+
+        $wyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => '000000'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('code');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => (new Google2FA)->getCurrentOtp($sekret)])
+            ->assertCreated();
+    }
+
+    /**
+     * #1972, wyścig: dwa żądania z tym samym wyzwaniem przeszły już odczyt
+     * (oba widzą wyzwanie jako niezużyte) i oba mają poprawny kod. Token
+     * dostaje tylko to, które pierwsze zużyje wyzwanie. Sklep `database`,
+     * bo tego używa produkcja — atomowość daje tu `INSERT … ON CONFLICT`
+     * w PostgreSQL, nie pamięć procesu.
+     */
+    public function test_rownolegle_zuzycie_tego_samego_wyzwania_przechodzi_raz(): void
+    {
+        config(['cache.default' => 'database']);
+
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $this->wlacz2fa($basia);
+
+        $wyzwanie = WyzwanieDwuetapowe::wystaw($basia, 'Telefon Basi')['wyzwanie'];
+
+        $pierwsze = WyzwanieDwuetapowe::odczytaj($wyzwanie);
+        $drugie = WyzwanieDwuetapowe::odczytaj($wyzwanie);
+
+        $this->assertNotNull($pierwsze);
+        $this->assertNotNull($drugie);
+        $this->assertSame($pierwsze[2], $drugie[2]);
+
+        $this->assertTrue(WyzwanieDwuetapowe::zuzyj($pierwsze[2]), 'Pierwsze zużycie musi przejść.');
+        $this->assertFalse(WyzwanieDwuetapowe::zuzyj($drugie[2]), 'Drugie zużycie tego samego wyzwania przeszło.');
+
+        // Po zużyciu wyzwanie nie przechodzi już nawet odczytu.
+        $this->assertNull(WyzwanieDwuetapowe::odczytaj($wyzwanie));
+
+        // KONTROLA DODATNIA: inne wyzwanie tego samego konta zużywa się
+        // niezależnie — znacznik dotyczy jednego wyzwania, nie konta.
+        $inne = WyzwanieDwuetapowe::odczytaj(WyzwanieDwuetapowe::wystaw($basia, 'Tablet')['wyzwanie']);
+        $this->assertNotNull($inne);
+        $this->assertTrue(WyzwanieDwuetapowe::zuzyj($inne[2]));
     }
 
     public function test_zly_kod_liczy_sie_do_tego_samego_koszyka_co_na_www(): void
@@ -449,7 +541,7 @@ class LogowanieApiTest extends TestCase
         $totp = app(TwoFactorAuthenticator::class);
         $sekret = $totp->generateSecret();
         $user->beginTwoFactorSetup($sekret);
-        $user->confirmTwoFactor($totp->hashBackupCodes(['ABCD-1234']));
+        $user->confirmTwoFactor($totp->hashBackupCodes(['ABCD-1234', 'EFGH-5678']));
         $user->refresh();
 
         return $sekret;

@@ -17848,8 +17848,15 @@ i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
 3. **Konto z 2FA nie dostaje tokenu przed kodem.** Pierwszy krok zwraca 202
    z zaszyfrowanym wyzwaniem (`App\Domain\Api\WyzwanieDwuetapowe`): konto,
    odcisk jego stanu (ten sam co w sesji WWW, #931), nazwa urządzenia,
-   termin 10 minut. Bez tabeli i bez cache'u — API nie ma sesji. Zmiana
+   termin 10 minut. Bez tabeli — API nie ma sesji. Zmiana
    hasła, statusu albo 2FA unieważnia wyzwanie od razu.
+   **Wyzwanie jest jednorazowe (#1972).** Ma losowe `id`; po poprawnym
+   kodzie, a przed wydaniem tokenu, `WyzwanieDwuetapowe::zuzyj()` zakłada
+   znacznik zużycia przez `Cache::add()` (sklep `database`: `INSERT … ON
+   CONFLICT DO NOTHING`, więc z równoległych żądań przechodzi jedno).
+   Powtórzone wyzwanie dostaje 422 na polu `challenge` bez sprawdzania kodu
+   — nie spala kodu zapasowego ani prób z limitu. Błędny kod wyzwania nie
+   zużywa. Znacznik żyje minutę dłużej niż wyzwanie.
 4. **Stan konta przy każdym żądaniu z tokenem**
    (`EnsureApiAccountIsActive`, odpowiednik `EnsureAccountIsActive`):
    zamknięte konto → token ginie, 401 `konto_zamkniete`; zawieszone → odczyt
