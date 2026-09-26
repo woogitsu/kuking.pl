@@ -495,7 +495,7 @@ class MartweZadaniaTest extends TestCase
 
     private function assertZdrowie(string $status, bool $kolejkaOk): void
     {
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('checks.kolejka.ok', $kolejkaOk)
             ->assertJsonPath('status', $status);

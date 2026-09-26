@@ -192,6 +192,9 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
+        'KUKING_HEALTH_TOKEN' => 'Opcjonalna (audyt A5-05): pusto = `/health` oddaje tylko `status`, healthcheck '
+            .'Railwaya działa tak samo. `ctx.shared` wymaga istniejącej zmiennej, więc najpierw panel, potem '
+            .'`railway.ts` — kolejność w `docs/infra/DEPLOYMENT_RUNBOOK.md`.',
         'TURNSTILE_HOSTY_STAGINGU' => 'Pusto = token Turnstile tylko z hosta `APP_URL` (#992); ustawiane ręcznie '
             .'wyłącznie na stagingu, który odpowiada też pod innym hostem. Na produkcji zostaje puste.',
 
