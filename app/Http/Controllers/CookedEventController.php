@@ -220,25 +220,36 @@ class CookedEventController extends Controller
             'user.profile.avatar',
             'recipe.author.profile',
             'media',
-            // Komentarze filtrowane przez blokady (issue #41). Bez tego
-            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
-            'comments' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.author.profile.avatar',
-            // Odpowiedzi porcjami (issue #939) — `OdpowiedziWatku`.
-            'comments.replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
-            'comments.replies.author.profile.avatar',
-            // `Comment::subject()` przy każdym komentarzu — jak `recipe`
-            // w `RecipeController`.
-            'comments.cookedEvent.recipe',
-            'comments.replies.cookedEvent.recipe',
         ]);
-        OdpowiedziWatku::uzupelnij($cookedEvent->comments, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
+
+        // Komentarze osobnym, PAGINOWANYM zapytaniem (issue #938), jak pod
+        // wpisem i przepisem — ten sam limit i ta sama nazwa strony
+        // `komentarze`, bo `CelPowiadomienia::adresy()` liczy numer
+        // strony jednym wzorem dla wszystkich trzech treści. `->load()`
+        // wciągał całą historię rozmowy naraz. Blokady (issue #41) na
+        // wątkach i odpowiedziach; odpowiedzi jednego wątku porcjami
+        // (issue #939, `OdpowiedziWatku`).
+        $komentarze = $cookedEvent->comments()
+            ->widoczneDla($request->user())
+            ->with([
+                'author.profile.avatar',
+                // Odpowiedzi też porcjami (issue #939) — `OdpowiedziWatku`.
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
+                'replies.author.profile.avatar',
+                // `Comment::subject()` przy każdym komentarzu — jak `recipe`
+                // w `RecipeController`.
+                'cookedEvent.recipe',
+                'replies.cookedEvent.recipe',
+            ])
+            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
-            // Nagłówek „Komentarze (N)” liczy odpowiedzi jak karta wpisu
-            // i strona przepisu (D-281, D-309) — bez tego mówił o samych
-            // wątkach, a pod nim stało więcej wypowiedzi.
+            'komentarze' => $komentarze,
+            // Nagłówek „Komentarze (N)” mówi o CAŁEJ rozmowie razem
+            // z odpowiedziami, jak karta wpisu i strona przepisu (D-281,
+            // D-309). `total()` liczy same wątki, więc zostaje do paginacji.
             'komentarzyRazem' => Comment::policzRozmowe($cookedEvent->comments(), $request->user()),
         ]);
     }
