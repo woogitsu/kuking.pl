@@ -79,7 +79,6 @@ final class HistoriePrzepisow
     public function policz(?CarbonImmutable $teraz = null): array
     {
         $teraz ??= CarbonImmutable::now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
         $odKogo = "coalesce(recipes.source_person ~ '[^[:space:]]', false)";
         $historia = "coalesce(recipes.source_note ~ '[^[:space:]]', false)";
@@ -97,7 +96,8 @@ final class HistoriePrzepisow
             ->whereNull('recipes.deleted_at')
             ->where('recipes.published_at', '>', $teraz->subDays(self::DNI))
             ->where('recipes.published_at', '<=', $teraz)
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('recipes.author_id', $wykluczeni))
+            // Filtr w SQL (#1309), nie lista UUID wykluczonych kont w PHP.
+            ->tap(fn ($q) => $this->eligibility->tylkoLiczeni($q, 'recipes.author_id'))
             ->selectRaw('count(*) AS przepisy')
             ->selectRaw("count(*) FILTER (WHERE recipes.visibility = 'public') AS publiczne")
             ->selectRaw("count(*) FILTER (WHERE {$odKogo}) AS od_kogo")
