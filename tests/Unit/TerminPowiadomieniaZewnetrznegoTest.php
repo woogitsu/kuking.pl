@@ -32,10 +32,15 @@ final class TerminPowiadomieniaZewnetrznegoTest extends TestCase
         ]);
     }
 
-    public function test_domyslnie_flaga_jest_wylaczona_i_nic_nie_wychodzi(): void
+    /**
+     * D-303: od uruchomienia Web Push flaga jest AWARYJNYM wyłącznikiem
+     * i domyślnie przepuszcza — o istnieniu kanału decydują jego klucze
+     * (`PowiadomieniaPushTest::test_bez_klucza_vapid_nie_ma_pushu_ani_ekranu`). Wyłączona flaga dalej gasi wszystko.
+     */
+    public function test_awaryjny_wylacznik_gasi_kanal_a_domyslnie_przepuszcza(): void
     {
         $domyslne = require base_path('config/kuking.php');
-        $this->assertFalse($domyslne['notifications']['zewnetrzne']['wlaczone']);
+        $this->assertTrue($domyslne['notifications']['zewnetrzne']['wlaczone']);
 
         config(['kuking.notifications.zewnetrzne.wlaczone' => false]);
 
@@ -135,5 +140,26 @@ final class TerminPowiadomieniaZewnetrznegoTest extends TestCase
         ]);
 
         $this->assertSame(Termin::TERAZ, Termin::rozstrzygnij(CarbonImmutable::parse('2026-09-25 22:00:00', 'UTC'), 0)['decyzja']);
+    }
+
+    public function test_cisza_nocna_wybrana_przez_czlowieka_wygrywa_z_domyslna(): void
+    {
+        // 21:30 w Warszawie: w domyślnej ciszy, ale ktoś wybrał 23–7.
+        $moment = CarbonImmutable::parse('2026-09-25 19:30:00', 'UTC');
+
+        $this->assertSame(Termin::TERAZ, Termin::rozstrzygnij($moment, 0, null, 23, 7)['decyzja']);
+
+        // 23:30 w Warszawie — już w jego ciszy, czeka do 7:00.
+        $wynik = Termin::rozstrzygnij(CarbonImmutable::parse('2026-09-25 21:30:00', 'UTC'), 0, null, 23, 7);
+        $this->assertSame(Termin::ODLOZ, $wynik['decyzja']);
+        $this->assertSame('2026-09-26 05:00:00', $wynik['wyslij_od']->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_limit_wybrany_przez_czlowieka_wygrywa_z_domyslnym(): void
+    {
+        $moment = CarbonImmutable::parse('2026-09-25 10:00:00', 'UTC');
+
+        $this->assertSame(Termin::TERAZ, Termin::rozstrzygnij($moment, 2, null, null, null, 3)['decyzja']);
+        $this->assertSame(Termin::ODLOZ, Termin::rozstrzygnij($moment, 3, null, null, null, 3)['decyzja']);
     }
 }

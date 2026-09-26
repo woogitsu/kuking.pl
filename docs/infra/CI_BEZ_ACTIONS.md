@@ -78,7 +78,7 @@ widzi. Są dwa takie procesy i oba muszą dostać tę samą wartość:
 | Kto wykonuje IaC | Skąd bierze `KUKING_WAIT_FOR_CI` |
 |---|---|
 | lokalny `railway config plan/apply` | z powłoki: `KUKING_WAIT_FOR_CI=true railway config plan` |
-| `railway-iac.yml` (plan w PR, apply po scaleniu) | ze **zmiennej repozytorium** GitHuba `KUKING_WAIT_FOR_CI` (Settings → Secrets and variables → Actions → Variables), mapowanej jawnie w `env:` obu jobów |
+| `railway-iac.yml` (plan w PR do `main`, apply wyłącznie ręcznie — `workflow_dispatch` z `main`, #595) | ze **zmiennej repozytorium** GitHuba `KUKING_WAIT_FOR_CI` (Settings → Secrets and variables → Actions → Variables), mapowanej jawnie w `env:` obu jobów |
 
 Dopuszczalne wartości to wyłącznie `true` albo `false`. Brak zmiennej albo
 inna wartość (np. `TRUE`, `1`) **zatrzymuje** plan i apply — i `railway.ts`,
