@@ -49,7 +49,7 @@ class CookedEventPolicy
         // Do audytu A5 (znalezisko A5-07, dawniej B-03) ta metoda celowo NIE
         // patrzyła na status kucharza: wykonanie osoby ZBANOWANEJ zostawało
         // publiczne pod bezpośrednim adresem, choć `RecipePolicy::view()`,
-        // `UserPolicy::viewProfile()` i `Notification::widoczneDla()` w tym
+        // `UserPolicy::viewProfile()` i `WidocznoscPowiadomien::zawez()` w tym
         // stanie odmawiają. Gość dostawał 200 z notatką, nazwą i awatarem,
         // a profil tej samej osoby — 403. D-261 rozstrzyga to w wariancie
         // bezpieczniejszym: bezpośredni adres odpowiada tak samo jak lista.
@@ -74,7 +74,7 @@ class CookedEventPolicy
         //
         // Moderator z tego samego powodu co wszędzie — ma zaglądać z urzędu.
         //
-        // BLOKADA Z AUTOREM PRZEPISU — FURTKA DLA KUCHARZA ZOSTAJE (#1394, D-265).
+        // BLOKADA Z AUTOREM PRZEPISU — FURTKA DLA KUCHARZA ZOSTAJE (#1394, D-259).
         //
         // Wcześniej blokada z autorem przepisu zamykała tę furtkę także
         // kucharzowi, bo karta wykonania renderowała TYTUŁ i ADRES przepisu,
