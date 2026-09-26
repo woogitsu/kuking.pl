@@ -7,9 +7,11 @@ namespace Tests\Feature;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Recipes\Odzywcze\KalkulatorWartosci;
 use App\Domain\Recipes\Odzywcze\WierszWyliczenia;
+use App\Domain\Recipes\Odzywcze\WynikWartosci;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\Unit;
+use Database\Seeders\UnitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -137,7 +139,7 @@ final class KalkulatorWartosciOdzywczychTest extends TestCase
     #[Test]
     public function test_wartosci_na_porcje_nie_zaleza_od_skalowania_przepisu(): void
     {
-        // Przepis razy 2 (skalowanie porcji, D-284) = dwa razy więcej
+        // Przepis razy 2 (skalowanie porcji, V2) = dwa razy więcej
         // wszystkiego i dwa razy więcej porcji. Na jedną porcję — to samo.
         $raz = $this->policz(['200 g mąki pszennej', '2 jajka', '1 szklanka mleka'], 2);
         $dwa = $this->policz(['400 g mąki pszennej', '4 jajka', '2 szklanki mleka'], 4);
@@ -149,7 +151,7 @@ final class KalkulatorWartosciOdzywczychTest extends TestCase
     #[Test]
     public function test_kolumny_strukturalne_maja_pierwszenstwo_przed_tekstem(): void
     {
-        $this->seed(\Database\Seeders\UnitSeeder::class);
+        $this->seed(UnitSeeder::class);
         $recipe = Recipe::factory()->create(['servings' => 1]);
         RecipeIngredient::create([
             'recipe_id' => $recipe->getKey(),
@@ -193,7 +195,7 @@ final class KalkulatorWartosciOdzywczychTest extends TestCase
     /**
      * @param  list<string>  $skladniki
      */
-    private function policz(array $skladniki, int|float|null $porcje): \App\Domain\Recipes\Odzywcze\WynikWartosci
+    private function policz(array $skladniki, int|float|null $porcje): WynikWartosci
     {
         $recipe = new Recipe(['servings' => $porcje]);
         $recipe->setRelation('ingredients', collect(array_map(

@@ -1567,7 +1567,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
-  „Wartości odżywcze” niżej (D-299).
+  sekcja `skladniki_odzywcze` niżej (D-299).
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
@@ -1846,7 +1846,10 @@ nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
 pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
 pusty ciąg nigdy nie był nazwą grupy.
 
-### Wartości odżywcze: `skladniki_odzywcze`, `miary_domowe`, `aliasy_skladnikow` (V2, D-299)
+### skladniki_odzywcze
+
+**Wartości odżywcze (V2, D-299)** — trzy tabele: `skladniki_odzywcze`,
+`miary_domowe`, `aliasy_skladnikow`.
 
 Szacunek kcal, białka, tłuszczu i węglowodanów na porcję, liczony w PHP
 (`App\Domain\Recipes\Odzywcze\KalkulatorWartosci`) z otwartych tabel CIQUAL
@@ -1871,12 +1874,16 @@ transakcji: po nim baza zawiera dokładnie to, co pliki.
 - `pomijalny boolean` — sól, przyprawy, zioła, woda: wiersz BEZ ilości nie
   blokuje wyniku (z ilością liczy się normalnie).
 
+### miary_domowe
+
 `miary_domowe` — `skladnik_odzywczy_id` → `skladniki_odzywcze` (`ON DELETE
 CASCADE`), `jednostka varchar(30)` (CHECK `^[a-z]+$`, kody z
 `JednostkiMiary::SLOWA`), `gramy numeric(8,2)` (CHECK `> 0 AND <= 10000`),
 `uwagi`; `UNIQUE (skladnik_odzywczy_id, jednostka)`. Miara jest per składnik,
 bo szklanka mąki (140 g) waży co innego niż szklanka cukru (220 g) —
 `units.unit_type` tego nie rozstrzyga.
+
+### aliasy_skladnikow
 
 `aliasy_skladnikow` — `alias varchar(240) UNIQUE` (CHECK: niepusty i małymi
 literami; zapisany po `ParserSkladnika::normalizuj()` i `oczyscNazwe()`, czyli
@@ -1889,7 +1896,7 @@ dwóch pozycjach odrzuca import.
 i „mąka” to dwa hasła), więc przypinanie wartości do haseł wymagałoby
 ręcznej pracy przy każdym nowym przepisie. Słownik aliasów robi to raz.
 
-**Rollback:** `down()` zdejmuje trzy tabele. Bezstratnie — to kopia plików
+**Rollback (wszystkie trzy tabele):** `down()` zdejmuje trzy tabele. Bezstratnie — to kopia plików
 z repozytorium, którą import odtwarza w całości.
 
 **`recipes.pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true`**

@@ -24,7 +24,7 @@ use App\Models\SkladnikOdzywczy;
  *     nie liczymy wcale, bo nie wiemy, ile waży całość.
  *
  * WYNIK NA PORCJĘ z `recipes.servings`. Przeliczenie przepisu na inną
- * liczbę porcji (skalowanie, D-284) mnoży wszystkie składniki tym samym
+ * liczbę porcji (skalowanie porcji, V2) mnoży wszystkie składniki tym samym
  * mnożnikiem, więc wartości NA JEDNĄ PORCJĘ się od niego nie zmieniają —
  * sekcja nie musi wiedzieć, na ile porcji ktoś właśnie patrzy.
  */

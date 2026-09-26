@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Odzywcze;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
+use Illuminate\Support\Str;
 
 /**
  * Wczytuje tabelę wartości odżywczych z plików w repozytorium (D-299).
@@ -34,7 +35,7 @@ final class ImportujWartosciOdzywcze
     /**
      * @return array{skladniki: int, aliasy: int, miary: int, usuniete: int}
      *
-     * @throws RuntimeException gdy plik jest niepoprawny — z numerem wiersza
+     * @throws BladDlaCzlowieka gdy plik jest niepoprawny (treść jest dla osoby uruchamiającej komendę) — z numerem wiersza
      */
     public function handle(?string $katalog = null): array
     {
@@ -81,18 +82,18 @@ final class ImportujWartosciOdzywcze
     private function czytajCsv(string $sciezka, array $kolumny): array
     {
         if (! is_readable($sciezka)) {
-            throw new RuntimeException("Nie ma pliku {$sciezka}.");
+            throw new BladDlaCzlowieka("Nie ma pliku {$sciezka}.");
         }
 
         $uchwyt = fopen($sciezka, 'r');
         if ($uchwyt === false) {
-            throw new RuntimeException("Nie da się otworzyć {$sciezka}.");
+            throw new BladDlaCzlowieka("Nie da się otworzyć {$sciezka}.");
         }
 
         $naglowek = fgetcsv($uchwyt, escape: '');
         if ($naglowek !== $kolumny) {
             fclose($uchwyt);
-            throw new RuntimeException(basename($sciezka).': nagłówek ma być „'.implode(',', $kolumny).'”.');
+            throw new BladDlaCzlowieka(basename($sciezka).': nagłówek ma być „'.implode(',', $kolumny).'”.');
         }
 
         $wiersze = [];
@@ -104,7 +105,7 @@ final class ImportujWartosciOdzywcze
             }
             if (count($wiersz) !== count($kolumny)) {
                 fclose($uchwyt);
-                throw new RuntimeException(basename($sciezka).", wiersz {$linia}: zła liczba kolumn.");
+                throw new BladDlaCzlowieka(basename($sciezka).", wiersz {$linia}: zła liczba kolumn.");
             }
             $wiersze[] = array_combine($kolumny, array_map('strval', $wiersz)) + ['_linia' => (string) $linia];
         }
@@ -127,19 +128,19 @@ final class ImportujWartosciOdzywcze
             $klucz = $w['klucz'];
 
             if (preg_match('/^[a-z0-9_]{1,80}$/', $klucz) !== 1) {
-                throw new RuntimeException("{$gdzie}: klucz „{$klucz}” może mieć tylko małe litery, cyfry i podkreślnik.");
+                throw new BladDlaCzlowieka("{$gdzie}: klucz „{$klucz}” może mieć tylko małe litery, cyfry i podkreślnik.");
             }
             if (isset($pozycje[$klucz])) {
-                throw new RuntimeException("{$gdzie}: klucz „{$klucz}” jest drugi raz.");
+                throw new BladDlaCzlowieka("{$gdzie}: klucz „{$klucz}” jest drugi raz.");
             }
             if (! in_array($w['zrodlo'], [SkladnikOdzywczy::ZRODLO_CIQUAL, SkladnikOdzywczy::ZRODLO_USDA], true)) {
-                throw new RuntimeException("{$gdzie}: źródło ma być „ciqual” albo „usda”.");
+                throw new BladDlaCzlowieka("{$gdzie}: źródło ma być „ciqual” albo „usda”.");
             }
 
             $wartosci = [];
             foreach (['kcal' => 950, 'bialko' => 100, 'tluszcz' => 100, 'weglowodany' => 100] as $pole => $max) {
                 if (! is_numeric($w[$pole]) || (float) $w[$pole] < 0 || (float) $w[$pole] > $max) {
-                    throw new RuntimeException("{$gdzie}: {$pole} ma być liczbą od 0 do {$max}.");
+                    throw new BladDlaCzlowieka("{$gdzie}: {$pole} ma być liczbą od 0 do {$max}.");
                 }
                 $wartosci[$pole] = (float) $w[$pole];
             }
@@ -147,7 +148,7 @@ final class ImportujWartosciOdzywcze
             $gestosc = null;
             if ($w['gestosc_g_ml'] !== '') {
                 if (! is_numeric($w['gestosc_g_ml']) || (float) $w['gestosc_g_ml'] <= 0 || (float) $w['gestosc_g_ml'] >= 3) {
-                    throw new RuntimeException("{$gdzie}: gęstość ma być liczbą większą od 0 i mniejszą od 3 albo pusta.");
+                    throw new BladDlaCzlowieka("{$gdzie}: gęstość ma być liczbą większą od 0 i mniejszą od 3 albo pusta.");
                 }
                 $gestosc = (float) $w['gestosc_g_ml'];
             }
@@ -174,7 +175,7 @@ final class ImportujWartosciOdzywcze
                 // jednej pozycji to nie błąd. Ten sam alias przy DWÓCH
                 // pozycjach jest błędem: słownik nie wiedziałby, którą wybrać.
                 if (isset($aliasy[$normalny]) && $aliasy[$normalny] !== $klucz) {
-                    throw new RuntimeException("{$gdzie}: nazwa „{$alias}” jest już przy „{$aliasy[$normalny]}”.");
+                    throw new BladDlaCzlowieka("{$gdzie}: nazwa „{$alias}” jest już przy „{$aliasy[$normalny]}”.");
                 }
                 $aliasy[$normalny] = $klucz;
             }
@@ -195,17 +196,17 @@ final class ImportujWartosciOdzywcze
         foreach ($wiersze as $w) {
             $gdzie = "miary.csv, wiersz {$w['_linia']}";
             if (! isset($pozycje[$w['klucz']])) {
-                throw new RuntimeException("{$gdzie}: nie ma składnika „{$w['klucz']}” w skladniki.csv.");
+                throw new BladDlaCzlowieka("{$gdzie}: nie ma składnika „{$w['klucz']}” w skladniki.csv.");
             }
             if (preg_match('/^[a-z]{1,30}$/', $w['jednostka']) !== 1) {
-                throw new RuntimeException("{$gdzie}: jednostka ma być słowem z małych liter bez ogonków.");
+                throw new BladDlaCzlowieka("{$gdzie}: jednostka ma być słowem z małych liter bez ogonków.");
             }
             if (! is_numeric($w['gramy']) || (float) $w['gramy'] <= 0 || (float) $w['gramy'] > 10000) {
-                throw new RuntimeException("{$gdzie}: gramy mają być liczbą od 0 do 10 000.");
+                throw new BladDlaCzlowieka("{$gdzie}: gramy mają być liczbą od 0 do 10 000.");
             }
             $id = $w['klucz'].'|'.$w['jednostka'];
             if (isset($miary[$id])) {
-                throw new RuntimeException("{$gdzie}: miara „{$w['jednostka']}” dla „{$w['klucz']}” jest drugi raz.");
+                throw new BladDlaCzlowieka("{$gdzie}: miara „{$w['jednostka']}” dla „{$w['klucz']}” jest drugi raz.");
             }
             $miary[$id] = ['klucz' => $w['klucz'], 'jednostka' => $w['jednostka'], 'gramy' => (float) $w['gramy'], 'uwagi' => $w['uwagi'] !== '' ? mb_substr($w['uwagi'], 0, 200) : null];
         }
@@ -223,9 +224,9 @@ final class ImportujWartosciOdzywcze
         $wynik = [];
         foreach ($wiersze as $klucz => $wartosc) {
             if ($rodzaj === 'alias') {
-                $wynik[] = ['id' => (string) \Illuminate\Support\Str::uuid(), 'alias' => $klucz, 'skladnik_odzywczy_id' => $idPoKluczu[$wartosc]];
+                $wynik[] = ['id' => (string) Str::uuid(), 'alias' => $klucz, 'skladnik_odzywczy_id' => $idPoKluczu[$wartosc]];
             } else {
-                $wynik[] = ['id' => (string) \Illuminate\Support\Str::uuid(), 'skladnik_odzywczy_id' => $idPoKluczu[$wartosc['klucz']], 'jednostka' => $wartosc['jednostka'], 'gramy' => $wartosc['gramy'], 'uwagi' => $wartosc['uwagi']];
+                $wynik[] = ['id' => (string) Str::uuid(), 'skladnik_odzywczy_id' => $idPoKluczu[$wartosc['klucz']], 'jednostka' => $wartosc['jednostka'], 'gramy' => $wartosc['gramy'], 'uwagi' => $wartosc['uwagi']];
             }
         }
 

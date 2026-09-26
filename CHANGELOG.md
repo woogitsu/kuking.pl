@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Pod składnikami przepisu pojawiły się szacunkowe wartości odżywcze na porcję: energia, białko, tłuszcz i węglowodany. Liczymy je z otwartych tabel składu żywności CIQUAL i USDA, bez sztucznej inteligencji, i tylko wtedy, gdy znamy skład co najmniej 90% masy przepisu. Gdy się nie da — bo np. jest „olej do smażenia” albo „trochę śmietany” — piszemy wprost dlaczego, zamiast zgadywać. Pod „Jak to liczymy” jest opis źródeł i miar. Autor może ukryć tę sekcję przy swoim przepisie jednym przyciskiem i przywrócić ją w każdej chwili (D-299).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).

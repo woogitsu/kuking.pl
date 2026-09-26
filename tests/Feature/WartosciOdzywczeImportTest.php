@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
@@ -12,7 +13,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
-use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -91,7 +91,7 @@ final class WartosciOdzywczeImportTest extends TestCase
         try {
             app(ImportujWartosciOdzywcze::class)->handle($katalog);
             $this->fail('Ujemna energia przeszła walidację importu.');
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->assertStringContainsString('wiersz 3', $e->getMessage());
             $this->assertStringContainsString('kcal', $e->getMessage());
         }
@@ -106,7 +106,7 @@ final class WartosciOdzywczeImportTest extends TestCase
         $plik = $katalog.'/skladniki.csv';
         file_put_contents($plik, (string) file_get_contents($plik)."\nzduplikowany,cukier drugi,cukru,ciqual,31016,,0,Sucre blanc,399,0,0,99.7\n");
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(BladDlaCzlowieka::class);
         $this->expectExceptionMessage('jest już przy „cukier”');
 
         app(ImportujWartosciOdzywcze::class)->handle($katalog);

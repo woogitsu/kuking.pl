@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze as Import;
+use App\Exceptions\BladDlaCzlowieka;
 use Illuminate\Console\Command;
-use RuntimeException;
 
 /**
  * Wczytuje tabelę wartości odżywczych z `database/data/odzywcze/` (D-299).
@@ -25,7 +25,7 @@ class ImportujWartosciOdzywcze extends Command
     {
         try {
             $wynik = $import->handle();
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->error('Nie wczytano niczego: '.$e->getMessage());
 
             return self::FAILURE;
