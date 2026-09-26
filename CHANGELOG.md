@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Przepis ze strony internetowej albo z pliku PDF można zapisać jako szkic: na ekranie „Dodaj przepis” są przyciski „Wklej adres strony” i „Dodaj plik PDF”. Szkic widzisz tylko Ty, adres strony zostaje przy przepisie jako źródło i nie da się go zmienić, a zdjęć ze strony nie pobieramy. Przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst”; gdy opis przygotowania jest prawie taki sam jak na stronie, pokazujemy ostrzeżenie, żeby napisać go własnymi słowami. Strony, które nie pozwalają pobierać przepisów, szanujemy — wtedy zapisujemy sam adres i mówimy, co zrobić. Dziennie można odczytać 5 przepisów, miesięcznie 30. PDF-y z tekstem odczytujemy u siebie, bez wysyłania pliku; skan bez tekstu dostaje wskazówkę, co zrobić (D-300).
+
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 
 - „Oznacz wszystkie jako przeczytane” oznacza tylko powiadomienia widoczne na liście. Powiadomienia od osoby zablokowanej zostają nieprzeczytane i po odblokowaniu wracają jako nowe (#1401).

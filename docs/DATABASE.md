@@ -4481,6 +4481,44 @@ oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
 zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
 
 
+### przepisy_z_importu
+
+Pochodzenie szkicu przepisu z importu — adres strony, plik PDF albo zdjęcie
+(V2, **D-300**). Jeden wiersz na przepis, klucz główny `recipe_id`.
+Migracja: `2026_09_26_100000_create_przepisy_z_importu_table`.
+
+To **nie** jest dziennik zleceń importu (status, koszt, odpowiedź modelu —
+ten należy do fundamentu importu i ma retencję 90 dni). Ten wiersz żyje tyle,
+co przepis, bo pilnuje reguł przy publikacji (`App\Domain\Import\StrazImportu`,
+wołana przez `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`).
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `recipe_id` | uuid PK, FK `recipes` `ON DELETE CASCADE` | przepis (szkic) z importu |
+| `user_id` | uuid, FK `users` `ON DELETE CASCADE` | kto importował; indeks `(user_id, created_at)` |
+| `zrodlo` | text, CHECK `url` / `pdf` / `zdjecie` | skąd |
+| `droga` | text, CHECK `json_ld` / `fragmenty` / `tekst_pdf` / `ocr` / `bez_tresci` | jak powstała treść: lokalnie z JSON-LD, granice fragmentów od modelu, tekst PDF, OCR, albo szkic z samym źródłem (robots.txt zabrania / brak przepisu) |
+| `source_url` | text NULL, CHECK: przy `zrodlo = url` niepusty i `^https?://`, ≤ 2000 znaków | adres po przekierowaniach, bez parametrów śledzących; ten sam trafia do `recipes.source_url` i jest tam zablokowany |
+| `tekst_zrodla` | text NULL | kroki w brzmieniu ze strony — do ostrzeżenia „opis prawie taki sam jak na stronie" (`similarity()` z `pg_trgm`, próg `kuking.import.podobienstwo_ostrzezenie`); **czyszczony przy publikacji** |
+| `sprawdzone_at` | timestamptz NULL | człowiek zaznaczył „Sprawdziłem odczytany tekst"; bez tego szkic się nie opublikuje |
+| `created_at`, `updated_at` | timestamptz | |
+
+Model `App\Models\PrzepisZImportu` ma pusty `$fillable` — wiersz zapisuje
+tylko `ZapiszSzkicZImportu` (`forceFill`), znacznik sprawdzenia —
+`StrazImportu::poPublikacji()`.
+
+**Eksport:** sekcja `importy_przepisow` w `dane.json` (bez `tekst_zrodla` —
+to cudzy tekst, który i tak jest w szkicu). **Kasowanie:** kaskadą z przepisem
+i kontem; przy wymazaniu konta (`EraseAccountData`, każdy zakres) wiersze są
+usuwane jawnie, bo konta się nie kasuje, tylko anonimizuje.
+
+**Rollback:** `down()` **odmawia** (D-088), gdy istnieje wiersz z pustym
+`sprawdzone_at` — po cofnięciu i ponownym `migrate` taki szkic dałoby się
+opublikować bez „Sprawdziłem". Na pustej tabeli i przy samych sprawdzonych
+wierszach przechodzi. Test: `CofniecieMigracjiImportuTest` (odmowa i kontrola
+dodatnia). Przed ręcznym zdjęciem tabeli: wyłącz import
+(`KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false`) i zachowaj kopię.
+
 ## V1 / V2
 
 Później:

@@ -112,7 +112,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 > „Nie wcześnie” poniżej pozostaje zakazana bez zmian.
 
 - OCR starych zeszytów;
-- import URL/PDF/zdjęcie;
+- import URL/PDF/zdjęcie — **URL i PDF wdrożone jako prywatny szkic** (D-300); zdjęcie/OCR w pracy;
 - pantry;
 - „co ugotuję z tego, co mam”;
 - zamienniki;
@@ -129,6 +129,8 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - marketplace;
 - payouts;
 - punkty za liczbę postów;
-- masowy import cudzych treści.
+- masowy import cudzych treści — w tym import wielu adresów naraz, całych
+  blogów, map witryn i kanałów RSS, import zdjęć z cudzych stron oraz
+  „przepisywanie własnymi słowami” przez AI przed publikacją (D-300).
 
 Wysoki koszt moderacji i spam nie są potrzebne do udowodnienia wartości Kuking.
