@@ -51,6 +51,41 @@ final class Ukrycia
         return isset($pamiec['wpisy'][$post->getKey()]);
     }
 
+    /**
+     * Które z tych wpisów widz może DZIŚ zobaczyć — dla listy „Ukryte"
+     * i eksportu (przegląd #1781).
+     *
+     * Ukryty wpis mógł od tamtej pory zniknąć (usunięty przez autora — soft
+     * delete, więc wiersz `hides` zostaje), zostać schowany przez moderację,
+     * stać się prywatny albo „tylko dla obserwujących", a autor mógł widza
+     * zablokować albo zamknąć konto. Lista nie może wtedy pokazywać treści
+     * ani autora — to byłoby obejście tych bramek. Pytanie jest to samo co
+     * w `PostPolicy::view`, zadane jednym zapytaniem dla całej listy:
+     * opublikowany, niewyrzucony, widoczny dla widza (blokady w obie strony,
+     * widoczność), od konta, które może pokazywać treść, z widocznym
+     * przepisem.
+     *
+     * @param  list<string>  $postIds
+     * @return array<string, true>
+     */
+    public function widoczneWpisy(User $widz, array $postIds): array
+    {
+        if ($postIds === []) {
+            return [];
+        }
+
+        $ids = Post::query()
+            ->whereIn('posts.id', $postIds)
+            ->published()
+            ->widoczneDla($widz)
+            ->whereHas('author', fn ($autor) => $autor->whereNotIn('status', User::STATUSY_UKRYWAJACE_TRESC))
+            ->zWidocznymPrzepisem($widz)
+            ->pluck('posts.id')
+            ->all();
+
+        return array_fill_keys(array_map('strval', $ids), true);
+    }
+
     public function osobaUkryta(User $widz, User $osoba): bool
     {
         return Hide::query()->aktywne()

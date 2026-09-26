@@ -987,6 +987,16 @@
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
+                {{-- To samo dla akcji z menu karty, które wracają na strumień
+                     (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
+                     odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
+                     nie ma formularza z podsumowaniem błędów. --}}
+                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                    @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
+                    @if($bladAkcji)
+                        <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
+                    @endif
+                @endforeach
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
