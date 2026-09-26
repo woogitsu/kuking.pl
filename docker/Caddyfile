@@ -22,9 +22,28 @@
 		level {$CADDY_LOG_LEVEL:INFO}
 	}
 
-	# Nie ujawniaj wersji serwera.
+	# Komu Caddy wierzy w `X-Forwarded-For` (issue #1306). Od tego zależy
+	# WYŁĄCZNIE `{client_ip}` — pole `client_ip` w logu JSON wyżej. Adres
+	# widziany przez aplikację wylicza Laravel (`NormalizeForwardedFor`)
+	# z tego samego nagłówka, niezależnie od tych linii.
+	#
+	# Dawniej stało tu `static 0.0.0.0/0 ::/0` bez `trusted_proxies_strict`:
+	# każdy peer był „zaufany", a Caddy czyta nagłówek domyślnie OD LEWEJ,
+	# czyli z części, którą wypełnia klient. W logu lądował adres wpisany
+	# przez klienta, a w aplikacji adres dopisany przez Cloudflare — dwie
+	# różne odpowiedzi na pytanie „kto to był", a ślad po incydencie
+	# prowadził tam, gdzie chciał napastnik.
+	#
+	# Teraz: zaufany jest tylko peer z sieci prywatnej (brzeg Railway łączy
+	# się z kontenerem z sieci prywatnej), a nagłówek jest czytany OD PRAWEJ
+	# do pierwszego niezaufanego adresu — to ten sam wpis, który bierze
+	# Laravel przy `KUKING_ZAUFANE_PRZESKOKI=1`. Gdyby brzeg łączył się
+	# z adresu publicznego, Caddy zapisze w logu adres brzegu: gorszy ślad,
+	# ale nigdy adres podany przez klienta. Zgodność pilnuje
+	# CaddyUfaTemuSamemuWpisowiCoAplikacjaTest.
 	servers {
-		trusted_proxies static 0.0.0.0/0 ::/0
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
 	}
 
 	# Hook dla FrankenPHP (tryb worker włączysz przez FRANKENPHP_CONFIG).
