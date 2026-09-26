@@ -50,13 +50,18 @@ use RuntimeException;
  * (to samo wycinanie co `StraznikNowosciKazdaNowaFunkcjaMaAkapitTest`) i dla
  * KAŻDEGO nagłówka `###` w niej liczy slug (`SlugGfm`, ten sam algorytm co
  * kotwice wydań, #1909). Nagłówek, którego sluga NIE MA jeszcze w
- * `wdrozenia_funkcje` pod tą etykietą, dostaje wiersz z numerem TEGO
- * wdrożenia — `INSERT … ON CONFLICT (etykieta, naglowek_slug) DO NOTHING`,
- * więc nagłówek widziany już wcześniej (np. w poprzednim wdrożeniu tej samej
- * etykiety, gdy ktoś dopisał do niego kolejne zdanie) NIE dostaje nowego,
- * późniejszego numeru — zostaje przy TYM, pod którym pojawił się pierwszy
- * raz. To jest właśnie sens „od Alfa 0.68.NNN": data pierwszego pojawienia
- * się, nie data ostatniej edycji.
+ * `wdrozenia_funkcje` (pod ŻADNĄ etykietą — `naglowek_slug` jest `UNIQUE`
+ * samo w sobie, patrz D-318 w migracji), dostaje wiersz z numerem TEGO
+ * wdrożenia — `INSERT … ON CONFLICT (naglowek_slug) DO NOTHING`, więc
+ * nagłówek widziany już wcześniej (np. w poprzednim wdrożeniu tej samej
+ * etykiety, gdy ktoś dopisał do niego kolejne zdanie — ALBO w ogóle pod
+ * INNĄ, wcześniejszą etykietą, sprzed podbicia dużego numeru) NIE dostaje
+ * nowego, późniejszego numeru — zostaje przy TYM, pod którym pojawił się
+ * pierwszy raz. To jest właśnie sens „od Alfa 0.68.NNN": data pierwszego
+ * pojawienia się, nie data ostatniej edycji — i zostaje przy nim także
+ * wtedy, gdy nagłówek później przejdzie z „Najnowsze zmiany" do sekcji
+ * nazwanego wydania (dopisek jest wtedy stały, decyzja właściciela
+ * z 26 września 2026 — patrz `App\Http\Controllers\NowosciController`).
  *
  * Ten krok jest wykonywany TYLKO gdy wiersz `wdrozenia` był NOWY (nie przy
  * idempotentnym powtórzeniu) — powtórzenie tego samego commita nie może
@@ -64,6 +69,24 @@ use RuntimeException;
  * gdyby ktoś wywołał komendę ręcznie drugi raz z innym stanem pliku na
  * dysku niż przy pierwszym uruchomieniu (w praktyce plik jest częścią tego
  * samego commita i się nie zmienia, ale funkcja nie zakłada tego na słowo).
+ *
+ * DLACZEGO SKANUJEMY WYŁĄCZNIE „NAJNOWSZE ZMIANY", NIE SEKCJE WYDAŃ (#1932)
+ * Rozważaliśmy też skanowanie nagłówków `###` w już nazwanych sekcjach
+ * wydania („## Alfa 0.68" itd.) — ale to jest NIEBEZPIECZNE właśnie PRZY
+ * PIERWSZYM uruchomieniu tego kodu: tabela `wdrozenia_funkcje` jest wtedy
+ * pusta, więc KAŻDY nagłówek z KAŻDEJ już wydanej sekcji (Alfa 0.62…0.68)
+ * wyglądałby jak „nowy" i dostałby numer BIEŻĄCEGO wdrożenia — fałszywie
+ * przypisując świeżą datę funkcji, która działa od tygodni. Sekcja
+ * „Najnowsze zmiany" nie ma tego problemu, bo z definicji zawiera tylko to,
+ * co jeszcze nie ma numeru wydania. Zamiast tego trwałość dopisku przy
+ * przenosinach nagłówka do sekcji wydania załatwia SAM SLUG: `naglowek_slug`
+ * jest `UNIQUE` niezależnie od etykiety (patrz wyżej), a nagłówek NIE zmienia
+ * tekstu przy przenosinach z „Najnowsze zmiany" do nazwanej sekcji (sprawdzone
+ * na `resources/nowosci/tresc.md` — nagłówki wydanych sekcji brzmią tak samo
+ * jak wtedy, gdy stały jeszcze w „Najnowsze zmiany"). Wiersz zapisany TU,
+ * póki nagłówek jeszcze stał w „Najnowsze zmiany", więc dalej pasuje po
+ * przenosinach — `App\Http\Controllers\NowosciController` dopasowuje po
+ * samym slugu, w CAŁYM dokumencie, nie tylko w tej sekcji.
  */
 final class ZarejestrujWdrozenie
 {

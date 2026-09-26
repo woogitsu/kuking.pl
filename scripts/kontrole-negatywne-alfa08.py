@@ -1104,7 +1104,7 @@ checks = [
     # #1932 (D-318): „Co nowego” przestaje czytać mapę nagłówek → numer
     # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
     ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
-     lambda s: replace_once(s, "$numer = $mapa[$slug] ?? null;", "$numer = null;")),
+     lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
 ]

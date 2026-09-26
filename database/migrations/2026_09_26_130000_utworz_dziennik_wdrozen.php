@@ -38,6 +38,20 @@ use Illuminate\Support\Facades\Schema;
  *                          wiersz do `wdrozenia`. Strona „Co nowego"
  *                          pokazuje przy takim nagłówku „od Alfa 0.68.NNN".
  *
+ * DECYZJA WŁAŚCICIELA Z 26 WRZEŚNIA 2026 (D-318, dopisek): dopisek „od …”
+ * zostaje NA STAŁE, także gdy nagłówek przechodzi z „## Najnowsze zmiany”
+ * do sekcji nazwanego wydania (np. „## Alfa 0.69”) — nagłówek trzyma tekst
+ * (i slug) bez zmian przy przenosinach, więc `naglowek_slug` jest kluczem
+ * TRWAŁYM samym w sobie, niezależnym od etykiety, pod którą wiersz akurat
+ * powstał. Dlatego unikalność jest po samym `naglowek_slug`, NIE po parze
+ * (`etykieta`, `naglowek_slug`) — ten sam nagłówek ma dokładnie JEDEN wiersz
+ * w całej tabeli, na zawsze, niezależnie od tego, ile razy etykieta się
+ * podbije, zanim nagłówek trafi do nazwanej sekcji. Kolumna `etykieta`
+ * zostaje na wierszu jako część odpowiedzi „pod jakim numerem" — to ONA,
+ * zapisana przy pierwszym pojawieniu się nagłówka, a NIE bieżąca
+ * `App\Support\Wersja::etykieta()`, trafia do „od {etykieta}.{numer}" na
+ * stronie „Co nowego" (`App\Http\Controllers\NowosciController`).
+ *
  * BEZPIECZEŃSTWO PRZY RÓWNOLEGŁYM STARCIE
  * `numer` NIE jest `AUTO_INCREMENT` globalnym — jest policzony jako
  * `MAX(numer) WHERE etykieta = ?) + 1`, więc musi być liczony pod blokadą.
@@ -53,12 +67,13 @@ use Illuminate\Support\Facades\Schema;
  * wiersza i nie zużywa kolejnego numeru — `ON CONFLICT (commit) DO NOTHING`
  * w akcji czyta to jako „już zarejestrowane" i kończy bez błędu.
  *
- * `UNIQUE (etykieta, numer)` w `wdrozenia` i `UNIQUE (etykieta, naglowek_slug)`
+ * `UNIQUE (etykieta, numer)` w `wdrozenia` i `UNIQUE (naglowek_slug)`
  * w `wdrozenia_funkcje` pilnują tego samego niezmiennika z drugiej strony:
  * gdyby blokada doradcza kiedyś przestała działać (zły klucz, refaktor bez
- * testu), baza i tak nie przyjmie dwóch wierszy z tym samym numerem/tą samą
- * funkcją pod tą samą etykietą — zamiast cichej duplikacji dostaniemy
- * twardy błąd `23505`.
+ * testu), baza i tak nie przyjmie dwóch wierszy z tym samym numerem pod tą
+ * samą etykietą, ani dwóch wierszy dla tej samej funkcji (pod ŻADNĄ
+ * etykietą — patrz wyżej) — zamiast cichej duplikacji dostaniemy twardy
+ * błąd `23505`.
  *
  * ROLLBACK (D-088) — ODMAWIA, GDY W DZIENNIKU SĄ WIERSZE
  * Numer wdrożenia to WARTOŚĆ SEMANTYCZNA: mówi ludziom, gdzie w kolejności
@@ -102,7 +117,9 @@ return new class extends Migration
             $table->unsignedInteger('numer');
             $table->timestampTz('created_at')->useCurrent();
 
-            $table->unique(['etykieta', 'naglowek_slug']);
+            // Unikalność po samym slugu, NIE po parze (etykieta, slug) —
+            // patrz komentarz klasy, „DECYZJA WŁAŚCICIELA Z 26 WRZEŚNIA 2026".
+            $table->unique('naglowek_slug');
         });
     }
 

@@ -18185,6 +18185,20 @@ z pamięci.
    z `resources/nowosci/tresc.md` (sekcja „## Najnowsze zmiany") pojawiły
    się pierwszy raz — strona „Co nowego" pokazuje przy nich
    „_od Alfa 0.69.NNN_".
+   **Dopisek doprecyzowany 26 września 2026, tego samego dnia (D-318,
+   dopisek):** zostaje NA STAŁE. Gdy opis funkcji przechodzi z „Najnowsze
+   zmiany" do sekcji nazwanego wydania (np. „## Alfa 0.69" po kolejnym
+   podbiciu dużego numeru), strona „Co nowego" dalej pokazuje numer, pod
+   którym funkcja pojawiła się PIERWSZY RAZ — nie znika i nie przeskakuje na
+   numer bieżącego wdrożenia. Nagłówek nie zmienia tekstu (ani slugu) przy
+   przenosinach, więc `wdrozenia_funkcje.naglowek_slug` jest `UNIQUE` SAM
+   W SOBIE, nie para (etykieta, slug) — `ZarejestrujWdrozenie` dalej zapisuje
+   nowe nagłówki WYŁĄCZNIE ze skanu „Najnowsze zmiany" (skanowanie już
+   wydanych sekcji przy pierwszym uruchomieniu tej funkcji przypisałoby
+   świeży numer funkcjom sprzed tygodni — patrz komentarz klasy), a
+   `NowosciController` dopasowuje po samym slugu W CAŁYM dokumencie, biorąc
+   etykietę i numer z WŁASNEGO wiersza nagłówka, nie z bieżącej
+   `Wersja::etykieta()`.
 5. **Stopka** (`App\Support\Wersja::etykietaZNumerem()`) pokazuje
    „Alfa 0.69.NNN · data · skrót commita", z cache'em (10 minut, klucz niesie
    commit — inne wdrożenie samo unieważnia poprzedni wpis). Bez wiersza
@@ -18208,7 +18222,8 @@ funkcji), `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`
 `tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php` (rollback),
 `tests/Feature/WersjaWStopceTest.php` (numer w stopce, cache),
 `tests/Feature/StronaCoNowegoOdNumeruTest.php` („od Alfa 0.NN.NNN" przy
-funkcji, wyłącznie w „Najnowsze zmiany", brak wiersza nie wywala strony).
+funkcji, dopisek przeżywa przenosiny nagłówka do sekcji nazwanego wydania,
+brak wiersza nie wywala strony i nic nie dokleja).
 
 ### Wycofanie
 Usunąć komendę `kuking:zarejestruj-wdrozenie` z `preDeployCommand`, cofnąć

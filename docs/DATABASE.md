@@ -5461,8 +5461,10 @@ wtedy do samej etykiety, bez końcówki.
 ### `wdrozenia_funkcje`
 
 „Pod jakim numerem funkcja pojawiła się PIERWSZY RAZ" — jeden wiersz na
-KAŻDY nagłówek `###` z sekcji „## Najnowsze zmiany" pliku
-`resources/nowosci/tresc.md` (strona „Co nowego", issue #1909).
+KAŻDY nagłówek `###`, zapisywany, póki jeszcze stoi w sekcji
+„## Najnowsze zmiany" pliku `resources/nowosci/tresc.md` (strona „Co
+nowego", issue #1909), i czytany PÓŹNIEJ niezależnie od tego, w której
+sekcji ten sam nagłówek dziś stoi (D-318, dopisek).
 
 - `id bigint` (bigincrements);
 - `etykieta varchar(40) NOT NULL`;
@@ -5473,25 +5475,41 @@ KAŻDY nagłówek `###` z sekcji „## Najnowsze zmiany" pliku
 - `naglowek_tekst varchar(300) NOT NULL` — pełny tekst nagłówka, do
   czytelności w bazie i diagnozy;
 - `numer int NOT NULL` — numer wdrożenia (z `wdrozenia.numer`), pod którym
-  ten nagłówek pojawił się PIERWSZY RAZ pod tą etykietą;
+  ten nagłówek pojawił się PIERWSZY RAZ, pod etykietą zapisaną OBOK niego
+  w tym samym wierszu (patrz niżej);
 - `created_at timestamptz`;
-- `UNIQUE (etykieta, naglowek_slug)` — jeden wiersz na nagłówek pod daną
-  etykietą. Zapis idzie przez `INSERT ... ON CONFLICT DO NOTHING`: nagłówek
-  widziany już wcześniej (np. dopisano kolejne zdanie do tego samego akapitu
-  i wdrożono ponownie) NIE dostaje nowego, późniejszego numeru — zostaje przy
-  numerze pierwszego pojawienia. To jest sens „od Alfa 0.68.NNN": data
-  pierwszego pojawienia się, nie data ostatniej edycji.
+- `UNIQUE (naglowek_slug)` — jeden wiersz na nagłówek W CAŁEJ TABELI, NIE
+  na parę (etykieta, slug). **Decyzja właściciela z 26 września 2026
+  (D-318, dopisek):** dopisek „od …" zostaje NA STAŁE, także gdy nagłówek
+  przechodzi z „## Najnowsze zmiany" do sekcji nazwanego wydania (np.
+  „## Alfa 0.69") — nagłówek trzyma tekst (i slug) bez zmian przy
+  przenosinach, więc slug sam w sobie jest kluczem trwałym, niezależnym od
+  etykiety, pod którą wiersz akurat powstał. Zapis idzie przez
+  `INSERT ... ON CONFLICT (naglowek_slug) DO NOTHING`: nagłówek widziany już
+  wcześniej — czy to pod TĄ SAMĄ etykietą (dopisano kolejne zdanie do tego
+  samego akapitu i wdrożono ponownie), czy pod WCZEŚNIEJSZĄ etykietą sprzed
+  podbicia dużego numeru — NIE dostaje nowego, późniejszego numeru: zostaje
+  przy numerze i etykiecie pierwszego pojawienia. To jest sens
+  „od Alfa 0.68.NNN": data pierwszego pojawienia się, nie data ostatniej
+  edycji ani bieżąca etykieta aplikacji.
 
 **Kto zapisuje.** Ta sama komenda i ta sama transakcja co `wdrozenia` —
 `ZarejestrujWdrozenie::handle()` zapisuje NOWE nagłówki zaraz po wstawieniu
 wiersza `wdrozenia`, w tej samej transakcji, więc obie tabele albo obie się
-zmieniają, albo żadna.
+zmieniają, albo żadna. Skanuje WYŁĄCZNIE sekcję „## Najnowsze zmiany" —
+celowo NIE sekcje wydań: tabela była pusta w chwili wdrożenia tej funkcji,
+więc skanowanie już wydanych sekcji przypisałoby świeżo policzony numer
+funkcjom sprzed tygodni (patrz komentarz klasy `ZarejestrujWdrozenie`).
+Trwałość dopisku przy przenosinach nagłówka do sekcji wydania załatwia sam
+slug (wyżej), nie ponowne skanowanie.
 
-**Kto czyta.** `NowosciController` — dla nagłówków WYŁĄCZNIE w sekcji
-„## Najnowsze zmiany" (wydania opisane już w osobnych sekcjach mają swój
-opis napisany ręcznie, jako proza, i tego dopisku nie dostają), dokleja pod
-pasującym nagłówkiem kursywną linijkę „_od Alfa 0.68.NNN_". Brak wiersza nie
-wywala strony — nagłówek zostaje bez dopisku.
+**Kto czyta.** `NowosciController` — dla KAŻDEGO nagłówka `###` w CAŁYM
+dokumencie (nie tylko w „## Najnowsze zmiany" — patrz decyzja właściciela
+wyżej), którego slug ma wiersz w tabeli, dokleja kursywną linijkę
+„_od {etykieta}.{numer}_", biorąc etykietę i numer Z TEGO WIERSZA, nie
+bieżącą etykietę aplikacji. Brak wiersza nie wywala strony — nagłówek
+zostaje bez dopisku (to dotyczy też nagłówków z wydań SPRZED wprowadzenia
+tej funkcji, #1932 — nikt im nie przypisuje numeru wstecznie).
 
 ### Rollback (D-088)
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Support\SlugGfm;
-use App\Support\Wersja;
 use App\Support\ZaufanyMarkdown;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -28,19 +27,32 @@ use Throwable;
  * poprawia się Pull Requestem jak `resources/legal/*.md`, a renderuje przez
  * ten sam `App\Support\ZaufanyMarkdown` co strony prawne — bez JavaScriptu.
  *
- * „OD ALFA 0.68.NNN" PRZY KAŻDEJ FUNKCJI Z „## NAJNOWSZE ZMIANY" (#1932)
+ * „OD ALFA 0.68.NNN" PRZY KAŻDEJ FUNKCJI, NA STAŁE (#1932, D-318)
  * `kuking:zarejestruj-wdrozenie` zapisuje w `wdrozenia_funkcje`, pod jakim
- * numerem KAŻDY nagłówek `###` tej sekcji pojawił się PIERWSZY RAZ (patrz
- * `App\Domain\Wydania\Actions\ZarejestrujWdrozenie`). Ta strona doczytuje tę
- * mapę i dokleja jedną kursywną linijkę pod każdym takim nagłówkiem —
- * WYŁĄCZNIE w sekcji „Najnowsze zmiany": wydania już opisane w osobnych
- * sekcjach (np. „## Alfa 0.68 — …") mają swój opis napisany ręcznie, jako
- * proza, i tej wstawki nie dostają.
+ * numerem KAŻDY nagłówek `###` sekcji „## Najnowsze zmiany" pojawił się
+ * PIERWSZY RAZ (patrz `App\Domain\Wydania\Actions\ZarejestrujWdrozenie`).
+ * Ta strona doczytuje tę mapę i dokleja jedną kursywną linijkę pod KAŻDYM
+ * nagłówkiem `###` W CAŁYM DOKUMENCIE, którego slug ma wiersz w tabeli —
+ * nie tylko w „Najnowsze zmiany".
+ *
+ * DECYZJA WŁAŚCICIELA Z 26 WRZEŚNIA 2026: dopisek zostaje NA STAŁE. Gdy
+ * opis funkcji przechodzi z „Najnowsze zmiany" do sekcji nazwanego wydania
+ * (np. „## Alfa 0.69"), dalej ma pokazywać numer, pod którym funkcja
+ * pojawiła się PIERWSZY RAZ — nie znika i nie przeskakuje na numer
+ * bieżącego wdrożenia. Dlatego dopasowanie jest PO SAMYM SLUGU nagłówka,
+ * niezależnie od tego, w której sekcji nagłówek dziś stoi i jaka jest
+ * BIEŻĄCA `App\Support\Wersja::etykieta()` — `wdrozenia_funkcje.naglowek_slug`
+ * jest `UNIQUE` sam w sobie (nie para etykieta+slug), więc każdy nagłówek ma
+ * dokładnie jeden wiersz, na zawsze, i to WŁASNA etykieta tego wiersza
+ * (zapisana przy pierwszym pojawieniu się, nie bieżąca etykieta aplikacji)
+ * trafia do „od {etykieta}.{numer}".
  *
  * Bez wiersza w bazie (lokalnie, w testach, przy awarii bazy, i dla
- * nagłówka, pod którym jeszcze nie przeszło ŻADNE wdrożenie) nagłówek
- * zostaje BEZ dopisku — ten sam wybór co w `App\Support\Wersja`: brakująca
- * informacja znika po cichu, nie wywala strony.
+ * nagłówka, pod którym jeszcze nie przeszło ŻADNE wdrożenie — w tym każdy
+ * nagłówek z wydań SPRZED tej funkcji, #1932, którym nikt nie przypisze
+ * numeru wstecznie) nagłówek zostaje BEZ dopisku — ten sam wybór co
+ * w `App\Support\Wersja`: brakująca informacja znika po cichu, nie wywala
+ * strony.
  */
 class NowosciController extends Controller
 {
@@ -63,8 +75,11 @@ class NowosciController extends Controller
     }
 
     /**
-     * Dokleja „_od Alfa 0.68.NNN_" pod każdym nagłówkiem `###` sekcji
-     * „## Najnowsze zmiany", dla którego znamy numer pierwszego wdrożenia.
+     * Dokleja „_od {etykieta}.{numer}_" pod każdym nagłówkiem `###` CAŁEGO
+     * dokumentu, dla którego znamy numer pierwszego wdrożenia — niezależnie
+     * od tego, czy nagłówek dziś stoi w „## Najnowsze zmiany", czy już
+     * w sekcji nazwanego wydania (decyzja właściciela z 26 września 2026,
+     * patrz komentarz klasy).
      */
     private function dopiszOdNumeru(string $tresc): string
     {
@@ -74,40 +89,35 @@ class NowosciController extends Controller
             return $tresc;
         }
 
-        $wzor = '/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/msu';
-
-        if (preg_match($wzor, $tresc, $dopasowanie, PREG_OFFSET_CAPTURE) !== 1) {
-            return $tresc;
-        }
-
-        [$sekcja, $offset] = $dopasowanie[1];
-
-        $poprawiona = preg_replace_callback(
+        return preg_replace_callback(
             '/^###\s+(.+)$/mu',
             function (array $m) use ($mapa): string {
                 $slug = SlugGfm::z(trim($m[1]));
-                $numer = $mapa[$slug] ?? null;
+                $dopisek = $mapa[$slug] ?? null;
 
-                if ($numer === null) {
+                if ($dopisek === null) {
                     return $m[0];
                 }
 
-                return $m[0]."\n\n_od ".Wersja::etykieta().'.'.str_pad((string) $numer, 3, '0', STR_PAD_LEFT).'_';
+                return $m[0]."\n\n_od {$dopisek}_";
             },
-            $sekcja,
+            $tresc,
         );
-
-        return substr($tresc, 0, $offset).$poprawiona.substr($tresc, $offset + strlen($sekcja));
     }
 
-    /** @return array<string, int> slug nagłówka => numer wdrożenia, dla bieżącej etykiety. */
+    /**
+     * @return array<string, string> slug nagłówka => „{etykieta}.{numer}"
+     *                               (etykieta i numer WŁASNE tego wiersza — z pierwszego pojawienia
+     *                               się nagłówka, nie bieżąca `Wersja::etykieta()`).
+     */
     private function numeryFunkcji(): array
     {
         try {
             return DB::table('wdrozenia_funkcje')
-                ->where('etykieta', Wersja::etykieta())
-                ->pluck('numer', 'naglowek_slug')
-                ->map(static fn ($numer) => (int) $numer)
+                ->get(['naglowek_slug', 'etykieta', 'numer'])
+                ->mapWithKeys(static fn ($wiersz) => [
+                    $wiersz->naglowek_slug => $wiersz->etykieta.'.'.str_pad((string) $wiersz->numer, 3, '0', STR_PAD_LEFT),
+                ])
                 ->all();
         } catch (Throwable) {
             return [];

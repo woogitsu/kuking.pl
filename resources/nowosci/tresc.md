@@ -38,7 +38,8 @@ odróżnić na pierwszy rzut oka, bez porównywania skrótów kodu z pamięci.
 Końcówka rośnie sama, przy każdym wdrożeniu, i wraca do „.001”, gdy
 zmienia się duży numer wydania. Przy każdej nowej funkcji na tej stronie
 zobaczycie teraz też, od którego dokładnie wydania działa — „od Alfa
-0.68.005”.
+0.68.005”, i to na stałe: dopisek zostaje przy tym opisie, nawet gdy
+wydanie doczeka się własnego numeru i wprowadzka trafi do jego sekcji.
 
 ### Zróbcie swoją wersję cudzego przepisu
 
