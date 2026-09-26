@@ -307,6 +307,35 @@ LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
 KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
 KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
+# Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
+# `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
+WYJECIE_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
+WYJECIE_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
+WYJECIE_ATOMOWE_TEST = "test_awaria_drugiego_odpiecia_zostawia_wszystkie_zapisy_z_notatkami"
+
+# Złożenie odwołania razem z zawiadomieniami administratorów (#1305). Mutacja
+# zamienia transakcję na zwykłe wywołanie domknięcia.
+ODWOLANIE_AUTORA = "app/Domain/Moderation/Actions/FileAppeal.php"
+ODWOLANIE_ZGLASZAJACEGO = "app/Domain/Moderation/Actions/FileReporterAppeal.php"
+ODWOLANIE_AUTORA_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_autora"
+ODWOLANIE_ZGLASZAJACEGO_TEST = "test_awaria_przy_drugim_administratorze_nie_zostawia_pisma_zglaszajacego"
+
+
+def odwolanie_bez_transakcji(uzyte):
+    def mutacja(source):
+        source = replace_once(
+            source,
+            "$odwolanie = DB::transaction(function () use (" + uzyte + "): Appeal {",
+            "$odwolanie = (function () use (" + uzyte + "): Appeal {",
+        )
+        return replace_once(
+            source,
+            "            return $odwolanie;\n        });\n",
+            "            return $odwolanie;\n        })();\n",
+        )
+    return mutacja
+
+
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
@@ -959,6 +988,16 @@ checks = [
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
+                            "return $this->zdejmij($user, $recipe, $collection);")),
+    ("Wyjęcie wpisu ze wszystkich zeszytów bez transakcji", WYJECIE_WPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));",
+                            "return $this->zdejmij($user, $post, $collection);")),
+    ("Odwołanie autora bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_AUTORA, ODWOLANIE_AUTORA_TEST,
+     odwolanie_bez_transakcji("$osoba, $decyzja, $tresc")),
+    ("Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_ZGLASZAJACEGO,
+     ODWOLANIE_ZGLASZAJACEGO_TEST, odwolanie_bez_transakcji("$zgloszenie, $decyzja, $tresc")),
     ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
      lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
     ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
@@ -1083,6 +1122,9 @@ run_test(HERO_PICKS_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
+run_test(WYJECIE_ATOMOWE_TEST, True)
+run_test(ODWOLANIE_AUTORA_TEST, True)
+run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
 run_test(REGULY_CF_TEST, True)
 run_test(ZAPIS_CUDZY_ZESZYT_TEST, True)
 run_test(PODZIAL_TESTOW_TEST, True)
