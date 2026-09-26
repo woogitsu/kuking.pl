@@ -221,4 +221,18 @@
     height: auto;
     border-radius: var(--radius-md);
   }
+
+  /* Miniatura z przyciskiem „Usuń” pod spodem (issue #884). Przycisk na
+     całą szerokość kafla i nie mniej niż 48 px wysokości — bez nakładania
+     na zdjęcie i bez ukrytego „x” w rogu, który trzeba trafić palcem. */
+  .podglad-wyboru-pozycja {
+    display: grid;
+    gap: var(--spacing-2);
+    align-content: start;
+  }
+
+  .podglad-wyboru-usun {
+    width: 100%;
+    min-height: var(--control-height-min);
+  }
 }
