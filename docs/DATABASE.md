@@ -2596,6 +2596,32 @@ realną pomyłką, czyli typem bez tłumaczenia. Ta kolumna **rozstrzyga o reten
 odwołania, a nie 3 miesiące (patrz niżej). `data jsonb` niesie resztę —
 identyfikatory treści i to, co trzeba pokazać w zdaniu.
 
+**`push_wyslano_at timestamptz NULL`** (D-303, migracja
+`2026_09_26_100000_utworz_powiadomienia_push`) — kiedy to powiadomienie
+NAPRAWDĘ poszło pushem, czyli transport przyjął wiadomość na WSZYSTKIE
+urządzenia tej grupy (issue #1960). `NULL` = tylko w serwisie, albo jeszcze
+czeka (koniec ciszy nocnej / limitu, rezerwacja w toku, albo trwała porażka
+transportu — patrz `push_proba_at` niżej). Kilka powiadomień zgrupowanych
+w jednym pushu dostaje **ten sam** znacznik, więc liczba RÓŻNYCH wartości
+w dobie odbiorcy to liczba wysłanych pushy — po niej liczy się dzienny limit
+(`WyslijPowiadomieniePush`). Dodana bez wartości domyślnej, czyli bez
+przepisywania tabeli. Rollback: kolumna znika razem z tabelami pushu (opis
+przy `push_subscriptions`).
+
+**`push_proba_at timestamptz NULL`** (issue #1960, ta sama migracja) —
+kiedy `WyslijPowiadomieniePush` ZAREZERWOWAŁO tę grupę powiadomień do
+wysyłki, niezależnie od tego, czy transport się udał. Bariera przed dublem:
+dopóki jest ustawione, żadne INNE (świeżo zdarzeniowe) zadanie tego samego
+odbiorcy nie wybierze tej samej grupy jeszcze raz — ponowienie po błędzie
+transportu dostaje listę powiadomień wprost od poprzedniej próby, nie przez
+ponowne zapytanie „co czeka". Do 26 września 2026 tej kolumny nie było,
+a `push_wyslano_at` pełniło OBIE role naraz (rezerwacji i potwierdzenia) —
+błąd transportu albo trwała porażka po wyczerpaniu prób zostawiały
+`push_wyslano_at` ustawiony na kłamstwo. Dziś `push_proba_at` może być
+ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
+porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
+push_wyslano_at IS NULL`), ale nie odwrotnie.
+
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
 §6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,
@@ -4571,6 +4597,49 @@ wysyłka staje).
 Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
 przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
 tydzień, brak zgody, oba ograniczenia bazy osobno).
+
+### push_subscriptions + ustawienia_powiadomien_zewnetrznych
+
+Web Push i ustawienia kanałów POZA serwisem (issue #35, **D-303**). Migracja
+`2026_09_26_100000_utworz_powiadomienia_push`. Powiadomień w serwisie
+(`notifications`, lista pod dzwonkiem) te tabele nie dotyczą i nie mają
+dotyczyć — AGENTS.md §1.
+
+**`push_subscriptions`** — jedna przeglądarka, której człowiek sam, kliknięciem
+na `/ustawienia/powiadomienia`, pozwolił pokazywać powiadomienia. Wiersz
+powstaje wyłącznie przez `ZapiszSubskrypcjePush` (model ma puste `$fillable`).
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Czyje urządzenie. `cascadeOnDelete` — druga linia: kont się nie kasuje, tylko anonimizuje (D-022), więc wiersze kasuje jawnie `EraseAccountData`. |
+| `endpoint` | Adres usługi push przydzielony przeglądarce (Google FCM, Mozilla, Apple, Windows). **Poświadczenie**: kto ma go razem z kluczami, może pisać na ten ekran — dlatego nie wychodzi w paczce RODO ani w logach. `CHECK` wymaga `https://` i długości ≤ 2048; host musi być na liście `kuking.push.dozwolone_hosty` (sprawdza PHP — lista bywa uzupełniana bez migracji; bez niej serwer wysyłałby POST pod dowolny adres, czyli SSRF). **Unikalny globalnie** (`UNIQUE (md5(endpoint))` — indeks na haszu, bo adresy bywają dłuższe niż limit wpisu B-drzewa): jedna przeglądarka = jeden wiersz, niezależnie od konta; po zmianie konta na wspólnym komputerze wiersz przechodzi na nowe konto. |
+| `klucz_p256dh` | Klucz publiczny przeglądarki (P-256, base64url) do szyfrowania treści. Usługa push przenosi treść, ale jej nie czyta. |
+| `klucz_auth` | Sekret uwierzytelniania szyfrowania od przeglądarki (base64url). Ukryty w serializacji modelu (`$hidden`). |
+| `kodowanie` | `aes128gcm` (RFC 8291, domyślne) albo `aesgcm` (starsze przeglądarki) — `CHECK`. |
+| `created_at` | Kiedy włączono push na tym urządzeniu. **Push nie niesie niczego starszego** niż najstarsza subskrypcja konta — włączenie nie wysyła zaległości. |
+
+**Kasowanie wiersza:** odpowiedź usługi push 404/410 (subskrypcja wygasła —
+od razu, bez ponawiania), „Wyłącz na tym urządzeniu", „Wyłącz na wszystkich
+urządzeniach", przekroczenie `push_maks_urzadzen` (znika najstarsze),
+wymazanie konta.
+
+**`ustawienia_powiadomien_zewnetrznych`** — cisza nocna i dzienny limit
+WYBRANE przez człowieka. **Brak wiersza = wartości domyślne**
+z `kuking.notifications.zewnetrzne` (21–8, 1 dziennie), więc zmiana domyślnych
+nie wymaga przepisywania danych.
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Klucz główny i obcy do `users`, `cascadeOnDelete` (druga linia; wiersz kasuje `EraseAccountData`). |
+| `cisza_od`, `cisza_do` | Pełne godziny 0–23 w strefie `kuking.strefa` (Europe/Warsaw) — `CHECK`. `od > do` przechodzi przez północ (21 → 8), równe = bez ciszy. W ciszy push jest ODKŁADANY do jej końca, nigdy kasowany. |
+| `dzienny_limit` | Najwyżej tyle pushy na lokalną dobę, 1–10 (`CHECK`; formularz daje zamkniętą listę `limity_do_wyboru`). Nadmiar czeka do rana następnej doby i idzie JEDNYM pushem. |
+
+**Rollback:** `down()` **odmawia**, gdy `ustawienia_powiadomien_zewnetrznych`
+ma choć jeden wiersz (D-088): po ponownym `migrate` tabela wróciłaby pusta,
+czyli z domyślnym 21–8 zamiast godzin wybranych przez człowieka. Komunikat
+mówi, jak zrobić kopię i wyczyścić tabelę ręcznie. Same subskrypcje wycofania
+nie blokują — ich utrata gasi push (człowiek dostaje MNIEJ, nie więcej),
+a w serwisie nic nie ginie. Test: `UstawieniaPowiadomienTest`.
 
 ### mail_failures
 

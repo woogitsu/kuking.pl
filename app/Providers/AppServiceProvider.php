@@ -11,6 +11,8 @@ use App\Domain\Import\Url\SystemowyRozwiazywaczNazw;
 use App\Domain\Import\WyznaczaczFragmentow;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
+use App\Domain\Notifications\Push\TransportPush;
+use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
@@ -63,6 +65,9 @@ class AppServiceProvider extends ServiceProvider
         // Reguły pochodzenia przepisu (zablokowane źródło, „Sprawdziłem")
         // woła `PublishRecipe`; implementacja w module Import (bez cyklu).
         $this->app->bind(StrazPochodzeniaPrzepisu::class, StrazImportu::class);
+        // Web Push (D-303). Testy podmieniają to fałszywym transportem —
+        // żaden test nie wysyła prawdziwego pushu.
+        $this->app->bind(TransportPush::class, TransportWebPush::class);
     }
 
     /**
