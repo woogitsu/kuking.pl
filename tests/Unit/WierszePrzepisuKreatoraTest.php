@@ -116,12 +116,12 @@ final class WierszePrzepisuKreatoraTest extends TestCase
         $skladniki = WierszePrzepisu::skladniki([
             ['_key' => 'w1', 'group_name' => '', 'text' => '   ', 'note' => 'coś', 'no_amount' => true],
             ['_key' => 'w2', 'group_name' => '  Ciasto ', 'text' => ' mąka 500 g ', 'note' => '', 'no_amount' => false],
-            ['_key' => 'w3', 'group_name' => str_repeat('g', 200), 'text' => str_repeat('t', 300), 'note' => str_repeat('n', 400), 'no_amount' => '1'],
+            ['_key' => 'w3', 'group_name' => str_repeat('g', 200), 'text' => str_repeat('t', 300), 'note' => str_repeat('n', 400), 'substitutes' => str_repeat('z', 400), 'no_amount' => '1'],
         ]);
 
         $this->assertSame([
-            ['text' => 'mąka 500 g', 'group_name' => 'Ciasto', 'note' => null, 'no_amount' => false],
-            ['text' => str_repeat('t', 240), 'group_name' => str_repeat('g', 120), 'note' => str_repeat('n', 300), 'no_amount' => true],
+            ['text' => 'mąka 500 g', 'group_name' => 'Ciasto', 'note' => null, 'substitutes' => null, 'no_amount' => false],
+            ['text' => str_repeat('t', 240), 'group_name' => str_repeat('g', 120), 'note' => str_repeat('n', 300), 'substitutes' => str_repeat('z', 300), 'no_amount' => true],
         ], $skladniki);
     }
 

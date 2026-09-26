@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
@@ -39,6 +40,43 @@ class HealthCheckTest extends TestCase
             ->assertJsonPath('checks.database.ok', true)
             ->assertJsonPath('checks.migrations.ok', true)
             ->assertJsonPath('checks.media.ok', true);
+    }
+
+    /**
+     * Kontrola istniejąca przed #1844: tabela pusta jest awarią. Ma zostać
+     * w tym samym kształcie po zmianie mechanizmu — publiczny kod i HTTP 503.
+     */
+    public function test_pusta_tabela_migrations_jest_krytyczna_awaria(): void
+    {
+        DB::table('migrations')->delete();
+
+        $this->zdrowieZeSzczegolami()
+            ->assertStatus(503)
+            ->assertJsonPath('status', 'degraded')
+            ->assertJsonPath('checks.migrations.ok', false)
+            ->assertJsonPath('checks.migrations.error', 'brak_migracji');
+    }
+
+    /**
+     * #1844: częściowe wdrożenie. Tabela `migrations` NIE jest pusta — ma
+     * wszystkie migracje poza najnowszą — a stary kod (`count() === 0`)
+     * uznawał to za zdrowe. Symuluje dokładnie ten scenariusz z opisu
+     * zgłoszenia: „dodać nową migrację do obrazu, ale nie wykonać jej na tej
+     * bazie".
+     */
+    public function test_brakujaca_pojedyncza_migracja_mimo_niepustej_tabeli_jest_krytyczna_awaria(): void
+    {
+        $ostatnia = DB::table('migrations')->orderByDesc('id')->first();
+
+        $this->assertNotNull($ostatnia, 'Test zakłada, że baza testowa ma choć jedną migrację.');
+
+        DB::table('migrations')->where('id', $ostatnia->id)->delete();
+
+        $this->zdrowieZeSzczegolami()
+            ->assertStatus(503)
+            ->assertJsonPath('status', 'degraded')
+            ->assertJsonPath('checks.migrations.ok', false)
+            ->assertJsonPath('checks.migrations.error', 'brak_migracji');
     }
 
     public function test_zepsuty_dysk_ze_zdjeciami_jest_widoczny_w_odpowiedzi(): void
