@@ -55,6 +55,10 @@ class KosztZCenGusTest extends TestCase
             'garść' => ['garść koperku', null],
             'garść z liczbą' => ['1 garść koperku', ['ilosc' => 1.0, 'miara' => 'nieprzeliczalna']],
             'bez ilości' => ['sól do smaku', null],
+            // #1964: „kotlet” to miara, nie „sztuka” produktu.
+            'kotlety' => ['2 kotlety schabowe', ['ilosc' => 2.0, 'miara' => 'kotlet']],
+            'kotlet' => ['1 kotlet schabowy', ['ilosc' => 1.0, 'miara' => 'kotlet']],
+            'pół kotleta' => ['pół kotleta', ['ilosc' => 0.5, 'miara' => 'kotlet']],
         ];
     }
 
@@ -266,6 +270,94 @@ class KosztZCenGusTest extends TestCase
         $this->assertStringContainsString('To nie błąd', $wynik->zdanie());
     }
 
+    /**
+     * #1964: „2 kotlety schabowe” spadało do miary „sztuka”, a schab w cenniku
+     * ma cenę za kg bez `g_sztuka` — składnik wypadał z pokrycia. Kotlet ma
+     * teraz masę 120 g, ale TYLKO dla schabu (ta sama wartość co
+     * `schab,kotlet,120` w miarach domowych wartości odżywczych).
+     */
+    #[Test]
+    public function kotlety_schabowe_licza_sie_jak_gramy_schabu(): void
+    {
+        $this->cennik();
+
+        $kotlety = app(SzacunekKosztuZCen::class)->dla($this->przepis(['2 kotlety schabowe']));
+        $gramy = app(SzacunekKosztuZCen::class)->dla($this->przepis(['240 g schabu']));
+
+        // 2 × 120 g × 25,04 zł/kg = 6,0096 zł → ±15% → 5,11…6,91 → „ok. 5–7 zł".
+        $this->assertNotNull($kotlety);
+        $this->assertTrue($kotlety->jestPrzedzial(), (string) $kotlety->powod);
+        $this->assertSame(5, $kotlety->od);
+        $this->assertSame(7, $kotlety->do);
+        $this->assertEquals($gramy, $kotlety);
+    }
+
+    /**
+     * Kontrola ujemna do #1964: masa kotleta nie jest ogólna. Kurczak ma
+     * `g_sztuka` (cały kurczak, 1600 g) — „kotlet z kurczaka” nie może się
+     * po cichu przeliczyć na 1,6 kg ani na 120 g schabu. Brak źródła masy
+     * zostaje brakiem, a szacunek mówi, czego nie wie.
+     */
+    #[Test]
+    public function kotlet_bez_znanej_masy_dla_produktu_zatrzymuje_szacunek(): void
+    {
+        $this->cennik();
+
+        $wynik = app(SzacunekKosztuZCen::class)->dla($this->przepis(['2 kotlety schabowe', '2 kotlety z kurczaka']));
+
+        $this->assertNotNull($wynik);
+        $this->assertFalse($wynik->jestPrzedzial());
+        $this->assertStringContainsString('nie wiemy, ile waży „2 kotlety z kurczaka”', $wynik->zdanie());
+    }
+
+    /**
+     * Prawdziwy cennik: „kotlety schabowe” trafiają w wiersz schabu
+     * (przymiotnik „schabowy” we wzorcach), a masa kotleta istnieje tylko
+     * dla kluczy, które cennik naprawdę ma.
+     */
+    #[Test]
+    public function prawdziwy_cennik_zna_kotlety_schabowe(): void
+    {
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow'));
+        $cennik = new CennikSkladnikow;
+
+        foreach (['2 kotlety schabowe', '1 kotlet schabowy', '4 kotletów schabowych'] as $tekst) {
+            $this->assertSame('schab', $cennik->dopasuj($tekst)?->klucz, $tekst);
+        }
+
+        foreach (array_keys(SzacunekKosztuZCen::MASA_KOTLETA) as $klucz) {
+            $this->assertNotNull(CenaSkladnika::find($klucz), "Masa kotleta dla „{$klucz}”, którego nie ma w cenniku.");
+        }
+    }
+
+    /**
+     * Zbieżność z miarami domowymi wartości odżywczych (D-286, „Zbieżność”):
+     * dopóki koszt trzyma własną masę kotleta, nie może się ona rozjechać
+     * z `database/data/odzywcze/miary.csv`. Plik wchodzi z PR #1900 — do
+     * tego czasu nie ma z czym porównać.
+     */
+    #[Test]
+    public function masa_kotleta_zgadza_sie_z_miarami_domowymi(): void
+    {
+        $plik = base_path('database/data/odzywcze/miary.csv');
+
+        if (! is_file($plik)) {
+            $this->markTestSkipped('Brak database/data/odzywcze/miary.csv (PR #1900 jeszcze nie scalony).');
+        }
+
+        $miary = [];
+        foreach (array_slice(file($plik, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [], 1) as $linia) {
+            $w = str_getcsv($linia, escape: '');
+            if (($w[1] ?? '') === 'kotlet') {
+                $miary[$w[0]] = (float) $w[2];
+            }
+        }
+
+        foreach (SzacunekKosztuZCen::MASA_KOTLETA as $klucz => $gramy) {
+            $this->assertSame($miary[$klucz] ?? null, $gramy, "Masa kotleta „{$klucz}” różni się od miary.csv.");
+        }
+    }
+
     #[Test]
     public function bez_ani_jednego_trafienia_w_cennik_milczymy(): void
     {
@@ -386,6 +478,7 @@ class KosztZCenGusTest extends TestCase
             'jajka,jajko,jajko|jajka|jaj,,1.13,1,szt,60,,,,60,2025,GUS,4993',
             'olej,olej rzepakowy,olej|oleju,kokos,9.55,1,l,920,230,14,5,,2025,GUS,4984',
             'maka_pszenna,mąka pszenna,maka|maki|make,ziemniaczan|kukurydz,3.76,1,kg,1000,160,10,3,,2025,GUS,1749185',
+            'schab,schab bez kości,schab|schabu|schabowy|schabowe|schabowych,,25.04,1,kg,1000,,,,,2025,GUS,633049',
         ]);
 
         $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow', ['--plik' => $plik]), Artisan::output());

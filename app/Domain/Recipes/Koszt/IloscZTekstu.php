@@ -16,8 +16,13 @@ use Illuminate\Support\Str;
  * uczciwie się nie pokazuje. Lepiej nie policzyć niż policzyć źle.
  *
  * Zwracana miara jest jedną z: `g`, `ml`, `szklanka`, `lyzka`, `lyzeczka`,
- * `szczypta`, `sztuka` albo `nieprzeliczalna` (garść, pęczek, ząbek,
- * plaster, puszka… — bez wagi, której nie znamy).
+ * `szczypta`, `sztuka`, `kotlet` albo `nieprzeliczalna` (garść, pęczek,
+ * ząbek, plaster, puszka… — bez wagi, której nie znamy).
+ *
+ * „Kotlet” jest osobną miarą, nie „sztuką” (#1964): sztuka schabu to cały
+ * kawałek mięsa, a kotlet to plaster o typowej masie. Masę zna dopiero
+ * `SzacunekKosztuZCen::MASA_KOTLETA`, per produkt — dla produktu spoza tej
+ * listy kotlet zostaje bez masy i szacunek się nie pokazuje.
  *
  * UWAGA NA DUBLOWANIE: skalowanie porcji (V2, osobna gałąź) też potrzebuje
  * rozbioru ilości. Gdy tamten parser wejdzie na `main`, ta klasa powinna
@@ -39,6 +44,8 @@ final class IloscZTekstu
         'szt' => ['sztuka', 1], 'sztuka' => ['sztuka', 1], 'sztuki' => ['sztuka', 1], 'sztuk' => ['sztuka', 1],
         'kostka' => ['sztuka', 1], 'kostki' => ['sztuka', 1], 'kostek' => ['sztuka', 1],
         'tabliczka' => ['sztuka', 1], 'tabliczki' => ['sztuka', 1], 'tabliczek' => ['sztuka', 1],
+        // Formy jak w `JednostkiMiary::SLOWA` wartości odżywczych (PR #1900).
+        'kotlet' => ['kotlet', 1], 'kotlety' => ['kotlet', 1], 'kotletow' => ['kotlet', 1], 'kotleta' => ['kotlet', 1],
     ];
 
     /** Słowa miary bez wagi, którą dałoby się uczciwie przyjąć. */

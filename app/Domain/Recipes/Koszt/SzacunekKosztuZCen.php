@@ -67,6 +67,25 @@ final class SzacunekKosztuZCen
     /** Masa miar domowych dla składnika, którego NIE znamy (tylko do pokrycia). */
     private const MASA_OGOLNA = ['szklanka' => 200.0, 'lyzka' => 12.0, 'lyzeczka' => 5.0, 'szczypta' => 0.5];
 
+    /**
+     * Masa jednego kotleta w gramach — per klucz cennika, nigdy ogólnie (#1964).
+     *
+     * ŹRÓDŁO: miary domowe wartości odżywczych, `database/data/odzywcze/miary.csv`
+     * z PR #1900 (wiersz `schab,kotlet,120`; zasady ustalania tych gramatur —
+     * `database/data/odzywcze/ZRODLA.md`, „Miary domowe i gęstości”). Tu jest
+     * kopia, bo #1900 nie jest jeszcze na `main`. D-286 („Zbieżność
+     * z wartościami odżywczymi”): gdy wspólna tabela miar wejdzie, koszt ma
+     * czytać z niej, a ta stała ma zniknąć. Do tego czasu test
+     * `masa_kotleta_zgadza_sie_z_miarami_domowymi` pilnuje, żeby liczby się
+     * nie rozjechały.
+     *
+     * Produkt spoza tej listy („kotlet z kurczaka”, „kotlet mielony”) nie
+     * dostaje masy — lepiej nie policzyć niż zgadnąć.
+     *
+     * @var array<string, float>
+     */
+    public const MASA_KOTLETA = ['schab' => 120.0];
+
     /** Składniki bez ilości, których koszt jest pomijalny (formy ASCII, całe słowa). */
     private const DROBIAZGI = [
         'sol', 'soli', 'pieprz', 'pieprzu', 'lisc laurowy', 'liscie laurowe', 'lisci laurowych', 'ziele angielskie',
@@ -219,6 +238,7 @@ final class SzacunekKosztuZCen
             'lyzka' => $produkt->g_lyzka !== null ? $ile * $produkt->g_lyzka : null,
             'lyzeczka' => $produkt->g_lyzeczka !== null ? $ile * $produkt->g_lyzeczka : null,
             'sztuka' => $produkt->g_sztuka !== null ? $ile * $produkt->g_sztuka : null,
+            'kotlet' => isset(self::MASA_KOTLETA[$produkt->klucz]) ? $ile * self::MASA_KOTLETA[$produkt->klucz] : null,
             default => null,
         };
     }
