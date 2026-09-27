@@ -2328,7 +2328,7 @@ jobs:
             postgres:18@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae >/dev/null
           trap 'docker rm -f "$serwer" >/dev/null 2>&1 || true' EXIT
           for proba in $(seq 1 30); do
-            if docker exec "$serwer" pg_isready -U postgres -d probe >/dev/null 2>&1; then break; fi
+            if docker exec "$serwer" pg_isready -h 127.0.0.1 -U postgres -d probe >/dev/null 2>&1; then break; fi
             sleep 1
           done
           docker exec "$serwer" psql -U postgres -d probe -v ON_ERROR_STOP=1 \
