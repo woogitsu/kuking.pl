@@ -131,11 +131,14 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
             'identyfikator' => 'inny-facebook', 'email' => null,
             'imie' => 'Inna', 'od' => now()->getTimestamp(),
         ]]);
+        $this->app['session']->save();
         $this->post(route('facebook.link.store'), ['proof_token' => $token]);
         $this->assertFalse($user->fresh()->hasFacebookConnected());
 
         $this->begin($user);
         $this->app['session']->migrate(true);
+        $this->app['session']->save();
+        $this->withCookie((string) config('session.cookie'), $this->app['session']->getId());
         $this->post(route('facebook.link.store'), ['proof_token' => $token]);
         $this->assertFalse($user->fresh()->hasFacebookConnected());
 
