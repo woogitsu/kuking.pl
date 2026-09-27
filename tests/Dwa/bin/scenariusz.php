@@ -208,6 +208,14 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kandydat egzekutora wczytany PRZED lockiem (#2023). Bariera
+        // pozwala w tym czasie zatwierdzić nowy wniosek na tym samym koncie.
+        'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
+            $kandydat = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+
+            return app(EraseAccountData::class)->handleExpiredRequest($kandydat);
+        })(),
+
         // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
         // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
         // który sprawdził hasło, zanim moderator zdążył zbanować.
@@ -272,6 +280,7 @@ try {
                 steps: [['instruction' => 'Gotuj do miękkości.']],
                 publish: true,
                 existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
             );
 
             return (string) $przepis->title;
