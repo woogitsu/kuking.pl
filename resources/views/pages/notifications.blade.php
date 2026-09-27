@@ -113,7 +113,7 @@
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
                 <div class="min-w-0 powiadomienie-tresc">
-                    <p class="m-0 mb-1">
+                    <p class="m-0 mb-1" id="powiadomienie-{{ $notification->getKey() }}-opis">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
                             z boku (WCAG 1.4.1; §13 systemu mówi to wprost).
@@ -348,7 +348,10 @@
                         --}}
                         <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Zobacz</button>
+                            <button class="btn btn-secondary" type="submit"
+                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">
+                                <span id="powiadomienie-{{ $notification->getKey() }}-zobacz">Zobacz</span>
+                            </button>
                         </form>
                     @elseif($notification->isUnread())
                         {{--

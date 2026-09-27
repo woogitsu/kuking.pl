@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: powtarzające się przyciski „Zobacz” na liście powiadomień mają teraz dostępne nazwy powiązane z treścią własnej karty, aby można było odróżnić ich cele przy przechodzeniu po kontrolkach. Widoczny napis i działanie przycisków nie zmieniły się (#2062).
 - Naprawione: „Przywróć do zeszytu” sprawdza aktualny stan konta, treści i zeszytu w chwili zapisu. Zawieszenie nie pozwala już przywrócić wpisu ani przepisu do publicznego zeszytu z wcześniej otwartej strony; przywracanie wielu pozycji jest jedną operacją. Notatki, daty zapisania i dotychczasowe powiadomienia o zapisaniu przepisu pozostają zachowane. Także wyjęcie niedostępnych pozycji sprawdza świeże uprawnienia właściciela (#2094).
 - Połączenie lub ponowne uaktywnienie Facebooka wymaga teraz potwierdzenia obecnego konta Kuking: hasłem albo jednorazowym linkiem na potwierdzony adres. Gdy konto ma włączoną weryfikację dwuetapową, potrzebny jest także dotychczasowy kod. Samo zalogowanie i zgoda na Facebooku już nie dodają trwałej drogi wejścia (#2085).
 - Poprawienie komentarza rozpoczęte przed zawieszeniem, zablokowaniem albo zamknięciem konta nie zapisze już nowej treści po zatwierdzeniu tej decyzji. Edycja i sankcja są sprawdzane w jednej kolejności na świeżym stanie konta (#2090).
