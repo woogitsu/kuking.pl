@@ -201,6 +201,7 @@ WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
 # dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
 OBRAZ_KOPII = "docker/kopia/Dockerfile"
+APT_MIGAWKA_TEST = "test_kazdy_apt_get_install_idzie_przez_przypieta_migawke"
 OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
@@ -885,6 +886,11 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
+    ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
+     lambda s: replace_once(s,
+         "apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install",
+         "apt-get install")),
     # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
     # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
     ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
@@ -1206,6 +1212,7 @@ for label, filename, _test, mutate in checks:
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
 run_test(AKCJE_SHA_TEST, True)
+run_test(APT_MIGAWKA_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
