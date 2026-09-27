@@ -96,6 +96,17 @@ MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push
 MIGRACJA_PUSH_TEST = "test_wycofanie_migracji_odmawia_gdy_ktos_wybral_wlasna_cisze_nocna"
 OBRAZ_ASSETOW_TEST = "ObrazAssetowMaPlikiTestowTest"
 
+# Strażnik nowych migracji wobec AGENTS.md §6 (audyt appeal_id, #989).
+# `add_appeal_id_to_moderation_actions.php` dodała FK/indeks/CHECK do
+# istniejącej tabeli z pominięciem CONCURRENTLY i NOT VALID; właściciel
+# zdecydował jej nie ruszać, ale nowe migracje mają się tego trzymać.
+# Kontrola dodatnia (`straznik_wykrywa_kazde_z_trzech_naruszen_par6`) karmi
+# strażnik trzema fabrykowanymi migracjami — po jednej na regułę. Każda
+# z trzech mutacji niżej gasi wykrywanie JEDNEJ reguły, więc każda ma
+# zapalić dokładnie ten sam test kontroli dodatniej.
+STRAZNIK_MIGRACJI = "app/Support/Baza/StraznikNowychMigracji.php"
+STRAZNIK_MIGRACJI_TEST = "straznik_wykrywa_kazde_z_trzech_naruszen_par6"
+
 # Kolejność w `down()` migracji 2FA (D-238, DB-01). Strażnik czyta źródło
 # migracji i porównuje położenie sprawdzenia liczby kont z położeniem zdjęcia
 # CHECK-a i `dropColumn`. W działaniu różnicy nie widać — wyjątek leci w obu
@@ -124,6 +135,15 @@ LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
 # `app/` i czyta kontekst loggera — mutacja przywraca surowe getMessage().
 LOG_OPERACYJNY = "app/Domain/Media/KasujZdjecie.php"
 LOG_OPERACYJNY_TEST = "LogOperacyjnyBezKomunikatuWyjatkuTest"
+
+# `unserialize()` ładunku kolejki tylko z listą klas (#1841). Strażnik czyta
+# tokeny PHP w `app/`; mutacja zdejmuje `allowed_classes` w jedynym miejscu,
+# które odtwarza ładunek — ma zapalić i strażnika, i test zachowania
+# (atrapa z efektem ubocznym przy odtwarzaniu naprawdę się budzi).
+POLECENIE_ZADANIA = "app/Domain/Kolejka/PolecenieZadania.php"
+UNSERIALIZE_TEST = "UnserializeTylkoZListaKlasTest"
+OBCE_KLASY_TEST = "NieudanyListNieOdtwarzaObcychKlasTest"
+UNSERIALIZE_LISTA = ", ['allowed_classes' => self::WOLNO_ODTWORZYC]"
 
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
@@ -534,6 +554,11 @@ IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
 README = "README.md"
 README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
+# oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
+# akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
+CHANGELOG_NOWOSCI = "CHANGELOG.md"
+STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -1158,6 +1183,10 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
+    ("Ślad listu odtwarza obcą klasę z failed_jobs", POLECENIE_ZADANIA, OBCE_KLASY_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
     # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
     # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
     # do treści.
@@ -1187,12 +1216,27 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    # Strona „Co nowego” (issue #1909): wpis CHANGELOGA oznaczony
+    # `[nowa funkcja]` musi mieć akapit w resources/nowosci/tresc.md. Mutacja
+    # zdejmuje znacznik z JEDYNEGO miejsca, w którym stoi razem z „(#1909)” —
+    # dwa oznaczone wpisy w CHANGELOGU zostają jednym, dwa akapity nowości
+    # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
+    ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
     # #35 (D-088): down() migracji Web Push bez odmowy, choć ludzie wybrali
     # własną ciszę nocną — test wycofania ma oblać.
     ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
+                            "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
+    ("Strażnik migracji ślepy na indeks bez CONCURRENTLY", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (! $maCONCURRENTLY) {", "if (false) {")),
+    ("Strażnik migracji ślepy na CHECK/FK bez NOT VALID", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (stripos($instrukcja, 'NOT VALID') === false) {\n                    $rodzaj",
+                            "if (false) {\n                    $rodzaj")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1281,9 +1325,13 @@ run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
+run_test(UNSERIALIZE_TEST, True)
+run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
+run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
+run_test(STRAZNIK_MIGRACJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

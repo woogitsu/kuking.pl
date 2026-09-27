@@ -151,6 +151,7 @@ Public:
 - `/wpisy/{post}`
 - `/pomoc`
 - `/prywatnosc`, `/regulamin`, `/zasady` — dokumenty prawne (nie ma wspólnego prefiksu `/legal/*`)
+- `/co-nowego` — „Co nowego”, strona pod numerem wersji w stopce (issue #1909, D-317)
 
 Auth:
 - `/login`
