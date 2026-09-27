@@ -170,11 +170,17 @@ final class WidocznoscTresciSql
      * widz↔kucharz. Brak przepisu (`recipe_id IS NULL`) zostawia dostęp
      * wyłącznie właścicielowi wykonania.
      *
-     * ZNANY ROZJAZD Z POLICY (#1385): `CookedEventPolicy::view()` wpuszcza
-     * kucharza do WŁASNEGO wykonania niezależnie od stanu przepisu (ukryty,
-     * prywatny, miękko usunięty). Ten SQL przepuszcza go tylko przez widoczny
-     * przepis. Test kontraktowy toleruje wyłącznie ten kierunek rozjazdu —
-     * naprawa #1385 ma go stąd usunąć razem z tolerancją w teście.
+     * WŁAŚCICIEL WYKONANIA — punkt 3 w `CookedEventPolicy::view()` (issue
+     * #1385). Kucharz widzi własne wykonanie NIEZALEŻNIE od stanu przepisu:
+     * skasowanego (`recipe_id` NULL albo wiersz z `deleted_at`), ukrytego
+     * przez moderację, prywatnego. Do #1385 ta gałąź łapała tylko
+     * `recipe_id IS NULL`, więc po ukryciu przepisu kucharz otwierał kartę
+     * wykonania z komentarzem, a powiadomienie o tym komentarzu znikało
+     * z listy i z licznika. Blokada kucharza z autorem przepisu też tej
+     * gałęzi NIE zamyka (#1394, D-259): Policy wpuszcza kucharza do własnego
+     * wykonania mimo takiej blokady, a granicę trzyma widok (karta bez
+     * tytułu i adresu przepisu) i `Comment::widoczneDla()`. Zmiana tej
+     * reguły w Policy wymaga zmiany tutaj.
      */
     public static function wykonanie(QueryBuilder $sub, string $kolumnaId, User $widz): void
     {
@@ -208,11 +214,10 @@ final class WidocznoscTresciSql
                     });
             })
             ->where(function (QueryBuilder $w) use ($widzId, $widz): void {
-                $w->where(function (QueryBuilder $bezPrzepisu) use ($widzId): void {
-                    $bezPrzepisu->whereNull('ce.recipe_id')->where('ce.user_id', $widzId);
-                })->orWhere(fn (QueryBuilder $q) => $q->whereExists(
-                    fn (QueryBuilder $s) => self::wpisLubPrzepis($s, 'recipes', 'ce.recipe_id', $widz),
-                ));
+                $w->where('ce.user_id', $widzId)
+                    ->orWhereExists(
+                        fn (QueryBuilder $s) => self::wpisLubPrzepis($s, 'recipes', 'ce.recipe_id', $widz),
+                    );
             });
     }
 }

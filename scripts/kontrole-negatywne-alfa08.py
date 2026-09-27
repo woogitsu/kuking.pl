@@ -63,6 +63,8 @@ PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
 PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
 WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
 PLANER_TEST = "PlanerTygodniaTest"
+PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
+PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
 
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
@@ -374,6 +376,8 @@ KLUCZ_PREVIEW_TEST = "test_entrypoint_nadaje_klucz_preview_przed_odmowa_startu"
 ZAPIS_PRZEPISU = "app/Domain/Collections/Actions/SaveRecipeToCollection.php"
 ZAPIS_WPISU = "app/Domain/Collections/Actions/SavePostToCollection.php"
 ZAPIS_CUDZY_ZESZYT_TEST = "ZapisDoCudzegoZeszytuWAkcjiTest"
+OFFLINE_HTML = "public/offline.html"
+OFFLINE_PONOWIENIE_TEST = "test_offline_ma_droge_powrotu_i_obydwa_dotychczasowe_motywy"
 ENTRYPOINT = "docker/entrypoint.sh"
 KOLEJKI_BEZ_GLODZENIA_TEST = "KolejkiBezGlodzeniaTest"
 UMOWA_KOLEJKI_TEST = "UmowaKolejkiTest"
@@ -418,6 +422,12 @@ WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) 
 # Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
 # czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
 # ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
+# „Mój stół” (#1749, D-304): półka dobiera wyłącznie regułami z zamkniętej
+# listy AGENTS.md §8. Mutacja podmienia kolejność półki z czasu publikacji na
+# licznik wykonań — strażnik ma zobaczyć nowe miejsce, a nie tylko feed sprzed
+# półki. Kontrola dodatnia przed mutacją: ten sam test co DIGEST_DOBOR_TEST.
+MOJ_STOL = "app/Domain/Feed/MojStol.php"
+
 UKRYCIA_BEZ_AGREGACJI = "app/Domain/Moderation/CelZgloszenia.php"
 UKRYCIA_BEZ_AGREGACJI_TEST = "test_bez_agregacji_moderacja_i_analityka_nie_czytaja_ukryc"
 
@@ -450,6 +460,8 @@ EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_
 # mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
 EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
+EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
 # jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
@@ -873,6 +885,16 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
+    # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
+    ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
+     lambda s: replace_once(s, 'if ($aktywne > 0) {', 'if (false) {')),
+    ("Composer błędnie deklaruje MIT", "composer.json", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, '"license": "proprietary"', '"license": "MIT"')),
+    ("LICENSE traci zastrzeżenie praw", "LICENSE", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'Wszelkie prawa zastrzeżone.', 'Prawa nie są zastrzeżone.')),
+    ("Obraz błędnie deklaruje MIT", "Dockerfile", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
     # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
@@ -1070,7 +1092,7 @@ checks = [
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
-     lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
+     lambda s: replace_once(s, 'local wspolnyKontener="high,default media,low"', 'local wspolnyKontener="high default media low"')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
@@ -1084,6 +1106,8 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
+     lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
@@ -1091,7 +1115,7 @@ checks = [
     ("Migracja pierwszych kroków bez backfillu", MIGRACJA_ONBOARDINGU, MIGRACJA_ONBOARDINGU_TEST,
      lambda s: replace_once(s, "        DB::table('users')->update(['onboarding_zakonczony_at' => DB::raw('created_at')]);\n", "")),
     ("Koniec pierwszych kroków zapisywany w GET", ONBOARDING_KONTROLER, ONBOARDING_WZNOWIENIE_TEST,
-     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        return view(", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        return view(")),
+     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        if ($cel = $zamiar->celPoOnboardingu($request)) {", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        if ($cel = $zamiar->celPoOnboardingu($request)) {")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
@@ -1116,6 +1140,10 @@ checks = [
      lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
     ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
      lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa przepisy po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('posts.published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa „kuKINGi na dziś” po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderBy('daily_picks.position')\n", "            ->orderByDesc('cooked_events_count')\n")),
     ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1136,6 +1164,11 @@ checks = [
     # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
     ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
      lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #1992: pierwszy worker zarezerwował slot i czeka na transport. Liczenie
+    # wyłącznie potwierdzonych wysyłek musi zapalić test dwóch połączeń.
+    ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
+     lambda s: replace_once(s, "            ->where($wlicz)\n            ->distinct()",
+                            "            ->whereNotNull('push_wyslano_at')\n            ->distinct()")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
@@ -1227,6 +1260,7 @@ run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)
