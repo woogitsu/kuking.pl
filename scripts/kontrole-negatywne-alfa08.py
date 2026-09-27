@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Kontrole regresji Alfa 0.8 i portu marki: w CI albo lokalnie na własnej bazie.
 
 DLACZEGO TEN SKRYPT WOLNO URUCHOMIĆ LOKALNIE.
