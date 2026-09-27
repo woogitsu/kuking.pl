@@ -72,7 +72,10 @@
     // niezależnie od tego, co ustawił system operacyjny odwiedzającego.
     $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
     $theme = $theme === 'dark' ? 'dark' : 'light';
-    $unread = $user?->unreadNotificationsCount() ?? 0;
+    // Z sufitem (audyt B4 S1): powyżej 99 plakietka mówi „99+", a zapytanie
+    // nie liczy tysięcy zaległych na każdej stronie.
+    $unread = $user?->unreadNotificationsBadgeCount() ?? 0;
+    $unreadPonad = $unread > \App\Models\User::PLAKIETKA_POWIADOMIEN_DO;
 
     // Pozycja „Dodaj" (pasek dolny i nawigacja boczna, UI kit v2 etap D)
     // zostaje bieżącą pozycją przez CAŁY proces dodawania, nie tylko na
@@ -502,8 +505,13 @@
                     <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
-                            <span class="badge badge-cooked">{{ $unread }}</span>
-                            <span class="visually-hidden">nieprzeczytanych</span>
+                            @if($unreadPonad)
+                                <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                            @else
+                                <span class="badge badge-cooked">{{ $unread }}</span>
+                                <span class="visually-hidden">nieprzeczytanych</span>
+                            @endif
                         @endif
                     </a>
                     {{--
@@ -892,8 +900,13 @@
                         <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
                             <x-ikona nazwa="bell" /> Powiadomienia
                             @if($unread > 0)
-                                <span class="badge badge-cooked">{{ $unread }}</span>
-                                <span class="visually-hidden">nieprzeczytanych</span>
+                                @if($unreadPonad)
+                                    <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                    <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                                @else
+                                    <span class="badge badge-cooked">{{ $unread }}</span>
+                                    <span class="visually-hidden">nieprzeczytanych</span>
+                                @endif
                             @endif
                         </a></li>
                         {{-- Napis „Ustawienia" prowadzi na EKRAN O TYM TYTULE
@@ -1372,9 +1385,21 @@
                          od razu przy opisie tego wydania, a nie od góry
                          dokumentu — druga część tego samego kryterium.
                          `aria-label` mówi, dokąd prowadzi odnośnik, bo sam
-                         tekst („Alfa 0.68 · wydanie …") tego nie mówi. --}}
+                         tekst („Alfa 0.68 · wydanie …") tego nie mówi.
+
+                         KOŃCÓWKA WDROŻENIA (issue #1932, D-318): etap
+                         produktu pokazuje się tu z `etykietaZNumerem()`, nie
+                         z `etykieta()` — „Alfa 0.68.005" zamiast samego
+                         „Alfa 0.68", żeby dwa różne wdrożenia tego samego
+                         dnia dało się rozróżnić na pierwszy rzut oka. Bez
+                         wiersza w dzienniku (lokalnie, w testach, przy
+                         awarii bazy) `etykietaZNumerem()` sama wraca do
+                         samej etykiety — ten sam wybór co przy braku
+                         znacznika daty niżej. `aria-label` zostaje przy
+                         SAMEJ etykiecie: numer wdrożenia nic tam nie
+                         wnosi, a zdanie ma zostać krótkie. --}}
                     <a class="site-version" href="{{ route('nowosci') }}#{{ \App\Support\Wersja::kotwicaWydania() }}" aria-label="Co nowego w wydaniu {{ \App\Support\Wersja::etykieta() }}">
-                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykietaZNumerem() }}</strong>
                         <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
                     </a>
                 </div>

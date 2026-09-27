@@ -131,7 +131,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
   „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
 - skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
   przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
-- nutrition;
+- wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 
@@ -148,7 +148,8 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
 - widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
 - historia i porównanie publicznych wersji przepisu (#2024);
-- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
+- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016);
+- typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067).
 
 ## Nie wcześnie
 

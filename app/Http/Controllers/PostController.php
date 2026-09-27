@@ -7,15 +7,16 @@ namespace App\Http\Controllers;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\ZachowaneZdjecia;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Posts\KonfliktEdycjiWpisu;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
 use App\Models\AuditLogEntry;
-use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -159,13 +160,18 @@ class PostController extends Controller
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             'photos.*.max' => $bladRozmiaruZdjecia,
+            // Zwykły formularz nie wysyła tu nic poza UUID-ami zachowanych
+            // zdjęć; zepsuta wartość nie może skończyć się „musi być UUID"
+            // (issue #871).
+            'media_ids.*.uuid' => LimityZdjec::komunikatZepsutegoZachowanegoZdjecia(),
             'photos.max' => $question ? 'Do pytania wybierz jedno zdjęcie.' : LimityZdjec::komunikatZaDuzoZdjec(),
         ]);
 
         if ($question && $request->filled('usun_zdjecie')) {
-            $mediaIds = Media::query()->whereIn('id', (array) $request->input('media_ids', []))
-                ->where('owner_id', $user->getKey())->whereDoesntHave('posts')
-                ->pluck('id')->reject(fn (string $id): bool => $id === $request->input('usun_zdjecie'))->values()->all();
+            $mediaIds = array_values(array_filter(
+                ZachowaneZdjecia::identyfikatory($request->input('media_ids', []), $user->getKey()),
+                fn (string $id): bool => $id !== $request->input('usun_zdjecie'),
+            ));
 
             return redirect()->route('questions.create')
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $this->tagiZFormularza($request)));
@@ -249,13 +255,11 @@ class PostController extends Controller
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
-            // (docs/UX_50_PLUS.md). Dwa różne powody mogą tu wylądować
-            // (wpis całkiem pusty ALBO za dużo tagów po rozwiązaniu nazw
-            // na aliasy) — komunikat trafia pod pole, którego naprawdę
-            // dotyczy, żeby „Poprawne dane nigdy nie znikają" nie zgubiło
-            // się w złym miejscu ekranu.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
-                || ($question && str_contains($e->getMessage(), '3 tagi')) ? 'tagi' : 'photos';
+            // (docs/UX_50_PLUS.md). Odmowa po zmianie stanu konta dotyczy
+            // całego wpisu; błędy zdjęć i tagów trafiają pod swoje pola.
+            $pole = $e instanceof KontoNieMozePublikowac ? 'body'
+                : (($e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
+                    || ($question && str_contains($e->getMessage(), '3 tagi'))) ? 'tagi' : 'photos');
 
             return back()
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
@@ -513,12 +517,8 @@ class PostController extends Controller
      */
     private function zebranZdjecia(Request $request, User $user): array
     {
-        $odzyskane = Media::query()
-            ->whereIn('id', (array) $request->input('media_ids', []))
-            ->where('owner_id', $user->getKey())
-            ->whereDoesntHave('posts')
-            ->pluck('id')
-            ->all();
+        // Kolejnosc z `media_ids[]`, nie z planu bazy (issue #934).
+        $odzyskane = ZachowaneZdjecia::identyfikatory($request->input('media_ids', []), $user->getKey());
 
         $photos = $request->file('photos', []);
 
@@ -588,6 +588,9 @@ class PostController extends Controller
             );
         }
 
+        // Wariant ROZSZERZONY kontraktu karty (#1037, `Post::scopeDlaKarty()`):
+        // te same relacje co `Post::RELACJE_KARTY`, ale przepis w całości
+        // i z autorem, bo niżej stoi `RecipePolicy::view()`.
         $post->load([
             'author.profile.avatar',
             'media',

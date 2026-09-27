@@ -79,6 +79,23 @@ try {
 
             return (string) $target->getKey();
         })(),
+        'restore' => (function () use ($actor, $class, $args): int {
+            $subject = $class::query()->findOrFail($args['subject']);
+            $collection = $actor->collections()->findOrFail($args['collection']);
+            Gate::forUser($actor)->authorize('view', $subject);
+            Gate::forUser($actor)->authorize('update', $collection);
+
+            if (($args['pause'] ?? '') === 'po_sprawdzeniu') {
+                DB::selectOne('SELECT pg_advisory_lock(9157, hashtext(?))', [$args['name']]);
+                DB::selectOne('SELECT pg_advisory_unlock(9157, hashtext(?))', [$args['name']]);
+            }
+
+            $removed = [['collection_id' => $collection->id, 'note' => 'zachowana', 'created_at' => now()->subDay()->toDateTimeString()]];
+
+            return $subject instanceof Recipe
+                ? app(SaveRecipeToCollection::class)->restore($actor, $subject, $removed)
+                : app(SavePostToCollection::class)->restore($actor, $subject, $removed);
+        })(),
         'private' => $args['type'] === 'post'
             ? app(EditPost::class)->handle($actor, Post::query()->findOrFail($args['subject']), 'Treść po zmianie.', 'private')->visibility
             : app(PublishRecipe::class)->handle(

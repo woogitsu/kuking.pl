@@ -16079,6 +16079,10 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
    i z pierwotnym `created_at`, więc zeszyt nie przestawia się na górę listy.
    Nie nadpisuje świeższego wiersza (ktoś zdążył zapisać ponownie), nie sięga
    zeszytu, który zniknął albo nigdy nie był tej osoby.
+   Uściślenie #2094: cały powrót odbywa się w jednej transakcji po ponownym
+   odczycie uprawnień do konta, treści i zeszytu pod blokadami. Dotyczy to
+   tak samo przepisu i wpisu; nie zmienia notatki, daty ani reguły
+   powiadomienia autora o pierwszym zapisaniu przepisu.
 3. **Droga powrotu czeka w sesji, nie we flashu.** Flash żyje jedno żądanie,
    a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po kliknięciu).
    `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to nie jest powrót
@@ -17571,6 +17575,66 @@ rozwiązuje.
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
 `tests/Feature/Api/`
 
+## D-320 — Zakres tokenu API to zamknięty słownik, nigdy wildcard `*` (#1928, doprecyzowanie D-270, 26 września 2026)
+
+**Data:** 26 września 2026 · Znalezisko bezpieczeństwa (#1928) · Status: **obowiązuje**
+
+### Co
+
+`User::createToken()` wydawał domyślnie pakietowy wildcard Sanctum —
+`array $abilities = ['*']`. Etap 1 D-270 nie miał jeszcze ani jednej trasy
+produkcyjnej, więc problem był na razie teoretyczny, ale wildcard sam się
+nie naprawia: pierwsza trasa dodana bez świadomej migracji tokenów
+odziedziczyłaby uprawnienia każdego telefonu, który kiedykolwiek się
+zalogował.
+
+1. **Zamknięty słownik zakresów**, `App\Http\Api\ZakresyTokenu`: `profil:czytaj`,
+   `tresc:czytaj`, `tresc:pisz`. `ZakresyTokenu::waliduj()` odrzuca każdy
+   string spoza tej listy — w tym `*` — nawet gdy wołający poda abilities
+   jawnie, nie tylko przy domyślnym wywołaniu.
+2. **Domyślny zakres to CAŁY dzisiejszy słownik, wypisany jawnie**
+   (`User::DOMYSLNE_UPRAWNIENIA_API`), nie „nic" i nie `*`. Jedyny dziś klient
+   API to nasza własna aplikacja mobilna, więc zawężanie zakresu domyślnego
+   poniżej całego słownika byłoby teatrem bez realnego zysku — ale lista jest
+   jawna, więc dopisanie NOWEGO zakresu do słownika w przyszłości nie
+   rozszerza automatycznie uprawnień tokenów wydanych wcześniej (leżą
+   w bazie jako zapisana lista) ani tokenów wydanych tą metodą po dopisaniu
+   zakresu do słownika, dopóki ktoś świadomie nie doda go też do stałej
+   domyślnej.
+3. **Middleware `ability` / `abilities`** (`Laravel\Sanctum\Http\Middleware\CheckAbilities`
+   / `CheckForAnyAbility`) zarejestrowany jako alias w `bootstrap/app.php` —
+   Sanctum w Laravel 11+ nie robi tego sam. Trasa mutująca w `routes/api.php`
+   ma mieć `ability:<zakres>` OBOK `auth:sanctum`, nie zamiast niego.
+
+### Dlaczego tak, a nie inaczej
+
+- **Nie osobny „poziom zaufania" per token teraz.** Różnicowanie zakresów
+  między telefonami tej samej osoby (np. „tylko odczyt" dla urządzenia
+  gościa) nie ma dziś interfejsu, który by to ustawiał — dodanie tego bez
+  ekranu byłoby funkcją bez konsumenta (AGENTS.md §1). Zakres chroni dziś
+  przed przyszłymi trasami, nie przed różnicowaniem urządzeń.
+- **Żadnych wydanych tokenów do migracji.** `KUKING_API_ENABLED` jest
+  domyślnie zamknięte (D-270), `routes/api.php` nie ma jeszcze ani jednej
+  trasy `Route::`, a tabela `personal_access_tokens` powstała 25 września
+  2026 — nie ma więc na dziś ani jednego wydanego tokenu z `*`, którego
+  trzeba by wygaszać albo migrować. Gdyby taki token kiedyś się znalazł (np.
+  po odtworzeniu ze starszej kopii bazy), odwołanie należy do właściciela
+  (`invalidateApiTokens()` na koncie) — nie robimy tego tutaj z automatu.
+- **Strażnik CI dla nowych tras bez `ability`** z pierwotnego zgłoszenia
+  #1928 zostaje odłożony: dziś nie ma ani jednej trasy produkcyjnej do
+  pilnowania, a pisanie skanera pod pustą listę tras jest zgadywaniem
+  kształtu przyszłego kodu. Wraca razem z pierwszą prawdziwą trasą
+  mutującą.
+
+**Zmiana wymaga:** decyzji właściciela o różnicowaniu zakresów per
+urządzenie (potrzebny ekran) albo znalezienia w bazie tokenu z zakresem
+spoza słownika (dziś niemożliwe — `waliduj()` odrzuca go przy wydaniu).
+
+📄 `app/Http/Api/ZakresyTokenu.php` · `app/Models/User.php`
+(`createToken()`, `DOMYSLNE_UPRAWNIENIA_API`) · `bootstrap/app.php`
+(aliasy `ability`/`abilities`) · `routes/api.php` ·
+`tests/Feature/Api/ZakresyTokenuTest.php`
+
 ## D-275 — Reguła doboru treści: zamknięta lista dozwolonych reguł (#1806, #1781, sprostowanie D-194, 25 września 2026)
 
 **Data:** 25 września 2026 · Decyzja właściciela (#1781) · Status: **obowiązuje**
@@ -18151,10 +18215,135 @@ publiczny dostaje web i worker, prywatny tylko worker (`.railway/railway.ts`).
 typ albo jakikolwiek przełącznik dla powiadomień w serwisie wymagają zmiany
 AGENTS.md §1 i testu `UgotowalemZawszePowiadamiaAutoraTest`.
 
+### Uzupełnienie: wylogowanie gasi push na tym urządzeniu (#1979, 26 września 2026)
+
+**Problem.** Subskrypcja Web Push należy do przeglądarki, nie do sesji.
+Po „Wyloguj się" na wspólnym komputerze wiersz `push_subscriptions` dalej
+wskazywał tę przeglądarkę, więc prywatne „X — ugotowane z Twojego
+przepisu…" pokazywało się osobie, która siedzi przy nim potem.
+
+**Rozstrzygnięcie.** Świadome „Wyloguj się" wyłącza push na urządzeniu,
+z którego człowiek wychodzi — bez dodatkowego pytania (jedna prosta akcja,
+bez okna „czy na pewno"; ekran ustawień mówi o tym jednym zdaniem).
+Wygaśnięcie sesji **nie** wyłącza: telefon, na którym sesja po prostu minęła,
+dostaje dalej. Inne urządzenia tej osoby — bez zmian.
+
+Serwer rozpoznaje urządzenie sam, bez polegania na skrypcie: identyfikator
+wiersza trafia do sesji przy włączeniu (`OdlaczUrzadzeniePush::KLUCZ_SESJI`).
+Skrypt formularza wylogowania dokłada adres subskrypcji (pokrywa
+przeglądarkę włączoną w dawnej sesji) i wywołuje `unsubscribe()`; każdy błąd
+albo zawieszenie po 3 s kończy się zwykłym wylogowaniem. Kasowanie działa
+wyłącznie w obrębie `$user->pushSubscriptions()` — adres albo identyfikator
+cudzego wiersza niczego nie skasuje. Adres nie trafia do HTML-a (pole
+w formularzu jest puste do chwili wysłania).
+
+**Czego to nie zmienia.** Treść pushu zostaje z imieniem i nazwą potrawy
+(RETENTION_LOOPS §3.3) — ukrywanie jej na ekranie blokady wymagałoby
+osobnej decyzji właściciela. Osoba, która zaloguje się w przeglądarce
+z subskrypcją kogoś, kto się **nie** wylogował (sesja wygasła), widzi
+„wyłączone" i może przepiąć przeglądarkę na siebie przyciskiem „Włącz";
+osobne ostrzeżenie o cudzej subskrypcji — do osobnego issue.
+
+**W kodzie.** `App\Domain\Notifications\Push\OdlaczUrzadzeniePush`,
+`LoginController::destroy`, `components/wyloguj.blade.php`,
+`resources/js/powiadomienia-push.js` (`przygotujWylogowanie`). Testy:
+`WylogowanieWylaczaPushNaUrzadzeniuTest`, `powiadomienia-push.test.mjs`.
+
 ### Wycofanie
 Usunąć klucze VAPID ze zmiennych środowiska — po restarcie usług ekran i wysyłka znikają,
 bez zmiany kodu. Wycofanie migracji odmawia, dopóki ktoś ma zapisane własne
 godziny ciszy lub limit (D-088; instrukcja w komunikacie migracji).
+## D-299 — Wartości odżywcze przepisu: szacunek z tabel CIQUAL/USDA, w PHP, bez AI (V2, etap 7; 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+(źródło danych, próg, widoczność) · Projekt:
+`docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8, etap 7, zadania I-9 i I-10,
+pytanie P-8.
+
+**Decyzja właściciela (26.09.2026, odpowiedź na P-8).** Źródło: darmowe,
+otwarte tabele CIQUAL i/lub USDA — licencje sprawdzone i zapisane
+w repozytorium, dane jako plik w repozytorium plus komenda importu, żadnego
+pobierania na produkcji. Wynik (kcal, białko, tłuszcz, węglowodany na
+porcję) tylko przy pokryciu ≥ 90% masy, z podpisem „Szacunek na podstawie
+tabel CIQUAL/USDA”, bez oświadczeń zdrowotnych i bez filtrów dietetycznych;
+przy mniejszym pokryciu — brak liczb i uczciwy komunikat. Autor może ukryć
+sekcję w swoim przepisie; **domyślnie widoczna**.
+
+**Co wdrożono.**
+
+1. **Dane.** `database/data/odzywcze/skladniki.csv` (218 pozycji: 200 z
+   CIQUAL 2025 — Licence Ouverte / Etalab 2.0, DOI 10.57745/RDMHWY; 18 z USDA
+   FoodData Central SR Legacy — CC0) i `miary.csv` (364 miary domowe). Źródła,
+   wersje, licencje i znane przybliżenia: `database/data/odzywcze/ZRODLA.md`.
+   Człowiek wybiera w pliku tylko źródło i identyfikator pozycji; wartości
+   dopisuje `scripts/odzywcze/uzupelnij_wartosci.py` z pobranych plików
+   źródłowych — każdą liczbę da się sprawdzić.
+2. **Baza.** `skladniki_odzywcze`, `miary_domowe`, `aliasy_skladnikow`
+   (CHECK-i na wartości ≥ 0, na źródło i na gramy) i
+   `recipes.pokazuj_wartosci_odzywcze` — `docs/DATABASE.md`. Import:
+   `php artisan kuking:importuj-wartosci-odzywcze`, idempotentny, w jednej
+   transakcji. Od poprawki #1961 (26.09.2026) komenda stoi w
+   `preDeployCommand` obok `migrate`/`db:seed` i leci przy każdym wdrożeniu;
+   pomija całą pracę (hash plików CSV bez zmian i tabela już ma dane), więc
+   deploy bez zmiany danych jej nie spowalnia.
+3. **Liczenie** (`app/Domain/Recipes/Odzywcze`). Składnik jest wolnym
+   tekstem (D-017), więc `ParserSkladnika` czyta ilość, jednostkę i nazwę
+   z tekstu w chwili liczenia i niczego nie zapisuje („2 szklanki mąki”,
+   „mąka – 500 g”, „pół kostki masła”, „2–3 ząbki”, „1 puszka (400 g)”).
+   Kolumny `quantity`/`unit_id`, jeśli kiedyś będą wypełnione, mają
+   pierwszeństwo. `SlownikSkladnikow` dopasowuje najdłuższy fragment nazwy
+   do słownika polskich form (bez zgadywania: „mleko kokosowe” to nie
+   „mleko”). `KalkulatorWartosci` przelicza na gramy (nawias › g/dag/kg ›
+   szczypta 0,5 g › miara domowa składnika › ml × gęstość).
+4. **Zasada 90%.** Liczby tylko wtedy, gdy znamy masę każdego składnika,
+   którego nie pomijamy jawnie, a składniki z tabel to ≥ 90% tej masy.
+   Pomijamy jawnie: „Bez ilości” (`no_amount`), „do smaku / do podania /
+   ile weźmie / na oko”, a sól, pieprz, zioła i wodę — tylko gdy nie mają
+   ilości. „Olej do smażenia”, „trochę śmietany”, „kilka łyżek” blokują
+   wynik: nie wiemy, ile tego trafia do garnka. Komunikat mówi dlaczego,
+   podaje przykład wiersza autora i nigdy nie prosi o dopisanie gramów.
+5. **Widok.** Sekcja pod składnikami na stronie przepisu: nagłówek ze
+   słowem „szacunkowe”, energia zaokrąglona do 10 kcal, reszta do 1 g,
+   podpis „Szacunek na podstawie tabel CIQUAL/USDA.”, „Jak to liczymy”
+   (źródła z licencją i datą, miary, próg). Autor ma przycisk „Ukryj tę
+   sekcję w moim przepisie” (PATCH `recipes.wartosci-odzywcze`, Policy
+   `update`, limit `wartosci_odzywcze`). Ukrycie nie zmienia `updated_at`
+   ani wersji przepisu.
+6. **Skalowanie porcji.** Wartości są na jedną porcję z `recipes.servings`;
+   przeliczenie przepisu na inną liczbę porcji mnoży wszystko tym samym
+   mnożnikiem, więc liczby na porcję się nie zmieniają. Sekcja nie zależy od
+   kodu skalowania i nie dotyka jego plików.
+
+**Czego świadomie nie robimy.** Żadnych słów „zdrowe”, „dietetyczne”,
+„lekkie”, „fit”, „dla cukrzyków” (test negatywny słownictwa), żadnego
+filtrowania ani sortowania po kaloriach, żadnego profilu diety czy alergii
+(dane o zdrowiu, art. 9 RODO). Żadnego modelu AI — ani do liczenia, ani do
+dopasowań. Polskie tabele IŻŻ zostają poza zakresem (licencja płatna).
+
+**Odstępstwo od szkicu projektu.** Projekt (§8.1) wiązał tabelę wartości
+kluczem obcym z `ingredients`. `ingredients` dostaje z formularza cały tekst
+wiersza („2 szklanki mąki” i „mąka” to dwa hasła), więc zamiast tego jest
+słownik aliasów wspólny dla serwisu. Projekt proponował też sekcję
+„zwiniętą” — jest rozwinięta (cztery liczby są krótsze niż przycisk, który
+by je chował); zwinięte jest tylko „Jak to liczymy”.
+
+**Znane przybliżenia.** Twaróg (brak polskiego twarogu w CIQUAL i USDA —
+użyty cottage cheese, wynik serników raczej zaniżony), jedna pozycja dla
+wszystkich kiełbas, kurczak w całości jako 900 g części jadalnej. Szczegóły
+i propozycje poprawy: `ZRODLA.md`.
+
+**Pilnują tego:** `ParserSkladnikaTest`, `KalkulatorWartosciOdzywczychTest`
+(przepis wzorcowy z ręcznym rachunkiem, próg 90%, fikstura przepisów
+z seedów), `WartosciOdzywczeImportTest`,
+`WartosciOdzywczeNaStroniePrzepisuTest`,
+`CofniecieMigracjiNiePokazujeUkrytychWartosciTest` (D-088).
+
+### Wycofanie
+Usunąć `<x-wartosci-odzywcze>` z `pages/recipes/show.blade.php` — sekcja
+znika, dane zostają. Pełne cofnięcie schematu: migracja tabel cofa się
+bezstratnie; migracja kolumny `recipes.pokazuj_wartosci_odzywcze` odmawia,
+gdy którykolwiek autor sekcję ukrył (D-088) — komunikat mówi, co zapisać
+przed cofnięciem.
 
 ## D-307 — Strona tagu pokazuje każdemu, także autorowi, tylko wpisy publiczne (#1338, 26 września 2026)
 
@@ -18635,6 +18824,173 @@ Usunąć trasę `nowosci`, kontroler, plik treści i odnośnik w stopce (wraca
 do zwykłego `<span>`). CHANGELOG.md nie traci nic — dopiski
 `[nowa funkcja]` zostają nieszkodliwym tekstem, jeśli nikt ich nie sprząta.
 Schemat bazy się nie zmienia.
+
+## D-318 — Numer wersji z końcówką wdrożenia: dziennik `wdrozenia` w bazie, nie licznik z gita (issue #1932, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+`App\Support\Wersja::etykieta()` („Alfa 0.68") podbija się ręcznie, przy
+większych zmianach — stoi tygodniami bez ruchu. Między dwoma podbiciami
+ląduje na produkcji po kilkanaście wdrożeń dziennie, a stopka i strona
+„Co nowego" (D-317) nie miały jak ich rozróżnić: dwa różne wdrożenia tego
+samego dnia wyglądały identycznie, dopóki ktoś nie porównał skrótów commitów
+z pamięci.
+
+### Decyzja właściciela
+1. **Format wersji:** `Alfa 0.69.001`. Duży numer (`0.69`, `0.70`…) podbija
+   się ręcznie, przy większych zmianach — zasada się nie zmienia
+   (`config/kuking.php`, komentarz nad `wersja.etykieta`, AGENTS.md §3).
+   Końcówka `.001`, `.002`, `.003`… rośnie SAMA przy każdym wdrożeniu i
+   wraca do `.001` przy nowym dużym wydaniu — to jest NOWA sekwencja, nie
+   kontynuacja poprzedniej.
+2. **Licznik NIE liczy się z historii gita.** Build Railwaya może mieć
+   płytki klon — `git rev-list --count` liczyłby wtedy nie to, co trzeba,
+   bez żadnego widocznego błędu (licząca się liczba po prostu byłaby zła).
+   Zamiast tego: dziennik wdrożeń w bazie, dwie tabele —
+   `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
+   (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
+   opisane w `docs/DATABASE.md`.
+3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
+   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
+   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+   `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
+   `numer = MAX(numer) dla tej etykiety + 1` pod
+   `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie
+   dają tego samego numeru (test na dwóch połączeniach:
+   `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`). Jest
+   idempotentna: ten sam commit drugi raz nie zużywa kolejnego numeru
+   (`UNIQUE (commit)`).
+4. **Przy tym samym przebiegu** komenda zapisuje, które nagłówki funkcji
+   z `resources/nowosci/tresc.md` (sekcja „## Najnowsze zmiany") pojawiły
+   się pierwszy raz — strona „Co nowego" pokazuje przy nich
+   „_od Alfa 0.69.NNN_".
+   **Dopisek doprecyzowany 26 września 2026, tego samego dnia (D-318,
+   dopisek):** zostaje NA STAŁE. Gdy opis funkcji przechodzi z „Najnowsze
+   zmiany" do sekcji nazwanego wydania (np. „## Alfa 0.69" po kolejnym
+   podbiciu dużego numeru), strona „Co nowego" dalej pokazuje numer, pod
+   którym funkcja pojawiła się PIERWSZY RAZ — nie znika i nie przeskakuje na
+   numer bieżącego wdrożenia. Nagłówek nie zmienia tekstu (ani slugu) przy
+   przenosinach, więc `wdrozenia_funkcje.naglowek_slug` jest `UNIQUE` SAM
+   W SOBIE, nie para (etykieta, slug) — `ZarejestrujWdrozenie` dalej zapisuje
+   nowe nagłówki WYŁĄCZNIE ze skanu „Najnowsze zmiany" (skanowanie już
+   wydanych sekcji przy pierwszym uruchomieniu tej funkcji przypisałoby
+   świeży numer funkcjom sprzed tygodni — patrz komentarz klasy), a
+   `NowosciController` dopasowuje po samym slugu W CAŁYM dokumencie, biorąc
+   etykietę i numer z WŁASNEGO wiersza nagłówka, nie z bieżącej
+   `Wersja::etykieta()`.
+5. **Stopka** (`App\Support\Wersja::etykietaZNumerem()`) pokazuje
+   „Alfa 0.69.NNN · data · skrót commita", z cache'em (10 minut, klucz niesie
+   commit — inne wdrożenie samo unieważnia poprzedni wpis). Bez wiersza
+   w bazie (lokalnie, w testach, przy awarii bazy) zostaje dzisiejszy opis,
+   bez błędu — `Wersja::etykieta()` SAMA zostaje bez końcówki, celowo: czyta
+   ją dosłownie `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując
+   z nagłówkiem CHANGELOG-a w formacie „Alfa 0.N", bez żadnej końcówki.
+
+### Rollback (D-088)
+`down()` migracji, która zakłada obie tabele, ODMAWIA, gdy którakolwiek ma
+choć jeden wiersz — numer wdrożenia jest wartością semantyczną, już
+pokazaną ludziom (stopka, „od Alfa 0.69.NNN"), a cofnięcie na wypełnionej
+bazie i kolejny `migrate` zacząłby liczyć numery od 1 dla każdej etykiety,
+mieszając je ze starymi. Na świeżej bazie przechodzi bez pytania. Test
+odmowy i kontrola dodatnia: `tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.
+
+### Dowody
+`tests/Feature/ZarejestrujWdrozenieTest.php` (numeracja, idempotencja, mapa
+funkcji), `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`
+(bezpieczeństwo przy równoległym starcie, dwa prawdziwe połączenia),
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php` (rollback),
+`tests/Feature/WersjaWStopceTest.php` (numer w stopce, cache),
+`tests/Feature/StronaCoNowegoOdNumeruTest.php` („od Alfa 0.NN.NNN" przy
+funkcji, dopisek przeżywa przenosiny nagłówka do sekcji nazwanego wydania,
+brak wiersza nie wywala strony i nic nie dokleja).
+
+### Wycofanie
+Usunąć komendę `kuking:zarejestruj-wdrozenie` z `preDeployCommand`, cofnąć
+`Wersja::etykietaZNumerem()` do `Wersja::etykieta()` w stopce (D-088:
+migracja sama się nie cofa na wypełnionej bazie — patrz sekcja Rollback
+wyżej). Strona „Co nowego" wraca do samych nagłówków bez dopisku „od …".
+
+---
+
+## D-316 — Pakiety APT w Dockerfile-ach przypięte do migawki snapshot.debian.org, nie do wersji (audyt, issue #1868, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja z audytu
+bezpieczeństwa · Rozszerza **#952** (obrazy bazowe przypięte do digestu)
+
+**Problem.** Obraz bazowy każdego Dockerfile jest przypięty do digestu
+(`FROM ...@sha256:...`, issue #952), ale pakiety APT instalowane W ŚRODKU
+tych obrazów (`postgresql-client`, `tini` w głównym `Dockerfile`; `openssl`,
+`curl`, `ca-certificates` w `docker/kopia/Dockerfile`) schodziły ze zwykłego
+`deb.debian.org/debian trixie`. To jest mirror NAJNOWSZEGO PUNKTU WYDANIA,
+nie archiwum — starsza wersja pakietu znika z niego, gdy tylko wyjdzie
+kolejna poprawka. Ten sam commit i ten sam digest obrazu bazowego mogły więc
+w poniedziałek i w piątek dać dwa różne `pg_dump`/`tini`/`openssl` w środku
+obrazu, bez żadnej widocznej zmiany w repozytorium.
+
+**Rozważona i ODRZUCONA alternatywa: literalne przypięcie wersji
+(`apt-get install postgresql-client=X.Y-Z`).** To jest DOKŁADNIE pułapka,
+przed którą ostrzega treść zgłoszenia: `deb.debian.org` trzyma tylko
+najnowszy punkt wydania. Wersja przypięta dziś literalnie znika z niego przy
+następnej łatce bezpieczeństwa Debiana — i wtedy `apt-get install
+pakiet=stara-wersja` nie znajduje jej WCALE, a build, który wczoraj
+przechodził, dziś pada na `Version 'X.Y-Z' for 'pakiet' was not found`.
+Literalne przypięcie wersji byłoby więc MNIEJ stabilne niż stan wyjściowy,
+nie bardziej.
+
+**Decyzja: migawka `snapshot.debian.org`, nie numer wersji.** To jest pełne,
+zamrożone co ~6 godzin i NIGDY nie kasowane archiwum całej historii Debiana
+— usługa, którą sam projekt Debian utrzymuje właśnie do odtwarzania starych
+buildów. Zamiast pinować NUMER pakietu, pinujemy CZAS: `ARG
+SNAPSHOT_DEBIAN=<RRRRMMDDTHHMMSSZ>` w obu Dockerfile-ach wskazuje jedną,
+zamrożoną migawkę całego archiwum, a `apt-get install postgresql-client
+tini` (bez numerów wersji) bierze z niej to, co tam wtedy stało — zawsze te
+same bajty, bo migawka się nie zmienia.
+
+**Jak to jest spięte technicznie.** `-o Dir::Etc::sourcelist=…
+-o Dir::Etc::sourceparts=…` każe apt-owi użyć WYŁĄCZNIE jednego, tymczasowego
+pliku źródeł na czas tych dwóch komend (`update` i `install`) — domyślna
+konfiguracja repozytoriów obrazu bazowego (jakikolwiek ma format) zostaje
+nietknięta. `check-valid-until=no` jest konieczne, bo migawka ma w `Release`
+pole `Valid-Until` z przeszłości. `signed-by=/usr/share/keyrings/debian-
+archive-keyring.gpg` weryfikuje ten sam, oryginalny podpis GPG Debiana —
+migawka nie generuje własnego, więc `[trusted=yes]` (wyłączenie weryfikacji)
+nie jest tu potrzebne i nie jest używane.
+
+Pierwszy build w CI ujawnił, że obraz `postgres:18` nie ma jeszcze
+zaufanych certyfikatów CA, a właśnie pakiet `ca-certificates` ma pobrać
+z migawki. Dlatego obraz kopii bazy pobiera migawkę przez HTTP. Bezpieczeństwo
+pakietów nadal opiera się na podpisanym `InRelease` i sumach z podpisanych
+metadanych, sprawdzanych przez apt względem `debian-archive-keyring.gpg`;
+`trusted=yes` pozostaje zabronione. Główny obraz ma CA i używa HTTPS.
+Transport HTTP nie ukrywa metadanych ani nazw pakietów przed siecią.
+Łańcuch podpisanego `Release` i sum pakietów opisuje Debian w
+[`apt-secure(8)`](https://manpages.debian.org/testing/apt/apt-secure.8.en.html).
+
+**Podnoszenie wersji pakietów jest teraz ŚWIADOME, nie ciche.** Zmiana
+`SNAPSHOT_DEBIAN` na nowszą datę jest jedną linijką w PR-ze, widoczną
+w historii gita — dokładnie tak, jak Dependabot podbija digesty obrazów
+bazowych. Sprawdzenie przed podniesieniem: migawka pod nową datą istnieje
+i ma `main/binary-amd64/Packages` z potrzebnymi pakietami
+(`https://snapshot.debian.org/archive/debian/<data>/dists/trixie/Release`).
+
+**Weryfikacja builda.** Pierwszy job `docker-build` w CI pobrał pakiety
+głównego obrazu z migawki, ale obraz kopii bazy zatrzymał się na TLS przed
+instalacją `ca-certificates`. Kolejny przebieg CI sprawdza wariant HTTP
+z niezmienioną weryfikacją podpisu. Lokalnie brak demona Dockera.
+
+### Dowody
+`tests/Unit/AptPakietyPrzypieteDoMigawkiTest.php` — kształt przypięcia
+(wersja migawki, `check-valid-until=no`, `signed-by=`, brak `trusted=yes`,
+`apt-get install` zawsze z `Dir::Etc::sourcelist=` i towarzyszącym `apt-get
+update` z TĄ SAMĄ opcją w tym samym poleceniu). Cztery niezależne kontrole
+ujemne zmierzone ręcznie przy pisaniu testu (cofnięcie każdego elementu
+osobno łamie odpowiednie sprawdzenie).
+
+### Wycofanie
+Powrót do zwykłego `apt-get update && apt-get install` (bez `Dir::Etc::
+sourcelist=`) cofa reprodukowalność do stanu sprzed audytu — bez zmian
+schematu czy danych, to czysto build-time'owa zmiana dwóch Dockerfile-i.
 ## D-312 — PgBouncer jawnie uznany za jeszcze niepotrzebny; wraca przy nazwanych progach (#600, #598, 26 września 2026)
 
 Dotyczy **#600** (punkt definicji gotowości „PgBouncer jest wdrożony albo

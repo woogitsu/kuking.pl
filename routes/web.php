@@ -75,6 +75,7 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -103,7 +104,12 @@ $limits = config('kuking.limits');
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
-Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+// Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
+// na wszystkich publicznych wpisach przed odcięciem strony — patrz
+// uzasadnienie przy `limits.discover` w config/kuking.php.
+Route::get('/odkryj', [FeedController::class, 'discover'])
+    ->middleware("throttle:{$limits['discover']},discover")
+    ->name('discover');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -578,6 +584,12 @@ Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'
 Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.link.store');
+Route::post('/wejdz/facebook/polacz/link', [FacebookLoginController::class, 'requestLinkProof'])
+    ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+    ->name('facebook.link.email');
+Route::get('/wejdz/facebook/polacz/link/{token}', [FacebookLoginController::class, 'confirmLinkProof'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.confirm');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
@@ -760,6 +772,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.update');
+    // „Ukryj wartości odżywcze w moim przepisie” (D-299). Ustawienie widoku
+    // własnego przepisu, nie nowa wersja treści — osobny, luźniejszy limit.
+    Route::patch('/przepisy/{recipe}/wartosci-odzywcze', WartosciOdzywczeController::class)
+        ->middleware("throttle:{$limits['wartosci_odzywcze']},wartosci_odzywcze")
+        ->name('recipes.wartosci-odzywcze');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
