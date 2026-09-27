@@ -849,7 +849,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()));
 
         // Dopiero POST tworzy powiązanie.
-        $this->post(route('facebook.link.store'))->assertRedirect(route('settings.security'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123'])
+            ->assertRedirect(route('settings.security'));
         $this->assertStringNotContainsString('jednym kliknięciem', (string) session('status'));
         $this->assertStringContainsString('Wejdź kontem Facebooka', (string) session('status'));
 
@@ -911,7 +912,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // więc o dostępie nie rozstrzyga stan sprzed sprawdzenia.
         $basia->ban();
 
-        $this->post(route('facebook.link.store'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123']);
 
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()),
             'O dostępie do konta nie może rozstrzygać stan z przeszłości.');
@@ -932,7 +933,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // mieć powiązania — a rola mogła zostać nadana po pokazaniu ekranu.
         $basia->forceFill(['role' => User::ROLE_MODERATOR])->save();
 
-        $this->post(route('facebook.link.store'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123']);
 
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()));
     }
@@ -1009,7 +1010,11 @@ class LogowanieKontemFacebookiemTest extends TestCase
         Carbon::setTestNow('2026-09-20 11:00:00');
 
         $this->actingAs($basia);
-        $this->wracamyZFacebooka()->assertRedirect(route('settings.security'));
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.link'));
+        $this->assertTrue($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Sama zgoda Facebooka nie jest dowodem właściciela konta Kuking.');
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123'])
+            ->assertRedirect(route('settings.security'));
 
         $status = (string) session('status');
         $this->assertStringContainsString('znów działa', $status);

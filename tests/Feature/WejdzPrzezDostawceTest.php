@@ -260,7 +260,15 @@ class WejdzPrzezDostawceTest extends TestCase
         $wejscie = $this->wejscie($klasa);
         $basia = $this->konto();
 
-        $polaczone = $wejscie->polacz($this->zadanie(), $basia, $this->tozsamosc($wejscie));
+        $request = $this->zadanie();
+        $tozsamosc = $this->tozsamosc($wejscie);
+        if ($wejscie->dostawca()->wymagaSwiezegoPotwierdzenia()) {
+            $this->assertNull($wejscie->polacz($request, $basia, $tozsamosc),
+                'Facebook nie może ominąć świeżego dowodu przez bezpośrednie wywołanie akcji.');
+        }
+
+        $polaczone = $wejscie->polacz($request, $basia, $tozsamosc,
+            $wejscie->dostawca()->wymagaSwiezegoPotwierdzenia() ? static fn (User $fresh): bool => true : null);
 
         $this->assertNotNull($polaczone);
         $this->assertTrue($wejscie->dostawca()->kontoPowiazane(self::IDENTYFIKATOR)?->is($basia));

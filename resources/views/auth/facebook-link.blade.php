@@ -10,12 +10,11 @@
         Google POTWIERDZIŁO, i prosimy o jedno kliknięcie, żeby połączenie
         nie było niespodzianką.
 
-        Tutaj człowiek jest ZALOGOWANY — i to jest cały dowód. Facebook nie
+        Tutaj człowiek jest ZALOGOWANY, lecz przed dołączeniem nowej drogi
+        wejścia ponownie potwierdza swoje konto Kuking. Facebook nie
         mówi, czy adres e-mail jest potwierdzony, więc rozpoznanie po adresie
         byłoby przejęciem konta na życzenie (wpisuję cudzy adres w swoim
-        koncie na Facebooku i klikam „to moje konto"). Dowodem nie może być
-        twierdzenie, tylko czynność: wejście na konto hasłem albo linkiem
-        z wiadomości.
+        koncie na Facebooku i klikam „to moje konto").
 
         Dlatego ten ekran NIE POKAZUJE adresu e-mail z Facebooka i nie ma po
         co go pokazywać: nie służy on tu do niczego i nie zostanie nigdzie
@@ -33,8 +32,8 @@
         </p>
         <p>
             Po połączeniu kont możesz korzystać z przycisku „Wejdź kontem Facebooka”.
-            Facebook może poprosić o potwierdzenie. <strong>Twoje dotychczasowe hasło
-            nadal będzie działać.</strong> Nic w Twoim profilu, przepisach ani zeszytach
+            Facebook może poprosić o potwierdzenie. <strong>Twoje dotychczasowe sposoby logowania
+            nadal będą działać.</strong> Nic w Twoim profilu, przepisach ani zeszytach
             się nie zmieni.
         </p>
         <p>
@@ -44,11 +43,32 @@
 
         <form method="POST" action="{{ route('facebook.link.store') }}">
             @csrf
+            @if(!empty($proofToken))
+                <input type="hidden" name="proof_token" value="{{ $proofToken }}">
+                <p>Link potwierdzający działa tylko w tej przeglądarce i tylko przez 10 minut.</p>
+            @else
+                <label for="facebook-link-password">Hasło do Kuking</label>
+                <input class="field-input" id="facebook-link-password" name="password" type="password" autocomplete="current-password">
+                <p>Wpisz obecne hasło, żeby potwierdzić połączenie.</p>
+            @endif
+            @if($maDrugiSkladnik ?? false)
+                <label for="facebook-link-code">Kod z aplikacji lub kod zapasowy</label>
+                <input class="field-input" id="facebook-link-code" name="two_factor_code" type="text" autocomplete="one-time-code" required>
+            @endif
             <div class="form-actions">
                 <button class="btn btn-primary" type="submit">Połącz z Facebookiem</button>
                 <a class="btn btn-quiet" href="{{ route('settings.security') }}">Nie teraz</a>
             </div>
         </form>
+        @if(empty($proofToken) && ($adresPotwierdzony ?? false))
+            <form method="POST" action="{{ route('facebook.link.email') }}">
+                @csrf
+                <p>Nie masz hasła do Kuking? Wyślemy link na Twój obecny, potwierdzony adres.</p>
+                <button class="btn btn-secondary" type="submit">Wyślij link potwierdzający</button>
+            </form>
+        @elseif(empty($proofToken))
+            <p>Jeśli nie masz hasła do Kuking, najpierw potwierdź swój adres e-mail w ustawieniach konta. Potem wróć tutaj po link potwierdzający.</p>
+        @endif
     </div>
 
     {{--
