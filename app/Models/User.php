@@ -231,6 +231,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     protected $hidden = [
         'password',
         'remember_token',
+        'delete_request_generation',
     ];
 
     /**
@@ -1352,6 +1353,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => $kara,
                 'punishment_expires_at' => $kara === self::STATUS_SUSPENDED ? $konto->status_expires_at : null,
                 'delete_requested_at' => now(),
+                'delete_request_generation' => (string) Str::uuid(),
                 'delete_scope' => $scope,
             ]);
         }));
@@ -1391,6 +1393,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => null,
                 'punishment_expires_at' => null,
                 'delete_requested_at' => null,
+                'delete_request_generation' => null,
                 'delete_scope' => null,
             ]);
         });
@@ -1433,6 +1436,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $this->forceFill([
             'status' => self::STATUS_ERASED,
             'data_erased_at' => now(),
+            'delete_request_generation' => null,
         ])->save();
     }
 

@@ -166,8 +166,9 @@ sprawdz "niezerowy kod nigdy nie jest planowym recyklingiem" "brak" "$(grep -q '
 
 # Issue #1030 i przegląd: liczba procesów `queue:work` zależy od roli.
 # `worker` (osobny kontener) — proces na kolejkę, bez głodzenia.
-# `all` (jeden kontener 1024 MB z WWW) — JEDEN proces, bo trzy szczyty
-# pamięci naraz (zdjęcie ~452 MB, eksport do 512M, WWW) to OOM całej strony.
+# `all` (jeden kontener 1024 MB z WWW) — DWA procesy (D-311): lekki
+# `high,default` i ciężki `media,low`, bo trzy szczyty pamięci naraz
+# (zdjęcie ~452 MB, eksport do 512M, WWW) to OOM całej strony.
 funkcje_kolejek() {
   local f
   for f in listy_kolejek nadzoruj_kolejki nadzoruj_jedna_kolejke przebieg_w_tle; do
@@ -206,7 +207,7 @@ PROBA
 }
 
 sprawdz "rola worker: osobny proces na high, default, media i low (high: B8-06)" "default high low media " "$(procesy_kolejek worker)"
-sprawdz "rola all: JEDEN proces, kolejność high,default,media,low" "high,default,media,low " "$(procesy_kolejek all)"
+sprawdz "rola all: DWA procesy, lekki high,default i ciężki media,low (D-311)" "high,default media,low " "$(procesy_kolejek all)"
 sprawdz "rola all: jawne QUEUE_WORKERS wygrywa" "default low media " "$(procesy_kolejek all QUEUE_WORKERS='default media low')"
 sprawdz "rola worker: jawne QUEUE_WORKERS wygrywa" "default,low media " "$(procesy_kolejek worker QUEUE_WORKERS='default,low media')"
 sprawdz "QUEUE_NAMES to alias jednego procesu (rola worker)" "default,media " "$(procesy_kolejek worker QUEUE_NAMES='default,media')"

@@ -28,6 +28,7 @@ import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
 import './powiadomienia-push.js';
 import './postep-importu.js';
+import './powiadomienia-push-uzgodnij.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';

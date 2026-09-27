@@ -159,7 +159,7 @@ class PoprawkaOpublikowanegoPrzepisuMaWersjeTest extends TestCase
     {
         $przepis = $this->opublikowanyPrzepis();
 
-        $this->actingAs($przepis->author)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($przepis->author)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'draft',
             'title' => 'Rosół babci Zofii',
             'visibility' => 'public',
