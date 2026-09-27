@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
+use App\Domain\Comments\KonfliktPoprawkiKomentarza;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
@@ -67,8 +68,22 @@ class CommentController extends Controller
         ]);
 
         // Pod zamkiem korzenia `EditComment` pyta Policy jeszcze raz: odpowiedź
-        // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337).
-        $poprawiony = $this->editComment->handle($request->user(), $comment, trim($data['body']));
+        // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337). Pod tym
+        // samym zamkiem porównuje wersję treści z formularza (#982).
+        try {
+            $poprawiony = $this->editComment->handle(
+                $request->user(),
+                $comment,
+                trim($data['body']),
+                is_string($request->input('wersja')) ? $request->input('wersja') : null,
+            );
+        } catch (KonfliktPoprawkiKomentarza $e) {
+            // Issue #982: nic nie zapisano. Tekst wraca do pola (`withInput`),
+            // a wątek pokazuje nad nim zapisaną treść. Osobny klucz `wersja`,
+            // nie `body`: tekst jest poprawny, więc pole nie dostaje
+            // `aria-invalid`.
+            return back()->withInput()->withErrors(['wersja' => $e->getMessage()]);
+        }
         if ($poprawiony === null) {
             $request->session()->forget('comment_edit_recovery');
 

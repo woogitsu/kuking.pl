@@ -9,7 +9,6 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
-use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Search\SearchQuery;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
@@ -37,7 +36,6 @@ class CollectionController extends Controller
     public function __construct(
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
-        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
         private readonly WidocznaZawartoscZeszytu $zawartosc = new WidocznaZawartoscZeszytu,
     ) {}
 
@@ -260,23 +258,11 @@ class CollectionController extends Controller
             ->with(Recipe::RELACJE_KARTY)
             ->paginate(12);
 
+        // Granice widoczności: `WidocznaZawartoscZeszytu` (#773, ta sama reguła
+        // liczy niżej niedostępne zapisy). Relacje karty, licznik komentarzy
+        // i zapisów — jeden kontrakt `Post::scopeDlaKarty()` (#1037).
         $posts = $this->zawartosc->wpisy($collection, $request->user())
-            // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
-            // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
-            // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
-            // i zdjęcie główne; bez doładowania każdy taki wpis to dwa osobne
-            // zapytania na stronę.
-            ->with([
-                'author.profile.avatar',
-                'media',
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($request->user())
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą
-            // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
+            ->dlaKarty($request->user())
             ->paginate(
                 (int) config('kuking.collections.saved_posts_page_size'),
                 ['*'],
