@@ -38,6 +38,70 @@ dopóki ćwiczenie z §4A nie zostanie wykonane i wpisane do tabeli w §5.
 Tam, gdzie to ma znaczenie, jest to powiedziane wprost drugi raz — bo to jest
 dokładnie ta różnica, o którą chodzi w „restore przetestowany".
 
+### Awaryjny zrzut, gdy automatyczny serwis kopii nie jest dostępny (#2078)
+
+**Nie używaj `pg_dump` z kontenera aplikacji.** Nie zawiera on klienta bazy;
+ogólny pakiet `postgresql-client` w Debianie Trixie dawał wersję 17, która
+odmawia zrzutu serwera PostgreSQL 18. Obraz `docker/kopia/Dockerfile` bazuje na
+przypiętym `postgres:18`; CI sprawdza jego wersję i wykonuje z niego prawdziwy
+zrzut testowej bazy PostgreSQL 18. To test narzędzia, **nie dowód**, że
+produkcyjny serwis kopii działa albo że powstała produkcyjna kopia.
+
+Jednorazowa ścieżka na komputerze operatora z Dockerem i terminalem Bash/WSL2:
+
+1. Ustal adres bazy, do którego **kontener Docker** może się połączyć. Adres
+   `localhost` tunelu na hoście nie jest adresem hosta wewnątrz kontenera;
+   przy tunelu użyj `host.docker.internal` (Docker Desktop) albo równoważnej
+   trasy. Nie zmieniaj ustawień produkcji tylko po to, by wykonać ten zrzut.
+2. Utwórz prywatny katalog i przygotuj w nim plik `polaczenie.env` z `PGHOST`, `PGPORT`,
+   `PGUSER`, `PGDATABASE`, `PGPASSWORD` i `PGSSLMODE=require`. Nie wpisuj hasła
+   w argumentach `docker run`, historii terminala ani w repozytorium. Plik
+   powinien być czytelny wyłącznie dla operatora (`chmod 600`). Wypełnij go
+   rzeczywistymi danymi dostępu, po jednej parze `NAZWA=wartość` w linii:
+
+```bash
+umask 077
+mkdir -p "$HOME/kuking-awaryjny/zrzuty"
+chmod 700 "$HOME/kuking-awaryjny" "$HOME/kuking-awaryjny/zrzuty"
+```
+
+```dotenv
+PGHOST=adres-bazy-dostepny-z-kontenera
+PGPORT=5432
+PGUSER=uzytkownik
+PGDATABASE=nazwa_bazy
+PGPASSWORD=haslo
+PGSSLMODE=require
+```
+
+   Nadaj uprawnienia: `chmod 600 "$HOME/kuking-awaryjny/polaczenie.env"`.
+3. Z katalogu repozytorium wykonaj poniższe polecenia. Zrzut pozostaje na
+   lokalnym dysku operatora; nie uruchamia migracji ani nie zapisuje bazy:
+
+```bash
+docker build -f docker/kopia/Dockerfile -t kuking-kopia-awaryjna .
+docker run --rm --entrypoint pg_dump kuking-kopia-awaryjna --version
+
+plik="kuking-$(date -u +%Y%m%dT%H%M%SZ)-pg18.dump"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_dump \
+  --env-file "$HOME/kuking-awaryjny/polaczenie.env" \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie" \
+  kuking-kopia-awaryjna --format=custom --no-owner --no-privileges \
+  --file="/kopie/$plik"
+
+test -s "$HOME/kuking-awaryjny/zrzuty/$plik"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_restore \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie,readonly" \
+  kuking-kopia-awaryjna --list "/kopie/$plik" >/dev/null
+```
+
+Jeśli `pg_dump` albo odczyt spisu `pg_restore` zakończy się błędem, **kopii nie
+ma**. Zapisany zrzut zawiera dane osobowe: trzymaj go w katalogu dostępnym
+tylko dla operatora, nie wysyłaj jawnego pliku i zastosuj szyfrowanie/offsite
+opisane w §7.3 lub `scripts/kopia-lokalna.sh`. Ten krok wytwarza wyłącznie
+lokalny zrzut. Próbę odtworzenia przeprowadź według §4A/§4B z klientem 18;
+sam niepusty plik i jego spis nie zamykają bramki restore drill.
+
 ---
 
 ## 1. Co dokładnie trzeba uratować
