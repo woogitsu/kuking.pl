@@ -70,7 +70,6 @@ class LoginController extends Controller
         $adres = (string) $request->ip();
         $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], $adres);
 
-
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
         // na osobnym ekranie. Zapisujemy w sesji WYŁĄCZNIE identyfikator
