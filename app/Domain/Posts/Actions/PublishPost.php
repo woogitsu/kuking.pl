@@ -8,6 +8,7 @@ use App\Domain\Community\HostUserResolver;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Posts\PublicationAnalysisQueue;
 use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
@@ -140,7 +141,18 @@ final class PublishPost
 
                 // Media przed kontem (D-103), konto przed INSERT i rozstrzygnięciem pierwszeństwa.
                 // NO KEY UPDATE serializuje publikacje, ale nie blokuje odczytów FK KEY SHARE.
-                User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+                $author = User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+                // Middleware sprawdziło konto przed wejściem w żądanie. Kara mogła
+                // jednak zostać zatwierdzona, gdy ta publikacja czekała na zamek.
+                // Rozstrzygamy na świeżym wierszu, pod tą samą blokadą co zapis.
+                if ($author->punishmentHasExpired()) {
+                    $author->reinstate();
+                }
+                if (! $author->isActive()) {
+                    throw new KontoNieMozePublikowac(
+                        'Stan Twojego konta zmienił się podczas wysyłania wpisu. Odśwież stronę, aby zobaczyć aktualną informację.',
+                    );
+                }
 
                 // Zachowujemy kolejność wybraną przez użytkownika —
                 // `zablokuj()` oddaje kolejność blokowania, nie formularza.
