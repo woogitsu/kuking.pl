@@ -92,13 +92,30 @@ final class ZlecImportPrzepisu
     {
         $this->sprawdzWejscie($osoba);
 
-        $szkic = $poprzednie->recipe;
+        return DB::transaction(function () use ($osoba, $poprzednie): ImportPrzepisu {
+            // Ta sama blokada co dla limitu: dwa żądania czekają w kolejce,
+            // a drugie widzi już zatwierdzone zlecenie i zadanie pierwszego.
+            $this->limit->zablokuj($osoba);
 
-        if (! $poprzednie->moznaPonowic() || $szkic === null || $szkic->status !== Recipe::STATUS_DRAFT) {
-            throw new BladDlaCzlowieka('Tego odczytu nie da się już powtórzyć. Otwórz szkic i wpisz przepis ręcznie — zdjęcie kartki jest przy nim.');
-        }
+            $klucz = (string) $poprzednie->getKey();
+            if ($juz = $this->zTegoWyslania($osoba, $klucz)) {
+                return $juz;
+            }
 
-        return $this->zapiszZlecenie($osoba, $szkic, null);
+            $swieze = ImportPrzepisu::query()
+                ->whereKey($klucz)
+                ->where('user_id', $osoba->getKey())
+                ->first();
+            $szkic = $swieze?->recipe;
+
+            if ($swieze === null || ! $swieze->moznaPonowic() || $szkic === null || $szkic->status !== Recipe::STATUS_DRAFT) {
+                throw new BladDlaCzlowieka('Tego odczytu nie da się już powtórzyć. Otwórz szkic i wpisz przepis ręcznie — zdjęcie kartki jest przy nim.');
+            }
+
+            // UUID poprzedniego zlecenia identyfikuje jedną generację retry.
+            // Istniejący unikalny indeks wymusza to także poza tą akcją.
+            return $this->zapiszZlecenie($osoba, $szkic, $klucz);
+        });
     }
 
     private function sprawdzWejscie(User $osoba): void

@@ -20,6 +20,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -395,6 +396,22 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $drugie->status);
         $this->assertSame($pierwsze->recipe_id, $drugie->recipe_id);
         $this->assertSame(1, Recipe::query()->count());
+    }
+
+    public function test_dwa_ponowienia_tego_samego_odczytu_zwracaja_jedno_zlecenie_i_jedno_zadanie(): void
+    {
+        $this->zgoda();
+        Queue::fake();
+        $poprzednie = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_NIEUDANY);
+
+        $this->actingAs($this->osoba)->post(route('import.ponow', $poprzednie))->assertRedirect();
+        $pierwsze = ImportPrzepisu::query()->whereKeyNot($poprzednie->getKey())->sole();
+        $this->actingAs($this->osoba)->post(route('import.ponow', $poprzednie))
+            ->assertRedirect(route('import.show', $pierwsze));
+
+        $this->assertSame(2, ImportPrzepisu::query()->count());
+        $this->assertSame((string) $poprzednie->getKey(), $pierwsze->klucz_wyslania);
+        Queue::assertPushed(OdczytajPrzepis::class, 1);
     }
 
     public function test_nieczytelne_zdjecie(): void

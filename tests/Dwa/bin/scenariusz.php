@@ -28,6 +28,7 @@ use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Import\BudzetAi;
 use App\Domain\Import\Rezerwacja;
+use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
@@ -44,6 +45,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
+use App\Models\ImportPrzepisu;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\PendingEmailChange;
@@ -546,6 +548,22 @@ try {
             $wynik = app(BudzetAi::class)->zarezerwuj((int) $argumenty['kwota'], (string) Str::uuid(), 1);
 
             return $wynik instanceof Rezerwacja ? 'zarezerwowano' : 'odmowa:'.$wynik;
+        })(),
+
+        'ponow-import' => (function () use ($argumenty): string {
+            config([
+                'kuking.import.model.klucz' => 'sk-test-import',
+                'kuking.import.model.nazwa' => 'gpt-6-luna',
+                'kuking.import.model.cena_wejscie_mln_usd' => '2',
+                'kuking.import.model.cena_wyjscie_mln_usd' => '8',
+                'kuking.import.zrodla.zdjecie' => true,
+                'queue.default' => 'database',
+            ]);
+
+            return (string) app(ZlecImportPrzepisu::class)->ponow(
+                User::query()->findOrFail($argumenty['kto']),
+                ImportPrzepisu::query()->findOrFail($argumenty['poprzednie']),
+            )->getKey();
         })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
