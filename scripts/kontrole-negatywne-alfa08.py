@@ -92,6 +92,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
+NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
 MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
@@ -201,6 +203,7 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
 # i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
@@ -578,6 +581,12 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
 CHANGELOG_NOWOSCI = "CHANGELOG.md"
 STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
+# Dziennik wdrożeń (issue #1932, D-318, D-088): down() ma ODMÓWIĆ, gdy
+# tabele `wdrozenia`/`wdrozenia_funkcje` mają choć jeden wiersz — numer
+# wdrożenia jest już pokazany ludziom (stopka, „od Alfa 0.NN.NNN"), a cichy
+# DROP TABLE zgubiłby numerację. Mutacja zdejmuje warunek odmowy.
+MIGRACJA_DZIENNIK_WDROZEN = "database/migrations/2026_09_26_130000_utworz_dziennik_wdrozen.php"
+DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -1279,6 +1288,15 @@ checks = [
     # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
     ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
      lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
+    # Dziennik wdrożeń (#1932, D-318, D-088): zdjęcie warunku odmowy z down()
+    # ma zapalić strażnika cofnięcia — bez niego migracja ciągnie DROP TABLE
+    # nawet na wypełnionym dzienniku.
+    ("Dziennik wdrożeń: down() bez warunku odmowy", MIGRACJA_DZIENNIK_WDROZEN, DZIENNIK_WDROZEN_TEST,
+     lambda s: replace_once(s, "if ($wierszyWdrozen > 0 || $wierszyFunkcji > 0) {", "if (false) {")),
+    # #1932 (D-318): „Co nowego” przestaje czytać mapę nagłówek → numer
+    # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
+    ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
+     lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
     # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
     # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
     ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
@@ -1291,6 +1309,11 @@ checks = [
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
+    # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
+    # się poleceniem na runnerze.
+    ("Deploy: dane zdarzenia wklejone do Basha", WDROZENIE_WORKFLOW, DEPLOY_WSTRZYKNIECIE_TEST,
+     lambda s: replace_once(s, 'env_name="${ZDARZENIE_SRODOWISKO:-}"', "env_name='${{ github.event.deployment.environment }}'")),
     ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
      lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
                             "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
@@ -1388,6 +1411,8 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
+run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
@@ -1396,6 +1421,7 @@ run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
+run_test(DZIENNIK_WDROZEN_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
 run_test(STRAZNIK_MIGRACJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:

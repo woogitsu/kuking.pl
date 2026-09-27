@@ -108,6 +108,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
     private const BEZ_IDENTYFIKATORA_OBIEKTU = [
         'password.reset' => 'Parametr {token} to jednorazowy token resetu hasła, nie identyfikator obiektu.',
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
+        'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
     ];
 
