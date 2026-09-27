@@ -14,20 +14,20 @@ namespace App\Support\Baza;
  * `moderation_actions` z pominięciem reguł AGENTS.md §6 (`CREATE INDEX
  * CONCURRENTLY`, `ADD CONSTRAINT … NOT VALID` + `VALIDATE CONSTRAINT`).
  * Właściciel zdecydował: ta migracja JEST na produkcji i jej NIE ruszamy.
- * Ten strażnik pilnuje więc tylko migracji NOWSZYCH niż próg poniżej —
+ * Ten strażnik pilnuje więc tylko migracji spoza historycznej listy —
  * cofanie się w historii i psucie zielonego CI na przeszłości nie ma sensu.
  *
- * PRÓG
- * `PROG` to znacznik czasu OSTATNIEJ migracji w repozytorium w chwili
- * dodania tego strażnika (25.09.2026: `2026_09_25_100000_*`, dwa pliki).
- * Podniesiony 26.09.2026 do `2026_09_25_200200`: trzy migracje urodzin
- * (`2026_09_25_2000xx`, CHECK na `users` i `dziennik_zgod` bez `NOT VALID`)
- * weszły do main, zanim strażnik istniał — decyzja właściciela: historia,
- * nie przepisujemy scalonej migracji.
- * Migracja z TAKĄ SAMĄ albo WCZEŚNIEJSZĄ datą nie jest sprawdzana (to jest
- * historia, łącznie z migracją appeal_id, `2026_09_24_120000`, wcześniejszą
- * od progu). Migracja z datą PÓŹNIEJSZĄ — jest. Podnoszenie progu wymaga
- * świadomej zmiany tej stałej, nie dzieje się samo.
+ * HISTORIA
+ * `migracje-historyczne-par6.txt` zawiera 113 nazw plików istniejących w
+ * commicie 8c102f265e452d78a962b8017b02803325280fc3, po świadomym
+ * włączeniu trzech starszych migracji urodzin do historii, oraz dwie
+ * osobne migracje scalone później do main przed naprawą wyboru plików:
+ * `add_session_generation_to_users` i `require_complete_ready_data_exports`.
+ * Obie miały cofnięty datownik i CHECK bez NOT VALID. Zostają jawnymi
+ * wyjątkami historycznymi; tego wyboru nie używamy do przepisywania
+ * migracji już scalonych. Nowa migracja nie może ominąć kontroli przez
+ * cofnięcie datownika w nazwie. Historia
+ * jest jawna i stała; nowe pliki nie są do niej automatycznie dopisywane.
  *
  * CO SPRAWDZA (i co pomija — nowa tabela reguł nie potrzebuje, AGENTS.md §6)
  *
@@ -54,15 +54,7 @@ namespace App\Support\Baza;
 final class StraznikNowychMigracji
 {
     /**
-     * Znacznik czasu ostatniej migracji w repozytorium w chwili dodania
-     * strażnika (25.09.2026). Migracje z TĄ SAMĄ albo wcześniejszą datą
-     * (łącznie z appeal_id, `2026_09_24_120000`) są historią i nie są
-     * sprawdzane — patrz komentarz klasy.
-     */
-    public const PROG = '2026_09_25_200200';
-
-    /**
-     * Ścieżki (pełne, na dysku) do migracji nowszych niż {@see PROG},
+     * Ścieżki (pełne, na dysku) do migracji nieobecnych w historii,
      * posortowane rosnąco po nazwie pliku.
      *
      * @return list<string>
@@ -74,18 +66,17 @@ final class StraznikNowychMigracji
         $pliki = glob($katalog.'/*.php') ?: [];
         sort($pliki);
 
+        $historia = file(__DIR__.'/migracje-historyczne-par6.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($historia === false) {
+            throw new \RuntimeException('Brak listy historycznych migracji §6 — nie można pominąć kontroli.');
+        }
+
+        $znaneNazwy = array_fill_keys($historia, true);
+
         return array_values(array_filter(
             $pliki,
-            static fn (string $plik): bool => self::znacznikCzasu(basename($plik)) > self::PROG,
+            static fn (string $plik): bool => ! isset($znaneNazwy[basename($plik)]),
         ));
-    }
-
-    private static function znacznikCzasu(string $nazwaPliku): string
-    {
-        // Format Laravela: RRRR_MM_DD_GGMMSS_opis.php — pierwsze 4 podkreślenia.
-        $czesci = explode('_', $nazwaPliku, 5);
-
-        return implode('_', array_slice($czesci, 0, 4));
     }
 
     /**
