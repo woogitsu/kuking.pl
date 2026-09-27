@@ -8,7 +8,7 @@
         (docs/product/COLD_START.md).
     --}}
     <x-slot:rail>
-        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" :mojStol="$mojStol ?? null" />
     </x-slot:rail>
 
     <header class="start-naglowek">
@@ -58,6 +58,22 @@
         <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
             <p>{{ $zyczenia }}</p>
             <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
+    @if($pierwszeKroki ?? null)
+        {{-- Przerwany onboarding (#985): droga powrotu bez przymusu.
+             Znika po dojściu do końca albo po „Nie przypominaj”. --}}
+        <section class="ramka-pomocnicza" aria-labelledby="pierwsze-kroki">
+            <h2 id="pierwsze-kroki">Pierwsze kroki nie są jeszcze dokończone</h2>
+            <p>Wybierz, co lubisz gotować i kogo obserwować — wtedy Start pokaże więcej wpisów dla Ciebie. To zajmie minutę i nie jest obowiązkowe.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route($pierwszeKroki) }}">Dokończ pierwsze kroki</a>
+                <form method="POST" action="{{ route('onboarding.dismiss') }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie przypominaj</button>
+                </form>
+            </div>
         </section>
     @endif
 
@@ -207,9 +223,32 @@
         </x-empty-state>
     @else
         <div class="stack" id="lista-wpisow">
-            @foreach($posts as $post)
-                <x-post-card :post="$post" />
-            @endforeach
+            @if($showingDiscover)
+                @foreach($posts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            @else
+                {{-- ZWIJANIE SERII (issue #1812, AGENTS.md §8 / D-275). Więcej
+                     niż dwa kolejne wpisy jednej osoby albo jednego tagu:
+                     dwa widać, reszta w `<details>` — kolejność bez zmian,
+                     nic nie znika, otwiera się bez JavaScriptu. Cel dotknięcia
+                     `summary` 48 px (`.seria-wpisow > summary`). --}}
+                @foreach(\App\Domain\Feed\SerieWpisow::grupuj($posts) as $seria)
+                    @foreach($seria['widoczne'] as $post)
+                        <x-post-card :post="$post" />
+                    @endforeach
+                    @if($seria['zwiniete'] !== [])
+                        <details class="seria-wpisow" data-seria-wpisow>
+                            <summary><span>{{ $seria['podpis'] }}</span> <span class="seria-wpisow-pokaz">— Pokaż</span></summary>
+                            <div class="stack">
+                                @foreach($seria['zwiniete'] as $post)
+                                    <x-post-card :post="$post" />
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endforeach
+            @endif
         </div>
 
         <x-show-more :paginator="$posts" lista="lista-wpisow" />
