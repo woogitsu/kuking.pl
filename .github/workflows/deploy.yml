@@ -136,12 +136,10 @@ on:
         default: smoke
 
 # MINIMALNE UPRAWNIENIA TOKENU (#1851, #2025). Dane wdrożenia przychodzą
-# w zdarzeniu `deployment_status`; audyt CI odczytuje przebiegi Actions.
-# `actions/checkout` potrzebuje `contents: read`, audyt `actions: read`.
-# Statusu wdrożenia nie zmieniamy i `deployments: read` nie jest potrzebne.
+# w zdarzeniu `deployment_status`. Pozostałe joby potrzebują tylko odczytu
+# repozytorium; audyt CI dostaje osobno odczyt przebiegów Actions.
 permissions:
   contents: read
-  actions: read # #2025: odczyt wyniku CI dla SHA wdrożonego na produkcji
 
 # Nie pozwalamy dwóm operacjom na tym samym środowisku biec równolegle.
 # cancel-in-progress: false — przerwanie migracji w połowie jest gorsze
@@ -156,6 +154,9 @@ jobs:
   # ale nie zastępuje bramki wdrożeniowej przed zmianą ruchu.
   audit_ci:
     name: Produkcyjny SHA miał zielone CI przed deployem
+    permissions:
+      contents: read
+      actions: read # #2025: odczyt wyniku CI dla SHA wdrożonego na produkcji
     if: >-
       github.event_name == 'deployment_status' &&
       github.event.deployment_status.state == 'success'
