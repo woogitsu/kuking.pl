@@ -52,7 +52,7 @@ class RozdrozeUstawienTest extends TestCase
     use WycinaObudoweEkranu;
 
     /**
-     * Wszystkie ekrany ustawień — dziesięć (urodziny doszły przy #1755). Ta sama lista co
+     * Wszystkie ekrany ustawień — jedenaście (urodziny doszły przy #1755, ukryte przy #1810). Ta sama lista co
      * w `UstawieniaNawigacjaTest`: rozdroże nie ma prawa pokazywać ich mniej,
      * bo nazywa się „Ustawienia" i człowiek wierzy, że widzi tam wszystko.
      *
@@ -69,6 +69,8 @@ class RozdrozeUstawienTest extends TestCase
             ['Bezpieczeństwo', 'settings.security'],
             ['Weryfikacja dwuetapowa', 'settings.two_factor.edit'],
             ['Prywatność', 'settings.privacy'],
+            // Issue #1810 (D-278): lista prywatnych ukryć.
+            ['Ukryte', 'settings.hidden'],
             ['Urodziny', 'settings.birthday'],
             ['Twoje dane', 'settings.data'],
         ];
@@ -88,7 +90,7 @@ class RozdrozeUstawienTest extends TestCase
         $this->assertStringContainsString('<h1>Ustawienia</h1>', $tresc);
     }
 
-    public function test_rozdroze_wymienia_widocznym_napisem_wszystkie_dziewiec_ekranow(): void
+    public function test_rozdroze_wymienia_widocznym_napisem_wszystkie_dziesiec_ekranow(): void
     {
         $html = (string) $this->actingAs($this->user('rozdroze_spis'))
             ->get(route('settings.index'))
@@ -116,13 +118,13 @@ class RozdrozeUstawienTest extends TestCase
             );
         }
 
-        // KONTROLA DODATNIA LICZBY: spis ma dziesięć pozycji i ani jednej
+        // KONTROLA DODATNIA LICZBY: spis ma jedenaście pozycji i ani jednej
         // więcej. Bez tego test przechodziłby też nad listą, do której ktoś
         // dopisał ekran nieistniejący albo powtórzony.
         $this->assertCount(
-            10,
+            11,
             $xpath->query(".//nav[@aria-label='Wszystkie ustawienia']//li", $main),
-            'Rozdroże wymienia inną liczbę ekranów niż dziesięć — albo doszedł nowy '.
+            'Rozdroże wymienia inną liczbę ekranów niż jedenaście — albo doszedł nowy '.
             'ekran ustawień i trzeba go dopisać także tutaj, albo lista się rozjechała.',
         );
     }
