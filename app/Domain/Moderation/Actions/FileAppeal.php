@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Złożenie odwołania od decyzji moderacyjnej PRZEZ AUTORA TREŚCI (issue #10,
@@ -72,23 +73,47 @@ final class FileAppeal
             );
         }
 
-        try {
-            $odwolanie = Appeal::create([
-                'moderation_action_id' => $decyzja->getKey(),
-                'user_id' => $osoba->getKey(),
-                'appellant' => Appeal::APPELLANT_AUTHOR,
-                'body' => trim($tresc),
-                'status' => Appeal::STATUS_OPEN,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Dwa kliknięcia „Wyślij" albo dwie zakładki. Baza odbiła drugie —
-            // i dobrze. Człowiek ma zobaczyć „mamy to", nie błąd serwera.
-            throw new BladDlaCzlowieka(
-                'Odwołanie od tej decyzji już do nas trafiło. Nie trzeba wysyłać go drugi raz.',
-            );
-        }
+        // PISMO I ZAWIADOMIENIA ADMINISTRATORÓW W JEDNEJ TRANSAKCJI (issue
+        // #1305). Wcześniej każdy zapis zatwierdzał się osobno: awaria przy
+        // drugim zawiadomieniu zostawiała odwołanie złożone, o którym część
+        // zespołu się nie dowiadywała — a ponowienie odbijało się o „już do
+        // nas trafiło”, więc nie było jak tego naprawić. Teraz albo powstaje
+        // pismo razem z zawiadomieniami, albo nic i człowiek może bezpiecznie
+        // wysłać je jeszcze raz.
+        $odwolanie = DB::transaction(function () use ($osoba, $decyzja, $tresc): Appeal {
+            try {
+                $odwolanie = Appeal::create([
+                    'moderation_action_id' => $decyzja->getKey(),
+                    'user_id' => $osoba->getKey(),
+                    'appellant' => Appeal::APPELLANT_AUTHOR,
+                    'body' => trim($tresc),
+                    'status' => Appeal::STATUS_OPEN,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Dwa kliknięcia „Wyślij" albo dwie zakładki. Baza odbiła drugie —
+                // i dobrze. Człowiek ma zobaczyć „mamy to", nie błąd serwera.
+                throw new BladDlaCzlowieka(
+                    'Odwołanie od tej decyzji już do nas trafiło. Nie trzeba wysyłać go drugi raz.',
+                );
+            }
 
-        AuditLogEntry::record(
+            // Zawiadomienie dla administratora — odwołanie ma termin (DSA art. 20)
+            // i kolejka, o której nikt nie wie, że coś w niej leży, to termin,
+            // który upływa po cichu. Stoi TUTAJ, a nie w kontrolerze, bo odwołanie
+            // wchodzi dwiema drogami (formularz osoby zalogowanej i formularz
+            // przed logowaniem, dla osób zablokowanych) — reguła zapisana
+            // w jednym kontrolerze byłaby regułą omijalną przez drugi, dokładnie
+            // jak trzy reguły opisane na górze tej klasy.
+            $this->powiadom->handle($odwolanie, $osoba->displayName());
+
+            return $odwolanie;
+        });
+
+        // Wpis pomocniczy (D-249, klasa 2) — jak `content.reported`: to
+        // czynność samego człowieka, a jej pełny ślad (kto, od czego, kiedy)
+        // stoi w wierszu `appeals`. Awaria dziennika nie może cofnąć pisma
+        // z biegnącym terminem ani zamienić go w błąd po zatwierdzeniu.
+        AuditLogEntry::recordBezWywracania(
             action: 'appeal.filed',
             actor: $osoba,
             subject: $odwolanie,
@@ -98,15 +123,6 @@ final class FileAppeal
             ],
             ip: $ip,
         );
-
-        // Zawiadomienie dla administratora — odwołanie ma termin (DSA art. 20)
-        // i kolejka, o której nikt nie wie, że coś w niej leży, to termin,
-        // który upływa po cichu. Stoi TUTAJ, a nie w kontrolerze, bo odwołanie
-        // wchodzi dwiema drogami (formularz osoby zalogowanej i formularz
-        // przed logowaniem, dla osób zablokowanych) — reguła zapisana
-        // w jednym kontrolerze byłaby regułą omijalną przez drugi, dokładnie
-        // jak trzy reguły opisane na górze tej klasy.
-        $this->powiadom->handle($odwolanie, $osoba->displayName());
 
         return $odwolanie;
     }

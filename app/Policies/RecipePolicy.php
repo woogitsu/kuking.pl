@@ -113,4 +113,29 @@ class RecipePolicy
     {
         return $this->view($user, $recipe) && $user->isActive();
     }
+
+    /**
+     * „Zrób swoją wersję" — kopia CUDZEGO, opublikowanego przepisu, który
+     * widz widzi, jako prywatny szkic (issue #23, D-301).
+     *
+     * - `view()` na końcu: blokada w którąkolwiek stronę, konto autora
+     *   zbanowane albo w trakcie usuwania i każda widoczność, której widz nie
+     *   ma — wszystko to odcina już tam, więc nie ma drugiej kopii tych reguł;
+     * - konto AKTYWNE: wersja to pisanie, a zawieszenie odcina od pisania;
+     * - nie własny przepis: własny się po prostu poprawia (`update`);
+     * - każda widoczność, którą widz ma — także „dla obserwujących”. Decyzja
+     *   właściciela z 26.09.2026: „nie ma co utrudniać, jak nie skopiują, to
+     *   zrobią screena”. Oryginał niewidoczny dla odbiorcy wersji i tak
+     *   zostaje w podpisie jako „oryginał jest niedostępny”, a do JSON-LD
+     *   (`isBasedOn`) trafia tylko oryginał widoczny dla gości;
+     * - wyłącznie opublikowany: szkicu i przepisu ukrytego przez moderację
+     *   nie ma czego kopiować.
+     */
+    public function fork(User $user, Recipe $recipe): bool
+    {
+        return $user->isActive()
+            && $user->getKey() !== $recipe->author_id
+            && $recipe->isPublished()
+            && $this->view($user, $recipe);
+    }
 }

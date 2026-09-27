@@ -89,6 +89,13 @@ final class SavePostToCollection
      */
     public function remove(User $user, Post $post, ?Collection $collection = null): array
     {
+        // Jedna transakcja na całe wyjęcie — powód przy przepisie (#1384).
+        return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));
+    }
+
+    /** @return list<array{collection_id: string, note: ?string, created_at: ?string}> */
+    private function zdejmij(User $user, Post $post, ?Collection $collection): array
+    {
         $zeszyty = $collection !== null
             ? $user->collections()->whereKey($collection->getKey())->get()
             : $user->collections()->get();

@@ -20,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 
@@ -60,6 +61,9 @@ class SygnalyController extends Controller
 
     /** Powód w logu przy zamknięciu grupy — patrz `PodstawaDecyzji`: kod spoza listy nie dostaje numeru punktu i tak ma być. */
     public const POWOD_ODRZUCENIA = 'automat-falszywy-alarm';
+
+    /** Odmowa przy grupie oznaczeń własnych treści moderatora (audyt A5-11). */
+    public const WLASNE_OZNACZENIA = 'To oznaczenia Twoich własnych treści — zamknąć je może tylko ktoś inny z moderacji.';
 
     /** Odmowa, gdy od wyświetlenia strony grupa urosła (#1059, decyzja właściciela). */
     public const GRUPA_UROSLA = 'Doszły nowe zgłoszenia — odśwież listę i sprawdź je. W tej grupie nic nie zamknęliśmy.';
@@ -148,6 +152,30 @@ class SygnalyController extends Controller
 
         $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
+
+        // WŁASNYCH OZNACZEŃ NIE ZAMYKASZ (audyt A5-11). Bez tego moderator
+        // zamykał jednym kliknięciem wszystkie oznaczenia automatu przy
+        // własnych treściach, zanim zobaczył je ktoś inny z zespołu — ten sam
+        // konflikt interesów, który przy zgłoszeniach od ludzi blokuje
+        // `ReportPolicy::decide` (`SPRAWA_O_CIEBIE`). `strtolower`, bo
+        // PostgreSQL porównuje UUID bez względu na wielkość liter: `ABC…`
+        // w polu trafiłoby w ten sam wiersz, a zwykłe `===` by go przepuściło.
+        //
+        // Sama wielkość liter nie wystarcza: PostgreSQL przyjmuje UUID także
+        // bez myślników i w klamrach (`{…}`), a oba zapisy trafiają w ten sam
+        // wiersz. Dlatego najpierw wymagamy postaci kanonicznej — formularz
+        // i tak wysyła tylko ją albo `brak`.
+        if ($autorId !== null && ! Str::isUuid($autorId)) {
+            return back()->withErrors([
+                'autor' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            ]);
+        }
+
+        if ($autorId !== null && strtolower($autorId) === strtolower((string) $moderator->getKey())) {
+            return back()->withErrors([
+                'autor' => self::WLASNE_OZNACZENIA,
+            ]);
+        }
 
         try {
             [$ile, $urosla] = DB::transaction(function () use ($autorId, $moderator, $dane, $request, $stanIle, $stanNajnowsze): array {

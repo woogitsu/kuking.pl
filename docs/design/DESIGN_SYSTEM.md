@@ -344,7 +344,7 @@ Wspólne reguły:
 - min. rozmiar czcionki **18px**, min. wysokość 48px, padding 12px.
 - **Etykieta zawsze widoczna nad polem** (`<label>` prawdziwy, powiązany `for`/`id`) — **placeholder nigdy nie zastępuje etykiety**. Placeholder wolno używać wyłącznie jako dodatkowy przykład treści (np. „Np. Pierwszy raz robiłam...”), nigdy jako jedyny opis pola.
 - Tekst pomocniczy pod polem (`--text-help`, `ink-muted`) — stały, nie znika po fokusie.
-- Stan błędu: czerwona ramka (`border-strong` zamieniona na `--color-danger`) + komunikat pod polem w kolorze `danger` + ikona ostrzeżenia z `aria-hidden` (bo komunikat tekstowy już niesie informację) + `aria-describedby` wskazujący na komunikat + `aria-invalid="true"`.
+- Stan błędu: czerwona ramka (`border-strong` zamieniona na `--color-danger`) + komunikat pod polem w kolorze `danger`, w rozmiarze `--text-body` (18 px — komunikat stoi sam, więc wyjątek `--text-help` go nie obejmuje) + ikona ostrzeżenia z `aria-hidden` (bo komunikat tekstowy już niesie informację) + `aria-describedby` wskazujący na komunikat + `aria-invalid="true"`.
 - Focus: pierścień jak w 3.4, dodatkowo tło pola pozostaje `surface-sunken` (nie zmienia się gwałtownie), żeby nie dezorientować.
 
 ### 4.3 Checkbox / radio

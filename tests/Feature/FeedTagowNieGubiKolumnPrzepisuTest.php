@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Feed\TagFeed;
+use App\Domain\Feed\FollowingFeed;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Media;
 use App\Models\Post;
@@ -20,6 +20,10 @@ use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
+ * Od #1808 (D-277) `TagFeed` nie istnieje: wpisy z obserwowanych tematów
+ * oddaje `FollowingFeed` razem z wpisami osób. Gwarancje poniżej obowiązują
+ * tę połączoną listę — historia niżej opisuje, skąd się wzięły.
+ *
  * Feed tagów gubił dwie kolumny przepisu — i nic o tym nie mówiło.
  *
  * KLASA BŁĘDU, NIE JEDEN EKRAN. `with('rel:kolumny')` nie jest deklaracją
@@ -202,7 +206,7 @@ class FeedTagowNieGubiKolumnPrzepisuTest extends TestCase
             $ile++;
         });
 
-        foreach (app(TagFeed::class)->paginate($widz->fresh())->items() as $wpis) {
+        foreach (app(FollowingFeed::class)->paginate($widz->fresh())->items() as $wpis) {
             $wpis->recipe?->heroMedia;
         }
 

@@ -24,11 +24,16 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Feed\Actions\ZapiszKolaz;
+use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\UpdateTagFollows;
+use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
@@ -43,6 +48,7 @@ use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
@@ -73,6 +79,24 @@ function barieraPoLiczeniuAdministratorow(): void
             && str_contains($query->sql, '"status" =')
             && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
             DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
+/**
+ * Bariera #1027: uczestnik staje PO rzeczywistym `DELETE` z tabeli wyboru,
+ * a PRZED pierwszym `INSERT`-em — dokładnie w szczelinie, w której dwa
+ * zastąpienia zestawu złączały się w A ∪ B. Czeka na blokadę doradczą
+ * trzymaną przez test; zwolnienie jej puszcza uczestnika dalej.
+ */
+function barieraPoKasowaniuWyboru(string $tabela): void
+{
+    $zatrzymany = false;
+
+    DB::listen(static function (QueryExecuted $query) use ($tabela, &$zatrzymany): void {
+        if (! $zatrzymany && str_starts_with(strtolower(ltrim($query->sql)), 'delete from "'.$tabela.'"')) {
+            $zatrzymany = true;
+            DB::select('SELECT pg_advisory_xact_lock(91027, 1)');
         }
     });
 }
@@ -184,6 +208,14 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kandydat egzekutora wczytany PRZED lockiem (#2023). Bariera
+        // pozwala w tym czasie zatwierdzić nowy wniosek na tym samym koncie.
+        'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
+            $kandydat = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+
+            return app(EraseAccountData::class)->handleExpiredRequest($kandydat);
+        })(),
+
         // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
         // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
         // który sprawdził hasło, zanim moderator zdążył zbanować.
@@ -213,6 +245,15 @@ try {
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),
 
+        // Scalenie tagu SUROWYM `UPDATE` (#996). Świadomie z pominięciem
+        // `MergeTags`: mierzymy barierę w PostgreSQL, która ma działać na
+        // KAŻDEJ drodze zapisu — `MergeTags` i tak serializuje się własną
+        // blokadą `TagMutationLock`, więc przez nią wyścigu nie widać.
+        'scal-tag-surowo' => DB::table('tags')->where('id', $argumenty['zrodlo'])->update([
+            'status' => 'merged',
+            'merged_into_tag_id' => $argumenty['cel'],
+        ]),
+
         // „Zablokuj" (D-090).
         'zablokuj' => (function () use ($argumenty): bool {
             app(BlockUser::class)->handle(
@@ -239,6 +280,7 @@ try {
                 steps: [['instruction' => 'Gotuj do miękkości.']],
                 publish: true,
                 existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
             );
 
             return (string) $przepis->title;
@@ -284,6 +326,52 @@ try {
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Obserwowanie tagu kontra scalenie (#853). Prawdziwe akcje: test
+        // ma pęknąć, gdy `UpdateTagFollows` przestanie sprawdzać świeży
+        // status pod `TagMutationLock`.
+        'obserwuj-tag' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->follow(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+            );
+
+            return true;
+        })(),
+
+        'scal-tagi' => (string) app(MergeTags::class)->handle(
+            Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
+            Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
+        )->getKey(),
+        // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
+        // bariera po ich własnym DELETE.
+        'tablica-dnia' => (function () use ($argumenty): array {
+            barieraPoKasowaniuWyboru('daily_picks');
+
+            return app(ZapiszTabliceDnia::class)->zastap(
+                gospodarz: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                osoby: [],
+                wpisy: (array) json_decode($argumenty['wpisy'], true),
+                notatki: [],
+                przeslaneOsoby: 0,
+                przeslaneWpisy: count((array) json_decode($argumenty['wpisy'], true)),
+                ip: null,
+                dzien: $argumenty['dzien'],
+            );
+        })(),
+
+        'kolaz' => (function () use ($argumenty): int {
+            barieraPoKasowaniuWyboru('hero_picks');
+            /** @var array<string, string> $dopuszczone */
+            $dopuszczone = (array) json_decode($argumenty['zdjecia'], true);
+
+            return app(ZapiszKolaz::class)->zastap(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                array_keys($dopuszczone),
+                $dopuszczone,
+                null,
+            );
+        })(),
 
         // Dwa RÓŻNE konta potwierdzają zmianę na ten sam wolny adres (#1435).
         // Bariera przyrządu staje zaraz PO aplikacyjnym „czy adres wolny",
@@ -416,6 +504,14 @@ try {
             details: 'To jest reklama.',
         )->getKey(),
 
+        // Zmiany listy tagów promowanych (#1308) — ta sama klasa, której
+        // używa panel gospodarza (`TagPromotionController`).
+        'promuj-tag' => app(PromowaneTagi::class)->dodaj(Tag::query()->findOrFail($argumenty['tag'])),
+
+        'przesun-promowany' => app(PromowaneTagi::class)->przesun(
+            Tag::query()->findOrFail($argumenty['tag']),
+            (int) $argumenty['kierunek'],
+        ),
         // Zmiana profilu przez PRAWDZIWE żądanie HTTP (#887): cały stos
         // middleware, walidacja i kontroler, a na koniec to, co zobaczyłby
         // człowiek — kod odpowiedzi, błąd pola i odłożone dane formularza.

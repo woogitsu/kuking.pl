@@ -144,6 +144,9 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
             'Commands/NadajRole.php' => [
                 '$this->error($exception->getMessage())' => 'DomainException z ChangeUserRole — własne zdanie po polsku',
             ],
+            'Commands/RaportPrzejrzystosci.php' => [
+                '$this->error($e->getMessage())' => 'InvalidArgumentException z własnej dzien() — zdanie po polsku z datą, którą operator sam wpisał w --od/--do',
+            ],
             'Commands/SprawdzPoczte.php' => [
                 '$this->bezZnacznikow($e->getMessage())' => 'list kontrolny na adres, który operator sam wpisał; znaczniki ucieczkowane',
                 'mb_strtolower($e->getMessage())' => 'tylko klasyfikacja przyczyny, tekst nie idzie na wyjście',
