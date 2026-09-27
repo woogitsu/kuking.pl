@@ -98,7 +98,7 @@ final class FollowUser
             throw new BladDlaCzlowieka('Nie można obserwować tej osoby.');
         }
 
-        if (! $target->isActive()) {
+        if (! $follower->isActive() || ! $target->isActive()) {
             throw new BladDlaCzlowieka('To konto jest niedostępne.');
         }
 
@@ -106,7 +106,8 @@ final class FollowUser
             // Konto mogło zniknąć między odczytem a wejściem pod blokadę.
             // Dla człowieka to ta sama sytuacja co konto nieaktywne, więc
             // i to samo zdanie.
-            if ($obserwujacy === null || $obserwowany === null || ! $obserwowany->isActive()) {
+            if ($obserwujacy === null || ! $obserwujacy->isActive()
+                || $obserwowany === null || ! $obserwowany->isActive()) {
                 throw new BladDlaCzlowieka('To konto jest niedostępne.');
             }
 
