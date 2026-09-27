@@ -822,6 +822,9 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+# Publiczny domyślny zeszyt a przyszłe szybkie zapisy (#1400).
+EDYCJA_ZESZYTU = "resources/views/pages/collections/edit.blade.php"
+DOMYSLNY_ZESZYT_TEST = "PublicznyDomyslnyZeszytJawnyPrzyZapisieTest"
 def dockerfile_poza_wzorcem_obrazu(source):
     """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
 
@@ -1137,6 +1140,8 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
+     lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
@@ -1212,6 +1217,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
+    # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
+    ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
+     lambda s: replace_once(s, "CLOUDFLARE_PURGE_TOKEN=\n", "")),
     # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
