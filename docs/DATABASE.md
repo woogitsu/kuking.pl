@@ -775,6 +775,22 @@ i nigdy nie było na produkcji: pierwsza wersja tej migracji je dokładała,
 ale została przepisana przed scaleniem (D-098). Powiązania z dostawcami
 tożsamości mieszkają w osobnej tabeli — patrz `tozsamosci_zewnetrzne` niżej.
 
+### facebook_connection_proofs
+
+Migracja `2026_09_27_120000_create_facebook_connection_proofs` (issue #2085).
+Jeden wiersz na konto: dziesięciominutowy, jednorazowy dowód kontroli nad
+obecnym, potwierdzonym adresem Kuking, używany tylko przy połączeniu lub
+ponownym uaktywnieniu Facebooka. `token_hash` to HMAC losowego tokenu z listu;
+`session_hash` wiąże link z tą samą przeglądarką, `facebook_id_hash` z
+rozpoznaną tożsamością dostawcy, a `account_state_hash` z hasłem, adresem,
+2FA (także kodami zapasowymi), rolą, statusem i generacją sesji. Pod blokadą konta token jest kasowany
+w tej samej transakcji co powiązanie. `UNIQUE (user_id)` unieważnia poprzedni
+link przy kolejnej prośbie; `UNIQUE (token_hash)` zapobiega kolizji.
+
+Rollback usuwa tylko oczekujące dowody. Nie usuwa istniejących powiązań i
+zamyka, zamiast otwierać, rozpoczęte próby połączenia; można poprosić o nowy
+link po ponownym wdrożeniu.
+
 ### tozsamosci_zewnetrzne
 
 Migracja `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`

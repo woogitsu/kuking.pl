@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Połączenie lub ponowne uaktywnienie Facebooka wymaga teraz potwierdzenia obecnego konta Kuking: hasłem albo jednorazowym linkiem na potwierdzony adres. Gdy konto ma włączoną weryfikację dwuetapową, potrzebny jest także dotychczasowy kod. Samo zalogowanie i zgoda na Facebooku już nie dodają trwałej drogi wejścia (#2085).
 - Naprawione: wpis rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie może dokończyć publikacji po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje także tagi oraz inne skutki odrzuconej próby; publikacja, która uzyskała blokadę pierwsza, kończy się normalnie (#2088).
 - Po zmianie lub resecie hasła, wylogowaniu innych urządzeń, blokadzie konta albo zgłoszeniu jego usunięcia odwołana sesja nie wraca już przez zapis wcześniej rozpoczętego żądania. Bieżąca sesja osoby wykonującej operację pozostaje aktywna tam, gdzie powinna (#1046).
 - Wewnętrzne: walidator paczki design systemu v3.1 (`07-wdrozenie/sprawdz-paczke.mjs`) rozpoznaje teraz każdy wariant zamknięcia `<script>` dopuszczony przez parser HTML, nie tylko goły `</script>` — `</script foo="bar">` przechodził wcześniej niezauważony i zostawiał treść skryptu w puli tekstu widocznego dla skanu słów zakazanych (CodeQL js/bad-tag-filter #3, #1910). Funkcja odpowiedzialna za to wydzielona do osobnego, testowalnego pliku (`tekst-widoczny.mjs`) z testem regresyjnym.
