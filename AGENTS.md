@@ -367,7 +367,9 @@ następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
   i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
   ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
   (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
-  powtórzył się w żadnej migracji nowszej niż ta.
+  powtórzył się w żadnej migracji dodanej po wprowadzeniu strażnika, nawet
+  jeśli jej datownik jest wcześniejszy. Wyjątki historyczne są jawnie zapisane
+  w `app/Support/Baza/migracje-historyczne-par6.txt`.
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
