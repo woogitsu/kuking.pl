@@ -47,8 +47,9 @@
 
   .wartosci-odzywcze-jak summary {
     min-height: 48px;
-    display: flex;
-    align-items: center;
+    display: list-item;
+    list-style-position: inside;
+    padding-block: 10px;
     cursor: pointer;
     font-size: var(--text-body);
     text-decoration: underline;
