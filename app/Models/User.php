@@ -223,11 +223,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // wyświetlania, nie stan konta — dlatego wolno ją tu trzymać,
         // w odróżnieniu od `status` i `role` (AGENTS.md §7).
         'memories_enabled',
+        // „Mój stół" (issue #1749, D-304) — dobrowolna półka propozycji.
+        // Preferencja wyświetlania, nie pole sterujące (AGENTS.md §7).
+        'moj_stol_enabled',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'delete_request_generation',
     ];
 
     /**
@@ -336,6 +340,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Masowe przypisanie z żądania nadpisywałoby cudzy znacznik
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
+            // Poza `$fillable`: ustawiają to wyłącznie żądania POST
+            // `OnboardingController` (koniec, „Pomiń ten krok”, „Nie przypominaj”)
+            // i `DemoSeeder`, nigdy formularz ustawień (#985).
+            'onboarding_zakonczony_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
             // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
@@ -348,6 +356,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
+            'moj_stol_enabled' => 'boolean',
+            // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
+            // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
+            'birthday_day' => 'integer',
+            'birthday_month' => 'integer',
+            'birthday_wishes_enabled' => 'boolean',
+            // Zgoda na mail z życzeniami (etap c) — zapis tylko przez
+            // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
+            'wants_birthday_email' => 'boolean',
+            'birthday_email_sent_on' => 'date',
+            'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
@@ -395,6 +414,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function collections(): HasMany
     {
         return $this->hasMany(Collection::class, 'owner_id');
+    }
+
+    /** Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. */
+    public function mealPlanEntries(): HasMany
+    {
+        return $this->hasMany(MealPlanEntry::class);
     }
 
     public function media(): HasMany
@@ -636,6 +661,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function roleLabel(): string
     {
         return self::ETYKIETY_ROLI[$this->role] ?? (string) $this->role;
+    }
+
+    /**
+     * Dokąd prowadzi odnośnik „Dokończ pierwsze kroki" na Starcie — albo
+     * `null`, gdy przypomnienia ma nie być (#985).
+     *
+     * Jedno miejsce decyzji dla każdej drogi logowania: nie przekierowujemy
+     * po zalogowaniu (`intended` zostaje nietknięte), tylko Start pokazuje
+     * spokojny odnośnik. Zapisane zainteresowania = wracamy od razu do
+     * kroku z ludźmi, bez ponownego wybierania tagów. Zawieszone konto jest
+     * tylko do odczytu, więc przypomnienie z przyciskiem zapisu nie ma sensu.
+     */
+    public function onboardingDoDokonczenia(): ?string
+    {
+        if ($this->onboarding_zakonczony_at !== null || ! $this->isActive()) {
+            return null;
+        }
+
+        return $this->followedTags()->exists() ? 'onboarding.people' : 'onboarding.interests';
     }
 
     public function isSuspended(): bool
@@ -1049,6 +1093,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
     }
 
+    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
+    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    public function ustawieniaPowiadomienZewnetrznych(): HasOne
+    {
+        return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
+    }
+
     /**
      * Powiązanie konta z kontem Google — JEDYNA droga, którą identyfikator
      * z Google trafia do bazy (issue #258, D-069, D-098).
@@ -1297,6 +1353,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => $kara,
                 'punishment_expires_at' => $kara === self::STATUS_SUSPENDED ? $konto->status_expires_at : null,
                 'delete_requested_at' => now(),
+                'delete_request_generation' => (string) Str::uuid(),
                 'delete_scope' => $scope,
             ]);
         }));
@@ -1336,6 +1393,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => null,
                 'punishment_expires_at' => null,
                 'delete_requested_at' => null,
+                'delete_request_generation' => null,
                 'delete_scope' => null,
             ]);
         });
@@ -1378,6 +1436,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $this->forceFill([
             'status' => self::STATUS_ERASED,
             'data_erased_at' => now(),
+            'delete_request_generation' => null,
         ])->save();
     }
 

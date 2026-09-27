@@ -8,9 +8,11 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
+use App\Domain\Feed\MojStol;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Rocznice\RocznicaDolaczenia;
+use App\Domain\Rocznice\Urodziny;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -52,6 +54,7 @@ class FeedController extends Controller
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
         private readonly HeroKolaz $heroKolaz,
+        private readonly MojStol $mojStol,
         private readonly RocznicaDolaczenia $rocznica,
     ) {}
 
@@ -190,7 +193,12 @@ class FeedController extends Controller
                 ? app(InstallPromptContext::class)->issue($user, $request->session()->getId())
                 : null,
             'greeting' => $this->pytanieDnia($user),
+            'pierwszeKroki' => $user->onboardingDoDokonczenia(),
             'zeszyt' => $zeszyt,
+            // Życzenia urodzinowe od gospodarza (issue #1755, etap b) — jedno
+            // zdanie albo `null`. Bez powiadomień i bez pustego stanu.
+            'zyczenia' => Urodziny::zyczeniaNaDzis($user),
+            'podpisZyczen' => Urodziny::podpis(),
             'tagTygodnia' => TagHighlight::doPokazania(),
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
@@ -199,6 +207,9 @@ class FeedController extends Controller
             'rocznica' => $this->rocznica->dlaOsoby($user),
             'podpisRocznicy' => $this->rocznica->podpis(),
             'board' => $this->dailyBoard->forViewer($user),
+            // „Mój stół" (#1749, D-304): liczony TYLKO u osoby, która go
+            // włączyła. Wyłączony = zero zapytań o propozycje.
+            'mojStol' => $user->moj_stol_enabled ? $this->mojStol->dlaWidza($user) : null,
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',

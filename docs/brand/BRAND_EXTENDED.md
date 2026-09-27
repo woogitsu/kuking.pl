@@ -49,7 +49,8 @@ publicznego strumienia. Nie zastępuje nazwy wyszukiwarki „Szukaj”.
 | Rezygnacja z akcji | **Zostaw** / **Anuluj** | „Nie, dzięki", „Może później" |
 | Eksport danych | **Pobierz swoje dane** | „Export", „Backup", „Zrzut" |
 | Zgłoszenie treści | **Zgłoś** | „Report", „Flaguj" |
-| Zablokowanie osoby | **Zablokuj** | „Mute", „Wycisz" (to inna funkcja — jeśli powstanie, nazywa się **Ukryj**) |
+| Zablokowanie osoby | **Zablokuj** | „Mute", „Wycisz" (to inna funkcja — nazywa się **Ukryj**, wiersz niżej) |
+| Prywatne ukrycie (#1810, D-278) | **Ukryj ten wpis**, **Ukryj tę osobę**; komunikat zawsze z „tylko dla Ciebie” | „Wycisz”, „Mute”, „Nie pokazuj więcej”, „Mniej takich” |
 | Zamknięcie okna | **Zamknij** | „×" bez etykiety przy ważnych akcjach |
 
 ### 1.3 Stany i komunikaty

@@ -21,10 +21,13 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Policies\RecipePolicy;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Czas;
 use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -281,6 +284,19 @@ class PostController extends Controller
 
         $isFirstPost = $user->posts()->published()->count() === 1;
 
+        // DATA I JAWNY KROK „ZOBACZ SWÓJ WPIS" — issue #1881.
+        //
+        // Obietnica z `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+        // brzmi: „Gotowe. To Twój pierwszy wpis w Kuking — {data}." + link
+        // „Zobacz swój wpis". Do 26 września 2026 komunikat mówił tylko „od
+        // teraz masz swoje archiwum" — bez daty, czyli bez dowodu na to, co
+        // właśnie obiecał („archiwum od pierwszej sekundy"), i bez żadnego
+        // linku: przy jednym/zero zdjęć przekierowanie i tak ląduje na
+        // wpisie, ale przy dwóch i więcej zdjęciach ląduje na ekranie układu
+        // — tam „Zobacz swój wpis" nie było nigdzie, więc jawny krok z
+        // dokumentu produktowego po prostu nie istniał.
+        $dataPublikacji = $post->published_at !== null ? Czas::data($post->published_at) : null;
+
         // Zdjęcie przetwarza się w kolejce (StoreUploadedImage) — w chwili
         // tego przekierowania prawie na pewno jeszcze nie jest `ready`.
         // Autor MUSI się o tym dowiedzieć TERAZ, na najbardziej widocznym
@@ -306,22 +322,46 @@ class PostController extends Controller
         // przenosić — pytanie bez treści jest gorsze niż brak pytania,
         // zwłaszcza na drodze do opublikowania zdjęcia.
         if (count($mediaIds) >= 2) {
-            return redirect()->route('posts.media.edit', $post)
+            $odpowiedz = redirect()->route('posts.media.edit', $post)
                 ->with('poPublikacji', true)
                 ->with('status', $isFirstPost
-                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.'
+                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.'
                     : 'Opublikowane.');
+
+            if ($isFirstPost) {
+                // Ekran układu prowadzi dalej do wpisu własnym przyciskiem
+                // („Zapisz i pokaż wpis” / „Zostaw tak, jak jest”), ale to
+                // NIE jest to samo, co jawny krok z dokumentu produktowego —
+                // ten sam przycisk „Zobacz swój wpis” ma się pojawić wszędzie,
+                // gdzie ląduje pierwsza publikacja, żeby potwierdzenie było
+                // SPÓJNE niezależnie od liczby zdjęć.
+                $odpowiedz->with('status_akcja', [
+                    'url' => $post->url(),
+                    'etykieta' => 'Zobacz swój wpis',
+                ]);
+            }
+
+            return $odpowiedz;
         }
 
-        return redirect()->route('posts.show', $post)->with(
+        $odpowiedz = redirect()->route('posts.show', $post)->with(
             'status',
             match (true) {
-                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
-                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.',
+                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
+                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.',
                 $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
                 default => 'Opublikowane. Dziękujemy.',
             },
         );
+
+        if ($isFirstPost) {
+            $odpowiedz->with('status_akcja', [
+                'url' => $post->url(),
+                'etykieta' => 'Zobacz swój wpis',
+            ]);
+        }
+
+        return $odpowiedz;
     }
 
     /**
@@ -686,7 +726,8 @@ class PostController extends Controller
             ->widoczneDla($request->user())
             ->with([
                 'author.profile.avatar',
-                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                // Odpowiedzi też porcjami (issue #939) — `OdpowiedziWatku`.
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
                 'replies.author.profile.avatar',
                 // Ten sam powód co `recipe`/`replies.recipe` w
                 // `RecipeController`: `Comment::subject()` pytany przy każdym
@@ -695,6 +736,7 @@ class PostController extends Controller
                 'replies.post',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'post']);
 
         if ($post->kind === Post::KIND_QUESTION) {
             $answerCount = $post->comments()->widoczneDla($request->user())->whereNull('comments.body_removed_at')->count();
@@ -783,8 +825,14 @@ class PostController extends Controller
      *
      * Zdjęcia mają już swój ekran, patrz komentarz przy `EditPost`.
      */
-    public function edit(Request $request, Post $post): View
+    public function edit(Request $request, Post $post): View|RedirectResponse
     {
+        // Issue #936: autor widzi własny ukryty wpis, ale nie może go
+        // poprawić (PostPolicy::update). Zamiast gołego 403 mówimy, co zrobić.
+        if ($this->autorWpisuPodDecyzja($request, $post)) {
+            return redirect($post->url())->with('status', EditPost::KOMUNIKAT_POD_DECYZJA);
+        }
+
         $this->authorize('update', $post);
         abort_if($post->kind === Post::KIND_QUESTION && ! config('kuking.questions.enabled'), 404);
 
@@ -808,8 +856,14 @@ class PostController extends Controller
         ]);
     }
 
-    public function update(Request $request, Post $post): RedirectResponse
+    public function update(Request $request, Post $post): RedirectResponse|Response
     {
+        // Issue #936: jak w `edit()`. Formularza edycji już nie ma, więc
+        // wpisany tekst wraca na ekranie do skopiowania, a nie do pól.
+        if ($this->autorWpisuPodDecyzja($request, $post)) {
+            return $this->poprawkaPodDecyzja($request, $post);
+        }
+
         $this->authorize('update', $post);
         $question = $post->kind === Post::KIND_QUESTION;
         abort_if($question && ! config('kuking.questions.enabled'), 404);
@@ -865,6 +919,10 @@ class PostController extends Controller
             // sekcji z zapisaną wersją (`#wersja-zapisana`).
             return back()->withInput()->withErrors(['wersja' => $e->getMessage()])->with('konflikt_edycji', true);
         } catch (BladDlaCzlowieka $e) {
+            // Moderator ukrył wpis w trakcie zapisu (sprawdzone pod blokadą).
+            if ($e->getMessage() === EditPost::KOMUNIKAT_POD_DECYZJA) {
+                return $this->poprawkaPodDecyzja($request, $post);
+            }
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział
             // pola błędu co w `store()` — patrz komentarz tam.
@@ -874,6 +932,20 @@ class PostController extends Controller
         }
 
         return redirect($post->url())->with('status', $question ? 'Pytanie zapisane.' : 'Wpis zapisany.');
+    }
+
+    private function poprawkaPodDecyzja(Request $request, Post $post): Response
+    {
+        return response()->view('pages.posts.edit-pod-decyzja', [
+            'komunikat' => EditPost::KOMUNIKAT_POD_DECYZJA,
+            'body' => is_string($request->input('body')) ? $request->input('body') : '',
+            'returnUrl' => $post->url(),
+        ], 403);
+    }
+
+    private function autorWpisuPodDecyzja(Request $request, Post $post): bool
+    {
+        return $request->user()?->getKey() === $post->author_id && $post->jestPodDecyzjaModeracji();
     }
 
     public function destroy(Request $request, Post $post): RedirectResponse
