@@ -84,7 +84,7 @@ class WdrozenieUruchamiaTrescZalazkowaTest extends TestCase
         // Kontrola metody pomiaru: jeśli nie widzimy tu nawet migracji, to
         // znaczy, że czytamy nie ten fragment — i sprawdzenie seedera niżej
         // byłoby puste, nie zielone.
-        $pozycjaMigracji = mb_strpos($komendy, 'artisan migrate');
+        $pozycjaMigracji = mb_strpos($komendy, 'artisan kuking:migruj-pod-blokada');
         $this->assertNotFalse($pozycjaMigracji, 'W komendach pre-deploy nie ma migracji. Czytam zły fragment pliku albo wdrożenie przestało migrować — jedno i drugie trzeba sprawdzić ręcznie.');
 
         $pozycjaSeedera = mb_strpos($komendy, 'artisan db:seed');
