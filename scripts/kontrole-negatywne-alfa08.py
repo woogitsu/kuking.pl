@@ -136,6 +136,15 @@ LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
 LOG_OPERACYJNY = "app/Domain/Media/KasujZdjecie.php"
 LOG_OPERACYJNY_TEST = "LogOperacyjnyBezKomunikatuWyjatkuTest"
 
+# `unserialize()` ładunku kolejki tylko z listą klas (#1841). Strażnik czyta
+# tokeny PHP w `app/`; mutacja zdejmuje `allowed_classes` w jedynym miejscu,
+# które odtwarza ładunek — ma zapalić i strażnika, i test zachowania
+# (atrapa z efektem ubocznym przy odtwarzaniu naprawdę się budzi).
+POLECENIE_ZADANIA = "app/Domain/Kolejka/PolecenieZadania.php"
+UNSERIALIZE_TEST = "UnserializeTylkoZListaKlasTest"
+OBCE_KLASY_TEST = "NieudanyListNieOdtwarzaObcychKlasTest"
+UNSERIALIZE_LISTA = ", ['allowed_classes' => self::WOLNO_ODTWORZYC]"
+
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -397,6 +406,12 @@ DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
 # #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
 WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
 AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+# Jeden kontrakt danych karty wpisu (#1037). Test jest behawioralny: renderuje
+# siedem list i liczy zapytania. Mutacje zdejmują ze wspólnej listy zdjęcie
+# przepisu i tematy — każda ma zapalić test na wszystkich zależnych
+# powierzchniach, czyli dowieść, że listy naprawdę idą przez `dlaKarty()`.
+KONTRAKT_KARTY = "app/Models/Post.php"
+KONTRAKT_KARTY_TEST = "KartaWpisuJednymKontraktemTest"
 # Testy w CI idą w czterech równoległych częściach (24.09.2026). Plik, który
 # nie trafi do żadnej części, nie uruchamia się nigdzie, a przebieg jest zielony.
 # Pierwsza mutacja gubi plik w SAMYM ODKRYWANIU listy — własny sprawdzian
@@ -813,6 +828,9 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+# Publiczny domyślny zeszyt a przyszłe szybkie zapisy (#1400).
+EDYCJA_ZESZYTU = "resources/views/pages/collections/edit.blade.php"
+DOMYSLNY_ZESZYT_TEST = "PublicznyDomyslnyZeszytJawnyPrzyZapisieTest"
 def dockerfile_poza_wzorcem_obrazu(source):
     """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
 
@@ -1128,8 +1146,14 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
+     lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
+    ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'recipe.heroMedia',\n    ];", "    ];")),
+    ("Kontrakt karty bez tematów", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'tags:id,slug,name,status',\n    ];", "    ];")),
     ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
      lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
     ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
@@ -1174,6 +1198,10 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
+    ("Ślad listu odtwarza obcą klasę z failed_jobs", POLECENIE_ZADANIA, OBCE_KLASY_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
     # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
     # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
     # do treści.
@@ -1199,6 +1227,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
+    # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
+    ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
+     lambda s: replace_once(s, "CLOUDFLARE_PURGE_TOKEN=\n", "")),
     # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
@@ -1298,6 +1330,7 @@ run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
+run_test(KONTRAKT_KARTY_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
 run_test(MIGRACJA_ONBOARDINGU_TEST, True)
 run_test(ONBOARDING_WZNOWIENIE_TEST, True)
@@ -1312,6 +1345,8 @@ run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
+run_test(UNSERIALIZE_TEST, True)
+run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
