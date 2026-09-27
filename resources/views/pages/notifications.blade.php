@@ -348,10 +348,12 @@
                         --}}
                         <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
                             @csrf
+                            {{-- Własne ID dołącza widoczne „Zobacz” do zdania tej karty
+                                 w nazwie dostępnej (WAI-ARIA APG: names-and-descriptions).
+                                 Nie kopiujemy treści do atrybutu ani nie zmieniamy napisu. --}}
                             <button class="btn btn-secondary" type="submit"
-                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">
-                                <span id="powiadomienie-{{ $notification->getKey() }}-zobacz">Zobacz</span>
-                            </button>
+                                    id="powiadomienie-{{ $notification->getKey() }}-zobacz"
+                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">Zobacz</button>
                         </form>
                     @elseif($notification->isUnread())
                         {{--
