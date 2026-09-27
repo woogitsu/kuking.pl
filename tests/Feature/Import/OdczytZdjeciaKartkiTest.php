@@ -572,6 +572,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
         $this->actingAs($this->osoba)->put(route('recipes.update', $szkic), [
             'title' => 'Sernik babci Hani', 'visibility' => 'private', 'source_type' => 'own', 'action' => 'publish',
+            'content_revision' => $szkic->content_revision,
             'ingredients' => [['text' => '1 kg twarogu']], 'steps' => [['instruction' => 'Piec godzinę.']],
         ])->assertSessionHasErrors('odczyt_sprawdzony');
         $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
