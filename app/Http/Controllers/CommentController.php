@@ -67,9 +67,10 @@ class CommentController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
-        // Pod zamkiem korzenia `EditComment` pyta Policy jeszcze raz: odpowiedź
-        // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337). Pod tym
-        // samym zamkiem porównuje wersję treści z formularza (#982).
+        // Pod zamkiem konta i potem komentarza `EditComment` pyta Policy
+        // jeszcze raz: sankcja albo odpowiedź zatwierdzona po `authorize()`
+        // wyżej zamyka poprawkę (#2090, #1337). Pod zamkiem komentarza
+        // porównuje też wersję treści z formularza (#982).
         try {
             $poprawiony = $this->editComment->handle(
                 $request->user(),
