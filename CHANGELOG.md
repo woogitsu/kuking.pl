@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Obserwowanie osoby albo tagu rozpoczęte przed sankcją nie dopisze relacji po zawieszeniu, zablokowaniu lub zamknięciu konta. Można nadal przestać obserwować istniejące tagi (#2091).
+- Poprawienie komentarza rozpoczęte przed zawieszeniem, zablokowaniem albo zamknięciem konta nie zapisze już nowej treści po zatwierdzeniu tej decyzji. Edycja i sankcja są sprawdzane w jednej kolejności na świeżym stanie konta (#2090).
 - Naprawione: operacja moderacyjna lub odpowiedź e-mail rozpoczęta przed odebraniem roli nie zapisze skutku po zatwierdzeniu degradacji. Rozstrzygnięcie odwołania, zdjęcie treści z urzędu i przyjęcie odpowiedzi sprawdzają świeżą rolę pod wspólną blokadą; operacja przyjęta wcześniej może się dokończyć (#2086).
 - Naprawione: wpis rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie może dokończyć publikacji po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje także tagi oraz inne skutki odrzuconej próby; publikacja, która uzyskała blokadę pierwsza, kończy się normalnie (#2088).
 - Po zmianie lub resecie hasła, wylogowaniu innych urządzeń, blokadzie konta albo zgłoszeniu jego usunięcia odwołana sesja nie wraca już przez zapis wcześniej rozpoczętego żądania. Bieżąca sesja osoby wykonującej operację pozostaje aktywna tam, gdzie powinna (#1046).

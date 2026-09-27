@@ -17,8 +17,12 @@ use Illuminate\Support\Facades\Gate;
  * między `authorize()` a zapisem i poprawka trafiłaby pod cudzą odpowiedź.
  * `LockCommentContext` przy publikacji odpowiedzi trzyma wiersz korzenia pod
  * `FOR NO KEY UPDATE` aż do zatwierdzenia — tu bierzemy ten sam zamek i dopiero
- * pod nim pytamy `CommentPolicy::update()` jeszcze raz. Zamek jest jeden,
- * więc nie powstaje nowa kolejność blokad.
+ * pod nim pytamy `CommentPolicy::update()` jeszcze raz.
+ *
+ * #2090: przed komentarzem blokujemy i odczytujemy konto autora. Sankcja
+ * może zostać zatwierdzona po wczytaniu modelu z sesji; sprawdzanie starego
+ * modelu przepuściłoby wtedy poprawkę. Kolejność konto → komentarz jest taka
+ * sama jak w `LockCommentContext` przy publikacji odpowiedzi.
  *
  * Zwraca `null`, gdy pod zamkiem poprawka nie jest już dozwolona; kontroler
  * wybiera wtedy komunikat na podstawie świeżego stanu.
@@ -44,9 +48,15 @@ final class EditComment
     public function handle(User $author, Comment $comment, string $body, ?string $wersjaFormularza = null): ?Comment
     {
         return DB::transaction(function () use ($author, $comment, $body, $wersjaFormularza): ?Comment {
+            $freshAuthor = User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->first();
+
+            if ($freshAuthor === null || ! $freshAuthor->isActive()) {
+                return null;
+            }
+
             $fresh = Comment::query()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->first();
 
-            if ($fresh === null || Gate::forUser($author)->denies('update', $fresh)) {
+            if ($fresh === null || Gate::forUser($freshAuthor)->denies('update', $fresh)) {
                 return null;
             }
 
