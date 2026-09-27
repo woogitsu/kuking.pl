@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: ręczne migracje i migracje przed wdrożeniem Railway korzystają z tej samej blokady PostgreSQL. Gdy jeden przebieg już migruje bazę, drugi kończy się błędem zamiast działać równolegle albo zgłosić pozorny sukces (#2082).
 - Naprawione: „Przywróć do zeszytu” sprawdza aktualny stan konta, treści i zeszytu w chwili zapisu. Zawieszenie nie pozwala już przywrócić wpisu ani przepisu do publicznego zeszytu z wcześniej otwartej strony; przywracanie wielu pozycji jest jedną operacją. Notatki, daty zapisania i dotychczasowe powiadomienia o zapisaniu przepisu pozostają zachowane. Także wyjęcie niedostępnych pozycji sprawdza świeże uprawnienia właściciela (#2094).
 - Połączenie lub ponowne uaktywnienie Facebooka wymaga teraz potwierdzenia obecnego konta Kuking: hasłem albo jednorazowym linkiem na potwierdzony adres. Gdy konto ma włączoną weryfikację dwuetapową, potrzebny jest także dotychczasowy kod. Samo zalogowanie i zgoda na Facebooku już nie dodają trwałej drogi wejścia (#2085).
 - Poprawienie komentarza rozpoczęte przed zawieszeniem, zablokowaniem albo zamknięciem konta nie zapisze już nowej treści po zatwierdzeniu tej decyzji. Edycja i sankcja są sprawdzane w jednej kolejności na świeżym stanie konta (#2090).
