@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Security\FacebookConnectionConfirmation;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\FacebookConnectionProof;
 use App\Models\TozsamoscZewnetrzna;
@@ -88,6 +89,13 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
         $this->assertSame(FacebookConnectionProof::hashToken($token), $proof->token_hash);
         $this->assertSame(Skrot::hmac($this->app['session']->getId()), $proof->session_hash);
         $this->get(route('facebook.link'))->assertOk();
+        $this->assertSame((string) $user->getKey(), (string) $proof->user_id);
+        $this->assertTrue($proof->expires_at->isFuture());
+        $this->assertSame(Skrot::hmac(self::FB_ID), $proof->facebook_id_hash);
+        $this->assertSame(Skrot::hmac($this->app['session']->getId()), $proof->session_hash);
+        $this->assertTrue(app(FacebookConnectionConfirmation::class)->emailProofIsAvailable(
+            $this->app['request'], $user->fresh(), self::FB_ID, $token,
+        ));
         $confirmation = $this->get(route('facebook.link.confirm', ['token' => $token]));
         $this->assertSame(200, $confirmation->status(),
             'Link potwierdzający skierował na: '.(string) $confirmation->headers->get('Location')
