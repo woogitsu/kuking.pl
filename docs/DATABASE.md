@@ -1691,6 +1691,11 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
   `family_since_year`, `source_scan_media_id` — patrz niżej;
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
+- `content_revision` (`bigint`, domyślnie `0`) — licznik zapisu treści.
+  Formularz i kreator przekazują odczytaną rewizję; `PublishRecipe` porównuje
+  ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
+  autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
+  dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 
@@ -2785,7 +2790,7 @@ Kolumny dołożone dla drogi prawnej:
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
 | `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |
-| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). |
+| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). Przy drodze prawnej stawia go list `DecyzjaWSprawieZgloszenia` **po wysłaniu**, nie akcja przy zakolejkowaniu (#1838, D-293). |
 
 Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
 powiadomiliśmy”, a przy audycie to jest pierwsze pytanie.
@@ -2798,6 +2803,14 @@ Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
 `notifier_email` niepuste — zgłoszenie prawne z adresem; nigdy oba naraz.
 Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
 zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
+
+**Zakolejkowany list to jeszcze nie „powiadomiliśmy”** (issue #1838, D-293).
+Przy drodze prawnej `decision_sent_at` stawia `afterSending()` listu z decyzją,
+gdy transport pocztowy przyjął wiadomość. Między decyzją a pracą workera
+kolumna jest pusta; po ostatecznej porażce zostaje pusta. Rozstrzygnięte
+sprawy prawne z adresem i pustym znacznikiem liczy
+`Report::decyzjaNieprzekazanaMailem()`; czy list czeka, czy przepadł, mówi
+`failed_jobs` (`php artisan queue:failed`), nie ta kolumna.
 
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
@@ -3884,7 +3897,7 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | Kolumna | Uwagi |
 |---|---|
 | `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
-| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`); komplet metadanych przy `ready` — CHECK `data_exports_ready_complete_check`, niżej. |
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
@@ -3900,6 +3913,31 @@ policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
 7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
 `eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
 Bez zmiany schematu.
+
+#### `data_exports_ready_complete_check` — gotowa paczka ma komplet metadanych (issue #1365)
+
+Migracja `2026_09_24_200000_require_complete_ready_data_exports`. Przy
+`status = 'ready'` wymagane są: niepusty `disk` i `object_key`, `bytes > 0`,
+`completed_at` i `expires_at`. Wcześniej baza przyjmowała `ready` bez tych
+pól, a `DataExport::isDownloadable()` pokazywał taki wiersz jako gotową
+paczkę — „Pobierz” kończyło się 404. `isDownloadable()` sprawdza teraz ten
+sam komplet (obrona dla modelu w pamięci).
+
+Celowo **bez** warunku na czas: `EraseAccountData` unieważnia gotową paczkę,
+przestawiając `expires_at` w przeszłość (także przed `completed_at`),
+a `expires_at > now()` nie jest wyrażeniem niezmiennym, jakiego PostgreSQL
+wymaga od CHECK. `expired` nie ma wymagań — `CleanUpDataExports` zostawia
+adres po nieudanym kasowaniu, żeby ponowić.
+
+**Audyt przed CHECK:** migracja liczy `ready` bez kompletu i **odmawia**
+(`RuntimeException` z zapytaniem `SELECT` i instrukcją), zamiast zgadywać
+dysk, klucz albo rozmiar. Naprawa ręczna: uzupełnić prawdziwe wartości, gdy
+plik istnieje, albo `status = 'failed'`, `failure_reason = 'unknown'`, gdy
+go nie ma — człowiek zamówi paczkę ponownie.
+
+**Rollback:** `down()` zdejmuje CHECK bez odmowy. Ograniczenie nie przechowuje
+żadnej wartości (niczyjej decyzji, zgody ani zakresu w rozumieniu D-088) — po
+cofnięciu wraca poprzednia, luźniejsza granica, dane zostają bez zmian.
 
 ### password_reset_tokens (tabela Laravela)
 
@@ -4788,6 +4826,37 @@ decyzji moderacyjnej. Najpierw uzupełnij konfigurację i uruchom
 bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
+
+### przypomnienia_dobowe
+
+Znaczniki „ten list już dziś wyszedł", migracja
+`2026_09_24_140000_utworz_przypomnienia_dobowe` (issue #1333). Do niej
+`kuking:pilnuj-terminow-odwolan` obiecywał jeden list na dobę tylko
+w komentarzu: każde wywołanie z zaległym odwołaniem (ręczne ponowienie,
+restart, zdublowany harmonogram) kolejkowało kolejny. `withoutOverlapping()`
+chroni tylko przed przebiegami NARAZ, a `Cache::add()` nie wystarcza, bo
+`docker/entrypoint.sh` czyści cache przy każdym starcie kontenera.
+
+| Kolumna | Opis |
+|---|---|
+| `rodzaj varchar(64) NOT NULL` | Rodzaj listu (`termin-odwolania`). CHECK `przypomnienia_dobowe_rodzaj_niepusty_check`: niepusty. |
+| `doba date NOT NULL` | Doba **UTC** — ta sama co dobowy sufit poczty (`DziennyBudzetListow`). |
+| `odbiorca char(64) NOT NULL` | SHA-256 adresu (małe litery, bez spacji), **nie adres**. CHECK `przypomnienia_dobowe_odbiorca_sha256_check`: `^[0-9a-f]{64}$`. Nowy adres alarmowy = nowy klucz = list tego samego dnia. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy zarezerwowano. |
+
+**Klucz główny `(rodzaj, doba, odbiorca)` jest rezerwacją:**
+`PrzypomnienieDobowe::zarezerwuj()` robi `insertOrIgnore` PRZED kolejkowaniem
+listu, więc z dwóch równoległych przebiegów wysyła tylko ten, który wiersz
+wstawił. Nieudane wstawienie listu do kolejki usuwa wiersz (`zwolnij()`)
+i komenda kończy się błędem — kolejny przebieg tego samego dnia próbuje
+ponownie. Wiersze starsze niż 30 dni kasuje `zarezerwuj()` przy okazji.
+Pilnuje tego `tests/Feature/TerminOdwolaniaJedenListNaDobeTest.php`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` zrzuca tabelę **bez
+odmowy** — wiersz jest znacznikiem deduplikacji, nie decyzją człowieka
+(D-088 nie dotyczy). Kosztem jest najwyżej jeden powtórzony list tego dnia.
+**Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod z tej zmiany bez
+tabeli kończy komendę błędem i nie wysyła przypomnienia.
 
 ### personal_access_tokens
 Tokeny osobistego dostępu Laravel Sanctum — logowanie aplikacji mobilnej

@@ -333,6 +333,11 @@ podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
 wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
 powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
 
+Gdy gość wybiera obserwowanie konkretnej osoby, po rejestracji i pierwszych
+krokach wraca do jej profilu albo do przepisu, z którego przyszedł. Musi
+jeszcze sam kliknąć „Obserwuj”; samo założenie konta nikogo nie obserwuje.
+Obok rejestracji jest droga logowania dla osoby, która ma już konto.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 
@@ -482,6 +487,13 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | powiadomienie autora | {imię} ugotowała Twój rosół. |
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
+
+Pusty stan „Komu wyszło” mówi „Nie ma tu widocznych wykonań”. Brak kart
+może oznaczać zarówno brak wykonań, jak i wykonania ukryte przed bieżącym
+widzem przez blokadę. Nie obiecujemy, że jego wykonanie będzie pierwsze.
+Osobie uprawnionej pokazujemy „Dodaj swoje wykonanie”, a gościowi drogę
+do założenia konta i osobny link do logowania. Samo otwarcie tych stron
+nie dodaje wykonania.
 
 Instrukcja formularza może zapowiadać powiadomienie innego autora, który
 może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
