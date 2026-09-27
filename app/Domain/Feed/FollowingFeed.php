@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Feed obserwowanych — osoby RAZEM z tematami, chronologicznie, bez algorytmu.
@@ -176,6 +177,10 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
+            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza. Ukrycie
+            // OSOBY tu nie działa: w Obserwowanych nic nie znika poza bramkami,
+            // blokadami i tym, co widz sam wskazał palcem (AGENTS.md §8).
+            ->bezUkrytychWpisow($viewer)
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Dla gałęzi
@@ -215,16 +220,26 @@ final class FollowingFeed
     /** @return list<string> */
     private function obserwowaneTematy(User $viewer): array
     {
-        // TYLKO AKTYWNE (issue #1824). Tag ukryty przez moderację po tym, jak
-        // ktoś zaczął go obserwować, ma 404 na własnej stronie i znika
-        // z katalogu, ale wiersz w `tag_follows` zostaje — świadomie, żeby
-        // człowiek mógł go sam zdjąć w „Twoich tagach”. Taki temat nie może
-        // sterować Startem: ani zasilać listy, ani decydować w `isEmptyFor()`.
-        // Warunek stoi tutaj, nie w relacji `followedTags()`: ekran ustawień
-        // musi nadal widzieć zastany ukryty tag, żeby dało się go usunąć.
-        return $viewer->followedTags()
-            ->where('tags.status', Tag::STATUS_ACTIVE)
-            ->pluck('tags.id')
+        // Tylko tagi AKTYWNE (#853). Wiersz `tag_follows` do tagu ukrytego albo
+        // scalonego może zostać z czasów sprzed bramki w `UpdateTagFollows`
+        // — i nie może zasilać Startu: ukryty tag ma 404 na własnej stronie,
+        // a jego chip karta i tak chowa, więc widz nie miałby jak zobaczyć,
+        // skąd wpis. Scalony tag prowadzi do CELU, jeśli ten jest aktywny —
+        // ta sama semantyka co w `MergeTags::przepnijObserwacje()`.
+        // Warunek stoi tutaj, nie w relacji `followedTags()` (#1824): ekran
+        // ustawień musi nadal widzieć zastany ukryty tag, żeby człowiek mógł
+        // go sam zdjąć w „Twoich tagach”; ten sam warunek decyduje też
+        // w `isEmptyFor()`.
+        $obserwowane = DB::table('tag_follows')->select('tag_id')->where('user_id', $viewer->getKey());
+
+        return Tag::query()->aktywne()
+            ->where(fn ($q) => $q->whereIn('id', $obserwowane)->orWhereIn(
+                'id',
+                Tag::query()->select('merged_into_tag_id')
+                    ->where('status', Tag::STATUS_MERGED)
+                    ->whereIn('id', $obserwowane),
+            ))
+            ->pluck('id')
             ->all();
     }
 }

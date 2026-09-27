@@ -95,7 +95,7 @@ final class PublishRecipe
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, no_amount?: bool}>  $ingredients
+     * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, substitutes?: ?string, no_amount?: bool}>  $ingredients
      * @param  list<array{instruction: string, id?: ?string, timer_minutes?: mixed, media_id?: ?string, remove_media?: bool}>  $steps
      *
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
@@ -103,6 +103,11 @@ final class PublishRecipe
      * należy do `StepTimer` i dzieje się TU, raz, dla obu dróg zapisu.
      * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
      *                                      „nie wiemy, zapisuj normalnie" (ADR §4.3)
+     * @param  bool  $wersjaPoprawki  czy zapis BEZ publikacji na opublikowanym przepisie zostawia
+     *                                wersję (issue #1316). `false` wyłącznie dla autozapisu
+     *                                kreatora; świadome „Zapisz zmiany" i formularz bez JS — `true`
+     * @param  int|null  $oczekiwanaRewizja  rewizja wyświetlona człowiekowi w formularzu;
+     *                                       sprawdzana pod blokadą przepisu przed zapisem
      */
     public function handle(
         User $author,
@@ -113,6 +118,8 @@ final class PublishRecipe
         ?Recipe $existing = null,
         ?string $ip = null,
         ?string $kluczWyslania = null,
+        bool $wersjaPoprawki = true,
+        ?int $oczekiwanaRewizja = null,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -200,17 +207,13 @@ final class PublishRecipe
         $klucz = $existing === null ? $kluczWyslania : null;
 
         $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip, $wersjaPoprawki, $oczekiwanaRewizja
         ): Recipe {
             /*
-             * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
-             * transakcji, i używane w dwóch miejscach: do listy kandydatów
-             * do zablokowania (zaraz niżej) i do rozwiązania tożsamości
-             * kroku w `syncSteps()`. Przedtem `syncSteps()` czytało to samo
-             * u siebie, ale dopiero PO zapisaniu wiersza przepisu — a lista
-             * do zablokowania musi być gotowa WCZEŚNIEJ (powód niżej).
-             * Dwa odczyty tej samej rzeczy w jednej transakcji to dwie
-             * okazje, żeby się rozjechały, więc odczyt jest jeden.
+             * Wstępna mapa kroków jest potrzebna do ustalenia zdjęć przed
+             * blokadami media → users → recipes. Do samego zapisu kroków
+             * używamy drugiego odczytu po blokadzie przepisu: poprzednia
+             * edycja mogła zakończyć się podczas czekania na ten wiersz.
              */
             $istniejaceKroki = $existing === null
                 ? new Collection
@@ -391,7 +394,36 @@ final class PublishRecipe
                     throw new BladDlaCzlowieka(self::PRZEPIS_ZAMROZONY_PRZEZ_MODERACJE.$this->kontakt());
                 }
 
+                if ($oczekiwanaRewizja !== null && $oczekiwanaRewizja !== $swiezy->content_revision) {
+                    throw new BladDlaCzlowieka('Ten przepis zmienił się od otwarcia formularza. Twoje wpisy zostały zachowane. Otwórz aktualny przepis w nowej karcie, porównaj zmiany i odśwież formularz przed ponownym zapisem.');
+                }
+
                 $recipe = $swiezy;
+
+                // Mapa sprzed blokady służy wyłącznie do wyboru zdjęć. Po
+                // czekaniu na inny zapis kroki mogły już zostać wymienione.
+                $wstepneKroki = $istniejaceKroki;
+                $istniejaceKroki = $recipe->steps()->get()->keyBy(
+                    static fn (RecipeStep $step): string => (string) $step->getKey(),
+                );
+                foreach ($cleanSteps as $row) {
+                    $id = $this->nullIfBlank($row['id'] ?? null);
+                    if ($id === null || $this->nullIfBlank($row['media_id'] ?? null) !== null || ($row['remove_media'] ?? false) === true) {
+                        continue;
+                    }
+
+                    $stareZdjecie = $wstepneKroki->get($id)?->media_id;
+                    $swiezeZdjecie = $istniejaceKroki->get($id)?->media_id;
+                    if ($swiezeZdjecie !== null && $swiezeZdjecie !== $stareZdjecie && ! in_array($swiezeZdjecie, $doPrzypiecia, true)) {
+                        // Nie wolno dziedziczyć zdjęcia, którego ta transakcja
+                        // nie zablokowała przed wierszem przepisu (D-103).
+                        throw new BladDlaCzlowieka('Zdjęcie przy kroku zmieniło się w trakcie zapisu. Twoje wpisy są zachowane — odśwież przepis i porównaj zmiany.');
+                    }
+                }
+                $duplicateErrors = ExistingStepDuplicates::errors($cleanSteps, $istniejaceKroki->keys());
+                if ($duplicateErrors !== []) {
+                    throw new BladDlaCzlowieka(reset($duplicateErrors));
+                }
 
                 // Slug zmieniamy tylko dla szkicu. Po publikacji adres
                 // przepisu jest obietnicą — ludzie go zapisują i wysyłają.
@@ -417,6 +449,7 @@ final class PublishRecipe
 
                 $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';
 
+                $recipe->forceFill(['content_revision' => $recipe->content_revision + 1]);
                 $recipe->update($payload);
             }
 
@@ -504,6 +537,18 @@ final class PublishRecipe
                     metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
                     ip: $ip,
                 );
+            } elseif ($wersjaPoprawki && $recipe->isPublished()) {
+                /*
+                 * ŚWIADOMY ZAPIS BEZ PUBLIKACJI NA PUBLICZNYM PRZEPISIE TEŻ
+                 * ZOSTAWIA HISTORIĘ (issue #1316). Macierz przejść nie pozwala
+                 * wrócić z `published` do szkicu, więc „Zapisz zmiany" zmienia
+                 * treść, którą czytelnik widzi od razu. Warunek to stan PO
+                 * zapisie, nie flaga wywołania: `publish = false` nie znaczy
+                 * „szkic". Autozapis kreatora (`$wersjaPoprawki = false`)
+                 * wersji nie tworzy — decyzja właściciela z 24.09.2026:
+                 * wersji nigdy nie nadpisujemy, więc nie ma czego „sklejać".
+                 */
+                $this->snapshots->poprawka($recipe, $author);
             }
 
             /*
@@ -613,6 +658,9 @@ final class PublishRecipe
                 'quantity' => $bezIlosci ? null : $this->quantityOrNull($row['quantity'] ?? null),
                 'unit_id' => $bezIlosci ? null : $this->unitIdOrNull($row['unit_id'] ?? null),
                 'note' => $this->nullIfBlank($row['note'] ?? null),
+                // Zamiennik od autora (D-284). Przycięty do kolumny jak tekst
+                // składnika; puste → NULL, bo tak każe CHECK.
+                'substitutes' => $this->clampOrNull($row['substitutes'] ?? null, 300),
                 'no_amount' => $bezIlosci,
             ];
         }
@@ -625,8 +673,8 @@ final class PublishRecipe
      *
      * Autor piszący dziesięć składników wpisze „Farsz" i „farsz", i będzie
      * miał rację: dla niego to jedno słowo. Bez tego przejścia byłyby to dwie
-     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do przyszłego
-     * przeliczania porcji jako dwie różne części przepisu.
+     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do
+     * przeliczania porcji (V2, D-284) jako dwie różne części przepisu.
      *
      * WYGRYWA PIERWSZA PISOWNIA, nie „ładniejsza". To słowo autora, więc
      * poprawiamy powtórzenie, a nie człowieka — i nie ma tu żadnej reguły
@@ -800,6 +848,7 @@ final class PublishRecipe
                 'quantity' => $row['quantity'],
                 'unit_id' => $row['unit_id'],
                 'note' => $row['note'],
+                'substitutes' => $row['substitutes'] ?? null,
                 'no_amount' => $row['no_amount'] ?? false,
                 'position' => $position,
             ]);
@@ -810,7 +859,7 @@ final class PublishRecipe
      * @param  list<array<string, mixed>>  $steps
      * @param  Collection<string, RecipeStep>  $istniejace  mapa TOŻSAMOŚCI kroków, które
      *                                                      przepis ma DZIŚ — zbudowana
-     *                                                      w `handle()`, PRZED skasowaniem
+     *                                                      w `handle()`, POD blokadą przepisu i przed skasowaniem
      *                                                      wierszy i wyłącznie z kroków TEGO
      *                                                      przepisu. To jest cała autoryzacja
      *                                                      `id` z POST-a: identyfikator kroku
@@ -840,7 +889,7 @@ final class PublishRecipe
          * "poprawne dane nigdy nie znikaja".
          *
          * Naprawa: krok o `id`, ktore PRZEPIS MA DZIS (czyli jest w mapie
-         * `$istniejace`, zbudowanej w `handle()` przed jakakolwiek zmiana),
+         * `$istniejace`, odświeżonej w `handle()` pod blokadą przepisu),
          * dostaje `update()` na TYM SAMYM wierszu -- identyfikator zostaje.
          * Wiersz bez znanego `id` (nowy krok dopisany w tym zapisie) dostaje
          * `create()`. Kroki, ktorych w tym zapisie juz nie ma (usuniete przez
