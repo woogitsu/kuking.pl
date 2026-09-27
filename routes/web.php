@@ -38,6 +38,7 @@ use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
@@ -58,6 +59,7 @@ use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\BirthdaySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -548,12 +550,18 @@ Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'
  * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
  * w kodzie.
  *
- * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
- * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
- * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
- * w nieskończoność.
+ * OGRANICZNIK ŻĄDAŃ JEST, i to CELOWO HOJNY (issue #1869, audyt — poprawia
+ * wcześniejszy wpis, który mówił, że limitu tu nie ma). Każde żądanie bez
+ * poprawnego podpisu i tak kończy się odrzuceniem po jednym `hash_hmac`,
+ * ale to wciąż praca CPU i wpis w logu na próbę — a bez ogranicznika
+ * seria takich żądań z jednego adresu robi jedno i drugie bez końca.
+ * Ogranicznik ustawiony ZA NISKO gubiłby prawdziwe powiadomienia, których
+ * Facebook nie ponawia w nieskończoność — ale to jest argument za DOBOREM
+ * liczby (`facebook_deauthorize` w `config/kuking.php`, ten sam wzorzec
+ * co `csp_report` niżej), nie za brakiem limitu w ogóle.
  */
 Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->middleware("throttle:{$limits['facebook_deauthorize']},facebook_deauthorize")
     ->name('facebook.deauthorize');
 
 Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
@@ -884,6 +892,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
         ->name('social.unhide');
+    // „MÓJ STÓŁ" (issue #1749, D-304) — dobrowolna półka przepisów, domyślnie
+    // wyłączona. Dobór wyłącznie z zamkniętej listy AGENTS.md §8.
+    Route::get('/moj-stol', [MojStolController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['moj_stol']},moj_stol")
+        ->name('moj-stol');
+    Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('moj-stol.ustaw');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
@@ -995,6 +1011,30 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    /*
+     * POWIADOMIENIA POZA SERWISEM (issue #35, D-303) — push, cisza nocna,
+     * dzienny limit. Powiadomień w serwisie ten ekran nie dotyczy.
+     * Bez kluczy VAPID kontroler odpowiada 404, a spis ustawień go nie
+     * pokazuje. Wszystkie zapisy w grupie `ustawienia`; bez identyfikatora
+     * w adresie — każda akcja działa na koncie zalogowanej osoby.
+     */
+    Route::get('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'edit'])->name('settings.notifications');
+    Route::put('/ustawienia/powiadomienia', [NotificationSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.update');
+    Route::post('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'subscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.subscribe');
+    Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.unsubscribe');
+    Route::post('/ustawienia/powiadomienia/urzadzenie/uzgodnij', [NotificationSettingsController::class, 'reconcileDevice'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.reconcile-device');
+    Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.disable-all');
 
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
@@ -82,12 +83,25 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly DziennikWymazan $dziennik = new DziennikWymazan,
         private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
     {
+        return $this->wymaz($user, false);
+    }
+
+    /** Egzekucja zwykłej karencji wymaga TEJ SAMEJ generacji wniosku. */
+    public function handleExpiredRequest(User $kandydat): bool
+    {
+        return $this->wymaz($kandydat, true);
+    }
+
+    private function wymaz(User $user, bool $wymagajWygaslegoWniosku): bool
+    {
+        $oczekiwanaGeneracja = $user->delete_request_generation;
         $fresh = User::query()->whereKey($user->getKey())->first();
 
         // PONOWIENIE (audyt/issue #17): konto jest JUŻ zanonimizowane
@@ -116,8 +130,9 @@ final class EraseAccountData
 
         /** @var list<Media> $doSkasowania */
         $doSkasowania = [];
+        $zakresDoDziennika = null;
 
-        $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
+        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -129,6 +144,25 @@ final class EraseAccountData
                 || $fresh->data_erased_at !== null
             ) {
                 return false;
+            }
+
+            // Egzekutor przekazuje generację wniosku z materializowanej listy.
+            // Cofnięcie i ponowne zgłoszenie może przywrócić pending_delete,
+            // ale nie może skrócić NOWEJ karencji przez stary przebieg workera.
+            // Odtwarzanie po backupie (`WymazPonownie`) używa `handle()`:
+            // odtwarza wymazanie już wykonane i zapisane w dzienniku.
+            if ($wymagajWygaslegoWniosku) {
+                $koniecKarencji = $fresh->deletionGraceEndsAt();
+
+                if ($oczekiwanaGeneracja === null
+                    || $fresh->delete_request_generation === null
+                    || $fresh->delete_requested_at === null
+                    || $koniecKarencji === null
+                    || $koniecKarencji->isFuture()
+                    || $fresh->delete_request_generation !== $oczekiwanaGeneracja
+                ) {
+                    return false;
+                }
             }
 
             $profile = $fresh->profile;
@@ -289,6 +323,17 @@ final class EraseAccountData
              */
             $fresh->tozsamosciZewnetrzne()->delete();
 
+            /*
+             * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).
+             *
+             * Subskrypcja to adres, pod który serwer może pisać na czyjś
+             * ekran, a ustawienia ciszy nocnej mówią, kiedy ta osoba śpi.
+             * Konto bez właściciela nie ma komu wysyłać ani czego chronić.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            $fresh->pushSubscriptions()->delete();
+            $fresh->ustawieniaPowiadomienZewnetrznych()->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
 
@@ -349,6 +394,9 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
+                // preferencję półki propozycji — issue wymaga tego wprost.
+                'moj_stol_enabled' => false,
                 // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
                 'birthday_day' => null,
                 'birthday_month' => null,
@@ -440,9 +488,20 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
+            $zakresDoDziennika = $zakresWykonany;
 
             return true;
         });
+
+        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
+        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
+        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
+        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
+        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
+        // nocne `kuking:dziennik-wymazan`.
+        if ($wymazano && $zakresDoDziennika !== null) {
+            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.
         //

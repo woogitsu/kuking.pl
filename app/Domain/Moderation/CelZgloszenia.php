@@ -91,6 +91,13 @@ final readonly class CelZgloszenia
 
         $skrocony = self::utnijPoSlowach($tekst, self::LIMIT_ZNAKOW);
 
+        // Pierwszy wyraz dłuższy niż limit (np. długi link) — nie da się uciąć
+        // po granicy słowa. Sam wielokropek w cudzysłowie „…” wyglądałby jak
+        // pusty cytat, więc zostaje sama nazwa, jak przy treści pustej.
+        if ($skrocony === '') {
+            return null;
+        }
+
         return "„{$skrocony}…”";
     }
 

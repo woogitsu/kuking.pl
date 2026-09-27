@@ -52,7 +52,7 @@ class CookedCountsUnitsTest extends TestCase
         $this->assertSame($label, $summary);
         $facts = $this->text($xpath, '//article[contains(@class,"marka-przepis")]/ul[@class="recipe-facts"]');
         if ($count === 0) {
-            $this->assertStringContainsString('Jeszcze nikt tego nie gotował', $this->text($xpath, '//section[@aria-labelledby="komu-wyszlo"]'));
+            $this->assertStringContainsString('Nie ma tu widocznych wykonań', $this->text($xpath, '//section[@aria-labelledby="komu-wyszlo"]'));
             $this->assertStringNotContainsString('Ugotowane', $facts);
         } else {
             $this->assertStringContainsString('Ugotowane '.$count.' ×', $facts);

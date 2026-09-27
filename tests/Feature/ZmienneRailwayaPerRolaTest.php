@@ -128,6 +128,14 @@ class ZmienneRailwayaPerRolaTest extends TestCase
                 .'sprawdza obecność na produkcji. Scheduler tylko kolejkuje job.',
         ],
         'CLOUDFLARE_PURGE_TOKEN' => ['role' => ['web', 'worker'], 'powod' => 'Jak CLOUDFLARE_ZONE_ID.'],
+        'VAPID_PUBLIC_KEY' => [
+            'role' => ['web', 'worker'],
+            'powod' => 'Web Push (#35, D-303): web pokazuje ekran i daje klucz przeglądarce, worker podpisuje wysyłkę.',
+        ],
+        'VAPID_PRIVATE_KEY' => [
+            'role' => ['worker'],
+            'powod' => 'Web Push (#35, D-303): podpis VAPID w jobie `WyslijPowiadomieniePush` — wysyła tylko worker.',
+        ],
         'OPENAI_MODERATION_KEY' => [
             'role' => ['worker'],
             'powod' => 'Job `PrzeanalizujTresc` → `KlientOpenAI` (#1014).',
