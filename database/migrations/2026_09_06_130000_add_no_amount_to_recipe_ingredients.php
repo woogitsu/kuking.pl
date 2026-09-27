@@ -73,15 +73,19 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
-            // Blokada PRZED liczeniem, nie po: bez niej między policzeniem
+            // Blokada PRZED sprawdzeniem, nie po: bez niej między sprawdzeniem
             // wierszy a `DROP COLUMN` mógłby wejść nowy składnik z
             // `no_amount = true`, którego strażnik już by nie zobaczył.
+            // ACCESS EXCLUSIVE zatrzymuje również odczyty. Jeśli tabela jest
+            // duża lub ruch nie oddaje blokady, cofnięcie ma szybko odmówić.
+            DB::statement("SET LOCAL statement_timeout = '2s'");
             DB::statement('LOCK TABLE recipe_ingredients IN ACCESS EXCLUSIVE MODE');
         }
 
-        $bezIlosci = DB::table('recipe_ingredients')->where('no_amount', true)->count();
-
-        if ($bezIlosci > 0 && getenv('KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI') !== '1') {
+        if (getenv('KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI') !== '1'
+            && DB::table('recipe_ingredients')->where('no_amount', true)->exists()) {
+            // Pełne liczenie jest potrzebne tylko do komunikatu odmowy.
+            $bezIlosci = DB::table('recipe_ingredients')->where('no_amount', true)->count();
             // Rzeczownik PRZED liczbą, liczba na końcu zdania (D-132/D-133) —
             // ten sam wzorzec co w pozostałych strażnikach `down()`.
             throw new RuntimeException(
