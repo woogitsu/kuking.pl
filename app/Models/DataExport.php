@@ -114,11 +114,23 @@ class DataExport extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Czy paczkę da się pobrać: `ready`, przed `expires_at` i z KOMPLETEM
+     * referencji pliku (issue #1365). CHECK `data_exports_ready_complete_check`
+     * pilnuje kompletu w bazie; tu to samo dla wiersza, który ominąłby bazę
+     * (model w pamięci, stary stan) — bez tego ekran obiecywał „Pobierz",
+     * a kliknięcie kończyło się 404.
+     */
     public function isDownloadable(): bool
     {
         return $this->status === self::STATUS_READY
             && $this->expires_at !== null
-            && $this->expires_at->isFuture();
+            && $this->expires_at->isFuture()
+            && $this->completed_at !== null
+            && (string) $this->disk !== ''
+            && (string) $this->object_key !== ''
+            && $this->bytes !== null
+            && $this->bytes > 0;
     }
 
     /**

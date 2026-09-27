@@ -24,9 +24,10 @@ use Illuminate\Validation\Validator as WalidatorLaravela;
  * polu, zanim akcja domenowa w ogóle ruszy.
  *
  * Reguły są CELOWO identyczne z tym, co kreator miał dotąd, także tam, gdzie
- * różnią się od formularza bez JavaScriptu w `RecipeController` (np. brak
- * `decimal:0,2` przy porcjach, `source_type` wymagane). Wyrównanie obu dróg
- * to osobna, świadoma zmiana zachowania — nie refaktoryzacja.
+ * różnią się od formularza bez JavaScriptu w `RecipeController` (np.
+ * `source_type` wymagane). Wyrównanie obu dróg to osobna, świadoma zmiana
+ * zachowania — nie refaktoryzacja. Porcje są już wyrównane: `decimal:0,2`
+ * jak w `ZapisPrzepisuRequest` (issue #750).
  */
 final class KrokOPrzepisie
 {
@@ -55,6 +56,7 @@ final class KrokOPrzepisie
         'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
         'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
         'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
+        'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
         'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
         'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
         'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
@@ -122,7 +124,12 @@ final class KrokOPrzepisie
         return [
             'title' => ['required', 'string', 'min:3', 'max:180'],
             'summary' => ['nullable', 'string', 'max:2000'],
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
+            // Krok 0,01 (setne) — ta sama reguła co `ZapisPrzepisuRequest`
+            // (decyzja właściciela z 20.09.2026, issue #750). Bez `decimal:0,2`
+            // kreator zapisywał 1,255 po cichu jako 1,26 (kolumna decimal(6,2)).
+            // `bail`: „cztery” ma dostać JEDNO zdanie (liczba), a nie drugie
+            // o setnych — `decimal` też odrzuca tekst.
+            'servings' => ['bail', 'nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],

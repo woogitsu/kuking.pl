@@ -142,7 +142,13 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
   rozszerzenie pantry;
 - wybrane przepisy do czytania offline w PWA (#1904);
-- głosowy tryb gotowania bez dotykania telefonu (#1906).
+- głosowy tryb gotowania bez dotykania telefonu (#1906);
+- udostępnianie publicznego zeszytu (#2000);
+- prywatne podsumowanie AI uwag z wykonań przepisu (#1999);
+- kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
+- widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
+- historia i porównanie publicznych wersji przepisu (#2024);
+- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
 
 ## Nie wcześnie
 
