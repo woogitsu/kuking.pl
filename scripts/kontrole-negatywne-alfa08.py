@@ -136,6 +136,15 @@ LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
 LOG_OPERACYJNY = "app/Domain/Media/KasujZdjecie.php"
 LOG_OPERACYJNY_TEST = "LogOperacyjnyBezKomunikatuWyjatkuTest"
 
+# `unserialize()` ładunku kolejki tylko z listą klas (#1841). Strażnik czyta
+# tokeny PHP w `app/`; mutacja zdejmuje `allowed_classes` w jedynym miejscu,
+# które odtwarza ładunek — ma zapalić i strażnika, i test zachowania
+# (atrapa z efektem ubocznym przy odtwarzaniu naprawdę się budzi).
+POLECENIE_ZADANIA = "app/Domain/Kolejka/PolecenieZadania.php"
+UNSERIALIZE_TEST = "UnserializeTylkoZListaKlasTest"
+OBCE_KLASY_TEST = "NieudanyListNieOdtwarzaObcychKlasTest"
+UNSERIALIZE_LISTA = ", ['allowed_classes' => self::WOLNO_ODTWORZYC]"
+
 # Cofnięcie migracji CHECK-a `contact_messages_handled_complete` (#844, #1081).
 # Strażnik wczytuje migrację przez `database_path(...)` i asertuje na treści
 # definicji ograniczenia. Mutacja zdejmuje odmowę w `down()`: bez niej
@@ -1174,6 +1183,10 @@ checks = [
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
+    ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
+    ("Ślad listu odtwarza obcą klasę z failed_jobs", POLECENIE_ZADANIA, OBCE_KLASY_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
     # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
     # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
     # do treści.
@@ -1312,6 +1325,8 @@ run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
+run_test(UNSERIALIZE_TEST, True)
+run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
