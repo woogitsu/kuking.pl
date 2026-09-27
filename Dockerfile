@@ -187,20 +187,23 @@ LABEL org.opencontainers.image.title="kuking.pl"
 LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"
 LABEL org.opencontainers.image.licenses="proprietary"
 
-# PAKIETY APT SĄ PRZYPIĘTE DO MIGAWKI snapshot.debian.org (audyt, issue #1868).
+# PAKIET APT JEST PRZYPIĘTY DO MIGAWKI snapshot.debian.org (audyt, issue #1868).
 #
 # Obraz bazowy jest przypięty do digestu (#952, test wyżej w komentarzu do
-# `FROM`), ale `postgresql-client` i `tini` schodziły dotąd ze zwykłego
+# `FROM`), ale `tini` schodził dotąd ze zwykłego
 # `deb.debian.org/debian trixie` — a to jest MIRROR NAJNOWSZEGO PUNKTU
 # WYDANIA, nie archiwum. Starsze wersje pakietów znikają z niego, gdy tylko
 # wyjdzie kolejna poprawka (bezpieczeństwa albo zwykła) — więc ten sam
 # digest obrazu bazowego i ten sam commit Kukinga mogły w poniedziałek
-# i w piątek dać dwa różne `pg_dump`/`tini` w środku obrazu.
+# i w piątek dać dwa różne `tini` w środku obrazu.
+# Klienta PostgreSQL nie instalujemy w obrazie aplikacji: metapakiet Debiana
+# Trixie daje pg_dump 17, który odmówi zrzutu serwera 18 (#2078). Awaryjną
+# ścieżkę z klientem 18 opisuje docs/infra/KOPIE_I_ODTWORZENIE.md.
 #
 # `snapshot.debian.org` to PEŁNE archiwum całej historii Debiana, zamrożone
 # co ~6 godzin i NIGDY nie kasowane — to samo, czego reszta świata używa do
 # odtwarzania starych buildów. `SNAPSHOT_DEBIAN` niżej to JEDNO miejsce
-# decydujące o wersji obu pakietów: podnosisz je świadomie, ustawiając nową
+# decydujące o wersji `tini`: podnosisz je świadomie, ustawiając nową
 # datę (i sprawdzając na https://snapshot.debian.org/archive/debian/, że
 # migawka z tą datą istnieje i ma `main/binary-amd64/Packages`).
 #
@@ -233,17 +236,16 @@ RUN install-php-extensions \
       > /tmp/apt-snapshot/snapshot.list \
   && apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste update \
   && apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install -y --no-install-recommends \
-      postgresql-client \
       tini \
   && rm -rf /var/lib/apt/lists/* /tmp/apt-snapshot
-#  postgresql-client → pg_dump / psql dla awaryjnego backupu i restore drill
 #  tini              → poprawny init w PID 1 (reaping zombie, przekazywanie sygnałów)
 
 # Konfiguracja PHP i serwera
 COPY docker/php.ini      /usr/local/etc/php/conf.d/zz-kuking.ini
 COPY docker/Caddyfile    /etc/frankenphp/Caddyfile
 COPY docker/entrypoint.sh /usr/local/bin/kuking-entrypoint
-RUN chmod +x /usr/local/bin/kuking-entrypoint
+COPY docker/healthcheck.sh /usr/local/bin/kuking-healthcheck
+RUN chmod +x /usr/local/bin/kuking-entrypoint /usr/local/bin/kuking-healthcheck
 
 WORKDIR /app
 
@@ -373,7 +375,7 @@ EXPOSE 8080
 # Healthcheck dla uruchomień poza Railway (docker run / compose / Fly).
 # W Railway healthcheck robi platforma (healthcheck: "/health" w railway.ts).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD php -r 'exit(@file_get_contents("http://127.0.0.1:".(getenv("PORT")?:8080)."/health") ? 0 : 1);'
+  CMD ["/usr/local/bin/kuking-healthcheck"]
 
 # tini jako PID 1: przekazuje SIGTERM do entrypointu → Caddy robi graceful
 # drain, a queue:work kończy bieżący job zamiast go porzucić.
