@@ -375,7 +375,8 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026"
+      @auth @if(config('kuking.push.vapid_public_key')) data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endif @endauth>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     {{--
@@ -435,11 +436,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth
@@ -940,6 +948,11 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
+                @auth @if(config('kuking.push.vapid_public_key'))
+                    <p class="flash" role="status" data-push-uzgodnij-komunikat hidden>
+                        Powiadomienia poprzedniej osoby zostały wyłączone w tej przeglądarce. Twoje powiadomienia możesz włączyć w ustawieniach.
+                    </p>
+                @endif @endauth
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
 
                      `komunikaty` jest tu po to, żeby układ pasów (strona
@@ -948,6 +961,30 @@
                 <div class="komunikaty" aria-live="polite">
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
+                    @endif
+                    {{--
+                        JAWNY KROK PO PIERWSZEJ PUBLIKACJI (issue #1881).
+
+                        `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+                        obiecują po pierwszym „Opublikuj" nie tylko datę
+                        w komunikacie, ale JAWNY przycisk „Zobacz swój wpis" —
+                        nie samo poleganie na tym, że przekierowanie i tak
+                        czasem ląduje na wpisie. Przy dwóch i więcej zdjęciach
+                        ląduje ono na ekranie układu, więc bez tego przycisku
+                        obietnicy z dokumentu nigdzie nie było widać.
+
+                        Odnośnik, nie formularz: to jest samo OGLĄDANIE, a nie
+                        zmiana stanu — w przeciwieństwie do `status_powrot`
+                        niżej, które cofa akcję i dlatego idzie przez `POST`.
+                        Stoi w tym samym obszarze `aria-live`, więc czytnik
+                        ekranu ogłasza najpierw co się stało, a zaraz potem,
+                        co można z tym zrobić.
+                    --}}
+                    @php $statusAkcja = session('status_akcja'); @endphp
+                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
+                        <p class="flash-akcja">
+                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
+                        </p>
                     @endif
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu

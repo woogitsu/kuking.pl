@@ -224,11 +224,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // wyświetlania, nie stan konta — dlatego wolno ją tu trzymać,
         // w odróżnieniu od `status` i `role` (AGENTS.md §7).
         'memories_enabled',
+        // „Mój stół" (issue #1749, D-304) — dobrowolna półka propozycji.
+        // Preferencja wyświetlania, nie pole sterujące (AGENTS.md §7).
+        'moj_stol_enabled',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'delete_request_generation',
     ];
 
     /**
@@ -355,6 +359,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // #1046: poza `$fillable` — pisze ją wyłącznie `invalidateSessions()`.
             'session_generation' => 'integer',
             'memories_enabled' => 'boolean',
+            'moj_stol_enabled' => 'boolean',
             // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
             // wyłącznie przez `App\Domain\Users\Actions\UstawUrodziny`.
             'birthday_day' => 'integer',
@@ -1351,6 +1356,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => $kara,
                 'punishment_expires_at' => $kara === self::STATUS_SUSPENDED ? $konto->status_expires_at : null,
                 'delete_requested_at' => now(),
+                'delete_request_generation' => (string) Str::uuid(),
                 'delete_scope' => $scope,
             ]);
         }));
@@ -1390,6 +1396,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 'punishment_status' => null,
                 'punishment_expires_at' => null,
                 'delete_requested_at' => null,
+                'delete_request_generation' => null,
                 'delete_scope' => null,
             ]);
         });
@@ -1432,6 +1439,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $this->forceFill([
             'status' => self::STATUS_ERASED,
             'data_erased_at' => now(),
+            'delete_request_generation' => null,
         ])->save();
     }
 

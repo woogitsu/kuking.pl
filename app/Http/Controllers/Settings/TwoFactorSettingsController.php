@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -133,8 +134,12 @@ class TwoFactorSettingsController extends Controller
             ]);
         }
 
+        $byloWlaczone = $user->hasTwoFactorConfirmed();
         $kodyJawne = $this->totp->generateBackupCodes();
         $user->confirmTwoFactor($this->totp->hashBackupCodes($kodyJawne));
+        if (! $byloWlaczone) {
+            AuditLogEntry::recordBezWywracania('account.two_factor_enabled', $user, $user, ip: $request->ip());
+        }
 
         // STARE POŚWIADCZENIA JEDNOSKŁADNIKOWE GASNĄ (#930, D-245).
         //
@@ -243,7 +248,12 @@ class TwoFactorSettingsController extends Controller
             ])->errorBag('disable');
         }
 
-        $request->user()->disableTwoFactor();
+        $user = $request->user();
+        $byloWlaczone = $user->hasTwoFactorConfirmed();
+        $user->disableTwoFactor();
+        if ($byloWlaczone) {
+            AuditLogEntry::recordBezWywracania('account.two_factor_disabled', $user, $user, ip: $request->ip());
+        }
 
         // WYŁĄCZENIE ZAMYKA INNE URZĄDZENIA JAK WŁĄCZENIE (#930).
         //
