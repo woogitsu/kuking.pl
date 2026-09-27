@@ -1723,6 +1723,8 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
+- `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
+  sekcja `skladniki_odzywcze` niżej (D-299).
 
 **`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
 (#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
@@ -2119,6 +2121,81 @@ utracona wartość to preferencja wyświetlania (jak `theme`), a kierunek utraty
 jest bezpieczny — po cyklu nikt nie widzi propozycji, których nie chciał,
 najwyżej włączy półkę jeszcze raz. Cykl sprawdza
 `tests/Feature/MojStolTest.php::test_rollback_migracji_zdejmuje_kolumne_i_wraca_wylaczony`.
+
+### skladniki_odzywcze
+
+**Wartości odżywcze (V2, D-299)** — trzy tabele: `skladniki_odzywcze`,
+`miary_domowe`, `aliasy_skladnikow`.
+
+Szacunek kcal, białka, tłuszczu i węglowodanów na porcję, liczony w PHP
+(`App\Domain\Recipes\Odzywcze\KalkulatorWartosci`) z otwartych tabel CIQUAL
+2025 i USDA FoodData Central — bez modelu AI. Migracja
+`2026_09_26_400000_create_wartosci_odzywcze_tables`. Trzy tabele są
+**słownikami**: wypełnia je wyłącznie komenda
+`php artisan kuking:importuj-wartosci-odzywcze` z plików
+`database/data/odzywcze/skladniki.csv` i `miary.csv` (źródła i licencje:
+`database/data/odzywcze/ZRODLA.md`). Żadna trasa HTTP do nich nie pisze,
+aplikacja niczego nie pobiera z sieci. Import jest idempotentny i idzie w jednej
+transakcji: po nim baza zawiera dokładnie to, co pliki.
+
+**Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
+po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
+ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
+Żeby zwykły deploy bez zmiany plików CSV nie przepisywał ~600 wierszy za każdym
+razem, komenda liczy hash zawartości obu plików i pomija cały import (bez
+parsowania i bez zapisu), gdy hash jest ten sam co przy poprzednim udanym
+imporcie ORAZ tabela `skladniki_odzywcze` już ma dane — ten drugi warunek jest
+samoleczący: świeża/przywrócona baza z pasującym, starym hashem w cache i tak
+dostanie pełny import. `--wymus` wymusza import mimo pasującego hasza.
+
+`skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
+
+- `klucz varchar(80) UNIQUE` (CHECK `^[a-z0-9_]+$`), `nazwa` — polska nazwa;
+- `zrodlo` (CHECK `ciqual` \| `usda`), `zrodlo_id`, `zrodlo_nazwa` — skąd
+  pochodzą liczby, co do identyfikatora pozycji w źródle;
+- `kcal_100g numeric(7,2)` (CHECK 0–950), `bialko_100g`, `tluszcz_100g`,
+  `weglowodany_100g numeric(6,2)` (CHECK 0–100) — na 100 g części jadalnej;
+- `gestosc_g_ml numeric(5,3) NULL` (CHECK `> 0 AND < 3`) — do przeliczania
+  mililitrów; `NULL` = mililitrów tego składnika nie przeliczamy;
+- `pomijalny boolean` — sól, przyprawy, zioła, woda: wiersz BEZ ilości nie
+  blokuje wyniku (z ilością liczy się normalnie).
+
+### miary_domowe
+
+`miary_domowe` — `skladnik_odzywczy_id` → `skladniki_odzywcze` (`ON DELETE
+CASCADE`), `jednostka varchar(30)` (CHECK `^[a-z]+$`, kody z
+`JednostkiMiary::SLOWA`), `gramy numeric(8,2)` (CHECK `> 0 AND <= 10000`),
+`uwagi`; `UNIQUE (skladnik_odzywczy_id, jednostka)`. Miara jest per składnik,
+bo szklanka mąki (140 g) waży co innego niż szklanka cukru (220 g) —
+`units.unit_type` tego nie rozstrzyga.
+
+### aliasy_skladnikow
+
+`aliasy_skladnikow` — `alias varchar(240) UNIQUE` (CHECK: niepusty i małymi
+literami; zapisany po `ParserSkladnika::normalizuj()` i `oczyscNazwe()`, czyli
+bez ogonków), `skladnik_odzywczy_id` (`ON DELETE CASCADE`, indeks). Formy
+„mąka”, „mąki”, „mąki pszennej” wskazują tę samą pozycję. Ten sam alias przy
+dwóch pozycjach odrzuca import.
+
+**Dlaczego nie klucz obcy do `ingredients`** (jak w szkicu projektu):
+`ingredients` dostaje z formularza CAŁY tekst wiersza („2 szklanki mąki”
+i „mąka” to dwa hasła), więc przypinanie wartości do haseł wymagałoby
+ręcznej pracy przy każdym nowym przepisie. Słownik aliasów robi to raz.
+
+**Rollback (wszystkie trzy tabele):** `down()` zdejmuje trzy tabele. Bezstratnie — to kopia plików
+z repozytorium, którą import odtwarza w całości.
+
+**`recipes.pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true`**
+(migracja `2026_09_26_400100_add_pokazuj_wartosci_odzywcze_to_recipes`) —
+autor może ukryć sekcję przy swoim przepisie (domyślnie widoczna, decyzja
+właściciela z 26.09.2026). Zapisuje ją tylko nazwana akcja
+`UstawWidocznoscWartosci` (bez `$fillable`, bez zmiany `updated_at`
+i bez nowej wersji przepisu). `ADD COLUMN … DEFAULT <stała>` nie przepisuje
+tabeli. **Rollback odmawia (D-088)**, gdy choć jeden przepis ma `false`:
+kolejny `migrate` odtworzyłby kolumnę z `DEFAULT true` i odkrył sekcję, którą
+autor schował. Komunikat mówi, co zapisać przed cofnięciem. Przy samych
+wartościach domyślnych cofnięcie przechodzi
+(`CofniecieMigracjiNiePokazujeUkrytychWartosciTest`).
 
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
@@ -2895,18 +2972,28 @@ sprawy prawne z adresem i pustym znacznikiem liczy
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
 Migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` dopisuje do
-`reports_target_type_check` wartość **`media`**. Dziś trafia tu wyłącznie
-zdjęcie profilowe: model ocenia je po przetworzeniu (`PrzeanalizujAwatar`),
-a oznaczenie wskazuje `media.id`.
+`reports_target_type_check` wartość **`media`**. Wprowadził ją automat oceny
+zdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`.
 
-**Dlaczego zdjęcie, a nie konto.** Indeks `reports_jeden_automat_na_tresc`
+**Stan od D-240: wartości `media` nic dziś nie produkuje.** Zdjęcie profilowe
+nie jest wysyłane do modelu — `AvatarSettingsController` nie zleca
+`PrzeanalizujAwatar`, a samo zadanie jest pustym no-opem zostawionym wyłącznie
+dla zleceń sprzed wdrożenia. Awatar zgłoszony przez człowieka ma cel `user`
+(„Zgłoś” na profilu), nie `media`. Wartość zostaje w ograniczeniu dla
+**historycznych** oznaczeń awatarów sprzed D-240: to sprawy moderacyjne
+z decyzjami i odwołaniami, które dalej dają się rozpatrzyć. Ponowne włączenie
+oceny awatarów wymaga osobnej decyzji z celem zgody, ekranem jej udzielania
+i wycofania oraz sprawdzeniem zgody przed wysyłką
+(`docs/legal/SYGNALY_AUTOMATU.md` §9.1).
+
+**Dlaczego zdjęcie, a nie konto (uzasadnienie z #237).** Indeks `reports_jeden_automat_na_tresc`
 przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
 Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
 a podmiana zdjęcia to sekunda pracy.
 
 **Dlaczego `media`, a nie `avatar`.** `ModeratedContent::TYPY` mapuje klasę
 modelu, a klasa (`App\Models\Media`) jest ta sama dla awatara i dla zdjęcia
-we wpisie. Nazwa `avatar` byłaby prawdziwa dziś i kłamliwa pierwszego dnia,
+we wpisie. Nazwa `avatar` byłaby prawdziwa w #237 i kłamliwa pierwszego dnia,
 w którym oznaczymy zdjęcie z wpisu osobno.
 
 `ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —

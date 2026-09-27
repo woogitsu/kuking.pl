@@ -223,6 +223,7 @@ WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
 # dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
 OBRAZ_KOPII = "docker/kopia/Dockerfile"
+APT_MIGAWKA_TEST = "test_kazdy_apt_get_install_idzie_przez_przypieta_migawke"
 OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
@@ -330,6 +331,16 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
+
+# Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
+# dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
+# nieprawdę („nie zleca”) i test ma zapalić, bo źródłem prawdy jest kod.
+# Mutacja 2 przywraca w DATABASE.md dawne zdanie o aktywnej ocenie awatara.
+KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
+DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
+AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
+DATABASE_DOC = "docs/DATABASE.md"
+AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
@@ -911,16 +922,27 @@ def plan_iac_bez_bramki_produkcji(source):
         "    # przejrzał diff `.railway/**`.\n",
     )
 def railway_cli_bez_przypietej_wersji(source):
-    """KONTROLA DODATNIA: zdejmij przypiętą wersję z instalacji `@railway/cli`.
+    """KONTROLA DODATNIA: zdejmij weryfikację sumy kontrolnej Railway CLI.
 
-    `npm install -g @railway/cli` bez `@X.Y.Z` bierze `latest` w chwili
-    uruchomienia, obok tokenu Railway. `kazda_instalacja_railway_cli_ma_
-    przypieta_wersje` ma zapalić (audyt B10-02).
+    Od #1865 binarka idzie wprost z GitHub Releases (`curl` + `sha256sum -c`),
+    nie przez `npm install -g @railway/cli@X.Y.Z` — pakiet npm pobierał ją
+    bez sprawdzenia sumy. Bez linii `sha256sum -c` pobrany plik trafia na
+    runner obok RAILWAY_TOKEN niezweryfikowany; `RailwayCliPrzypietaWersjaTest`
+    ma zapalić (audyt B10-02).
     """
-    return replace_once(source, "@railway/cli@5.62.1", "@railway/cli")
+    return replace_once(
+        source,
+        '          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -\n',
+        "",
+    )
 
 
 checks = [
+    # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
+    ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
+     lambda s: replace_once(s,
+         "apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install",
+         "apt-get install")),
     # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
     # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
     ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
@@ -1107,6 +1129,12 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
+                            + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
+    ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
+                            "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1176,7 +1204,7 @@ checks = [
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
-    ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+    ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
      railway_cli_bez_przypietej_wersji),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
@@ -1198,6 +1226,13 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
+    # ma zapalić test przepisu z 85% pokrycia.
+    ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
+     lambda s: replace_once(s, "public const PROG_POKRYCIA = 0.9;", "public const PROG_POKRYCIA = 0.8;")),
+    # D-299: licencja CIQUAL (Etalab) wymaga wskazania źródła i wersji.
+    ("Źródła wartości odżywczych bez identyfikatora wersji CIQUAL", "database/data/odzywcze/ZRODLA.md", "WartosciOdzywczeImportTest",
+     lambda s: replace_once(s, "DOI **10.57745/RDMHWY**", "DOI (brak)")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
     ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
@@ -1283,6 +1318,7 @@ for label, filename, _test, mutate in checks:
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
 run_test(AKCJE_SHA_TEST, True)
+run_test(APT_MIGAWKA_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
@@ -1323,6 +1359,7 @@ run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
 run_test(POLITYKA_R2_TEST, True)
+run_test(DOKUMENTACJA_AWATARA_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
