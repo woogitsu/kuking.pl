@@ -141,6 +141,9 @@ class RetencjaSprawIEksportowCzesciowaPorazkaTest extends TestCase
                 'disk' => 'local',
                 'object_key' => "eksporty/paczka-{$n}.zip",
                 'bytes' => 1234,
+                // Gotowa paczka ma datę ukończenia — CHECK
+                // `data_exports_ready_complete_check` (#1365).
+                'completed_at' => now()->subDays($n + 7),
                 'expires_at' => now()->subDays($n),
             ]);
         }, [1, 2, 3]);

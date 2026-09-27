@@ -317,6 +317,10 @@
                         @endif
                     @endif
                 @endauth
+                @guest
+                    <a class="btn btn-secondary" href="{{ route('register', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Załóż konto, żeby obserwować autora</a>
+                    <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Zaloguj się do swojego konta</a>
+                @endguest
             </div>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)
@@ -432,6 +436,8 @@
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
+                    {{-- Planer tygodnia (#27, D-310): prywatny, obok „Zapisuję”. --}}
+                    <x-dodaj-do-planera :recipe="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -545,11 +551,12 @@
                  nie osobnymi kartami w strumieniu. Cień zostaje panelowi wyżej,
                  bo tam stoi „Ugotowałem", i kartom cudzych wykonań i komentarzy
                  niżej. --}}
-            <section class="sekcja-strony">
+            <section class="sekcja-strony" id="skladniki">
                 <h2>Składniki</h2>
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
+                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).
@@ -584,14 +591,22 @@
                         @endif
                         <ul class="ingredient-list">
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                                @php($przeliczony = $wyborPorcji->przelicz($ingredient))
                                 <li>
-                                    {{ $ingredient->ingredient_text }}
+                                    {{-- Przeliczona ilość jest pogrubiona, reszta to zdanie
+                                         autora co do znaku (D-284). Bez przeliczenia —
+                                         dokładnie `ingredient_text`. Jedna linia, żeby Blade
+                                         nie wstawił spacji w środek „300 g”. --}}
+                                    @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                     {{-- „Bez ilości” nie określa sposobu dozowania.
                                          Pokazujemy tekst autora bez dopisków (#878).
                                          BRAK DOPISKU JEST CELOWY (D-232): ten ekran
                                          jest tekstem autora co do znaku. Tryb gotowania
                                          świadomie robi to inaczej — nie „ujednolicaj”. --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                    {{-- Zamiennik od autora (D-284), osobną linią pod
+                                         składnikiem — tekstem ≥ 18 px, nie drobnym dopiskiem. --}}
+                                    @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
                                 </li>
                             @endforeach
                         </ul>
@@ -768,12 +783,24 @@
                 </div>
                 <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
-                {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
-                     po prostu znikała ze strony. SOUL 4.2 wymienia to jako
-                     ryzyko wprost i podaje ten tekst. --}}
-                <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p class="mb-0">Twoje wykonanie będzie pierwsze.</p>
-                </x-empty-state>
+                {{-- Pusty wynik dotyczy tego widza: blokady mogą ukryć wszystkie
+                     wykonania, więc tekst nie ocenia, czy ktoś już gotował. --}}
+                @guest
+                    <x-empty-state title="Nie ma tu widocznych wykonań" action="Załóż konto, żeby dodać wykonanie" :href="route('register')">
+                        <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                    </x-empty-state>
+                    <p class="meta">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+                @else
+                    @can('cook', $recipe)
+                        <x-empty-state title="Nie ma tu widocznych wykonań" action="Dodaj swoje wykonanie" :href="route('cooked.create', $recipe->slug)">
+                            <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                        </x-empty-state>
+                    @else
+                        <x-empty-state title="Nie ma tu widocznych wykonań">
+                            <span>Tutaj pojawią się wykonania dostępne dla Ciebie.</span>
+                        </x-empty-state>
+                    @endcan
+                @endguest
             @endif
         </section>
 
