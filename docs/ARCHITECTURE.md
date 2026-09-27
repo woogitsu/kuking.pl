@@ -286,6 +286,11 @@ uporządkowany zbiór kont, istniejące obserwowania, zależności celu oraz rod
 i korzeń. Dopiero świeża kontrola dostępu pozwala zapisać komentarz razem
 z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
 zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
+`EditComment` przed blokadą komentarza blokuje świeży wiersz konta autora:
+sankcja zatwierdzona wcześniej odcina poprawkę, a poprawka rozpoczęta
+wcześniej kończy się przed sankcją. Kolejność konto → komentarz jest zgodna
+z publikacją odpowiedzi; sam model konta z początku żądania nie rozstrzyga
+uprawnienia do zapisu (#2090).
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
 
 ## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
