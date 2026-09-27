@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Illuminate\Console\Command;
@@ -89,7 +90,7 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
                 $braki = $this->brakujaceKlucze($zdjecie, $stary, $staryDziala);
             } catch (Throwable $e) {
                 $bledy++;
-                $this->error('BŁĄD ODCZYTU: '.$zdjecie->getKey().' — '.$e->getMessage());
+                $this->error('BŁĄD ODCZYTU: '.$zdjecie->getKey().' — '.BezpiecznyBlad::jednaLinia($e));
 
                 continue;
             }

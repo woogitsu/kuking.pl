@@ -15,8 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * `ingredient_text` to dokładnie to, co wpisał człowiek — i to jest wersja
  * pokazywana użytkownikowi. `ingredient_id`, `quantity`, `unit_id` to wynik
- * normalizacji: przydają się do wyszukiwania i przyszłego skalowania porcji,
- * ale nigdy nie nadpisują tekstu autora.
+ * normalizacji: przydają się do wyszukiwania. Skalowanie porcji (V2, D-284)
+ * z nich NIE korzysta — formularze ich nie wypełniają, więc przelicznik czyta
+ * ilość z `ingredient_text` (`App\Domain\Recipes\Porcje\PrzeliczSkladnik`).
+ * Nigdy nie nadpisują tekstu autora.
  */
 class RecipeIngredient extends Model
 {
@@ -40,10 +42,13 @@ class RecipeIngredient extends Model
         'quantity',
         'unit_id',
         'note',
+        // Zamiennik(i) od autora — „margaryna albo olej kokosowy” (D-284).
+        // Treść pisana przez człowieka, jak `note`; nie steruje niczym.
+        'substitutes',
         'position',
         // „Ten składnik nie ma wymiernej ilości" — sól do smaku, mleko ile
-        // weźmie (issue #44). Przy skalowaniu porcji (V2) takiego składnika
-        // się NIE mnoży: trzy szczypty soli są śmieszne, a trzy razy
+        // weźmie (issue #44). Przy skalowaniu porcji (V2, D-284) takiego składnika
+        // się NIE mnoży (`PrzeliczSkladnik`): trzy szczypty soli są śmieszne, a trzy razy
         // „ile weźmie" nie znaczy nic.
         'no_amount',
     ];

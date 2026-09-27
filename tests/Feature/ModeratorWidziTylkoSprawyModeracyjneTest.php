@@ -108,7 +108,7 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
             $przypadki["{$rodzaj} szkicu"] = [$rodzaj, Recipe::STATUS_DRAFT, false];
             $przypadki["{$rodzaj} ukrytego"] = [$rodzaj, Recipe::STATUS_HIDDEN, true];
             // Zdjęty = miękko usunięty, jak na produkcji (`$target->delete()`
-            // w `ModerationController::applyAction()` i `ZdejmijZUrzedu`).
+            // w `RozstrzygnijZgloszenie::applyAction()` i `ZdejmijZUrzedu`).
             // Taki przepis nie jest już rodzicem zdjęcia (`rodzice()` idzie
             // przez scope `SoftDeletes`), więc moderator zdjęcia nie dostaje
             // — właściciel tak, skrótem właściciela.

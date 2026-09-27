@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Moderation\OdpowiedzDlaZglaszajacego;
 use App\Models\Appeal;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,13 +43,26 @@ final class OdpowiedzNaOdwolanieZglaszajacego extends Notification implements Sh
         // wyliczany z UUID-a w pięciu miejscach — i w każdym mógł się rozjechać).
         $numer = $this->odwolanie->report?->numer_sprawy ?? '—';
 
-        return (new MailMessage)
+        $list = (new MailMessage)
             ->subject("Sprawdziliśmy Twoje odwołanie (sprawa nr {$numer})")
             ->greeting('Dzień dobry.')
             ->line($utrzymana
                 ? "Sprawdziliśmy jeszcze raz Twoje odwołanie w sprawie zgłoszenia nr **{$numer}**. **Podtrzymujemy naszą decyzję.**"
                 : "Sprawdziliśmy jeszcze raz Twoje odwołanie w sprawie zgłoszenia nr **{$numer}**. **Zmieniamy naszą decyzję.**")
-            ->line((string) $this->odwolanie->decision_note)
+            ->line((string) $this->odwolanie->decision_note);
+
+        // Co z tego wynikło dla zgłoszonej treści (#989) — to samo zdanie, które
+        // zgłaszający dostaje przy każdej decyzji, i ta sama granica
+        // prywatności: bez rodzaju kary nałożonej na autora (#800). List
+        // wychodzi z kolejki po zatwierdzeniu, więc nowa decyzja już jest.
+        $nowa = $this->odwolanie->decisionAfterAppeal;
+
+        if (! $utrzymana && $nowa !== null) {
+            $skutek = OdpowiedzDlaZglaszajacego::skutek($nowa);
+            $list->line($skutek['naglowek'].' '.$skutek['reszta']);
+        }
+
+        return $list
             ->line('Odwołanie od jednej decyzji rozpatrujemy raz. Jeśli pojawiły się nowe okoliczności, napisz na '
                 .config('kuking.community.contact_email').'.')
             ->salutation('Zespół Kuking.pl');

@@ -7,7 +7,9 @@ namespace Tests\Feature;
 use App\Models\TozsamoscZewnetrzna;
 use App\Support\Facebook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -241,5 +243,309 @@ class OdebranieDostepuFacebookaTest extends TestCase
 
         // I nie może jednocześnie twierdzić, że wszystko jest w porządku.
         $this->assertStringNotContainsString('możesz logować się przyciskiem „Wejdź kontem Facebooka', (string) $html);
+    }
+
+    /**
+     * TABLICA ZAMIAST TEKSTU TO 400, A NIE OSTRZEŻENIE CZY 500 (issue #1344).
+     *
+     * `signed_request[]=x` daje w PHP tablicę. Rzutowanie jej na tekst przed
+     * sprawdzeniem typu emituje „Array to string conversion", a przy
+     * ostrzeżeniach zamienianych na wyjątki publiczny adres odpowiadał 500.
+     * Test idzie z włączonym middleware, bo tak woła ten adres świat.
+     */
+    #[Test]
+    public function test_tablica_zamiast_podpisu_konczy_sie_spokojnym_czterysta(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $poprawny = $this->podpisane($this->trescDomyslna());
+
+        $ksztalty = [
+            'jednoelementowa' => [$poprawny],
+            'zagniezdzona' => [['a' => $poprawny]],
+            'z kluczem' => ['podpis' => 'x', 'dane' => 'y'],
+        ];
+
+        $dziennik = Log::spy();
+
+        foreach ($ksztalty as $nazwa => $wartosc) {
+            $this->withMiddleware()
+                ->post(route('facebook.deauthorize'), ['signed_request' => $wartosc])
+                ->assertStatus(400);
+
+            $this->assertNull($this->znacznik(), "Kształt „{$nazwa}” nie ma prawa niczego zmienić.");
+        }
+
+        // Odrzucenie nie wkłada treści żądania do dziennika.
+        $dziennik->shouldHaveReceived('warning')->withArgs(
+            fn (string $wiadomosc, array $kontekst = []): bool => $kontekst === []
+                && ! str_contains($wiadomosc, $poprawny),
+        )->times(count($ksztalty));
+
+        // Kontrola dodatnia: ten sam podpis podany jako tekst działa.
+        $this->withMiddleware()
+            ->post(route('facebook.deauthorize'), ['signed_request' => $poprawny])
+            ->assertOk();
+
+        $this->assertNotNull($this->znacznik());
+    }
+
+    /**
+     * STARY PODPIS NIE USYPIA POWIĄZANIA PO PONOWNEJ ZGODZIE (issue #1025).
+     *
+     * Kolejność zdarzeń z zgłoszenia: Facebook powiadamia o odebraniu
+     * dostępu, człowiek znów wchodzi kontem Facebooka (znacznik gaśnie),
+     * po czym TO SAMO, poprawnie podpisane powiadomienie przychodzi drugi
+     * raz. Nie może nadpisać nowszej decyzji człowieka.
+     */
+    #[Test]
+    public function test_stary_podpis_nie_usypia_powiazania_po_ponownej_zgodzie(): void
+    {
+        Carbon::setTestNow('2026-09-20 10:00:00');
+
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $stary = $this->podpisane($this->trescDomyslna(['issued_at' => Carbon::now()->addMinutes(5)->getTimestamp()]));
+
+        Carbon::setTestNow('2026-09-20 10:10:00');
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $stary])->assertOk();
+        $this->assertNotNull($this->znacznik(), 'Kontrola wstępna: świeże powiadomienie usypia.');
+
+        // Ponowne powiadomienie przed ponowną zgodą: idempotentne 200.
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $stary])->assertOk();
+        $this->assertNotNull($this->znacznik());
+
+        Carbon::setTestNow('2026-09-20 11:00:00');
+
+        // Człowiek wraca przez ekran zgody Facebooka.
+        $basia->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+        $this->assertNull($this->znacznik());
+
+        Carbon::setTestNow('2026-09-20 11:05:00');
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $stary])->assertOk();
+
+        $this->assertNull($this->znacznik(),
+            'Powiadomienie wystawione przed ponowną zgodą nie może znów uśpić powiązania.');
+        $this->assertFalse($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK));
+
+        // Kontrola dodatnia: powiadomienie wystawione PO ponownej zgodzie działa.
+        $nowy = $this->podpisane($this->trescDomyslna(['issued_at' => Carbon::now()->getTimestamp()]));
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $nowy])->assertOk();
+
+        $this->assertNotNull($this->znacznik(), 'Świeże powiadomienie po ponownej zgodzie ma usypiać.');
+    }
+
+    /**
+     * Powiadomienie spóźnione względem zwykłego wejścia kontem Facebooka
+     * (znacznika jeszcze nie było) też jest nieaktualne — granica zgody
+     * zapisuje się przy każdym wejściu, nie tylko po uśpieniu.
+     */
+    #[Test]
+    public function test_spoznione_powiadomienie_sprzed_zwyklego_wejscia_nic_nie_zmienia(): void
+    {
+        Carbon::setTestNow('2026-09-20 10:00:00');
+
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $wydane = Carbon::now()->addHour()->getTimestamp();
+
+        Carbon::setTestNow('2026-09-20 12:00:00');
+        $basia->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+        $this->post(route('facebook.deauthorize'), [
+            'signed_request' => $this->podpisane($this->trescDomyslna(['issued_at' => $wydane])),
+        ])->assertOk();
+
+        $this->assertNull($this->znacznik());
+    }
+
+    /**
+     * Wiadomość starsza od założenia powiązania (a ponownej zgody nie było)
+     * — granicą jest `connected_at`.
+     */
+    #[Test]
+    public function test_powiadomienie_sprzed_polaczenia_nic_nie_zmienia(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $this->post(route('facebook.deauthorize'), [
+            'signed_request' => $this->podpisane($this->trescDomyslna(['issued_at' => time() - 86400])),
+        ])->assertOk();
+
+        $this->assertNull($this->znacznik());
+    }
+
+    /**
+     * POLITYKA `issued_at`: brak, zły typ i wartość z przyszłości to 400 —
+     * tak samo jak zły podpis. Wiek sam w sobie nie odrzuca (rozstrzyga
+     * granica zgody, test wyżej); mała rozbieżność zegarów przechodzi.
+     */
+    #[Test]
+    public function test_polityka_pola_issued_at(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $bezPola = $this->trescDomyslna();
+        unset($bezPola['issued_at']);
+
+        $odrzucane = [
+            'brak' => $bezPola,
+            'tekst' => $this->trescDomyslna(['issued_at' => (string) time()]),
+            'ułamek' => $this->trescDomyslna(['issued_at' => time() + 0.5]),
+            'null' => $this->trescDomyslna(['issued_at' => null]),
+            'zero' => $this->trescDomyslna(['issued_at' => 0]),
+            'z przyszłości' => $this->trescDomyslna(['issued_at' => time() + 3600]),
+        ];
+
+        foreach ($odrzucane as $nazwa => $tresc) {
+            $this->post(route('facebook.deauthorize'), ['signed_request' => $this->podpisane($tresc)])
+                ->assertStatus(400);
+
+            $this->assertNull($this->znacznik(), "`issued_at` ({$nazwa}) nie ma prawa niczego zmienić.");
+        }
+
+        // Kontrola dodatnia: zegar Facebooka minutę do przodu to nie atak.
+        $this->post(route('facebook.deauthorize'), [
+            'signed_request' => $this->podpisane($this->trescDomyslna(['issued_at' => time() + 60])),
+        ])->assertOk();
+
+        $this->assertNotNull($this->znacznik());
+    }
+
+    /**
+     * Zły podpis na wiadomości „nowszej" od zgody nadal nic nie zmienia —
+     * świeży `issued_at` nie zastępuje podpisu.
+     */
+    #[Test]
+    public function test_zly_podpis_ze_swiezym_issued_at_jest_odrzucany(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+        $basia->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+        $this->post(route('facebook.deauthorize'), [
+            'signed_request' => $this->podpisane($this->trescDomyslna(['issued_at' => time() + 10]), 'nie-nasz-sekret'),
+        ])->assertStatus(400);
+
+        $this->assertNull($this->znacznik());
+    }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): pole `signed_request` dłuższe niż
+     * `LIMIT_BAJTOW_SIGNED_REQUEST` jest odrzucane PRZED `explode`/
+     * `base64_decode`/`hash_hmac` — nie po nich. Kontrola dodatnia niżej
+     * (`test_dlugi_ale_dopuszczalny_podpis_dziala`) dowodzi, że limit nie
+     * odcina prawdziwych, tylko trochę dłuższych wiadomości.
+     */
+    #[Test]
+    public function test_zbyt_dlugi_signed_request_jest_odrzucany_bez_dekodowania(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        // Podpisany PRAWIDŁOWO (ten sam sekret), tylko z ogromnym,
+        // bezsensownym polem dodatkowym w treści — gdyby limit rozmiaru nie
+        // działał, ten podpis by się ZGODZIŁ i powiązanie zostałoby uśpione.
+        $ogromny = $this->podpisane($this->trescDomyslna([
+            'balast' => str_repeat('a', 10_000),
+        ]));
+
+        $this->assertGreaterThan(4096, strlen($ogromny), 'Fixture ma naprawdę przekraczać limit — inaczej nic nie mierzy.');
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $ogromny])
+            ->assertStatus(400);
+
+        $this->assertNull($this->znacznik(),
+            'Limit rozmiaru nie ma prawa przepuścić podpisu tylko dlatego, że jest długi.');
+    }
+
+    /**
+     * KONTROLA DODATNIA do testu wyżej: prawdziwy `signed_request` (rzędu
+     * kilkudziesięciu-kilkuset bajtów) mieści się z dużym zapasem i działa
+     * jak dotąd — limit odcina nadużycie, nie normalny ruch.
+     */
+    #[Test]
+    public function test_dlugi_ale_dopuszczalny_podpis_dziala(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        // Trochę dłuższy niż zwykle (np. dłuższy identyfikator konta), ale
+        // wciąż daleko poniżej limitu 4096 bajtów.
+        $dluzszy = $this->podpisane($this->trescDomyslna(['user_id' => str_repeat('9', 40)]));
+
+        $this->assertLessThan(4096, strlen($dluzszy));
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $dluzszy])->assertStatus(200);
+    }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): CAŁE ciało żądania, dużo większe niż
+     * sam limit pola, jest odrzucane PRZED odpytaniem `$request->input()` —
+     * czyli zanim Laravel w ogóle rozpakuje je do tablicy pól.
+     */
+    #[Test]
+    public function test_zbyt_duze_cialo_zadania_jest_odrzucane(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectFacebook(self::FB_ID);
+
+        $poprawny = $this->podpisane($this->trescDomyslna());
+
+        // `Symfony\Component\HttpFoundation\Request::create()` (którego używa
+        // `$this->call()`) dla POST-a bierze pola WPROST z `$parameters`,
+        // niezależnie od `$content` — więc podajemy oba: `$parameters` z
+        // poprawnym, małym `signed_request` (żeby samo odczytanie pola
+        // działało tak jak w każdym innym teście w tym pliku) i osobno
+        // NAPRAWDĘ duże `$content`, żeby `$request->getContent()` naprawdę
+        // zwróciło coś ponad limit. To odwzorowuje sedno sprawdzenia: kontroler
+        // ma odrzucić żądanie na podstawie SUROWEGO rozmiaru ciała, zanim
+        // zajrzy do jakiegokolwiek pola.
+        $cialo = str_repeat('x', 20_000);
+
+        $this->assertGreaterThan(16384, strlen($cialo), 'Fixture ma naprawdę przekraczać limit całego ciała.');
+
+        $this->call(
+            'POST',
+            route('facebook.deauthorize'),
+            ['signed_request' => $poprawny],
+            [],
+            [],
+            $this->transformHeadersToServerVars(['Content-Type' => 'application/x-www-form-urlencoded']),
+            $cialo,
+        )->assertStatus(400);
+
+        $this->assertNull($this->znacznik(),
+            'Poprawny podpis zatopiony w zbyt dużym ciele żądania nie ma prawa przejść.');
+    }
+
+    /**
+     * TEST REGRESYJNY (issue #1869): trasa ma własny limit żądań
+     * (`facebook_deauthorize`) — po jego wyczerpaniu kolejne żądania z tego
+     * samego adresu IP dostają 429, zamiast bez końca liczyć HMAC i pisać
+     * do logu. Kontrola dodatnia: ruch POD limitem przechodzi normalnie.
+     */
+    #[Test]
+    public function test_limit_zadan_odcina_seryjne_probowanie(): void
+    {
+        $limit = (int) explode(',', (string) config('kuking.limits.facebook_deauthorize'))[0];
+
+        $zly = $this->podpisane($this->trescDomyslna(), 'nie-nasz-sekret');
+
+        for ($i = 0; $i < $limit; $i++) {
+            $this->post(route('facebook.deauthorize'), ['signed_request' => $zly])
+                ->assertStatus(400);
+        }
+
+        $this->post(route('facebook.deauthorize'), ['signed_request' => $zly])
+            ->assertStatus(429);
     }
 }

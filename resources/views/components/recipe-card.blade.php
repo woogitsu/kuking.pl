@@ -1,5 +1,5 @@
 @props(['recipe', 'uklad' => 'wiersz', 'pokazWidocznosc' => false])
-<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel'])>
+<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel']) data-klucz="przepis-{{ $recipe->getKey() }}">
     <div class="flex gap-4 items-start recipe-card-uklad">
         @if($recipe->heroMedia)
             @if($uklad === 'kafel')

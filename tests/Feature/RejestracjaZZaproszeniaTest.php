@@ -410,7 +410,11 @@ class RejestracjaZZaproszeniaTest extends TestCase
                 $this->assertTrue($invite->fresh()->jestWazne());
                 $invite->forceFill(['created_at' => now()->subDays(2), 'expires_at' => now()->subMinute()])->save();
 
-                return Http::response(['success' => true, 'hostname' => 'kuking.pl']);
+                return Http::response([
+                    'success' => true,
+                    'hostname' => parse_url((string) config('app.url'), PHP_URL_HOST),
+                    'action' => 'rejestracja',
+                ]);
             },
             'https://api.pwnedpasswords.com/*' => Http::response('', 200),
         ]);

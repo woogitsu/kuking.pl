@@ -75,9 +75,41 @@ polecenie: vendor/bin/phpunit --no-coverage tests/Feature/FeedTagowNiePokazujeCu
 ocena: DZIURA W POKRYCIU (waski przypadek: wlasny nieopublikowany przepis autora) — nie luka w prywatnosci
 ---
 nazwa: powiadomienie od sprawcy zbanowanego znika z listy i licznika
-plik: app/Models/Notification.php
+plik: app/Domain/Notifications/WidocznoscPowiadomien.php
 zamien: ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
 na: ->whereNotIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
 oczekuj: Failed asserting|licznik
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomieniaWidocznoscTest.php
+ocena:
+---
+nazwa: ukryty wpis otwiera moderator z 2FA (#1018)
+plik: app/Policies/PostPolicy.php
+zamien: return $post->status === Post::STATUS_HIDDEN
+na: return $post->status === Post::STATUS_DRAFT
+oczekuj: Failed asserting|moderator
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:
+---
+nazwa: ukryty wpis nie otwiera moderatorowi bez 2FA (#1018)
+plik: app/Policies/PostPolicy.php
+zamien: return $user->isModerator() && $user->hasTwoFactorConfirmed();
+na: return $user->isModerator();
+oczekuj: Failed asserting|bez 2FA
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:
+---
+nazwa: moderator nie zapisuje ukrytego wpisu do zeszytu (#1018)
+plik: app/Http/Controllers/CollectionController.php
+zamien: $this->authorize('save', $post);
+na: $this->authorize('view', $post);
+oczekuj: Failed asserting|zeszytu
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
+ocena:
+---
+nazwa: moderator nie zglasza ukrytego wpisu (#1018)
+plik: app/Domain/Moderation/Actions/ReportContent.php
+zamien: Post::class => 'report',
+na: Post::class => 'view',
+oczekuj: Failed asserting|zglasza
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorWidziUkrytyWpisTest.php
 ocena:

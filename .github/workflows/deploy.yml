@@ -489,13 +489,16 @@ jobs:
     # Zdecydowanie to włącz — inaczej jedno kliknięcie robi rollback produkcji.
     environment: ${{ github.event.inputs.environment }}
 
+    # RAILWAY_TOKEN nie stoi tu, na poziomie joba (audyt B10-02): token
+    # projektowy Railway trafiałby wtedy do KAŻDEGO kroku — także checkoutu,
+    # konfiguracji Node i instalacji CLI z npm, które go nie potrzebują.
+    # Im więcej kroków go widzi (zwłaszcza instalacja pakietu z npm), tym
+    # większa powierzchnia na wyciek albo niepowołane użycie. Token dostają
+    # WYŁĄCZNIE kroki, które faktycznie wołają `railway` — każdy ma własny
+    # blok `env:` niżej z tą samą definicją (token projektowy jest przypisany
+    # do KONKRETNEGO środowiska Railway, dlatego dwa osobne sekrety, a nie
+    # jeden — to ogranicza szkody: token staginu nie tknie produkcji).
     env:
-      # Token projektowy jest przypisany do KONKRETNEGO środowiska Railway —
-      # dlatego mamy dwa osobne sekrety, a nie jeden. To ogranicza szkody:
-      # token staginu nie tknie produkcji.
-      RAILWAY_TOKEN: ${{ github.event.inputs.environment == 'production'
-        && secrets.RAILWAY_TOKEN_PRODUCTION
-        || secrets.RAILWAY_TOKEN_STAGING }}
       TARGET_ENV: ${{ github.event.inputs.environment }}
       # Nazwa serwisu aplikacyjnego w Railway — JEDNO miejsce, nie trzy.
       #
@@ -523,11 +526,28 @@ jobs:
           node-version: "22"
 
       - name: Instalacja Railway CLI
+        # Wersja PRZYPIĘTA (audyt B10-02): `npm install -g @railway/cli` bez
+        # numeru wersji instaluje cokolwiek jest akurat na `latest` w chwili
+        # uruchomienia — bez locka, bez Dependabota, obok tokenu produkcji.
+        # Przejęta albo zepsuta wersja pakietu wykonałaby się z RAILWAY_TOKEN
+        # w środowisku kroku niżej.
+        #
+        # [do potwierdzenia] 5.62.1 to `npm view @railway/cli version` w dniu
+        # tej zmiany (25.09.2026) — nie ma jej dotąd nigdzie w repo do przejęcia
+        # 1:1. Podnoś ją świadomie, tak jak inne przypięte zależności.
         run: |
-          npm install -g @railway/cli
+          npm install -g @railway/cli@5.62.1
           railway --version
 
       - name: Kontrola połączenia
+        env:
+          # Kotwica YAML (&railway_token): definicja tokenu stoi w JEDNYM
+          # miejscu, a kroki Migracje/Redeploy/Instrukcja cofnięcia niżej
+          # tylko się do niej odwołują (*railway_token) — bez czterech kopii
+          # tego samego wyrażenia do zsynchronizowania ręcznie.
+          RAILWAY_TOKEN: &railway_token ${{ github.event.inputs.environment == 'production'
+            && secrets.RAILWAY_TOKEN_PRODUCTION
+            || secrets.RAILWAY_TOKEN_STAGING }}
         run: |
           set -euo pipefail
           if [ -z "${RAILWAY_TOKEN:-}" ]; then
@@ -558,6 +578,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Migracje
         if: github.event.inputs.action == 'migrate'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           echo "=== Stan migracji PRZED ==="
@@ -580,6 +602,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Redeploy
         if: github.event.inputs.action == 'redeploy'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           # Jeden serwis, bo produkcja ma jeden serwis aplikacyjny w trybie
@@ -623,6 +647,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Instrukcja cofnięcia (niczego nie cofa)
         if: github.event.inputs.action == 'instrukcja-cofniecia'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           echo "=========================================================="

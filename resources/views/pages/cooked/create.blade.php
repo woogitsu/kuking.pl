@@ -41,6 +41,7 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
+                   data-usuwanie-zdjec
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
                    aria-describedby="f-photos-help">
             <label class="pole-zdjecia" for="f-photos">
@@ -48,6 +49,8 @@
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
+                    {{ \App\Support\LimityZdjec::pomocLiczbyZdjec(($zachowane ?? collect())->count()) }}
+                    Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
