@@ -223,6 +223,7 @@ WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
 # dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
 OBRAZ_KOPII = "docker/kopia/Dockerfile"
+APT_MIGAWKA_TEST = "test_kazdy_apt_get_install_idzie_przez_przypieta_migawke"
 OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
@@ -911,16 +912,27 @@ def plan_iac_bez_bramki_produkcji(source):
         "    # przejrzał diff `.railway/**`.\n",
     )
 def railway_cli_bez_przypietej_wersji(source):
-    """KONTROLA DODATNIA: zdejmij przypiętą wersję z instalacji `@railway/cli`.
+    """KONTROLA DODATNIA: zdejmij weryfikację sumy kontrolnej Railway CLI.
 
-    `npm install -g @railway/cli` bez `@X.Y.Z` bierze `latest` w chwili
-    uruchomienia, obok tokenu Railway. `kazda_instalacja_railway_cli_ma_
-    przypieta_wersje` ma zapalić (audyt B10-02).
+    Od #1865 binarka idzie wprost z GitHub Releases (`curl` + `sha256sum -c`),
+    nie przez `npm install -g @railway/cli@X.Y.Z` — pakiet npm pobierał ją
+    bez sprawdzenia sumy. Bez linii `sha256sum -c` pobrany plik trafia na
+    runner obok RAILWAY_TOKEN niezweryfikowany; `RailwayCliPrzypietaWersjaTest`
+    ma zapalić (audyt B10-02).
     """
-    return replace_once(source, "@railway/cli@5.62.1", "@railway/cli")
+    return replace_once(
+        source,
+        '          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -\n',
+        "",
+    )
 
 
 checks = [
+    # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
+    ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
+     lambda s: replace_once(s,
+         "apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install",
+         "apt-get install")),
     # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
     # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
     ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
@@ -1176,7 +1188,7 @@ checks = [
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
-    ("Instalacja @railway/cli bez przypiętej wersji", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+    ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
      railway_cli_bez_przypietej_wersji),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
@@ -1290,6 +1302,7 @@ for label, filename, _test, mutate in checks:
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
 run_test(AKCJE_SHA_TEST, True)
+run_test(APT_MIGAWKA_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
