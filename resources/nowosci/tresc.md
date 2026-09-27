@@ -23,6 +23,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 To, co już działa, ale nie ma jeszcze numeru wydania.
 
+### Szacunkowe wartości odżywcze przepisu
+
+Pod składnikami przepisu możecie zobaczyć szacunkowe wartości na porcję:
+energię, białko, tłuszcz i węglowodany. Pokazujemy liczby tylko wtedy,
+gdy znamy skład co najmniej 90% masy potrawy. Jeśli brakuje ilości ważnego
+składnika, powiemy dlaczego nie możemy ich obliczyć. Pod „Jak to liczymy”
+znajdziecie źródła danych i sposób przeliczania miar. Autor przepisu może
+ukryć tę sekcję i później znów ją pokazać.
+
 ### Moje wpisy
 
 W zakładce „Moje” znajdziecie teraz przycisk „Moje wpisy”. Prowadzi do
