@@ -92,6 +92,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
+NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
 MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
@@ -332,6 +334,16 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
 
+# Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
+# dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
+# nieprawdę („nie zleca”) i test ma zapalić, bo źródłem prawdy jest kod.
+# Mutacja 2 przywraca w DATABASE.md dawne zdanie o aktywnej ocenie awatara.
+KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
+DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
+AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
+DATABASE_DOC = "docs/DATABASE.md"
+AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
+
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
 ZMIANA_ROLI = "app/Domain/Users/Actions/ChangeUserRole.php"
@@ -568,6 +580,12 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
 CHANGELOG_NOWOSCI = "CHANGELOG.md"
 STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
+# Dziennik wdrożeń (issue #1932, D-318, D-088): down() ma ODMÓWIĆ, gdy
+# tabele `wdrozenia`/`wdrozenia_funkcje` mają choć jeden wiersz — numer
+# wdrożenia jest już pokazany ludziom (stopka, „od Alfa 0.NN.NNN"), a cichy
+# DROP TABLE zgubiłby numerację. Mutacja zdejmuje warunek odmowy.
+MIGRACJA_DZIENNIK_WDROZEN = "database/migrations/2026_09_26_130000_utworz_dziennik_wdrozen.php"
+DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -1119,6 +1137,12 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
+                            + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
+    ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
+                            "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1263,6 +1287,15 @@ checks = [
     # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
     ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
      lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
+    # Dziennik wdrożeń (#1932, D-318, D-088): zdjęcie warunku odmowy z down()
+    # ma zapalić strażnika cofnięcia — bez niego migracja ciągnie DROP TABLE
+    # nawet na wypełnionym dzienniku.
+    ("Dziennik wdrożeń: down() bez warunku odmowy", MIGRACJA_DZIENNIK_WDROZEN, DZIENNIK_WDROZEN_TEST,
+     lambda s: replace_once(s, "if ($wierszyWdrozen > 0 || $wierszyFunkcji > 0) {", "if (false) {")),
+    # #1932 (D-318): „Co nowego” przestaje czytać mapę nagłówek → numer
+    # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
+    ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
+     lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
     # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
     # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
     ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
@@ -1343,6 +1376,7 @@ run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
 run_test(POLITYKA_R2_TEST, True)
+run_test(DOKUMENTACJA_AWATARA_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
@@ -1371,6 +1405,7 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
@@ -1379,6 +1414,7 @@ run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
+run_test(DZIENNIK_WDROZEN_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
 run_test(STRAZNIK_MIGRACJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:

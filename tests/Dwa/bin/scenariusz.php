@@ -28,6 +28,7 @@ use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -37,6 +38,7 @@ use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -186,6 +188,37 @@ try {
             });
 
             return (string) $konto->fresh()?->status;
+        })(),
+
+        'opublikuj-wpis-2088' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Kontrola odwróconej kolejności: zatrzymaj publikację dopiero PO
+            // prawdziwym zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2088, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            config(['queue.default' => 'database', 'kuking.community.host_user_id' => $argumenty['gospodarz']]);
+
+            return (string) app(PublishPost::class)->handle(
+                $autor,
+                'Rosół z kuchni 2088.',
+                mediaIds: isset($argumenty['zdjecie']) ? [$argumenty['zdjecie']] : [],
+                tagNames: isset($argumenty['tag']) ? [$argumenty['tag']] : [],
+                kluczWyslania: $argumenty['klucz'],
+            )->getKey();
         })(),
 
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
@@ -543,6 +576,16 @@ try {
                 'zapisane' => $sesja?->get('status'),
             ];
         })(),
+
+        // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
+        // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
+        // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
+        // połączeniu (ten sam klucz), żeby wymusić prawdziwe zderzenie dwóch
+        // równoległych rejestracji pod tą samą etykietą.
+        'zarejestruj-wdrozenie' => app(ZarejestrujWdrozenie::class)->handle(
+            $argumenty['commit'],
+            $argumenty['etykieta'],
+        ),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
