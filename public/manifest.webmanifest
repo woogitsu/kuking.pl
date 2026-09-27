@@ -4,7 +4,7 @@
   "description": "Polska społeczność ludzi, którzy naprawdę gotują. Zdjęcia, przepisy i „Ugotowałem”.",
   "lang": "pl-PL",
   "dir": "ltr",
-  "start_url": "/home",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F3F4F1",
