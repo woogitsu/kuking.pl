@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Kolaż kilku zdjęć we wpisie pokazuje teraz fotografie w ich naturalnych proporcjach, bez szarych pustych pasów. Przy nieparzystej liczbie zdjęć ostatnie zajmuje cały wiersz zamiast zostawiać obok pusty kafel. Zdjęcia nadal można powiększyć i żadne nie jest przycinane.
 - Wewnętrzne: walidator paczki design systemu v3.1 (`07-wdrozenie/sprawdz-paczke.mjs`) rozpoznaje teraz każdy wariant zamknięcia `<script>` dopuszczony przez parser HTML, nie tylko goły `</script>` — `</script foo="bar">` przechodził wcześniej niezauważony i zostawiał treść skryptu w puli tekstu widocznego dla skanu słów zakazanych (CodeQL js/bad-tag-filter #3, #1910). Funkcja odpowiedzialna za to wydzielona do osobnego, testowalnego pliku (`tekst-widoczny.mjs`) z testem regresyjnym.
 
 - Dla osób rozwijających serwis: sześć skryptów pomiarowych (`scripts/bez-javascriptu.mjs`, `fokus-karty-dania.mjs`, `glowka-karty-wpisu.mjs`, `hero-nad-zgieciem.mjs`, `kafel-dodawania.mjs`, `port-projektu.mjs`) nie wypisuje już w logu wartości `DB_DATABASE` — tylko fakt, że nazwa jest ustawiona. Zamyka dwa alerty CodeQL `js/clear-text-logging`. Nowy strażnik `tests/Feature/SkryptyNieLogujaWartosciZmiennychWrazliwychTest.php` skanuje `scripts/` i `.github/workflows/` pod kątem logowania wartości zmiennych o nazwach TOKEN/SECRET/KEY/PASSWORD/DSN (#1949).
