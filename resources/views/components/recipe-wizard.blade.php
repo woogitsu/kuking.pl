@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
@@ -27,7 +28,7 @@ use Livewire\WithFileUploads;
  * skasować niczego, co człowiek już wpisał. Dlatego:
  *
  *  - szkic zapisuje się po każdym kroku ORAZ po ~3 s bezczynności w polu
- *    (wire:model.live.debounce.3000ms → hook updated() → saveDraft()),
+ *    (wire:model.live.debounce.3000ms → hook updated() → autozapis(), bez wersji przepisu),
  *  - jeden szkic na całą sesję kreatora: pierwszy zapis tworzy przepis,
  *    każdy następny go aktualizuje (dlatego $recipeId jest #[Locked]),
  *  - nieudana walidacja NICZEGO nie czyści — komunikat pojawia się nad
@@ -235,7 +236,7 @@ new class extends Component
             return;
         }
 
-        if (! $this->saveDraft()) {
+        if (! $this->autozapis()) {
             if (! $this->validateAboutStep()) {
                 $this->step = 1;
             } else {
@@ -254,7 +255,7 @@ new class extends Component
 
         // Zapis PRZED cofnięciem — inaczej „Wstecz” wyglądałoby jak utrata
         // tego, co człowiek właśnie wpisał.
-        $this->saveDraft();
+        $this->autozapis();
 
         $this->step = max($this->step - 1, 1);
     }
@@ -302,7 +303,7 @@ new class extends Component
     public function addIngredient(): void
     {
         $this->ingredients[] = $this->blankIngredient();
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function removeIngredient(int $index): void
@@ -313,19 +314,19 @@ new class extends Component
             $this->ingredients = [$this->blankIngredient()];
         }
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveIngredientUp(int $index): void
     {
         $this->ingredients = $this->swapRows($this->ingredients, $index, $index - 1);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveIngredientDown(int $index): void
     {
         $this->ingredients = $this->swapRows($this->ingredients, $index, $index + 1);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     // -----------------------------------------------------------------
@@ -335,7 +336,7 @@ new class extends Component
     public function addStep(): void
     {
         $this->steps[] = $this->blankStep();
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function removeStep(int $index): void
@@ -346,19 +347,19 @@ new class extends Component
             $this->steps = [$this->blankStep()];
         }
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveStepUp(int $index): void
     {
         $this->replaceSteps($this->swapRows($this->steps, $index, $index - 1));
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveStepDown(int $index): void
     {
         $this->replaceSteps($this->swapRows($this->steps, $index, $index + 1));
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     /** Zmiana pozycji przenosi również błędy; usunięcie zabiera tylko błędy usuwanego kroku. */
@@ -398,14 +399,57 @@ new class extends Component
         }
 
         $this->resetErrorBag($property);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
+    /**
+     * „Zapisz zmiany” / „Zapisz szkic” — świadomy zapis człowieka.
+     *
+     * Na opublikowanym przepisie TYLKO ta droga (i `wyjdz()`) zostawia nową
+     * wersję w historii (decyzja właściciela z 24.09.2026, issue #1316).
+     * Autozapis po ~3 s, „Dalej” i „Wstecz” zapisują treść bez wersji —
+     * inaczej każda pauza w pisaniu dawałaby wersję, a sklejanie ich
+     * w jedną nadpisywałoby historię, której nadpisywać nie wolno.
+     */
     public function saveDraft(): bool
+    {
+        return $this->zapiszSzkic(wersja: true);
+    }
+
+    /**
+     * Wyjście z kreatora na opublikowanym przepisie: zapis z wersją i powrót.
+     * Nieudany zapis zostawia człowieka w formularzu z komunikatem — nic nie
+     * znika po cichu. Bez JavaScriptu link prowadzi zwykłym `href`.
+     */
+    public function wyjdz(): void
+    {
+        if (! $this->zapiszSzkic(wersja: true)) {
+            return;
+        }
+
+        $this->redirect(route('home'));
+    }
+
+    /** Zapis w tle (pola, „Dalej”, „Wstecz”) — nigdy nie tworzy wersji przepisu. */
+    private function autozapis(): bool
+    {
+        return $this->zapiszSzkic(wersja: false);
+    }
+
+    private function zapiszSzkic(bool $wersja): bool
     {
         $this->acknowledgedRevision = $this->editRevision;
 
         if ($this->savedThisRequest) {
+            /*
+             * Livewire wysyła zmianę pola i kliknięcie „Zapisz zmiany” jednym
+             * żądaniem: `updated()` zapisał już treść autozapisem (bez wersji).
+             * Świadomy zapis nie może przez to zgubić swojej wersji.
+             */
+            if ($wersja && $this->saveState === 'saved' && ($recipe = $this->existingRecipe()) !== null && $recipe->isPublished()) {
+                app(SnapshotRecipeVersion::class)->poprawka($recipe, auth()->user());
+            }
+
             return $this->saveState === 'saved';
         }
 
@@ -438,7 +482,7 @@ new class extends Component
         }
 
         try {
-            $this->persist(publish: false);
+            $this->persist(publish: false, wersjaPoprawki: $wersja);
         } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = ($this->juzOpublikowany ? 'Nie udało się zapisać zmian: ' : 'Nie udało się zapisać szkicu: ').$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
@@ -482,20 +526,20 @@ new class extends Component
             $this->step = collect($this->getErrorBag()->keys())->contains(fn (string $klucz) => str_starts_with($klucz, 'steps'))
                 ? 3
                 : 1;
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
 
         if (! $this->validateAboutStep()) {
             $this->step = 1;
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
 
         if (! $this->validateRows()) {
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
@@ -512,7 +556,7 @@ new class extends Component
         if ($this->cleanSteps() === []) {
             $this->step = 3;
             $this->addError('steps', $this->juzOpublikowany ? 'Opisz przynajmniej jeden krok przygotowania, żeby zapisać zmiany. Tekst jest dalej w formularzu.' : 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
@@ -521,7 +565,7 @@ new class extends Component
             $recipe = $this->persist(publish: true);
         } catch (BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
@@ -567,7 +611,7 @@ new class extends Component
         return true;
     }
 
-    private function persist(bool $publish): Recipe
+    private function persist(bool $publish, bool $wersjaPoprawki = false): Recipe
     {
         $recipe = app(PublishRecipe::class)->handle(
             author: auth()->user(),
@@ -591,6 +635,7 @@ new class extends Component
             steps: $this->cleanSteps(),
             publish: $publish,
             existing: $this->existingRecipe(),
+            wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
         );
 
@@ -668,7 +713,7 @@ new class extends Component
         $this->steps[$index]['mediaId'] = null;
         $this->steps[$index]['photo'] = null;
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     private function storePendingHeroPhoto(): bool
@@ -873,11 +918,13 @@ new class extends Component
         return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel(afterNa: true);
     }
 
+    /** Ta sama reguła co na stronie przepisu i w filtrze „Do 30 minut" (#1090). */
     public function totalMinutes(): ?int
     {
-        $total = (int) $this->intOrNull($this->prep_minutes) + (int) $this->intOrNull($this->cook_minutes);
-
-        return $total > 0 ? $total : null;
+        return (new Recipe([
+            'prep_minutes' => $this->intOrNull($this->prep_minutes),
+            'cook_minutes' => $this->intOrNull($this->cook_minutes),
+        ]))->totalMinutes();
     }
 
     // -----------------------------------------------------------------
@@ -1144,8 +1191,10 @@ new class extends Component
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
             <div class="siatka-pol">
+                {{-- Krok 0,01 musi się zgadzać z regułą `decimal:0,2` wyżej (#750),
+                     inaczej zapisana 1,25 jest dla przeglądarki `stepMismatch`. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal" wire="servings"
-                         :value="$servings" :min="0.5" :max="999" :step="0.5" />
+                         :value="$servings" :min="0.5" :max="999" :step="0.01" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric" wire="prep_minutes"
                          :value="$prep_minutes" :min="0" :max="10080" />
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric" wire="cook_minutes"
@@ -1553,7 +1602,7 @@ new class extends Component
         @endif
 
         <button class="btn btn-secondary" type="button" wire:click="saveDraft">{{ $juzOpublikowany ? 'Zapisz zmiany' : 'Zapisz szkic' }}</button>
-        <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
+        <a class="btn btn-quiet" href="{{ route('home') }}" @if($juzOpublikowany) wire:click.prevent="wyjdz" @endif>Nie teraz</a>
     </div>
 
     @if($step === 1)
