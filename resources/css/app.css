@@ -52,6 +52,8 @@
 /* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
    Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
 @import "./wpis-nawigacja-sasiedzi.css";
+/* Szacunkowe wartości odżywcze pod składnikami przepisu (D-299). */
+@import "./wartosci-odzywcze.css";
 
 @layer components {
 
@@ -2691,18 +2693,12 @@
      KOLAŻ (issue #92)
 
      KOLAŻ NIE OBCINA JEDZENIA
-     Pola siatki są równe (kwadrat), ale zdjęcie mieści się w polu w CAŁOŚCI:
-     `object-fit: contain`, nie `cover`. Kadrowanie do kwadratu ucina to, co
-     człowiek chciał pokazać — a zdjęcie jedzenia jest w tym produkcie samą
-     treścią wpisu, nie tłem pod tekstem.
-
-     Cena jest widoczna: przy zdjęciach o różnych proporcjach zostają puste
-     marginesy na tle `--color-surface-sunken`. To jest świadomy wybór —
-     pusty margines da się zignorować, uciętego jedzenia nie da się odzyskać.
+     Dwa zdjęcia w wierszu dzielą szerokość według własnych proporcji.
+     Pokazują się całe, z równą wysokością, bez szarego kwadratu z pustymi
+     pasami. Samotne ostatnie zdjęcie wypełnia kolejny wiersz.
 
      NA WĄSKIM TELEFONIE KOLAŻ SCHODZI DO JEDNEJ KOLUMNY — DECYZJA WŁAŚCICIELA
-     Przy 320 px pole ma około 155 px, a przy zdjęciu poziomym zostaje z tego
-     jakieś 116 px wysokości obrazu. To jest za mało, żeby obejrzeć jedzenie —
+     Przy 320 px połowa karty jest za mała, żeby obejrzeć jedzenie —
      a oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
      Poniżej 30rem kolaż pokazuje się więc jako zwykła lista dużych zdjęć.
 
@@ -2715,84 +2711,78 @@
 
   .kolaz {
     display: grid;
-    gap: 2px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-2);
     margin: 0;
     padding: 0;
-    list-style: none;
+  }
+
+  .kolaz-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--spacing-2);
   }
 
   .kolaz-pole {
-    aspect-ratio: 1;
-    background-color: var(--color-surface-sunken);
-    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
   }
+
+  /* Skok co 1/8 proporcji obrazu wystarcza do wyrównania pary bez
+     stylów inline, które blokuje produkcyjny CSP. */
+  .kolaz-format-4 { flex-grow: 4; }
+  .kolaz-format-5 { flex-grow: 5; }
+  .kolaz-format-6 { flex-grow: 6; }
+  .kolaz-format-7 { flex-grow: 7; }
+  .kolaz-format-8 { flex-grow: 8; }
+  .kolaz-format-9 { flex-grow: 9; }
+  .kolaz-format-10 { flex-grow: 10; }
+  .kolaz-format-11 { flex-grow: 11; }
+  .kolaz-format-12 { flex-grow: 12; }
+  .kolaz-format-13 { flex-grow: 13; }
+  .kolaz-format-14 { flex-grow: 14; }
+  .kolaz-format-15 { flex-grow: 15; }
+  .kolaz-format-16 { flex-grow: 16; }
+  .kolaz-format-17 { flex-grow: 17; }
+  .kolaz-format-18 { flex-grow: 18; }
+  .kolaz-format-19 { flex-grow: 19; }
+  .kolaz-format-20 { flex-grow: 20; }
+  .kolaz-format-21 { flex-grow: 21; }
+  .kolaz-format-22 { flex-grow: 22; }
+  .kolaz-format-23 { flex-grow: 23; }
+  .kolaz-format-24 { flex-grow: 24; }
 
   .kolaz-pole .photo-zoom-media,
   .kolaz-pole .post-photo {
     width: 100%;
-    height: 100%;
+    height: auto;
   }
 
   .kolaz-pole .post-photo {
     object-fit: contain;
   }
 
-  /* Kwadrat należy do zdjęcia, podpis linku ma własne miejsce pod nim. */
-  .kolaz-pole:has(.photo-zoom) {
-    aspect-ratio: auto;
-  }
-
-  .kolaz-pole .photo-zoom-media {
-    aspect-ratio: 1;
-    height: auto;
-  }
-
   /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
      ZMIERZONE 12.09.2026, kolaż z trzema zdjęciami bez wariantów: przy 600 px
-     blok zastępczy miał 282 px z 568 px karty (50%) i komunikat łamał się na
-     15 wierszy; przy 768 px — 342 px z 688 px i 12 wierszy. To jest dokładnie
-     to, co widać na zrzucie właściciela: „mniej niż połowa szerokości karty,
-     a po prawej pusty biały obszar".
-
-     Kwadratowe pół karty jest dobrą miarą dla ZDJĘCIA i złą dla ZDANIA.
-     `grid-column: 1 / -1` daje temu jednemu polu obie kolumny, a
-     `aspect-ratio: auto` zdejmuje z niego kwadrat — komunikat jest wysoki na
-     tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
-
-     `:has()` NIE JEST TU RYZYKIEM. Przeglądarka, która go nie zna, pomija
-     całą regułę i dostaje układ sprzed tej zmiany — czyli gorszy, ale
-     działający. To jest ulepszenie stopniowe, nie warunek czytelności:
-     samą szerokość bloku w jego polu załatwia `width: 100%` na
-     `.photo-placeholder`, bez żadnego `:has()`. */
+     blok zastępczy miał tylko połowę karty. Wiersz zawija pole zastępcze
+     na pełną szerokość, aby komunikat pozostał czytelny. */
   .kolaz-pole:has(.photo-placeholder) {
-    grid-column: 1 / -1;
-    aspect-ratio: auto;
+    flex-basis: 100%;
   }
 
   /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
-     dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
-     sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
-     widać. `aspect-ratio: auto` zdejmuje kwadrat, a `height: auto` pozwala
-     zdjęciu zająć tyle, ile potrzebuje. */
+     dokładnie to samo, co widok „zwykły". */
   @media (max-width: 30rem) {
     .kolaz {
       grid-template-columns: minmax(0, 1fr);
       gap: var(--spacing-3);
     }
 
-    .kolaz-pole {
-      aspect-ratio: auto;
-      background-color: transparent;
-    }
-
-    .kolaz-pole .photo-zoom-media,
-    .kolaz-pole .post-photo {
-      height: auto;
-    }
-
-    .kolaz-pole .photo-zoom-media {
-      aspect-ratio: auto;
+    .kolaz-wiersz {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
     }
   }
 

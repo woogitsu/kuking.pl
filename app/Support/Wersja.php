@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Wersja aplikacji pokazywana w stopce.
@@ -43,6 +45,15 @@ use Carbon\CarbonImmutable;
  * klasę wyjątku, plik:linię i wzorzec trasy — bez numeru wydania. Powiązanie
  * zgłoszenia z commitem robi się dziś ręcznie, przez stopkę, i to jest jedyny
  * powód, dla którego ten skrót w ogóle w niej stoi.
+ *
+ * KOŃCÓWKA WDROŻENIA — „.005" PO ETYKIECIE (issue #1932, D-318)
+ * Etykieta sama w sobie stoi tygodniami. Między dwoma jej podbiciami ląduje
+ * na produkcji po kilkanaście wdrożeń dziennie, a stopka nie miała jak ich
+ * rozróżnić — dwa różne wdrożenia tego samego dnia wyglądały identycznie,
+ * dopóki ktoś nie porównał skrótów commitów z pamięci. `etykietaZNumerem()`
+ * dokłada więc numer kolejny w dzienniku `wdrozenia`, liczony PRZEZ
+ * `kuking:zarejestruj-wdrozenie` w kroku wdrożenia (`.railway/railway.ts`),
+ * nie przez tę klasę — `Wersja` tylko CZYTA już zapisaną wartość, z cache'em.
  */
 final class Wersja
 {
@@ -59,7 +70,7 @@ final class Wersja
      */
     public static function pelna(): string
     {
-        return self::etykieta().' · '.self::opisWydania();
+        return self::etykietaZNumerem().' · '.self::opisWydania();
     }
 
     /**
@@ -158,16 +169,7 @@ final class Wersja
      */
     public static function kotwicaWydania(): string
     {
-        $tekst = mb_strtolower(trim(self::etykieta()));
-        $tekst = str_replace(' ', '-', $tekst);
-
-        $wynik = '';
-
-        foreach (mb_str_split($tekst) as $znak) {
-            if ($znak === '-' || $znak === '_' || preg_match('/\p{L}|\p{N}/u', $znak) === 1) {
-                $wynik .= $znak;
-            }
-        }
+        $wynik = SlugGfm::z(self::etykieta());
 
         return $wynik !== '' ? $wynik : 'najnowsze-zmiany';
     }
@@ -196,5 +198,68 @@ final class Wersja
         }
 
         return substr($commit, 0, self::DLUGOSC_SKROTU);
+    }
+
+    /**
+     * Etykieta z KOŃCÓWKĄ wdrożenia, np. „Alfa 0.68.005" — issue #1932,
+     * D-318. Bez wiersza w `wdrozenia` dla bieżącego commita (lokalnie,
+     * w testach, przy awarii bazy albo przed pierwszym uruchomieniem
+     * `kuking:zarejestruj-wdrozenie` na tym commicie) zostaje SAMA etykieta,
+     * bez błędu — dokładnie ten sam wybór co przy braku znacznika daty.
+     *
+     * CELOWO NIE JEST TYM, CO ZWRACA `etykieta()`. `etykieta()` musi
+     * zostać czystą wartością z `config/kuking.php` — czyta ją dosłownie
+     * `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując z nagłówkiem
+     * CHANGELOG-a w formacie `Alfa 0.N` / `Beta 0.N`, BEZ końcówki. Gdyby
+     * `etykieta()` doklejała numer, ten strażnik przestałby cokolwiek
+     * sprawdzać.
+     */
+    public static function etykietaZNumerem(): string
+    {
+        $numer = self::numerWdrozenia();
+
+        if ($numer === null) {
+            return self::etykieta();
+        }
+
+        return self::etykieta().'.'.str_pad((string) $numer, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Końcówka wdrożenia (`wdrozenia.numer`) dla BIEŻĄCEGO commita, albo
+     * `null`, gdy nie wiadomo (brak commita, brak wiersza, baza
+     * niedostępna). Z CACHE'M — ta metoda woła się z KAŻDEJ stopki, na
+     * każdej stronie serwisu, więc bez cache'u byłoby to jedno dodatkowe
+     * zapytanie do bazy na każde żądanie, na zawsze (issue #1932 wprost
+     * tego wymaga: „stopka … z cache").
+     *
+     * Klucz cache'u niesie sam commit — inny commit (nowe wdrożenie) sam
+     * unieważnia poprzedni wpis, bez ręcznego czyszczenia. TTL jest długi
+     * (commit się przecież nie zmienia pod tym samym wdrożeniem), ale
+     * SKOŃCZONY: gdyby coś zarejestrowało wiersz PO tym, jak ta metoda już
+     * raz zwróciła `null` i to zapisała w cache'u (np. wyścig przy starcie),
+     * błąd naprawia się sam po wygaśnięciu, bez restartu procesu.
+     *
+     * BRAK TABELI/BAZY NIE WYWALA STOPKI — ten sam wybór co przy
+     * `dataWydania()`: uszkodzone albo niedostępne źródło ma zabrać jedną
+     * informację, nie całą stronę (łącznie ze stroną logowania).
+     */
+    public static function numerWdrozenia(): ?int
+    {
+        $commit = self::commit();
+
+        if ($commit === null) {
+            return null;
+        }
+
+        try {
+            return Cache::remember('kuking:wersja:numer:'.$commit, now()->addMinutes(10), static function () use ($commit): ?int {
+                $numer = DB::table('wdrozenia')->where('commit', $commit)->value('numer');
+
+                return is_int($numer) ? $numer : (is_numeric($numer) ? (int) $numer : null);
+            });
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

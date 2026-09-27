@@ -47,6 +47,40 @@ final class ZamekZapisuDoZeszytu
         .'Odśwież stronę i wybierz zeszyt jeszcze raz.';
 
     /**
+     * Mutacja istniejącego zeszytu bez nowej treści: świeży właściciel,
+     * świeży zeszyt i Policy w tej samej transakcji co zapis (#2094).
+     * Kolejność konto → zeszyt jest zgodna z `zapisz()` poniżej.
+     *
+     * @template T
+     *
+     * @param  Closure(User, Collection): T  $mutacja
+     * @return T
+     */
+    public function mutuj(User $user, Collection $zeszyt, Closure $mutacja): mixed
+    {
+        if (ZamekKonta::trzymanyWTymProcesie()) {
+            throw new LogicException('Mutację zeszytu wywołaj poza zamkiem pojedynczego konta.');
+        }
+
+        return DB::transaction(static function () use ($user, $zeszyt, $mutacja): mixed {
+            $aktor = User::query()->whereKey($user->getKey())->lock('FOR NO KEY UPDATE')->first();
+            if ($aktor === null) {
+                throw new BladDlaCzlowieka(self::BRAK_ZESZYTU);
+            }
+
+            $cel = Collection::query()->whereKey($zeszyt->getKey())
+                ->where('owner_id', $aktor->getKey())->lock('FOR NO KEY UPDATE')->first();
+            if ($cel === null) {
+                throw new BladDlaCzlowieka(self::BRAK_ZESZYTU);
+            }
+
+            Gate::forUser($aktor)->authorize('update', $cel);
+
+            return $mutacja($aktor, $cel);
+        });
+    }
+
+    /**
      * `$zeszyt === null` znaczy zeszyt domyślny. Zeszyt wskazany, którego już
      * nie ma, to odmowa — NIE cichy zapis do domyślnego.
      *
