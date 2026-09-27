@@ -25,10 +25,10 @@ node --version        # musi być >= 22
 npm install -g @railway/cli
 railway --version     # musi być >= 5.42.1 (IaC wymaga tej wersji)
 
-# Klient PostgreSQL (backupy i restore drill)
-#   macOS:   brew install libpq && brew link --force libpq
-#   Debian:  sudo apt-get install postgresql-client
-pg_dump --version
+# Backupy i restore drill wymagają klienta PostgreSQL 18. Nie instaluj
+# ogólnego postgresql-client na Debianie Trixie (daje wersję 17).
+# Awaryjny zrzut klientem 18 z przypiętego obrazu: KOPIE_I_ODTWORZENIE.md.
+docker --version
 
 # GitHub CLI (opcjonalnie, ułatwia ustawianie sekretów)
 gh --version
