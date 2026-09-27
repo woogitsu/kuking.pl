@@ -438,7 +438,9 @@
             @default
                 <div class="photo-grid">
                     @foreach($post->media as $media)
-                        <x-photo :media="$media" :priority="$priority && $loop->first" />
+                        <x-photo :media="$media"
+                                 :priority="$priority && $loop->first"
+                                 :alt="$media->alt_text ?: 'Zdjęcie '.$loop->iteration.' z '.$loop->count.' w tym wpisie'" />
                     @endforeach
                 </div>
         @endswitch
