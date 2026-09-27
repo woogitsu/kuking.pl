@@ -83,7 +83,8 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
         $this->assertSame('obecny@example.test', $user->fresh()->email);
         $confirmation = $this->get(route('facebook.link.confirm', ['token' => $token]));
         $this->assertSame(200, $confirmation->status(),
-            'Link potwierdzający skierował na: '.(string) $confirmation->headers->get('Location'));
+            'Link potwierdzający skierował na: '.(string) $confirmation->headers->get('Location')
+            .' / powód: '.(string) session('status'));
         $this->assertFalse($user->fresh()->hasFacebookConnected());
 
         $this->post(route('facebook.link.store'), ['proof_token' => $token])
