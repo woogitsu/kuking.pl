@@ -1002,6 +1002,19 @@ osoby, która klika w pośpiechu.
 📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
 `resources/views/pages/settings/data.blade.php` · D-018
 
+### Uzupełnienie: ponowny wniosek rozpoczyna nową karencję (#2023)
+
+Każdy wniosek dostaje osobny `users.delete_request_generation` (UUID), także
+gdy dwa zgłoszenia przypadają w tej samej sekundzie. Migracja nadaje UUID
+również wnioskom oczekującym w chwili wdrożenia. Egzekutor przekazuje do
+`EraseAccountData` generację wybraną z listy kont po terminie. Akcja porównuje
+ją z bieżącą generacją **pod blokadą wiersza konta** i sprawdza, czy bieżące
+30 dni już minęło. Po cofnięciu i
+ponownym zgłoszeniu stary przebieg egzekutora pomija konto, nawet jeśli
+ponownie widzi status `pending_delete`. Dokończenie kasowania zdjęć po już
+wykonanym wymazaniu oraz odtworzenie wymazania z dziennika po przywróceniu
+bazy zachowują własne ścieżki; to nie są nowe wnioski o usunięcie.
+
 ---
 
 ## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu
@@ -17476,9 +17489,6 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
-
----
-
 ## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
@@ -17827,6 +17837,38 @@ i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
 
 📄 `app/Domain/Ukrycia/Ukrycia.php` · `app/Http/Controllers/UkryciaController.php` ·
 `tests/Feature/UkryjWpisIOsobeTest.php` · `tests/Feature/CofniecieMigracjiUkrycNieOdslaniaTest.php` · D-275 · D-276
+
+## D-279 — Zwijanie serii w Obserwowanych i jeden wpis na autora w tygodniowym liście (#1812, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1812) · Status: **obowiązuje**
+
+Dwie reguły z listy D-275, obie po czasie, żadna po reakcjach:
+
+1. **Zwijanie serii (Obserwowani).** Więcej niż dwa kolejne wpisy tej samej
+   osoby na stronie — albo, od D-277, tego samego tagu (karty „Z tagu: …”) —
+   stoją jako dwa wpisy i `<details>` „{nazwa}: jeszcze N wpisów — Pokaż”.
+   Kolejność dokładnie ta z `FollowingFeed`, żaden wpis nie znika, bez JS.
+   W obrębie jednej strony (seria rozcięta przez „Pokaż więcej” zaczyna się
+   od nowa). Nazwa dosłownie, przed dwukropkiem; tag jako „Tag {nazwa}”.
+   `App\Domain\Feed\SerieWpisow`.
+2. **Tygodniowy list: najwyżej jeden wpis na autora** w sekcji obserwowanych —
+   najnowszy. Równość autorów: gospodarz publikujący codziennie nie zajmuje
+   całej sekcji. Dwa okna `row_number()` w `ZbierzTresciDigestu` (na autora,
+   potem na adresata), oba po `published_at`.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Gdy ktoś opublikuje kilka wpisów pod rząd, na Starcie widzisz dwa, a resztę
+> po naciśnięciu „Pokaż” — nic nie znika i kolejność się nie zmienia.
+> W tygodniowym e-mailu od każdej obserwowanej osoby jest jeden, najnowszy wpis.
+
+### Wycofanie
+
+Bez migracji: zdjąć grupowanie w `pages/home.blade.php` i wewnętrzne okno
+w `ZbierzTresciDigestu::wpisyObserwowanych()`.
+
+📄 `app/Domain/Feed/SerieWpisow.php` · `app/Domain/Digest/ZbierzTresciDigestu.php` ·
+`tests/Feature/ZwijanieSeriiWObserwowanychTest.php` · D-275 · D-277
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
@@ -17925,6 +17967,124 @@ Każdy element ma własną migrację z `down()` odmawiającym przy decyzjach
 ludzi (D-088) — opis w `docs/DATABASE.md` („Urodziny bez roku”). Wysyłkę
 maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
 
+
+---
+
+## D-304 — „Mój stół”: dobrowolna półka przepisów wyłącznie z zamkniętej listy doboru (#1749, D-275, 26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (26.09: „budujemy teraz”,
+twardy warunek: dobór wyłącznie z zamkniętej listy D-275) · Status: **obowiązuje**
+
+### Decyzja
+
+Budujemy „Mój stół” z issue #1749 — prywatną, **dobrowolną** półkę przepisów
+pod `/moj-stol`, ze skrótem w prawej szynie Startu. Obserwowani i „Świeżo
+z Kuking” zostają bez zmian (chronologia, D-276, D-277).
+
+**Dobór — tylko reguły z AGENTS.md §8 (D-275):**
+
+1. „Z tagów, które obserwujesz” — jawne polecenie widza (obserwowane, aktywne
+   tagi), w nim czas i równość autorów: najnowszy przepis każdej osoby, potem
+   od najnowszego, najwyżej 6 (`MojStol::NA_POLCE_Z_TAGOW`).
+2. „Wybór gospodarza: tag …” — oznaczony wybór gospodarza: pierwszy tag z listy
+   `tag_promotions` (w kolejności gospodarza), którego widz **nie** obserwuje
+   i w którym jest co pokazać; w nim czas i równość autorów, najwyżej 3.
+   To jest obowiązkowa pula „nowego tematu” z issue (przeciw bańce) i zimny
+   start dla kogoś bez obserwowanych tagów.
+3. Przed wyborem: bramki i blokady (publiczny, opublikowany, wskazuje widoczny
+   przepis, aktywne konto autora, blokady w obie strony) oraz ukrycia widza
+   z #1810 — wpis **i osoba** (półka to podsunięcie, jak Odkrywanie, D-278).
+   Własne przepisy widza pomijamy.
+4. Najwyżej jeden przepis od osoby na całej półce.
+5. „kuKINGi na dziś” (dopisane 26.09 po odpowiedzi właściciela, PR #1875) —
+   oznaczony wybór gospodarza na dziś (`daily_picks`, tylko wpisy wskazujące
+   przepis), w kolejności gospodarza (`daily_picks.position`), najwyżej 3
+   (`MojStol::NA_POLCE_NA_DZIS`). Trzecia sekcja półki z własnym nagłówkiem
+   i „Pokazujemy, bo gospodarz wybrał ten przepis na dziś.” Te same filtry co
+   reszta półki — **także ukrycie osoby** (na tablicy dnia ukrycie osoby
+   wyboru gospodarza nie zdejmuje, D-278; na półce właściciel chce jednego
+   zestawu filtrów). Autor, który już stoi na półce, nie wchodzi drugi raz;
+   z dwóch wyborów jednej osoby zostaje pierwszy w kolejności gospodarza.
+
+**„Dlaczego to widzę”** — reguła jednym zdaniem na półce, w szynie (odnośnik)
+i na stronie pomocy (`MojStol::DLACZEGO`):
+
+> Pokazujemy najnowsze przepisy z tagów, które obserwujesz, z jednego tagu
+> polecanego przez gospodarza i przepisy, które gospodarz wybrał na dziś — po
+> jednym od osoby, bez tego, co ukrywasz, i nigdy według liczby polubień ani
+> Twoich kliknięć.
+
+Przy każdej pozycji: „Pokazujemy, bo obserwujesz tag: …” albo „…bo gospodarz
+poleca tag: …”, i przycisk „Nie pokazuj mi tego” (= „Ukryj ten wpis” z #1810,
+z „Cofnij” i listą „Ukryte”).
+
+### Co z issue #1749 świadomie odpada
+
+- **Zapisane przepisy, ugotowane dania, podobieństwo składników i typu dania
+  jako źródło kandydatów** i „deterministyczny scoring” — to przewidywanie
+  gustu z zachowania widza, poza zamkniętą listą. Wymagałoby osobnej decyzji
+  właściciela (AGENTS.md §8: „reguła spoza tej listy wymaga decyzji
+  właściciela, nie PR-a”).
+- **„Resetuj moje dopasowanie”** — półka niczego nie zapamiętuje, więc nie ma
+  czego resetować. Strona mówi to wprost i prowadzi do listy „Ukryte”
+  i ustawień tagów.
+- **„Ukryj temat”** — ukrycia tagu nie ma jeszcze w #1810 („tag później”).
+  Na półce działa „Zmień obserwowane tagi”; tag od gospodarza po prostu
+  ustępuje następnemu, gdy widz zacznie go obserwować.
+- Metryki przed modelem uczonym (#1814) — model uczony nie powstaje.
+
+### Dane
+
+Jedna kolumna `users.moj_stol_enabled` (`boolean NOT NULL DEFAULT false`,
+docs/DATABASE.md). Wyłączona półka nie liczy żadnego zapytania o propozycje.
+Eksport: `konto.moj_stol_wlaczony`; wymazanie konta ustawia `false`.
+Rollback **przechodzi bez odmowy** — świadome odstępstwo od D-088: utracona
+wartość to preferencja wyświetlania, a kierunek utraty (wyłączenie) jest
+bezpieczny. **Właściciel zaakceptował to odstępstwo 26 września 2026**
+(odpowiedź na pytania do PR #1875).
+
+### Odpowiedzi właściciela z 26 września 2026 (PR #1875)
+
+1. Kandydaci z zapisów, wykonań i podobieństwa składników oraz scoring —
+   zostają poza półką, jak wyżej.
+2. Brak „resetu” i „ukryj temat” — zostaje, jak wyżej.
+3. Rollback bez odmowy — zaakceptowany.
+4. Na półce tylko wpisy wskazujące przepis — zostaje.
+5. „kuKINGi na dziś” — dodane jako trzecia sekcja (punkt 5 decyzji).
+
+### Strażnik
+
+`app/Domain/Feed/MojStol.php` leży w `app/Domain/Feed`, więc skan
+`FeedNieSortujePoMierzeReakcjiTest` obejmuje go z definicji katalogu;
+dodatkowo kotwica zasięgu i asercja, że skan widzi sortowanie półki po
+`posts.published_at` oraz „kuKINGów na dziś” po `daily_picks.position`. Dwie
+kontrole ujemne w `scripts/kontrole-negatywne-alfa08.py` podmieniają każde
+z tych sortowań na `cooked_events_count` — strażnik ma oblać (obie sprawdzone
+lokalnie).
+
+### Koszt wejścia jest stały (#1968)
+
+Temat od gospodarza nie odpytuje bazy osobno dla każdego promowanego tagu.
+Jedno zbiorcze zapytanie numeruje wpisy w oknie (tag, osoba) i (tag), z tymi
+samymi bramkami, blokadami, ukryciami i pominięciem autorów już na półce;
+wybór tematu (pierwszy w kolejności gospodarza, który ma co pokazać) zapada
+w PHP. Pula to najwyżej `MojStol::TEMATOW_DO_ROZPATRZENIA` (20) pierwszych
+tagów listy gospodarza — dalsze na półkę nie trafiają. „kuKINGi na dziś”
+numerują wybory po osobie i biorą `NA_POLCE_NA_DZIS` w samym zapytaniu.
+Test: ta sama liczba zapytań przy 1 i 10 promowanych tagach
+(`test_temat_gospodarza_ma_stala_liczbe_zapytan_niezalezna_od_liczby_tagow`).
+
+### Wycofanie
+
+Zdjęcie trasy `/moj-stol`, bloku w `szyna-startowa` i klasy `MojStol`;
+kolumnę można zostawić (kod bez niej działa) albo cofnąć migrację. Każde
+rozszerzenie doboru poza listę D-275 — nowa decyzja właściciela.
+
+📄 `app/Domain/Feed/MojStol.php` · `app/Http/Controllers/MojStolController.php` ·
+`resources/views/pages/moj-stol.blade.php` · `tests/Feature/MojStolTest.php` ·
+D-275 · D-276 · D-277 · D-278
+
+---
 
 ## D-303 — Ustawienia powiadomień dotyczą WYŁĄCZNIE kanałów zewnętrznych; Web Push przez VAPID (issue #35, 26 września 2026)
 
@@ -18318,6 +18478,33 @@ usuniętego korzenia liczony). Pilnuje `LicznikKomentarzyLiczyOdpowiedziTest`
 
 **Wycofanie.** Bez schematu i danych — powrót do liczenia wątków to zmiana
 dwóch linijek w kontrolerach i nowa decyzja właściciela.
+## D-264 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2
+(bezpieczeństwo konta) · Status: **obowiązuje** · Uzupełnia D-253
+
+### Co było
+`EnsureAccountIsActive` odbijał podczas zawieszenia każdy zapis na ekranie
+bezpieczeństwa i 2FA. Konto przejęte przez spamera bywa zawieszane właśnie
+za to, co robił napastnik. Właściciel, który odzyskał dostęp resetem, nie mógł
+zmienić hasła, wylogować „innych urządzeń” (napastnik zostawał w sesji) ani
+wyłączyć albo przestawić 2FA aż do końca kary.
+
+### Decyzja
+Trasy `settings.security.password`, `settings.security.logout-others`,
+`settings.two_factor.confirm`, `settings.two_factor.disable`
+i `settings.two_factor.regenerate` są na liście
+`DOZWOLONE_MIMO_ZAWIESZENIA`. Niczego nie publikują, a każda z nich prosi
+o obecne hasło w kontrolerze. `OdzyskiwalneDane` dalej nie oddaje haseł
+do sesji (`SekretyNieWracajaNaEkranTest`).
+
+### Dowody
+`tests/Feature/ZawieszonyZabezpieczaKontoTest.php` — z kontrolą dodatnią, że
+komentarz dalej jest odbijany.
+
+### Wycofanie
+Usunąć pięć nazw tras z listy w `EnsureAccountIsActive`. Schemat bazy się nie
+zmienia.
 ## D-263 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2 (DSA
@@ -18401,3 +18588,108 @@ po spełnieniu warunku to osobna zmiana (`DB_HOST`/port poolera w
 `.railway/railway.ts`, tryb transakcyjny wymaga sprawdzenia `SET` sesyjnych
 — m.in. `lock_timeout` z `LimitBlokadMigracji`, który migracje muszą
 dostawać z bezpośredniego połączenia).
+## D-293 — `reports.decision_sent_at` stawia list z decyzją PO wysłaniu, a nie akcja przy zakolejkowaniu (#1838, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja techniczna
+sesji roboczej, do potwierdzenia przez właściciela · Dotyczy **#1838**
+
+**Problem.** `RozstrzygnijZgloszenie` stawiała `decision_sent_at` zaraz po
+`Notification::route('mail', …)->notify(new DecyzjaWSprawieZgloszenia(…))`.
+List jest `ShouldQueue`, więc znacznik powstawał w chwili utworzenia
+zadania. Worker mógł potem wyczerpać próby (list w `failed_jobs`), a kolumna
+opisana w `docs/DATABASE.md` jako „informacja o decyzji przekazana
+zgłaszającemu (ust. 5)” dalej twierdziła, że przekazaliśmy.
+
+**Decyzja.**
+
+1. Znacznik stawia **sam list**, w `afterSending()` — po tym, jak transport
+   pocztowy przyjął wiadomość. „Przyjęta przez transport” to nie „doszła do
+   skrzynki”, ale też nie „powstało zadanie”. Zapis warunkowy
+   (`WHERE decision_sent_at IS NULL`), więc znacznik stoi raz.
+2. `shouldSend()` pyta bazę o znacznik i pomija wysyłkę, gdy już stoi —
+   `queue:retry` albo drugie zakolejkowanie tej samej sprawy nie wyśle
+   drugiego listu.
+3. **„List przyjęty, zapis znacznika padł”**: wyjątek zapisu jest łapany
+   i trafia do dziennika z numerem sprawy (bez adresu). Zadanie NIE pada,
+   bo padnięcie znaczyłoby kolejną próbę, czyli kolejny identyczny list
+   prawny z linkiem do odwołania. Wybieramy stan fałszywie ostrożny (znacznik
+   pusty, choć list wyszedł) zamiast serii duplikatów.
+4. Ostateczna porażka (`failed()`) zostawia `Log::error` z numerem sprawy;
+   `mail_failures` i `/health` (D-062) działają jak dotąd. Sprawy bez
+   przekazanej decyzji liczy zakres `Report::decyzjaNieprzekazanaMailem()`.
+5. Kanał w serwisie dla zgłoszeń społecznościowych (`NotifyReporterDecision`)
+   zostaje bez zmian — tam powiadomienie powstaje w bazie od razu, więc
+   znacznik mówi prawdę w chwili zapisu.
+
+Znacznik jest związany ze sprawą (`reports`), nie z konkretnym wierszem
+`moderation_actions`: zgłoszenie ma jedną decyzję (`JednaDecyzjaNaZgloszenieTest`).
+
+**W kodzie.** `app/Notifications/DecyzjaWSprawieZgloszenia.php`,
+`app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php`,
+`App\Models\Report::scopeDecyzjaNieprzekazanaMailem()`. Pilnuje
+`tests/Feature/DecyzjaZgloszeniaOznaczanaPoWysylceTest.php` — prawdziwa
+kolejka `database` i `queue:work`, nie `Notification::fake()`; kontrole ujemne
+(przywrócenie znacznika w akcji, usunięcie `shouldSend()`, rzucanie wyjątku
+z `afterSending()`, brak zapisu w `afterSending()`, brak wpisu w `failed()`)
+wywracają co najmniej jeden test.
+
+**Czego tu nie ma.** Automatycznej dosyłki decyzji (odpowiednika
+`kuking:dosylaj-potwierdzenia-zgloszen`) ani sondy w `/health` dla spraw
+z `decyzjaNieprzekazanaMailem()`. Ponowienie to dziś `php artisan queue:retry`.
+Dołożenie którejś z nich to osobne issue.
+
+### Wycofanie
+Bez zmian schematu i danych. Cofnięcie kodu przywraca stawianie znacznika
+przy zakolejkowaniu; sprawy rozstrzygnięte w międzyczasie, których list
+jeszcze nie wyszedł, zostaną wtedy z pustym znacznikiem do czasu wysyłki
+(list stawia go sam tylko w nowym kodzie) — przed cofnięciem sprawdzić
+`Report::decyzjaNieprzekazanaMailem()->count()`.
+## D-311 — Rola `all` ma dwa procesy kolejki: lekki `high,default` i ciężki `media,low` (#1860, luka po #1030, 26 września 2026)
+
+Dotyczy **#1030**, **#1860**, PR-a #1622
+
+**Problem.** #1030 kazał dać każdej kolejce z producentem niezerową
+przepustowość także przy stałej zaległości kolejki wyżej. PR #1622 zrobił to
+w roli `worker` (proces na kolejkę), a rolę `all` — czyli produkcję dziś,
+jeden kontener 1024 MB z FrankenPHP i harmonogramem — świadomie zostawił przy
+jednym procesie `high,default,media,low`. Powodem była pamięć: trzy procesy
+mogłyby mieć szczyt naraz (zdjęcie 50 Mpx ~452 MB, eksport do 512M, WWW).
+Skutek: fala maili na `default` wstrzymywała zdjęcia i eksport RODO dokładnie
+tak, jak opisywał #1030 — na jedynej topologii, która dziś działa.
+
+**Decyzja.** Rola `all` uruchamia domyślnie **dwa** procesy:
+
+| Proces | Kolejki | Co tam jest |
+|---|---|---|
+| lekki | `high,default` | listy wejścia na konto, powiadomienia, purge CDN |
+| ciężki | `media,low` | przetwarzanie zdjęć, eksport danych, analiza treści i awatara |
+
+Argument pamięciowy z #1622 zostaje w mocy i właśnie dlatego procesy są dwa,
+a nie trzy: `media` i `low` dzielą jeden proces, więc ich szczyty się nie
+schodzą. Lekki proces dokłada tyle, ile pusty PHP z frameworkiem — ta sama
+miara, którą `.railway/railway.ts` przyjął dla czwartego procesu (`high`)
+w roli `worker`.
+
+**Świadomie zostaje jedno ograniczenie:** `low` czeka za stałą zaległością
+`media`. Zdjęć przybywa tylko z publikacji ludzi, nie z automatu, więc stała
+zaległość `media` sama jest awarią widoczną w `kuking:sprawdz-kolejke`.
+Pełnym lekarstwem pozostaje wydzielony worker (`PRODUCTION_SPLIT_SERVICES`).
+
+**W kodzie.** `listy_kolejek()` w `docker/entrypoint.sh`
+(`wspolnyKontener="high,default media,low"`). `QUEUE_WORKERS` i `QUEUE_NAMES`
+działają jak dotąd i wygrywają z wartością domyślną. Pilnują:
+`KolejkiBezGlodzeniaTest::test_rola_all_zdjecie_i_eksport_ruszaja_mimo_stalej_zaleglosci_default`
+(prawdziwy `Worker` na sterowniku `database`; kontrola ujemna — `low`
+w procesie z `default` — wywraca go),
+`UmowaKolejkiTest::test_rola_all_ma_lekki_proces_i_ciezki_ze_zdjeciem_przed_eksportem`
+i `tests/skrypty/entrypoint-nadzor.sh`.
+
+**Czego nie zmierzono.** Rzeczywistego RSS lekkiego procesu na produkcji.
+Po wdrożeniu właściciel sprawdza w panelu Railway szczyt pamięci serwisu
+w oknie 7 dni (przed zmianą: 0,53 GB z 1,0 GB, odczyt z 17.09.2026, #598).
+
+### Wycofanie
+Bez zmian schematu i danych. Natychmiast, bez wdrożenia kodu: zmienna
+`QUEUE_WORKERS="high,default,media,low"` w panelu Railway i restart — wraca
+jeden proces. Trwale: przywrócenie jednej listy w `listy_kolejek()` razem
+z testami.
