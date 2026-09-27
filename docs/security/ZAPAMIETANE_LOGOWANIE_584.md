@@ -71,3 +71,24 @@ sesja działa; zły kod nie zmienia `remember_token`; stary recaller
 moderatora nie wchodzi do `/admin/zgloszenia` (przed poprawką 403 → 200).
 Kontrola ujemna (usunięte wywołanie w kontrolerze): dwa testy oblewają
 na 200 zamiast 302, po przywróceniu przechodzą.
+
+### Wyłączenie 2FA i dowód kodu w sesji — #930 (dokończenie)
+
+- **Wyłączenie 2FA** (`TwoFactorSettingsController::disable()`, po dobrym
+  haśle) woła `invalidateSessions()` z wyjątkiem bieżącej sesji — inne
+  przeglądarki i recallery logują się od nowa. Złe hasło niczego nie
+  odwołuje. Testy w tym samym pliku; kontrola ujemna (bez wywołania):
+  sesja B zostaje, 200 zamiast 302.
+- **`moderator.2fa` sprawdza dowód kodu w sesji**, nie tylko stan konta.
+  Klucz `dwuetapowa.dowod` (HMAC z id konta i `two_factor_confirmed_at`)
+  zapisują wyłącznie `TwoFactorChallengeController::store()` i
+  `confirm()`. Sesja zalogowana bez kodu (sprzed włączenia 2FA, z recallera,
+  przy sterowniku, którego `invalidateSessions()` nie czyści) dostaje 403
+  z ekranem „Zaloguj się ponownie, podając kod”. Wyłączenie i ponowne
+  włączenie 2FA unieważnia dowody sprzed niego. Testy:
+  `PanelWymagaKoduWSesjiTest` (role moderator i admin); kontrola ujemna
+  (bez warunku w middleware): dwa testy 200 zamiast 403.
+- Skutek wdrożenia: moderatorzy zalogowani przed wdrożeniem raz zobaczą
+  ekran z prośbą o ponowne logowanie z kodem.
+- `TestCase::actingAs()` dokłada dowód dla kont z potwierdzoną 2FA (udaje
+  pełne logowanie); sesję bez dowodu daje gołe `be()`.
