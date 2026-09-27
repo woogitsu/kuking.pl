@@ -58,8 +58,10 @@ class PustaStronaRelacjiNieJestPustaListaTest extends TestCase
 
         $odpowiedz->assertOk();
         $odpowiedz->assertDontSee('Jeszcze nikogo nie obserwuje');
-        // Potwierdzenie akcji przeżywa dodatkowe przekierowanie.
-        $odpowiedz->assertSee('Nie obserwujesz już '.$osoby[0]->displayName().'.', false);
+        // Potwierdzenie akcji przeżywa dodatkowe przekierowanie. Treść bez
+        // nazwy konta — „już” wymaga dopełniacza, którego z dowolnej nazwy
+        // nie odmienimy (issue #1809, `SocialController::unfollow()`).
+        $odpowiedz->assertSee('Nie obserwujesz już tej osoby.', false);
         $odpowiedz->assertSee($osoby[20]->displayName());
         $odpowiedz->assertSee($osoby[1]->displayName());
     }

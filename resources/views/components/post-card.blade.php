@@ -22,7 +22,23 @@
      dostaje `fetchpriority="high"` zamiast `loading="lazy"`; reszta zdjęć
      i karty w listach zostają leniwe. --}}
 @props(['post', 'showQuestionTitle' => true, 'zeszyt' => null, 'priority' => false])
-@php $author = $post->author; @endphp
+@php
+    $author = $post->author;
+    // ZWINIĘTA KARTA (issue #1810, D-278). Wpis, który widz ukrył sobie,
+    // znika ze strumieni (Start, Odkrywanie, tablica, list) już w zapytaniu.
+    // Tam, gdzie człowiek przyszedł sam — profil, wyszukiwarka, link — karta
+    // zwija się do jednego zdania z „Pokaż". `?pokaz=1` na stronie TEGO
+    // wpisu rozwija go na chwilę; ukrycie zostaje.
+    $ukrytyDlaWidza = app(\App\Domain\Ukrycia\Ukrycia::class)->wpisUkryty(auth()->user(), $post)
+        && ! (request()->routeIs('posts.show') && request()->query('pokaz') === '1');
+@endphp
+@if($ukrytyDlaWidza)
+<article class="card post-card post-card-ukryty stack-tight" data-wpis-ukryty data-klucz="wpis-{{ $post->getKey() }}">
+    <p class="m-0">Ten wpis ukrywasz tylko dla siebie.</p>
+    {{-- Klasa przycisku: cel 48 px, nie słowo w linii tekstu (przegląd #1781). --}}
+    <p class="m-0"><a class="btn btn-secondary" href="{{ route('posts.show', $post) }}?pokaz=1">Pokaż</a></p>
+</article>
+@else
 <article class="card post-card" data-klucz="wpis-{{ $post->getKey() }}">
     <div class="post-card-head">
         {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
@@ -230,10 +246,60 @@
                                 label="Usuń wpis"
                                 question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
                         </div>
-                    @elseif(! \App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
-                        {{-- Podgląd ukrytego wpisu dla moderatora (#1018) jest tylko
-                             do odczytu — `PostPolicy::report` odmawia, więc bez odnośnika. --}}
-                        <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
+                    @else
+                        {{-- SKRÓTY DO OBSERWOWANIA (issue #1809). Zamiast „więcej
+                             takich treści" — jawne polecenia widza z listą do
+                             cofnięcia (AGENTS.md §8, D-275). Nazwa konta i tagu
+                             dosłownie, po dwukropku albo w ogóle bez nazwy
+                             (COPY_STYLE, 11 września 2026: bez odmiany).
+                             Formularze POST, bez JavaScriptu; wygląd i 48 px
+                             celu daje `.post-card-menu-tresc button`. Kto
+                             może obserwować, liczy `SkrotyObserwowania` (ta
+                             sama reguła co `UserPolicy::follow`, raz na
+                             żądanie zamiast zapytania na kartę). --}}
+                        @php
+                            $skroty = app(\App\Domain\Social\SkrotyObserwowania::class);
+                            $widzKarty = auth()->user();
+                        @endphp
+                        @if($skroty->osobaDoObserwowania($widzKarty, $author))
+                            <form method="POST" action="{{ route('social.follow', $author->profile->username) }}">
+                                @csrf
+                                <input type="hidden" name="oczekiwany_id" value="{{ $author->getKey() }}">
+                                <button type="submit" data-skrot-obserwuj="osoba">Obserwuj tę osobę</button>
+                            </form>
+                        @endif
+                        @foreach($skroty->tagiDoObserwowania($widzKarty, $post) as $tagDoObserwowania)
+                            <form method="POST" action="{{ route('tags.follow', $tagDoObserwowania) }}">
+                                @csrf
+                                <button type="submit" data-skrot-obserwuj="tag">Obserwuj tag: {{ $tagDoObserwowania->name }}</button>
+                            </form>
+                        @endforeach
+                        {{-- UKRYJ (issue #1810, D-278) — nad „Zgłoś". Ukrycie jest
+                             tylko dla widza; komunikat po akcji mówi to wprost.
+                             Osobę ukrywa się przez ekran wyboru (GET), wpis od
+                             razu — z „Cofnij" pod komunikatem. Kogoś, kogo się
+                             obserwuje, się nie ukrywa: wtedy stoi „Przestań
+                             obserwować". --}}
+                        <form method="POST" action="{{ route('posts.hide', $post) }}">
+                            @csrf
+                            <button type="submit" data-menu-akcja="ukryj-wpis">Ukryj ten wpis</button>
+                        </form>
+                        @if($widzKarty->getKey() !== $author->getKey())
+                            @if($skroty->obserwuje($widzKarty, $author))
+                                <form method="POST" action="{{ route('social.unfollow', $author->profile->username) }}">
+                                    @csrf @method('DELETE')
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $author->getKey() }}">
+                                    <button type="submit" data-menu-akcja="przestan-obserwowac">Przestań obserwować</button>
+                                </form>
+                            @else
+                                <a href="{{ route('social.hide.confirm', $author->profile->username) }}">Ukryj tę osobę</a>
+                            @endif
+                        @endif
+                        @if(! \App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
+                            {{-- Podgląd ukrytego wpisu dla moderatora (#1018) jest tylko
+                                 do odczytu — `PostPolicy::report` odmawia, więc bez odnośnika. --}}
+                            <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
+                        @endif
                     @endcan
                 </div>
             </details>
@@ -631,3 +697,4 @@
              Pasek akcji ma nieść to, po co człowiek tu przyszedł. --}}
     </div>
 </article>
+@endif
