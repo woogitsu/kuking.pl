@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Auth;
 use App\Domain\Security\Actions\SprawdzHasloPrzyLogowaniu;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
+use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,8 +30,12 @@ class LoginController extends Controller
 {
     public function __construct(private readonly SprawdzHasloPrzyLogowaniu $sprawdzHaslo) {}
 
-    public function show(): View
+    public function show(Request $request, ZamiarObserwowania $zamiar): View
     {
+        if ($cel = $zamiar->celDoLogowania($request)) {
+            $request->session()->put('url.intended', $cel);
+        }
+
         return view('auth.login');
     }
 
@@ -61,7 +67,9 @@ class LoginController extends Controller
         // Hasło, trzy koszyki limitu i odmowa dla konta zamkniętego żyją
         // w akcji wspólnej z API (D-270) — uzasadnienie każdej z tych reguł
         // stoi tam, przy kodzie, który je wykonuje.
-        $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], (string) $request->ip());
+        $adres = (string) $request->ip();
+        $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], $adres);
+
 
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
@@ -78,6 +86,7 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
         Auth::login($user, remember: true);
+        AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $adres);
 
         return redirect()->intended(route('home'));
     }

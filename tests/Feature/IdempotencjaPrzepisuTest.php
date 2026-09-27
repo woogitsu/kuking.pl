@@ -219,7 +219,7 @@ class IdempotencjaPrzepisuTest extends TestCase
         $przepis = Recipe::query()->firstOrFail();
         $this->assertSame($klucz, $przepis->klucz_wyslania);
 
-        $this->actingAs($autor)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($autor)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'title' => 'Rosół babci Zofii',
             'visibility' => 'public',
             'summary' => 'Dopisany opis.',

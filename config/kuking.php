@@ -386,6 +386,14 @@ return [
         // ma być wszędzie podobny, żeby człowiek wiedział, czego się
         // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
         'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+
+        // Ile ODPOWIEDZI jednego wątku pokazuje strona naraz (issue #939).
+        // Nic nie ogranicza, ile razy ta sama osoba odpowie w wątku, więc bez
+        // tego limitu jeden gorący wątek ładował całą rozmowę mimo paginacji
+        // wątków. Dalsze porcje: link „Pokaż dalsze odpowiedzi (N)”, bez JS
+        // (`App\Domain\Comments\OdpowiedziWatku`). Ta sama liczba co
+        // `page_size` — jeden krok ma być wszędzie podobny.
+        'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
     'collections' => [
@@ -1490,6 +1498,22 @@ return [
         'facebook_domkniecie' => '5,10',
 
         /*
+         * ODEBRANIE DOSTĘPU U FACEBOOKA — webhook, nie klik człowieka
+         * (issue #1869, audyt). Osobny koszyk od `facebook_*` wyżej: to woła
+         * serwer Facebooka, nie przeglądarka, więc mieszanie go z limitami
+         * kliknięć nie ma sensu — a licznik po adresie IP musiałby wtedy
+         * pomieścić naraz i ludzi klikających „Wejdź kontem Facebooka",
+         * i serwery Meta.
+         *
+         * Ta sama liczba i ten sam wzorzec co `csp_report` niżej: sześćdziesiąt
+         * na minutę, po adresie IP. Prawdziwe powiadomienia są RZADKIE — jedno
+         * na osobę, która akurat odebrała dostęp — więc ten limit nie gubi
+         * żadnego z nich w normalnym ruchu, a jednocześnie ogranicza koszt
+         * (HMAC + wpis w logu) każdego niepodpisanego żądania seryjnego.
+         */
+        'facebook_deauthorize' => '60,1',
+
+        /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
@@ -1625,6 +1649,23 @@ return [
         // tabeli, i ta sama osoba już i tak korzysta z jednego budżetu
         // zapytań na konto.
         'tag_suggest' => '60,1',
+
+        /*
+         * „MÓJ STÓŁ" — strona (issue #1749, D-304). Ten sam wzorzec co
+         * `search`: to jest strona za logowaniem, otwierana zwykłym
+         * przewijaniem/odświeżaniem, nie formularz — więc koszyk ma ten sam
+         * rząd wielkości, sześćdziesiąt na minutę, żeby nie łapać człowieka,
+         * który wraca na tę stronę kilka razy w trakcie gotowania.
+         *
+         * OSOBNY PREFIKS OD `search`, mimo tej samej liczby: to inna trasa
+         * i inna szkoda z nadużycia (patrz
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest` — jeden prefiks to
+         * zawsze jedna trasa). Zapis stanu (przełącznik włącz/wyłącz) ma już
+         * własny limit zapisu (`ustawienia`, PUT `/moj-stol`); ten koszyk
+         * dotyczy tylko odczytu strony (GET `/moj-stol`), który wcześniej nie
+         * miał żadnego limitu.
+         */
+        'moj_stol' => '60,1',
 
         /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
@@ -1941,6 +1982,18 @@ return [
          * profil — a skrypt wgrywający obrazy potrzebowałby setek.
          */
         'ustawienia_profil' => '15,10',
+
+        /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
 
         /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
@@ -2879,6 +2932,31 @@ return [
     'retencja' => [
         'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
+    // DZIENNIK WYMAZAŃ KONT POZA BAZĄ (audyt B5, znalezisko 3, 25.09.2026).
+    //
+    // Odtworzenie bazy z kopii przywraca konta wymazane po dacie kopii,
+    // a ślad wymazania leży w tej samej bazie. Dziennik — jeden obiekt na
+    // konto: identyfikator, chwila, zakres — leży w magazynie obiektów
+    // (`App\Domain\Compliance\DziennikWymazan`) i czyta go
+    // `kuking:wymaz-ponownie`, obowiązkowy krok procedury odtworzenia
+    // (`docs/infra/KOPIE_I_ODTWORZENIE.md`).
+    //
+    // DYSK: domyślnie ten sam prywatny dysk co paczki eksportu (na produkcji
+    // `r2_eksporty`), prefiks `dziennik-wymazan/`. NIE bucket kopii bazy —
+    // tam aplikacja nie ma prawa zapisu (D-043), i NIE baza.
+    //
+    // 120 DNI: dłużej niż najstarsza kopia, z której konto mogłoby wrócić
+    // (zrzut offsite 30 dni, PITR ok. 4 tygodni, miesięczny Volume Backup
+    // Railwaya 89 dni — KOPIE_I_ODTWORZENIE.md §5.3). Starszy wpis nie ma już
+    // przed czym chronić, więc znika.
+    'dziennik_wymazan' => [
+        'dysk' => env('KUKING_DZIENNIK_WYMAZAN_DYSK', env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        )),
+        'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
     ],
 
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).

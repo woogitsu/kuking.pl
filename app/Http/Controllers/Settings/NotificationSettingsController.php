@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Notifications\Push\KanalPush;
+use App\Domain\Notifications\Push\OdlaczCudzaSubskrypcjePush;
 use App\Domain\Notifications\Push\ZapiszSubskrypcjePush;
 use App\Http\Controllers\Controller;
 use App\Models\UstawieniaPowiadomienZewnetrznych;
@@ -110,6 +111,22 @@ class NotificationSettingsController extends Controller
         $request->user()->pushSubscriptions()->where('endpoint', $dane['endpoint'])->delete();
 
         return response()->noContent();
+    }
+
+    /** Po wygaśnięciu sesji odłącz subskrypcję poprzedniej osoby z tej przeglądarki. */
+    public function reconcileDevice(Request $request, OdlaczCudzaSubskrypcjePush $odlacz): JsonResponse
+    {
+        $dane = $request->validate([
+            'endpoint' => ['required', 'string', 'max:2048'],
+            'keys.p256dh' => ['required', 'string', 'max:200'],
+            'keys.auth' => ['required', 'string', 'max:100'],
+        ]);
+
+        $odlaczone = $odlacz->handle(
+            $request->user(), $dane['endpoint'], $dane['keys']['p256dh'], $dane['keys']['auth'],
+        );
+
+        return response()->json(['odlaczone' => $odlaczone]);
     }
 
     /**
