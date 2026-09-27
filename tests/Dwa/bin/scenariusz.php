@@ -28,6 +28,7 @@ use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -186,6 +187,37 @@ try {
             });
 
             return (string) $konto->fresh()?->status;
+        })(),
+
+        'opublikuj-wpis-2088' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Kontrola odwróconej kolejności: zatrzymaj publikację dopiero PO
+            // prawdziwym zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2088, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            config(['queue.default' => 'database', 'kuking.community.host_user_id' => $argumenty['gospodarz']]);
+
+            return (string) app(PublishPost::class)->handle(
+                $autor,
+                'Rosół z kuchni 2088.',
+                mediaIds: isset($argumenty['zdjecie']) ? [$argumenty['zdjecie']] : [],
+                tagNames: isset($argumenty['tag']) ? [$argumenty['tag']] : [],
+                kluczWyslania: $argumenty['klucz'],
+            )->getKey();
         })(),
 
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
