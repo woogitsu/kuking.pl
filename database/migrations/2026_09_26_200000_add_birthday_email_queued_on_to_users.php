@@ -70,7 +70,7 @@ return new class extends Migration
             ->count();
 
         if ($nierozstrzygniete > 0) {
-            throw new \RuntimeException("Nie można cofnąć birthday_email_queued_on: {$nierozstrzygniete} kont ma dzisiejszą rezerwację bez potwierdzonej wysyłki. Poczekaj do następnego dnia albo ręcznie rozstrzygnij zadania pocztowe przed rollbackiem.");
+            throw new RuntimeException("Nie można cofnąć birthday_email_queued_on: {$nierozstrzygniete} kont ma dzisiejszą rezerwację bez potwierdzonej wysyłki. Poczekaj do następnego dnia albo ręcznie rozstrzygnij zadania pocztowe przed rollbackiem.");
         }
 
         Schema::table('users', function (Blueprint $table): void {
