@@ -630,6 +630,11 @@ jobs:
       - name: Pint
         run: vendor/bin/pint --test -v
 
+      # Bramka produkcyjna #2025 używa tylko biblioteki standardowej Pythona.
+      # Jej kontrole muszą biec w CI, zanim pozwolimy jej decydować o deployu.
+      - name: Testy bramki Railway po CI
+        run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy.py -v
+
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
       #
