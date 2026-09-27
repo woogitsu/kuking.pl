@@ -12936,8 +12936,24 @@ byłby zielony także nad pustym plikiem.
 Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
 decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
 
+### Uzupełnienie: `start_url` to `/`, nie `/home` (#1975, 26 września 2026)
+
+Manifest jest podlinkowany w każdym układzie, także dla gościa, więc
+aplikację da się zainstalować przed rejestracją. `start_url: /home` wskazywał
+trasę z grupy `auth` — gość po instalacji przy każdym uruchomieniu lądował
+na logowaniu. Teraz `start_url` to `/`: gość dostaje stronę powitalną
+z drogą do rejestracji i logowania, zalogowany — swój Start
+(`FeedController::landing` oddaje mu ten sam ekran co `/home`), bez
+dodatkowego przekierowania. Zachęta do instalacji z #278 zostaje tam, gdzie
+była (Start zalogowanej osoby). Skróty `shortcuts` (Dodaj zdjęcie, Zeszyt)
+zostają — to akcje zalogowanej osoby i gość po nie nie sięga. Pilnuje
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` (czyta
+`start_url` z pliku, więc oblewa przy powrocie na dowolny adres za
+logowaniem).
+
 📄 `public/manifest.webmanifest` ·
 `tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` ·
 `docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
 
 ---
@@ -17555,6 +17571,66 @@ rozwiązuje.
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
 `tests/Feature/Api/`
 
+## D-320 — Zakres tokenu API to zamknięty słownik, nigdy wildcard `*` (#1928, doprecyzowanie D-270, 26 września 2026)
+
+**Data:** 26 września 2026 · Znalezisko bezpieczeństwa (#1928) · Status: **obowiązuje**
+
+### Co
+
+`User::createToken()` wydawał domyślnie pakietowy wildcard Sanctum —
+`array $abilities = ['*']`. Etap 1 D-270 nie miał jeszcze ani jednej trasy
+produkcyjnej, więc problem był na razie teoretyczny, ale wildcard sam się
+nie naprawia: pierwsza trasa dodana bez świadomej migracji tokenów
+odziedziczyłaby uprawnienia każdego telefonu, który kiedykolwiek się
+zalogował.
+
+1. **Zamknięty słownik zakresów**, `App\Http\Api\ZakresyTokenu`: `profil:czytaj`,
+   `tresc:czytaj`, `tresc:pisz`. `ZakresyTokenu::waliduj()` odrzuca każdy
+   string spoza tej listy — w tym `*` — nawet gdy wołający poda abilities
+   jawnie, nie tylko przy domyślnym wywołaniu.
+2. **Domyślny zakres to CAŁY dzisiejszy słownik, wypisany jawnie**
+   (`User::DOMYSLNE_UPRAWNIENIA_API`), nie „nic" i nie `*`. Jedyny dziś klient
+   API to nasza własna aplikacja mobilna, więc zawężanie zakresu domyślnego
+   poniżej całego słownika byłoby teatrem bez realnego zysku — ale lista jest
+   jawna, więc dopisanie NOWEGO zakresu do słownika w przyszłości nie
+   rozszerza automatycznie uprawnień tokenów wydanych wcześniej (leżą
+   w bazie jako zapisana lista) ani tokenów wydanych tą metodą po dopisaniu
+   zakresu do słownika, dopóki ktoś świadomie nie doda go też do stałej
+   domyślnej.
+3. **Middleware `ability` / `abilities`** (`Laravel\Sanctum\Http\Middleware\CheckAbilities`
+   / `CheckForAnyAbility`) zarejestrowany jako alias w `bootstrap/app.php` —
+   Sanctum w Laravel 11+ nie robi tego sam. Trasa mutująca w `routes/api.php`
+   ma mieć `ability:<zakres>` OBOK `auth:sanctum`, nie zamiast niego.
+
+### Dlaczego tak, a nie inaczej
+
+- **Nie osobny „poziom zaufania" per token teraz.** Różnicowanie zakresów
+  między telefonami tej samej osoby (np. „tylko odczyt" dla urządzenia
+  gościa) nie ma dziś interfejsu, który by to ustawiał — dodanie tego bez
+  ekranu byłoby funkcją bez konsumenta (AGENTS.md §1). Zakres chroni dziś
+  przed przyszłymi trasami, nie przed różnicowaniem urządzeń.
+- **Żadnych wydanych tokenów do migracji.** `KUKING_API_ENABLED` jest
+  domyślnie zamknięte (D-270), `routes/api.php` nie ma jeszcze ani jednej
+  trasy `Route::`, a tabela `personal_access_tokens` powstała 25 września
+  2026 — nie ma więc na dziś ani jednego wydanego tokenu z `*`, którego
+  trzeba by wygaszać albo migrować. Gdyby taki token kiedyś się znalazł (np.
+  po odtworzeniu ze starszej kopii bazy), odwołanie należy do właściciela
+  (`invalidateApiTokens()` na koncie) — nie robimy tego tutaj z automatu.
+- **Strażnik CI dla nowych tras bez `ability`** z pierwotnego zgłoszenia
+  #1928 zostaje odłożony: dziś nie ma ani jednej trasy produkcyjnej do
+  pilnowania, a pisanie skanera pod pustą listę tras jest zgadywaniem
+  kształtu przyszłego kodu. Wraca razem z pierwszą prawdziwą trasą
+  mutującą.
+
+**Zmiana wymaga:** decyzji właściciela o różnicowaniu zakresów per
+urządzenie (potrzebny ekran) albo znalezienia w bazie tokenu z zakresem
+spoza słownika (dziś niemożliwe — `waliduj()` odrzuca go przy wydaniu).
+
+📄 `app/Http/Api/ZakresyTokenu.php` · `app/Models/User.php`
+(`createToken()`, `DOMYSLNE_UPRAWNIENIA_API`) · `bootstrap/app.php`
+(aliasy `ability`/`abilities`) · `routes/api.php` ·
+`tests/Feature/Api/ZakresyTokenuTest.php`
+
 ## D-275 — Reguła doboru treści: zamknięta lista dozwolonych reguł (#1806, #1781, sprostowanie D-194, 25 września 2026)
 
 **Data:** 25 września 2026 · Decyzja właściciela (#1781) · Status: **obowiązuje**
@@ -18134,6 +18210,40 @@ publiczny dostaje web i worker, prywatny tylko worker (`.railway/railway.ts`).
 **Zmiana wymaga:** nowej decyzji właściciela. W szczególności ustawienia per
 typ albo jakikolwiek przełącznik dla powiadomień w serwisie wymagają zmiany
 AGENTS.md §1 i testu `UgotowalemZawszePowiadamiaAutoraTest`.
+
+### Uzupełnienie: wylogowanie gasi push na tym urządzeniu (#1979, 26 września 2026)
+
+**Problem.** Subskrypcja Web Push należy do przeglądarki, nie do sesji.
+Po „Wyloguj się" na wspólnym komputerze wiersz `push_subscriptions` dalej
+wskazywał tę przeglądarkę, więc prywatne „X — ugotowane z Twojego
+przepisu…" pokazywało się osobie, która siedzi przy nim potem.
+
+**Rozstrzygnięcie.** Świadome „Wyloguj się" wyłącza push na urządzeniu,
+z którego człowiek wychodzi — bez dodatkowego pytania (jedna prosta akcja,
+bez okna „czy na pewno"; ekran ustawień mówi o tym jednym zdaniem).
+Wygaśnięcie sesji **nie** wyłącza: telefon, na którym sesja po prostu minęła,
+dostaje dalej. Inne urządzenia tej osoby — bez zmian.
+
+Serwer rozpoznaje urządzenie sam, bez polegania na skrypcie: identyfikator
+wiersza trafia do sesji przy włączeniu (`OdlaczUrzadzeniePush::KLUCZ_SESJI`).
+Skrypt formularza wylogowania dokłada adres subskrypcji (pokrywa
+przeglądarkę włączoną w dawnej sesji) i wywołuje `unsubscribe()`; każdy błąd
+albo zawieszenie po 3 s kończy się zwykłym wylogowaniem. Kasowanie działa
+wyłącznie w obrębie `$user->pushSubscriptions()` — adres albo identyfikator
+cudzego wiersza niczego nie skasuje. Adres nie trafia do HTML-a (pole
+w formularzu jest puste do chwili wysłania).
+
+**Czego to nie zmienia.** Treść pushu zostaje z imieniem i nazwą potrawy
+(RETENTION_LOOPS §3.3) — ukrywanie jej na ekranie blokady wymagałoby
+osobnej decyzji właściciela. Osoba, która zaloguje się w przeglądarce
+z subskrypcją kogoś, kto się **nie** wylogował (sesja wygasła), widzi
+„wyłączone" i może przepiąć przeglądarkę na siebie przyciskiem „Włącz";
+osobne ostrzeżenie o cudzej subskrypcji — do osobnego issue.
+
+**W kodzie.** `App\Domain\Notifications\Push\OdlaczUrzadzeniePush`,
+`LoginController::destroy`, `components/wyloguj.blade.php`,
+`resources/js/powiadomienia-push.js` (`przygotujWylogowanie`). Testy:
+`WylogowanieWylaczaPushNaUrzadzeniuTest`, `powiadomienia-push.test.mjs`.
 
 ### Wycofanie
 Usunąć klucze VAPID ze zmiennych środowiska — po restarcie usług ekran i wysyłka znikają,
@@ -18717,6 +18827,63 @@ po spełnieniu warunku to osobna zmiana (`DB_HOST`/port poolera w
 `.railway/railway.ts`, tryb transakcyjny wymaga sprawdzenia `SET` sesyjnych
 — m.in. `lock_timeout` z `LimitBlokadMigracji`, który migracje muszą
 dostawać z bezpośredniego połączenia).
+
+## D-328 — „Moje wpisy” w „Moje”: wszystkie własne wpisy autora w jednym miejscu (26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+**Problem.** „Moje” (`/zeszyt`, „Twój zeszyt”) miało zapisane cudze przepisy
+i wpisy oraz planer, ale nie miało wpisów samej osoby. Własne wpisy autor
+widział tylko w profilu, a profil pokazuje wyłącznie OPUBLIKOWANE
+(`ProfileController::postsFor()` → `published()`). Szkic i wpis ukryty przez
+moderację nie były więc widoczne dla autora nigdzie, a wpisy „tylko dla mnie”
+i „tylko dla obserwujących” były przemieszane z publicznymi bez jednego
+miejsca, w którym widać, kto co widzi.
+
+**Decyzja.** W „Moje” jest przycisk „Moje wpisy” obok „Planer tygodnia”,
+prowadzący do `/zeszyt/moje-wpisy` (`collections.own-posts`). Lista:
+
+- pokazuje WSZYSTKIE wpisy zalogowanej osoby — publiczne, dla obserwujących,
+  tylko dla mnie, szkice i ukryte przez moderację;
+- jest chronologiczna, od najnowszego; szkic (bez `published_at`) stoi według
+  chwili założenia, remis rozstrzyga `id`;
+- przy każdym wpisie mówi SŁOWAMI, kto go widzi („Publiczny”, „Dla
+  obserwujących”, „Tylko dla mnie”) i w jakim jest stanie („Opublikowany”,
+  „Szkic — jeszcze nieopublikowany”, „Ukryty przez moderację”);
+- zapowiedź przepisu (wpis bez własnej treści, #368) bierze widoczność
+  z przepisu — tak jak karta wpisu, bo jej `visibility = 'public'` nie jest
+  wyborem autora;
+- ma paginację wzorcem serwisu (`x-show-more`: bez skryptu „Następna strona”,
+  ze skryptem „Pokaż więcej”), po 20 wpisów.
+
+**Autoryzacja: trasa bez identyfikatora.** Zapytanie zawsze zawęża do
+`author_id` zalogowanej osoby; w adresie nie ma czego podmienić. Nie ma więc
+Policy do napisania — nie ma cudzej listy, do której dałoby się wejść.
+Wejście w pojedynczy wpis dalej idzie przez `PostPolicy::view()`, która
+szkic i wpis ukryty wpuszcza autora.
+
+**Czego na liście nie ma.** Wpisów miękko usuniętych (w tym zdjętych przez
+moderację, `removed`) — wiązanie trasy wpisu ich nie znajduje, więc karta
+prowadziłaby do 404; tę samą granicę ma profil. Pytań przy wyłączonym dziale
+pytań (`enabledKinds()`) — ta sama flaga odmawia wejścia na stronę pytania.
+
+**Wydajność.** Relacje karty (`media`, `recipe:id,title,slug,visibility`)
+ładowane z góry; `MojeWpisyTest::test_liczba_zapytan_nie_rosnie_z_liczba_wpisow`
+porównuje liczbę zapytań przy 2 i 12 wpisach (kontrola ujemna: bez `recipe`
+w `with()` 6 → 11 zapytań). Bez nowej migracji — sortowanie idzie po
+istniejącym zakresie `author_id`.
+
+**Bez JavaScriptu.** Lista to zwykłe odnośniki i przyciski ≥ 48 px.
+
+### Wycofanie
+Bez danych do cofania: trasa, kontroler (`MojeWpisyController`), klasa
+`App\Domain\Posts\MojeWpisy`, widok i przycisk w „Moje”. Zdjęcie ich
+przywraca stan sprzed zmiany; odnośniki do `collections.own-posts` (strona
+tagu, D-307) trzeba wtedy przepiąć z powrotem na profil.
+
+📄 `routes/web.php`, `app/Http/Controllers/MojeWpisyController.php`,
+`app/Domain/Posts/MojeWpisy.php`, `resources/views/pages/collections/moje-wpisy.blade.php`,
+`docs/FLOWS_AND_SCREENS.md`, `tests/Feature/MojeWpisyTest.php`
 ## D-293 — `reports.decision_sent_at` stawia list z decyzją PO wysłaniu, a nie akcja przy zakolejkowaniu (#1838, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja techniczna

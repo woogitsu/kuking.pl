@@ -8,7 +8,9 @@ use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Api\ZakresyTokenu;
 use App\Notifications\UstawienieNowegoHasla;
+use App\Support\Sesja\GeneracjaSesji;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -355,6 +357,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
+            // #1046: poza `$fillable` — pisze ją wyłącznie `invalidateSessions()`.
+            'session_generation' => 'integer',
             'memories_enabled' => 'boolean',
             'moj_stol_enabled' => 'boolean',
             // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
@@ -366,6 +370,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
             'wants_birthday_email' => 'boolean',
             'birthday_email_sent_on' => 'date',
+            // Bariera przed podwójnym zakolejkowaniem tego samego dnia
+            // (issue #1956) — osobna od `birthday_email_sent_on`, która
+            // znaczy teraz dosłownie „list wyszedł". Zapis wyłącznie przez
+            // `WyslijZyczeniaUrodzinowe` i `ZyczeniaUrodzinowe::send()`.
+            'birthday_email_queued_on' => 'date',
             'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 
@@ -897,6 +906,39 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->visibleTo($this)
             ->whereNull('read_at')
             ->count();
+    }
+
+    /**
+     * Od ilu nieprzeczytanych plakietka w belce przestaje liczyć dokładnie
+     * i pokazuje „99+" (audyt B4 S1).
+     */
+    public const PLAKIETKA_POWIADOMIEN_DO = 99;
+
+    /**
+     * Licznik do PLAKIETKI w belce — z sufitem, bo stoi na każdej stronie
+     * zalogowanej osoby (audyt B4 S1).
+     *
+     * `unreadNotificationsCount()` liczy WSZYSTKIE nieprzeczytane przez pełne
+     * `visibleTo` (blokady, konta, łańcuch widoczności komentarzy) na każdym
+     * wierszu. Najwięcej płacił ten, kto najrzadziej zagląda do powiadomień:
+     * tysiące nieprzeczytanych na każdej stronie. Plakietka i tak nie
+     * pokazuje liczby większej niż `PLAKIETKA_POWIADOMIEN_DO` — więc liczymy
+     * najwyżej o jeden wiersz dalej (`LIMIT` w podzapytaniu) i koszt przestaje
+     * rosnąć z zaległościami.
+     *
+     * Ten sam filtr co lista i co `unreadNotificationsCount()`, więc przy
+     * małych liczbach wynik jest identyczny; różni się dopiero powyżej sufitu.
+     */
+    public function unreadNotificationsBadgeCount(): int
+    {
+        $nieprzeczytane = $this->notifications()
+            ->visibleTo($this)
+            ->whereNull('read_at')
+            ->select('notifications.id')
+            ->limit(self::PLAKIETKA_POWIADOMIEN_DO + 1)
+            ->toBase();
+
+        return DB::query()->fromSub($nieprzeczytane, 'nieprzeczytane')->count();
     }
 
     /**
@@ -1577,7 +1619,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Token należy do konta, więc wyjątek dla bieżącej SESJI nie jest
         // wyjątkiem dla starego ciasteczka: po utracie tej sesji trzeba się
         // zalogować ponownie. Nie dotykamy guarda moderatora ani jego cookies.
-        $this->forceFill(['remember_token' => Str::random(60)])->save();
+        //
+        // W TYM SAMYM `UPDATE` rośnie generacja sesji (#1046). Skasowanie
+        // wierszy niżej nie wystarcza: żądanie rozpoczęte wcześniej potrafi
+        // zapisać sesję z powrotem, a `SprawdzGeneracjeSesji` odrzuci ją
+        // po starej generacji. Jedno zapytanie, bo logowanie z recallera
+        // czyta token i generację jednym odczytem wiersza — nie może trafić
+        // na nowy token ze starą generacją ani odwrotnie.
+        $wiersz = DB::selectOne(
+            'UPDATE users SET remember_token = ?, session_generation = session_generation + 1, updated_at = ? '
+            .'WHERE id = ? RETURNING remember_token, session_generation, updated_at',
+            [Str::random(60), $this->fromDateTime($this->freshTimestamp()), $this->getKey()],
+        );
+        $this->forceFill((array) $wiersz)->syncOriginalAttributes(array_keys((array) $wiersz));
+
+        // Bieżąca przeglądarka zostaje ważna tylko wtedy, gdy dostanie nową
+        // generację — inaczej wyjątek `$exceptSessionId` wylogowałby ją
+        // przy następnym żądaniu.
+        $biezaca = request()->hasSession() ? request()->session() : null;
+        if ($exceptSessionId !== null && $biezaca?->getId() === $exceptSessionId && auth('web')->id() === $this->getKey()) {
+            GeneracjaSesji::zapamietaj($biezaca, $this);
+        }
 
         // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
         //
@@ -1660,6 +1722,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Domyślny zakres tokenu wydawanego bez jawnych abilities (D-320, #1928).
+     *
+     * CAŁY dzisiejszy słownik z `ZakresyTokenu`, wypisany jawnie — NIGDY
+     * `['*']`. Dodanie nowego zakresu do `ZakresyTokenu` samo z siebie nie
+     * poszerza tej listy: trzeba dopisać go tutaj świadomie, więc nowa klasa
+     * endpointów nie rozszerza uprawnień tokenów wydanych wcześniej ani
+     * tokenów wydanych tą metodą PRZED tą zmianą.
+     *
+     * @var list<string>
+     */
+    public const DOMYSLNE_UPRAWNIENIA_API = [
+        ZakresyTokenu::PROFIL_CZYTAJ,
+        ZakresyTokenu::TRESC_CZYTAJ,
+        ZakresyTokenu::TRESC_PISZ,
+    ];
+
+    /**
      * Wydanie tokenu aplikacji mobilnej — nadpisanie metody z `HasApiTokens`.
      *
      * Pakiet zapisuje wiersz przez `create([... 'token' => ...])`, czyli
@@ -1668,10 +1747,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * kolumny `token`. Postać jawna wraca WYŁĄCZNIE w `NewAccessToken`
      * i nie jest nigdzie zapisywana.
      *
+     * Zakres (`abilities`) jest zawsze jawną listą z zamkniętego słownika
+     * `ZakresyTokenu` — nigdy pakietowym wildcardem `*` (D-320, #1928).
+     * `ZakresyTokenu::waliduj()` odrzuca każdy nieznany zakres, więc nie da
+     * się tędy wydać tokenu z uprawnieniem spoza słownika, nawet podając
+     * abilities jawnie.
+     *
      * @param  array<int, string>  $abilities
      */
-    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    public function createToken(string $name, array $abilities = self::DOMYSLNE_UPRAWNIENIA_API, ?DateTimeInterface $expiresAt = null): NewAccessToken
     {
+        ZakresyTokenu::waliduj($abilities);
+
         $jawny = $this->generateTokenString();
 
         $token = new PersonalAccessToken;
