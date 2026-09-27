@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
 - Obserwowanie osoby albo tagu rozpoczęte przed sankcją nie dopisze relacji po zawieszeniu, zablokowaniu lub zamknięciu konta. Można nadal przestać obserwować istniejące tagi (#2091).
 - W wyszukiwarce każda lista znalezionych przepisów lub osób ma własny widoczny nagłówek także po wybraniu zakresu „Przepisy”, „Do 30 minut” albo „Ludzie”. Ułatwia to znalezienie wyników przez nawigację po nagłówkach (#2081).
 - Naprawione: zdjęcia w zwykłej siatce wpisu bez opisu autora dostają odróżnialne teksty alternatywne, np. „Zdjęcie 1 z 3 w tym wpisie”. Ten sam opis jest dostępny przy powiększaniu zdjęcia; własny opis autora pozostaje bez zmian (#2065).

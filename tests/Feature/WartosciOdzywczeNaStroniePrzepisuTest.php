@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
+use App\Domain\Recipes\Odzywcze\UstawWidocznoscWartosci;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -132,6 +136,39 @@ final class WartosciOdzywczeNaStroniePrzepisuTest extends TestCase
         $this->actingAs($recipe->author)->patch(route('recipes.wartosci-odzywcze', $recipe), ['pokazuj' => '0']);
 
         $this->assertEquals($przed, $recipe->fresh()->updated_at);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function niedostepneStany(): array
+    {
+        return [
+            'ukryty' => [Recipe::STATUS_HIDDEN],
+            'zdjęty' => [Recipe::STATUS_REMOVED],
+            'usunięty' => ['deleted'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('niedostepneStany')]
+    public function stary_model_nie_zmienia_widocznosci_po_zamknieciu_przepisu(string $stan): void
+    {
+        $recipe = $this->przepis(['200 g mąki pszennej'], 1);
+        $przed = $recipe->updated_at;
+        DB::table('recipes')->where('id', $recipe->getKey())->update(
+            $stan === 'deleted' ? ['deleted_at' => now()] : ['status' => $stan],
+        );
+
+        try {
+            app(UstawWidocznoscWartosci::class)->handle($recipe, $recipe->author, false);
+            $this->fail('Stary model przepisu pozwolił zmienić ustawienie po decyzji moderacyjnej.');
+        } catch (BladDlaCzlowieka $e) {
+            $this->assertStringContainsString('Przepis zmienił stan', $e->getMessage());
+        }
+
+        $swiezy = Recipe::withTrashed()->findOrFail($recipe->getKey());
+        $this->assertTrue((bool) $swiezy->pokazuj_wartosci_odzywcze);
+        $this->assertEquals($przed, $swiezy->updated_at);
+        $this->assertSame($stan === 'deleted', $swiezy->trashed());
     }
 
     #[Test]

@@ -49,7 +49,7 @@ final class WartosciOdzywczePoModeracjiTest extends TestDwochPolaczen
             'source_type' => Recipe::SOURCE_OWN,
             'status' => Recipe::STATUS_PUBLISHED,
             'published_at' => now(),
-        ]);
+        ])->fresh();
         $this->recipes[] = (string) $recipe->getKey();
         $this->assertTrue((bool) $recipe->pokazuj_wartosci_odzywcze);
 
@@ -89,5 +89,53 @@ final class WartosciOdzywczePoModeracjiTest extends TestDwochPolaczen
         $this->assertTrue((bool) $swiezy->pokazuj_wartosci_odzywcze);
         $this->assertSame($decyzja === 'deleted' ? Recipe::STATUS_PUBLISHED : $decyzja, $swiezy->status);
         $this->assertSame($decyzja === 'deleted', $swiezy->trashed());
+    }
+
+    #[Test]
+    public function zapis_autora_pierwszy_konczy_sie_przed_decyzja_moderatora(): void
+    {
+        $autor = $this->konto();
+        $recipe = Recipe::create([
+            'author_id' => $autor->getKey(),
+            'title' => 'Zupa przed moderacją',
+            'slug' => 'zupa-wartosci-'.bin2hex(random_bytes(6)),
+            'visibility' => 'public',
+            'source_type' => Recipe::SOURCE_OWN,
+            'status' => Recipe::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ])->fresh();
+        $this->recipes[] = (string) $recipe->getKey();
+
+        $barieraId = random_int(1, 2_000_000_000);
+        $bariera = $this->nowePolaczenie();
+        $bariera->beginTransaction();
+        $bariera->prepare('SELECT pg_advisory_xact_lock(2112, ?)')->execute([$barieraId]);
+
+        try {
+            $zadanie = $this->wTle('przelacz-wartosci-2112', [
+                'autor' => (string) $autor->getKey(),
+                'przepis' => (string) $recipe->getKey(),
+                'bariera' => (string) $barieraId,
+            ]);
+            // Autor trzyma już zamek przepisu i czeka tylko na barierę testu.
+            $this->czekajNaZablokowane(1);
+            $moderacja = $this->wTle('moderuj-przepis-2112', [
+                'przepis' => (string) $recipe->getKey(),
+            ]);
+            $this->czekajNaZablokowane(2);
+        } finally {
+            $bariera->rollBack();
+        }
+
+        $wynikZapisu = $zadanie->wynik();
+        $wynikModeracji = $moderacja->wynik();
+        $this->assertBezZakleszczenia($wynikZapisu, 'zapis autora przed moderacją');
+        $this->assertBezZakleszczenia($wynikModeracji, 'moderacja po zapisie autora');
+        $this->assertTrue($wynikZapisu['ok'], $wynikZapisu['komunikat']);
+        $this->assertTrue($wynikModeracji['ok'], $wynikModeracji['komunikat']);
+        $this->assertNotEmpty($wynikZapisu['wartosc']['zapisane']);
+        $swiezy = $recipe->fresh();
+        $this->assertSame(Recipe::STATUS_HIDDEN, $swiezy->status);
+        $this->assertFalse((bool) $swiezy->pokazuj_wartosci_odzywcze);
     }
 }
