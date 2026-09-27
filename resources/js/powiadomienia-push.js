@@ -61,6 +61,30 @@ export function stanEkranu({ wspierane, zgoda, wlaczoneTutaj }) {
     return { tekst: 'Powiadomienia na tym urządzeniu są wyłączone.', wlacz: true, wylacz: false };
 }
 
+/**
+ * Wpisuje stan do akapitu `[data-push-stan]` i przełącza przyciski (#1976).
+ *
+ * Akapit jest regionem `role="status"` — czytnik ekranu ogłasza wynik
+ * sprawdzenia przeglądarki bez przesuwania fokusu (WCAG 2.2, 4.1.3).
+ * Tekst podmieniamy TYLKO wtedy, gdy się zmienił: ponowne wpisanie tego
+ * samego zdania (np. `odswiez()` po kliknięciu) część czytników ogłasza
+ * drugi raz, a powtórzenie niczego nie mówi.
+ *
+ * @param {{stanEl: ?{textContent: string}, wlacz: ?{hidden: boolean}, wylacz: ?{hidden: boolean}}} elementy
+ * @param {{tekst: string, wlacz: boolean, wylacz: boolean}} stan
+ * @returns {boolean} czy tekst się zmienił (czyli czy będzie ogłoszony)
+ */
+export function pokazStan({ stanEl, wlacz, wylacz }, stan) {
+    let zmiana = false;
+    if (stanEl && stanEl.textContent.trim() !== stan.tekst) {
+        stanEl.textContent = stan.tekst;
+        zmiana = true;
+    }
+    if (wlacz) wlacz.hidden = !stan.wlacz;
+    if (wylacz) wylacz.hidden = !stan.wylacz;
+    return zmiana;
+}
+
 async function skrot(tekst) {
     const bajty = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(tekst));
     return Array.from(new Uint8Array(bajty), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -91,11 +115,7 @@ function setup(sekcja) {
     const wspierane = 'serviceWorker' in navigator && 'PushManager' in window
         && 'Notification' in window && window.isSecureContext && Boolean(klucz);
 
-    const pokaz = (stan) => {
-        if (stanEl) stanEl.textContent = stan.tekst;
-        if (wlacz) wlacz.hidden = !stan.wlacz;
-        if (wylacz) wylacz.hidden = !stan.wylacz;
-    };
+    const pokaz = (stan) => pokazStan({ stanEl, wlacz, wylacz }, stan);
 
     const powiedz = (tekst) => { if (komunikat) komunikat.textContent = tekst; };
 

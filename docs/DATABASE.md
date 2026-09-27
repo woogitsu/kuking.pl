@@ -2009,10 +2009,17 @@ naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować
 nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
 zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
 
-**Rollback:** `down()` zdejmuje CHECK i kolumnę. Od D-284 skalowanie porcji
-(V2) jest wdrożone i czyta tę flagę, więc cofnięcie tej migracji znaczy utratę
-informacji, której nie da się odtworzyć — najpierw kopia tabeli. (Strażnika
-w `down()` ta starsza migracja nie ma; dołożenie go to osobna zmiana.)
+**Rollback (D-088):** `down()` sprawdza pod blokadą tabeli
+(`LOCK TABLE ... IN ACCESS EXCLUSIVE MODE`) istnienie `no_amount = true`
+i **odmawia**, gdy takie wiersze istnieją — dopiero wtedy liczy je do
+komunikatu. `SET LOCAL statement_timeout = '2s'` ogranicza czas trzymania
+blokady, która wstrzymuje także odczyty. Komunikat po polsku mówi ile ich
+jest i co zrobić (kopia tabeli, potem ponowne uruchomienie ze zmienną
+`KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI=1`). Na świeżej bazie, bez
+żadnego takiego składnika, `down()` przechodzi bez pytania. Powód odmowy:
+po wdrożeniu skalowania porcji (V2, D-284) ta flaga rozstrzyga, których
+składników NIE mnożyć, i nie da się jej odtworzyć z samego tekstu składnika —
+cichy `dropColumn` byłby utratą informacji bez śladu błędu.
 
 #### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
 
@@ -2184,15 +2191,40 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
   które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
   konta wycofują zgodę z wpisem w dzienniku.
-- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
-  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
-  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
-  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw),
+  w którym transport pocztowy PRZYJĄŁ list z życzeniami (`App\Mail\
+  ZyczeniaUrodzinowe::send()`, po `parent::send()` bez wyjątku). Do
+  26 września 2026 (issue #1956) ustawiała ją komenda zaraz po
+  `Mail::queue()`, czyli po zakolejkowaniu, nie po wysyłce — awaria enqueue
+  albo trwała porażka workera zostawiały znacznik mimo braku listu, a to
+  jest jedyny list w roku dla tej osoby. Patrz `birthday_email_queued_on`.
+- **`users.birthday_email_queued_on`** (`date NULL`, migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`, issue #1956) —
+  dzień, w którym komenda ZAJĘŁA miejsce dla tej osoby, niezależnie od tego,
+  czy list ostatecznie wyszedł. Bariera przed dublem:
+  `kuking:wyslij-zyczenia-urodzinowe` zajmuje dzień warunkowym
+  `UPDATE … WHERE birthday_email_queued_on IS NULL OR
+  birthday_email_queued_on <> dziś` przed `Mail::queue()`, a `kandydaci()`
+  wyklucza po TEJ kolumnie, nie po `birthday_email_sent_on`. Awaria samego
+  `Mail::queue()` zwalnia tę rezerwację w tym samym przebiegu (ponowienie
+  tego samego dnia wysyła dokładnie jeden list); trwała porażka workera
+  zostawia ją ustawioną (dzień jest „zużyty" wobec dostawcy) — świadomy
+  wybór „pominięcie zamiast duplikatu" DLA TEGO DNIA, ten sam co
+  `weekly_digest_sends` (D-077), ale bez wpływu na kolejne lata: rocznica
+  sprzed roku wraca normalnie, bo to już inny dzień.
 - `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
-- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
-  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
-  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+- **Rollback `wants_birthday_email` / `birthday_email_sent_on`:** `down()`
+  odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden wiersz celu
+  `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować, więc starego
+  CHECK-a nie da się przywrócić bez utraty dowodu). Test:
   `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+- **Rollback `birthday_email_queued_on`** (migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`): `down()` odmawia
+  tylko wtedy, gdy ktoś ma dzisiejszą rezerwację bez potwierdzonej wysyłki.
+  Cofnięcie schematu razem ze starym kodem zgubiłoby wtedy barierę i mogło
+  zakolejkować drugi list. Po zakończeniu dnia albo przy potwierdzonym
+  `birthday_email_sent_on` rollback jest dozwolony. Test odmowy i przejścia:
+  `tests/Feature/CofniecieRezerwacjiListuUrodzinowegoTest.php`.
 
 **Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
 

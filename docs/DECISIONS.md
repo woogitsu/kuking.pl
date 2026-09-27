@@ -12936,8 +12936,24 @@ byłby zielony także nad pustym plikiem.
 Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
 decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
 
+### Uzupełnienie: `start_url` to `/`, nie `/home` (#1975, 26 września 2026)
+
+Manifest jest podlinkowany w każdym układzie, także dla gościa, więc
+aplikację da się zainstalować przed rejestracją. `start_url: /home` wskazywał
+trasę z grupy `auth` — gość po instalacji przy każdym uruchomieniu lądował
+na logowaniu. Teraz `start_url` to `/`: gość dostaje stronę powitalną
+z drogą do rejestracji i logowania, zalogowany — swój Start
+(`FeedController::landing` oddaje mu ten sam ekran co `/home`), bez
+dodatkowego przekierowania. Zachęta do instalacji z #278 zostaje tam, gdzie
+była (Start zalogowanej osoby). Skróty `shortcuts` (Dodaj zdjęcie, Zeszyt)
+zostają — to akcje zalogowanej osoby i gość po nie nie sięga. Pilnuje
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` (czyta
+`start_url` z pliku, więc oblewa przy powrocie na dowolny adres za
+logowaniem).
+
 📄 `public/manifest.webmanifest` ·
 `tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` ·
 `docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
 
 ---
@@ -18637,6 +18653,63 @@ po spełnieniu warunku to osobna zmiana (`DB_HOST`/port poolera w
 `.railway/railway.ts`, tryb transakcyjny wymaga sprawdzenia `SET` sesyjnych
 — m.in. `lock_timeout` z `LimitBlokadMigracji`, który migracje muszą
 dostawać z bezpośredniego połączenia).
+
+## D-328 — „Moje wpisy” w „Moje”: wszystkie własne wpisy autora w jednym miejscu (26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+**Problem.** „Moje” (`/zeszyt`, „Twój zeszyt”) miało zapisane cudze przepisy
+i wpisy oraz planer, ale nie miało wpisów samej osoby. Własne wpisy autor
+widział tylko w profilu, a profil pokazuje wyłącznie OPUBLIKOWANE
+(`ProfileController::postsFor()` → `published()`). Szkic i wpis ukryty przez
+moderację nie były więc widoczne dla autora nigdzie, a wpisy „tylko dla mnie”
+i „tylko dla obserwujących” były przemieszane z publicznymi bez jednego
+miejsca, w którym widać, kto co widzi.
+
+**Decyzja.** W „Moje” jest przycisk „Moje wpisy” obok „Planer tygodnia”,
+prowadzący do `/zeszyt/moje-wpisy` (`collections.own-posts`). Lista:
+
+- pokazuje WSZYSTKIE wpisy zalogowanej osoby — publiczne, dla obserwujących,
+  tylko dla mnie, szkice i ukryte przez moderację;
+- jest chronologiczna, od najnowszego; szkic (bez `published_at`) stoi według
+  chwili założenia, remis rozstrzyga `id`;
+- przy każdym wpisie mówi SŁOWAMI, kto go widzi („Publiczny”, „Dla
+  obserwujących”, „Tylko dla mnie”) i w jakim jest stanie („Opublikowany”,
+  „Szkic — jeszcze nieopublikowany”, „Ukryty przez moderację”);
+- zapowiedź przepisu (wpis bez własnej treści, #368) bierze widoczność
+  z przepisu — tak jak karta wpisu, bo jej `visibility = 'public'` nie jest
+  wyborem autora;
+- ma paginację wzorcem serwisu (`x-show-more`: bez skryptu „Następna strona”,
+  ze skryptem „Pokaż więcej”), po 20 wpisów.
+
+**Autoryzacja: trasa bez identyfikatora.** Zapytanie zawsze zawęża do
+`author_id` zalogowanej osoby; w adresie nie ma czego podmienić. Nie ma więc
+Policy do napisania — nie ma cudzej listy, do której dałoby się wejść.
+Wejście w pojedynczy wpis dalej idzie przez `PostPolicy::view()`, która
+szkic i wpis ukryty wpuszcza autora.
+
+**Czego na liście nie ma.** Wpisów miękko usuniętych (w tym zdjętych przez
+moderację, `removed`) — wiązanie trasy wpisu ich nie znajduje, więc karta
+prowadziłaby do 404; tę samą granicę ma profil. Pytań przy wyłączonym dziale
+pytań (`enabledKinds()`) — ta sama flaga odmawia wejścia na stronę pytania.
+
+**Wydajność.** Relacje karty (`media`, `recipe:id,title,slug,visibility`)
+ładowane z góry; `MojeWpisyTest::test_liczba_zapytan_nie_rosnie_z_liczba_wpisow`
+porównuje liczbę zapytań przy 2 i 12 wpisach (kontrola ujemna: bez `recipe`
+w `with()` 6 → 11 zapytań). Bez nowej migracji — sortowanie idzie po
+istniejącym zakresie `author_id`.
+
+**Bez JavaScriptu.** Lista to zwykłe odnośniki i przyciski ≥ 48 px.
+
+### Wycofanie
+Bez danych do cofania: trasa, kontroler (`MojeWpisyController`), klasa
+`App\Domain\Posts\MojeWpisy`, widok i przycisk w „Moje”. Zdjęcie ich
+przywraca stan sprzed zmiany; odnośniki do `collections.own-posts` (strona
+tagu, D-307) trzeba wtedy przepiąć z powrotem na profil.
+
+📄 `routes/web.php`, `app/Http/Controllers/MojeWpisyController.php`,
+`app/Domain/Posts/MojeWpisy.php`, `resources/views/pages/collections/moje-wpisy.blade.php`,
+`docs/FLOWS_AND_SCREENS.md`, `tests/Feature/MojeWpisyTest.php`
 ## D-293 — `reports.decision_sent_at` stawia list z decyzją PO wysłaniu, a nie akcja przy zakolejkowaniu (#1838, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja techniczna
