@@ -104,6 +104,7 @@ final class KrokOPrzepisieKreatoraTest extends TestCase
             'servings.numeric' => ['servings', 'cztery', 'servings.numeric'],
             'servings.min' => ['servings', '0.4', 'servings.min'],
             'servings.max' => ['servings', '1000', 'servings.max'],
+            'servings.decimal' => ['servings', '1.255', 'servings.decimal'],
             'prep_minutes.integer' => ['prep_minutes', '1.5', 'prep_minutes.integer'],
             'prep_minutes.min' => ['prep_minutes', '-1', 'prep_minutes.min'],
             'prep_minutes.max' => ['prep_minutes', '10081', 'prep_minutes.max'],

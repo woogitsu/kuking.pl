@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -30,6 +31,7 @@ class WymazywanieKontPartiamiIBudzetemTest extends TestCase
         return $this->user(null, [
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays($dniTemu),
+            'delete_request_generation' => (string) Str::uuid(),
         ]);
     }
 

@@ -109,8 +109,9 @@ class SearchController extends Controller
         $parametry = ['q' => $phrase, 'sekcja' => $section,
             'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby];
-        $nastepnePrzepisy = $parametry;
-        $nastepneOsoby = $parametry;
+        // Odnośniki po wynikach oznaczają nawigację, bez nowego sygnału wyszukiwania.
+        $nastepnePrzepisy = $parametry + ['nawigacja' => 1];
+        $nastepneOsoby = $parametry + ['nawigacja' => 1];
         if ($ilePrzepisow < self::MAKS) {
             $nastepnePrzepisy['ile_przepisow'] = min($ilePrzepisow + self::NA_STRONIE, self::MAKS);
         } else {
@@ -173,7 +174,20 @@ class SearchController extends Controller
         // Fraza odrzucona przez `phraseValidator()` (za długa) też nie
         // odpytała bazy — `$przepisy`/`$ludzie` wyżej są wtedy puste — więc
         // z tego samego powodu nie ma czego zapisywać.
-        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
+        //
+        // NAWIGACJA PO WYNIKACH TO NIE NOWE WYSZUKANIE (issue #943).
+        // `search_performed` liczy wysłanie frazy — formularzem na tej
+        // stronie, w pasku u góry albo z odnośnika spoza wyników. „Pokaż
+        // więcej", „Wróć do początku" i zakresy (Wszystko / Przepisy / Ludzie /
+        // Do 30 minut) przeglądają wyniki JUŻ policzonej frazy i niosą
+        // `nawigacja=1`. Bez tego jedno wyszukanie dawało kilka rekordów,
+        // a puste dalsze okno zapisywało `has_results=false` dla frazy,
+        // która w pierwszym oknie miała wyniki. Nie deduplikujemy po długości
+        // frazy ani w sesji: kolejne wysłanie tej samej frazy to nowe
+        // wyszukanie i liczy się ponownie.
+        $nawigacja = $request->query('nawigacja') === '1';
+
+        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty() && ! $nawigacja) {
             $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
                 'query_length' => mb_strlen($phrase),
                 'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
@@ -197,8 +211,8 @@ class SearchController extends Controller
             'odOsoby' => $odOsoby,
             'nastepnePrzepisy' => $nastepnePrzepisy,
             'nastepneOsoby' => $nastepneOsoby,
-            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0]),
-            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0]),
+            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0, 'nawigacja' => 1]),
+            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0, 'nawigacja' => 1]),
         ]);
     }
 
