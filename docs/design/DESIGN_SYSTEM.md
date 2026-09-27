@@ -411,8 +411,10 @@ Nie odtwarzamy fikcyjnych osób, liczników ani symulowanych operacji z HTML.
 ### `PostCard`
 Awatar, nazwa i czas → kilka słów → duże zdjęcie → rzeczywiste akcje wpisu.
 Kadrowanie respektuje wybrany tryb zdjęcia; nie wymuszamy 4:3 na każdej
-fotografii. Karta jest jasna w jasnym motywie, ma miękki cień i zaokrąglenia
-według konstytucji. Menu otwierają same trzy kropki z nazwą dostępną
+fotografii. W kolażu dwie fotografie dzielą wiersz według swoich proporcji,
+a ostatnia z nieparzystej grupy zajmuje cały wiersz. Na wąskim telefonie
+fotografie stoją jedna pod drugą. Karta jest jasna w jasnym motywie, ma miękki
+cień i zaokrąglenia według konstytucji. Menu otwierają same trzy kropki z nazwą dostępną
 „Więcej przy tym wpisie” oraz celem 48 × 48 px (wyjątek AGENTS.md).
 Pozycje menu i pozostałe ważne akcje zachowują widoczne opisy oraz kontrolę
 uprawnień. „Ugotowałem” odnosi się do wykonania przepisu, nie polubienia wpisu.
