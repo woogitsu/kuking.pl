@@ -92,6 +92,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
+MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
 MIGRACJA_PUSH_TEST = "test_wycofanie_migracji_odmawia_gdy_ktos_wybral_wlasna_cisze_nocna"
 OBRAZ_ASSETOW_TEST = "ObrazAssetowMaPlikiTestowTest"
@@ -1242,6 +1244,12 @@ checks = [
     # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
     ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
      lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
+    # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
+    # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
+    ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
+     lambda s: replace_once(s,
+                            "            && DB::table('recipe_ingredients')->where('no_amount', true)->exists()) {",
+                            "            && false && DB::table('recipe_ingredients')->where('no_amount', true)->exists()) {")),
     # #35 (D-088): down() migracji Web Push bez odmowy, choć ludzie wybrali
     # własną ciszę nocną — test wycofania ma oblać.
     ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
@@ -1343,6 +1351,7 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(MIGRACJA_NO_AMOUNT_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(UNSERIALIZE_TEST, True)
