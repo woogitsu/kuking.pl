@@ -1212,6 +1212,10 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
+    # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
+    ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
+     lambda s: replace_once(s, "CLOUDFLARE_PURGE_TOKEN=\n", "")),
     # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
