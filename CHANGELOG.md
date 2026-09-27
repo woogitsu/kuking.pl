@@ -7,6 +7,7 @@
 - Wewnętrzne: obraz aplikacji nie obiecuje już awaryjnego `pg_dump` w wersji 17, który odmawiał zrzutu PostgreSQL 18. Jednorazowy zrzut prowadzi teraz runbook przez osobny obraz kopii z klientem 18, a CI sprawdza prawdziwy zrzut testowej bazy 18 (#2078).
 - Przy „Jak to liczymy” na stronie przepisu znów widać trójkąt pokazujący, że wyjaśnienie można rozwinąć. Po otwarciu trójkąt zmienia kierunek; kontrolka nadal działa bez JavaScriptu (#2109).
 - Naprawione: powtarzające się przyciski „Zobacz” na liście powiadomień mają teraz dostępne nazwy powiązane z treścią własnej karty, aby można było odróżnić ich cele przy przechodzeniu po kontrolkach. Widoczny napis i działanie przycisków nie zmieniły się (#2062).
+- Naprawione: pusta zakładka „Ugotowane” na własnym profilu pokazuje teraz przycisk „Znajdź przepis” prowadzący do wyszukiwarki. Na profilu innej osoby ten przycisk się nie pojawia (#2054).
 - Wewnętrzne: ręczne migracje i migracje przed wdrożeniem Railway korzystają z tej samej blokady PostgreSQL. Gdy jeden przebieg już migruje bazę, drugi kończy się błędem zamiast działać równolegle albo zgłosić pozorny sukces (#2082).
 - Obserwowanie osoby albo tagu rozpoczęte przed sankcją nie dopisze relacji po zawieszeniu, zablokowaniu lub zamknięciu konta. Można nadal przestać obserwować istniejące tagi (#2091).
 - W wyszukiwarce każda lista znalezionych przepisów lub osób ma własny widoczny nagłówek także po wybraniu zakresu „Przepisy”, „Do 30 minut” albo „Ludzie”. Ułatwia to znalezienie wyników przez nawigację po nagłówkach (#2081).
