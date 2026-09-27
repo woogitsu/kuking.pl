@@ -49,7 +49,7 @@ class PelnaNazwaSkladnikaTest extends TestCase
         // przypadkiem przejść jako zachowanie składnika ani scalić nazw.
         $poEdycji = str_repeat('a', $dlugosc - 1).'y';
         $dane = $this->dane($poEdycji, $jednoPole);
-        $this->put(route('recipes.update', $recipe), $dane)->assertStatus(302)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$dane, 'content_revision' => $recipe->fresh()->content_revision])->assertStatus(302)->assertSessionHasNoErrors();
         $this->assertDatabaseCount('recipes', 1);
         $this->assertDatabaseCount('recipe_ingredients', 1);
         $this->assertDatabaseCount('ingredients', 2);
@@ -73,7 +73,7 @@ class PelnaNazwaSkladnikaTest extends TestCase
         $this->assertSame($tekst, RecipeIngredient::sole()->ingredient_text);
         $poEdycji = str_repeat('æ', 240);
         $dane = $this->dane($poEdycji, $jednoPole);
-        $this->put(route('recipes.update', $recipe), $dane)->assertStatus(302)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$dane, 'content_revision' => $recipe->fresh()->content_revision])->assertStatus(302)->assertSessionHasNoErrors();
         $this->assertDatabaseCount('ingredients', 1);
         $this->assertDatabaseCount('recipe_ingredients', 1);
         $this->assertSame($id, RecipeIngredient::sole()->ingredient_id);

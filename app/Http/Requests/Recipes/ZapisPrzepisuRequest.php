@@ -69,6 +69,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         $existing = $this->przepis();
 
         return [
+            'content_revision' => $existing === null ? ['prohibited'] : ['required', 'integer', 'min:0'],
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
             'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
             /*
@@ -115,6 +116,8 @@ final class ZapisPrzepisuRequest extends FormRequest
             'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
             'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
+            // Zamiennik(i) od autora (D-284) — wolny tekst, jak uwaga.
+            'ingredients.*.substitutes' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.substitutes']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -167,6 +170,10 @@ final class ZapisPrzepisuRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'content_revision.required' => 'Odśwież formularz przepisu przed zapisem — brakuje informacji, którą wersję edytujesz.',
+            'content_revision.integer' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.min' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.prohibited' => 'Przy dodawaniu nowego przepisu nie podawaj wersji edycji.',
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
             'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
@@ -282,6 +289,7 @@ final class ZapisPrzepisuRequest extends FormRequest
                     'text' => $row['text'] ?? '',
                     'group_name' => $row['group_name'] ?? null,
                     'note' => $row['note'] ?? null,
+                    'substitutes' => $row['substitutes'] ?? null,
                     'no_amount' => (bool) ($row['no_amount'] ?? false),
                 ],
                 $data['ingredients'] ?? [],

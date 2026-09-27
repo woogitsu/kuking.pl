@@ -38,9 +38,11 @@ class BudzetOdzyskiwaniaTest extends TestCase
         foreach (['recipes.store', 'recipes.update'] as $route) {
             $form = $this->form($dane, $route);
             $this->assertFalse($form->obciete);
-            $this->assertCount(727, $form->pola);
+            // 847 = 727 + 120 pól zamiennika składnika (D-284, jedno na wiersz).
+            $this->assertCount(847, $form->pola);
             $this->assertSame(str_repeat('"', 3999).'ą', collect($form->pola)->firstWhere('nazwa', 'steps[59][instruction]')['wartosc']);
             $this->assertSame(str_repeat('"', 299).'ą', collect($form->pola)->firstWhere('nazwa', 'ingredients[119][note]')['wartosc']);
+            $this->assertSame(str_repeat('"', 299).'ą', collect($form->pola)->firstWhere('nazwa', 'ingredients[119][substitutes]')['wartosc']);
             $encoded = [];
             foreach ($form->pola as $pole) {
                 $encoded[] = rawurlencode($pole['nazwa']).'='.rawurlencode($pole['wartosc']);
