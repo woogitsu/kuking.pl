@@ -4,7 +4,7 @@ Kuking rośnie krok po kroku. Tu piszemy, co się zmieniło — prostym językie
 bez fachowych słów. Pełna, techniczna lista wszystkich zmian (także tych,
 które widać tylko „pod maską”) jest w `CHANGELOG.md` w repozytorium.
 
-Numer wydania (np. „Alfa 0.68”) widzicie w stopce każdej strony, razem
+Numer wydania (np. „Alfa 0.68.005”) widzicie w stopce każdej strony, razem
 z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Spis wydań
@@ -46,6 +46,17 @@ Numer wersji w stopce każdej strony prowadzi teraz właśnie tutaj — na tę
 stronę. Kliknięcie otwiera ją od razu przy opisie bieżącego wydania, a nie
 od góry. Skrót commita i data w stopce zostają na swoim miejscu — nadal
 przydadzą się, gdy będziecie zgłaszać nam usterkę.
+
+### Numer wersji z końcówką wdrożenia
+
+Numer w stopce ma teraz dodatkową końcówkę, np. „Alfa 0.68.005” zamiast
+samego „Alfa 0.68” — dwa różne wdrożenia tego samego dnia dają się teraz
+odróżnić na pierwszy rzut oka, bez porównywania skrótów kodu z pamięci.
+Końcówka rośnie sama, przy każdym wdrożeniu, i wraca do „.001”, gdy
+zmienia się duży numer wydania. Przy każdej nowej funkcji na tej stronie
+zobaczycie teraz też, od którego dokładnie wydania działa — „od Alfa
+0.68.005”, i to na stałe: dopisek zostaje przy tym opisie, nawet gdy
+wydanie doczeka się własnego numeru i wprowadzka trafi do jego sekcji.
 
 ### Zróbcie swoją wersję cudzego przepisu
 
