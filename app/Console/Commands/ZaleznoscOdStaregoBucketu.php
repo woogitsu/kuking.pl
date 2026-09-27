@@ -146,9 +146,9 @@ class ZaleznoscOdStaregoBucketu extends Command
                         $braki[] = $co;
                     }
                 }
-            } catch (WariantyMetadanychNiepelne $e) {
+            } catch (WariantyMetadanychNiepelne) {
                 $niepewne++;
-                $this->warn('NIEPEWNE media '.$zdjecie->getKey().': '.$e->getMessage());
+                $this->warn('NIEPEWNE media '.$zdjecie->getKey().': metadata.variants puste albo uszkodzone.');
 
                 continue;
             } catch (Throwable $e) {

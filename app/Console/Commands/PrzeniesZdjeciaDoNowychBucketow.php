@@ -266,7 +266,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
             try {
                 $warianty = WariantyKontrakt::wyciagnij($zdjecie);
-            } catch (WariantyMetadanychNiepelne $e) {
+            } catch (WariantyMetadanychNiepelne) {
                 // KONTRAKT ZŁAMANY, NIE BRAK PLIKU (issue #1905). Do 26 września
                 // 2026 pusta/uszkodzona `metadata.variants` była nieodróżnialna
                 // od kompletu poprawnych wariantów — `foreach` po prostu nie
@@ -274,7 +274,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
                 // przestawienia `disk`. Dziś to jest jawny błąd danych: wiersz
                 // NIE jest ruszany (jak przy `WYNIK_BLAD`), a powód trafia do
                 // raportu z bezpiecznym identyfikatorem medium.
-                return [self::WYNIK_BLAD, 'metadata.variants niepełne: '.$e->getMessage()];
+                return [self::WYNIK_BLAD, 'metadata.variants niepełne: puste albo uszkodzone.'];
             }
 
             foreach ($warianty as $nazwa => $klucz) {

@@ -187,14 +187,14 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
             foreach ($warianty as $nazwa => $klucz) {
                 $doSprawdzenia[] = ['co' => 'wariant '.$nazwa, 'klucz' => $klucz, 'dysk' => $zdjecie->variantsDisk()];
             }
-        } catch (WariantyMetadanychNiepelne $e) {
+        } catch (WariantyMetadanychNiepelne) {
             // KONTRAKT ZŁAMANY, NIE BRAK PLIKU (issue #1905). Do 26 września
             // 2026 pusta/uszkodzona `metadata.variants` po prostu nie dawała
             // żadnego wariantu do sprawdzenia — wiersz kończył z pustym
             // `$braki`, czyli wyglądał identycznie jak komplet poprawnych
             // plików. `oryginał` (jeśli jest) sprawdzamy mimo to niżej —
             // złamany kontrakt wariantów nie mówi nic o oryginale.
-            $wpisNiepewny = ['co' => 'metadata.variants', 'klucz' => $e->getMessage(), 'werdykt' => 'NIEPEWNE'];
+            $wpisNiepewny = ['co' => 'metadata.variants', 'klucz' => 'puste albo uszkodzone', 'werdykt' => 'NIEPEWNE'];
         }
 
         $braki = [];
